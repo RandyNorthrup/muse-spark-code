@@ -5,6 +5,8 @@
 !dist/reviewer.js
 !dist/planMarkdown.js
 !dist/checkpointStore.js
+!dist/browserCheck.js
+!dist/browserRuntime.js
 !dist/review.js
 !dist/agentImport.js
 !dist/bundledSkills.js
@@ -12,11 +14,17 @@
 !dist/voice.js
 !dist/webFetch.js
 !dist/museCodeReviewer.js
+!dist/whatsNew.js
+!dist/whatsNew.json
 !dist/uiText.js
+!dist/validation.js
 !dist/searchWorker.js
 !dist/pageWorker.js
 !dist/webview/main.js
+!dist/webview/chunks/*.js
 !dist/webview/main.css
+!dist/webview/whatsNew.js
+!dist/webview/whatsNew.css
 !media/icon.svg
 !media/icon.png
 !resources/walkthrough/**
@@ -36,3 +44,4 @@
 !THIRD_PARTY_NOTICES.txt
 !docs/PRIVACY.md
 !vendor/high-quality-projects-skill/**
+!first-party-skills/**

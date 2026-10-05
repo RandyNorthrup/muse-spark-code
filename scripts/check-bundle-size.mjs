@@ -3,9 +3,12 @@
 // mirrors them) and change only with a CHANGELOG entry. Exits 1 when any production artifact exceeds
 // its budget or is missing.
 
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
+import { webviewStartupOutputs } from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
+// M99: bound the generated notes independently of their ZIP compression.
+const WHATS_NEW_CONTENT_BUDGET_KIB = 40
 
 /**
  * @type {ReadonlyArray<{ path: string; budgetKiB: number }>}
@@ -34,6 +37,19 @@ const BUDGETS = [
   // access, the flow and smol-toml), loaded on the first import: 100.0 KiB
   // when split out. Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/agentImport.js', budgetKiB: 125 },
+  // M81: the browser check's pipe, run and processes, required on the first
+  // check: 37.8 KiB when split out (zod/mini 14.8 of it). Measured size
+  // plus 15%, rounded up to 25 KiB (PLAN.md D6). 44.5 KiB after the RV81
+  // fixes; 49.8 KiB with A1's proxy, canaries and lifetimes (design spec v4
+  // §9.1 held it at 50; the runtime store went to its own bundle below).
+  // 50.5 KiB after A1's first review round (per-phase canary fixtures, the
+  // upstream head bound), with no module off the check's path to split out:
+  // 25 × ceil(1.15 × 50.5 / 25) = 75 KiB.
+  { path: 'dist/browserCheck.js', budgetKiB: 75 },
+  // M81 A1: the browser check's runtime acquisition (pin, download, bounded
+  // ZIP extraction, hashing, publication), loaded only to prepare a runtime:
+  // 37.2 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.
+  { path: 'dist/browserRuntime.js', budgetKiB: 50 },
   // M89: the bundled skills installer for Muse Code (the copy, the links and
   // zod's parser for the vendor record and the mark), loaded on first use:
   // 22.6 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.
@@ -53,14 +69,24 @@ const BUDGETS = [
   // side session, queue and approvals with M78's reviewer core. 45.4 KiB when
   // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/museCodeReviewer.js', budgetKiB: 75 },
+  // What's New (M99, PLAN.md D79), loaded on the first page or notice: the
+  // page's renderer, its content schema (zod's mini parser) and its tab.
+  // 34.8 KiB when split out, plus 15%, rounded up to 25 KiB.
+  { path: 'dist/whatsNew.js', budgetKiB: 50 },
+  { path: 'dist/whatsNew.json', budgetKiB: WHATS_NEW_CONTENT_BUDGET_KIB },
   // Shared English fallback; existing host budgets stay unchanged. Measured
   // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },
+  // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
+  { path: 'dist/validation.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // Web fetch's page converter (M69), on a worker started for each page:
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.
   { path: 'dist/pageWorker.js', budgetKiB: 300 },
   { path: 'dist/webview/main.js', budgetKiB: 900 },
+  // What's New's page script (M99): it only passes clicks back to the host.
+  // 0.7 KiB when made, plus 15%, rounded up to 25 KiB.
+  { path: 'dist/webview/whatsNew.js', budgetKiB: 25 },
   // The ACP agent (M63, PLAN.md D62), a process of its own installed once,
   // never loaded by VS Code: the engine without the webview or the Model API
   // backend (dist/modelApi.js, M57), plus the ACP SDK and the classic zod it
@@ -76,13 +102,30 @@ for (const { path, budgetKiB } of BUDGETS) {
     console.log(`MISS ${path}: not built (budget ${budgetKiB} KiB)`)
     continue
   }
-  const sizeKiB = statSync(path).size / BYTES_PER_KIB
+  const files =
+    path === 'dist/webview/main.js'
+      ? webviewStartupOutputs(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')))
+      : [path]
+  const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   const status = sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'
   if (sizeKiB > budgetKiB) {
     hasFailure = true
   }
   console.log(`${status} ${path}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
 }
+
+// TRAIN13B: optional UI chunks, 38.6 KiB + 15%, rounded to 25 KiB.
+const WEBVIEW_DEFERRED_BUDGET_KIB = 50
+const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+const eager = new Set(webviewStartupOutputs(webview))
+const deferredKiB =
+  Object.keys(webview.outputs)
+    .filter((file) => file.endsWith('.js') && !eager.has(file))
+    .reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+if (deferredKiB > WEBVIEW_DEFERRED_BUDGET_KIB) hasFailure = true
+console.log(
+  `${deferredKiB <= WEBVIEW_DEFERRED_BUDGET_KIB ? 'ok  ' : 'OVER'} dist/webview deferred JS: ${deferredKiB.toFixed(1)} KiB (budget ${WEBVIEW_DEFERRED_BUDGET_KIB} KiB)`,
+)
 
 if (hasFailure) {
   console.error('bundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)')

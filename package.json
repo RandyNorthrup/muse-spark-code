@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.12.1",
+  "version": "0.13.0",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
@@ -235,6 +235,16 @@
       {
         "command": "museSpark.removeBundledSkills",
         "title": "%command.removeBundledSkills.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.downloadBrowserCheckRuntime",
+        "title": "%command.downloadBrowserCheckRuntime.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.showWhatsNew",
+        "title": "%command.showWhatsNew.title%",
         "category": "%command.category%"
       }
     ],
@@ -527,19 +537,19 @@
         },
         "museSpark.modelApiWebSearch": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiWebSearch.description%",
           "scope": "machine"
         },
         "museSpark.modelApiImageGeneration": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiImageGeneration.description%",
           "scope": "machine"
         },
         "museSpark.modelApiVoice": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiVoice.description%",
           "scope": "machine"
         },
@@ -559,25 +569,25 @@
         },
         "museSpark.modelApiScheduledPrompts": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiScheduledPrompts.description%",
           "scope": "machine"
         },
         "museSpark.modelApiSubagents": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiSubagents.description%",
           "scope": "machine"
         },
         "museSpark.modelApiBestOfN": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiBestOfN.description%",
           "scope": "machine"
         },
         "museSpark.modelApiHooks": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiHooks.description%",
           "scope": "machine"
         },
@@ -641,7 +651,7 @@
         },
         "museSpark.modelApiReplyUsage": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiReplyUsage.description%"
         },
         "museSpark.modelApiSessionBudgetUsd": {
@@ -659,7 +669,7 @@
         },
         "museSpark.modelApiObservationPacking": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiObservationPacking.description%",
           "scope": "machine"
         },
@@ -673,6 +683,12 @@
           "type": "boolean",
           "default": true,
           "description": "%config.bundledSkills.description%",
+          "scope": "machine"
+        },
+        "museSpark.showWhatsNewOnUpdate": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.showWhatsNewOnUpdate.description%",
           "scope": "machine"
         },
         "museSpark.modelApiCommandRules": {
@@ -855,7 +871,7 @@
         },
         "museSpark.modelApiAutoReviewer": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiAutoReviewer.description%",
           "scope": "machine"
         },
@@ -863,6 +879,50 @@
           "type": "boolean",
           "default": true,
           "description": "%config.museCodeAutoReviewer.description%",
+          "scope": "machine"
+        },
+        "museSpark.browserCheckExtraHosts": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "description": "%config.browserCheckExtraHosts.description%",
+          "scope": "machine"
+        },
+        "museSpark.browserCheckRuntime": {
+          "type": "string",
+          "enum": [
+            "ask",
+            "download",
+            "off"
+          ],
+          "enumDescriptions": [
+            "%config.browserCheckRuntime.enumDescriptions.ask%",
+            "%config.browserCheckRuntime.enumDescriptions.download%",
+            "%config.browserCheckRuntime.enumDescriptions.off%"
+          ],
+          "default": "ask",
+          "description": "%config.browserCheckRuntime.description%",
+          "scope": "machine"
+        },
+        "museSpark.paidDailyBudgetUsd": {
+          "type": "number",
+          "default": 5,
+          "minimum": 0.5,
+          "maximum": 500,
+          "description": "%config.paidDailyBudgetUsd.description%",
+          "scope": "machine"
+        },
+        "museSpark.dictationEngine": {
+          "type": "string",
+          "enum": [
+            "system",
+            "museVoice"
+          ],
+          "default": "system",
+          "description": "%config.dictationEngine.description%",
           "scope": "machine"
         }
       }
@@ -945,7 +1005,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",
@@ -960,7 +1020,7 @@
     "quality": "run-s quality:gates test:a11y security:secrets security:sast",
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",
-    "package": "vsce package --no-dependencies",
+    "package": "npm run build && node scripts/package-vsix.mjs",
     "package:acp": "node scripts/build.mjs --production && node scripts/exec-schema.mjs --check && node scripts/package-acp.mjs",
     "images": "node scripts/render-images.mjs",
     "prepare": "husky",

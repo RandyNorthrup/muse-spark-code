@@ -24,6 +24,7 @@ import { environmentValue, setEnvironmentVariable } from '../../core/backends/mu
 import type { McpStdioLaunch } from '../../core/backends/modelapi/mcp/servers'
 import type { McpChildProcess } from '../../core/backends/modelapi/mcp/stdio'
 import { absolutePathEntries } from '../../core/executables'
+import { redactSecrets } from '../../core/redact'
 import { MCP_STDIO_ENV_ALLOWLIST, TREE_EXIT_WAIT_MS } from '../../shared/constants'
 import { killTree, sweepExitedTree, type TreeRoot, treeSpawnOptions } from '../processTree'
 import { spawnMcpJob } from './mcpJobLaunch'
@@ -273,11 +274,11 @@ export function observeMcpProcess(
     exited(startError ?? exitDescription(code ?? processCode, signal ?? processSignal))
   })
   child.onStartError((error) => {
-    startError = `it could not be started: ${error.message}`
+    startError = `it could not be started: ${redactSecrets(error.message)}`
   })
   // A write to a server that has gone is reported by its exit, not thrown.
   child.stdin.on('error', (error) => {
-    deps.log(`an MCP server's input could not be written: ${error.message}`)
+    deps.log(`an MCP server's input could not be written: ${redactSecrets(error.message)}`)
   })
   return {
     write: (bytes) => {

@@ -337,7 +337,7 @@ describe('App shell', () => {
           ],
           archivedIds: [],
         })
-        fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+        fireEvent.keyDown(await screen.findByRole('combobox'), { key: 'Enter' })
       } else {
         fireEvent.click(userMenuButtons()[1]!)
         fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
@@ -476,7 +476,7 @@ describe('App sign-in gate', () => {
     expect(screen.getByRole('button', { name: 'Open sign-in page' })).toBeInTheDocument()
   })
 
-  it('offers CLI install while a Model API key keeps the backend signed in', () => {
+  it('offers CLI install while a Model API key keeps the backend signed in', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'authState',
@@ -485,7 +485,7 @@ describe('App sign-in gate', () => {
       hasCli: false,
       installCommand: 'irm https://dev.meta.ai/install.ps1 | iex',
     })
-    openUsageDialog()
+    await openUsageDialog()
     fireEvent.click(screen.getByRole('button', { name: 'Install Muse Code' }))
     expect(screen.getByText('irm https://dev.meta.ai/install.ps1 | iex')).toBeInTheDocument()
     expect(postMessage).not.toHaveBeenCalledWith({ type: 'installMuseCode' })
@@ -512,7 +512,7 @@ describe('App sign-in gate', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'signIn', method: 'browser' })
   })
 
-  it('offers an extra Model API key while Muse Code remains signed in', () => {
+  it('offers an extra Model API key while Muse Code remains signed in', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'authState',
@@ -521,7 +521,7 @@ describe('App sign-in gate', () => {
       hasCli: true,
       hasCliSession: true,
     })
-    openUsageDialog()
+    await openUsageDialog()
     fireEvent.click(screen.getByRole('button', { name: 'Add Model API key' }))
     expect(postMessage).toHaveBeenCalledWith({ type: 'signIn', method: 'apiKey' })
   })
@@ -580,7 +580,7 @@ describe('App conversation', () => {
     ).toBeInTheDocument()
   })
 
-  it('moves a running command to the background and stops it from its row (M46)', () => {
+  it('moves a running command to the background and stops it from its row (M46)', async () => {
     const postMessage = renderReady()
     deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't1' } })
     const call = {
@@ -606,7 +606,7 @@ describe('App conversation', () => {
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'stopTask', itemId: 'c1' })
     // The header pill counts it, and the map's Stop all reaches the host.
     fireEvent.click(screen.getByRole('button', { name: '1 background task' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Stop all' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Stop all' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'stopAllTasks' })
   })
 
@@ -691,7 +691,8 @@ describe('App conversation', () => {
       // simple commands, and the reviewer (on by default, M90) may allow others once.
       'ManualMuse will ask before running commands; Muse Code edits workspace files without askingCurrent',
       'Edit automaticallyOn Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
-      'PlanMuse will explore the code and present a plan before editing',
+      // Plan on Muse Code refuses commands, not file-tool edits (musecode-write-asks).
+      'PlanMuse plans first; Muse Code refuses commands, but its file tools can still edit files without asking',
       'AutoMuse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest',
     ])
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Edit automatically/ }))
@@ -1094,11 +1095,11 @@ function openPalette() {
 }
 
 /** Opens the account modal through the same palette action a user selects. */
-function openUsageDialog() {
+async function openUsageDialog() {
   const filter = openPalette()
   fireEvent.change(filter, { target: { value: '/usage' } })
   fireEvent.keyDown(filter, { key: 'Enter' })
-  return screen.getByRole('dialog', { name: 'Account & usage' })
+  return await screen.findByRole('dialog', { name: 'Account & usage' })
 }
 
 describe('App palette', () => {
@@ -1221,6 +1222,9 @@ describe('App palette', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openKeybindings' })
     run('Output log')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openLog' })
+    // M99: the release notes of this version, in an editor tab.
+    run('What’s New')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showWhatsNew' })
     run('Sign out')
     expect(postMessage).toHaveBeenCalledWith({ type: 'signOut' })
     run('/compact')
@@ -1974,9 +1978,9 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     weekly: { usedPercent: 7, resetsAtMs: Date.now() + 86_400_000 },
   }
 
-  it('opens Account & usage from /usage, asks the host, renders the report, closes on Escape', () => {
+  it('opens Account & usage from /usage, asks the host, renders the report, closes on Escape', async () => {
     const postMessage = renderReady()
-    const dialog = openUsageDialog()
+    const dialog = await openUsageDialog()
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'readUsage' })
     expect(dialog.parentElement).toHaveClass('modal-backdrop')
     expect(dialog).toHaveTextContent('Reading usage…')
@@ -1990,9 +1994,9 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     expect(document.activeElement).toBe(textarea())
   })
 
-  it('hides old account usage immediately on the boundary clear before auth replies', () => {
+  it('hides old account usage immediately on the boundary clear before auth replies', async () => {
     renderReady()
-    const dialog = openUsageDialog()
+    const dialog = await openUsageDialog()
     deliver({ type: 'usageReport', backend: 'museCode', subscription })
     expect(dialog).toHaveTextContent('muse-pro')
     deliver({ type: 'conversationCleared', accountBoundary: true })
@@ -2300,9 +2304,9 @@ describe('App webview and UI state (M25)', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('makes everything behind a modal inert', () => {
+  it('makes everything behind a modal inert', async () => {
     renderReady()
-    openUsageDialog()
+    await openUsageDialog()
     expect(screen.getByRole('main')).toHaveAttribute('inert')
     expect(document.querySelector('.composer-area')).toHaveAttribute('inert')
     expect(document.querySelector('.header-area')).toHaveAttribute('inert')
@@ -3035,7 +3039,7 @@ describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
     ['a declined paid-use popup', 'warning', () => UI_TEXT.bestOfNConsentDeclined],
     ['a missing budget journal', 'warning', () => UI_TEXT.bestOfNBudgetUnavailable],
     ['a host that failed to start', 'error', () => `${UI_TEXT.bestOfNTitle}: spawn failed`],
-  ] as const)('keeps the form and its prompt after %s', (_refusal, level, text) => {
+  ] as const)('keeps the form and its prompt after %s', async (_refusal, level, text) => {
     const postMessage = renderReady()
     deliver({
       type: 'paidState',
@@ -3047,8 +3051,8 @@ describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
       },
     })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.boardTitle }))
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.boardStartBestOfN }))
-    const prompt = screen.getByLabelText(UI_TEXT.bestOfNPromptLabel)
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.boardStartBestOfN }))
+    const prompt = await screen.findByLabelText(UI_TEXT.bestOfNPromptLabel)
     fireEvent.change(prompt, { target: { value: 'leave a note' } })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.bestOfNStart }))
     expect(postMessage).toHaveBeenLastCalledWith(
@@ -3270,5 +3274,86 @@ describe('App: the M87 wiring (PLAN.md D66)', () => {
       turnId: 't2',
       userMessageId: 'u3',
     })
+  })
+})
+
+describe('App: explicit held prompt resend (RVM92E P2)', () => {
+  it.each(['newer draft', ''])(
+    'sends the held prompt and its attachments while preserving draft %j',
+    (newer) => {
+      const postMessage = renderReady()
+      const text = `deploy with sk-${'k'.repeat(24)} now`
+      addTestImage()
+      fireEvent.change(textarea(), { target: { value: text } })
+      fireEvent.keyDown(textarea(), { key: 'Enter' })
+      fireEvent.change(textarea(), { target: { value: newer } })
+      deliver({
+        type: 'secretPromptDetected',
+        localId: 'local-1',
+        redactedText: 'deploy with [redacted] now',
+      })
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+      const sent = postMessage.mock.calls.at(-1)?.[0]
+      expect(
+        sent?.type === 'sendMessage' && sent.text === text && sent.secretAccepted === true,
+      ).toBe(true)
+      expect(sent).toMatchObject({ attachmentIds: ['att-1'] })
+      expect(textarea().value).toBe(newer)
+    },
+  )
+  it('resends the held reference while preserving a newer composer reference', () => {
+    const store = createUiStore({
+      ...initialUiState,
+      phase: 'ready',
+      settings: testSettings,
+      auth: { ...initialUiState.auth, status: 'signedIn' },
+    })
+    const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+    render(<App postMessage={postMessage} newLocalId={() => 'local-1'} store={store} />)
+    const original = {
+      intent: 'reply',
+      role: 'assistant',
+      entryId: 'a1',
+      text: 'original',
+    } as const
+    const newer = { ...original, entryId: 'a2', text: 'newer' }
+    act(() => {
+      store.dispatch({ type: 'referenceSet', reference: original })
+    })
+    fireEvent.change(textarea(), { target: { value: `use sk-${'k'.repeat(24)}` } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    fireEvent.change(textarea(), { target: { value: 'newer draft' } })
+    act(() => {
+      store.dispatch({ type: 'referenceSet', reference: newer })
+    })
+    act(() => {
+      store.dispatch({
+        type: 'hostMessage',
+        message: {
+          type: 'secretPromptDetected',
+          localId: 'local-1',
+          redactedText: 'use [redacted]',
+        },
+        at: 1,
+      })
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+    expect(postMessage.mock.calls.at(-1)?.[0]).toMatchObject({
+      reference: original,
+      secretAccepted: true,
+    })
+    expect(store.getState().reference).toEqual(newer)
+  })
+
+  it('keeps authentication admission during a transient Model API sign-in', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+    fireEvent.change(textarea(), { target: { value: `use sk-${'k'.repeat(24)}` } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    deliver({ type: 'secretPromptDetected', localId: 'local-1', redactedText: 'use [redacted]' })
+    deliver({ type: 'authState', status: 'signingIn', backend: 'modelApi' })
+    const before = postMessage.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+    expect(postMessage.mock.calls).toHaveLength(before)
   })
 })

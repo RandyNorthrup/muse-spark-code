@@ -173,11 +173,16 @@ function reloaded(stored: unknown): StoredSession {
 }
 
 describe('observation packing on the host', () => {
-  it('offers recall_output only while packing runs', async () => {
+  it('offers recall_output only when this request carries a packed observation', async () => {
     const packed = await setup(true)
     packed.api.script({ text: 'hi' })
     await sendText(packed, 'hi')
-    expect(toolsOf(packed.api, 0)).toContain(MODEL_API_TOOLS.recallOutput)
+    expect(toolsOf(packed.api, 0)).not.toContain(MODEL_API_TOOLS.recallOutput)
+    await readThenAsk(packed)
+    expect(toolsOf(packed.api, 1)).not.toContain(MODEL_API_TOOLS.recallOutput)
+    expect(toolsOf(packed.api, 2)).not.toContain(MODEL_API_TOOLS.recallOutput)
+    expect(toolsOf(packed.api, 3)).not.toContain(MODEL_API_TOOLS.recallOutput)
+    expect(toolsOf(packed.api, 4)).toContain(MODEL_API_TOOLS.recallOutput)
     await packed.host.close()
 
     const plain = await setup(false)

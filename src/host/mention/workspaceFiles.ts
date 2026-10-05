@@ -7,6 +7,7 @@
 // config, PLAN.md D24), only the file search is used. Both list the first
 // workspace folder only, the root every mention is relative to (D27).
 
+import { redactSecrets } from '../../core/redact'
 import { GIT_LS_FILES_ARGS } from '../../shared/constants'
 import type { Logger } from '../logger'
 
@@ -63,7 +64,7 @@ export function createWorkspaceFileLister(
       const output = await deps.runGit(GIT_LS_FILES_ARGS, deps.workspaceRoot)
       return parseNulSeparated(output)
     } catch (error: unknown) {
-      const reason = error instanceof Error ? error.message : String(error)
+      const reason = redactSecrets(error instanceof Error ? error.message : String(error))
       deps.log.warn(`git ls-files unavailable (${reason}); .gitignore is not applied to mentions`)
       return await deps.findFiles()
     }
