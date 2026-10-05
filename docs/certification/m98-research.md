@@ -203,18 +203,18 @@ separate judge model too. Round 2 measured the same-model techniques on the
 same 40 labelled items. Every cloud call was **batched**: the 40 commands
 form one state, and one call answers all 40.
 
-| Model (provider)                     | Technique                                                 | Accuracy |  Brier | ECE (5) | Latency for 40 | Cost (USD)          | Notes                                                                                              |
-| ------------------------------------ | --------------------------------------------------------- | -------: | -----: | ------: | -------------- | ------------------- | -------------------------------------------------------------------------------------------------- |
-| `gpt-4o-mini` (OpenRouter → OpenAI)  | logprobs, one line per id, top-5                          |     1.00 | 0.0000 |  0.0005 | 3.4 s          | 0.000206 (reported) | **Top-5 per answer**: OpenAI's top-1 earlier was the reasoning model's, so capability is per model |
-| `deepseek-flash`, thinking off       | logprobs, batched, top-5                                  |     1.00 | 0.0000 |  0.0000 | 2.2 s          | ≈ 0.0004            | The logprob "truth" for the same-model comparison                                                  |
-| `deepseek-flash`, thinking off       | stated confidence, JSON mode                              |     1.00 | 0.0074 |  0.0490 | 2.0 s          | ≈ 0.0004            | 12 distinct values. Platt (leave-one-out): Brier 0.0001                                            |
-| `deepseek-flash`, thinking off       | stated, inverse framing ("is it safe?"), inverted         |     1.00 | 0.0029 |  0.0278 | 2.4 s          | ≈ 0.0003            | 384 of 643 prompt tokens came from the cache                                                       |
-| `deepseek-flash`                     | contrastive: the mean of both framings                    |     1.00 | 0.0039 |  0.0384 | (one call)     | —                   | The single framing gave 0.0074; the gain is small on an easy set                                   |
-| Llama-3.3-70B (Together)             | stated confidence, JSON mode                              |    0.975 | 0.0183 |  0.0275 | 9.9 s          | 0.00099             | One false positive (`npm run build` 0.80). Its logprob call returned 503 twice                     |
-| Claude Haiku 4.5 (Anthropic)         | stated confidence, forced tool with a 40-field schema     |     1.00 | 0.0075 |  0.0575 | 4.6 s          | 0.0056              | 21 distinct values                                                                                 |
-| Muse Spark 1.3 contributor (Meta)    | stated confidence, `json_schema` strict, effort `minimal` |     1.00 | 0.0025 |  0.0297 | 14.2 s         | 0.00025             | 958 output tokens, 668 of them reasoning. `response_format` json_schema accepted                   |
-| `qwen3:4b-instruct-2507` (Win11 GPU) | stated confidence, Ollama `format` schema, per item       |    0.925 | 0.0750 |  0.0750 | 0.51 s each    | free                | **Degenerate:** only 0 or 100. Small models need logprobs                                          |
-| `qwen3:4b-instruct-2507` (Win11 GPU) | binary from top-1 against top-5                           |    0.925 | 0.0710 |  0.0915 | 0.14 s each    | free                | **Identical** on all 40 items (largest difference 0.0000)                                          |
+| Model (provider)                     | Technique                                                 | Accuracy |  Brier | ECE (5) | Latency for 40 | Cost (USD)          | Notes                                                                                                  |
+| ------------------------------------ | --------------------------------------------------------- | -------: | -----: | ------: | -------------- | ------------------- | ------------------------------------------------------------------------------------------------------ |
+| `gpt-4o-mini` (OpenRouter → OpenAI)  | logprobs, one line per id, top-5                          |     1.00 | 0.0000 |  0.0005 | 3.4 s          | 0.000206 (reported) | **Top-5 per answer**: OpenAI's top-1 earlier was the reasoning model's, so capability is per model     |
+| `deepseek-flash`, thinking off       | logprobs, batched, top-5                                  |     1.00 | 0.0000 |  0.0000 | 2.2 s          | ≈ 0.0004            | The logprob "truth" for the same-model comparison                                                      |
+| `deepseek-flash`, thinking off       | stated confidence, JSON mode                              |     1.00 | 0.0074 |  0.0490 | 2.0 s          | ≈ 0.0004            | 12 distinct values. Platt (leave-one-out): Brier 0.0001                                                |
+| `deepseek-flash`, thinking off       | stated, inverse framing ("is it safe?"), inverted         |     1.00 | 0.0029 |  0.0278 | 2.4 s          | ≈ 0.0003            | 384 of 643 prompt tokens came from the cache                                                           |
+| `deepseek-flash`                     | contrastive: the mean of both framings                    |     1.00 | 0.0039 |  0.0384 | (two calls)    | —                   | The single framing gave 0.0074; the gain is small on an easy set                                       |
+| Llama-3.3-70B (Together)             | stated confidence, JSON mode                              |    0.975 | 0.0183 |  0.0275 | 9.9 s          | 0.00099             | One false positive (`npm run build` 0.80). Its logprob call returned 503 twice                         |
+| Claude Haiku 4.5 (Anthropic)         | stated confidence, forced tool with a 40-field schema     |     1.00 | 0.0075 |  0.0575 | 4.6 s          | 0.0056              | 21 distinct values                                                                                     |
+| Muse Spark 1.3 contributor (Meta)    | stated confidence, `json_schema` strict, effort `minimal` |     1.00 | 0.0025 |  0.0297 | 14.2 s         | 0.00025             | 958 output tokens, 668 of them reasoning. `response_format` json_schema accepted                       |
+| `qwen3:4b-instruct-2507` (Win11 GPU) | stated confidence, Ollama `format` schema, per item       |    0.925 | 0.0750 |  0.0750 | 0.51 s each    | free                | **Degenerate:** only 0 or 100. Small models need logprobs                                              |
+| `qwen3:4b-instruct-2507` (Win11 GPU) | binary from top-1 against top-5                           |    0.925 | 0.0710 |  0.0915 | 0.14 s each    | free                | **Identical** on these 40 prompts (largest difference 0.0000); not a general result, hence D77's floor |
 
 **The side request sharing the cached prefix** (Haiku 4.5): a "main" request
 with a 4,357-token system prefix marked `cache_control` wrote 4,357 cached
@@ -244,8 +244,23 @@ of the human labels did not help at 40 items (0.725 and 0.675). A head needs
 hundreds of labels per family. It is an optional fast path with a fallback,
 not a default.
 
-**Same model and separate judge combined** (computed offline from the
-per-item answers above; `tev1:4b` is the separate judge):
+**Same model and separate judge combined: an offline prototype, not the
+specified algorithm.** These numbers were computed offline from the per-item
+answers above, with `tev1:4b` as the separate judge. The review of
+2026-10-04 (RVM98) found three differences from D77's design:
+
+- **The gate.** The prototype asked the same model when `|2p − 1|` was
+  under 0.8, which gave 17 follow-ups. D77's entropy confidence
+  (`1 − H(p)/ln 2`) gives 28 at the same threshold (8 against 19 at 0.6,
+  22 against 35 at 0.9). Under the high-stakes rule, a destructive-risk
+  family asks the same model on all 40.
+- **The weights.** Equal raw logit weights, not fitted profile weights.
+- **The contrastive row.** It combines two separate calls
+  (`deepseek/stated-batch` and `deepseek/stated-contrast`), not the
+  one-call form D77 specifies.
+
+Forty easy items support these as smoke measurements only, never as
+calibration or superiority results.
 
 | Same model joined with `tev1:4b` | Cascade at 0.8: items that asked the same model | Cascade accuracy | Cascade Brier | Ensemble Brier |
 | -------------------------------- | ----------------------------------------------: | ---------------: | ------------: | -------------: |
@@ -257,8 +272,9 @@ per-item answers above; `tev1:4b` is the separate judge):
 | `qwen3:4b-instruct`, stated      |                                              17 |            0.925 |        0.0758 |         0.0747 |
 
 - **Against the separate judge alone** (accuracy 0.975, Brier 0.031), every
-  frontier same model in the cascade fixed its one miss (`git stash clear`),
-  and asked the same model on fewer than half the items.
+  frontier same model in the prototype cascade fixed its one miss
+  (`git stash clear`). The prototype asked the same model on 17 of 40
+  items; the specified entropy gate would ask on 28.
 - **With "caution" combining** (the more cautious answer wins), every
   cascade kept 20 of 20 destructive commands flagged, with no new false
   positive beyond Llama's.
