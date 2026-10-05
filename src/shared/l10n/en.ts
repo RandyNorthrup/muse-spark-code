@@ -2339,7 +2339,11 @@ export const EN = {
   // {provider}: the preset's name.
   providerConnect: 'Connect {provider} account',
   providerConnectWaiting: 'Waiting for {provider} in the browser…',
+  // The OAuth loopback's callback page, shown in the browser.
+  oauthCallbackDone: 'You can close this window and return to VS Code.',
   providerKeyPrompt: '{provider} API key',
+  // {provider}: the preset's name. Said under the password box while typing.
+  providerKeyInvalid: 'This does not look like a {provider} key.',
   // {origin}: the address the credential is sent to, and no other.
   keyStoredNote: 'Stored in your system keychain; sent only to {origin}.',
   changeKey: 'Change key',

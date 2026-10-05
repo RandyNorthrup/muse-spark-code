@@ -76,6 +76,8 @@ const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
 const VOICE_OUTFILE = 'dist/voice.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
+const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
+const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -221,6 +223,18 @@ const museCodeReviewerOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const modelsPanelOptions = {
+  ...common,
+  plugins: [sharedUiText],
+  entryPoints: [MODELS_PANEL_ENTRY],
+  outfile: MODELS_PANEL_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
   plugins: [sharedUiText],
@@ -345,6 +359,7 @@ if (isWatch) {
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
     esbuild.context(museCodeReviewerOptions),
+    esbuild.context(modelsPanelOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
@@ -366,6 +381,7 @@ if (isWatch) {
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
+    modelsPanel: esbuild.build(modelsPanelOptions),
     uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
@@ -400,6 +416,7 @@ if (isWatch) {
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
+  reportSize(MODELS_PANEL_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)

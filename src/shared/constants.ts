@@ -52,11 +52,38 @@ export const COMMAND_IDS = {
   installBundledSkills: 'museSpark.installBundledSkills',
   removeBundledSkills: 'museSpark.removeBundledSkills',
   // M95 (PLAN.md D74): bring-your-own model providers. Lane K registers the
-  // handlers; lane 0 wires the ids so the manifest and its tests stay whole.
+  // handlers through the models-panel bundle loader; lane 0 wires the ids so
+  // the manifest and its tests stay whole.
   startWithOwnModel: 'museSpark.startWithOwnModel',
   modelsAndAgents: 'museSpark.modelsAndAgents',
   addModelProvider: 'museSpark.addModelProvider',
 } as const
+
+// M95 lane K (PLAN.md D74): the Models & Agents panel host. The panel's host
+// side and the quick pick build to dist/modelsPanel.js; activation keeps only
+// the command registrations and the loader.
+export const MODELS_PANEL_VIEW_TYPE = 'museSpark.modelsPanel'
+export const MODELS_PANEL_BUNDLE_FILE = 'modelsPanel.js'
+export const MODELS_WEBVIEW_SCRIPT_FILE = 'models.js'
+/** SecretStorage account names are `museSpark.provider.<id>` (D74). */
+export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
+/** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
+export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
+/** A removed provider's secret waits ten seconds behind Undo (D74). */
+export const PROVIDER_UNDO_WINDOW_MS = 10 * 1000
+/** A model scan is reused while fresher than this (D74). */
+export const PROVIDER_SCAN_STALE_MS = 24 * 60 * 60 * 1000
+/** How long Scan this computer waits on one loopback port (D74). */
+export const LOCAL_PROBE_TIMEOUT_MS = 3 * 1000
+/** How much of a probe answer the panel shows (D74). */
+export const LOCAL_PROBE_SNIPPET_CHARS = 500
+/**
+ * Lane I's providers bundle (PLAN.md D6): the lane-P/T seam the Models
+ * panel's factory is composed with. Lane I adopts this name with its entry.
+ */
+export const PROVIDERS_BUNDLE_FILE = 'providers.js'
+/** An import file above this is refused rather than parsed (D74). */
+export const PROVIDER_IMPORT_MAX_BYTES = 1024 * 1024
 
 // Extension-private `globalState` keys (never machine-wide configuration).
 export const GLOBAL_STATE_KEYS = {
@@ -83,6 +110,10 @@ export const GLOBAL_STATE_KEYS = {
   bundledSkillsInstallDeclined: 'museSpark.bundledSkillsInstallDeclined',
   /** The vendored tag whose Update offer was answered Not now (M89): a newer tag asks again. */
   bundledSkillsUpdateDeclined: 'museSpark.bundledSkillsUpdateDeclined',
+  /** The model scans' cache with the time each scan was fetched (M95 lane K). */
+  providerScanCache: 'museSpark.providerScanCache',
+  /** Removals waiting out their Undo window, finished at the next start (M95 lane K). */
+  providerPendingRemovals: 'museSpark.providerPendingRemovals',
 } as const
 
 // VS Code `when`-clause context keys the extension maintains.
@@ -2695,6 +2726,8 @@ export const JSON_RPC_ERRORS = {
 export const HTTP_STATUS = {
   ok: 200,
   accepted: 202,
+  /** A 2xx answer ends below this (M95 lane K: the local probe). */
+  multipleChoices: 300,
   badRequest: 400,
   unauthorized: 401,
   forbidden: 403,

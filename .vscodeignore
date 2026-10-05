@@ -11,6 +11,7 @@
 !dist/codeIntel.js
 !dist/voice.js
 !dist/museCodeReviewer.js
+!dist/modelsPanel.js
 !dist/uiText.js
 !dist/searchWorker.js
 !dist/pageWorker.js

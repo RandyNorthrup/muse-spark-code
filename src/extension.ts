@@ -149,6 +149,8 @@ import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictati
 import { voiceLoader } from './host/voice/voiceBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
+import { modelsPanelLoader, providersSeamLoader } from './host/models/modelsPanelBundle'
+import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
   BACKEND_SETTING,
@@ -176,6 +178,9 @@ import {
   BUNDLED_SKILLS_SETTING,
   CHECKPOINT_STORE_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
+  MODELS_PANEL_BUNDLE_FILE,
+  PROVIDERS_BUNDLE_FILE,
+  PROVIDER_IMPORT_MAX_BYTES,
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
@@ -1709,7 +1714,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           setting: currentSettings().backend,
           hasCli: backend.resolveLaunch().ok,
           hasCliSession,
-          hasStoredKey: async () => (await credentials.getApiKey()) !== undefined,
+          // A provider's secret counts as a Model API credential (M95, D74).
+          hasStoredKey: async () => await credentials.hasModelApiCredential(),
         }),
       async (kind): Promise<AgentHost> =>
         kind === 'modelApi' ? await modelApi.ensureHost() : await backend.ensureHost(),
@@ -2258,6 +2264,92 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     new vscode.RelativePattern(vscode.Uri.file(skillsHome), PERSONAL_SKILLS_GLOB),
   )
 
+  // Models & Agents (M95 lane K, PLAN.md D74, D6): the panel bundle and the
+  // lane-P/T seam load on the first Models action; activation keeps only
+  // these registrations and the loaders. Until lanes P and I merge, the
+  // seam load refuses and each command says the panel is unavailable.
+  const modelsPanelBundle = modelsPanelLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_PANEL_BUNDLE_FILE).fsPath,
+    log,
+  })
+  const providersSeamBundle = providersSeamLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', PROVIDERS_BUNDLE_FILE).fsPath,
+    log,
+  })
+  /** Asks the conversation to set the composer's model (its refusal stands). */
+  const setComposerModel = async (modelRef: string): Promise<void> => {
+    const surface = registry.active
+    if (surface === undefined) {
+      await openConversation()
+      const opened = registry.active
+      if (opened !== undefined) {
+        await controllerFor(opened).handle({ type: 'setModel', modelId: modelRef })
+      }
+      return
+    }
+    await controllerFor(surface).handle({ type: 'setModel', modelId: modelRef })
+  }
+  /** `museSpark.suggestedProvider` as written: a preset id at most. */
+  const suggestedProviderSetting = (): string => {
+    const raw: unknown = vscode.workspace
+      .getConfiguration(SETTINGS_SECTION)
+      .get('suggestedProvider')
+    return typeof raw === 'string' ? raw : ''
+  }
+  const writeProvidersExportFile = async (text: string): Promise<void> => {
+    const target = await vscode.window.showSaveDialog({
+      filters: { JSON: ['json'] },
+      saveLabel: UI_TEXT.providerExport,
+    })
+    if (target?.scheme !== 'file') {
+      return
+    }
+    await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(text))
+  }
+  const readProvidersImportFile = async (): Promise<string | undefined> => {
+    const [target] =
+      (await vscode.window.showOpenDialog({
+        filters: { JSON: ['json'] },
+        canSelectMany: false,
+      })) ?? []
+    if (target?.scheme !== 'file') {
+      return undefined
+    }
+    const bytes = await vscode.workspace.fs.readFile(target)
+    if (bytes.length > PROVIDER_IMPORT_MAX_BYTES) {
+      throw new Error(UI_TEXT.textFileTooLarge)
+    }
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+    } catch {
+      throw new Error(UI_TEXT.textFileInvalid)
+    }
+  }
+  let modelsFeatures: ModelsPanelFeatures | undefined
+  const ensureModelsFeatures = (): ModelsPanelFeatures => {
+    if (modelsFeatures === undefined) {
+      const bundle = modelsPanelBundle()
+      const seam = providersSeamBundle()
+      modelsFeatures = bundle.createModelsPanelFeatures(
+        {
+          secrets: context.secrets,
+          extensionUri: context.extensionUri,
+          l10n,
+          log,
+          globalState: context.globalState,
+          suggestedProviderSetting,
+          isRemote: vscode.env.remoteName !== undefined,
+          setComposerModel,
+          writeExportFile: writeProvidersExportFile,
+          readImportFile: readProvidersImportFile,
+        },
+        seam,
+      )
+      void modelsFeatures.completePendingRemovals().catch(logRejection(log, 'provider removals'))
+    }
+    return modelsFeatures
+  }
+
   editorContext.update(editorSnapshot)
   // A setting turned on while VS Code was closed, or in another window, is
   // confirmed here: at activation, and when this window gains focus (D30).
@@ -2613,17 +2705,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       COMMAND_IDS.openShareFile,
       forActiveConversation((controller) => controller.handle({ type: 'openShareFile' })),
     ),
-    // M95 (PLAN.md D74) lane 0: the ids so the manifest stays whole. Lane K
-    // registers the real handlers; until then each refuses with an explicit
-    // error, never an empty success.
+    // M95 (PLAN.md D74) lane K: the wizard opened at "Pick a provider" (with
+    // the workspace's suggested preset chosen, when it names one), the panel,
+    // and the quick-pick fast path. Loading a missing bundle refuses with an
+    // explicit error, never an empty success.
     registerLoggedCommand(log, COMMAND_IDS.startWithOwnModel, () => {
-      throw new Error(UI_TEXT.modelsPanelUnavailable)
+      const features = ensureModelsFeatures()
+      features.openPanel({
+        wizard: true,
+        section: 'providers',
+        presetId: features.suggestedPreset(),
+      })
     }),
     registerLoggedCommand(log, COMMAND_IDS.modelsAndAgents, () => {
-      throw new Error(UI_TEXT.modelsPanelUnavailable)
+      ensureModelsFeatures().openPanel()
     }),
-    registerLoggedCommand(log, COMMAND_IDS.addModelProvider, () => {
-      throw new Error(UI_TEXT.modelsPanelUnavailable)
+    registerLoggedCommand(log, COMMAND_IDS.addModelProvider, async () => {
+      await ensureModelsFeatures().runQuickPick()
     }),
   )
   log.info(`Activated in ${String(Math.round(performance.now() - activationStartedAt))} ms`)

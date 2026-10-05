@@ -7,6 +7,19 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Bring-your-own-model keys and panel host (M95 lane K).** The `Start
+  with Your Own Model` wizard (in-memory draft; Save writes
+  `providers.json` and the secret together, Cancel discards), the
+  `Models & Agents` panel host with its validated bridge, and the
+  `Add Model Provider…` quick-pick fast path: SecretStorage records
+  bound to their origin, the password box with the preset's live shape
+  check, the one-shot `127.0.0.1` OAuth callback, the local-server
+  probe, OpenRouter connect and key usage, cached model scans with
+  diffs, removal with Undo, import/export without secrets, and the
+  workspace preset suggestion.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

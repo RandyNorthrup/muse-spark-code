@@ -87,10 +87,22 @@ export interface AuthServiceDeps {
   ) => Promise<DeviceSignInOutcome>
   /** Returns the pasted key, or undefined when the user dismissed the box. */
   readonly promptForApiKey: () => Promise<string | undefined>
+  /**
+   * Removes every provider's secret (M95 acceptance 15: sign-out with "Also
+   * remove model providers and subscriptions" ticked). Absent until the
+   * providers file lands: sign-out then keeps provider secrets.
+   */
+  readonly removeAllProviderCredentials?: (() => Promise<void>) | undefined
   readonly broadcast: (message: HostToWebviewMessage) => void
   readonly sleep: (ms: number) => Promise<void>
   readonly now: () => number
   readonly log: Logger
+}
+
+/** `signOut` options (M95 acceptance 15). */
+export interface SignOutOptions {
+  /** Also removes model providers and subscriptions; off by default. */
+  readonly removeProviders?: boolean | undefined
 }
 
 export interface AuthSnapshot {
@@ -442,7 +454,8 @@ export class AuthService {
         setting,
         hasCli: cli.ok,
         hasCliSession,
-        hasStoredKey: (await this.deps.credentials.getApiKey()) !== undefined,
+        // A provider's secret counts as a Model API credential (M95, D74).
+        hasStoredKey: await this.deps.credentials.hasModelApiCredential(),
       }),
     }
   }
@@ -582,7 +595,7 @@ export class AuthService {
     if (flow.wasLogoutHeld) {
       const hasBillingKey =
         this.deps.backend.hasEnvironmentKey() ||
-        (await this.deps.credentials.getApiKey()) !== undefined
+        (await this.deps.credentials.hasModelApiCredential())
       const confirmed = hasBillingKey
         ? undefined
         : await unlessAborted(this.deps.backend.cliSignIn(true), abort.signal)
@@ -879,7 +892,7 @@ export class AuthService {
     }
   }
 
-  private async performSignOut(): Promise<AuthSnapshot> {
+  private async performSignOut(shouldRemoveProviders: boolean): Promise<AuthSnapshot> {
     this.signOutEpoch += 1
     this.admissionGenerationValue += 1
     this.isSigningOut = true
@@ -916,6 +929,24 @@ export class AuthService {
         isKeyClearFailed = true
         this.deps.log.warn('Stored Model API key could not be cleared during sign-out')
       }
+      let isProviderClearFailed = false
+      if (shouldRemoveProviders) {
+        if (this.deps.removeAllProviderCredentials === undefined) {
+          isProviderClearFailed = true
+          this.deps.log.warn(
+            'Sign-out asked to remove model providers, but no provider removal is wired',
+          )
+        } else {
+          try {
+            await this.deps.removeAllProviderCredentials()
+          } catch {
+            isProviderClearFailed = true
+            this.deps.log.warn(
+              'Stored model provider credentials could not be cleared during sign-out',
+            )
+          }
+        }
+      }
       const cli = this.deps.backend.resolveCli()
       const isTerminalUnavailable =
         cli.ok &&
@@ -923,9 +954,13 @@ export class AuthService {
         !(await this.logOutCli(cli.cliPath))
       // `muse logout` rewrites the file rather than deleting it: what is in
       // it, or the CLI's own answer, says whether a sign-in remains.
+      // Provider secrets count too (M95, D74): kept ones still sign in on
+      // the Model API backend, so the hold stays with "credentials remain".
       const hasCliCredential = await this.hasCliCredential(true)
       const hasStoredKey =
-        isKeyClearFailed || (await this.deps.credentials.getApiKey()) !== undefined
+        isKeyClearFailed ||
+        isProviderClearFailed ||
+        (await this.deps.credentials.hasModelApiCredential())
       const shouldKeepHold = hasCliCredential || hasStoredKey || !isHostStopped
       const isReleaseSaved = shouldKeepHold || (await this.setLogoutHold(false))
       let detail: string | undefined
@@ -1089,7 +1124,7 @@ export class AuthService {
       return await this.publishRefresh(ticket, epoch, selected)
     }
     const hasCliCredential = await this.hasCliCredential(isUserAction)
-    const hasStoredKey = (await this.deps.credentials.getApiKey()) !== undefined
+    const hasStoredKey = await this.deps.credentials.hasModelApiCredential()
     if (this.signOutEpoch !== epoch) {
       return this.snapshot
     }
@@ -1111,7 +1146,7 @@ export class AuthService {
     const current = await this.selectedSnapshot(isUserAction)
     const hasCurrentCredential =
       (await this.hasCliCredential(isUserAction)) ||
-      (await this.deps.credentials.getApiKey()) !== undefined
+      (await this.deps.credentials.hasModelApiCredential())
     if (this.signOutEpoch !== epoch) {
       // A sign-out raced this release: its state is its own, and so is the
       // hold. One still running holds it again; one that has ended decided
@@ -1145,7 +1180,7 @@ export class AuthService {
         method === 'browser' &&
         !this.deps.backend.hasEnvironmentKey() &&
         isCliSignedIn(await this.deps.backend.cliSignIn(true)) &&
-        (await this.deps.credentials.getApiKey()) === undefined
+        !(await this.deps.credentials.hasModelApiCredential())
       if (epoch !== this.signOutEpoch) {
         return this.snapshot
       }
@@ -1180,8 +1215,8 @@ export class AuthService {
     return await this.joinDeviceSignIn()
   }
 
-  public async signOut(): Promise<AuthSnapshot> {
-    const running = this.signOutPromise ?? this.performSignOut()
+  public async signOut(options: SignOutOptions = {}): Promise<AuthSnapshot> {
+    const running = this.signOutPromise ?? this.performSignOut(options.removeProviders === true)
     this.signOutPromise = running
     try {
       return await running

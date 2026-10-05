@@ -6,6 +6,10 @@ import type * as vscode from 'vscode'
 import { vi } from 'vitest'
 import type { VerifyHooks } from '../../../src/core/backends/modelapi/verifyLoop'
 import type { SecretStore } from '../../../src/host/auth/credentialStore'
+import type {
+  ProviderEntry,
+  ProvidersStore,
+} from '../../../src/host/providers/providerPorts'
 import type { SettingsSource } from '../../../src/host/settings'
 import { EN } from '../../../src/shared/l10n/en'
 import { BASE_LOCALE } from '../../../src/shared/l10n/text'
@@ -198,5 +202,47 @@ export function memorySecrets(): SecretStore & { readonly values: Map<string, st
       values.delete(key)
       return Promise.resolve()
     },
+  }
+}
+
+/** A `ProvidersStore` (M95 lane K) backed by an array, exposed for assertions. */
+export function memoryProvidersStore(
+  entries: readonly ProviderEntry[] = [],
+): ProvidersStore & { readonly current: ProviderEntry[]; readonly replaced: ProviderEntry[][] } {
+  const current = [...entries]
+  const replaced: ProviderEntry[][] = []
+  let defaultModel: string | undefined
+  return {
+    current,
+    replaced,
+    list: () => Promise.resolve([...current]),
+    add: (entry) => {
+      if (current.some((existing) => existing.id === entry.id)) {
+        return Promise.reject(new Error(`Provider ${entry.id} is already configured`))
+      }
+      current.push(entry)
+      return Promise.resolve()
+    },
+    remove: (id) => {
+      const index = current.findIndex((entry) => entry.id === id)
+      const [removed] = index === -1 ? [undefined] : current.splice(index, 1)
+      return Promise.resolve(removed)
+    },
+    restore: (entry) => {
+      current.push(entry)
+      return Promise.resolve()
+    },
+    replaceAll: (next) => {
+      const previous = [...current]
+      current.length = 0
+      current.push(...next)
+      replaced.push([...next])
+      return Promise.resolve(previous)
+    },
+    setDefaultModel: (ref) => {
+      defaultModel = ref
+      return Promise.resolve()
+    },
+    defaultModel: () => Promise.resolve(defaultModel),
   }
 }
