@@ -350,10 +350,16 @@ describe('Model API context protection (M101 item 6 / F4)', () => {
     await t.host.close()
   })
 
-  it.each(['custom/unknown', 'muse-spark-compatible/unknown', 'muse-spark-unknown'])(
-    'uses no invented Meta window for unknown BYO model %s',
-    async (modelId) => {
-      const t = await setup(modelId)
+  it.each([
+    { modelId: 'custom/unknown', hasResolver: false },
+    { modelId: 'muse-spark-compatible/unknown', hasResolver: false },
+    { modelId: 'muse-spark-unknown', hasResolver: false },
+    { modelId: 'muse-spark-1.3', hasResolver: true },
+    { modelId: 'muse-spark-unknown', hasResolver: true },
+  ])(
+    'uses no invented Meta window for $modelId (resolver: $hasResolver)',
+    async ({ modelId, hasResolver }) => {
+      const t = await setup(modelId, hasResolver ? () => undefined : undefined)
       t.api.script({ text: 'answer', usage: { input: 2_000_000, output: 1 } })
       await send(t)
       expect(t.overflowEvents).toEqual([])
@@ -361,24 +367,11 @@ describe('Model API context protection (M101 item 6 / F4)', () => {
       expect(t.events.find((event) => event.type === 'turnCompleted')).toMatchObject({
         terminal: 'completed',
       })
-      await t.host.close()
-    },
-  )
-
-  it.each(['muse-spark-1.3', 'muse-spark-unknown'])(
-    'respects an authoritative missing context row for %s',
-    async (modelId) => {
-      const t = await setup(modelId, () => undefined)
-      t.api.script({ text: 'answer', usage: { input: 2_000_000, output: 1 } })
-      await send(t)
-      expect(t.overflowEvents).toEqual([])
-      expect(t.events.some((event) => event.type === 'contextUsage')).toBe(false)
-      expect(t.events.find((event) => event.type === 'turnCompleted')).toMatchObject({
-        terminal: 'completed',
-      })
-      expect(await t.host.listModels(t.session.sessionId)).toContainEqual(
-        expect.objectContaining({ modelId: 'muse-spark-1.3', contextLimit: undefined }),
-      )
+      if (hasResolver) {
+        expect(await t.host.listModels(t.session.sessionId)).toContainEqual(
+          expect.objectContaining({ modelId: 'muse-spark-1.3', contextLimit: undefined }),
+        )
+      }
       await t.host.close()
     },
   )
