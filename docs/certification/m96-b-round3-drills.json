@@ -3,7 +3,7 @@
   "rig": "macmini",
   "node": "24.21.0",
   "npm": "11.19.0",
-  "snapshot": "fd1a990752f376d269c1e4356b852c204de8b550",
+  "snapshot": "28934e76454ccce0a09a478ce410b82470c6d763",
   "command": [
     "npx",
     "--no-install",
@@ -17,10 +17,10 @@
   ],
   "source_checksums": {
     "src/core/team/resources.ts": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
-    "src/host/team/mcpBridge.ts": "c764a7c9de26d2d5325b6a017f113d452736515d8ccc8bcb5cec72c9af10ee75",
+    "src/host/team/mcpBridge.ts": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e",
     "src/host/ide/ideMcpServer.ts": "820464dfa30564292a330620a080097f7d2f6a558965cd6bbf8ad994f0e1a052",
     "test/unit/teamResources.test.ts": "cf11b4dd482545bb367a4d344db09da46366dfa9aed2aabe1e532b92e9ef3a82",
-    "test/unit/teamMcpBridge.test.ts": "94409784e831a677388c56d381219a3eeabd49b91ec33598024bf7f50ab25095",
+    "test/unit/teamMcpBridge.test.ts": "86d6553a76651483fbfda2f3e100650e9caf4ab76e09eea92f003590faf3855b",
     "test/unit/ideMcpServer.test.ts": "69e9f74e3c76ca95f93b786b7f21c1a4cb1cecc39181c06704d6a02c78ea196c"
   },
   "receipts": [
@@ -114,9 +114,9 @@
           "diagnostic": "AssertionError: expected [] to deeply equal [ { role: 'research', \u2026(2) } ]"
         }
       ],
-      "before_checksum": "c764a7c9de26d2d5325b6a017f113d452736515d8ccc8bcb5cec72c9af10ee75",
-      "mutated_checksum": "0dc4268d88a2d8f91262a4f8d8cfdc979d852d2d2b7a0095bdd932abe96b89ca",
-      "restored_checksum": "c764a7c9de26d2d5325b6a017f113d452736515d8ccc8bcb5cec72c9af10ee75"
+      "before_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e",
+      "mutated_checksum": "19d58763f2009a97fc649eb5fdfdd893193d7f7c5e14e3a99c23c76955b6dd9f",
+      "restored_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e"
     },
     {
       "drill": "local-validation",
@@ -132,9 +132,9 @@
           "diagnostic": "AssertionError: expected [ { role: 'research', \u2026(2) } ] to deeply equal []"
         }
       ],
-      "before_checksum": "c764a7c9de26d2d5325b6a017f113d452736515d8ccc8bcb5cec72c9af10ee75",
-      "mutated_checksum": "fde43c3788ae9d93b52c02380e997c6294da5ac721135fc58fc31d9c7d3da911",
-      "restored_checksum": "c764a7c9de26d2d5325b6a017f113d452736515d8ccc8bcb5cec72c9af10ee75"
+      "before_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e",
+      "mutated_checksum": "2fac8aaa6a2024c2e1379ffacc293dc1737cb3d6ec45a944cf345fc2f0b0e56c",
+      "restored_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e"
     },
     {
       "drill": "shared-call-cap",
@@ -172,9 +172,9 @@
           "diagnostic": "AssertionError: expected [ { \u2026(2) } ] to have a length of 2 but got 1"
         }
       ],
-      "before_checksum": "c764a7c9de26d2d5325b6a017f113d452736515d8ccc8bcb5cec72c9af10ee75",
-      "mutated_checksum": "67913f044c79c9d1e7c6d55ede8877e0d6dacf4d94b82b8664ae81948eec9068",
-      "restored_checksum": "c764a7c9de26d2d5325b6a017f113d452736515d8ccc8bcb5cec72c9af10ee75"
+      "before_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e",
+      "mutated_checksum": "7130a99b1f2260b2a24c57cbe63e0e0dab2b2ac89e423c45a60d66bc23200f8e",
+      "restored_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e"
     },
     {
       "drill": "duplicate-call-id",
@@ -226,9 +226,9 @@
           "diagnostic": "Error: promise resolved \"undefined\" instead of rejecting"
         }
       ],
-      "before_checksum": "c764a7c9de26d2d5325b6a017f113d452736515d8ccc8bcb5cec72c9af10ee75",
-      "mutated_checksum": "8f05d51ba78b71e8b580b15d3c916a33611dbd6b73c771aff2693e8337ef0295",
-      "restored_checksum": "c764a7c9de26d2d5325b6a017f113d452736515d8ccc8bcb5cec72c9af10ee75"
+      "before_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e",
+      "mutated_checksum": "607bd3e0b264bf868bb3e67cf997c5453de59ca5d9e649e5eae58c7a50d41acc",
+      "restored_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e"
     },
     {
       "drill": "explicit-assignment",
@@ -323,6 +323,24 @@
       "before_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
       "mutated_checksum": "538ec41450ea80989ebe470c47dc67e3337b99b4ec2a3de0e4a5be80a1065bef",
       "restored_checksum": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2"
+    },
+    {
+      "drill": "explicit-null",
+      "file": "src/host/team/mcpBridge.ts",
+      "baseline_exit": 0,
+      "mutated_exit": 1,
+      "restored_exit": 0,
+      "tests": 82,
+      "expected": "RVM96RB2-6:",
+      "observed": [
+        {
+          "test": "Round-3 redesign interleavings RVM96RB2-6: locally invalid engine and HTTP arguments never create call liability on the real pool",
+          "diagnostic": "AssertionError: expected { jsonrpc: '2.0', id: 1, \u2026(1) } to match object { result: { isError: true } }"
+        }
+      ],
+      "before_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e",
+      "mutated_checksum": "c764a7c9de26d2d5325b6a017f113d452736515d8ccc8bcb5cec72c9af10ee75",
+      "restored_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e"
     }
   ]
 }

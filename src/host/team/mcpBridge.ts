@@ -349,7 +349,7 @@ export class TeamMcpBridge {
         let argsJson = '{}'
         if (typeof rawArgs === 'string') {
           argsJson = rawArgs
-        } else if (rawArgs !== undefined && rawArgs !== null) {
+        } else if (rawArgs !== undefined) {
           argsJson = JSON.stringify(rawArgs)
         }
         return await this.invoke(caller, call.data.name, argsJson, signal, requestId, serverName)

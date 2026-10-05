@@ -824,8 +824,9 @@ describe('Round-3 redesign interleavings', () => {
       const name = 'mcp__chrome__echo'
       expect(pool.find(name)).toBeDefined()
       const before = remote.requests.length
-      for (const args of ['[]', 'null', 'true', '"text"', '{invalid']) {
-        const invalid = await bridge.callAs('task-a', name, args, new AbortController().signal)
+      for (const args of ['[]', 'null', 'true', '"text"', '{invalid', null, [], true, 1]) {
+        const argsJson = typeof args === 'string' ? args : JSON.stringify(args)
+        const invalid = await bridge.callAs('task-a', name, argsJson, new AbortController().signal)
         expect(invalid.isError).toBe(true)
         const http = await postLoopbackJson(endpoint, {
           jsonrpc: '2.0',
