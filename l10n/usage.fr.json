@@ -179,7 +179,7 @@
   "asReported": "Tel que signalé",
   "noLimitReported": "{provider} ne signale aucune limite ici.",
   "providerConsole": "Ouvrir la console du fournisseur",
-  "retries": "Tentatives",
+  "retries": "Nouvelles tentatives",
   "rateLimited": "Appels limités",
   "retryDelay": "Délai de réessai signalé",
   "accountBudget": "Budget du compte fournisseur",

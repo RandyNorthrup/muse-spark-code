@@ -179,7 +179,7 @@
   "asReported": "Come segnalato",
   "noLimitReported": "{provider} non segnala qui alcun limite.",
   "providerConsole": "Apri la console del provider",
-  "retries": "Tentativi",
+  "retries": "Nuovi tentativi",
   "rateLimited": "Chiamate limitate",
   "retryDelay": "Ritardo di ripetizione segnalato",
   "accountBudget": "Budget dell’account del provider",

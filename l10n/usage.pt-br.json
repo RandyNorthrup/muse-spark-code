@@ -179,7 +179,7 @@
   "asReported": "Como informado",
   "noLimitReported": "{provider} não informa nenhum limite aqui.",
   "providerConsole": "Abrir o console do provedor",
-  "retries": "Tentativas",
+  "retries": "Novas tentativas",
   "rateLimited": "Chamadas limitadas",
   "retryDelay": "Atraso de repetição informado",
   "accountBudget": "Orçamento da conta do provedor",

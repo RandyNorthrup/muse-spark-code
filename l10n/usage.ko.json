@@ -134,7 +134,7 @@
   "pricedLaterNote": "최신 가격 카드로 표시됩니다. 저장된 기록은 변경되지 않습니다.",
   "pricePerMillion": "백만 토큰당 가격",
   "limits": "한도 및 예산",
-  "providerWindows": "공급자 시간대",
+  "providerWindows": "공급자 사용 한도 기간",
   "windowHours": {
     "other": "{count}시간 기간"
   },
