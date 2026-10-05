@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import {
   MODEL_API_MAX_RETRIES,
   HTTP_TOO_MANY_REQUESTS,
+  HTTP_STATUS,
   MODEL_API_RETRY_BASE_MS,
   MODEL_API_RETRY_JITTER_MS,
   MODEL_API_RETRY_MAX_MS,
@@ -12,6 +13,8 @@ import {
   PROVIDER_HTTP_BODY_MAX_BYTES,
   MODEL_API_STREAM_IDLE_MS,
 } from '../../../shared/constants'
+import type { PaidFeature } from '../../../shared/constants'
+import type { SessionBudgetClaim } from './sessionBudget'
 import { fill } from '../../../shared/l10n/text'
 import type { CoreLogger } from '../../logging'
 import {
@@ -264,6 +267,8 @@ export interface ConfirmedModelRequest {
 
 /** Owned synchronous admission and attempt observation; no fields cross the HTTP wire. */
 export interface ResponseAttemptGuard {
+  readonly paidFeature?: PaidFeature
+  readonly paidEstimatedInputTokens?: number
   (keyDigest: string | undefined): void
   /** After every final fence and request build, adjacent to the actual fetch call. */
   readonly onRequestStarted?: () => void
@@ -352,6 +357,7 @@ export class RequestTransport {
       readonly body: unknown
       readonly headers?: Readonly<Record<string, string>>
       readonly accept: string
+      readonly paid?: { readonly claim: SessionBudgetClaim; isSent: boolean }
     },
     signal: AbortSignal,
     onRetry?: (notice: RetryNotice) => void,
@@ -488,6 +494,7 @@ export class RequestTransport {
        */
       readonly headers?: Readonly<Record<string, string>>
       readonly retries?: 'all' | 'rateLimitOnly'
+      readonly paid?: { readonly claim: SessionBudgetClaim; isSent: boolean }
     },
     signal: AbortSignal | undefined,
     onRetry?: (notice: RetryNotice) => void,
@@ -495,7 +502,7 @@ export class RequestTransport {
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
   ): Promise<TransportResponse> {
-    const isRateLimitOnly = init.retries === 'rateLimitOnly'
+    const isRateLimitOnly = init.retries === 'rateLimitOnly' || init.paid !== undefined
     const url = `${this.deps.baseUrl}${path}`
     if (!path.startsWith('/') || new URL(url).origin !== new URL(this.deps.baseUrl).origin) {
       throw new ModelApiError(
@@ -549,6 +556,12 @@ export class RequestTransport {
       }
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.
+      if (init.paid !== undefined) {
+        if (init.paid.isSent) {
+          throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+        }
+        init.paid.claim.check(0)
+      }
       admitAttempt?.(credentials.keyDigest)
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
@@ -585,6 +598,9 @@ export class RequestTransport {
       }
       confirmed?.onRequestStarted()
       admitAttempt?.onRequestStarted?.()
+      if (init.paid !== undefined) {
+        init.paid.isSent = true
+      }
       let response: Response
       try {
         response = await this.deps.fetch(url, requestInit)
@@ -625,6 +641,12 @@ export class RequestTransport {
         return { response, redact: credentials.redact }
       }
       const failure = await describeFailure(response, this.deps.parseError, credentials.redact)
+      if (
+        init.paid !== undefined &&
+        (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
+      ) {
+        init.paid.isSent = false
+      }
       const isRetryable =
         !this.deps.isTerminalError?.(failure) &&
         (isRateLimitOnly

@@ -4,6 +4,7 @@ import {
   MissingApiKeyError,
   ModelApiClient,
   ModelApiError,
+  type ModelApiClientDeps,
   type RetryNotice,
   retryAfterMs,
 } from '../../src/core/backends/modelapi/client'
@@ -37,6 +38,7 @@ function setup(
   key: string | null = 'LLM|1|secret',
   rawFetch?: typeof fetch,
   streamIdleMs?: number,
+  reservePaidRequest?: ModelApiClientDeps['reservePaidRequest'],
 ) {
   const api = fakeModelApi()
   const sleeps: number[] = []
@@ -53,6 +55,7 @@ function setup(
     random: () => 0.5,
     log,
     ...(streamIdleMs !== undefined && { streamIdleMs }),
+    ...(reservePaidRequest !== undefined && { reservePaidRequest }),
   })
   return { api, client, sleeps, log }
 }
@@ -72,6 +75,73 @@ function collect(stream: AsyncIterable<StreamEvent>): Promise<StreamEvent[]> {
 }
 
 describe('Meta transport regression boundaries', () => {
+  it.each([400, 429, 500])(
+    'preserves merged paid admission and refusal settlement on HTTP %s',
+    async (status) => {
+      for (const isImage of [true, false]) {
+        const total = { spentUsd: 1, hasUnknownHistoricalFees: false }
+        const claim = {
+          claimId: 'fixture',
+          reservedUsd: 1,
+          check: vi.fn(() => total),
+          settle: vi.fn(() => Promise.resolve(total)),
+        }
+        const reserve = vi.fn(() => Promise.resolve(claim))
+        const fetch = vi.fn(() =>
+          Promise.resolve(Response.json({ error: { message: 'fixture refusal' } }, { status })),
+        )
+        const { client } = setup('plain', fetch, undefined, reserve)
+        const run = isImage
+          ? client.createImage(
+              {
+                model: 'image',
+                prompt: 'fixture',
+                n: 1,
+                size: '1024x1024',
+                response_format: 'b64_json',
+                output_format: 'png',
+              },
+              new AbortController().signal,
+            )
+          : collect(
+              client.streamResponse(
+                { ...body, tools: [{ type: 'web_search' }] },
+                new AbortController().signal,
+              ),
+            )
+        await expect(run).rejects.toMatchObject({ status })
+        expect(client.hasPaidDailyBudget).toBe(true)
+        expect(reserve).toHaveBeenCalledOnce()
+        expect(claim.check).toHaveBeenCalledTimes(fetch.mock.calls.length)
+        if (status === 500) {
+          expect(fetch).toHaveBeenCalledOnce()
+          expect(claim.settle).not.toHaveBeenCalled()
+        } else {
+          expect(claim.settle).toHaveBeenCalledWith(0)
+        }
+      }
+    },
+  )
+
+  it('settles merged paid stream usage after canonical parsing', async () => {
+    const total = { spentUsd: 1, hasUnknownHistoricalFees: false }
+    const claim = {
+      claimId: 'fixture',
+      reservedUsd: 1,
+      check: vi.fn(() => total),
+      settle: vi.fn((_actualUsd: number) => Promise.resolve(total)),
+    }
+    const reserve = vi.fn(() => Promise.resolve(claim))
+    const wire =
+      'data: {"type":"response.completed","response":{"id":"r","status":"completed","output":[],"usage":{"input_tokens":100,"output_tokens":100}}}\n\n'
+    const { client } = setup('plain', () => Promise.resolve(new Response(wire)), undefined, reserve)
+    const paidBody: CreateResponseBody = { ...body, tools: [{ type: 'web_search' }] }
+    await collect(client.streamResponse(paidBody, new AbortController().signal))
+    expect(reserve).toHaveBeenCalledWith(paidBody, 'webSearch', undefined, expect.any(AbortSignal))
+    expect(claim.settle).toHaveBeenCalledOnce()
+    expect(claim.settle.mock.calls[0]?.[0]).toBeGreaterThan(0)
+    expect(claim.settle.mock.calls[0]?.[0]).toBeLessThan(claim.reservedUsd)
+  })
   it('uses body-free diagnostics on every successful-HTTP JSON endpoint', async () => {
     const { client } = setup('opaque95', () => Promise.resolve(new Response('opaque95')))
     const image = {

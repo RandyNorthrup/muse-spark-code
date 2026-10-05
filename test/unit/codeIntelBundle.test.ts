@@ -4,7 +4,6 @@
 // call requires dist/codeIntel.js. The tool list needs no bundle; a call
 // that cannot load it is answered with the reason as an error result.
 
-import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { handleMcpMessage } from '../../src/core/mcp'
@@ -17,10 +16,12 @@ import * as codeIntelEntry from '../../src/host/ide/codeIntelEntry'
 import { ideCodeIntelTools } from '../../src/host/ide/codeIntelTools'
 import {
   CODE_INTEL_BUNDLE_FILE,
+  CODE_INTEL_MODEL_TEXT,
+  FILE_REFUSAL_MODEL_TEXT,
   IDE_MCP_SERVER_INFO,
   MODEL_TEXT,
-  UI_TEXT,
 } from '../../src/shared/constants'
+import { shippedTextCases } from './helpers/bundleText'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeLanguageService, loc } from './helpers/fakeLanguageService'
 import { memoryToolIo } from './helpers/fakeToolIo'
@@ -74,11 +75,11 @@ describe('codeIntelLoader', () => {
 })
 
 describe('the shipped code intelligence bundle', () => {
-  it('loads the shared English fallback without copying it', () => {
-    const text = readFileSync(built.file, 'utf8')
-    expect(text).toContain('require("./uiText.js")')
-    expect(text).not.toContain(UI_TEXT.crashTitle)
-  })
+  // It reads CODE_INTEL_MODEL_TEXT and FILE_REFUSAL_MODEL_TEXT only.
+  shippedTextCases(built, CODE_INTEL_MODEL_TEXT.codeIntelNoSymbolNamed, [
+    CODE_INTEL_MODEL_TEXT,
+    FILE_REFUSAL_MODEL_TEXT,
+  ])
 
   it.each(['findDefinition', 'renameSymbol'])(
     'answers %s from the bundle as the source does',

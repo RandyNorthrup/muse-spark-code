@@ -28,6 +28,9 @@ export {
   type RetryNotice,
 } from './transport'
 import type { ProviderClient } from './providerClient'
+import type { PaidFeature } from '../../../shared/constants'
+import type { SessionBudgetClaim } from './sessionBudget'
+import { estimateCostUsd } from '../../usage/insights'
 
 import {
   IMAGE_REQUEST_TIMEOUT_MS,
@@ -51,6 +54,13 @@ import {
 import { parseSse } from './sse'
 
 export interface ModelApiClientDeps {
+  /** Interactive VS Code extras only; ACP/headless clients omit this port. */
+  readonly reservePaidRequest?: (
+    body: CreateResponseBody | CreateImageBody,
+    feature: PaidFeature,
+    estimatedInputTokens?: number,
+    signal?: AbortSignal,
+  ) => Promise<SessionBudgetClaim | undefined>
   readonly fetch: typeof fetch
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */
@@ -103,15 +113,40 @@ export class ModelApiClient implements ProviderClient {
     signal: AbortSignal,
     admitAttempt?: ResponseAttemptGuard,
   ): Promise<ImagesResponse> {
-    const result = await this.transport.request(
-      path,
-      { method: 'POST', body, accept: JSON_MEDIA_TYPE, retries: 'rateLimitOnly' },
-      AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)]),
-      undefined,
-      undefined,
-      admitAttempt,
-    )
-    return await parseJsonResponse(result, (json) => imagesResponseSchema.parse(json))
+    const active = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
+    const claim = await this.deps.reservePaidRequest?.(body, 'imageGeneration', undefined, active)
+    const paid = claim === undefined ? undefined : { claim, isSent: false }
+    try {
+      const result = await this.transport.request(
+        path,
+        {
+          method: 'POST',
+          body,
+          accept: JSON_MEDIA_TYPE,
+          retries: 'rateLimitOnly',
+          ...(paid !== undefined && { paid }),
+        },
+        active,
+        undefined,
+        undefined,
+        admitAttempt,
+      )
+      const parsed = await parseJsonResponse(result, (json) => imagesResponseSchema.parse(json))
+      // The request asks for one image; ambiguous results retain their flat fee.
+      if (claim !== undefined) {
+        await claim.settle(parsed.data.length === 0 ? 0 : claim.reservedUsd)
+      }
+      return parsed
+    } finally {
+      if (paid?.isSent === false) {
+        await paid.claim.settle(0)
+      }
+    }
+  }
+
+  /** Whether interactive extras have a finite daily admission port (D78). */
+  public get hasPaidDailyBudget(): boolean {
+    return this.deps.reservePaidRequest !== undefined
   }
 
   /** Bind a one-use child consent to the stored key without retaining it. */
@@ -192,77 +227,134 @@ export class ModelApiClient implements ProviderClient {
     ) {
       throw new Error(UI_TEXT.scheduleConfirmationExpired)
     }
-    const { response, redact, eventParsed } = await this.transport.streamRequest(
-      '/responses',
-      { body, accept: EVENT_STREAM_MEDIA_TYPE },
-      signal,
-      onRetry,
-      budget,
-      admitAttempt,
-      confirmed,
-      this.deps.streamIdleMs,
-    )
-    if (response.body === null) {
-      throw new ModelApiError('The response had no body', response.status, undefined, undefined)
+    let feature = admitAttempt?.paidFeature
+    if (feature === undefined && confirmed !== undefined) {
+      feature = 'scheduledPrompts'
     }
-    const frames = parseSse(response.body)[Symbol.asyncIterator]()
+    if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search')) {
+      feature = 'webSearch'
+    }
+    const claim =
+      feature === undefined
+        ? undefined
+        : await this.deps.reservePaidRequest?.(
+            body,
+            feature,
+            admitAttempt?.paidEstimatedInputTokens,
+            signal,
+          )
+    const paid = claim === undefined ? undefined : { claim, isSent: false }
     try {
-      for (;;) {
-        const next = await frames.next()
-        if (next.done === true) {
-          return
-        }
-        const frame = next.value
-        // OpenAI-style streams end with `data: [DONE]`; a keep-alive may carry no
-        // data. Neither is an event (D26).
-        if (frame.data.trim() === '' || frame.data === SSE_DONE_SENTINEL) {
-          continue
-        }
-        let json: unknown
-        try {
-          json = JSON.parse(frame.data)
-        } catch {
-          throw new ModelApiError(
-            // Its length, not its text: the frame is model output, and this
-            // message becomes the failed turn's reason in the log (M39).
-            `Malformed stream frame (${String(frame.data.length)} characters)`,
-            response.status,
-            undefined,
-            undefined,
-          )
-        }
-        json = JSON.parse(JSON.stringify(json), (_key, value: unknown) =>
-          typeof value === 'string' ? redact(value) : value,
-        )
-        const known = streamEventSchema.safeParse(json)
-        if (known.success) {
-          eventParsed()
-          yield known.data
-          continue
-        }
-        const typed = eventTypeSchema.safeParse(json)
-        if (!typed.success) {
-          throw new ModelApiError(
-            'Stream frame without a type',
-            response.status,
-            undefined,
-            undefined,
-          )
-        }
-        // Once a type, not once a frame (M39).
-        if (this.ignoredEventTypes.has(typed.data.type)) {
-          continue
-        }
-        this.ignoredEventTypes.add(typed.data.type)
-        this.deps.log.info(`Model API stream events of type ${redact(typed.data.type)} are ignored`)
+      const { response, redact, eventParsed } = await this.transport.streamRequest(
+        '/responses',
+        { body, accept: EVENT_STREAM_MEDIA_TYPE, ...(paid !== undefined && { paid }) },
+        signal,
+        onRetry,
+        budget,
+        admitAttempt,
+        confirmed,
+        this.deps.streamIdleMs,
+      )
+      if (response.body === null) {
+        throw new ModelApiError('The response had no body', response.status, undefined, undefined)
       }
-    } catch (error: unknown) {
-      throw redactModelApiError(error, redact, response.status)
+      const frames = parseSse(response.body)[Symbol.asyncIterator]()
+      try {
+        for (;;) {
+          const next = await frames.next()
+          if (next.done === true) {
+            return
+          }
+          const frame = next.value
+          // OpenAI-style streams end with `data: [DONE]`; a keep-alive may carry no
+          // data. Neither is an event (D26).
+          if (frame.data.trim() === '' || frame.data === SSE_DONE_SENTINEL) {
+            continue
+          }
+          let json: unknown
+          try {
+            json = JSON.parse(frame.data)
+          } catch {
+            throw new ModelApiError(
+              // Its length, not its text: the frame is model output, and this
+              // message becomes the failed turn's reason in the log (M39).
+              `Malformed stream frame (${String(frame.data.length)} characters)`,
+              response.status,
+              undefined,
+              undefined,
+            )
+          }
+          json = JSON.parse(JSON.stringify(json), (_key, value: unknown) =>
+            typeof value === 'string' ? redact(value) : value,
+          )
+          const known = streamEventSchema.safeParse(json)
+          if (known.success) {
+            eventParsed()
+            if (
+              claim !== undefined &&
+              ['response.completed', 'response.incomplete', 'response.failed'].includes(
+                known.data.type,
+              ) &&
+              'response' in known.data
+            ) {
+              const usage = known.data.response.usage
+              const cached = usage?.input_tokens_details?.cached_tokens ?? 0
+              if (
+                usage !== null &&
+                usage !== undefined &&
+                Number.isSafeInteger(usage.input_tokens) &&
+                usage.input_tokens >= 0 &&
+                Number.isSafeInteger(usage.output_tokens) &&
+                usage.output_tokens >= 0 &&
+                Number.isSafeInteger(cached) &&
+                cached >= 0 &&
+                cached <= usage.input_tokens
+              ) {
+                await claim.settle(
+                  estimateCostUsd(
+                    {
+                      inputTokens: usage.input_tokens,
+                      outputTokens: usage.output_tokens,
+                      cachedTokens: cached,
+                    },
+                    body.model,
+                  ),
+                )
+              }
+            }
+            yield known.data
+            continue
+          }
+          const typed = eventTypeSchema.safeParse(json)
+          if (!typed.success) {
+            throw new ModelApiError(
+              'Stream frame without a type',
+              response.status,
+              undefined,
+              undefined,
+            )
+          }
+          // Once a type, not once a frame (M39).
+          if (this.ignoredEventTypes.has(typed.data.type)) {
+            continue
+          }
+          this.ignoredEventTypes.add(typed.data.type)
+          this.deps.log.info(
+            `Model API stream events of type ${redact(typed.data.type)} are ignored`,
+          )
+        }
+      } catch (error: unknown) {
+        throw redactModelApiError(error, redact, response.status)
+      } finally {
+        // An early end (a malformed frame, a stall, the caller stopping)
+        // closes the parser, which releases the response body (the review of
+        // PR #20). Not awaited: after a stall its last read may never settle.
+        void frames.return(undefined).catch(ignoreClosingError)
+      }
     } finally {
-      // An early end (a malformed frame, a stall, the caller stopping)
-      // closes the parser, which releases the response body (the review of
-      // PR #20). Not awaited: after a stall its last read may never settle.
-      void frames.return(undefined).catch(ignoreClosingError)
+      if (paid?.isSent === false) {
+        await paid.claim.settle(0)
+      }
     }
   }
 }

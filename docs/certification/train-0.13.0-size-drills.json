@@ -1,0 +1,179 @@
+[
+  {
+    "name": "AgentMap eager again",
+    "file": "dist/meta/webview.json",
+    "command": "node scripts/check-bundle-split.mjs",
+    "exitCode": 1,
+    "beforeSha256": "95c068b12aae2a45de41c9edb3421bd8bf879d0a382ebebd5846a8aa7d7eb6af",
+    "afterSha256": "95c068b12aae2a45de41c9edb3421bd8bf879d0a382ebebd5846a8aa7d7eb6af",
+    "restoredByteExact": true
+  },
+  {
+    "name": "UsageDialog eager again",
+    "file": "dist/meta/webview.json",
+    "command": "node scripts/check-bundle-split.mjs",
+    "exitCode": 1,
+    "beforeSha256": "95c068b12aae2a45de41c9edb3421bd8bf879d0a382ebebd5846a8aa7d7eb6af",
+    "afterSha256": "95c068b12aae2a45de41c9edb3421bd8bf879d0a382ebebd5846a8aa7d7eb6af",
+    "restoredByteExact": true
+  },
+  {
+    "name": "BestOfNDialog eager again",
+    "file": "dist/meta/webview.json",
+    "command": "node scripts/check-bundle-split.mjs",
+    "exitCode": 1,
+    "beforeSha256": "95c068b12aae2a45de41c9edb3421bd8bf879d0a382ebebd5846a8aa7d7eb6af",
+    "afterSha256": "95c068b12aae2a45de41c9edb3421bd8bf879d0a382ebebd5846a8aa7d7eb6af",
+    "restoredByteExact": true
+  },
+  {
+    "name": "ReviewPane eager again",
+    "file": "dist/meta/webview.json",
+    "command": "node scripts/check-bundle-split.mjs",
+    "exitCode": 1,
+    "beforeSha256": "95c068b12aae2a45de41c9edb3421bd8bf879d0a382ebebd5846a8aa7d7eb6af",
+    "afterSha256": "95c068b12aae2a45de41c9edb3421bd8bf879d0a382ebebd5846a8aa7d7eb6af",
+    "restoredByteExact": true
+  },
+  {
+    "name": "HistoryDialog eager again",
+    "file": "dist/meta/webview.json",
+    "command": "node scripts/check-bundle-split.mjs",
+    "exitCode": 1,
+    "beforeSha256": "95c068b12aae2a45de41c9edb3421bd8bf879d0a382ebebd5846a8aa7d7eb6af",
+    "afterSha256": "95c068b12aae2a45de41c9edb3421bd8bf879d0a382ebebd5846a8aa7d7eb6af",
+    "restoredByteExact": true
+  },
+  {
+    "name": "SessionBoardDialog eager again",
+    "file": "dist/meta/webview.json",
+    "command": "node scripts/check-bundle-split.mjs",
+    "exitCode": 1,
+    "beforeSha256": "95c068b12aae2a45de41c9edb3421bd8bf879d0a382ebebd5846a8aa7d7eb6af",
+    "afterSha256": "95c068b12aae2a45de41c9edb3421bd8bf879d0a382ebebd5846a8aa7d7eb6af",
+    "restoredByteExact": true
+  },
+  {
+    "name": "mini-parser inlined again",
+    "file": "dist/meta/extension.json",
+    "command": "node scripts/check-bundle-split.mjs",
+    "exitCode": 1,
+    "beforeSha256": "c5231627e3c52a11396d0f4ef27320ff7cfb3e9664959f5518becc12a7ca9def",
+    "afterSha256": "c5231627e3c52a11396d0f4ef27320ff7cfb3e9664959f5518becc12a7ca9def",
+    "restoredByteExact": true
+  },
+  {
+    "name": "shared parser misses a runtime export",
+    "file": "dist/validation.js",
+    "command": "node scripts/check-bundle-split.mjs",
+    "exitCode": 1,
+    "beforeSha256": "8129c8e7992d6475c12b2dc737a34a92078f9b336b3e7dcce84e1f7f6f1cf389",
+    "afterSha256": "8129c8e7992d6475c12b2dc737a34a92078f9b336b3e7dcce84e1f7f6f1cf389",
+    "restoredByteExact": true
+  },
+  {
+    "name": "new mini-parser member has no shared export",
+    "file": "src/extension.ts",
+    "command": "node scripts/check-bundle-split.mjs",
+    "exitCode": 1,
+    "beforeSha256": "2a1c9123b9fe9db38ad7986bb14a90f6f5f07e5997efc914deac188972c0751a",
+    "afterSha256": "2a1c9123b9fe9db38ad7986bb14a90f6f5f07e5997efc914deac188972c0751a",
+    "restoredByteExact": true
+  },
+  {
+    "name": "stale hashed chunk",
+    "file": "dist/webview/chunks/train13b-stale.js",
+    "exitCode": 1,
+    "restoredBy": "removed only the drill-created file"
+  },
+  {
+    "name": "eager chunk pushes startup over 900 KiB",
+    "file": "dist/webview/main.js",
+    "command": "node scripts/check-bundle-size.mjs",
+    "exitCode": 1,
+    "beforeSha256": "ade9ccb9a186184904fe30d6c96d0126dd31db0da9e64fcddaadae1b1f7af63b",
+    "afterSha256": "ade9ccb9a186184904fe30d6c96d0126dd31db0da9e64fcddaadae1b1f7af63b",
+    "restoredByteExact": true
+  },
+  {
+    "name": "optional chunks push deferred total over 50 KiB",
+    "file": "dist/webview/chunks/UsageDialog-WIF6SKXO.js",
+    "command": "node scripts/check-bundle-size.mjs",
+    "exitCode": 1,
+    "beforeSha256": "0008ec904f541381a51a6e0ba53a7a2f365584dcb81ee1847541fc964594c630",
+    "afterSha256": "0008ec904f541381a51a6e0ba53a7a2f365584dcb81ee1847541fc964594c630",
+    "restoredByteExact": true
+  },
+  {
+    "name": "host global returns in shared parser",
+    "file": "dist/validation.js",
+    "command": "node scripts/check-host-globals.mjs",
+    "exitCode": 1,
+    "beforeSha256": "8129c8e7992d6475c12b2dc737a34a92078f9b336b3e7dcce84e1f7f6f1cf389",
+    "afterSha256": "8129c8e7992d6475c12b2dc737a34a92078f9b336b3e7dcce84e1f7f6f1cf389",
+    "restoredByteExact": true
+  },
+  {
+    "name": "packaging re-includes development files",
+    "file": ".vscodeignore",
+    "command": "node node_modules/vitest/vitest.mjs run test/unit/vsixPackaging.test.mjs --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "beforeSha256": "50a27d713a459b41fffa0838b0f4332f484d09e79aecb890cc097066778695b0",
+    "afterSha256": "50a27d713a459b41fffa0838b0f4332f484d09e79aecb890cc097066778695b0",
+    "restoredByteExact": true
+  },
+  {
+    "name": "packaging omits deferred chunks",
+    "file": ".vscodeignore",
+    "command": "node node_modules/vitest/vitest.mjs run test/unit/vsixPackaging.test.mjs --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "beforeSha256": "50a27d713a459b41fffa0838b0f4332f484d09e79aecb890cc097066778695b0",
+    "afterSha256": "50a27d713a459b41fffa0838b0f4332f484d09e79aecb890cc097066778695b0",
+    "restoredByteExact": true
+  },
+  {
+    "name": "translations stop being compact",
+    "file": "scripts/package-vsix.mjs",
+    "command": "node node_modules/vitest/vitest.mjs run test/unit/vsixPackaging.test.mjs --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "beforeSha256": "21ab23cb29479c37ff852b8d5ae56de9597ba92f9c7c9567127dd7767dda0aa7",
+    "afterSha256": "21ab23cb29479c37ff852b8d5ae56de9597ba92f9c7c9567127dd7767dda0aa7",
+    "restoredByteExact": true
+  },
+  {
+    "name": "historical notes return to bundled changelog",
+    "file": "scripts/package-vsix.mjs",
+    "command": "node node_modules/vitest/vitest.mjs run test/unit/vsixPackaging.test.mjs --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "beforeSha256": "21ab23cb29479c37ff852b8d5ae56de9597ba92f9c7c9567127dd7767dda0aa7",
+    "afterSha256": "21ab23cb29479c37ff852b8d5ae56de9597ba92f9c7c9567127dd7767dda0aa7",
+    "restoredByteExact": true
+  },
+  {
+    "name": "deferred loading and children disappear",
+    "file": "src/webview/components/DeferredSurface.tsx",
+    "command": "node node_modules/vitest/vitest.mjs run test/unit/DeferredSurface.test.tsx --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "beforeSha256": "17e893ac2b9d4e93f554b9f21b3df5db70271b43a529db66ec71c8ee55bc81fa",
+    "afterSha256": "17e893ac2b9d4e93f554b9f21b3df5db70271b43a529db66ec71c8ee55bc81fa",
+    "restoredByteExact": true
+  },
+  {
+    "name": "shipped translation changes after staging",
+    "file": "dist/vsix-package/l10n/ui.de.json",
+    "command": "node scripts/check-l10n.mjs --packaged /home/randy/lanes/TRAIN13B/dist/vsix-package",
+    "exitCode": 1,
+    "beforeSha256": "b923e08211929e2de31f1a79321e96886f833646c6b3ee06ab5ab4c3ddcf5bff",
+    "afterSha256": "b923e08211929e2de31f1a79321e96886f833646c6b3ee06ab5ab4c3ddcf5bff",
+    "restoredByteExact": true
+  },
+  {
+    "name": "nested deferred scenario never becomes ready",
+    "file": "test/harness/index.html",
+    "command": "node scripts/a11y.mjs agents-details",
+    "exitCode": 1,
+    "beforeSha256": "e1fed770ede0188ddf8b8fa6f8c3bd726042933e0664c1084ef201b96dce91b8",
+    "afterSha256": "e1fed770ede0188ddf8b8fa6f8c3bd726042933e0664c1084ef201b96dce91b8",
+    "restoredByteExact": true
+  }
+]
