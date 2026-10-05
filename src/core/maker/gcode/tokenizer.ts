@@ -54,10 +54,11 @@ export function tokenizeGcode(payload: string, policy: GcodePolicy): readonly Gc
     throw new GcodeError('payloadSize')
   const blocks: GcodeBlock[] = []
   for (const [index, raw] of lines.entries()) {
-    const text = uncomment(raw.replace(/\r$/, ''))
+    const printable = raw.replace(/\r$/, '')
+    if (/[^\u{20}-\u{7E}\t]/u.test(printable)) throw new GcodeError('syntax')
+    const text = uncomment(printable)
     if (text === '') continue
     if (/^N\d/i.test(text)) throw new GcodeError('syntax')
-    if (/[^\u{20}-\u{7E}\t]/u.test(text)) throw new GcodeError('syntax')
     const head =
       /^(?:[GMT]\d+(?:\.\d+)?|\$[^\s]*|[A-Z_][A-Z_0-9]*)(?=\s|[XYZEFIJKSRTPL]\s*[+-]?(?:\d|\.)|$)/i.exec(
         text,

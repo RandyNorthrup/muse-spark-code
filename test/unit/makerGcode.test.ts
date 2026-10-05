@@ -1,3 +1,4 @@
+import { makerLimits as limits } from './helpers/fakeMakerMachine'
 import { describe, expect, it } from 'vitest'
 import { analyseGcode, type GcodeState } from '../../src/core/maker/gcode/analyser'
 import { gcodeClass } from '../../src/core/maker/gcode/dialects'
@@ -11,12 +12,7 @@ const initial: GcodeState = {
   unit: 'mm',
   feedMmMin: 600,
 }
-const limits = {
-  travel: { min: { x: 0, y: 0, z: 0 }, max: { x: 200, y: 200, z: 200 } },
-  feedMmMin: 1200,
-  extruder: 240,
-  bed: 100,
-}
+
 const analyse = (script: string) => analyseGcode(script, 'klipper', initial, policy)
 
 describe('maker G-code tokenizer and dialects', () => {
@@ -36,6 +32,8 @@ describe('maker G-code tokenizer and dialects', () => {
     'G1 (oops',
     'G1 ((x))',
     'G1 X1)',
+    'G1 X20 ;\u{18}',
+    'G1 X20 (comment\u{18})',
   ])('rejects ambiguous syntax %s', (script) => {
     expect(() => tokenizeGcode(script, policy)).toThrow('syntax')
   })
@@ -47,6 +45,16 @@ describe('maker G-code tokenizer and dialects', () => {
     'M500',
     'M502',
     'M997',
+    'M999',
+    'SHUTDOWN_MACHINE',
+    'REBOOT_MACHINE',
+    'SET_PIN',
+    'FORCE_MOVE',
+    'SET_KINEMATIC_POSITION',
+    'SET_VELOCITY_LIMIT',
+    'PID_CALIBRATE',
+    'UPDATE_DELAYED_GCODE',
+    'SET_GCODE_VARIABLE',
     'M80',
     'M81',
     'M42',
