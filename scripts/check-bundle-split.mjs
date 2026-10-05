@@ -37,7 +37,7 @@
 //   dist/museCodeReviewer.js.
 // - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
 //   CHECKPOINT_, AGENT_IMPORT_, REVIEW_, WEB_FETCH_, EXEC_,
-//   AUTO_REVIEWER_MODEL_TEXT) is
+//   AUTO_REVIEWER_, JUDGE_MODEL_TEXT) is
 //   in any shipped bundle but the ones declared to read it, or no longer in
 //   one of those; a block is declared that this check does not guard;
 //   FILE_REFUSAL_MODEL_TEXT, which activation carries by design, holds other
@@ -566,6 +566,15 @@ const TEXT_BLOCKS = [
     block: 'AUTO_REVIEWER_MODEL_TEXT',
     sentinels: ['autoReviewerInstructions', 'museCodeReviewerTurn'],
     readers: ['dist/reviewer.js', 'dist/museCodeReviewer.js'],
+  },
+  // The same-model judge (M98 lane S): no bundle reads it yet — lane S's
+  // core and adapters are unwired until lane D ships the judge bundle and
+  // lane U wires the fences. Until then the guard proves the block rides
+  // nowhere; wiring adds the readers here.
+  {
+    block: 'JUDGE_MODEL_TEXT',
+    sentinels: ['judgeSystemInstruction', 'judgeStandaloneTurn'],
+    readers: [],
   },
 ].map((entry) => ({
   ...entry,
