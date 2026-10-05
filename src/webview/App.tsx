@@ -2059,6 +2059,9 @@ export function App({
         permissionMode={state.permissionMode}
         onRequestFix={onRequestLegalFix}
         onConfirm={onConfirmLegalFix}
+        onExplain={() => {
+          postMessage({ type: 'requestLegalExplanation' })
+        }}
         onExport={() => {
           postMessage({ type: 'exportLegalReport' })
         }}

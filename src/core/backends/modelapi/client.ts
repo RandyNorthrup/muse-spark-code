@@ -1,3 +1,5 @@
+import type { PaidFeature } from '../../../shared/constants'
+import type { SessionBudgetClaim } from './sessionBudget'
 // A thin, schema-validated client for the four Model API endpoints the
 // backend uses (PLAN.md D2): `GET /models`, `POST /responses/input_tokens`,
 // the streamed `POST /responses` and `POST /images/generations` (M34).
@@ -46,6 +48,13 @@ import {
 import { parseSse } from './sse'
 
 export interface ModelApiClientDeps {
+  readonly reservePaidRequest?: (
+    body: CreateResponseBody | CreateImageBody,
+    feature: PaidFeature,
+    estimatedInputTokens?: number,
+    signal?: AbortSignal,
+  ) => Promise<SessionBudgetClaim | undefined>
+
   readonly fetch: typeof fetch
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */

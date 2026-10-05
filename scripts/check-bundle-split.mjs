@@ -570,6 +570,11 @@ function shipped(output) {
 }
 const TEXT_BLOCKS = [
   {
+    block: 'LEGAL_EXPLANATION_MODEL_TEXT',
+    sentinels: ['legalExplanationInstructions'],
+    readers: ['dist/reviewer.js'],
+  },
+  {
     block: 'MODEL_API_MODEL_TEXT',
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
     readers: [BUNDLES.modelApi.output],

@@ -124,5 +124,7 @@
   "config.legalHeaderPolicy.enumDescriptions.optional": "감지된 프로젝트 스타일이나 REUSE 선언에 어긋나는 헤더만 발견 사항입니다. 기본값입니다.",
   "config.legalHeaderPolicy.enumDescriptions.off": "헤더 검사를 건너뜁니다. 보고서에 그 사실이 표시됩니다.",
   "command.legalScan.title": "법률 검사",
-  "config.legalRegistryLookups.description": "레지스트리와 전송할 패키지 이름 및 버전을 최초 한 번 안내한 후 공개 레지스트리 조회를 허용합니다. 끄면 로컬 메타데이터만 사용합니다."
+  "config.legalRegistryLookups.description": "레지스트리와 전송할 패키지 이름 및 버전을 최초 한 번 안내한 후 공개 레지스트리 조회를 허용합니다. 끄면 로컬 메타데이터만 사용합니다.",
+  "config.legalExplanation": "선택 사항인 Model API 설명: USD. 사용할 때마다 동의를 요청하며 일일 유료 예산을 공유합니다.",
+  "config.paidDailyBudgetUsd": "유료 추가 기능의 공유 일일 예산: USD."
 }

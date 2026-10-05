@@ -59,6 +59,8 @@ export function renderLegalMarkdown(report: LegalScanResult): string {
       text(finding.fixable ? UI_TEXT.legalFixable : UI_TEXT.legalNotFixable),
     )
   }
+  if (result.paidExplanation !== undefined)
+    lines.push('', `## ${text(UI_TEXT.legalExplainPaid)}`, '', text(result.paidExplanation))
   if (result.incompleteChecks.length > 0)
     lines.push(
       '',

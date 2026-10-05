@@ -2633,7 +2633,7 @@ The scanner reads existing manifests, locks, installed metadata, licenses,
 notices, bundle inventories and provenance across npm/pnpm/Yarn, Python,
 Cargo, Go, Maven/Gradle, NuGet, Composer and Ruby gems. It runs no model,
 package manager, build, shell command, hook, formatter or installation and
-makes no network request. It costs nothing and requires no account. A live
+uses local evidence before optional registry enrichment. The scan costs nothing and requires no account. A live
 conversation temporarily holds Plan mode only while the scan owns that hold.
 The same scanner serves the Model API's `legal_scan` and Muse Code's
 `mcp__ide__legalScan`; tool results requested during a normal model turn can
@@ -2659,12 +2659,36 @@ files and project-license changes remain recommendations.
 
 **Export Markdown…** asks for a local destination and saves the report's
 scrubbed evidence, limitations and disclaimer only after that request.
-Scanner explanations still remain English; the report controls, ownership
-confirmation, export action and setting have real translations in all 14
-languages. Registry consent and bounded model explanations are not delivered.
-Full Windows/hosted certification is pending. See [the certification
-record](docs/certification/m97.md) for named owners, acceptance receipts and
-measured gates; M97 is not fully certified.
+Scanner findings and controls have real translations in all 14 supported
+languages; identifiers and SPDX license IDs stay unchanged. Public npm/PyPI
+metadata lookup is offered by default after a one-time workspace notice naming
+the hosts and disclosing package names and versions. The
+`museSpark.legalRegistryLookups` setting disables enrichment. Requests use HTTPS
+and refuse redirects; private registry configuration is never contacted.
+
+**Explain with model (paid)** is an optional extra, off by default under the
+machine setting `museSpark.legalExplanation`. It requires a stored Model API key,
+asks permission with the price and shared daily budget, and reserves/settles
+against the same D78 ledger used by other paid callers. The machine setting
+`museSpark.paidDailyBudgetUsd` defaults to USD 5 (range USD 0.50–500). Only
+technical finding categories and recognized license IDs are sent; source,
+paths, excerpts and package names are excluded. One request has no tools or
+retries and at most 512 output tokens. A sent request without verified usage
+retains its reserved cost as unknown liability. The subscription pays none of
+it; deterministic scanning needs no model call.
+
+ACP editors can send `/legal` on either backend without starting a model turn;
+`/legal --offline` disables registry lookup. The shared runtime command also
+serves companion and native editor adapters. Native adapter certification
+belongs to each editor's existing compatibility milestone.
+
+The headless accessibility check runs keyboard, accessibility-tree, narrow
+layout and 100%/200% browser-metric zoom checks in four themes and English/pseudo
+locales, followed by WCAG checks. Run `npm run test:legal-a11y`; the Windows rig
+runs `npm run test:legal-a11y -- --platform=win32 --out=temp/m97-windows-a11y`.
+A mismatched platform fails before launching a browser. macOS passed; Windows
+execution remains with the lead's rig. See the [certification
+record](docs/certification/m97.md) for receipts and platform scope.
 
 The ACP package also provides the reserved offline command
 `muse-spark-code-acp exec legal-scan --json`, with the older top-level `legal`

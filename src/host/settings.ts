@@ -17,6 +17,7 @@ import {
   SANDBOX_NETWORK_MODES,
   type SandboxNetworkMode,
   SETTING_DEFAULTS,
+  PAID_DAILY_BUDGET,
   SETTINGS_SECTION,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
@@ -82,6 +83,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiSessionBudgetUsd: number
   /** Copyright/SPDX header hygiene for the read-only legal scan (M97). */
   readonly legalRegistryLookups: boolean
+  readonly legalExplanation: boolean
+  readonly paidDailyBudgetUsd: number
   readonly legalHeaderPolicy: LegalHeaderPolicy
 }
 
@@ -132,6 +135,10 @@ const settingSchemas = {
   modelApiReplyUsage: z.boolean(),
   modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
   legalRegistryLookups: z.boolean(),
+  legalExplanation: z.boolean(),
+  paidDailyBudgetUsd: z
+    .number()
+    .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
   legalHeaderPolicy: z.enum(LEGAL_HEADER_POLICIES),
 } as const
 
@@ -218,6 +225,8 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
     museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),
     legalRegistryLookups: readSetting(config, 'legalRegistryLookups', log),
+    legalExplanation: readSetting(config, 'legalExplanation', log),
+    paidDailyBudgetUsd: readSetting(config, 'paidDailyBudgetUsd', log),
     legalHeaderPolicy: readSetting(config, 'legalHeaderPolicy', log),
   }
 }

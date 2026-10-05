@@ -1,3 +1,5 @@
+import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
+import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
 // The Model API backend's bundle as the activation bundle sees it (M57,
 // PLAN.md D6): `dist/modelApi.js`, built from `modelApiEntry.ts` and loaded
 // by `ModelApiBackendManager` the first time that backend starts. Only types
@@ -36,6 +38,15 @@ export interface ModelApiBundleDeps {
 
 /** The bundle's one export. */
 export interface ModelApiBundle {
+  readonly streamLegalExplanation?: (
+    deps: ModelApiClientDeps,
+    body: CreateResponseBody,
+    signal: AbortSignal,
+    guard: ResponseAttemptGuard,
+    table: UiText,
+    locale: string,
+  ) => AsyncIterable<StreamEvent>
+
   /** Installs the table, builds the client and the host, and reads the stored sessions. */
   readonly createModelApiHost: (deps: ModelApiBundleDeps) => Promise<ModelApiHost>
 }

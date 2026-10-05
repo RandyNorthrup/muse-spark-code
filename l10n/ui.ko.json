@@ -2116,5 +2116,17 @@
     "bundleLoad": "{file}를 로드할 수 없습니다",
     "bundleShape": "{file}의 형식이 예상과 다릅니다",
     "invalidResult": "검사가 잘못된 결과를 반환했습니다"
-  }
+  },
+  "paidDailyBudgetLine": "유료 추가 기능의 공유 일일 예산: {budget}.",
+  "paidDailyLedgerUnavailable": "유료 일일 예산에 도달했습니다. 원장을 읽을 수 없거나 불완전하거나 이 요청을 승인할 수 없습니다. 유료 요청을 전송하지 않았습니다.",
+  "paidDailyStopped": "유료 기능을 내일까지 중지했습니다.",
+  "paidDailyReached": "유료 일일 예산에 도달했습니다",
+  "paidDailyReachedDetail": "오늘 한도는 {budget}입니다. 이 요청과 기존 예약에는 {needed}이 필요합니다. 오늘 한도를 높이거나 유료 기능을 내일까지 중지하세요.",
+  "paidDailyRaise": "오늘 한도 높이기",
+  "paidDailyStop": "내일까지 중지",
+  "paidDailyRaisePrompt": "대기 중인 예약을 충족하는 오늘의 USD 한도를 입력하세요(0.50–500).",
+  "legalExplainPaid": "검사 결과 설명 (유료)",
+  "legalExplainConsent": "{model}로 결과를 설명하며 Model API 키에 {price} 요금이 청구됩니다. 구독은 비용을 부담하지 않습니다. 결과 ID, 분류, 심각도와 인식된 라이선스 ID만 전송하며 소스, 경로와 발췌문은 보내지 않습니다.",
+  "legalExplainConfirm": "선택 사항인 Model API 설명: {price}. 사용할 때마다 동의를 요청하며 일일 유료 예산을 공유합니다.",
+  "legalExplainUnavailable": "계정 및 사용량에서 유료 법률 설명을 켜고 Model API 키를 먼저 저장하세요."
 }

@@ -124,5 +124,7 @@
   "config.legalHeaderPolicy.enumDescriptions.optional": "僅與偵測到的專案風格或其 REUSE 聲明相矛盾的標頭才算發現。預設值。",
   "config.legalHeaderPolicy.enumDescriptions.off": "略過標頭檢查；報告中會說明。",
   "command.legalScan.title": "法律掃描",
-  "config.legalRegistryLookups.description": "首次通知列出登錄庫及傳送的套件名稱與版本後，允許查詢公開登錄庫。關閉後僅使用本機中繼資料。"
+  "config.legalRegistryLookups.description": "首次通知列出登錄庫及傳送的套件名稱與版本後，允許查詢公開登錄庫。關閉後僅使用本機中繼資料。",
+  "config.legalExplanation": "選用 Model API 解釋：USD。每次使用皆徵求同意，並共用每日付費預算。",
+  "config.paidDailyBudgetUsd": "付費附加功能的共用每日預算：USD。"
 }

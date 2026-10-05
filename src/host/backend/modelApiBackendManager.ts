@@ -1,3 +1,4 @@
+import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 // Owns the Model API host for this extension host (M7): one in-process
 // `ModelApiHost` over the real `fetch`, the stored key and the workspace's
 // files, with the MCP servers of Muse Code's settings (M50), which it starts
@@ -358,6 +359,31 @@ export class ModelApiBackendManager {
    * could change the main checkout (the review of PR #89). Closed by the
    * run when the attempt settles.
    */
+  public streamLegalExplanation(
+    body: CreateResponseBody,
+    signal: AbortSignal,
+    guard: ResponseAttemptGuard,
+  ): AsyncIterable<StreamEvent> {
+    const stream = this.loadBundle().streamLegalExplanation
+    if (stream === undefined) throw new Error(UI_TEXT.legalExplainUnavailable)
+    return stream(
+      {
+        fetch: this.deps.fetch,
+        baseUrl: MODEL_API_BASE_URL,
+        apiKey: this.deps.getApiKey,
+        sleep: this.deps.sleep,
+        now: this.deps.now,
+        random: this.deps.random,
+        log: this.deps.log,
+      },
+      body,
+      signal,
+      guard,
+      UI_TEXT,
+      uiLocale(),
+    )
+  }
+
   public async buildAttemptHost(
     worktreeRoot: string,
     admitRequest: ResponseAttemptGuard,

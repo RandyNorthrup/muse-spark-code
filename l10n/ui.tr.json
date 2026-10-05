@@ -2212,5 +2212,17 @@
     "bundleLoad": "{file} yüklenemedi",
     "bundleShape": "{file} beklenmeyen biçimde",
     "invalidResult": "tarama geçersiz sonuç döndürdü"
-  }
+  },
+  "paidDailyBudgetLine": "Ücretli ek özelliklerin ortak günlük bütçesi: {budget}.",
+  "paidDailyLedgerUnavailable": "Ücretli günlük bütçeye ulaşıldı: kayıt okunamıyor, eksik veya bu isteği kabul edemiyor. Ücretli istek gönderilmedi.",
+  "paidDailyStopped": "Ücretli ek özellikler yarına kadar durduruldu.",
+  "paidDailyReached": "Ücretli günlük bütçeye ulaşıldı",
+  "paidDailyReachedDetail": "Bugünkü sınır {budget}. Bu istek ve mevcut ayırmalar {needed} gerektiriyor. Bugünkü sınırı artırın veya ücretli ek özellikleri yarına kadar durdurun.",
+  "paidDailyRaise": "Bugün için artır",
+  "paidDailyStop": "Yarına kadar durdur",
+  "paidDailyRaisePrompt": "Bekleyen ayırmalara yetecek bugünkü USD sınırını girin (0.50–500).",
+  "legalExplainPaid": "Bulguları açıkla (ücretli)",
+  "legalExplainConsent": "Bulguları {model} ile açıklayın; Model API anahtarınıza {price} üzerinden ücret yansır. Abonelik ödemez. Yalnızca bulgu kimlikleri, kategoriler, önem dereceleri ve tanınan lisans kimlikleri gönderilir; kaynak, yol veya alıntı gönderilmez.",
+  "legalExplainConfirm": "İsteğe bağlı Model API açıklaması: {price}. Her kullanım onay ister ve ortak günlük bütçeyi kullanır.",
+  "legalExplainUnavailable": "Hesap ve kullanım bölümünde ücretli hukuki açıklamaları etkinleştirip Model API anahtarını kaydedin."
 }

@@ -355,6 +355,8 @@ export interface ConversationDeps {
    * The deterministic legal scanner (M97, PLAN.md D76): lane S's scan
    * through lane 0's contract; undefined until lane R wires the bundle.
    */
+  readonly legalExplanation?:
+    ((result: LegalScanResult, signal: AbortSignal) => Promise<string>) | undefined
   readonly legalMarkdown?: ((result: LegalScanResult) => string) | undefined
   readonly legalFixApplier?: LegalFixApplier | undefined
   readonly legalScan?: LegalScanRunner | undefined
@@ -6135,6 +6137,49 @@ export class ConversationController {
    * The injected applier publishes through checkpoint and conditional writes.
    * A host without that capability refuses explicitly.
    */
+  private async explainLegalReport(): Promise<void> {
+    const report = this.legalFixPreviews.report
+    const explain = this.deps.legalExplanation
+    if (report === undefined || explain === undefined || !this.deps.isWorkspaceTrusted()) {
+      this.notice('warning', UI_TEXT.legalExplainUnavailable)
+      return
+    }
+    if (this.legalScanStop !== undefined) {
+      this.notice('warning', UI_TEXT.legalScanBusy)
+      return
+    }
+    const stop = new AbortController()
+    this.legalScanStop = stop
+    try {
+      const paidExplanation = await explain(report, stop.signal)
+      if (
+        stop.signal.aborted ||
+        !this.deps.isWorkspaceTrusted() ||
+        this.legalFixPreviews.report !== report
+      )
+        return
+      const result = { ...report, paidExplanation }
+      this.legalFixPreviews.setScan(
+        `legal-${String(this.legalScanSequence)}`,
+        result,
+        this.deps.workspaceRoot ?? '',
+      )
+      this.post({
+        type: 'legalScanReport',
+        requestId: `legal-${String(this.legalScanSequence)}`,
+        result,
+      })
+    } catch (error: unknown) {
+      if (!stop.signal.aborted)
+        this.notice(
+          'warning',
+          fill(UI_TEXT.legalScanFailed, { reason: redactSecrets(describe(error)) }),
+        )
+    } finally {
+      if (this.legalScanStop === stop) this.legalScanStop = undefined
+    }
+  }
+
   private legalFixFiles(): LegalFixFileAccess {
     return {
       resolveRelativePath: async (relativePath) => {
@@ -7781,6 +7826,10 @@ export class ConversationController {
       }
       case 'revertReviewHunk': {
         await this.revertReviewHunk(message)
+        break
+      }
+      case 'requestLegalExplanation': {
+        await this.explainLegalReport()
         break
       }
       case 'exportLegalReport': {

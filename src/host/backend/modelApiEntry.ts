@@ -1,3 +1,7 @@
+import { MODEL_API_MAX_RETRIES } from '../../shared/constants'
+import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
+import type { ModelApiClientDeps, ResponseAttemptGuard } from '../../core/backends/modelapi/client'
+import type { UiText } from '../../shared/l10n/en'
 // The Model API backend's bundle (M57, PLAN.md D6): esbuild builds this file
 // into dist/modelApi.js, which `ModelApiBackendManager` requires the first
 // time that backend starts, so the host, its tools, hooks and MCP client stay
@@ -38,4 +42,22 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   })
   await host.load()
   return host
+}
+
+export async function* streamLegalExplanation(
+  deps: ModelApiClientDeps,
+  body: CreateResponseBody,
+  signal: AbortSignal,
+  guard: ResponseAttemptGuard,
+  table: UiText,
+  locale: string,
+): AsyncGenerator<StreamEvent> {
+  setUiText(table, locale)
+  yield* new ModelApiClient(deps).streamResponse(
+    body,
+    signal,
+    undefined,
+    { retriesUsed: MODEL_API_MAX_RETRIES },
+    guard,
+  )
 }

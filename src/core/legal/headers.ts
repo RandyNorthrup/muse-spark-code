@@ -480,47 +480,43 @@ export function scanHeaders(
         })
         continue
       }
+      const spdxBase: Pick<
+        LegalFindingDraft,
+        'category' | 'file' | 'line' | 'evidenceSource' | 'fixable' | 'evidenceExcerpt'
+      > = {
+        category: 'spdxIdentifier',
+        file,
+        line: spdxLine,
+        evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
+        fixable: false,
+        evidenceExcerpt: excerpt(spdxRaw),
+      }
       const listed6 = parsed.licenses
       for (const license of listed6) {
         const canonical = license.canonicalId ?? (license.custom ? license.id : undefined)
         if (canonical === undefined || license.custom) {
           findings.push({
             severity: 'advice',
-            category: 'spdxIdentifier',
-            file,
-            line: spdxLine,
-            evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
+            ...spdxBase,
             confidence: 0.7,
             explanation: fill(UI_TEXT.legalScanner.m025, { v0: file, v1: license.id }),
             recommendation: UI_TEXT.legalScanner.m075,
-            fixable: false,
-            evidenceExcerpt: excerpt(spdxRaw),
           })
         } else if (license.deprecated || license.plus) {
           findings.push({
             severity: 'advice',
-            category: 'spdxIdentifier',
-            file,
-            line: spdxLine,
-            evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
+            ...spdxBase,
             confidence: 0.8,
             explanation: fill(UI_TEXT.legalScanner.m076, { v0: file, v1: license.id }),
             recommendation: UI_TEXT.legalScanner.m077,
-            fixable: false,
-            evidenceExcerpt: excerpt(spdxRaw),
           })
         } else if (license.exception !== undefined && !license.exception.known) {
           findings.push({
             severity: 'advice',
-            category: 'spdxIdentifier',
-            file,
-            line: spdxLine,
-            evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
+            ...spdxBase,
             confidence: 0.7,
             explanation: fill(UI_TEXT.legalScanner.m029, { v0: file, v1: license.exception.id }),
             recommendation: UI_TEXT.legalScanner.m030,
-            fixable: false,
-            evidenceExcerpt: excerpt(spdxRaw),
           })
         }
       }
@@ -528,15 +524,10 @@ export function scanHeaders(
       if (firstSpdx !== undefined && firstSpdx !== spdxRaw) {
         findings.push({
           severity: 'should-fix',
-          category: 'spdxIdentifier',
-          file,
-          line: spdxLine,
-          evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
+          ...spdxBase,
           confidence: 0.8,
           explanation: fill(UI_TEXT.legalScanner.m078, { v0: file, v1: firstSpdx, v2: spdxRaw }),
           recommendation: UI_TEXT.legalScanner.m079,
-          fixable: false,
-          evidenceExcerpt: excerpt(spdxRaw),
         })
       }
       if (projectSet.size === 0) continue
@@ -547,10 +538,7 @@ export function scanHeaders(
         if (!isCovered) {
           findings.push({
             severity: 'should-fix',
-            category: 'spdxIdentifier',
-            file,
-            line: spdxLine,
-            evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
+            ...spdxBase,
             confidence: 0.8,
             explanation: fill(UI_TEXT.legalScanner.m080, {
               v0: file,
@@ -558,8 +546,6 @@ export function scanHeaders(
               v2: [...projectSet].toSorted((a, b) => compareLegalText(a, b)).join(', '),
             }),
             recommendation: UI_TEXT.legalScanner.m081,
-            fixable: false,
-            evidenceExcerpt: excerpt(spdxRaw),
           })
         }
       }

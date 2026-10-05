@@ -1,3 +1,4 @@
+import { legalScanLoader } from '../host/ide/legalScanBundle'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
 // speak the Agent Client Protocol, and the sign-in commands their terminal
 // sign-ins run (D61). stdout carries the protocol; everything the user or
@@ -25,6 +26,7 @@ import {
   EXEC_STOP_GRACE_MS,
   LEGAL_EXIT,
   LEGAL_SCAN_TIMEOUT_MS,
+  LEGAL_SCAN_BUNDLE_FILE,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
@@ -222,7 +224,35 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   }
   // "Allow always" lapses for a paid feature started without its flag (M58).
   await runtime.forgetUnflaggedGrants()
+  const legalRegistryNotices = new Map<string, Set<string>>()
+  const agentLegalBundle = legalScanLoader({
+    bundlePath: path.join(distDir, LEGAL_SCAN_BUNDLE_FILE),
+    log,
+  })
   const agent = createAcpAgent({
+    legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
+      const bundle = agentLegalBundle()
+      const handle = await bundle.runLegalScan({ workspaceRoot: cwd, input: {}, signal })
+      const render = bundle.renderLegalMarkdown
+      if (render === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
+      signal.throwIfAborted()
+      const enrich = bundle.enrichInteractiveLegalScan
+      if (enrich === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
+      const noticed = legalRegistryNotices.get(cwd) ?? new Set<string>()
+      legalRegistryNotices.set(cwd, noticed)
+      const result = await enrich(handle, {
+        isOn: () => isRegistryOn,
+        isNoticed: (host) => noticed.has(host),
+        notice: allowsRegistryLookup,
+        markNoticed: (hosts) => {
+          for (const host of hosts) noticed.add(host)
+          return Promise.resolve()
+        },
+        fetch: globalThis.fetch.bind(globalThis),
+        signal,
+      })
+      return render(result)
+    },
     backend: runtime.backend,
     version: packageVersion(),
     options: {

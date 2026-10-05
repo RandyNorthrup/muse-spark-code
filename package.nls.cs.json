@@ -124,5 +124,7 @@
   "config.legalHeaderPolicy.enumDescriptions.optional": "Nálezem je pouze hlavička odporující zjištěnému stylu projektu nebo jeho deklaracím REUSE. Výchozí hodnota.",
   "config.legalHeaderPolicy.enumDescriptions.off": "Kontroly hlaviček se přeskakují; zpráva to uvádí.",
   "command.legalScan.title": "Právní kontrola",
-  "config.legalRegistryLookups.description": "Povolit dotazy do veřejných registrů po jednorázovém oznámení registrů a odesílaných názvů a verzí balíčků. Vypnutím použijete jen místní metadata."
+  "config.legalRegistryLookups.description": "Povolit dotazy do veřejných registrů po jednorázovém oznámení registrů a odesílaných názvů a verzí balíčků. Vypnutím použijete jen místní metadata.",
+  "config.legalExplanation": "Volitelné vysvětlení Model API: USD. Každé použití žádá souhlas a sdílí denní rozpočet.",
+  "config.paidDailyBudgetUsd": "Společný denní rozpočet placených doplňků: USD."
 }

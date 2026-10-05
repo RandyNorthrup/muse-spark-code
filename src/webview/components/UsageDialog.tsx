@@ -276,6 +276,9 @@ function paidUseText(feature: PaidFeature, tally: PaidTally): string {
     case 'subagents': {
       return plural(UI_TEXT.usagePaidSubagentRequests, tally.subagentRequests ?? 0)
     }
+    case 'legalExplanation': {
+      return formatNumber(tally.legalExplanations ?? 0)
+    }
     case 'autoReviewer': {
       return plural(UI_TEXT.usagePaidAutoReviews, tally.autoReviews ?? 0)
     }
@@ -341,6 +344,12 @@ function paidRowState(feature: PaidFeature, paid: PaidState): string {
 }
 
 function paidTokenTally(feature: PaidFeature, paid: PaidState) {
+  if (feature === 'legalExplanation')
+    return [
+      paid.tally.legalExplanations,
+      paid.tally.legalExplanationUnknownRequests,
+      paid.tally.legalExplanationTokens,
+    ]
   if (feature === 'autoReviewer') {
     return [
       paid.tally.autoReviews,
@@ -360,7 +369,7 @@ function paidTokenTally(feature: PaidFeature, paid: PaidState) {
 
 function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly paid: PaidState }) {
   const state = paidRowState(feature, paid)
-  const isReview = feature === 'autoReviewer'
+  const isReview = feature === 'autoReviewer' || feature === 'legalExplanation'
   const isAttempt = feature === 'bestOfN'
   const [requests = 0, unknown = 0, tokens = 0] = paidTokenTally(feature, paid)
   const isTokenFeature = feature === 'subagents' || isReview || isAttempt

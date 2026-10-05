@@ -53,6 +53,8 @@ interface Harness {
 }
 
 interface HarnessOptions {
+  readonly legalScan?: AcpAgentDeps['legalScan']
+
   readonly backendHost?: AgentHost
   readonly readiness?: BackendReadiness
   readonly answer?: PermissionAnswer
@@ -87,6 +89,7 @@ function harness(options: HarnessOptions = {}): Harness {
     log,
   })
   const deps: AcpAgentDeps = {
+    legalScan: options.legalScan,
     backend: {
       kind,
       readiness: (isRecheck) => {
@@ -2083,5 +2086,67 @@ describe('ACP session ownership across asynchronous releases', () => {
       ).rejects.toThrow()
       await expect(client.request('session/close', { sessionId: 'old-1' })).rejects.toThrow()
     })
+  })
+})
+
+describe('ACP legal command across editor clients', () => {
+  it('returns the shared report without sending a model turn on either backend', async () => {
+    for (const kind of ['museCode', 'modelApi'] satisfies readonly ('museCode' | 'modelApi')[]) {
+      const scan = vi.fn(() => Promise.resolve('Deterministic report. Not legal advice.'))
+      const h = harness({ kind, legalScan: scan })
+      await h.run(async (client) => {
+        const { sessionId } = await start(client)
+        expect(await prompt(client, sessionId, '/legal')).toMatchObject({ stopReason: 'end_turn' })
+      })
+      expect(scan).toHaveBeenCalledOnce()
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      expect(h.updates).toContainEqual({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'Deterministic report. Not legal advice.' },
+      })
+    }
+  })
+})
+
+it('ACP legal offline mode avoids registry permission and a model turn', async () => {
+  const scan = vi.fn<NonNullable<AcpAgentDeps['legalScan']>>((_cwd, _signal, registry) =>
+    Promise.resolve(registry ? 'online' : 'local metadata only'),
+  )
+  const h = harness({ legalScan: scan })
+  await h.run(async (client) => {
+    const { sessionId } = await start(client)
+    expect(await prompt(client, sessionId, '/legal --offline')).toMatchObject({
+      stopReason: 'end_turn',
+    })
+  })
+  expect(h.permissions).toEqual([])
+  expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  expect(h.updates).toContainEqual({
+    sessionUpdate: 'agent_message_chunk',
+    content: { type: 'text', text: 'local metadata only' },
+  })
+})
+it('ACP registry disclosure names hosts and honors denial before model dispatch', async () => {
+  const scan = vi.fn<NonNullable<AcpAgentDeps['legalScan']>>(
+    async (_cwd, _signal, registry, notice) =>
+      registry && (await notice(['registry.npmjs.org', 'pypi.org']))
+        ? 'registry metadata'
+        : 'unknown local metadata',
+  )
+  const h = harness({
+    legalScan: scan,
+    answer: () => ({ outcome: { outcome: 'selected', optionId: 'legal-registry-deny' } }),
+  })
+  await h.run(async (client) => {
+    const { sessionId } = await start(client)
+    expect(await prompt(client, sessionId, '/legal')).toMatchObject({ stopReason: 'end_turn' })
+  })
+  expect(h.permissions).toHaveLength(1)
+  expect(h.permissions[0]?.toolCall.title).toContain('registry.npmjs.org, pypi.org')
+  expect(h.permissions[0]?.toolCall.title).toContain('package names and versions')
+  expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  expect(h.updates).toContainEqual({
+    sessionUpdate: 'agent_message_chunk',
+    content: { type: 'text', text: 'unknown local metadata' },
   })
 })

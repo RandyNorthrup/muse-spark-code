@@ -2116,5 +2116,17 @@
     "bundleLoad": "{file} を読み込めませんでした",
     "bundleShape": "{file} は想定外の形式です",
     "invalidResult": "スキャンが無効な結果を返しました"
-  }
+  },
+  "paidDailyBudgetLine": "有料追加機能の共有日次予算：{budget}。",
+  "paidDailyLedgerUnavailable": "有料機能の1日予算に達しました。台帳が読めない、不完全、またはこのリクエストを承認できません。有料リクエストは送信していません。",
+  "paidDailyStopped": "有料機能を明日まで停止しました。",
+  "paidDailyReached": "有料機能の1日予算に達しました",
+  "paidDailyReachedDetail": "今日の上限は{budget}です。このリクエストと既存の予約には{needed}が必要です。今日の上限を増やすか、有料機能を明日まで停止してください。",
+  "paidDailyRaise": "今日の上限を増やす",
+  "paidDailyStop": "明日まで停止",
+  "paidDailyRaisePrompt": "保留中の予約を満たす今日の上限を米ドルで入力してください（0.50～500）。",
+  "legalExplainPaid": "検出結果を説明（有料）",
+  "legalExplainConsent": "{model} で結果を説明し、Model API キーに {price} で課金します。サブスクリプションは負担しません。送信するのは結果の識別子、分類、重大度と認識済みライセンス識別子のみで、ソース、パス、抜粋は送りません。",
+  "legalExplainConfirm": "任意の Model API 説明：{price}。使用ごとに同意を求め、日次有料予算を共有します。",
+  "legalExplainUnavailable": "アカウントと使用量で有料の法律説明を有効にし、Model API キーを保存してください。"
 }

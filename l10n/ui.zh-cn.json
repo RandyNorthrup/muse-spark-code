@@ -2116,5 +2116,17 @@
     "bundleLoad": "无法加载 {file}",
     "bundleShape": "{file} 结构不符合预期",
     "invalidResult": "扫描返回无效结果"
-  }
+  },
+  "paidDailyBudgetLine": "付费附加功能的共用每日预算：{budget}。",
+  "paidDailyLedgerUnavailable": "已达到每日付费预算：账本不可读、不完整或无法批准此请求。未发送任何付费请求。",
+  "paidDailyStopped": "付费附加功能已停止，明天恢复。",
+  "paidDailyReached": "已达到每日付费预算",
+  "paidDailyReachedDetail": "今天的上限为 {budget}。此请求和现有预留需要 {needed}。请提高今天的上限，或将付费附加功能停止至明天。",
+  "paidDailyRaise": "提高今天的上限",
+  "paidDailyStop": "停止至明天",
+  "paidDailyRaisePrompt": "请输入足以覆盖待处理预留的今日美元上限（0.50–500）。",
+  "legalExplainPaid": "解释检查结果（付费）",
+  "legalExplainConsent": "使用 {model} 解释这些结果，按 {price} 向您的 Model API 密钥计费。订阅不承担费用。仅发送结果标识、类别、严重程度和已识别的许可证标识；不发送源码、路径或摘录。",
+  "legalExplainConfirm": "可选 Model API 解释：{price}。每次使用均征求同意，并共用每日付费预算。",
+  "legalExplainUnavailable": "请先在账户与用量中启用付费法律解释，并保存 Model API 密钥。"
 }

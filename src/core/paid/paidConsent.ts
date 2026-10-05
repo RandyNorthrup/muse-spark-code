@@ -95,6 +95,14 @@ export function paidUseQuestion(request: PaidUseRequest): {
         }),
       }
     }
+    case 'legalExplanation': {
+      const price = autoReviewPrice(request.modelId)
+      if (price === undefined) throw new Error(UI_TEXT.subagentTariffUnknown)
+      return {
+        title: UI_TEXT.legalExplainPaid,
+        detail: fill(UI_TEXT.legalExplainConsent, { price, model: request.modelId }),
+      }
+    }
     case 'bestOfN': {
       return {
         title: fill(UI_TEXT.paidBestOfNTitle, { attempts: formatNumber(request.attempts) }),

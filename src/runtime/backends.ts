@@ -1,3 +1,4 @@
+import { loadLegalScanner } from './legal/legalScanner'
 // The ACP agent's backend (PLAN.md D62): the panel's backend managers,
 // given in this process what VS Code gives them in the extension, one per
 // workspace folder. Muse Code signs in on its own and the subscription
@@ -252,6 +253,17 @@ function modelApiManager(
     contextIo: fileContextIo,
     webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
     fetch: deps.fetch,
+    legalScan: async (input, signal) => {
+      assertWorkspaceCurrent()
+      const handle = await loadLegalScanner({ distDir: deps.distDir }).scan({
+        workspaceRoot,
+        input,
+        signal,
+      })
+      assertWorkspaceCurrent()
+      signal.throwIfAborted()
+      return handle.result
+    },
     ...(deps.exec !== undefined && { streamIdleMs: deps.exec.streamIdleMs }),
     newId: () => randomUUID(),
     now: () => Date.now(),

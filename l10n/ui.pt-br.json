@@ -2020,7 +2020,7 @@
     "m035": "Não verificado: nomes de arquivos não provam a atualidade dos artefatos.",
     "m036": "Não verificado: entradas do bundle ausentes ou desatualizadas em relação ao inventário.",
     "m037": {
-      "one": "Distribuição obtida de {v0} entradas conhecidas do bundle",
+      "one": "Distribuição obtida de {v0} entrada conhecidas do bundle",
       "many": "Distribuição obtida de {v0} entradas conhecidas do bundle",
       "other": "Distribuição obtida de {v0} entradas conhecidas do bundle"
     },
@@ -2033,7 +2033,7 @@
     "m044": "Distribuição aproximada por arquivos e .vscodeignore; artefatos não compilados podem diferir.",
     "m045": "Análise de distribuição",
     "m046": {
-      "one": "{v0} dependências podem ser distribuídas sem arquivo de avisos que as atribua.",
+      "one": "{v0} dependência podem ser distribuídas sem arquivo de avisos que as atribua.",
       "many": "{v0} dependências podem ser distribuídas sem arquivo de avisos que as atribua.",
       "other": "{v0} dependências podem ser distribuídas sem arquivo de avisos que as atribua."
     },
@@ -2106,19 +2106,19 @@
     "m113": "Não verificado: {v0} não pode ser lido como texto.",
     "m114": "Análise interrompida no limite: {v0} excede o orçamento de leitura.",
     "m115": {
-      "one": "Não verificado: interrompida após {v0} arquivos; outros {v1} não lidos.",
+      "one": "Não verificado: interrompida após {v0} arquivo; outros {v1} não lidos.",
       "many": "Não verificado: interrompida após {v0} arquivos; outros {v1} não lidos.",
       "other": "Não verificado: interrompida após {v0} arquivos; outros {v1} não lidos."
     },
     "m116": {
-      "one": "Não verificado: limite de evidências de dependências atingido; {v0} entradas omitidas.",
+      "one": "Não verificado: limite de evidências de dependências atingido; {v0} entrada omitidas.",
       "many": "Não verificado: limite de evidências de dependências atingido; {v0} entradas omitidas.",
       "other": "Não verificado: limite de evidências de dependências atingido; {v0} entradas omitidas."
     },
     "m117": "Não verificado: licença de {v0} em {v1} não reconhecida.",
     "m118": "Análise de texto de licença em {v0}",
     "m119": {
-      "one": "Distribuição desconhecida com {v0} dependências de produção; avaliam-se fontes não distribuídas.",
+      "one": "Distribuição desconhecida com {v0} dependência de produção; avaliam-se fontes não distribuídas.",
       "many": "Distribuição desconhecida com {v0} dependências de produção; avaliam-se fontes não distribuídas.",
       "other": "Distribuição desconhecida com {v0} dependências de produção; avaliam-se fontes não distribuídas."
     },
@@ -2158,7 +2158,7 @@
     "m145": "Não verificado: {v0} contém crates de caminho com propriedade e metadados resolvidos desconhecidos.",
     "m146": "Não verificado: {v0} contém declarações Cargo herdadas ou aninhadas não resolvidas estaticamente.",
     "m147": {
-      "one": "Não verificado: {v0} entradas Cargo sem licença nem manifesto incorporado correspondente.",
+      "one": "Não verificado: {v0} entrada Cargo sem licença nem manifesto incorporado correspondente.",
       "many": "Não verificado: {v0} entradas Cargo sem licença nem manifesto incorporado correspondente.",
       "other": "Não verificado: {v0} entradas Cargo sem licença nem manifesto incorporado correspondente."
     },
@@ -2197,7 +2197,7 @@
     "m160": "Não verificado: faltam Gemfile, Gemfile.lock e gemspec.",
     "m161": "Não verificado: substituições Go, mapeamento de ferramentas e seleção transitiva exigem revisão; somas podem incluir versões não usadas.",
     "m162": {
-      "one": "Não verificado: {v0} módulos Go sem licença; somas e caminhos não são licenças, textos incorporados poderiam ajudar.",
+      "one": "Não verificado: {v0} módulos Go sem licença; somas e caminho não são licenças, textos incorporados poderiam ajudar.",
       "many": "Não verificado: {v0} módulos Go sem licença; somas e caminhos não são licenças, textos incorporados poderiam ajudar.",
       "other": "Não verificado: {v0} módulos Go sem licença; somas e caminhos não são licenças, textos incorporados poderiam ajudar."
     },
@@ -2225,7 +2225,7 @@
     "m172": "Não verificado: versão de bloqueio npm não suportada em {v0}.",
     "m173": "Não verificado: {v0} excede a profundidade de bloqueio npm.",
     "m174": {
-      "one": "Não verificado: {v0} entradas npm em {v1} sem licença nem dados instalados correspondentes.",
+      "one": "Não verificado: {v0} entrada npm em {v1} sem licença nem dados instalados correspondentes.",
       "many": "Não verificado: {v0} entradas npm em {v1} sem licença nem dados instalados correspondentes.",
       "other": "Não verificado: {v0} entradas npm em {v1} sem licença nem dados instalados correspondentes."
     },
@@ -2259,7 +2259,7 @@
     "m186": "Não verificado: {v0} inclui {v1}, ausente do espaço de trabalho.",
     "m187": "Não verificado: {v0} contém opção de requisitos ou fonte editável não resolvida estaticamente.",
     "m188": {
-      "one": "Não verificado: {v0} linhas de requisitos em {v1} têm formato não analisável.",
+      "one": "Não verificado: {v0} linha de requisitos em {v1} têm formato não analisável.",
       "many": "Não verificado: {v0} linhas de requisitos em {v1} têm formato não analisável.",
       "other": "Não verificado: {v0} linhas de requisitos em {v1} têm formato não analisável."
     },
@@ -2294,12 +2294,12 @@
     "impossibleYear": "o ano {value} é impossível",
     "reversedYears": "o intervalo {value} termina antes de começar",
     "selectedPaths": {
-      "one": "{count} caminhos selecionados",
+      "one": "{count} caminho selecionados",
       "many": "{count} caminhos selecionados",
       "other": "{count} caminhos selecionados"
     },
     "moreUnchecked": {
-      "one": "e outros {count} itens não verificados omitidos além do limite",
+      "one": "e outros {count} item não verificados omitidos além do limite",
       "many": "e outros {count} itens não verificados omitidos além do limite",
       "other": "e outros {count} itens não verificados omitidos além do limite"
     },
@@ -2308,5 +2308,17 @@
     "bundleLoad": "não foi possível carregar {file}",
     "bundleShape": "{file} tem estrutura inesperada",
     "invalidResult": "a análise retornou um resultado inválido"
-  }
+  },
+  "paidDailyBudgetLine": "Orçamento diário compartilhado para extras pagos: {budget}.",
+  "paidDailyLedgerUnavailable": "Orçamento diário pago atingido: o registro está ilegível, incompleto ou não pode admitir esta solicitação. Nenhuma solicitação paga foi enviada.",
+  "paidDailyStopped": "Extras pagos interrompidos até amanhã.",
+  "paidDailyReached": "Orçamento diário pago atingido",
+  "paidDailyReachedDetail": "O limite de hoje é {budget}. Esta solicitação e as reservas existentes precisam de {needed}. Aumente o limite de hoje ou interrompa os extras pagos até amanhã.",
+  "paidDailyRaise": "Aumentar para hoje",
+  "paidDailyStop": "Parar até amanhã",
+  "paidDailyRaisePrompt": "Informe o limite de hoje em USD (0.50–500), suficiente para as reservas pendentes.",
+  "legalExplainPaid": "Explicar resultados (pago)",
+  "legalExplainConsent": "Explicar estes resultados com {model}, cobrando da sua chave Model API a tarifa {price}. A assinatura não paga. Somente IDs dos resultados, categorias, gravidade e licenças reconhecidas são enviados; nenhum código, caminho ou trecho.",
+  "legalExplainConfirm": "Explicação opcional da Model API: {price}. Cada uso pede consentimento e compartilha o orçamento diário.",
+  "legalExplainUnavailable": "Ative explicações jurídicas pagas em Conta e uso e salve uma chave Model API."
 }

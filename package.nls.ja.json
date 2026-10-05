@@ -124,5 +124,7 @@
   "config.legalHeaderPolicy.enumDescriptions.optional": "検出したプロジェクト様式や REUSE 宣言に反するヘッダーのみが検出事項です。既定値です。",
   "config.legalHeaderPolicy.enumDescriptions.off": "ヘッダーチェックを省略します。レポートにその旨を記載します。",
   "command.legalScan.title": "ライセンススキャン",
-  "config.legalRegistryLookups.description": "レジストリと送信するパッケージ名・バージョンを初回通知した後、公開レジストリへの照会を許可します。無効にするとローカルのメタデータのみを使用します。"
+  "config.legalRegistryLookups.description": "レジストリと送信するパッケージ名・バージョンを初回通知した後、公開レジストリへの照会を許可します。無効にするとローカルのメタデータのみを使用します。",
+  "config.legalExplanation": "任意の Model API 説明：USD。使用ごとに同意を求め、日次有料予算を共有します。",
+  "config.paidDailyBudgetUsd": "有料追加機能の共有日次予算：USD。"
 }

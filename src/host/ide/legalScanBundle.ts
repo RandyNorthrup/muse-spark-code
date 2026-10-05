@@ -1,3 +1,5 @@
+import type { explainLegal } from '../../core/paid/legalExplanation'
+import type { UiText } from '../../shared/l10n/en'
 // The legal scanner as the activation bundle sees it (M97, PLAN.md D76,
 // D6): dist/legalScan.js, the shared production scanner entry,
 // required on the first legal scan. Only types come from the tool's side
@@ -37,5 +39,33 @@ export function legalScanLoader(deps: LegalScanLoaderDeps): () => LegalScanBundl
     const bundle = load()
     bundle.setLanguage?.(UI_TEXT, uiLocale())
     return bundle
+  }
+}
+
+interface LegalExplanationBundle {
+  readonly explainLegal: typeof explainLegal
+  readonly setLegalExplanationLanguage: (table: UiText, locale: string) => void
+}
+function isExplanationBundle(value: unknown): value is LegalExplanationBundle {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'explainLegal' in value &&
+    typeof value.explainLegal === 'function' &&
+    'setLegalExplanationLanguage' in value &&
+    typeof value.setLegalExplanationLanguage === 'function'
+  )
+}
+export function legalExplanationLoader(deps: LegalScanLoaderDeps): typeof explainLegal {
+  const load = lazyBundleLoader({
+    ...deps,
+    isBundle: isExplanationBundle,
+    label: 'paid legal explanation',
+    unavailable: () => UI_TEXT.legalExplainUnavailable,
+  })
+  return async (result, ports, signal) => {
+    const bundle = load()
+    bundle.setLegalExplanationLanguage(UI_TEXT, uiLocale())
+    return await bundle.explainLegal(result, ports, signal)
   }
 }

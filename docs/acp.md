@@ -95,13 +95,23 @@ artifact freshness as incomplete checks on every real run. Even a fixture
 with no findings therefore returns exit 2; the complete exit-0/1 branches are
 tested with injected reports and are not yet real-scanner CI receipts.
 
-Registry enrichment is unfinished for release: the implementation has an
-explicit flag and supports npm/PyPI metadata, but exact prior query consent,
-private-name disclosure and the extension's network posture still require
-review. Keep the default offline. No optional model explanation is delivered.
-Scanner prose is currently English. Text and JSON reports include the
-translated disclaimer. The panel supports requested Markdown export, and both native/MCP tool
-reports include the disclaimer. **Not legal advice; for distribution decisions consult a lawyer.**
+Registry enrichment uses npm/PyPI HTTPS metadata, sends only package names and
+versions, refuses redirects and never reads private registry configuration.
+Headless commands require `--registry`; their default stays offline. Scanner
+prose, counts and the disclaimer follow the installed supported language.
+
+Within an ACP editor, `/legal` directly invokes the shared scanner on either
+backend without sending a model turn. Before the first registry lookup in
+that workspace during this agent process, the editor's permission prompt names
+every registry and exactly what is sent. Declining leaves local unknowns in the
+report; `/legal --offline` skips both notice and lookup. The one-time notice
+resets when the agent process ends. JetBrains, Zed, Neovim, Emacs and other ACP
+clients receive ordinary text report updates; Visual Studio, Eclipse, Xcode,
+Sublime and companion adapters can invoke the same keyless reserved runtime
+command. The optional panel paid explanation uses a portable core executor;
+this ACP command itself stays free. Native editor UI adapters retain their
+existing compatibility milestones. **Not legal advice; for distribution
+decisions consult a lawyer.**
 
 ## Choose who pays
 

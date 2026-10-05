@@ -124,5 +124,7 @@
   "config.legalHeaderPolicy.enumDescriptions.optional": "Ustaleniem jest tylko nagłówek sprzeczny z wykrytym stylem projektu lub jego deklaracjami REUSE. Wartość domyślna.",
   "config.legalHeaderPolicy.enumDescriptions.off": "Kontrole nagłówków są pomijane; raport to odnotowuje.",
   "command.legalScan.title": "Kontrola prawna",
-  "config.legalRegistryLookups.description": "Zezwól na zapytania do publicznych rejestrów po jednorazowym powiadomieniu wskazującym rejestry oraz wysyłane nazwy i wersje pakietów. Wyłącz, aby używać tylko lokalnych metadanych."
+  "config.legalRegistryLookups.description": "Zezwól na zapytania do publicznych rejestrów po jednorazowym powiadomieniu wskazującym rejestry oraz wysyłane nazwy i wersje pakietów. Wyłącz, aby używać tylko lokalnych metadanych.",
+  "config.legalExplanation": "Opcjonalne wyjaśnienie Model API: USD. Każde użycie wymaga zgody i korzysta ze wspólnego budżetu dziennego.",
+  "config.paidDailyBudgetUsd": "Wspólny dzienny budżet płatnych dodatków: USD."
 }

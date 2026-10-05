@@ -1,3 +1,5 @@
+import { createPaidDailyBudget } from './host/paid/paidDailyBudget'
+import { PAID_DAILY_BUDGET, LEGAL_EXPLANATION_BUNDLE_FILE } from './shared/constants'
 import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
 import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
 // Extension host entry point. Kept to registration and adapter wiring; the
@@ -99,7 +101,7 @@ import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTool'
 import { LEGAL_REGISTRY_NOTICE_KEY } from './shared/constants'
 import { fill as fillLegalNotice } from './shared/l10n/text'
-import { legalScanLoader } from './host/ide/legalScanBundle'
+import { legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
@@ -692,7 +694,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // offers the key's paid images and voice. Read at start and after every
   // sign-in change, never from anywhere but the secret store.
   let isKeyStored = false
+  const dailyPaidBudget = createPaidDailyBudget({
+    directory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
+    now: Date.now,
+    capUsd: () => currentSettings().paidDailyBudgetUsd,
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    isModelApi: () => true,
+  })
   const paid = createPaidFeatures({
+    dailyBudgetUsd: dailyPaidBudget.capUsd,
     globalState: context.globalState,
     workspaceState: context.workspaceState,
     isSettingOn: (feature) => currentSettings()[PAID_FEATURE_SETTINGS[feature]],
@@ -1263,6 +1273,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   })
   // The deterministic legal scan (M97, PLAN.md D76): dist/legalScan.js (D6),
   // required on the first scan; the tool list stays at activation.
+  const paidLegalExplanation = legalExplanationLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', LEGAL_EXPLANATION_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
   const legalScanBundle = legalScanLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', LEGAL_SCAN_BUNDLE_FILE).fsPath,
     log,
@@ -2075,6 +2090,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         // The deterministic legal scan (M97, PLAN.md D76): dist/legalScan.js
         // (D6) on the first scan; the Plan hold stays in the host review bundle.
         legalScan: runLegalScan,
+        legalExplanation: async (report, signal) => {
+          if (!isKeyStored) throw new Error(UI_TEXT.legalExplainUnavailable)
+          return await paidLegalExplanation(
+            report,
+            {
+              gate: paid.gate,
+              consent: paid.consent,
+              reserve: dailyPaidBudget.reserve,
+              capUsd: dailyPaidBudget.capUsd,
+              keyDigest: () => modelApi.accountId(),
+              usage: paid.usage,
+              stream: (body, active, guard) => modelApi.streamLegalExplanation(body, active, guard),
+            },
+            signal,
+          )
+        },
         legalMarkdown: (report) => {
           const render = legalScanBundle().renderLegalMarkdown
           if (render === undefined) throw new Error(UI_TEXT.legalScanUnavailable)

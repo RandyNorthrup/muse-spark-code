@@ -124,5 +124,7 @@
   "config.legalHeaderPolicy.enumDescriptions.optional": "Yalnızca algılanan proje stiliyle veya REUSE bildirimleriyle çelişen başlık bulgudur. Varsayılan değer.",
   "config.legalHeaderPolicy.enumDescriptions.off": "Başlık denetimleri atlanır; rapor bunu belirtir.",
   "command.legalScan.title": "Yasal tarama",
-  "config.legalRegistryLookups.description": "Kayıt depoları ile gönderilen paket adları ve sürümlerini belirten tek seferlik bildirimden sonra herkese açık kayıt depolarını sorgulamaya izin verin. Yalnızca yerel meta veriler için kapatın."
+  "config.legalRegistryLookups.description": "Kayıt depoları ile gönderilen paket adları ve sürümlerini belirten tek seferlik bildirimden sonra herkese açık kayıt depolarını sorgulamaya izin verin. Yalnızca yerel meta veriler için kapatın.",
+  "config.legalExplanation": "İsteğe bağlı Model API açıklaması: USD. Her kullanım onay ister ve ortak günlük bütçeyi kullanır.",
+  "config.paidDailyBudgetUsd": "Ücretli ek özelliklerin ortak günlük bütçesi: USD."
 }

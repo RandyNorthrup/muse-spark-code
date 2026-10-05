@@ -1964,7 +1964,7 @@
     "m044": "Weitergabe aus Paketdateien und .vscodeignore angenähert; ungebaute Artefakte können abweichen.",
     "m045": "Weitergabeprüfung",
     "m046": {
-      "one": "{v0} Abhängigkeiten könnten ohne zuordnende Hinweisdatei mitgeliefert werden.",
+      "one": "{v0} Abhängigkeit könnten ohne zuordnende Hinweisdatei mitgeliefert werden.",
       "other": "{v0} Abhängigkeiten könnten ohne zuordnende Hinweisdatei mitgeliefert werden."
     },
     "m047": "Fügen Sie THIRD_PARTY_NOTICES oder gleichwertige Hinweise für die Lieferung hinzu.",
@@ -2036,11 +2036,11 @@
     "m113": "Nicht geprüft: {v0} kann nicht als Text gelesen werden.",
     "m114": "Prüfung an Grenze gestoppt: {v0} überschreitet das Textlesebudget.",
     "m115": {
-      "one": "Nicht geprüft: Nach {v0} Dateien gestoppt; {v1} weitere nicht gelesen.",
+      "one": "Nicht geprüft: Nach {v0} Datei gestoppt; {v1} weitere nicht gelesen.",
       "other": "Nicht geprüft: Nach {v0} Dateien gestoppt; {v1} weitere nicht gelesen."
     },
     "m116": {
-      "one": "Nicht geprüft: Grenze für Abhängigkeitsbelege erreicht; {v0} Einträge ausgelassen.",
+      "one": "Nicht geprüft: Grenze für Abhängigkeitsbelege erreicht; {v0} Eintrag ausgelassen.",
       "other": "Nicht geprüft: Grenze für Abhängigkeitsbelege erreicht; {v0} Einträge ausgelassen."
     },
     "m117": "Nicht geprüft: Lizenztext für {v0} bei {v1} nicht erkannt.",
@@ -2052,7 +2052,7 @@
     "m120": "Liefern Sie Bündeleingaben oder Paketinventar für genaue Weitergabepflichten.",
     "m121": "Prüfung an Grenze gestoppt: Bericht für {v0} gekürzt",
     "m122": {
-      "one": "Bericht gekürzt: {v0} Befunde über der Grenze von {v1} ausgelassen; Blocker und nötige Korrekturen zuerst behalten.",
+      "one": "Bericht gekürzt: {v0} Befund über der Grenze von {v1} ausgelassen; Blocker und nötige Korrekturen zuerst behalten.",
       "other": "Bericht gekürzt: {v0} Befunde über der Grenze von {v1} ausgelassen; Blocker und nötige Korrekturen zuerst behalten."
     },
     "m123": {
@@ -2116,7 +2116,7 @@
     "m160": "Nicht geprüft: Gemfile, Gemfile.lock und gemspec-Dateien fehlen.",
     "m161": "Nicht geprüft: Go-Ersetzungen, Werkzeugzuordnung und transitive Auswahl benötigen Prüfung; Prüfsummen können ungenutzte Versionen enthalten.",
     "m162": {
-      "one": "Nicht geprüft: {v0} Go-Module haben keine Lizenzmetadaten; Prüfsummen und Pfade sind keine Lizenzen, Fremdlizenztexte könnten helfen.",
+      "one": "Nicht geprüft: {v0} Go-Module haben keine Lizenzmetadaten; Prüfsummen und Pfad sind keine Lizenzen, Fremdlizenztexte könnten helfen.",
       "other": "Nicht geprüft: {v0} Go-Module haben keine Lizenzmetadaten; Prüfsummen und Pfade sind keine Lizenzen, Fremdlizenztexte könnten helfen."
     },
     "m163": {
@@ -2161,7 +2161,7 @@
       "other": "Nicht geprüft: {v0} NuGet-Anforderungen haben keine aufgelöste Version in Sperr-, Artefakt- oder zentralen Versionsdateien."
     },
     "m183": {
-      "one": "Nicht geprüft: {v0} NuGet-Pakete haben keine Lizenzmetadaten; vorhandene .nuspec-Dateien könnten helfen.",
+      "one": "Nicht geprüft: {v0} NuGet-Pakete haben keine Lizenzmetadaten; vorhandene .nuspec-Datei könnten helfen.",
       "other": "Nicht geprüft: {v0} NuGet-Pakete haben keine Lizenzmetadaten; vorhandene .nuspec-Dateien könnten helfen."
     },
     "m184": "Nicht geprüft: NuGet-Angaben, Sperr- und Artefaktdateien fehlen.",
@@ -2200,11 +2200,11 @@
     "impossibleYear": "das Jahr {value} ist unmöglich",
     "reversedYears": "der Zeitraum {value} endet vor seinem Anfang",
     "selectedPaths": {
-      "one": "{count} ausgewählte Pfade",
+      "one": "{count} ausgewählte Pfad",
       "other": "{count} ausgewählte Pfade"
     },
     "moreUnchecked": {
-      "one": "und {count} weitere ungeprüfte Einträge über der Grenze ausgelassen",
+      "one": "und {count} weitere ungeprüfte Eintrag über der Grenze ausgelassen",
       "other": "und {count} weitere ungeprüfte Einträge über der Grenze ausgelassen"
     },
     "declaration": "{file} nennt {license}",
@@ -2212,5 +2212,17 @@
     "bundleLoad": "{file} konnte nicht geladen werden",
     "bundleShape": "{file} hat eine unerwartete Struktur",
     "invalidResult": "die Prüfung lieferte ein ungültiges Ergebnis"
-  }
+  },
+  "paidDailyBudgetLine": "Gemeinsames Tagesbudget für kostenpflichtige Extras: {budget}.",
+  "paidDailyLedgerUnavailable": "Tagesbudget für kostenpflichtige Extras erreicht: Die Abrechnung ist unlesbar, unvollständig oder kann diese Anfrage nicht zulassen. Keine kostenpflichtige Anfrage wurde gesendet.",
+  "paidDailyStopped": "Kostenpflichtige Extras sind bis morgen gestoppt.",
+  "paidDailyReached": "Tagesbudget für kostenpflichtige Extras erreicht",
+  "paidDailyReachedDetail": "Das heutige Limit ist {budget}. Diese Anfrage und bestehende Reservierungen benötigen {needed}. Erhöhen Sie das Limit für heute oder stoppen Sie kostenpflichtige Extras bis morgen.",
+  "paidDailyRaise": "Für heute erhöhen",
+  "paidDailyStop": "Bis morgen stoppen",
+  "paidDailyRaisePrompt": "Heutiges Limit in USD (0.50–500) eingeben, ausreichend für die ausstehenden Reservierungen.",
+  "legalExplainPaid": "Befunde erklären (kostenpflichtig)",
+  "legalExplainConsent": "Diese Befunde mit {model} erklären; Ihr Model-API-Schlüssel wird zu {price} belastet. Das Abo zahlt nichts. Gesendet werden nur Befund-IDs, Kategorien, Schweregrad und erkannte Lizenz-IDs, keine Quellen, Pfade oder Auszüge.",
+  "legalExplainConfirm": "Optionale Model-API-Erklärung: {price}. Jede Nutzung fragt nach Zustimmung und nutzt das gemeinsame Tagesbudget.",
+  "legalExplainUnavailable": "Aktivieren Sie kostenpflichtige Rechtserklärungen unter Konto und Nutzung und speichern Sie einen Model-API-Schlüssel."
 }

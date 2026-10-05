@@ -2102,7 +2102,7 @@
     "m044": "Dystrybucja oszacowana z plików i .vscodeignore; niezbudowane artefakty mogą się różnić.",
     "m045": "Analiza dystrybucji",
     "m046": {
-      "one": "{v0} zależności może być dostarczanych bez pliku informacji o autorstwie.",
+      "one": "{v0} zależność może być dostarczanych bez pliku informacji o autorstwie.",
       "few": "{v0} zależności może być dostarczanych bez pliku informacji o autorstwie.",
       "many": "{v0} zależności może być dostarczanych bez pliku informacji o autorstwie.",
       "other": "{v0} zależności może być dostarczanych bez pliku informacji o autorstwie."
@@ -2182,8 +2182,8 @@
       "other": "Nie sprawdzono: zatrzymano po {v0} plikach; dalszych {v1} nie odczytano."
     },
     "m116": {
-      "one": "Nie sprawdzono: limit dowodów zależności; pominięto {v0} wpisów.",
-      "few": "Nie sprawdzono: limit dowodów zależności; pominięto {v0} wpisów.",
+      "one": "Nie sprawdzono: limit dowodów zależności; pominięto {v0} wpis.",
+      "few": "Nie sprawdzono: limit dowodów zależności; pominięto {v0} wpisy.",
       "many": "Nie sprawdzono: limit dowodów zależności; pominięto {v0} wpisów.",
       "other": "Nie sprawdzono: limit dowodów zależności; pominięto {v0} wpisów."
     },
@@ -2198,8 +2198,8 @@
     "m120": "Dostarcz wejścia pakietu lub inwentarz dla dokładnych obowiązków.",
     "m121": "Skan zatrzymany na limicie: raport dla {v0} skrócony",
     "m122": {
-      "one": "Raport skrócony: pominięto {v0} wyników ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw.",
-      "few": "Raport skrócony: pominięto {v0} wyników ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw.",
+      "one": "Raport skrócony: pominięto {v0} wynik ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw.",
+      "few": "Raport skrócony: pominięto {v0} wyniki ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw.",
       "many": "Raport skrócony: pominięto {v0} wyników ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw.",
       "other": "Raport skrócony: pominięto {v0} wyników ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw."
     },
@@ -2233,8 +2233,8 @@
     "m145": "Nie sprawdzono: {v0} zawiera lokalne crates z nieznaną własnością i rozwiązanymi metadanymi.",
     "m146": "Nie sprawdzono: {v0} zawiera dziedziczone lub zagnieżdżone deklaracje Cargo nierozwiązane statycznie.",
     "m147": {
-      "one": "Nie sprawdzono: {v0} wpisów Cargo bez licencji lub pasującego dołączonego manifestu.",
-      "few": "Nie sprawdzono: {v0} wpisów Cargo bez licencji lub pasującego dołączonego manifestu.",
+      "one": "Nie sprawdzono: {v0} wpis Cargo bez licencji lub pasującego dołączonego manifestu.",
+      "few": "Nie sprawdzono: {v0} wpisy Cargo bez licencji lub pasującego dołączonego manifestu.",
       "many": "Nie sprawdzono: {v0} wpisów Cargo bez licencji lub pasującego dołączonego manifestu.",
       "other": "Nie sprawdzono: {v0} wpisów Cargo bez licencji lub pasującego dołączonego manifestu."
     },
@@ -2310,8 +2310,8 @@
     "m172": "Nie sprawdzono: nieobsługiwana wersja blokady npm w {v0}.",
     "m173": "Nie sprawdzono: {v0} przekracza głębokość blokady npm.",
     "m174": {
-      "one": "Nie sprawdzono: {v0} wpisów npm w {v1} bez licencji lub pasujących danych instalacji.",
-      "few": "Nie sprawdzono: {v0} wpisów npm w {v1} bez licencji lub pasujących danych instalacji.",
+      "one": "Nie sprawdzono: {v0} wpis npm w {v1} bez licencji lub pasujących danych instalacji.",
+      "few": "Nie sprawdzono: {v0} wpisy npm w {v1} bez licencji lub pasujących danych instalacji.",
       "many": "Nie sprawdzono: {v0} wpisów npm w {v1} bez licencji lub pasujących danych instalacji.",
       "other": "Nie sprawdzono: {v0} wpisów npm w {v1} bez licencji lub pasujących danych instalacji."
     },
@@ -2349,8 +2349,8 @@
     "m186": "Nie sprawdzono: {v0} dołącza {v1}, nieobecny w obszarze roboczym.",
     "m187": "Nie sprawdzono: {v0} zawiera opcję wymagań lub edytowalne źródło nierozwiązane statycznie.",
     "m188": {
-      "one": "Nie sprawdzono: {v0} wierszy w {v1} ma nieobsługiwany format.",
-      "few": "Nie sprawdzono: {v0} wierszy w {v1} ma nieobsługiwany format.",
+      "one": "Nie sprawdzono: {v0} wiersz w {v1} ma nieobsługiwany format.",
+      "few": "Nie sprawdzono: {v0} wiersze w {v1} ma nieobsługiwany format.",
       "many": "Nie sprawdzono: {v0} wierszy w {v1} ma nieobsługiwany format.",
       "other": "Nie sprawdzono: {v0} wierszy w {v1} ma nieobsługiwany format."
     },
@@ -2404,5 +2404,17 @@
     "bundleLoad": "nie można załadować {file}",
     "bundleShape": "{file} ma nieoczekiwaną strukturę",
     "invalidResult": "skan zwrócił nieprawidłowy wynik"
-  }
+  },
+  "paidDailyBudgetLine": "Wspólny dzienny budżet płatnych dodatków: {budget}.",
+  "paidDailyLedgerUnavailable": "Osiągnięto dzienny budżet płatny: rejestr jest nieczytelny, niepełny lub nie może przyjąć tego żądania. Nie wysłano płatnego żądania.",
+  "paidDailyStopped": "Płatne dodatki wstrzymane do jutra.",
+  "paidDailyReached": "Osiągnięto dzienny budżet płatny",
+  "paidDailyReachedDetail": "Dzisiejszy limit to {budget}. To żądanie i istniejące rezerwacje wymagają {needed}. Zwiększ limit na dziś lub wstrzymaj płatne dodatki do jutra.",
+  "paidDailyRaise": "Zwiększ na dziś",
+  "paidDailyStop": "Wstrzymaj do jutra",
+  "paidDailyRaisePrompt": "Wpisz dzisiejszy limit w USD (0.50–500), wystarczający na oczekujące rezerwacje.",
+  "legalExplainPaid": "Wyjaśnij wyniki (płatne)",
+  "legalExplainConsent": "Wyjaśnij wyniki przez {model}, rozliczane kluczem Model API według {price}. Subskrypcja nie pokrywa kosztów. Wysyłane są tylko ID wyników, kategorie, waga i rozpoznane licencje; bez kodu, ścieżek i fragmentów.",
+  "legalExplainConfirm": "Opcjonalne wyjaśnienie Model API: {price}. Każde użycie wymaga zgody i korzysta ze wspólnego budżetu dziennego.",
+  "legalExplainUnavailable": "Włącz płatne wyjaśnienia prawne w koncie i użyciu oraz zapisz klucz Model API."
 }

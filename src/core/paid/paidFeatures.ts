@@ -220,6 +220,14 @@ export class PaidUsage {
         }
         break
       }
+      case 'legalExplanation': {
+        this.tally = {
+          ...tally,
+          legalExplanations: (tally.legalExplanations ?? 0) + units,
+          legalExplanationUnknownRequests: (tally.legalExplanationUnknownRequests ?? 0) + units,
+        }
+        break
+      }
       case 'bestOfN': {
         this.tally = { ...tally, bestOfNAttempts: (tally.bestOfNAttempts ?? 0) + units }
         break
@@ -246,6 +254,20 @@ export class PaidUsage {
     for (const listener of this.listeners) {
       listener()
     }
+  }
+
+  public addLegalExplanationUsage(modelId: string, usage: SubagentUsage): void {
+    const cost = reviewerCost(modelId, usage)
+    const unknown = this.tally.legalExplanationUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      legalExplanationUnknownRequests: unknown - 1,
+      legalExplanationTokens:
+        (this.tally.legalExplanationTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      legalExplanationCostUsd: (this.tally.legalExplanationCostUsd ?? 0) + cost,
+    }
+    for (const listener of this.listeners) listener()
   }
 
   /** One admitted child attempt reported billable usage; never replayed from storage. */

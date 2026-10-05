@@ -2116,5 +2116,17 @@
     "bundleLoad": "無法載入 {file}",
     "bundleShape": "{file} 結構不符合預期",
     "invalidResult": "掃描傳回無效結果"
-  }
+  },
+  "paidDailyBudgetLine": "付費附加功能的共用每日預算：{budget}。",
+  "paidDailyLedgerUnavailable": "已達每日付費預算：帳本無法讀取、不完整或無法核准此請求。未傳送任何付費請求。",
+  "paidDailyStopped": "付費附加功能已停止，明天恢復。",
+  "paidDailyReached": "已達每日付費預算",
+  "paidDailyReachedDetail": "今天的上限為 {budget}。此請求與現有預留需要 {needed}。請提高今天的上限，或將付費附加功能停止至明天。",
+  "paidDailyRaise": "提高今天的上限",
+  "paidDailyStop": "停止至明天",
+  "paidDailyRaisePrompt": "請輸入足以涵蓋待處理預留的今日美元上限（0.50–500）。",
+  "legalExplainPaid": "解釋檢查結果（付費）",
+  "legalExplainConsent": "使用 {model} 解釋這些結果，按 {price} 向您的 Model API 金鑰計費。訂閱不負擔費用。僅傳送結果識別碼、類別、嚴重程度和已識別的授權條款識別碼；不傳送原始碼、路徑或摘錄。",
+  "legalExplainConfirm": "選用 Model API 解釋：{price}。每次使用皆徵求同意，並共用每日付費預算。",
+  "legalExplainUnavailable": "請先在帳戶與用量中啟用付費法律解釋，並儲存 Model API 金鑰。"
 }

@@ -15250,3 +15250,27 @@ while packaging sorted English leaf indexes instead of repeating object keys.
 Source JSON stays complete; host/ACP loading expands and validates the entire
 table before installation. English fallback shares lossless phrases to keep
 all unchanged bundle/VSIX caps. Corrupt indexed tables must fail closed.
+
+FIN2 paid adapter detail (before final certification): port only D78's
+`createPaidDailyBudget` and its M82 daily-scope initialization from local
+`4e92a19d`, preserving the shared `paid-daily` account/day ledger and monotonic
+Stop. No branch merge. A legal explanation uses PaidFeatureGate, PaidUseConsent,
+D78 reserve/check/settle and PaidUsage. Its executor lives in shared core/paid
+and the existing paid reviewer bundle, keeping the free scanner independent
+and every D6 cap unchanged. One no-tools/no-retry request has a 512-token output
+cap and 12,000-character technical input cap; admission checks signal, stored
+key identity, feature state and the shared budget. Unknown dispatched cost
+retains its reserved liability. Source, paths, excerpts, arbitrary IDs and
+unrecognized license IDs never enter the payload.
+
+All-editor routes: VS Code-compatible editors render the shared React legal
+report through the host bridge; ACP `/legal` and `/legal --offline` directly
+invoke runtime/main -> legalScanLoader -> dist/legalScan.js on both backends,
+without a model turn. Registry notice uses ACP permission requests, remembered
+per workspace during the agent process; the Model API also offers `legal_scan`
+through runtime/backends -> loadLegalScanner -> dist/legalScan.js. The keyless
+`exec legal-scan --json` route is common to JetBrains, Visual Studio, Eclipse,
+Zed, Xcode, Neovim, Emacs, Sublime and companion hosts invoking the runtime;
+none of the scan, registry admission or explanation engine imports vscode.
+The native JCEF/WebView2/SWT adapters remain their existing M64/M65 milestones,
+not claimed as implemented by M97.

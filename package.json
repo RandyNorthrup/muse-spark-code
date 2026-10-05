@@ -889,6 +889,20 @@
           "default": true,
           "scope": "window",
           "description": "%config.legalRegistryLookups.description%"
+        },
+        "museSpark.legalExplanation": {
+          "type": "boolean",
+          "default": false,
+          "scope": "machine",
+          "markdownDescription": "%config.legalExplanation%"
+        },
+        "museSpark.paidDailyBudgetUsd": {
+          "type": "number",
+          "default": 5,
+          "minimum": 0.5,
+          "maximum": 500,
+          "scope": "machine",
+          "markdownDescription": "%config.paidDailyBudgetUsd%"
         }
       }
     },
@@ -981,7 +995,7 @@
     "security:audit": "node scripts/audit.mjs",
     "security:secrets": "gitleaks git --redact --no-banner .",
     "quality:gates": "run-s format:check lint typecheck check:l10n check:host-api deadcode cycles duplication test:unit build security:audit",
-    "quality": "run-s quality:gates test:a11y security:secrets security:sast",
+    "quality": "run-s quality:gates test:a11y test:legal-a11y security:secrets security:sast",
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",
     "package": "vsce package --no-dependencies && node scripts/compress-vsix.mjs",
@@ -989,7 +1003,8 @@
     "images": "node scripts/render-images.mjs",
     "prepare": "husky",
     "security:sast": "node scripts/sast.mjs",
-    "schema:exec": "node scripts/exec-schema.mjs"
+    "schema:exec": "node scripts/exec-schema.mjs",
+    "test:legal-a11y": "node scripts/legal-a11y.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [

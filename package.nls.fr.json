@@ -124,5 +124,7 @@
   "config.legalHeaderPolicy.enumDescriptions.optional": "Seul un en-tête qui contredit le style détecté du projet ou ses déclarations REUSE est un constat. La valeur par défaut.",
   "config.legalHeaderPolicy.enumDescriptions.off": "Les vérifications d’en-têtes sont ignorées ; le rapport le signale.",
   "command.legalScan.title": "Analyse juridique",
-  "config.legalRegistryLookups.description": "Autoriser les recherches dans les registres publics après un avis unique indiquant les registres ainsi que les noms et versions des paquets envoyés. Désactiver pour utiliser uniquement les métadonnées locales."
+  "config.legalRegistryLookups.description": "Autoriser les recherches dans les registres publics après un avis unique indiquant les registres ainsi que les noms et versions des paquets envoyés. Désactiver pour utiliser uniquement les métadonnées locales.",
+  "config.legalExplanation": "Explication Model API facultative : USD. Chaque utilisation demande un accord et partage le budget quotidien.",
+  "config.paidDailyBudgetUsd": "Budget quotidien partagé des suppléments payants : USD."
 }

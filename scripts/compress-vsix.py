@@ -23,7 +23,7 @@ try:
             ) and entry.filename.endswith(".json")
             if is_ui_json:
                 table = json.loads(content)
-                if entry.filename.startswith("extension/l10n/ui."):
+                if entry.filename.startswith("extension/l10n/ui.") and table.get("format") != 1:
                     values = []
                     for keys in layout:
                         value = table

@@ -2102,8 +2102,8 @@
     "m044": "Distribuce odhadnuta ze souborů a .vscodeignore; nesestavené artefakty se mohou lišit.",
     "m045": "Analýza distribuce",
     "m046": {
-      "one": "{v0} závislostí může být distribuováno bez oznámení uvádějícího původ.",
-      "few": "{v0} závislostí může být distribuováno bez oznámení uvádějícího původ.",
+      "one": "{v0} závislost může být distribuováno bez oznámení uvádějícího původ.",
+      "few": "{v0} závislosti může být distribuováno bez oznámení uvádějícího původ.",
       "many": "{v0} závislostí může být distribuováno bez oznámení uvádějícího původ.",
       "other": "{v0} závislostí může být distribuováno bez oznámení uvádějícího původ."
     },
@@ -2182,8 +2182,8 @@
       "other": "Neověřeno: zastaveno po {v0} souborech; dalších {v1} nepřečteno."
     },
     "m116": {
-      "one": "Neověřeno: dosažen limit důkazů závislostí; {v0} položek vynecháno.",
-      "few": "Neověřeno: dosažen limit důkazů závislostí; {v0} položek vynecháno.",
+      "one": "Neověřeno: dosažen limit důkazů závislostí; {v0} položka vynecháno.",
+      "few": "Neověřeno: dosažen limit důkazů závislostí; {v0} položky vynecháno.",
       "many": "Neověřeno: dosažen limit důkazů závislostí; {v0} položek vynecháno.",
       "other": "Neověřeno: dosažen limit důkazů závislostí; {v0} položek vynecháno."
     },
@@ -2198,8 +2198,8 @@
     "m120": "Dodejte vstupy balíku nebo inventář pro přesné povinnosti.",
     "m121": "Kontrola zastavena na limitu: zpráva pro {v0} zkrácena",
     "m122": {
-      "one": "Zpráva zkrácena: {v0} nálezů nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně.",
-      "few": "Zpráva zkrácena: {v0} nálezů nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně.",
+      "one": "Zpráva zkrácena: {v0} nález nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně.",
+      "few": "Zpráva zkrácena: {v0} nálezy nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně.",
       "many": "Zpráva zkrácena: {v0} nálezů nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně.",
       "other": "Zpráva zkrácena: {v0} nálezů nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně."
     },
@@ -2233,8 +2233,8 @@
     "m145": "Neověřeno: {v0} obsahuje cestové crates s neznámým vlastnictvím a vyřešenými metadaty.",
     "m146": "Neověřeno: {v0} obsahuje zděděné nebo vnořené Cargo deklarace bez statického řešení.",
     "m147": {
-      "one": "Neověřeno: {v0} Cargo položek nemá licenci ani odpovídající vložený manifest.",
-      "few": "Neověřeno: {v0} Cargo položek nemá licenci ani odpovídající vložený manifest.",
+      "one": "Neověřeno: {v0} Cargo položka nemá licenci ani odpovídající vložený manifest.",
+      "few": "Neověřeno: {v0} Cargo položky nemá licenci ani odpovídající vložený manifest.",
       "many": "Neověřeno: {v0} Cargo položek nemá licenci ani odpovídající vložený manifest.",
       "other": "Neověřeno: {v0} Cargo položek nemá licenci ani odpovídající vložený manifest."
     },
@@ -2310,8 +2310,8 @@
     "m172": "Neověřeno: nepodporovaná verze npm zámku v {v0}.",
     "m173": "Neověřeno: {v0} překračuje hloubku npm zámku.",
     "m174": {
-      "one": "Neověřeno: {v0} npm položek v {v1} bez licence nebo odpovídajících instalačních dat.",
-      "few": "Neověřeno: {v0} npm položek v {v1} bez licence nebo odpovídajících instalačních dat.",
+      "one": "Neověřeno: {v0} npm položka v {v1} bez licence nebo odpovídajících instalačních dat.",
+      "few": "Neověřeno: {v0} npm položky v {v1} bez licence nebo odpovídajících instalačních dat.",
       "many": "Neověřeno: {v0} npm položek v {v1} bez licence nebo odpovídajících instalačních dat.",
       "other": "Neověřeno: {v0} npm položek v {v1} bez licence nebo odpovídajících instalačních dat."
     },
@@ -2349,8 +2349,8 @@
     "m186": "Neověřeno: {v0} zahrnuje {v1}, který chybí v pracovním prostoru.",
     "m187": "Neověřeno: {v0} obsahuje volbu požadavků nebo upravitelný zdroj bez statického řešení.",
     "m188": {
-      "one": "Neověřeno: {v0} řádků v {v1} používá nečitelný formát.",
-      "few": "Neověřeno: {v0} řádků v {v1} používá nečitelný formát.",
+      "one": "Neověřeno: {v0} řádek v {v1} používá nečitelný formát.",
+      "few": "Neověřeno: {v0} řádky v {v1} používá nečitelný formát.",
       "many": "Neověřeno: {v0} řádků v {v1} používá nečitelný formát.",
       "other": "Neověřeno: {v0} řádků v {v1} používá nečitelný formát."
     },
@@ -2404,5 +2404,17 @@
     "bundleLoad": "nelze načíst {file}",
     "bundleShape": "{file} má neočekávanou strukturu",
     "invalidResult": "kontrola vrátila neplatný výsledek"
-  }
+  },
+  "paidDailyBudgetLine": "Společný denní rozpočet placených doplňků: {budget}.",
+  "paidDailyLedgerUnavailable": "Denní placený rozpočet byl dosažen: jeho evidence je nečitelná, neúplná nebo nemůže přijmout tento požadavek. Žádný placený požadavek nebyl odeslán.",
+  "paidDailyStopped": "Placené doplňky jsou zastaveny do zítřka.",
+  "paidDailyReached": "Denní placený rozpočet byl dosažen",
+  "paidDailyReachedDetail": "Dnešní limit je {budget}. Tento požadavek a stávající rezervace potřebují {needed}. Zvyšte dnešní limit, nebo zastavte placené doplňky do zítřka.",
+  "paidDailyRaise": "Zvýšit pro dnešek",
+  "paidDailyStop": "Zastavit do zítřka",
+  "paidDailyRaisePrompt": "Zadejte dnešní limit v USD (0.50–500), který pokryje čekající rezervace.",
+  "legalExplainPaid": "Vysvětlit nálezy (placené)",
+  "legalExplainConsent": "Vysvětlit nálezy pomocí {model}, účtováno klíči Model API za {price}. Předplatné nic nehradí. Odesílají se jen ID nálezů, kategorie, závažnost a rozpoznané licence; žádný kód, cesty ani úryvky.",
+  "legalExplainConfirm": "Volitelné vysvětlení Model API: {price}. Každé použití žádá souhlas a sdílí denní rozpočet.",
+  "legalExplainUnavailable": "Zapněte placená právní vysvětlení v účtu a využití a nejprve uložte klíč Model API."
 }

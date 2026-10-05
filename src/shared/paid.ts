@@ -37,6 +37,10 @@ export const paidTallySchema = z.object({
   subagentTokens: z.optional(z.int().check(z.nonnegative())),
   subagentCostUsd: z.optional(z.number().check(z.nonnegative())),
   // Optional for panels saved before M78; absent means no review made.
+  legalExplanations: z.optional(z.int().check(z.nonnegative())),
+  legalExplanationUnknownRequests: z.optional(z.int().check(z.nonnegative())),
+  legalExplanationTokens: z.optional(z.int().check(z.nonnegative())),
+  legalExplanationCostUsd: z.optional(z.number().check(z.nonnegative())),
   autoReviews: z.optional(z.int().check(z.nonnegative())),
   autoReviewUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   autoReviewTokens: z.optional(z.int().check(z.nonnegative())),
@@ -118,6 +122,7 @@ export type PaidState = z.infer<typeof paidStateSchema>
 export type PaidUseRequest =
   | { readonly feature: 'webSearch' }
   | { readonly feature: 'voice' }
+  | { readonly feature: 'legalExplanation'; readonly modelId: string }
   | {
       readonly feature: 'imageGeneration'
       readonly kind: 'generate' | 'edit'
@@ -183,6 +188,9 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
       // Billed apart from the conversation, so counted here alone.
       return tally.autoReviewCostUsd ?? 0
     }
+    case 'legalExplanation': {
+      return tally.legalExplanationCostUsd ?? 0
+    }
     case 'bestOfN': {
       // Separate worktree hosts do not contribute to the parent's token
       // estimate. Count only reported costs here, not unknown HTTP tries.
@@ -207,6 +215,7 @@ export function listedPaidFeatures(
       (feature === 'scheduledPrompts' && tally.scheduledRuns > 0) ||
       (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
       (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
+      (feature === 'legalExplanation' && (tally.legalExplanations ?? 0) > 0) ||
       (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0),
   )
 }
@@ -236,6 +245,7 @@ export function paidFeatureName(feature: PaidFeature): string {
     subagents: UI_TEXT.paidSubagentsName,
     autoReviewer: UI_TEXT.paidAutoReviewerName,
     bestOfN: UI_TEXT.paidBestOfNName,
+    legalExplanation: UI_TEXT.legalExplainPaid,
   }
   return names[feature]
 }
@@ -312,7 +322,8 @@ export function paidFeaturePrice(feature: PaidFeature): string {
       return fill(UI_TEXT.paidVoicePrice, { price: formatUsd(PAID_PRICES_USD.voicePerHour, 2) })
     }
     case 'scheduledPrompts':
-    case 'autoReviewer': {
+    case 'autoReviewer':
+    case 'legalExplanation': {
       return tokenRatesByTier()
     }
     case 'subagents': {

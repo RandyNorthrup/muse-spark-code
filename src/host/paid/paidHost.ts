@@ -18,7 +18,7 @@ import {
   UI_TEXT,
   WORKSPACE_STATE_KEYS,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, formatUsd } from '../../shared/l10n/text'
 import {
   autoReviewPrice,
   modelApiPaidTier,
@@ -54,6 +54,7 @@ export interface PaidFeaturesDeps {
   readonly isKeyStored: () => boolean
   /** A trusted workspace with a folder open: "always" is offered and kept only there. */
   readonly canRememberPaidUse: () => boolean
+  readonly dailyBudgetUsd?: () => number
   readonly log: Logger
 }
 
@@ -76,6 +77,7 @@ function confirmationDetail(feature: PaidFeature): string {
     subagents: UI_TEXT.paidConfirmSubagents,
     autoReviewer: UI_TEXT.paidConfirmAutoReviewer,
     bestOfN: UI_TEXT.paidConfirmBestOfN,
+    legalExplanation: UI_TEXT.legalExplainConfirm,
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
 }
@@ -98,6 +100,7 @@ async function isTurnOnConfirmed(feature: PaidFeature): Promise<boolean> {
 export async function askPaidUse(
   request: PaidUseRequest,
   canRemember: boolean,
+  dailyBudgetUsd?: number,
 ): Promise<PaidUseAnswer> {
   // No verified price, nothing to accept (M48, M78): refused before any popup.
   if (
@@ -118,7 +121,15 @@ export async function askPaidUse(
   const deny: vscode.MessageItem = { title: UI_TEXT.paidDeny, isCloseAffordance: true }
   const answer = await vscode.window.showWarningMessage(
     title,
-    { modal: true, detail },
+    {
+      modal: true,
+      detail:
+        dailyBudgetUsd === undefined
+          ? detail
+          : detail +
+            '\n\n' +
+            fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(dailyBudgetUsd, 2) }),
+    },
     ...(canRemember ? [once, always, deny] : [once, deny]),
   )
   if (answer === once) {
@@ -201,7 +212,12 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
         ),
       )
     },
-    ask: askPaidUse,
+    ask: (request, canRemember) =>
+      askPaidUse(
+        request,
+        canRemember,
+        request.feature === 'legalExplanation' ? deps.dailyBudgetUsd?.() : undefined,
+      ),
     log: deps.log,
   })
   const usage = new PaidUsage(deps.log)

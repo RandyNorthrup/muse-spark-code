@@ -1,19 +1,13 @@
 import { fill, plural } from '../../../shared/l10n/text'
 import { UI_TEXT } from '../../../shared/constants'
-import { compareLegalText } from '../files'
 // Composer evidence (M97, PLAN.md D76): `composer.json`, `composer.lock`
 // and present `installed.json` metadata. The lock carries per-package
 // licenses, the richest of the manifest formats; arrays of licenses read
 // as an `OR` choice. Nothing is installed.
 
-import type {
-  EcosystemResult,
-  LegalDependencyScope,
-  ManifestLicenseDeclaration,
-} from '../dependencies'
+import type { EcosystemResult } from '../dependencies'
 import { dependency, parseJson, recordOf } from '../dependencies'
-import type { LegalFileSnapshot } from '../files'
-import { baseNameOf } from '../files'
+import { baseNameOf, compareLegalText, type LegalFileSnapshot } from '../files'
 
 function licenseOf(value: unknown): string | undefined {
   if (typeof value === 'string' && value !== '') {
@@ -58,13 +52,15 @@ function readLockPackage(entry: unknown): ComposerPackage | undefined {
 function readRequirements(
   manifest: Record<string, unknown>,
   field: string,
-  scope: LegalDependencyScope,
-): (ComposerPackage & { readonly scope: LegalDependencyScope })[] {
+  scope: EcosystemResult['dependencies'][number]['scope'],
+): (ComposerPackage & { readonly scope: EcosystemResult['dependencies'][number]['scope'] })[] {
   const section = recordOf(manifest[field])
   if (section === undefined) {
     return []
   }
-  const found: (ComposerPackage & { readonly scope: LegalDependencyScope })[] = []
+  const found: (ComposerPackage & {
+    readonly scope: EcosystemResult['dependencies'][number]['scope']
+  })[] = []
   const listed1 = Object.keys(section).toSorted((a, b) => compareLegalText(a, b))
   for (const name of listed1) {
     if (name === 'php' || name === 'hhvm' || name.startsWith('ext-') || name.startsWith('lib-')) {
@@ -81,14 +77,17 @@ function readRequirements(
  */
 export function readComposer(snapshot: LegalFileSnapshot): EcosystemResult {
   const incomplete: string[] = []
-  const projectLicenses: ManifestLicenseDeclaration[] = []
+  const projectLicenses: EcosystemResult['projectLicenses'][number][] = []
   const requirements: (ComposerPackage & {
-    readonly scope: LegalDependencyScope
+    readonly scope: EcosystemResult['dependencies'][number]['scope']
     readonly file: string
   })[] = []
   const locked = new Map<
     string,
-    ComposerPackage & { readonly file: string; readonly scope: LegalDependencyScope }
+    ComposerPackage & {
+      readonly file: string
+      readonly scope: EcosystemResult['dependencies'][number]['scope']
+    }
   >()
   const installed = new Map<string, ComposerPackage & { readonly file: string }>()
   let manifestFiles = 0

@@ -31,6 +31,7 @@ export interface LegalReportProps {
     isProjectLicenseIncluded: boolean,
   ) => void
   readonly onConfirm: (previewId: string) => void
+  readonly onExplain?: (() => void) | undefined
   readonly onExport?: (() => void) | undefined
   readonly onRescan: () => void
   readonly onOpenFile: (path: string, range: LineRange | undefined) => void
@@ -175,6 +176,7 @@ export function LegalReport({
   onRequestFix,
   onConfirm,
   onExport,
+  onExplain,
   onRescan,
   onOpenFile,
   onClose,
@@ -279,6 +281,12 @@ export function LegalReport({
           </p>
         )}
         <p className="legal-summary">{summary}</p>
+        {result.paidExplanation === undefined ? null : (
+          <section aria-label={UI_TEXT.legalExplainPaid} data-paid="legalExplanation">
+            <h3>{UI_TEXT.legalExplainPaid}</h3>
+            <p>{result.paidExplanation}</p>
+          </section>
+        )}
         <p className="legal-meta" dir="auto">
           {result.scope}
         </p>
@@ -479,6 +487,11 @@ export function LegalReport({
           </section>
         )}
         <div className="legal-buttons">
+          {onExplain === undefined ? null : (
+            <button type="button" className="button-secondary" onClick={onExplain}>
+              {UI_TEXT.legalExplainPaid}
+            </button>
+          )}
           {onExport === undefined ? null : (
             <button type="button" className="button-secondary" onClick={onExport}>
               {UI_TEXT.legalExportMarkdown}

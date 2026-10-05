@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Add opt-in, priced legal explanations through the shared D78 daily reservation/settlement ledger, with bounded technical input, no tools/retries and retained unknown liability.
+- Route ACP `/legal` and `/legal --offline` to the shared scanner on both backends without a model turn; disclose default registry queries through editor permission prompts.
+- Add a platform-gated headless legal accessibility check to local quality and hosted checks, covering keyboard, accessibility tree, four themes, narrow layouts and browser-metric zoom.
+- Correct lossless English phrase expansion and singular/few scanner count forms; preserve all pre-existing English messages byte for byte.
+
 - Translate deterministic legal findings, evidence labels, reader failures and limits in every supported language; preserve stable finding ids. Package translations losslessly within the existing size caps.
 
 - Editor legal scans offer disclosed public npm/PyPI metadata lookups, with an offline setting, HTTPS redirect refusal and supplemental licence evidence.

@@ -124,5 +124,7 @@
   "config.legalHeaderPolicy.enumDescriptions.optional": "Csak az észlelt projektstílussal vagy REUSE-nyilatkozataival ellentétes fejléc számít megállapításnak. Az alapértelmezett érték.",
   "config.legalHeaderPolicy.enumDescriptions.off": "A fejlécellenőrzés kimarad; a jelentés ezt jelzi.",
   "command.legalScan.title": "Jogi ellenőrzés",
-  "config.legalRegistryLookups.description": "Nyilvános regiszterlekérdezések engedélyezése a regisztereket és az elküldött csomagneveket, verziókat megnevező egyszeri értesítés után. Kikapcsolva csak helyi metaadatokat használ."
+  "config.legalRegistryLookups.description": "Nyilvános regiszterlekérdezések engedélyezése a regisztereket és az elküldött csomagneveket, verziókat megnevező egyszeri értesítés után. Kikapcsolva csak helyi metaadatokat használ.",
+  "config.legalExplanation": "Választható Model API-magyarázat: USD. Minden használat engedélyt kér, és a közös napi keretet terheli.",
+  "config.paidDailyBudgetUsd": "A fizetős extrák közös napi kerete: USD."
 }

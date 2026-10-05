@@ -2020,7 +2020,7 @@
     "m035": "Sin comprobar: los nombres de archivos no prueban la actualidad de los artefactos.",
     "m036": "Sin comprobar: las entradas del paquete compilado faltan o están desactualizadas.",
     "m037": {
-      "one": "Distribución obtenida de {v0} entradas conocidas del paquete compilado",
+      "one": "Distribución obtenida de {v0} entrada conocidas del paquete compilado",
       "many": "Distribución obtenida de {v0} entradas conocidas del paquete compilado",
       "other": "Distribución obtenida de {v0} entradas conocidas del paquete compilado"
     },
@@ -2033,7 +2033,7 @@
     "m044": "Distribución aproximada desde archivos y .vscodeignore; los artefactos sin compilar pueden diferir.",
     "m045": "Análisis de distribución",
     "m046": {
-      "one": "{v0} dependencias pueden distribuirse sin archivo de avisos que las atribuya.",
+      "one": "{v0} dependencia pueden distribuirse sin archivo de avisos que las atribuya.",
       "many": "{v0} dependencias pueden distribuirse sin archivo de avisos que las atribuya.",
       "other": "{v0} dependencias pueden distribuirse sin archivo de avisos que las atribuya."
     },
@@ -2106,26 +2106,26 @@
     "m113": "Sin comprobar: {v0} no se puede leer como texto.",
     "m114": "Análisis detenido en el límite: {v0} excede el presupuesto de lectura.",
     "m115": {
-      "one": "Sin comprobar: detenido tras {v0} archivos; otros {v1} no leídos.",
+      "one": "Sin comprobar: detenido tras {v0} archivo; otros {v1} no leídos.",
       "many": "Sin comprobar: detenido tras {v0} archivos; otros {v1} no leídos.",
       "other": "Sin comprobar: detenido tras {v0} archivos; otros {v1} no leídos."
     },
     "m116": {
-      "one": "Sin comprobar: límite de pruebas de dependencias alcanzado; {v0} entradas omitidas.",
+      "one": "Sin comprobar: límite de pruebas de dependencias alcanzado; {v0} entrada omitidas.",
       "many": "Sin comprobar: límite de pruebas de dependencias alcanzado; {v0} entradas omitidas.",
       "other": "Sin comprobar: límite de pruebas de dependencias alcanzado; {v0} entradas omitidas."
     },
     "m117": "Sin comprobar: licencia de {v0} en {v1} no reconocida.",
     "m118": "Análisis de licencia en {v0}",
     "m119": {
-      "one": "Distribución desconocida con {v0} dependencias de producción; se evalúa un árbol de fuentes no distribuido.",
+      "one": "Distribución desconocida con {v0} dependencia de producción; se evalúa un árbol de fuentes no distribuido.",
       "many": "Distribución desconocida con {v0} dependencias de producción; se evalúa un árbol de fuentes no distribuido.",
       "other": "Distribución desconocida con {v0} dependencias de producción; se evalúa un árbol de fuentes no distribuido."
     },
     "m120": "Proporcione entradas compiladas o inventario para precisar las obligaciones.",
     "m121": "Análisis detenido en el límite: informe truncado para {v0}",
     "m122": {
-      "one": "Informe truncado: {v0} hallazgos omitidos sobre el límite de {v1}; bloqueos y correcciones conservados primero.",
+      "one": "Informe truncado: {v0} hallazgo omitidos sobre el límite de {v1}; bloqueos y correcciones conservados primero.",
       "many": "Informe truncado: {v0} hallazgos omitidos sobre el límite de {v1}; bloqueos y correcciones conservados primero.",
       "other": "Informe truncado: {v0} hallazgos omitidos sobre el límite de {v1}; bloqueos y correcciones conservados primero."
     },
@@ -2158,7 +2158,7 @@
     "m145": "Sin comprobar: {v0} contiene crates de ruta con propiedad y metadatos resueltos desconocidos.",
     "m146": "Sin comprobar: {v0} contiene declaraciones Cargo heredadas o anidadas no resueltas estáticamente.",
     "m147": {
-      "one": "Sin comprobar: {v0} entradas Cargo sin licencia ni manifiesto incorporado correspondiente.",
+      "one": "Sin comprobar: {v0} entrada Cargo sin licencia ni manifiesto incorporado correspondiente.",
       "many": "Sin comprobar: {v0} entradas Cargo sin licencia ni manifiesto incorporado correspondiente.",
       "other": "Sin comprobar: {v0} entradas Cargo sin licencia ni manifiesto incorporado correspondiente."
     },
@@ -2197,7 +2197,7 @@
     "m160": "Sin comprobar: faltan Gemfile, Gemfile.lock y gemspec.",
     "m161": "Sin comprobar: reemplazos Go, correspondencia de herramientas y selección transitiva requieren revisión; las sumas pueden incluir versiones sin usar.",
     "m162": {
-      "one": "Sin comprobar: {v0} módulos Go sin licencia; sumas y rutas no son licencias, los textos incorporados podrían ayudar.",
+      "one": "Sin comprobar: {v0} módulos Go sin licencia; sumas y ruta no son licencias, los textos incorporados podrían ayudar.",
       "many": "Sin comprobar: {v0} módulos Go sin licencia; sumas y rutas no son licencias, los textos incorporados podrían ayudar.",
       "other": "Sin comprobar: {v0} módulos Go sin licencia; sumas y rutas no son licencias, los textos incorporados podrían ayudar."
     },
@@ -2225,7 +2225,7 @@
     "m172": "Sin comprobar: versión de bloqueo npm no compatible en {v0}.",
     "m173": "Sin comprobar: {v0} excede la profundidad de bloqueo npm.",
     "m174": {
-      "one": "Sin comprobar: {v0} entradas npm en {v1} sin licencia ni datos instalados correspondientes.",
+      "one": "Sin comprobar: {v0} entrada npm en {v1} sin licencia ni datos instalados correspondientes.",
       "many": "Sin comprobar: {v0} entradas npm en {v1} sin licencia ni datos instalados correspondientes.",
       "other": "Sin comprobar: {v0} entradas npm en {v1} sin licencia ni datos instalados correspondientes."
     },
@@ -2259,7 +2259,7 @@
     "m186": "Sin comprobar: {v0} incluye {v1}, ausente del espacio de trabajo.",
     "m187": "Sin comprobar: {v0} contiene opción de requisitos o fuente editable no resuelta estáticamente.",
     "m188": {
-      "one": "Sin comprobar: {v0} líneas de requisitos en {v1} tienen formato no analizable.",
+      "one": "Sin comprobar: {v0} línea de requisitos en {v1} tienen formato no analizable.",
       "many": "Sin comprobar: {v0} líneas de requisitos en {v1} tienen formato no analizable.",
       "other": "Sin comprobar: {v0} líneas de requisitos en {v1} tienen formato no analizable."
     },
@@ -2294,12 +2294,12 @@
     "impossibleYear": "el año {value} es imposible",
     "reversedYears": "el intervalo {value} termina antes de empezar",
     "selectedPaths": {
-      "one": "{count} rutas seleccionadas",
+      "one": "{count} ruta seleccionadas",
       "many": "{count} rutas seleccionadas",
       "other": "{count} rutas seleccionadas"
     },
     "moreUnchecked": {
-      "one": "y otros {count} elementos sin comprobar omitidos sobre el límite",
+      "one": "y otros {count} elemento sin comprobar omitidos sobre el límite",
       "many": "y otros {count} elementos sin comprobar omitidos sobre el límite",
       "other": "y otros {count} elementos sin comprobar omitidos sobre el límite"
     },
@@ -2308,5 +2308,17 @@
     "bundleLoad": "no se pudo cargar {file}",
     "bundleShape": "{file} tiene estructura inesperada",
     "invalidResult": "el análisis devolvió un resultado inválido"
-  }
+  },
+  "paidDailyBudgetLine": "Presupuesto diario compartido para extras de pago: {budget}.",
+  "paidDailyLedgerUnavailable": "Presupuesto diario de pago alcanzado: el registro es ilegible, incompleto o no admite esta solicitud. No se ha enviado ninguna solicitud de pago.",
+  "paidDailyStopped": "Los extras de pago están detenidos hasta mañana.",
+  "paidDailyReached": "Presupuesto diario de pago alcanzado",
+  "paidDailyReachedDetail": "El límite de hoy es {budget}. Esta solicitud y las reservas existentes necesitan {needed}. Aumente el límite de hoy o detenga los extras de pago hasta mañana.",
+  "paidDailyRaise": "Aumentar para hoy",
+  "paidDailyStop": "Detener hasta mañana",
+  "paidDailyRaisePrompt": "Introduzca el límite de hoy en USD (0.50–500), suficiente para las reservas pendientes.",
+  "legalExplainPaid": "Explicar hallazgos (de pago)",
+  "legalExplainConsent": "Explicar estos hallazgos con {model}, facturado a su clave Model API a {price}. La suscripción no lo paga. Solo se envían identificadores de hallazgos, categorías, gravedad y licencias reconocidas; ningún código, ruta ni fragmento.",
+  "legalExplainConfirm": "Explicación opcional de Model API: {price}. Cada uso pide consentimiento y comparte el presupuesto diario.",
+  "legalExplainUnavailable": "Active las explicaciones legales de pago en Cuenta y uso y guarde una clave Model API."
 }

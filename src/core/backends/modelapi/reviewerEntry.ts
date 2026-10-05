@@ -286,3 +286,6 @@ async function callReviewer(
   }
   return parseReviewerAnswer(text) ?? 'unreadable'
 }
+
+export { explainLegal } from '../../paid/legalExplanation'
+export { setUiText as setLegalExplanationLanguage } from '../../../shared/l10n/text'

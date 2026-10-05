@@ -2033,7 +2033,7 @@
     "m044": "Distribuzione stimata da file del pacchetto e .vscodeignore; artefatti non compilati possono differire.",
     "m045": "Analisi di distribuzione",
     "m046": {
-      "one": "{v0} dipendenze potrebbero essere distribuite senza file di avvisi che le attribuisca.",
+      "one": "{v0} dipendenza potrebbero essere distribuite senza file di avvisi che le attribuisca.",
       "many": "{v0} dipendenze potrebbero essere distribuite senza file di avvisi che le attribuisca.",
       "other": "{v0} dipendenze potrebbero essere distribuite senza file di avvisi che le attribuisca."
     },
@@ -2111,14 +2111,14 @@
       "other": "Non verificato: fermata dopo {v0} file; altri {v1} non letti."
     },
     "m116": {
-      "one": "Non verificato: limite di prove delle dipendenze raggiunto; {v0} voci omesse.",
+      "one": "Non verificato: limite di prove delle dipendenze raggiunto; {v0} voce omesse.",
       "many": "Non verificato: limite di prove delle dipendenze raggiunto; {v0} voci omesse.",
       "other": "Non verificato: limite di prove delle dipendenze raggiunto; {v0} voci omesse."
     },
     "m117": "Non verificato: licenza di {v0} in {v1} non riconosciuta.",
     "m118": "Analisi del testo di licenza in {v0}",
     "m119": {
-      "one": "Distribuzione ignota con {v0} dipendenze di produzione; si valutano sorgenti non distribuiti.",
+      "one": "Distribuzione ignota con {v0} dipendenza di produzione; si valutano sorgenti non distribuiti.",
       "many": "Distribuzione ignota con {v0} dipendenze di produzione; si valutano sorgenti non distribuiti.",
       "other": "Distribuzione ignota con {v0} dipendenze di produzione; si valutano sorgenti non distribuiti."
     },
@@ -2158,7 +2158,7 @@
     "m145": "Non verificato: {v0} contiene crate di percorso con proprietà e metadati risolti ignoti.",
     "m146": "Non verificato: {v0} contiene dichiarazioni Cargo ereditate o annidate non risolte staticamente.",
     "m147": {
-      "one": "Non verificato: {v0} voci Cargo senza licenza né manifesti incorporati corrispondenti.",
+      "one": "Non verificato: {v0} voce Cargo senza licenza né manifesti incorporati corrispondenti.",
       "many": "Non verificato: {v0} voci Cargo senza licenza né manifesti incorporati corrispondenti.",
       "other": "Non verificato: {v0} voci Cargo senza licenza né manifesti incorporati corrispondenti."
     },
@@ -2197,7 +2197,7 @@
     "m160": "Non verificato: mancano Gemfile, Gemfile.lock e gemspec.",
     "m161": "Non verificato: sostituzioni Go, associazione degli strumenti e selezione transitiva da rivedere; somme possono includere versioni inutilizzate.",
     "m162": {
-      "one": "Non verificato: {v0} moduli Go senza licenza; somme e percorsi non sono licenze, testi incorporati potrebbero aiutare.",
+      "one": "Non verificato: {v0} moduli Go senza licenza; somme e percorso non sono licenze, testi incorporati potrebbero aiutare.",
       "many": "Non verificato: {v0} moduli Go senza licenza; somme e percorsi non sono licenze, testi incorporati potrebbero aiutare.",
       "other": "Non verificato: {v0} moduli Go senza licenza; somme e percorsi non sono licenze, testi incorporati potrebbero aiutare."
     },
@@ -2225,7 +2225,7 @@
     "m172": "Non verificato: versione di blocco npm non supportata in {v0}.",
     "m173": "Non verificato: {v0} supera la profondità di blocco npm.",
     "m174": {
-      "one": "Non verificato: {v0} voci npm in {v1} senza licenza né dati installati corrispondenti.",
+      "one": "Non verificato: {v0} voce npm in {v1} senza licenza né dati installati corrispondenti.",
       "many": "Non verificato: {v0} voci npm in {v1} senza licenza né dati installati corrispondenti.",
       "other": "Non verificato: {v0} voci npm in {v1} senza licenza né dati installati corrispondenti."
     },
@@ -2259,7 +2259,7 @@
     "m186": "Non verificato: {v0} include {v1}, assente dallo spazio di lavoro.",
     "m187": "Non verificato: {v0} contiene opzioni di requisiti o sorgenti modificabili non risolti staticamente.",
     "m188": {
-      "one": "Non verificato: {v0} righe in {v1} hanno formato non analizzabile.",
+      "one": "Non verificato: {v0} riga in {v1} hanno formato non analizzabile.",
       "many": "Non verificato: {v0} righe in {v1} hanno formato non analizzabile.",
       "other": "Non verificato: {v0} righe in {v1} hanno formato non analizzabile."
     },
@@ -2294,12 +2294,12 @@
     "impossibleYear": "l’anno {value} è impossibile",
     "reversedYears": "l’intervallo {value} termina prima di iniziare",
     "selectedPaths": {
-      "one": "{count} percorsi selezionati",
+      "one": "{count} percorso selezionati",
       "many": "{count} percorsi selezionati",
       "other": "{count} percorsi selezionati"
     },
     "moreUnchecked": {
-      "one": "e altri {count} elementi non verificati omessi oltre il limite",
+      "one": "e altri {count} elemento non verificati omessi oltre il limite",
       "many": "e altri {count} elementi non verificati omessi oltre il limite",
       "other": "e altri {count} elementi non verificati omessi oltre il limite"
     },
@@ -2308,5 +2308,17 @@
     "bundleLoad": "impossibile caricare {file}",
     "bundleShape": "{file} ha una struttura inattesa",
     "invalidResult": "l’analisi ha restituito un risultato non valido"
-  }
+  },
+  "paidDailyBudgetLine": "Budget giornaliero condiviso per gli extra a pagamento: {budget}.",
+  "paidDailyLedgerUnavailable": "Budget giornaliero a pagamento raggiunto: il registro è illeggibile, incompleto o non può ammettere questa richiesta. Nessuna richiesta a pagamento è stata inviata.",
+  "paidDailyStopped": "Gli extra a pagamento sono sospesi fino a domani.",
+  "paidDailyReached": "Budget giornaliero a pagamento raggiunto",
+  "paidDailyReachedDetail": "Il limite di oggi è {budget}. Questa richiesta e le riserve esistenti richiedono {needed}. Aumenta il limite per oggi o sospendi gli extra a pagamento fino a domani.",
+  "paidDailyRaise": "Aumenta per oggi",
+  "paidDailyStop": "Sospendi fino a domani",
+  "paidDailyRaisePrompt": "Inserisci il limite di oggi in USD (0.50–500), sufficiente per le riserve in attesa.",
+  "legalExplainPaid": "Spiega i risultati (a pagamento)",
+  "legalExplainConsent": "Spiega questi risultati con {model}, addebitando alla chiave Model API la tariffa {price}. L’abbonamento non paga. Si inviano solo identificatori dei risultati, categorie, gravità e licenze riconosciute; nessun codice, percorso o estratto.",
+  "legalExplainConfirm": "Spiegazione Model API facoltativa: {price}. Ogni utilizzo chiede il consenso e condivide il budget giornaliero.",
+  "legalExplainUnavailable": "Abilita le spiegazioni legali a pagamento in Account e utilizzo e salva una chiave Model API."
 }

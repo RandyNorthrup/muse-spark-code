@@ -124,5 +124,7 @@
   "config.legalHeaderPolicy.enumDescriptions.optional": "Apenas um cabeçalho que contradiga o estilo detectado do projeto ou suas declarações REUSE é um achado. O padrão.",
   "config.legalHeaderPolicy.enumDescriptions.off": "As verificações de cabeçalhos são ignoradas; o relatório informa isso.",
   "command.legalScan.title": "Verificação legal",
-  "config.legalRegistryLookups.description": "Permitir consultas a registros públicos após um aviso único que informa os registros e os nomes e versões enviados. Desative para usar apenas metadados locais."
+  "config.legalRegistryLookups.description": "Permitir consultas a registros públicos após um aviso único que informa os registros e os nomes e versões enviados. Desative para usar apenas metadados locais.",
+  "config.legalExplanation": "Explicação opcional da Model API: USD. Cada uso pede consentimento e compartilha o orçamento diário.",
+  "config.paidDailyBudgetUsd": "Orçamento diário compartilhado para extras pagos: USD."
 }
