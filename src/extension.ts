@@ -1892,6 +1892,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         await bundledSkillsOffer.decline()
         break
       }
+      // M95 (PLAN.md D74, lane U): the first-run screen, the picker's rows
+      // and the setup confirmation reach lane K's Models & Agents commands
+      // through the registered ids (an explicit error until lane K lands).
+      case 'startWithOwnModel': {
+        await vscode.commands.executeCommand(COMMAND_IDS.startWithOwnModel)
+        break
+      }
+      case 'addModelProvider': {
+        await vscode.commands.executeCommand(COMMAND_IDS.addModelProvider)
+        break
+      }
+      case 'manageModels': {
+        await vscode.commands.executeCommand(COMMAND_IDS.modelsAndAgents)
+        break
+      }
     }
   }
 

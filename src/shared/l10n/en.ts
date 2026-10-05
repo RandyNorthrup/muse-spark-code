@@ -996,6 +996,10 @@ export const EN = {
   contributorConfirm: 'Use contributor model',
   contributorBlocked:
     'Contributor-tier models are blocked in this workspace (museSpark.confidentialWorkspace).',
+  // A BYO model whose provider or route may train on the content, refused
+  // where the workspace forbids it (M95, PLAN.md D74).
+  trainingBlocked:
+    'Models that may train on workspace content are blocked in this workspace (museSpark.confidentialWorkspace).',
   backendItem: 'Backend',
   backendDetail: 'museSpark.backend: auto / museCode / modelApi',
   backendMuseCode: 'Muse Code (your Muse subscription)',
@@ -2425,6 +2429,12 @@ export const EN = {
   // {window}: the model's context window; {price}: its price, `unpriced`,
   // `local` or `plan`.
   pickerModelDetail: '{window} context · {price}',
+  // The models view's first group, when any model is pinned (M95).
+  pickerPinnedGroup: 'Pinned favourites',
+  // The models view's group for Meta's own models, which carry no provider.
+  pickerMetaGroup: 'Muse Spark',
+  // {input}, {output}: a priced model's per-M-token prices as dollars.
+  pickerPricePair: '{input} in · {output} out (per M tokens)',
   // Account & usage's rows per provider.
   usageKeyUsage: 'API key usage',
   usageLimit: 'Limit',

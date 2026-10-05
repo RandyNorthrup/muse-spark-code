@@ -2677,14 +2677,29 @@ export class ConversationController {
     if (this.isDisposed || this.modelGeneration !== generation) {
       return
     }
+    // A confidential workspace hides the contributor tier and any BYO model
+    // whose provider or route may train on the content (M95, PLAN.md D74).
     const models = this.deps.isConfidentialWorkspace()
-      ? listed.filter((model) => !isContributorModel(model.modelId))
+      ? listed.filter(
+          (model) => !isContributorModel(model.modelId) && model.trainsOnContent !== true,
+        )
       : listed
     this.models = models.map((model) => ({
       modelId: model.modelId,
       displayLabel: model.displayLabel,
       ...(model.contextLimit !== undefined && { contextLimit: model.contextLimit }),
       isDefault: model.isDefault,
+      ...(model.providerId !== undefined && { providerId: model.providerId }),
+      ...(model.providerLabel !== undefined && { providerLabel: model.providerLabel }),
+      ...(model.pricing !== undefined && { pricing: model.pricing }),
+      ...(model.inputUsdPerMTokens !== undefined && {
+        inputUsdPerMTokens: model.inputUsdPerMTokens,
+      }),
+      ...(model.outputUsdPerMTokens !== undefined && {
+        outputUsdPerMTokens: model.outputUsdPerMTokens,
+      }),
+      ...(model.isPinned === true && { isPinned: model.isPinned }),
+      ...(model.trainsOnContent === true && { trainsOnContent: model.trainsOnContent }),
     }))
     this.post({ type: 'modelList', models: [...this.models] })
   }
@@ -6222,8 +6237,21 @@ export class ConversationController {
     }
   }
 
-  /** Whether a contributor-tier model may be used here: blocked, or confirmed once. */
+  /**
+   * Whether the model may be used here: a contributor-tier model is blocked
+   * or confirmed once, and a BYO model the listing flagged as training on
+   * the content is refused in a confidential workspace (M95, PLAN.md D74).
+   * Unknown to the listing (never listed, e.g. the wizard's first save), a
+   * model is allowed: the listing is the guard, and the wizard knows the
+   * route.
+   */
   private async allowsModel(modelId: string): Promise<boolean> {
+    const trains =
+      this.models?.find((model) => model.modelId === modelId)?.trainsOnContent === true
+    if (trains && this.deps.isConfidentialWorkspace()) {
+      this.notice('warning', UI_TEXT.trainingBlocked)
+      return false
+    }
     if (!isContributorModel(modelId) || this.confirmedContributor === modelId) {
       return true
     }
@@ -7378,6 +7406,13 @@ export class ConversationController {
         break
       }
       case 'signIn': {
+        // The first-run screen's third choice (M95): not a credential but
+        // the Models & Agents wizard at "Pick a provider" (lane K's
+        // `museSpark.startWithOwnModel`; an explicit error until it lands).
+        if (message.method === 'byo') {
+          await this.runHostAction('startWithOwnModel')
+          break
+        }
         await this.deps.auth.signIn(message.method)
         this.readWaitingBrief()
         void this.warmModels()
