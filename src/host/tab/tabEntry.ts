@@ -1,11 +1,12 @@
-// Tab's shipped CommonJS bundle (M94, PLAN.md D6): the provider, the
-// status bar, the snooze and the menu commands, composed over the injected
-// lane seams. esbuild builds this file into dist/tab.js, which `tabLoader`
+// Tab's shipped CommonJS bundle (M94, PLAN.md D6): the engine and the
+// ledger's spend gate, the provider, the status bar, the snooze and the
+// menu commands. esbuild builds this file into dist/tab.js, which `tabLoader`
 // requires on the first Tab request, so none of it is in the bundle VS Code
 // loads at activation. `vscode` is the host's external module. Every entry
 // installs the caller's display table before use (PLAN.md D33): the bundle
 // keeps its own installed-language state beside the activation's.
 
+import { createTabEngine } from '../../core/tab/tabEngine'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import {
@@ -13,18 +14,55 @@ import {
   type TabLanguagesCommandDeps,
   type TabProviderDeps,
   type TabProviderHandle,
+  type TabServices,
+  type TabServicesDeps,
   type TabSnooze,
   type TabSnoozeStore,
   type TabStatusDeps,
   type TabStatusHandle,
 } from './tabBundle'
+import { createTabLedger } from './tabLedger'
 import { createTabProvider as createProvider } from './tabProvider'
+import { createTabSpendGate } from './tabSpendGate'
 import {
   createTabSnooze as createSnooze,
   createTabStatus as createStatus,
   snoozeTabCommand as runSnoozeCommand,
   tabLanguagesCommand as runLanguagesCommand,
 } from './tabStatus'
+
+function now(): number {
+  return Date.now()
+}
+
+/** The engine (lane C) over the key client, and the spend gate over this window's ledger (lane L). */
+export function createTabServices(deps: TabServicesDeps): TabServices {
+  const ledger = createTabLedger({
+    directory: deps.ledgerDirectory,
+    windowId: deps.windowId,
+    now,
+    sleep: (ms) =>
+      new Promise((resolve) => {
+        setTimeout(resolve, ms)
+      }),
+    log: deps.log,
+  })
+  return {
+    engine: createTabEngine({
+      stream: deps.stream,
+      onSent: deps.onSent,
+      onUsage: deps.onUsage,
+      now,
+    }),
+    spend: createTabSpendGate({
+      ledger,
+      budgetUsd: deps.budgetUsd,
+      now,
+      onTotalChanged: deps.onTotalChanged,
+      log: deps.log,
+    }),
+  }
+}
 
 export function createTabSnooze(store: TabSnoozeStore): TabSnooze {
   return createSnooze(store)

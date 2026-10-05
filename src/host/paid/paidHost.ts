@@ -164,6 +164,10 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
   }
   const gate = new PaidFeatureGate({
     isSettingOn: deps.isSettingOn,
+    // Tab is on by default and asks once, at its first request, with the
+    // price and the daily budget (owner 2026-10-04, Q-M94a): no turn-on
+    // price confirmation, at activation or anywhere else.
+    asksOnFirstUse: new Set<PaidFeature>(['tab']),
     setSetting: async (feature, isOn) => {
       await vscode.workspace
         .getConfiguration(SETTINGS_SECTION)
@@ -178,10 +182,11 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
       const previous = readAccepted()
       const generations = { ...readGenerations() }
       for (const feature of PAID_FEATURES) {
-        if (previous.has(feature) !== accepted.has(feature)) {
-          generations[feature] = generationOf(generations, feature) + 1
-          consent.revokeWindowOnce(feature)
+        if (previous.has(feature) === accepted.has(feature)) {
+          continue
         }
+        generations[feature] = generationOf(generations, feature) + 1
+        consent.revokeWindowOnce(feature)
       }
       await deps.globalState.update(GLOBAL_STATE_KEYS.paidGrantGenerations, generations)
       await deps.globalState.update(

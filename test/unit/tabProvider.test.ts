@@ -26,6 +26,7 @@ import {
   type TabOutcome,
   type TabProviderDeps,
   type TabReportedUsage,
+  type TabReservation,
   type TabTextChangeEvent,
 } from '../../src/host/tab/tabBundle'
 import {
@@ -50,6 +51,8 @@ import { SYNTHETIC } from './helpers/syntheticTokens'
 import { FakeUri } from './mocks/vscode'
 
 const USAGE: TabReportedUsage = { inputTokens: 10, cachedTokens: 2, outputTokens: 3 }
+const NOTHING_SENT: TabReportedUsage = { inputTokens: 0, cachedTokens: 0, outputTokens: 0 }
+const RESERVATION: TabReservation = { model: 'muse-spark-1.3', worstCaseUsd: 0.01 }
 
 beforeEach(() => {
   vi.mocked(extensions.getExtension).mockReset().mockReturnValue(undefined)
@@ -185,14 +188,14 @@ describe('inferTabPartialAccept', () => {
 
   it('ignores keystrokes, replacements, moves and foreign text', () => {
     expect(inferTabPartialAccept(tracked, textChange({ insertedText: 'f' }))).toBe(undefined)
-    expect(
-      inferTabPartialAccept(tracked, textChange({ endLine: 0, endCharacter: 11 })),
-    ).toBe(undefined)
+    expect(inferTabPartialAccept(tracked, textChange({ endLine: 0, endCharacter: 11 }))).toBe(
+      undefined,
+    )
     expect(inferTabPartialAccept(tracked, textChange({ startCharacter: 9 }))).toBe(undefined)
     expect(inferTabPartialAccept(tracked, textChange({ insertedText: 'zzz(' }))).toBe(undefined)
-    expect(
-      inferTabPartialAccept(tracked, textChange({ uriString: 'file:///ws/other.ts' })),
-    ).toBe(undefined)
+    expect(inferTabPartialAccept(tracked, textChange({ uriString: 'file:///ws/other.ts' }))).toBe(
+      undefined,
+    )
   })
 })
 
@@ -240,7 +243,7 @@ describe('TabIgnoreCache', () => {
       if (args.includes('--no-index')) {
         return Promise.reject(gitExit(1))
       }
-      return args.includes('ignored.ts') ? Promise.resolve('') : Promise.reject(gitExit(1));
+      return args.includes('ignored.ts') ? Promise.resolve('') : Promise.reject(gitExit(1))
     })
     const harness = ignoreHarness(git)
     expect(await harness.cache.isIgnored('/ws', 'ignored.ts')).toBe(true)
@@ -250,9 +253,10 @@ describe('TabIgnoreCache', () => {
   })
 
   it('reads nothing in the folder when git is blind and a cursorignore sits there', async () => {
-    const harness = ignoreHarness(() => Promise.reject(new Error('no repository')), [
-      path.join('/ws', '.cursorignore'),
-    ])
+    const harness = ignoreHarness(
+      () => Promise.reject(new Error('no repository')),
+      [path.join('/ws', '.cursorignore')],
+    )
     expect(await harness.cache.isIgnored('/ws', 'any.ts')).toBe(true)
   })
 
@@ -363,11 +367,7 @@ interface ProviderHarness {
   readonly textListeners: ((event: TabTextChangeEvent) => void)[]
   readonly provider: vscode.InlineCompletionItemProvider
   readonly handle: ReturnType<typeof createTabProvider>
-  serve(
-    text?: string,
-    line?: number,
-    character?: number,
-  ): Promise<vscode.InlineCompletionItem[]>
+  serve(text?: string, line?: number, character?: number): Promise<vscode.InlineCompletionItem[]>
 }
 
 /** A document outside any file scheme, for the scheme exclusion. */
@@ -383,16 +383,15 @@ function providerHarness(
 ): ProviderHarness {
   // The default applies only when the key is absent: `undefined` is a real
   // answer (the engine's refusal) the tests exercise.
-  const engineCompletion =
-    'engineCompletion' in overrides ? overrides.engineCompletion : 'foo()'
+  const engineCompletion = 'engineCompletion' in overrides ? overrides.engineCompletion : 'foo()'
   const { withHooks = false, ...deps } = overrides
   const outcomes: TabOutcome[] = []
   const snapshots: TabCompletionSnapshot[] = []
   const complete = vi.fn((snapshot: TabCompletionSnapshot) => {
     snapshots.push(snapshot)
-    return Promise.resolve({ completion: engineCompletion, usage: USAGE })
+    return Promise.resolve({ completion: engineCompletion, usage: Promise.resolve(USAGE) })
   })
-  const reserve = vi.fn((): Promise<boolean> => Promise.resolve(true))
+  const reserve = vi.fn((): Promise<TabReservation | undefined> => Promise.resolve(RESERVATION))
   const settle = vi.fn((): void => undefined)
   const requestUse = vi.fn((): Promise<boolean> => Promise.resolve(true))
   const beforeRead = vi.fn((): Promise<boolean> => Promise.resolve(true))
@@ -499,7 +498,10 @@ describe('createTabProvider', () => {
       inputBytes: expect.any(Number),
       maxOutputTokens: TAB_FAST_MAX_OUTPUT_TOKENS,
     })
-    expect(harness.settle).toHaveBeenCalledWith('muse-spark-1.3', USAGE)
+    // Usage settles the same reservation when the request ends.
+    await vi.waitFor(() => {
+      expect(harness.settle).toHaveBeenCalledWith(RESERVATION, USAGE)
+    })
   })
 
   it('redacts every byte sent: a secret reaches the engine only as the mark', async () => {
@@ -589,12 +591,14 @@ describe('createTabProvider', () => {
     await expect(denied.serve()).resolves.toEqual([])
     expect(denied.outcomes).toEqual([{ kind: 'quiet', reason: 'consent-denied' }])
     expect(denied.complete).not.toHaveBeenCalled()
-    const broke = providerHarness({ spend: {
-      reserve: () => Promise.resolve(false),
-      settle: () => undefined,
-      todayTotalUsd: () => 1,
-      todayRequests: () => 20,
-    } })
+    const broke = providerHarness({
+      spend: {
+        reserve: () => Promise.resolve(undefined),
+        settle: () => undefined,
+        todayTotalUsd: () => 1,
+        todayRequests: () => 20,
+      },
+    })
     await expect(broke.serve()).resolves.toEqual([])
     expect(broke.outcomes).toEqual([{ kind: 'quiet', reason: 'budget' }])
   })
@@ -613,13 +617,15 @@ describe('createTabProvider', () => {
     expect(result).toEqual([])
     expect(early.complete).not.toHaveBeenCalled()
     expect(early.outcomes).toEqual([{ kind: 'quiet', reason: 'cancelled-before-send' }])
+    // Nothing was sent, so nothing was billed: the reservation is released.
+    expect(early.settle).toHaveBeenCalledWith(RESERVATION, NOTHING_SENT)
 
     const token = new FakeCancellationToken()
     const late = providerHarness({
       engine: {
         complete: () => {
           token.cancel()
-          return Promise.resolve({ completion: 'foo()', usage: USAGE })
+          return Promise.resolve({ completion: 'foo()', usage: Promise.resolve(USAGE) })
         },
       },
     })
@@ -631,7 +637,9 @@ describe('createTabProvider', () => {
     )
     // The request ran to its end: settled, but no ghost text.
     expect(items).toEqual([])
-    expect(late.settle).toHaveBeenCalledWith('muse-spark-1.3', USAGE)
+    await vi.waitFor(() => {
+      expect(late.settle).toHaveBeenCalledWith(RESERVATION, USAGE)
+    })
     expect(late.outcomes).toEqual([{ kind: 'served', mode: 'fast' }])
   })
 
@@ -650,7 +658,9 @@ describe('createTabProvider', () => {
   it('settles even when the engine has no suggestion', async () => {
     const harness = providerHarness({ engineCompletion: undefined })
     await expect(harness.serve()).resolves.toEqual([])
-    expect(harness.settle).toHaveBeenCalledWith('muse-spark-1.3', USAGE)
+    await vi.waitFor(() => {
+      expect(harness.settle).toHaveBeenCalledWith(RESERVATION, USAGE)
+    })
     expect(harness.outcomes).toEqual([{ kind: 'quiet', reason: 'no-suggestion' }])
   })
 

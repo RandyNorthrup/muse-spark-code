@@ -99,6 +99,7 @@ import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
 import {
   TAB_BUNDLE_FILE,
+  TAB_LEDGER_DIR,
   TAB_SNOOZE_STATE_KEY,
   createTabActivation,
   deferredRefresh,
@@ -781,10 +782,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // off, no bundle load, no request, no secret read, no process: dist/tab.js
   // loads only for an explicit Tab command or while the setting is on. Only
   // types and the loader come from the Tab side here, so dist/extension.js
-  // carries none of the provider, the status bar or (once they land) lanes
-  // C, L and K. Turning the setting on shows the price confirmation through
-  // the paid gate's review, as for every paid feature (D30); declining
-  // leaves it off.
+  // carries none of the provider, the status bar, the engine (lane C) or
+  // the ledger (lane L). Tab is on by default (owner, 2026-10-04): no
+  // turn-on price confirmation; the first request asks D48's question with
+  // the price and the daily budget, and nothing is sent before the answer.
   const tabIgnoreListeners = new Set<() => void>()
   const tabIgnoreWatcher = vscode.workspace.createFileSystemWatcher(
     '**/{.gitignore,.cursorignore,.continueignore}',
@@ -913,6 +914,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         await context.globalState.update(TAB_SNOOZE_STATE_KEY, endMs)
       },
       nowMs: () => Date.now(),
+    },
+    // The bundle builds its engine (lane C) and its spend gate over this
+    // window's ledger file (lane L) from these. The key client is the one
+    // M44 keeps in activation; it is read only on a Tab request.
+    services: {
+      stream: (body, signal, budget) => keyClient.streamResponse(body, signal, undefined, budget),
+      ledgerDirectory: path.join(context.globalStorageUri.fsPath, TAB_LEDGER_DIR),
+      windowId: crypto.randomUUID(),
+      onSent: () => {
+        paid.usage.addTabRequest()
+      },
+      onUsage: (model, usage) => {
+        paid.usage.addTabUsage(model, usage)
+      },
+    },
+    // D48's question, once per window (Q-M94a): the first request asks with
+    // the model's rates and today's budget; Deny snoozes the window.
+    consent: {
+      requestUse: async () => {
+        const settings = currentSettings()
+        return await paid.consent.allows({
+          feature: 'tab',
+          modelId: settings.tabModel,
+          budgetUsd: settings.tabDailyBudgetUsd,
+        })
+      },
     },
   })
   tabDisposables.push({

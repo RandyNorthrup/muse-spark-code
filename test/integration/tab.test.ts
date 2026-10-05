@@ -2,23 +2,28 @@
 // provider, the status bar and the shim run from source against a local fake
 // Model API. `editor.action.inlineSuggest.trigger` then `commit` changes the
 // document and the item's command runs a fixture `afterTabFileEdit`;
-// `acceptNextWord` inserts one word and the inference fires. The completion
-// engine is the test's explicit seam (lane C owns the pipeline): it POSTs
-// the redacted window the provider hands it to the fake server. Lane W
-// points this file at the dev build's dist/tab.js; until then it loads the
-// entry the same way, through the shim's loader seam.
+// `acceptNextWord` inserts one word and the inference fires. The bundle's
+// own engine (lane C) and ledger (lane L) run; only the key client's stream
+// is the test's: it POSTs the real request body to the fake server and
+// replays its answer as Responses events. Lane W points this file at the
+// dev build's dist/tab.js; until then it loads the entry the same way,
+// through the shim's loader seam.
 
 import * as assert from 'node:assert/strict'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
-import {
-  createTabActivation,
-  type TabAcceptedEdit,
-  type TabReportedUsage,
-} from '../../src/host/tab/tabBundle'
+import type { StreamEvent } from '../../src/core/backends/modelapi/schemas'
+import { createTabActivation, type TabAcceptedEdit } from '../../src/host/tab/tabBundle'
 import * as tabEntry from '../../src/host/tab/tabEntry'
-import { REDACTED_MARK, UI_TEXT } from '../../src/shared/constants'
+import {
+  REDACTED_MARK,
+  TAB_REPLY_CLOSE_TAG,
+  TAB_REPLY_OPEN_TAG,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { SYNTHETIC } from '../unit/helpers/syntheticTokens'
 import { FakeLogOutputChannel } from '../unit/helpers/fakes'
 
@@ -26,7 +31,6 @@ const TRIGGER_TIMEOUT_MS = 15_000
 const TRIGGER_POLL_MS = 100
 const FIXTURE_NAME = 'tab-fixture.ts'
 const COMPLETION = 'foo(bar)'
-const USAGE: TabReportedUsage = { inputTokens: 10, cachedTokens: 2, outputTokens: 3 }
 
 function fixtureText(): string {
   return `const key = "${SYNTHETIC.awsAccessKey}"\nconst y = `
@@ -75,6 +79,7 @@ suite('tab completions', () => {
     const edits: TabAcceptedEdit[] = []
     const log = new FakeLogOutputChannel()
     const root = folder.uri.fsPath
+    const ledgerDirectory = mkdtempSync(path.join(tmpdir(), 'muse-tab-ledger-'))
     const tab = createTabActivation({
       bundlePath: '<test seam: the entry module>',
       log,
@@ -93,13 +98,16 @@ suite('tab completions', () => {
       isTrusted: () => vscode.workspace.isTrusted,
       ensureKeyPresence: () => undefined,
       updateSetting: () => Promise.resolve(),
-      registerCommand: (id, run) => vscode.commands.registerCommand(id, (...args: unknown[]) => run(...args)),
+      registerCommand: (id, run) =>
+        vscode.commands.registerCommand(id, (...args: unknown[]) => run(...args)),
       relativeInWorkspace: (uri) => {
         if (uri.scheme !== 'file') {
           return undefined
         }
         const relative = path.relative(root, uri.fsPath)
-        return relative === '' || relative.startsWith('..') ? undefined : relative.split(path.sep).join('/')
+        return relative === '' || relative.startsWith('..')
+          ? undefined
+          : relative.split(path.sep).join('/')
       },
       foreignSetting: () => undefined,
       isCopilotExtensionPresent: () => false,
@@ -136,35 +144,48 @@ suite('tab completions', () => {
         writeSnoozedUntil: () => Promise.resolve(),
         nowMs: () => Date.now(),
       },
-      engine: {
-        complete: async (snapshot) => {
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-              path: snapshot.relativePath,
-              languageId: snapshot.languageId,
-              prefix: snapshot.prefix,
-              suffix: snapshot.suffix,
-            }),
-          })
-          const answer: unknown = await response.json()
-          const completion =
-            typeof answer === 'object' &&
-            answer !== null &&
-            'completion' in answer &&
-            typeof answer.completion === 'string'
-              ? answer.completion
-              : undefined
-          assert.ok(completion !== undefined, 'the fake server answered no completion')
-          return { completion, usage: USAGE }
-        },
-      },
-      spend: {
-        reserve: () => Promise.resolve(true),
-        settle: () => undefined,
-        todayTotalUsd: () => 0,
-        todayRequests: () => 0,
+      services: {
+        // The key client's stream, faked: the real body goes to the fake
+        // server, and its answer comes back as Responses events.
+        stream: (body) =>
+          (async function* replay(): AsyncGenerator<StreamEvent> {
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(body),
+            })
+            const answer: unknown = await response.json()
+            const completion =
+              typeof answer === 'object' &&
+              answer !== null &&
+              'completion' in answer &&
+              typeof answer.completion === 'string'
+                ? answer.completion
+                : undefined
+            assert.ok(completion !== undefined, 'the fake server answered no completion')
+            yield {
+              type: 'response.output_text.delta',
+              item_id: 'item',
+              delta: `${TAB_REPLY_OPEN_TAG}${completion}${TAB_REPLY_CLOSE_TAG}`,
+            }
+            yield {
+              type: 'response.completed',
+              response: {
+                id: 'response',
+                status: 'completed',
+                output: [],
+                usage: {
+                  input_tokens: 10,
+                  output_tokens: 3,
+                  input_tokens_details: { cached_tokens: 2 },
+                },
+              },
+            }
+          })(),
+        ledgerDirectory,
+        windowId: 'integration',
+        onSent: () => undefined,
+        onUsage: () => undefined,
       },
       consent: { requestUse: () => Promise.resolve(true) },
       hooks: {
@@ -174,6 +195,8 @@ suite('tab completions', () => {
         },
       },
     })
+    // Tab is on: the shim loads the bundle and registers the provider.
+    tab.refresh()
     const target = vscode.Uri.joinPath(folder.uri, FIXTURE_NAME)
     let document: vscode.TextDocument | undefined
     try {
@@ -207,7 +230,10 @@ suite('tab completions', () => {
       for (const body of received) {
         assert.ok(!body.includes(SYNTHETIC.awsAccessKey), 'a secret reached the wire')
       }
-      assert.ok(received.some((body) => body.includes(REDACTED_MARK)), 'no redaction mark sent')
+      assert.ok(
+        received.some((body) => body.includes(REDACTED_MARK)),
+        'no redaction mark sent',
+      )
 
       // A partial accept: trigger again, then take one word.
       received.length = 0
@@ -221,12 +247,10 @@ suite('tab completions', () => {
       })
       editor.selection = new vscode.Selection(position, position)
       await vscode.commands.executeCommand('editor.action.inlineSuggest.trigger')
-      const wordDeadline = Date.now() + TRIGGER_TIMEOUT_MS
-      while (received.length === 0 && Date.now() < wordDeadline) {
-        await new Promise((resolve) => setTimeout(resolve, TRIGGER_POLL_MS))
-      }
-      assert.ok(received.length > 0, 'no second suggestion was requested')
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // The same prefix again: the typing-through cache answers it, with no
+      // second request (D73).
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      assert.equal(received.length, 0, 'the cached suggestion was requested again')
       await vscode.commands.executeCommand('editor.action.inlineSuggest.acceptNextWord')
       assert.equal(document.getText(), `${fixtureText()}foo`)
       assert.equal(edits.length, 1)
@@ -237,6 +261,7 @@ suite('tab completions', () => {
     } finally {
       tab.dispose()
       await closeServer(server)
+      rmSync(ledgerDirectory, { recursive: true, force: true })
       // Saved before closing, so no save prompt can hang the run.
       await document?.save()
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor')

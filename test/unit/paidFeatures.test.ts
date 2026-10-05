@@ -21,6 +21,7 @@ function gateWith(
     accepted?: readonly PaidFeature[]
     answers?: readonly boolean[]
     isFocused?: boolean
+    asksOnFirstUse?: readonly PaidFeature[]
   } = {},
 ) {
   const settings = new Set<PaidFeature>(options.settings)
@@ -48,6 +49,7 @@ function gateWith(
       return Promise.resolve(answers.shift() ?? false)
     },
     isWindowFocused: () => focus.isFocused,
+    asksOnFirstUse: new Set(options.asksOnFirstUse),
     log: new FakeLogOutputChannel(),
   })
   const changes = vi.fn()
@@ -149,6 +151,30 @@ describe('PaidFeatureGate (M33, PLAN.md D30)', () => {
     await t.gate.turnOff('webSearch')
     expect(t.gate.isOn('webSearch')).toBe(false)
     expect(t.accepted().has('webSearch')).toBe(false)
+  })
+
+  it('never shows a turn-on modal for Tab: on by default, its first use asks (M94, Q-M94a)', async () => {
+    // Activation in an unfocused and then a focused window: no modal either way.
+    const t = gateWith({ settings: ['tab'], asksOnFirstUse: ['tab'], isFocused: false })
+    await t.gate.review()
+    t.focus.isFocused = true
+    await t.gate.review()
+    expect(t.asked).toEqual([])
+    expect(t.settings.has('tab')).toBe(true)
+    expect(t.gate.isOn('tab')).toBe(true)
+    // Off still forgets the acceptance (it voids "always" grants, M58).
+    t.settings.delete('tab')
+    await t.gate.review()
+    expect(t.accepted().has('tab')).toBe(false)
+    expect(t.gate.isOn('tab')).toBe(false)
+    // The palette's Turn on: no modal either.
+    await expect(t.gate.turnOn('tab')).resolves.toBe(true)
+    expect(t.asked).toEqual([])
+    expect(t.gate.isOn('tab')).toBe(true)
+    // Other features keep their turn-on confirmation.
+    t.settings.add('webSearch')
+    await t.gate.review()
+    expect(t.asked).toEqual(['webSearch'])
   })
 })
 

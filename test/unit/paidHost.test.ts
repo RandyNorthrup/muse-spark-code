@@ -300,12 +300,12 @@ describe('M94 Tab wording and window question (lane L, PLAN.md D73)', () => {
 
   it('refuses Tab with an unusable budget before any popup', async () => {
     await expect(
-      askPaidUse({ feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: Number.NaN }, true),
+      askPaidUse({ feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: NaN }, true),
     ).resolves.toBe('deny')
     expect(confirmModal).not.toHaveBeenCalled()
   })
 
-  it('names Tab, the model, its rates and today\u2019s budget', async () => {
+  it('names Tab, the model, its rates and today\u{2019}s budget', async () => {
     const standard = await details(TAB)
     expect(standard.title).toBe(UI_TEXT.paidUseTabTitle)
     expect(standard.detail).toContain('muse-spark-1.3')
@@ -317,15 +317,17 @@ describe('M94 Tab wording and window question (lane L, PLAN.md D73)', () => {
     expect(contributor.detail).toContain(UI_TEXT.tabTrainingContributor)
   })
 
-  it('quotes both tariff tiers in the turn-on confirmation', async () => {
+  it('shows no turn-on confirmation: Tab is on, and its first request asks (owner 2026-10-04)', async () => {
     const data = new Map<string, unknown>()
     const { paid } = paidWithSettings(data, ['tab'])
-    vi.mocked(confirmModal).mockResolvedValueOnce(UI_TEXT.paidConfirmAccept)
     await paid.gate.review()
-    const detail = vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail
-    expect(detail).toContain('muse-spark-1.3:')
-    expect(detail).toContain('muse-spark-1.3-contributor:')
+    expect(confirmModal).not.toHaveBeenCalled()
     expect(paid.gate.isOn('tab')).toBe(true)
+    // The price is named by the first request's question instead.
+    answerWith(UI_TEXT.paidDeny)
+    await expect(paid.consent.allows(TAB)).resolves.toBe(false)
+    expect(confirmModal).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail).toContain('$1.250/1M input')
   })
 
   it('asks once per window, and again after the price acceptance changes', async () => {
@@ -337,16 +339,17 @@ describe('M94 Tab wording and window question (lane L, PLAN.md D73)', () => {
     expect(confirmModal).toHaveBeenCalledTimes(1)
     // Nothing was stored for this window: only the setting's price was kept.
     expect(data.get(GLOBAL_STATE_KEYS.paidConfirmations)).toEqual(['tab'])
-    // The setting turned off and on again with a fresh acceptance: it asks again.
+    // The setting turned off and on again (no turn-on modal for Tab, M94):
+    // the acceptance changed under the window's once, so it asks again.
     settings.delete('tab')
     await paid.gate.review()
     settings.add('tab')
-    answerWith(UI_TEXT.paidConfirmAccept)
     await paid.gate.review()
     expect(paid.gate.isOn('tab')).toBe(true)
+    expect(confirmModal).toHaveBeenCalledTimes(1)
     answerWith(UI_TEXT.allowOnce)
     await expect(paid.consent.allows(TAB)).resolves.toBe(true)
-    expect(confirmModal).toHaveBeenCalledTimes(3)
+    expect(confirmModal).toHaveBeenCalledTimes(2)
   })
 })
 

@@ -1,9 +1,9 @@
 // Tab's inline completions on the host side (M94, PLAN.md D73): the
 // `InlineCompletionItemProvider`, the eligibility of every file a request
 // reads (Acceptance 3–4), the Copilot yield, the accept command and the
-// inferred partial accept. The completion engine (lane C), the spend ledger
-// and the once-per-window question (lane L) and the hooks (lane K) arrive
-// as the injected seams `tabBundle.ts` declares; nothing here fakes them.
+// inferred partial accept. The completion engine (lane C), the spend gate
+// over the ledger and the once-per-window question (lane L) and the hooks
+// (lane K) arrive as the dependencies `tabBundle.ts` declares.
 // `vscode` is the host's external module, as in every host file.
 
 import { Buffer } from 'node:buffer'
@@ -12,9 +12,13 @@ import * as vscode from 'vscode'
 import { isGitExitError } from '../git'
 import { redactSecrets } from '../../core/redact'
 import { isProtectedPath } from '../../core/protectedPaths'
+import { contextWindow } from '../../core/tab/tabContext'
+import { tabUserText } from '../../core/tab/tabRequest'
 import {
   TAB_FAST_MAX_OUTPUT_TOKENS,
   TAB_FILE_MAX_BYTES,
+  TAB_MODEL_TEXT,
+  TAB_MULTILINE_MAX_LINES,
   TAB_MULTILINE_MAX_OUTPUT_TOKENS,
 } from '../../shared/constants'
 import { isPrivateFileName } from '../../shared/privateFiles'
@@ -32,8 +36,6 @@ import {
   type TabQuietReason,
   type TabUri,
 } from './tabBundle'
-
-
 
 // --- `files.exclude` (Acceptance 4) ---
 //
@@ -145,7 +147,7 @@ export function chooseTabMode(
   if (isInvoke) {
     return 'multiline'
   }
-  if ((tabMultiline !== 'auto') || (lineAfterCursor.trim() !== '')) {
+  if (tabMultiline !== 'auto' || lineAfterCursor.trim() !== '') {
     return 'fast'
   }
   if (lineBeforeCursor.trim() === '') {
@@ -189,7 +191,9 @@ export function inferTabPartialAccept(
   if (change.insertedText.length < 2) {
     return undefined
   }
-  return tracked.rest.startsWith(change.insertedText) ? tracked.rest.slice(change.insertedText.length) : undefined;
+  return tracked.rest.startsWith(change.insertedText)
+    ? tracked.rest.slice(change.insertedText.length)
+    : undefined
 }
 
 // --- git's answer, cached (Acceptance 4) ---
@@ -241,7 +245,9 @@ export class TabIgnoreCache {
   private readonly watcher: { dispose(): void }
 
   public constructor(private readonly deps: TabIgnoreDeps) {
-    this.watcher = deps.onIgnoreFilesChanged(() => { this.verdicts.clear(); })
+    this.watcher = deps.onIgnoreFilesChanged(() => {
+      this.verdicts.clear()
+    })
   }
 
   private async askGit(rootAbs: string, relativePath: string): Promise<boolean> {
@@ -274,9 +280,7 @@ export class TabIgnoreCache {
     }
     // git cannot answer the plain check: refuse only where an ignore file is
     // present, since only then could git have had something to say.
-    return IGNORE_FILENAMES.some((name) =>
-      this.deps.ignoreFileExists(path.join(rootAbs, name)),
-    )
+    return IGNORE_FILENAMES.some((name) => this.deps.ignoreFileExists(path.join(rootAbs, name)))
   }
 
   /** Whether git ignores the path, or git is blind where an ignore file sits. */
@@ -349,6 +353,9 @@ export async function isTabFileEligible(
 }
 
 // --- The provider ---
+
+// What a request never sent settles: it was billed nothing.
+const NOTHING_SENT = { inputTokens: 0, cachedTokens: 0, outputTokens: 0 } as const
 
 // The item command's title never renders (no palette entry; lane W leaves it
 // out of package.json): a fixed technical word, not a table string.
@@ -500,42 +507,70 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     if (!(await deps.consent.requestUse())) {
       return quiet('consent-denied')
     }
+    // The request's window (lane C's anchored prefix and bounded suffix),
+    // and every byte sent passed `redactSecrets`: a secret reaches the
+    // engine only as the mark (Acceptance 5).
     const offset = toOffset(text, position)
-    const prefix = text.slice(0, offset)
-    const suffix = text.slice(offset)
-    if (
-      !(await deps.spend.reserve({
-        model: settings.tabModel,
-        inputBytes: Buffer.byteLength(prefix, 'utf8') + Buffer.byteLength(suffix, 'utf8'),
-        maxOutputTokens:
-          mode === 'fast' ? TAB_FAST_MAX_OUTPUT_TOKENS : TAB_MULTILINE_MAX_OUTPUT_TOKENS,
-      }))
-    ) {
+    const window = contextWindow(text, offset, mode)
+    const prefix = redactSecrets(window.prefix)
+    const suffix = redactSecrets(window.suffix)
+    // The worst case is priced on what is sent: the instructions and the
+    // one user message (D73, M82's one token per UTF-8 byte).
+    const sentText =
+      TAB_MODEL_TEXT.tabSystem +
+      tabUserText({
+        path: relativePath,
+        languageId: document.languageId,
+        prefix,
+        suffix,
+        snippets: '',
+      })
+    const reservation = await deps.spend.reserve({
+      model: settings.tabModel,
+      inputBytes: Buffer.byteLength(sentText, 'utf8'),
+      maxOutputTokens:
+        mode === 'fast' ? TAB_FAST_MAX_OUTPUT_TOKENS : TAB_MULTILINE_MAX_OUTPUT_TOKENS,
+    })
+    if (reservation === undefined) {
       return quiet('budget')
     }
     const isCancelledBeforeSend = token.isCancellationRequested
     if (isCancelledBeforeSend) {
-      // Keystrokes inside the wait send nothing, and no request starts. The
-      // reservation stands (lane L settles it).
+      // Keystrokes inside the wait send nothing, and no request starts: the
+      // reservation is released, since nothing was billed.
+      deps.spend.settle(reservation, NOTHING_SENT)
       return quiet('cancelled-before-send')
     }
-    // Every byte sent passed `redactSecrets`: a secret reaches the engine
-    // only as the mark (Acceptance 5).
+    const lines = text.split('\n')
     const snapshot: TabCompletionSnapshot = {
+      model: settings.tabModel,
       absolutePath: document.uri.fsPath,
       relativePath,
       languageId: document.languageId,
-      prefix: redactSecrets(prefix),
-      suffix: redactSecrets(suffix),
+      prefix,
+      suffix,
       mode,
       isInvoke,
+      cursorLineBefore: line.slice(0, position.character),
+      lineAbove: lines[position.line - 1] ?? '',
+      linesBelow: lines.slice(position.line + 1, position.line + 1 + TAB_MULTILINE_MAX_LINES),
+      // Read when the engine's debounce ends: a keystroke since sends nothing.
+      isCancelled: () => token.isCancellationRequested,
     }
     let completion: string | undefined
     try {
       const answer = await deps.engine.complete(snapshot)
-      // Reported usage replaces the reservation even for a refusal the
-      // provider drops, and even when the token has since been cancelled.
-      deps.spend.settle(settings.tabModel, answer.usage)
+      // Reported usage replaces the reservation when the request ends (the
+      // suggestion is published at the closing tag, before that), even for
+      // a refusal the provider drops and when the token has been cancelled.
+      // A request that reports none keeps its reservation (M82).
+      void answer.usage
+        .then((usage) => {
+          deps.spend.settle(reservation, usage)
+        })
+        .catch(() => {
+          deps.log.warn('Tab request reported no usage; its reservation stands')
+        })
       completion = answer.completion
     } catch {
       // No usage was reported, so the reservation stands (M82); the log gets

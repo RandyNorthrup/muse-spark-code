@@ -1,15 +1,15 @@
 // Tab's bundle surface and the activation shim (M94, PLAN.md D73): the
 // types-only interface and loader, the deferred secret read, and the shim
-// that loads the lazy bundle only while the setting is on. The lane seams
-// (engine, ledger, question) default to explicit refusals, never fakes: the
-// drills replace each refusal with a working seam and watch Tab flow.
+// that loads the lazy bundle only while the setting is on. The bundle
+// builds the engine and the spend gate (`createTabServices`); activation
+// hands it the key client's stream, the ledger folder and the question.
 
 import { mkdtempSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { build } from 'esbuild'
-import { commands, window } from 'vscode'
+import { commands, languages, window } from 'vscode'
 import {
   TAB_BUNDLE_FILE,
   TAB_COMMAND_IDS,
@@ -26,11 +26,14 @@ import {
   type TabActivationDeps,
   type TabOutcome,
   type TabProviderDeps,
+  type TabServices,
+  type TabServicesDeps,
   type TabStatusDeps,
   type TabUseConsent,
 } from '../../src/host/tab/tabBundle'
 import { createTabSnooze } from '../../src/host/tab/tabStatus'
 import {
+  createTabServices as entryServices,
   createTabSnooze as entrySnooze,
   createTabProvider as entryProvider,
   createTabStatus as entryStatus,
@@ -133,7 +136,8 @@ describe('shouldYieldToCopilot', () => {
     expect(
       readCopilotPosture({
         isCopilotExtensionPresent: () => true,
-        foreignSetting: (section) => (section === 'github.copilot' ? { typescript: false } : undefined),
+        foreignSetting: (section) =>
+          section === 'github.copilot' ? { typescript: false } : undefined,
         tabWithCopilot: 'yield',
         languageId: 'typescript',
       }).enabledForLanguage,
@@ -150,9 +154,10 @@ describe('shouldYieldToCopilot', () => {
 })
 
 describe('isTabBundle', () => {
-  it('accepts the entry’s five functions, and nothing else', () => {
+  it('accepts the entry’s six functions, and nothing else', () => {
     expect(
       isTabBundle({
+        createTabServices: () => undefined,
         createTabSnooze: () => undefined,
         createTabProvider: () => undefined,
         createTabStatus: () => undefined,
@@ -161,6 +166,16 @@ describe('isTabBundle', () => {
       }),
     ).toBe(true)
     expect(isTabBundle({ createTabProvider: () => undefined })).toBe(false)
+    // The five host entries without the services are not the bundle.
+    expect(
+      isTabBundle({
+        createTabSnooze: () => undefined,
+        createTabProvider: () => undefined,
+        createTabStatus: () => undefined,
+        snoozeTabCommand: () => undefined,
+        tabLanguagesCommand: () => undefined,
+      }),
+    ).toBe(false)
     expect(isTabBundle({})).toBe(false)
     expect(isTabBundle(null)).toBe(false)
   })
@@ -168,6 +183,7 @@ describe('isTabBundle', () => {
 
 describe('tabLoader', () => {
   const bundle = {
+    createTabServices: () => undefined,
     createTabSnooze: () => undefined,
     createTabProvider: () => undefined,
     createTabStatus: () => undefined,
@@ -249,41 +265,78 @@ interface ActivationHarness {
   readonly providerDeps: () => TabProviderDeps | undefined
   readonly statusDeps: () => TabStatusDeps | undefined
   readonly outcomes: () => TabOutcome[]
+  readonly servicesDeps: () => TabServicesDeps | undefined
+  readonly consent: TabUseConsent
+  readonly services: TabServices
   settingOn: boolean
+}
+
+/** The services the harness bundle hands out: plain recorders, never sent. */
+function harnessServices(overrides: Partial<TabServices['spend']> = {}): TabServices {
+  return {
+    engine: {
+      complete: () =>
+        Promise.resolve({
+          completion: undefined,
+          usage: Promise.resolve({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 }),
+        }),
+    },
+    spend: {
+      reserve: () => Promise.resolve(undefined),
+      settle: () => undefined,
+      todayTotalUsd: () => 0,
+      todayRequests: () => 0,
+      ...overrides,
+    },
+  }
 }
 
 function activationHarness(
   overrides: Partial<TabActivationDeps> & {
     readonly loadModule?: unknown
     readonly loadThrows?: boolean
+    readonly bundleServices?: TabServices
   } = {},
 ): ActivationHarness {
-  const { loadModule, loadThrows, ...deps } = overrides
+  const {
+    loadModule,
+    loadThrows,
+    bundleServices: services = harnessServices(),
+    ...deps
+  } = overrides
+  const consent: TabUseConsent = { requestUse: () => Promise.resolve(true) }
+  let servicesFound: TabServicesDeps | undefined
   const log = new FakeLogOutputChannel()
   const loadBundle = vi.fn(() => {
     if (loadThrows === true) {
       throw new Error('Cannot find module')
     }
-    return loadModule ?? {
-      createTabSnooze: (store: never) => createTabSnooze(store),
-      createTabProvider: (found: TabProviderDeps) => {
-        providerFound = found
-        return { dispose: providerDispose, acceptNotified }
-      },
-      createTabStatus: (found: TabStatusDeps) => {
-        statusFound = found
-        return {
-          refresh: () => undefined,
-          showMenu: () => Promise.resolve(),
-          noteOutcome: (outcome: TabOutcome) => {
-            seenOutcomes.push(outcome)
-          },
-          dispose: statusDispose,
-        }
-      },
-      snoozeTabCommand: () => Promise.resolve(),
-      tabLanguagesCommand: () => Promise.resolve(),
-    }
+    return (
+      loadModule ?? {
+        createTabServices: (found: TabServicesDeps) => {
+          servicesFound = found
+          return services
+        },
+        createTabSnooze: (store: never) => createTabSnooze(store),
+        createTabProvider: (found: TabProviderDeps) => {
+          providerFound = found
+          return { dispose: providerDispose, acceptNotified }
+        },
+        createTabStatus: (found: TabStatusDeps) => {
+          statusFound = found
+          return {
+            refresh: () => undefined,
+            showMenu: () => Promise.resolve(),
+            noteOutcome: (outcome: TabOutcome) => {
+              seenOutcomes.push(outcome)
+            },
+            dispose: statusDispose,
+          }
+        },
+        snoozeTabCommand: () => Promise.resolve(),
+        tabLanguagesCommand: () => Promise.resolve(),
+      }
+    )
   })
   const harness: Omit<ActivationHarness, 'activation'> = {
     loadBundle,
@@ -296,6 +349,9 @@ function activationHarness(
     providerDeps: () => providerFound,
     statusDeps: () => statusFound,
     outcomes: () => seenOutcomes,
+    servicesDeps: () => servicesFound,
+    consent,
+    services,
     settingOn: false,
   }
   let providerFound: TabProviderDeps | undefined
@@ -361,9 +417,22 @@ function activationHarness(
       writeSnoozedUntil: () => Promise.resolve(),
       nowMs: () => Date.now(),
     },
+    services: {
+      stream: () => {
+        throw new Error('the harness never streams')
+      },
+      ledgerDirectory: '/storage/tab-spend',
+      windowId: 'window-1',
+      onSent: () => undefined,
+      onUsage: () => undefined,
+    },
+    consent,
     ...deps,
   })
-  return { ...harness, activation }
+  // The same object the deps read: a spread copy would leave `settingOn`
+  // unseen by `isTabSettingOn`.
+  const full: ActivationHarness = Object.assign(harness, { activation })
+  return full
 }
 
 describe('createTabActivation', () => {
@@ -427,6 +496,7 @@ describe('createTabActivation', () => {
     const acceptNotified = vi.fn()
     const harness = activationHarness({
       loadModule: {
+        createTabServices: () => harnessServices(),
         createTabSnooze: (store: never) => createTabSnooze(store),
         createTabProvider: () => ({ dispose: () => undefined, acceptNotified }),
         createTabStatus: () => ({
@@ -460,14 +530,9 @@ describe('createTabActivation', () => {
     ])
   })
 
-  it('reads the budget state off the ledger seam', () => {
+  it('reads the budget state off the bundle’s spend gate', () => {
     const harness = activationHarness({
-      spend: {
-        reserve: () => Promise.resolve(true),
-        settle: () => undefined,
-        todayTotalUsd: () => 5,
-        todayRequests: () => 21,
-      },
+      bundleServices: harnessServices({ todayTotalUsd: () => 5, todayRequests: () => 21 }),
     })
     harness.settingOn = true
     harness.activation.refresh()
@@ -476,26 +541,19 @@ describe('createTabActivation', () => {
     expect(statusDeps?.isBudgetReached()).toBe(true)
   })
 
-  it('refuses explicitly until lanes C and L land: no fake success', async () => {
+  it('wires the bundle’s engine and ledger and the activation’s question into the provider', () => {
     const harness = activationHarness()
     harness.settingOn = true
     harness.activation.refresh()
     const providerDeps = harness.providerDeps()
-    expect(providerDeps).toBeDefined()
-    await expect(
-      providerDeps?.engine.complete({
-        absolutePath: '/ws/file.ts',
-        relativePath: 'file.ts',
-        languageId: 'typescript',
-        prefix: 'const y = ',
-        suffix: '',
-        mode: 'fast',
-        isInvoke: false,
-      }),
-    ).rejects.toThrow('lane C')
-    await expect(providerDeps?.spend.reserve({ model: 'x', inputBytes: 1, maxOutputTokens: 1 })).resolves.toBe(false)
-    const consent: TabUseConsent | undefined = providerDeps?.consent
-    await expect(consent?.requestUse()).resolves.toBe(false)
+    expect(providerDeps?.engine).toBe(harness.services.engine)
+    expect(providerDeps?.spend).toBe(harness.services.spend)
+    expect(providerDeps?.consent).toBe(harness.consent)
+    const servicesDeps = harness.servicesDeps()
+    expect(servicesDeps?.ledgerDirectory).toBe('/storage/tab-spend')
+    expect(servicesDeps?.windowId).toBe('window-1')
+    // The budget is read live from the settings, at each request.
+    expect(servicesDeps?.budgetUsd()).toBe(1)
   })
 })
 
@@ -525,7 +583,11 @@ describe('the shipped Tab bundle', () => {
       writeSnoozedUntil: () => Promise.resolve(),
       nowMs: () => Date.now(),
     })
-    await entrySnoozeCommand(snooze, { ...UI_TEXT, tabMenuSnoozeShort: 'Marker short.' }, BASE_LOCALE)
+    await entrySnoozeCommand(
+      snooze,
+      { ...UI_TEXT, tabMenuSnoozeShort: 'Marker short.' },
+      BASE_LOCALE,
+    )
     expect(seen[0]).toContain('Marker short.')
   })
 
@@ -580,7 +642,28 @@ describe('the shipped Tab bundle', () => {
     status.dispose()
   })
 
+  it('creates the engine and the ledger’s spend gate from the entry', () => {
+    const services = entryServices({
+      stream: () => {
+        throw new Error('never streamed here')
+      },
+      ledgerDirectory: path.join(built.folder, 'tab-spend'),
+      windowId: 'window-1',
+      budgetUsd: () => 1,
+      onSent: () => undefined,
+      onUsage: () => undefined,
+      onTotalChanged: () => undefined,
+      log: new FakeLogOutputChannel(),
+    })
+    expect(typeof services.engine.complete).toBe('function')
+    expect(services.spend.todayTotalUsd()).toBe(0)
+    expect(services.spend.todayRequests()).toBe(0)
+  })
+
   it('creates the provider from the entry', () => {
+    vi.mocked(languages.registerInlineCompletionItemProvider).mockReturnValue({
+      dispose: () => undefined,
+    })
     const provider = entryProvider({
       settings: () => ({
         tabModel: 'muse-spark-1.3',
@@ -603,10 +686,14 @@ describe('the shipped Tab bundle', () => {
       onIgnoreFilesChanged: () => ({ dispose: () => undefined }),
       onDidChangeTextDocument: () => ({ dispose: () => undefined }),
       engine: {
-        complete: () => Promise.resolve({ completion: undefined, usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0 } }),
+        complete: () =>
+          Promise.resolve({
+            completion: undefined,
+            usage: Promise.resolve({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 }),
+          }),
       },
       spend: {
-        reserve: () => Promise.resolve(true),
+        reserve: () => Promise.resolve({ model: 'muse-spark-1.3', worstCaseUsd: 0 }),
         settle: () => undefined,
         todayTotalUsd: () => 0,
         todayRequests: () => 0,

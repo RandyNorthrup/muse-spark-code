@@ -34,6 +34,14 @@ export interface PaidFeatureGateDeps {
   /** The modal naming the price; true when the user turned the feature on. */
   readonly confirm: (feature: PaidFeature) => Promise<boolean>
   readonly isWindowFocused: () => boolean
+  /**
+   * Features whose price the first use's question names instead of a
+   * turn-on confirmation (Tab, M94 Q-M94a; owner 2026-10-04: on by default,
+   * ask once before the first charge). Their acceptance follows the setting
+   * without a modal, so turning one off still voids its "always" grants
+   * (M58); nothing is billed before the first use's answer (paidConsent.ts).
+   */
+  readonly asksOnFirstUse?: ReadonlySet<PaidFeature>
   readonly log: CoreLogger
 }
 
@@ -83,6 +91,11 @@ export class PaidFeatureGate {
     this.notify()
   }
 
+  /** Whether the feature's price is named by its first use instead of a turn-on modal. */
+  private asksOnFirstUse(feature: PaidFeature): boolean {
+    return this.deps.asksOnFirstUse?.has(feature) ?? false
+  }
+
   /** Whether the feature may be used: setting on and price accepted. */
   public isOn(feature: PaidFeature): boolean {
     return this.deps.isSettingOn(feature) && this.deps.readAccepted().has(feature)
@@ -114,6 +127,10 @@ export class PaidFeatureGate {
       if (!isSettingOn && isAccepted) {
         await this.setAccepted(feature, false)
         this.deps.log.info(`Paid feature ${feature} turned off`)
+      } else if (isSettingOn && !isAccepted && this.asksOnFirstUse(feature)) {
+        // No modal: its first use asks, naming the price (D48).
+        await this.setAccepted(feature, true)
+        this.deps.log.info(`Paid feature ${feature} on; its first use asks`)
       } else if (isSettingOn && !isAccepted && !this.asking.has(feature)) {
         pending.push(feature)
       }
@@ -131,6 +148,14 @@ export class PaidFeatureGate {
   /** The palette's toggle turning a feature on: the confirmation first, then the setting. */
   public async turnOn(feature: PaidFeature): Promise<boolean> {
     if (this.isOn(feature)) {
+      return true
+    }
+    if (this.asksOnFirstUse(feature)) {
+      // No modal: its first use asks, naming the price (D48).
+      await this.setAccepted(feature, true)
+      await this.deps.setSetting(feature, true)
+      this.deps.log.info(`Paid feature ${feature} turned on; its first use asks`)
+      this.notify()
       return true
     }
     if (this.asking.has(feature)) {

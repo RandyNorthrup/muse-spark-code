@@ -1,14 +1,21 @@
 // Tab completions as the activation bundle sees them (M94, PLAN.md D73):
 // dist/tab.js, built from tabEntry.ts and required on the first Tab request
 // (PLAN.md D6). Only types cross into the activation bundle here: a value
-// imported from the Tab side would carry the provider, the status bar and
-// (once they land) lanes C, L and K back into dist/extension.js, which the
-// bundle-split gate refuses. The other lanes' pieces arrive as injected
-// dependencies behind the interfaces below (never fakes in production code:
-// the M94 integration branch supplies lanes C, L and K; until then the
-// activation's unwired seams refuse explicitly, AGENTS.md rule 6).
+// imported from the Tab side would carry the provider, the status bar, the
+// engine (lane C) and the ledger (lane L) back into dist/extension.js, which
+// the bundle-split gate refuses. The bundle builds the engine and the spend
+// gate itself (`createTabServices`) from what activation hands it: the key
+// client's stream, the ledger's folder and this window's id. Activation
+// keeps the paid question (lane L's PaidUseConsent) and the tally. Lane K's
+// hooks stay an optional dependency until lane K lands.
 
 import type * as vscode from 'vscode'
+import type {
+  TabEngine,
+  TabEngineRequest,
+  TabEngineUsage,
+  TabStream,
+} from '../../core/tab/tabEngine'
 import { UI_TEXT } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
 import { fill } from '../../shared/l10n/text'
@@ -103,24 +110,27 @@ export interface TabSpendFacts {
   readonly maxOutputTokens: number
 }
 
-/** Usage a finished request reported (lane C reads the stream's usage). */
-export interface TabReportedUsage {
-  readonly inputTokens: number
-  readonly cachedTokens: number
-  readonly outputTokens: number
+/** Usage a finished request reported (the engine reads the stream's usage). */
+export type TabReportedUsage = TabEngineUsage
+
+/** One admitted request's reservation, settled with its own worst case. */
+export interface TabReservation {
+  readonly model: string
+  readonly worstCaseUsd: number
 }
 
 /**
- * Lane L's spend side (src/host/tab/tabLedger.ts, M94): the hard daily
- * budget across windows. `reserve` writes this request's worst case first
- * and answers whether it fits; `settle` replaces the reservation with the
- * reported usage (a request that never reports keeps it); `todayTotalUsd`
- * is what the status bar shows. A missing, corrupt or unreadable ledger
- * refuses (false / throws).
+ * Lane L's spend side (src/host/tab/tabLedger.ts through tabSpendGate.ts,
+ * M94): the hard daily budget across windows. `reserve` writes this
+ * request's worst case first and returns its reservation only when it fits
+ * (undefined: at the budget, or a missing, corrupt or unreadable ledger);
+ * `settle` replaces that reservation with the reported usage (zero for a
+ * request never sent; a request that never reports keeps it);
+ * `todayTotalUsd` is what the status bar shows.
  */
 export interface TabSpendGate {
-  reserve(facts: TabSpendFacts): Promise<boolean>
-  settle(model: string, usage: TabReportedUsage): void
+  reserve(facts: TabSpendFacts): Promise<TabReservation | undefined>
+  settle(reservation: TabReservation, usage: TabReportedUsage): void
   todayTotalUsd(): number
   todayRequests(): number
 }
@@ -134,31 +144,19 @@ export interface TabUseConsent {
   requestUse(): Promise<boolean>
 }
 
-/** What the provider hands lane C's engine: the redacted window and its mode. */
-export interface TabCompletionSnapshot {
-  readonly absolutePath: string
-  readonly relativePath: string
-  readonly languageId: string
-  readonly prefix: string
-  readonly suffix: string
-  readonly mode: 'fast' | 'multiline'
-  readonly isInvoke: boolean
-}
+/** What the provider hands the engine: the redacted window, its mode and the filters' lines. */
+export type TabCompletionSnapshot = TabEngineRequest
 
 /**
- * Lane C's completion pipeline (src/core/tab/*, M94): the mode windows, the
- * debounce, the typing-through cache, the filters and the spend estimate.
- * The completion is already filtered; undefined means no suggestion. It
- * always reports usage so the ledger stays exact, even for a refusal the
- * provider drops. A sent request is never aborted: cancelling the token
- * drops the ghost text, never the request.
+ * Lane C's completion pipeline (src/core/tab/tabEngine.ts, M94): the
+ * typing-through cache, the debounce and caps, the request, and the
+ * filters. The completion is already filtered; undefined means no
+ * suggestion. It is published at the closing tag; `usage` settles when the
+ * request ends, so the ledger stays exact even for a refusal the provider
+ * drops. A sent request is never aborted: cancelling the token drops the
+ * ghost text, never the request.
  */
-export interface TabCompletionEngine {
-  complete(snapshot: TabCompletionSnapshot): Promise<{
-    readonly completion: string | undefined
-    readonly usage: TabReportedUsage
-  }>
-}
+export type TabCompletionEngine = TabEngine
 
 /** One accept lane K observes (src/core/tab/tabHooks.ts, M94 step 7). */
 export interface TabAcceptedEdit {
@@ -235,9 +233,9 @@ export interface TabProviderDeps {
   /** Clears the caller's ignore cache when an ignore file changes (a file watcher in production). */
   readonly onIgnoreFilesChanged: (clear: () => void) => { dispose(): void }
   /** Watches document changes for the inferred partial accept (`workspace.onDidChangeTextDocument`). */
-  readonly onDidChangeTextDocument: (
-    listener: (event: TabTextChangeEvent) => void,
-  ) => { dispose(): void }
+  readonly onDidChangeTextDocument: (listener: (event: TabTextChangeEvent) => void) => {
+    dispose(): void
+  }
   /** Lane C's engine (the M94 integration branch injects it). */
   readonly engine: TabCompletionEngine
   /** Lane L's ledger (the M94 integration branch injects it). */
@@ -328,13 +326,7 @@ export const TAB_WRITABLE_SETTINGS = [
 ] as const
 export type TabWritableSetting = (typeof TAB_WRITABLE_SETTINGS)[number]
 export type TabSettingValue =
-  | boolean
-  | 'auto'
-  | 'onInvoke'
-  | 'never'
-  | 'yield'
-  | 'both'
-  | Readonly<Record<string, boolean>>
+  boolean | 'auto' | 'onInvoke' | 'never' | 'yield' | 'both' | Readonly<Record<string, boolean>>
 
 /** The status bar's dependencies: readers for every state D73 names. */
 export interface TabStatusDeps {
@@ -421,8 +413,34 @@ export interface TabLanguagesCommandDeps {
   readonly updateSetting: TabStatusDeps['updateSetting']
 }
 
-/** What tabEntry.ts exports: the snooze, the provider, the status and the menu commands. */
+/** What the bundle builds its engine and spend gate from (activation's side). */
+export interface TabServicesDeps {
+  /** The activation bundle's key client stream (M57 keeps it there for M44). */
+  readonly stream: TabStream
+  /** The ledger's folder: global storage's `tab-spend`. */
+  readonly ledgerDirectory: string
+  /** This window's ledger file name: letters, digits, `_` and `-` only. */
+  readonly windowId: string
+  /** `museSpark.tabDailyBudgetUsd`, read at each request. */
+  readonly budgetUsd: () => number
+  /** A request is about to be sent (PaidUsage counts it). */
+  readonly onSent: (model: string) => void
+  /** A request reported its usage (PaidUsage prices it). */
+  readonly onUsage: (model: string, usage: TabReportedUsage) => void
+  /** Today's total moved: the status bar redraws. */
+  readonly onTotalChanged: () => void
+  readonly log: Logger
+}
+
+/** The engine (lane C) and the spend gate over the ledger (lane L), built in the bundle. */
+export interface TabServices {
+  readonly engine: TabCompletionEngine
+  readonly spend: TabSpendGate
+}
+
+/** What tabEntry.ts exports: the services, the snooze, the provider, the status and the menu commands. */
 export interface TabBundle {
+  createTabServices(deps: TabServicesDeps): TabServices
   createTabSnooze(store: TabSnoozeStore): TabSnooze
   createTabProvider(deps: TabProviderDeps & TabBundleTable): TabProviderHandle
   createTabStatus(deps: TabStatusDeps & TabBundleTable): TabStatusHandle
@@ -435,6 +453,8 @@ export function isTabBundle(value: unknown): value is TabBundle {
   return (
     typeof value === 'object' &&
     value !== null &&
+    'createTabServices' in value &&
+    typeof value.createTabServices === 'function' &&
     'createTabSnooze' in value &&
     typeof value.createTabSnooze === 'function' &&
     'createTabProvider' in value &&
@@ -512,33 +532,16 @@ export function deferredRefresh(refresh: () => void): () => void {
 // process. The five user commands register always (cheap, synchronous,
 // secret-free); the bundle, the provider, the status bar and the accept
 // command load only for an explicit Tab command or while the setting is on.
-// The lane seams default to explicit refusals (never fakes): the engine
-// throws naming lane C, the ledger refuses, the question denies. The M94
-// integration branch injects lanes C, L and K.
+// The bundle builds the engine and the spend gate (`createTabServices`);
+// the paid question stays in activation with the paid features.
 
 // Extension-private global state (never machine-wide configuration): the
 // timed snooze's end, in epoch milliseconds, shared by every window.
 export const TAB_SNOOZE_STATE_KEY = 'museSpark.tabSnoozedUntil'
 
-/** The engine until lane C lands: every request fails with its lane named. */
-const unwiredEngine: TabCompletionEngine = {
-  complete: () => Promise.reject(new Error('Tab completion engine is not wired yet (lane C)')),
-}
-
-/** The ledger until lane L lands: every request is refused, totals are zero. */
-const unwiredSpend: TabSpendGate = {
-  reserve: () => Promise.resolve(false),
-  settle: () => {
-    // A request that never reports usage keeps its whole reservation (M82).
-  },
-  todayTotalUsd: () => 0,
-  todayRequests: () => 0,
-}
-
-/** The question until lane L lands: Deny, so nothing is ever sent. */
-const unwiredConsent: TabUseConsent = {
-  requestUse: () => Promise.resolve(false),
-}
+// The ledger's folder under the extension's global storage (D73:
+// `tab-spend/<date>/<window>.json`).
+export const TAB_LEDGER_DIR = 'tab-spend'
 
 export interface TabActivationDeps {
   readonly bundlePath: string
@@ -584,9 +587,9 @@ export interface TabActivationDeps {
   /** Clears the ignore cache when an ignore file changes. */
   readonly onIgnoreFilesChanged: (clear: () => void) => { dispose(): void }
   /** Watches document changes for the inferred partial accept. */
-  readonly onDidChangeTextDocument: (
-    listener: (event: TabTextChangeEvent) => void,
-  ) => { dispose(): void }
+  readonly onDidChangeTextDocument: (listener: (event: TabTextChangeEvent) => void) => {
+    dispose(): void
+  }
   readonly activeLanguageId: () => string | undefined
   readonly knownLanguages: () => Promise<readonly string[]>
   readonly confirmCopilotDisable: (languageId: string) => Promise<boolean>
@@ -598,12 +601,13 @@ export interface TabActivationDeps {
   readonly table: () => UiText
   readonly locale: () => string
   readonly snoozeStore: TabSnoozeStore
-  /** Lane C's engine (the M94 integration branch injects it). */
-  readonly engine?: TabCompletionEngine | undefined
-  /** Lane L's ledger (the M94 integration branch injects it). */
-  readonly spend?: TabSpendGate | undefined
-  /** Lane L's once-per-window question (the M94 integration branch injects it). */
-  readonly consent?: TabUseConsent | undefined
+  /** What the bundle's engine and spend gate are built from (the budget and log are added here). */
+  readonly services: Omit<TabServicesDeps, 'budgetUsd' | 'onTotalChanged' | 'log'>
+  /**
+   * Lane L's once-per-window question (Q-M94a, D48): the first request asks
+   * with the price and the daily budget; nothing is sent before the answer.
+   */
+  readonly consent: TabUseConsent
   /** Lane K's hooks (absent until lane K lands). */
   readonly hooks?: TabHookBridge | undefined
 }
@@ -648,9 +652,17 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
     const bundle = load()
     const uiTable = deps.table()
     const locale = deps.locale()
-    const engine = deps.engine ?? unwiredEngine
-    const spend = deps.spend ?? unwiredSpend
-    const consent = deps.consent ?? unwiredConsent
+    // The engine (lane C) and the ledger's spend gate (lane L) live in the
+    // bundle; the status bar redraws when today's total moves.
+    const { engine, spend } = bundle.createTabServices({
+      ...deps.services,
+      budgetUsd: () => deps.tabSettings().tabDailyBudgetUsd,
+      onTotalChanged: () => {
+        active?.status.refresh()
+      },
+      log: deps.log,
+    })
+    const consent = deps.consent
     const snooze = bundle.createTabSnooze(deps.snoozeStore)
     const status = bundle.createTabStatus({
       isOn: deps.isTabSettingOn,
@@ -747,7 +759,7 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
 
   function teardown(): void {
     if (active === undefined) {
-      return;
+      return
     }
 
     active.dispose()
@@ -806,4 +818,3 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
     },
   }
 }
-

@@ -9,16 +9,43 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **Tab completions' pure core (M94 lane C).** `src/core/tab/` holds the
-  request windows with their cache-stable anchor, the Model API request body
-  with its own cache key, the reply tags and filters, the typing-through
-  cache, the debounce/cap scheduler that never aborts a sent request, and
-  the worst-case/settlement/day spend arithmetic — all against fakes, with
-  one unit test file per module and a red drill per guard
-  (`docs/certification/m94-c.md`). `CreateResponseBody`'s
-  `reasoning.summary` is optional (types only; existing requests unchanged),
-  and the key client gains `isModelApiError`/`isMissingApiKeyError` guards
-  for the Tab bundle boundary.
+- **Tab completions, merged but not yet shipped (M94, PLAN.md D73).** The
+  lanes are integrated on `feature/m94-tab`; the commands, the Alt+\
+  binding, the `dist/tab.js` build entry and the docs come with lane W, so
+  no user sees Tab yet.
+  - **Pure core (lane C).** `src/core/tab/` holds the request windows with
+    their cache-stable anchor, the Model API request body with its own cache
+    key, the reply tags and filters, the typing-through cache, the
+    debounce/cap scheduler that never aborts a sent request, and the
+    worst-case/settlement/day spend arithmetic — all against fakes, with one
+    unit test file per module and a red drill per guard
+    (`docs/certification/m94-c.md`). `CreateResponseBody`'s
+    `reasoning.summary` is optional (types only; existing requests
+    unchanged), and the key client gains
+    `isModelApiError`/`isMissingApiKeyError` guards for the Tab bundle
+    boundary.
+  - **Ledger and paid use (lane L).** A daily spend ledger of one atomically
+    written file per window per local day under global storage, totalled
+    across windows and refusing when missing, corrupt or unreadable; the
+    `tab` paid feature's Account & usage tally (requests, tokens, cached
+    tokens, cost) and its once-per-window Allow once
+    (`docs/certification/m94-l.md`).
+  - **Host (lane H).** The inline completion provider with D73's
+    eligibility checks (private, protected, git-ignored, `.cursorignore`d,
+    `.continueignore`d, `files.exclude`d and oversize files are never read),
+    the Copilot yield, the status bar and snooze, the accept command and the
+    inferred partial accept, and the secret read deferred to the first view,
+    panel, command or Tab request (`docs/certification/m94-h.md`).
+  - **Account & usage (lane U).** A Tab row with requests, tokens, cached
+    tokens, cost and the budget (`docs/certification/m94-u.md`).
+  - **Integration.** The Tab bundle builds the engine and the ledger's spend
+    gate itself from the activation's key client. A request reserves the
+    worst case of exactly what it sends, releases it when nothing was sent,
+    gets one HTTP attempt, shows its suggestion as soon as the closing tag
+    arrives and settles the reported cost when the stream ends. Tab's price
+    is asked by its first request's question (Allow once in this window,
+    Allow always in this workspace, or Deny, which snoozes Tab), never by a
+    turn-on confirmation.
 
 ### Fixed
 
