@@ -71,6 +71,7 @@ import type {
   UsageSummary,
   WorkflowChild,
 } from './transcriptEntries'
+import { mergeTeamEntry, teamEntryForItem } from './teamEntries'
 
 export type {
   ChildTranscript,
@@ -916,6 +917,7 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     isBackground: isBackgrounded(item) === true,
     backgroundInitiator: item.backgroundInitiator,
     paid: item.paid,
+    teamWorker: item.teamWorker,
     images: reportedImages(item),
     verifySummary: item.verifySummary,
     thenRun: item.thenRun,
@@ -1018,13 +1020,16 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
       return workflowEntry(item)
     }
     default: {
-      return {
-        kind: 'item',
-        id: item.itemId,
-        itemKind: item.kind,
-        status: item.status,
-        text: item.fallbackText ?? item.text,
-      }
+      // The team's cards (M96 lane U2); anything else keeps today's row.
+      return (
+        teamEntryForItem(item) ?? {
+          kind: 'item',
+          id: item.itemId,
+          itemKind: item.kind,
+          status: item.status,
+          text: item.fallbackText ?? item.text,
+        }
+      )
     }
   }
 }
@@ -1065,6 +1070,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         isBackground: isBackgrounded(item) ?? entry.isBackground,
         backgroundInitiator: item.backgroundInitiator ?? entry.backgroundInitiator,
         paid: item.paid ?? entry.paid,
+        teamWorker: item.teamWorker ?? entry.teamWorker,
         images: reportedImages(item) ?? entry.images,
         verifySummary: item.verifySummary ?? entry.verifySummary,
         thenRun: item.thenRun ?? entry.thenRun,
@@ -1121,6 +1127,14 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
     }
     case 'item': {
       return { ...entry, status: item.status, text: item.fallbackText ?? item.text ?? entry.text }
+    }
+    case 'teamPlan':
+    case 'teamSwitch':
+    case 'teamWaiting':
+    case 'teamMerge':
+    case 'teamReport': {
+      // The team's cards (M96 lane U2): the host's latest status wins.
+      return mergeTeamEntry(entry, item) ?? entry
     }
     default: {
       return entry

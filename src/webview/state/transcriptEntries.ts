@@ -24,6 +24,11 @@ import {
 } from '../../shared/agentEvents'
 import { PAID_FEATURES, TASK_REQUESTS } from '../../shared/constants'
 import { NOTICE_ACTIONS, NOTICE_LEVELS } from '../../shared/protocol'
+import {
+  TEAM_MERGE_REVIEWS,
+  teamPlanItemSchema,
+  teamWorkerLabelSchema,
+} from '../../shared/teamView'
 
 const pendingApprovalSchema = z.object({
   approvalId: z.string(),
@@ -151,6 +156,12 @@ const toolEntrySchema = z.object({
   backgroundInitiator: z.optional(z.string()),
   /** A call billed on top of tokens (M33, PLAN.md D30): the row says it is paid. */
   paid: z.optional(z.enum(PAID_FEATURES)),
+  /**
+   * A worker's own card, routed to the main panel (M96 lane U2): the role,
+   * the agent and the task, drawn by the panel's chrome, never by the
+   * worker (D75, threat T8).
+   */
+  teamWorker: z.optional(teamWorkerLabelSchema),
   /** Pictures the tool reported the model saw (`modelVisibleContent`, M43), by path. */
   images: z.optional(z.readonly(z.array(z.string()))),
   /** The verify loop's row (M68): the files, their errors and warnings, each check. */
@@ -269,6 +280,70 @@ const itemEntrySchema = z.object({
   text: z.optional(z.string()),
 })
 
+/**
+ * The team's transcript cards (M96 lane U2, PLAN.md D75): the delegation
+ * card and plan, the switch row, the "waiting for you" card, the merge
+ * card and each task's report row. Lanes T/A/W create these from the
+ * orchestrator's tools; the webview renders them from these fields.
+ */
+const teamPlanEntrySchema = z.object({
+  kind: z.literal('teamPlan'),
+  id: z.string(),
+  status: z.string(),
+  /** Each item delegated or kept, with its rubric reason. */
+  items: z.readonly(z.array(teamPlanItemSchema)),
+  /** A `dry_run`'s card: the plan, before anything is spent. */
+  dryRun: z.boolean(),
+})
+
+const teamSwitchEntrySchema = z.object({
+  /** One transcript row per switch: the role, from and to, and the reason. */
+  kind: z.literal('teamSwitch'),
+  id: z.string(),
+  status: z.string(),
+  roleId: z.string(),
+  fromEntry: z.string(),
+  toEntry: z.string(),
+  reason: z.string(),
+})
+
+const teamWaitingEntrySchema = z.object({
+  /** The all-exhausted `ask` policy's card, with its four choices. */
+  kind: z.literal('teamWaiting'),
+  id: z.string(),
+  status: z.string(),
+  waitingId: z.string(),
+  roleId: z.string(),
+  brief: z.optional(z.string()),
+  reasonText: z.optional(z.string()),
+})
+
+const teamMergeEntrySchema = z.object({
+  /** The merge card: the user's approval point (D75). */
+  kind: z.literal('teamMerge'),
+  id: z.string(),
+  status: z.string(),
+  taskId: z.string(),
+  roleId: z.string(),
+  brief: z.string(),
+  branch: z.string(),
+  filesChanged: z.optional(z.number()),
+  review: z.enum(TEAM_MERGE_REVIEWS),
+  branchMoved: z.optional(z.boolean()),
+  conflicted: z.optional(z.boolean()),
+})
+
+const teamReportEntrySchema = z.object({
+  /** A finished task's report row. */
+  kind: z.literal('teamReport'),
+  id: z.string(),
+  status: z.string(),
+  taskId: z.string(),
+  roleId: z.string(),
+  brief: z.optional(z.string()),
+  summary: z.string(),
+})
+
 const errorEntrySchema = z.object({ kind: z.literal('error'), id: z.string(), text: z.string() })
 
 export type NoticeLevel = (typeof NOTICE_LEVELS)[number]
@@ -299,6 +374,11 @@ export const transcriptEntrySchema = z.discriminatedUnion('kind', [
   userShellEntrySchema,
   subagentEntrySchema,
   workflowEntrySchema,
+  teamPlanEntrySchema,
+  teamSwitchEntrySchema,
+  teamWaitingEntrySchema,
+  teamMergeEntrySchema,
+  teamReportEntrySchema,
   itemEntrySchema,
   errorEntrySchema,
   noticeEntrySchema,
