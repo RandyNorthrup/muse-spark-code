@@ -33,6 +33,35 @@ export interface LintQuestion {
   readonly outcomes: Readonly<Record<string, LintDecision['outcome']>>
 }
 
+/** P0 supplies this English model-text block to the lazy lint bundle. */
+export interface LintModelText {
+  readonly pass: string
+  readonly fail: string
+  readonly skip: string
+  readonly abstain: string
+  readonly instructionPrefix: string
+  readonly localizedInstructionPrefix: string
+  readonly exceptionsPrefix: string
+}
+
+/** Formatting from upstream client.go; model sentences themselves remain P0-owned. */
+export function createLintWording(text: LintModelText): LintWording {
+  return {
+    pass: text.pass,
+    fail: text.fail,
+    skip: text.skip,
+    abstain: text.abstain,
+    instructions(rule, isLocalized) {
+      const prefix = isLocalized ? text.localizedInstructionPrefix : text.instructionPrefix
+      const exceptions =
+        rule.exceptions.length === 0
+          ? ''
+          : text.exceptionsPrefix + rule.exceptions.map((exception) => `\n- ${exception}`).join('')
+      return prefix + rule.description + exceptions
+    },
+  }
+}
+
 export function lintQuestion(
   rule: LintRule,
   wording: LintWording,

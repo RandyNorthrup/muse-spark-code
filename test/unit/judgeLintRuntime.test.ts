@@ -30,15 +30,16 @@ function failing(deps = lintRunDependencies()): JudgeLintDependencies {
 describe('judge lint runtime entry', () => {
   it('localizes only the explicitly selected upstream region categories', async () => {
     const deps = failing()
+    const localize = vi.fn().mockResolvedValue([
+      { kind: 'comment', name: 'comment', start: 0, end: 2 },
+      { kind: 'statement', name: 'return', start: 15, end: 23 },
+    ])
     const result = await runJudgeLint(
       {},
       {
         ...deps,
         rules: vi.fn().mockResolvedValue([lintRule({ localize: ['statement'] })]),
-        localize: vi.fn().mockResolvedValue([
-          { kind: 'comment', name: 'comment', start: 0, end: 2 },
-          { kind: 'statement', name: 'return', start: 15, end: 23 },
-        ]),
+        localize,
       },
       signal(),
     )

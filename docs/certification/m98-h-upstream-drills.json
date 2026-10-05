@@ -966,5 +966,105 @@
     "greenExit": 0,
     "sha256Before": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2",
     "sha256After": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2"
+  },
+  {
+    "file": "test/fixtures/judge/lint/upstream/capture.json",
+    "suite": "judgeLintUpstream",
+    "name": "misidentify the captured source revision",
+    "before": "73a7a94ab08a4e314709d68c2863687a4646f29b",
+    "after": "wrong-revision",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > retains licensed source data at the PLAN pin with normalized-byte hashes"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "10adff512b6a0bc2a13d34770bebafcfd1b95a1278970ae4d4a0536da76bb0fe",
+    "sha256After": "10adff512b6a0bc2a13d34770bebafcfd1b95a1278970ae4d4a0536da76bb0fe"
+  },
+  {
+    "file": "test/fixtures/judge/lint/upstream/pinned-jevlint.txt",
+    "suite": "judgeLintUpstream",
+    "name": "drop a preset from actual upstream data",
+    "before": "\"typescript\":",
+    "after": "\"unrecognized\":",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > retains licensed source data at the PLAN pin with normalized-byte hashes",
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > decodes all thirteen upstream presets, twenty-six rules and 674 labelled evals"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2fc045e6ef6a96dbd27c1261d98a54313a58e31ec19d6e18af7f78124d21e924",
+    "sha256After": "2fc045e6ef6a96dbd27c1261d98a54313a58e31ec19d6e18af7f78124d21e924"
+  },
+  {
+    "file": "test/fixtures/judge/lint/upstream/pinned-pack.txt",
+    "suite": "judgeLintUpstream",
+    "name": "change actual upstream example pack identity",
+    "before": "codegirl-007/database-joins",
+    "after": "codegirl-007/other",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > retains licensed source data at the PLAN pin with normalized-byte hashes",
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > decodes the actual upstream example manifest and pack rule document"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "28132d2730bc985f20c6e7f5d6527f996bb0c8f301a8b07aebca4bf5527800e4",
+    "sha256After": "28132d2730bc985f20c6e7f5d6527f996bb0c8f301a8b07aebca4bf5527800e4"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintUpstream",
+    "name": "allow Muse settings in real upstream configuration",
+    "before": "const configSchema = z.strictObject(",
+    "after": "const configSchema = z.object(",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > rejects a Muse setting added to the captured upstream config"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/rules.ts",
+    "suite": "judgeLintUpstream",
+    "name": "drop localized upstream instructions",
+    "before": "isLocalized ? text.localizedInstructionPrefix : text.instructionPrefix",
+    "after": "text.instructionPrefix",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > preserves upstream criteria and base/localized exception instructions"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "9d5d1523b1813a004e00c4ea4edf9d98f8abfbbfda90be0293b68dde5a098f02",
+    "sha256After": "9d5d1523b1813a004e00c4ea4edf9d98f8abfbbfda90be0293b68dde5a098f02"
+  },
+  {
+    "file": "src/core/judge/lint/rules.ts",
+    "suite": "judgeLintUpstream",
+    "name": "drop upstream explicit exception text",
+    "before": "text.exceptionsPrefix + rule.exceptions.map((exception) => `\\n- ${exception}`).join('')",
+    "after": "''",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > preserves upstream criteria and base/localized exception instructions"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "9d5d1523b1813a004e00c4ea4edf9d98f8abfbbfda90be0293b68dde5a098f02",
+    "sha256After": "9d5d1523b1813a004e00c4ea4edf9d98f8abfbbfda90be0293b68dde5a098f02"
+  },
+  {
+    "file": "src/core/judge/lint/rules.ts",
+    "suite": "judgeLintUpstream",
+    "name": "include exception heading without exceptions",
+    "before": "rule.exceptions.length === 0",
+    "after": "false",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > preserves upstream criteria and base/localized exception instructions"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "9d5d1523b1813a004e00c4ea4edf9d98f8abfbbfda90be0293b68dde5a098f02",
+    "sha256After": "9d5d1523b1813a004e00c4ea4edf9d98f8abfbbfda90be0293b68dde5a098f02"
   }
 ]
