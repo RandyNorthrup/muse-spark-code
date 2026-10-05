@@ -204,8 +204,23 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   the Muse Code CLI backend the CLI runs the commands inside its OS sandbox
   where that is set up; `museSpark.shellSandbox` at `auto` starts the CLI
   without the sandbox for a Windows workspace under the user's profile
-  (where the sandbox cannot enter), and `off` never sandboxes; both leave
-  the approval cards in place.
+  (where the sandbox does not reliably run commands: 1.4.2 ran one there
+  on the owner's machine and never finished one on a freshly set-up rig,
+  2026-10-04), and `off` never sandboxes; both leave the approval cards in
+  place for commands.
+- **Muse Code's file writes.** Muse Code asks before none of its file-tool
+  writes except those to `.git`, `.muse` and `.agents`, in every mode, Plan
+  included (Plan is its `denyUnmatched`, which still lets the file tools
+  edit). With its sandbox the file tools cannot write outside the workspace
+  ("absolute path is outside the workspace"); without it (`--disable-sandbox`)
+  they can write anywhere the user can, with no approval, as Meta's
+  permissions page documents and the 2026-10-04 probes confirmed. Other
+  coding agents' configuration folders inside the workspace (`.claude`,
+  `.cursor` and the like) are ordinary files to Muse Code. The extension can
+  judge only what Muse Code asks about, and the MSP protocol offers no way
+  to add rules ("select, never create"), so it warns once per window when
+  the sandbox is off and says in the Diagnostics report where the file
+  tools can write; the rest is Muse Code's to change.
 - **Check commands and `then_run` (Model API backend).** The commands the
   extension runs after the agent's edits (`museSpark.checkCommands`,
   machine-scoped, none by default) and the one an edit's `then_run` names

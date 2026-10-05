@@ -741,7 +741,9 @@
   "planOpenFailed": "无法打开计划",
   "sideChatSessionOnly": "此旁聊只能打开其他旁聊对话。",
   "renameFailed": "无法重命名对话",
-  "sandboxOffProfileNotice": "此工作区位于你的用户配置文件目录下，Muse Code 的 Windows 沙盒无法在此运行命令，因此此窗口不使用沙盒，直接以你的身份运行 shell 命令。批准提示仍然适用。设置：museSpark.shellSandbox。",
+  "sandboxOffProfileWarning": "Muse Code 的 Windows 沙盒无法在你的用户配置文件目录下的工作区中可靠地运行命令，因此此窗口在不使用其操作系统沙盒的情况下运行 Muse Code。此时，它的文件工具可以在任何模式下（包括规划模式）不经询问地写入你的帐户可写的任何位置，包括此工作区之外；它的命令会以你的身份、使用你的网络直接运行。批准仍然适用于它的命令以及对 .git、.muse 和 .agents 的写入。位于你的用户配置文件目录之外的工作区会保留沙盒。设置：museSpark.shellSandbox。",
+  "sandboxOffSettingWarning": "museSpark.shellSandbox 已关闭，因此 Muse Code 在此窗口中不使用其操作系统沙盒运行。此时，它的文件工具可以在任何模式下（包括规划模式）不经询问地写入你的帐户可写的任何位置，包括此工作区之外；它的命令会以你的身份、使用你的网络直接运行。批准仍然适用于它的命令以及对 .git、.muse 和 .agents 的写入。",
+  "sandboxPreparingNotice": "Muse Code 的 Windows 沙盒仍在准备中，因此此命令没有运行。设置完成后，Muse Code 会在后台一次性为沙盒授予对你的文件的读取权限，用户配置文件较大时可能需要一些时间。请几分钟后重试。设置：museSpark.shellSandbox。",
   "rulesFileNoWorkspace": "请先打开文件夹；AGENTS.md 位于工作区根目录。",
   "rulesFileExists": "此工作区中已存在 AGENTS.md；正在打开它。",
   "rulesFileCreated": "已创建 AGENTS.md。从下一个对话开始，Muse 会将其作为项目规则读取。",
@@ -864,7 +866,7 @@
   "bannerDismiss": "关闭",
   "trustGrantedNotice": "工作区已受信任：从下一条消息开始，Muse 将加载其规则、技能和记忆。",
   "sandboxRestartNotice": "Muse Code 的某项设置已更改；Muse Code 将在下一条消息时以新设置重启，并继续此对话。",
-  "sandboxProfileNotice": "此工作区位于你的用户配置文件目录下，而Muse Code 的 Windows 沙盒无法进入该目录：shell 命令将在 PowerShell 文件夹而不是项目中启动。文件读取和编辑不受影响。位于 C:\\Users 之外的工作区会就地运行命令。",
+  "sandboxProfileNotice": "此工作区位于你的用户配置文件目录下，Muse Code 的 Windows 沙盒可能无法在此运行命令：命令可能会在 PowerShell 文件夹而不是项目中启动，或者永远不会结束。文件读取和编辑不受影响。位于 C:\\Users 之外的工作区会就地运行命令。",
   "permissionModes": {
     "manual": "手动",
     "acceptEdits": "自动编辑",
@@ -875,7 +877,7 @@
   "permissionModeDetails": {
     "manual": "Muse 会在运行命令前询问；Muse Code 会直接编辑工作区文件而不询问",
     "acceptEdits": "在 Muse Code 上与手动相同：Muse Code 会直接编辑工作区文件而不询问，并在运行命令前询问",
-    "plan": "Muse 会先探索代码并提出计划，然后再编辑",
+    "plan": "Muse 会先做规划；Muse Code 会拒绝命令，但它的文件工具仍可不经询问地编辑文件",
     "auto": "Muse Code 会直接运行它判断为简单的命令而不询问，其余命令运行前会询问",
     "bypassPermissions": "Muse 会直接编辑文件和运行命令而不询问"
   },
@@ -883,6 +885,7 @@
   "modelApiPermissionModeDetails": {
     "manual": "Muse 会在每次编辑和每条命令前请求批准",
     "acceptEdits": "Muse 会直接编辑文件而不询问，并在运行命令前询问",
+    "plan": "Muse 会先探索代码并提出计划，然后再编辑",
     "auto": "Muse 会直接编辑文件而不询问（受保护的文件除外），并在运行命令前询问"
   },
   "effortLevels": {

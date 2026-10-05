@@ -777,7 +777,9 @@
   "planOpenFailed": "Impossible d’ouvrir le plan",
   "sideChatSessionOnly": "Cette discussion parallèle ne peut ouvrir que d’autres discussions parallèles.",
   "renameFailed": "Impossible de renommer la conversation",
-  "sandboxOffProfileNotice": "Cet espace de travail se trouve dans votre profil utilisateur, où le bac à sable Windows de Muse Code ne peut pas exécuter de commandes ; cette fenêtre exécute donc les commandes shell sans bac à sable, directement sous votre identité. Les demandes d’approbation s’appliquent toujours. Paramètre : museSpark.shellSandbox.",
+  "sandboxOffProfileWarning": "Le bac à sable Windows de Muse Code ne peut pas exécuter de commandes de façon fiable dans un espace de travail situé dans votre profil utilisateur ; cette fenêtre exécute donc Muse Code sans son bac à sable du système. Ses outils de fichiers peuvent alors écrire sans demander partout où votre compte le peut, y compris hors de cet espace de travail, dans tous les modes, Planification comprise, et ses commandes s’exécutent directement sous votre identité, avec votre réseau. L’approbation couvre toujours ses commandes et les écritures dans .git, .muse et .agents. Un espace de travail situé hors de votre profil utilisateur conserve le bac à sable. Paramètre : museSpark.shellSandbox.",
+  "sandboxOffSettingWarning": "museSpark.shellSandbox est désactivé ; Muse Code s’exécute donc sans son bac à sable du système dans cette fenêtre. Ses outils de fichiers peuvent alors écrire sans demander partout où votre compte le peut, y compris hors de cet espace de travail, dans tous les modes, Planification comprise, et ses commandes s’exécutent directement sous votre identité, avec votre réseau. L’approbation couvre toujours ses commandes et les écritures dans .git, .muse et .agents.",
+  "sandboxPreparingNotice": "Le bac à sable Windows de Muse Code est encore en préparation ; cette commande n’a donc pas été exécutée. Après sa configuration, Muse Code accorde une fois, en arrière-plan, au bac à sable l’accès en lecture à vos fichiers, ce qui peut prendre un moment sur un profil utilisateur volumineux. Réessayez dans quelques minutes. Paramètre : museSpark.shellSandbox.",
   "rulesFileNoWorkspace": "Ouvrez d’abord un dossier ; AGENTS.md se trouve à la racine de l’espace de travail.",
   "rulesFileExists": "AGENTS.md existe déjà dans cet espace de travail ; ouverture du fichier.",
   "rulesFileCreated": "AGENTS.md créé. Muse le lit comme règles du projet à partir de la prochaine conversation.",
@@ -910,7 +912,7 @@
   "bannerDismiss": "Ignorer",
   "trustGrantedNotice": "Espace de travail approuvé : Muse chargera ses règles, compétences et mémoire à partir du prochain message.",
   "sandboxRestartNotice": "Un paramètre de Muse Code a changé ; Muse Code redémarre avec ce paramètre au prochain message et poursuit cette conversation.",
-  "sandboxProfileNotice": "Cet espace de travail se trouve dans votre profil utilisateur, où le bac à sable Windows de Muse Code ne peut pas entrer : les commandes shell démarreront dans le dossier de PowerShell au lieu du projet. La lecture et la modification des fichiers ne sont pas affectées. Un espace de travail situé hors de C:\\Users exécute les commandes sur place.",
+  "sandboxProfileNotice": "Cet espace de travail se trouve dans votre profil utilisateur, où le bac à sable Windows de Muse Code risque de ne pas exécuter les commandes : elles peuvent démarrer dans le dossier de PowerShell au lieu du projet, ou ne jamais se terminer. La lecture et la modification des fichiers ne sont pas affectées. Un espace de travail situé hors de C:\\Users exécute les commandes sur place.",
   "permissionModes": {
     "manual": "Manuel",
     "acceptEdits": "Modifier automatiquement",
@@ -921,7 +923,7 @@
   "permissionModeDetails": {
     "manual": "Muse demandera avant d’exécuter des commandes ; Muse Code modifie les fichiers de l’espace de travail sans demander",
     "acceptEdits": "Sur Muse Code, identique à Manuel : Muse Code modifie les fichiers de l’espace de travail sans demander et demande avant d’exécuter des commandes",
-    "plan": "Muse explorera le code et présentera un plan avant toute modification",
+    "plan": "Muse planifie d’abord ; Muse Code refuse les commandes, mais ses outils de fichiers peuvent toujours modifier des fichiers sans demander",
     "auto": "Muse Code exécute sans demander les commandes qu’il juge simples et demande avant les autres",
     "bypassPermissions": "Muse modifiera les fichiers et exécutera des commandes sans demander"
   },
@@ -929,6 +931,7 @@
   "modelApiPermissionModeDetails": {
     "manual": "Muse demandera une approbation avant chaque modification et chaque commande",
     "acceptEdits": "Muse modifiera les fichiers sans demander et demandera avant d’exécuter des commandes",
+    "plan": "Muse explorera le code et présentera un plan avant toute modification",
     "auto": "Muse modifiera les fichiers sans demander, sauf les fichiers protégés, et demandera avant les commandes"
   },
   "effortLevels": {

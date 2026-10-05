@@ -1116,8 +1116,12 @@ export const EN = {
   planOpenFailed: 'Could not open the plan',
   sideChatSessionOnly: 'This side chat can open only side-chat conversations.',
   renameFailed: 'Could not rename the conversation',
-  sandboxOffProfileNotice:
-    "This workspace is under your user profile, where Muse Code's Windows sandbox cannot run commands, so this window runs shell commands without the sandbox, directly as you. Approval prompts still apply. Setting: museSpark.shellSandbox.",
+  sandboxOffProfileWarning:
+    "Muse Code's Windows sandbox cannot reliably run commands in a workspace under your user profile, so this window runs Muse Code without its OS sandbox. Its file tools can then write anywhere your account can, outside this workspace too, without asking in any mode, Plan included, and its commands run directly as you, with your network. Approval still covers its commands and writes to .git, .muse and .agents. A workspace outside your user profile keeps the sandbox. Setting: museSpark.shellSandbox.",
+  sandboxOffSettingWarning:
+    'museSpark.shellSandbox is off, so Muse Code runs without its OS sandbox in this window. Its file tools can then write anywhere your account can, outside this workspace too, without asking in any mode, Plan included, and its commands run directly as you, with your network. Approval still covers its commands and writes to .git, .muse and .agents.',
+  sandboxPreparingNotice:
+    "Muse Code's Windows sandbox is still being prepared, so this command did not run. After its setup, Muse Code gives the sandbox read access to your files once, in the background, and that can take a while on a large user profile. Try again in a few minutes. Setting: museSpark.shellSandbox.",
   rulesFileNoWorkspace: 'Open a folder first; AGENTS.md lives in the workspace root.',
   rulesFileExists: 'AGENTS.md already exists in this workspace; opening it.',
   rulesFileCreated: 'AGENTS.md created. Muse reads it as project rules from the next conversation.',
@@ -1256,7 +1260,7 @@ export const EN = {
     'Workspace trusted: Muse will load its rules, skills and memory from the next message.',
   sandboxRestartNotice:
     'A Muse Code setting changed; Muse Code restarts with it on the next message and continues this conversation.',
-  sandboxProfileNotice: String.raw`This workspace is under your user profile, which Muse Code's Windows sandbox cannot enter: shell commands will start in the PowerShell folder instead of the project. File reads and edits are unaffected. A workspace outside C:\Users runs commands in place.`,
+  sandboxProfileNotice: String.raw`This workspace is under your user profile, where Muse Code's Windows sandbox may not run commands: they can start in the PowerShell folder instead of the project, or never finish. File reads and edits are unaffected. A workspace outside C:\Users runs commands in place.`,
   // Label groups keyed by id (they were records in constants.ts before M40).
   permissionModes: {
     manual: 'Manual',
@@ -1278,7 +1282,7 @@ export const EN = {
     manual: 'Muse will ask before running commands; Muse Code edits workspace files without asking',
     acceptEdits:
       'On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
-    plan: 'Muse will explore the code and present a plan before editing',
+    plan: 'Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking',
     auto: 'Muse Code runs the commands it judges simple without asking and asks before the rest',
     bypassPermissions: 'Muse will edit files and run commands without asking',
   },
@@ -1287,6 +1291,7 @@ export const EN = {
   modelApiPermissionModeDetails: {
     manual: 'Muse will ask for approval before each edit and each command',
     acceptEdits: 'Muse will edit files without asking and ask before running commands',
+    plan: 'Muse will explore the code and present a plan before editing',
     auto: 'Muse will edit files without asking, except protected files, and ask before commands',
   },
   effortLevels: {

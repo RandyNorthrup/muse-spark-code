@@ -759,7 +759,9 @@
   "planOpenFailed": "Der Plan konnte nicht geöffnet werden",
   "sideChatSessionOnly": "Dieser Nebenchat kann nur Nebenchat-Unterhaltungen öffnen.",
   "renameFailed": "Die Unterhaltung konnte nicht umbenannt werden",
-  "sandboxOffProfileNotice": "Dieser Arbeitsbereich liegt unter Ihrem Benutzerprofil, wo die Windows-Sandbox von Muse Code keine Befehle ausführen kann; daher führt dieses Fenster Shellbefehle ohne Sandbox direkt als Sie aus. Genehmigungsanfragen gelten weiterhin. Einstellung: museSpark.shellSandbox.",
+  "sandboxOffProfileWarning": "Die Windows-Sandbox von Muse Code kann in einem Arbeitsbereich unter Ihrem Benutzerprofil Befehle nicht zuverlässig ausführen; daher führt dieses Fenster Muse Code ohne seine Betriebssystem-Sandbox aus. Seine Dateitools können dann ohne Nachfrage überall schreiben, wo Ihr Konto schreiben darf, auch außerhalb dieses Arbeitsbereichs, in jedem Modus, auch in „Planen“, und seine Befehle laufen direkt als Sie, mit Ihrem Netzwerk. Genehmigungen gelten weiterhin für seine Befehle und für Schreibzugriffe auf .git, .muse und .agents. Ein Arbeitsbereich außerhalb Ihres Benutzerprofils behält die Sandbox. Einstellung: museSpark.shellSandbox.",
+  "sandboxOffSettingWarning": "museSpark.shellSandbox ist ausgeschaltet, daher läuft Muse Code in diesem Fenster ohne seine Betriebssystem-Sandbox. Seine Dateitools können dann ohne Nachfrage überall schreiben, wo Ihr Konto schreiben darf, auch außerhalb dieses Arbeitsbereichs, in jedem Modus, auch in „Planen“, und seine Befehle laufen direkt als Sie, mit Ihrem Netzwerk. Genehmigungen gelten weiterhin für seine Befehle und für Schreibzugriffe auf .git, .muse und .agents.",
+  "sandboxPreparingNotice": "Die Windows-Sandbox von Muse Code wird noch vorbereitet, daher wurde dieser Befehl nicht ausgeführt. Nach der Einrichtung gibt Muse Code der Sandbox einmalig im Hintergrund Lesezugriff auf Ihre Dateien, was bei einem großen Benutzerprofil eine Weile dauern kann. Versuchen Sie es in einigen Minuten erneut. Einstellung: museSpark.shellSandbox.",
   "rulesFileNoWorkspace": "Öffnen Sie zuerst einen Ordner; AGENTS.md liegt im Stammverzeichnis des Arbeitsbereichs.",
   "rulesFileExists": "AGENTS.md ist in diesem Arbeitsbereich bereits vorhanden und wird geöffnet.",
   "rulesFileCreated": "AGENTS.md erstellt. Muse liest die Datei ab der nächsten Unterhaltung als Projektregeln.",
@@ -887,7 +889,7 @@
   "bannerDismiss": "Schließen",
   "trustGrantedNotice": "Arbeitsbereich als vertrauenswürdig eingestuft: Muse lädt ab der nächsten Nachricht dessen Regeln, Skills und Gedächtnis.",
   "sandboxRestartNotice": "Eine Muse Code-Einstellung wurde geändert; Muse Code startet bei der nächsten Nachricht damit neu und setzt diese Unterhaltung fort.",
-  "sandboxProfileNotice": "Dieser Arbeitsbereich liegt unter Ihrem Benutzerprofil, das die Windows-Sandbox von Muse Code nicht betreten kann: Shellbefehle starten dann im PowerShell-Ordner statt im Projekt. Das Lesen und Bearbeiten von Dateien ist nicht betroffen. In einem Arbeitsbereich außerhalb von C:\\Users laufen Befehle direkt dort.",
+  "sandboxProfileNotice": "Dieser Arbeitsbereich liegt unter Ihrem Benutzerprofil, wo die Windows-Sandbox von Muse Code Befehle möglicherweise nicht ausführt: Sie können im PowerShell-Ordner statt im Projekt starten oder nie fertig werden. Das Lesen und Bearbeiten von Dateien ist nicht betroffen. In einem Arbeitsbereich außerhalb von C:\\Users laufen Befehle direkt dort.",
   "permissionModes": {
     "manual": "Manuell",
     "acceptEdits": "Automatisch bearbeiten",
@@ -898,7 +900,7 @@
   "permissionModeDetails": {
     "manual": "Muse fragt vor dem Ausführen von Befehlen; Muse Code bearbeitet Dateien im Arbeitsbereich ohne Nachfrage",
     "acceptEdits": "In Muse Code dasselbe wie Manuell: Muse Code bearbeitet Dateien im Arbeitsbereich ohne Nachfrage und fragt vor dem Ausführen von Befehlen",
-    "plan": "Muse erkundet den Code und legt vor dem Bearbeiten einen Plan vor",
+    "plan": "Muse plant zuerst; Muse Code verweigert Befehle, aber seine Dateitools können Dateien weiterhin ohne Nachfrage bearbeiten",
     "auto": "Muse Code führt Befehle, die es für einfach hält, ohne Nachfrage aus und fragt vor allen anderen",
     "bypassPermissions": "Muse bearbeitet Dateien und führt Befehle ohne Nachfrage aus"
   },
@@ -906,6 +908,7 @@
   "modelApiPermissionModeDetails": {
     "manual": "Muse fragt vor jeder Bearbeitung und jedem Befehl nach einer Genehmigung",
     "acceptEdits": "Muse bearbeitet Dateien ohne Nachfrage und fragt vor dem Ausführen von Befehlen",
+    "plan": "Muse erkundet den Code und legt vor dem Bearbeiten einen Plan vor",
     "auto": "Muse bearbeitet Dateien ohne Nachfrage, außer geschützten Dateien, und fragt vor Befehlen"
   },
   "effortLevels": {

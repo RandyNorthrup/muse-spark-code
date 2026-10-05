@@ -2235,6 +2235,13 @@ export const SANDBOX_FAILURE_MARKER = 'sandbox enforcement unavailable'
 // And a `!` command's row says this in its output instead (M46, captured
 // 2026-09-25 on Windows with the sandbox on and not set up).
 export const USER_SHELL_SANDBOX_FAILURE_MARKER = 'managed shell sandbox is unavailable'
+// The same failure while Muse Code's Windows sandbox is still preparing:
+// after setup, a background worker grants the sandbox read access to the
+// user's files, holding a lock; a session that needs the lock waits 120 s and
+// its command fails with "… ACL publication lock
+// Global\TbhWindowsSandboxAclPublication: timed out …" (captured 2026-10-04
+// on a fresh 1.4.2 setup, docs/certification/musecode-write-asks.md).
+export const SANDBOX_PREPARING_MARKER = 'ACL publication lock'
 // `muse sandbox windows check` / `setup` (Muse Code 1.3.0; the only platform
 // with a sandbox subcommand, verified 2026-09-22 on Windows and Linux). The
 // check prints `key=value` lines and exits 1 while setup is required.
@@ -2700,6 +2707,9 @@ export const COPIED_FEEDBACK_MS = 1500
 export const MUSE_SERVE_ARGS = ['serve'] as const
 // `muse serve --disable-sandbox`: "keep approval, but skip the sandbox"; a
 // host-lifetime posture, so changing it restarts the host (PLAN.md D12).
+// Meta's permissions page adds that it "also removes workspace confinement
+// from the file tools, so write_file and edit_file can write anywhere on the
+// filesystem", and Muse Code asks for none of those writes (2026-10-04).
 export const MUSE_DISABLE_SANDBOX_ARG = '--disable-sandbox'
 // `muse serve --trust-workspace`: "Load each session workspace's skills and
 // rules"; without it the host skips both. `--disable-shell` is the posture
