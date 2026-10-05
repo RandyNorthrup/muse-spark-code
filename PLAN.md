@@ -5067,6 +5067,244 @@ Decisions:
     the list-priced sources; Fireworks moves to the catalogue. Fireworks' and
     Hugging Face's lists give windows.
 
+### D82 — Usage & cost: one local journal, one page in every editor (M102, 2026-10-05)
+
+The owner asked (2026-10-05): "research, plan, and implement: a price page
+where you can track all of your usage across all the models with usage graphs
+and charts and token consumption in and out and time limits and token cost etc
+similar to the tracker in t3 code". His rule the same day: "all of the editors
+should have equivalent functionality even if we need to develop it ourselves".
+His standing rulings apply:
+
+- enhancements are on by default;
+- everything is multi-vendor, gated by capability;
+- there is no telemetry;
+- the SoL-Pi gains are invariants.
+
+Research is in §1 of this draft (`docs/research/usage.md` when it lands).
+
+- **One journal per machine, for every editor.** Every place that makes a model
+  call appends records to one local, append-only journal. That covers the VS
+  Code family, the ACP agent, the headless CLI and the native plugins' runtime.
+  - **Location.** `<agentDataFolder>/usage/v1/` (`src/runtime/dataFolder.ts`).
+    VS Code writes there too, not in its own global storage, so one user's
+    VS Code, Cursor, Zed (through ACP) and CLI share one history. Every page
+    shows all of it, broken down by **Where** (the editor, from its own name:
+    `vscode.env.appName`, ACP `clientInfo.name`, `cli`).
+  - **Layout.** One file per writing process per local day:
+    `days/<YYYY-MM-DD>/<writerId>.jsonl`, the same pattern as Tab's ledger.
+    Appends never interleave and need no lock. Each line is one record under
+    4 KiB.
+  - **Torn lines.** A torn last line is skipped and counted. A record whose
+    version is newer than the reader's is shown as "N records from a newer
+    version" instead of being dropped silently.
+  - **Remote windows and containers.** The journal lives where the extension
+    host or runtime runs, and the page names that host.
+  - **The budget ledgers stay separate.** They admit spend; the journal only
+    records. Neither reads the other's files.
+- **What a record holds.**
+  - **When and where:** `v`, `id`, `at` and `startedAt` (epoch ms), `day` (the
+    local day, from the same function as Tab's `tabLocalDate` and D78's
+    `day()`), the time-zone offset, `client`, `backend`.
+  - **What was called:** `provider` (the M95 provider reference, `meta`, or
+    `museCode`), `model` (the id sent), and `served` (the provider's own model
+    or upstream, e.g. OpenRouter's route) where it is reported.
+  - **`kind`:** `turn`, `compaction`, `sideChat`, `subagent`, `worker` (M96),
+    `reviewer` (M78/M90, the judges), `bestOfN`, `tab` (M94), `schedule`
+    (M52), `vscodeChat` (M95c), `hook` (only if a hook makes a model call),
+    `search`, `image`, `voice`, or `count`. A kind no milestone produces yet is
+    registered but unused.
+  - **`tokens`:**
+    - `input` (total), `cached`, `cacheWrite`, `cacheWrite1h`, `output` and
+      `reasoning`.
+    - Each is optional, and **absent means unknown, never 0**.
+    - An `estimated: true` flag marks tokens from `countTokens` (Copilot).
+  - **`units`:** `searches`, `images`, `audioSeconds`.
+  - **`cost`:**
+    - `usd?` plus its certainty: `reported`, `computed`, `uncertain` (sent, no
+      usage, the liability kept), `plan`, `local` or `unpriced`.
+    - The price's source (`list`, `catalogue`, `user`, `meta-published`) and
+      date.
+  - **Outcome and timing:**
+    - `outcome`: completed, incomplete, failed, cancelled or refused.
+    - `durationMs` and `firstTokenMs`, where known.
+    - `retries` and `rateLimited`.
+    - Gemini's `retryDelayMs` from the 429 body.
+  - **Session:** `session` (an opaque id; titles are looked up locally when the
+    page renders) and `packedAvoided` (M73's estimate).
+  - **Never in a record:** prompt or reply text, tool arguments, file or
+    workspace paths, keys, key digests, or headers outside the list below.
+- **Limit snapshots** go in the same files, as `type: "limit"`. Each holds
+  `{provider, source, observedAt, windows[{id, label?, usedPercent, resetsAt?,
+windowMins?}], account?{usedUsd, limitUsd, remainingUsd, period}, raw?}`.
+  - **Muse Code:** written on every `usage/changed`, de-duplicated by
+    `observedAtMs`.
+  - **OpenRouter:** written on each `/api/v1/key` read.
+  - **Rate-limit headers:** each provider's latest headers from the allow list,
+    when they change, and on every 429.
+- **Prices are settled once and never rewritten.**
+  - Settlement uses D74's order: reported cost, then xAI ticks, then the dated
+    card. The 1-hour cache write is priced at `cacheWrite1h` (a fix to
+    `settleUsageUsd`).
+  - Meta's models use the published table, and paid tools use
+    `PAID_PRICES_USD`. A model with no card is `unpriced`.
+  - **A price that changes later does not change history.**
+  - A call recorded as unpriced can be shown "priced later" with the user's new
+    card. It is labelled as such and never written back.
+  - **Plan usage** (Muse Code, the ChatGPT plan, Copilot) shows the plan's
+    tokens and requests. It also shows an **API-equivalent** dollar figure,
+    labelled as such, only when the same model id has a list price. This
+    avoids Cursor's "Included"-only pitfall.
+  - **Local models** show $0, with time and tokens per second.
+- **"Time limits," honestly.** The page shows four kinds of limit.
+  - **Provider windows.**
+    - Muse Code's 5-hour window and weekly block, from `usage/changed`.
+    - The ChatGPT plan's primary and secondary windows, once M95b's capture
+      shows them.
+    - OpenRouter's key limit, remainder and reset.
+
+    Labels come from the reported length. **Pace** (used share against elapsed
+    share, with a ±5-point band) is shown only where the duration is reported:
+    the 5-hour window, never the weekly block (M53). Stale after 15 minutes;
+    "awaiting fresh usage" once the reset has passed (M53).
+
+  - **Request and token rate limits.** These come from response headers
+    (`x-ratelimit-*`, `anthropic-ratelimit-*`, `x-codex-*`, IETF
+    `ratelimit`/`ratelimit-policy`, `retry-after`), stored verbatim from that
+    allow list, each value at most 64 ASCII characters.
+    - A provider's headers are turned into a meter only after a recorded
+      capture (rule 13). Until then the page shows them "as reported".
+  - **What happened.** Calls that were rate-limited or retried, per provider
+    and day.
+  - **Our own caps.**
+    - D78's daily paid budget, including Stop and today's raise.
+    - M94's Tab daily budget and M95c's VS Code chat daily budget.
+    - M82's conversation cap.
+    - Headless `--budget`.
+
+    Where at least 30 minutes of spend exist today, a burn-rate line projects
+    to the end of the day.
+
+  - **Providers that report no limit say so in words**, with a link to their
+    console. Gemini, for example: limits set per project in AI Studio. Meta's
+    limits are listed at dev.meta.ai.
+- **Retention and reset.**
+  - Per-call records are kept for 30 days (`USAGE_DETAIL_DAYS`). Older days are
+    rolled up into `rollups/<YYYY-MM>.json`, one row per day × client × backend
+    × provider × model × kind × certainty. Each row holds sums plus a fixed
+    12-bucket log-scale latency histogram, so p50 and p95 survive the rollup.
+    Rollups are kept for `museSpark.usageHistoryDays` (default 365, 30–1825).
+  - A rollup runs under an exclusive-create lock (as What's New's claim does).
+    It writes atomically, records the days it covers, and only then deletes the
+    raw days. The reader ignores any raw day a rollup already covers, so a
+    crash between the two steps counts nothing twice.
+  - **Delete usage history…** removes only `usage/`, after a modal that names
+    the record count. Budget and Tab ledgers and paid grants are never touched.
+  - `museSpark.usageHistory` (machine scope, default on) stops new records. The
+    ACP agent and CLI read the same two settings from their own configuration
+    and take `--usage-history=off`.
+- **Recording points.** Each call site makes one call after its usage has
+  settled, and no request body changes. The golden request tests and M75's
+  evaluation stay byte-identical: this is the SoL-Pi invariant.
+  - Model API and BYO: `noteUsage`, with a kind added at compaction and side
+    chat, plus the transport's duration, retries and allow-listed headers.
+  - The reviewer, best-of-N, subagents and paid tools.
+  - Muse Code:
+    - per-turn **deltas** of `cumulative`;
+    - a session's first report after a reload is a baseline, unless the session
+      was created in this process;
+    - every `usage/changed`.
+  - Tab's settle, the CLI's `exec`, and the ACP agent's two backends.
+- **One page, in shared code.**
+  - The page's host side (`src/core/usage/usageService.ts`) imports no
+    `vscode`. It covers the journal, rollups, aggregation, export, the text
+    summary and the trace logs, and talks to the host through ports: file
+    system, clock, budget readers, subscription snapshot, provider account
+    usage, open external, save file and confirm. It builds to
+    `dist/usageService.js`, which VS Code and the runtime both load lazily.
+  - The page is a shared React entry, `src/webview/usage/usage.tsx`, the third
+    entry in the shared browser build. It reaches its host only through
+    `HostBridge`, with a bridge per host: VS Code (exists); HTTP (companion);
+    JCEF, WebView2 and SWT (contracts and fakes here, wired by M64 and M65).
+  - The protocol is zod-checked in both directions (`src/shared/usagePage.ts`).
+  - Styles use `--muse-*` tokens. They default to `--vscode-*` (charts:
+    `--vscode-charts-{blue,purple,orange,green,yellow,red}`, "other" as
+    `--vscode-disabledForeground`), with documented fallbacks. Each native host
+    maps its own theme onto them.
+  - Strings live in a family of their own: `src/shared/l10n/usageEn.ts` plus
+    `l10n/usage.<lang>.json` for 14 languages, checked by `check-l10n`. Only
+    the page's own bundles carry them; the chat startup and `uiText.js` do not
+    grow.
+- **Every editor** shows the same page or its text equivalent.
+
+  | Editor                                                                                                   | Route                      | How the page shows                                                                                                                                                                                                                                                                                                                                                      | Host side runs in                                                   | Bridge                                              | Export                                     | Delivered by                                                                                                                        |
+  | -------------------------------------------------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+  | VS Code, VSCodium, Cursor, Kiro, Positron, Windsurf (VSIX mode), Theia                                   | VSIX                       | **Usage & cost** editor tab (`WebviewPanel`), from the command, the palette, `/usage page`, and Account & usage's **Open usage page**                                                                                                                                                                                                                                   | extension host, `dist/usageService.js`                              | `vsCodeHostBridge`                                  | `showSaveDialog`                           | M102                                                                                                                                |
+  | code-server, Codespaces, Remote SSH/WSL/Containers                                                       | VSIX on the workspace host | the same tab; the page names the host the journal is on                                                                                                                                                                                                                                                                                                                 | the remote extension host                                           | `vsCodeHostBridge`                                  | save dialog on the remote                  | M102                                                                                                                                |
+  | JetBrains IDEs (IDEA, PyCharm, WebStorm, Rider, CLion, GoLand, Android Studio)                           | native plugin (M64)        | **Usage & cost** editor tab in JCEF, loading the same `dist/webview/usage.js`                                                                                                                                                                                                                                                                                           | the shared Node runtime, `muse-spark-code-acp usage serve --stdio`  | `jcefHostBridge` (`JBCefJSQuery`)                   | IDE file chooser → service writes the file | bridge, stdio service and fake-bridge harness in M102; the tab in M64. **Until then:** the ACP route through JetBrains AI Assistant |
+  | Visual Studio (Windows)                                                                                  | native (M64)               | WebView2 tool window or document, with virtual-host mapping for local files                                                                                                                                                                                                                                                                                             | the same stdio runtime                                              | `webView2HostBridge` (`chrome.webview.postMessage`) | SaveFileDialog                             | bridge in M102; window in M64. **Until then:** the companion page from `usage open`                                                 |
+  | Eclipse, NetBeans, Spyder                                                                                | native (M65)               | SWT Browser editor (Eclipse), JCEF or JavaFX (NetBeans), Qt WebEngine (Spyder)                                                                                                                                                                                                                                                                                          | the same stdio runtime                                              | `swtHostBridge` (`BrowserFunction`) and friends     | the host's file dialog                     | bridge in M102; parts in M65. **Until then:** the companion page                                                                    |
+  | JupyterLab, RStudio                                                                                      | M65                        | Lumino widget / Viewer pane showing the companion page                                                                                                                                                                                                                                                                                                                  | the runtime's companion server                                      | `httpHostBridge`                                    | browser download                           | M65; the companion page is usable now                                                                                               |
+  | Zed, JetBrains AI Assistant, Xcode 27, Qt Creator, Neovim (CodeCompanion), Emacs, Sublime, Devin Desktop | ACP agent                  | (1) live session cost in the client's own UI through ACP `usage_update.cost`; (2) a `/usage` command whose reply is a Markdown summary (range, providers and models, limits, budgets, certainty); (3) **Open the usage page**: the agent starts the companion server and sends the link, by URL elicitation when the client offers it, otherwise as a link in the reply | the ACP process; `dist/usageService.js` loads on the first `/usage` | `httpHostBridge` in the browser                     | browser download                           | M102                                                                                                                                |
+  | Xcode 26.3 (MCP external agent), Vim, Kate, any terminal                                                 | CLI                        | `muse-spark-code-acp usage [summary\|daily\|models\|limits\|export] --range --by --json\|--csv`; `usage open` launches the companion page                                                                                                                                                                                                                               | the CLI process                                                     | — / `httpHostBridge`                                | `--out <file>` / browser download          | M102                                                                                                                                |
+  | Headless and CI (M80)                                                                                    | `exec`                     | `exec` appends records (client `cli`) and prints its run ledger; `usage --json` is suited to artifacts                                                                                                                                                                                                                                                                  | the CLI process                                                     | —                                                   | `--out`                                    | M102                                                                                                                                |
+  | vscode.dev, github.dev with no remote compute                                                            | none yet                   | nothing recorded or shown, because the product does not run there (D60 phase G); the page arrives with whatever runtime phase G adds, through `httpHostBridge`                                                                                                                                                                                                          | —                                                                   | —                                                   | —                                          | with D60 phase G                                                                                                                    |
+  - **The companion server.** It is a lazy `dist/usageCompanion.js` in the
+    runtime.
+    - It listens on `127.0.0.1` only, on a random port.
+    - It checks a 256-bit token: carried in the URL fragment, then sent as a
+      header. Every data request also checks `Host` and `Origin` against the
+      listening address and port.
+    - It sends no CORS headers, and stops after 30 idle minutes.
+    - Its policy is `default-src 'none'; script-src 'self'; style-src 'self';
+img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'`. The
+      only exception is the Jupyter origin in M65.
+    - Export is a download. Reset needs the token plus a confirmation from an
+      in-page dialog.
+  - **Equivalence** means the same service and the same numbers in every
+    surface. The text summary and the CLI output are the same aggregates,
+    rendered as text. M64 and M65 accept their tabs only once they pass M102's
+    harness through their own bridge.
+
+- **Charts are hand-drawn SVG, with no library.** Recharts, Chart.js and
+  similar are not taken: their size, and the inline styles the security policy
+  forbids.
+  - Kinds: stacked columns, a mirrored in/out column chart, step lines for
+    limits, a burn line, share bars (SVG `rect`), and meters (`<progress>`).
+  - Colours come only from classes. At most six series plus "Other". A group
+    keeps its colour across every chart on the page.
+  - Each chart is a `<figure>` with a caption, an SVG `role="img"` with a
+    one-sentence summary, a **data table** in a disclosure, and one keyboard
+    tab stop: arrow keys move between buckets, and the focused bucket's values
+    are described by `aria-describedby`.
+  - No information is carried by colour alone (legend, labels, the table). The
+    charts work in high contrast and respect reduced motion.
+- **Bundles.**
+  - New: `dist/usageService.js`, `dist/usagePanel.js` (the VS Code adapter),
+    `dist/usageCompanion.js` and the `usage` browser entry. Each gets the
+    measured size plus 15%, rounded up to 25 KiB.
+  - The writer adds at most 2 KiB to each of `extension.js`, `modelApi.js` and
+    `acp.js`.
+  - The chat browser startup and `uiText.js` gain only the few strings the
+    command, palette item and link need. No existing cap changes.
+- **No telemetry.** Data stays on the machine.
+  - The page and the service make no network request.
+  - The one exception already exists: OpenRouter's free `/key` read, from the
+    host, only while that provider is connected.
+  - Exports happen only when the user asks, through the host's own save dialog
+    or the browser's download.
+- **Not taken.**
+  - LiteLLM or other price fetching at run time (D74).
+  - Reading other agents' transcripts.
+  - ACP's draft per-turn usage (until it is stable).
+  - Interpreting rate-limit headers without a capture.
+  - Deriving weekly pace or plan weights (M53).
+  - Merging across machines. That comes later, through M100's device link,
+    with each device owning its own records.
+  - A status-bar spend item (not asked for).
+
+---
+
 ## 3. Open questions (need the owner)
 
 - **Q-M95INT2 release prerequisite (2026-10-05):** the rig brief says
@@ -15527,6 +15765,295 @@ joined with M57, M58 and PR #49's sign-in
   `status` and `clear` against a real Secret Service; `auth_required`
   before sign-in; the key never in a frame, an argument, the environment
   or the log; every gate green.
+
+### M102 — Usage & cost in every editor (D82)
+
+- **Goal.** One local history of every model call, whichever editor or backend
+  made it, and one page that shows cost, tokens in and out, time, rate and plan
+  limits, and budgets. The page has charts, a table behind every chart, export
+  and reset. It shows in every editor family, with the same numbers, and makes
+  no request off the machine.
+- **Depends on.**
+  - **M95 lanes T and I** (merged, or as the base branch). Their transport is
+    where duration, retries and headers are tapped. Their price lookup by
+    model sent and `settleUsageUsd` feed the records.
+  - **D78's defaults (main).** The daily budget meter.
+  - **M94 (train).** Tab's record and meter. Without it, Tab rows are inert.
+  - **M53's usage-timing rules.**
+  - **M63 (the ACP agent) and M80 (headless).** Both already exist.
+- **Fed later.** These milestones make a one-line recorder call in their own
+  lanes, with the kind M102 defines:
+  - M95b: ChatGPT plan windows and the Copilot plan;
+  - M95c: VS Code chat;
+  - M96: workers;
+  - M64 and M65: they host the page's tab through the bridges M102 delivers.
+- **Lanes and file ownership.** One integration branch, `feature/m102-usage`.
+  - **Lane 0 goes first.** It fixes the contracts and the complete English
+    table, so the other lanes can work against them.
+  - **Then six lanes in parallel:** J, R, S, U, E and L.
+  - **W goes last.**
+  - Files that several lanes touch are owned by region, under M87's lane rules.
+
+| Lane                                            | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0 Contracts and strings                         | new `src/shared/usageJournal.ts` (record and snapshot schemas v1, kinds, certainty, client ids, the header allow list); new `src/shared/usagePage.ts` (page↔service messages, both directions); the usage region of `src/shared/constants.ts` (`USAGE_*`: folders, `USAGE_DETAIL_DAYS`, histogram edges, the 15-minute stale limit, companion idle time, record size cap); new `src/shared/l10n/usageEn.ts` (**the complete English table, its keys frozen at the end of lane 0**) and `src/shared/l10n/usageTable.ts` (loader and types); `scripts/check-l10n.mjs` (the second table family, with packaged-stage checks); the main-table keys (command, palette item, **Open usage page**, ACP `/usage` description) in `en.ts` and the 14 `ui.*.json`; `package.nls*.json` (settings and command); `src/webview/hostBridge.ts` (the message union, plus a `HostBridgeFactory` that picks VS Code / HTTP / JCEF / WebView2 / SWT); the `openUsagePage` message in `src/shared/protocol.ts`                                                                                                                                                                                                                              |
+| J Journal store (shared, no `vscode`)           | new `src/core/usage/journalRecord.ts` (canonical `Usage` + context → record: normalisation, certainty, settlement through `priceCard`/`estimateCostUsd`; the `cacheWrite1h` fix in `src/core/providers/priceCard.ts` `settleUsageUsd`); new `src/core/usage/journalStore.ts` (writer, reader with torn-line and newer-version handling, incremental reads by size and mtime, rollup and lock, retention, reset) over a `UsageFs` port; new `src/runtime/usage/nodeUsageFs.ts`; new `src/core/usage/usageExport.ts` (per-call CSV, summary CSV, versioned JSON; formula-injection guard); tests `journalRecord`, `journalStore` (including two child processes × 5,000 appends), `usageRollup` (crash drills), `usageExport`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| R Recording taps                                | `ModelApiHost.ts` (the `noteUsage` record, kind at `collectedText`/compaction and side chat, cache writes kept in `billable`); `reviewerEntry.ts`; `modelApiBackendManager.ts` (best-of-N, subagents); `client.ts` (or `transport.ts` once T lands: duration, first token, retries, allow-listed headers, Gemini's `retryDelay`); `codecs/ollama.ts` (durations); `src/core/backends/musecode/mapNotification.ts` + the usage region of `MuseCodeHost.ts` (deltas, baseline, `usage/changed` snapshots); `src/core/paid/paidFeatures.ts` and `src/host/paid/paidHost.ts` (units; the tally rebuilt from today's journal on reload); M94's `tabLedger.ts` settle region; `src/acp/translate.ts` (`usage_update.cost` for priced models, certainty in `_meta`); `src/runtime/exec/runExec.ts` (CLI records); the usage-report region of `conversationController.ts` (`providers` rows from today's journal, fixing gap 6); the writer wiring in `extension.ts`'s activation region (folder and client id)                                                                                                                                                                                                                  |
+| S Service and aggregation (shared, no `vscode`) | new `src/core/usage/aggregate.ts` (buckets by local hour, day and week; group by provider, model, kind, client; metrics; certainty sums; cache hit rate; latency p50/p95 from histograms; previous-period deltas; pace; burn projection); new `src/core/usage/usageService.ts` (the page protocol over ports); new `src/core/usage/usageText.ts` (Markdown and plain-text summary for ACP `/usage` and the CLI); `src/host/usage/traceLogs.ts` → `src/runtime/usage/traceLogs.ts` with its report type moved out of `conversationController`; new `src/runtime/usage/usageServiceEntry.ts` → `dist/usageService.js`; new `src/runtime/usage/companionServer.ts` + entry → `dist/usageCompanion.js`; read-only `readToday()` (spent, cap, stopped, uncertain) beside `src/host/paid/paidDailyBudget.ts` (a port in a file with no `vscode`) and in `tabLedger.ts`'s read region                                                                                                                                                                                                                                                                                                                                           |
+| U Page UI (shared React)                        | new `src/webview/usage/**`: `usage.tsx` (entry, bridge selection, table install), `UsageApp.tsx`, `Header.tsx` (range radio group with a custom date range, group by, metric, refresh, export menu, delete history), `KpiTiles.tsx`, `LimitsSection.tsx` (`LimitCard`, `BudgetCard`, `RateLimitCard`, unknown lines), `charts/` (`StackedColumns.tsx`, `MirroredColumns.tsx`, `StepLines.tsx`, `BurnLine.tsx`, `ShareBar.tsx`, `ChartFrame.tsx` with figure, caption, table and keyboard), `BreakdownTable.tsx` (sortable, `aria-sort`), `ModelDetail.tsx` (trend, $/1M, cache hit, card source and date, **Set price** → Models panel deep link), `FeaturesTable.tsx`, `AttemptsSection.tsx` (Muse Code's trace-log origins), `SavingsSection.tsx` (cache and packing), `EmptyStates.tsx`, `usage.css` (`--muse-*` tokens; narrow layout at 320 px); new `src/webview/hostBridges/{http,jcef,webView2,swt}HostBridge.ts` with fakes; the `usage` entry in `scripts/build.mjs`; `test/harness` usage states (empty, history off, 1 provider, 9 providers, plan-only, local-only, stale, over-limit, newer-version records, RTL-free long German and Russian labels); the **Open usage page** button in `UsageDialog.tsx` |
+| E Editor adapters                               | new `src/host/usage/usagePanel.ts` (the `WebviewPanel` through `buildWebviewHtml`, the zod bridge, save dialog, reveal folder, open settings, Models deep link) + `usagePanelEntry.ts` → `dist/usagePanel.js` + `usagePanelBundle.ts` (`lazyBundleLoader`); the command region of `extension.ts` (`museSpark.openUsagePage`); `src/shared/palette.ts` (Usage & cost item; `/usage page`); the `openUsagePage` handler region of `conversationController.ts`; `src/acp/agent.ts` (the `/usage` command in `available_commands_update`, the reply through `usageText`, the URL elicitation or link to the companion page); `src/runtime/cliArgs.ts` and `src/runtime/main.ts` (`usage`, `usage open`, `usage serve --stdio` for native plugins); `scripts/package-acp.mjs` (shipping the page assets, `usageService.js`, `usageCompanion.js` and the usage tables)                                                                                                                                                                                                                                                                                                                                                         |
+| L Localization                                  | the 13 `l10n/usage.<lang>.json` from lane 0's frozen table; entries in `l10n/untranslated.json` (provider names, units); a pseudo-locale pass (`scripts/pseudo-l10n.mjs`) on the harness states                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| W Wiring, docs and gates (last)                 | `package.json` (command, two settings, menus, `activationEvents` if needed); README; `docs/PRIVACY.md`; `SECURITY.md`; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility.md` (one usage row per host); CONTRIBUTING (a provider's normaliser or limit interpreter needs a capture); AGENTS.md (what the journal may hold); CHANGELOG; PLAN (D82, M102, D6 rows, §9 residuals); `scripts/check-bundle-size.mjs`, `check-bundle-split.mjs`, `check-host-api` record, `check-host-globals.mjs`, knip and dpdm entries, `.vscodeignore`, CI member lists, `check-vsix-size.mjs` only if the cap's record needs it; `scripts/readme-shots.mjs` (the usage page shots); `docs/certification/m102.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+
+- **Acceptance.**
+  1. **Model API and Muse Spark.**
+     - Every Model API call appends exactly one record with the provider, model
+       sent, kind, tokens, duration, outcome and cost with its certainty.
+       Unknown fields stay absent.
+     - Covered: turn, compaction, side chat, subagent, reviewer, best-of-N and
+       token count.
+     - The golden request bodies and M75's fixtures are byte-identical before
+       and after.
+  2. **The other providers, normalised from the existing captured fixtures.**
+     - Anthropic: total input = input + writes + reads, with the 5m/1h write
+       split; the 1h write priced at `cacheWrite1h`.
+     - OpenAI, xAI and Gemini: cached inside input, thoughts added to output.
+     - Ollama: its durations, giving tokens per second.
+     - OpenRouter's `cost` and xAI's ticks: `reported`.
+     - A local model: `local`, $0.
+     - A model without a card: `unpriced`, never $0.
+     - Copilot: `estimated` tokens.
+  3. **Muse Code.**
+     - One delta record per turn from `session/tokenUsage`.
+     - A resumed session's first report is a baseline, not usage.
+     - `usage/changed` snapshots are recorded once per `observedAtMs`.
+     - Records are `plan`. The API-equivalent figure appears only for model ids
+       on the priced list.
+     - Trace-log attempts by origin per day reach as far back as the logs do.
+  4. **Paid tools.** Searches, images and voice are recorded with units and
+     cost. Voice stays `uncertain` (M82). After a reload, Account & usage's
+     paid tally is rebuilt from today's journal.
+  5. **Concurrent writers.**
+     - Two processes appending at once lose and interleave no line.
+     - A torn last line is skipped and counted.
+     - A newer version's records are reported, not dropped.
+     - Writing records never makes a model call fail or slow down. Write errors
+       are logged once per process.
+  6. **Retention.**
+     - Raw days past 30 are rolled up exactly once, including after a crash
+       between the rollup write and the deletion (drill).
+     - Rollups past the setting are deleted.
+     - A day stays the same day across DST changes and time-zone moves.
+     - p50 and p95 from rollups stay within one histogram bucket of the raw
+       values.
+  7. **Delete history.** It removes only `usage/`, after a confirmation that
+     names the count. `budget-journal`, `paid-daily`, `tab-spend` and paid
+     grants are byte-identical afterwards (red drill: deleting them fails the
+     test).
+  8. **History off.** With `museSpark.usageHistory` off, no file is written.
+     The page says so, offers to turn it on, and keeps showing live sources:
+     subscription, budgets and OpenRouter.
+  9. **The page's numbers.**
+     - Ranges: Today (hourly), 7, 30 and 90 days, and custom.
+     - Group by provider, model, feature or editor. Metric: cost, tokens,
+       requests or time.
+     - The chart, the table, the tiles and the export agree to the cent and the
+       token (property test over generated journals).
+     - Each range is compared with the previous one.
+  10. **Limits.**
+      - **Muse Code's bars:** the 5-hour and weekly bars refresh their
+        countdowns at least once a minute. They follow M53's stale and
+        "awaiting fresh usage" rules, add a stale badge after 15 minutes, and
+        show pace on the 5-hour bar only.
+      - **The budget cards:** the OpenRouter key card; D78's daily budget with
+        Stop and its projection; Tab's daily budget; and the conversation cap.
+      - **Rate-limit counts:** per provider.
+      - **Providers with no reported limit** say so in words.
+      - **Warnings** at 75, 90 and 100% use an icon and text, not colour
+        alone.
+  11. **Rate-limit headers.** Only allow-listed headers are stored, each at
+      most 64 ASCII characters; a hostile header set stores nothing else. A
+      provider gets a meter only with its capture flag; otherwise its headers
+      show "as reported".
+  12. **Export.**
+      - Per-call CSV for any range within 30 days; summary CSV and versioned
+        JSON for any range.
+      - Cells starting with `=`, `+`, `-`, `@`, tab or CR are escaped.
+      - A file is written only after the host's save dialog, the browser's
+        download, or the CLI's `--out`.
+  13. **Accessibility.**
+      - axe finds no violations in Light+, Dark+, HC Dark, HC Light, and at
+        320 px wide.
+      - Every chart has a caption, a summary and a data table.
+      - The keyboard reaches every bucket and control. Meters have
+        `aria-valuetext` (e.g. "62 percent used, resets in 2 h 5 min").
+      - Nothing is told by colour alone, and reduced motion is respected.
+  14. **Languages.**
+      - The usage table is complete in all 14 languages (`check-l10n`, staged
+        too).
+      - Numbers, money, dates and durations go through `Intl` in the display
+        language.
+      - The pseudo-locale pass clips no label.
+  15. **Editors.**
+      - The VS Code tab opens from the command, the palette, `/usage page` and
+        Account & usage.
+      - **ACP:** `/usage` replies with the summary; `usage_update` carries
+        `cost` for priced models only; the companion link arrives by URL
+        elicitation when the client advertises it, otherwise in the reply.
+      - **The CLI:** `usage` prints text, `--json` and `--csv`; `usage open`
+        serves the page; `usage serve --stdio` answers the page protocol.
+      - **The companion server:**
+        - it refuses a wrong or missing token, a foreign `Host` or `Origin`,
+          and anything not on `127.0.0.1` (red drills);
+        - it shuts down when idle.
+      - **The JCEF, WebView2 and SWT bridges** pass the full page harness
+        against their fakes.
+  16. **Bundles.**
+      - The writer adds at most 2 KiB to each host bundle.
+      - The chat browser startup and `uiText.js` stay within their caps.
+        Before and after are measured on the same rig.
+      - The new bundles are within their new caps. The VSIX is within its cap.
+      - The bundle-split gate proves that the service, the companion server and
+        the page are not in `extension.js`, `modelApi.js`, `acp.js` or the chat
+        startup.
+  17. **No network.**
+      - The service and page make no request: a fake `fetch` and the companion
+        server's own log both count zero.
+      - The webview policy is unchanged.
+  18. **Privacy.** A journal recorded during the e2e suite contains no prompt
+      text, file path, workspace path, key, digest or tool argument. A schema
+      test and a grep over the files check this, with planted canaries.
+  19. **Account & usage.** It keeps its per-conversation sections. Its
+      Providers rows come from today's journal. It gains **Open usage page**.
+  20. **Speed.** For 30 days × 2,000 records a day on the Kubuntu rig, the page
+      first renders in 300 ms or less after the service is warm. Today's file
+      is re-read only from the point where it grew.
+- **Tests.**
+  - **Unit**, with fixtures from the existing captures:
+    - `journalRecord.test.ts` (per provider, using `test/fixtures/responses-codec/*`,
+      `modelapi-chat/*`, `gemini/*`, the Anthropic and Ollama goldens);
+    - `journalStore.test.ts` (real fs, two child processes);
+    - `usageRollup.test.ts`, `usageExport.test.ts`;
+    - `aggregate.test.ts` (golden journals, property sums, pace and burn,
+      DST);
+    - `usageService.test.ts` (protocol, ports, delete history);
+    - `usageText.test.ts`;
+    - `companionServer.test.ts` (token, Host, Origin, loopback, idle);
+    - `muse/usageDeltas.test.ts`;
+    - `rateLimitHeaders.test.ts`;
+    - `priceCard.test.ts` (the 1h write).
+  - **Webview:**
+    - `UsageApp.test.tsx`, `charts/*.test.tsx` (keyboard, tables, summaries);
+    - `LimitsSection.test.tsx` (stale, awaiting, pace only on 5h);
+    - `hostBridges.test.ts`;
+    - axe on every harness state in four themes.
+  - **Host and editors:**
+    - `usagePanel.test.ts` (security policy, bridge, save dialog);
+    - `acpUsage.test.ts` (`/usage`, `usage_update.cost`, elicitation);
+    - `cliUsage.test.ts`;
+    - the e2e `usage.e2e.test.ts` (fake Model API, fake MSP, recorded journal →
+      page numbers);
+    - the integration test loading the built `dist/usageService.js` in the
+      extension host;
+    - `golden requests` unchanged.
+  - **Red drills,** each guard broken once and the failure confirmed:
+    - remove torn-line tolerance;
+    - make reset delete the budget folder;
+    - drop CSV escaping;
+    - let the service into `extension.js`;
+    - drop one usage key from German;
+    - accept a foreign `Origin`;
+    - let a non-allow-listed header through;
+    - count cached as extra input for OpenAI;
+    - turn pace on for the weekly block.
+- **Gates.**
+  - The full `npm run quality`: lint, types, knip, dpdm, jscpd, SAST, unit and
+    e2e, coverage, accessibility (D32), `check-l10n` (both families and
+    `--packaged`), D6 budgets with the new rows, bundle split, host API (no
+    `vscode` import under `src/core/usage`, `src/runtime/usage` or
+    `src/webview/usage`), host globals, notices, VSIX size, and the ACP package
+    test.
+  - CI on three operating systems is the merge gate (owner, 2026-10-01).
+- **Security.**
+  - Every boundary is validated by zod: the page and its host, the companion's
+    RPC, `--stdio`, and the files on read.
+  - The writer accepts only the record schema. Free-form strings (provider
+    label, model id, client) are capped and stripped of control characters.
+  - The journal lives under the user's private data folder. Rollups are written
+    atomically with `writeFileAtomically`. The lock is an exclusive create,
+    with stale-lock recovery after its timeout.
+  - The companion server has the checks listed in D82. It never binds anything
+    but loopback, and never serves files outside `dist/webview`.
+  - The page keeps the webview policy. SVG takes classes and attributes only,
+    with no inline styles.
+  - Delete history cannot touch the spend ledgers.
+  - No new dependency. Charts are our own code; rule 9 is not triggered.
+  - Rule 8: no key or key digest in a record, an export or a companion
+    response.
+- **Docs.**
+  - README: a **Usage & cost** section with harness screenshots via
+    `scripts/readme-shots.mjs`.
+  - PRIVACY: the journal, retention, export and the companion server under
+    "What stays on your machine".
+  - SECURITY: the companion server.
+  - `docs/acp.md`: `/usage`, `usage_update.cost`, the link.
+  - `docs/ci.md`: `usage --json`, and `exec` writing records.
+  - `docs/ide-compatibility.md`: one usage row per host.
+  - CONTRIBUTING: adding a provider's normaliser or limit interpreter needs a
+    recorded capture.
+  - AGENTS.md: what the journal may hold.
+  - CHANGELOG, PLAN, and `docs/certification/m102.md`.
+- **Size estimate.**
+
+  | Lane                       |                  Code |  Tests |
+  | -------------------------- | --------------------: | -----: |
+  | 0 (plus ~110 English keys) |                  ~450 |      — |
+  | J                          |                  ~700 |   ~900 |
+  | R (spread over ~14 files)  |                  ~450 |   ~650 |
+  | S                          |                  ~900 | ~1,000 |
+  | U (plus ~350 CSS)          |                ~1,700 | ~1,200 |
+  | E                          |                  ~600 |   ~600 |
+  | L                          | 13 tables × ~110 keys |      — |
+  | W                          |                  docs |      — |
+
+  About 6,000 lines in all, with tests.
+
+  | Artifact                              |                     Now |               M102 adds (estimate) | Cap                                    |
+  | ------------------------------------- | ----------------------: | ---------------------------------: | -------------------------------------- |
+  | `dist/extension.js`                   |                 566,392 |                            ≤ 2 KiB | 600 KiB, unchanged                     |
+  | `dist/modelApi.js`                    |                 423,269 |                            ≤ 3 KiB | 475 KiB, unchanged                     |
+  | `dist/acp.js`                         |                 817,931 |                            ≤ 4 KiB | 850 KiB, unchanged                     |
+  | `dist/uiText.js`                      |                 123,893 |                 ≤ 0.5 KiB (5 keys) | 125 KiB, unchanged                     |
+  | Chat browser startup                  |                 918,418 |                          ≤ 0.5 KiB | 900 KiB, unchanged                     |
+  | `dist/usageService.js` (new)          |                       — |                            ~40 KiB | measured + 15%, rounded up to 25 (~50) |
+  | `dist/usagePanel.js` (new)            |                       — |                             ~8 KiB | ~25                                    |
+  | `dist/usageCompanion.js` (new)        |                       — |                            ~10 KiB | ~25                                    |
+  | `dist/webview/usage.js` startup (new) |                       — | page code ~55 KiB on shared chunks | measured + 15%                         |
+  | `l10n/usage.*.json`                   |                       — |                        ~8 KiB × 14 | raw cap per table, 16 KiB              |
+  | VSIX                                  | 2,050,323 (helper-free) |             ~+60–70 KiB compressed | 2,200 KiB, unchanged                   |
+
+- **Certification checklist.**
+  - [ ] Acceptance 1–20, each with its tests, and every red drill fired and
+        restored (`docs/certification/m102.md`).
+  - [ ] The golden request tests and M75's fixtures are byte-identical
+        (SoL-Pi).
+  - [ ] Both usage table families are complete in all 14 languages, including
+        the packaged stage.
+  - [ ] axe finds no violations on every usage harness state, in four themes and
+        at 320 px.
+  - [ ] Every D6 row is measured, with before and after for the chat startup,
+        `uiText.js`, activation, Model API and ACP on the same rig.
+  - [ ] Both VSIX builds (helper-free and universal-helper) are within
+        2,200 KiB.
+  - [ ] The ACP package installs, and `usage`, `usage open`, `/usage` and the
+        companion page work on Kubuntu, the Mac mini and the Win11 VM.
+  - [ ] The page is visible in VS Code plus at least one VS Code fork (Cursor
+        or VSCodium), and in Zed through the ACP route. Screenshots are viewed.
+  - [ ] A full `npm run quality` on the integration head exits 0, with its tail
+        pasted; then the hosted CI on three operating systems.
+  - [ ] README screenshots refreshed, and docs updated per Docs above.
+
+---
 
 ## 7. Gates
 
