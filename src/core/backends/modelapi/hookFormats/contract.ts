@@ -35,6 +35,8 @@ export type TransformName =
   | 'wrapArray'
   /** Cursor prompt/read attachments: each file_path must be absolute. */
   | 'absoluteAttachments'
+  /** Captured/documented Gemini arguments; unsupported native calls refuse. */
+  | 'geminiToolInput'
 
 export interface FieldSpec {
   /** Output key; a dot nests (`tool_info.command_line`). */

@@ -95,16 +95,25 @@ function gemini(
 /**
  * R:64 BeforeToolSelection: toolConfig mode AUTO/ANY/NONE and
  * allowedFunctionNames. Vendor code: it returns an admission restriction in
- * Gemini names (NONE admits nothing); forcing calls (ANY) is refused. The
+ * Gemini names (NONE admits nothing); ANY never forces a call here. Its
+ * whitelist still narrows admission; without one, veto the operation. The
  * declared tool list is never changed (SoL-Pi invariant).
  */
 function toolSelection(output: Readonly<Record<string, unknown>>): CustomResult {
   const specific = output['hookSpecificOutput']
   const config = isRecord(specific) ? specific['toolConfig'] : undefined
   if (!isRecord(config)) return { ok: true, answer: {} }
-  if (config['mode'] === 'ANY') return { ok: false, reason: 'forcing tool selection is refused' }
   if (config['mode'] === 'NONE') return { ok: true, answer: { allowedToolNames: [] } }
   const names = config['allowedFunctionNames']
+  if (config['mode'] === 'ANY' && !Array.isArray(names))
+    return {
+      ok: true,
+      answer: {
+        status: 'blocked',
+        reason: 'forcing tool selection is refused',
+        allowedToolNames: [],
+      },
+    }
   return {
     ok: true,
     answer: Array.isArray(names)
@@ -138,7 +147,7 @@ const SELECTION: ResultSpec = {
 
 const TOOL: readonly FieldSpec[] = [
   { to: 'tool_name', transform: 'toolName', required: true },
-  { to: 'tool_input', required: true },
+  { to: 'tool_input', transform: 'geminiToolInput', required: true },
 ]
 // The model events need Gemini's own request/response objects. Muse's bounded
 // summaries (modelCallHooks.ts) are not one, so these rows refuse until lane W

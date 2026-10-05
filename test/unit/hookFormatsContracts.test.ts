@@ -62,7 +62,9 @@ function fullPayload(row: Row, root = ROOT): Record<string, unknown> {
     tool_input:
       tool === TOOL_BY_CLASS.mcp
         ? { query: 'x', database: 'production' }
-        : { command: 'echo hi', path: 'src/a.ts', find: 'a', replace: 'b' },
+        : tool === TOOL_BY_CLASS.shell
+          ? { command: 'echo hi' }
+          : { command: 'echo hi', path: 'src/a.ts', find: 'a', replace: 'b' },
     tool_response: 'preview',
     content: 'file text',
     prompt: 'hello',

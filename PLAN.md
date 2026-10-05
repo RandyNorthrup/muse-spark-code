@@ -13546,6 +13546,18 @@ live) and the controller filters its id as well.
   constants.
 - Lanes R, E, I, P, S, M, H and X are next.
 
+**Lane P review corrections (RVM91P3, 2026-10-04).** Keep the declarative
+contracts and public entry points. Translate Gemini tool inputs only where the
+saved captures or examples establish the fields; an unsupported blocking call
+returns `refused` with `blockOperation: true`, which the dispatcher must enforce
+before execution. Preserve tool whitelists while refusing forced selection,
+validate captured model request/response shapes, merge argument patches against
+the original execution input, retain advisory observations beside ignored
+controls, and carry Notification details. Replay the vendor's own data-dependent
+scripts and narrow certification claims to the checks actually performed.
+Each finding gets a failing regression and a byte-exact restored red drill in
+`docs/certification/m91-p.md`. No live call or new dependency is authorized.
+
 The early protected-paths fix is its own pull request,
 `fix/protect-agent-folders`.
 
@@ -14677,6 +14689,21 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M91 lane P source qualifications (RVM91P3).** The adapters remain unwired
+  in this lane. `blockOperation: true` on an unsupported blocking stdin is an
+  execution refusal, never a disposable hook failure; lane W must enforce it
+  before dispatch, and apply Gemini tool-name restrictions at admission.
+  **P-Gemini-native-inputs:** no complete replace-tool argument capture exists;
+  Muse's recursive glob operation is not Gemini list_directory. These calls
+  and unsupported native argument fields are refused, safe because no guarded
+  operation is admitted. Follow-up: capture the missing tool schemas before
+  adding mappings. **P-source-fidelity:** doc-derived vendors' top-level
+  fixtures do not certify arbitrary guards on nested arguments; Copilot
+  permissionRequest lacks a complete source stdin schema and Kiro IDE/CLI exit
+  policies differ. Follow-up: W/I refuse unestablished blocking imports/flavors
+  until a capture or authoritative schema establishes them. No generic closure
+  or source-fidelity claim is made by lane P's unit suite.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

@@ -696,7 +696,7 @@ describe('round-3 contract corrections', () => {
       'failed',
     )
     const any = '{"hookSpecificOutput":{"toolConfig":{"mode":"ANY"}}}'
-    expect(parseGeminiResult('BeforeToolSelection', 0, any, '').status).toBe('failed')
+    expect(parseGeminiResult('BeforeToolSelection', 0, any, '').status).toBe('blocked')
     const none = '{"hookSpecificOutput":{"toolConfig":{"mode":"NONE"}}}'
     expect(parseGeminiResult('BeforeToolSelection', 0, none, '')).toEqual({
       status: 'completed',
@@ -734,15 +734,15 @@ describe('round-3 contract corrections', () => {
   })
 
   it('R3-12 Gemini tool names follow the captured runtime names', () => {
-    expect(stdinOf(geminiIn('PreToolUse', { ...shell, tool_name: 'search' }))['tool_name']).toBe(
-      'grep_search',
-    )
     expect(
-      stdinOf(geminiIn('PreToolUse', { ...shell, tool_name: 'list_files' }))['tool_name'],
-    ).toBe('list_directory')
-    expect(stdinOf(geminiIn('PreToolUse', { ...shell, tool_name: 'read_file' }))['tool_name']).toBe(
-      'read_file',
-    )
+      stdinOf(
+        geminiIn('PreToolUse', { ...shell, tool_name: 'search', tool_input: { pattern: 'x' } }),
+      )['tool_name'],
+    ).toBe('grep_search')
+    expect(
+      geminiIn('PreToolUse', { ...shell, tool_name: 'list_files', tool_input: { glob: '*' } }),
+    ).toMatchObject({ outcome: 'refused', blockOperation: true })
+    expect(stdinOf(geminiIn('PreToolUse', readCall))['tool_name']).toBe('read_file')
   })
 
   it('R3-13 tool-specific rows refuse a call without a tool name', () => {

@@ -2,6 +2,7 @@
 // TransformName). Each is small and total: it returns a value, "absent", or a
 // refusal with a reason. Nothing here guesses a field the source did not give.
 import path from 'node:path'
+import * as z from 'zod/mini'
 import { type AdapterOptions, type ToolClass, type TransformName } from './contract'
 import { isRecord, splitMcpName, textField } from './core'
 
@@ -186,6 +187,57 @@ function absoluteAttachments(candidate: unknown, ctx: TransformContext): Transfo
   return value(out)
 }
 
+// BeforeTool.read_file(.line-range), .run_shell_command and .grep_search
+// captures establish these arguments. hooks-best-practices.md:174-184 shows
+// write_file's file_path/content. Unknown fields refuse rather than disappear.
+const GEMINI_SHELL_INPUT = z.strictObject({
+  command: z.string(),
+  description: z.optional(z.string()),
+})
+const GEMINI_READ_INPUT = z.strictObject({
+  path: z.string(),
+  offset: z.optional(z.int().check(z.gte(1))),
+  limit: z.optional(z.int().check(z.gte(1))),
+})
+const GEMINI_WRITE_INPUT = z.strictObject({ path: z.string(), content: z.string() })
+const GEMINI_SEARCH_INPUT = z.strictObject({ pattern: z.string() })
+
+function geminiToolInput(candidate: unknown, ctx: TransformContext): TransformResult {
+  if (candidate === undefined) return ABSENT
+  const tool = textField(ctx.payload, 'tool_name')
+  if (tool !== undefined && splitMcpName(tool) !== undefined)
+    return isRecord(candidate) ? value(candidate) : refused('MCP arguments must be an object')
+  if (tool === 'bash' || tool === 'powershell') {
+    const parsed = GEMINI_SHELL_INPUT.safeParse(candidate)
+    return parsed.success ? value(parsed.data) : refused('unsupported shell arguments')
+  }
+  if (tool === 'read_file') {
+    const parsed = GEMINI_READ_INPUT.safeParse(candidate)
+    if (!parsed.success) return refused('unsupported read_file arguments')
+    const { path: file, offset, limit } = parsed.data
+    const end = limit === undefined ? undefined : (offset ?? 1) + limit - 1
+    if (end !== undefined && !Number.isSafeInteger(end)) return refused('invalid read range')
+    return value({
+      file_path: file,
+      ...(offset !== undefined && { start_line: offset }),
+      ...(end !== undefined && { end_line: end }),
+    })
+  }
+  if (tool === 'write_file') {
+    const parsed = GEMINI_WRITE_INPUT.safeParse(candidate)
+    return parsed.success
+      ? value({ file_path: parsed.data.path, content: parsed.data.content })
+      : refused('unsupported write_file arguments')
+  }
+  if (tool === 'search') {
+    const parsed = GEMINI_SEARCH_INPUT.safeParse(candidate)
+    return parsed.success ? value(parsed.data) : refused('unsupported search arguments')
+  }
+  // replace has no captured full argument schema; list_directory is not Muse's
+  // recursive glob operation. Neither may silently run without its guard.
+  return refused(`unsupported Gemini tool arguments: ${tool ?? 'missing tool'}`)
+}
+
 export function applyTransform(
   name: TransformName,
   candidate: unknown,
@@ -228,6 +280,9 @@ export function applyTransform(
     }
     case 'absoluteAttachments': {
       return absoluteAttachments(candidate, ctx)
+    }
+    case 'geminiToolInput': {
+      return geminiToolInput(candidate, ctx)
     }
   }
 }

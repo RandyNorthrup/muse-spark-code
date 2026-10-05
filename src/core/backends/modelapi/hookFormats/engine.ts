@@ -142,14 +142,22 @@ export function buildStdin(
   const gated = contract.gate?.(payload, options)
   if (gated !== undefined) return gated
   const { row } = selection
+  const isBlocking =
+    row.result.blockCodes.length > 0 ||
+    row.result.blockFrom !== undefined ||
+    row.result.rules.some((rule) => rule.kind === 'veto')
+  const refuse = (reason: string): ForeignStdinResult => ({
+    outcome: 'refused',
+    reason,
+    ...(isBlocking && { blockOperation: true }),
+  })
   const stdin: Record<string, unknown> = {}
   for (const spec of [...contract.common, ...row.fields]) {
     const result = fieldResult(spec, row, payload, options)
     const where = `${contract.vendor} ${row.vendor}: ${spec.to}`
-    if (result.kind === 'refused')
-      return { outcome: 'refused', reason: `${where}: ${result.reason}` }
+    if (result.kind === 'refused') return refuse(`${where}: ${result.reason}`)
     if (result.kind === 'absent') {
-      if (spec.required === true) return { outcome: 'refused', reason: `${where} is required` }
+      if (spec.required === true) return refuse(`${where} is required`)
     } else setPath(stdin, spec.to, result.value)
   }
   return { outcome: 'run', stdin: JSON.stringify(stdin) }
