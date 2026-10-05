@@ -1,0 +1,422 @@
+{
+  "disposition": "release blocked; implementation stopped at budget failures",
+  "testedHead": "390760c028c66ded5d7a9a1b4290eb93b4c52162",
+  "machine": "Kubuntu",
+  "quality": {
+    "command": "VITEST_MAX_WORKERS=3 npm run quality",
+    "exitCode": 1,
+    "testFiles": {
+      "passed": 387,
+      "failed": 2,
+      "skipped": 6,
+      "total": 395
+    },
+    "tests": {
+      "passed": 7758,
+      "failed": 2,
+      "skipped": 65,
+      "total": 7825
+    },
+    "testDurationSeconds": 275.76,
+    "failure": "unchanged checkpoint tests; /tmp EDQUOT reproduced in both scoped normal-path failures",
+    "coverageSummaryEmitted": false,
+    "a11yReached": false,
+    "dependencyAuditReached": false,
+    "historySecretScanReached": false,
+    "semgrepReached": false
+  },
+  "build": {
+    "command": "npm run build",
+    "exitCode": 1,
+    "failedGate": "bundle size",
+    "bundles": [
+      {
+        "path": "dist/extension.js",
+        "bytes": 613570,
+        "budgetBytes": 614400,
+        "remainingBytes": 830,
+        "pass": true
+      },
+      {
+        "path": "dist/modelApi.js",
+        "bytes": 457409,
+        "budgetBytes": 486400,
+        "remainingBytes": 28991,
+        "pass": true
+      },
+      {
+        "path": "dist/review.js",
+        "bytes": 45297,
+        "budgetBytes": 51200,
+        "remainingBytes": 5903,
+        "pass": true
+      },
+      {
+        "path": "dist/sessionBoard.js",
+        "bytes": 69660,
+        "budgetBytes": 76800,
+        "remainingBytes": 7140,
+        "pass": true
+      },
+      {
+        "path": "dist/reviewer.js",
+        "bytes": 30572,
+        "budgetBytes": 76800,
+        "remainingBytes": 46228,
+        "pass": true
+      },
+      {
+        "path": "dist/planMarkdown.js",
+        "bytes": 147608,
+        "budgetBytes": 153600,
+        "remainingBytes": 5992,
+        "pass": true
+      },
+      {
+        "path": "dist/checkpointStore.js",
+        "bytes": 112710,
+        "budgetBytes": 230400,
+        "remainingBytes": 117690,
+        "pass": true
+      },
+      {
+        "path": "dist/agentImport.js",
+        "bytes": 94012,
+        "budgetBytes": 128000,
+        "remainingBytes": 33988,
+        "pass": true
+      },
+      {
+        "path": "dist/browserCheck.js",
+        "bytes": 52229,
+        "budgetBytes": 76800,
+        "remainingBytes": 24571,
+        "pass": true
+      },
+      {
+        "path": "dist/browserRuntime.js",
+        "bytes": 38219,
+        "budgetBytes": 51200,
+        "remainingBytes": 12981,
+        "pass": true
+      },
+      {
+        "path": "dist/bundledSkills.js",
+        "bytes": 28735,
+        "budgetBytes": 51200,
+        "remainingBytes": 22465,
+        "pass": true
+      },
+      {
+        "path": "dist/codeIntel.js",
+        "bytes": 56956,
+        "budgetBytes": 102400,
+        "remainingBytes": 45444,
+        "pass": true
+      },
+      {
+        "path": "dist/voice.js",
+        "bytes": 36503,
+        "budgetBytes": 51200,
+        "remainingBytes": 14697,
+        "pass": true
+      },
+      {
+        "path": "dist/webFetch.js",
+        "bytes": 48970,
+        "budgetBytes": 76800,
+        "remainingBytes": 27830,
+        "pass": true
+      },
+      {
+        "path": "dist/museCodeReviewer.js",
+        "bytes": 18584,
+        "budgetBytes": 76800,
+        "remainingBytes": 58216,
+        "pass": true
+      },
+      {
+        "path": "dist/whatsNew.js",
+        "bytes": 36807,
+        "budgetBytes": 51200,
+        "remainingBytes": 14393,
+        "pass": true
+      },
+      {
+        "path": "dist/uiText.js",
+        "bytes": 122182,
+        "budgetBytes": 128000,
+        "remainingBytes": 5818,
+        "pass": true
+      },
+      {
+        "path": "dist/searchWorker.js",
+        "bytes": 18571,
+        "budgetBytes": 51200,
+        "remainingBytes": 32629,
+        "pass": true
+      },
+      {
+        "path": "dist/pageWorker.js",
+        "bytes": 208040,
+        "budgetBytes": 307200,
+        "remainingBytes": 99160,
+        "pass": true
+      },
+      {
+        "path": "dist/webview/main.js",
+        "bytes": 928507,
+        "budgetBytes": 921600,
+        "remainingBytes": -6907,
+        "pass": false
+      },
+      {
+        "path": "dist/webview/whatsNew.js",
+        "bytes": 708,
+        "budgetBytes": 25600,
+        "remainingBytes": 24892,
+        "pass": true
+      },
+      {
+        "path": "dist/acp.js",
+        "bytes": 815561,
+        "budgetBytes": 870400,
+        "remainingBytes": 54839,
+        "pass": true
+      },
+      {
+        "path": "dist/whatsNew.json",
+        "bytes": 34410,
+        "budgetBytes": 40960,
+        "remainingBytes": 6550,
+        "pass": true
+      }
+    ],
+    "webviewLargestInputs": [
+      {
+        "path": "node_modules/react-dom/cjs/react-dom-client.production.js",
+        "bytes": 205683
+      },
+      {
+        "path": "src/shared/l10n/en.ts",
+        "bytes": 121687
+      },
+      {
+        "path": "src/webview/state/uiState.ts",
+        "bytes": 40947
+      },
+      {
+        "path": "src/webview/App.tsx",
+        "bytes": 30008
+      },
+      {
+        "path": "node_modules/highlight.js/lib/core.js",
+        "bytes": 20984
+      },
+      {
+        "path": "node_modules/zod/v4/core/schemas.js",
+        "bytes": 15269
+      },
+      {
+        "path": "node_modules/highlight.js/es/languages/css.js",
+        "bytes": 13446
+      },
+      {
+        "path": "src/webview/components/Transcript.tsx",
+        "bytes": 12905
+      },
+      {
+        "path": "src/shared/constants.ts",
+        "bytes": 12115
+      },
+      {
+        "path": "src/webview/components/Composer.tsx",
+        "bytes": 12047
+      },
+      {
+        "path": "src/webview/components/UsageDialog.tsx",
+        "bytes": 10807
+      },
+      {
+        "path": "node_modules/mdast-util-from-markdown/lib/index.js",
+        "bytes": 10345
+      },
+      {
+        "path": "node_modules/property-information/lib/svg.js",
+        "bytes": 10116
+      },
+      {
+        "path": "src/shared/protocol.ts",
+        "bytes": 9660
+      },
+      {
+        "path": "node_modules/react/cjs/react.production.js",
+        "bytes": 8014
+      },
+      {
+        "path": "src/webview/components/ToolRow.tsx",
+        "bytes": 7880
+      },
+      {
+        "path": "node_modules/highlight.js/es/languages/typescript.js",
+        "bytes": 7775
+      },
+      {
+        "path": "src/shared/palette.ts",
+        "bytes": 7673
+      },
+      {
+        "path": "src/webview/components/AgentMap.tsx",
+        "bytes": 7614
+      },
+      {
+        "path": "src/webview/components/icons.tsx",
+        "bytes": 6959
+      }
+    ]
+  },
+  "vsix": {
+    "purpose": "private measurement only; ordinary prepublish remains blocked",
+    "manifestVersion": "0.12.1",
+    "bytes": 2330538,
+    "budgetBytes": 2252800,
+    "excessBytes": 77738,
+    "gateExitCode": 1,
+    "sha256": "94dd12e859d1c4fcf847380ad3629eb8704289eea401c6d1a694d9ea7ed01ab7",
+    "entries": 124,
+    "rawContentBytes": 7211091,
+    "compressedContentBytes": 2307900,
+    "zipOverheadBytes": 22638,
+    "universalMacHelperPresent": false,
+    "groups": {
+      "dist": {
+        "files": 24,
+        "compressedBytes": 1024976,
+        "rawBytes": 3254681
+      },
+      "l10n": {
+        "files": 14,
+        "compressedBytes": 613642,
+        "rawBytes": 2230115
+      },
+      "root files + VSIX metadata": {
+        "files": 22,
+        "compressedBytes": 334921,
+        "rawBytes": 1100885
+      },
+      "resources": {
+        "files": 8,
+        "compressedBytes": 159823,
+        "rawBytes": 173072
+      },
+      "vendor": {
+        "files": 47,
+        "compressedBytes": 139197,
+        "rawBytes": 361264
+      },
+      "docs": {
+        "files": 1,
+        "compressedBytes": 17023,
+        "rawBytes": 45868
+      },
+      "native": {
+        "files": 5,
+        "compressedBytes": 11769,
+        "rawBytes": 36344
+      },
+      "media": {
+        "files": 2,
+        "compressedBytes": 5064,
+        "rawBytes": 5983
+      },
+      "first-party-skills": {
+        "files": 1,
+        "compressedBytes": 1485,
+        "rawBytes": 2879
+      }
+    },
+    "largestEntries": [
+      {
+        "path": "extension/dist/webview/main.js",
+        "compressedBytes": 282974,
+        "rawBytes": 928507
+      },
+      {
+        "path": "extension/dist/extension.js",
+        "compressedBytes": 190208,
+        "rawBytes": 613570
+      },
+      {
+        "path": "extension/dist/modelApi.js",
+        "compressedBytes": 144541,
+        "rawBytes": 457409
+      },
+      {
+        "path": "extension/readme.md",
+        "compressedBytes": 102787,
+        "rawBytes": 350896
+      },
+      {
+        "path": "extension/changelog.md",
+        "compressedBytes": 85723,
+        "rawBytes": 232006
+      },
+      {
+        "path": "extension/dist/pageWorker.js",
+        "compressedBytes": 62877,
+        "rawBytes": 208040
+      },
+      {
+        "path": "extension/resources/walkthrough/open.png",
+        "compressedBytes": 59085,
+        "rawBytes": 63012
+      },
+      {
+        "path": "extension/l10n/ui.ru.json",
+        "compressedBytes": 50992,
+        "rawBytes": 223941
+      },
+      {
+        "path": "extension/resources/walkthrough/chat.png",
+        "compressedBytes": 46165,
+        "rawBytes": 49242
+      },
+      {
+        "path": "extension/l10n/ui.pl.json",
+        "compressedBytes": 45203,
+        "rawBytes": 157792
+      },
+      {
+        "path": "extension/l10n/ui.cs.json",
+        "compressedBytes": 45132,
+        "rawBytes": 156165
+      },
+      {
+        "path": "extension/dist/planMarkdown.js",
+        "compressedBytes": 44986,
+        "rawBytes": 147608
+      },
+      {
+        "path": "extension/l10n/ui.hu.json",
+        "compressedBytes": 44892,
+        "rawBytes": 158612
+      },
+      {
+        "path": "extension/l10n/ui.ja.json",
+        "compressedBytes": 44264,
+        "rawBytes": 176068
+      },
+      {
+        "path": "extension/l10n/ui.fr.json",
+        "compressedBytes": 44157,
+        "rawBytes": 164129
+      }
+    ]
+  },
+  "drills": {
+    "count": 9,
+    "allRegressionsFail": true,
+    "restoredByteExact": true,
+    "record": "train-0.13.0-drills.json"
+  }
+}

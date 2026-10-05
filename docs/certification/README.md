@@ -110,4 +110,4 @@ The PNGs beside the records are that day's harness renders.
 - [M99](m99.md): What's New after an update: the page or notice once per update in one window, the content built from CHANGELOG.md, the Try it allow list, the changelog's Highlights guard, every guard red-drilled on Kubuntu (PLAN.md D79)
 - [Defaults on](defaults.md): D78 availability, first-use paid consent, shared daily claims and monotonic Stop, with FIXDEF review drills
 - [M92](m92.md): Muse Gadgets guidance, the shared token table, secret prompts and one-time shell approvals, with the M92e review fixes
-- [0.13.0 release train](train-0.13.0.md): ordered history-preserving integration, conflict resolutions, complete rig gate and package evidence
+- [0.13.0 release train](train-0.13.0.md): ordered history-preserving integration, conflict resolutions, failed full-gate receipt, budget-stop evidence and nine regression drills
