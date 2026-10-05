@@ -1210,7 +1210,9 @@ describe('uiReducer: agent events', () => {
       }),
     ])
     expect(state.activeTurnId).toBeUndefined()
-    expect(state.transcript).toEqual([{ kind: 'error', id: 'error:t1', text: 'not logged in' }])
+    expect(state.transcript).toEqual([
+      { kind: 'error', id: 'error:t1', text: 'not logged in', errorKind: 'authRequired' },
+    ])
   })
 
   it('records usage, context and model changes', () => {

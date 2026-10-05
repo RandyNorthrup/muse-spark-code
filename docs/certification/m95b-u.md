@@ -27,6 +27,8 @@ not the sign-in, codec, dispatch or release acceptance of other lanes.
   no dollar price, quota or reset inferred from tokens. An old dollar cost
   in a provider row cannot override its plan pricing. The explanatory text
   states that plan allowance/credits are outside the app's dollar cap.
+  Its account rows name the chosen plan provider; ChatGPT/Copilot do not
+  appear as a Meta key or Meta pay-as-you-go backend.
 - Copilot's shared note names AI inaccuracy, its added rules and AI credits,
   and identifies unreported tokens as estimated. Report content opens the
   prescribed `mailto:copilot-partners@github.com` link through HostBridge.
@@ -107,6 +109,21 @@ and review it; this lane does not alter that record or weaken the check.
 Full `quality`, coverage, live acceptance and release checks are reserved
 for the lead under the rig brief. No aggregate-green claim is made.
 
+Implementation commit `4c2a24db8a3c9871a15b1bd3024eaea75a1afa10`
+ran the unchanged worktree hooks: serial lint-staged and gitleaks
+(75,022 staged bytes; no leaks). The rig has `sh` but not `bash`;
+ignored workspace-local `temp/hook-bin/npm` and `npx` launch the installed
+npm JavaScript CLIs through `sh`, with PATH changed only in that commit
+process. No hook bypass, package install, shared-install write or Git
+configuration change was used.
+
+The post-commit ESLint run found a formatter conflict on three nested
+conditionals: ESLint added parentheses that Prettier removed. The final
+implementation uses one internal management-URL function with an early
+return, and a local usage-note value. A subsequent scoped ESLint run
+passed. Behaviour and gate rules are unchanged; the closing commit keeps
+the hooks enabled.
+
 ## Deliberate regression proofs
 
 Each of these 24 mutations ran the complete `m95PlanUi.test.tsx` file, exited
@@ -122,7 +139,7 @@ next mutation. Tests were never filtered or skipped.
 | limit-soundness        | does not infer plan limits from ordinary failures, other providers or old turns          |
 | provider-guard         | keeps a single bare Muse model unchanged                                                 |
 | latest-turn            | does not infer plan limits from ordinary failures, other providers or old turns          |
-| dismissal              | handles the captured SSE limit message even with a generic error kind                    |
+| dismissal              | dismisses one failure but shows a later plan limit again                                 |
 | typed-error            | retains a typed plan failure through the reducer and a validated snapshot                |
 | plan-cost              | shows plan rows in Account & usage and never displays an invented dollar cost            |
 | plan-boundary          | validates plan tallies at the host boundary and retains the data in UI state             |
@@ -159,3 +176,67 @@ Restoration fingerprints (one row per source version exercised):
   `e6628cb57ce13400845e93fa2b3edf02b42e39da6493202775fc63ef493bfead`
 - src/webview/components/UsageDialog.tsx:
   `75d2d713e15dda58db5b00c9d065e0cf23c6705fe120d763dc0e36936d7a4ddb`
+
+## Closing verification
+
+| Check                                                         | Result                                                                                         |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `npm.cmd run typecheck`                                       | Exit 0, all five projects                                                                      |
+| `npm.cmd run typecheck:webview` after the conditional cleanup | Exit 0                                                                                         |
+| Scoped `npx.cmd eslint --max-warnings=0`                      | Exit 0 on all changed TS/TSX/MJS files; the additional reducer-test file also passes           |
+| Prettier and stylelint                                        | Real commit hooks passed; changed-file formatting check passed                                 |
+| `npm.cmd run deadcode`                                        | Exit 0; inherited `vendor/**` configuration hint only                                          |
+| `npx.cmd jscpd`                                               | Exit 0; 969 files, zero clones                                                                 |
+| `node scripts/check-l10n.mjs`                                 | Exit 0; 14 tables, 127 manifest strings, 494 source files, zero problems                       |
+| `node scripts/check-host-api.mjs`                             | The sole inherited 35 → 36 `node:crypto` generated-count mismatch described above              |
+| Final plan/usage/composer files                               | 123/123 pass after the conditional cleanup                                                     |
+| App/setup/plan files                                          | 159/159 pass                                                                                   |
+| Reducer/protocol/snapshot files                               | 311/311 pass                                                                                   |
+| Final scoped accessibility run                                | 40 pages, four themes; zero violated/undecided rules, exemptions or missing results            |
+| German narrow surfaces                                        | 16 additional pages, four themes; zero violated/undecided rules, exemptions or missing results |
+| `npm.cmd run build`                                           | Exit 0; all 25 budgets, bundle split, host globals and 84-package notices pass                 |
+
+The reducer's old exact error assertion initially failed because it omitted
+the now-preserved `authRequired` kind. It now asserts the complete typed
+payload; all other assertions remain, and the complete three-file batch
+passes. No test was skipped or weakened.
+
+The final accessibility scan leaves 48 contrasts unmeasured where axe
+cannot see obscured/offscreen text; no new exemption or ignore was added.
+The screenshots use real 320 px viewports and set the fake host body's
+width to that viewport. Usage's label/value cells wrap within it; Copilot's
+note, report link, plan label and Manage usage remain visible.
+
+Build sizes (KiB): activation **553.6/600**, Model API **413.8/475**,
+providers **96.2/125**, Models host **51.0/75**, Models webview **412.4/475**,
+English fallback **122.0/125**, chat startup **899.8/900**, ACP **799.1/850**,
+checkpoint store **88.4/225**. Chat startup has little headroom; composed
+V/C/X/W changes must rerun the same caps. PlanUi and the existing SetupBanner
+load in real deferred chunks; their registry entries keep the split/size
+checks guarding them, with the existing 25 KiB surface budgets unchanged.
+
+Two additional split-check drills removed PlanUi and SetupBanner from that
+registry separately. Each exited 1 with
+`Unlisted deferred webview surface src/webview/components/<surface>.tsx`;
+the registry was restored byte-exact before the next drill and the final
+split check passed. Its restoration fingerprint is
+`42f16ab0f5a9e8842bdba68b2b730a2220209ae674572fa9ed9221ac3580d9ee`.
+
+Screenshots in [m95b-u/](m95b-u/) cover all ten new English states:
+ChatGPT pill, notice, limit and usage (including narrow modals), plan-key
+metadata, and Copilot at regular/narrow widths. Four additional German
+captures are in [m95b-u/de/](m95b-u/de/); the longer translated text and
+localized numbers fit the same narrow surfaces. Its accessibility run left
+28 obscured/offscreen contrasts unmeasured, with no exemptions or new ignores.
+The exact commands run were:
+
+```sh
+node scripts/harness-shots.mjs plan-chatgpt plan-notice plan-notice-narrow plan-limit plan-limit-narrow plan-usage plan-usage-narrow plan-key copilot-plan copilot-plan-narrow --theme=light
+node scripts/a11y.mjs plan-chatgpt plan-notice plan-notice-narrow plan-limit plan-limit-narrow plan-usage plan-usage-narrow plan-key copilot-plan copilot-plan-narrow
+node scripts/harness-shots.mjs plan-notice-narrow plan-limit-narrow plan-usage-narrow copilot-plan-narrow --theme=light --lang=de
+node scripts/a11y.mjs plan-notice-narrow plan-limit-narrow plan-usage-narrow copilot-plan-narrow --lang=de
+```
+
+All browser runs use the loopback fake host. No sign-in, provider request,
+live model call, paid call, credential read or external message was made.
+No other lane's implementation/manifest/documentation files were changed.

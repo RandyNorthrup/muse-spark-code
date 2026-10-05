@@ -103,11 +103,7 @@ export function PlanMark({
   readonly onOpenExternal: (url: string) => void
 }) {
   const isChatGpt = providerId === 'chatgpt'
-  const url = isChatGpt
-    ? CHATGPT_MANAGE_USAGE_URL
-    : providerId === 'copilot'
-      ? COPILOT_MANAGE_USAGE_URL
-      : model?.planLimitsUrl
+  const url = managementUrl(providerId, model)
   return (
     <span className="plan-mark">
       {isChatGpt
@@ -127,6 +123,11 @@ export function PlanMark({
       {providerId === 'copilot' ? <span>{UI_TEXT.planUi.reduced}</span> : null}
     </span>
   )
+}
+
+function managementUrl(providerId: string | undefined, model: ModelOption | undefined) {
+  if (providerId === 'chatgpt') return CHATGPT_MANAGE_USAGE_URL
+  return providerId === 'copilot' ? COPILOT_MANAGE_USAGE_URL : model?.planLimitsUrl
 }
 
 export function CopilotNote({
@@ -207,12 +208,7 @@ export function PlanUsageSection({
       <p className="usage-row-meta">{UI_TEXT.planUi.usageDetail}</p>
       {rows.map((row) => {
         const model = models.find((option) => option.providerId === row.providerId)
-        const url =
-          row.providerId === 'chatgpt'
-            ? CHATGPT_MANAGE_USAGE_URL
-            : row.providerId === 'copilot'
-              ? COPILOT_MANAGE_USAGE_URL
-              : model?.planLimitsUrl
+        const url = managementUrl(row.providerId, model)
         const unknown = row.requests - row.reported.requests - row.estimated.requests
         return (
           <div key={row.providerId}>

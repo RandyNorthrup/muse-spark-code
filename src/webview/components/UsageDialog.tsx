@@ -669,6 +669,9 @@ export function UsageDialog({
   if (report === undefined) {
     body = <p className="usage-row-meta">{UI_TEXT.usageLoading}</p>
   } else {
+    let usageNote =
+      report.backend === 'modelApi' ? UI_TEXT.usageModelApiNote : UI_TEXT.usageNoSubscription
+    if (modelPricing === 'plan') usageNote = UI_TEXT.planUi.usageDetail
     body = (
       <>
         <h3 className="usage-heading">{UI_TEXT.usageAccount}</h3>
@@ -680,13 +683,7 @@ export function UsageDialog({
         />
         <h3 className="usage-heading">{UI_TEXT.usageHeading}</h3>
         {report.subscription === undefined ? (
-          <p className="usage-row-meta">
-            {modelPricing === 'plan'
-              ? UI_TEXT.planUi.usageDetail
-              : report.backend === 'modelApi'
-                ? UI_TEXT.usageModelApiNote
-                : UI_TEXT.usageNoSubscription}
-          </p>
+          <p className="usage-row-meta">{usageNote}</p>
         ) : (
           <SubscriptionSection subscription={report.subscription} nowMs={nowMs} />
         )}
