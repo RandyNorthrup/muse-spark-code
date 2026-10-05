@@ -29,7 +29,7 @@ interface Delayed {
 
 /** A clock the test drives: `advance` fires due timers and delays in order. */
 function fakeClock() {
-  let now = 1_000
+  let now = 1000
   const scheduled: Scheduled[] = []
   const delayed: Delayed[] = []
   const clock: RegistryClock = {
@@ -52,7 +52,8 @@ function fakeClock() {
     clock,
     advance(ms: number): void {
       now += ms
-      for (const entry of scheduled.splice(0).sort((left, right) => left.at - right.at)) {
+      const due = scheduled.splice(0).toSorted((left, right) => left.at - right.at)
+      for (const entry of due) {
         if (!entry.cancelled && entry.at <= now) {
           entry.callback()
         } else if (!entry.cancelled) {
@@ -81,11 +82,13 @@ function drivenRegistry() {
 describe('defaultResourceKind', () => {
   it('marks browser control, Playwright and device servers exclusive', () => {
     expect(defaultResourceKind({ command: 'chrome-control-mcp' })).toBe('exclusive')
-    expect(defaultResourceKind({ command: 'C:\\tools\\mcp-chrome.exe --port 1' })).toBe('exclusive')
+    expect(defaultResourceKind({ command: String.raw`C:\tools\mcp-chrome.exe --port 1` })).toBe(
+      'exclusive',
+    )
     expect(defaultResourceKind({ command: 'npx @scope/mcp-server-playwright' })).toBe('exclusive')
-    expect(
-      defaultResourceKind({ packageName: '@modelcontextprotocol/server-puppeteer' }),
-    ).toBe('exclusive')
+    expect(defaultResourceKind({ packageName: '@modelcontextprotocol/server-puppeteer' })).toBe(
+      'exclusive',
+    )
     expect(defaultResourceKind({ command: 'serial-device-server' })).toBe('exclusive')
     expect(defaultResourceKind({ command: 'C:/bin/adb-mcp' })).toBe('exclusive')
   })
@@ -328,7 +331,8 @@ describe('declaration errors', () => {
     const { registry } = drivenRegistry()
     expect(() => registry.declare({ name: '', kind: 'free' })).toThrow()
     expect(() => registry.declare({ name: 'gpu', kind: 'shared', sharedLimit: 0 })).toThrow()
-    expect(() => registry.declareCommandNeed('  ', 'port:3000')).toThrow()
+    expect(() => {
+      registry.declareCommandNeed('  ', 'port:3000')
+    }).toThrow()
   })
 })
-

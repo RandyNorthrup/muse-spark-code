@@ -106,10 +106,9 @@ export function defaultResourceKind(identity: ServerIdentity): 'exclusive' | 'sh
     return 'exclusive'
   }
   const packageName = (identity.packageName ?? '').toLowerCase()
-  if (packageName !== '' && PACKAGE_SINGLETON_TOKENS.some((token) => packageName.includes(token))) {
-    return 'exclusive'
-  }
-  return 'shared'
+  return packageName !== '' && PACKAGE_SINGLETON_TOKENS.some((token) => packageName.includes(token))
+    ? 'exclusive'
+    : 'shared'
 }
 
 export interface ResourceDeclarationInit {
@@ -169,7 +168,11 @@ const systemClock: RegistryClock = {
   delay: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
   schedule: (callback: () => void, ms: number) => {
     const timer = setTimeout(callback, ms)
-    return { cancel: () => clearTimeout(timer) }
+    return {
+      cancel: () => {
+        clearTimeout(timer)
+      },
+    }
   },
 }
 
@@ -203,7 +206,7 @@ function holderKey(holder: LeaseHolder): string {
 }
 
 function normalizeCommand(line: string): string {
-  return line.trim().replace(/\s+/g, ' ')
+  return line.trim().replaceAll(/\s+/g, ' ')
 }
 
 /**
@@ -254,164 +257,15 @@ export class ResourceRegistry {
 
   private capacityOf(declaration: ResourceDeclaration): number {
     if (declaration.kind === 'free') {
-      return Number.POSITIVE_INFINITY
+      return Infinity
     }
-    if (declaration.kind === 'exclusive') {
-      return 1
-    }
-    return declaration.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT
+    return declaration.kind === 'exclusive'
+      ? 1
+      : (declaration.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT)
   }
 
   private isRetired(holder: LeaseHolder): boolean {
     return (this.retired.get(holder.taskId) ?? -1) >= holder.attempt
-  }
-
-  /**
-   * The user-level set from the panel's Tools and devices section: creates or
-   * replaces the declaration. A repository cannot do this; see
-   * `applyRepositoryResources`.
-   */
-  public declare(init: ResourceDeclarationInit): ResourceDeclaration {
-    if (init.name === '') {
-      throw new Error('A resource needs a name')
-    }
-    const sharedLimit = init.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT
-    if (!Number.isInteger(sharedLimit) || sharedLimit < 1) {
-      throw new Error(`A shared resource's limit is at least 1: ${init.name}`)
-    }
-    const declaration: ResourceDeclaration = {
-      name: init.name,
-      kind: init.kind,
-      sharedLimit,
-      idleRelease: init.idleRelease ?? true,
-      commandPatterns: [...(init.commandPatterns ?? [])],
-      assignedRoles: [...(init.assignedRoles ?? [])],
-    }
-    const live = this.resources.get(init.name)
-    if (live === undefined) {
-      this.resources.set(init.name, { declaration, leases: [], waiters: [] })
-    } else {
-      live.declaration = declaration
-    }
-    return declaration
-  }
-
-  /**
-   * The declaration a bridge server gets: the user's override when one is
-   * set, else the defaults matched by command and package. Called before the
-   * first call, so every bridged server passes through the registry.
-   */
-  public ensureServer(name: string, identity: ServerIdentity = {}): ResourceDeclaration {
-    const live = this.resources.get(name)
-    if (live !== undefined) {
-      return live.declaration
-    }
-    return this.declare({ name, kind: defaultResourceKind(identity), idleRelease: true })
-  }
-
-  /** A command's declared need: the worker's shell takes the lease before running it. */
-  public declareCommandNeed(pattern: string, resourceName: string): void {
-    const normalized = normalizeCommand(pattern)
-    if (normalized === '') {
-      throw new Error('A command pattern needs a command')
-    }
-    const live = this.resources.get(resourceName)
-    if (live === undefined) {
-      // A command's resource is held until its process has exited, never on idleness.
-      this.declare({
-        name: resourceName,
-        kind: 'exclusive',
-        idleRelease: false,
-        commandPatterns: [normalized],
-      })
-      return
-    }
-    if (!live.declaration.commandPatterns?.includes(normalized)) {
-      live.declaration = {
-        ...live.declaration,
-        commandPatterns: [...(live.declaration.commandPatterns ?? []), normalized],
-      }
-    }
-  }
-
-  /** The resource a command line needs, if a declared pattern matches it. */
-  public resourceForCommand(commandLine: string): string | undefined {
-    const line = normalizeCommand(commandLine)
-    if (line === '') {
-      return undefined
-    }
-    for (const live of this.resources.values()) {
-      for (const pattern of live.declaration.commandPatterns ?? []) {
-        if (line === pattern || line.startsWith(`${pattern} `)) {
-          return live.declaration.name
-        }
-      }
-    }
-    return undefined
-  }
-
-  /**
-   * The repository's lowering file (D75): it may only narrow. It cannot
-   * declare a resource free, loosen exclusive to shared, or raise a limit.
-   */
-  public applyRepositoryResources(entries: readonly RepositoryResource[]): {
-    readonly accepted: readonly string[]
-    readonly refused: readonly RepositoryRefusal[]
-  } {
-    const accepted: string[] = []
-    const refused: RepositoryRefusal[] = []
-    for (const entry of entries) {
-      const live = this.resources.get(entry.name)
-      if (live === undefined) {
-        refused.push({ name: entry.name, reason: 'unknown resource' })
-        continue
-      }
-      const current = live.declaration
-      const nextKind = entry.kind ?? current.kind
-      if (nextKind === 'free' && current.kind !== 'free') {
-        refused.push({ name: entry.name, reason: 'a repository cannot declare a resource free' })
-        continue
-      }
-      if (current.kind === 'exclusive' && nextKind !== 'exclusive') {
-        refused.push({ name: entry.name, reason: 'a repository cannot loosen an exclusive resource' })
-        continue
-      }
-      const nextLimit = entry.sharedLimit ?? current.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT
-      const currentLimit = current.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT
-      if (nextLimit > currentLimit) {
-        refused.push({ name: entry.name, reason: 'a repository cannot raise a limit' })
-        continue
-      }
-      live.declaration = { ...current, kind: nextKind, sharedLimit: nextLimit }
-      accepted.push(entry.name)
-    }
-    return { accepted, refused }
-  }
-
-  /** The servers a role may use: assigned ones, or every unassigned server. */
-  public serversForRole(role: string): readonly string[] {
-    const names: string[] = []
-    for (const live of this.resources.values()) {
-      const assigned = live.declaration.assignedRoles ?? []
-      if (assigned.length === 0 || assigned.includes(role)) {
-        names.push(live.declaration.name)
-      }
-    }
-    return names
-  }
-
-  public list(): readonly ResourceDeclaration[] {
-    return [...this.resources.values()].map((live) => live.declaration)
-  }
-
-  /** Who holds what and who waits: the Agent map's source (D75). */
-  public snapshot(): readonly ResourceSnapshot[] {
-    return [...this.resources.values()].map((live) => ({
-      name: live.declaration.name,
-      kind: live.declaration.kind,
-      holders: live.leases.map((lease) => lease.holder),
-      waiters: live.waiters.map((waiter) => waiter.holder),
-    }))
   }
 
   private grant(live: LiveResource, holder: LeaseHolder): void {
@@ -459,6 +313,158 @@ export class ResourceRegistry {
 
   private wake(name: string): void {
     this.pump(name)
+  }
+
+  /**
+   * The user-level set from the panel's Tools and devices section: creates or
+   * replaces the declaration. A repository cannot do this; see
+   * `applyRepositoryResources`.
+   */
+  public declare(init: ResourceDeclarationInit): ResourceDeclaration {
+    if (init.name === '') {
+      throw new Error('A resource needs a name')
+    }
+    const sharedLimit = init.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT
+    if (!Number.isSafeInteger(sharedLimit) || sharedLimit < 1) {
+      throw new Error(`A shared resource's limit is at least 1: ${init.name}`)
+    }
+    const declaration: ResourceDeclaration = {
+      name: init.name,
+      kind: init.kind,
+      sharedLimit,
+      idleRelease: init.idleRelease ?? true,
+      commandPatterns: [...(init.commandPatterns ?? [])],
+      assignedRoles: [...(init.assignedRoles ?? [])],
+    }
+    const live = this.resources.get(init.name)
+    if (live === undefined) {
+      this.resources.set(init.name, { declaration, leases: [], waiters: [] })
+    } else {
+      live.declaration = declaration
+    }
+    return declaration
+  }
+
+  /**
+   * The declaration a bridge server gets: the user's override when one is
+   * set, else the defaults matched by command and package. Called before the
+   * first call, so every bridged server passes through the registry.
+   */
+  public ensureServer(name: string, identity: ServerIdentity = {}): ResourceDeclaration {
+    const live = this.resources.get(name)
+    return live === undefined
+      ? this.declare({ name, kind: defaultResourceKind(identity), idleRelease: true })
+      : live.declaration
+  }
+
+  /** A command's declared need: the worker's shell takes the lease before running it. */
+  public declareCommandNeed(pattern: string, resourceName: string): void {
+    const normalized = normalizeCommand(pattern)
+    if (normalized === '') {
+      throw new Error('A command pattern needs a command')
+    }
+    const live = this.resources.get(resourceName)
+    if (live === undefined) {
+      // A command's resource is held until its process has exited, never on idleness.
+      this.declare({
+        name: resourceName,
+        kind: 'exclusive',
+        idleRelease: false,
+        commandPatterns: [normalized],
+      })
+      return
+    }
+    if (!live.declaration.commandPatterns?.includes(normalized)) {
+      live.declaration = {
+        ...live.declaration,
+        commandPatterns: [...(live.declaration.commandPatterns ?? []), normalized],
+      }
+    }
+  }
+
+  /** The resource a command line needs, if a declared pattern matches it. */
+  public resourceForCommand(commandLine: string): string | undefined {
+    const line = normalizeCommand(commandLine)
+    if (line === '') {
+      return undefined
+    }
+    for (const live of this.resources.values()) {
+      const patterns = live.declaration.commandPatterns ?? []
+      for (const pattern of patterns) {
+        if (line === pattern || line.startsWith(`${pattern} `)) {
+          return live.declaration.name
+        }
+      }
+    }
+    return undefined
+  }
+
+  /**
+   * The repository's lowering file (D75): it may only narrow. It cannot
+   * declare a resource free, loosen exclusive to shared, or raise a limit.
+   */
+  public applyRepositoryResources(entries: readonly RepositoryResource[]): {
+    readonly accepted: readonly string[]
+    readonly refused: readonly RepositoryRefusal[]
+  } {
+    const accepted: string[] = []
+    const refused: RepositoryRefusal[] = []
+    for (const entry of entries) {
+      const live = this.resources.get(entry.name)
+      if (live === undefined) {
+        refused.push({ name: entry.name, reason: 'unknown resource' })
+        continue
+      }
+      const current = live.declaration
+      const nextKind = entry.kind ?? current.kind
+      if (nextKind === 'free' && current.kind !== 'free') {
+        refused.push({ name: entry.name, reason: 'a repository cannot declare a resource free' })
+        continue
+      }
+      if (nextKind !== 'exclusive' && current.kind === 'exclusive') {
+        refused.push({
+          name: entry.name,
+          reason: 'a repository cannot loosen an exclusive resource',
+        })
+        continue
+      }
+      const nextLimit =
+        entry.sharedLimit ?? current.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT
+      const currentLimit = current.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT
+      if (nextLimit > currentLimit) {
+        refused.push({ name: entry.name, reason: 'a repository cannot raise a limit' })
+        continue
+      }
+      live.declaration = { ...current, kind: nextKind, sharedLimit: nextLimit }
+      accepted.push(entry.name)
+    }
+    return { accepted, refused }
+  }
+
+  /** The servers a role may use: assigned ones, or every unassigned server. */
+  public serversForRole(role: string): readonly string[] {
+    const names: string[] = []
+    for (const live of this.resources.values()) {
+      const assigned = live.declaration.assignedRoles ?? []
+      if (assigned.length === 0 || assigned.includes(role)) {
+        names.push(live.declaration.name)
+      }
+    }
+    return names
+  }
+
+  public list(): readonly ResourceDeclaration[] {
+    return Array.from(this.resources.values(), (live) => live.declaration)
+  }
+
+  /** Who holds what and who waits: the Agent map's source (D75). */
+  public snapshot(): readonly ResourceSnapshot[] {
+    return Array.from(this.resources.values(), (live) => ({
+      name: live.declaration.name,
+      kind: live.declaration.kind,
+      holders: live.leases.map((lease) => lease.holder),
+      waiters: live.waiters.map((waiter) => waiter.holder),
+    }))
   }
 
   /**
@@ -540,14 +546,13 @@ export class ResourceRegistry {
     }
     const lease = live.leases.find((candidate) => holderKey(candidate.holder) === holderKey(holder))
     if (lease !== undefined) {
-      return lease.takenBackBy !== undefined
-        ? { status: 'taken-back', holder: lease.takenBackBy }
-        : { status: 'ok' }
+      return lease.takenBackBy === undefined
+        ? { status: 'ok' }
+        : { status: 'taken-back', holder: lease.takenBackBy }
     }
-    if (this.isRetired(holder)) {
-      return { status: 'stale-attempt' }
-    }
-    return { status: 'not-holder', holder: live.leases[0]?.holder }
+    return this.isRetired(holder)
+      ? { status: 'stale-attempt' }
+      : { status: 'not-holder', holder: live.leases[0]?.holder }
   }
 
   /** A call started: idle release waits while any call is open. */
@@ -564,11 +569,11 @@ export class ResourceRegistry {
   }
 
   /**
-   * A call ended. `terminal` is false for a cancelled call the server never
-   * answered: it stays uncertain and keeps the lease (D75). Idle time is
-   * counted from the last terminal answer, never from the call's start.
+   * A call ended. `isTerminal` is false for a cancelled call the server
+   * never answered: it stays uncertain and keeps the lease (D75). Idle time
+   * is counted from the last terminal answer, never from the call's start.
    */
-  public callEnded(resourceName: string, holder: LeaseHolder, terminal: boolean): void {
+  public callEnded(resourceName: string, holder: LeaseHolder, isTerminal: boolean): void {
     const live = this.live(resourceName)
     const lease = live?.leases.find(
       (candidate) => holderKey(candidate.holder) === holderKey(holder),
@@ -576,7 +581,7 @@ export class ResourceRegistry {
     if (live === undefined || lease === undefined) {
       return
     }
-    if (terminal) {
+    if (isTerminal) {
       if (lease.openCalls > 0) {
         lease.openCalls -= 1
       } else if (lease.uncertainCalls > 0) {
@@ -588,24 +593,24 @@ export class ResourceRegistry {
       lease.uncertainCalls += 1
     }
     if (
-      live.declaration.idleRelease !== false &&
-      lease.openCalls === 0 &&
-      lease.uncertainCalls === 0
+      live.declaration.idleRelease === false ||
+      lease.openCalls !== 0 ||
+      lease.uncertainCalls !== 0
     ) {
-      lease.idleTimer?.cancel()
-      lease.idleTimer = this.clock.schedule(() => {
-        const current = this.live(resourceName)?.leases.find(
-          (candidate) => holderKey(candidate.holder) === holderKey(holder),
-        )
-        if (
-          current !== undefined &&
-          current.openCalls === 0 &&
-          current.uncertainCalls === 0
-        ) {
-          this.release(resourceName, holder)
-        }
-      }, this.idleMs)
+      return
     }
+    lease.idleTimer?.cancel()
+    lease.idleTimer = this.clock.schedule(() => {
+      const current = this.live(resourceName)?.leases.find(
+        (candidate) => holderKey(candidate.holder) === holderKey(holder),
+      )
+      if (current === undefined) {
+        return
+      }
+      if (current.openCalls === 0 && current.uncertainCalls === 0) {
+        this.release(resourceName, holder)
+      }
+    }, this.idleMs)
   }
 
   /**
@@ -667,10 +672,9 @@ export class ResourceRegistry {
     freshHints: readonly ExternalResourceHint[],
   ): string | undefined {
     const live = this.live(resourceName)
-    if (live === undefined || live.declaration.kind !== 'exclusive') {
-      return undefined
-    }
-    return freshHints.find((hint) => hint.exclusiveServers.includes(resourceName))?.windowLabel
+    return live?.declaration.kind === 'exclusive'
+      ? freshHints.find((hint) => hint.exclusiveServers.includes(resourceName))?.windowLabel
+      : undefined
   }
 
   /** The window going away: timers stop, and every waiter hears it. */
