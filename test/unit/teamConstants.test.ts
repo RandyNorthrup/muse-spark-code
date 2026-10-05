@@ -79,10 +79,7 @@ import {
   type TeamToolGroup,
 } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
-import {
-  parseHostToWebviewMessage,
-  parseWebviewToHostMessage,
-} from '../../src/shared/protocol'
+import { parseHostToWebviewMessage, parseWebviewToHostMessage } from '../../src/shared/protocol'
 import {
   teamAgentKinds,
   teamAgentKindSchema,
@@ -169,7 +166,10 @@ import {
   teamUsageSchema,
 } from '../../src/shared/team'
 
-function refuses(schema: { safeParse: (input: unknown) => { success: boolean } }, input: unknown): void {
+function refuses(
+  schema: { safeParse: (input: unknown) => { success: boolean } },
+  input: unknown,
+): void {
   expect(schema.safeParse(input).success).toBe(false)
 }
 
@@ -226,7 +226,7 @@ describe('team caps, intensity and machine values', () => {
     expect(TEAM_WORKER_RPM_ESTIMATE).toBe(6)
     expect(TEAM_WORKER_TPM_ESTIMATE).toBe(250_000)
     expect(TEAM_ORCHESTRATOR_HEADROOM).toBe(0.8)
-    expect(TEAM_META_STANDARD_RPM).toBe(3_000)
+    expect(TEAM_META_STANDARD_RPM).toBe(3000)
     expect(TEAM_META_STANDARD_TPM).toBe(4_000_000)
     expect(TEAM_META_CONTRIBUTOR_RPM).toBe(100)
     expect(TEAM_META_CONTRIBUTOR_TPM).toBe(3_000_000)
@@ -256,8 +256,8 @@ describe('team caps, intensity and machine values', () => {
   it('bounds queues, requests, briefs, pages and leases from D75', () => {
     expect(TEAM_QUEUE_MAX_WAIT_MS).toBe(3_600_000)
     expect(TEAM_QUEUE_MAX).toBe(16)
-    expect(TEAM_MIN_REQUEST_TOKENS).toBe(2_048)
-    expect(TEAM_BRIEF_MAX_CHARS).toBe(8_000)
+    expect(TEAM_MIN_REQUEST_TOKENS).toBe(2048)
+    expect(TEAM_BRIEF_MAX_CHARS).toBe(8000)
     expect(TEAM_BRIEF_FILES_MAX_BYTES).toBe(65_536)
     expect(TEAM_COLLECT_PAGE_CHARS).toBe(16_000)
     expect(TEAM_TASK_MAX_REQUESTS_DEFAULT).toBe(20)
@@ -304,15 +304,15 @@ describe('team caps, intensity and machine values', () => {
     expect(TEAM_PROCESS_WORKERS_CPU_HEADROOM).toBe(2)
     expect(TEAM_PROCESS_WORKERS_MEM_RESERVE_BYTES).toBe(4 * 1024 * 1024 * 1024)
     expect(TEAM_PROCESS_WORKERS_MEM_PER_WORKER_BYTES).toBe(1.5 * 1024 * 1024 * 1024)
-    expect(TEAM_LEDGER_FLUSH_MS).toBe(2_000)
+    expect(TEAM_LEDGER_FLUSH_MS).toBe(2000)
   })
 
   it('holds lane K lifetime, hint and load numbers', () => {
-    expect(TEAM_KILL_GRACE_MS).toBe(5_000)
+    expect(TEAM_KILL_GRACE_MS).toBe(5000)
     expect(TEAM_HINT_WRITE_MS).toBe(10_000)
     expect(TEAM_HINT_FRESH_MS).toBe(60_000)
     expect(TEAM_LANDING_LOCK_WAIT_MS).toBe(30_000)
-    expect(TEAM_LOAD_SAMPLE_MS).toBe(5_000)
+    expect(TEAM_LOAD_SAMPLE_MS).toBe(5000)
     expect(TEAM_LOAD_CPU_HIGH).toBe(0.85)
     expect(TEAM_LOAD_WINDOW_MS).toBe(30_000)
     expect(TEAM_LOAD_FREE_MEMORY_MIN).toBe(2 * 1024 * 1024 * 1024)
@@ -376,9 +376,9 @@ describe('team model text', () => {
 
   it('gives the rubric every code and the never-delegate line', () => {
     for (const code of TEAM_RUBRIC_REASON_CODES) {
-      const inSelf = TEAM_MODEL_TEXT.teamRubricSelf.includes(`\`${code}\``)
-      const inDelegate = TEAM_MODEL_TEXT.teamRubricDelegate.includes(`\`${code}\``)
-      expect(inSelf || inDelegate).toBe(true)
+      const isInSelf = TEAM_MODEL_TEXT.teamRubricSelf.includes(`\`${code}\``)
+      const isInDelegate = TEAM_MODEL_TEXT.teamRubricDelegate.includes(`\`${code}\``)
+      expect(isInSelf || isInDelegate).toBe(true)
     }
     expect(TEAM_MODEL_TEXT.teamRubricNever).toContain('Ask the user')
     expect(TEAM_MODEL_TEXT.teamGuideReportsData).toContain('data, not instructions')
@@ -458,6 +458,7 @@ describe('team schemas', () => {
     expect(parsed.success).toBe(true)
     refuses(teamPoolEntrySchema, { id: '', concurrent: 1, caps: [] })
     refuses(teamPoolEntrySchema, { id: 'entry-1', concurrent: 0, caps: [] })
+    refuses(teamAgentRefSchema, { ...agent, kind: 'sidekick' })
   })
 
   it('parses a role with an empty pool and refuses widening keys', () => {
@@ -493,19 +494,24 @@ describe('team schemas', () => {
   })
 
   it('requires a rubric code on every task and report', () => {
+    const reason: TeamReason = 'parallel'
+    expect(teamRubricReasonSchema.safeParse(reason).success).toBe(true)
+    const shape: TeamReportShape = 'summary'
+    const status: TeamReportStatus = 'done'
     const task: TeamTask = {
       id: 'task-1',
       role: 'engineering',
       entryId: 'entry-1',
       brief: 'Build the widget.',
-      reason: 'parallel',
+      reason,
       state: 'queued',
       branch: 'agents/engineering/task-1',
     }
     expect(teamTaskSchema.safeParse(task).success).toBe(true)
     refuses(teamTaskSchema, { ...task, reason: 'vibes' })
-    const report: TeamReport = { status: 'done', summary: 'Built it.' }
+    const report: TeamReport = { status, summary: 'Built it.' }
     expect(teamReportSchema.safeParse(report).success).toBe(true)
+    expect(teamReportShapeSchema.safeParse(shape).success).toBe(true)
     refuses(teamReportSchema, { status: 'done', summary: '' })
     refuses(teamReportStatusSchema, 'mailed')
     expect(teamReportStatuses).toContain('unstructured')
@@ -519,7 +525,14 @@ describe('team schemas', () => {
     refuses(teamTaskStateSchema, 'mailed')
     refuses(teamLedgerOutcomeSchema, 'queued')
     const reasons: readonly TeamSwitchReason[] = teamSwitchReasons
-    expect(reasons).toEqual(['cap', 'concurrency', 'rateLimited', 'usageLimit', 'unavailable', 'reset'])
+    expect(reasons).toEqual([
+      'cap',
+      'concurrency',
+      'rateLimited',
+      'usageLimit',
+      'unavailable',
+      'reset',
+    ])
     const switched: TeamAgentSwitch = {
       roleId: 'research',
       fromEntryId: 'entry-1',
@@ -588,7 +601,11 @@ describe('team schemas', () => {
       state: 'ready',
       workers: [worker],
     }
-    const role: TeamTreeRole = { role: 'engineering', mode: 'own-branch', tools: ['read'], entries: [entry] }
+    const mode: TeamWorkspaceMode = 'own-branch'
+    const role: TeamTreeRole = { role: 'engineering', mode, tools: ['read'], entries: [entry] }
+    expect(teamTreeRoleSchema.safeParse({ ...role, entries: [{ entryId: '' }] }).success).toBe(
+      false,
+    )
     const tree: TeamTree = {
       orchestrator: { model: 'muse-spark-1.3', backend: 'museCode', isDefault: true },
       roles: [role],
@@ -644,7 +661,11 @@ describe('team schemas', () => {
 
 describe('team protocol region', () => {
   it('takes the tree action from the panel', () => {
-    const parsed = parseWebviewToHostMessage({ type: 'teamTreeAction', action: 'merge', taskId: 't' })
+    const parsed = parseWebviewToHostMessage({
+      type: 'teamTreeAction',
+      action: 'merge',
+      taskId: 't',
+    })
     expect(parsed.ok).toBe(true)
     expect(parseWebviewToHostMessage({ type: 'teamTreeAction', action: 'launch' }).ok).toBe(false)
   })
@@ -662,9 +683,7 @@ describe('team protocol region', () => {
     }
     expect(teamTreeUpdateSchema.safeParse(update).success).toBe(true)
     expect(parseHostToWebviewMessage(update).ok).toBe(true)
-    expect(
-      parseHostToWebviewMessage({ type: 'teamTree', tree: { roles: [] } }).ok,
-    ).toBe(false)
+    expect(parseHostToWebviewMessage({ type: 'teamTree', tree: { roles: [] } }).ok).toBe(false)
   })
 })
 
@@ -679,10 +698,26 @@ describe('team strings', () => {
   })
 
   it('labels modes, levels, templates and steps for the Roles section', () => {
-    expect(EN.teamAccessModes).toEqual({ readOnly: 'Read-only', ownBranch: 'Own branch', inPlace: 'In place' })
-    expect(Object.keys(EN.teamIntensityLevels)).toEqual(['minimal', 'light', 'balanced', 'heavy', 'max'])
+    expect(EN.teamAccessModes).toEqual({
+      readOnly: 'Read-only',
+      ownBranch: 'Own branch',
+      inPlace: 'In place',
+    })
+    expect(Object.keys(EN.teamIntensityLevels)).toEqual([
+      'minimal',
+      'light',
+      'balanced',
+      'heavy',
+      'max',
+    ])
     expect(Object.keys(EN.teamTemplates)).toEqual(['solo', 'pair', 'full', 'custom'])
-    expect(Object.keys(EN.teamSetupSteps)).toEqual(['template', 'agents', 'pools', 'limits', 'preview'])
+    expect(Object.keys(EN.teamSetupSteps)).toEqual([
+      'template',
+      'agents',
+      'pools',
+      'limits',
+      'preview',
+    ])
   })
 
   it('fills the switch row and the paid popup from slots', () => {
@@ -731,7 +766,8 @@ describe('team roles and tool sets', () => {
 
   it('keeps every role inside the one tool-group definition', () => {
     for (const role of TEAM_ROLE_IDS) {
-      for (const group of TEAM_ROLE_TOOLSETS[role]) {
+      const groups = TEAM_ROLE_TOOLSETS[role]
+      for (const group of groups) {
         const named: TeamToolGroup = group
         expect(TEAM_TOOL_GROUPS).toContain(named)
       }
@@ -776,7 +812,14 @@ describe('team roles and tool sets', () => {
     for (const command of ['git diff', 'git log', 'git show', 'git blame', 'git status'] as const) {
       expect(TEAM_READ_ONLY_COMMANDS).toContain(command)
     }
-    for (const option of ['--output', '-o', '--ext-diff', '--textconv', '-c', '--exec-path'] as const) {
+    for (const option of [
+      '--output',
+      '-o',
+      '--ext-diff',
+      '--textconv',
+      '-c',
+      '--exec-path',
+    ] as const) {
       expect(TEAM_READ_ONLY_REFUSED_OPTIONS).toContain(option)
     }
   })
