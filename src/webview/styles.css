@@ -2426,10 +2426,19 @@ export row. Long lines wrap so the dialog holds a 320 px panel. */
   margin: 8px 0;
 }
 
+/* Each switch at least 24 px tall, so its checkbox has a 24 px target's
+   room (WCAG 2.5.8), as the question options do. */
 .report-check {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-height: 24px;
+  cursor: pointer;
+}
+
+.report-check input {
+  margin: 0;
+  cursor: pointer;
 }
 
 .report-items {
@@ -2826,8 +2835,11 @@ li:focus-within > .row-actions .row-actions-button,
   align-items: baseline;
 }
 
+/* A shortcut named for every platform wraps within half the row, so its
+   description keeps room for its longest word. */
 .onboarding-list kbd {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  max-width: 50%;
   min-width: 2em;
   text-align: center;
 }

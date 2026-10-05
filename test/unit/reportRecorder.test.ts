@@ -8,13 +8,11 @@
 import { mkdir, mkdtemp, readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { describe, expect, it, onTestFinished } from 'vitest'
-import { ReportJournal } from '../../src/host/support/reportJournal'
-import {
-  hostFramesOf,
-  hostPackagePath,
-  ReportRecorder,
-} from '../../src/host/support/reportRecorder'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { hostFramesOf, hostPackagePath } from '../../src/host/support/hostFrames'
+import { createWindowJournal } from '../../src/host/support/recorderEntry'
+import type { ReportJournalFs } from '../../src/host/support/reportJournal'
+import { ReportRecorder } from '../../src/host/support/reportRecorder'
 import {
   changedSettingNames,
   extensionReportFacts,
@@ -42,20 +40,30 @@ async function storage(): Promise<string> {
   return dir
 }
 
-function recorderOver(dir: string, clock: { now: number }): ReportRecorder {
+/** The window's front over the journal its bundle makes, as the activation wires it. */
+function recorderOver(
+  dir: string,
+  clock: { now: number },
+  journalFs?: ReportJournalFs,
+): ReportRecorder {
   return new ReportRecorder({
-    journal: new ReportJournal({
-      globalStorageDir: dir,
-      instance: 'window-a',
-      ext: '0.12.1',
-      host: '1.99.0',
-      pid: 1001,
-      log: new FakeLogOutputChannel(),
-      now: () => clock.now,
-      isAlive: () => true,
-    }),
-    extensionRoot: INSTALLED,
+    load: () =>
+      Promise.resolve(
+        createWindowJournal({
+          globalStorageDir: dir,
+          instance: 'window-a',
+          ext: '0.12.1',
+          host: '1.99.0',
+          pid: 1001,
+          log: new FakeLogOutputChannel(),
+          isAlive: () => true,
+          extensionRoot: INSTALLED,
+          now: () => clock.now,
+          ...(journalFs !== undefined && { fs: journalFs }),
+        }),
+      ),
     now: () => clock.now,
+    onUnavailable: () => undefined,
   })
 }
 
@@ -110,7 +118,7 @@ describe('ReportRecorder', () => {
     const dir = await storage()
     const clock = { now: NOW }
     const recorder = recorderOver(dir, clock)
-    expect(await recorder.startup()).toBe(false)
+    expect(await recorder.start()).toBe(false)
     const error = new RangeError('PRIVATE prompt text')
     Object.defineProperty(error, 'stack', {
       value: `RangeError: PRIVATE prompt text\n    at f (${path.join(INSTALLED, 'dist', 'report.js')}:1:2)`,
@@ -156,7 +164,7 @@ describe('ReportRecorder', () => {
     const dir = await storage()
     const clock = { now: NOW }
     const recorder = recorderOver(dir, clock)
-    await recorder.startup()
+    await recorder.start()
     for (let index = 0; index < REPORT_RECORD_LIMIT; index += 1) {
       expect(recorder.record('errorNotice', 'unknown')).toBeDefined()
     }
@@ -172,29 +180,67 @@ describe('ReportRecorder', () => {
 
   it('says recording was unavailable when its storage failed', async () => {
     const dir = await storage()
+    const recorder = recorderOver(
+      dir,
+      { now: NOW },
+      {
+        mkdir: () => Promise.reject(Object.assign(new Error('read-only'), { code: 'EROFS' })),
+        readDir: () => Promise.reject(Object.assign(new Error('read-only'), { code: 'EROFS' })),
+        readFile: () => Promise.reject(new Error('unused')),
+        appendFile: () => Promise.reject(new Error('unused')),
+        writeTempAndRename: () => Promise.reject(new Error('unused')),
+        remove: () => Promise.reject(new Error('unused')),
+      },
+    )
+    expect(await recorder.start()).toBe(false)
+    expect(await recorder.readJournal()).toEqual({ entries: [], recordingUnavailable: true })
+  })
+
+  it('answers at once and keeps records until its journal loads, then writes them', async () => {
+    const dir = await storage()
+    const clock = { now: NOW }
+    const loaded = Promise.withResolvers<ReturnType<typeof createWindowJournal>>()
     const recorder = new ReportRecorder({
-      journal: new ReportJournal({
+      load: () => loaded.promise,
+      now: () => clock.now,
+      onUnavailable: () => undefined,
+    })
+    // Before the bundle is there: the reference is answered, nothing waits.
+    expect(recorder.record('errorNotice', 'unknown')).toEqual({
+      kind: 'errorNotice',
+      entryIndex: 0,
+    })
+    loaded.resolve(
+      createWindowJournal({
         globalStorageDir: dir,
-        instance: 'window-b',
+        instance: 'window-c',
         ext: '0.12.1',
         host: '1.99.0',
         pid: 1001,
         log: new FakeLogOutputChannel(),
         isAlive: () => true,
-        fs: {
-          mkdir: () => Promise.reject(Object.assign(new Error('read-only'), { code: 'EROFS' })),
-          readDir: () => Promise.reject(Object.assign(new Error('read-only'), { code: 'EROFS' })),
-          readFile: () => Promise.reject(new Error('unused')),
-          appendFile: () => Promise.reject(new Error('unused')),
-          writeTempAndRename: () => Promise.reject(new Error('unused')),
-          remove: () => Promise.reject(new Error('unused')),
-        },
+        extensionRoot: INSTALLED,
+        now: () => clock.now,
       }),
-      extensionRoot: INSTALLED,
+    )
+    expect(await recorder.start()).toBe(false)
+    const read = await recorder.readJournal()
+    expect(read.entries).toEqual([{ kind: 'errorNotice', code: 'unknown', frames: [], ageMs: 0 }])
+    await recorder.shutdown()
+  })
+
+  it('says once that a bundle that would not load left recording off', async () => {
+    const onUnavailable = vi.fn()
+    const recorder = new ReportRecorder({
+      load: () => Promise.reject(new Error('no such file')),
       now: () => NOW,
+      onUnavailable,
     })
-    expect(await recorder.startup()).toBe(false)
+    expect(recorder.record('errorNotice', 'unknown')).toBeDefined()
+    expect(await recorder.start()).toBe(false)
     expect(await recorder.readJournal()).toEqual({ entries: [], recordingUnavailable: true })
+    await recorder.shutdown()
+    expect(onUnavailable).toHaveBeenCalledTimes(1)
   })
 })
 

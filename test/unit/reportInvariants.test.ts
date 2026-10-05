@@ -11,7 +11,7 @@ import { describe, expect, it, onTestFinished } from 'vitest'
 import { ModelApiHost, ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { buildProblemReportDraft } from '../../src/core/support/problemReport'
-import { ReportJournal } from '../../src/host/support/reportJournal'
+import { createWindowJournal } from '../../src/host/support/recorderEntry'
 import { ReportRecorder } from '../../src/host/support/reportRecorder'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClientSettings } from './helpers/fakeModelApi'
@@ -68,19 +68,24 @@ describe('SoL-Pi invariants under the report workflow (M93)', () => {
     const dir = await mkdtemp(path.join(REPO, 'temp', 'report-golden-'))
     onTestFinished(() => removeFolder(dir))
     const recorder = new ReportRecorder({
-      journal: new ReportJournal({
-        globalStorageDir: dir,
-        instance: 'golden',
-        ext: '0.12.1',
-        host: '1.99.0',
-        pid: 1001,
-        log: new FakeLogOutputChannel(),
-        isAlive: () => true,
-      }),
-      extensionRoot: REPO,
+      load: () =>
+        Promise.resolve(
+          createWindowJournal({
+            globalStorageDir: dir,
+            instance: 'golden',
+            ext: '0.12.1',
+            host: '1.99.0',
+            pid: 1001,
+            log: new FakeLogOutputChannel(),
+            isAlive: () => true,
+            extensionRoot: REPO,
+            now: () => NOW,
+          }),
+        ),
       now: () => NOW,
+      onUnavailable: () => undefined,
     })
-    await recorder.startup()
+    await recorder.start()
     const plain = await requestBodies(() => Promise.resolve())
     const reported = await requestBodies(async () => {
       recorder.record('toolCallFailed', 'unknown')

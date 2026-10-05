@@ -117,6 +117,8 @@ function failingFs(code: string): ReportJournalFs {
 class MapFs implements ReportJournalFs {
   public readonly files = new Map<string, string>()
   public readonly links = new Set<string>()
+  /** Whole-file reads so far: what pruning costs. */
+  public reads = 0
 
   public mkdir(): Promise<void> {
     return Promise.resolve()
@@ -139,6 +141,7 @@ class MapFs implements ReportJournalFs {
   }
 
   public readFile(file: string): Promise<string> {
+    this.reads += 1
     const text = this.files.get(file)
     return text === undefined
       ? Promise.reject(Object.assign(new Error('missing'), { code: 'ENOENT' }))
@@ -637,30 +640,28 @@ describe('ReportJournal recording', () => {
     ).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
-  // 320 real appends, each pruning the whole journal (parse and validate up
-  // to 256 KiB twice): about 5 s alone and 20 s under the full suite's load.
-  it(
-    'R11 evicts the oldest entries past the byte cap on actual appends',
-    { timeout: 60_000 },
-    async () => {
-      const store = new MapFs()
-      const { recorder } = journal('mem', 'window-a', { fs: store, now: () => 100_000 })
-      expect(await recorder.startup()).toEqual({ offerReport: false })
-      const frames = Array.from({ length: 16 }, (_, index) =>
-        frame('dist/museCodeReviewer.js', index + 1),
-      )
-      for (let index = 0; index < 320; index += 1) {
-        await recorder.record(event({ code: 'EIO', count: index, frames }))
-      }
-      // Inspect physical bytes before a report read can mask missing append pruning.
-      const raw =
-        store.files.get(path.join('mem', REPORT_STORAGE_DIR, 'journal-window-a.jsonl')) ?? ''
-      expect(Buffer.byteLength(raw, 'utf8')).toBeLessThanOrEqual(REPORT_JOURNAL_MAX_BYTES)
-      const parsed = parseJournalText(raw)
-      expect(parsed.entries[0]?.count).toBeGreaterThan(0)
-      expect(parsed.entries.at(-1)?.count).toBe(319)
-    },
-  )
+  it('R11 evicts the oldest entries past the byte cap on actual appends, amortized', async () => {
+    const store = new MapFs()
+    const { recorder } = journal('mem', 'window-a', { fs: store, now: () => 100_000 })
+    expect(await recorder.startup()).toEqual({ offerReport: false })
+    const frames = Array.from({ length: 16 }, (_, index) =>
+      frame('dist/museCodeReviewer.js', index + 1),
+    )
+    for (let index = 0; index < 320; index += 1) {
+      await recorder.record(event({ code: 'EIO', count: index, frames }))
+    }
+    // Inspect physical bytes before a report read can mask missing append pruning.
+    const raw =
+      store.files.get(path.join('mem', REPORT_STORAGE_DIR, 'journal-window-a.jsonl')) ?? ''
+    expect(Buffer.byteLength(raw, 'utf8')).toBeLessThanOrEqual(REPORT_JOURNAL_MAX_BYTES)
+    const parsed = parseJournalText(raw)
+    expect(parsed.entries[0]?.count).toBeGreaterThan(0)
+    expect(parsed.entries.at(-1)?.count).toBe(319)
+    // Amortized: 320 appends read the whole journal a handful of times
+    // (the first measurement, then once per crossing of the cap), never
+    // once or twice per append, which made a long session quadratic.
+    expect(store.reads).toBeLessThan(10)
+  })
 })
 
 describe('ReportJournal crash markers', () => {
@@ -893,7 +894,8 @@ describe('RVM93R regressions', () => {
     )
     const packaged = manifest
       .split('\n')
-      .filter((name) => name.startsWith('!dist/') && name.endsWith('.js'))
+      // The webview's chunks have hashed names (a glob here): no frame can name them.
+      .filter((name) => name.startsWith('!dist/') && name.endsWith('.js') && !name.includes('*'))
       .map((name) => name.slice(1))
     expect(
       [...REPORT_PACKAGE_FRAME_PATHS].toSorted((left, right) => left.localeCompare(right)),

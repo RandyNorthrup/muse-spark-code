@@ -2,10 +2,11 @@
 
 > The package's npm landing page is [`muse-spark-code-acp`](https://www.npmjs.com/package/muse-spark-code-acp); this file is the full guide.
 
-`muse-spark-code-acp` runs Muse Spark as an agent in any editor that speaks
+`muse-spark-code-acp` runs Muse Spark as an agent for editors that speak
 the [Agent Client Protocol](https://agentclientprotocol.com): Zed, the
 JetBrains IDEs through AI Assistant, Xcode 27, Qt Creator, Neovim, Emacs,
-Sublime Text, Devin Desktop and others. The editor shows the chat, the tool
+Sublime Text, Devin Desktop and others. So far it has been run in Zed,
+Neovim, Emacs and JupyterLab; the others are untested. The editor shows the chat, the tool
 calls, the plan and the permission prompts; the agent runs Muse Code (or
 the Meta Model API) the way the VS Code panel does. It is unofficial and not
 endorsed by Meta.
@@ -44,8 +45,7 @@ Node.js 22 or later is required.
   or download `muse-spark-code-acp-<version>.tgz` and run
   `npm install -g ./muse-spark-code-acp-<version>.tgz`.
 
-- From npm, once the first release is published there:
-  `npm install -g muse-spark-code-acp`.
+- From npm (0.11.0 and later): `npm install -g muse-spark-code-acp`.
 
 `muse-spark-code-acp --version` confirms the install.
 
@@ -227,10 +227,11 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 ## What the editor sees
 
 - **Modes**: Manual, Edit automatically, Plan, Auto (and Bypass permissions
-  with its flag), as in the panel. A session loaded or resumed runs in the
+  with its flag), as in the panel, except that Auto runs without the panel's
+  Auto reviewers. A session loaded or resumed runs in the
   mode the editor is told, not the one it last ran in.
-  Stored sessions marked imported start in Manual (or Plan when that is the
-  configured initial mode) before mode mapping and history replay; an imported
+  Stored sessions marked imported start in Manual (the agent has no option
+  for another initial mode) before mode mapping and history replay; an imported
   Auto or Bypass choice is never restored automatically.
 - **Settings**: the model and the reasoning effort. A session loaded or
   resumed runs on the model and effort the editor is shown; one last run
@@ -282,10 +283,11 @@ each workspace grant names that generation. Concurrent processes cannot restore
 a revoked grant or overwrite a newer explicit grant. Legacy `paid-uses.json`
 maps are ignored, so their next use asks again. Storage that cannot safely
 publish a generation keeps the explicit use as Allow once and asks next time.
-The grant lapses in every folder when the agent starts without that feature's
-flag, so turning the flag on again asks again. Every paid row names its
+The grant lapses in every folder when a Model API agent (`--backend
+modelApi`, not `exec`) starts without that feature's flag, so turning the
+flag on again asks again. Every paid row names its
 price, and the agent log counts each billed use. Subagents, scheduled
-prompts and Muse Voice are not offered: the agent has no flag for them
+prompts, best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
 (Muse Voice needs the VS Code panel's microphone).
 
 ## Networks and proxies
@@ -361,8 +363,8 @@ not trust.
 ## Headless execution and scanner (M80, not yet certified)
 
 The headless commands are integrated and their fake-only tests pass on Linux,
-macOS and Windows. They are not a supported-run claim until the hosted matrix
-and the live receipts L and LA pass:
+macOS and Windows. They are not a supported-run claim until the live receipt L passes too (the
+hosted matrix passes, and LA passed on 2026-10-05):
 
 ```text
 muse-spark-code-acp exec [options] <prompt>
@@ -397,7 +399,11 @@ delivered result keeps its first-stop status and logical exit code.
 
 Scanner is local-only, whole UTF-8 file up to 16 MiB, with a 30-second deadline
 including key/stdout. It prints only match count: 0 clean, 10 found, 2 input/error/
-timeout/cancelled. It never prints a match, path excerpt or secret. It catches
+timeout/cancelled. On POSIX a repeated signal forces the earliest latched
+stop code (130/143 when a signal came first, 6 when timeout came first); an
+earlier non-signal stop keeps its own code. Windows forced process exit is
+1; a delivered result retains its logical first-stop code. It never prints a
+match, path excerpt or secret. It catches
 known patterns and the exact key literal, not every unknown secret.
 
 Read [the complete CLI/CI guide](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ci.md)

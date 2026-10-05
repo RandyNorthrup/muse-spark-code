@@ -21,11 +21,10 @@ import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore, type UiStore } from './state/store'
 import './styles.css'
 
-// This bundle's own resolved URL, read while it first runs (M93): the
-// report's frames name only locations inside it, as the package path, never
-// the URL (which holds the install folder).
-const ownScriptUrl =
-  document.currentScript instanceof HTMLScriptElement ? document.currentScript.src : undefined
+// This module's own resolved URL (M93): the report's frames name only
+// locations inside main.js, as the package path, never the URL (which holds
+// the install folder). Frames in its hashed chunks are left out.
+const ownScriptUrl = import.meta.url
 
 const rootElement = document.querySelector(`#${WEBVIEW_ROOT_ELEMENT_ID}`)
 if (rootElement === null) {

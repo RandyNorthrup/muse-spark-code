@@ -2,7 +2,7 @@
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
 import { execFile, type ExecFileException } from 'node:child_process'
-import { readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
@@ -17,6 +17,7 @@ import { personalAgentsRoot } from './core/context/customAgents'
 import {
   bundledSkillSourcesRoot,
   bundledSkillsPackageRoot,
+  firstPartySkillsRoot,
   personalSkillsRoot,
 } from './core/context/skills'
 import { memoryDataRoot } from './core/memory/memoryLocation'
@@ -94,6 +95,12 @@ import { ideWebFetchTools, isIdeWebFetchOffered, oneQuestionPerUrl } from './hos
 import { isWebFetchAllowed } from './host/web/webFetchConfirm'
 import { pageConverter } from './host/web/pageConverter'
 import { lazyPageUrlCheck, lazyWebFetcher, webFetchLoader } from './host/web/webFetchBundle'
+import { BrowserChecks } from './host/browser/browserChecks'
+import { isBrowserCheckAllowed } from './host/browser/browserCheckConfirm'
+import { downloadBrowserRuntime } from './host/browser/runtimeCommand'
+import { runtimeConsent } from './host/browser/runtimeConsent'
+import { ideBrowserCheckTools } from './host/ide/browserCheckTool'
+import { type BrowserCheckHost, browserScopeKey } from './core/browser/browserTool'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
@@ -107,6 +114,7 @@ import {
   runBundledSkillsRemove,
   type BundledSkillsCommandDeps,
 } from './host/skills/bundledSkills'
+import { hasClaimedVersion, createWhatsNew } from './host/whatsNew/whatsNew'
 import { createSessionTransferFiles } from './host/conversation/transferDialogs'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { lazyReview } from './host/review/reviewBundle'
@@ -128,8 +136,8 @@ import {
 import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
 import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/checkpointLocation'
 import { isProcessAlive } from './host/checkpoints/windowPresence'
-import { ReportJournal } from './host/support/reportJournal'
 import { ReportRecorder } from './host/support/reportRecorder'
+import type * as RecorderBundle from './host/support/recorderEntry'
 import { vscodeReportEditorIo } from './host/support/reportEditorIo'
 import {
   changedSettingNames,
@@ -161,6 +169,7 @@ import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictati
 import { voiceLoader } from './host/voice/voiceBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
+import { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
   BACKEND_SETTING,
@@ -186,7 +195,13 @@ import {
   AGENT_IMPORT_BUNDLE_FILE,
   BUNDLED_SKILLS_BUNDLE_FILE,
   BUNDLED_SKILLS_SETTING,
+  WHATS_NEW_BUNDLE_FILE,
+  WHATS_NEW_CLAIMS_DIR,
+  WHATS_NEW_CONTENT_FILE,
+  OUTPUT_CHANNEL_SCHEME,
   CHECKPOINT_STORE_BUNDLE_FILE,
+  BROWSER_CHECK_BUNDLE_FILE,
+  BROWSER_RUNTIME_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
   WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
@@ -197,6 +212,8 @@ import {
   TURN_CHECKPOINTS_SETTING,
   MODEL_API_SESSIONS_DIR,
   PAID_FEATURE_SETTINGS,
+  PAID_DAILY_BUDGET,
+  type PaidFeature,
   PERSONAL_SKILLS_GLOB,
   PROJECT_SKILLS_GLOB,
   GLOBAL_STATE_KEYS,
@@ -227,7 +244,7 @@ import {
   WORKSPACE_STATE_KEYS,
 } from './shared/constants'
 import { fill, uiLocale } from './shared/l10n/text'
-import type { HostAction } from './shared/protocol'
+import { BACKEND_KINDS, type HostAction } from './shared/protocol'
 import type { AccountFacts } from './shared/usage'
 
 // `context.extension.packageJSON` is typed `any` by VS Code; validate the one
@@ -548,8 +565,6 @@ interface EarlyActivation {
   readonly log: Logger
   readonly version: string
   readonly reports: ReportRecorder
-  /** The recorder's startup: its marker set, and whether to offer a crash report. */
-  readonly reportStartup: Promise<boolean>
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -558,33 +573,33 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
   const log = createLogger(channel)
   const { version } = packageManifestSchema.parse(context.extension.packageJSON)
-  // The flight recorder (M93, PLAN.md D72): this window's journal and
-  // activation marker under global storage, set before normal startup, so a
-  // failure from here on is recorded and a crash is offered next time.
+  // The flight recorder (M93, PLAN.md D6, D72): this window's journal and
+  // activation marker under global storage. Its front answers from here on;
+  // the journal itself (dist/recorder.js) loads just after activation, or at
+  // the first failure, and keeps every record until then.
   const reports = new ReportRecorder({
-    journal: new ReportJournal({
-      globalStorageDir: context.globalStorageUri.fsPath,
-      instance: crypto.randomUUID(),
-      ext: version,
-      host: vscode.version,
-      pid: process.pid,
-      log,
-      isAlive: isProcessAlive,
-    }),
-    extensionRoot: context.extensionPath,
+    load: async () => {
+      const bundle: typeof RecorderBundle = await import('./host/support/recorderEntry')
+      return bundle.createWindowJournal({
+        globalStorageDir: context.globalStorageUri.fsPath,
+        instance: crypto.randomUUID(),
+        ext: version,
+        host: vscode.version,
+        pid: process.pid,
+        log,
+        isAlive: isProcessAlive,
+        extensionRoot: context.extensionPath,
+        now: () => Date.now(),
+      })
+    },
     now: () => Date.now(),
+    onUnavailable: (error) => {
+      log.error(`The flight recorder bundle could not be loaded: ${errorDetail(error)}`)
+    },
   })
   lifecycle.reports = reports
-  const reportStartup = reports.startup()
   try {
-    await activateWindow(context, {
-      activationStartedAt,
-      channel,
-      log,
-      version,
-      reports,
-      reportStartup,
-    })
+    await activateWindow(context, { activationStartedAt, channel, log, version, reports })
   } catch (error: unknown) {
     reports.recordError('activationFailed', error)
     throw error
@@ -595,10 +610,19 @@ async function activateWindow(
   context: vscode.ExtensionContext,
   early: EarlyActivation,
 ): Promise<void> {
-  const { activationStartedAt, channel, log, version, reports, reportStartup } = early
+  const { activationStartedAt, channel, log, version, reports } = early
   log.info(
     `Activating ${PRODUCT_NAME} ${version} (VS Code ${vscode.version}, Node ${process.versions.node}, ${process.platform})`,
   )
+  // What's New (M99, PLAN.md D79): read before anything below stores state
+  // or creates the global storage folder, so an upgrade from a version
+  // before this feature (no version stored) is told from a fresh install.
+  const hasEarlierUse =
+    context.globalState.keys().length > 0 ||
+    context.workspaceState.get(WORKSPACE_STATE_KEYS.lastSession) !== undefined ||
+    existsSync(context.globalStorageUri.fsPath)
+  // A page seen on one machine is not shown again on another (Settings Sync).
+  context.globalState.setKeysForSync([GLOBAL_STATE_KEYS.whatsNewLastSeenVersion])
   // M16 stored an account-agnostic usage snapshot. Remove it before any
   // surface opens: a later sign-in may belong to another Meta account.
   try {
@@ -779,10 +803,28 @@ async function activateWindow(
   // offers the key's paid images and voice. Read at start and after every
   // sign-in change, never from anywhere but the secret store.
   let isKeyStored = false
+  let paidBackend: 'modelApi' | 'museCode' | undefined
+  const isDefaultPaidOn = (feature: PaidFeature) =>
+    vscode.workspace
+      .getConfiguration(SETTINGS_SECTION)
+      .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
+  const dailyPaid = createPaidDailyBudget({
+    directory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
+    now: Date.now,
+    capUsd: () => currentSettings().paidDailyBudgetUsd,
+    isModelApi: () => paidBackend === 'modelApi',
+    sleep: (ms) =>
+      new Promise((resolve) => {
+        setTimeout(resolve, ms)
+      }),
+  })
   const paid = createPaidFeatures({
     globalState: context.globalState,
     workspaceState: context.workspaceState,
     isSettingOn: (feature) => currentSettings()[PAID_FEATURE_SETTINGS[feature]],
+    isAvailable: (feature) => paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
+    isDefaultOn: isDefaultPaidOn,
+    dailyBudgetUsd: () => (paidBackend === 'modelApi' ? dailyPaid.capUsd() : undefined),
     isKeyStored: () => isKeyStored,
     // "Allow always in this workspace" (M58) needs a workspace to keep it,
     // and never in Restricted Mode.
@@ -892,6 +934,14 @@ async function activateWindow(
     getProxySettings: () =>
       readProxySettings(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)),
   })
+  // The sandbox-off warning (musecode-write-asks): once per window, in the
+  // first Muse Code conversation that starts on a host without the sandbox.
+  let hasShownSandboxOffNotice = false
+  const shouldWarnSandboxOff = (): boolean => {
+    const isFirst = !hasShownSandboxOffNotice
+    hasShownSandboxOffNotice = true
+    return isFirst
+  }
   // Muse Code's own settings and trace logs (M14): read, never written; the
   // config root as the CLI sees it, `museSpark.environmentVariables` included.
   const museConfig = () => ({
@@ -1187,6 +1237,8 @@ async function activateWindow(
       if (message.type !== 'authState') {
         return
       }
+      paidBackend = message.backend
+      broadcastPaidState()
       // A key pasted or signed out of changes what the Muse Code backend offers (M44).
       void refreshKeyPresence()
       // The backend decides which engine the microphone uses (M35).
@@ -1329,6 +1381,53 @@ async function activateWindow(
     pageConverter(vscode.Uri.joinPath(context.extensionUri, 'dist', PAGE_WORKER_FILE).fsPath, log),
   )
   const askWebFetch = oneQuestionPerUrl(isWebFetchAllowed)
+  // The browser check (M81 A1, PLAN.md D49): the Model API backend's
+  // `browser_check` and Muse Code's `mcp__ide__browserCheck`, on the pinned
+  // headless shell the runtime bundle downloads after the user's consent
+  // and verifies, run in the check's own bundle; both bundles load on first
+  // use, and every check under way ends with the window. The widened hosts
+  // and the runtime setting are the user's machine-scoped settings, read at
+  // each use; a change to either, or to trust, is read by checks under way.
+  const browserStorage = context.globalStorageUri.fsPath
+  const browserChecks = new BrowserChecks({
+    checkBundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', BROWSER_CHECK_BUNDLE_FILE)
+      .fsPath,
+    runtimeBundlePath: vscode.Uri.joinPath(
+      context.extensionUri,
+      'dist',
+      BROWSER_RUNTIME_BUNDLE_FILE,
+    ).fsPath,
+    storageDir: browserStorage,
+    log,
+    runtimeMode: () => currentSettings().browserCheckRuntime,
+    askConsent: runtimeConsent(browserStorage),
+    onAdmissionChange: (listener) => {
+      const subscriptions = [
+        vscode.workspace.onDidChangeConfiguration(listener),
+        vscode.workspace.onDidGrantWorkspaceTrust(listener),
+      ]
+      return () => {
+        for (const subscription of subscriptions) {
+          subscription.dispose()
+        }
+      }
+    },
+  })
+  context.subscriptions.push(browserChecks)
+  const browserCheck: BrowserCheckHost = {
+    check: browserChecks.check,
+    extraHosts: () => currentSettings().browserCheckExtraHosts,
+    isOffered: () => browserChecks.isOffered(),
+  }
+  const isIdeBrowserCheckOffered = (): boolean =>
+    browserChecks.isOffered() &&
+    isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.downloadBrowserCheckRuntime, async () => {
+      await downloadBrowserRuntime(browserChecks, isIdeBrowserCheckOffered)
+    }),
+  )
+  const askBrowserCheck = oneQuestionPerUrl(isBrowserCheckAllowed, browserScopeKey)
   // Code intelligence over VS Code's language services (M67, PLAN.md D49):
   // native tools on the Model API backend, `ide` tools for Muse Code. Only
   // with a folder open, since every path is the workspace's.
@@ -1361,6 +1460,15 @@ async function activateWindow(
         checkUrl: lazyPageUrlCheck(webFetchBundle),
         fetchPage: webFetch,
         confirm: askWebFetch,
+        log,
+      }),
+      // The same rule for the browser check, text only for Muse Code (M81),
+      // and none while its runtime setting is off.
+      ...ideBrowserCheckTools({
+        isOffered: isIdeBrowserCheckOffered,
+        extraHosts: browserCheck.extraHosts,
+        confirm: askBrowserCheck,
+        check: browserCheck.check,
         log,
       }),
       ...ideImageTools({
@@ -1530,6 +1638,56 @@ async function activateWindow(
     restart: () => restartMuseCode('the bundled skills changed'),
     log,
   })
+  // What's New after an update (M99, PLAN.md D79): decided at the end of
+  // activation, shown once the window is quiet (no turn running, no edit for
+  // a moment), its page from its own bundle. The last edit's time tells quiet.
+  let lastEditAt = -Infinity
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      if (event.contentChanges.length > 0 && event.document.uri.scheme !== OUTPUT_CHANNEL_SCHEME) {
+        lastEditAt = performance.now()
+      }
+    }),
+  )
+  const whatsNew = createWhatsNew({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', WHATS_NEW_BUNDLE_FILE).fsPath,
+    pages: {
+      extensionUri: context.extensionUri,
+      contentPath: vscode.Uri.joinPath(context.extensionUri, 'dist', WHATS_NEW_CONTENT_FILE).fsPath,
+      current: version,
+      isShownOnUpdate: () => currentSettings().showWhatsNewOnUpdate,
+      setShownOnUpdate: (isShown) => updateSetting('showWhatsNewOnUpdate', isShown),
+    },
+    log,
+    state: context.globalState,
+    lastSeenKey: GLOBAL_STATE_KEYS.whatsNewLastSeenVersion,
+    current: version,
+    hasEarlierUse,
+    isEnabled: () => currentSettings().showWhatsNewOnUpdate,
+    disable: () => updateSetting('showWhatsNewOnUpdate', false),
+    claim: (claimed) =>
+      hasClaimedVersion(
+        path.join(context.globalStorageUri.fsPath, WHATS_NEW_CLAIMS_DIR),
+        claimed,
+        log,
+      ),
+    // A loop, not Iterator#some: the extension host's floor is Node 20.
+    isBusy: () => {
+      for (const controller of controllers.values()) {
+        if (BACKEND_KINDS.some((kind) => controller.isTurnRunningOn(kind))) {
+          return true
+        }
+      }
+      return false
+    },
+    msSinceLastEdit: () => performance.now() - lastEditAt,
+    notify: (message, ...actions) => vscode.window.showInformationMessage(message, ...actions),
+  })
+  context.subscriptions.push({
+    dispose: () => {
+      whatsNew.dispose()
+    },
+  })
   // Muse Code's memory (M49, PLAN.md D41): one store for the window, which
   // the Model API's memory tools and the Memory view both use, in the data
   // home `muse serve` sees (`museSpark.environmentVariables` included). The
@@ -1658,6 +1816,7 @@ async function activateWindow(
     personalSkillsRoot: skillsHome,
     bundledSkills: {
       packageRoot: bundledPackageRoot,
+      firstPartyRoot: firstPartySkillsRoot(context.extensionPath, process.platform),
       isEnabled: () => currentSettings().bundledSkills,
     },
     personalAgentsRoot: agentsHome,
@@ -1733,6 +1892,7 @@ async function activateWindow(
     // The session budget cap and the per-reply usage line (M82), read per
     // request and per reply so a changed setting applies at once.
     sessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
+    reservePaidRequest: dailyPaid.reserve,
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
     // Muse Code's MCP servers, run by this window for the Model API backend
     // (M50, PLAN.md D42): started in a trusted workspace only, stopped with
@@ -1754,6 +1914,7 @@ async function activateWindow(
       ),
     ideTools,
     webFetch,
+    browserCheck,
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
@@ -2053,6 +2214,10 @@ async function activateWindow(
         await bundledSkillsOffer.decline()
         break
       }
+      case 'showWhatsNew': {
+        whatsNew.show()
+        break
+      }
     }
   }
 
@@ -2152,8 +2317,8 @@ async function activateWindow(
           void sandbox.offerIfNeeded('failure').catch(logRejection(log, 'sandbox offer'))
         },
         platform: process.platform,
-        userProfileDir: process.env['USERPROFILE'],
         shellSandbox: () => backend.shellSandboxPosture(),
+        shouldWarnSandboxOff,
         editorContext: () => editorContext.active,
         isAutosaveEnabled: () => currentSettings().autosave,
         saveAll: async () => {
@@ -2227,11 +2392,19 @@ async function activateWindow(
         isRestorable: surface.id === SIDEBAR_SURFACE_ID,
         dictation,
         // Muse Voice on the Model API backend, and on Muse Code with a stored key (M44).
-        museVoice: () =>
-          paid.gate.isOn('voice') &&
-          usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')
-            ? museVoiceSetup
-            : undefined,
+        museVoice: () => {
+          if (
+            !paid.gate.isOn('voice') ||
+            !usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')
+          )
+            return
+          if (auth.current.backend === 'modelApi') {
+            return currentSettings().dictationEngine === 'system'
+              ? undefined
+              : { isAvailable: false, reason: UI_TEXT.sessionBudgetVoiceUnavailable }
+          }
+          return museVoiceSetup
+        },
         modelApiSessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
         voiceAccountId: () => modelApi.accountId(),
         ownedVoiceBudgetScope: async (sessionId) => {
@@ -2495,6 +2668,9 @@ async function activateWindow(
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
         for (const controller of controllers.values()) {
           controller.refreshDictation()
+          if (event.affectsConfiguration(`${SETTINGS_SECTION}.confidentialWorkspace`)) {
+            controller.confidentialWorkspaceChanged()
+          }
         }
       }
       // Checkpoints on or off: every panel's menus follow (M72).
@@ -2697,6 +2873,7 @@ async function activateWindow(
           backendSetting: settings.backend,
           shellSandboxSetting: settings.shellSandbox,
           shellSandboxPosture: `${posture.isSandboxed ? 'sandboxed' : 'disabled'} (${posture.reason})`,
+          isShellSandboxed: posture.isSandboxed,
           sandboxNetworkSetting: settings.sandboxNetwork,
           isSandboxNetworkApplied: isSandboxNetworkApplied(settings.sandboxNetwork, posture),
           isBinaryPathConfigured: settings.museBinaryPath !== '',
@@ -2788,6 +2965,9 @@ async function activateWindow(
     registerLoggedCommand(log, COMMAND_IDS.removeBundledSkills, () =>
       runBundledSkillsRemove(bundledSkillsCommand()),
     ),
+    registerLoggedCommand(log, COMMAND_IDS.showWhatsNew, () => {
+      whatsNew.show()
+    }),
     registerLoggedCommand(log, COMMAND_IDS.manageSkills, () => cliFeatures.manageSkills()),
     registerLoggedCommand(log, COMMAND_IDS.importSkills, () => cliFeatures.importSkills()),
     registerLoggedCommand(log, COMMAND_IDS.importFromAgents, () => cliFeatures.importFromAgents()),
@@ -2816,23 +2996,28 @@ async function activateWindow(
       forActiveConversation((controller) => controller.handle({ type: 'openShareFile' })),
     ),
   )
+  void whatsNew.check().catch(logRejection(log, 'What’s New'))
   log.info(`Activated in ${String(Math.round(performance.now() - activationStartedAt))} ms`)
-  // The last activation of some window ended without its deactivate (M93,
-  // D72): offered once, here, now that the command can answer. Its marker is
-  // already consumed, so dismissing it is remembered across reloads.
-  void reportStartup
-    .then(async (shouldOffer) => {
-      if (!shouldOffer) {
-        return
-      }
-      const choice = await vscode.window.showWarningMessage(
-        UI_TEXT.reportCrashOffer,
-        UI_TEXT.reportCrashAction,
-        UI_TEXT.reportCrashDismiss,
-      )
-      if (choice === UI_TEXT.reportCrashAction) {
-        await vscode.commands.executeCommand(COMMAND_IDS.reportProblem)
-      }
-    })
-    .catch(logRejection(log, 'the crash report offer'))
+  // The flight recorder starts once activation is done (M93, D6): it sets
+  // this window's marker and prunes. When the last activation of some window
+  // ended without its deactivate, it is offered once, now that the command
+  // can answer; its marker is already consumed, so a dismissal is remembered.
+  setTimeout(() => {
+    void reports
+      .start()
+      .then(async (shouldOffer) => {
+        if (!shouldOffer) {
+          return
+        }
+        const choice = await vscode.window.showWarningMessage(
+          UI_TEXT.reportCrashOffer,
+          UI_TEXT.reportCrashAction,
+          UI_TEXT.reportCrashDismiss,
+        )
+        if (choice === UI_TEXT.reportCrashAction) {
+          await vscode.commands.executeCommand(COMMAND_IDS.reportProblem)
+        }
+      })
+      .catch(logRejection(log, 'the crash report offer'))
+  }, 0)
 }

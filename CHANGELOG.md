@@ -34,6 +34,21 @@ happened, not what was planned; superseded entries are kept.
   - **Headless.** `muse-spark-code-acp report` prints the same scrubbed
     report from the agent's own journal, starting nothing; in ACP mode the
     agent records its own failures there without touching ACP stdout.
+
+## [0.13.0] - 2026-10-05
+
+### Highlights
+
+- **Browser checks on local web changes.** The model can open your dev server, click or type, and read console errors and failed requests through a verified, isolated headless browser. The Model API also receives its screenshot. <!-- try: command museSpark.downloadBrowserCheckRuntime -->
+- **What's New after updates.** Release highlights and full notes open in an editor tab when you are idle; fixes-only patches show a quiet notification. <!-- try: setting museSpark.showWhatsNewOnUpdate -->
+- **Enhancements available by default.** Model API extras are visible out of the box, with paid-use consent before spending and a shared daily budget. Explicit false settings stay off. <!-- try: setting museSpark.paidDailyBudgetUsd -->
+- **Muse Gadgets guidance and secret checks.** The bundled SDK skill covers ESP32 build, flash and bounded monitoring. Detected tokens are redacted, secret-bearing prompts pause for your decision, and emitted shell approvals offer only one-time consent.
+- **Safer diagnostics and steadier Windows helpers.** Diagnostic notices redact known secret shapes; confidential workspaces recheck contributor dispatch; protected file approvals stay protected; Windows job helpers compile directly with the .NET compiler.
+
+### Added
+
+- Bundled `muse_gadgets` skill (Model API backend, listed while `museSpark.bundledSkills` is on): ESP32 build, flash and monitor guidance with the bounded-monitor pattern, the SDK token rules, and the never-a-gadget warning. A timed-out shell command is proven to return its captured output with `isTimedOut` and leave no process behind on Windows, macOS and Linux. README gains a "Muse Gadgets" section.
+
 - **A live receipt workflow for the GitHub Action (M80 LA).**
   `.github/workflows/action-live.yml` runs the real Action, on the agent
   package packed from the same commit, against one open same-repository pull
@@ -138,9 +153,96 @@ happened, not what was planned; superseded entries are kept.
   with `--list` printing the mapping and its gaps, `--only <name,...>`
   retaking some images and `--out <dir>` previewing elsewhere. The banner
   stays rendered by `scripts/render-images.mjs`.
+- **Browser check** (M81, PLAN.md D49). After a web change the model can
+  open a page of your local dev server in a headless browser, optionally
+  click and type through up to eight steps, and read back the console
+  errors and the failed requests; on the Model API backend it also sees a
+  screenshot (`browser_check`). Muse Code gets the same check as text
+  through the extension's `ide` server (`mcp__ide__browserCheck`),
+  confirmed in the extension's own dialog before every call.
+  - **The browser** is Google's Chrome for Testing headless shell, one
+    version pinned by each release (154.0.8037.92, r1689415), for Windows
+    x64, Linux x64 and macOS (Intel and Apple silicon). The first check asks
+    before downloading it (about 100 to 120 MB from
+    `storage.googleapis.com`) into the extension's storage; the new
+    machine-scoped `museSpark.browserCheckRuntime` (`ask`, `download`,
+    `off`) can download it without asking or turn the check off. The
+    archive and the browser are checked against the pin's lengths and
+    SHA-256 by a bounded ZIP reader before anything runs, and the browser
+    again before each check; getting it ready has its own 15 minutes, the
+    check its 60 seconds after. A pin serves for 45 days after Google
+    published it; then the check refuses until an update pins a newer one,
+    and the release and a weekly job fail when the pin is past that, or
+    more than 14 days behind the newest Stable. A **Download Browser Check
+    Runtime** command is contributed for getting it ahead of a check.
+  - **Where a page may go.** All its traffic goes to the check's own proxy
+    on 127.0.0.1, Chrome's loopback exception removed, the same proxy on
+    the page's private context: plain `http` to this computer and to the
+    hosts you widened, with sign-in challenges and credentials taken out;
+    `https` and WebSockets only to a widened host, passed encrypted and
+    unread (a site there may sign in with this computer's account, which
+    the card and the setting now say). The browser looks up no names
+    itself. The check's own tests run before, between and after the page
+    in the same browser (routing, sign-in stripping, WebRTC, WebTransport,
+    and a network-service restart), and any that fails returns nothing from
+    the page. Over the debugging pipe, never a network port, in a fresh
+    private profile deleted afterwards. Only you widen it, in the
+    machine-scoped `museSpark.browserCheckExtraHosts` or on a card or in the
+    dialog for one check; never the model. Every failure is one of a fixed
+    set of reasons, in your language.
+- The browser check ships as two bundles of its own: `dist/browserCheck.js`
+  (the pipe, the run, the proxy and its tests; 50.5 KiB, budget 75 KiB),
+  loaded on the first check, and `dist/browserRuntime.js` (getting and
+  verifying the browser; 37.2 KiB, budget 50 KiB), loaded only to prepare
+  it. Each budget is the measured size plus 15%, rounded up to 25 KiB.
+  - **Refusals and Stop:** a runtime the OS refuses to run reads as blocked whether the refusal is thrown or arrives after the spawn returned; a Stop or lost admission during teardown refuses the page instead of returning its report; and the release pin gate fails a pin dated in the future, as the check itself does.
+  - **Restore notes it:** a turn that ran a browser check is marked as having run a process, so restoring it says that what the page made a local server change is not undone (M86).
+  - **Main integration:** browser output obeys the live permission-policy fence; best-of-N attempts have no window browser check. Widening cards retain their session choice in Bypass, and visual reads use the relocated Model API text constants.
+
+
+- **What's New** (M99, PLAN.md D79). After an update, the release notes of
+  recent versions since the one you had open in an editor tab ("What's New in
+  Muse Spark Code"): each release's Highlights (with a **Try it** button
+  where a highlight has a command or setting to try) and then its notes.
+  Full notes ship for the newest two releases, plus the newest earlier
+  Highlights when those releases have none; the full-changelog link covers
+  older details. The generated JSON has its own hard 40 KiB raw budget.
+  - **When.** Once per update, in one window only, some seconds after the
+    window starts and only while no turn runs and you are not typing; the
+    tab opens in the background. A patch release with no Highlights (fixes
+    only) shows a quiet notification ("Muse Spark Code updated to x.y.z")
+    with **What's New** and **Don't show again** instead. A fresh install
+    shows nothing (the walkthrough covers new users); a downgrade or the
+    same version shows nothing.
+  - **Turn it off** with `museSpark.showWhatsNewOnUpdate` (machine-scoped, on
+    by default) or the page's **Don't show on updates** box. **Muse Spark:
+    What's New** (Command Palette, or the panel's palette under Support)
+    opens the page for the current version at any time. The version you have
+    seen is synced by Settings Sync, so another machine does not show it
+    again.
+  - **Safe and light.** The page is a webview, which every VS Code fork has,
+    with a strict content security policy: no raw HTML from the notes, links
+    open in your browser through VS Code, and a Try it runs only a command or
+    setting the extension contributes. Its content is built from this
+    CHANGELOG at build time (`dist/whatsNew.json`) and its code loads only
+    when it is shown (`dist/whatsNew.js`), so startup does not grow. The
+    page's words are in all 14 languages; the release notes stay English.
+  - **Releases.** A minor or major release's CHANGELOG section must carry a
+    `### Highlights` list of 1 to 5 bullets, or the changelog test fails
+    (docs/RELEASING.md).
 
 ### Changed
 
+- Load Account & usage, Agent map, best-of-N, history, the session board and the review pane when opened, keeping the initial chat smaller and the same controls available.
+- Package compact JSON and a concise marketplace guide; retain Unreleased and the newest two releases in the bundled changelog with links to the complete documentation and history. Source translations and release history stay unchanged.
+- Share the Node bundles’ validation runtime to reduce installed size without changing boundary validation.
+
+- **A smaller package, so the browser check fits the 2200 KiB VSIX budget
+  (M81, PLAN.md D6).** The macOS dictation helper is now built for size
+  (`-Osize`), dead-stripped at link time and stripped of local symbols
+  before it is signed (109,034 to 80,798 bytes deflated on the Mac mini;
+  its disclaim check passes), and the four walkthrough images are
+  recompressed losslessly (identical pixels). The budget is unchanged.
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
   jobs:
   - the static gates on all three platforms;
@@ -176,10 +278,84 @@ happened, not what was planned; superseded entries are kept.
   SHA-256/version checks and 30-day retention; tag-push misses run the full gates.
 - Manual release recovery uses the same verified staging path while preserving
   the earlier run's original bytes; invalid recovery and cancelled runs cannot publish.
+- **Enhancements available out of the box (D78).** Model API observation
+  packing, trusted configured hooks and per-reply usage are on by default.
+  Paid images, Auto review, child agents, schedules and explicit best-of-N
+  are available by default; their first use still asks with the price and
+  shared daily budget. Explicit false settings stay off. Interactive extras
+  share a machine-scoped $5/day cap (`paidDailyBudgetUsd`, $0.50–$500), with
+  durable cross-window reservations, fail-closed storage, and a shared
+  raise-for-today or stop-until-tomorrow choice. Hosted search and Muse Voice
+  remain refused under a finite cap until billing bounds are verified.
+  Free OS dictation stays the default (`dictationEngine`); ordinary turns
+  still use one model. Repo-map prompt injection remains off pending Q11's
+  paired evaluation. Tab's separate budget, Muse Code, ACP and headless
+  policies are unchanged.
 
 ### Fixed
 
+- What’s New has a localized tip in the palette and slash-command list, alongside the panel’s other actions.
+
+- Secret prompts are redacted on their first transcript card, history replay, saved draft recovery and Markdown export (including filenames). Delayed warnings survive a later send; Send anyway resends the held text, attachments and reference while preserving newer typing.
+
+- **Diagnostic failures redact known key/token shapes before display.**
+  A shared event redactor covers both backends' failed-turn/retry reasons;
+  the panel boundary also covers raw diagnostic events and notices before
+  webview snapshots. MCP picker failures and voice error/close notices are
+  covered, including M87 queued-edit refusals and Tasks-tab failures at the
+  panel boundary. Muse Code RPC/failure logs and skill activation stdout/stderr use
+  fixed kind/code/length summaries, keeping account/profile text out of
+  those failure logs. Ordinary conversation and tool content stays intact.
+- **Confidential workspaces block contributor dispatch after an earlier yes.**
+  Every send/steer, queued/timed preparation, review and resume checks the
+  current setting; checks repeat after confirmations and setup awaits.
+  Configuration changes cancel and retire existing contributor sessions.
+  Turning the setting off retains the panel's earlier confirmation.
+- **Scanner forced-signal docs preserve the first stop.** On POSIX an earlier
+  latched timeout retains exit 6 when repeated signals force cleanup; only a
+  signal that latched first selects 130/143. Windows forced process exit is 1.
+- **Docs, setting descriptions and panel hints now match the code** (a
+  truth audit of the 0.12.0 tree). The README, PRIVACY.md, SECURITY.md,
+  acp.md, ci.md, RELEASING.md, CONTRIBUTING.md, the walkthrough and the
+  manifest's setting and command text no longer overstate what asks: Plan
+  refuses where they said "asks", allow rules, session allowances and hooks
+  settle some asks in Manual, and "Allow always in this workspace" covers
+  subagents, scheduled runs, best-of-N and reviews. They name all seven paid
+  features (the Auto reviewer was missing), say the ACP agent is on npm
+  since 0.11.0, and give the current bundle caps, exec and scanner rules,
+  release recovery run and hosted Action check status. The Modes menu's Auto
+  line on the Model API names the paid Auto reviewer while it is on, and the
+  panel's focus shortcuts name Cmd+Esc on macOS.
+- **The panel no longer says approvals still cover everything when Muse
+  Code runs without its sandbox.** Without it, Muse Code's file tools can
+  write anywhere your account can, without asking, in every mode, Plan
+  included (Meta's permissions page; probed on 1.4.2). This is the posture
+  `museSpark.shellSandbox` at `auto` picks for a Windows workspace under
+  your user profile, where the sandbox does not reliably run commands
+  ([#26](https://github.com/meta-models/muse-code-sdk/issues/26): 1.4.2 ran
+  them there on one machine and hung on a freshly set-up one). The panel
+  now warns once per window whenever the sandbox is off, whether `auto` or
+  the `off` setting turned it off; the Diagnostics report gains a
+  `muse code file writes` line; the setting's description says so too.
+- **The Modes menu no longer promises that Plan on Muse Code plans before
+  editing.** Plan is Muse Code's `denyUnmatched`, which refuses commands its
+  own allow rules do not cover and writes to `.git`, `.muse` and `.agents` but lets its file tools edit
+  other files, and the menu now says that.
+- **A first command after the Windows sandbox setup that fails while Muse
+  Code is still preparing the sandbox** (`ACL publication lock … timed
+  out`) now says to wait and try again, instead of offering the setup that
+  has already run.
+- **The browser check's live suite on Windows CI (M81).** CI names the
+  runtime's storage `D:\a\_temp/muse-browser-storage`, and the check's
+  folder comes back joined with `\`, so the suite's string-prefix check
+  failed though the folder was inside the storage. It now compares by path.
+  Tests only; the product is unchanged.
+
 - **CI reliability:** Windows MCP and shell job helpers compile directly with the .NET compiler, avoiding PowerShell startup and module discovery under load; failures retain compiler diagnostics and termination details.
+- What's New keeps version claims across overlapping updates, preventing
+  windows on different builds from deleting each other's claim and showing
+  duplicate notices. A pending notice cannot reopen its page or change the
+  update setting after the window is disposed.
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
   fast-forward; the release guide documents the administrator's recovery command.
@@ -196,6 +372,46 @@ happened, not what was planned; superseded entries are kept.
   with Chrome's focus emulation and is scanned only once its scenario is
   ready (a page not ready in 10 s fails); no rule or exemption changed.
   Tooling only.
+- **A cancelled browser check no longer leaves its folder behind (M81).** A Stop, lost admission or the deadline while the folder is still being created now removes the folder when it finishes arriving, and a folder whose creation fails part way is removed at once; the M81 bullet already promised the profile deleted afterwards. A normal run still removes it exactly once.
+
+- **Interactive extras preserve consent and daily Stop (D78, FIXDEF).** A
+  delayed raise cannot clear another window's Stop until tomorrow. Cancelling
+  budget admission refunds unsent requests and rejects late dialog answers
+  and limit publication. Backend switches preserve accepted prices and
+  workspace Always grants. Unused observation packing keeps the original
+  request tools and cache key; recall is offered with packed observations.
+  The Best-of-N overview now agrees with its default availability.
+
+### Security
+
+- Secret approval cards now remove workspace standing grants, redact contextual credentials across shell stage arguments, scrub reviewer fallback updates, and show the secret note when an existing card changes.
+- Muse Gadgets SDK tokens (`mgst_…`) are now redacted from logs and transcripts and counted by `scan-secrets`. A valid-length prefix glued to more token characters (a trailing `-` or `-extra`) is an overlength near-miss, not a token, and is left alone.
+- A prompt holding a detected secret is held before sending: the panel warns (Send anyway / Edit) and the transcript shows the redacted text either way. On the Model API backend a shell command holding one asks even in Bypass. Every emitted Muse Code approval shows its card redacted with a secret note and no standing grant; Muse Code Bypass can execute without an approval event and cannot be intercepted here. Both read the one shared detection table; the extension writes no commits, so there is no commit guard to add.
+
+- **Other coding agents' folders and files are protected writes.** On the
+  Model API backend, a write into `.claude`, `.codex`, `.cursor`, `.gemini`,
+  `.github/hooks`, `.github/copilot`, `.devin`, `.windsurf`, `.kiro`,
+  `.clinerules`, `.amp`, `.opencode`, `.continue` or `.roo`, or to
+  `.mcp.json`, `opencode.json`, `opencode.jsonc`, `GEMINI.md`,
+  `.cursorrules`, `.windsurfrules`, `.roomodes` or
+  `.github/copilot-instructions.md` (like `AGENTS.md` and `CLAUDE.md`
+  already), now always shows an approval card, "Edit automatically" and
+  Auto included; only Bypass writes it without asking. Those folders hold
+  hooks, MCP servers, plugins and settings that the other agent runs on its
+  own, and the instruction files steer the next agent that reads them, so
+  before this a model could plant a hook or an instruction there without a
+  card and have it act the next time you started that agent in the
+  workspace.
+- **Muse Code's file-write approvals follow the same list.** When Muse Code
+  asks before writing a file the list protects, wherever it is (outside the
+  workspace too, such as `~/.claude/settings.json`), the card now says
+  "Protected write", "Edit automatically" and the Auto reviewer never
+  answer it, and it offers no "Always allow" rule. Before this the
+  extension went only by Muse Code's own flag, and Muse Code does not flag
+  these folders. Muse Code still writes some of them without asking at all
+  (it wrote `.claude/settings.json` that way in a live check with its
+  sandbox off); the extension cannot stop a write it is never asked
+  about.
 
 ## [0.12.1] - 2026-10-04
 

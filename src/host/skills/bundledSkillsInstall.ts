@@ -19,6 +19,7 @@
 import { constants as fsConstants } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { redactSecrets } from '../../core/redact'
 import * as z from 'zod/mini'
 import {
   BUNDLED_SKILLS_DIR,
@@ -127,7 +128,7 @@ function errorCode(error: unknown): unknown {
 }
 
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
 function failed(folder: string, error: unknown): BundledSkillsFailure {

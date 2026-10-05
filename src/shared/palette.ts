@@ -73,6 +73,8 @@ export type PaletteAction =
   | { readonly type: 'openLog' }
   /** "Report an issue…" (M93, PLAN.md D72): the scrubbed report's preview, never a bare link. */
   | { readonly type: 'openReport' }
+  /** "What's New" (M99): the release notes of this version in an editor tab. */
+  | { readonly type: 'showWhatsNew' }
   | { readonly type: 'openExternal'; readonly url: string }
   | { readonly type: 'setPaidFeature'; readonly feature: PaidFeature; readonly isOn: boolean }
   /** `/review ` in the prompt, for what to review (M70). */
@@ -639,6 +641,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       title: UI_TEXT.groupSupport,
       items: [
         { id: 'log', label: UI_TEXT.openLog, action: { type: 'openLog' } },
+        { id: 'whatsNew', label: UI_TEXT.whatsNewOpen, action: { type: 'showWhatsNew' } },
         { id: 'issue', label: UI_TEXT.reportIssue, action: { type: 'openReport' } },
         {
           id: 'docs',

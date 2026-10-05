@@ -605,9 +605,9 @@ describe('workspace writes and verify grants', () => {
     },
   )
 
-  it.each([0, 1])(
-    'shares pre-format invalidation between parent and siblings (writer request %s)',
-    async (writerIndex) => {
+  it.each(['subagent', 'parent'])(
+    'shares pre-format invalidation between parent and siblings (%s writes)',
+    async (writer) => {
       const firstChecks = Promise.withResolvers<undefined>()
       const nextChecks = Promise.withResolvers<undefined>()
       const nextWrite = Promise.withResolvers<undefined>()
@@ -645,25 +645,40 @@ describe('workspace writes and verify grants', () => {
         await vi.waitFor(() => {
           expect(t.api.responseBodies()).toHaveLength(4)
         })
-        t.api.script(
-          ...Array.from({ length: 3 }, (_, index) =>
-            index === writerIndex
-              ? {
-                  calls: [writeCall('scripts/check.js', 'new script\n')],
-                  hold: nextWrite.promise,
-                }
-              : { calls: [RUN_CHECKS], hold: nextChecks.promise },
-          ),
-          { text: 'done' },
-        )
+        let writerRequest: string | undefined
+        const nextRound = Array.from({ length: 3 }, () => {
+          const reply: {
+            calls: ScriptedCall[]
+            hold: Promise<undefined>
+            onRequest: () => void
+          } = {
+            calls: [RUN_CHECKS],
+            hold: nextChecks.promise,
+            onRequest: () => {
+              const text = userText(t.api.responseBodies().at(-1))
+              const isChild = text.includes(MODEL_API_MODEL_TEXT.subagentObjective)
+              // Admission can change arrival order: bind the write to its
+              // session, still exercising a parent and a sibling writer.
+              if (!(writerRequest === undefined && isChild === (writer === 'subagent'))) {
+                return
+              }
+
+              writerRequest = text
+              reply.calls = [writeCall('scripts/check.js', 'new script\n')]
+              reply.hold = nextWrite.promise
+            },
+          }
+          return reply
+        })
+        t.api.script(...nextRound, { text: 'done' })
         firstChecks.resolve(undefined)
         await vi.waitFor(() => {
           expect(t.api.responseBodies()).toHaveLength(7)
           expect(t.io.shellCalls).toHaveLength(3)
         })
-        const writerRequest = userText(t.api.responseBodies()[4 + writerIndex])
-        expect(writerRequest.includes(MODEL_API_MODEL_TEXT.subagentObjective)).toBe(
-          writerIndex === 0,
+        expect(writerRequest).toBeDefined()
+        expect(writerRequest?.includes(MODEL_API_MODEL_TEXT.subagentObjective)).toBe(
+          writer === 'subagent',
         )
         // All three sessions hold their own grant before one writes.
         nextWrite.resolve(undefined)
