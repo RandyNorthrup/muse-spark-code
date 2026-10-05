@@ -58,7 +58,7 @@ import type { BestOfNRun } from '../../shared/bestOfN'
 import type { BoardRow } from '../../shared/sessionBoard'
 import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
-import type { TeamWorkerLabel } from '../../shared/teamView'
+import type { TeamTreeData, TeamUsageSummary, TeamWorkerLabel } from '../../shared/teamView'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
 import { backgroundRun } from '../toolDetails'
 import type {
@@ -90,6 +90,8 @@ export interface UsageReport {
   readonly subscription: SubscriptionUsage | undefined
   readonly account: AccountFacts | undefined
   readonly insights: { readonly day: UsageInsights; readonly week: UsageInsights } | undefined
+  /** The Team section (M96 lane U2); absent where the team cannot run. */
+  readonly team?: TeamUsageSummary | undefined
 }
 
 /**
@@ -276,6 +278,12 @@ export interface UiState {
   readonly context: ContextSummary | undefined
   /** undefined until the host answered `readUsage` for this window. */
   readonly usageReport: UsageReport | undefined
+  /**
+   * The Agent map's team tree (M96 lane U2); undefined where the team
+   * cannot run (off, Solo, single-model mode, no runnable role): the map,
+   * the pill and the dialog are today's.
+   */
+  readonly teamTree: TeamTreeData | undefined
   /** What the next message replies to or quotes (M17); the composer chip. */
   readonly reference: ChatReference | undefined
   /** Subagent transcripts by child session id (M14). */
@@ -480,6 +488,7 @@ export const initialUiState: UiState = {
   usage: undefined,
   context: undefined,
   usageReport: undefined,
+  teamTree: undefined,
   reference: undefined,
   childTranscripts: {},
   childOwners: {},
@@ -2184,6 +2193,8 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         // No account identity accompanies authState: discard prior-account
         // usage even if the backend name stays the same.
         usageReport: undefined,
+        // The tree names the account's models: it goes with the usage.
+        teamTree: undefined,
         auth: {
           status: message.status,
           detail: message.detail,
@@ -2316,8 +2327,13 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           subscription: message.subscription,
           account: message.account,
           insights: message.insights,
+          team: message.team,
         },
       }
+    }
+    case 'teamTree': {
+      // The ledger's live view (M96 lane U2): the tree replaces wholesale.
+      return { ...state, teamTree: message.tree }
     }
     case 'sharePreview': {
       return {

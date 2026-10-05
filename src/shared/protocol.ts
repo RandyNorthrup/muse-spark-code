@@ -42,6 +42,7 @@ import { bestOfNRunSchema } from './bestOfN'
 import { boardRowSchema } from './sessionBoard'
 import { sessionRowSchema } from './sessions'
 import { accountFactsSchema, subscriptionUsageSchema, usageInsightsSchema } from './usage'
+import { teamTreeSchema, teamUsageSchema } from './teamView'
 
 // Settings the webview needs to render. Host-only settings (binary path,
 // environment variables) are deliberately absent. The shape is exported so the
@@ -396,6 +397,33 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('stopTask'), itemId: z.string() }),
   // The Agent map's Stop all (M46).
   z.object({ type: z.literal('stopAllTasks') }),
+  // The team tree and cards (M96 lane U2): the host answers these once
+  // lanes T/A/W land. The webview only posts them; nothing team-related
+  // loads or changes requests until the host sends a team.
+  // A team task's transcript, opened from the tree.
+  z.object({ type: z.literal('openTeamTaskTranscript'), taskId: z.string() }),
+  // A team task's Stop, from the tree.
+  z.object({ type: z.literal('stopTeamTask'), taskId: z.string() }),
+  // A team task's branch against its base, in the diff editor.
+  z.object({ type: z.literal('reviewTeamDiff'), taskId: z.string() }),
+  // The merge card's answer, through the orchestrator's `merge`.
+  z.object({
+    type: z.literal('decideTeamMerge'),
+    taskId: z.string(),
+    decision: z.enum(['merge', 'discard']),
+  }),
+  // The "waiting for you" card's answer: queue, the main agent, raise, cancel.
+  z.object({
+    type: z.literal('answerTeamWaiting'),
+    waitingId: z.string(),
+    choice: z.enum(['queue', 'self', 'raise', 'cancel']),
+  }),
+  // Roles, pools and caps are edited in the Roles section, never in the tree.
+  z.object({ type: z.literal('openTeamRoles'), roleId: z.optional(z.string()) }),
+  // A pool entry's Reset, which asks first and names its window.
+  z.object({ type: z.literal('resetTeamEntry'), entryId: z.string() }),
+  // The Agent map's Stop all team tasks.
+  z.object({ type: z.literal('stopAllTeamTasks') }),
   // A `!` prompt (M46): the command, without the `!`.
   z.object({ type: z.literal('runUserShell'), command: z.string() }),
   // Tool row: fetch one page of a stored output or patch document.
@@ -688,6 +716,14 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     account: z.optional(accountFactsSchema),
     /** From the CLI's trace logs on this machine (M14); absent on the Model API. */
     insights: z.optional(z.object({ day: usageInsightsSchema, week: usageInsightsSchema })),
+    /** The Usage Team section (M96 lane U2); absent where the team cannot run. */
+    team: z.optional(teamUsageSchema),
+  }),
+  // The Agent map's team tree, the ledger's live view (M96 lane U2);
+  // absent where the team cannot run. Sent on every change.
+  z.object({
+    type: z.literal('teamTree'),
+    tree: teamTreeSchema,
   }),
   // A subagent's own transcript for the Agent map (M14).
   z.object({

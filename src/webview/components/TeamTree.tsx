@@ -310,6 +310,11 @@ function groupNodes(
   ]
 }
 
+/** A status after which the pill's dot rests (lane A names these). */
+function isRunningWork(status: string): boolean {
+  return !TERMINAL_WORKER_STATUSES.has(status)
+}
+
 /** Every task node under the root: entry workers, queued, unmerged, interrupted. */
 export function teamTaskCount(tree: TeamTreeData): number {
   return tree.roles.reduce(
@@ -319,6 +324,23 @@ export function teamTaskCount(tree: TeamTreeData): number {
       role.queued.length +
       role.unmerged.length +
       role.interrupted.length,
+    0,
+  )
+}
+
+function runningWorkers(workers: readonly TeamWorker[]): number {
+  return workers.filter((worker) => isRunningWork(worker.status)).length
+}
+
+/** The pill's running count: every task node not yet terminal. */
+export function teamRunningTaskCount(tree: TeamTreeData): number {
+  return tree.roles.reduce(
+    (total, role) =>
+      total +
+      role.entries.reduce((sum, entry) => sum + runningWorkers(entry.workers), 0) +
+      runningWorkers(role.queued) +
+      runningWorkers(role.unmerged) +
+      runningWorkers(role.interrupted),
     0,
   )
 }
