@@ -13,8 +13,8 @@
 
 import { readdir, readFile, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
+import * as z from 'zod/mini'
 import {
-  headerOf,
   parseStoredSession,
   type SessionStore,
   type StoredSession,
@@ -24,6 +24,7 @@ import {
   ATOMIC_TEMPORARY_SUFFIX,
   MILLISECONDS_PER_DAY,
   SESSION_FILE_STALE_TEMPORARY_MS,
+  STORED_SESSION_VERSION,
   UI_TEXT,
 } from '../../shared/constants'
 import { writeFileAtomically } from '../fsAtomic'
@@ -48,6 +49,26 @@ const FILE_EXTENSION = '.json'
 const ENOENT = 'ENOENT'
 // A session id names a file; only the UUID alphabet is allowed into a path.
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]+$/
+
+/**
+ * The header fields a listing validates (M101 BYO 16): the scalars the
+ * history row needs, with the full schema's own constraints, plus the
+ * replay's length for the turn count. The replay and transcript items
+ * themselves are never validated here.
+ */
+const storedSessionHeaderShape = z.object({
+  version: z.literal(STORED_SESSION_VERSION),
+  sessionId: z.string(),
+  accountId: z.optional(z.string().check(z.regex(/^[a-f0-9]{64}$/))),
+  sideChat: z.optional(z.boolean()),
+  workspaceRoot: z.string(),
+  name: z.optional(z.string()),
+  createdAt: z.string(),
+  lastActivityAt: z.string(),
+  forkedFrom: z.optional(z.string()),
+  firstPrompt: z.optional(z.string()),
+  turnIds: z.array(z.unknown()),
+})
 
 function assertSessionId(sessionId: string): void {
   if (!SESSION_ID_PATTERN.test(sessionId)) {
@@ -89,6 +110,44 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     return parsed.session
   }
 
+  /**
+   * A session's header without its conversation (M101 BYO 16): listing
+   * parses the file's JSON once but validates only the header fields, so
+   * a history of large sessions lists without paying for every replay and
+   * transcript. A file whose header does not read is skipped with a log
+   * line, as before; the session itself is read whole when it is opened.
+   */
+  const readHeader = async (name: string): Promise<StoredSessionHeader | undefined> => {
+    const file = path.join(deps.directory, name)
+    let raw: unknown
+    try {
+      raw = JSON.parse(await readFile(file, 'utf8'))
+    } catch (error: unknown) {
+      if (storeErrorCode(error) !== ENOENT) {
+        deps.log.warn(`Session file ${name} skipped: ${describeStoreError(error)}`)
+      }
+      return undefined
+    }
+    const parsed = storedSessionHeaderShape.safeParse(raw)
+    if (!parsed.success) {
+      deps.log.warn(`Session file ${name} skipped: its header does not read`)
+      return undefined
+    }
+    const header = parsed.data
+    return {
+      sessionId: header.sessionId,
+      ...(header.accountId !== undefined && { accountId: header.accountId }),
+      ...(header.sideChat === true && { sideChat: true }),
+      workspaceRoot: header.workspaceRoot,
+      ...(header.name !== undefined && { name: header.name }),
+      createdAt: header.createdAt,
+      lastActivityAt: header.lastActivityAt,
+      ...(header.forkedFrom !== undefined && { forkedFrom: header.forkedFrom }),
+      ...(header.firstPrompt !== undefined && { firstPrompt: header.firstPrompt }),
+      turnCount: header.turnIds.length,
+    }
+  }
+
   const journalDeps: SessionBudgetJournalDeps = {
     directory: deps.directory,
     loadSession: async (sessionId) => {
@@ -114,20 +173,18 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
   }
 
   /** True when the session has sat idle past the retention period (and was deleted). */
-  const isExpired = async (session: StoredSession): Promise<boolean> => {
+  const isExpired = async (header: StoredSessionHeader): Promise<boolean> => {
     const days = deps.retentionDays()
-    const idleMs = deps.now() - Date.parse(session.lastActivityAt)
+    const idleMs = deps.now() - Date.parse(header.lastActivityAt)
     // An unreadable date is kept: only a known age deletes anything.
     if (days <= 0 || Number.isNaN(idleMs) || idleMs <= days * MILLISECONDS_PER_DAY) {
       return false
     }
     try {
-      await rm(fileFor(session.sessionId), { force: true })
-      deps.log.info(`Session ${session.sessionId} idle for more than ${String(days)} days deleted`)
+      await rm(fileFor(header.sessionId), { force: true })
+      deps.log.info(`Session ${header.sessionId} idle for more than ${String(days)} days deleted`)
     } catch (error: unknown) {
-      deps.log.warn(
-        `Expired session ${session.sessionId} not deleted: ${describeStoreError(error)}`,
-      )
+      deps.log.warn(`Expired session ${header.sessionId} not deleted: ${describeStoreError(error)}`)
     }
     return true
   }
@@ -154,9 +211,9 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
         if (!name.endsWith(FILE_EXTENSION)) {
           continue
         }
-        const session = await readOne(name)
-        if (session !== undefined && !(await isExpired(session))) {
-          headers.push(headerOf(session))
+        const header = await readHeader(name)
+        if (header !== undefined && !(await isExpired(header))) {
+          headers.push(header)
         }
       }
       return headers

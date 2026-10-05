@@ -10097,6 +10097,24 @@ export class ModelApiSession implements AgentSession {
   }
 }
 
+/**
+ * One session's queued saves (M101 BYO 16): the latest snapshot waiting
+ * for its write, whether a write is running, and the callers waiting for
+ * a write that covers their snapshot.
+ */
+interface SessionSaveState {
+  latest:
+    | {
+        readonly snapshot: StoredSession
+        readonly header: StoredSessionHeader
+        readonly setHeaderAfterSave: boolean
+      }
+    | undefined
+  running: boolean
+  sequence: number
+  waiters: ({ readonly sequence: number } & Pending<void>)[]
+}
+
 export class ModelApiHost implements AgentHost {
   private isClosing = false
   private isVerifyDisposed = false
@@ -10109,6 +10127,14 @@ export class ModelApiHost implements AgentHost {
   private readonly listListeners = new Set<(event: SessionListEvent) => void>()
   /** Saves run one after another; failures are logged, and strict callers also see them. */
   private saving: Promise<void> = Promise.resolve()
+  /**
+   * Each session's save state (M101 BYO 16): saves for one session run one
+   * after another, and only the latest snapshot waiting for its write is
+   * written — rapid persist calls coalesce into one in-flight write plus
+   * one trailing write, and strict callers wait for the write that covers
+   * their snapshot.
+   */
+  private readonly saveStates = new Map<string, SessionSaveState>()
   /**
    * Each session's last saved snapshot (M82): while a call waits for its
    * output the replay cannot be saved, but what the session spent can,
@@ -10180,27 +10206,99 @@ export class ModelApiHost implements AgentHost {
     store: SessionStore,
     shouldSetHeaderAfterSave: boolean,
   ): Promise<void> {
+    const sessionId = snapshot.sessionId
     const header = headerOf(snapshot)
     if (!shouldSetHeaderAfterSave) {
-      this.stored.set(snapshot.sessionId, header)
+      this.stored.set(sessionId, header)
     }
-    this.lastSaved.set(snapshot.sessionId, snapshot)
+    this.lastSaved.set(sessionId, snapshot)
+    const existing = this.saveStates.get(sessionId)
+    const state: SessionSaveState = existing ?? {
+      latest: undefined,
+      running: false,
+      sequence: 0,
+      waiters: [],
+    }
+    if (existing === undefined) {
+      this.saveStates.set(sessionId, state)
+    }
+    // Only the latest snapshot waiting for its write is written: rapid
+    // persist calls coalesce, and every caller waits for the write that
+    // covers its snapshot (a newer snapshot holds a session's newer state).
+    state.sequence += 1
+    const sequence = state.sequence
+    state.latest = { snapshot, header, setHeaderAfterSave: shouldSetHeaderAfterSave }
+    const covered = new Promise<void>((resolve, reject) => {
+      state.waiters.push({ sequence, resolve, reject })
+    })
+    if (!state.running) {
+      state.running = true
+      void this.runSessionSaves(sessionId, store)
+    }
     const previous = this.saving
-    const saved = (async () => {
-      await previous
-      await store.save(snapshot)
-      if (shouldSetHeaderAfterSave) {
-        this.stored.set(snapshot.sessionId, header)
-      }
-    })()
     this.saving = (async () => {
       try {
-        await saved
-      } catch (error: unknown) {
-        this.deps.log.warn(`Session ${snapshot.sessionId} was not saved: ${describe(error)}`)
+        await previous
+      } catch {
+        // A failed save never breaks the drain; the write logged it, and
+        // strict callers saw the failure on their own promise.
+      }
+      try {
+        await covered
+      } catch {
+        // As above: logged by the write, seen by strict callers.
       }
     })()
-    return saved
+    return covered
+  }
+
+  /** Writes one session's queued snapshots, latest first, until none waits. */
+  private async runSessionSaves(sessionId: string, store: SessionStore): Promise<void> {
+    const state = this.saveStates.get(sessionId)
+    if (state === undefined) {
+      return
+    }
+    for (;;) {
+      const pending = state.latest
+      if (pending === undefined) {
+        state.running = false
+        return
+      }
+      state.latest = undefined
+      const coveredThrough = state.sequence
+      try {
+        await store.save(pending.snapshot)
+        if (pending.setHeaderAfterSave) {
+          this.stored.set(sessionId, pending.header)
+        }
+      } catch (error: unknown) {
+        this.deps.log.warn(`Session ${sessionId} was not saved: ${describe(error)}`)
+        this.settleSaveWaiters(state, coveredThrough, error)
+        continue
+      }
+      this.settleSaveWaiters(state, coveredThrough, undefined)
+    }
+  }
+
+  /** Resolves (or rejects) the waiters a completed write covered. */
+  private settleSaveWaiters(
+    state: SessionSaveState,
+    coveredThrough: number,
+    failure: unknown,
+  ): void {
+    const covered = state.waiters.filter((waiter) => waiter.sequence <= coveredThrough)
+    state.waiters = state.waiters.filter((waiter) => waiter.sequence > coveredThrough)
+    for (const waiter of covered) {
+      if (failure === undefined) {
+        waiter.resolve()
+      } else {
+        waiter.reject(
+          failure instanceof Error
+            ? failure
+            : new Error(`Session save failed: ${describe(failure)}`),
+        )
+      }
+    }
   }
 
   private persist(session: ModelApiSession, isStrict = false): Promise<void> {

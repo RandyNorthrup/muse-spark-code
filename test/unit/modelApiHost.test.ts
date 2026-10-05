@@ -1072,6 +1072,40 @@ describe('ModelApiHost: catalogue and sessions', () => {
     expect(runHook).not.toHaveBeenCalled()
   })
 
+  it('coalesces rapid saves into one in-flight write plus the latest (M101 BYO 16)', async () => {
+    const store = memorySessionStore()
+    const writtenModels: string[] = []
+    const inner = store.save.bind(store)
+    const releaseFirst = Promise.withResolvers<undefined>()
+    let shouldHoldWrites = false
+    let writes = 0
+    store.save = async (snapshot) => {
+      writes += 1
+      writtenModels.push(snapshot.modelId)
+      if (shouldHoldWrites) {
+        await releaseFirst.promise
+      }
+      await inner(snapshot)
+    }
+    const t = setup({ store })
+    const { session, turnDone } = await startSession(t)
+    await answerFirst(t, session, turnDone)
+    await t.host.flush()
+    shouldHoldWrites = true
+    writes = 0
+    writtenModels.length = 0
+    // Three rapid model changes while the first write is held: the middle
+    // snapshot never reaches the disk, and the latest does.
+    await session.setModel('muse-spark-1.2')
+    await session.setModel('muse-spark-1.3')
+    await session.setModel('muse-spark-1.3-contributor')
+    releaseFirst.resolve(undefined)
+    await t.host.flush()
+    expect(writes).toBe(2)
+    expect(writtenModels).toEqual(['muse-spark-1.2', 'muse-spark-1.3-contributor'])
+    expect(store.saved.get(session.sessionId)?.modelId).toBe('muse-spark-1.3-contributor')
+  })
+
   it('refuses to open a side fork when its durable save fails (M53)', async () => {
     const store = memorySessionStore()
     const t = setup({ store })
