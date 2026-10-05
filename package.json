@@ -991,7 +991,7 @@
     "quality": "run-s quality:gates test:a11y security:secrets security:sast",
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",
-    "package": "vsce package --no-dependencies",
+    "package": "npm run build && node scripts/package-vsix.mjs",
     "package:acp": "node scripts/build.mjs --production && node scripts/exec-schema.mjs --check && node scripts/package-acp.mjs",
     "images": "node scripts/render-images.mjs",
     "prepare": "husky",

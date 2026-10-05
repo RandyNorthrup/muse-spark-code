@@ -719,6 +719,7 @@ const visitWebview = (file) => {
   for (const imported of output.imports) if (!imported.external) visitWebview(imported.path)
 }
 visitWebview('dist/webview/main.js')
+visitWebview('dist/webview/models.js')
 for (const surface of DEFERRED_WEBVIEW_SURFACES) {
   const source = `src/webview/components/${surface}.tsx`
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
@@ -735,6 +736,7 @@ for (const [file, output] of Object.entries(webviewMeta.outputs)) {
   if (
     output.entryPoint &&
     output.entryPoint !== 'src/webview/main.tsx' &&
+    output.entryPoint !== 'src/webview/models/models.tsx' &&
     DEFERRED_WEBVIEW_SURFACES.every(
       (name) => output.entryPoint !== `src/webview/components/${name}.tsx`,
     )

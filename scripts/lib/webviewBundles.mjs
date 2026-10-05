@@ -1,6 +1,6 @@
 // Count every eagerly imported JavaScript chunk, once. Dynamic surfaces have
 // their own budget; moving startup code into a static chunk buys no headroom.
-export function webviewStartupOutputs(meta) {
+export function webviewStartupOutputs(meta, root = 'dist/webview/main.js') {
   const eager = new Set()
   const visit = (file) => {
     if (eager.has(file)) return
@@ -11,7 +11,7 @@ export function webviewStartupOutputs(meta) {
       if (!imported.external && imported.kind !== 'dynamic-import') visit(imported.path)
     }
   }
-  visit('dist/webview/main.js')
+  visit(root)
   return [...eager]
 }
 

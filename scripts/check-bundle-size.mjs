@@ -95,12 +95,11 @@ for (const { path, budgetKiB } of [...BUDGETS, ...deferredBudgets]) {
     console.log(`MISS ${path}: not built (budget ${budgetKiB} KiB)`)
     continue
   }
-  const bytes =
-    path === 'dist/webview/main.js'
-      ? webviewStartupOutputs(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')))
-          .filter((file) => file.endsWith('.js'))
-          .reduce((total, file) => total + statSync(file).size, 0)
-      : statSync(path).size
+  const bytes = ['dist/webview/main.js', 'dist/webview/models.js'].includes(path)
+    ? webviewStartupOutputs(webviewMeta, path)
+        .filter((file) => file.endsWith('.js'))
+        .reduce((total, file) => total + statSync(file).size, 0)
+    : statSync(path).size
   const sizeKiB = bytes / BYTES_PER_KIB
   const status = sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'
   if (sizeKiB > budgetKiB) {

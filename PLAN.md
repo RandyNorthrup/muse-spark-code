@@ -14395,6 +14395,17 @@ as a separate browser build. Require parser API completeness, deferred/reachable
 chunks and package membership, prove these guards red, and retain all caps.
 The panel publisher also consumes its own setup-message schema, shared with
 the chat protocol, so it does not initialize unrelated chat/agent schemas.
+The helper-free raw VSIX also exceeds the fixed 2,252,800-byte cap. Adopt
+only the release's allowlisted packaging stage, short landing guide, two
+recent changelog releases and value-preserving JSON compaction. Validate all
+staged translations/manifests against source with the existing strict gate,
+verify runtime/chunk/helper membership in a fake-only fixture, and prove
+source immutability and guard failures. Keep the full docs and source tables.
+The staged helper-free VSIX is 2,166,671 bytes, leaving less than the
+released helper's recorded compressed contribution. Share browser libraries
+between the chat and Models ESM entries; each webview still has its own module
+and language state. Count all static chunks separately for each entry, visit
+both roots in reachability checks, and remove the obsolete separate metafile.
 This is build scope only; it does not merge or implement the absent release.
 The local S/C ref lacks the brief's claimed release commit `928a9200`;
 clarification is pending before a separate exact-release merge. The real

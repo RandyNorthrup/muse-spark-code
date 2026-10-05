@@ -357,7 +357,7 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  entryPoints: { main: WEBVIEW_ENTRY },
+  entryPoints: { main: WEBVIEW_ENTRY, models: MODELS_WEBVIEW_ENTRY },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
   format: 'esm',
@@ -365,13 +365,6 @@ const webviewOptions = {
   chunkNames: 'chunks/[name]-[hash]',
   target: BROWSER_TARGET,
   jsx: 'automatic',
-}
-
-const modelsWebviewOptions = {
-  ...webviewOptions,
-  entryPoints: { models: MODELS_WEBVIEW_ENTRY },
-  format: 'iife',
-  splitting: false,
 }
 
 function listIntegrationTests() {
@@ -400,6 +393,7 @@ function reportSize(path) {
 // Validate the sealed data before starting any bundle build or watcher.
 copyCatalogToDist()
 rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
+rmSync(path.join(METAFILE_DIR, 'modelsWebview.json'), { force: true })
 
 if (isWatch) {
   const contexts = await Promise.all([
@@ -423,7 +417,6 @@ if (isWatch) {
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
-    esbuild.context(modelsWebviewOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -449,7 +442,6 @@ if (isWatch) {
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
-    modelsWebview: esbuild.build(modelsWebviewOptions),
   }
   const acp = esbuild.build(acpOptions)
   const builds = [...Object.values(shipped), acp]

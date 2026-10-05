@@ -94,7 +94,8 @@ sources read. Extract the existing authored `setupComplete` shape once and
 reuse it in both the chat parser and panel publisher, removing unrelated chat
 and agent schema initialization from the panel. Account & usage loads through
 an optional ESM chunk with a focused, dismissible loading modal. Late import
-completion cannot reopen a closed dialog. Models remains a separate IIFE build.
+completion cannot reopen a closed dialog. Models and chat keep separate ESM entries with shared browser libraries;
+each webview has its own module and installed-language state.
 
 All static startup chunks count toward chat's unchanged 900-KiB cap. Require
 reachable deferred chunks, reject stale/unlisted outputs, enforce a 25-KiB
@@ -118,6 +119,29 @@ check. The complete browser gate passes all **668 pages (167 scenarios × four
 themes)**: zero violations, zero undecided rules, zero missing results. Eight
 existing obscured-menu/listbox exemptions remain separately reported; no
 exemption changes. Final full-quality receipts follow below.
+
+The raw helper-free VSIX initially weighs 2,336,691 bytes (83,891 over).
+The packaging stage keeps only the VSCE allowlist, compacts translation and
+manifest JSON without changing values, and ships a concise truthful landing
+guide plus two recent changelog releases with links to full docs. Source docs
+and tables stay complete. The staged strict localization check compares all
+29 JSON documents against source and runs the same schema checks. Sixteen
+fake-only package tests cover exclusion, helper/runtime/chunk membership,
+source hash equality, docs and stage ownership. Deliberately allowing excluded
+files, disabling compaction and allowing an unowned stage makes those checks
+fail. Corrupting one staged German value fails the staged localization gate;
+all three packaging drills restore bytes exactly (16 drills total this round).
+
+The first stage is 2,166,671 bytes. Sharing chat/Models browser libraries cuts
+that to **2,050,278 bytes**, with each entry's static chunk sum counted under
+its original cap. The two roots are both visited in reachability; stale
+separate-build metadata is removed. All three owning files pass 44/44.
+`npm run package` exits 0 with exact staged localization checks. The real
+universal helper remains absent, so this is a **helper-free diagnostic package**,
+not the requested universal-package receipt. Its 202,522-byte headroom exceeds
+the released helper's recorded 119,342-byte compressed contribution; that
+arithmetic is conditional and does not certify an absent binary. Final full
+quality and remaining prerequisite status are recorded below.
 
 The preliminary build honestly fails unchanged caps: Models host 94.7/75 KiB
 and chat 905.0/900 KiB. Activation is 570.2/600 KiB, English 121.0/125 KiB.
