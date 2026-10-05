@@ -15557,6 +15557,22 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**DEFLAKE5 unit/coverage acceptance (2026-10-05, kubuntu).** On committed
+code `8d31e73a`, three consecutive complete three-worker V8 runs return 0:
+404 files and 8,093 tests pass each, with four files / 57 existing skips.
+A complete ten-worker run plus four owned CPU-load processes also returns
+0 on that exact code. Every coverage threshold passes: 93.75% statements,
+89.01% branches, 94.70% functions and 93.89% lines in all four final runs.
+Typecheck (five projects), full lint, format, plain knip and duplication
+return 0. The scoped rig brief authorizes this unit-only acceptance instead
+of a whole quality wrapper. It closes the unit/coverage deferral below;
+the historical failed wrapper and unrelated release/helper prerequisites
+remain recorded. Two actual causes are fixed: shared build artifacts and
+repeated expensive checks of identical restored bytes. Red drills reproduce
+all five historical files' defects and the new shared-metafile regression,
+with byte-exact restoration. See `docs/certification/deflake5.md` for commands,
+errors, hashes, worker/load settings and all successful and failed receipts.
+
 **M95INT round-two whole-chain receipt (2026-10-05) — still deferred.**
 The single full `npm run quality` authorized by the 150-minute rig brief
 passes format, lint, all five type projects, localization, host API, dead

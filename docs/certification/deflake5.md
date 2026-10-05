@@ -117,6 +117,58 @@ passes every one at the unchanged deadline. The new peer-rewrite test was
 drilled again after the lint-required state-container correction; the final
 source hash is below. Full-suite green receipts after restoration follow.
 
+## Committed-tree acceptance
+
+Code commit `8d31e73a3f86c1cf1a2fcdb4f033e72e263048e7` contains the
+complete fix. Hooks run successfully, including staged Gitleaks, and the
+committed test bytes match the restored hashes below. These runs execute
+sequentially against that commit with no intervening edits or retries:
+
+| Run          | UTC start (JSON) | Workers / extra CPU processes | Vitest duration | Result                                                                |
+| ------------ | ---------------- | ----------------------------- | --------------- | --------------------------------------------------------------------- |
+| `final-1`    | 19:44:14         | 3 / 0                         | 240.88 s        | Exit 0; 404 files / 8,093 tests pass, four files / 57 existing skips. |
+| `final-2`    | 19:48:18         | 3 / 0                         | 241.94 s        | Exit 0; 404 files / 8,093 tests pass, four files / 57 existing skips. |
+| `final-3`    | 19:52:22         | 3 / 0                         | 245.29 s        | Exit 0; 404 files / 8,093 tests pass, four files / 57 existing skips. |
+| `final-load` | 19:56:29         | 10 / 4                        | 156.01 s        | Exit 0; 404 files / 8,093 tests pass, four files / 57 existing skips. |
+
+Every final run reports coverage of **93.75% statements, 89.01% branches,
+94.70% functions and 93.89% lines**, above the unchanged 90/85/90/90 gates.
+The loaded final run's slowest membership case is 4,606.69 ms, below the
+unchanged 5,000-ms deadline. The earlier loaded fixed run is also retained;
+the committed-code load receipt additionally covers the lint correction.
+All four owned load processes are stopped and waited for after each probe.
+
+The normal commands are the reproduction commands above with report names
+`final-1`, `final-2` and `final-3`. The load command changes only worker count:
+
+```sh
+npm run test:unit -- --maxWorkers=10 --reporter=default --reporter=json --outputFile.json=temp/deflake5/final-load.json
+```
+
+Four concurrent owned processes run this CPU-only expression during that
+command, with stdout/stderr discarded and cleanup in `finally`:
+
+```js
+const { createHash } = require('node:crypto')
+const data = Buffer.alloc(1048576)
+for (;;) createHash('sha256').update(data).digest()
+```
+
+JSON report receipts, retained under `temp/deflake5/`:
+
+| Report            | SHA-256                                                            |
+| ----------------- | ------------------------------------------------------------------ |
+| `final-1.json`    | `02464f71c887811e39b7931d2aa1eb7dde42028741b87f40fc53c4994a19caad` |
+| `final-2.json`    | `d062a98a51eb68e6c3585741c37eca34cd116d85041c54ecf3a71b41fe39736c` |
+| `final-3.json`    | `6d55dcd237633bc9d6ea800c456876d48c9e2808ab198e73045fd9e8c8eae403` |
+| `final-load.json` | `2199d2b828b0348aff430a03aca8479c2cc960b23b1ded828341c819144b5686` |
+
+The follow-up receipt commit changes only this record and PLAN; executable
+source remains byte-identical to the tested code. This lane meets its full
+unit, coverage, stress, red-drill and scoped static acceptance within the
+90-minute timebox. The separate historical full-quality failure and release
+prerequisites in `m95-int.md` are not rewritten as green.
+
 ## Static gates
 
 The final corrected source returns 0 for `npm run typecheck` (all five
