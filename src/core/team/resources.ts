@@ -143,6 +143,7 @@ export type AcquireOutcome =
   | { readonly status: 'busy'; readonly holder: LeaseHolder }
   | { readonly status: 'stale' }
   | { readonly status: 'closed' }
+  | { readonly status: 'cancelled' }
 
 export type CallAdmission =
   | { readonly status: 'ok' }
@@ -159,13 +160,11 @@ export interface ExternalResourceHint {
 /** Time, injected so the scheduler and the tests drive it. */
 export interface RegistryClock {
   readonly now: () => number
-  readonly delay: (ms: number) => Promise<void>
   readonly schedule: (callback: () => void, ms: number) => { cancel(): void }
 }
 
 const systemClock: RegistryClock = {
   now: () => Date.now(),
-  delay: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
   schedule: (callback: () => void, ms: number) => {
     const timer = setTimeout(callback, ms)
     return {
@@ -498,16 +497,23 @@ export class ResourceRegistry {
    * re-entry (its next call's admission) answers at once. Unknown resources
    * are free: held with no lease tracked.
    */
-  public acquire(resourceName: string, holder: LeaseHolder): Promise<AcquireOutcome> {
-    const live = this.live(resourceName)
-    if (live === undefined) {
-      return Promise.resolve({ status: 'held' })
-    }
+  public acquire(
+    resourceName: string,
+    holder: LeaseHolder,
+    signal?: AbortSignal,
+  ): Promise<AcquireOutcome> {
     if (this.closed) {
       return Promise.resolve({ status: 'closed' })
     }
+    if (signal?.aborted === true) {
+      return Promise.resolve({ status: 'cancelled' })
+    }
     if (this.isRetired(holder)) {
       return Promise.resolve({ status: 'stale' })
+    }
+    const live = this.live(resourceName)
+    if (live === undefined) {
+      return Promise.resolve({ status: 'held' })
     }
     const takenBackBy = live.takenBack.get(holderKey(holder))
     if (takenBackBy !== undefined) {
@@ -525,10 +531,25 @@ export class ResourceRegistry {
     }
     const deadline = this.clock.now() + this.waitMs
     return new Promise<AcquireOutcome>((resolve) => {
-      live.waiters.push({ holder, deadline, resolve })
-      void this.clock.delay(this.waitMs).then(() => {
+      const waiter: Waiter = {
+        holder,
+        deadline,
+        resolve: (outcome) => {
+          timer.cancel()
+          signal?.removeEventListener('abort', onAbort)
+          resolve(outcome)
+        },
+      }
+      const onAbort = () => {
+        live.waiters = live.waiters.filter((candidate) => candidate !== waiter)
+        waiter.resolve({ status: 'cancelled' })
+        this.wake(resourceName)
+      }
+      const timer = this.clock.schedule(() => {
         this.pump(resourceName)
-      })
+      }, this.waitMs)
+      live.waiters.push(waiter)
+      signal?.addEventListener('abort', onAbort, { once: true })
     })
   }
 

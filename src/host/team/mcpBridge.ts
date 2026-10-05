@@ -28,7 +28,7 @@ import { randomBytes } from 'node:crypto'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import * as z from 'zod/mini'
 import type { SessionMcpServer } from '../../core/agent/agentBackend'
-import type { CallToolResult } from '../../core/backends/modelapi/mcp/protocol'
+import { type CallToolResult, McpError } from '../../core/backends/modelapi/mcp/protocol'
 import type {
   BridgeOfferedTool,
   McpPoolSnapshot,
@@ -69,7 +69,7 @@ export interface BridgeCaller {
   readonly holder: LeaseHolder
   /** A read-only role sees only tools that declare `readOnlyHint: true`. */
   readonly readOnly: boolean
-  /** The role's servers; undefined means every server the pool offers. */
+  /** Further restricts the servers explicitly assigned to the caller's role. */
   readonly servers?: readonly string[] | undefined
 }
 
@@ -152,6 +152,8 @@ export class TeamMcpBridge {
   private server: Server | undefined
   private port: number | undefined
   private starting: Promise<void> | undefined
+  private closed = false
+  private nextEngineId = 0
 
   public constructor(private readonly deps: TeamBridgeDeps) {}
 
@@ -178,9 +180,10 @@ export class TeamMcpBridge {
 
   private allowedServers(caller: BridgeCaller): readonly string[] {
     const offered = this.offeredServers()
-    return caller.servers === undefined
-      ? offered
-      : caller.servers.filter((name) => offered.includes(name))
+    const assigned = this.deps.leases.serversForRole(caller.holder.role)
+    return (caller.servers ?? offered).filter(
+      (name) => offered.includes(name) && assigned.includes(name),
+    )
   }
 
   private refused(text: string): CallToolResult {
@@ -223,7 +226,7 @@ export class TeamMcpBridge {
     }
     const identity = this.deps.serverIdentities?.[ref.server]
     this.deps.leases.ensureServer(ref.server, identity)
-    const outcome = await this.deps.leases.acquire(ref.server, holder)
+    const outcome = await this.deps.leases.acquire(ref.server, holder, signal)
     if (outcome.status === 'busy') {
       return this.refused(busyText(outcome.holder))
     }
@@ -233,15 +236,40 @@ export class TeamMcpBridge {
     if (outcome.status === 'closed') {
       return this.refused('The team bridge is closed')
     }
+    if (outcome.status === 'cancelled' || signal.aborted) {
+      if (outcome.status === 'held') {
+        // Cancellation after a queued grant but before dispatch creates no call liability.
+        this.deps.leases.release(ref.server, holder)
+      }
+      return this.refused(describe(signal.reason))
+    }
+    if (!this.allowedServers(caller).includes(ref.server)) {
+      this.deps.leases.release(ref.server, holder)
+      return this.refused(`Unknown tool: ${functionName}`)
+    }
+    // Retirement or Take back can happen while acquire is settling.
+    const current = this.deps.leases.checkCall(ref.server, holder)
+    if (current.status === 'stale-attempt') {
+      return this.refused(`The task's attempt ${String(holder.attempt)} ended; the call is refused`)
+    }
+    if (current.status !== 'ok') {
+      return this.refused(
+        current.holder === undefined ? 'The team bridge is closed' : busyText(current.holder),
+      )
+    }
     this.deps.leases.callStarted(ref.server, holder)
+    let isTerminal = false
     try {
-      return await this.deps.pool.callRaw(functionName, argsJson, signal)
+      const result = await this.deps.pool.callRaw(functionName, argsJson, signal)
+      isTerminal = true
+      return result
     } catch (error: unknown) {
+      // Only a server's JSON-RPC error is a terminal rejection. A local
+      // timeout, transport loss or cancellation does not prove the call ended.
+      isTerminal = error instanceof McpError && error.code !== undefined
       return this.refused(describe(error))
     } finally {
-      // A cancelled call the server never answered stays uncertain and keeps
-      // the lease (D75); an answered one ends it, counting idle from here.
-      this.deps.leases.callEnded(ref.server, holder, !signal.aborted)
+      this.deps.leases.callEnded(ref.server, holder, isTerminal)
     }
   }
 
@@ -347,6 +375,10 @@ export class TeamMcpBridge {
       response.writeHead(HTTP_STATUS.badRequest).end()
       return
     }
+    if (this.closed || this.callers.get(callerId) !== caller) {
+      response.writeHead(HTTP_STATUS.notFound).end()
+      return
+    }
     let parsed: unknown
     try {
       parsed = JSON.parse(body)
@@ -439,6 +471,10 @@ export class TeamMcpBridge {
       this.deps.log,
       'Team MCP bridge',
     )
+    if (this.closed) {
+      server.close()
+      throw new Error('The team bridge is closed')
+    }
     this.server = server
     this.port = port
     this.deps.log.info(`Team MCP bridge listening on ${IDE_MCP_LOOPBACK_HOST}:${String(port)}`)
@@ -460,7 +496,21 @@ export class TeamMcpBridge {
     argsJson: string,
     signal: AbortSignal,
   ): Promise<CallToolResult> {
-    return await this.invoke(this.liveCaller(callerId).caller, functionName, argsJson, signal)
+    const caller = this.liveCaller(callerId).caller
+    const controller = new AbortController()
+    this.nextEngineId += 1
+    const flight = `${callerId}\nengine:${String(this.nextEngineId)}`
+    this.inFlight.set(flight, controller)
+    try {
+      return await this.invoke(
+        caller,
+        functionName,
+        argsJson,
+        AbortSignal.any([signal, controller.signal]),
+      )
+    } finally {
+      this.inFlight.delete(flight)
+    }
   }
 
   /**
@@ -489,7 +539,7 @@ export class TeamMcpBridge {
    * started first; registering the same id twice is refused.
    */
   public registerCaller(caller: BridgeCaller): BridgeEndpoint {
-    if (this.port === undefined) {
+    if (this.closed || this.port === undefined) {
       throw new Error('The team bridge is not started')
     }
     if (caller.id === '' || this.callers.has(caller.id)) {
@@ -519,6 +569,9 @@ export class TeamMcpBridge {
 
   /** Listens on an ephemeral loopback port; idempotent while started. */
   public start(): Promise<void> {
+    if (this.closed) {
+      return Promise.reject(new Error('The team bridge is closed'))
+    }
     if (this.port !== undefined) {
       return Promise.resolve()
     }
@@ -528,6 +581,7 @@ export class TeamMcpBridge {
 
   /** The window going away: every call stops, every endpoint with it. */
   public close(): void {
+    this.closed = true
     for (const controller of this.inFlight.values()) {
       controller.abort()
     }

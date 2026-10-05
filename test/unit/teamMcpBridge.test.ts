@@ -4,8 +4,9 @@
 // per call. The pool is a fake `TeamBridgePool` (fakes live in tests); the
 // HTTP loopback is real.
 
-import { afterEach, describe, expect, it } from 'vitest'
-import type { CallToolResult } from '../../src/core/backends/modelapi/mcp/protocol'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { McpConnection } from '../../src/core/backends/modelapi/mcp/connection'
+import { type CallToolResult, McpError } from '../../src/core/backends/modelapi/mcp/protocol'
 import type {
   BridgeOfferedTool,
   McpPoolSnapshot,
@@ -13,6 +14,7 @@ import type {
 } from '../../src/core/backends/modelapi/mcp/pool'
 import { ResourceRegistry } from '../../src/core/team/resources'
 import { type TeamBridgePool, TeamMcpBridge } from '../../src/host/team/mcpBridge'
+import * as loopback from '../../src/host/mcpLoopback'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { postLoopback, postLoopbackJson } from './helpers/loopbackHttp'
 import { createManualClock } from './helpers/manualClock'
@@ -117,9 +119,16 @@ afterEach(() => {
   }
 })
 
-async function started(pool: TeamBridgePool, waitMs = 60_000) {
+function configured(pool: TeamBridgePool, waitMs = 60_000) {
   const driven = createManualClock()
   const leases = new ResourceRegistry({ clock: driven.clock, waitMs, idleMs: 120_000 })
+  for (const name of ['chrome', 'notes']) {
+    const declaration = leases.ensureServer(
+      name,
+      name === 'chrome' ? { command: 'chrome-control-mcp' } : {},
+    )
+    leases.declare({ ...declaration, assignedRoles: ['research', 'engineering', 'orchestrator'] })
+  }
   const bridge = new TeamMcpBridge({
     pool,
     leases,
@@ -129,8 +138,13 @@ async function started(pool: TeamBridgePool, waitMs = 60_000) {
     log: new FakeLogOutputChannel(),
   })
   bridges.push(bridge)
-  await bridge.start()
   return { bridge, leases, ...driven }
+}
+
+async function started(pool: TeamBridgePool, waitMs = 60_000) {
+  const launched = configured(pool, waitMs)
+  await launched.bridge.start()
+  return launched
 }
 
 /** Two workers calling the exclusive chrome, the second queued behind the first. */
@@ -160,7 +174,7 @@ function textOf(result: unknown): string {
 describe('endpoints and tokens', () => {
   it('serves the orchestrator and a worker through their own endpoints, on the one pool', async () => {
     const fake = fakePool()
-    const { bridge } = await started(fake.pool)
+    const { bridge, leases } = await started(fake.pool)
     const main = bridge.registerCaller({ id: 'main', holder: ORCHESTRATOR, readOnly: false })
     const worker = bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
     expect(main.url).not.toBe(worker.url)
@@ -172,6 +186,7 @@ describe('endpoints and tokens', () => {
       method: 'tools/call',
       params: { name: NAVIGATE, arguments: {} },
     })
+    leases.release('chrome', ORCHESTRATOR)
     const second = await postLoopbackJson(worker, {
       jsonrpc: '2.0',
       id: 1,
@@ -191,6 +206,8 @@ describe('endpoints and tokens', () => {
     const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' })
     const denied = await postLoopback(main, body, { Authorization: 'Bearer [REDACTED]' })
     expect(denied.status).toBe(401)
+    const unauthenticated = await postLoopback(main, body, {})
+    expect(unauthenticated.status).toBe(401)
     const unknown = { ...main, url: main.url.replace('/main', '/elsewhere') }
     const missing = await postLoopback(unknown, body)
     expect(missing.status).toBe(404)
@@ -308,6 +325,39 @@ describe('read-only filtering', () => {
 })
 
 describe('worker configuration isolation', () => {
+  it('refuses a server unassigned while its worker waited', async () => {
+    const { fake, gate, leases, pendingFirst, pendingSecond } = await queuedChromeCalls()
+    leases.declare({ name: 'chrome', kind: 'exclusive', assignedRoles: ['research'] })
+    gate.resolve({ content: [{ type: 'text', text: 'shot' }] })
+    await pendingFirst
+    leases.release('chrome', RESEARCHER)
+    const result = await pendingSecond
+    expect(result.isError).toBe(true)
+    expect(fake.calls).toHaveLength(1)
+    expect(leases.snapshot()[0]?.holders).toEqual([])
+  })
+
+  it.each([
+    { servers: undefined, holder: RESEARCHER },
+    { servers: ['chrome', 'notes'], holder: RESEARCHER },
+    { servers: undefined, holder: ORCHESTRATOR },
+    { servers: ['chrome'], holder: { ...RESEARCHER, role: 'orchestrator' } },
+  ])(
+    'requires user assignment for $holder.role with server selection $servers',
+    async ({ servers, holder }) => {
+      const fake = fakePool()
+      const { bridge, leases } = await started(fake.pool)
+      leases.declare({ name: 'chrome', kind: 'exclusive' })
+      leases.declare({ name: 'notes', kind: 'shared' })
+      bridge.registerCaller({ id: 'task-a', holder, readOnly: false, servers })
+      expect(bridge.listTools('task-a')).toEqual([])
+      expect(bridge.serverEntriesFor('task-a')).toEqual({})
+      const result = await bridge.callAs('task-a', NAVIGATE, '{}', new AbortController().signal)
+      expect(result.isError).toBe(true)
+      expect(fake.calls).toEqual([])
+    },
+  )
+
   it('starts a worker with only its role’s servers', async () => {
     const fake = fakePool()
     const { bridge } = await started(fake.pool)
@@ -336,6 +386,92 @@ describe('worker configuration isolation', () => {
 })
 
 describe('lease admission per call', () => {
+  it('retains the lease after M50 times out without a terminal server answer', async () => {
+    const fake = fakePool()
+    const connection = new McpConnection(
+      {
+        send: () => Promise.resolve(),
+        setProtocolVersion: vi.fn(),
+        onMessage: vi.fn(),
+        onClose: vi.fn(),
+        close: () => Promise.resolve(),
+      },
+      { name: 'chrome', clientVersion: '0.0.0-test', log: new FakeLogOutputChannel() },
+    )
+    const { bridge, leases, advance } = await started({
+      ...fake.pool,
+      callRaw: (_name, _args, signal) =>
+        connection.callTool('screenshot', {}, { signal, timeoutMs: 1 }),
+    })
+    bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+    const stop = new AbortController()
+    const result = await bridge.callAs('task-a', SCREENSHOT, '{}', stop.signal)
+    expect(result.isError).toBe(true)
+    expect(textOf({ result })).toContain('tools/call timed out')
+    expect(stop.signal.aborted).toBe(false)
+    advance(1_000_000)
+    expect(leases.snapshot()[0]?.holders).toEqual([RESEARCHER])
+    leases.retireAttempt(RESEARCHER.taskId, RESEARCHER.attempt)
+    leases.takeBack('chrome', ORCHESTRATOR)
+    expect(leases.snapshot()[0]?.holders).toEqual([RESEARCHER])
+    leases.releaseAnyway('chrome')
+    expect(leases.snapshot()[0]?.holders).toEqual([ORCHESTRATOR])
+    await connection.close()
+  })
+
+  it('ends a lease on a terminal JSON-RPC error response', async () => {
+    const fake = fakePool()
+    const { bridge, leases, advance } = await started({
+      ...fake.pool,
+      callRaw: () => Promise.reject(new McpError('server refused', -32_602)),
+    })
+    bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+    const result = await bridge.callAs('task-a', SCREENSHOT, '{}', new AbortController().signal)
+    expect(result.isError).toBe(true)
+    advance(120_000)
+    expect(leases.snapshot()[0]?.holders).toEqual([])
+  })
+
+  it('accepts a terminal result even when the caller already cancelled', async () => {
+    const fake = fakePool()
+    const gate = Promise.withResolvers<CallToolResult>()
+    const entered = Promise.withResolvers<undefined>()
+    const { bridge, leases, advance } = await started({
+      ...fake.pool,
+      callRaw: () => {
+        entered.resolve(undefined)
+        return gate.promise
+      },
+    })
+    bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+    const stop = new AbortController()
+    const pending = bridge.callAs('task-a', SCREENSHOT, '{}', stop.signal)
+    await entered.promise
+    stop.abort()
+    gate.resolve({ content: [{ type: 'text', text: 'terminal' }] })
+    await pending
+    advance(120_000)
+    expect(leases.snapshot()[0]?.holders).toEqual([])
+  })
+
+  it.each(['retire', 'take-back'])(
+    'rechecks %s after acquiring and before dispatch',
+    async (action) => {
+      const fake = fakePool()
+      const { bridge, leases } = await started(fake.pool)
+      bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+      const pending = bridge.callAs('task-a', SCREENSHOT, '{}', new AbortController().signal)
+      if (action === 'retire') {
+        leases.retireAttempt(RESEARCHER.taskId, RESEARCHER.attempt)
+      } else {
+        leases.takeBack('chrome', ORCHESTRATOR)
+      }
+      const result = await pending
+      expect(result.isError).toBe(true)
+      expect(fake.calls).toEqual([])
+    },
+  )
+
   it('queues a second worker behind the first, then runs it', async () => {
     const { fake, gate, leases, pendingFirst, pendingSecond } = await queuedChromeCalls()
     expect(fake.calls).toHaveLength(1)
@@ -366,7 +502,7 @@ describe('lease admission per call', () => {
     // A call from the retired attempt, arriving after, is refused.
     const late = await bridge.callAs('task-a', NAVIGATE, '{}', new AbortController().signal)
     expect(late.isError).toBe(true)
-    expect(textOf({ result: late })).toBe('The task’s attempt 1 ended; the call is refused')
+    expect(textOf({ result: late })).toBe("The task's attempt 1 ended; the call is refused")
   })
 
   it('tells a taken-back holder busy, naming the orchestrator', async () => {
@@ -387,6 +523,130 @@ describe('lease admission per call', () => {
     await bridge.callAs('main', NAVIGATE, '{}', new AbortController().signal)
     const chrome = leases.list().find((entry) => entry.name === 'chrome')
     expect(chrome?.kind).toBe('exclusive')
+  })
+})
+
+describe('cancellation and disposal', () => {
+  it('refuses an HTTP caller removed while its body was being read', async () => {
+    const fake = fakePool()
+    const { bridge } = await started(fake.pool)
+    const endpoint = bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+    const bodyRead = Promise.withResolvers<undefined>()
+    const proceed = Promise.withResolvers<undefined>()
+    const readBody = loopback.readLoopbackBody
+    const spy = vi.spyOn(loopback, 'readLoopbackBody').mockImplementationOnce(async (...args) => {
+      const body = await readBody(...args)
+      bodyRead.resolve(undefined)
+      await proceed.promise
+      return body
+    })
+    try {
+      const pending = postLoopback(
+        endpoint,
+        JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: NAVIGATE } }),
+      )
+      await bodyRead.promise
+      bridge.unregisterCaller('task-a')
+      bridge.registerCaller({ id: 'task-a', holder: ENGINEER, readOnly: false })
+      proceed.resolve(undefined)
+      const response = await pending
+      expect(response.status).toBe(404)
+      expect(fake.calls).toEqual([])
+    } finally {
+      proceed.resolve(undefined)
+      spy.mockRestore()
+    }
+  })
+
+  it.each(['unregister', 'close'])('cancels every in-process call on %s', async (action) => {
+    const fake = fakePool()
+    const gate = fake.hold()
+    const { bridge } = await started(fake.pool)
+    bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+    const pending = [
+      bridge.callAs('task-a', READ_NOTE, '{}', new AbortController().signal),
+      bridge.callAs('task-a', READ_NOTE, '{}', new AbortController().signal),
+    ]
+    await vi.waitFor(() => {
+      expect(fake.calls).toHaveLength(2)
+    })
+    if (action === 'unregister') {
+      bridge.unregisterCaller('task-a')
+    } else {
+      bridge.close()
+    }
+    const aborted = fake.calls.map((call) => call.signal.aborted)
+    gate.resolve({ content: [{ type: 'text', text: 'done' }] })
+    await Promise.all(pending)
+    expect(aborted).toEqual([true, true])
+  })
+
+  it.each(['queued', 'granted'])(
+    'cancels %s admission without dispatch or lease liability',
+    async (stage) => {
+      const fake = fakePool()
+      const { bridge, leases, advance } = await started(fake.pool)
+      leases.ensureServer('chrome', { command: 'chrome-control-mcp' })
+      await leases.acquire('chrome', RESEARCHER)
+      bridge.registerCaller({ id: 'task-b', holder: ENGINEER, readOnly: false })
+      const stop = new AbortController()
+      const pending = bridge.callAs('task-b', SCREENSHOT, '{}', stop.signal)
+      expect(leases.snapshot()[0]?.waiters).toEqual([ENGINEER])
+      if (stage === 'granted') {
+        leases.release('chrome', RESEARCHER)
+      }
+      stop.abort()
+      const waitersAfterAbort = leases.snapshot()[0]?.waiters
+      leases.release('chrome', RESEARCHER)
+      const result = await pending
+      expect(waitersAfterAbort).toEqual([])
+      expect(result.isError).toBe(true)
+      expect(fake.calls).toEqual([])
+      advance(1_000_000)
+      expect(leases.snapshot()[0]?.holders).toEqual([])
+    },
+  )
+
+  it('refuses an already cancelled call before acquiring a resource', async () => {
+    const fake = fakePool()
+    const { bridge, leases } = await started(fake.pool)
+    bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+    const stop = new AbortController()
+    stop.abort()
+    const result = await bridge.callAs('task-a', SCREENSHOT, '{}', stop.signal)
+    expect(result.isError).toBe(true)
+    expect(fake.calls).toEqual([])
+    expect(leases.snapshot().flatMap((resource) => resource.holders)).toEqual([])
+  })
+
+  it('cannot reopen or register after close overtakes startup', async () => {
+    const fake = fakePool()
+    const { bridge } = configured(fake.pool)
+    const listener = Promise.withResolvers<loopback.LoopbackListener>()
+    const listen = loopback.listenLoopback
+    const spy = vi.spyOn(loopback, 'listenLoopback').mockImplementation(async (...args) => {
+      const opened = await listen(...args)
+      listener.resolve(opened)
+      return opened
+    })
+    try {
+      const pending = bridge.start()
+      expect(bridge.start()).toBe(pending)
+      bridge.close()
+      await expect(pending).rejects.toThrow('closed')
+      const opened = await listener.promise
+      expect(opened.server.listening).toBe(false)
+      expect(() =>
+        bridge.registerCaller({ id: 'main', holder: ORCHESTRATOR, readOnly: false }),
+      ).toThrow()
+      await expect(bridge.start()).rejects.toThrow('closed')
+      expect(spy).toHaveBeenCalledOnce()
+    } finally {
+      // Also close the real listener when a deliberate guard break made the assertion fail.
+      const opened = await listener.promise
+      opened.server.close()
+      spy.mockRestore()
+    }
   })
 })
 

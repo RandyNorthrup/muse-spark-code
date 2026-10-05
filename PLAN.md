@@ -4744,8 +4744,10 @@ every fact, is `docs/certification/m96-research.md`.
       `TEAM_LEASE_WAIT_MS` (5 minutes), with the holder named in the
       worker's transcript and the Agent map. Past that, it answers
       "resource busy, held by `<role>` task `<id>`" to the orchestrator.
-    - **Release** happens at finish, stop and cancel, by the holder. Leases
-      are held by the window's scheduler, in memory (Scheduler and traffic):
+    - **Release** is requested at finish, stop and cancel, by the holder,
+      and waits for every earlier call's terminal answer (or a proved
+      server exit / the user's **Release anyway**). Leases are held by the
+      window's scheduler, in memory (Scheduler and traffic):
       - a lease records its holder (task and attempt), and every call
         carries it;
       - a late call from an earlier attempt is refused;
@@ -17448,9 +17450,13 @@ next`, the exhausted policy and the queue, the meters, reservations and
         the window started, until **Restart server** ends it and it exits;
         for a remote server, until the user's **Release anyway**. A command's declared
         resource is released only when its process has exited.
-      - A stopped or cancelled holder's lease is released when its attempt
-        is retired, and its late call, from the earlier attempt, is refused.
-      - The user can take a lease back for the orchestrator.
+      - A stopped or cancelled holder's attempt is retired immediately,
+        refusing late calls. Its lease is released only after every earlier
+        call is terminal, a proved server exit, or **Release anyway**.
+      - The user can take a lease back for the orchestrator; new calls from
+        the old holder are refused immediately, and transfer waits for the
+        same terminal/exit/explicit-release condition. A local timeout is
+        not a terminal answer.
       - A declared command takes its resource's lease.
   45. **The MCP bridge.**
       - Each server runs once.
@@ -19788,6 +19794,19 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM96B (2026-10-05, macmini).** RVM96A findings 9–11 and 23–26 are
+fixed with full-file regression runs and byte-exact red drills. All five
+TypeScript projects, focused lint/format, localization (0 problems), knip,
+duplication (0 clones), dpdm and the production build pass; 96 relevant
+tests pass. The host API record gate fails identically on the starting
+`006edd40` source and the fixed source: its recorded Node import counts
+omit lane B's existing bridge/loopback imports. Justified scope deferral
+`M96B-HOST-API-RECORD` (§9): the lead regenerates the shared record after
+parallel integration. Full quality remains the lead's gate under the
+explicit lane prohibition. No gate, ignore, threshold or deadline changes.
+See `docs/certification/m96-b.md` for exact evidence and the late-answer
+liveness residual.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -20231,6 +20250,30 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M96B-HOST-API-RECORD (FIXM96B, 2026-10-05): inherited generated
+  documentation drift.** `docs/ide-compatibility/host-api.md` records
+  `node:crypto` 32 and `node:http` 2, while the starting lane B source at
+  `006edd40` and the fixed source both give 34 and 4. These fixes introduce
+  no Node built-in import. Safe for now because only documentation counts
+  are stale; the runtime and boundary validation are unchanged by the
+  record. The file is outside this fix lane's ownership. Follow-up: the
+  lead runs `npm run check:host-api -- --write`, reviews the generated diff
+  on the integrated source, and reruns the unchanged gate before proposing
+  the integrated commit. The lane gate failure is recorded in §7 and
+  `docs/certification/m96-b.md`.
+
+- **M96B-LATE-TERMINAL (FIXM96B, RVM96A 10, 2026-10-05): retained
+  ownership after a local timeout.** M50 removes a request from its waiting
+  map on local timeout/cancellation; a later server reply is logged as no
+  longer waiting and cannot settle the bridge's uncertainty. The bridge
+  retains the lease conservatively: retirement, Take back and idle time
+  cannot free it. Recovery is a proved local-server exit or the user's
+  **Release anyway**; a remote session closing is not proof. Safe for now
+  because no second holder is admitted automatically. Follow-up: the M96
+  integration/M50 owner adds per-call terminal observation through the pool
+  and connection (including late replies), with capture-backed regression
+  tests. This lane changes no M50 wire/lifecycle API and makes no live call.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

@@ -14,7 +14,7 @@ export async function postLoopback(
 ): Promise<Response> {
   return await fetch(endpoint.url, {
     method: 'POST',
-    headers: { ...endpoint.headers, ...headers, 'content-type': 'application/json' },
+    headers: { ...(headers ?? endpoint.headers), 'content-type': 'application/json' },
     body,
   })
 }
