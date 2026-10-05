@@ -248,10 +248,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       const saved = state.providers.find((entry) => entry.id === providerId)
       const draft = state.drafts.wizard?.presetId === providerId ? state.drafts.wizard : undefined
       for (const model of models) {
-        let priceNote: ModelRow['priceNote'] = 'unpriced'
-        if (model.inputPerMillion !== undefined) { priceNote = 'priced' }
-        if (model.isFree) { priceNote = 'free' }
-        if (model.isLocal) { priceNote = 'local' }
+        const knownPrice: ModelRow['priceNote'] = model.inputPerMillion === undefined ? 'unpriced' : 'priced'
+        const priceNote = model.isLocal ? 'local' : (model.isFree ? 'free' : knownPrice)
         if (model.family !== undefined) {
           families.set(`${providerId}/${model.id}`, model.family)
         }
@@ -490,7 +488,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         const secret =
           message.type === 'providers/connect'
             ? connection?.key
-            : await providers.promptForKey(preset)
+            : await providers.promptForKey({ ...preset, origin: new URL(entry.address).origin })
         if (secret !== undefined && !isDisposed) {
           credentials.set(id ?? 'wizard', { secret, origin: new URL(entry.address).origin })
           draft.keyPresent = true
@@ -523,13 +521,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         } else {
           tested = await providers.testCredential(entry, secret)
         }
-        let status: ProviderTest['status'] = 'failed'
-        if (tested.kind === 'ok') {
-          status = 'ok'
-        }
-        if (tested.kind === 'paid') {
-          status = 'needs-cost'
-        }
+        let status: ProviderTest['status'] = tested.kind === 'ok' ? 'ok' : 'failed'
+        if (tested.kind === 'paid') { status = 'needs-cost' }
         const test = {
           status,
           ...(tested.kind === 'ok' && { modelCount: tested.models }),
@@ -744,11 +737,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   }
   const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
     const edit = editSchema.safeParse(raw)
-    const prefill = editPrefillSchema.safeParse(raw)
     if (edit.success) {
       enqueue(edit.data)
       return
     }
+    const prefill = editPrefillSchema.safeParse(raw)
     if (prefill.success) {
       enqueue(prefill.data)
       return
