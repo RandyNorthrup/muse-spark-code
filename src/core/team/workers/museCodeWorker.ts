@@ -71,6 +71,37 @@ export interface MuseWorkerSessionPort {
   readonly sessionId: string
   readonly sendPrompt: (text: string) => Promise<{ readonly lastMessage: string | undefined }>
   readonly cancel: () => Promise<void>
+  readonly dispose: () => void
+}
+
+/** Cancellation is available while startup/turn promises are still pending. */
+export async function awaitWorkerAction<result>(
+  signal: AbortSignal,
+  action: () => Promise<result>,
+): Promise<result> {
+  signal.throwIfAborted()
+  let onAbort: (() => void) | undefined
+  const aborted = new Promise<never>((_resolve, reject) => {
+    onAbort = () => {
+      reject(new WorkerCancelledError())
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+  try {
+    signal.throwIfAborted()
+    const value = await Promise.race([action(), aborted])
+    signal.throwIfAborted()
+    return value
+  } finally {
+    if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
+  }
+}
+
+export class WorkerCancelledError extends Error {
+  public constructor() {
+    super('The worker was cancelled')
+    this.name = 'WorkerCancelledError'
+  }
 }
 
 /** The task's folder is the workspace, not a working copy. */
@@ -314,6 +345,7 @@ export async function isWorkerWriteAllowed(
       try {
         return isGlobMatch(confined.canonical, pattern)
       } catch {
+        // An invalid role glob cannot grant a write.
         return false
       }
     })
@@ -401,6 +433,7 @@ export interface MuseCodeWorkerDeps {
   readonly isTrusted: boolean
   readonly bridgeServers: Readonly<Record<string, SessionMcpServer>>
   readonly hosts: TeamHostProvider
+  readonly signal: AbortSignal
 }
 
 /**
@@ -412,28 +445,57 @@ export interface MuseCodeWorkerDeps {
 export async function runMuseCodeWorker(deps: MuseCodeWorkerDeps): Promise<{
   readonly sessionId: string
   readonly report: WorkerReportOutcome
-  readonly cancel: () => Promise<void>
 }> {
+  deps.signal.throwIfAborted()
   if (!deps.isTrusted) {
     throw new WorkerUntrustedError()
   }
-  const config = await buildWorkerSessionConfig({
-    task: deps.task,
-    role: deps.role,
-    modelId: deps.modelId,
-    workspaceRoot: deps.workspaceRoot,
-    platform: deps.platform,
-    io: deps.io,
-    exclusiveUserServers: deps.exclusiveUserServers,
-    bridgeServers: deps.bridgeServers,
-  })
+  const config = await awaitWorkerAction(deps.signal, () =>
+    buildWorkerSessionConfig({
+      task: deps.task,
+      role: deps.role,
+      modelId: deps.modelId,
+      workspaceRoot: deps.workspaceRoot,
+      platform: deps.platform,
+      io: deps.io,
+      exclusiveUserServers: deps.exclusiveUserServers,
+      bridgeServers: deps.bridgeServers,
+    }),
+  )
   const kind = hostKindFor(deps.role)
-  const host = kind === 'readOnly' ? await deps.hosts.readOnlyHost() : await deps.hosts.teamHost()
-  const session = await host.startSession(config)
-  const { lastMessage } = await session.sendPrompt(deps.prompt)
-  return {
-    sessionId: session.sessionId,
-    report: extractTeamReport(lastMessage ?? ''),
-    cancel: () => session.cancel(),
+  const host = await awaitWorkerAction(deps.signal, () =>
+    kind === 'readOnly' ? deps.hosts.readOnlyHost() : deps.hosts.teamHost(),
+  )
+  let session: MuseWorkerSessionPort | undefined
+  try {
+    session = await awaitWorkerAction(deps.signal, async () => {
+      const opened = await host.startSession(config)
+      // A session created after abort must never receive a prompt.
+      if (deps.signal.aborted) {
+        try {
+          void opened.cancel().catch(() => {
+            /* Cleanup still follows when the peer is gone. */
+          })
+        } finally {
+          opened.dispose()
+        }
+        throw new WorkerCancelledError()
+      }
+      return opened
+    })
+    const active = session
+    const { lastMessage } = await awaitWorkerAction(deps.signal, () =>
+      active.sendPrompt(deps.prompt),
+    )
+    return { sessionId: active.sessionId, report: extractTeamReport(lastMessage ?? '') }
+  } catch (error: unknown) {
+    if (session !== undefined) {
+      void session.cancel().catch(() => {
+        /* Cleanup still follows when the peer is gone. */
+      })
+    }
+    throw error
+  } finally {
+    session?.dispose()
   }
 }

@@ -16997,6 +16997,8 @@ next`, the exhausted policy and the queue, the meters, reservations and
        capture limits, regression tests and byte-exact red drills are recorded
        in `docs/certification/m96-w.md`. No live/paid calls or dependency
        changes are authorized in this repair lane.
+       Lane-local final gates also remove unused worker scaffold exports;
+       no ignore or threshold is changed.
   9. **Lane T:** the tools, the roster and rubric, the Model API
      declaration and the `team` server, with the `collect` wait set from
      step 1.
@@ -19790,6 +19792,15 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**M96-W host API inventory deferral (2026-10-05).** The scoped worker repair
+passes the owned suites and production budgets, but `check:host-api` reports
+one pre-existing generated-record mismatch: `node:stream` has 10 source
+importers, while `docs/ide-compatibility/host-api.md` records 9. The unchanged
+import in `src/host/team/acpProcess.ts` exists at lane base `49340fe1`.
+The inventory is outside FIXM96W's owned files; the lead regenerates it
+after integration. No source import, gate, ignore or threshold is hidden
+or weakened. See `docs/certification/m96-w.md` and §9's named residual.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -20158,6 +20169,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
+| M96 lane W location                                 | Escape hatch                                                | Reason                                                                                                                                                                                                                                                                                                                                 | Date       |
+| --------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/team/acpProcess.ts`, `loosenClientRouter` | Reflection of pinned SDK 1.5.0's private `builder.handlers` | This client uses `request()` and custom loose notification parsers, without active-session helpers. Remove only the single constructor router after checking its exact `client-session-update-router` descriptor; refuse SDK shape changes. The real SDK/fake-stdio tests prove the boundary. No SDK source or dependency is modified. | 2026-10-05 |
+
 | M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
 | ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `scripts/exec-schema.mjs`, `conditional` | `eslint-disable-next-line unicorn/no-thenable` | JSON Schema requires the literal `then` keyword for conditional validation. This object is serialized as data, never consumed as a Promise. Computed keys and `Object.fromEntries` also trigger the rule; the exception is limited to this property. | 2026-10-02 |
@@ -20233,6 +20248,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M96 W-host-api-inventory (2026-10-05, gate residual):** the generated
+  host API inventory has a pre-existing `node:stream` count of 9 against
+  10 source importers, including the ACP process file already present at
+  `49340fe1`. This is documentation drift with no new host capability;
+  every other host API inventory row agrees. The file is outside the
+  repair lane's scope. Follow-up: the lead runs
+  `npm run check:host-api -- --write`, reviews the one-row change and
+  reruns the gate after integrating the lanes. Full quality remains the
+  lead's gate.
 
 - **M96 W37-live-captures (RVM96A finding 37, 2026-10-05):** the worker
   repair lane has no authorization for live/paid calls. Its synthetic ACP

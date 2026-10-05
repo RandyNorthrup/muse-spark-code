@@ -12,7 +12,13 @@ import { WORKER_ACP_MAX_PERMISSION_PATHS } from '../../../shared/constants'
 import { confineWorkspacePath, type RealPathIo } from '../../workspacePath'
 import type { ShellDialect } from '../../backends/modelapi/shellSyntax'
 import { buildWorkerPrompt, WorkerUntrustedError, type WorkerFileIo } from './engineWorker'
-import { assertWorkerRoot, isWorkerCommandAllowed, isWorkerWriteAllowed } from './museCodeWorker'
+import {
+  assertWorkerRoot,
+  awaitWorkerAction,
+  WorkerCancelledError,
+  isWorkerCommandAllowed,
+  isWorkerWriteAllowed,
+} from './museCodeWorker'
 import { extractTeamReport, type WorkerReportOutcome } from './report'
 import type { WorkerPromptParts, WorkerRolePolicy, WorkerTask } from './workerTypes'
 
@@ -383,6 +389,8 @@ export interface AcpAgentConnection {
   readonly setConfigOption: (sessionId: string, value: string) => Promise<void>
   /** Deprecated `session/set_mode`, for agents that predate config options. */
   readonly setMode: (sessionId: string, mode: string) => Promise<void>
+  /** Selects and reads back the current model; absence/mismatch is an error. */
+  readonly setModel: (sessionId: string, modelId: string) => Promise<string>
   readonly prompt: (
     sessionId: string,
     text: string,
@@ -412,7 +420,7 @@ export interface AcpWorkerDeps {
   readonly role: WorkerRolePolicy
   readonly preset: AcpPreset
   readonly prompt: WorkerPromptParts
-  readonly modelId?: string
+  readonly modelId: string
   readonly workspaceRoot: string
   /** Set only by a launcher that applied the captured native-server exclusion switch. */
   readonly nativeServersExcluded: boolean
@@ -422,6 +430,7 @@ export interface AcpWorkerDeps {
   /** The bridge's servers for `session/new` (lane B). */
   readonly bridgeServers: readonly McpServer[]
   readonly connection: AcpAgentConnection
+  readonly signal: AbortSignal
 }
 
 /**
@@ -434,51 +443,68 @@ export interface AcpWorkerDeps {
 export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
   readonly sessionId: string
   readonly report: WorkerReportOutcome
-  readonly cancel: () => Promise<void>
 }> {
-  if (!deps.isTrusted) {
-    throw new WorkerUntrustedError()
-  }
-  await assertWorkerRoot({ ...deps, folder: deps.task.folder })
-  if (deps.role.workspaceMode === 'in-place' || !deps.nativeServersExcluded) {
-    throw new AcpNativeServersError()
-  }
+  let sessionId: string | undefined
   try {
-    await deps.connection.initialize()
-  } catch (error: unknown) {
-    throw asAcpError(error)
-  }
-  let sessionId: string
-  let advertisedModes: readonly string[]
-  try {
-    ;({ sessionId, advertisedModes } = await deps.connection.sessionNew({
-      cwd: deps.task.folder,
-      mcpServers: deps.bridgeServers,
-    }))
-  } catch (error: unknown) {
-    throw asAcpError(error)
-  }
-  const mode = chooseAcpMode(deps.preset, roleShapeFor(deps.role), advertisedModes)
-  try {
-    await deps.connection.setConfigOption(sessionId, mode)
-  } catch (error: unknown) {
-    if (error instanceof AcpMethodNotFoundError) {
-      await deps.connection.setMode(sessionId, mode)
-    } else {
-      throw asAcpError(error)
+    deps.signal.throwIfAborted()
+    if (!deps.isTrusted) throw new WorkerUntrustedError()
+    await awaitWorkerAction(deps.signal, () =>
+      assertWorkerRoot({ ...deps, folder: deps.task.folder }),
+    )
+    if (deps.role.workspaceMode === 'in-place' || !deps.nativeServersExcluded) {
+      throw new AcpNativeServersError()
     }
-  }
-  const prompt = await buildWorkerPrompt(deps.prompt, deps.task, deps.io, deps.platform)
-  let lastMessage: string | undefined
-  try {
-    ;({ lastMessage } = await deps.connection.prompt(sessionId, prompt))
+    await awaitWorkerAction(deps.signal, () => deps.connection.initialize())
+    const opened = await awaitWorkerAction(deps.signal, async () => {
+      const response = await deps.connection.sessionNew({
+        cwd: deps.task.folder,
+        mcpServers: deps.bridgeServers,
+      })
+      if (deps.signal.aborted) {
+        void deps.connection.cancel(response.sessionId).catch(() => {
+          /* Cleanup still follows when the peer is gone. */
+        })
+        throw new WorkerCancelledError()
+      }
+      return response
+    })
+    sessionId = opened.sessionId
+    const activeId = sessionId
+    const mode = chooseAcpMode(deps.preset, roleShapeFor(deps.role), opened.advertisedModes)
+    try {
+      await awaitWorkerAction(deps.signal, () => deps.connection.setConfigOption(activeId, mode))
+    } catch (error: unknown) {
+      if (!(error instanceof AcpMethodNotFoundError)) throw error
+      await awaitWorkerAction(deps.signal, () => deps.connection.setMode(activeId, mode))
+    }
+    const selectedModel = await awaitWorkerAction(deps.signal, () =>
+      deps.connection.setModel(activeId, deps.modelId),
+    )
+    if (selectedModel !== deps.modelId || selectedModel.trim() === '')
+      throw new AcpModelSelectionError()
+    const prompt = await awaitWorkerAction(deps.signal, () =>
+      buildWorkerPrompt(deps.prompt, deps.task, deps.io, deps.platform),
+    )
+    const { lastMessage } = await awaitWorkerAction(deps.signal, () =>
+      deps.connection.prompt(activeId, prompt),
+    )
+    return { sessionId: activeId, report: extractTeamReport(lastMessage ?? '') }
   } catch (error: unknown) {
+    if (sessionId !== undefined)
+      void deps.connection.cancel(sessionId).catch(() => {
+        /* Cleanup still follows when the peer is gone. */
+      })
     throw asAcpError(error)
+  } finally {
+    deps.connection.close()
   }
-  return {
-    sessionId,
-    report: extractTeamReport(lastMessage ?? ''),
-    cancel: () => deps.connection.cancel(sessionId),
+}
+
+/** Offered-model membership cannot prove which model actually ran. */
+export class AcpModelSelectionError extends Error {
+  public constructor() {
+    super('The ACP worker did not confirm its selected model')
+    this.name = 'AcpModelSelectionError'
   }
 }
 
@@ -493,8 +519,6 @@ export class AcpMethodNotFoundError extends Error {
 /** Maps the adapter's errors: `auth_required` becomes the sign-in handoff, never a retry. */
 export function asAcpError(error: unknown): unknown {
   const code =
-    typeof error === 'object' && error !== null
-      ? (error as { readonly code?: unknown }).code
-      : undefined
+    typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
   return code === 'auth_required' ? new AcpAuthRequiredError([]) : error
 }

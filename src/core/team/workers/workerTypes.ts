@@ -80,9 +80,6 @@ export interface WorkerPromptParts {
   readonly rulesAndSkills: string
 }
 
-/** A worker's kind, by who runs its tools (D75's words). */
-export type WorkerKind = 'engine' | 'museCode' | 'external'
-
 /** A worker's report fence tag: `muse-team-report` (D75). */
 export const WORKER_REPORT_FENCE = 'muse-team-report'
 

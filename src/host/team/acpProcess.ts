@@ -15,6 +15,7 @@ import type { CoreLogger } from '../../core/logging'
 import {
   AcpAuthRequiredError,
   AcpMethodNotFoundError,
+  AcpModelSelectionError,
   type AcpAgentConnection,
   type AcpPermissionOption,
   type AcpPermissionToolCall,
@@ -195,33 +196,89 @@ export interface AcpClientHandlers {
   readonly onUpdate: (text: string | undefined) => void
 }
 
-/** Reads the agent's message text out of a `session/update` notification. */
-export function updateTextOf(update: unknown): string | undefined {
-  if (typeof update !== 'object' || update === null) {
-    return undefined
+// Stable ACP v1 shapes from the pinned SDK and the recorded fake stdio
+// exchange (m96-w.md). Loose objects retain future fields at the boundary.
+const agentMessageChunk = z.looseObject({
+  sessionUpdate: z.literal('agent_message_chunk'),
+  content: z.looseObject({ type: z.literal('text'), text: z.string() }),
+})
+const authFields = {
+  id: z.string(),
+  name: z.string(),
+  description: z.optional(z.nullable(z.string())),
+}
+const authMethod = z.union([
+  z.looseObject({
+    ...authFields,
+    type: z.literal('terminal'),
+    args: z.optional(z.array(z.string())),
+    env: z.optional(z.record(z.string(), z.string())),
+  }),
+  z.looseObject({ ...authFields, type: z.optional(z.literal('agent')) }),
+])
+function sdkAuthMethod(method: z.infer<typeof authMethod>): acp.AuthMethod {
+  const common = {
+    ...Object.fromEntries(Object.entries(method).filter(([, value]) => value !== undefined)),
+    id: method.id,
+    name: method.name,
+    ...(method.description !== undefined && { description: method.description }),
   }
-  const record = update as {
-    readonly content?: unknown
-    readonly text?: unknown
-  }
-  if (typeof record.text === 'string') {
-    return record.text
-  }
-  if (Array.isArray(record.content)) {
-    const parts: string[] = []
-    for (const block of record.content) {
-      if (
-        typeof block === 'object' &&
-        block !== null &&
-        (block as { readonly type?: unknown }).type === 'text' &&
-        typeof (block as { readonly text?: unknown }).text === 'string'
-      ) {
-        parts.push((block as { readonly text: string }).text)
+  return method.type === 'terminal'
+    ? {
+        ...common,
+        type: 'terminal',
+        ...(method.args !== undefined && { args: method.args }),
+        ...(method.env !== undefined && { env: method.env }),
       }
-    }
-    return parts.length > 0 ? parts.join('') : undefined
+    : common
+}
+
+const initializeResponse = z.looseObject({
+  protocolVersion: z.int().check(z.minimum(1)),
+  authMethods: z.optional(z.nullable(z.array(authMethod))),
+})
+const sessionResponse = z.looseObject({
+  sessionId: z.string().check(z.minLength(1)),
+  modes: z.optional(
+    z.nullable(z.looseObject({ availableModes: z.array(z.looseObject({ id: z.string() })) })),
+  ),
+  configOptions: z.optional(z.nullable(z.array(z.unknown()))),
+})
+const promptResponse = z.looseObject({ stopReason: z.string() })
+const configResponse = z.looseObject({ configOptions: z.array(z.unknown()) })
+const configValue = z.looseObject({ value: z.string() })
+const configGroup = z.looseObject({ group: z.string(), options: z.array(configValue) })
+const configSelector = z.looseObject({
+  id: z.string(),
+  type: z.literal('select'),
+  category: z.optional(z.nullable(z.string())),
+  currentValue: z.string(),
+  options: z.array(z.union([configValue, configGroup])),
+})
+
+function selectorOf(
+  options: readonly unknown[],
+  category: string,
+): z.infer<typeof configSelector> | undefined {
+  for (const option of options) {
+    const parsed = configSelector.safeParse(option)
+    if (parsed.success && parsed.data.category === category) return parsed.data
   }
   return undefined
+}
+function valuesOf(selector: z.infer<typeof configSelector>): readonly string[] {
+  return selector.options.flatMap((option) => {
+    const value = configValue.safeParse(option)
+    if (value.success) return [value.data.value]
+    const group = configGroup.safeParse(option)
+    return group.success ? group.data.options.map((entry) => entry.value) : []
+  })
+}
+
+/** Only agent message text contributes to the worker report. */
+export function updateTextOf(update: unknown): string | undefined {
+  const parsed = agentMessageChunk.safeParse(update)
+  return parsed.success ? parsed.data.content.text : undefined
 }
 
 /**
@@ -309,11 +366,14 @@ export function asAcpSdkError(
     if (error.code === JSON_RPC_METHOD_NOT_FOUND) {
       return new AcpMethodNotFoundError(method)
     }
-    const data =
-      typeof error.data === 'object' && error.data !== null
-        ? (error.data as { readonly code?: unknown })
-        : undefined
-    if (data?.code === 'auth_required' || error.message === 'auth_required') {
+    const data = typeof error.data === 'object' && error.data !== null ? error.data : undefined
+    if (
+      (data !== undefined && 'code' in data && data.code === 'auth_required') ||
+      error.message === 'auth_required' ||
+      (error.code === JSON_RPC_WORKER_REFUSAL &&
+        (error.message === 'Authentication required' ||
+          error.message.startsWith('Authentication required: ')))
+    ) {
       return new AcpAuthRequiredError(authMethods)
     }
   }
@@ -331,6 +391,10 @@ export function connectAcpAgent(input: {
   readonly stdout: Readable
   readonly handlers: AcpClientHandlers
   readonly log: CoreLogger
+  /** The host can reproduce this configured invocation in an interactive terminal. */
+  readonly supportsTerminalAuth: boolean
+  /** Ends this owned child through the window launcher, including failed/cancelled turns. */
+  readonly disposeProcess: () => void
 }): AcpAgentConnection {
   const { handlers, log } = input
   const clientApp = acp.client({ name: 'muse-spark-team' })
@@ -345,6 +409,7 @@ export function connectAcpAgent(input: {
   })
   const pendingPermissions = new Set<(answer: { readonly optionId: string } | undefined) => void>()
   const sessionMessages = new Map<string, string[]>()
+  const sessionConfigurations = new Map<string, readonly unknown[]>()
   const messagesOf = (sessionId: string): string[] => {
     const existing = sessionMessages.get(sessionId)
     if (existing !== undefined) {
@@ -457,12 +522,14 @@ export function connectAcpAgent(input: {
           protocolVersion: 1,
           clientCapabilities: {
             fs: { readTextFile: true, writeTextFile: true },
-            terminal: true,
+            terminal: false,
+            auth: { terminal: input.supportsTerminalAuth },
           },
         }),
       )
-      authMethods = response.authMethods ?? []
-      return { protocolVersion: response.protocolVersion, authMethods }
+      const parsed = initializeResponse.parse(response)
+      authMethods = (parsed.authMethods ?? []).map((method) => sdkAuthMethod(method))
+      return { protocolVersion: parsed.protocolVersion, authMethods }
     },
     sessionNew: async (params) => {
       const response = await requesting(
@@ -472,22 +539,57 @@ export function connectAcpAgent(input: {
           mcpServers: [...params.mcpServers],
         }),
       )
+      const parsed = sessionResponse.parse(response)
+      sessionConfigurations.set(parsed.sessionId, parsed.configOptions ?? [])
+      const modeSelector = selectorOf(parsed.configOptions ?? [], 'mode')
       return {
-        sessionId: response.sessionId,
-        advertisedModes: response.modes?.availableModes.map((mode) => mode.id) ?? [],
+        sessionId: parsed.sessionId,
+        advertisedModes:
+          parsed.modes?.availableModes.map((mode) => mode.id) ??
+          (modeSelector === undefined ? [] : valuesOf(modeSelector)),
       }
     },
     setConfigOption: async (sessionId, value) => {
-      await requesting(
-        'session/set_config_option',
-        agent.request('session/set_config_option', { sessionId, configId: 'mode', value }),
+      const selector = selectorOf(sessionConfigurations.get(sessionId) ?? [], 'mode')
+      if (selector === undefined) throw new AcpMethodNotFoundError('session/set_config_option')
+      const response = configResponse.parse(
+        await requesting(
+          'session/set_config_option',
+          agent.request('session/set_config_option', { sessionId, configId: selector.id, value }),
+        ),
       )
+      sessionConfigurations.set(sessionId, response.configOptions)
+      if (selectorOf(response.configOptions, 'mode')?.currentValue !== value)
+        throw new Error('The ACP agent did not confirm its mode')
     },
     setMode: async (sessionId, mode) => {
-      await requesting(
-        'session/set_mode',
-        agent.request('session/set_mode', { sessionId, modeId: mode }),
+      z.looseObject({}).parse(
+        await requesting(
+          'session/set_mode',
+          agent.request('session/set_mode', { sessionId, modeId: mode }),
+        ),
       )
+    },
+    setModel: async (sessionId, modelId) => {
+      const selector = selectorOf(sessionConfigurations.get(sessionId) ?? [], 'model')
+      if (selector === undefined || !valuesOf(selector).includes(modelId) || modelId.trim() === '')
+        throw new AcpModelSelectionError()
+      if (selector.currentValue === modelId) return modelId
+      const response = configResponse.parse(
+        await requesting(
+          'session/set_config_option',
+          agent.request('session/set_config_option', {
+            sessionId,
+            configId: selector.id,
+            value: modelId,
+          }),
+        ),
+      )
+      sessionConfigurations.set(sessionId, response.configOptions)
+      const selected = selectorOf(response.configOptions, 'model')
+      if (selected?.id !== selector.id || selected.currentValue !== modelId)
+        throw new AcpModelSelectionError()
+      return selected.currentValue
     },
     prompt: async (sessionId, text) => {
       messagesOf(sessionId).length = 0
@@ -500,7 +602,7 @@ export function connectAcpAgent(input: {
       )
       const messages = messagesOf(sessionId).join('')
       return {
-        stopReason: response.stopReason,
+        stopReason: promptResponse.parse(response).stopReason,
         lastMessage: messages === '' ? undefined : messages,
       }
     },
@@ -510,14 +612,22 @@ export function connectAcpAgent(input: {
       }
       pendingPermissions.clear()
       try {
-        await agent.request('session/cancel', { sessionId })
+        await agent.notify('session/cancel', { sessionId })
       } catch {
-        // A cancel is a request: the agent may already be gone.
+        // ACP cancel is a notification: the agent may already be gone.
         log.warn('An ACP worker cancel settled elsewhere')
       }
     },
     close: () => {
-      connection.close()
+      for (const settle of pendingPermissions) settle(undefined)
+      pendingPermissions.clear()
+      sessionConfigurations.clear()
+      sessionMessages.clear()
+      try {
+        connection.close()
+      } finally {
+        input.disposeProcess()
+      }
     },
   }
 }

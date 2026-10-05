@@ -1,6 +1,6 @@
 // M96-W: isolated Muse hosts, canonical roots, bridge admission and role policy.
 import { realpath } from 'node:fs/promises'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   buildWorkerSessionConfig,
   classifyMuseWorkerApproval,
@@ -13,6 +13,7 @@ import {
   MuseWorkerCapturePendingError,
   MuseWorkerFolderError,
   type MuseWorkerHostPort,
+  type MuseWorkerSessionPort,
   type TeamHostProvider,
 } from '../../src/core/team/workers/museCodeWorker'
 import { WorkerUntrustedError } from '../../src/core/team/workers/engineWorker'
@@ -349,6 +350,7 @@ function fakeHosts(): TeamHostProvider & { started: string[] } {
             lastMessage: '```muse-team-report\n{"status":"done","summary":"Done."}\n```',
           }),
         cancel: () => Promise.resolve(),
+        dispose: () => undefined,
       })
     },
   })
@@ -362,9 +364,133 @@ function museDeps(
   hosts: TeamHostProvider,
   overrides: Partial<Parameters<typeof runMuseCodeWorker>[0]> = {},
 ): Parameters<typeof runMuseCodeWorker>[0] {
-  return { ...configInput(), prompt: 'Go.', isTrusted: true, hosts, ...overrides }
+  return {
+    ...configInput(),
+    prompt: 'Go.',
+    isTrusted: true,
+    signal: new AbortController().signal,
+    hosts,
+    ...overrides,
+  }
+}
+function hostsForSession(session: MuseWorkerSessionPort): TeamHostProvider {
+  const host: MuseWorkerHostPort = {
+    hostId: 'controlled',
+    kind: 'team',
+    startSession: () => Promise.resolve(session),
+  }
+  return { teamHost: () => Promise.resolve(host), readOnlyHost: () => Promise.resolve(host) }
 }
 describe('runMuseCodeWorker', () => {
+  it('RVM96A-19 cancels a session that finishes opening after abort without prompting it', async () => {
+    const opening = Promise.withResolvers<MuseWorkerSessionPort>()
+    const entered = Promise.withResolvers<undefined>()
+    const session: MuseWorkerSessionPort = {
+      sessionId: 'late',
+      cancel: vi.fn(() => Promise.resolve()),
+      dispose: vi.fn(),
+      sendPrompt: vi.fn(() => Promise.resolve({ lastMessage: undefined })),
+    }
+    const host: MuseWorkerHostPort = {
+      hostId: 'late-host',
+      kind: 'team',
+      startSession: () => {
+        entered.resolve(undefined)
+        return opening.promise
+      },
+    }
+    const controller = new AbortController()
+    const running = runMuseCodeWorker(
+      museDeps(
+        { teamHost: () => Promise.resolve(host), readOnlyHost: () => Promise.resolve(host) },
+        { signal: controller.signal },
+      ),
+    )
+    let hasReturned = false
+    void running
+      .finally(() => {
+        hasReturned = true
+      })
+      .catch(() => {
+        /* Asserted below. */
+      })
+    try {
+      await entered.promise
+      controller.abort()
+      await vi.waitFor(() => {
+        expect(hasReturned).toBe(true)
+      })
+      await expect(running).rejects.toThrow()
+    } finally {
+      opening.resolve(session)
+      try {
+        await running
+      } catch {
+        /* Abort was asserted above. */
+      }
+    }
+    await vi.waitFor(() => {
+      expect(session.cancel).toHaveBeenCalledOnce()
+    })
+    expect(session.sendPrompt).not.toHaveBeenCalled()
+    expect(session.dispose).toHaveBeenCalledOnce()
+  })
+  it('RVM96A-19 interrupts a pending Muse turn and disposes the session', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const reply = Promise.withResolvers<{ lastMessage: string | undefined }>()
+    const session: MuseWorkerSessionPort = {
+      sessionId: 'pending',
+      cancel: vi.fn(() => Promise.resolve()),
+      dispose: vi.fn(),
+      sendPrompt: () => {
+        entered.resolve(undefined)
+        return reply.promise
+      },
+    }
+    const controller = new AbortController()
+    const running = runMuseCodeWorker(
+      museDeps(hostsForSession(session), { signal: controller.signal }),
+    )
+    let isFinished = false
+    void running
+      .finally(() => {
+        isFinished = true
+      })
+      .catch(() => {
+        /* The original promise is asserted below. */
+      })
+    try {
+      await entered.promise
+      controller.abort()
+      await vi.waitFor(() => {
+        expect(isFinished).toBe(true)
+      })
+      await expect(running).rejects.toThrow()
+      expect(session.cancel).toHaveBeenCalledOnce()
+      expect(session.dispose).toHaveBeenCalledOnce()
+    } finally {
+      reply.resolve({ lastMessage: undefined })
+      try {
+        await running
+      } catch {
+        /* Cancellation was asserted above. */
+      }
+    }
+  })
+  it('RVM96A-19 cancels and disposes a failed Muse session', async () => {
+    const session: MuseWorkerSessionPort = {
+      sessionId: 'failed',
+      sendPrompt: () => Promise.reject(new Error('turn-failed')),
+      cancel: vi.fn(() => Promise.reject(new Error('cancel-failed'))),
+      dispose: vi.fn(),
+    }
+    await expect(runMuseCodeWorker(museDeps(hostsForSession(session)))).rejects.toThrow(
+      'turn-failed',
+    )
+    expect(session.cancel).toHaveBeenCalledOnce()
+    expect(session.dispose).toHaveBeenCalledOnce()
+  })
+
   it('runs a writer on the team host in its working copy', async () => {
     const hosts = fakeHosts()
     const result = await runMuseCodeWorker(museDeps(hosts))

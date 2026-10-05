@@ -7,6 +7,7 @@
 // Scenarios: report, permission-inside, permission-outside, fs, slow, auth,
 // modes-legacy (no session/set_config_option).
 
+import { RequestError } from '@agentclientprotocol/sdk'
 import { createInterface } from 'node:readline'
 import { clearTimeout, setTimeout } from 'node:timers'
 
@@ -35,7 +36,7 @@ function notify(method, params) {
   send({ jsonrpc: '2.0', method, params })
 }
 
-const agentState = { nextId: 1 }
+const agentState = { nextId: 1, model: 'fake-default', mode: 'default' }
 const pending = new Map()
 const promptTimers = new Map()
 
@@ -51,7 +52,7 @@ function agentRequest(method, params) {
 function chunk(sessionId, text) {
   notify('session/update', {
     sessionId,
-    update: { sessionUpdate: 'agent_message_chunk', content: [{ type: 'text', text }] },
+    update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } },
   })
 }
 
@@ -66,6 +67,29 @@ const MODES = {
     { id: 'default', name: 'Default' },
     { id: 'plan', name: 'Plan' },
   ],
+}
+
+function configOptions() {
+  const model = {
+    id: 'fake-model-selector',
+    name: 'Model',
+    category: 'model',
+    type: 'select',
+    currentValue: agentState.model,
+    options: [
+      { value: 'fake-default', name: 'Default' },
+      { value: 'explicit-selected-model', name: 'Selected' },
+    ],
+  }
+  const mode = {
+    id: 'fake-mode-selector',
+    name: 'Mode',
+    category: 'mode',
+    type: 'select',
+    currentValue: agentState.mode,
+    options: MODES.availableModes.map((entry) => ({ value: entry.id, name: entry.name })),
+  }
+  return scenario === 'model-missing' ? [mode] : [mode, model]
 }
 
 async function onPrompt(id, params) {
@@ -125,7 +149,7 @@ async function onPrompt(id, params) {
 
 async function onRequest(message) {
   const { id, method, params } = message
-  record({ method, params })
+  record({ method, params, ...(id !== undefined && { id }) })
   switch (method) {
     case 'initialize': {
       respond(id, { protocolVersion: 1, agentCapabilities: {}, authMethods: [] })
@@ -133,10 +157,10 @@ async function onRequest(message) {
     }
     case 'session/new': {
       if (scenario === 'auth') {
-        fail(id, -32_000, 'auth_required', { code: 'auth_required' })
+        send({ jsonrpc: '2.0', id, ...RequestError.authRequired().toResult() })
         break
       }
-      respond(id, { sessionId: 'fake-s1', modes: MODES })
+      respond(id, { sessionId: 'fake-s1', modes: MODES, configOptions: configOptions() })
       break
     }
     case 'session/set_config_option': {
@@ -144,10 +168,15 @@ async function onRequest(message) {
         fail(id, -32_601, 'Method not found')
         break
       }
-      respond(id, {})
+      if (params.configId === 'fake-mode-selector')
+        agentState.mode = scenario === 'mode-ignored' ? 'plan' : params.value
+      if (scenario !== 'model-ignored' && params.configId === 'fake-model-selector')
+        agentState.model = params.value
+      respond(id, { configOptions: configOptions() })
       break
     }
     case 'session/set_mode': {
+      agentState.mode = params.modeId
       respond(id, {})
       break
     }
@@ -162,7 +191,7 @@ async function onRequest(message) {
         promptTimers.delete(params.sessionId)
         respond(held.id, { stopReason: 'cancelled' })
       }
-      respond(id, {})
+      if (id !== undefined) respond(id, {})
       break
     }
     default: {
@@ -182,7 +211,7 @@ lines.on('line', (line) => {
   } catch {
     return
   }
-  if (message.id === undefined || message.method === undefined) {
+  if (message.method === undefined) {
     const resolve = pending.get(message.id)
     if (resolve === undefined) {
       return

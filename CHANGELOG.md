@@ -18,6 +18,10 @@ happened, not what was planned; superseded entries are kept.
   proven disjoint from the checkout before startup; unresolved/out-of-role
   requests and Git ref/worktree mutations are refused before approval.
   Uncaptured native-server exclusion now prevents worker startup.
+  ACP accepts standard object text chunks and authentication errors,
+  advertises only implemented capabilities, and requires selected-model
+  readback before prompting. Abort signals interrupt startup and pending
+  turns; failure and completion dispose sessions and owned ACP children.
 
 ## [0.12.1] - 2026-10-04
 

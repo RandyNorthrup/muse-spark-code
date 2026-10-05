@@ -1,3 +1,4 @@
+import { TEAM_WORKER_PROMPT } from './helpers/teamWorkerPrompt'
 // The ACP agent's process (M96 lane W): the PATH lookup, the scrubbed
 // spawn, the Install command, and the SDK adapter against the fake ACP
 // agent over real stdio.
@@ -6,6 +7,8 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { PassThrough } from 'node:stream'
+import { RequestError, type AuthMethod } from '@agentclientprotocol/sdk'
 import { afterAll, describe, expect, it } from 'vitest'
 import {
   ACP_PRESET_INSTALLS,
@@ -15,6 +18,7 @@ import {
   runTerminalSignIn,
   spawnAcpAgent,
   updateTextOf,
+  asAcpSdkError,
   AcpUserServersSwitchError,
   type AcpClientHandlers,
   type TeamChildProcess,
@@ -27,6 +31,7 @@ import {
   pickOnceOption,
   runAcpWorker,
   AcpAuthRequiredError,
+  AcpModelSelectionError,
   type AcpAgentConnection,
 } from '../../src/core/team/workers/acpWorker'
 import type { WorkerRolePolicy, WorkerTask } from '../../src/core/team/workers/workerTypes'
@@ -100,8 +105,8 @@ function launcherWith(seen: {
       seen.args = input.args
       seen.env = input.env
       const child: TeamChildProcess = {
-        stdin: undefined as never,
-        stdout: undefined as never,
+        stdin: new PassThrough(),
+        stdout: new PassThrough(),
         wait: () => Promise.resolve({ exitCode: 0 }),
         kill: () => undefined,
       }
@@ -189,24 +194,48 @@ describe('runTerminalSignIn', () => {
 })
 
 describe('updateTextOf', () => {
-  it('reads text chunks and plain text', () => {
-    expect(updateTextOf({ text: 'hi' })).toBe('hi')
+  it('RVM96A-15 parses the standard SDK object content chunk', () => {
     expect(
-      updateTextOf({
-        content: [
-          { type: 'text', text: 'a' },
-          { type: 'text', text: 'b' },
-        ],
-      }),
-    ).toBe('ab')
-    expect(updateTextOf({ content: [{ type: 'image' }] })).toBeUndefined()
-    expect(updateTextOf(undefined)).toBeUndefined()
+      updateTextOf({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'hi' } }),
+    ).toBe('hi')
+    for (const update of [
+      undefined,
+      { text: 'legacy' },
+      {
+        sessionUpdate: 'agent_message_chunk',
+        content: [{ type: 'text', text: 'incorrect-array' }],
+      },
+      { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'thought' } },
+      { sessionUpdate: 'tool_call', content: { type: 'text', text: 'tool-data' } },
+      { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 1 } },
+    ]) {
+      expect(updateTextOf(update)).toBeUndefined()
+    }
+  })
+})
+describe('asAcpSdkError', () => {
+  it('RVM96A-16 maps standard authentication-required errors and preserves methods', () => {
+    const methods: AuthMethod[] = [
+      { id: 'sign-in', name: 'Sign in', type: 'terminal', args: ['login'] },
+    ]
+    for (const error of [
+      RequestError.authRequired(),
+      RequestError.authRequired(undefined, 'Please sign in'),
+    ]) {
+      const mapped = asAcpSdkError(error, 'session/new', methods)
+      expect(mapped).toBeInstanceOf(AcpAuthRequiredError)
+      if (!(mapped instanceof AcpAuthRequiredError)) throw new Error('missing auth handoff')
+      expect(mapped.methods).toEqual(methods)
+    }
+    const unrelated = new RequestError(-32_000, 'Other failure')
+    expect(asAcpSdkError(unrelated, 'session/new', methods)).toBe(unrelated)
   })
 })
 
 const children: ChildProcess[] = []
 afterAll(async () => {
   for (const child of children) {
+    if (child.exitCode !== null || child.signalCode !== null) continue
     child.kill()
     await new Promise((resolve) => {
       child.on('exit', resolve)
@@ -252,7 +281,7 @@ function startFake(
   scenario: string,
   cwd: string,
   handlers: AcpClientHandlers,
-): { connection: AcpAgentConnection; records: unknown[] } {
+): { connection: AcpAgentConnection; records: unknown[]; child: ChildProcess } {
   const child = spawn(process.execPath, [FAKE_AGENT.pathname, scenario, '--cwd', cwd], {
     stdio: ['pipe', 'pipe', 'pipe'],
   })
@@ -263,8 +292,12 @@ function startFake(
     stdout: child.stdout,
     handlers,
     log: new FakeLogOutputChannel(),
+    supportsTerminalAuth: true,
+    disposeProcess: () => {
+      child.kill()
+    },
   })
-  return { connection, records }
+  return { connection, records, child }
 }
 
 function policyHandlers(
@@ -323,11 +356,9 @@ function workerDeps(connection: AcpAgentConnection, task: WorkerTask, role: Work
     task,
     role,
     preset: ACP_PRESETS.claude,
-    prompt: {
-      charter: 'You are the engineering worker.',
-      body: 'Write clean code.',
-      rulesAndSkills: 'Follow the repo rules.',
-    },
+    modelId: 'explicit-selected-model',
+    signal: new AbortController().signal,
+    prompt: TEAM_WORKER_PROMPT,
     workspaceRoot: '/user/checkout',
     nativeServersExcluded: true,
     isTrusted: true,
@@ -372,7 +403,73 @@ function emptyPolicyHandlers(
 }
 
 describe('the full stack against the fake agent', () => {
-  it('runs a task end to end and parses its report', async () => {
+  it('RVM96A-19 closes the owned ACP child through the launcher callback', async () => {
+    const { connection, child } = startFake(
+      'report',
+      '/work/copy',
+      emptyPolicyHandlers('/work/copy'),
+    )
+    try {
+      await connection.initialize()
+      connection.close()
+      expect(child.killed).toBe(true)
+    } finally {
+      child.kill()
+    }
+  })
+  it('RVM96A-17 advertises terminal auth separately from unimplemented terminal RPCs', async () => {
+    const { connection, records } = startFake(
+      'report',
+      '/work/copy',
+      emptyPolicyHandlers('/work/copy'),
+    )
+    try {
+      await connection.initialize()
+      const initialize = await waitForRecord(
+        records,
+        (record) =>
+          typeof record === 'object' &&
+          record !== null &&
+          'method' in record &&
+          record.method === 'initialize',
+      )
+      expect(initialize).toMatchObject({
+        params: { clientCapabilities: { terminal: false, auth: { terminal: true } } },
+      })
+    } finally {
+      connection.close()
+    }
+  })
+
+  it.each(['model-ignored', 'model-missing'])(
+    'RVM96A-18 refuses an unproven model before prompt: %s',
+    async (scenario) => {
+      const { connection, records } = startFake(
+        scenario,
+        '/work/copy',
+        emptyPolicyHandlers('/work/copy'),
+      )
+      await expect(
+        runAcpWorker(workerDeps(connection, taskIn('/work/copy', 'model-task'), WRITER)),
+      ).rejects.toBeInstanceOf(AcpModelSelectionError)
+      expect(records).not.toContainEqual(expect.objectContaining({ method: 'session/prompt' }))
+    },
+  )
+
+  it('RVM96A-18 refuses an ignored mode readback without legacy fallback', async () => {
+    const { connection, records } = startFake(
+      'mode-ignored',
+      '/work/copy',
+      emptyPolicyHandlers('/work/copy'),
+    )
+    await expect(
+      runAcpWorker(workerDeps(connection, taskIn('/work/copy', 'mode-task'), WRITER)),
+    ).rejects.toThrow('did not confirm its mode')
+    expect(records).not.toContainEqual(expect.objectContaining({ method: 'session/set_mode' }))
+    expect(records).not.toContainEqual(expect.objectContaining({ method: 'session/prompt' }))
+  })
+
+  it('RVM96A-15 runs standard ACP chunks end to end and parses the report', async () => {
     const folder = await mkdtemp(path.join(tmpdir(), 'acp-copy-'))
     try {
       const handlers = emptyPolicyHandlers(folder)
@@ -385,15 +482,15 @@ describe('the full stack against the fake agent', () => {
           ok: true,
           report: { status: 'done', summary: 'Fake work.' },
         })
-        const sessionNew = (await waitForRecord(
+        const sessionNew = await waitForRecord(
           records,
           (record) =>
             typeof record === 'object' &&
             record !== null &&
-            (record as { method?: unknown }).method === 'session/new',
-        )) as { params?: { cwd?: unknown; mcpServers?: unknown } }
-        expect(sessionNew.params?.cwd).toBe(folder)
-        expect(sessionNew.params?.mcpServers).toEqual([])
+            'method' in record &&
+            record.method === 'session/new',
+        )
+        expect(sessionNew).toMatchObject({ params: { cwd: folder, mcpServers: [] } })
       } finally {
         connection.close()
       }
@@ -459,16 +556,16 @@ describe('the full stack against the fake agent', () => {
       try {
         const task = taskIn(folder, 't-4')
         await runAcpWorker(workerDeps(connection, task, WRITER))
-        const read = (await waitForRecord(
+        const read = await waitForRecord(
           records,
           (record) => typeof record === 'object' && record !== null && 'fsRead' in record,
-        )) as { fsRead?: { content?: string } }
-        expect(read.fsRead).toEqual({ content: 'real content' })
-        const write = (await waitForRecord(
+        )
+        expect(read).toMatchObject({ fsRead: { content: 'real content' } })
+        const write = await waitForRecord(
           records,
           (record) => typeof record === 'object' && record !== null && 'fsWrite' in record,
-        )) as { fsWrite?: { fsError?: string } }
-        expect(write.fsWrite?.fsError).toBe('outside the working copy')
+        )
+        expect(write).toMatchObject({ fsWrite: { fsError: 'outside the working copy' } })
       } finally {
         connection.close()
       }
@@ -481,13 +578,22 @@ describe('the full stack against the fake agent', () => {
     const folder = await mkdtemp(path.join(tmpdir(), 'acp-copy-'))
     try {
       const handlers = emptyPolicyHandlers(folder)
-      const { connection } = startFake('slow', folder, handlers)
+      const { connection, records } = startFake('slow', folder, handlers)
       try {
         const task = taskIn(folder, 't-5')
         const deps = workerDeps(connection, task, WRITER)
         const pending = runAcpWorker(deps)
         await new Promise((resolve) => setTimeout(resolve, 500))
         await connection.cancel('fake-s1')
+        const cancellation = await waitForRecord(
+          records,
+          (record) =>
+            typeof record === 'object' &&
+            record !== null &&
+            'method' in record &&
+            record.method === 'session/cancel',
+        )
+        expect(cancellation).not.toHaveProperty('id')
         const result = await pending
         expect(result.report.ok).toBe(false)
       } finally {

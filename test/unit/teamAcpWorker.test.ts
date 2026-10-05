@@ -1,3 +1,4 @@
+import { TEAM_WORKER_PROMPT } from './helpers/teamWorkerPrompt'
 // The ACP client worker (M96 lane W): the preset modes, the permission
 // answers, the confined `fs/*`, and the run over an injected connection.
 
@@ -12,6 +13,7 @@ import {
   AcpForbiddenModeError,
   AcpMethodNotFoundError,
   AcpModeError,
+  AcpModelSelectionError,
   AcpNativeServersError,
   chooseAcpMode,
   confineAcpFsPath,
@@ -379,6 +381,7 @@ function connectionWith(overrides: Partial<AcpAgentConnection>): AcpAgentConnect
     sessionNew: () => Promise.resolve({ sessionId: 's-1', advertisedModes: ['default', 'plan'] }),
     setConfigOption: () => Promise.resolve(),
     setMode: () => Promise.resolve(),
+    setModel: (_sessionId, modelId) => Promise.resolve(modelId),
     prompt: () =>
       Promise.resolve({
         stopReason: 'end_turn',
@@ -395,11 +398,9 @@ function depsWith(overrides: { connection: AcpAgentConnection }) {
     task: TASK,
     role: WRITER,
     preset: ACP_PRESETS.claude,
-    prompt: {
-      charter: 'You are the engineering worker.',
-      body: 'Write clean code.',
-      rulesAndSkills: 'Follow the repo rules.',
-    },
+    modelId: 'explicit-selected-model',
+    signal: new AbortController().signal,
+    prompt: TEAM_WORKER_PROMPT,
     workspaceRoot: '/user/checkout',
     nativeServersExcluded: true,
     isTrusted: true,
@@ -416,6 +417,109 @@ class AuthRequiredFailure extends Error {
 }
 
 describe('runAcpWorker', () => {
+  it('RVM96A-18 selects and confirms the explicit model before dispatch', async () => {
+    const operations: string[] = []
+    const connection = connectionWith({
+      setModel: (_id, modelId) => {
+        operations.push(`model:${modelId}`)
+        return Promise.resolve(modelId)
+      },
+      prompt: () => {
+        operations.push('prompt')
+        return Promise.resolve({ stopReason: 'end_turn', lastMessage: 'done' })
+      },
+    })
+    await runAcpWorker(depsWith({ connection }))
+    expect(operations).toEqual(['model:explicit-selected-model', 'prompt'])
+  })
+  it.each(['fake-default', ''])(
+    'RVM96A-18 rejects mismatched model readback: %s',
+    async (model) => {
+      const prompt = vi.fn(() => Promise.resolve({ stopReason: 'end_turn', lastMessage: 'done' }))
+      const connection = connectionWith({ setModel: () => Promise.resolve(model), prompt })
+      await expect(runAcpWorker(depsWith({ connection }))).rejects.toBeInstanceOf(
+        AcpModelSelectionError,
+      )
+      expect(prompt).not.toHaveBeenCalled()
+    },
+  )
+  it('RVM96A-19 cancels a late-opening ACP session without prompting it', async () => {
+    const opening = Promise.withResolvers<{ sessionId: string; advertisedModes: string[] }>()
+    const controller = new AbortController()
+    const sessionNew = vi.fn(() => opening.promise)
+    const cancel = vi.fn(() => Promise.resolve())
+    const prompt = vi.fn(() => Promise.resolve({ stopReason: 'end_turn', lastMessage: undefined }))
+    const connection = connectionWith({ sessionNew, cancel, prompt })
+    const pending = runAcpWorker({ ...depsWith({ connection }), signal: controller.signal })
+    const rejected = expect(pending).rejects.toThrow()
+    try {
+      await vi.waitFor(() => {
+        expect(sessionNew).toHaveBeenCalledOnce()
+      })
+      controller.abort()
+      await rejected
+    } finally {
+      opening.resolve({ sessionId: 'late-acp', advertisedModes: ['default'] })
+    }
+    await vi.waitFor(() => {
+      expect(cancel).toHaveBeenCalledWith('late-acp')
+    })
+    expect(prompt).not.toHaveBeenCalled()
+  })
+  it('RVM96A-19 cancels a never-ending ACP turn through the runner signal', async () => {
+    const started = Promise.withResolvers<undefined>()
+    const turn = Promise.withResolvers<{ stopReason: string; lastMessage: string | undefined }>()
+    const cancel = vi.fn(() => Promise.resolve())
+    const close = vi.fn()
+    const controller = new AbortController()
+    const connection = connectionWith({
+      prompt: () => {
+        started.resolve(undefined)
+        return turn.promise
+      },
+      cancel,
+      close,
+    })
+    const pending = runAcpWorker({ ...depsWith({ connection }), signal: controller.signal })
+    let hasSettled = false
+    void pending
+      .finally(() => {
+        hasSettled = true
+      })
+      .catch(() => {
+        /* The original promise is asserted below. */
+      })
+    try {
+      await started.promise
+      controller.abort()
+      await vi.waitFor(() => {
+        expect(hasSettled).toBe(true)
+      })
+      await expect(pending).rejects.toThrow()
+      expect(cancel).toHaveBeenCalledWith('s-1')
+      expect(close).toHaveBeenCalledOnce()
+    } finally {
+      turn.resolve({ stopReason: 'cancelled', lastMessage: undefined })
+      try {
+        await pending
+      } catch {
+        /* Cancellation was asserted above. */
+      }
+    }
+  })
+  it('RVM96A-19 cancels and closes a failed ACP session without hiding its error', async () => {
+    const cancel = vi.fn(() => Promise.reject(new Error('cancel-failed')))
+    const close = vi.fn()
+    const connection = connectionWith({
+      prompt: () => Promise.reject(new Error('prompt-failed')),
+      cancel,
+      close,
+    })
+    await expect(runAcpWorker(depsWith({ connection }))).rejects.toThrow('prompt-failed')
+    expect(cancel).toHaveBeenCalledWith('s-1')
+    expect(close).toHaveBeenCalledOnce()
+  })
+
   it('RVM96A-4 refuses the checkout and its aliases before initialize', async () => {
     const initialize = vi.fn(() => Promise.resolve({ protocolVersion: 1, authMethods: [] }))
     const connection = connectionWith({ initialize })

@@ -11,7 +11,6 @@ import { WORKER_REPORT_FENCE, WORKER_REVIEW_FENCE } from './workerTypes'
 
 /** The terminal states D75's report shape names. */
 export const WORKER_REPORT_STATUSES = ['done', 'partial', 'blocked', 'failed', 'capped'] as const
-export type WorkerReportStatus = (typeof WORKER_REPORT_STATUSES)[number]
 
 const reportSchema = z
   .object({
@@ -77,6 +76,7 @@ export function parseReportJson(json: string): WorkerReport | undefined {
   try {
     parsed = JSON.parse(json)
   } catch {
+    // Malformed report JSON is an explicit unstructured outcome.
     return undefined
   }
   const result = reportSchema.safeParse(parsed)

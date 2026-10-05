@@ -29,9 +29,6 @@ import { scrubWorkerEnv } from './workerEnv'
 import { extractTeamReport, parseReportJson, type WorkerReportOutcome } from './report'
 import type { WorkerPromptParts, WorkerRolePolicy, WorkerTask } from './workerTypes'
 
-/** The worker's `report` tool: an engine worker ends by calling it. */
-export const WORKER_REPORT_TOOL_NAME = 'report'
-
 /** The task's brief passes the plan's cap. */
 export class WorkerBriefError extends Error {
   public constructor(readonly chars: number) {
@@ -220,19 +217,17 @@ export function classifyLimitError(
   if (typeof error !== 'object' || error === null) {
     return undefined
   }
-  const record = error as {
-    readonly status?: unknown
-    readonly code?: unknown
-    readonly retryAfter?: unknown
-  }
-  if (record.status === HTTP_TOO_MANY_REQUESTS) {
-    const header = typeof record.retryAfter === 'string' ? record.retryAfter : undefined
+  if ('status' in error && error.status === HTTP_TOO_MANY_REQUESTS) {
+    const header =
+      'retryAfter' in error && typeof error.retryAfter === 'string' ? error.retryAfter : undefined
     const retryAfter = header === undefined ? undefined : retryAfterMs(header, Date.now())
     return retryAfter === undefined
       ? { kind: 'rateLimited' as const }
       : { kind: 'rateLimited' as const, retryAfterMs: retryAfter }
   }
-  return record.code === 'usage_limited' ? { kind: 'usageLimited' as const } : undefined
+  return 'code' in error && error.code === 'usage_limited'
+    ? { kind: 'usageLimited' as const }
+    : undefined
 }
 
 export interface EngineWorkerDeps {
