@@ -52,7 +52,11 @@ import { FakeUri } from './mocks/vscode'
 
 const USAGE: TabReportedUsage = { inputTokens: 10, cachedTokens: 2, outputTokens: 3 }
 const NOTHING_SENT: TabReportedUsage = { inputTokens: 0, cachedTokens: 0, outputTokens: 0 }
-const RESERVATION: TabReservation = { model: 'muse-spark-1.3', worstCaseUsd: 0.01 }
+const RESERVATION: TabReservation = {
+  model: 'muse-spark-1.3',
+  worstCaseUsd: 0.01,
+  date: '2026-10-04',
+}
 
 beforeEach(() => {
   vi.mocked(extensions.getExtension).mockReset().mockReturnValue(undefined)

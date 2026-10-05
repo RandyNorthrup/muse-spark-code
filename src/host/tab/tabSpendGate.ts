@@ -62,12 +62,12 @@ export function createTabSpendGate(deps: TabSpendGateDeps): TabSpendGate {
       totalUsd = admission.totalUsd
       countRequest()
       deps.onTotalChanged()
-      return { model: facts.model, worstCaseUsd }
+      return { model: facts.model, worstCaseUsd, date: admission.reservation.date }
     },
     settle: (reservation: TabReservation, usage: TabReportedUsage): void => {
       const actualUsd = tabSettleUsd(usage, reservation.model)
       void deps.ledger
-        .settle(reservation.worstCaseUsd, actualUsd)
+        .settle({ date: reservation.date, worstCaseUsd: reservation.worstCaseUsd }, actualUsd)
         .then(refreshTotal)
         .catch((error: unknown) => {
           deps.log.warn(

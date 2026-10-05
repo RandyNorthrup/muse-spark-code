@@ -693,7 +693,8 @@ describe('the shipped Tab bundle', () => {
           }),
       },
       spend: {
-        reserve: () => Promise.resolve({ model: 'muse-spark-1.3', worstCaseUsd: 0 }),
+        reserve: () =>
+          Promise.resolve({ model: 'muse-spark-1.3', worstCaseUsd: 0, date: '2026-10-04' }),
         settle: () => undefined,
         todayTotalUsd: () => 0,
         todayRequests: () => 0,

@@ -113,10 +113,15 @@ export interface TabSpendFacts {
 /** Usage a finished request reported (the engine reads the stream's usage). */
 export type TabReportedUsage = TabEngineUsage
 
-/** One admitted request's reservation, settled with its own worst case. */
+/**
+ * One admitted request's reservation, settled with its own worst case into
+ * its own local day's ledger file, also after midnight (RVM94LC finding 1).
+ */
 export interface TabReservation {
   readonly model: string
   readonly worstCaseUsd: number
+  /** The admission's local day (`YYYY-MM-DD`), as the ledger named it. */
+  readonly date: string
 }
 
 /**

@@ -3,7 +3,13 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import { createTabLedger, tabLocalDate, type TabLedgerDeps } from '../../src/host/tab/tabLedger'
+import {
+  createTabLedger,
+  tabLocalDate,
+  type TabAdmission,
+  type TabLedgerDeps,
+  type TabLedgerReservation,
+} from '../../src/host/tab/tabLedger'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -14,6 +20,21 @@ afterAll(() => removeFolder(root))
 /** Noon local time, safely inside one local day. */
 const DAY_ONE = new Date(2026, 9, 4, 12, 0, 0).getTime()
 const DAY_TWO = new Date(2026, 9, 5, 12, 0, 0).getTime()
+/** The last millisecond of day one and the first of day two. */
+const DAY_ONE_LAST = new Date(2026, 9, 4, 23, 59, 59, 999).getTime()
+const DAY_TWO_FIRST = new Date(2026, 9, 5, 0, 0, 0, 0).getTime()
+const DATE_ONE = '2026-10-04'
+const DATE_TWO = '2026-10-05'
+
+function ledgerWithClock(
+  directory: string,
+  windowId: string,
+  now: () => number,
+): { ledger: ReturnType<typeof createTabLedger>; log: FakeLogOutputChannel } {
+  const log = new FakeLogOutputChannel()
+  const deps: TabLedgerDeps = { directory, windowId, now, sleep: () => Promise.resolve(), log }
+  return { ledger: createTabLedger(deps), log }
+}
 
 function ledgerAt(
   directory: string,
@@ -21,15 +42,24 @@ function ledgerAt(
   nowMs: number,
   nowRef?: { nowMs: number },
 ): { ledger: ReturnType<typeof createTabLedger>; log: FakeLogOutputChannel } {
-  const log = new FakeLogOutputChannel()
-  const deps: TabLedgerDeps = {
-    directory,
-    windowId,
-    now: () => (nowRef === undefined ? nowMs : nowRef.nowMs),
-    sleep: () => Promise.resolve(),
-    log,
+  return ledgerWithClock(directory, windowId, () => (nowRef === undefined ? nowMs : nowRef.nowMs))
+}
+
+/** The admitted request's reservation; fails the test on a refusal. */
+function reservationOf(admission: TabAdmission): TabLedgerReservation {
+  if (!admission.admitted) {
+    throw new Error(`expected an admission, got ${admission.reason}`)
   }
-  return { ledger: createTabLedger(deps), log }
+  return admission.reservation
+}
+
+/** A day's total in dollars; fails the test on a refusal. */
+async function totalOn(ledger: ReturnType<typeof createTabLedger>, date?: string): Promise<number> {
+  const total = await ledger.todayTotal(date)
+  if (!total.ok) {
+    throw new Error(`expected a total, got a refusal for ${total.detail}`)
+  }
+  return total.totalUsd
 }
 
 function todayFile(directory: string, windowId: string, nowMs: number): string {
@@ -45,16 +75,20 @@ describe('tabLocalDate (M94, PLAN.md D73)', () => {
 
 describe('TabLedger admission and settlement (M94 lane L)', () => {
   it('refuses a window id that cannot name a file', () => {
-    expect(() =>
-      ledgerAt(path.join(root, 'ids'), '../escape', DAY_ONE),
-    ).toThrow('cannot name a ledger file')
+    expect(() => ledgerAt(path.join(root, 'ids'), '../escape', DAY_ONE)).toThrow(
+      'cannot name a ledger file',
+    )
   })
 
   it('admits under the budget and counts the reservation in the total', async () => {
     const directory = path.join(root, 'admit')
     const { ledger } = ledgerAt(directory, 'window-a', DAY_ONE)
     const admitted = await ledger.admit(0.6, 1)
-    expect(admitted).toEqual({ admitted: true, totalUsd: 0.6 })
+    expect(admitted).toEqual({
+      admitted: true,
+      totalUsd: 0.6,
+      reservation: { date: DATE_ONE, worstCaseUsd: 0.6 },
+    })
     await expect(ledger.todayTotal()).resolves.toEqual({ ok: true, totalUsd: 0.6 })
   })
 
@@ -78,8 +112,8 @@ describe('TabLedger admission and settlement (M94 lane L)', () => {
   it('replaces the reservation with the reported usage on settlement', async () => {
     const directory = path.join(root, 'settle')
     const { ledger } = ledgerAt(directory, 'window-a', DAY_ONE)
-    await ledger.admit(0.6, 1)
-    await ledger.settle(0.6, 0.001)
+    const reservation = reservationOf(await ledger.admit(0.6, 1))
+    await ledger.settle(reservation, 0.001)
     await expect(ledger.todayTotal()).resolves.toEqual({ ok: true, totalUsd: 0.001 })
   })
 
@@ -119,15 +153,15 @@ describe('TabLedger admission and settlement (M94 lane L)', () => {
     const directory = path.join(root, 'sum')
     const first = ledgerAt(directory, 'window-a', DAY_ONE)
     const second = ledgerAt(directory, 'window-b', DAY_ONE)
-    await expect(first.ledger.admit(0.3, 1)).resolves.toMatchObject({ admitted: true })
-    await expect(second.ledger.admit(0.3, 1)).resolves.toMatchObject({ admitted: true })
+    const firstReservation = reservationOf(await first.ledger.admit(0.3, 1))
+    const secondReservation = reservationOf(await second.ledger.admit(0.3, 1))
     const summed = await first.ledger.todayTotal()
     expect(summed).toMatchObject({ ok: true })
     if (summed.ok) {
       expect(summed.totalUsd).toBeCloseTo(0.6)
     }
-    await first.ledger.settle(0.3, 0.002)
-    await second.ledger.settle(0.3, 0.004)
+    await first.ledger.settle(firstReservation, 0.002)
+    await second.ledger.settle(secondReservation, 0.004)
     const settled = await second.ledger.todayTotal()
     expect(settled).toMatchObject({ ok: true })
     if (settled.ok) {
@@ -135,7 +169,7 @@ describe('TabLedger admission and settlement (M94 lane L)', () => {
     }
   })
 
-  it('serialises one window\u2019s concurrent admissions, losing no reservation', async () => {
+  it('serialises one window\u{2019}s concurrent admissions, losing no reservation', async () => {
     const directory = path.join(root, 'same-window')
     const { ledger } = ledgerAt(directory, 'window-a', DAY_ONE)
     const outcomes = await Promise.all([
@@ -153,7 +187,7 @@ describe('TabLedger admission and settlement (M94 lane L)', () => {
     }
   })
 
-  it('refuses while another window\u2019s file is corrupt, never counting it as zero', async () => {
+  it('refuses while another window\u{2019}s file is corrupt, never counting it as zero', async () => {
     const directory = path.join(root, 'corrupt')
     const first = ledgerAt(directory, 'window-a', DAY_ONE)
     await first.ledger.admit(0.1, 1)
@@ -201,19 +235,94 @@ describe('TabLedger admission and settlement (M94 lane L)', () => {
       admitted: false,
       reason: 'ledgerUnreadable',
     })
-    await expect(ledger.settle(0.1, 0.001)).resolves.toBeUndefined()
+    await expect(
+      ledger.settle({ date: DATE_ONE, worstCaseUsd: 0.1 }, 0.001),
+    ).resolves.toBeUndefined()
     expect(log.warn).toHaveBeenCalled()
   })
 
   it('refuses unusable amounts without throwing', async () => {
     const directory = path.join(root, 'amounts')
     const { ledger } = ledgerAt(directory, 'window-a', DAY_ONE)
-    await expect(ledger.admit(Number.NaN, 1)).resolves.toMatchObject({
+    await expect(ledger.admit(NaN, 1)).resolves.toMatchObject({
       admitted: false,
       reason: 'ledgerUnreadable',
     })
     await expect(ledger.admit(0.1, -1)).resolves.toMatchObject({ admitted: false })
-    await expect(ledger.settle(Number.NaN, 0.001)).resolves.toBeUndefined()
+    await expect(
+      ledger.settle({ date: DATE_ONE, worstCaseUsd: NaN }, 0.001),
+    ).resolves.toBeUndefined()
+    await expect(ledger.todayTotal()).resolves.toEqual({ ok: true, totalUsd: 0 })
+  })
+
+  it('never lets a reservation or a total name a folder that is not a day', async () => {
+    const directory = path.join(root, 'bad-day')
+    const { ledger, log } = ledgerAt(directory, 'window-a', DAY_ONE)
+    const reservation = reservationOf(await ledger.admit(0.1, 1))
+    await expect(
+      ledger.settle({ date: '../escape', worstCaseUsd: 0.1 }, 0.001),
+    ).resolves.toBeUndefined()
+    expect(log.warn).toHaveBeenCalled()
+    await expect(ledger.todayTotal('../escape')).resolves.toEqual({
+      ok: false,
+      detail: '../escape',
+    })
+    // The reservation is kept: spend is over-counted, never lost.
+    expect(await totalOn(ledger, reservation.date)).toBeCloseTo(0.1)
+  })
+})
+
+describe('TabLedger reservations keep their day (M94, RVM94LC finding 1)', () => {
+  it('settles yesterday’s request into yesterday, so today’s reservation still counts', async () => {
+    // The review's hard-budget case: $0.05 a day, $0.03 worst cases.
+    const directory = path.join(root, 'cross-day-budget')
+    const nowRef = { nowMs: DAY_ONE }
+    const { ledger } = ledgerAt(directory, 'window-a', DAY_ONE, nowRef)
+    const yesterday = reservationOf(await ledger.admit(0.03, 0.05))
+    nowRef.nowMs = DAY_TWO
+    const today = reservationOf(await ledger.admit(0.03, 0.05))
+    expect(yesterday.date).toBe(DATE_ONE)
+    expect(today.date).toBe(DATE_TWO)
+    await ledger.settle(yesterday, 0.001)
+    // Today's outstanding $0.03 stays, so a second $0.03 request is refused.
+    expect(await totalOn(ledger)).toBeCloseTo(0.03)
+    const refused = await ledger.admit(0.03, 0.05)
+    expect(refused).toMatchObject({ admitted: false, reason: 'budgetReached' })
+    // Yesterday is reconciled: its reservation replaced by the reported usage.
+    expect(await totalOn(ledger, DATE_ONE)).toBeCloseTo(0.001)
+  })
+
+  it('reads the clock once per admission, so midnight cannot split its write from its check', async () => {
+    const directory = path.join(root, 'midnight-admit')
+    const clock = { nowMs: DAY_ONE, midnightAfterNextRead: false }
+    const { ledger } = ledgerWithClock(directory, 'window-a', () => {
+      const value = clock.nowMs
+      if (clock.midnightAfterNextRead) {
+        // Midnight falls just after this read: every later read is day two.
+        clock.nowMs = DAY_TWO_FIRST
+        clock.midnightAfterNextRead = false
+      }
+      return value
+    })
+    reservationOf(await ledger.admit(0.04, 0.05))
+    clock.nowMs = DAY_ONE_LAST
+    clock.midnightAfterNextRead = true
+    const spanning = await ledger.admit(0.03, 0.05)
+    // Checked against day one's total, the day its reservation went to.
+    expect(spanning).toMatchObject({ admitted: false, reason: 'budgetReached' })
+    // Rolled back on day one; day two was never touched.
+    expect(await totalOn(ledger, DATE_ONE)).toBeCloseTo(0.04)
+    await expect(ledger.todayTotal(DATE_TWO)).resolves.toEqual({ ok: true, totalUsd: 0 })
+  })
+
+  it('settles after midnight into the day that holds the reservation', async () => {
+    const directory = path.join(root, 'settle-after-midnight')
+    const nowRef = { nowMs: DAY_ONE }
+    const { ledger } = ledgerAt(directory, 'window-a', DAY_ONE, nowRef)
+    const reservation = reservationOf(await ledger.admit(0.6, 1))
+    nowRef.nowMs = DAY_TWO
+    await ledger.settle(reservation, 0.001)
+    await expect(ledger.todayTotal(DATE_ONE)).resolves.toEqual({ ok: true, totalUsd: 0.001 })
     await expect(ledger.todayTotal()).resolves.toEqual({ ok: true, totalUsd: 0 })
   })
 })

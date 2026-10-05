@@ -4,8 +4,11 @@
 //
 // Before every request the window writes the request's worst case into its
 // own file; the request is sent only when that write succeeds and today's
-// total across all files stays within the budget. Reported usage then
-// replaces the reservation (`settle`); a request that never reports keeps
+// total across all files stays within the budget. Admission reads the clock
+// once: the reservation, the total it is checked against and any rollback
+// belong to that one local day, and the admitted request carries it as its
+// reservation. Reported usage then replaces the reservation in that day's
+// file (`settle`), even after midnight; a request that never reports keeps
 // its whole reservation. A missing, corrupt or unreadable ledger refuses
 // the request (fail closed: a corrupt file never counts as zero spend), and
 // nothing here throws into the provider: every outcome is returned.
@@ -38,6 +41,8 @@ export interface TabLedgerDeps {
 // A window id names a file; only this alphabet is allowed into a path
 // (the session store's `SESSION_ID_PATTERN`).
 const WINDOW_ID_PATTERN = /^[A-Za-z0-9_-]+$/
+// A day names a folder; only a `YYYY-MM-DD` date is allowed into a path.
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const FILE_EXTENSION = '.json'
 const ENOENT = 'ENOENT'
 
@@ -55,12 +60,23 @@ interface LedgerFile {
 
 /** Today's total spend across every window, or the refusal to trust it. */
 export type TabDayTotal =
-  | { readonly ok: true; readonly totalUsd: number }
-  | { readonly ok: false; readonly detail: string }
+  { readonly ok: true; readonly totalUsd: number } | { readonly ok: false; readonly detail: string }
 
-/** Whether the next request may be sent, and what today's total then is. */
+/** An admitted request's reservation: the local day it was written to and its worst case. */
+export interface TabLedgerReservation {
+  /** The admission's local day, as `YYYY-MM-DD`; settlement writes to this day's file. */
+  readonly date: string
+  readonly worstCaseUsd: number
+}
+
+/** Whether the next request may be sent, and what that day's total then is. */
 export type TabAdmission =
-  | { readonly admitted: true; readonly totalUsd: number }
+  | {
+      readonly admitted: true
+      readonly totalUsd: number
+      /** What `settle` takes once the request reports its usage. */
+      readonly reservation: TabLedgerReservation
+    }
   | {
       readonly admitted: false
       readonly reason: 'budgetReached' | 'ledgerUnreadable'
@@ -85,20 +101,34 @@ function isMissing(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === ENOENT
 }
 
+/** Waits for `promise` however it ends; its outcome belongs to whoever awaits it. */
+async function settled(promise: Promise<unknown>): Promise<void> {
+  try {
+    await promise
+  } catch {
+    // Reported to the one who awaited it.
+  }
+}
+
 export interface TabLedger {
-  /** Today's total across every window's file; never throws. */
-  readonly todayTotal: () => Promise<TabDayTotal>
   /**
-   * Writes `worstCaseUsd` into this window's file, then admits the request
-   * only while today's total across all files stays within `budgetUsd`.
-   * A refusal rolls the reservation back. Never throws.
+   * The day's total across every window's file: today's, or `date`'s
+   * (`YYYY-MM-DD`, as a reservation names it). Never throws.
+   */
+  readonly todayTotal: (date?: string) => Promise<TabDayTotal>
+  /**
+   * Writes `worstCaseUsd` into this window's file for the local day read
+   * once from the clock, then admits the request only while that day's
+   * total across all files stays within `budgetUsd`. A refusal rolls the
+   * reservation back on the same day. Never throws.
    */
   readonly admit: (worstCaseUsd: number, budgetUsd: number) => Promise<TabAdmission>
   /**
-   * Replaces `reservedUsd` of reservation with the reported `actualUsd`.
-   * A request that never reports keeps its whole reservation. Never throws.
+   * Replaces the reservation's worst case with the reported `actualUsd`
+   * in the reservation's own day's file, also after midnight. A request
+   * that never reports keeps its whole reservation. Never throws.
    */
-  readonly settle: (reservedUsd: number, actualUsd: number) => Promise<void>
+  readonly settle: (reservation: TabLedgerReservation, actualUsd: number) => Promise<void>
 }
 
 export function createTabLedger(deps: TabLedgerDeps): TabLedger {
@@ -123,21 +153,19 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
       // This window's own unreadable file: fail closed, and say which.
       return undefined
     }
-    const parsed: unknown = (() => {
-      try {
-        return JSON.parse(raw) as unknown
-      } catch {
-        return undefined
-      }
-    })()
-    const file = ledgerFileSchema.safeParse(parsed)
-    if (!file.success || file.data.date !== date || file.data.window !== deps.windowId) {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw) as unknown
+    } catch {
       return undefined
     }
-    return { reservedUsd: file.data.reservedUsd, reportedUsd: file.data.reportedUsd }
+    const file = ledgerFileSchema.safeParse(parsed)
+    return !file.success || file.data.date !== date || file.data.window !== deps.windowId
+      ? undefined
+      : { reservedUsd: file.data.reservedUsd, reportedUsd: file.data.reportedUsd }
   }
 
-  const writeOwn = async (date: string, file: LedgerFile): Promise<boolean> => {
+  const didWriteOwn = async (date: string, file: LedgerFile): Promise<boolean> => {
     try {
       await writeFileAtomically(
         ownFile(date),
@@ -155,32 +183,32 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
     }
   }
 
-  const todayTotal = async (): Promise<TabDayTotal> => {
-    const date = tabLocalDate(deps.now())
+  const dayTotal = async (date: string): Promise<TabDayTotal> => {
+    if (!DATE_PATTERN.test(date)) {
+      return { ok: false, detail: date }
+    }
     try {
       // Windows answers ENOENT (not ENOTDIR) through a file used as a
       // folder, so a base that is not a directory must refuse explicitly:
       // it never counts as zero spend.
-      if (!(await stat(deps.directory)).isDirectory()) {
+      const base = await stat(deps.directory)
+      if (!base.isDirectory()) {
         return { ok: false, detail: date }
       }
     } catch (error: unknown) {
       // No folder yet means no window spent today; anything else refuses.
-      return isMissing(error)
-        ? { ok: true, totalUsd: 0 }
-        : { ok: false, detail: date }
+      return isMissing(error) ? { ok: true, totalUsd: 0 } : { ok: false, detail: date }
     }
     let names: string[]
     try {
       names = await readdir(dayDirectory(date))
     } catch (error: unknown) {
       // No folder yet means no window spent today; anything else refuses.
-      return isMissing(error)
-        ? { ok: true, totalUsd: 0 }
-        : { ok: false, detail: date }
+      return isMissing(error) ? { ok: true, totalUsd: 0 } : { ok: false, detail: date }
     }
     let totalUsd = 0
-    for (const name of names.toSorted()) {
+    const sorted = names.toSorted((left, right) => left.localeCompare(right))
+    for (const name of sorted) {
       if (name.endsWith(ATOMIC_TEMPORARY_SUFFIX) || !name.endsWith(FILE_EXTENSION)) {
         continue
       }
@@ -216,11 +244,11 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
       deps.log.warn(`Tab ledger ${fileName} could not roll back its reservation`)
       return
     }
-    const kept = await writeOwn(date, {
+    const didRollBack = await didWriteOwn(date, {
       reservedUsd: Math.max(0, current.reservedUsd - worstCaseUsd),
       reportedUsd: current.reportedUsd,
     })
-    if (!kept) {
+    if (!didRollBack) {
       // The over-count stays: spend is over-counted, never lost.
       deps.log.warn(`Tab ledger ${fileName} could not roll back its reservation`)
     }
@@ -231,6 +259,8 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
       deps.log.warn('Tab ledger refused a request with an unusable amount')
       return { admitted: false, reason: 'ledgerUnreadable', detail: 'amount' }
     }
+    // The clock is read once: the reservation, its check and any rollback
+    // all belong to this day, so midnight cannot split them.
     const date = tabLocalDate(deps.now())
     const current = await readOwn(date)
     if (current === undefined) {
@@ -241,11 +271,11 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
       reservedUsd: current.reservedUsd + worstCaseUsd,
       reportedUsd: current.reportedUsd,
     }
-    if (!(await writeOwn(date, reserved))) {
+    if (!(await didWriteOwn(date, reserved))) {
       deps.log.warn(`Tab ledger ${fileName} could not be written, treating the budget as reached`)
       return { admitted: false, reason: 'ledgerUnreadable', detail: fileName }
     }
-    const total = await todayTotal()
+    const total = await dayTotal(date)
     if (!total.ok) {
       await rollback(date, worstCaseUsd)
       deps.log.warn(`Tab ledger ${total.detail} is unreadable, treating the budget as reached`)
@@ -263,41 +293,51 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
         totalUsd: total.totalUsd - worstCaseUsd,
       }
     }
-    return { admitted: true, totalUsd: total.totalUsd }
+    return { admitted: true, totalUsd: total.totalUsd, reservation: { date, worstCaseUsd } }
   }
 
-  const settle = async (reservedUsd: number, actualUsd: number): Promise<void> => {
-    if (!isUsableAmount(reservedUsd) || !isUsableAmount(actualUsd)) {
+  const settle = async (reservation: TabLedgerReservation, actualUsd: number): Promise<void> => {
+    if (!isUsableAmount(reservation.worstCaseUsd) || !isUsableAmount(actualUsd)) {
       deps.log.warn('Tab ledger ignored settlement with an unusable amount')
       return
     }
-    const date = tabLocalDate(deps.now())
+    if (!DATE_PATTERN.test(reservation.date)) {
+      deps.log.warn(
+        'Tab ledger ignored settlement for a day it cannot name, keeping its reservation',
+      )
+      return
+    }
+    // The reservation's own day, not today's: a request admitted before
+    // midnight settles into the day that holds its reservation.
+    const { date } = reservation
     const current = await readOwn(date)
     if (current === undefined) {
       deps.log.warn(`Tab ledger ${fileName} is unreadable, keeping its reservation`)
       return
     }
-    const kept = await writeOwn(date, {
-      reservedUsd: Math.max(0, current.reservedUsd - reservedUsd),
+    const didSettle = await didWriteOwn(date, {
+      reservedUsd: Math.max(0, current.reservedUsd - reservation.worstCaseUsd),
       reportedUsd: current.reportedUsd + actualUsd,
     })
-    if (!kept) {
+    if (!didSettle) {
       deps.log.warn(`Tab ledger ${fileName} could not settle, keeping its reservation`)
     }
   }
 
-  const exclusive = <T>(work: () => Promise<T>): Promise<T> => {
-    const run = ordered.then(work)
-    ordered = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    return run
+  // `work` once every step queued before it has settled (writeJournal's queue).
+  const exclusive = async <T>(work: () => Promise<T>): Promise<T> => {
+    const previous = ordered
+    const run = (async () => {
+      await previous
+      return await work()
+    })()
+    ordered = settled(run)
+    return await run
   }
 
   return {
-    todayTotal,
+    todayTotal: (date) => dayTotal(date ?? tabLocalDate(deps.now())),
     admit: (worstCaseUsd, budgetUsd) => exclusive(() => admit(worstCaseUsd, budgetUsd)),
-    settle: (reservedUsd, actualUsd) => exclusive(() => settle(reservedUsd, actualUsd)),
+    settle: (reservation, actualUsd) => exclusive(() => settle(reservation, actualUsd)),
   }
 }
