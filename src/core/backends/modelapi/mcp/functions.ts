@@ -34,7 +34,7 @@ import {
   MCP_FUNCTION_SEPARATOR,
   MCP_SCHEMA_LIMITS,
   MCP_TOOL_DESCRIPTION_MAX_CHARS,
-  MODEL_TEXT,
+  MODEL_API_MODEL_TEXT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
 } from '../../../../shared/constants'
@@ -323,7 +323,7 @@ export function mcpFunctionDefinition(
   const { parameters, notes, isReplaced } = functionParameters(tool.inputSchema)
   const described = tool.description ?? tool.annotations?.title ?? tool.title ?? tool.name
   const description = clipDescription(
-    isReplaced ? `${described}\n\n${MODEL_TEXT.mcpSchemaReplaced}` : described,
+    isReplaced ? `${described}\n\n${MODEL_API_MODEL_TEXT.mcpSchemaReplaced}` : described,
   )
   return {
     definition: { type: 'function', name, description, parameters, strict: false },
@@ -403,7 +403,7 @@ function collectBlock(block: ContentBlock, collected: Collected): void {
       return
     }
     case 'audio': {
-      add(`[audio ${block.mimeType} not passed on: ${MODEL_TEXT.mcpTextAndImagesOnly}]`)
+      add(`[audio ${block.mimeType} not passed on: ${MODEL_API_MODEL_TEXT.mcpTextAndImagesOnly}]`)
       return
     }
     case 'resource_link': {
@@ -419,7 +419,7 @@ function collectBlock(block: ContentBlock, collected: Collected): void {
         collectImage(resource.blob, resource.mimeType, collected)
       } else {
         add(
-          `[resource ${resource.uri} (${resource.mimeType ?? 'binary'}) not passed on: ${MODEL_TEXT.mcpTextAndImagesOnly}]`,
+          `[resource ${resource.uri} (${resource.mimeType ?? 'binary'}) not passed on: ${MODEL_API_MODEL_TEXT.mcpTextAndImagesOnly}]`,
         )
       }
     }
@@ -454,7 +454,8 @@ export function mcpCallOutcome(result: CallToolResult): McpCallOutcome {
     collected.texts.push(json)
     collected.shown.push(json)
   }
-  const body = collected.texts.length === 0 ? MODEL_TEXT.mcpNoContent : collected.texts.join('\n')
+  const body =
+    collected.texts.length === 0 ? MODEL_API_MODEL_TEXT.mcpNoContent : collected.texts.join('\n')
   const text = clip(body)
   const visibleOutput = clip(collected.shown.length === 0 ? body : collected.shown.join('\n'))
   const output = result.isError === true ? `Error: ${text}` : text

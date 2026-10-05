@@ -6,7 +6,7 @@
 // it), a running command has a Stop.
 
 import { memo } from 'react'
-import { UI_TEXT, USER_SHELL_PREFIX } from '../../shared/constants'
+import { IO_PREVIEW_LINES, UI_TEXT, USER_SHELL_PREFIX } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { formatDurationMs } from '../agentFormat'
 import { failedOutcomeText, isFailedStatus, type UserShellEntry } from '../state/uiState'
@@ -78,16 +78,25 @@ function UserShellRowView({ entry, canStop, onOpenOutput, onStopTask }: UserShel
           {failedOutcomeText(entry.status)}: {entry.failureReason}
         </div>
       ) : null}
-      {entry.output === '' ? null : (
-        <div className="tool-body">
-          <div className="shell">
+      <div className="tool-body">
+        <div className="shell">
+          <div className="shell-box">
+            <span className="shell-label">{UI_TEXT.inLabel}</span>
+            <Clipped text={entry.command} className="shell-out" previewLines={IO_PREVIEW_LINES} />
+          </div>
+          {entry.output === '' ? null : (
             <div className="shell-box">
               <span className="shell-label">{UI_TEXT.outLabel}</span>
-              <Clipped text={entry.output} className="shell-out" onOpen={openOutput} />
+              <Clipped
+                text={entry.output}
+                className="shell-out"
+                onOpen={openOutput}
+                previewLines={IO_PREVIEW_LINES}
+              />
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </li>
   )
 }

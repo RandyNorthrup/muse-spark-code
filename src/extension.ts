@@ -91,12 +91,21 @@ import { ideImageTools } from './host/ide/imageTools'
 import { ideWebFetchTools, isIdeWebFetchOffered, oneQuestionPerUrl } from './host/ide/webFetchTool'
 import { isWebFetchAllowed } from './host/web/webFetchConfirm'
 import { pageConverter } from './host/web/pageConverter'
-import { createWebFetcher } from './host/web/webFetcher'
+import { lazyPageUrlCheck, lazyWebFetcher, webFetchLoader } from './host/web/webFetchBundle'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
+import {
+  TAB_BUNDLE_FILE,
+  TAB_LEDGER_DIR,
+  TAB_SNOOZE_STATE_KEY,
+  type TabFilesExclude,
+  createTabActivation,
+  tabTextChangeEvent,
+  deferredRefresh,
+} from './host/tab/tabBundle'
 import { createCliFeatures } from './host/cliFeatures'
 import {
   bundledSkillsLoader,
@@ -142,6 +151,7 @@ import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspa
 import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/settings'
 import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
+import { TasksPanel } from './host/views/tasksPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface } from './host/views/chatSurface'
 import type { WebviewHostContext } from './host/views/webviewSetup'
@@ -178,6 +188,7 @@ import {
   BUNDLED_SKILLS_SETTING,
   CHECKPOINT_STORE_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
+  WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
@@ -213,6 +224,7 @@ import {
   WALKTHROUGH_QUALIFIED_ID,
   WINDOWS_POWERSHELL_TERMINAL_PATH,
   WORKSPACE_STATE_KEYS,
+  TAB_CONTEXT_FILES,
 } from './shared/constants'
 import { fill, plural, uiLocale } from './shared/l10n/text'
 import type { HostAction } from './shared/protocol'
@@ -488,15 +500,41 @@ export async function deactivate(): Promise<void> {
   lifecycle.shutdown = undefined
 }
 
+/** `files.exclude` as Tab reads it: the switches and the `when` conditions (M94). */
+function tabFilesExcludeTable(value: unknown): TabFilesExclude {
+  const table: Record<string, boolean | { readonly when: string }> = {}
+  if (typeof value === 'object' && value !== null) {
+    const entries: [string, unknown][] = Object.entries(value)
+    for (const [glob, entry] of entries) {
+      if (typeof entry === 'boolean') {
+        table[glob] = entry
+      } else if (
+        typeof entry === 'object' &&
+        entry !== null &&
+        'when' in entry &&
+        typeof entry.when === 'string'
+      ) {
+        // A condition is kept, never dropped (RVM94HU 14).
+        table[glob] = { when: entry.when }
+      }
+    }
+  }
+  return table
+}
+
 /**
  * A command whose failure is logged, with its stack, and said once (M39). A
  * rejected command would otherwise reach only VS Code's Extension Host log.
- * No command here takes arguments.
+ * Arguments pass through for the commands that take them (Tab's accept).
  */
-function registerLoggedCommand(log: Logger, id: string, run: () => unknown): vscode.Disposable {
-  return vscode.commands.registerCommand(id, async () => {
+function registerLoggedCommand(
+  log: Logger,
+  id: string,
+  run: (...args: unknown[]) => unknown,
+): vscode.Disposable {
+  return vscode.commands.registerCommand(id, async (...args: unknown[]) => {
     try {
-      return await run()
+      return await run(...args)
     } catch (error: unknown) {
       log.error(`${id} failed: ${errorDetail(error)}`)
       const reason = error instanceof Error ? error.message : String(error)
@@ -543,6 +581,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // controller so the session board marks them window-wide (M77).
   const boardPrompts = new PendingPrompts()
   const bestOfNCoordinator = new BestOfNCoordinator()
+  // A chat's tasks tab; it leaves once both the chat and the tab are closed.
+  const tasksTabs = new Map<string, TasksPanel>()
+  context.subscriptions.push({
+    dispose: () => {
+      for (const tab of tasksTabs.values()) {
+        tab.dispose()
+      }
+    },
+  })
   let isInputFocused = false
   // Ctrl+B belongs to the panel only while the conversation in view runs a
   // command it can move to the background (M46); VS Code's sidebar toggle
@@ -695,6 +742,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // and never in Restricted Mode.
     canRememberPaidUse: () =>
       vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
+    // Account & usage's Tab row reads the configured budget and the ledger's
+    // cross-window day (RVM94HU 23–24); `tab` is read only when it runs.
+    tabDay: () => ({
+      budgetUsd: currentSettings().tabDailyBudgetUsd,
+      todayUsd: tab.todayTotalUsd(),
+    }),
     log,
   })
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): dist/museCodeReviewer.js
@@ -747,8 +800,217 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
     isKeyStored = isStored
     broadcastPaidState()
+    tab.refreshStatus()
   }
-  void refreshKeyPresence()
+  // Inline completions (Tab) (M94, PLAN.md D73): the secret read waits for
+  // the first view, panel, command or Tab request. Activation with no view
+  // or panel and Tab off reads no secret, starts no process and requires no
+  // lazy bundle; the openers and the view provider below call this, and the
+  // shim calls it on the first enable.
+  const ensureKeyPresence = deferredRefresh(refreshKeyPresence)
+  // Inline completions (Tab) (M94, PLAN.md D73): the shim. With the setting
+  // off, no bundle load, no request, no secret read, no process: dist/tab.js
+  // loads only for an explicit Tab command or while the setting is on. Only
+  // types and the loader come from the Tab side here, so dist/extension.js
+  // carries the small status item, but none of the provider, engine (lane C) or
+  // the ledger (lane L). Tab is on by default (owner, 2026-10-04): no
+  // turn-on price confirmation; the first request asks D48's question with
+  // the price and the daily budget, and nothing is sent before the answer.
+  const tabRecentEdits = new Map<string, { readonly uri: vscode.Uri; readonly line: number }>()
+  const tabIgnoreListeners = new Set<() => void>()
+  const tabIgnoreWatcher = vscode.workspace.createFileSystemWatcher(
+    '**/{.gitignore,.cursorignore,.continueignore}',
+  )
+  const tabIgnoreCleared = () => {
+    for (const clear of tabIgnoreListeners) {
+      clear()
+    }
+  }
+  const tabDisposables = [
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      const change = event.contentChanges.at(0)
+      if (change === undefined || event.document.uri.scheme !== 'file') return
+      {
+        const key = event.document.uri.toString()
+        tabRecentEdits.delete(key)
+        tabRecentEdits.set(key, { uri: event.document.uri, line: change.range.start.line })
+        if (tabRecentEdits.size > TAB_CONTEXT_FILES) {
+          const oldest = tabRecentEdits.keys().next().value
+          if (oldest !== undefined) tabRecentEdits.delete(oldest)
+        }
+      }
+    }),
+    tabIgnoreWatcher,
+    tabIgnoreWatcher.onDidChange(tabIgnoreCleared),
+    tabIgnoreWatcher.onDidCreate(tabIgnoreCleared),
+    tabIgnoreWatcher.onDidDelete(tabIgnoreCleared),
+  ]
+  const isTabWorkspaceRoot = (root: string, absolutePath: string): boolean => {
+    if (process.platform === 'win32') {
+      const file = absolutePath.toLowerCase()
+      const folder = root.toLowerCase()
+      return file === folder || file.startsWith(`${folder}${path.sep}`)
+    }
+    return absolutePath === root || absolutePath.startsWith(`${root}${path.sep}`)
+  }
+  const tab = createTabActivation({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', TAB_BUNDLE_FILE).fsPath,
+    log,
+    isTabSettingOn: () => currentSettings().modelApiTab,
+    tabSettings: () => {
+      const settings = currentSettings()
+      return {
+        tabModel: settings.tabModel,
+        tabLanguages: settings.tabLanguages,
+        tabMultiline: settings.tabMultiline,
+        tabTrigger: settings.tabTrigger,
+        tabWithCopilot: settings.tabWithCopilot,
+        tabDailyBudgetUsd: settings.tabDailyBudgetUsd,
+      }
+    },
+    isPaidOn: () => paid.gate.isOn('tab'),
+    isKeyStored: () => isKeyStored,
+    isTrusted: () => vscode.workspace.isTrusted,
+    ensureKeyPresence,
+    updateSetting: async (key, value) => {
+      await updateSetting(key, value)
+    },
+    registerCommand: (id, run) => registerLoggedCommand(log, id, run),
+    // Links resolved before a file is read (RVM94HU 12).
+    realPath: async (absolutePath) => await canonicalPath(absolutePath),
+    registerProvider: (provider) =>
+      vscode.languages.registerInlineCompletionItemProvider({ scheme: 'file' }, provider),
+    setTabOnContext: (isOn) => {
+      void vscode.commands.executeCommand('setContext', CONTEXT_KEYS.tabOn, isOn)
+    },
+    foreignSetting: (section, key) => vscode.workspace.getConfiguration(section).get(key),
+    isCopilotExtensionPresent: () =>
+      vscode.extensions.getExtension('GitHub.copilot')?.isActive === true ||
+      vscode.extensions.getExtension('GitHub.copilot-chat')?.isActive === true,
+    filesExclude: (uri) =>
+      tabFilesExcludeTable(vscode.workspace.getConfiguration('files', uri).get('exclude')),
+    workspaceRoots: (absolutePath) =>
+      (vscode.workspace.workspaceFolders ?? [])
+        .map((folder) => folder.uri.fsPath)
+        .filter((root) => isTabWorkspaceRoot(root, absolutePath))
+        .toSorted((a, b) => b.length - a.length),
+    ignoreFileExists: (absolutePath) => {
+      try {
+        return statSync(absolutePath).isFile()
+      } catch {
+        return false
+      }
+    },
+    runGit: (args, cwd) => runGit(args, cwd),
+    onIgnoreFilesChanged: (clear) => {
+      tabIgnoreListeners.add(clear)
+      return {
+        dispose: () => {
+          tabIgnoreListeners.delete(clear)
+        },
+      }
+    },
+    recentEdits: () => {
+      const edits: { readonly uri: vscode.Uri; readonly line: number }[] = []
+      for (const edit of tabRecentEdits.values()) edits.unshift(edit)
+      return edits
+    },
+    onDidChangeTextDocument: (listener) =>
+      vscode.workspace.onDidChangeTextDocument((event) => {
+        listener(tabTextChangeEvent(event))
+      }),
+    activeLanguageId: () => vscode.window.activeTextEditor?.document.languageId,
+    knownLanguages: async () => await vscode.languages.getLanguages(),
+    confirmCopilotDisable: async (languageId) => {
+      const turnOff = fill(UI_TEXT.tabMenuCopilotOff, { language: languageId })
+      return (
+        (await vscode.window.showWarningMessage(
+          fill(UI_TEXT.tabCopilotConfirmTitle, { language: languageId }),
+          { modal: true, detail: fill(UI_TEXT.tabCopilotConfirmDetail, { language: languageId }) },
+          turnOff,
+        )) === turnOff
+      )
+    },
+    disableCopilotFor: async (languageId) => {
+      const config = vscode.workspace.getConfiguration('github.copilot')
+      const current = config.get<unknown>('enable')
+      const table: Record<string, unknown> = {}
+      if (typeof current === 'object' && current !== null) {
+        for (const [key, val] of Object.entries(current)) {
+          table[key] = val
+        }
+      }
+      table[languageId] = false
+      await config.update('enable', table, vscode.ConfigurationTarget.Global)
+    },
+    // The conversation in view opens Account & usage; with none, the sidebar
+    // comes forward and opens it (RVM94HU 21).
+    openAccountUsage: async () => {
+      const surface = registry.active
+      if (surface === undefined) {
+        await openSidebar()
+      } else {
+        surface.reveal()
+      }
+      registry.active?.post({ type: 'openUsage' })
+    },
+    runCommand: async (command) => {
+      await vscode.commands.executeCommand(command)
+    },
+    table: () => UI_TEXT,
+    locale: () => uiLocale(),
+    snoozeStore: {
+      readSnoozedUntil: () => {
+        const end = context.globalState.get<unknown>(TAB_SNOOZE_STATE_KEY)
+        return typeof end === 'number' && Number.isFinite(end) ? end : undefined
+      },
+      writeSnoozedUntil: async (endMs) => {
+        await context.globalState.update(TAB_SNOOZE_STATE_KEY, endMs)
+      },
+      nowMs: () => Date.now(),
+    },
+    // The bundle builds its engine (lane C) and its spend gate over this
+    // window's ledger file (lane L) from these. The key client is the one
+    // M44 keeps in activation; it is read only on a Tab request.
+    services: {
+      stream: (body, signal, budget) => keyClient.streamResponse(body, signal, undefined, budget),
+      ledgerDirectory: path.join(context.globalStorageUri.fsPath, TAB_LEDGER_DIR),
+      windowId: crypto.randomUUID(),
+      onSent: () => {
+        paid.usage.addTabRequest()
+      },
+      onUsage: (model, usage) => {
+        paid.usage.addTabUsage(model, usage)
+      },
+    },
+    // Account & usage's Tab row follows the ledger's day (RVM94HU 23).
+    onTodayTotalChanged: () => {
+      broadcastPaidState()
+    },
+    // D48's question, once per window (Q-M94a): the first request asks with
+    // the model's rates and today's budget; Deny snoozes the window.
+    consent: {
+      requestUse: async () => {
+        const settings = currentSettings()
+        return await paid.consent.allows({
+          feature: 'tab',
+          modelId: settings.tabModel,
+          budgetUsd: settings.tabDailyBudgetUsd,
+        })
+      },
+    },
+  })
+  tabDisposables.push({
+    dispose: () => {
+      tab.dispose()
+    },
+  })
+  // Tab on at startup (the default): the provider is registered now, and
+  // the secret read and dist/tab.js wait for the first request (RVM94HU 7).
+  tab.refresh()
+  for (const disposable of tabDisposables) {
+    context.subscriptions.push(disposable)
+  }
   // Voice dictation (M9): the OS recogniser behind the composer's microphone.
   const dictation = createDictationSetup(
     {
@@ -1224,8 +1486,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const ideTools = [diagnostics]
   // Web fetch (M69, PLAN.md D49): resolved, checked and pinned here, for the
   // Model API backend's `web_fetch` and Muse Code's `mcp__ide__webFetch`.
-  // HTML is converted on a worker of its own bundle, started for each page.
-  const webFetch = createWebFetcher(
+  // The fetch is dist/webFetch.js (D6), required on the first use; HTML is
+  // converted on a worker of its own bundle, started for each page.
+  const webFetchBundle = webFetchLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', WEB_FETCH_BUNDLE_FILE).fsPath,
+    log,
+  })
+  const webFetch = lazyWebFetcher(
+    webFetchBundle,
     log,
     pageConverter(vscode.Uri.joinPath(context.extensionUri, 'dist', PAGE_WORKER_FILE).fsPath, log),
   )
@@ -1259,6 +1527,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       ...ideWebFetchTools({
         isOffered: () =>
           isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
+        checkUrl: lazyPageUrlCheck(webFetchBundle),
         fetchPage: webFetch,
         confirm: askWebFetch,
         log,
@@ -2028,6 +2297,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
+      const tasksTab = new TasksPanel(
+        hostContext,
+        () => {
+          if (registry.has(surface)) {
+            surface.reveal()
+          }
+        },
+        (released) => {
+          if (tasksTabs.get(surface.id) === released) {
+            tasksTabs.delete(surface.id)
+          }
+        },
+      )
+      tasksTabs.set(surface.id, tasksTab)
       controller = new ConversationController({
         runManualHook: runManualHookByName,
         rewriteMessage: async (text) => {
@@ -2035,6 +2318,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           return await runner?.rewriteMessage(text)
         },
         surface,
+        tasksTab,
         auth,
         ensureHost: ensureSelectedHost,
         workspaceRoot,
@@ -2347,6 +2631,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   registry.onRemoved((surface) => {
     controllers.get(surface.id)?.dispose()
     controllers.delete(surface.id)
+    tasksTabs.get(surface.id)?.release()
   })
   registry.onActiveChanged(refreshTaskContext)
   /** A command for the conversation in view, when there is one. */
@@ -2358,9 +2643,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
     }
 
-  const openSidebar = () => vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
+  // The sidebar's view provider, wrapped for Tab's deferred secret read.
+  const chatViewProvider = new ChatViewProvider(hostContext, registry)
+  const openSidebar = () => {
+    // Tab's deferred secret read (M94): the first view, panel or command.
+    void ensureKeyPresence()
+    return vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
+  }
   /** A conversation where the setting says new ones open. */
   const openConversation = async (): Promise<void> => {
+    void ensureKeyPresence()
     if (currentSettings().preferredLocation === 'sidebar') {
       await openSidebar()
       return
@@ -2480,6 +2772,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     vscode.window.onDidChangeActiveTextEditor(() => {
       editorContext.update(editorSnapshot)
+      // Tab's language-off and snooze states follow the active editor (M94).
+      tab.refreshStatus()
+    }),
+    vscode.window.onDidChangeWindowState((state) => {
+      // A timed snooze is enforced live by the provider; the bar catches up
+      // when the window is focused (M94).
+      if (state.focused) {
+        tab.refreshStatus()
+      }
     }),
     vscode.window.onDidChangeTextEditorSelection(() => {
       editorContext.update(editorSnapshot)
@@ -2495,7 +2796,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     vscode.window.registerWebviewViewProvider(
       CHAT_VIEW_ID,
-      new ChatViewProvider(hostContext, registry),
+      {
+        resolveWebviewView: (view) => {
+          // Tab's deferred secret read (M94): a restored sidebar view is a
+          // first view with no command or panel open behind it.
+          void ensureKeyPresence()
+          chatViewProvider.resolveWebviewView(view)
+        },
+      },
       { webviewOptions: { retainContextWhenHidden: true } },
     ),
     vscode.workspace.onDidChangeConfiguration((event) => {
@@ -2519,6 +2827,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // A paid feature turned on anywhere asks for its price once (D30).
       if (paid.affects(event)) {
         void paid.gate.review().catch(logRejection(log, 'paid feature review'))
+      }
+      // Inline completions on or off, and the status bar follows the
+      // settings, the editors and the spend (M94).
+      if (event.affectsConfiguration(`${SETTINGS_SECTION}.modelApiTab`)) {
+        tab.refresh()
+      } else if (event.affectsConfiguration(SETTINGS_SECTION)) {
+        tab.refreshStatus()
+      }
+      // Account & usage shows the configured budget (RVM94HU 24).
+      if (event.affectsConfiguration(`${SETTINGS_SECTION}.tabDailyBudgetUsd`)) {
+        broadcastPaidState()
       }
       // The bundled skills on or off: the Model API catalogue follows (M89).
       if (event.affectsConfiguration(BUNDLED_SKILLS_SETTING)) {
@@ -2589,6 +2908,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.openInNewTab, () => {
       openChatPanel(hostContext, registry)
     }),
+    registerLoggedCommand(
+      log,
+      COMMAND_IDS.openTasks,
+      forActiveConversation(async (controller) => {
+        await controller.handle({ type: 'hostAction', action: 'openTasksTab' })
+      }),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.newConversation, async () => {
       const surface = registry.active
       if (surface === undefined) {

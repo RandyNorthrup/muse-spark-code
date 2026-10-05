@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { MODEL_TEXT } from '../../src/shared/constants'
+import { WEB_FETCH_MODEL_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { fill, formatBytes, setUiText } from '../../src/shared/l10n/text'
 import { parseWebPageHeader } from '../../src/shared/webPage'
@@ -10,18 +10,20 @@ afterEach(() => {
 
 describe('parseWebPageHeader (M69)', () => {
   it('reads back the facts the fetch wrote in its first line', () => {
-    const header = fill(MODEL_TEXT.webFetchHeader, {
+    const header = fill(WEB_FETCH_MODEL_TEXT.webFetchHeader, {
       url: 'https://docs.example.com/a?b=(1)',
       status: '203',
       type: 'application/xhtml+xml',
       bytes: '0',
     })
-    expect(parseWebPageHeader(`${header} ${MODEL_TEXT.webFetchConverted}\nrest`)).toEqual({
-      url: 'https://docs.example.com/a?b=(1)',
-      status: 203,
-      type: 'application/xhtml+xml',
-      bytes: 0,
-    })
+    expect(parseWebPageHeader(`${header} ${WEB_FETCH_MODEL_TEXT.webFetchConverted}\nrest`)).toEqual(
+      {
+        url: 'https://docs.example.com/a?b=(1)',
+        status: 203,
+        type: 'application/xhtml+xml',
+        bytes: 0,
+      },
+    )
   })
 
   it('reads nothing from another first line, or from the page below it', () => {

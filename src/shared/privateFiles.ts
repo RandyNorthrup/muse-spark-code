@@ -11,10 +11,10 @@ import {
 
 const SEPARATORS = /[/\\]/
 
-/** The name's extension, lower case with its dot; empty when it has none. */
+/** The name's final dot suffix, including a basename equal to that suffix. */
 function extensionOf(name: string): string {
   const dot = name.lastIndexOf('.')
-  return dot <= 0 ? '' : name.slice(dot)
+  return dot === -1 ? '' : name.slice(dot)
 }
 
 /** Whether the file a path (or a bare name) names may hold secrets. */

@@ -8,7 +8,7 @@
 // Stop, and the map then says it is partial.
 
 import {
-  MODEL_TEXT,
+  CODE_INTEL_MODEL_TEXT,
   REPO_MAP_CHARS_PER_TOKEN,
   REPO_MAP_CONCURRENCY,
   REPO_MAP_MAX_FILE_CHARS,
@@ -281,9 +281,9 @@ function renderLines(
   const compose = (): readonly string[] => {
     const hidden = ranked.length - blocks.length
     return [
-      MODEL_TEXT.repoMapLead,
+      CODE_INTEL_MODEL_TEXT.repoMapLead,
       ...blocks,
-      ...(hidden > 0 ? [fill(MODEL_TEXT.codeIntelMore, { count: String(hidden) })] : []),
+      ...(hidden > 0 ? [fill(CODE_INTEL_MODEL_TEXT.codeIntelMore, { count: String(hidden) })] : []),
       ...notes,
     ]
   }
@@ -303,7 +303,7 @@ function renderLines(
 /** The refusal for a budget too small for the answer's own fixed text. */
 function tooSmall(maxTokens: number, lines: readonly string[]): CodeIntelRefusal {
   return new CodeIntelRefusal(
-    fill(MODEL_TEXT.repoMapBudgetTooSmall, {
+    fill(CODE_INTEL_MODEL_TEXT.repoMapBudgetTooSmall, {
       tokens: String(maxTokens),
       needed: String(Math.ceil(joinedLength(lines) / REPO_MAP_CHARS_PER_TOKEN)),
     }),
@@ -334,7 +334,7 @@ async function buildMap(query: CodeIntelQuery, options: RepoMapOptions): Promise
 async function buildWithin(query: CodeIntelQuery, limits: Limits): Promise<BuiltMap> {
   const found = await limits.within(async () => await query.deps.io.listFiles())
   if (found === undefined) {
-    return { ranked: [], notes: [MODEL_TEXT.repoMapNoFiles] }
+    return { ranked: [], notes: [CODE_INTEL_MODEL_TEXT.repoMapNoFiles] }
   }
   const listed = found.toSorted((a, b) => compareText(a, b))
   // The cap counts readable files: a file the permission profile hides
@@ -376,18 +376,28 @@ async function buildWithin(query: CodeIntelQuery, limits: Limits): Promise<Built
   // No service only when every lookup ran and none found anything: a map
   // cut short by the time or a Stop is a partial map, not a missing service.
   if (looked > 0 && looked === names.length && lookups.every((lookup) => lookup.answered === 0)) {
-    throw new CodeIntelRefusal(MODEL_TEXT.repoMapNoService, UI_TEXT.repoMapNoService)
+    throw new CodeIntelRefusal(CODE_INTEL_MODEL_TEXT.repoMapNoService, UI_TEXT.repoMapNoService)
   }
   const notes = [
     ...(read < files.length
-      ? [fill(MODEL_TEXT.repoMapFilesRead, { done: String(read), total: String(files.length) })]
+      ? [
+          fill(CODE_INTEL_MODEL_TEXT.repoMapFilesRead, {
+            done: String(read),
+            total: String(files.length),
+          }),
+        ]
       : []),
     ...(looked < names.length
-      ? [fill(MODEL_TEXT.repoMapPartial, { done: String(looked), total: String(names.length) })]
+      ? [
+          fill(CODE_INTEL_MODEL_TEXT.repoMapPartial, {
+            done: String(looked),
+            total: String(names.length),
+          }),
+        ]
       : []),
     ...(files.length >= REPO_MAP_MAX_FILES && scanned < listed.length
       ? [
-          fill(MODEL_TEXT.repoMapFilesCapped, {
+          fill(CODE_INTEL_MODEL_TEXT.repoMapFilesCapped, {
             count: String(REPO_MAP_MAX_FILES),
             total: String(listed.length),
           }),
@@ -407,7 +417,7 @@ export async function repoMap(query: CodeIntelQuery, options: RepoMapOptions): P
   const visibleNotes = [...notes, ...query.policyNotes()]
   const budget = options.maxTokens * REPO_MAP_CHARS_PER_TOKEN
   if (ranked.length === 0) {
-    const empty = [MODEL_TEXT.repoMapEmpty, ...visibleNotes]
+    const empty = [CODE_INTEL_MODEL_TEXT.repoMapEmpty, ...visibleNotes]
     if (joinedLength(empty) > budget) {
       throw tooSmall(options.maxTokens, empty)
     }
@@ -438,7 +448,7 @@ export async function repoMapSection(
   const query = new CodeIntelQuery(deps)
   const { ranked, notes } = await buildMap(query, options)
   query.checkReadable()
-  const heading = `${MODEL_TEXT.repoMapSection}${SECTION_BREAK}${MODEL_TEXT.repoMapSectionLead}${SECTION_BREAK}`
+  const heading = `${CODE_INTEL_MODEL_TEXT.repoMapSection}${SECTION_BREAK}${CODE_INTEL_MODEL_TEXT.repoMapSectionLead}${SECTION_BREAK}`
   const { lines, fits } = renderLines(
     ranked,
     options.maxTokens * REPO_MAP_CHARS_PER_TOKEN - heading.length,

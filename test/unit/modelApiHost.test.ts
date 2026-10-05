@@ -9,26 +9,27 @@ import { afterAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
+  AUTO_REVIEWER_MODEL_TEXT,
   CLARIFICATION_MAX_CHARS,
+  GOAL_OBJECTIVE_MAX_CHARS,
   HOOK_MAX_STOP_CONTINUATIONS,
   HOOK_ON_FAILURE_MAX_DEPTH,
+  MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
+  MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
-  GOAL_OBJECTIVE_MAX_CHARS,
-  MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
-  MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_TEXT,
   PAID_PRICES_USD,
-  REVIEW_MODEL_TEXT,
-  SCHEDULE_LIFETIME_MS,
-  SUBAGENT_MAX_PER_CONVERSATION,
   type PaidFeature,
   type PermissionMode,
   type PromptCacheRetention,
+  REVIEW_MODEL_TEXT,
+  SCHEDULE_LIFETIME_MS,
+  SUBAGENT_MAX_PER_CONVERSATION,
   UI_TEXT,
 } from '../../src/shared/constants'
 import type { AgentSession, DocumentPart, TurnPart } from '../../src/core/agent/agentBackend'
@@ -3344,9 +3345,10 @@ describe('ModelApiSession: session budget (M82)', () => {
         pair.firstWatched.session.sendTurn([{ type: 'text', text: 'first host' }]),
         pair.secondWatched.session.sendTurn([{ type: 'text', text: 'second host' }]),
       ])
-      await vi.waitFor(() => {
-        expect(barrier.state()).toMatchObject({ plans: 2, claims: 2, failures: [] })
-      })
+      // Both real reservations publish before either returns; a turn that ends
+      // first (a refusal or a failed claim) fails the assertion below at once.
+      await Promise.race([barrier.published.promise, firstDone, secondDone])
+      expect(barrier.state()).toMatchObject({ plans: 2, claims: 2, failures: [] })
       await Promise.all([firstDone, secondDone])
       expect(pair.first.api.responseBodies()).toEqual([])
       expect(pair.second.api.responseBodies()).toEqual([])
@@ -3518,12 +3520,20 @@ describe('ModelApiSession: session budget (M82)', () => {
     async (firstCap) => {
       const pair = await sharedBudgetHosts(`two-host-held-${String(firstCap)}`, 0.1, firstCap)
       const held = Promise.withResolvers<undefined>()
-      pair.first.api.script({ text: 'first host', hold: held.promise })
+      const requested = Promise.withResolvers<undefined>()
+      pair.first.api.script({
+        text: 'first host',
+        hold: held.promise,
+        onRequest: () => {
+          requested.resolve(undefined)
+        },
+      })
       try {
         await pair.firstWatched.session.sendTurn([{ type: 'text', text: 'first host' }])
-        await vi.waitFor(() => {
-          expect(pair.first.api.responseBodies()).toHaveLength(1)
-        })
+        // The fake records the actual POST before holding it; a turn refused
+        // before sending ends instead, and the assertion below fails at once.
+        await Promise.race([requested.promise, pair.firstWatched.turnDone()])
+        expect(pair.first.api.responseBodies()).toHaveLength(1)
         await pair.secondWatched.session.sendTurn([{ type: 'text', text: 'later capped host' }])
         await pair.secondWatched.turnDone()
         expect(pair.second.api.responseBodies()).toEqual([])
@@ -4570,7 +4580,7 @@ describe('ModelApiSession: turns', () => {
           role: 'user',
           content: [
             { type: 'input_text', text: 'First image' },
-            { type: 'input_text', text: MODEL_TEXT.imageLeftOut },
+            { type: 'input_text', text: MODEL_API_MODEL_TEXT.imageLeftOut },
           ],
         },
         expect.anything(),
@@ -4595,7 +4605,7 @@ describe('ModelApiSession: turns', () => {
     expect(session.sentImages(firstCard.turnId, firstCard.itemId)).toEqual([])
     const saved = session.snapshot()
     expect(JSON.stringify(saved.replay)).not.toContain(imageUrl)
-    expect(JSON.stringify(saved.replay)).toContain(MODEL_TEXT.imageLeftOut)
+    expect(JSON.stringify(saved.replay)).toContain(MODEL_API_MODEL_TEXT.imageLeftOut)
     await t.host.close()
     const restored = setup({ mediaBudgetMaxEncodedChars: imageUrl.length, store })
     await restored.host.load()
@@ -7672,10 +7682,12 @@ async function completePaidChild(
     { text: 'First child task done.' },
     { text: 'Parent done.' },
   )
-  const finished = watchSessionTurns(session).turnDone()
-  await session.sendTurn([{ type: 'text', text: 'delegate' }])
-  // A ready child can precede its parent's durable settlement and terminal event.
-  await finished
+  const { events } = watchSessionTurns(session)
+  const { turnId } = await session.sendTurn([{ type: 'text', text: 'delegate' }])
+  // The child's terminal event is forwarded and can precede the parent's own,
+  // durable settlement included: wait for the parent's turn and every child's.
+  await session.settled()
+  expect(events).toContainEqual(expect.objectContaining({ type: 'turnCompleted', turnId }))
   await waitForChildReady(t, session)
   return t.api.responseBodies().length
 }
@@ -9663,7 +9675,7 @@ describe('ModelApiSession custom agents (M76)', () => {
         failureReason: translated,
       })
       expect(outputFor(childBodies(t).at(-1), 'refused_de_write')).toMatchObject({
-        output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+        output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
       })
       expect(t.files.has(`${ROOT}/refused-de.txt`)).toBe(false)
     } finally {
@@ -9711,7 +9723,7 @@ describe('ModelApiSession custom agents (M76)', () => {
           'Dieses Werkzeug steht nicht auf der Zulassungsliste dieses Agenten. Verwenden Sie nur die in seinen Anweisungen angebotenen Werkzeuge.',
       })
       expect(outputFor(childBodies(t).at(-1), 'child_de_then_run')).toMatchObject({
-        output: expect.stringContaining(MODEL_TEXT.agentToolNotOffered),
+        output: expect.stringContaining(MODEL_API_MODEL_TEXT.agentToolNotOffered),
       })
     } finally {
       restoreEnglish()
@@ -9901,7 +9913,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     expect(t.io.shellCalls).toHaveLength(testCase.commands)
     if (testCase.name === 'write-only') {
       expect(JSON.stringify(childBodies(t).at(-1)?.['input'])).toContain(
-        MODEL_TEXT.agentToolNotOffered,
+        MODEL_API_MODEL_TEXT.agentToolNotOffered,
       )
     }
   })
@@ -9943,11 +9955,11 @@ describe('ModelApiSession custom agents (M76)', () => {
     const last = childBodies(t).at(-1)
     expect(JSON.stringify(last?.['tools']).includes('then_run')).toBe(testCase.hasShell)
     const instructions = String(last?.['instructions'])
-    expect(instructions.includes(MODEL_TEXT.agentNoShell)).toBe(!testCase.hasShell)
+    expect(instructions.includes(MODEL_API_MODEL_TEXT.agentNoShell)).toBe(!testCase.hasShell)
     expect(instructions.includes('Restricted Mode')).toBe(false)
     expect(instructions.includes('take then_run')).toBe(testCase.hasShell)
     if (!testCase.hasShell) {
-      expect(JSON.stringify(last?.['input'])).toContain(MODEL_TEXT.agentToolNotOffered)
+      expect(JSON.stringify(last?.['input'])).toContain(MODEL_API_MODEL_TEXT.agentToolNotOffered)
     }
   })
 
@@ -10115,7 +10127,7 @@ describe('ModelApiSession custom agents (M76)', () => {
         .items.find((item) => item.kind === 'toolCall' && item.tool === 'subagent_spawn'),
     ).toMatchObject({ visibleOutput: UI_TEXT.subagentContributorBlocked })
     expect(outputFor(t.api.responseBodies()[1], 'spawn_big')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.subagentContributorBlocked}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.subagentContributorBlocked}`,
     })
   })
 
@@ -10201,7 +10213,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     await waitForChildSummary(session, 'Sneaked.')
     const children = childBodies(t)
     expect(outputFor(children.at(-1), 'child_sneak')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
     })
     expect(t.files.has(`${ROOT}/sneaky.txt`)).toBe(false)
   })
@@ -10234,7 +10246,7 @@ describe('ModelApiSession custom agents (M76)', () => {
       await session.messageSubagent('subagent-1', 'Try the memory tool', true)
       await waitForChildSummary(session, 'Memory call refused.')
       expect(outputFor(childBodies(t).at(-1), call.callId)).toMatchObject({
-        output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+        output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
       })
       expect(t.files).toEqual(before)
     },
@@ -10403,7 +10415,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     expect(bodies.length).toBeGreaterThan(0)
     expect(String(bodies[0]?.['instructions'])).toContain('Prompt of reviewer')
     expect(outputFor(bodies.at(-1), 'resumed_search')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
     })
   })
 
@@ -10435,7 +10447,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     expect(bodies.length).toBeGreaterThan(0)
     expect(String(bodies[0]?.['instructions'])).toContain('Prompt of reviewer')
     expect(outputFor(bodies.at(-1), 'forked_search')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
     })
   })
 
@@ -10474,7 +10486,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     const bodies = t.api.responseBodies()
     expect(String(bodies[1]?.['instructions'])).not.toContain('# Agents')
     expect(outputFor(bodies[2], 'spawn_untrusted')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.agentRestrictedMode}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.agentRestrictedMode}`,
     })
     expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
     expect(t.paidRequests).toEqual([])
@@ -10502,7 +10514,7 @@ describe('ModelApiSession custom agents (M76)', () => {
       expect(t.paidRequests).toHaveLength(1)
       expect(childBodies(t)).toEqual([])
       expect(outputFor(t.api.responseBodies()[1], 'spawn_trust_withdrawn')).toMatchObject({
-        output: `Error: ${MODEL_TEXT.agentRestrictedMode}`,
+        output: `Error: ${MODEL_API_MODEL_TEXT.agentRestrictedMode}`,
       })
     },
   )
@@ -10521,7 +10533,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     expect(String(bodies[0]?.['instructions'])).not.toContain('Prompt of reviewer')
     expect(String(bodies[0]?.['instructions'])).not.toContain('# Agent role')
     expect(outputFor(bodies.at(-1), 'untrusted_search')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
     })
   })
 
@@ -10578,7 +10590,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     await session.messageSubagent('subagent-1', 'Write it', true)
     await waitForChildSummary(session, 'Consult done.')
     expect(outputFor(childBodies(t).at(-1), 'consult_write')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
     })
     expect(t.files.has(`${ROOT}/consult.txt`)).toBe(false)
     expect(countLogged(t.log, 'loading the user agents failed: EACCES: permission denied')).toBe(1)
@@ -10612,7 +10624,7 @@ describe('ModelApiSession custom agents (M76)', () => {
           'Der Agent „explore“ wurde nicht gestartet: .agents/agents konnte nicht geladen werden, und eine Definition dort hätte Vorrang. Beheben Sie das Problem oder entfernen Sie die Definition, und starten Sie dann eine neue Unterhaltung.',
       })
       expect(outputFor(t.api.responseBodies().at(-1), 'spawn_unloaded')).toMatchObject({
-        output: `Error: ${fill(MODEL_TEXT.agentUnloaded, { id: 'explore', source: 'project' })}`,
+        output: `Error: ${fill(MODEL_API_MODEL_TEXT.agentUnloaded, { id: 'explore', source: 'project' })}`,
       })
     } finally {
       restoreEnglish()
@@ -10655,11 +10667,15 @@ describe('ModelApiSession custom agents (M76)', () => {
   // RV70x finding 4: what the contributor wait changed is rechecked before
   // the paid-use popup, which is never shown for a spawn already refused.
   it.each([
-    { name: 'trust withdrawn', revokesTrust: true, output: MODEL_TEXT.agentRestrictedMode },
+    {
+      name: 'trust withdrawn',
+      revokesTrust: true,
+      output: MODEL_API_MODEL_TEXT.agentRestrictedMode,
+    },
     {
       name: 'confidential workspace',
       revokesTrust: false,
-      output: MODEL_TEXT.subagentContributorBlocked,
+      output: MODEL_API_MODEL_TEXT.subagentContributorBlocked,
     },
   ])(
     'asks no paid-use popup once the contributor wait made a spawn invalid: $name (RV70x)',
@@ -15188,7 +15204,7 @@ async function untilFirstCard(
 function reviewerBodies(t: ReturnType<typeof setup>): readonly Record<string, unknown>[] {
   return t.api
     .responseBodies()
-    .filter((body) => body['instructions'] === MODEL_TEXT.autoReviewerInstructions)
+    .filter((body) => body['instructions'] === AUTO_REVIEWER_MODEL_TEXT.autoReviewerInstructions)
 }
 
 function resolutions(events: readonly AgentEvent[]) {
@@ -15225,7 +15241,7 @@ describe('ModelApiSession: command rules (M78, PLAN.md D49)', () => {
     expect(t.shellCalls).toEqual([])
     expect(hasApprovalCard(events)).toBe(false)
     expect(toolOutput(t, 'sh1')).toBe(
-      `Error: bash ${MODEL_TEXT.toolRefusedByRule}: never delete trees`,
+      `Error: bash ${MODEL_API_MODEL_TEXT.toolRefusedByRule}: never delete trees`,
     )
   })
 
@@ -15365,7 +15381,9 @@ describe('ModelApiSession: permission profiles (M78, PLAN.md D49)', () => {
       ['w1', 'secrets/new.txt'],
       ['e1', '.env'],
     ] as const) {
-      expect(toolOutput(t, callId)).toBe(`Error: ${path} ${MODEL_TEXT.pathDeniedByPolicy}`)
+      expect(toolOutput(t, callId)).toBe(
+        `Error: ${path} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`,
+      )
     }
     expect(t.files.has(`${ROOT}/secrets/new.txt`)).toBe(false)
     expect(t.files.get(`${ROOT}/.env`)).toBe('KEY=secret')
@@ -15393,7 +15411,9 @@ describe('ModelApiSession: permission profiles (M78, PLAN.md D49)', () => {
     await session.sendTurn([{ type: 'text', text: 'read' }])
     await turnDone()
     expect(toolOutput(t, 'r1')).toBe('Read text file `/docs/guide.md`.\n1|Guide text')
-    expect(toolOutput(t, 'r2')).toBe(`Error: /docs/secrets/token ${MODEL_TEXT.pathDeniedByPolicy}`)
+    expect(toolOutput(t, 'r2')).toBe(
+      `Error: /docs/secrets/token ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`,
+    )
     expect(toolOutput(t, 'r3')).toBe('Error: path /elsewhere/x.md is outside the workspace')
     // An extra root is for reading: nothing is written there.
     expect(toolOutput(t, 'w1')).toBe('Error: path /docs/new.md is outside the workspace')
@@ -15522,7 +15542,9 @@ describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 revi
       await turnDone()
       expect(t.shellCalls).toEqual([])
       expect(hasApprovalCard(events)).toBe(false)
-      expect(toolOutput(t, 'sh1')).toBe(`Error: bash ${MODEL_TEXT.toolRefusedByPolicyChange}`)
+      expect(toolOutput(t, 'sh1')).toBe(
+        `Error: bash ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
+      )
       expect(completedRow(events, 'bash')).toMatchObject({
         status: 'failed',
         visibleOutput: UI_TEXT.policyChangedRefused,
@@ -15565,7 +15587,9 @@ describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 revi
       settings = { ...settings, repositoryRules: { denyRead: ['private.txt'] } }
       read.release()
       await turnDone()
-      expect(toolOutput(t, 'r1')).toBe(`Error: ${tool} ${MODEL_TEXT.toolRefusedByPolicyChange}`)
+      expect(toolOutput(t, 'r1')).toBe(
+        `Error: ${tool} ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
+      )
       expect(completedRow(events, tool)).toMatchObject({
         status: 'failed',
         visibleOutput: UI_TEXT.policyChangedRefused,
@@ -15607,7 +15631,9 @@ describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 revi
     await turnDone()
     expect(t.files.get(`${ROOT}/.agents/memory/note.md`)).toBe('before')
     expect(hasApprovalCard(events)).toBe(false)
-    expect(toolOutput(t, 'm1')).toBe(`Error: edit_memory ${MODEL_TEXT.toolRefusedByPolicyChange}`)
+    expect(toolOutput(t, 'm1')).toBe(
+      `Error: edit_memory ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
+    )
     expect(completedRow(events, 'edit_memory')).toMatchObject({
       status: 'failed',
       visibleOutput: UI_TEXT.policyChangedRefused,
@@ -15644,7 +15670,9 @@ describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 revi
       settings = { ...settings, repositoryRules: { denyRead: [name] } }
       read.release()
       await turnDone()
-      expect(toolOutput(t, 'v1')).toBe(`Error: read_file ${MODEL_TEXT.toolRefusedByPolicyChange}`)
+      expect(toolOutput(t, 'v1')).toBe(
+        `Error: read_file ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
+      )
       expect(completedRow(events, 'read_file')).toMatchObject({
         status: 'failed',
         visibleOutput: UI_TEXT.policyChangedRefused,
@@ -15668,7 +15696,7 @@ describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 revi
     await session.sendTurn([{ type: 'text', text: 'deploy' }])
     await turnDone()
     expect(toolOutput(t, 'k1')).toBe(
-      `Error: .agents/skills/deploy/SKILL.md ${MODEL_TEXT.pathDeniedByPolicy}`,
+      `Error: .agents/skills/deploy/SKILL.md ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`,
     )
     expect(JSON.stringify(t.api.requests)).not.toContain(SYNTHETIC_PRIVATE)
   })
@@ -15750,7 +15778,9 @@ describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 revi
     // No image request at all left (RV78g P3-4).
     expect(t.api.requests.filter((request) => request.path.startsWith('/images'))).toEqual([])
     expect(JSON.stringify(t.api.requests)).not.toContain(source.toString('base64'))
-    expect(toolOutput(t, 'e1')).toBe(`Error: edit_image ${MODEL_TEXT.toolRefusedByPolicyChange}`)
+    expect(toolOutput(t, 'e1')).toBe(
+      `Error: edit_image ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
+    )
     // Nothing was sent, so the claim settles at nothing and nothing is billed.
     expect(settled).toEqual([0])
     expect(t.paidUses).toEqual([])
@@ -15847,7 +15877,9 @@ describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 revi
       expect(sent.includes('CURRENT-RESULT')).toBe(delivered)
       expect(sent).not.toContain('STALE-RESULT')
       expect(sent).not.toContain('LEGACY-RESULT')
-      expect(sent.split(MODEL_TEXT.subagentResultWithheld).length - 1).toBe(delivered ? 2 : 3)
+      expect(sent.split(MODEL_API_MODEL_TEXT.subagentResultWithheld).length - 1).toBe(
+        delivered ? 2 : 3,
+      )
       resumed.session.dispose()
     }
   })
@@ -15945,11 +15977,11 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
     const finished = turnDone()
     try {
       await session.sendTurn([{ type: 'text', text: 'run the tests' }])
-      await vi.waitFor(() => {
-        expect(reviewerBodies(t)).toHaveLength(1)
-        expect(commandsRun(t)).toEqual(['npm test'])
-      })
+      // The turn's end, not a deadline: admission, review and settlement all
+      // write the real journal first. A refusal still fails the asserts below.
       await finished
+      expect(reviewerBodies(t)).toHaveLength(1)
+      expect(commandsRun(t)).toEqual(['npm test'])
       expect(hasApprovalCard(events)).toBe(false)
       expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([
         { feature: 'autoReviewer', units: 1 },
@@ -16164,7 +16196,7 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
     expect(t.io.files.has(`${ROOT}/.agents/memory/new.md`)).toBe(false)
     expect(t.io.files.has(`${ROOT}/.agents/memory/MEMORY.md`)).toBe(false)
     expect(hasApprovalCard(events)).toBe(false)
-    expect(toolOutput(t, 'add-note')).toContain(MODEL_TEXT.pathDeniedByPolicy)
+    expect(toolOutput(t, 'add-note')).toContain(MODEL_API_MODEL_TEXT.pathDeniedByPolicy)
   })
 
   it('keeps complex/chained/evaluator commands away from paid or hook automation', async () => {
@@ -16231,7 +16263,7 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
     // The review is the transcript's, never the conversation's.
     const last = JSON.stringify(t.api.responseBodies().at(-1)?.['input'])
     expect(last).not.toContain('runs the tests')
-    expect(last).not.toContain(MODEL_TEXT.autoReviewerInstructions)
+    expect(last).not.toContain(AUTO_REVIEWER_MODEL_TEXT.autoReviewerInstructions)
   })
 
   it('shows the card with the reviewer’s reason when it asks, and the user decides', async () => {
@@ -16741,5 +16773,157 @@ describe('what a Model API turn ran, for its checkpoint (M86, spec 8)', () => {
     await turnDone()
     expect(recorded.ends).toEqual([true, true])
     io.runs[0]?.finish({ stdout: 'ready', exitCode: 0 })
+  })
+})
+
+/** A running turn whose first reply (a read of a.txt) is held, so input can wait for its next request (M87). */
+async function heldReadTurn() {
+  const t = setup({ files: { 'a.txt': 'alpha\n' } })
+  const { session, events, turnDone } = await startSession(t)
+  const held = Promise.withResolvers<undefined>()
+  t.api.script(
+    {
+      calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'call_read' }],
+      hold: held.promise,
+    },
+    { text: 'It says alpha.' },
+  )
+  const running = await session.sendTurn([{ type: 'text', text: 'what is in a.txt?' }])
+  await vi.waitFor(() => {
+    expect(t.api.responseBodies()).toHaveLength(1)
+  })
+  return { t, session, events, turnDone, held, running }
+}
+
+const STEER_IMAGE = {
+  type: 'image',
+  mediaType: 'image/png',
+  base64Data: TINY_PNG_BASE64,
+  width: 1,
+  height: 1,
+} as const
+
+describe('ModelApiHost: taking a message back before a request reads it (M87, PLAN.md D66)', () => {
+  it('takes a queued turn out of the queue with its images, and ends it withdrawn', async () => {
+    const { t, session, events, turnDone, held } = await heldReadTurn()
+    const queued = await session.sendTurn([{ type: 'text', text: 'queued-zeta' }, STEER_IMAGE])
+    expect(queued.disposition).toBe('queued')
+    await expect(
+      session.withdrawQueued({
+        turnId: queued.turnId,
+        userMessageId: queued.userMessageId,
+        disposition: 'queued',
+      }),
+    ).resolves.toEqual({
+      status: 'withdrawn',
+      images: [{ mediaType: 'image/png', base64Data: TINY_PNG_BASE64 }],
+    })
+    expect(events).toContainEqual({
+      type: 'turnWithdrawn',
+      turnId: queued.turnId,
+      reason: UI_TEXT.turnUnqueued,
+    })
+    held.resolve(undefined)
+    await turnDone()
+    // It never ran: one turn, two requests (the read and its answer), no queued text.
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(1)
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(JSON.stringify(t.api.responseBodies())).not.toContain('queued-zeta')
+    // Taken already: a second Edit is too late.
+    await expect(
+      session.withdrawQueued({
+        turnId: queued.turnId,
+        userMessageId: queued.userMessageId,
+        disposition: 'queued',
+      }),
+    ).resolves.toEqual({ status: 'tooLate' })
+  })
+
+  it('takes a steer back before drainSteered reads it, saying nothing to the running turn', async () => {
+    const { t, session, events, turnDone, held, running } = await heldReadTurn()
+    const steered = await session.steer(running.turnId, [
+      { type: 'text', text: 'steer to take back' },
+      STEER_IMAGE,
+    ])
+    await expect(
+      session.withdrawQueued({
+        turnId: running.turnId,
+        userMessageId: steered.userMessageId,
+        disposition: 'steered',
+      }),
+    ).resolves.toEqual({
+      status: 'withdrawn',
+      images: [{ mediaType: 'image/png', base64Data: TINY_PNG_BASE64 }],
+    })
+    held.resolve(undefined)
+    await turnDone()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(JSON.stringify(t.api.responseBodies()[1])).not.toContain('steer to take back')
+    // The running turn was never told it ended early (lane P's warning).
+    expect(events.filter((event) => event.type === 'turnWithdrawn')).toEqual([])
+    expect(events.filter((event) => event.type === 'messageAdmitted')).toEqual([])
+    expect(session.history().items.filter((item) => item.kind === 'userMessage')).toHaveLength(1)
+  })
+
+  it('says too late once drainSteered put the steer in a request, and tells the panel it was admitted', async () => {
+    const { t, session, events, turnDone, held, running } = await heldReadTurn()
+    const steered = await session.steer(running.turnId, [{ type: 'text', text: 'steer in time' }])
+    const finished = turnDone()
+    held.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(2)
+    })
+    expect(JSON.stringify(t.api.responseBodies()[1])).toContain('steer in time')
+    expect(events).toContainEqual({ type: 'messageAdmitted', userMessageId: steered.userMessageId })
+    await expect(
+      session.withdrawQueued({
+        turnId: running.turnId,
+        userMessageId: steered.userMessageId,
+        disposition: 'steered',
+      }),
+    ).resolves.toEqual({ status: 'tooLate' })
+    await finished
+  })
+
+  it('answers too late for a turn that is not queued, another turn, or another message', async () => {
+    const { session, turnDone, held, running } = await heldReadTurn()
+    const steered = await session.steer(running.turnId, [{ type: 'text', text: 'mine' }])
+    for (const ref of [
+      { turnId: running.turnId, userMessageId: running.userMessageId, disposition: 'queued' },
+      { turnId: 'other-turn', userMessageId: steered.userMessageId, disposition: 'steered' },
+      { turnId: running.turnId, userMessageId: 'other-message', disposition: 'steered' },
+    ]) {
+      await expect(session.withdrawQueued(ref)).resolves.toEqual({ status: 'tooLate' })
+    }
+    held.resolve(undefined)
+    await turnDone()
+  })
+
+  it('stamps each user message and reply with its time, kept in the session file and read back', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, files: { 'a.txt': 'alpha\n' } })
+    const { session, turnDone } = await startSession(t)
+    await readAlphaTurn(t, session, turnDone)
+    const stamped = session
+      .history()
+      .items.filter((item) => item.kind === 'userMessage' || item.kind === 'agentMessage')
+    expect(stamped.map((item) => item.kind)).toEqual(['userMessage', 'agentMessage'])
+    for (const item of stamped) {
+      expect(item.recordedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+    }
+    const [asked, answered] = stamped
+    expect(Date.parse(answered?.recordedAt ?? '')).toBeGreaterThan(
+      Date.parse(asked?.recordedAt ?? ''),
+    )
+    await t.host.flush()
+    session.dispose()
+    const reopened = setup({ store })
+    await reopened.host.load()
+    const loaded = await reopened.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    expect(
+      loaded.history.items
+        .filter((item) => item.kind === 'userMessage' || item.kind === 'agentMessage')
+        .map((item) => item.recordedAt),
+    ).toEqual(stamped.map((item) => item.recordedAt))
   })
 })

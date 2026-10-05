@@ -54,6 +54,8 @@ export interface PaidFeaturesDeps {
   readonly isKeyStored: () => boolean
   /** A trusted workspace with a folder open: "always" is offered and kept only there. */
   readonly canRememberPaidUse: () => boolean
+  /** Tab's budget and, once its ledger was read, today's cross-window total (M94). */
+  readonly tabDay?: () => { readonly budgetUsd: number; readonly todayUsd: number | undefined }
   readonly log: Logger
 }
 
@@ -76,6 +78,10 @@ function confirmationDetail(feature: PaidFeature): string {
     subagents: UI_TEXT.paidConfirmSubagents,
     autoReviewer: UI_TEXT.paidConfirmAutoReviewer,
     bestOfN: UI_TEXT.paidConfirmBestOfN,
+    // Tab (M94, PLAN.md D73): the confirmation quotes both tiers' rates
+    // (`paidFeaturePrice('tab')`); the per-use popup quotes the request's
+    // own model instead (paidConsent.ts).
+    tab: UI_TEXT.paidConfirmTab,
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
 }
@@ -111,6 +117,17 @@ export async function askPaidUse(
   }
   if (request.feature === 'bestOfN' && modelApiPaidTier(request.modelId) === undefined) {
     return 'deny'
+  }
+  if (request.feature === 'tab') {
+    // Tab bills the request's model per token (M94, PLAN.md D73): with no
+    // verified rate, or no usable budget to quote, nothing is asked and the
+    // request is refused before any popup.
+    if (modelApiPaidTier(request.modelId) === undefined) {
+      return 'deny'
+    }
+    if (!Number.isFinite(request.budgetUsd) || request.budgetUsd < 0) {
+      return 'deny'
+    }
   }
   const { title, detail } = paidUseQuestion(request)
   const once: vscode.MessageItem = { title: UI_TEXT.allowOnce }
@@ -149,6 +166,10 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
   }
   const gate = new PaidFeatureGate({
     isSettingOn: deps.isSettingOn,
+    // Tab is on by default and asks once, at its first request, with the
+    // price and the daily budget (owner 2026-10-04, Q-M94a): no turn-on
+    // price confirmation, at activation or anywhere else.
+    asksOnFirstUse: new Set<PaidFeature>(['tab']),
     setSetting: async (feature, isOn) => {
       await vscode.workspace
         .getConfiguration(SETTINGS_SECTION)
@@ -157,13 +178,17 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     readAccepted,
     writeAccepted: async (accepted) => {
       // A price accepted or withdrawn voids every "always" given under the
-      // old acceptance, in every workspace (M58).
+      // old acceptance, in every workspace (M58) — and this window's once
+      // with it (M94): it was given under the old price. `consent` below is
+      // assigned before this ever runs.
       const previous = readAccepted()
       const generations = { ...readGenerations() }
       for (const feature of PAID_FEATURES) {
-        if (previous.has(feature) !== accepted.has(feature)) {
-          generations[feature] = generationOf(generations, feature) + 1
+        if (previous.has(feature) === accepted.has(feature)) {
+          continue
         }
+        generations[feature] = generationOf(generations, feature) + 1
+        consent.revokeWindowOnce(feature)
       }
       await deps.globalState.update(GLOBAL_STATE_KEYS.paidGrantGenerations, generations)
       await deps.globalState.update(
@@ -178,6 +203,14 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
   })
   const consent = new PaidUseConsent({
     isOn: (feature) => gate.isOn(feature),
+    // Tab's "Allow once" covers this window until it closes (M94 Q-M94a):
+    // memory only, so it never persists past the window. "Allow always"
+    // stays workspace-scoped, as for every feature.
+    windowOnceFeatures: new Set<PaidFeature>(['tab']),
+    // The once holds only under the price acceptance it was given under,
+    // shared by every window (the generations "always" is checked against):
+    // another window's withdrawal and new acceptance makes this one ask again.
+    windowOnceGeneration: (feature) => generationOf(readGenerations(), feature),
     canRemember: deps.canRememberPaidUse,
     readGrants: () => {
       const parsed = generationsSchema.safeParse(
@@ -209,7 +242,20 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     gate,
     consent,
     usage,
-    state: () => paidStateOf(gate, usage, deps.isKeyStored(), consent.remembered()),
+    state: () => {
+      const state = paidStateOf(gate, usage, deps.isKeyStored(), consent.remembered())
+      const day = deps.tabDay?.()
+      if (day === undefined) {
+        return state
+      }
+      return {
+        ...state,
+        tab:
+          day.todayUsd === undefined
+            ? { budgetUsd: day.budgetUsd }
+            : { budgetUsd: day.budgetUsd, todayUsd: day.todayUsd },
+      }
+    },
     affects: (event) =>
       PAID_FEATURES.some((feature) =>
         event.affectsConfiguration(`${SETTINGS_SECTION}.${PAID_FEATURE_SETTINGS[feature]}`),

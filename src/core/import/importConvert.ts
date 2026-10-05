@@ -57,9 +57,9 @@ import {
   AGENT_IMPORT_WINDSURF_EVENTS,
   HOOK_MATCHER_MAX_CHARS,
   HOOK_MAX_TIMEOUT_SECONDS,
+  AGENT_IMPORT_MODEL_TEXT,
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
-  MODEL_TEXT,
   MUSE_MCP_OPTIONAL_MODE,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -2095,7 +2095,7 @@ export function commandToSkill(
 
 /** The heading line an imported rules section starts with; the import skips one already there. */
 export function rulesHeading(sourceName: string, displayPath: string): string {
-  return `## ${fill(MODEL_TEXT.importedRulesHeading, { source: sourceName, path: displayPath })}`
+  return `## ${fill(AGENT_IMPORT_MODEL_TEXT.importedRulesHeading, { source: sourceName, path: displayPath })}`
 }
 
 /** A rules file as an AGENTS.md section; a Cursor rule's description and globs stay with it. */
@@ -2107,8 +2107,10 @@ export function rulesSection(
   const description = fields['description'] ?? ''
   const globs = fields['globs'] ?? ''
   const notes = [
-    ...(description === '' ? [] : [fill(MODEL_TEXT.importedRulesWhen, { description })]),
-    ...(globs === '' ? [] : [fill(MODEL_TEXT.importedRulesFiles, { globs })]),
+    ...(description === ''
+      ? []
+      : [fill(AGENT_IMPORT_MODEL_TEXT.importedRulesWhen, { description })]),
+    ...(globs === '' ? [] : [fill(AGENT_IMPORT_MODEL_TEXT.importedRulesFiles, { globs })]),
   ]
   return [heading, ...(notes.length === 0 ? [] : [notes.join('\n')]), body].join('\n\n')
 }

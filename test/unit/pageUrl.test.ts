@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { approvalHost, checkPageUrl } from '../../src/core/web/pageUrl'
+import { approvalHost } from '../../src/core/web/hostName'
+import { checkPageUrl } from '../../src/core/web/pageUrl'
 import { WEB_FETCH_URL_MAX_CHARS } from '../../src/shared/constants'
 
 function refusal(raw: string): string | undefined {

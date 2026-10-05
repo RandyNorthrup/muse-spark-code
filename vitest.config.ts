@@ -43,7 +43,11 @@ export default defineConfig({
       // covered by the e2e suite against a real child process (test/e2e),
       // and the ACP agent's entry by the e2e suite over its stdio (M63).
       exclude: ['src/extension.ts', 'src/webview/main.tsx', 'src/runtime/main.ts', 'src/**/*.d.ts'],
-      thresholds: COVERAGE_THRESHOLDS,
+      // A shard collects a partial map; the mandatory --merge-reports job
+      // applies these unchanged thresholds once to the complete map per OS.
+      ...(process.argv.every((arg) => arg !== '--shard' && !arg.startsWith('--shard=')) && {
+        thresholds: COVERAGE_THRESHOLDS,
+      }),
       reporter: ['text', 'lcov'],
     },
   },

@@ -17,6 +17,7 @@
 
 import path from 'node:path'
 import {
+  FILE_REFUSAL_MODEL_TEXT,
   MEMORY_DIR,
   MEMORY_DIR_SEGMENTS,
   MEMORY_INDEX_FILE,
@@ -369,7 +370,7 @@ export class MemoryStore {
     absolutePath: string,
   ): { readonly ok: false; readonly reason: string } | undefined {
     return this.deps.io.hasUnsavedChanges(absolutePath)
-      ? failed(`${absolutePath} ${MODEL_TEXT.fileHasUnsavedChanges}`)
+      ? failed(`${absolutePath} ${FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges}`)
       : undefined
   }
 

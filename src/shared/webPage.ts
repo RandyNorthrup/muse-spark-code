@@ -1,5 +1,5 @@
 // The first line of a fetched page as the model receives it (M69, PLAN.md
-// D49): `MODEL_TEXT.webFetchHeader`, written by the extension's own fetch on
+// D49): `WEB_FETCH_MODEL_TEXT.webFetchHeader`, written by the extension's own fetch on
 // both backends (on Muse Code it reaches the row as the `ide` tool's text,
 // verbatim, as the M5 capture showed for `mcp__ide__getDiagnostics`). The
 // row reads the size and type back from it; a line that does not match

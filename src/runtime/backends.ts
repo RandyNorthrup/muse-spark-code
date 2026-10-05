@@ -42,9 +42,9 @@ import { createWebFetcher } from '../host/web/webFetcher'
 import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
   type EnvironmentVariable,
+  FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
   MODEL_API_BUNDLE_FILE,
-  MODEL_TEXT,
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
@@ -427,13 +427,13 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     const existing = modelApiHosts.get(cwd)
     if (existing !== undefined) {
       if (existing.identity !== key) {
-        throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+        throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       }
       return await existing.manager.ensureHost()
     }
     const assertWorkspaceCurrent = () => {
       if (!identity.isCurrent()) {
-        throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+        throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       }
     }
     const edits = workspaceEdits.get(key) ?? new WorkspaceEdits()

@@ -13,12 +13,12 @@ import {
 } from '../../src/core/web/webFetch'
 import { WEB_FETCH_DESCRIPTION } from '../../src/core/web/webFetchDefinition'
 import {
-  MODEL_TEXT,
   UI_TEXT,
   WEB_FETCH_ATTEMPT_DELAY_MS,
   WEB_FETCH_MAX_BYTES,
   WEB_FETCH_MAX_CONTENT_CHARS,
   WEB_FETCH_MAX_REDIRECTS,
+  WEB_FETCH_MODEL_TEXT,
   WEB_FETCH_NOT_TLS_CODE,
 } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
@@ -224,8 +224,8 @@ describe('fetchWebPage (M69)', () => {
       type: 'text/html',
       bytes: Buffer.byteLength(body),
     })
-    expect(lines[0]).toContain(MODEL_TEXT.webFetchConverted)
-    expect(lines[1]).toBe(MODEL_TEXT.webFetchUntrusted)
+    expect(lines[0]).toContain(WEB_FETCH_MODEL_TEXT.webFetchConverted)
+    expect(lines[1]).toBe(WEB_FETCH_MODEL_TEXT.webFetchUntrusted)
     expect(lines[2]).toBe(`<<<page ${MARKER}>>>`)
     expect(inside(result)).toBe(
       'Title: Guide\n\n# Start\n\nRead [this](https://docs.example.com/x).',
@@ -248,8 +248,8 @@ describe('fetchWebPage (M69)', () => {
     })
     const result = await w.fetch(DOCS)
     const lines = result.kind === 'page' ? result.text.split('\n') : []
-    expect(lines[1]).toBe(MODEL_TEXT.webFetchUntrusted)
-    expect(MODEL_TEXT.webFetchUntrusted).toContain('text a browser would not show')
+    expect(lines[1]).toBe(WEB_FETCH_MODEL_TEXT.webFetchUntrusted)
+    expect(WEB_FETCH_MODEL_TEXT.webFetchUntrusted).toContain('text a browser would not show')
     expect(WEB_FETCH_DESCRIPTION).toContain(
       "the page's text as served, which can include text a browser would not show",
     )
@@ -281,7 +281,7 @@ describe('fetchWebPage (M69)', () => {
       },
     })
     const plain = await w.fetch('https://raw.example.com/a.txt')
-    expect(plain.kind === 'page' && plain.text).toContain(MODEL_TEXT.webFetchAsText)
+    expect(plain.kind === 'page' && plain.text).toContain(WEB_FETCH_MODEL_TEXT.webFetchAsText)
     expect(inside(plain)).toBe('café <b>')
     const json = await w.fetch('https://raw.example.com/b.json')
     expect(inside(json)).toBe('{"a": "<b>"}')
@@ -386,7 +386,7 @@ describe('fetchWebPage (M69)', () => {
     const stop = new AbortController().signal
     // Withdrawn from the start: nothing is looked up.
     const never = await fetchWebPage(DOCS, w.deps, stop, () => false)
-    expect(failure(never).reason).toBe(MODEL_TEXT.webFetchWithdrawn)
+    expect(failure(never).reason).toBe(WEB_FETCH_MODEL_TEXT.webFetchWithdrawn)
     expect(failure(never).visibleReason).toBe(UI_TEXT.webFetchWithdrawn)
     expect(w.lookups).toEqual([])
     // Withdrawn while the name was being looked up: nothing is requested.
@@ -415,7 +415,7 @@ describe('fetchWebPage (M69)', () => {
     const v6only = failure(await w.fetch('https://v6only.example.com/'))
     expect(v6only.kind).toBe('nat64Unknown')
     expect(v6only.reason).toBe(
-      fill(MODEL_TEXT.webFetchNat64Unknown, {
+      fill(WEB_FETCH_MODEL_TEXT.webFetchNat64Unknown, {
         host: 'v6only.example.com',
         detail: 'ipv4only.arpa: EAI_AGAIN',
       }),
@@ -528,7 +528,7 @@ describe('fetchWebPage (M69)', () => {
     const failed = failure(await dark.fetch(DOCS))
     expect(failed.kind).toBe('unreachable')
     expect(failed.reason).toBe(
-      fill(MODEL_TEXT.webFetchUnreachable, {
+      fill(WEB_FETCH_MODEL_TEXT.webFetchUnreachable, {
         host: 'docs.example.com',
         address: `${V6}, ${PUBLIC}`,
         detail: 'ENETUNREACH',
@@ -604,7 +604,7 @@ describe('fetchWebPage (M69)', () => {
     })
     const posed = failure(await posing.fetch(DOCS))
     expect(posed.kind).toBe('network')
-    expect(posed.reason).toBe(fill(MODEL_TEXT.webFetchNetwork, { detail: 'ECONNRESET' }))
+    expect(posed.reason).toBe(fill(WEB_FETCH_MODEL_TEXT.webFetchNetwork, { detail: 'ECONNRESET' }))
   })
 
   it('refuses XHTML, which an HTML parser would misread, before converting anything', async () => {
@@ -620,7 +620,7 @@ describe('fetchWebPage (M69)', () => {
     })
     const refused = failure(await w.fetch(DOCS))
     expect(refused.kind).toBe('xhtml')
-    expect(refused.reason).toBe(MODEL_TEXT.webFetchXhtml)
+    expect(refused.reason).toBe(WEB_FETCH_MODEL_TEXT.webFetchXhtml)
   })
 
   it('refuses a page in an encoding with no decoder, and reads a text page as its encoding says', async () => {
@@ -631,7 +631,9 @@ describe('fetchWebPage (M69)', () => {
     })
     const refused = failure(await undecodable.fetch(DOCS))
     expect(refused.kind).toBe('undecodable')
-    expect(refused.reason).toBe(fill(MODEL_TEXT.webFetchUndecodable, { encoding: 'x-rare' }))
+    expect(refused.reason).toBe(
+      fill(WEB_FETCH_MODEL_TEXT.webFetchUndecodable, { encoding: 'x-rare' }),
+    )
     // A text page in x-user-defined: its table, never UTF-8.
     const userDefined = world({
       answers: { 'docs.example.com': [[PUBLIC]] },
@@ -668,7 +670,7 @@ describe('fetchWebPage (M69)', () => {
       conversion: { ok: false, kind: 'timeout', detail: '10000' },
     })
     expect(failure(await slow.fetch(DOCS)).reason).toBe(
-      fill(MODEL_TEXT.webFetchConversionTimeout, { seconds: '10' }),
+      fill(WEB_FETCH_MODEL_TEXT.webFetchConversionTimeout, { seconds: '10' }),
     )
   })
 
@@ -707,7 +709,7 @@ describe('fetchWebPage (M69)', () => {
     // The URL the server chose is inside the markers; the facts line names the one asked for.
     expect(parseWebPageHeader(result.kind === 'page' ? result.text : '')?.url).toBe(DOCS)
     expect(inside(result)).toBe(
-      `${fill(MODEL_TEXT.webFetchRedirected, { url: 'https://docs.example.com/guide/v2' })}\n\nv2`,
+      `${fill(WEB_FETCH_MODEL_TEXT.webFetchRedirected, { url: 'https://docs.example.com/guide/v2' })}\n\nv2`,
     )
     expect(w.closed()).toBe(2)
   })
@@ -750,12 +752,12 @@ describe('fetchWebPage (M69)', () => {
     expect(result).toMatchObject({ kind: 'moved', location })
     const lines = result.kind === 'moved' ? result.text.split('\n') : []
     expect(lines).toEqual([
-      MODEL_TEXT.webFetchMoved,
+      WEB_FETCH_MODEL_TEXT.webFetchMoved,
       `<<<redirect ${MARKER}>>>`,
       location,
       `<<<end of redirect ${MARKER}>>>`,
     ])
-    expect(MODEL_TEXT.webFetchMoved).toContain('call this tool again')
+    expect(WEB_FETCH_MODEL_TEXT.webFetchMoved).toContain('call this tool again')
     expect(result.kind === 'moved' && result.visibleText).toBe(
       fill(UI_TEXT.webFetchMoved, { location }),
     )
@@ -817,14 +819,14 @@ describe('fetchWebPage (M69)', () => {
       },
     })
     const type = failure(await w.fetch('https://docs.example.com/type'))
-    expect(type.reason).toBe(MODEL_TEXT.webFetchContentTypeUnnamed)
+    expect(type.reason).toBe(WEB_FETCH_MODEL_TEXT.webFetchContentTypeUnnamed)
     expect(type.visibleReason).toBe(UI_TEXT.webFetchContentTypeUnnamed)
     expect(failure(await w.fetch('https://docs.example.com/long')).reason).toBe(
-      MODEL_TEXT.webFetchContentTypeUnnamed,
+      WEB_FETCH_MODEL_TEXT.webFetchContentTypeUnnamed,
     )
     const coding = failure(await w.fetch('https://docs.example.com/coding'))
     expect(coding.kind).toBe('encoding')
-    expect(coding.reason).toBe(MODEL_TEXT.webFetchEncodingUnnamed)
+    expect(coding.reason).toBe(WEB_FETCH_MODEL_TEXT.webFetchEncodingUnnamed)
   })
 
   it('refuses a body past the cap: declared, streamed, or grown by decompression', async () => {
@@ -936,7 +938,7 @@ describe('fetchWebPage (M69)', () => {
     })
     const cut = await w.fetch('https://docs.example.com/long')
     expect(cut.kind === 'page' && cut.text).toContain(
-      fill(MODEL_TEXT.webFetchTruncated, { shown: String(WEB_FETCH_MAX_CONTENT_CHARS) }),
+      fill(WEB_FETCH_MODEL_TEXT.webFetchTruncated, { shown: String(WEB_FETCH_MAX_CONTENT_CHARS) }),
     )
     const forged = await w.fetch('https://docs.example.com/forged')
     const lines = forged.kind === 'page' ? forged.text.split('\n') : []
@@ -954,7 +956,7 @@ describe('fetchWebPage (M69)', () => {
     })
     const result = await w.fetch(base)
     expect(result.kind === 'page' && result.text).toContain(
-      fill(MODEL_TEXT.webFetchTruncated, { shown: String(WEB_FETCH_MAX_CONTENT_CHARS) }),
+      fill(WEB_FETCH_MODEL_TEXT.webFetchTruncated, { shown: String(WEB_FETCH_MAX_CONTENT_CHARS) }),
     )
   })
 })

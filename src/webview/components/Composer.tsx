@@ -69,6 +69,7 @@ import { type DictationPress, pressAction, releaseAction } from '../dictationGes
 import { scrollRowIntoView, wrapIndex } from '../listNavigation'
 import { type DictationUiState, type MentionResults, userShellCommandOf } from '../state/uiState'
 import { AttachmentChips } from './AttachmentChips'
+import { ContextMeter, type ContextMeterProps } from './ContextMeter'
 import {
   CloseIcon,
   FileIcon,
@@ -106,9 +107,8 @@ export interface ComposerProps {
   readonly isRunning: boolean
   readonly modelLabel: string
   readonly permissionMode: PermissionMode
-  /** "12% context" once known; undefined hides the indicator. */
-  readonly contextLabel: string | undefined
-  readonly contextTitle: string | undefined
+  /** The reported context usage the meter draws (M87); no window, no meter. */
+  readonly context: ContextMeterProps['context']
   /** The paid features that are on (M33, PLAN.md D30); undefined hides the badge. */
   readonly paidBadge: { readonly label: string; readonly title: string } | undefined
   /** The badge opens Account & usage, where this window's tally is. */
@@ -336,8 +336,7 @@ export function Composer(props: ComposerProps) {
     isRunning,
     modelLabel,
     permissionMode,
-    contextLabel,
-    contextTitle,
+    context,
     paidBadge,
     onOpenUsage,
     focusRequests,
@@ -1088,16 +1087,7 @@ export function Composer(props: ComposerProps) {
               {paidBadge.label}
             </button>
           )}
-          {contextLabel === undefined ? null : (
-            <button
-              type="button"
-              className="context-label context-label-button"
-              title={contextTitle}
-              onClick={onCompact}
-            >
-              {contextLabel}
-            </button>
-          )}
+          <ContextMeter context={context} onCompact={onCompact} />
           <button
             type="button"
             className="mode-button"
@@ -1134,7 +1124,7 @@ export function Composer(props: ComposerProps) {
           {isRunning ? (
             <button
               type="button"
-              className="send-button"
+              className="send-button send-button-stop"
               title={UI_TEXT.stopTitle}
               aria-label={UI_TEXT.stopTitle}
               onClick={onStop}

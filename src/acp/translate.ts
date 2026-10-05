@@ -362,6 +362,11 @@ export class UpdateTranslator {
       case 'backendNotice': {
         return [agentText(`${event.text}${PART_SEPARATOR}`)]
       }
+      case 'messageAdmitted': {
+        // Nothing to send (M87): an ACP prompt is never queued behind
+        // another or taken back, so its reaching a request is no news.
+        return []
+      }
       default: {
         return []
       }

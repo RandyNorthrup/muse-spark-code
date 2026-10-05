@@ -48,7 +48,7 @@ import {
   ATOMIC_RENAME_ATTEMPTS,
   ATOMIC_RENAME_DELAY_MS,
   ATOMIC_TEMPORARY_SUFFIX,
-  MODEL_TEXT,
+  FILE_REFUSAL_MODEL_TEXT,
 } from '../shared/constants'
 import { canonicalPath } from './canonicalPath'
 import type { ConditionalWrite, StagedFile } from '../core/backends/modelapi/tools'
@@ -177,7 +177,7 @@ async function assertBoundPath(
   }
   const canonical = await canonicalPath(actualPath)
   if (!isSamePath(canonical, expectedPath, options.platform ?? process.platform)) {
-    throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+    throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
   }
 }
 
@@ -387,7 +387,7 @@ async function writeAtomically(
         await assertBoundPath(temporary, temporary, options)
         const current = await statIdentity(temporary)
         if (!sameFile(held, current)) {
-          throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+          throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
         }
       }
       temporaryIdentity = identityOf(held)
@@ -417,7 +417,7 @@ async function writeAtomically(
       await assertBoundPath(destination.path, options.expectedCanonicalPath ?? target, options)
       const current = await statIdentity(temporary)
       if (temporaryIdentity === undefined || !sameFile(current, temporaryIdentity)) {
-        throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+        throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       }
       await assertBoundPath(temporary, temporary, options)
       await assertBoundPath(destination.path, options.expectedCanonicalPath ?? target, options)
@@ -596,7 +596,7 @@ export async function createFileExclusively(
     await options.staged?.({ mode: stagedMode, createdFolders })
     await assertSameDirectory(directory, expected, platform)
     if (!(await isOwnedFile(stage, stageIdentity))) {
-      throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+      throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
     }
     try {
       options.assertCanWrite?.()

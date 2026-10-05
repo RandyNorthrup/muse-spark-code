@@ -213,3 +213,56 @@ describe('the saved conversation (M25)', () => {
     })
   })
 })
+
+describe('the saved conversation keeps queued cards and message times (M87, PLAN.md D66)', () => {
+  const timed: UiState = {
+    ...shown,
+    transcript: [
+      {
+        kind: 'user',
+        id: 'l1',
+        seq: 1,
+        text: 'sent',
+        status: 'sent',
+        attachments: [],
+        turnId: 't1',
+        disposition: 'started',
+        atMs: 1_791_088_102_709,
+      },
+      {
+        kind: 'user',
+        id: 'l2',
+        seq: 2,
+        text: 'waiting',
+        status: 'queued',
+        attachments: [],
+        turnId: 't2',
+        disposition: 'queued',
+        atMs: 1_791_088_104_880,
+      },
+      { kind: 'assistant', id: 'm1', text: 'reply', isStreaming: false, atMs: 1_791_088_107_936 },
+    ],
+  }
+
+  it('comes back with each card’s status, disposition and time', () => {
+    const restored = restoredUiState(throughJson(webviewStateOf(timed, true)))
+    expect(restored.transcript).toEqual(timed.transcript)
+  })
+
+  it('still reads a conversation saved before M87, with no times', () => {
+    const restored = restoredUiState(throughJson(webviewStateOf(shown, true)))
+    expect(restored.transcript).toEqual(shown.transcript)
+    expect(restored.transcript.some((entry) => 'atMs' in entry)).toBe(false)
+  })
+
+  it('drops a card whose time is not a number, as any other shape it does not know', () => {
+    const saved = throughJson(webviewStateOf(timed, true)) as {
+      snapshot: { transcript: Record<string, unknown>[] }
+    }
+    const [first] = saved.snapshot.transcript
+    if (first !== undefined) {
+      first['atMs'] = 'yesterday'
+    }
+    expect(restoredUiState(saved).transcript).toEqual([])
+  })
+})

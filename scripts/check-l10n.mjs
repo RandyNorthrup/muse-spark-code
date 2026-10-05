@@ -8,6 +8,8 @@
 //   extra one, the same {slots}, code spans and bold markers, exactly the
 //   plural forms Intl.PluralRules gives the language, and no value left in
 //   English unless l10n/untranslated.json allows it (names, commands, …).
+//   A `one` form also needs {count} if the locale selects it for an integer
+//   other than 1 in 0..200, even when English's `one` omits the number.
 // - The manifest: every user-visible string in package.json is a `%key%` of
 //   package.nls.json, every key there is used, and each
 //   package.nls.<language>.json passes the same checks against it.

@@ -10,7 +10,12 @@
 // (src/core/backends/modelapi/codeIntelCalls.ts); the `ide` tool returns the
 // diff for Muse Code's own edit tool and writes nothing.
 
-import { CODE_INTEL_NAME_MAX_CHARS, MODEL_TEXT, RENAME_MAX_FILES } from '../../shared/constants'
+import {
+  CODE_INTEL_MODEL_TEXT,
+  CODE_INTEL_NAME_MAX_CHARS,
+  FILE_REFUSAL_MODEL_TEXT,
+  RENAME_MAX_FILES,
+} from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { PatchHunk } from '../../shared/patchDocument'
 import { applyTextEdits, BOM, patchHunks, textIn, unifiedDiff, withoutBom } from './codeText'
@@ -52,7 +57,7 @@ export type RenamePlanResult =
   | { readonly ok: false; readonly reason: string; readonly visibleReason: string }
 
 function staleRefusal(file: PlacedFile): CodeIntelRefusal {
-  return new CodeIntelRefusal(fill(MODEL_TEXT.renameStale, { path: file.relative }))
+  return new CodeIntelRefusal(fill(CODE_INTEL_MODEL_TEXT.renameStale, { path: file.relative }))
 }
 
 /**
@@ -69,7 +74,7 @@ async function plannedFile(
   const { file, edits } = planned
   // By the real path: an editor may hold the file under a link's path.
   if ((await query.unsavedPath(file)) !== undefined) {
-    throw new CodeIntelRefusal(`${file.relative} ${MODEL_TEXT.fileHasUnsavedChanges}`)
+    throw new CodeIntelRefusal(`${file.relative} ${FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges}`)
   }
   const before = await query.readDisk(file)
   const { document } = await query.openAsEdited(file)
@@ -110,7 +115,9 @@ async function placedFiles(
   if (query.hasDeniedResults) throw query.policyRefusal()
   const outside = placed.filter((entry) => entry.file === undefined).length
   if (outside > 0) {
-    throw new CodeIntelRefusal(fill(MODEL_TEXT.renameOutside, { count: String(outside) }))
+    throw new CodeIntelRefusal(
+      fill(CODE_INTEL_MODEL_TEXT.renameOutside, { count: String(outside) }),
+    )
   }
   // One entry per file, however the edit groups its changes.
   const byFile = new Map<string, { file: PlacedFile; edits: TextEdit[] }>()
@@ -129,7 +136,7 @@ async function placedFiles(
   }
   if (merged.length > RENAME_MAX_FILES) {
     throw new CodeIntelRefusal(
-      fill(MODEL_TEXT.renameTooMany, {
+      fill(CODE_INTEL_MODEL_TEXT.renameTooMany, {
         count: String(merged.length),
         max: String(RENAME_MAX_FILES),
       }),
@@ -141,10 +148,10 @@ async function placedFiles(
 /** Refuses an edit that also changes files, or one VS Code does not say that of. */
 function checkFileOperations(edit: RenameEdits): void {
   if (edit.fileOperations === 'present') {
-    throw new CodeIntelRefusal(MODEL_TEXT.renameFileOperations)
+    throw new CodeIntelRefusal(CODE_INTEL_MODEL_TEXT.renameFileOperations)
   }
   if (edit.fileOperations === 'unknown') {
-    throw new CodeIntelRefusal(MODEL_TEXT.renameFileOperationsUnknown)
+    throw new CodeIntelRefusal(CODE_INTEL_MODEL_TEXT.renameFileOperationsUnknown)
   }
 }
 
@@ -183,12 +190,12 @@ async function plan(query: CodeIntelQuery, raw: unknown): Promise<RenamePlan> {
     const symbols = await ask(query.service.documentSymbols(target.file.absolute))
     throw symbols.length === 0
       ? query.noService(target.file, target.document)
-      : new CodeIntelRefusal(fill(MODEL_TEXT.renameNothing, { place }))
+      : new CodeIntelRefusal(fill(CODE_INTEL_MODEL_TEXT.renameNothing, { place }))
   }
   const placed = await placedFiles(query, edit.files)
   const from = oldName(target, placed)
   if (from === to) {
-    throw new CodeIntelRefusal(fill(MODEL_TEXT.renameSameName, { name: to }))
+    throw new CodeIntelRefusal(fill(CODE_INTEL_MODEL_TEXT.renameSameName, { name: to }))
   }
   const files: RenameFile[] = []
   for (const entry of placed) {
@@ -201,7 +208,7 @@ async function plan(query: CodeIntelQuery, raw: unknown): Promise<RenamePlan> {
     .filter((file) => file.after !== file.before)
     .toSorted((a, b) => compareText(a.relative, b.relative))
   if (changed.length === 0) {
-    throw new CodeIntelRefusal(fill(MODEL_TEXT.renameNothing, { place }))
+    throw new CodeIntelRefusal(fill(CODE_INTEL_MODEL_TEXT.renameNothing, { place }))
   }
   query.checkReadable()
   return {
@@ -227,7 +234,7 @@ export async function planRename(raw: unknown, deps: CodeIntelDeps): Promise<Ren
 /** The plan as the `ide` tool hands it to Muse Code: a lead and a unified diff per file. */
 export function renameDiff(plan: RenamePlan): string {
   return joinLines([
-    fill(MODEL_TEXT.renameEditsLead, {
+    fill(CODE_INTEL_MODEL_TEXT.renameEditsLead, {
       from: plan.from,
       to: plan.to,
       edits: String(plan.edits),

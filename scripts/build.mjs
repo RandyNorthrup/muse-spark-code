@@ -6,8 +6,9 @@
 // smol-toml, loaded on the first import), the bundled skills installer (M89:
 // the copy and links for Muse Code, loaded on the first install, removal or
 // offer), code intelligence's `ide` answers (M67, loaded on the first call),
-// voice's drivers (M9/M35, loaded on the first recording) and the Auto
-// reviewer on Muse Code (M90, loaded on the first review), the webview, and
+// voice's drivers (M9/M35, loaded on the first recording), the window's web
+// fetch (M69, loaded on the first fetch) and the Auto reviewer on Muse Code
+// (M90, loaded on the first review), the webview, and
 // (in dev mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
@@ -52,6 +53,8 @@ const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
+const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
+const TAB_OUTFILE = 'dist/tab.js'
 const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
 const UI_TEXT_OUTFILE = 'dist/uiText.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
@@ -78,6 +81,8 @@ const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
 const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
 const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
 const VOICE_OUTFILE = 'dist/voice.js'
+const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
+const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
@@ -233,6 +238,13 @@ const voiceOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const webFetchOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [WEB_FETCH_ENTRY],
+  outfile: WEB_FETCH_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const museCodeReviewerOptions = {
   ...planMarkdownOptions,
   entryPoints: [MUSE_CODE_REVIEWER_ENTRY],
@@ -256,6 +268,13 @@ const agentImportOptions = {
   external: ['vscode'],
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const tabOptions = {
+  ...agentImportOptions,
+  entryPoints: [TAB_ENTRY],
+  outfile: TAB_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -360,6 +379,7 @@ function reportSize(path) {
 if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
+    esbuild.context(tabOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
@@ -371,6 +391,7 @@ if (isWatch) {
     esbuild.context(bundledSkillsOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
+    esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(extensionHooksOptions),
     esbuild.context(uiTextOptions),
@@ -383,6 +404,7 @@ if (isWatch) {
 } else {
   const shipped = {
     extension: esbuild.build(hostOptions),
+    tab: esbuild.build(tabOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
@@ -394,6 +416,7 @@ if (isWatch) {
     bundledSkills: esbuild.build(bundledSkillsOptions),
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
+    webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     extensionHooks: esbuild.build(extensionHooksOptions),
     uiText: esbuild.build(uiTextOptions),
@@ -419,6 +442,7 @@ if (isWatch) {
   }
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
+  reportSize(TAB_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
@@ -430,6 +454,7 @@ if (isWatch) {
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
+  reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(EXTENSION_HOOKS_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)

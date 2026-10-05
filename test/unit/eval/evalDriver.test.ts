@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
-import { EVAL_MODEL_ID, EVAL_TURN_TIMED_OUT, MODEL_TEXT } from '../../../src/shared/constants'
+import {
+  EVAL_MODEL_ID,
+  EVAL_TURN_TIMED_OUT,
+  MODEL_API_MODEL_TEXT,
+} from '../../../src/shared/constants'
 import type { EvalHostChange } from '../../../src/core/eval/driver'
 import { driveEvalTurn, EVAL_TURN_ROOT as ROOT, type DrivenEvalTurn } from '../helpers/evalTurn'
 import {
@@ -118,7 +122,7 @@ describe('runEvalTurn', () => {
     ])
     expect(outcome.terminal).toBe('completed')
     expect(outcome.questions).toBe(1)
-    expect(outputsSent(api, 1).join('\n')).toContain(MODEL_TEXT.evalClarification)
+    expect(outputsSent(api, 1).join('\n')).toContain(MODEL_API_MODEL_TEXT.evalClarification)
   })
 
   it('refuses a child task, a paid use, even where a mechanism offers it', async () => {

@@ -34,13 +34,12 @@ import { pipeline, Readable, type Transform } from 'node:stream'
 import { createBrotliDecompress, createGunzip, createInflate } from 'node:zlib'
 import * as z from 'zod/mini'
 import {
-  type AddressFamily,
   ADDRESS_FAMILIES,
+  type AddressFamily,
   HTTP_PROXY_AUTHENTICATION_REQUIRED,
   HTTP_REDIRECT_STATUSES,
   HTTP_SUCCESS_MAX,
   HTTP_SUCCESS_MIN,
-  MODEL_TEXT,
   UI_TEXT,
   WEB_FETCH_ATTEMPT_DELAY_MS,
   WEB_FETCH_CONVERT_MAX_CHARS,
@@ -49,11 +48,12 @@ import {
   WEB_FETCH_MAX_BYTES,
   WEB_FETCH_MAX_CONTENT_CHARS,
   WEB_FETCH_MAX_REDIRECTS,
+  WEB_FETCH_MODEL_TEXT,
   WEB_FETCH_NOT_TLS_CODE,
   WEB_FETCH_TEXT_TYPES,
   WEB_FETCH_TIMEOUT_MS,
-  WEB_FETCH_XHTML_TYPE,
   WEB_FETCH_TOKEN_MAX_CHARS,
+  WEB_FETCH_XHTML_TYPE,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { describeNetworkFailure, networkFailureCodes } from '../networkFailure'
@@ -67,7 +67,8 @@ import {
 import type { HtmlConversionFailure, HtmlConverter } from './htmlConversion'
 import { mimeParameter } from './mimeType'
 import { decodeWithBom, encodingOf, UndecodableText } from './textDecoding'
-import { approvalHost, type CheckedPageUrl, checkPageUrl } from './pageUrl'
+import { approvalHost } from './hostName'
+import { type CheckedPageUrl, checkPageUrl } from './pageUrl'
 import { addressFamily, isPublicAddress, type Nat64Prefix } from './publicAddress'
 
 /** Where one request goes: the URL as sent, and the address it is pinned to. */
@@ -585,23 +586,23 @@ function pageText(
       ? content.slice(0, WEB_FETCH_MAX_CONTENT_CHARS)
       : content
   const facts = [
-    fill(MODEL_TEXT.webFetchHeader, {
+    fill(WEB_FETCH_MODEL_TEXT.webFetchHeader, {
       url: page.url,
       status: String(page.status),
       type: page.type,
       bytes: String(page.bytes),
     }),
-    flags.isHtml ? MODEL_TEXT.webFetchConverted : MODEL_TEXT.webFetchAsText,
+    flags.isHtml ? WEB_FETCH_MODEL_TEXT.webFetchConverted : WEB_FETCH_MODEL_TEXT.webFetchAsText,
     ...(flags.hasMore || shown.length < content.length
-      ? [fill(MODEL_TEXT.webFetchTruncated, { shown: String(shown.length) })]
+      ? [fill(WEB_FETCH_MODEL_TEXT.webFetchTruncated, { shown: String(shown.length) })]
       : []),
   ].join(' ')
   return [
     facts,
-    MODEL_TEXT.webFetchUntrusted,
-    fill(MODEL_TEXT.webFetchOpen, { marker }),
+    WEB_FETCH_MODEL_TEXT.webFetchUntrusted,
+    fill(WEB_FETCH_MODEL_TEXT.webFetchOpen, { marker }),
     shown,
-    fill(MODEL_TEXT.webFetchClose, { marker }),
+    fill(WEB_FETCH_MODEL_TEXT.webFetchClose, { marker }),
   ].join('\n')
 }
 
@@ -627,7 +628,7 @@ async function contentOf(
   const redirected =
     urls.final.href === urls.requested.href
       ? []
-      : [fill(MODEL_TEXT.webFetchRedirected, { url: urls.final.href })]
+      : [fill(WEB_FETCH_MODEL_TEXT.webFetchRedirected, { url: urls.final.href })]
   if (!body.isHtml) {
     return {
       content: [...redirected, decodeText(body.bytes, body.contentType)].join('\n\n'),
@@ -655,7 +656,9 @@ async function contentOf(
   }
   const { page } = converted
   const title =
-    page.title === undefined ? [] : [fill(MODEL_TEXT.webFetchTitle, { title: page.title })]
+    page.title === undefined
+      ? []
+      : [fill(WEB_FETCH_MODEL_TEXT.webFetchTitle, { title: page.title })]
   return {
     content: [...redirected, ...title, page.markdown].join('\n\n'),
     hasMore: page.isTruncated,
@@ -748,10 +751,10 @@ function nextHop(
 /** A redirect to another host: the target stays inside the markers. */
 function movedResult(location: string, marker: string): WebFetchResult {
   const text = [
-    MODEL_TEXT.webFetchMoved,
-    fill(MODEL_TEXT.webFetchMovedOpen, { marker }),
+    WEB_FETCH_MODEL_TEXT.webFetchMoved,
+    fill(WEB_FETCH_MODEL_TEXT.webFetchMovedOpen, { marker }),
     location,
-    fill(MODEL_TEXT.webFetchMovedClose, { marker }),
+    fill(WEB_FETCH_MODEL_TEXT.webFetchMovedClose, { marker }),
   ].join('\n')
   return { kind: 'moved', location, text, visibleText: fill(UI_TEXT.webFetchMoved, { location }) }
 }

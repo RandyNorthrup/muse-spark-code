@@ -5,8 +5,9 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
-  MODEL_TEXT,
+  FILE_REFUSAL_MODEL_TEXT,
   HOOK_STDIN_MAX_BYTES,
+  MODEL_TEXT,
   TOOL_FILE_MAX_BYTES,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
   WINDOWS_POWERSHELL_UTF8_PREAMBLE,
@@ -350,7 +351,7 @@ describe('createToolIo (real file system and shell)', () => {
   it('refuses a new checked reservation after its parent becomes a junction', async () => {
     const { checkedAbsolute, outsideFile } = await retargetedCheckedFile('swapped-reserve', true)
     await expect(io().reserveFile(checkedAbsolute, checkedAbsolute)).rejects.toThrow(
-      MODEL_TEXT.pathChangedAfterApproval,
+      FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
     )
     await expect(readFile(outsideFile)).rejects.toMatchObject({ code: 'ENOENT' })
   })
@@ -368,7 +369,7 @@ describe('createToolIo (real file system and shell)', () => {
       await writeFile(outsideFile, 'sentinel-private')
       await swap()
       await expect(reservation.fill(Uint8Array.from([1, 2, 3]))).rejects.toThrow(
-        MODEL_TEXT.pathChangedAfterApproval,
+        FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
       )
       await expect(readFile(outsideFile, 'utf8')).resolves.toBe('sentinel-private')
     },
@@ -385,7 +386,9 @@ describe('createToolIo (real file system and shell)', () => {
       const reservation = await io().reserveFile(checkedAbsolute, checkedAbsolute)
       await writeFile(outsideFile, 'sentinel-private')
       await swap()
-      await expect(reservation.release()).rejects.toThrow(MODEL_TEXT.pathChangedAfterApproval)
+      await expect(reservation.release()).rejects.toThrow(
+        FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
+      )
       await expect(readFile(outsideFile, 'utf8')).resolves.toBe('sentinel-private')
     },
   )
@@ -393,10 +396,10 @@ describe('createToolIo (real file system and shell)', () => {
   it('refuses a checked read after its parent is replaced by a junction', async () => {
     const { checkedAbsolute, outsideFile } = await retargetedCheckedFile('swapped-read')
     await expect(io().readFile(checkedAbsolute, checkedAbsolute)).rejects.toThrow(
-      MODEL_TEXT.pathChangedAfterApproval,
+      FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
     )
     await expect(io().readBytes(checkedAbsolute, 100, checkedAbsolute)).rejects.toThrow(
-      MODEL_TEXT.pathChangedAfterApproval,
+      FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
     )
     await expect(readFile(outsideFile, 'utf8')).resolves.toBe('sentinel-private')
   })
@@ -414,14 +417,14 @@ describe('createToolIo (real file system and shell)', () => {
     })
     await expect(
       loadToolImage('allowed/picture.png', workspace, process.platform, previewIo),
-    ).rejects.toThrow(MODEL_TEXT.pathChangedAfterApproval)
+    ).rejects.toThrow(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
     await expect(readFile(outsideFile, 'utf8')).resolves.toBe('sentinel-private')
   })
 
   it('refuses an atomic tool write after its checked parent becomes a junction', async () => {
     const { checkedAbsolute, outsideFile } = await retargetedCheckedFile('swapped-write')
     await expect(io().writeFile(checkedAbsolute, 'changed', checkedAbsolute)).rejects.toThrow(
-      MODEL_TEXT.pathChangedAfterApproval,
+      FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
     )
     await expect(readFile(outsideFile, 'utf8')).resolves.toBe('sentinel-private')
   })
@@ -537,7 +540,7 @@ describe('createToolIo (real file system and shell)', () => {
         isSwapped = true
         if (operation === 'fill') {
           await expect(reserved.fill(Uint8Array.from([1, 2]))).rejects.toThrow(
-            MODEL_TEXT.pathChangedAfterApproval,
+            FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
           )
         } else if (operation === 'unchecked fill') {
           expect(await reserved.fill(Uint8Array.from([1, 2]))).toBe('changed')

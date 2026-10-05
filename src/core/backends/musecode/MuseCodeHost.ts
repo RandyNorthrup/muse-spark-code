@@ -69,6 +69,7 @@ import type {
   MuseCodeFault,
   OutputPage,
   OutputPageRequest,
+  QueuedMessageRef,
   SessionEventListener,
   SessionHistoryOutcome,
   SessionListEvent,
@@ -78,6 +79,7 @@ import type {
   StartSessionOptions,
   TurnPart,
   TurnSubmission,
+  WithdrawOutcome,
 } from '../../agent/agentBackend'
 import {
   DecisionNotAppliedError,
@@ -211,6 +213,23 @@ function goalRefusalOr(error: unknown): unknown {
   const reason = error.data['reason']
   const refusal = typeof reason === 'string' ? GOAL_REFUSALS.get(reason) : undefined
   return refusal === undefined ? error : new GoalRefusedError(refusal, error.message)
+}
+
+// `turn/unqueue` (M87), captured live 2026-10-04: the ack, and the
+// `commandRejected` reasons for a turn that launched or was reclaimed already.
+const turnUnqueueResultSchema = z.object({ turnId: z.string(), status: z.string() })
+const QUEUED_DISPOSITION = 'queued'
+const UNQUEUE_LAUNCHED = 'run_active'
+const UNQUEUE_ALREADY_WON = 'already_applied'
+const TOO_LATE: WithdrawOutcome = { status: 'tooLate' }
+
+/** The `data.reason` of a `turn/unqueue` refusal; undefined for any other failure. */
+function unqueueRefusal(error: unknown): string | undefined {
+  if (!(error instanceof MspError) || error.kind !== COMMAND_REJECTED) {
+    return undefined
+  }
+  const reason = error.data['reason']
+  return typeof reason === 'string' ? reason : undefined
 }
 
 const modelListResultSchema = z.object({
@@ -632,6 +651,11 @@ export class MuseSession implements AgentSession {
   private isDisposed = false
   /** Told when Muse Code reports this session's event log failed (CLI recovery). */
   private readonly logDamagedListeners = new Set<() => void>()
+  /**
+   * Queued turns `turn/unqueued` withdrew (M87): MSP's authoritative removal,
+   * which a lost or failed `turn/unqueue` ack does not undo.
+   */
+  private readonly unqueuedTurns = new Set<string>()
   private readonly log: CoreLogger
   private readonly timeouts: CommandTimeouts
 
@@ -887,6 +911,9 @@ export class MuseSession implements AgentSession {
       this.prompts.close(mapped.closedApprovalId)
       return
     }
+    if (mapped.event.type === 'turnWithdrawn') {
+      this.unqueuedTurns.add(mapped.event.turnId)
+    }
     this.emit(mapped.event)
   }
 
@@ -944,6 +971,38 @@ export class MuseSession implements AgentSession {
       throw this.steerFailure(expectedTurnId, error)
     }
     return { turnId: turnSteerResultSchema.parse(result).turnId, disposition: 'steered' }
+  }
+
+  /**
+   * Take back a submit acknowledged `queued` before it launches (M87, PLAN.md
+   * D66): MSP `turn/unqueue`. A steered message is in the running turn
+   * already, which `turn/unqueue` does not reach: too late. As captured live
+   * on 2026-10-04 (docs/certification/m87-c.md), the ack is admission and the
+   * race at once (`turn/unqueued` follows, or comes first); a reclaim after
+   * the launch is refused `run_active`, and one already won `already_applied`
+   * (it will not run either way). Once `turn/unqueued` named the turn, a
+   * timed-out or failed ack still reports the withdrawal (the review of lane
+   * C); any other failure or refusal fails as Muse Code said it. Muse Code
+   * keeps no image bytes, so none come back.
+   */
+  public async withdrawQueued(ref: QueuedMessageRef): Promise<WithdrawOutcome> {
+    if (ref.disposition !== QUEUED_DISPOSITION) {
+      return TOO_LATE
+    }
+    try {
+      turnUnqueueResultSchema.parse(await this.command('turn/unqueue', { turnId: ref.turnId }))
+    } catch (error: unknown) {
+      const reason = unqueueRefusal(error)
+      if (reason === UNQUEUE_LAUNCHED) {
+        return TOO_LATE
+      }
+      // `turn/unqueued` can come before the ack (captured): once it came, a
+      // timed-out or failed ack still means the message was taken back.
+      if (reason !== UNQUEUE_ALREADY_WON && !this.unqueuedTurns.has(ref.turnId)) {
+        throw error
+      }
+    }
+    return { status: 'withdrawn', images: undefined }
   }
 
   /** Ask the host to stop the running turn gracefully. */

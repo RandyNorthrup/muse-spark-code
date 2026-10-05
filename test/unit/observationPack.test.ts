@@ -9,9 +9,8 @@ import { Readable } from 'node:stream'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import {
-  MODEL_API_TOOLS,
   MODEL_API_MODEL_TEXT,
-  MODEL_TEXT,
+  MODEL_API_TOOLS,
   OBS_PACK_CHARS_PER_TOKEN,
   OBS_PACK_HEAD_LINES,
   OBS_PACK_PAGE_CHARS,
@@ -19,6 +18,7 @@ import {
   OBS_PACK_THRESHOLD_CHARS,
   OBS_PACK_WHOLE_SENDS,
   UI_TEXT,
+  WEB_FETCH_MODEL_TEXT,
 } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, fill, formatNumber, setUiText, uiLocale } from '../../src/shared/l10n/text'
@@ -522,7 +522,7 @@ describe('a recalled page is untrusted tool data', () => {
     // without any of web fetch's own notice or markers around it.
     expect(first.page).toBe(text.slice(offset, offset + OBS_PACK_PAGE_CHARS))
     expect(first.page).toContain(HOSTILE)
-    expect(first.page).not.toContain(MODEL_TEXT.webFetchUntrusted)
+    expect(first.page).not.toContain(WEB_FETCH_MODEL_TEXT.webFetchUntrusted)
     expect(first.page).not.toContain('<<<')
     // So the store's own frame carries the boundary: the tool, the notice
     // right before the opening marker, and markers the page never held.

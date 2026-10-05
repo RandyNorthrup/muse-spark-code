@@ -15,10 +15,10 @@ import {
   AUTO_REVIEWER_BREAKER_CONSECUTIVE,
   AUTO_REVIEWER_BREAKER_WINDOW,
   AUTO_REVIEWER_BREAKER_WINDOW_LIMIT,
+  AUTO_REVIEWER_MODEL_TEXT,
   AUTO_REVIEWER_REASON_MAX_CHARS,
   AUTO_REVIEWER_RECENT_CALL_MAX_CHARS,
   AUTO_REVIEWER_TEXT_MAX_CHARS,
-  MODEL_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 
@@ -58,7 +58,7 @@ export function reviewerInput(request: ReviewRequest): string {
       : request.recentCalls
           .map((call) => clipped(`${call.tool} ${call.args}`, AUTO_REVIEWER_RECENT_CALL_MAX_CHARS))
           .join('\n')
-  return fill(MODEL_TEXT.autoReviewerRequest, {
+  return fill(AUTO_REVIEWER_MODEL_TEXT.autoReviewerRequest, {
     userRequest: clipped(request.userRequest ?? NONE, AUTO_REVIEWER_TEXT_MAX_CHARS),
     recentCalls: calls,
     tool: request.tool,

@@ -1,5 +1,5 @@
 // Why a web fetch did not happen or did not finish (M69, PLAN.md D49): the
-// sentence the model reads (English, MODEL_TEXT) and the one the Model API
+// sentence the model reads (English, WEB_FETCH_MODEL_TEXT) and the one the Model API
 // backend's row shows (the display language, UI_TEXT), made together so they
 // always agree. On Muse Code the row shows the tool's own result, which is
 // the model's English sentence. Nothing a server sent is echoed but short
@@ -7,13 +7,13 @@
 // codes, capped and redacted.
 
 import {
-  MODEL_TEXT,
-  UI_TEXT,
   BYTES_PER_MIB,
+  UI_TEXT,
   WEB_FETCH_CONVERT_MAX_HEAP_MIB,
   WEB_FETCH_CONVERT_TIMEOUT_MS,
   WEB_FETCH_MAX_BYTES,
   WEB_FETCH_MAX_REDIRECTS,
+  WEB_FETCH_MODEL_TEXT,
   WEB_FETCH_TIMEOUT_MS,
   WEB_FETCH_URL_MAX_CHARS,
 } from '../../shared/constants'
@@ -50,6 +50,9 @@ export type WebFetchFailureKind =
   | 'proxyRefused'
   | 'unreachable'
   | 'network'
+  // The window's fetch is a bundle of its own (dist/webFetch.js, PLAN.md D6)
+  // that could not be loaded; webFetchBundle.ts says it, not webFetchFailure.
+  | 'unavailable'
 
 export interface WebFetchFailure {
   readonly kind: WebFetchFailureKind
@@ -87,30 +90,33 @@ function connectionSentences(kind: WebFetchFailureKind, facts: FailureFacts): Se
   switch (kind) {
     case 'certificate': {
       return [
-        fill(MODEL_TEXT.webFetchCertificate, values),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchCertificate, values),
         fill(UI_TEXT.webFetchCertificate, values),
       ]
     }
     case 'proxyCredentials': {
       return [
-        fill(MODEL_TEXT.webFetchProxyCredentials, values),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchProxyCredentials, values),
         fill(UI_TEXT.webFetchProxyCredentials, values),
       ]
     }
     case 'proxyRefused': {
       return [
-        fill(MODEL_TEXT.webFetchProxyRefused, values),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchProxyRefused, values),
         fill(UI_TEXT.webFetchProxyRefused, values),
       ]
     }
     case 'unreachable': {
       return [
-        fill(MODEL_TEXT.webFetchUnreachable, values),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchUnreachable, values),
         fill(UI_TEXT.webFetchUnreachable, values),
       ]
     }
     default: {
-      return [fill(MODEL_TEXT.webFetchNetwork, values), fill(UI_TEXT.webFetchNetwork, values)]
+      return [
+        fill(WEB_FETCH_MODEL_TEXT.webFetchNetwork, values),
+        fill(UI_TEXT.webFetchNetwork, values),
+      ]
     }
   }
 }
@@ -121,46 +127,46 @@ function responseSentences(kind: WebFetchFailureKind, facts: FailureFacts): Sent
   switch (kind) {
     case 'redirectWithoutLocation': {
       return [
-        fill(MODEL_TEXT.webFetchRedirectWithoutLocation, { status }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchRedirectWithoutLocation, { status }),
         fill(UI_TEXT.webFetchRedirectWithoutLocation, { status }),
       ]
     }
     case 'httpStatus': {
       return [
-        fill(MODEL_TEXT.webFetchHttpStatus, { status }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchHttpStatus, { status }),
         fill(UI_TEXT.webFetchHttpStatus, { status }),
       ]
     }
     case 'tooLarge': {
       return [
-        fill(MODEL_TEXT.webFetchTooLarge, { max: String(WEB_FETCH_MAX_BYTES) }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchTooLarge, { max: String(WEB_FETCH_MAX_BYTES) }),
         fill(UI_TEXT.webFetchTooLarge, { size: formatBytes(WEB_FETCH_MAX_BYTES) }),
       ]
     }
     case 'noContentType': {
-      return [MODEL_TEXT.webFetchNoContentType, UI_TEXT.webFetchNoContentType]
+      return [WEB_FETCH_MODEL_TEXT.webFetchNoContentType, UI_TEXT.webFetchNoContentType]
     }
     case 'contentType': {
       const { type } = facts
       return type === undefined
-        ? [MODEL_TEXT.webFetchContentTypeUnnamed, UI_TEXT.webFetchContentTypeUnnamed]
+        ? [WEB_FETCH_MODEL_TEXT.webFetchContentTypeUnnamed, UI_TEXT.webFetchContentTypeUnnamed]
         : [
-            fill(MODEL_TEXT.webFetchContentType, { type }),
+            fill(WEB_FETCH_MODEL_TEXT.webFetchContentType, { type }),
             fill(UI_TEXT.webFetchContentType, { type }),
           ]
     }
     case 'encoding': {
       const { encoding } = facts
       return encoding === undefined
-        ? [MODEL_TEXT.webFetchEncodingUnnamed, UI_TEXT.webFetchEncodingUnnamed]
+        ? [WEB_FETCH_MODEL_TEXT.webFetchEncodingUnnamed, UI_TEXT.webFetchEncodingUnnamed]
         : [
-            fill(MODEL_TEXT.webFetchEncoding, { encoding }),
+            fill(WEB_FETCH_MODEL_TEXT.webFetchEncoding, { encoding }),
             fill(UI_TEXT.webFetchEncoding, { encoding }),
           ]
     }
     case 'conversionTimeout': {
       return [
-        fill(MODEL_TEXT.webFetchConversionTimeout, { seconds: String(CONVERT_SECONDS) }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchConversionTimeout, { seconds: String(CONVERT_SECONDS) }),
         fill(UI_TEXT.webFetchConversionTimeout, {
           duration: formatUnit(CONVERT_SECONDS, 'second'),
         }),
@@ -169,24 +175,26 @@ function responseSentences(kind: WebFetchFailureKind, facts: FailureFacts): Sent
     case 'conversionMemory': {
       const max = WEB_FETCH_CONVERT_MAX_HEAP_MIB * BYTES_PER_MIB
       return [
-        fill(MODEL_TEXT.webFetchConversionMemory, { max: String(WEB_FETCH_CONVERT_MAX_HEAP_MIB) }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchConversionMemory, {
+          max: String(WEB_FETCH_CONVERT_MAX_HEAP_MIB),
+        }),
         fill(UI_TEXT.webFetchConversionMemory, { max: formatBytes(max) }),
       ]
     }
     case 'xhtml': {
-      return [MODEL_TEXT.webFetchXhtml, UI_TEXT.webFetchXhtml]
+      return [WEB_FETCH_MODEL_TEXT.webFetchXhtml, UI_TEXT.webFetchXhtml]
     }
     case 'undecodable': {
       const encoding = facts.encoding ?? ''
       return [
-        fill(MODEL_TEXT.webFetchUndecodable, { encoding }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchUndecodable, { encoding }),
         fill(UI_TEXT.webFetchUndecodable, { encoding }),
       ]
     }
     case 'conversionFailed': {
       const detail = facts.detail ?? ''
       return [
-        fill(MODEL_TEXT.webFetchConversionFailed, { detail }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchConversionFailed, { detail }),
         fill(UI_TEXT.webFetchConversionFailed, { detail }),
       ]
     }
@@ -201,58 +209,60 @@ function urlSentences(kind: WebFetchFailureKind, facts: FailureFacts): Sentences
   const host = facts.host ?? ''
   switch (kind) {
     case 'invalidUrl': {
-      return [MODEL_TEXT.webFetchInvalidUrl, UI_TEXT.webFetchInvalidUrl]
+      return [WEB_FETCH_MODEL_TEXT.webFetchInvalidUrl, UI_TEXT.webFetchInvalidUrl]
     }
     case 'notHttps': {
-      return [MODEL_TEXT.webFetchNotHttps, UI_TEXT.webFetchNotHttps]
+      return [WEB_FETCH_MODEL_TEXT.webFetchNotHttps, UI_TEXT.webFetchNotHttps]
     }
     case 'credentials': {
-      return [MODEL_TEXT.webFetchCredentials, UI_TEXT.webFetchCredentials]
+      return [WEB_FETCH_MODEL_TEXT.webFetchCredentials, UI_TEXT.webFetchCredentials]
     }
     case 'urlTooLong': {
       return [
-        fill(MODEL_TEXT.webFetchUrlTooLong, { max: String(WEB_FETCH_URL_MAX_CHARS) }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchUrlTooLong, { max: String(WEB_FETCH_URL_MAX_CHARS) }),
         fill(UI_TEXT.webFetchUrlTooLong, { max: formatNumber(WEB_FETCH_URL_MAX_CHARS) }),
       ]
     }
     case 'reservedHost': {
       return [
-        fill(MODEL_TEXT.webFetchReservedHost, { host }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchReservedHost, { host }),
         fill(UI_TEXT.webFetchReservedHost, { host }),
       ]
     }
     case 'privateAddress': {
       const address = facts.address ?? ''
       return [
-        fill(MODEL_TEXT.webFetchPrivateAddress, { host, address }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchPrivateAddress, { host, address }),
         fill(UI_TEXT.webFetchPrivateAddress, { host, address }),
       ]
     }
     case 'unresolved': {
       return [
-        fill(MODEL_TEXT.webFetchUnresolved, { host }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchUnresolved, { host }),
         fill(UI_TEXT.webFetchUnresolved, { host }),
       ]
     }
     case 'withdrawn': {
-      return [MODEL_TEXT.webFetchWithdrawn, UI_TEXT.webFetchWithdrawn]
+      return [WEB_FETCH_MODEL_TEXT.webFetchWithdrawn, UI_TEXT.webFetchWithdrawn]
     }
     case 'nat64Unknown': {
       const detail = facts.detail ?? ''
       return [
-        fill(MODEL_TEXT.webFetchNat64Unknown, { host, detail }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchNat64Unknown, { host, detail }),
         fill(UI_TEXT.webFetchNat64Unknown, { host, detail }),
       ]
     }
     case 'tooManyRedirects': {
       return [
-        fill(MODEL_TEXT.webFetchTooManyRedirects, { max: String(WEB_FETCH_MAX_REDIRECTS) }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchTooManyRedirects, {
+          max: String(WEB_FETCH_MAX_REDIRECTS),
+        }),
         fill(UI_TEXT.webFetchTooManyRedirects, { max: formatNumber(WEB_FETCH_MAX_REDIRECTS) }),
       ]
     }
     case 'timeout': {
       return [
-        fill(MODEL_TEXT.webFetchTimeout, { seconds: String(SECONDS) }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchTimeout, { seconds: String(SECONDS) }),
         fill(UI_TEXT.webFetchTimeout, { duration: formatUnit(SECONDS, 'second') }),
       ]
     }
@@ -274,7 +284,7 @@ export function webFetchFailure(
 export function redirectRefused(refusal: WebFetchFailure): WebFetchFailure {
   return {
     kind: refusal.kind,
-    reason: fill(MODEL_TEXT.webFetchRedirectRefused, { reason: refusal.reason }),
+    reason: fill(WEB_FETCH_MODEL_TEXT.webFetchRedirectRefused, { reason: refusal.reason }),
     visibleReason: fill(UI_TEXT.webFetchRedirectRefused, { reason: refusal.visibleReason }),
   }
 }

@@ -71,8 +71,7 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     isRunning: false,
     modelLabel: 'muse-spark-1.3 High',
     permissionMode: 'manual',
-    contextLabel: undefined,
-    contextTitle: undefined,
+    context: undefined,
     paidBadge: undefined,
     onOpenUsage: vi.fn(),
     focusRequests: 0,
@@ -477,6 +476,23 @@ describe('Composer attachments', () => {
     expect(props.onAttachImage).not.toHaveBeenCalled()
   })
 
+  it.each(['.crt', '.cert', '.keystore'])(
+    'refuses a PDF dropped as %s before reading bytes',
+    (name) => {
+      const { props } = renderComposer()
+      const file = new File(['%PDF-1.4'], name, { type: 'application/pdf' })
+      const peek = vi.spyOn(file, 'slice')
+      const read = vi.spyOn(file, 'arrayBuffer')
+      fireEvent.drop(screen.getByRole('contentinfo'), {
+        dataTransfer: { files: [file], getData: () => '' },
+      })
+      expect(props.onRefuseFile).toHaveBeenCalledWith(name, UI_TEXT.textFilePrivate)
+      expect(peek).not.toHaveBeenCalled()
+      expect(read).not.toHaveBeenCalled()
+      expect(props.onAttachImage).not.toHaveBeenCalled()
+    },
+  )
+
   it('reserves aggregate media at header completion across rapid paste and drop', async () => {
     const { props, textarea } = renderComposer()
     const header = new TextEncoder().encode('%PDF-1.4')
@@ -717,11 +733,10 @@ describe('Composer attachments', () => {
 
   it('compacts from the context indicator and shows a dismissible banner (M14)', () => {
     const { props } = renderComposer({
-      contextLabel: '12% context',
-      contextTitle: '120K of 1M tokens · pressure normal · Click to compact now',
+      context: { usedTokens: 120_000, windowTokens: 1_000_000, pressure: 'normal' },
       banner: 'Unsupported file type: audio.node. Supported as uploads: images.',
     })
-    fireEvent.click(screen.getByRole('button', { name: '12% context' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Context 12% used/ }))
     expect(props.onCompact).toHaveBeenCalledTimes(1)
     // Read out by the app's live region, not by an alert of its own (M25).
     expect(screen.getByText(/Unsupported file type: audio\.node/)).toBeInTheDocument()
@@ -798,6 +813,7 @@ describe('Composer chrome', () => {
     const { props, textarea } = renderComposer({ isRunning: true })
     expect(screen.queryByLabelText('Send')).toBeNull()
     expect(textarea).toHaveAttribute('placeholder', 'Queue another message…')
+    expect(screen.getByLabelText('Stop')).toHaveClass('send-button-stop')
     fireEvent.click(screen.getByLabelText('Stop'))
     expect(props.onStop).toHaveBeenCalledOnce()
   })
@@ -806,9 +822,45 @@ describe('Composer chrome', () => {
     const { view, props } = renderComposer()
     expect(screen.queryByTitle(/tokens/)).toBeNull()
     view.rerender(
-      <Composer {...props} contextLabel="12% context" contextTitle="120K of 1M tokens (normal)" />,
+      <Composer
+        {...props}
+        context={{ usedTokens: 120_000, windowTokens: 1_000_000, pressure: 'normal' }}
+      />,
     )
-    expect(screen.getByTitle('120K of 1M tokens (normal)')).toHaveTextContent('12% context')
+    expect(
+      screen.getByTitle(
+        'Context 12% used · 120K of 1M tokens · pressure normal · Click to compact now',
+      ),
+    ).toHaveTextContent('12')
+  })
+
+  it('uses the reported context ring and keeps compact available (M87)', () => {
+    const { props } = renderComposer({
+      context: { usedTokens: 42, windowTokens: 100, pressure: 'normal' },
+    })
+    const meter = screen.getByRole('button', { name: /Context 42% used/ })
+    expect(meter).toHaveTextContent('42')
+    fireEvent.click(meter)
+    expect(props.onCompact).toHaveBeenCalledOnce()
+  })
+
+  it('gives slash rows the same pointer and accessible tip (M87)', () => {
+    const { view, props, textarea } = renderComposer({
+      slashCommands: [
+        {
+          name: 'compact',
+          detail: 'Compact context',
+          tip: 'Free context now.',
+          action: { type: 'compact' },
+        },
+      ],
+    })
+    textarea.focus()
+    type(view, props, '/co')
+    const row = screen.getByRole('option', { name: /compact/ })
+    expect(row).toHaveAttribute('title', 'Free context now.')
+    expect(row).toHaveAttribute('aria-describedby', 'slash-option-0-tip')
+    expect(row).toHaveAccessibleDescription('Free context now.')
   })
 
   it('grows with the draft', () => {

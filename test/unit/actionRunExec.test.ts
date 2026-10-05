@@ -85,6 +85,16 @@ async function until(isDone: () => boolean, withinMs = 10_000): Promise<void> {
   }
 }
 
+/**
+ * A hung fake command's handlers own SIGINT and SIGTERM: its `ready` line
+ * follows them. Its key line comes first, while Node's defaults still apply.
+ */
+function isSignalReady(run: PreparedRun, command: 'exec' | 'scan-secrets'): boolean {
+  return fakeReports(run.paths).some(
+    (line) => line['command'] === command && line['ready'] === true,
+  )
+}
+
 function outFiles(run: PreparedRun): string[] {
   return readdirSync(run.paths.out).toSorted(byText)
 }
@@ -699,7 +709,7 @@ describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
       scan: { mode: 'hang' },
     })
     const running = runProposal(run.input)
-    await until(() => fakeReports(run.paths).some((line) => line['command'] === 'scan-secrets'))
+    await until(() => isSignalReady(run, 'scan-secrets'))
     return { run, running }
   }
 
@@ -843,7 +853,7 @@ describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
       ] as const) {
         const run = await preparedRun(layout, { mode: 'review', exec: { hang: true } })
         const running = runProposal(run.input)
-        await until(() => fakeReports(run.paths).length > 0)
+        await until(() => isSignalReady(run, 'exec'))
         run.test.send(signal)
         const report = await running
         await run.test.owner.cleanup()
@@ -869,7 +879,7 @@ describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
         exec: { hang: true, ignoreSignals: true },
       })
       const running = runProposal(run.input)
-      await until(() => fakeReports(run.paths).length > 0)
+      await until(() => isSignalReady(run, 'exec'))
       run.test.send('SIGTERM')
       await until(() => fakeReports(run.paths).some((line) => line['signal'] === 'SIGTERM'))
       const repeated = Date.now()
@@ -883,7 +893,7 @@ describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
         exec: { hang: true, ignoreSignals: true },
       })
       const fastRun = runProposal(fast.input)
-      await until(() => fakeReports(fast.paths).length > 0)
+      await until(() => isSignalReady(fast, 'exec'))
       const stopped = Date.now()
       fast.test.send('SIGINT')
       const killed = await fastRun

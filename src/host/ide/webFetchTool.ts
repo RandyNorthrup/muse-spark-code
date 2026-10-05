@@ -24,7 +24,8 @@ import * as z from 'zod/mini'
 import type { McpTool } from '../../core/mcp'
 import { WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS } from '../../core/web/webFetchDefinition'
 import type { WebFetcher } from '../../core/web/webFetch'
-import { approvalHost, checkPageUrl } from '../../core/web/pageUrl'
+import { approvalHost } from '../../core/web/hostName'
+import type { PageUrlCheck } from '../../core/web/pageUrl'
 import {
   IDE_WEB_FETCH_TOOL,
   MCP_ANNOTATIONS_OPEN_WORLD,
@@ -37,6 +38,11 @@ import type { Logger } from '../logger'
 export interface IdeWebFetchDeps {
   /** A trusted workspace whose sandbox network setting allows the network. */
   readonly isOffered: () => boolean
+  /**
+   * The URL's first checks (pageUrl.ts), from the web fetch bundle
+   * (webFetchBundle.ts, PLAN.md D6); throws when it cannot be loaded.
+   */
+  readonly checkUrl: (raw: string) => PageUrlCheck
   readonly fetchPage: WebFetcher
   /** The modal before every fetch: true only when the user allowed this one. */
   readonly confirm: (url: string, host: string) => Promise<boolean>
@@ -119,8 +125,9 @@ async function callWebFetch(
   if (!parsed.success) {
     throw new Error(`invalid arguments: ${z.prettifyError(parsed.error)}`)
   }
-  // A URL that would be refused anyway is refused before the modal.
-  const checked = checkPageUrl(parsed.data.url)
+  // A URL that would be refused anyway is refused before the modal, and so
+  // is every URL while the fetch's bundle cannot be loaded.
+  const checked = deps.checkUrl(parsed.data.url)
   if (!checked.ok) {
     throw new Error(checked.failure.reason)
   }

@@ -1,5 +1,6 @@
 **
 !dist/extension.js
+!dist/tab.js
 !dist/modelApi.js
 !dist/sessionBoard.js
 !dist/reviewer.js
@@ -11,6 +12,7 @@
 !dist/bundledSkills.js
 !dist/codeIntel.js
 !dist/voice.js
+!dist/webFetch.js
 !dist/museCodeReviewer.js
 !dist/uiText.js
 !dist/searchWorker.js

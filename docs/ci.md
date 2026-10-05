@@ -2,10 +2,11 @@
 
 M80 integration guide, 2026-10-02. All four implementation lanes (A contracts,
 B engine and CLI, C Action, D packaging and docs) are integrated, and their
-fake-only tests pass on Linux, macOS and Windows. The hosted `action-check.yml`
-matrix, the live receipts L and LA, and after release LR are still open: this
-page does not claim certified headless or Action support, nor npm-registry
-Action support. Command receipts and precise claim limits live in
+fake-only tests pass on Linux, macOS and Windows. The live receipt LA passed on
+2026-10-05 for main at `30de7c89`, using the unsigned candidate package. The
+hosted `action-check.yml` matrix, the live receipt L, and after release LR are
+still open, so this page does not claim certified headless or Action support,
+nor npm-registry Action support. Command receipts and precise claim limits live in
 [m80.md](certification/m80.md).
 
 ## One prompt, one workspace, one turn
@@ -465,7 +466,8 @@ Save each as its own workflow. Before use, lead must replace every `<commit-sha>
 with the same **reviewed immutable integrated Action SHA**, configure repository
 secret `MUSE_MODEL_API_KEY` through a hidden secure UI/prompt, and create
 `muse-apply` environment with maintainer reviewers. The Action is integrated,
-but no reviewed immutable Action SHA or operational receipt (LA) exists yet.
+but no reviewed immutable Action SHA is named for these templates yet. LA's
+operational receipt covers main at `30de7c89` with the candidate package only.
 These complete templates are not supported-run claims. Do not use moving tags,
 pull_request_target, fork secrets, or put model key in test/push jobs.
 
@@ -577,11 +579,32 @@ manifest and never invoke apply. Contributor $0.10 refuses below $0.108135
 before any billable call. W also requires startup/env/argv traps, trusted gate
 drills and exact digest/head/lease bare-repo apply tests on Linux/macOS/Windows.
 
+`.github/workflows/action-live.yml` is LA's workflow. Only the repository
+owner starts it, by hand (`workflow_dispatch`, on the default branch; no other
+trigger). It packs the product package from the dispatched commit, checks its
+digest, and runs `./action` on Ubuntu against one open same-repository pull
+request in review or text (fix) mode. The run uses the real
+`MUSE_MODEL_API_KEY`, `muse-spark-1.3-contributor`, a $0.25 cap, a 10-minute
+deadline, `contents: read` and `pull-requests: read`, and posts no comment. W's
+startup traps and token sentinel apply. `test/action/la-check.mjs` requires a
+completed result within the cap and no fired trap, sentinel or key-shaped
+string in the published outputs. The step summary records the commit, the
+`action/` tree, the package SHA-256, the outputs and the ledger.
+
 | Receipt                   | Needed before claim                                 | Scope / limitation                                                                                                                                |
 | ------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | L, pending                | reviewed local text + PNG + one-page PDF            | actual runtime/auth/stream/media/replay/accounting and credential-free captures; not universal billing/Action isolation                           |
-| LA, pending               | reviewed candidate Action + real MUSE_MODEL_API_KEY | exact same-repo PR/dispatch, immutable Action/package digests, run/jobs/comment/artifact/usage links and masking evidence; unsigned, not registry |
+| LA, done 2026-10-05       | reviewed candidate Action + real MUSE_MODEL_API_KEY | exact same-repo PR/dispatch, immutable Action/package digests, run/jobs/comment/artifact/usage links and masking evidence; unsigned, not registry |
 | LR, pending after release | exact published package + npm verified chain        | bundle/lock/registry/subject/certificate hashes, release/action/run/result links; no claim for other/future versions                              |
+
+The LA receipt is
+[run 37249121568](https://github.com/RandyNorthrup/muse-spark-code/actions/runs/37249121568).
+It reviewed the same-repository draft pull request #114 at head `9efcdbce`,
+using `muse-spark-code-acp-0.12.1.tgz` (SHA-256 `64bf51c7…63ee7d`) and the
+`action/` tree `64e1a69f`. The run completed with exit 0, 5 requests and
+$0.001668 settled. Neither key shape appears in the log or the artifacts, and
+it posted no comment, because the workflow posts none. Every field is in
+[m80.md](certification/m80.md).
 
 Capture exact tree/package SHA-256, fixture hashes, workspace, sanitized wire,
 M/reservations/settlement/usage and actual model-attempt counts. Small live text
