@@ -2408,5 +2408,6 @@
   "ollamaMissingFinal": "Ollama zamknęła strumień bez końcowej odpowiedzi.",
   "ollamaMalformedFrame": "Nieprawidłowa ramka strumienia Ollama.",
   "ollamaStreamLimit": "Ollama przekroczyła limit rozmiaru strumienia lub liczby elementów.",
-  "ollamaFinishReason": "Ollama zakończyła działanie z powodu „{reason}”."
+  "ollamaFinishReason": "Ollama zakończyła działanie z powodu „{reason}”.",
+  "incompleteToolCallsNotRun": "Odpowiedź modelu została ucięta. Żadne wywołanie narzędzia nie zostało wykonane; spróbuj ponownie."
 }

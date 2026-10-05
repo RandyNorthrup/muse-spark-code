@@ -2326,5 +2326,6 @@
   "ollamaMissingFinal": "Ollama fechou o fluxo sem uma resposta final.",
   "ollamaMalformedFrame": "Quadro do fluxo do Ollama malformado.",
   "ollamaStreamLimit": "Ollama excedeu o limite de tamanho do fluxo ou de itens.",
-  "ollamaFinishReason": "Ollama terminou com o motivo \"{reason}\"."
+  "ollamaFinishReason": "Ollama terminou com o motivo \"{reason}\".",
+  "incompleteToolCallsNotRun": "A resposta do modelo foi truncada. Nenhuma chamada de ferramenta foi executada; tente novamente."
 }

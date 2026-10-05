@@ -2408,5 +2408,6 @@
   "ollamaMissingFinal": "Ollama закрыла поток без окончательного ответа.",
   "ollamaMalformedFrame": "Некорректный кадр потока Ollama.",
   "ollamaStreamLimit": "Ollama превысила предел размера потока или числа элементов.",
-  "ollamaFinishReason": "Ollama завершилась с причиной «{reason}»."
+  "ollamaFinishReason": "Ollama завершилась с причиной «{reason}».",
+  "incompleteToolCallsNotRun": "Ответ модели был обрезан. Ни один вызов инструмента не выполнен; попробуйте снова."
 }

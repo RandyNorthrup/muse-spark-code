@@ -3636,6 +3636,14 @@ export class ModelApiSession implements AgentSession {
       this.skipCalls(turnId, calls, post.blockedReason)
       throw new HookStoppedError(post.blockedReason)
     }
+    if (final.status === 'incomplete' && final.output.some((item) => isFunctionCallItem(item))) {
+      throw new ModelApiError(
+        UI_TEXT.incompleteToolCallsNotRun,
+        0,
+        undefined,
+        'response_incomplete',
+      )
+    }
     return { calls, goalCommandRevision, postContexts: post.contexts }
   }
 
@@ -3731,19 +3739,29 @@ export class ModelApiSession implements AgentSession {
       } else if (isFunctionCallItem(item)) {
         isReasoningLast = false
         this.replay.push({ turnId, item })
-        // A reply cut short by the output limit (M101): a call it left
-        // uncompleted is answered with an error, never run — its arguments
-        // may be half-formed. Every codec maps its cut-short stop to this
-        // canonical incomplete status; a completed call still runs.
-        if (response.status === 'incomplete' && item.status !== COMPLETED) {
-          this.replay.push({
+        // A cut-short reply refuses every call, including items marked
+        // completed. All codecs map their output-limit stop to incomplete.
+        if (response.status === 'incomplete') {
+          const started: ItemSnapshot = {
+            itemId: this.deps.newId(),
+            kind: 'toolCall',
+            status: IN_PROGRESS,
             turnId,
-            item: {
-              type: 'function_call_output',
-              call_id: item.call_id,
-              output: `Error: ${MODEL_API_MODEL_TEXT.incompleteCallNotRun}`,
-            },
-          })
+            tool: item.name,
+            args: item.arguments,
+          }
+          this.recordTranscript(turnId, started)
+          this.emit({ type: 'itemStarted', item: started })
+          this.finishCall(
+            turnId,
+            started,
+            item,
+            toolFailure(
+              MODEL_API_MODEL_TEXT.incompleteCallNotRun,
+              UI_TEXT.incompleteToolCallsNotRun,
+            ),
+            FAILED,
+          )
         } else {
           calls.push(item)
         }

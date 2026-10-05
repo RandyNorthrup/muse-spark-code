@@ -2162,5 +2162,6 @@
   "ollamaMissingFinal": "Ollama在沒有最終回答的情況下關閉了資料流。",
   "ollamaMalformedFrame": "Ollama資料流框架格式錯誤。",
   "ollamaStreamLimit": "Ollama超出了資料流大小或項目數量限制。",
-  "ollamaFinishReason": "Ollama已結束，原因為「{reason}」。"
+  "ollamaFinishReason": "Ollama已結束，原因為「{reason}」。",
+  "incompleteToolCallsNotRun": "模型回覆遭截斷。未執行任何工具呼叫，請重試。"
 }

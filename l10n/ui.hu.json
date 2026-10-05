@@ -2244,5 +2244,6 @@
   "ollamaMissingFinal": "Az Ollama végső válasz nélkül lezárta az adatfolyamot.",
   "ollamaMalformedFrame": "Hibás Ollama-adatfolyamkeret.",
   "ollamaStreamLimit": "Az Ollama túllépte az adatfolyam méret- vagy elemszámkorlátját.",
-  "ollamaFinishReason": "Az Ollama ezzel az indokkal fejeződött be: „{reason}”."
+  "ollamaFinishReason": "Az Ollama ezzel az indokkal fejeződött be: „{reason}”.",
+  "incompleteToolCallsNotRun": "A modell válasza megszakadt. Egyetlen eszközhívás sem futott le; próbálja újra."
 }

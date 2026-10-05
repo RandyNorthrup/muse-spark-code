@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M101 tool safety: cut-short replies refuse every tool call, including
+  completed items, show failed tool rows and explain why the turn failed
+  across all five provider codecs.
+
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage
   loads on demand with a dismissible loading modal. Chat's unchanged startup

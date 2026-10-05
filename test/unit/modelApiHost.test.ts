@@ -16214,8 +16214,8 @@ describe('ModelApiHost: taking a message back before a request reads it (M87, PL
     await turnDone()
   })
 
-  describe('a cut-short reply never runs its uncompleted calls (M101 item 8)', () => {
-    it('answers an uncompleted call with an error while a completed one still runs', async () => {
+  describe('a cut-short reply never runs any calls (M101 item 8)', () => {
+    it('refuses completed and uncompleted calls and reports a failed turn', async () => {
       const t = setup({ files: { 'a.txt': 'alpha\n' } })
       const { session, events, turnDone } = await startSession(t)
       t.api.script(
@@ -16235,21 +16235,25 @@ describe('ModelApiHost: taking a message back before a request reads it (M87, PL
       )
       await session.sendTurn([{ type: 'text', text: 'read it' }])
       await turnDone()
-      // The cut call never dispatched: exactly one tool row completed.
+      expect(events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'failed',
+        reason: UI_TEXT.incompleteToolCallsNotRun,
+      })
+      // Both calls have visible failed rows, neither reads the file.
       expect(
         kinds(events).filter((kind) => kind.startsWith('itemCompleted:toolCall')),
-      ).toHaveLength(1)
+      ).toHaveLength(2)
       t.api.script({ text: 'done' })
       await session.sendTurn([{ type: 'text', text: 'and then' }])
       await turnDone()
       const bodies = t.api.responseBodies()
       expect(bodies.length).toBeGreaterThanOrEqual(2)
-      // The cut call is answered with an error; the completed one ran.
+      // Every refused call is paired with an error in the next user turn.
       expect(outputFor(bodies[1], 'call_cut')).toMatchObject({
         output: `Error: ${MODEL_API_MODEL_TEXT.incompleteCallNotRun}`,
       })
       expect(outputFor(bodies[1], 'call_ok')).toMatchObject({
-        output: expect.stringContaining('alpha'),
+        output: `Error: ${MODEL_API_MODEL_TEXT.incompleteCallNotRun}`,
       })
     })
   })

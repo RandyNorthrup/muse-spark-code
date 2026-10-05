@@ -623,6 +623,7 @@ export const EN = {
   toolReadPdfInvalid: 'The file `{path}` has a PDF name but no PDF header.',
   toolReadImageInvalid: 'The file `{path}` is not a supported image.',
   toolVisualFileMissing: 'The file `{path}` was not found.',
+  incompleteToolCallsNotRun: 'The model reply was cut short. No tool calls were run; please retry.',
   toolVisualReadFailed: 'The file `{path}` could not be read.',
   // M69 (PLAN.md D49): web fetch. The row's line under a fetched page: its
   // size and content type (text/html).

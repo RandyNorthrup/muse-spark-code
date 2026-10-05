@@ -2162,5 +2162,6 @@
   "ollamaMissingFinal": "Ollama가 최종 답변 없이 스트림을 닫았습니다.",
   "ollamaMalformedFrame": "잘못된 Ollama 스트림 프레임입니다.",
   "ollamaStreamLimit": "Ollama가 스트림 크기 또는 항목 수 제한을 초과했습니다.",
-  "ollamaFinishReason": "Ollama가 \"{reason}\" 사유로 종료되었습니다."
+  "ollamaFinishReason": "Ollama가 \"{reason}\" 사유로 종료되었습니다.",
+  "incompleteToolCallsNotRun": "모델 응답이 잘렸습니다. 도구 호출이 실행되지 않았습니다. 다시 시도하세요."
 }

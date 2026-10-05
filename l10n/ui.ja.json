@@ -2162,5 +2162,6 @@
   "ollamaMissingFinal": "Ollamaが最終回答なしでストリームを閉じました。",
   "ollamaMalformedFrame": "Ollamaのストリームフレームが不正です。",
   "ollamaStreamLimit": "Ollamaがストリームサイズまたは項目数の上限を超えました。",
-  "ollamaFinishReason": "Ollamaが理由「{reason}」で終了しました。"
+  "ollamaFinishReason": "Ollamaが理由「{reason}」で終了しました。",
+  "incompleteToolCallsNotRun": "モデルの応答が途中で切れました。ツールの呼び出しは実行されていません。もう一度お試しください。"
 }

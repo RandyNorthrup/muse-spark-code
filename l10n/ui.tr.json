@@ -2244,5 +2244,6 @@
   "ollamaMissingFinal": "Ollama son yanıt olmadan akışı kapattı.",
   "ollamaMalformedFrame": "Bozuk Ollama akış çerçevesi.",
   "ollamaStreamLimit": "Ollama akış boyutu veya öğe sınırını aştı.",
-  "ollamaFinishReason": "Ollama \"{reason}\" nedeniyle sona erdi."
+  "ollamaFinishReason": "Ollama \"{reason}\" nedeniyle sona erdi.",
+  "incompleteToolCallsNotRun": "Model yanıtı kesildi. Hiçbir araç çağrısı çalıştırılmadı; yeniden deneyin."
 }

@@ -15746,19 +15746,30 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   - [ ] Lane E's live counts and cached-token results
   - [ ] Provider × item table complete; full gate green
 
-Lane T status (2026-10-05, record `docs/certification/m101-t.md`): items
-4, 8, 9, 12, 13, 14, 15, 18 and 20 are done, each with a unit test that
-fails without the item and a byte-exact red drill; item 21 is residual
-(no pixel resizer without a new dependency, preset image limits pending
-in lane P2, no host capability lookup on this base). The shared
-tool/packing paths serve every provider, so the provider × item table
-names a capability per item rather than a provider split; the only live
-request-bytes change is the additive `edits` array property on the
-`edit_file` definition (cache-stable prefix head untouched). Lane E
-should cover multi-edit tasks in its M75 re-run; lane C1 keeps the
-`then_run` guard.
+FIXM101T review repair (2026-10-05): address RVM101T findings 1–15 in
+this lane's tool, resolver, packing and incomplete-response paths, with ACP
+path parity and regression/drill records. No dependencies, paid/live calls,
+guard widening, main merge or push. Run lane gates directly on macmini;
+the lead owns full quality. Item 21 requires the preset limits/capability
+seam and a cross-platform pixel decoder; assess that redesign explicitly
+and record a named residual if it cannot fit the no-dependency constraint.
+
+Lane T review repair (FIXM101T, 2026-10-05): findings 1/12 are fixed:
+all calls in an incomplete reply are paired with errors, shown as failed
+rows and never dispatched; the turn fails visibly. Capture-mutation tests
+cover all five codecs with red drills. Other tool/packing repairs are
+being re-certified. The original lane's drill, test-count and byte claims
+are withdrawn; `docs/certification/m101-t.md` is the authoritative record.
+Item 21 remains a named integration redesign until pixel resizing and the
+per-model limit/capability seam exist. Lane E must still run M75 multi-edit
+comparability; this lane makes no paid/live calls.
 
 ## 7. Gates
+
+**FIXM101T lane receipt:** the rig/common brief forbids a full quality run
+and main merges here; the lead must run full `npm run quality` before
+integration. Direct lane checks, build caps and red drills are recorded in
+`docs/certification/m101-t.md`; no gate is weakened.
 
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
