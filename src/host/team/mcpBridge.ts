@@ -8,6 +8,7 @@ import {
   MODEL_TEXT,
   MODEL_API_MODEL_TEXT,
   CHECK_DEFAULT_TIMEOUT_SECONDS,
+  UI_TEXT,
   type CheckCommandSetting,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -75,20 +76,34 @@ export function bridgeRunChecks(deps: BridgeChecksDeps): {
               names: checks.map((candidate) => candidate.name).join(', '),
             }),
           )
-        const line = checkCommandLine(check, paths, deps.platform)
+        const line = checkCommandLine(check, paths, 'linux')
         if (!line.ok) throw new Error(line.reason)
-        return { check, line: line.line }
+        return check
       })
       if (chosen.length === 0) throw new Error(MODEL_API_MODEL_TEXT.runChecksNone)
       const results: CheckResult[] = []
-      for (const { check, line } of chosen) {
+      for (const check of chosen) {
         admit()
+        const scopedJob = async (job: CheckJob, platform: NodeJS.Platform) => {
+          admit()
+          const scoped = checkCommandLine({ ...check, command: job.command }, paths, platform)
+          if (!scoped.ok) throw new Error(scoped.reason)
+          const command = await deps.guard({ ...job, command: scoped.line })
+          admit()
+          job.signal.throwIfAborted()
+          if (!deps.routing.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
+          if (command.trim() === '') throw new Error(UI_TEXT.hookInputNoCommand)
+          return { ...job, command }
+        }
         results.push(
-          await routeWorkerCheck(deps.makeJob(line, checkTimeoutMs(check)), {
+          await routeWorkerCheck(deps.makeJob(check.command, checkTimeoutMs(check)), {
             runners: deps.runners,
             routing: {
               ...deps.routing,
               isTrusted: () => deps.routing.isTrusted() && deps.isCurrentAndAllowed(),
+              remote: async (runner, job) =>
+                await deps.routing.remote(runner, await scopedJob(job, runner.os)),
+              local: async (job) => await deps.routing.local(await scopedJob(job, deps.platform)),
             },
             guard: async (job) => {
               admit()

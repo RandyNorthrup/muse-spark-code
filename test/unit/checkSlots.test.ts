@@ -110,6 +110,40 @@ describe('persistent check slots', () => {
     expect(await readFile(path.join(folder, 'installs'), 'utf8')).toBe('xx')
     expect(slots.states()).toEqual([{ id: 0, busy: false, uncertain: false }])
   })
+  it('owns persistent objects after the first task copy is removed', async () => {
+    const { deps, job, worker, folder } = await fixture()
+    const slots = new CheckSlots(deps)
+    expect(await slots.run(job)).toMatchObject({ exitCode: 0 })
+    await rm(worker, { recursive: true })
+    const next = path.join(folder, 'next-worker')
+    await git(folder, 'clone', deps.repositoryRoot, next)
+    await writeFile(path.join(next, 'tracked.txt'), 'next-edit')
+    await writeFile(path.join(next, 'untracked.txt'), 'next-untracked')
+    expect(await slots.run({ ...job, cwd: next, runId: 'next-task' })).toMatchObject({
+      exitCode: 0,
+      output: 'next-edit next-untracked\n',
+    })
+    await expect(
+      readFile(path.join(deps.root, '0', 'copy', '.git', 'objects', 'info', 'alternates')),
+    ).rejects.toThrow()
+  })
+  it('releases snapshot ownership on cancellation and Git failures with proven retirement', async () => {
+    for (const phase of ['cancel', 'trust', 'gitFailure']) {
+      const { deps, job } = await fixture()
+      const controller = new AbortController()
+      let isTrusted = true
+      const run = vi.fn<CheckProcess>(async (request) => {
+        const result = await processRun(request)
+        if (phase === 'cancel') controller.abort()
+        else if (phase === 'trust') isTrusted = false
+        return { ...result, exitCode: phase === 'gitFailure' ? 1 : result.exitCode }
+      })
+      const slots = new CheckSlots({ ...deps, run, isTrusted: () => isTrusted })
+      await expect(slots.run({ ...job, signal: controller.signal })).rejects.toThrow()
+      expect(run).toHaveBeenCalledTimes(1)
+      expect(slots.states()).toEqual([{ id: 0, busy: false, uncertain: false }])
+    }
+  })
   it('hashes binary lockfiles without collapsing distinct invalid UTF-8 bytes', async () => {
     const { deps, job, worker, folder } = await fixture()
     const slots = new CheckSlots(deps)

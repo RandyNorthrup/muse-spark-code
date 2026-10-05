@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Team checks validate and quote scoped files for the destination operating
+  system and guard the final command before dispatch. Persistent check slots
+  own their Git objects and release cancelled snapshots only when every
+  launched child has proved retirement.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

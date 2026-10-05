@@ -18442,6 +18442,16 @@ serve`."
 
 ### M96c — Scheduler and traffic (D75)
 
+**Lane O review repair (FIXM96CO, 2026-10-05).** Address RVM96CO findings
+1–7: destination-OS scoped validation/quoting with final-command guards;
+self-contained persistent clones; per-child snapshot retirement accounting;
+owner-checked cache lock cleanup after retirement with a recorded expiry;
+raw-byte output prefix checks and incremental UTF-8 decoding; translated
+Windows command-line refusal before dispatch (including native launch lines);
+and the PowerShell job statement separator plus a native parser/run test.
+Regressions and byte-exact red drills are recorded in `docs/certification/m96c-o.md`.
+No dependency, paid call, remote connection, or guard widening is authorized.
+
 **Status 2026-10-04: planned, round 3 (redesign), amended in round 4 for
 Codex's third review (`RVM96C3`: three P1, five P2, one P3).** This milestone
 builds

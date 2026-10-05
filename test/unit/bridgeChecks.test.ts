@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { bridgeRunChecks, type BridgeChecksDeps } from '../../src/host/team/mcpBridge'
 import { routeWorkerCheck } from '../../src/core/team/workers/engineWorker'
+import type { Runner } from '../../src/shared/team'
+import { runnerTestProcess } from './helpers/runnerProcesses'
 import type { CheckJob } from '../../src/core/runners/routing'
 import { VERIFY_TOOLS, CHECK_COMMANDS_MAX } from '../../src/shared/constants'
 
@@ -59,6 +61,134 @@ describe('bridge run_checks and engine test-command region', () => {
     expect(deps.pack).toHaveBeenCalledExactlyOnceWith([
       expect.objectContaining({ output: 'x'.repeat(20_000) }),
     ])
+  })
+  it('quotes scoped files for the declared runner OS and guards the final command', async () => {
+    const deps = dependencies()
+    const runner: Runner = {
+      id: 'mac',
+      destination: 'fake',
+      os: 'darwin',
+      workFolder: '/rig',
+      maxJobs: 1,
+      labels: [],
+      commandClasses: ['tests'],
+      setupCommand: 'npm ci',
+      cacheKey: 'npm',
+      environmentNames: [],
+    }
+    const remote = vi.fn<BridgeChecksDeps['routing']['remote']>(async (_, job) => {
+      const result = await runnerTestProcess({
+        file: '/bin/bash',
+        args: ['-c', job.command],
+        cwd: process.cwd(),
+        env: {},
+        timeoutMs: 2000,
+      })
+      return {
+        kind: 'finished',
+        result: {
+          runId: job.runId,
+          exitCode: result.exitCode,
+          output: result.output,
+          location: runner.id,
+        },
+      }
+    })
+    const answer = await bridgeRunChecks({
+      ...deps,
+      platform: 'win32',
+      checks: () => [
+        {
+          name: 'unit',
+          command: `'${process.execPath}' -e 'console.log(JSON.stringify(process.argv.slice(1)))'`,
+          changedFiles: true,
+        },
+      ],
+      runners: () => [runner],
+      routing: {
+        ...deps.routing,
+        sample: () =>
+          Promise.resolve({ cores: 2, load: 0, freeSlots: 1, inputReady: true, sampledAt: 0 }),
+        remote,
+      },
+    }).call({ paths: ["test/O'Brien.test.ts"] })
+    expect(answer).toMatchObject({
+      packed: [{ exitCode: 0, output: JSON.stringify(["test/O'Brien.test.ts"]) + '\n' }],
+    })
+    expect(deps.guard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: expect.stringContaining(String.raw`'test/O'\''Brien.test.ts'`),
+      }),
+    )
+  })
+  it('refuses Windows-unsafe scoped paths on a Windows runner from a POSIX host', async () => {
+    const deps = dependencies()
+    const runner: Runner = {
+      id: 'win',
+      destination: 'fake',
+      os: 'win32',
+      workFolder: 'C:/rig',
+      maxJobs: 1,
+      labels: [],
+      commandClasses: ['tests'],
+      setupCommand: 'npm ci',
+      cacheKey: 'npm',
+      environmentNames: [],
+    }
+    await expect(
+      bridgeRunChecks({
+        ...deps,
+        runners: () => [runner],
+        routing: {
+          ...deps.routing,
+          sample: () =>
+            Promise.resolve({ cores: 2, load: 0, freeSlots: 1, inputReady: true, sampledAt: 0 }),
+        },
+      }).call({ paths: ['test/a&b.test.ts'] }),
+    ).rejects.toThrow()
+    expect(deps.routing.remote).not.toHaveBeenCalled()
+    expect(deps.routing.local).not.toHaveBeenCalled()
+  })
+  it('rechecks trust, cancellation and refusal after the destination-command guard', async () => {
+    for (const mode of ['trust', 'cancel', 'empty', 'denied']) {
+      const deps = dependencies()
+      const controller = new AbortController()
+      let isTrusted = true
+      let guards = 0
+      const guarded = bridgeRunChecks({
+        ...deps,
+        makeJob: (command, timeoutMs) => ({
+          ...deps.makeJob(command, timeoutMs),
+          signal: controller.signal,
+        }),
+        guard: (job) => {
+          guards += 1
+          if (guards === 2) {
+            switch (mode) {
+              case 'trust': {
+                isTrusted = false
+                break
+              }
+              case 'cancel': {
+                controller.abort()
+                break
+              }
+              case 'denied': {
+                return Promise.reject(new Error('final command denied'))
+              }
+              default: {
+                return Promise.resolve('')
+              }
+            }
+          }
+          return Promise.resolve(job.command)
+        },
+        routing: { ...deps.routing, isTrusted: () => isTrusted },
+      })
+      await expect(guarded.call({ paths: ['test/a.test.ts'] })).rejects.toThrow()
+      expect(deps.routing.local).not.toHaveBeenCalled()
+      expect(deps.pack).not.toHaveBeenCalled()
+    }
   })
   it('dispatches the command after a hook rewrite and refuses an empty hook command', async () => {
     const deps = dependencies()

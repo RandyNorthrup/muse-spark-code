@@ -384,3 +384,38 @@ failed the Windows-routing case. Reserved `os:` labels now match the
 runner's declared OS only. Removing that branch failed the same named test
 and restored byte-exact SHA-256 `3ccedc8ea745af68b0ed408132dcb5db032d67238bfdf2698e034f94084a0190`.
 The whole routing file then passed all 10 tests; host typecheck was rerun.
+
+## RVM96CO repair — FIXM96CO (2026-10-05)
+
+Findings 1–3 are fixed. The bridge performs common unsafe-path validation,
+then builds and guards the exact scoped command for the selected runner's
+OS (or the local OS on fallback). Hook rewrites retain final-command
+admission; trust, cancellation and the authenticated attempt are checked
+again before dispatch. Slots use `clone --no-local --no-checkout`, which
+also prevents a source clone's alternates file from being copied. Snapshot
+uncertainty is updated for each launched child before the next admission.
+Missing proof and rejected transports still retain ownership.
+
+Regression tests: `quotes scoped files for the declared runner OS and guards
+the final command`, `refuses Windows-unsafe scoped paths on a Windows runner
+from a POSIX host`, `owns persistent objects after the first task copy is
+removed`, and `releases snapshot ownership on cancellation and Git failures
+with proven retirement`. The real Bash/Node regression receives the exact
+`test/O'Brien.test.ts` argument. The slot regression deletes task A's copy
+before running task B and asserts there is no alternates file.
+
+Deliberate drills ran the complete owned test files (no name filters):
+
+| Finding | Mutation                                                | Named failure                                                                       | Restored SHA-256                                                   |
+| ------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 1       | Replace runner OS with host platform at scoped dispatch | Both destination-OS regressions above                                               | `f24ebbbe3788ec60744c5d2242eb38a53767384694d9ff775d160104dc00394d` |
+| 2       | Replace `--no-local` with `--shared`                    | owns persistent objects after the first task copy is removed                        | `118dccd72117832bca41c8e0ebe81f579593a8fec5b38e27e069edc057dea75c` |
+| 3       | Keep snapshot child uncertainty after proved retirement | releases snapshot ownership on cancellation and Git failures with proven retirement | `118dccd72117832bca41c8e0ebe81f579593a8fec5b38e27e069edc057dea75c` |
+
+Each drill exited 1 and restored the exact original bytes with SHA-256
+comparison. An initial finding-3 mutation targeted the ordinary command's
+retirement assignment instead of the snapshot wrapper; existing lifecycle
+tests caught it. The targeted snapshot mutation then failed the new test.
+The first object-ownership regression also exposed Git's copied alternates
+file when merely removing `--shared`; `--no-local` fixes that case.
+Findings 4–7 and final verification are being completed in the next piece.

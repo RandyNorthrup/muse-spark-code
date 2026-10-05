@@ -226,11 +226,18 @@ export class CheckSlots {
     const home = path.join(this.deps.root, String(slot.id))
     const cwd = path.join(home, 'copy')
     await mkdir(home, { recursive: true })
-    slot.uncertain = true
     const snapshot = await captureCheckSnapshot(
       job.cwd,
       path.join(this.deps.root, 'snapshots'),
-      this.deps,
+      {
+        ...this.deps,
+        run: async (request) => {
+          slot.uncertain = true
+          const result = await this.deps.run(request)
+          slot.uncertain = !result.descendantsEnded
+          return result
+        },
+      },
       () => {
         this.admit(job)
       },
@@ -240,7 +247,7 @@ export class CheckSlots {
       await realpath(path.join(cwd, '.git'))
     } catch (error: unknown) {
       if (!isMissingPath(error)) throw error
-      await this.git(['clone', '--shared', '--no-checkout', '--', job.cwd, cwd], home, job, slot)
+      await this.git(['clone', '--no-local', '--no-checkout', '--', job.cwd, cwd], home, job, slot)
       await this.git(['remote', 'remove', 'origin'], cwd, job, slot)
     }
     await this.copyGuard(cwd)
