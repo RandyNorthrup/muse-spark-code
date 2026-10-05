@@ -127,6 +127,42 @@ describe('M98-2j captured model provenance', () => {
     )
   })
 
+  it('refuses blobs that never matched in one consistent snapshot', async () => {
+    const fixture = await diskModel()
+    const template = Buffer.from('synthetic template')
+    const digest = createHash('sha256').update(template).digest('hex')
+    const templatePath = path.join(fixture.root, 'blobs', `sha256-${digest}`)
+    const decoded: unknown = JSON.parse((await readFile(fixture.manifestPath)).toString())
+    const manifest = { ...capture.manifest, config: capture.manifest.config, layers: [] }
+    // This fixture uses the already captured manifest shape, with synthetic blobs only.
+    if (!decoded || typeof decoded !== 'object' || !('config' in decoded) || !('layers' in decoded))
+      throw new Error('invalid test manifest')
+    const bytes = Buffer.from(JSON.stringify({
+      ...manifest,
+      config: decoded.config,
+      layers: [
+        ...(Array.isArray(decoded.layers) ? decoded.layers : []),
+        { mediaType: 'application/vnd.ollama.image.template', digest: `sha256:${digest}`, size: template.length },
+      ],
+    }))
+    await writeFile(fixture.manifestPath, bytes)
+    fixture.tags.models[0]!.digest = createHash('sha256').update(bytes).digest('hex')
+    await writeFile(templatePath, Buffer.alloc(template.length))
+    const sample = fileIdentity.statIdentity
+    let weightReads = 0
+    vi.spyOn(fileIdentity, 'statIdentity').mockImplementation(async (file) => {
+      const result = await sample(file)
+      if (file === fixture.blobPath && ++weightReads === 2) {
+        await writeFile(fixture.blobPath, Buffer.alloc(fixture.content.length))
+        await writeFile(templatePath, template)
+      }
+      return result
+    })
+    await expect(verifyDiskModel(fixture.tags, 'test:latest', fixture.root)).rejects.toThrow(
+      'unverified-blob',
+    )
+  })
+
   it('refuses a redirected blob directory even when every digest matches', async () => {
     const fixture = await diskModel()
     const blobs = path.join(fixture.root, 'blobs')

@@ -1837,5 +1837,11 @@
   "agentImportIgnoredToTracked": "bu, Git tarafından yok sayılan bir dosyayı izlenen bir dosyaya kopyalar",
   "agentImportEditPrompt": "Dönüştürülen girdiler {path} içinde inceleyip kaydetmeniz için kaydedilmemiş bir düzenleme olarak açılsın mı? Yalnızca bu yola kaydedin, asla başka bir dosyaya kaydetmeyin.",
   "agentImportEditAction": "Dosyayı düzenle ve aç",
-  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez."
+  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez.",
+  "judgeSourceSame": "Kendi sohbet modeliniz",
+  "judgeSourceSeparate": "Ayrı değerlendirici",
+  "judgeSourceBoth": "Kendi modeliniz ve ayrı değerlendirici",
+  "judgeLocalUnverified": "Doğrulanmamış yerel uç nokta",
+  "judgeSourceUntested": "Deneysel, test edilmemiş; açık onay gerekli",
+  "judgeNoAnswer": "Değerlendirici yanıt vermedi ({reason}). Mevcut kontroller ve onaylar geçerliliğini korur."
 }

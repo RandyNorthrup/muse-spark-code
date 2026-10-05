@@ -26,8 +26,17 @@ import {
 export const JUDGE_SOURCES = ['same', 'separate', 'both'] as const
 export type JudgeSource = (typeof JUDGE_SOURCES)[number]
 
-/** How the verdict was read. Phase 1 only; later sections add their own. */
-export const JUDGE_TECHNIQUES = ['logprob', 'top1', 'stated'] as const
+/** Phase-2 techniques are contract values; each runtime waits for its own gates. */
+export const JUDGE_TECHNIQUES = [
+  'logprob',
+  'top1',
+  'stated',
+  'systemone',
+  'sampling',
+  'contrastive',
+  'cascade',
+  'embedding',
+] as const
 export type JudgeTechnique = (typeof JUDGE_TECHNIQUES)[number]
 
 /**
@@ -188,6 +197,8 @@ export const judgeMuseSchema = z.object({
   partial: z.boolean(),
   reservedCostUsd: z.optional(z.number().check(z.nonnegative())),
   settledCostUsd: z.optional(z.number().check(z.nonnegative())),
+  uncertainCostUsd: z.optional(z.number().check(z.nonnegative())),
+  profileId: z.optional(z.string().check(z.minLength(1))),
 })
 export type JudgeMuse = z.infer<typeof judgeMuseSchema>
 
@@ -254,6 +265,7 @@ export interface JudgeLogMuse {
   readonly confidence: number
   readonly reservedCostUsd?: number
   readonly settledCostUsd?: number
+  readonly uncertainCostUsd?: number
 }
 
 export interface JudgeLogSummary {
@@ -283,6 +295,7 @@ export function judgeLogSummary(result: JudgeResult): JudgeLogSummary {
       confidence: meta.confidence,
       ...(meta.reservedCostUsd !== undefined && { reservedCostUsd: meta.reservedCostUsd }),
       ...(meta.settledCostUsd !== undefined && { settledCostUsd: meta.settledCostUsd }),
+      ...(meta.uncertainCostUsd !== undefined && { uncertainCostUsd: meta.uncertainCostUsd }),
     }
   }
   return {
@@ -295,3 +308,89 @@ export function judgeLogSummary(result: JudgeResult): JudgeLogSummary {
     muse,
   }
 }
+
+// Internal phase-2 seams, not new vendor wire shapes. Source adapters supply
+// captured per-model capabilities; calibration supplies an exact identity.
+// Neither a capability record nor a profile is permission or locality proof.
+const identityTextSchema = z.string().check(z.minLength(1))
+const sourceIdentityShape = {
+  source: z.enum(['same', 'separate']),
+  providerId: identityTextSchema,
+  model: identityTextSchema,
+  modelVersion: identityTextSchema,
+  endpoint: identityTextSchema,
+} as const
+
+/** Capability of one exact model/endpoint, never inferred from a provider name. */
+export const judgeCapabilitySchema = z.strictObject({
+  ...sourceIdentityShape,
+  captureId: identityTextSchema,
+  logprobs: z.discriminatedUnion('kind', [
+    z.strictObject({ kind: z.literal('topk'), topK: z.int().check(z.positive()) }),
+    z.strictObject({ kind: z.enum(['top1', 'refused', 'dropped', 'unknown']) }),
+  ]),
+  stated: z.boolean(),
+  systemone: z.boolean(),
+  reasoningForced: z.boolean(),
+  cache: z.boolean(),
+  contextWindowTokens: z.int().check(z.positive()),
+  minOutputTokens: z.int().check(z.positive()),
+})
+export type JudgeCapability = z.infer<typeof judgeCapabilitySchema>
+
+/** Every field participates in profile matching; top-1 cannot be calibrated. */
+export const judgeProfileIdentitySchema = z.strictObject({
+  ...sourceIdentityShape,
+  technique: z.enum([
+    'logprob',
+    'stated',
+    'systemone',
+    'sampling',
+    'contrastive',
+    'cascade',
+    'embedding',
+  ]),
+  family: identityTextSchema,
+  promptVersion: identityTextSchema,
+  criteriaVersion: identityTextSchema,
+  fitVersion: identityTextSchema,
+})
+export type JudgeProfileIdentity = z.infer<typeof judgeProfileIdentitySchema>
+
+/** Stable, content-free refusal codes shared by sources, CLI and panel. */
+export const JUDGE_NO_ANSWER_REASONS = [
+  'explicit-off',
+  'unknown-setting',
+  'consent-needed',
+  'consent-declined',
+  'source-unavailable',
+  'ready-rate-low',
+  'profile-missing',
+  'profile-mismatch',
+  'source-untested',
+  'local-unverified',
+  'confidential-refused',
+  'capability-unavailable',
+  'over-context',
+  'over-budget',
+  'unpriced',
+  'cancelled',
+  'timeout',
+  'engine-failure',
+] as const
+
+/** A refusal is distinct from a successful SystemOne result, never empty success. */
+export const judgeOutcomeSchema = z.discriminatedUnion('outcome', [
+  z.strictObject({
+    outcome: z.literal('answered'),
+    result: judgeResultSchema.check(
+      z.refine(
+        (result) =>
+          Object.keys(result.answers).length >= JUDGE_QUESTION_MIN &&
+          Object.keys(result.answers).length <= JUDGE_QUESTION_MAX,
+      ),
+    ),
+  }),
+  z.strictObject({ outcome: z.literal('no-answer'), reason: z.enum(JUDGE_NO_ANSWER_REASONS) }),
+])
+export type JudgeOutcome = z.infer<typeof judgeOutcomeSchema>

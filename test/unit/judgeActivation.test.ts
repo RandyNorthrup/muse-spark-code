@@ -7,6 +7,7 @@ import type * as vscode from 'vscode'
 import { isJudgeEngineOn } from '../../src/core/judge/engine'
 import { createPaidFeatures } from '../../src/host/paid/paidHost'
 import {
+  JUDGE_ENGINES,
   PAID_FEATURE_SETTINGS,
   SETTING_DEFAULTS,
   type PaidFeature,
@@ -36,6 +37,7 @@ function isActivationSettingOn(feature: PaidFeature, settings: ExtensionSettings
   const value: unknown = runInNewContext(`({${source.slice(start, end)}}).isSettingOn(feature)`, {
     feature,
     currentSettings: () => settings,
+    JUDGE_ENGINES,
     PAID_FEATURE_SETTINGS,
     isJudgeEngineOn,
   })
@@ -72,17 +74,22 @@ beforeEach(() => {
 })
 
 describe('judge activation routing', () => {
-  it.each(['auto', 'same', 'off'] as const)(
+  it.each(JUDGE_ENGINES)(
     'does not ask or disable a subscription-only judge at startup with %s',
     async (engine) => {
       vi.mocked(confirmModal).mockResolvedValue(UI_TEXT.paidConfirmAccept)
-      const settings = { ...SETTING_DEFAULTS, 'judge.engine': engine }
+      const settings = {
+        ...SETTING_DEFAULTS,
+        'judge.engine': engine,
+        'judge.separate': 'configured-source/model',
+      }
       const paid = paidAtActivation(settings)
       await paid.gate.review()
       expect(confirmModal).not.toHaveBeenCalled()
       expect(workspace.getConfiguration).not.toHaveBeenCalled()
       expect(paid.gate.isOn('judge')).toBe(false)
       expect(settings['judge.engine']).toBe(engine)
+      expect(settings['judge.separate']).toBe('configured-source/model')
     },
   )
 

@@ -364,6 +364,9 @@ export const SETTING_DEFAULTS = {
   // since a repository must not choose what is spent. The key holds the dot:
   // VS Code declares `museSpark.judge.engine` and reads it as a subsection.
   'judge.engine': 'auto' as JudgeEngine,
+  // Phase-2 source selection is inert until the source and cascade lanes
+  // certify it. Empty preserves the single-model setup; no discovery here.
+  'judge.separate': '',
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -416,6 +419,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   // What may spend on judging, on the key or the subscription (M98, PLAN.md
   // D77): a repository must not choose it.
   'judge.engine',
+  'judge.separate',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -516,10 +520,10 @@ export const SECONDS_PER_HOUR = 3600
 
 // --- The Muse Judge (M98, PLAN.md D77) ---
 //
-// The engines `museSpark.judge.engine` takes in phase 1. `auto` is `same`
-// (the user's own chat model judges); `separate` and `both` arrive with the
-// phase-2 sections that build them. Machine-scoped, on (`auto`) by default.
-export const JUDGE_ENGINES = ['auto', 'same', 'off'] as const
+// Phase-2 selections are accepted here; resolving/dispatching them belongs
+// to the source/cascade lanes. `auto` keeps phase-1 `same` until those lanes
+// certify a separate source and its profiles. Reading settings loads no judge.
+export const JUDGE_ENGINES = ['auto', 'same', 'separate', 'both', 'off'] as const
 export type JudgeEngine = (typeof JUDGE_ENGINES)[number]
 // The request bounds, at the intersection of the SystemOne services (TypeSafe,
 // OpenRouter, Ollama, Cloudflare): 1–64 questions; a choice of 2–26 options
@@ -549,6 +553,12 @@ export const JUDGE_MIN_READY_RATE = 0.5
 // One judge call never runs longer than this. Calls run in the background and
 // are never awaited on a user path; a late result is dropped at its fence.
 export const JUDGE_REQUEST_TIMEOUT_MS = 60_000
+// Phase-2 eligibility limits, not authorization to dispatch or spend.
+export const JUDGE_CASCADE_CONFIDENCE = 0.8
+export const JUDGE_SAMPLING_MAX_USD_PER_QUESTION = 0.001
+export const JUDGE_ISOTONIC_MIN_LABELS = 200
+export const JUDGE_EMBED_FALLBACK_CONFIDENCE = 0.8
+export const JUDGE_CLI_DEFAULT_BUDGET_USD = 0
 
 // --- Sessions (M6, PLAN.md §6 M6) ---
 

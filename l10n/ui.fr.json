@@ -1904,5 +1904,11 @@
   "agentImportIgnoredToTracked": "cela copierait un fichier ignoré par Git dans un fichier suivi",
   "agentImportEditPrompt": "Ouvrir les entrées converties dans {path} comme modification non enregistrée à vérifier et enregistrer ? Enregistrez-la uniquement à cet emplacement, jamais dans un autre fichier.",
   "agentImportEditAction": "Modifier et ouvrir le fichier",
-  "agentImportPreviewLegacyKey": "Le fichier utilise l’ancienne clé `mcp_servers`. Renommez-la en `mcpServers` en ajoutant ceux-ci : Muse Code ne charge ni l’une ni l’autre quand les deux sont présentes."
+  "agentImportPreviewLegacyKey": "Le fichier utilise l’ancienne clé `mcp_servers`. Renommez-la en `mcpServers` en ajoutant ceux-ci : Muse Code ne charge ni l’une ni l’autre quand les deux sont présentes.",
+  "judgeSourceSame": "Votre modèle de conversation",
+  "judgeSourceSeparate": "Évaluateur distinct",
+  "judgeSourceBoth": "Votre modèle et évaluateur distinct",
+  "judgeLocalUnverified": "Point de terminaison local non vérifié",
+  "judgeSourceUntested": "Expérimental, non testé ; accord explicite requis",
+  "judgeNoAnswer": "Aucune réponse de l’évaluateur ({reason}). Les vérifications et approbations existantes restent applicables."
 }

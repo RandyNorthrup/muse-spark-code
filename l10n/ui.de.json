@@ -1837,5 +1837,11 @@
   "agentImportIgnoredToTracked": "dadurch würde eine von Git ignorierte Datei in eine versionierte Datei kopiert",
   "agentImportEditPrompt": "Konvertierte Einträge in {path} als ungespeicherte Änderung zum Prüfen und Speichern öffnen? Speichern Sie sie nur unter diesem Pfad, nie in einer anderen Datei.",
   "agentImportEditAction": "Datei bearbeiten und öffnen",
-  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind."
+  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind.",
+  "judgeSourceSame": "Eigenes Chatmodell",
+  "judgeSourceSeparate": "Separater Beurteiler",
+  "judgeSourceBoth": "Eigenes Modell und separater Beurteiler",
+  "judgeLocalUnverified": "Unverifizierter lokaler Endpunkt",
+  "judgeSourceUntested": "Experimentell, ungetestet; ausdrückliche Zustimmung erforderlich",
+  "judgeNoAnswer": "Keine Antwort des Beurteilers ({reason}). Bestehende Prüfungen und Genehmigungen gelten weiterhin."
 }
