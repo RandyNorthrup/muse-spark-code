@@ -13886,6 +13886,20 @@ owner gave keys for (`docs/certification/m95-captures.md`: 46 model-call
 attempts, 44 billed, about $0.07). No code yet; implementation starts after
 the lead's review.**
 
+- **FIXM95A review repair (2026-10-05).** Lane A repairs RVM95AO findings
+  3, 4 (Anthropic), 5, 6, 7, 11 and 13 (Anthropic): codecs may occur only
+  in `dist/providers.js`; decoding caps frames, arguments, items and total
+  stream with named constants; malformed known deltas fail; captured cache
+  writes and TTL counts survive canonical usage; system plus the rolling
+  last message block carry breakpoints; goldens use native ids; locally
+  authored errors read the installed UI table. No new dependencies or live
+  calls. Focused tests and byte-exact red drills are recorded in
+  `docs/certification/m95-a.md`. The local `m95/pfix` price contract counts
+  fresh + read + written input, with disjoint write counters retained for
+  settlement; `cache_write_tokens` is total written and
+  `cache_write_tokens_1h` is its one-hour subset (five-minute writes are the
+  difference). The remote `kubuntu/m95/pfix` ref is absent on this rig.
+
 - **Goal.** A user adds any listed provider, or a compatible server of their
   own, in the Models & Agents panel in under a minute, and every harness
   feature then works on its models: tools and approvals, hooks, checkpoints, `then_run`,
