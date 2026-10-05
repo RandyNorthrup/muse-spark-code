@@ -3111,6 +3111,11 @@ export const REPORT_JOURNAL_ENTRY_MAX_BYTES = 4 * 1024
 export const REPORT_RECENT_EVENT_COUNT = 50
 // The encoded new-issue URL past this falls back to copy plus a paste note.
 export const REPORT_ISSUE_URL_MAX_CHARS = 2000
+// The unfilled page the over-long fallback opens; the extension never posts to it itself.
+export const REPORT_ISSUE_NEW_URL = 'https://github.com/RandyNorthrup/muse-spark-code/issues/new'
+// A user-written description past this is cut with an ellipsis: it rides the
+// encoded URL, so an unbounded one always takes the fallback path.
+export const REPORT_DESCRIPTION_MAX_CHARS = 2000
 // The journal's fixed event kinds: host failures and webview failures alike.
 export const REPORT_EVENT_KINDS = [
   'activationFailed',

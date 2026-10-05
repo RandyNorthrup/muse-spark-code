@@ -7,6 +7,20 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Report-a-problem builder and export paths (M93 lane P, PLAN.md D72).**
+  The scrubbed report builder (`src/core/support/report.ts`) takes only
+  allowlisted values — versions, platform, backend, sign-in/key booleans,
+  sandbox posture, setting names and the flight recorder's fact records —
+  runs a second scrub with the shared redaction table over the final draft,
+  and seals the previewed draft with its SHA-256 so any change after the
+  preview invalidates the export. The host paths
+  (`src/host/support/reportProblem.ts`) open the prefilled GitHub new-issue
+  page within the 2,000-character encoded-URL cap (falling back to copy plus
+  the unfilled form), copy to the clipboard, or save to a picked file, each
+  with a clear failure message. The extension never sends anything itself.
+
 ### Changed
 
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
