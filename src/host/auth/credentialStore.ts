@@ -4,6 +4,12 @@
 // implements (PLAN.md D61), and tests replace with a Map.
 
 import { MODEL_API_KEY_PATTERN, SECRET_KEYS } from '../../shared/constants'
+import {
+  type CredentialRecord,
+  deleteProviderCredential,
+  readProviderCredential,
+  saveProviderCredential,
+} from '../providers/credentialRecords'
 
 export interface SecretStore {
   get(key: string): PromiseLike<string | undefined>
@@ -24,6 +30,11 @@ export class CredentialStore {
     private readonly warn: (message: string) => void,
     /** The store's name in that report: the ACP agent's is the OS store (D61). */
     private readonly storeName = "VS Code's secret storage",
+    /**
+     * The configured provider ids (lane P's providers file). Absent until
+     * that lane merges: only the Meta key counts meanwhile.
+     */
+    private readonly providerIds?: () => PromiseLike<readonly string[]>,
   ) {}
 
   /**
@@ -58,5 +69,51 @@ export class CredentialStore {
 
   public async clearApiKey(): Promise<void> {
     await this.secrets.delete(SECRET_KEYS.modelApiKey)
+  }
+
+  /** A provider's stored credential record; undefined when none was entered. */
+  public async getProviderCredential(id: string): Promise<CredentialRecord | undefined> {
+    return await readProviderCredential(this.secrets, id)
+  }
+
+  /** Stores a provider's credential record, bound to its origin. */
+  public async setProviderCredential(id: string, record: CredentialRecord): Promise<void> {
+    await saveProviderCredential(this.secrets, id, record)
+  }
+
+  /** Deletes a provider's credential record (removal after its Undo). */
+  public async clearProviderCredential(id: string): Promise<void> {
+    await deleteProviderCredential(this.secrets, id)
+  }
+
+  /**
+   * Whether any configured provider holds a credential. A damaged record
+   * counts: something is stored for that provider, and the panel asks for
+   * the credential again rather than treating it as absent.
+   */
+  public async hasProviderCredential(): Promise<boolean> {
+    const ids = await this.providerIds?.()
+    if (ids === undefined) {
+      return false
+    }
+    for (const id of ids) {
+      try {
+        if ((await readProviderCredential(this.secrets, id)) !== undefined) {
+          return true
+        }
+      } catch {
+        return true
+      }
+    }
+    return false
+  }
+
+  /**
+   * A Model API credential of either kind (M95, PLAN.md D74): the Meta key
+   * or any provider's secret. Backend selection and the sign-in gate read
+   * this, never the key alone.
+   */
+  public async hasModelApiCredential(): Promise<boolean> {
+    return (await this.getApiKey()) !== undefined || (await this.hasProviderCredential())
   }
 }

@@ -13879,6 +13879,18 @@ live) and the controller filters its id as well.
 
 ### M95 — Bring-your-own model providers (D74)
 
+**M95INT integration scope (2026-10-05, kubuntu).** Merge completed lanes
+0, P fixes, G fixes, A fixes, R, K, M and U in the assigned order. Preserve
+translated keys, share duplicate tunables, repair integration-only test
+failures (including loopback rejection assertions attached before requests),
+regenerate host API/notices, and build the captured codecs exclusively in
+`dist/providers.js`. Replace lane 0 command stubs with lane K handlers;
+remove manifest commands only where no real handler has landed. Run the
+full local gates and record Meta byte equivalence against `1e93c67c`.
+H/O fixes, catalogue, transport, security, headless and final I/W wiring
+remain assigned to their lanes; no live/paid calls or release claim here.
+Results and remaining seams: `docs/certification/m95-int.md`.
+
 **FIXM95P review repairs (2026-10-05, kubuntu).** Authorized lane P scope:
 RVM95A findings 1, 2, 4–8, 12–15, 18, 19. Use address-value IPv6
 classification; allow HTTP only for literal loopback or localhost; reserve
@@ -15376,6 +15388,12 @@ before a repaired one loads (2026-09-30).
 
 | `test/unit/providersPolicy.test.ts` (`checkEndpointUrl`) | `eslint-disable-next-line unicorn/prefer-https` | The regression deliberately supplies insecure HTTP to prove off-loopback transport is refused. | 2026-10-05 |
 | `test/unit/providersPolicy.test.ts` (`isCredentialBound`) | `eslint-disable-next-line unicorn/prefer-https` | The regression deliberately changes HTTPS to HTTP to prove credentials bind the scheme as well as host and port. | 2026-10-05 |
+
+| M95 lane K file                               | Construct                                                                           | Reason                                                                                                                                                                                                                                                      | Added      |
+| --------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/providerImportExport.test.ts`      | `as { version: number; providers: ProviderEntry[] }` on this lane's own export text | `JSON.parse` returns `any`; the text is `exportProviders` output, so the cast names its document shape for the field assertions. A foreign shape never reaches this cast: the malformed-import tests exercise `parseProvidersDocument` directly. Test-only. | 2026-10-05 |
+| `test/unit/modelsPanel.test.ts`               | `as { providers: readonly unknown[] }` on this lane's own export text               | `JSON.parse` returns `any`; the text is the round-tripped export, so the cast names its document shape for the count assertion. A foreign shape never reaches this cast: the malformed-import tests exercise `parseProvidersDocument` directly. Test-only.  | 2026-10-05 |
+| `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
 
