@@ -150,5 +150,6 @@
   "command.tabTurnOff.title": "Disattiva Tab",
   "command.tabSnooze.title": "Sospendi Tab",
   "command.tabMenu.title": "Menu Tab",
-  "command.tabLanguages.title": "Lingue di Tab"
+  "command.tabLanguages.title": "Lingue di Tab",
+  "command.openPullRequestInConversation.title": "Apri una richiesta pull in una conversazione…"
 }

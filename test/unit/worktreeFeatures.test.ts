@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { commands, Uri, window } from 'vscode'
+import { commands, Uri, window, workspace } from 'vscode'
+import { WorktreeRegistry } from '../../src/host/git/worktreeRegistry'
 import { createWorktreeFeatures } from '../../src/host/worktreeFeatures'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { memoryMemento } from './helpers/fakeGit'
 import { confirmModal as confirm, inform, pickOne } from './helpers/vscodeViews'
 
 beforeEach(() => {
@@ -14,10 +16,29 @@ beforeEach(() => {
 })
 
 describe('createWorktreeFeatures', () => {
+  it('runs no worktree git while the extension holds a PR, even when VS Code trusts the folder', async () => {
+    expect(workspace.isTrusted).toBe(true)
+    const runGit = vi.fn().mockResolvedValue('main\n')
+    const features = createWorktreeFeatures({
+      workspaceRoot: '/ws',
+      isWorkspaceTrusted: () => false,
+      runGit,
+      mutationGit: runGit,
+      registry: new WorktreeRegistry(memoryMemento(), process.platform, () => true),
+      log: new FakeLogOutputChannel(),
+    })
+    await features.newWorktree()
+    await features.removeWorktree()
+    expect(runGit).not.toHaveBeenCalled()
+    expect(window.showInputBox).not.toHaveBeenCalled()
+    expect(commands.executeCommand).not.toHaveBeenCalled()
+  })
+
   it('asks for the branch with validation, picks the base, and opens the folder in a new window', async () => {
     const calls: (readonly string[])[] = []
     const features = createWorktreeFeatures({
       workspaceRoot: '/ws',
+      isWorkspaceTrusted: () => true,
       mutationGit: (args) => {
         calls.push(args)
         return Promise.resolve('')
@@ -31,6 +52,7 @@ describe('createWorktreeFeatures', () => {
               args[0] === 'rev-parse' && args[1] === '--show-toplevel' ? '/ws\n' : 'main\n',
             )
       },
+      registry: new WorktreeRegistry(memoryMemento(), process.platform, () => true),
       log: new FakeLogOutputChannel(),
     })
     vi.mocked(window.showInputBox).mockImplementation(async (options) => {
@@ -53,6 +75,7 @@ describe('createWorktreeFeatures', () => {
       'worktree /ws\nbranch refs/heads/main\n\nworktree /wt/x\nbranch refs/heads/x\n'
     const features = createWorktreeFeatures({
       workspaceRoot: '/ws',
+      isWorkspaceTrusted: () => true,
       mutationGit: () =>
         Promise.reject(new Error("Command failed: git worktree remove\nfatal: '/wt/x' is locked")),
       runGit: (args) => {
@@ -63,6 +86,7 @@ describe('createWorktreeFeatures', () => {
         }
         return Promise.resolve(args[0] === 'worktree' ? porcelain : '/ws\n')
       },
+      registry: new WorktreeRegistry(memoryMemento(), process.platform, () => true),
       log: new FakeLogOutputChannel(),
     })
     vi.mocked(pickOne).mockImplementation((items) => Promise.resolve(items[0]))

@@ -150,5 +150,6 @@
   "command.tabTurnOff.title": "Tab kikapcsolása",
   "command.tabSnooze.title": "Tab szüneteltetése",
   "command.tabMenu.title": "Tab menü",
-  "command.tabLanguages.title": "Tab nyelvek"
+  "command.tabLanguages.title": "Tab nyelvek",
+  "command.openPullRequestInConversation.title": "Lekéréses kérelem megnyitása beszélgetésben…"
 }

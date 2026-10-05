@@ -150,5 +150,6 @@
   "command.tabTurnOff.title": "關閉 Tab",
   "command.tabSnooze.title": "暫停 Tab",
   "command.tabMenu.title": "Tab 選單",
-  "command.tabLanguages.title": "Tab 語言"
+  "command.tabLanguages.title": "Tab 語言",
+  "command.openPullRequestInConversation.title": "在交談中開啟提取要求…"
 }

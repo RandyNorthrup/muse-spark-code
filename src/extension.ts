@@ -2,7 +2,7 @@
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
 import { execFile, type ExecFileException } from 'node:child_process'
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
@@ -124,6 +124,14 @@ import {
 import { hasClaimedVersion, createWhatsNew } from './host/whatsNew/whatsNew'
 import { createSessionTransferFiles } from './host/conversation/transferDialogs'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
+import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
+import {
+  conversationGitFactory,
+  conversationGitLoader,
+  gitFeaturesLoader,
+  openPullRequestInConversation,
+} from './host/git/conversationGitBundle'
+import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
@@ -184,6 +192,7 @@ import {
   COMMAND_IDS,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
+  EXTENSION_NAME,
   DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
   MODEL_API_BASE_URL,
@@ -191,6 +200,7 @@ import {
   REVIEW_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
   AGENT_IMPORT_BUNDLE_FILE,
+  CONVERSATION_GIT_BUNDLE_FILE,
   BUNDLED_SKILLS_BUNDLE_FILE,
   BUNDLED_SKILLS_SETTING,
   WHATS_NEW_BUNDLE_FILE,
@@ -501,6 +511,16 @@ function windowsJobHelper(
     : undefined
 }
 
+/** `fsPath` as given and, when it exists, resolved through links (M71's hold reads both). */
+function pathSpellings(fsPath: string): readonly string[] {
+  try {
+    return [fsPath, realpathSync.native(fsPath)]
+  } catch {
+    // Not there yet (no pull request checked out anywhere): the given path is all there is.
+    return [fsPath]
+  }
+}
+
 /** Set by `activate`: stops the hosts, their turns and their processes. */
 const lifecycle: { shutdown: (() => Promise<void>) | undefined } = { shutdown: undefined }
 
@@ -639,6 +659,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       nativeStarts.abort()
     },
   })
+  // Conversations in a worktree and someone else's pull requests (M71, PLAN.md
+  // D49): a window on a folder under the extension's pull request worktrees is
+  // held until the user trusts it in the card, whatever VS Code's trust says.
+  const storageRoot = context.globalStorageUri.fsPath
+  const worktreeRegistry = new WorktreeRegistry(context.globalState, process.platform, existsSync)
+  const windowHold = new WindowHold(
+    holdFor(
+      workspaceRoot === undefined ? [] : pathSpellings(workspaceRoot),
+      pathSpellings(heldWorktreesRoot(storageRoot, process.platform)),
+      worktreeRegistry.records(),
+      process.platform,
+    ),
+  )
+  if (windowHold.isHeld) {
+    log.info(
+      "This window is held on someone else's pull request: Plan mode, no project configuration",
+    )
+  }
+  /**
+   * Whether the project's own configuration may load (rules, skills, hooks,
+   * MCP servers, and the backends' workspace shell): VS Code trusts the
+   * folder, and the window is not held (M71).
+   */
+  const isProjectTrusted = () =>
+    !nativeStarts.signal.aborted &&
+    windowHold.allowsProjectConfiguration(vscode.workspace.isTrusted)
   let checkpointRoot: CheckpointLocation | undefined
   try {
     checkpointRoot = await checkpointLocation(
@@ -737,13 +783,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
     },
     store: checkpointStore,
-    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    // A held pull request worktree is untrusted for git as Restricted Mode is (M71, D24).
+    isWorkspaceTrusted: isProjectTrusted,
     isEnabled: () => currentSettings().turnCheckpoints,
     hasGit: processGitLocator(),
   })
   void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
   const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
-
   const credentials = new CredentialStore(context.secrets, (message) => {
     log.warn(message)
   })
@@ -1096,7 +1142,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     getShellSandbox: () => currentSettings().shellSandbox,
     getSandboxNetwork: () => currentSettings().sandboxNetwork,
     userProfileDir: process.env['USERPROFILE'],
-    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    isWorkspaceTrusted: isProjectTrusted,
     getProxySettings: () =>
       readProxySettings(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)),
   })
@@ -1213,6 +1259,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // and count for the session that was live when the import began.
     agentImport: {
       isActive: () => !nativeStarts.signal.aborted,
+      isProjectTrusted,
+      isProjectHeld: () => windowHold.isHeld,
       currentRoot: firstFolderPath,
       captureOwner: () => {
         const active = registry.active
@@ -1277,18 +1325,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     openLog: () => {
       channel.show(true)
     },
+    isProjectTrusted,
+    isProjectHeld: () => windowHold.isHeld,
     openDocument,
     log,
   })
+  const conversationGit = conversationGitLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CONVERSATION_GIT_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
   const worktrees = createWorktreeFeatures({
+    isWorkspaceTrusted: isProjectTrusted,
     workspaceRoot,
-    runGit,
-    mutationGit: (args, cwd, timeoutMs) =>
+    runGit: (args, cwd, timeoutMs, beforeRun) => runGit(args, cwd, timeoutMs, undefined, beforeRun),
+    mutationGit: (args, cwd, timeoutMs, beforeRun) =>
       backend.startWorktreeMutation(
         cwd,
-        (ownedCwd) => runGit(args, ownedCwd, timeoutMs),
+        (ownedCwd) => runGit(args, ownedCwd, timeoutMs, undefined, beforeRun),
         nativeStarts.signal,
       ),
+    registry: worktreeRegistry,
     log,
   })
   const sandbox = new SandboxSetup({
@@ -1443,11 +1500,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const listWorkspaceFiles = createWorkspaceFileLister({
     workspaceRoot: workspaceRoot ?? '',
     respectGitIgnore: () => currentSettings().respectGitIgnore,
-    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    isWorkspaceTrusted: isProjectTrusted,
     runGit,
     findFiles: findWorkspaceFiles,
     log,
   })
+  // Best-of-N's git, admitted at the native entry by the same project trust
+  // as the rest: none while someone else's pull request holds the window (M71).
   const runBestOfNGit: typeof automaticBestOfNGit = (args, cwd, timeoutMs, input, beforeRun) =>
     automaticBestOfNGit(
       args,
@@ -1456,7 +1515,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       input,
       Object.assign(
         () => {
-          if (!vscode.workspace.isTrusted) throw new Error(UI_TEXT.bestOfNNeedsTrust)
+          if (!isProjectTrusted()) {
+            throw new Error(
+              windowHold.isHeld ? UI_TEXT.worktreeHeldShell : UI_TEXT.bestOfNNeedsTrust,
+            )
+          }
           beforeRun?.()
         },
         { prepare: beforeRun?.prepare },
@@ -1464,9 +1527,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     )
   // The C# of both Windows job helpers, shipped beside the bundle (PLAN.md D6).
   const readJobSource = jobSourceReader(context.extensionPath)
-  const storageDir = context.globalStorageUri.fsPath
-  const windowsJobAssembly = windowsJobHelper(shellJobAssembly, storageDir, readJobSource, log)
-  const windowsMcpJob = windowsJobHelper(mcpJobExecutable, storageDir, readJobSource, log)
+  const windowsJobAssembly = windowsJobHelper(shellJobAssembly, storageRoot, readJobSource, log)
+  const windowsMcpJob = windowsJobHelper(mcpJobExecutable, storageRoot, readJobSource, log)
   // The workspace's files and a shell (M7): the Model API backend's tools,
   // and the files the ide server's image tools read and write (M44).
   const toolIo = createToolIo({
@@ -1625,8 +1687,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // identity: the tool is listed only in a trusted workspace whose
       // sandbox network setting allows the network, and every call asks.
       ...ideWebFetchTools({
-        isOffered: () =>
-          isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
+        isOffered: () => isIdeWebFetchOffered(isProjectTrusted(), currentSettings().sandboxNetwork),
         checkUrl: lazyPageUrlCheck(webFetchBundle),
         fetchPage: webFetch,
         confirm: askWebFetch,
@@ -1956,7 +2017,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       createWorkspaceFileLister({
         workspaceRoot: attemptRoot,
         respectGitIgnore: () => currentSettings().respectGitIgnore,
-        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        isWorkspaceTrusted: isProjectTrusted,
         runGit: runBestOfNGit,
         findFiles: () =>
           findRootFiles({
@@ -1990,7 +2051,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       isEnabled: () => currentSettings().bundledSkills,
     },
     personalAgentsRoot: agentsHome,
-    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    isWorkspaceTrusted: isProjectTrusted,
     isConfidentialWorkspace: () => currentSettings().confidentialWorkspace,
     confirmContributorModel: isContributorModelAllowed,
     hookSettingsPath: museSettingsPath(museConfig()),
@@ -2026,7 +2087,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             check()
             if (
               workspaceRoot === undefined ||
-              !vscode.workspace.isTrusted ||
+              !isProjectTrusted() ||
               !isSamePath(cwd, workspaceRoot, process.platform)
             ) {
               throw new Error(UI_TEXT.checkpointFailed)
@@ -2040,7 +2101,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           )
         },
         workspaceRoot,
-        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        // The git facts carry commit subjects: none from someone else's pull request (M71).
+        isWorkspaceTrusted: isProjectTrusted,
         log,
         now: Date.now,
       })
@@ -2050,7 +2112,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       describeEnvironment({
         runGit: runBestOfNGit,
         workspaceRoot: attemptRoot,
-        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        isWorkspaceTrusted: isProjectTrusted,
         log,
         now: Date.now,
       }),
@@ -2073,7 +2135,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           beforeWorkspaceProcessStart: () => checkpoints.markNativeBackend(),
           workspaceRoot: root,
           settingsPath: () => museSettingsPath(museConfig()),
-          isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+          isWorkspaceTrusted: isProjectTrusted,
           clientVersion: version,
           platform: process.platform,
           jobExecutablePath: await windowsMcpJob?.(),
@@ -2131,6 +2193,36 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Its own bundle, loaded when this backend first starts (M57, PLAN.md D6).
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODEL_API_BUNDLE_FILE).fsPath,
   })
+  // Git and pull requests (M71): VS Code's git extension and GitHub sign-in,
+  // made in the conversation Git bundle with the first conversation or the
+  // first pull request command (PLAN.md D6), from these primitives.
+  // The selected folder as given, not its canonical form: an own pull request's worktree
+  // sits beside it and its record names it (the owner capture resolves links itself).
+  const gitFeatures = gitFeaturesLoader(conversationGit, {
+    workspaceRoot,
+    storageRoot,
+    hold: windowHold,
+    registry: worktreeRegistry,
+    workspaceState: context.workspaceState,
+    fetch: liveFetch,
+    userAgent: `${EXTENSION_NAME}/${version}`,
+    runGit,
+    // Someone else's pull request: no git checkout; the extension writes its files (M71).
+    gitProcess: processGitProcess(),
+    env: process.env,
+    isCurrent: () => !nativeStarts.signal.aborted,
+    // Commit and push run hooks, which can write the workspace: admitted as any such command is (M72).
+    admit: (start) => backend.startWorkspaceCommand(start, nativeStarts.signal),
+    restartBackends: (reason) => restartBackend(reason),
+    holdReleased: () => {
+      for (const controller of controllers.values()) {
+        controller.worktreeHoldReleased()
+      }
+    },
+    log,
+  })
+  // The pull request command's refusal when its bundle cannot load.
+  const gitPopups = loggedPopups(log)
   const watchedHosts = new WeakSet<AgentHost>()
   let chosenBackend: BackendKind | undefined
   /** The host for the next conversation, by the same selection the sign-in gate uses. */
@@ -2308,6 +2400,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
       case 'removeWorktree': {
         await worktrees.removeWorktree()
+        break
+      }
+      case 'openPullRequestInConversation': {
+        await openPullRequestInConversation(gitFeatures, gitPopups.showError)
         break
       }
       case 'restartMuseCode': {
@@ -2537,7 +2633,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             await paid.gate.turnOff(feature)
           }
         },
+        // VS Code's trust and the hold apart (M71), so a refusal says which;
+        // the controller asks both before any git (Best-of-N, board, review).
         isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        isWorktreeHeld: () => windowHold.isHeld,
+        createGit: conversationGitFactory(conversationGit, gitFeatures),
         onForegroundTasksChanged: refreshTaskContext,
         isScheduledPaidOn: () => paid.gate.isOn('scheduledPrompts'),
         confirmScheduledRun: async (job, modelId) =>
@@ -2562,7 +2662,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           const settings = currentSettings()
           return verifyGuidance(
             settings.diagnosticsAfterEdits && hasIdeServer,
-            vscode.workspace.isTrusted ? settings.checkCommands : [],
+            isProjectTrusted() ? settings.checkCommands : [],
           )
         },
         bundledSkillsOffer: () => bundledSkillsOffer.next(),
@@ -2921,7 +3021,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const check = backend.workspaceActionGuard(nativeStarts.signal)
       await createRulesFile({
         workspaceRoot,
-        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        // `muse init` reads the project: not while the window is held (M71).
+        isWorkspaceTrusted: isProjectTrusted,
         fileExists: isExistingPath,
         writeFile: (fsPath, content) => writeUserFile(check, fsPath, content),
         openFile: async (fsPath) => {
@@ -3104,6 +3205,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.memory, () => memoryView.showMemory()),
     registerLoggedCommand(log, COMMAND_IDS.newWorktree, () => worktrees.newWorktree()),
     registerLoggedCommand(log, COMMAND_IDS.removeWorktree, () => worktrees.removeWorktree()),
+    registerLoggedCommand(log, COMMAND_IDS.openPullRequestInConversation, () =>
+      openPullRequestInConversation(gitFeatures, gitPopups.showError),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.exportConversation, async () => {
       const surface = registry.active
       if (surface === undefined) {

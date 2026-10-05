@@ -52,6 +52,10 @@ const BUDGETS = [
   // ZIP extraction, hashing, publication), loaded only to prepare a runtime:
   // 37.2 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.
   { path: 'dist/browserRuntime.js', budgetKiB: 50 },
+  // M71: the conversations' Git adapter and, since 2026-10-03, the window's
+  // git and pull request features moved out of activation: 127.4 KiB
+  // measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/conversationGit.js', budgetKiB: 150 },
   // M89: the bundled skills installer for Muse Code (the copy, the links and
   // zod's parser for the vendor record and the mark), loaded on first use:
   // 22.6 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.
@@ -113,7 +117,8 @@ for (const { path, budgetKiB } of BUDGETS) {
   if (sizeKiB > budgetKiB) {
     hasFailure = true
   }
-  console.log(`${status} ${path}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
+  const label = path === 'dist/webview/main.js' ? `${path} + static imports` : path
+  console.log(`${status} ${label}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
 }
 
 // TRAIN13B: optional UI chunks, 38.6 KiB + 15%, rounded to 25 KiB.

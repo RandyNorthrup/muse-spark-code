@@ -11,6 +11,8 @@ happened, not what was planned; superseded entries are kept.
 
 - **Tab completions with a separate hard daily budget.** Invoke ghost text with Alt+\; the first paid request asks for consent and uses your stored Model API key. <!-- try: command museSpark.tabMenu -->
 
+- **Git and pull requests from the panel.** Generate a commit message, commit and push with confirmation, then create or open a GitHub PR in a conversation worktree. <!-- try: command museSpark.openPullRequestInConversation -->
+
 ### Added
 
 - **Tab completions (M94, PLAN.md D73).** On by default, with its status
@@ -34,6 +36,30 @@ happened, not what was planned; superseded entries are kept.
     host-global checks; the host-API record is regenerated.
   - Cursor's Tab hook bridge is prepared; executing those hook configurations
     and the final live check wait for M91/lane K.
+
+- Git and pull requests from the panel (M71): editable commit and PR drafts
+  written by the user's Muse turn, explicit commit/push consent, GitHub PR
+  creation and conversation-linked checks. Push never uses force. A commit's
+  consent covers the bytes of new files too, in either of VS Code's views of
+  them, so a commit whose new files changed after the consent is refused. A
+  foreign PR opens in its own held worktree, with project configuration and shell
+  access off until the extension's trust card is confirmed. Git never checks
+  a foreign PR out: the worktree is added with `--no-checkout`, its index
+  read from the commit, and its files written by the extension exactly as
+  stored, so no filter, hook or conversion runs wherever Git's configuration
+  defines one. Paths that would leave the worktree, name `.git`, use a name
+  the platform cannot hold or collide where case does not count refuse the
+  checkout whole, as do PRs over 20,000 entries or 250 MB. A trusted parent
+  record never releases a held PR below it. Best-of-N, the session board's
+  worktree reads and `/review` of Git's changes run no Git in a held PR
+  window until its trust card is confirmed, whatever VS Code's trust says.
+  Concurrent opens of the same
+  held PR preserve the successful checkout's record when another open
+  fails. The held checkout rejects non-commit SHA arguments before Git
+  runs and reports an overflowing tree listing as the existing too-large
+  refusal. Physical-owner and lifetime
+  guards refuse stale operations. Commit, push, PR fetch and checkout use
+  checkpoint process admission.
 
 ### Changed
 

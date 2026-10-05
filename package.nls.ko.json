@@ -150,5 +150,6 @@
   "command.tabTurnOff.title": "Tab 끄기",
   "command.tabSnooze.title": "Tab 일시 중지",
   "command.tabMenu.title": "Tab 메뉴",
-  "command.tabLanguages.title": "Tab 언어"
+  "command.tabLanguages.title": "Tab 언어",
+  "command.openPullRequestInConversation.title": "대화에서 끌어오기 요청 열기…"
 }

@@ -24,6 +24,7 @@ const HOST_BUNDLES = [
   'dist/browserCheck.js',
   'dist/browserRuntime.js',
   'dist/agentImport.js',
+  'dist/conversationGit.js',
   'dist/bundledSkills.js',
   'dist/codeIntel.js',
   'dist/voice.js',

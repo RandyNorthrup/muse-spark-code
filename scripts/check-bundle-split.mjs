@@ -33,6 +33,9 @@
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
+// - the conversation Git implementation or the window's git and pull request
+//   features (M71) leak back into activation, dist/modelApi.js or
+//   dist/acp.js, or are missing from their checked factory bundle.
 // - the bundled skills installer (M89: the copy and links for Muse Code) is
 //   in dist/extension.js, dist/modelApi.js or dist/acp.js, or missing from
 //   dist/bundledSkills.js, or that bundle carries its own English table.
@@ -49,7 +52,7 @@
 //   dist/webview/whatsNew.js, carries any package, the display table or
 //   constants.ts, or no longer carries the page script.
 // - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
-//   CHECKPOINT_, AGENT_IMPORT_, REVIEW_, WEB_FETCH_, EXEC_,
+//   CHECKPOINT_, AGENT_IMPORT_, GIT_, REVIEW_, WEB_FETCH_, EXEC_,
 //   AUTO_REVIEWER_MODEL_TEXT) is
 //   in any shipped bundle but the ones declared to read it, or no longer in
 //   one of those; a block is declared that this check does not guard;
@@ -98,8 +101,8 @@ const DEFERRED = [
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
-  ['schemas.ts', "the key client's request and response shapes"],
-  ['sse.ts', "the key client's stream parser"],
+  ['schemas.ts', 'shared boundary schemas used by activation and ACP'],
+  ['sse.ts', 'ACP event streams also use this parser'],
   ['imageGeneration.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['sessionStore.ts', "the stored-session format the window's session store reads (D14)"],
@@ -110,7 +113,7 @@ const ACTIVATION_ALLOWED = new Map([
 // The files that load only with the backend: the host, its tools, hooks,
 // goals, subagents, memory tools, permission engine and MCP client.
 const LAZY_ONLY = [
-  // TRAIN14A: paid key clients load from the existing backend bundle on first use.
+  // TRAIN14A: stored-key image/Tab HTTP calls load the same client on first use.
   'client.ts',
   'ModelApiHost.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
@@ -310,6 +313,10 @@ const REVIEW = { output: 'dist/review.js', metafile: 'dist/meta/review.json' }
 const UI_TEXT = { output: 'dist/uiText.js', metafile: 'dist/meta/uiText.json' }
 const ENGLISH_TABLE = 'src/shared/l10n/en.ts'
 const AGENT_IMPORT = { output: 'dist/agentImport.js', metafile: 'dist/meta/agentImport.json' }
+const CONVERSATION_GIT = {
+  output: 'dist/conversationGit.js',
+  metafile: 'dist/meta/conversationGit.json',
+}
 const BUNDLED_SKILLS = {
   output: 'dist/bundledSkills.js',
   metafile: 'dist/meta/bundledSkills.json',
@@ -482,6 +489,7 @@ for (const bundle of [
   REVIEW,
   ...DEFERRED,
   AGENT_IMPORT,
+  CONVERSATION_GIT,
   BUNDLED_SKILLS,
   ...ON_FIRST_USE,
 ]) {
@@ -531,6 +539,7 @@ for (const file of REVIEW_ONLY) {
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',
+  'src/host/agentImportHost.ts',
   'src/host/commands/agentImportCommands.ts',
   'src/host/importIo.ts',
   'src/core/import/agentImport.ts',
@@ -567,6 +576,42 @@ for (const prefix of IMPORT_ONLY) {
   }
   if (!hasPrefix(agentImport, prefix)) {
     problems.push(`${AGENT_IMPORT.output} no longer carries ${prefix}`)
+  }
+}
+
+// M71: the conversations' Git adapter and the window's git and pull request
+// features (VS Code's git extension adapter, the GitHub client and sign-in,
+// the pull request links, the checkout and its untrusted git lane, the
+// prompts) load with the first conversation or pull request command.
+// Activation keeps the hold, the worktree records and the checked loader.
+const GIT_ONLY = [
+  'src/host/git/conversationGit.ts',
+  'src/host/git/conversationGitEntry.ts',
+  'src/host/git/gitWindow.ts',
+  'src/host/git/gitExtension.ts',
+  'src/host/git/githubSession.ts',
+  'src/host/git/heldCheckout.ts',
+  'src/host/git/pullRequestCheckout.ts',
+  'src/host/git/pullRequestLinks.ts',
+  'src/host/git/untrustedGit.ts',
+  'src/core/git/github.ts',
+  'src/core/git/githubRemote.ts',
+  'src/core/git/gitText.ts',
+  'src/core/git/heldTree.ts',
+  'src/core/git/pullRequestRef.ts',
+  'src/core/git/pushPlan.ts',
+]
+const conversationGit = inputsOf(CONVERSATION_GIT)
+for (const file of GIT_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(
+        `${bundle.output} carries ${file}, which belongs to the conversation Git bundle`,
+      )
+    }
+  }
+  if (!conversationGit.has(file)) {
+    problems.push(`${CONVERSATION_GIT.output} no longer carries ${file}`)
   }
 }
 
@@ -643,12 +688,21 @@ function shippedBundles() {
         const metafile = `${dir}/${name}`
         const { outputs } = JSON.parse(readFileSync(metafile, 'utf8'))
         return Object.keys(outputs)
-          .filter((output) => output.endsWith('.js') && !output.startsWith('dist/webview/chunks/'))
+          .filter((output) => output.endsWith('.js'))
           .map((output) => ({ output, metafile }))
       }),
   )
 }
 const SHIPPED = shippedBundles()
+// ESM splitting moves shared constants to one common browser chunk. Identify
+// that chunk by its source, so hashes may change without loosening the text gate.
+const webviewConstants = SHIPPED.filter(
+  (bundle) =>
+    bundle.output.startsWith('dist/webview/') && inputsOf(bundle).has('src/shared/constants.ts'),
+)
+if (webviewConstants.length !== 1) {
+  problems.push('the webview must carry shared constants in exactly one JavaScript output')
+}
 /** The shipped bundle that `output` names; a missing one is a problem. */
 function shipped(output) {
   const bundle = SHIPPED.find((entry) => entry.output === output)
@@ -683,12 +737,21 @@ const TEXT_BLOCKS = [
     sentinels: ['importedRulesHeading'],
     readers: [AGENT_IMPORT.output],
   },
+  {
+    block: 'GIT_MODEL_TEXT',
+    sentinels: ['gitCommitInstructions', 'gitPullRequestInstructions'],
+    readers: [CONVERSATION_GIT.output],
+  },
   // The review turn's text (M70): the review's bundle, the Model API's
   // built-in Reviewer, and the review pane's removed-line note.
   {
     block: 'REVIEW_MODEL_TEXT',
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
-    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/webview/main.js'],
+    readers: [
+      REVIEW.output,
+      BUNDLES.modelApi.output,
+      ...webviewConstants.map(({ output }) => output),
+    ],
   },
   // Web fetch's own words (M69): the window's fetch, the Model API
   // backend's URL checks and the ACP agent's fetch.
@@ -743,13 +806,7 @@ function blockKeys(name) {
 const outputText = new Map()
 function textOf(output) {
   if (!outputText.has(output)) {
-    const files =
-      output === 'dist/webview/main.js'
-        ? Object.keys(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs).filter(
-            (file) => file.endsWith('.js'),
-          )
-        : [output]
-    outputText.set(output, files.map((file) => readFileSync(file, 'utf8')).join('\n'))
+    outputText.set(output, readFileSync(output, 'utf8'))
   }
   return outputText.get(output)
 }
@@ -815,7 +872,7 @@ for (const key of modelTextKeys) {
   }
 }
 
-// All six optional surfaces must remain behind dynamic imports. Every
+// All optional surfaces must remain behind dynamic imports. Every
 // emitted JS chunk must be reachable and packaged; stale output is refused.
 const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
 const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
@@ -980,6 +1037,10 @@ console.log(
   `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
+console.log('ok   webview: Git and Account & usage each load only in their deferred chunk')
+console.log(
+  `ok   ${CONVERSATION_GIT.output}: carries the Git adapter and the window's ${String(GIT_ONLY.length - 2)} git and pull request files; activation keeps its checked loader`,
+)
 for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on its first action`)
 for (const bundle of ON_FIRST_USE) {
   console.log(`ok   ${bundle.output}: loads only on ${bundle.use}, never at activation`)

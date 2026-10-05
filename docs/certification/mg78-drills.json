@@ -1,0 +1,89 @@
+{
+  "task": "MG78",
+  "machine": "kubuntu",
+  "notes": "Every semantic mutation failed an assertion, then the complete owning file passed after byte-exact SHA-256 restoration. Hashes precede final formatting.",
+  "drills": [
+    {
+      "mutation": "git-dispatch-slots",
+      "source": "src/host/conversation/conversationController.ts",
+      "test": "test/unit/conversationController.test.ts",
+      "redExit": 1,
+      "restoredExit": 0,
+      "restoredSha256": "afe2bd21725c2600cddc6f132cf57e61873dc898b4ea9947d0c9dc72ac70156d"
+    },
+    {
+      "mutation": "handoff-accepted-turn",
+      "source": "src/host/conversation/conversationController.ts",
+      "test": "test/unit/conversationController.test.ts",
+      "redExit": 1,
+      "restoredExit": 0,
+      "restoredSha256": "afe2bd21725c2600cddc6f132cf57e61873dc898b4ea9947d0c9dc72ac70156d"
+    },
+    {
+      "mutation": "git-failed-generation",
+      "source": "src/host/conversation/conversationController.ts",
+      "test": "test/unit/conversationController.test.ts",
+      "redExit": 1,
+      "restoredExit": 0,
+      "restoredSha256": "afe2bd21725c2600cddc6f132cf57e61873dc898b4ea9947d0c9dc72ac70156d"
+    },
+    {
+      "mutation": "panel-git-handler",
+      "source": "src/webview/App.tsx",
+      "test": "test/unit/App.test.tsx",
+      "redExit": 1,
+      "restoredExit": 0,
+      "restoredSha256": "ae4ef371071f63ab694013514f2e3421176772fa43c84fc5cc1efdf129e99a81"
+    },
+    {
+      "mutation": "panel-handoff-handler",
+      "source": "src/webview/App.tsx",
+      "test": "test/unit/App.test.tsx",
+      "redExit": 1,
+      "restoredExit": 0,
+      "restoredSha256": "ae4ef371071f63ab694013514f2e3421176772fa43c84fc5cc1efdf129e99a81"
+    },
+    {
+      "mutation": "git-bundle-language",
+      "source": "src/host/git/conversationGitEntry.ts",
+      "test": "test/unit/conversationGitBundle.test.ts",
+      "redExit": 1,
+      "restoredExit": 0,
+      "restoredSha256": "8480bcc799186d8319b1226c87dd4f2f797ef9503d8de06ef97b80d554ba3f30"
+    },
+    {
+      "mutation": "git-bundle-error-identity",
+      "source": "src/host/git/conversationGitEntry.ts",
+      "test": "test/unit/conversationGitBundle.test.ts",
+      "redExit": 1,
+      "restoredExit": 0,
+      "restoredSha256": "8480bcc799186d8319b1226c87dd4f2f797ef9503d8de06ef97b80d554ba3f30"
+    },
+    {
+      "mutation": "git-bundle-factory-guard",
+      "source": "src/host/git/conversationGitBundle.ts",
+      "test": "test/unit/conversationGitBundle.test.ts",
+      "redExit": 1,
+      "restoredExit": 0,
+      "restoredSha256": "72fb2e41cb87ec9956d36221938c15da5dc3e4a1dc659bd6cf6ab810eb13f3c1"
+    }
+  ],
+  "splitGateDrills": [
+    {
+      "mutation": "conversation-git-eager-load",
+      "source": "src/extension.ts",
+      "gate": "node scripts/check-bundle-split.mjs",
+      "redExit": 1,
+      "restoredExit": 0,
+      "restoredSha256": "7fcc0ee2ef9eee299092c583ddc2341735cb5137d3e1b12397696b98de78b35d"
+    },
+    {
+      "mutation": "import-ui-eager-load",
+      "source": "src/host/cliFeatures.ts",
+      "gate": "node scripts/check-bundle-split.mjs",
+      "redExit": 1,
+      "restoredExit": 0,
+      "restoredSha256": "ceef29b71768cca9b98410a1d60569e34207ec2e5bb1322343b1341891a52456"
+    }
+  ]
+}

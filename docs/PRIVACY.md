@@ -86,6 +86,20 @@ independent $1/day journal is excluded. ACP and headless policies are unchanged.
   display text so the extension can mark its file card after History resume;
   the annotation contains file names only, no file contents. Native Muse Code
   clients may show this line.
+- **Git and pull requests (M71).** A commit or push goes through VS Code's
+  own Git to the remote you push to, as any push from VS Code does. When you
+  open a pull request, the extension sends to `api.github.com`: the
+  repository and branch names, the title and the description the form
+  showed you (credential-shaped text is masked before anything is sent), and
+  whether it is a draft. It reads back the pull request's number, address,
+  state, author and head commit, and that commit's checks (names and
+  results), to show them above the composer and to open a pull request in a
+  conversation. It uses the token of VS Code's GitHub sign-in (scope
+  `repo`), read for each call and never stored, logged or passed to a
+  process. **Write with Muse** in the commit or pull request form sends your
+  own message to the model, with the staged diff (or every change, when
+  nothing is staged) and the changed files' names, or the branch's commit
+  subjects and changed files, as any message you send does.
 - **Installing Muse Code.** **Install Muse Code** shows Meta's install
   command for your system (`irm https://dev.meta.ai/install.ps1 | iex` on
   Windows, `curl -fsSL https://dev.meta.ai/install.sh | sh` elsewhere). Only
@@ -416,6 +430,13 @@ does not yet execute them in this build. When that lane lands, a local
   operating system's credential vault), never in settings files, logs or the
   workspace. It is sent only to `api.meta.ai` as a bearer token, and never
   passed to the Muse Code CLI or any other process.
+- GitHub: the extension signs in through VS Code's built-in GitHub sign-in
+  (`vscode.authentication`), which keeps the token; the extension asks
+  VS Code for it at each GitHub call, sends it only to `api.github.com`, and
+  keeps no copy. Which pull request each conversation opened is kept in
+  VS Code's per-workspace extension state (its number, address and title,
+  by session id), and the worktrees the extension made in its global state
+  (folder, repository, branch or pull request, and whether you trusted it).
 - The Muse Code CLI keeps its own sign-in. On Windows and Linux it is in
   the CLI's credential file (`~/.config/muse/auth.json`). On macOS the token
   is in your login Keychain (item `ai.meta.dev.credentials`, account

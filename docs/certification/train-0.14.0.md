@@ -11,7 +11,7 @@ main merge, credential reads or paid/live calls. Existing caps stay unchanged.
 | Source                        | Source head | Conflicts and resolution                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | ----------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `feature/m94-tab`             | `c70facee`  | 38 files: union PLAN decisions/milestones, constants, Knip roots, commands/settings, 14 UI tables and 15 manifest tables; retain D78's current descriptions and availability policy with Tab available on either backend. Combine D78 default availability and M94 first-use consent in the gate/host/tests. Retain the prior deferred UsageDialog. Regenerate the host API record. Start fresh Unreleased notes for Tab; released bytes stay identical to base. |
-| `feature/m71-git-prs`         | `d992534f`  | Pending.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `feature/m71-git-prs`         | `d992534f`  | 31 files: preserve the paid policy, Tab commands, current manifest descriptions and 15 translated manifest tables; union PLAN, README, workflow inventory and budgets. Retain all seven deferred surfaces and shared validation. Keep central redaction plus M71 PEM/Slack handling, secret approvals and git draft routing. Regenerate host API and notices. Update stale trust and bundle fixtures without changing guards.                                    |
 | `feature/m100-multi-device`   | `0331ce14`  | Pending.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `fix/checkpoint-copies-flake` | `424b6bff`  | Pending.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
@@ -107,3 +107,42 @@ restoration. Their receipts:
 | -------------------- | -------------------------------------- | ------------------------------------------------------------------ |
 | packaged-table-exact | `dist/vsix-package/l10n/ui.de.json.br` | `d268f44b9367227e9944173fd3f371f025764fe4e6e30d6807e4c2d0b10c7c98` |
 | paid-client-split    | `dist/meta/extension.json`             | `22654eda4cef7fb26df8b6ada6119d8141a1cff8ac879be0cdcf75a947b46251` |
+
+## M71 final integration
+
+All **37 complete changed unit-test files pass: 1,524 tests**, plus one existing
+Windows short-path-alias conditional skip in gitWindowFileSystem (not runnable
+on Kubuntu). The restored trust guard adds six passing assertions. All five
+typecheck projects, changed-source ESLint, CSS lint, format, localization,
+regenerated host API (328 APIs), Knip, jscpd and production package pass.
+No duplicate keys occur in the 29 translated tables. Released changelog bytes
+remain equal to the base. Source branches' live/paid probes are not rerun.
+
+The inherited trust wiring test first failed on Tab/web-fetch's two legitimate
+non-git trust inputs; keep its exact allowlist and held-project checks. The
+inherited webview fixture first failed on missing What's New assets, an optional
+950 KiB fixture exceeding the prior train's 50 KiB cap, and the old missing-file
+wording. Include the real extra page inventory, use a 49 KiB optional fixture
+(still proving exclusion from startup), and assert ENOENT plus the missing path.
+No production guard is loosened. The central redactor first failed two M71 PEM
+assertions; union its whole-block-first behavior and Slack prefix with M92's
+existing shared token detection. Redact/approval-secret suites then pass 139.
+
+At Brotli quality 8, the helperless package was 2,161,281 bytes; its estimated
+CI shape exceeded the cap by 27,987. Set the same lossless compressor to quality
+11; decoded values do not change. Round-trip, host-language and package suites
+pass 38 tests at that level, and exact staged localization remains mandatory.
+
+| Final M71   | extension.js | modelApi.js | Startup | Deferred JS | uiText.js | VSIX without helper | Estimated with prior helper |
+| ----------- | -----------: | ----------: | ------: | ----------: | --------: | ------------------: | --------------------------: |
+| Before M100 |      612,879 |     442,609 | 918,663 |      49,761 |    46,653 |           2,116,109 |                   2,235,615 |
+
+The real-helper estimate fits by 17,185 bytes; actual CI-shaped certification remains open.
+
+New integration checks are proved red, restored byte-exact, then green:
+
+| Fault                 | File                     | Before and restored SHA-256                                        |
+| --------------------- | ------------------------ | ------------------------------------------------------------------ |
+| git-constants-owner   | `dist/meta/webview.json` | `0489b0e1ea647ecdf903d7fbf403000bf93b1017c5169a81cc847c8b2f7ab3a0` |
+| git-eager-ui          | `dist/meta/webview.json` | `0489b0e1ea647ecdf903d7fbf403000bf93b1017c5169a81cc847c8b2f7ab3a0` |
+| git-held-native-trust | `src/extension.ts`       | `c51640c10603aeb419791b486163f0802c4f95253b01eda4eca7107f16151100` |

@@ -150,5 +150,6 @@
   "command.tabTurnOff.title": "Tab を無効にする",
   "command.tabSnooze.title": "Tab を一時停止する",
   "command.tabMenu.title": "Tab メニュー",
-  "command.tabLanguages.title": "Tab の言語"
+  "command.tabLanguages.title": "Tab の言語",
+  "command.openPullRequestInConversation.title": "会話でプル リクエストを開く…"
 }

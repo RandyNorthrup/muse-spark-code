@@ -34,6 +34,15 @@ import {
   WEBVIEW_ERROR_SOURCES,
   WEBVIEW_ERROR_STACK_MAX_CHARS,
 } from './constants'
+import {
+  commitFormSchema,
+  GIT_ACTIONS,
+  GIT_DRAFT_KINDS,
+  GIT_FORMS,
+  gitDraftSchema,
+  gitStateSchema,
+  pullRequestFormSchema,
+} from './git'
 import { paidStateSchema } from './paid'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'
@@ -180,6 +189,8 @@ export const HOST_ACTIONS = [
   /** The palette's "New worktree…" and "Remove a worktree…" (M32). */
   'newWorktree',
   'removeWorktree',
+  /** The palette's "Open a pull request in a conversation…" (M71). */
+  'openPullRequestInConversation',
   /** A Muse Code fault's notice: stop `muse serve`, the next message starts it (D26). */
   'restartMuseCode',
   /**
@@ -304,6 +315,13 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
      * chose Send anyway. The host skips the secret hold for this send only.
      */
     secretAccepted: z.optional(z.boolean()),
+    /**
+     * The user asked the model for a commit message or a pull request's
+     * text (M71): the host adds what the model needs, and the reply fills the form.
+     */
+    gitDraft: z.optional(z.enum(GIT_DRAFT_KINDS)),
+    /** The PR form's edited base, so its draft describes the same comparison. */
+    gitDraftBase: z.optional(z.string()),
   }),
   // Edit on a queued message (M87, PLAN.md D66): take it back before the
   // model has it. The ids are those `turnAccepted` gave its card; the host
@@ -599,6 +617,23 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Account & usage's "Ask again" (M58): no paid feature stays allowed
   // always in this workspace.
   z.object({ type: z.literal('forgetPaidUse') }),
+  // Git and pull requests (M71, PLAN.md D49): the panel's buttons and forms.
+  z.object({ type: z.literal('gitAction'), action: z.enum(GIT_ACTIONS) }),
+  z.object({
+    type: z.literal('gitCommit'),
+    message: z.string(),
+    /** Stage every change first, new files included. */
+    includeUnstaged: z.boolean(),
+  }),
+  z.object({
+    type: z.literal('gitCreatePullRequest'),
+    /** The branch the form showed: a different one now refuses the request. */
+    head: z.string(),
+    base: z.string(),
+    title: z.string(),
+    body: z.string(),
+    isDraft: z.boolean(),
+  }),
 ])
 
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
@@ -887,6 +922,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // The host did not move or stop this task (M46): the row's button is free again.
   z.object({ type: z.literal('taskRefused'), itemId: z.string() }),
+  // Git and pull requests (M71, PLAN.md D49): the panel's cards and forms.
+  z.object({ type: z.literal('gitState'), state: gitStateSchema }),
+  z.object({ type: z.literal('gitCommitForm'), form: commitFormSchema }),
+  z.object({ type: z.literal('gitPullRequestForm'), form: pullRequestFormSchema }),
+  z.object({ type: z.literal('gitDraft'), draft: gitDraftSchema }),
+  // A form's commit or creation ended: done closes it, a failure reopens its buttons.
+  z.object({ type: z.literal('gitDone'), form: z.enum(GIT_FORMS), ok: z.boolean() }),
   // The review pane's files and hunks (answer to readReviewChanges, M70).
   // `omittedEdits` counts the edits past the pane's limits or unreadable;
   // `reason` says why there is nothing to list at all.

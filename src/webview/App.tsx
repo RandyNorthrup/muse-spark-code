@@ -44,6 +44,7 @@ import {
 import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared/paid'
 import { buildPalette, type PaletteAction } from '../shared/palette'
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
+import type { GitAction, GitDraftKind } from '../shared/git'
 import type {
   ChatReference,
   LineRange,
@@ -52,6 +53,7 @@ import type {
   SignInMethod,
   WebviewToHostMessage,
 } from '../shared/protocol'
+import type { GitFormEdit } from './state/gitState'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { ApprovalDock } from './components/ApprovalDock'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
@@ -182,6 +184,13 @@ function restoreNoteOf(state: UiState): string | undefined {
   }
   return notes[state.checkpoints.availability]
 }
+
+// These panels share this runtime's React and installed language; importing
+// them waits for state to show (Git) or the user's Account & usage action.
+const GitPanel = lazy(async () => {
+  const { GitPanel } = await import('./components/GitPanel')
+  return { default: GitPanel }
+})
 
 /** What floats above the composer: a palette view, a menu, the History dialog or a modal. */
 type Overlay =
@@ -476,6 +485,73 @@ export function App({
       onGoalCommand('edit', objective, 'inline')
     },
     [store, onGoalCommand],
+  )
+  // Git and pull requests (M71): the panel's buttons, forms and drafts.
+  const onGitAction = useCallback(
+    (action: GitAction) => {
+      postMessage({ type: 'gitAction', action })
+    },
+    [postMessage],
+  )
+  const onGitEdit = useCallback(
+    (edit: GitFormEdit) => {
+      dispatch({ type: 'gitFormEdited', edit })
+    },
+    [dispatch],
+  )
+  const onGitClose = useCallback(() => {
+    postMessage({ type: 'gitAction', action: 'cancel' })
+    dispatch({ type: 'gitFormClosed' })
+  }, [dispatch, postMessage])
+  const onGitCommit = useCallback(() => {
+    const { form } = store.getState().git
+    if (form?.kind !== 'commit') {
+      return
+    }
+    dispatch({ type: 'gitFormBusy' })
+    postMessage({
+      type: 'gitCommit',
+      message: form.message,
+      includeUnstaged: form.includeUnstaged,
+    })
+  }, [store, dispatch, postMessage])
+  const onGitCreatePullRequest = useCallback(() => {
+    const { form } = store.getState().git
+    if (form?.kind !== 'pullRequest') {
+      return
+    }
+    dispatch({ type: 'gitFormBusy' })
+    postMessage({
+      type: 'gitCreatePullRequest',
+      head: form.facts.head,
+      base: form.base,
+      title: form.title,
+      body: form.body,
+      isDraft: form.isDraft,
+    })
+  }, [store, dispatch, postMessage])
+  // The user's own message asks for the draft (PLAN.md D49: part of their turn).
+  const onGitGenerate = useCallback(
+    (kind: GitDraftKind) => {
+      const current = store.getState()
+      if (current.auth.status !== 'signedIn' || current.activeTurnId !== undefined) {
+        return
+      }
+      const localId = newLocalId()
+      const text =
+        kind === 'commitMessage' ? UI_TEXT.gitAskCommitMessage : UI_TEXT.gitAskPullRequest
+      dispatch({ type: 'gitDraftRequested', localId, text })
+      postMessage({
+        type: 'sendMessage',
+        localId,
+        text,
+        attachmentIds: [],
+        gitDraft: kind,
+        ...(current.git.form?.kind === 'pullRequest' && { gitDraftBase: current.git.form.base }),
+      })
+      setIsPinnedToEnd(true)
+    },
+    [store, dispatch, newLocalId, postMessage],
   )
   // `/handoff …` is a command to the backend, not a message (M74): the
   // host cards the accepted request itself, and the brief comes back as a
@@ -1518,13 +1594,19 @@ export function App({
         case 'showHooks':
         case 'showMemory':
         case 'newWorktree':
-        case 'removeWorktree': {
+        case 'removeWorktree':
+        case 'openPullRequestInConversation': {
           postMessage({ type: 'hostAction', action: action.type })
           closeOverlay()
           break
         }
         case 'exportConversation': {
           postMessage({ type: 'exportConversation', format: action.format })
+          closeOverlay()
+          break
+        }
+        case 'gitAction': {
+          postMessage({ type: 'gitAction', action: action.action })
           closeOverlay()
           break
         }
@@ -2161,9 +2243,27 @@ export function App({
           </button>
         ) : null}
       </main>
-      {/* Review waits for M70's review pane (PR #69), which main does not have yet (D66). */}
       {/* Review opens M70's pane on the same edits (D66 item 10). */}
       <DiffTally counts={tally} onReview={openReviewPane} />
+      {state.git.form === undefined &&
+      state.git.state.worktree === undefined &&
+      state.git.state.pullRequest === undefined &&
+      state.git.state.hold === undefined ? null : (
+        <DeferredSurface onClose={onGitClose} isModal={false}>
+          <GitPanel
+            git={state.git}
+            isInert={isModalOpen}
+            canGenerate={state.auth.status === 'signedIn' && state.activeTurnId === undefined}
+            onAction={onGitAction}
+            onEdit={onGitEdit}
+            onClose={onGitClose}
+            onCommit={onGitCommit}
+            onCreatePullRequest={onGitCreatePullRequest}
+            onGenerate={onGitGenerate}
+            onOpenLink={onOpenExternal}
+          />
+        </DeferredSurface>
+      )}
       <GoalPanel
         key={state.sessionId}
         goal={state.goal}

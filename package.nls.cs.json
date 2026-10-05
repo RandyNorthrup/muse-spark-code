@@ -150,5 +150,6 @@
   "command.tabTurnOff.title": "Vypnout Tab",
   "command.tabSnooze.title": "Pozastavit Tab",
   "command.tabMenu.title": "Nabídka Tab",
-  "command.tabLanguages.title": "Jazyky Tab"
+  "command.tabLanguages.title": "Jazyky Tab",
+  "command.openPullRequestInConversation.title": "Otevřít žádost o přijetí změn v konverzaci…"
 }

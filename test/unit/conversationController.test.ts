@@ -62,6 +62,7 @@ import {
   MAX_IMAGE_BYTES,
   REVIEW_PANE_MAX_LINES,
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
+  GIT_MODEL_TEXT,
   MODEL_TEXT,
   MSP_READ_OUTPUT_CONCURRENCY,
   REVIEW_MODEL_TEXT,
@@ -98,6 +99,8 @@ import {
   eventLogFault,
 } from './helpers/cliRecoveryCapture'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
+import { change, type FakeGitWindowOptions, fakeGitWindow, fakeRepository } from './helpers/fakeGit'
+import { ConversationGit } from '../../src/host/git/conversationGit'
 import {
   ledgerFault,
   RACE_APPROVAL_ID,
@@ -401,6 +404,10 @@ function setup(
     restoreOutcome?: RestoreOutcome
     /** The answer to the file restore / code rewind confirmation (M72). */
     confirmsFileAction?: boolean
+    /** The window is held on someone else's pull request (M71). */
+    isWorktreeHeld?: boolean
+    /** Git and GitHub as the fakes play them (M71). */
+    git?: FakeGitWindowOptions
     /** Told each time the checkpoint port is asked to mark a turn running or ended (M72). */
     onMarkTurn?: (key: string, isRunning: boolean) => void
     /** The edit review behind the review pane (M70). */
@@ -516,6 +523,8 @@ function setup(
     options.timeouts,
   )
   const auth = fakeAuth(options.status)
+  const gitFake = fakeGitWindow(options.git)
+  const worktreeHold = { isHeld: options.isWorktreeHeld ?? false }
   const surface = fakeSurface('s', options.isSideChat)
   surface.takeRestoredSessionId.mockReturnValue(options.sideSessionId)
   const openExternal = vi.fn<(url: string) => void>()
@@ -636,6 +645,8 @@ function setup(
     },
     setPaidFeature: vi.fn(() => Promise.resolve()),
     isWorkspaceTrusted: () => options.isWorkspaceTrusted ?? true,
+    isWorktreeHeld: () => worktreeHold.isHeld,
+    createGit: (gitSurface) => new ConversationGit(gitFake.window, gitSurface),
     onForegroundTasksChanged: vi.fn<() => void>(),
     museVoice: options.museVoice ?? (() => undefined),
     modelApiSessionBudgetUsd: () => options.modelApiSessionBudgetUsd ?? 0,
@@ -852,6 +863,8 @@ function setup(
     ...handle,
     host,
     auth,
+    gitFake,
+    worktreeHold,
     surface,
     controller,
     deps,
@@ -9906,6 +9919,183 @@ describe('ConversationController: the Model API bundle (M57, PLAN.md D6)', () =>
   })
 })
 
+/** A staged change, and the user's own message asking for its commit message (M71). */
+async function askedForCommitMessage() {
+  const t = setup({ git: { repository: fakeRepository({ indexChanges: [change('src/a.ts')] }) } })
+  await t.controller.handle({
+    type: 'sendMessage',
+    localId: 'l1',
+    text: UI_TEXT.gitAskCommitMessage,
+    attachmentIds: [],
+    gitDraft: 'commitMessage',
+  })
+  await settle()
+  return t
+}
+
+/** A held PR window VS Code trusts (M71), with the git and the price a test watches. */
+function heldTrustedWindow(options: Parameters<typeof setup>[0] = {}) {
+  const t = setup({ isWorkspaceTrusted: true, isWorktreeHeld: true, ...options })
+  t.controller.dispose()
+  t.server.handle('session/list', () => ({ sessions: [], nextCursor: null }))
+  const runGit = vi.fn<ConversationDeps['runGit']>(() => Promise.resolve(''))
+  const allowsPaidUse = vi.fn<ConversationDeps['allowsPaidUse']>(() => Promise.resolve(false))
+  const controller = new ConversationController({
+    ...t.deps,
+    runGit,
+    runBestOfNGit: runGit,
+    allowsPaidUse,
+    isPaidFeatureOn: () => true,
+  })
+  const release = () => {
+    t.worktreeHold.isHeld = false
+    controller.worktreeHoldReleased()
+  }
+  return { ...t, controller, runGit, allowsPaidUse, release }
+}
+
+// M71 (PLAN.md D49): a window held on someone else's pull request, and the
+// drafts the user asks for inside their own turn.
+describe('ConversationController: git and pull requests (M71)', () => {
+  it("holds a conversation on someone else's pull request in Plan mode, whatever the setting says", async () => {
+    const t = setup({
+      isWorktreeHeld: true,
+      initialPermissionMode: 'acceptEdits',
+      hasApprovalUi: true,
+    })
+    t.controller.surfaceReady()
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({ type: 'composerState', permissionMode: 'plan' }),
+    )
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: UI_TEXT.worktreeHeldPlanOnly,
+    })
+    await t.send('l1', 'review this')
+    await settle()
+    // Plan is MSP's denyUnmatched: nothing outside the plan runs.
+    expect(t.server.requestsFor('session/start')[0]?.params).toMatchObject({
+      approvalMode: 'denyUnmatched',
+    })
+    expect(t.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+  })
+
+  it('runs no `!` command while held, and leaves Plan only after the card lets go', async () => {
+    const t = setup({ grantedCapabilities: ['userShell'], isWorktreeHeld: true })
+    await t.controller.handle({ type: 'runUserShell', command: 'npm test' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'userShellRefused',
+      command: 'npm test',
+      reason: UI_TEXT.worktreeHeldShell,
+    })
+    expect(t.server.requestsFor('session/userShell')).toHaveLength(0)
+    t.worktreeHold.isHeld = false
+    t.controller.worktreeHoldReleased()
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'acceptEdits' })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'composerState',
+      permissionMode: 'acceptEdits',
+    })
+  })
+
+  // The RVMG78 review: main's Best-of-N and session board read git under VS
+  // Code's trust alone, so a held window that VS Code trusts ran it.
+  it('refuses Best-of-N in a held window VS Code trusts, before its price and any git, until the card lets go', async () => {
+    const t = heldTrustedWindow({ backendKind: 'modelApi' })
+    const start = {
+      type: 'startBestOfN',
+      prompt: 'refactor this',
+      attempts: 2,
+      requestCeilingPerAttempt: 20,
+    } as const
+    try {
+      expect(await lastNoticeText(t, start)).toBe(UI_TEXT.worktreeHeldShell)
+      expect(t.allowsPaidUse).not.toHaveBeenCalled()
+      expect(t.runGit).not.toHaveBeenCalled()
+      t.release()
+      // Admitted to its price question; declined there, so still no git.
+      expect(await lastNoticeText(t, start)).toBe(UI_TEXT.bestOfNConsentDeclined)
+      expect(t.allowsPaidUse).toHaveBeenCalledOnce()
+      expect(t.runGit).not.toHaveBeenCalled()
+    } finally {
+      t.controller.dispose()
+    }
+  })
+
+  it('reads no worktree with git for the board in a held window VS Code trusts, until the card lets go', async () => {
+    const t = heldTrustedWindow()
+    const boardGit = () => t.runGit.mock.calls.map(([args]) => args.join(' '))
+    try {
+      await t.controller.handle({ type: 'requestSessionBoard' })
+      expect(t.surface.posted).toContainEqual(expect.objectContaining({ type: 'sessionBoard' }))
+      expect(t.runGit).not.toHaveBeenCalled()
+      t.release()
+      await t.controller.handle({ type: 'requestSessionBoard' })
+      expect(boardGit()).toContainEqual(expect.stringContaining('worktree list --porcelain'))
+    } finally {
+      t.controller.dispose()
+    }
+  })
+
+  it('asks for a commit message as the user’s own turn and fills the form from the reply', async () => {
+    const t = await askedForCommitMessage()
+    const input = t.server.requestsFor('turn/start')[0]?.params?.['input']
+    expect(input).toEqual([
+      { type: 'text', text: UI_TEXT.gitAskCommitMessage },
+      {
+        type: 'text',
+        text: expect.stringContaining(GIT_MODEL_TEXT.gitUntrustedData) as unknown,
+      },
+      NOTE,
+    ])
+    expect(JSON.stringify(input)).toContain('- src/a.ts')
+    t.server.notify('item/completed', {
+      sessionId: 's1',
+      item: {
+        itemId: 'a1',
+        kind: 'agentMessage',
+        status: 'completed',
+        turnId: 't1',
+        text: 'Add the parser',
+      },
+    })
+    t.server.notify('turn/completed', { sessionId: 's1', turnId: 't1', terminal: 'completed' })
+    await settle()
+    expect(t.surface.posted).toContainEqual({
+      type: 'gitDraft',
+      draft: { kind: 'commitMessage', message: 'Add the parser' },
+    })
+  })
+
+  it('gives the form its button back when a restart ends the turn that asked', async () => {
+    const t = await askedForCommitMessage()
+    await t.controller.backendStopping(false)
+    expect(t.surface.posted).toContainEqual({
+      type: 'gitDraft',
+      draft: { kind: 'failed', forKind: 'commitMessage' },
+    })
+  })
+
+  it('gives the form its button back when the draft cannot be asked for', async () => {
+    const t = setup({ isWorkspaceTrusted: false })
+    await t.controller.handle({
+      type: 'sendMessage',
+      localId: 'l1',
+      text: UI_TEXT.gitAskCommitMessage,
+      attachmentIds: [],
+      gitDraft: 'commitMessage',
+    })
+    expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+    expect(t.surface.posted).toContainEqual({
+      type: 'gitDraft',
+      draft: { kind: 'failed', forKind: 'commitMessage' },
+    })
+    expect(t.surface.posted).toContainEqual(expect.objectContaining({ type: 'sendFailed' }))
+  })
+})
+
 function startReview(t: ReturnType<typeof setup>, text = '/review', localId = 'r1') {
   return t.controller.handle({
     type: 'startReview',
@@ -9916,6 +10106,18 @@ function startReview(t: ReturnType<typeof setup>, text = '/review', localId = 'r
         ? { scope: 'uncommitted', focus: 'general' }
         : { scope: 'custom', focus: 'general', instructions: text.slice('/review '.length) },
   })
+}
+
+/** `/review`'s git preset refused before any git or turn, its card saying why (M70, M71). */
+async function expectGitPresetRefused(
+  t: ReturnType<typeof setup>,
+  collect: unknown,
+  reason: string,
+): Promise<void> {
+  await startReview(t)
+  expect(collect).not.toHaveBeenCalled()
+  expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+  expect(t.surface.posted).toContainEqual({ type: 'sendFailed', localId: 'r1', reason })
 }
 
 /** The review turn ends: Muse Code is set back to Manual's mode, and the panel says Manual. */
@@ -10608,17 +10810,32 @@ describe('ConversationController: review (M70)', () => {
 
   it('refuses the git presets in Restricted Mode with the reason, and still reviews custom instructions', async () => {
     const t = reviewSetup({ isWorkspaceTrusted: false })
-    await startReview(t)
-    expect(t.collect).not.toHaveBeenCalled()
-    expect(t.server.requestsFor('turn/start')).toHaveLength(0)
-    expect(t.surface.posted).toContainEqual({
-      type: 'sendFailed',
-      localId: 'r1',
-      reason: UI_TEXT.reviewRestricted,
-    })
+    await expectGitPresetRefused(t, t.collect, UI_TEXT.reviewRestricted)
     await startReview(t, '/review the cache', 'r2')
     expect(turnStartText(t)).toContain('the cache')
     expect(turnStartText(t)).toContain(REVIEW_MODEL_TEXT.reviewScopeCustom)
+    expect(t.surface.posted).toContainEqual({
+      type: 'turnAccepted',
+      localId: 'r2',
+      turnId: 't1',
+      disposition: 'started',
+    })
+  })
+
+  // The RVMG78 review: VS Code's trust alone admitted git in a held PR window (M71).
+  it('collects no git review in a held window VS Code trusts, until the card lets go', async () => {
+    const t = reviewSetup({ isWorkspaceTrusted: true, isWorktreeHeld: true })
+    await expectGitPresetRefused(t, t.collect, UI_TEXT.worktreeHeldShell)
+    t.worktreeHold.isHeld = false
+    t.controller.worktreeHoldReleased()
+    await startReview(t, '/review', 'r2')
+    expect(t.collect).toHaveBeenCalledOnce()
+    const isPermitted = t.collect.mock.calls[0]?.[1]
+    expect(isPermitted?.()).toBe(true)
+    // Its permission reads the hold at each call, not the trust it started with.
+    t.worktreeHold.isHeld = true
+    expect(isPermitted?.()).toBe(false)
+    t.worktreeHold.isHeld = false
     expect(t.surface.posted).toContainEqual({
       type: 'turnAccepted',
       localId: 'r2',
@@ -11678,6 +11895,35 @@ describe('ConversationController: plans as files (M79)', () => {
     expect(remote.server.requestsFor('session/start')[1]?.params).toMatchObject({
       approvalMode: 'promptUnmatched',
     })
+  })
+
+  it.each(['auto', 'bypassPermissions'] as const)(
+    'keeps a held PR approved plan in Plan mode despite starting mode %s',
+    async (initialPermissionMode) => {
+      const t = await museCodePlan({ initialPermissionMode, isWorktreeHeld: true })
+      await t.controller.handle(IMPLEMENT)
+      expect(t.server.requestsFor('session/start')).toHaveLength(2)
+      expect(t.server.requestsFor('session/start')[1]?.params).toMatchObject({
+        approvalMode: 'denyUnmatched',
+      })
+      expect(t.surface.posted).toContainEqual(
+        expect.objectContaining({ type: 'composerState', permissionMode: 'plan' }),
+      )
+    },
+  )
+
+  it('keeps a saved plan in a held PR in Plan mode until its trust card is accepted', async () => {
+    const t = setup({ initialPermissionMode: 'auto', isWorktreeHeld: true, hasApprovalUi: true })
+    t.planFiles.files.set(`/ws/${FILE_PATH}`, '# Review\n\n1. Review the patch.')
+    chooses(t, 'implement')
+    await t.controller.handle({ type: 'showPlans' })
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    expect(t.server.requestsFor('session/start')[0]?.params).toMatchObject({
+      approvalMode: 'denyUnmatched',
+    })
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({ type: 'composerState', permissionMode: 'plan' }),
+    )
   })
 
   it('implements a plan on the Model API with its steps as the todo list before the first request, and tells the model what they are', async () => {

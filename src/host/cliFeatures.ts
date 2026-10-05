@@ -22,7 +22,8 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import type { ProcessResult } from './backend/sandboxSetup'
-import { type AgentImportHostDeps, runAgentImport } from './agentImportHost'
+import type { AgentImportHostDeps } from './agentImportHost'
+import { runAgentImport } from './agentImportBundle'
 import { type MuseConfigDeps, showHooks, showMcpServers } from './commands/museConfigCommands'
 import { importSkills, manageSkills, type SkillsCliDeps } from './commands/skillsCommands'
 import type { ConversationExports } from './conversation/exportConversation'
@@ -67,6 +68,13 @@ export interface CliFeatureDeps {
   readonly modelApiHooks: () => boolean | undefined
   /** Shows the extension's log, where an MCP server's stderr goes. */
   readonly openLog: () => void
+  /**
+   * VS Code trusts the workspace and the window is not held on someone
+   * else's pull request (M71): the project's skills and hooks may be read.
+   */
+  readonly isProjectTrusted: () => boolean
+  /** Whether this window is held on someone else's pull request (M71). */
+  readonly isProjectHeld: () => boolean
   /** Opens text as a read-only document (M15's tool outputs; M83's import preview). */
   readonly openDocument: (title: string, content: string) => Promise<void>
   readonly log: Logger
@@ -136,7 +144,7 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
   const skillsDeps = (): SkillsCliDeps => ({
     runCli: (args) => deps.runCli(args, MUSE_SKILLS_TIMEOUT_MS),
     workspaceRoot: deps.workspaceRoot,
-    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    isWorkspaceTrusted: deps.isProjectTrusted,
     showInformation: (message) => {
       void vscode.window.showInformationMessage(message)
     },
@@ -160,7 +168,7 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
           ? undefined
           : path.join(deps.workspaceRoot, ...PROJECT_HOOKS_SEGMENTS),
       fileExists: existsSync,
-      isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+      isWorkspaceTrusted: deps.isProjectTrusted,
       pick: showPickOne,
       openFile: async (fsPath) => {
         await vscode.window.showTextDocument(vscode.Uri.file(fsPath), { preview: false })
@@ -252,6 +260,8 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
       runAgentImport({
         ...deps.agentImport,
         workspaceRoot: deps.workspaceRoot,
+        isProjectTrusted: deps.isProjectTrusted,
+        isProjectHeld: deps.isProjectHeld,
         museSettingsPath: deps.museSettingsPath,
         openDocument: deps.openDocument,
         log: deps.log,

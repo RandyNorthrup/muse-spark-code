@@ -150,5 +150,6 @@
   "command.tabTurnOff.title": "Tab’ı kapat",
   "command.tabSnooze.title": "Tab’ı duraklat",
   "command.tabMenu.title": "Tab menüsü",
-  "command.tabLanguages.title": "Tab dilleri"
+  "command.tabLanguages.title": "Tab dilleri",
+  "command.openPullRequestInConversation.title": "Bir Çekme İsteğini Konuşmada Aç…"
 }

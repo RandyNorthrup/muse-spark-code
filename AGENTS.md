@@ -194,12 +194,15 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       MCP server (diagnostics, code intelligence, images, web
                       fetch, browser check), VS Code's language services, the MCP servers'
                       spawner, the network posture, web fetch's pinned
-                      transport and the verify loop's editor side: settled
-                      diagnostics, format on edit and turn checkpoints' shadow repository)
+                      transport, git and pull requests through VS Code's Git
+                      extension and GitHub sign-in, and the verify loop's editor
+                      side: settled diagnostics, format on edit and turn
+                      checkpoints' shadow repository)
 src/core/**           backend-agnostic logic; must not import `vscode`
                       (MSP host, Model API client and tools, the MCP client,
                       context (rules, skills, custom agents), Muse Code's
-                      memory, export, worktrees, usage,
+                      memory, export, worktrees, git and GitHub (push plans,
+                      REST client, draft prompts), usage,
                       dictation, Muse Voice, the paid gate, network failures,
                       code intelligence and the repo map, web fetch's
                       public-address checks and HTML converter, the browser

@@ -66,6 +66,9 @@ export type PaletteAction =
   | { readonly type: 'showPlans' }
   | { readonly type: 'newWorktree' }
   | { readonly type: 'removeWorktree' }
+  /** Commit, push and pull requests in the panel (M71). */
+  | { readonly type: 'gitAction'; readonly action: 'openCommit' | 'push' | 'openPullRequest' }
+  | { readonly type: 'openPullRequestInConversation' }
   | { readonly type: 'exportConversation'; readonly format: ExportFormat }
   /** "Import session…" (M84): resume a portable JSON file on the Model API backend. */
   | { readonly type: 'importSession' }
@@ -459,6 +462,45 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           label: UI_TEXT.removeWorktreeItem,
           detail: UI_TEXT.removeWorktreeDetail,
           action: { type: 'removeWorktree' },
+        },
+      ],
+    },
+    // Git and pull requests (M71): the same on both backends.
+    {
+      id: 'git',
+      title: UI_TEXT.groupGit,
+      items: [
+        {
+          id: 'commit',
+          label: UI_TEXT.gitCommitItem,
+          tip: UI_TEXT.gitCommitItemDetail,
+          slashName: SLASH_COMMAND_NAMES.commit,
+          detail: UI_TEXT.gitCommitItemDetail,
+          action: { type: 'gitAction', action: 'openCommit' },
+        },
+        {
+          id: 'push',
+          label: UI_TEXT.gitPushItem,
+          tip: UI_TEXT.gitPushItemDetail,
+          slashName: SLASH_COMMAND_NAMES.push,
+          detail: UI_TEXT.gitPushItemDetail,
+          action: { type: 'gitAction', action: 'push' },
+        },
+        {
+          id: 'pullRequest',
+          label: UI_TEXT.gitPullRequestItem,
+          tip: UI_TEXT.gitPullRequestItemDetail,
+          slashName: SLASH_COMMAND_NAMES.pullRequest,
+          detail: UI_TEXT.gitPullRequestItemDetail,
+          action: { type: 'gitAction', action: 'openPullRequest' },
+        },
+        {
+          id: 'checkoutPullRequest',
+          label: UI_TEXT.gitCheckoutItem,
+          tip: UI_TEXT.gitCheckoutItemDetail,
+          slashName: SLASH_COMMAND_NAMES.checkoutPullRequest,
+          detail: UI_TEXT.gitCheckoutItemDetail,
+          action: { type: 'openPullRequestInConversation' },
         },
       ],
     },
