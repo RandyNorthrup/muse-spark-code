@@ -27,7 +27,7 @@
   "command.importSession.title": "Importar sesión",
   "command.openShareFile.title": "Abrir archivo compartido",
   "command.mcpServers.title": "Servidores MCP",
-  "command.hooks.title": "Ganchos",
+  "command.hooks.title": "Hooks",
   "command.memory.title": "Memoria",
   "command.newWorktree.title": "Nuevo árbol de trabajo…",
   "command.removeWorktree.title": "Quitar árbol de trabajo…",

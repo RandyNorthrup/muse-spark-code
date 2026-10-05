@@ -113,6 +113,7 @@
       "shellDirectory"
     ],
     "es": [
+      "hooksItem",
       "usagePlan",
       "agentTokens",
       "permissionModes.manual",
@@ -126,8 +127,7 @@
       "permissionModes.manual",
       "toolLabels.shell",
       "goalTokens",
-      "imageBuyPrompt",
-      "agentImportKindHook"
+      "imageBuyPrompt"
     ],
     "fr": [
       "modesTitle",
@@ -163,7 +163,7 @@
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],
     "cs": ["views.chatView.name"],
     "de": ["views.chatView.name", "command.hooks.title"],
-    "es": ["views.chatView.name"],
+    "es": ["views.chatView.name", "command.hooks.title"],
     "pt-br": ["views.chatView.name"],
     "fr": ["command.hooks.title"],
     "it": ["views.chatView.name"]
