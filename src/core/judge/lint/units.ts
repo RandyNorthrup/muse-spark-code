@@ -51,10 +51,16 @@ export interface LintExtractors {
 export interface LintCoverage {
   readonly path: string
   readonly language: string
-  readonly kind: LintKind
+  readonly kind: LintKind | 'localize'
   readonly units: number
   readonly status: 'checked' | 'not-checked'
-  readonly reason?: 'unsupported-language' | 'missing-extractor' | 'no-units'
+  readonly reason?:
+    | 'unsupported-language'
+    | 'missing-extractor'
+    | 'no-units'
+    | 'missing-localizer'
+    | 'no-regions'
+    | 'no-answer'
 }
 
 export interface LintExtraction {

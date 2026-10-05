@@ -61,12 +61,14 @@ export function createHostLintExtractors(
   services: Pick<LanguageServiceHost, 'documentSymbols'>,
   mapping: LintSymbolKinds,
   syntax: LintExtractors['syntax'],
+  absolutePath: (path: string) => string,
 ): LintExtractors {
   return {
     async symbols(file, kinds) {
-      const symbols = await services.documentSymbols(file.path)
+      const resolvedFile = { ...file, path: absolutePath(file.path) }
+      const symbols = await services.documentSymbols(resolvedFile.path)
       if (symbols.length === 0) return
-      const units = symbolUnits(file, symbols, kinds, mapping)
+      const units = symbolUnits(resolvedFile, symbols, kinds, mapping)
       // A partial outline does not prove that a missing declaration kind was inspected.
       return { units, coveredKinds: [...new Set(units.map((unit) => unit.kind))] }
     },

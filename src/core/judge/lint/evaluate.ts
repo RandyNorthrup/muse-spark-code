@@ -1,0 +1,181 @@
+import * as z from 'zod/mini'
+import { redactSecrets } from '../../redact'
+import { entropyConfidence } from '../math'
+import { judgeRequestSchema, judgeResultSchema, type JudgeRequest } from '../schema'
+import { type LintCache, type LintDecision, type LintIdentity } from './cache'
+import { lintQuestion, type LintQuestion, type LintRule, type LintWording } from './rules'
+import type { LintFile, LintUnit } from './units'
+
+const calleeSchema = z.strictObject({ name: z.string(), source: z.string() })
+
+export interface LintLimits {
+  readonly maxCallees: number
+  readonly maxCalleeBytes: number
+  readonly distributionTolerance: number
+}
+
+export interface LintEvaluator {
+  readonly identity: LintIdentity
+  readonly wording: LintWording
+  readonly limits: LintLimits
+  readonly cache: LintCache
+  callees(file: LintFile, unit: LintUnit): Promise<unknown>
+  /** The assembled source must reserve/rebind under D78 before each send, including retries. */
+  judgeAdmitted(request: JudgeRequest, budgetUsd: number, signal: AbortSignal): Promise<unknown>
+}
+
+export interface LintUnitResult {
+  readonly rule: LintRule
+  readonly unit: LintUnit
+  readonly decision: LintDecision
+  readonly provenance: LintIdentity['provenance']
+}
+
+function decisionsFromResponse(
+  raw: unknown,
+  request: JudgeRequest,
+  rules: readonly LintRule[],
+  questions: ReadonlyMap<string, LintQuestion>,
+  evaluator: LintEvaluator,
+): readonly LintDecision[] {
+  const result = judgeResultSchema.parse(raw)
+  if (
+    result.model !== evaluator.identity.model ||
+    Object.keys(result.answers).length !== rules.length
+  ) {
+    throw new Error('lint-answer-alignment')
+  }
+  return rules.map((rule) => {
+    const answer = result.answers[rule.id]
+    const meta = result.muse[rule.id]
+    const prepared = questions.get(rule.id)
+    if (
+      meta === undefined ||
+      prepared === undefined ||
+      answer?.type !== 'choice' ||
+      meta.source !== evaluator.identity.source ||
+      meta.model !== evaluator.identity.model
+    ) {
+      throw new Error('lint-answer-alignment')
+    }
+    const criteria = request.questions[rule.id]
+    if (criteria?.type !== 'choice') throw new Error('lint-answer-alignment')
+    const letters = Object.keys(criteria.criteria)
+    const probabilities = letters.map((letter) => answer.probabilities[letter])
+    if (
+      Object.keys(answer.probabilities).length !== letters.length ||
+      probabilities.includes(undefined) ||
+      Math.abs(
+        probabilities.reduce<number>((sum, probability) => sum + (probability ?? 0), 0) - 1,
+      ) > evaluator.limits.distributionTolerance
+    ) {
+      throw new Error('lint-answer-distribution')
+    }
+    const confidence = entropyConfidence(probabilities.map((probability) => probability ?? 0))
+    const outcome = prepared.outcomes[answer.choice]
+    if (outcome === undefined) throw new Error('lint-answer-alignment')
+    return {
+      outcome: meta.partial || confidence < rule.minConfidence ? 'inconclusive' : outcome,
+      confidence,
+    }
+  })
+}
+
+/** Rules with identical context needs share one complete unit state, never fragments of it. */
+export async function evaluateLintUnit(
+  file: LintFile,
+  unit: LintUnit,
+  rules: readonly LintRule[],
+  evaluator: LintEvaluator,
+  budgetUsd: number,
+  signal: AbortSignal,
+): Promise<readonly LintUnitResult[]> {
+  if (rules.length === 0) return []
+  if (
+    rules.some(
+      (rule) =>
+        !Number.isFinite(rule.minConfidence) || rule.minConfidence < 0 || rule.minConfidence > 1,
+    )
+  ) {
+    throw new RangeError('lint-confidence-invalid')
+  }
+  if (new Set(rules.map((rule) => rule.id)).size !== rules.length)
+    throw new Error('lint-rule-id-duplicate')
+  const identity = { ...evaluator.identity }
+  const assertIdentity = () => {
+    if (
+      Object.entries(identity).some(
+        ([key, value]) => Reflect.get(evaluator.identity, key) !== value,
+      )
+    ) {
+      throw new Error('lint-source-changed')
+    }
+  }
+  const results: LintUnitResult[] = []
+  for (const isNeedsCallees of [false, true]) {
+    signal.throwIfAborted()
+    const group = rules.filter((rule) => rule.callees === isNeedsCallees)
+    if (group.length === 0) continue
+    const callees = isNeedsCallees
+      ? z.array(calleeSchema).parse(await evaluator.callees(file, unit))
+      : []
+    signal.throwIfAborted()
+    assertIdentity()
+    if (
+      callees.length > evaluator.limits.maxCallees ||
+      Buffer.byteLength(JSON.stringify(callees), 'utf8') > evaluator.limits.maxCalleeBytes
+    ) {
+      throw new RangeError('lint-context-too-large')
+    }
+    const questions = new Map(group.map((rule) => [rule.id, lintQuestion(rule, evaluator.wording)]))
+    const rawRequest = {
+      model: identity.model,
+      state: {
+        unit: {
+          language: file.language,
+          kind: unit.kind,
+          name: unit.name,
+          source: file.source.slice(unit.start, unit.end),
+        },
+        callees,
+      },
+      questions: Object.fromEntries(
+        [...questions].map(([id, prepared]) => [id, prepared.question]),
+      ),
+    }
+    // Redact the entire request before hashing or dispatch; cache reuse never wins over privacy.
+    const request = judgeRequestSchema.parse(JSON.parse(redactSecrets(JSON.stringify(rawRequest))))
+    const cached = evaluator.cache.get(request, identity)
+    const decisions =
+      cached ??
+      decisionsFromResponse(
+        await evaluator.judgeAdmitted(request, budgetUsd, signal),
+        request,
+        group,
+        questions,
+        evaluator,
+      )
+    signal.throwIfAborted()
+    assertIdentity()
+    if (
+      cached === undefined &&
+      decisions.every((decision) => decision.outcome !== 'inconclusive')
+    ) {
+      evaluator.cache.put(request, identity, decisions)
+    }
+    for (const [index, rule] of group.entries()) {
+      const decision = decisions[index]
+      if (decision === undefined) throw new Error('lint-answer-alignment')
+      results.push({
+        rule,
+        unit,
+        provenance: identity.provenance,
+        decision: {
+          ...decision,
+          outcome: decision.confidence < rule.minConfidence ? 'inconclusive' : decision.outcome,
+        },
+      })
+    }
+  }
+  return results
+}

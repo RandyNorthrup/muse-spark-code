@@ -5,6 +5,7 @@ import type { CodeSymbol } from '../../src/core/codeIntel/languageService'
 
 const file = { path: 'src/unit.ts', language: 'typescript', source: '// 😀\r\nfunction f() {}\r\n' }
 const mapping = { function: [12], type: [4], field: [7] }
+const absolutePath = (path: string) => path
 function symbol(kind = 12, children: readonly CodeSymbol[] = []): CodeSymbol {
   const range = { start: { line: 1, character: 0 }, end: { line: 1, character: 15 } }
   return {
@@ -25,7 +26,7 @@ describe('host lint symbol adapter', () => {
       coveredKinds: ['comment'],
     })
     const documentSymbols = vi.fn().mockResolvedValue([symbol()])
-    const extractors = createHostLintExtractors({ documentSymbols }, mapping, syntax)
+    const extractors = createHostLintExtractors({ documentSymbols }, mapping, syntax, absolutePath)
     const result = await extractLintFile(file, ['function', 'comment'], extractors)
     expect(documentSymbols).toHaveBeenCalledWith(file.path)
     expect(result.units.find((unit) => unit.kind === 'function')).toEqual({
@@ -41,7 +42,7 @@ describe('host lint symbol adapter', () => {
   it('falls back when the outline is empty or lacks a requested declaration kind', async () => {
     const syntax = vi.fn().mockResolvedValue(undefined)
     const documentSymbols = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([symbol()])
-    const extractors = createHostLintExtractors({ documentSymbols }, mapping, syntax)
+    const extractors = createHostLintExtractors({ documentSymbols }, mapping, syntax, absolutePath)
     const empty = await extractLintFile(file, ['function'], extractors)
     expect(empty.coverage[0]?.reason).toBe('missing-extractor')
     const partial = await extractLintFile(file, ['function', 'field'], extractors)
@@ -58,6 +59,7 @@ describe('host lint symbol adapter', () => {
       },
       mapping,
       vi.fn().mockResolvedValue(undefined),
+      absolutePath,
     )
     const result = await extractLintFile(file, ['type', 'field'], extractors)
     expect(result.units.map((unit) => unit.kind)).toEqual(['type', 'field'])
@@ -80,9 +82,23 @@ describe('host lint symbol adapter', () => {
       { documentSymbols: vi.fn().mockResolvedValue([invalid]) },
       mapping,
       vi.fn(),
+      absolutePath,
     )
     await expect(extractLintFile(file, ['function'], extractors)).rejects.toThrow(
       'lint-symbol-range-invalid',
     )
+  })
+
+  it('maps relative report paths to the absolute paths expected by language services', async () => {
+    const path = 'C:/fixture-workspace/src/unit.ts'
+    const value = symbol()
+    const documentSymbols = vi
+      .fn()
+      .mockResolvedValue([{ ...value, location: { ...value.location, path } }])
+    const extractors = createHostLintExtractors({ documentSymbols }, mapping, vi.fn(), () => path)
+    const result = await extractLintFile(file, ['function'], extractors)
+    expect(documentSymbols).toHaveBeenCalledWith(path)
+    expect(result.units).toHaveLength(1)
+    expect(result.coverage[0]?.path).toBe(file.path)
   })
 })

@@ -1,0 +1,69 @@
+import { compileGlobWithin, type GlobLimits } from '../../backends/modelapi/glob'
+import { judgeOptionLetter, type JudgeQuestion } from '../schema'
+import type { LintDecision } from './cache'
+import type { LintKind } from './units'
+
+/** Internal normalized rules. The pinned upstream reader owns the external JSON format. */
+export interface LintRule {
+  readonly id: string
+  readonly description: string
+  readonly severity: 'info' | 'warning' | 'error'
+  readonly kinds: readonly LintKind[]
+  readonly include: readonly string[]
+  readonly exclude: readonly string[]
+  readonly exceptions: readonly string[]
+  readonly minConfidence: number
+  readonly allowSkip: boolean
+  readonly allowAbstain: boolean
+  readonly localize: boolean
+  readonly callees: boolean
+}
+
+/** Upstream's exact criteria text comes from the pinned reader/P0, never a guessed template. */
+export interface LintWording {
+  readonly pass: string
+  readonly fail: string
+  readonly skip: string
+  readonly abstain: string
+  instructions(rule: LintRule): string
+}
+
+export interface LintQuestion {
+  readonly question: JudgeQuestion
+  readonly outcomes: Readonly<Record<string, LintDecision['outcome']>>
+}
+
+export function lintQuestion(rule: LintRule, wording: LintWording): LintQuestion {
+  const options: { readonly outcome: LintDecision['outcome']; readonly text: string }[] = [
+    { outcome: 'pass', text: wording.pass },
+    { outcome: 'fail', text: wording.fail },
+  ]
+  if (rule.allowSkip) options.push({ outcome: 'skip', text: wording.skip })
+  if (rule.allowAbstain) options.push({ outcome: 'abstain', text: wording.abstain })
+  const criteria: Record<string, string> = {}
+  const outcomes: Record<string, LintDecision['outcome']> = {}
+  for (const [index, option] of options.entries()) {
+    const letter = judgeOptionLetter(index)
+    criteria[letter] = option.text
+    outcomes[letter] = option.outcome
+  }
+  return {
+    question: { type: 'choice', instructions: wording.instructions(rule), criteria },
+    outcomes,
+  }
+}
+
+/** Paths have already been made workspace-relative by the caller. No shell or path traversal. */
+export function isLintRuleApplicable(
+  rule: LintRule,
+  path: string,
+  kind: LintKind,
+  limits: GlobLimits,
+): boolean {
+  const isMatch = (pattern: string) => compileGlobWithin(pattern, limits)(path)
+  return (
+    rule.kinds.includes(kind) &&
+    (rule.include.length === 0 || rule.include.some((pattern) => isMatch(pattern))) &&
+    rule.exclude.every((pattern) => !isMatch(pattern))
+  )
+}
