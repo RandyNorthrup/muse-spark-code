@@ -13,6 +13,7 @@ import type {
 } from '../../shared/modelsPanel'
 import { InlineError } from './components/InlineError'
 import { KeyState } from './components/KeyState'
+import { ScanStatus } from './components/ScanStatus'
 import { UndoBar } from './components/UndoBar'
 import type { SectionProps } from './sections'
 import { Wizard } from './Wizard'
@@ -167,6 +168,15 @@ function ProviderRow({ provider, panelState, props }: {
         }}
       />
       <KeyUsage provider={provider} />
+      <ScanStatus
+        scan={panelState.scans[provider.id]}
+        onRefresh={() => {
+          post({ type: 'models/scan', providerId: provider.id })
+        }}
+        onCancel={() => {
+          post({ type: 'models/cancelScan', providerId: provider.id })
+        }}
+      />
       <div className="models-row-actions">
         <button
           type="button"
@@ -194,15 +204,6 @@ function ProviderRow({ provider, panelState, props }: {
           }}
         >
           {UI_TEXT.reconnectAccount}
-        </button>
-        <button
-          type="button"
-          className="models-button"
-          onClick={() => {
-            post({ type: 'models/scan', providerId: provider.id })
-          }}
-        >
-          {UI_TEXT.refreshModels}
         </button>
         <button
           type="button"
@@ -340,15 +341,6 @@ export function ProvidersSection(props: SectionProps) {
       {panelState.providers.length === 0 && !wizardOpen && (
         <div className="models-empty">
           <p>{UI_TEXT.modelsEmpty}</p>
-          <button
-            type="button"
-            className="models-button-primary"
-            onClick={() => {
-              dispatch({ type: 'open-wizard' })
-            }}
-          >
-            {UI_TEXT.wizardPickProvider}
-          </button>
         </div>
       )}
       <ul className="models-providers">
