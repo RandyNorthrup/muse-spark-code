@@ -61,7 +61,9 @@ export async function startOAuthLoopback(
   let isSettled = false
   let timer: ReturnType<typeof setTimeout> | undefined
 
-  const finish = (outcome: { readonly callback: OAuthCallback } | { readonly error: Error }): void => {
+  const finish = (
+    outcome: { readonly callback: OAuthCallback } | { readonly error: Error },
+  ): void => {
     if (isSettled) {
       return
     }
@@ -84,18 +86,6 @@ export async function startOAuthLoopback(
   }
 
   server.on('request', (request: IncomingMessage, response: ServerResponse) => {
-    // The settle destroys every connection, so it waits until this answer
-    // has flushed; a socket that dies first still settles the waiter.
-    const settleOnceAnswered = (outcome:
-      | { readonly callback: OAuthCallback }
-      | { readonly error: Error }): void => {
-      response.once('finish', () => {
-        finish(outcome)
-      })
-      response.once('close', () => {
-        finish(outcome)
-      })
-    }
     if (isSettled) {
       answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
       return
@@ -104,6 +94,18 @@ export async function startOAuthLoopback(
       response.writeHead(HTTP_STATUS.methodNotAllowed, { allow: 'GET' })
       response.end()
       return
+    }
+    // The settle destroys every connection, so it waits until this answer
+    // has flushed; a socket that dies first still settles the waiter.
+    const settleOnceAnswered = (
+      outcome: { readonly callback: OAuthCallback } | { readonly error: Error },
+    ): void => {
+      response.once('finish', () => {
+        finish(outcome)
+      })
+      response.once('close', () => {
+        finish(outcome)
+      })
     }
     const url = new URL(request.url ?? '/', 'http://127.0.0.1')
     if (url.pathname !== CALLBACK_PATH) {

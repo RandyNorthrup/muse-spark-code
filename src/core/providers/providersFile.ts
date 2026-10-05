@@ -11,7 +11,11 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import { PROVIDERS_FILE_VERSION } from '../../shared/constants'
 import { UI_TEXT } from '../../shared/l10n/text'
-import { openRouterRoutingSchema } from '../../shared/providerRouting'
+import {
+  customCompatSchema,
+  modelLimitsSchema,
+  openRouterRoutingSchema,
+} from '../../shared/providerRouting'
 import { isProviderId, parseModelRef } from './modelRef'
 import type { PriceCard } from './priceCard'
 
@@ -39,53 +43,6 @@ export type UserPriceCard = z.infer<typeof userPriceCardSchema>
 
 export type OpenRouterRouting = z.infer<typeof openRouterRoutingSchema>
 
-/** User-supplied custom-server limits; both are finite positive token counts. */
-const modelLimitsSchema = z
-  .object({
-    contextTokens: z.int().check(z.positive()),
-    outputTokens: z.int().check(z.positive()),
-  })
-  .check(
-    z.refine((limits) => limits.outputTokens <= limits.contextTokens, {
-      error: () => UI_TEXT.providerText.schema.outputCap,
-    }),
-  )
-
-/**
- * Compatibility overrides for a custom server (M101 BYO 14): the wire
- * shape its format's defaults misdescribe. Strict: an unknown key is a
- * typo that would send the wrong shape, so it refuses the entry instead
- * of stripping it.
- */
-const customCompatSchema = z.strictObject({
-  outputCapParam: z.optional(
-    z.enum([
-      'max_output_tokens',
-      'max_completion_tokens',
-      'max_tokens',
-      'maxOutputTokens',
-      'num_predict',
-    ]),
-  ),
-  toolChoice: z.optional(z.enum(['auto', 'omit', 'string-only'])),
-  sendsParallelToolCalls: z.optional(z.boolean()),
-  reasoningField: z.optional(
-    z.enum([
-      'encrypted',
-      'reasoning',
-      'reasoning_content',
-      'reasoning_details',
-      'thoughtSignature',
-      'thinking',
-      'content-list',
-      'none',
-    ]),
-  ),
-  reasoningReplay: z.optional(z.enum(['same-model', 'none'])),
-  usageOnFinishChunk: z.optional(z.boolean()),
-  usageNeedsOptIn: z.optional(z.boolean()),
-  supportsStrictTools: z.optional(z.boolean()),
-})
 export type CustomCompat = z.infer<typeof customCompatSchema>
 
 /** One configured provider. */

@@ -6,6 +6,8 @@
 // the providers bundle carries in `FormatQuirks`. `FormatQuirks` references
 // these tables; it adds nothing of its own.
 
+import { PROVIDER_RETRY_AFTER_CAP_MS, PROVIDER_RETRY_HTTP_STATUS } from './constants'
+
 /** The wire formats with a retry table; mirrors `ProviderFormat`. */
 export type RetryFormat = 'responses' | 'chat' | 'anthropic' | 'gemini' | 'ollama'
 
@@ -22,13 +24,17 @@ export interface RetryTables {
 }
 
 /** 402 means the account cannot pay: never retried on any format. */
-const HTTP_PAYMENT_REQUIRED = 402
+const HTTP_PAYMENT_REQUIRED = PROVIDER_RETRY_HTTP_STATUS.paymentRequired
 
 /** The research's cap: a `Retry-After` over 60 s fails at once. */
-const RETRY_AFTER_CAP_MS = 60_000
+const RETRY_AFTER_CAP_MS = PROVIDER_RETRY_AFTER_CAP_MS
 
-/** Quota errors never retry: OpenAI's code and the marking every vendor shares. */
-const QUOTA_ERROR_KINDS: readonly string[] = ['insufficient_quota', 'quota_exceeded']
+/** Normalized quota/spend-cap codes emitted by the existing provider parsers. */
+const QUOTA_ERROR_KINDS: readonly string[] = [
+  'insufficient_quota',
+  'quota_exceeded',
+  'enforced_spend_limit_reached',
+]
 
 /**
  * Per-format tables. `responses` is Meta's documented set (429 and the
@@ -40,31 +46,62 @@ const QUOTA_ERROR_KINDS: readonly string[] = ['insufficient_quota', 'quota_excee
  */
 export const RETRY_TABLES: Record<RetryFormat, RetryTables> = {
   responses: {
-    statuses: [429, 500, 502, 503],
+    statuses: [
+      PROVIDER_RETRY_HTTP_STATUS.tooManyRequests,
+      PROVIDER_RETRY_HTTP_STATUS.internalServerError,
+      PROVIDER_RETRY_HTTP_STATUS.badGateway,
+      PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable,
+    ],
     errorKinds: [],
     quotaKinds: QUOTA_ERROR_KINDS,
     retryAfterCapMs: RETRY_AFTER_CAP_MS,
   },
   chat: {
-    statuses: [408, 409, 429, 500, 502, 503],
+    statuses: [
+      PROVIDER_RETRY_HTTP_STATUS.requestTimeout,
+      PROVIDER_RETRY_HTTP_STATUS.conflict,
+      PROVIDER_RETRY_HTTP_STATUS.tooManyRequests,
+      PROVIDER_RETRY_HTTP_STATUS.internalServerError,
+      PROVIDER_RETRY_HTTP_STATUS.badGateway,
+      PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable,
+    ],
     errorKinds: [],
     quotaKinds: QUOTA_ERROR_KINDS,
     retryAfterCapMs: RETRY_AFTER_CAP_MS,
   },
   anthropic: {
-    statuses: [408, 409, 429, 500, 502, 503, 504, 529],
+    statuses: [
+      PROVIDER_RETRY_HTTP_STATUS.requestTimeout,
+      PROVIDER_RETRY_HTTP_STATUS.conflict,
+      PROVIDER_RETRY_HTTP_STATUS.tooManyRequests,
+      PROVIDER_RETRY_HTTP_STATUS.internalServerError,
+      PROVIDER_RETRY_HTTP_STATUS.badGateway,
+      PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable,
+      PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout,
+      PROVIDER_RETRY_HTTP_STATUS.overloaded,
+    ],
     errorKinds: ['overloaded_error'],
     quotaKinds: QUOTA_ERROR_KINDS,
     retryAfterCapMs: RETRY_AFTER_CAP_MS,
   },
   gemini: {
-    statuses: [429, 500, 502, 503],
+    statuses: [
+      PROVIDER_RETRY_HTTP_STATUS.tooManyRequests,
+      PROVIDER_RETRY_HTTP_STATUS.internalServerError,
+      PROVIDER_RETRY_HTTP_STATUS.badGateway,
+      PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable,
+    ],
     errorKinds: [],
     quotaKinds: QUOTA_ERROR_KINDS,
     retryAfterCapMs: RETRY_AFTER_CAP_MS,
   },
   ollama: {
-    statuses: [429, 500, 502, 503],
+    statuses: [
+      PROVIDER_RETRY_HTTP_STATUS.tooManyRequests,
+      PROVIDER_RETRY_HTTP_STATUS.internalServerError,
+      PROVIDER_RETRY_HTTP_STATUS.badGateway,
+      PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable,
+    ],
     errorKinds: [],
     quotaKinds: QUOTA_ERROR_KINDS,
     retryAfterCapMs: RETRY_AFTER_CAP_MS,
@@ -89,13 +126,12 @@ export type RetryRefusalReason = 'quota' | 'retry-after-cap' | 'not-retryable'
 
 /** Whether the failure is worth one more try, and why not when it is not. */
 export type RetryDecision =
-  | { readonly retry: true }
-  | { readonly retry: false; readonly reason: RetryRefusalReason }
+  { readonly retry: true } | { readonly retry: false; readonly reason: RetryRefusalReason }
 
 /** Quota wording inside a message (`You exceeded your current quota, …`). */
 const QUOTA_MESSAGE = /\bquota\b/i
 
-function matchesKind(kinds: readonly string[], value: string | undefined): boolean {
+function isMatchingKind(kinds: readonly string[], value: string | undefined): boolean {
   return value !== undefined && kinds.some((kind) => kind.toLowerCase() === value.toLowerCase())
 }
 
@@ -109,7 +145,10 @@ export function classifyRetry(tables: RetryTables, failure: RetryFailure): Retry
   if (failure.status === HTTP_PAYMENT_REQUIRED) {
     return { retry: false, reason: 'quota' }
   }
-  if (matchesKind(tables.quotaKinds, failure.kind) || matchesKind(tables.quotaKinds, failure.code)) {
+  if (
+    isMatchingKind(tables.quotaKinds, failure.kind) ||
+    isMatchingKind(tables.quotaKinds, failure.code)
+  ) {
     return { retry: false, reason: 'quota' }
   }
   if (QUOTA_MESSAGE.test(failure.message)) {
@@ -121,8 +160,8 @@ export function classifyRetry(tables: RetryTables, failure: RetryFailure): Retry
   if (tables.statuses.includes(failure.status)) {
     return { retry: true }
   }
-  if (matchesKind(tables.errorKinds, failure.kind) || matchesKind(tables.errorKinds, failure.code)) {
-    return { retry: true }
-  }
-  return { retry: false, reason: 'not-retryable' }
+  return isMatchingKind(tables.errorKinds, failure.kind) ||
+    isMatchingKind(tables.errorKinds, failure.code)
+    ? { retry: true }
+    : { retry: false, reason: 'not-retryable' }
 }

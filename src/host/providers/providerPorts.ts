@@ -11,6 +11,8 @@
 // Each interface names the plan section that defines its contract, so lane
 // P's merge reconciles names instead of behaviour.
 
+import type { CustomCompat } from '../../core/providers/providersFile'
+
 /** How a provider proves its calls (D74: `apiKey`, `none`, `subscription`). */
 export type ProviderAuthMode = 'apiKey' | 'none'
 
@@ -26,6 +28,10 @@ export interface ProviderEntry {
   readonly auth: ProviderAuthMode
   readonly models: readonly string[]
   readonly format?: 'responses' | 'chat' | 'anthropic' | 'gemini' | 'ollama' | undefined
+  readonly compat?: CustomCompat | undefined
+  readonly modelLimits?:
+    | Readonly<Record<string, { readonly contextTokens: number; readonly outputTokens: number }>>
+    | undefined
   readonly pinned?: readonly string[] | undefined
   readonly prices?:
     | Readonly<

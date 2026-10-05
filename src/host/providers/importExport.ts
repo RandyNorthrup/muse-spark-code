@@ -5,42 +5,50 @@
 // "needs a key").
 
 import * as z from 'zod/mini'
-import { openRouterRoutingSchema } from '../../shared/providerRouting'
+import {
+  customCompatSchema,
+  modelLimitsSchema,
+  openRouterRoutingSchema,
+} from '../../shared/providerRouting'
 import type { AddressCheck, AddressPolicy, ProviderEntry, ProvidersStore } from './providerPorts'
 
 /**
  * One provider entry as the file and the panel's wizard draft both hold it
  * (the draft's provider is validated against this same shape).
  */
-export const providerEntrySchema = z.object({
-  id: z.string().check(
-    z.regex(/^[a-z][a-z0-9-]{0,31}$/),
-    z.refine((id) => id !== 'meta'),
-  ),
-  preset: z.string(),
-  address: z.optional(z.string()),
-  auth: z.enum(['apiKey', 'none']),
-  models: z.array(z.string()),
-  privateNetwork: z.optional(z.boolean()),
-  format: z.optional(z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama'])),
-  pinned: z.optional(z.array(z.string())),
-  prices: z.optional(
-    z.record(
-      z.string(),
-      z.object({
-        input: z.number(),
-        output: z.number(),
-        cachedInput: z.optional(z.number()),
-        cacheWrite: z.optional(z.number()),
-        cacheWrite1h: z.optional(z.number()),
-        request: z.optional(z.number()),
-        image: z.optional(z.number()),
-      }),
+export const providerEntrySchema = z
+  .object({
+    id: z.string().check(
+      z.regex(/^[a-z][a-z0-9-]{0,31}$/),
+      z.refine((id) => id !== 'meta'),
     ),
-  ),
-  routing: z.optional(openRouterRoutingSchema),
-  numCtx: z.optional(z.record(z.string(), z.number())),
-})
+    preset: z.string(),
+    address: z.optional(z.string()),
+    auth: z.enum(['apiKey', 'none']),
+    models: z.array(z.string()),
+    privateNetwork: z.optional(z.boolean()),
+    format: z.optional(z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama'])),
+    pinned: z.optional(z.array(z.string())),
+    prices: z.optional(
+      z.record(
+        z.string(),
+        z.object({
+          input: z.number(),
+          output: z.number(),
+          cachedInput: z.optional(z.number()),
+          cacheWrite: z.optional(z.number()),
+          cacheWrite1h: z.optional(z.number()),
+          request: z.optional(z.number()),
+          image: z.optional(z.number()),
+        }),
+      ),
+    ),
+    compat: z.optional(customCompatSchema),
+    modelLimits: z.optional(z.record(z.string(), modelLimitsSchema)),
+    routing: z.optional(openRouterRoutingSchema),
+    numCtx: z.optional(z.record(z.string(), z.number())),
+  })
+  .check(z.refine((entry) => entry.compat === undefined || entry.preset === 'custom'))
 
 const providersDocumentSchema = z.object({
   v: z.literal(1),

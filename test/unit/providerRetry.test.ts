@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import { FORMAT_QUIRKS, PRESETS, quirksOf } from '../../src/core/providers/presets'
 import { classifyRetry, RETRY_TABLES, type RetryFormat } from '../../src/shared/retryPolicy'
+import { parseAnthropicError } from '../../src/core/backends/modelapi/codecs/anthropic'
 
 const FORMATS: readonly RetryFormat[] = ['responses', 'chat', 'anthropic', 'gemini', 'ollama']
 
@@ -24,6 +25,35 @@ function failure(
 }
 
 describe('classifyRetry', () => {
+  it('refuses every normalized quota/spend-cap code without message clues (F2)', () => {
+    for (const tables of Object.values(RETRY_TABLES)) {
+      for (const code of ['insufficient_quota', 'quota_exceeded', 'enforced_spend_limit_reached']) {
+        for (const field of ['code', 'kind']) {
+          expect(
+            classifyRetry(tables, failure(429, { [field]: code, message: 'refused' })),
+          ).toEqual({
+            retry: false,
+            reason: 'quota',
+          })
+        }
+      }
+    }
+    // Existing Anthropic parser fixture, not a new inferred wire shape.
+    const parsed = parseAnthropicError(429, {
+      type: 'error',
+      error: { type: 'rate_limit_error', message: 'Overloaded, enforced_spend_limit_reached here' },
+    })
+    expect(
+      classifyRetry(RETRY_TABLES.anthropic, {
+        status: parsed.status,
+        kind: parsed.kind,
+        code: parsed.code,
+        message: 'refused',
+        retryAfterMs: undefined,
+      }),
+    ).toEqual({ retry: false, reason: 'quota' })
+  })
+
   it('retries Meta responses failures exactly as before (429, 500, 502, 503)', () => {
     const tables = RETRY_TABLES.responses
     for (const status of [429, 500, 502, 503]) {
@@ -45,9 +75,10 @@ describe('classifyRetry', () => {
           failure(429, { kind: 'rate_limit_error', code: 'insufficient_quota' }),
         ),
       ).toEqual({ retry: false, reason: 'quota' })
-      expect(classifyRetry(tables, failure(400, { message: 'You exceeded your quota' }))).toEqual(
-        { retry: false, reason: 'quota' },
-      )
+      expect(classifyRetry(tables, failure(400, { message: 'You exceeded your quota' }))).toEqual({
+        retry: false,
+        reason: 'quota',
+      })
       expect(classifyRetry(tables, failure(402, { message: 'nope' }))).toEqual({
         retry: false,
         reason: 'quota',
@@ -107,7 +138,10 @@ describe('FormatQuirks retry tables', () => {
       classifyRetry(quirks.retry, failure(400, { kind: 'server_error', message: 'gone' })),
     ).toEqual({ retry: true })
     expect(
-      classifyRetry(RETRY_TABLES.responses, failure(400, { kind: 'server_error', message: 'gone' })),
+      classifyRetry(
+        RETRY_TABLES.responses,
+        failure(400, { kind: 'server_error', message: 'gone' }),
+      ),
     ).toEqual({ retry: false, reason: 'not-retryable' })
   })
 })

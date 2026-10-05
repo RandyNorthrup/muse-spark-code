@@ -1309,6 +1309,19 @@ export const BOUNDED_FILE_READ_CHUNK_BYTES = 64 * 1024
 export const HTTP_UNAUTHORIZED = 401
 // Refused before any work was done: the one status a per-call-billed request retries (M34).
 export const HTTP_TOO_MANY_REQUESTS = 429
+// Shared per-format retry policy (M101 BYO 5).
+export const PROVIDER_RETRY_AFTER_CAP_MS = 60_000
+export const PROVIDER_RETRY_HTTP_STATUS = {
+  paymentRequired: 402,
+  requestTimeout: 408,
+  conflict: 409,
+  tooManyRequests: HTTP_TOO_MANY_REQUESTS,
+  internalServerError: 500,
+  badGateway: 502,
+  serviceUnavailable: 503,
+  gatewayTimeout: 504,
+  overloaded: 529,
+} as const
 // A request that never reached Meta (M56, PLAN.md D43), read from the causes
 // under fetch's "fetch failed", as Node 24 throws them (captured 2026-09-25,
 // docs/certification/m56.md). Node's verification codes for a certificate

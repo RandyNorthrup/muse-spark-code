@@ -239,9 +239,9 @@ describe('priceCard', () => {
   })
 
   it('splits 1-hour writes out of written tokens and validates the subset', () => {
-    expect(splitCacheWrites({ inputTokens: 1000, cacheWriteTokens: 1000, outputTokens: 0 })).toEqual(
-      { standard: 1000, oneHour: 0 },
-    )
+    expect(
+      splitCacheWrites({ inputTokens: 1000, cacheWriteTokens: 1000, outputTokens: 0 }),
+    ).toEqual({ standard: 1000, oneHour: 0 })
     expect(
       splitCacheWrites({
         inputTokens: 1000,
@@ -267,9 +267,7 @@ describe('priceCard', () => {
         outputTokens: 0,
       }),
     ).toBe(false)
-    expect(
-      isValidUsage({ inputTokens: 1000, cacheWrite1hTokens: 1, outputTokens: 0 }),
-    ).toBe(false)
+    expect(isValidUsage({ inputTokens: 1000, cacheWrite1hTokens: 1, outputTokens: 0 })).toBe(false)
   })
 
   it('settles 5-minute and 1-hour writes disjointly at their own rates (F5)', () => {
@@ -366,9 +364,6 @@ describe('priceCard', () => {
         cacheWriteTokens: 100_000,
         outputTokens: 0,
       }),
-    ).toBeCloseTo(
-      100_000 * card.input + 100_000 * ((card.cacheWrite ?? 0) - card.input),
-      12,
-    )
+    ).toBeCloseTo(100_000 * card.input + 100_000 * ((card.cacheWrite ?? 0) - card.input), 12)
   })
 })

@@ -15717,7 +15717,11 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   fix gets a regression and byte-exact red drill in `docs/certification/m101-p2.md`.
   No dependency, live call, guard widening or unrelated refactor. The base has
   no per-model strict capability; its integration binding must be a named
-  residual. Full quality runs belong to the lead under this lane brief.
+  residual. Host round-trips also retain the custom model limits required
+  by the core schema. The existing shared non-secret provider-option module
+  carries their schemas and compat together so both boundaries validate the
+  same shape without pulling provider core into a startup bundle.
+  Full quality runs belong to the lead under this lane brief.
 - **Lane P2 status (2026-10-05).** Done: BYO 5 (shared retry tables in
   `FormatQuirks`, quota never retried, `Retry-After` over 60 s fails naming
   the wait), BYO 6 (1-hour writes settled disjointly, tier cache rates,
@@ -15769,6 +15773,15 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   - [ ] Provider × item table complete; full gate green
 
 ## 7. Gates
+
+**FIXM101P2 aggregate gate deferral (2026-10-05).** The explicit lane brief
+and its shared `codex/common.md` forbid the full `npm run quality` wrapper
+on this shared rig. Run the required scoped suites (at most three files per
+run), all five TypeScript projects, lint/format over the complete P2 range,
+knip, duplication, localization, host API and production build here; record
+actual receipts in `docs/certification/m101-p2.md`. The lead must run the
+aggregate quality/coverage/platform matrix before integration/release. No
+threshold, ignore or rule is changed.
 
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
