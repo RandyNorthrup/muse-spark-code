@@ -67,6 +67,7 @@ import { SessionBoardDialog } from './components/SessionBoardDialog'
 import { BestOfNDialog } from './components/BestOfNDialog'
 import { UsageDialog } from './components/UsageDialog'
 import { HandoffDialog } from './components/HandoffDialog'
+import { SecretPromptDialog } from './components/SecretPromptDialog'
 import { ShareView } from './components/ShareView'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
@@ -635,6 +636,38 @@ export function App({
     // The reader's own message always lands in view (M15).
     setIsPinnedToEnd(true)
   }, [store, dispatch, newLocalId, now, postMessage, onGoalCommand, onReview, onHandoff])
+  // Send exactly the payload the dialog previewed. The composer may now
+  // hold a newer draft, different chips or a different reference.
+  const onSecretPromptSendAnyway = useCallback(() => {
+    const current = store.getState()
+    const held = current.secretPrompt
+    if (held === undefined || current.auth.status !== 'signedIn') return
+    const localId = newLocalId()
+    const text = held.draft.trim()
+    dispatch({
+      type: 'submitted',
+      localId,
+      text,
+      isSecretResend: true,
+      at: now(),
+      attachments: held.attachments,
+      contextLabel: held.contextLabel,
+      ...(held.reference !== undefined && { reference: held.reference }),
+    })
+    postMessage({
+      type: 'sendMessage',
+      localId,
+      text,
+      secretAccepted: true,
+      attachmentIds: held.attachments.map((attachment) => attachment.id),
+      includeEditorContext: held.contextLabel !== undefined,
+      ...(held.reference !== undefined && { reference: held.reference }),
+    })
+    setIsPinnedToEnd(true)
+  }, [store, dispatch, newLocalId, now, postMessage])
+  const onSecretPromptDismiss = useCallback(() => {
+    dispatch({ type: 'secretPromptDismissed' })
+  }, [dispatch])
   const onDismissEditorContext = useCallback(() => {
     dispatch({ type: 'editorContextDismissed' })
   }, [dispatch])
@@ -2012,9 +2045,20 @@ export function App({
         onCancel={onHandoffCancel}
       />
     )
+  // M92e: the secret dialog waits behind any other modal (as the handoff
+  // dialog does), and holds the composer inert while it shows.
+  const secretPromptDialog =
+    isOtherModalOpen || state.secretPrompt === undefined ? null : (
+      <SecretPromptDialog
+        redactedText={state.secretPrompt.redactedText}
+        onSendAnyway={onSecretPromptSendAnyway}
+        onEdit={onSecretPromptDismiss}
+      />
+    )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
-  const isModalOpen = isOtherModalOpen || state.handoff !== undefined
+  const isModalOpen =
+    isOtherModalOpen || state.handoff !== undefined || state.secretPrompt !== undefined
 
   return (
     <div className="app">
@@ -2044,6 +2088,7 @@ export function App({
       </div>
       {usageDialog}
       {handoffDialog}
+      {secretPromptDialog}
       {agentMap}
       {reviewPane}
       {state.share === undefined ? null : (

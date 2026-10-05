@@ -3247,27 +3247,28 @@ after wave 5's others because it waits for PR #32, and D50's M85 comes
 last, after M73, M75, M76 and M78 that it builds on, and after the
 owner's TypeSafe key for its capture.
 
-| Wave                       | Milestone | What                                                                                                                   | Backends                              | Who has it                              | Size |
-| -------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | --------------------------------------- | ---- |
-| 1 Correct code             | M68       | Verify loop: diagnostics after edits, format on edit, check commands, edit-then-run                                    | API full; MC diagnostics and guidance | OpenCode, Aider, Crush, SoL-Pi          | M    |
-|                            | M67       | Code intelligence tools from VS Code's language services, and a repo map                                               | both (MC through `ide`)               | Aider, OpenCode, Zed, Claude Code (LSP) | M    |
-|                            | M69       | Web fetch (folds in M44b)                                                                                              | API native; MC through `ide`          | Claude Code, Codex, OpenCode            | S    |
-| 2 Review and ship          | M70       | Review: `/review` presets, a review pane with per-hunk accept/reject and line comments to the agent, a security preset | both                                  | Codex, Zed, Kilo, T3 Code, Claude Code  | L    |
-|                            | M71       | Git and PRs: commit message, commit, push, open a PR, PR status per conversation, a conversation in a worktree         | both                                  | T3 Code, OpenCode, Codex, Claude Code   | M    |
-|                            | M72       | Turn checkpoints with untracked files; restore files, conversation, or both; redo                                      | both                                  | T3 Code, Cline, Gemini CLI, OpenCode    | M    |
-| 3 Long tasks, fewer tokens | M75       | Paired efficiency evaluation with capability floors and held-out tasks, built first                                    | API                                   | SoL-Pi, Claude Code plugin evals        | M    |
-|                            | M73       | Observation packing with `recall_output`, and a savings ledger, once its M75 run passes                                | API                                   | SoL-Pi                                  | S    |
-|                            | M74       | Automatic compaction when a todo item completes, a memory flush before compaction, `/handoff` to a new conversation    | API                                   | SoL-Pi, OpenClaw, Amp                   | M    |
-| 4 More agents, safely      | M77       | Session board across conversations and worktrees; best-of-N with diff comparison                                       | both (best-of-N on API)               | Cursor, Kilo, T3 Code, Codex, Zed       | L    |
-|                            | M79       | Plans as files: save the approved plan, implement it in a fresh context                                                | both                                  | Codex, Factory, Cline                   | S    |
-|                            | M76       | Custom agents in Markdown; built-in Explore and Second-opinion agents, and M70's Reviewer in the same format           | API; MC reads its own                 | Claude Code, Codex, OpenCode, Amp       | M    |
-|                            | M78       | Auto made safe: command rules with tests, permission profiles, an Auto reviewer                                        | API                                   | Codex, OpenCode, Gemini CLI             | M    |
-| 5 Connect                  | M81       | Browser check: open the dev server, screenshot and console back to the model                                           | API; MC through `ide`                 | Cursor, Codex, Claude Code              | M    |
-|                            | M82       | Notifications, usage per reply, a session budget cap, cache savings                                                    | both (cost and cache on API)          | Claude Code, OpenClaw, T3 Code, Codex   | S    |
-|                            | M83       | Import from Claude Code, Codex and Cursor: MCP servers, hooks, agents, commands (extends M30)                          | both                                  | Codex `/import`, Junie                  | S    |
-|                            | M84       | Session export and import as JSON, and a local share file                                                              | both (import resumes on API)          | OpenCode, Codex, Amp                    | S    |
-|                            | M80       | Headless run and a GitHub Action for review and fix, through the ACP agent's package                                   | API; MC                               | Codex, Claude Code, OpenCode            | M    |
-| 6 Experimental (D50)       | M85       | TypeSafe assist: skill and agent suggestion, an advisory Auto risk score, relevance and grading once measured          | API                                   | TypeSafe cookbook                       | M    |
+| Wave                       | Milestone | What                                                                                                                                       | Backends                              | Who has it                              | Size |
+| -------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- | --------------------------------------- | ---- |
+| 1 Correct code             | M68       | Verify loop: diagnostics after edits, format on edit, check commands, edit-then-run                                                        | API full; MC diagnostics and guidance | OpenCode, Aider, Crush, SoL-Pi          | M    |
+|                            | M67       | Code intelligence tools from VS Code's language services, and a repo map                                                                   | both (MC through `ide`)               | Aider, OpenCode, Zed, Claude Code (LSP) | M    |
+|                            | M69       | Web fetch (folds in M44b)                                                                                                                  | API native; MC through `ide`          | Claude Code, Codex, OpenCode            | S    |
+| 2 Review and ship          | M70       | Review: `/review` presets, a review pane with per-hunk accept/reject and line comments to the agent, a security preset                     | both                                  | Codex, Zed, Kilo, T3 Code, Claude Code  | L    |
+|                            | M71       | Git and PRs: commit message, commit, push, open a PR, PR status per conversation, a conversation in a worktree                             | both                                  | T3 Code, OpenCode, Codex, Claude Code   | M    |
+|                            | M72       | Turn checkpoints with untracked files; restore files, conversation, or both; redo                                                          | both                                  | T3 Code, Cline, Gemini CLI, OpenCode    | M    |
+| 3 Long tasks, fewer tokens | M75       | Paired efficiency evaluation with capability floors and held-out tasks, built first                                                        | API                                   | SoL-Pi, Claude Code plugin evals        | M    |
+|                            | M73       | Observation packing with `recall_output`, and a savings ledger, once its M75 run passes                                                    | API                                   | SoL-Pi                                  | S    |
+|                            | M74       | Automatic compaction when a todo item completes, a memory flush before compaction, `/handoff` to a new conversation                        | API                                   | SoL-Pi, OpenClaw, Amp                   | M    |
+| 4 More agents, safely      | M77       | Session board across conversations and worktrees; best-of-N with diff comparison                                                           | both (best-of-N on API)               | Cursor, Kilo, T3 Code, Codex, Zed       | L    |
+|                            | M79       | Plans as files: save the approved plan, implement it in a fresh context                                                                    | both                                  | Codex, Factory, Cline                   | S    |
+|                            | M76       | Custom agents in Markdown; built-in Explore and Second-opinion agents, and M70's Reviewer in the same format                               | API; MC reads its own                 | Claude Code, Codex, OpenCode, Amp       | M    |
+|                            | M78       | Auto made safe: command rules with tests, permission profiles, an Auto reviewer                                                            | API                                   | Codex, OpenCode, Gemini CLI             | M    |
+| 5 Connect                  | M81       | Browser check: open the dev server, screenshot and console back to the model                                                               | API; MC through `ide`                 | Cursor, Codex, Claude Code              | M    |
+|                            | M82       | Notifications, usage per reply, a session budget cap, cache savings                                                                        | both (cost and cache on API)          | Claude Code, OpenClaw, T3 Code, Codex   | S    |
+|                            | M83       | Import from Claude Code, Codex and Cursor: MCP servers, hooks, agents, commands (extends M30)                                              | both                                  | Codex `/import`, Junie                  | S    |
+|                            | M84       | Session export and import as JSON, and a local share file                                                                                  | both (import resumes on API)          | OpenCode, Codex, Amp                    | S    |
+|                            | M80       | Headless run and a GitHub Action for review and fix, through the ACP agent's package                                                       | API; MC                               | Codex, Claude Code, OpenCode            | M    |
+| 6 Experimental (D50)       | M85       | TypeSafe assist: skill and agent suggestion, an advisory Auto risk score, relevance and grading once measured                              | API                                   | TypeSafe cookbook                       | M    |
+| 7 Security hardening       | M92       | Muse Gadgets SDK tokens (`mgst_…`) redacted from logs and transcripts and counted by `scan-secrets` (lane M92a; owner-approved 2026-10-04) | both (log, export, headless scan)     | muse-gadget-sdk installer pattern       | S    |
 
 **Not taken.**
 
@@ -4798,6 +4799,69 @@ we make". His standing ruling: enhancements are on by default.
   release being made may have more than 5; the changelog-version test fails
   otherwise (`docs/RELEASING.md`). Older releases are taken as written
   (0.10.0 has ten).
+
+### D70 — (reserved for M91 hooks; on another branch, 2026-10-04)
+
+### D71 — Muse Gadgets: help build them, never become one (M92, 2026-10-04)
+
+The owner asked whether Meta's Muse Gadgets (gadgets.muse.ai,
+github.com/facebookincubator/muse-gadget-sdk, Apache 2.0) belong in the
+extension "to make programming and working with devices easier", and approved
+the scope below on 2026-10-04.
+
+**What the SDK is (checked 2026-10-04):**
+
+- **ESP32 SDK:** firmware on ESP-IDF 6.0.1 for about 17 boards. Build with
+  `idf.py build`; flash and watch with `idf.py -p <port> flash monitor`
+  (Ctrl-] ends the monitor), or `tools/board.sh BOARD …`. The per-user SDK
+  token is set in menuconfig as `CONFIG_GADGET_SDK_TOKEN`, which lands in
+  `sdkconfig` and is compiled into the firmware. Pairing goes over BLE with
+  the Muse phone app; after that the device reaches Muse's cloud over Wi-Fi.
+- **Linux SDK:** a Python service (`/opt/musegadget`) installed with
+  `install.sh --sdk-token mgst_…`. It gives the Muse assistant `system.run`,
+  `file.read`, `file.write` and `device.health` on that machine, with the
+  installing account's rights. `musegadget send-user-msg "…"` posts to the
+  user's Muse chat.
+- **Built for coding agents already:** each SDK folder ships an `AGENTS.md`
+  (setup, build, flash), and `skills/` holds 50+ community `SKILL.md` device
+  skills.
+- **The token** matches `^mgst_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$` (the
+  installer's own check).
+
+**Decisions:**
+
+- **No re-implementation.** In a trusted clone of the SDK, Muse Code already
+  reads its `AGENTS.md`. The extension adds only what that file can't give.
+- **Tokens are secrets.** `mgst_` tokens join the shared redaction table, and
+  so the logs, transcripts and `scan-secrets` (M92a). Every existing secret
+  warning covers them too.
+- **Device commands are bounded.** A monitor never exits by itself. The shell
+  tool's `timeout_ms` (≤ `SHELL_MAX_TIMEOUT_MS`) must return the output it
+  captured, with `isTimedOut`, and must end the whole process tree on all three
+  OSes, so that "flash, then capture N seconds of serial output" is one tool
+  call (M92b). A dedicated device tool is added only if that proof fails.
+- **Optional bundled skill.** A `muse_gadgets` skill (D68's bundled source) for
+  gadget work outside the SDK repo:
+  - Windows specifics: COM ports, `export.ps1`;
+  - the bounded-monitor pattern;
+  - token handling: the user types the token into menuconfig or the installer
+    in their own terminal, never into chat;
+  - a pointer to the SDK's `AGENTS.md`.
+
+  It is off unless `museSpark.bundledSkills` is on, like D68's. The skill is
+  first-party, so it does not live in the vendored package: `VENDOR.json`
+  pins the third-party bytes and the sync script owns that folder, so the
+  extension reads a small `first-party-skills/` folder beside `vendor/` as a
+  second `bundled` root through the same bounded loader (lowest precedence,
+  shadowed by a project or personal skill with the same id, same setting).
+  The Muse Code installer is unchanged: it copies the vendored package only.
+
+- **Phone ping as a recipe, not a feature.** The docs show a `Stop` or
+  `Notification` hook that runs `musegadget send-user-msg` (M91's events).
+  The extension ships no gadget code.
+- **Never a gadget.** The extension never installs, configures or recommends
+  the Linux gadget service on a development machine. That service lets the
+  cloud assistant run any command there; README and the skill say so.
 
 ## 3. Open questions (need the owner)
 
@@ -14569,7 +14633,126 @@ joined with M57, M58 and PR #49's sign-in
   before sign-in; the key never in a frame, an argument, the environment
   or the log; every gate green.
 
+### M92 — Muse Gadgets support (D71)
+
+- **Goal.** Firmware and device work with Muse Spark Code is safe, with tokens
+  never leaked, and practical, with bounded flash and monitor runs, without
+  duplicating the SDK's own agent guide.
+- **Scope.**
+  - **M92a, tokens:** `src/core/redact.ts` and its consumers; the existing
+    secret warnings; tests; CHANGELOG Security; README, SECURITY.md and
+    PRIVACY where they list secret kinds.
+  - **M92b, bounded runs:** a proof, on Windows, macOS and Linux with fakes,
+    that a timed-out shell command returns its captured output and leaves no
+    process behind (a fake never-ending "monitor" that prints, then sleeps,
+    with a child process). Fix the shell tool only where the proof fails.
+  - **M92c, skill:** `muse_gadgets` in the bundled source (D68's vendor
+    layout, or a first-party folder beside it), the model-facing text, and
+    strings in all 14 tables if any UI names it.
+  - **M92d, docs:** a README "Muse Gadgets" section (what helps, the phone-ping
+    hook recipe after M91, and the never-a-gadget warning); CHANGELOG; this
+    plan.
+  - **M92e, secret guards (lead decision 2026-10-05, approved scope "robust
+    and feature rich"):** the M92a lane found no prompt, commit or shell
+    secret warning anywhere, so M92e builds the three asked-for guards on the
+    ONE shared detection table (`src/core/redact.ts`, no second pattern
+    list):
+    - a prompt holding a detected secret is held before sending: the panel
+      shows a dialog (Send anyway / Edit) and the transcript card carries the
+      redacted text. The host scans a plain composer send, posts
+      `secretPromptDetected` with the redacted text instead of starting the
+      turn, and only sends on with an explicit `secretAccepted` re-post. The
+      browser scans through the same pure table in `src/shared/redact.ts`
+      without importing host or core code. The session store keeps the raw text once the user
+      accepts (resume needs it); the panel transcript, extension logs and
+      extension-rendered exports never hold it. Native CLI session logs
+      remain raw backend records, as the export guide states. Slash-command, review, goal, handoff, loop and
+      `!`-command sends are out of scope: only the plain-message path warns.
+    - the commit guard is skipped: no commit-writing path exists. `git.ts`
+      only runs git, best-of-N snapshots with `write-tree` explicitly without
+      a commit, and review only reads messages and diffs. The user commits
+      outside the extension by definition; a `git commit` the agent proposes
+      as a shell command meets the shell guard.
+    - a shell command holding a detected secret requires explicit approval
+      before execution on the Model API backend: the engine settles it `secretDetected` (no allow-rule or session-rule
+      auto-allow, no Auto reviewer, no session choice, no hook auto-allow),
+      and the controller scrubs every approval card before the panel (the
+      value shown redacted, a secret note, all non-once approve choices
+      dropped) on both backends. The Auto reviewer on Muse Code never sees
+      one (`isReviewableApproval` excludes them). An explicit user approval
+      still runs the command as proposed. Model API Bypass asks too. Muse
+      Code Bypass can execute without an approval event; see the named §9
+      residual, RVM92E-BYPASS-MUSE.
+- **RVM92E corrections (2026-10-04, FIXM92E).** Fix all four P1s and
+  the prompt concurrency, explicit resend and approval-note P2s with failing
+  regressions and byte-exact red drills. The pure shared detection table must
+  also run before the browser creates a user card and when it replays history;
+  place its existing implementation in `src/shared/redact.ts`, keeping the
+  `src/core/redact.ts` entry for existing consumers. Persist redacted draft
+  recovery and redact Markdown content and its filename. Keep all pending
+  sends by local id; Send anyway sends the held text, attachments and reference
+  without consuming a newer composer draft. Scrub every reviewer fallback,
+  redact whole stage lines and omit standing-prefix metadata, remove every
+  non-once approve choice, and propagate update notes. Model API secret shell
+  calls ask in Bypass too, while forbids and denied modes still deny.
+  Muse Code Bypass cannot be intercepted when the CLI sends no approval;
+  record that named redesign residual in §9 and narrow the public claim.
+  The duplication gate also exposes copied M92 secret-dialog boot setup;
+  replace that owned test setup with an initialized UI store, preserving all
+  assertions and the zero-duplication threshold.
+- **Acceptance.**
+  1. A valid `mgst_` token is redacted everywhere the shared table applies, and
+     `scan-secrets` counts it. Near-misses (wrong last character or length,
+     embedded in a word, hyphen-glued overlength runs) are not matched as
+     gadget tokens.
+  2. A shell command with `timeout_ms` that never exits returns its captured
+     output with `isTimedOut: true`, and its process tree is gone afterwards,
+     on all three OSes.
+  3. With bundled skills on, `/muse_gadgets` is listed and loads; with them
+     off, it isn't.
+  4. README states what the extension does and doesn't do with gadgets, with
+     the security warning.
+  5. A prompt holding a detected secret warns before sending (Send anyway /
+     Edit); the transcript card shows the redacted text either way.
+  6. A shell command holding a detected secret shows its card with the value
+     redacted and a secret note and offers no standing approve choice. On
+     Model API it is never auto-approved by an allow rule, a session rule,
+     a hook or the Auto reviewer; on Muse Code every emitted approval is
+     scrubbed and excluded from the reviewer (CLI admission residual in §9).
+- **Tests.** Unit tests for each item, each red-drilled. M92b's process-tree
+  proof runs on the three rigs (targeted files only). No hardware, network or
+  model call is needed.
+- **Gates.** The full quality gate, check-l10n, host-API, VSIX size.
+- **Security.** A token never appears in a fixture literal (fixtures are built
+  at runtime). The skill tells the user to enter tokens themselves. Nothing
+  installs or talks to gadget services. M92e adds no pattern list: every
+  guard reads the one shared table.
+- **Certification checklist.**
+  - [x] M92a: redaction, consumers and warnings, with drills
+        (`docs/certification/m92.md`)
+  - [x] M92b: bounded-run proof (Windows here, macOS/Linux on the rigs;
+        no shell fix needed)
+  - [x] M92c: bundled skill listed, loaded and toggled
+  - [x] M92d: README, CHANGELOG and this record (the phone-ping hook
+        recipe waits on M91)
+  - [x] M92e: prompt and shell secret guards, with drills
+        (`docs/certification/m92.md`); the commit guard skipped, no
+        commit-writing path exists
+
 ## 7. Gates
+
+**TRAIN13 release train (2026-10-04, Kubuntu).** Merge the six reviewed
+branches in the owner's order with two-parent commits, preserving all PR
+heads. Resolve only integration breakage; retain D78, D79 and D71 with all
+existing decisions and milestones. Consolidate Unreleased into one Highlights
+list of at most five bullets and the Added/Changed/Fixed/Security sections;
+released sections remain byte-identical to `main-sync`. Regenerate notices,
+the host API inventory and exec schemas. Verify the shared M92 detection table
+still feeds #116's host-to-webview diagnostics and confidential admission,
+then run full `npm run quality` once and the unchanged 2200 KiB VSIX gate.
+A size-budget failure stops this lane and is reported without changing a cap.
+Hooks stay on; no push, rebase, live model or paid call. Current evidence and
+any outstanding gate are in `docs/certification/train-0.13.0.md`.
 
 **MRG116 bounded merge lane (2026-10-04).** The rig brief requires merging
 `main-sync` (M87) into PR #116 with scoped owning tests and static/build
@@ -14662,6 +14845,12 @@ Blocker for the owner: GitHub's documentation offers merge queues only in
 organization-owned repositories, and this one is user-owned. Until that is
 settled, PRs keep the full tier and no check is weaker than before. Record:
 `docs/certification/ciflow.md`.
+
+**FIXM92E lane boundary (2026-10-04).** The rig brief and shared lane
+rules prohibit aggregate quality/full unit runs and merging in this worktree.
+Use focused owning tests and the required static gates/build, with hooks on;
+full quality, coverage, cross-platform and hosted checks remain the lead's
+integration gate. No gate configuration changes.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
@@ -15124,6 +15313,24 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
+  has no dedicated commit-writing path. A model's `git commit` goes through
+  the shell-command guard, which scans the command text and does not inspect
+  staged contents. Safe within the current contract, which claims no staged
+  diff refusal; users commit outside the extension and the skill prohibits
+  token-bearing files. Follow-up: staged-diff refusal if a native commit flow
+  is introduced (the review explicitly permitted this skip).
+
+- **RVM92E-BYPASS-MUSE (P2, 2026-10-04):** Muse Code in Bypass receives
+  `allowAll` and may execute a secret-bearing shell command without emitting
+  an approval. The extension cannot inspect an event it never receives.
+  Changing that requires redesigning CLI execution admission or disabling
+  Bypass, beyond this lane's files and the instruction not to widen guards.
+  Model API Bypass is fixed to ask; every emitted CLI approval is scrubbed
+  and offers only one-time approval. Safe for the current explicit Bypass
+  contract, with the exception stated in README/CHANGELOG. Follow-up: lead
+  decision on CLI admission/BYPASS support before claiming universal asks.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

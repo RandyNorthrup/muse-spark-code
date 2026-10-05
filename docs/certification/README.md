@@ -108,3 +108,6 @@ The PNGs beside the records are that day's harness renders.
 - [Docs truth audit of the 0.12.0 tree](docs-truth-audit-0120.md): every user-facing claim checked against the code, the Model API Auto line, redaction at the panel boundary, confidential-workspace checks at every dispatch, fixed-word CLI failure logs and the scanner's exit docs
 - [M81](m81.md): the browser check on both backends, using a verified pinned Chrome for Testing headless shell, its owned proxy, canaries and runtime acquisition; host widening requires user consent (PLAN.md D49, D6).
 - [M99](m99.md): What's New after an update: the page or notice once per update in one window, the content built from CHANGELOG.md, the Try it allow list, the changelog's Highlights guard, every guard red-drilled on Kubuntu (PLAN.md D79)
+- [Defaults on](defaults.md): D78 availability, first-use paid consent, shared daily claims and monotonic Stop, with FIXDEF review drills
+- [M92](m92.md): Muse Gadgets guidance, the shared token table, secret prompts and one-time shell approvals, with the M92e review fixes
+- [0.13.0 release train](train-0.13.0.md): ordered history-preserving integration, conflict resolutions, complete rig gate and package evidence

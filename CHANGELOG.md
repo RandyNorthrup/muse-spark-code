@@ -9,9 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Highlights
 
-- **What's New after every update.** When Muse Spark Code updates, a page like this one opens in an editor tab with each new release's highlights and full notes, without taking the keyboard or interrupting a running turn. A fixes-only patch shows a quiet notification instead. <!-- try: setting museSpark.showWhatsNewOnUpdate -->
+- **Browser checks on local web changes.** The model can open your dev server, click or type, and read console errors and failed requests through a verified, isolated headless browser. The Model API also receives its screenshot. <!-- try: command museSpark.downloadBrowserCheckRuntime -->
+- **What's New after updates.** Release highlights and full notes open in an editor tab when you are idle; fixes-only patches show a quiet notification. <!-- try: setting museSpark.showWhatsNewOnUpdate -->
+- **Enhancements available by default.** Model API extras are visible out of the box, with paid-use consent before spending and a shared daily budget. Explicit false settings stay off. <!-- try: setting museSpark.paidDailyBudgetUsd -->
+- **Muse Gadgets guidance and secret checks.** The bundled SDK skill covers ESP32 build, flash and bounded monitoring. Detected tokens are redacted, secret-bearing prompts pause for your decision, and emitted shell approvals offer only one-time consent.
+- **Safer diagnostics and steadier Windows helpers.** Diagnostic notices redact known secret shapes; confidential workspaces recheck contributor dispatch; protected file approvals stay protected; Windows job helpers compile directly with the .NET compiler.
 
 ### Added
+
+- Bundled `muse_gadgets` skill (Model API backend, listed while `museSpark.bundledSkills` is on): ESP32 build, flash and monitor guidance with the bounded-monitor pattern, the SDK token rules, and the never-a-gadget warning. A timed-out shell command is proven to return its captured output with `isTimedOut` and leave no process behind on Windows, macOS and Linux. README gains a "Muse Gadgets" section.
 
 - **A live receipt workflow for the GitHub Action (M80 LA).**
   `.github/workflows/action-live.yml` runs the real Action, on the agent
@@ -254,6 +260,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Secret prompts are redacted on their first transcript card, history replay, saved draft recovery and Markdown export (including filenames). Delayed warnings survive a later send; Send anyway resends the held text, attachments and reference while preserving newer typing.
+
 - **Diagnostic failures redact known key/token shapes before display.**
   A shared event redactor covers both backends' failed-turn/retry reasons;
   the panel boundary also covers raw diagnostic events and notices before
@@ -339,6 +347,10 @@ happened, not what was planned; superseded entries are kept.
   The Best-of-N overview now agrees with its default availability.
 
 ### Security
+
+- Secret approval cards now remove workspace standing grants, redact contextual credentials across shell stage arguments, scrub reviewer fallback updates, and show the secret note when an existing card changes.
+- Muse Gadgets SDK tokens (`mgst_…`) are now redacted from logs and transcripts and counted by `scan-secrets`. A valid-length prefix glued to more token characters (a trailing `-` or `-extra`) is an overlength near-miss, not a token, and is left alone.
+- A prompt holding a detected secret is held before sending: the panel warns (Send anyway / Edit) and the transcript shows the redacted text either way. On the Model API backend a shell command holding one asks even in Bypass. Every emitted Muse Code approval shows its card redacted with a secret note and no standing grant; Muse Code Bypass can execute without an approval event and cannot be intercepted here. Both read the one shared detection table; the extension writes no commits, so there is no commit guard to add.
 
 - **Other coding agents' folders and files are protected writes.** On the
   Model API backend, a write into `.claude`, `.codex`, `.cursor`, `.gemini`,

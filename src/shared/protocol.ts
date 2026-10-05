@@ -299,6 +299,11 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     includeEditorContext: z.optional(z.boolean()),
     /** The message replies to an output or quotes a passage (M17). */
     reference: z.optional(chatReferenceSchema),
+    /**
+     * M92e (PLAN.md D71): the user saw the secret prompt for this text and
+     * chose Send anyway. The host skips the secret hold for this send only.
+     */
+    secretAccepted: z.optional(z.boolean()),
   }),
   // Edit on a queued message (M87, PLAN.md D66): take it back before the
   // model has it. The ids are those `turnAccepted` gave its card; the host
@@ -786,6 +791,14 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('withdrawRefused'),
     localId: z.string().check(z.minLength(1)),
     reason: z.string(),
+  }),
+  // M92e (PLAN.md D71): the prompt holds a detected secret, so nothing was
+  // sent. The panel shows its dialog (Send anyway / Edit); the transcript
+  // card already rendered is replaced by this redacted text.
+  z.object({
+    type: z.literal('secretPromptDetected'),
+    localId: z.string(),
+    redactedText: z.string(),
   }),
   // The command's admission result. Correlation protects a newer composer draft.
   z.object({ type: z.literal('goalCommandResult'), requestId: z.string(), accepted: z.boolean() }),

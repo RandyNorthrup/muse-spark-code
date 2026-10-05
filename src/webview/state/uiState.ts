@@ -5,6 +5,7 @@
 // conversation saved across a reload is validated before it comes back (M25).
 
 import * as z from 'zod/mini'
+import { redactSecrets } from '../../shared/redact'
 import {
   type AgentEvent,
   type ItemSnapshot,
@@ -300,7 +301,41 @@ export interface UiState {
   readonly unsentAttachments: Readonly<Record<string, readonly AttachmentSummary[]>>
   /** The latest pending send's exact draft, restored only on a handoff refusal. */
   readonly pendingSendDraft:
-    { readonly localId: string; readonly text: string; readonly revision: number } | undefined
+    | {
+        readonly localId: string
+        readonly text: string
+        readonly revision: number
+        /** What the send replied to or quoted (M17, M92e): restored with the draft. */
+        readonly reference?: ChatReference | undefined
+      }
+    | undefined
+  /** In-memory drafts by local id: a delayed hold must survive another send. */
+  readonly pendingSendDrafts: Readonly<
+    Record<
+      string,
+      NonNullable<UiState['pendingSendDraft']> & {
+        readonly contextLabel?: string | undefined
+      }
+    >
+  >
+  /**
+   * A held prompt's Send anyway arm (M92e, PLAN.md D71): the refused draft
+   * and its redacted text, attachments and reference. Only the dialog's
+   * explicit resend carries `secretAccepted`; a newer composer draft stays
+   * independent and receives its own scan.
+   */
+  readonly secretPrompt:
+    | {
+        readonly localId: string
+        readonly draft: string
+        readonly redactedText: string
+        readonly attachments: readonly AttachmentSummary[]
+        readonly reference?: ChatReference | undefined
+        readonly contextLabel?: string | undefined
+      }
+    | undefined
+  /** Delayed holds are shown in arrival order, each with its own payload. */
+  readonly secretPromptQueue: readonly NonNullable<UiState['secretPrompt']>[]
   /**
    * Images of a refused message the host may still hold but the composer no
    * longer shows (M25): the app asks the host to drop them, so none linger
@@ -381,11 +416,15 @@ export type UiAction =
       readonly text: string
       readonly attachments: readonly AttachmentSummary[]
       readonly contextLabel: string | undefined
+      /** True only for the dialog's explicit resend of its held payload. */
+      readonly isSecretResend?: boolean
       /** What the message replies to or quotes (M17); absent for a plain send. */
       readonly reference?: ChatReference | undefined
       /** When it was sent (M87): the card's time until the host's arrives. */
       readonly at?: number | undefined
     }
+  /** The secret dialog closed for editing (M92e): the draft is already back. */
+  | { readonly type: 'secretPromptDismissed' }
   /** The composer now replies to an output or quotes a passage (M17). */
   | { readonly type: 'referenceSet'; readonly reference: ChatReference }
   | { readonly type: 'referenceCleared' }
@@ -496,6 +535,9 @@ export const initialUiState: UiState = {
   strayItems: {},
   unsentAttachments: {},
   pendingSendDraft: undefined,
+  pendingSendDrafts: {},
+  secretPrompt: undefined,
+  secretPromptQueue: [],
   attachmentsToRelease: [],
   banner: undefined,
   announcement: undefined,
@@ -1219,7 +1261,7 @@ function replayedUserEntry(item: ItemSnapshot, seq: number, isPlanTurn = false):
     kind: 'user',
     id: item.itemId,
     seq,
-    text: item.text ?? '',
+    text: redactSecrets(item.text ?? ''),
     status: 'sent',
     ...(atMs !== undefined && { atMs }),
     attachments: (item.attachments ?? []).map((attachment, index) => ({
@@ -1835,6 +1877,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
                   requirementId: event.requirementId,
                   subject: event.subject,
                   availableChoices: event.availableChoices,
+                  note: event.note ?? entry.approval.note,
                 },
               }
             : entry,
@@ -2099,6 +2142,9 @@ function clearedConversation(state: UiState): UiState {
     admittedMessageIds: [],
     unsentAttachments: {},
     pendingSendDraft: undefined,
+    pendingSendDrafts: {},
+    secretPrompt: undefined,
+    secretPromptQueue: [],
     attachmentsToRelease: [],
     banner: undefined,
     title: undefined,
@@ -2508,6 +2554,10 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             ...editor,
             pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
             pendingHandoffCommand: isSameSession ? state.pendingHandoffCommand : undefined,
+            pendingSendDraft: isSameSession ? state.pendingSendDraft : undefined,
+            pendingSendDrafts: isSameSession ? state.pendingSendDrafts : {},
+            secretPrompt: isSameSession ? state.secretPrompt : undefined,
+            secretPromptQueue: isSameSession ? state.secretPromptQueue : [],
             schedules: isSameSession ? state.schedules : [],
             activeTurnId: message.activeTurnId,
             lastCompletedTurnId: undefined,
@@ -2571,6 +2621,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           ? state.admittedMessageIds.filter((id) => id !== message.userMessageId)
           : state.admittedMessageIds,
         unsentAttachments: without(state.unsentAttachments, message.localId),
+        pendingSendDrafts: without(state.pendingSendDrafts, message.localId),
         pendingSendDraft:
           state.pendingSendDraft?.localId === message.localId ? undefined : state.pendingSendDraft,
         transcript: updateEntry(state.transcript, message.localId, (entry) =>
@@ -2669,6 +2720,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           ...state,
           draft: shouldRestoreDraft ? pending.text : state.draft,
           pendingSendDraft: pending?.localId === message.localId ? undefined : pending,
+          pendingSendDrafts: without(state.pendingSendDrafts, message.localId),
           attachments: isKept ? [...unsent, ...others] : state.attachments,
           attachmentsToRelease: isKept
             ? state.attachmentsToRelease
@@ -2709,6 +2761,50 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'withdrawRefused': {
       // Not taken back (M87): the card stays, and the reason is said.
       return announce(withNotice(state, 'warning', message.reason), message.reason)
+    }
+    case 'secretPromptDetected': {
+      const pending =
+        own(state.pendingSendDrafts, message.localId) ??
+        (state.pendingSendDraft?.localId === message.localId ? state.pendingSendDraft : undefined)
+      if (pending === undefined) {
+        return state
+      }
+      const unsent = own(state.unsentAttachments, message.localId) ?? []
+      const others = state.attachments.filter((attachment) =>
+        unsent.every((chip) => chip.id !== attachment.id),
+      )
+      const shouldRestore = pending.revision === state.draftRevision
+      const prompt = {
+        localId: message.localId,
+        draft: pending.text,
+        redactedText: message.redactedText,
+        attachments: unsent,
+        reference: pending.reference,
+        contextLabel: own(state.pendingSendDrafts, message.localId)?.contextLabel,
+      }
+      return announce(
+        {
+          ...state,
+          draft: shouldRestore ? pending.text : state.draft,
+          ...(shouldRestore && pending.reference !== undefined && { reference: pending.reference }),
+          pendingSendDraft:
+            state.pendingSendDraft?.localId === message.localId
+              ? undefined
+              : state.pendingSendDraft,
+          pendingSendDrafts: without(state.pendingSendDrafts, message.localId),
+          secretPrompt: state.secretPrompt ?? prompt,
+          secretPromptQueue:
+            state.secretPrompt === undefined
+              ? state.secretPromptQueue
+              : [...state.secretPromptQueue, prompt],
+          attachments: shouldRestore ? [...unsent, ...others] : state.attachments,
+          unsentAttachments: without(state.unsentAttachments, message.localId),
+          transcript: state.transcript.filter(
+            (entry) => !(entry.kind === 'user' && entry.id === message.localId),
+          ),
+        },
+        UI_TEXT.secretPromptTitle,
+      )
     }
     case 'agentEvent': {
       return applyAgentEvent(state, message.event, at)
@@ -2950,23 +3046,62 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return { ...state, focusRequests: state.focusRequests + 1 }
     }
     case 'submitted': {
+      const arm =
+        action.isSecretResend === true && state.secretPrompt?.draft.trim() === action.text.trim()
+          ? state.secretPrompt
+          : undefined
+      const shouldClear = arm === undefined || state.draft === arm.draft
+      const revision = state.draftRevision + (shouldClear ? 1 : 0)
+      const pending = {
+        localId: action.localId,
+        text: arm?.draft ?? (state.draft.trim() === action.text.trim() ? state.draft : action.text),
+        revision,
+        ...(action.reference !== undefined && { reference: action.reference }),
+        ...(action.contextLabel !== undefined && { contextLabel: action.contextLabel }),
+      }
       return withPendingCard(
         {
           ...state,
-          draft: '',
-          draftRevision: state.draftRevision + 1,
-          pendingSendDraft: {
-            localId: action.localId,
-            text: state.draft,
-            revision: state.draftRevision + 1,
-          },
+          draft: shouldClear ? '' : state.draft,
+          draftRevision: revision,
+          pendingSendDraft: pending,
+          pendingSendDrafts: { ...state.pendingSendDrafts, [action.localId]: pending },
+          secretPrompt: arm === undefined ? state.secretPrompt : state.secretPromptQueue[0],
+          secretPromptQueue:
+            arm === undefined ? state.secretPromptQueue : state.secretPromptQueue.slice(1),
           pendingGoalCommand: undefined,
           pendingHandoffCommand: undefined,
-          attachments: [],
-          reference: undefined,
+          attachments:
+            arm === undefined
+              ? []
+              : state.attachments.filter((chip) =>
+                  arm.attachments.every((held) => held.id !== chip.id),
+                ),
+          reference: shouldClear ? undefined : state.reference,
         },
-        { ...action, isPlanTurn: state.permissionMode === 'plan' },
+        {
+          ...action,
+          text: redactSecrets(action.text),
+          isPlanTurn: state.permissionMode === 'plan',
+        },
       )
+    }
+    case 'secretPromptDismissed': {
+      const prompt = state.secretPrompt
+      return prompt === undefined
+        ? state
+        : {
+            ...state,
+            secretPrompt: state.secretPromptQueue[0],
+            secretPromptQueue: state.secretPromptQueue.slice(1),
+            attachments: [
+              ...prompt.attachments,
+              ...state.attachments.filter((chip) =>
+                prompt.attachments.every((held) => held.id !== chip.id),
+              ),
+            ],
+            focusRequests: state.focusRequests + 1,
+          }
     }
     case 'editorContextDismissed': {
       return { ...state, dismissedEditorPath: state.editorContext?.relativePath }

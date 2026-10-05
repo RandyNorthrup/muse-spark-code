@@ -834,7 +834,7 @@ In a trusted workspace the agent follows the same files Muse Code does:
   (`$XDG_CONFIG_HOME/muse/skills` when set). The palette's **Skills** group
   lists them, `/id arguments` invokes one, and the model loads one itself
   when a task matches its description. `user-invocable: false` in the front
-  matter keeps a skill out of the palette. The extension also brings three
+  matter keeps a skill out of the palette. The extension also brings four
   skills of its own; see [Bundled skills](#bundled-skills).
 - **Agents** (Model API backend only): `.agents/agents/<id>/AGENT.md` in the
   workspace (project scope) and the personal root `~/.config/muse/agents`
@@ -889,13 +889,17 @@ else wrote.
 The extension ships the three workflows of the
 [high-quality-projects](https://github.com/RandyNorthrup/high-quality-projects-skill)
 package (MIT, one pinned release, vendored into the extension at build time
-and never downloaded while it runs):
+and never downloaded while it runs), plus one skill of its own:
 
 - **project_setup:** a new project from a product interview through strict
   quality gates.
 - **feature_delivery:** a scoped feature or change in an existing project,
   with tests and red drills.
 - **quality_retrofit:** an existing codebase brought up to strict standards.
+- **muse_gadgets:** Meta's Muse Gadgets devices (ESP32 firmware and Linux
+  services); see [Muse Gadgets](#muse-gadgets). It is a first-party skill the
+  extension authors in its own folder, not part of the vendored package, so
+  the Muse Code install below does not copy it: it is a Model API skill only.
 
 They lean on the package's shared `scripts/`, `templates/` and `docs/`, so
 each workflow is the whole package, never a lone `SKILL.md`. The delivery
@@ -1074,6 +1078,38 @@ it and start a new conversation.
   the catalogue appears in its instructions only while paid subagents are on.
   On the CLI backend Muse Code reads its own agents and this extension sends
   it none.
+
+## Muse Gadgets
+
+Meta's [Muse Gadgets](https://gadgets.muse.ai/) are devices with a Muse
+assistant inside, built from the open
+[muse-gadget-sdk](https://github.com/facebookincubator/muse-gadget-sdk)
+(Apache 2.0): `esp32/` firmware (ESP-IDF 6.0.1) and a `linux/` assistant
+service. The extension helps you build gadgets; it never becomes one:
+
+- **Tokens stay secret.** Your per-user SDK token (`mgst_…`) is redacted
+  from logs and transcripts like any other secret. Type it yourself, in your
+  own terminal, into `idf.py menuconfig` or the Linux installer — never into
+  chat, never into a command — and never commit a generated `sdkconfig`
+  containing it (`sdkconfig.defaults` is tracked input and token-free). A
+  prompt holding a detected secret is held before sending (Send anyway /
+  Edit). On the Model API backend a shell command holding one asks in every
+  mode, including Bypass. Every approval Muse Code emits has its card redacted
+  and offers only one-time approval; Muse Code Bypass can execute without
+  emitting an approval, so the extension cannot warn before those commands.
+- **Device commands stay bounded.** A monitor never exits by itself, so the
+  shell tool's `timeout_ms` ends it and returns what it captured: flash, then
+  capture N seconds of serial output, in one call, with no process left
+  behind.
+- **The skill knows the drill.** `/muse_gadgets` (a bundled skill, off while
+  `museSpark.bundledSkills` is off) covers the SDK layout, the Windows and
+  POSIX setup, the bounded-monitor pattern and the token rules. In a clone of
+  the SDK, the model reads the SDK's own `AGENTS.md` first.
+- **Never a gadget.** The extension never installs, configures or recommends
+  the Linux gadget service on a development machine: that service lets the
+  cloud assistant run any command there. A Raspberry Pi or a spare box is
+  fine. Pinging your phone after a turn (a hook running `musegadget
+send-user-msg`) arrives with the hooks milestone.
 
 ## Muse Code's own tools
 
@@ -2406,8 +2442,10 @@ conversation as Markdown where you choose: messages, thinking, and tool calls
 with their arguments and visible output. Your `!` commands include an exit
 code or termination signal when Muse Code reports one. On the CLI backend **Export session
 log…** also saves Muse Code's own JSON record of the session (`muse
-export`), which includes everything, stored outputs too; it needs a folder
-on this machine. An export asked for while a reply runs is refused until it
+export`), which includes everything, stored outputs too, as a raw backend
+record. Accepted prompts can therefore retain secrets in that native log;
+Markdown and portable JSON exports remove recognized credentials. The native
+log needs a folder on this machine. An export asked for while a reply runs is refused until it
 finishes, and a conversation too long for Muse Code to replay is pointed to
 the session log.
 
@@ -2417,7 +2455,7 @@ the Markdown export holds, without stored outputs, patches or anything that
 belongs to the running session. Credentials of a known shape and the key
 digest are removed from every string, item ids and error labels included:
 API keys and tokens of common services (Meta, GitHub, GitLab, npm, Google,
-AWS, Slack, Stripe-style keys), bearer and basic credentials, JSON Web
+AWS, Slack, Stripe-style keys, Muse Gadgets SDK tokens), bearer and basic credentials, JSON Web
 Tokens, private keys, credentials in a URL, and secrets named by their key
 (`PASSWORD=`, `"api_key": …`, `~/.aws/credentials` lines, an Azure
 `AccountKey=`). A secret in any other shape is not recognised and stays, so

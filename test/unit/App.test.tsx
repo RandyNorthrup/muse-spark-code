@@ -3276,3 +3276,84 @@ describe('App: the M87 wiring (PLAN.md D66)', () => {
     })
   })
 })
+
+describe('App: explicit held prompt resend (RVM92E P2)', () => {
+  it.each(['newer draft', ''])(
+    'sends the held prompt and its attachments while preserving draft %j',
+    (newer) => {
+      const postMessage = renderReady()
+      const text = `deploy with sk-${'k'.repeat(24)} now`
+      addTestImage()
+      fireEvent.change(textarea(), { target: { value: text } })
+      fireEvent.keyDown(textarea(), { key: 'Enter' })
+      fireEvent.change(textarea(), { target: { value: newer } })
+      deliver({
+        type: 'secretPromptDetected',
+        localId: 'local-1',
+        redactedText: 'deploy with [redacted] now',
+      })
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+      const sent = postMessage.mock.calls.at(-1)?.[0]
+      expect(
+        sent?.type === 'sendMessage' && sent.text === text && sent.secretAccepted === true,
+      ).toBe(true)
+      expect(sent).toMatchObject({ attachmentIds: ['att-1'] })
+      expect(textarea().value).toBe(newer)
+    },
+  )
+  it('resends the held reference while preserving a newer composer reference', () => {
+    const store = createUiStore({
+      ...initialUiState,
+      phase: 'ready',
+      settings: testSettings,
+      auth: { ...initialUiState.auth, status: 'signedIn' },
+    })
+    const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+    render(<App postMessage={postMessage} newLocalId={() => 'local-1'} store={store} />)
+    const original = {
+      intent: 'reply',
+      role: 'assistant',
+      entryId: 'a1',
+      text: 'original',
+    } as const
+    const newer = { ...original, entryId: 'a2', text: 'newer' }
+    act(() => {
+      store.dispatch({ type: 'referenceSet', reference: original })
+    })
+    fireEvent.change(textarea(), { target: { value: `use sk-${'k'.repeat(24)}` } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    fireEvent.change(textarea(), { target: { value: 'newer draft' } })
+    act(() => {
+      store.dispatch({ type: 'referenceSet', reference: newer })
+    })
+    act(() => {
+      store.dispatch({
+        type: 'hostMessage',
+        message: {
+          type: 'secretPromptDetected',
+          localId: 'local-1',
+          redactedText: 'use [redacted]',
+        },
+        at: 1,
+      })
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+    expect(postMessage.mock.calls.at(-1)?.[0]).toMatchObject({
+      reference: original,
+      secretAccepted: true,
+    })
+    expect(store.getState().reference).toEqual(newer)
+  })
+
+  it('keeps authentication admission during a transient Model API sign-in', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+    fireEvent.change(textarea(), { target: { value: `use sk-${'k'.repeat(24)}` } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    deliver({ type: 'secretPromptDetected', localId: 'local-1', redactedText: 'use [redacted]' })
+    deliver({ type: 'authState', status: 'signingIn', backend: 'modelApi' })
+    const before = postMessage.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+    expect(postMessage.mock.calls).toHaveLength(before)
+  })
+})

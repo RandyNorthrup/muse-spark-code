@@ -17,6 +17,7 @@ import { personalAgentsRoot } from './core/context/customAgents'
 import {
   bundledSkillSourcesRoot,
   bundledSkillsPackageRoot,
+  firstPartySkillsRoot,
   personalSkillsRoot,
 } from './core/context/skills'
 import { memoryDataRoot } from './core/memory/memoryLocation'
@@ -1732,6 +1733,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     personalSkillsRoot: skillsHome,
     bundledSkills: {
       packageRoot: bundledPackageRoot,
+      firstPartyRoot: firstPartySkillsRoot(context.extensionPath, process.platform),
       isEnabled: () => currentSettings().bundledSkills,
     },
     personalAgentsRoot: agentsHome,

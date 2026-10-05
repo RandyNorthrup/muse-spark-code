@@ -102,6 +102,7 @@ import {
   ledgerFault,
   RACE_APPROVAL_ID,
   raceRequested,
+  raceUpdated,
   REPLAY_FAULT_MESSAGE,
   replayFault,
 } from './helpers/stageRaceCapture'
@@ -1360,6 +1361,66 @@ describe('ConversationController.sendMessage', () => {
       text: expect.stringContaining('not adjustable') as string,
     })
     expect(t.surface.posted.at(-1)).toMatchObject({ type: 'turnAccepted' })
+  })
+
+  // M92e (PLAN.md D71): the secret is built at runtime, never as a literal.
+  it('keeps an accepted secret prompt redacted on history replay and Markdown export (RVM92E P1)', async () => {
+    const t = withHistory()
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const text = `use ${secret}`
+    await t.controller.handle({
+      type: 'sendMessage',
+      localId: 'l1',
+      text,
+      attachmentIds: [],
+      secretAccepted: true,
+    })
+    t.server.notify('turn/completed', { sessionId: 's1', turnId: 't1', terminal: 'completed' })
+    await settle()
+    serveHistoryItems(t, [historyUserItem('u1', 't1', text)])
+    await t.controller.handle({ type: 'clearConversation' })
+    await t.controller.handle({ type: 'resumeSession', sessionId: 's1' })
+    const replay = t.surface.posted.findLast((message) => message.type === 'historyLoaded')
+    expect(JSON.stringify(replay).includes(secret)).toBe(false)
+    expect(replay?.type === 'historyLoaded' && replay.items[0]?.text === 'use [redacted]').toBe(
+      true,
+    )
+    // Raw accepted text remains only in the backend history needed to resume.
+    const history = await t.host.readSession('s1')
+    expect(history.items[0]?.text === text).toBe(true)
+    await t.controller.handle({ type: 'exportConversation', format: 'markdown' })
+    expect(t.exported.markdown).toHaveLength(1)
+    expect(JSON.stringify(t.exported.markdown).includes(secret)).toBe(false)
+    t.controller.dispose()
+  })
+
+  it('holds a prompt with a detected secret, and sends it on once accepted', async () => {
+    const t = setup()
+    const secret = `sk-${'k'.repeat(24)}`
+    const text = `deploy with ${secret} now`
+    await t.send('l1', text)
+    await settle()
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'secretPromptDetected',
+      localId: 'l1',
+      redactedText: 'deploy with [redacted] now',
+    })
+    await t.controller.handle({
+      type: 'sendMessage',
+      localId: 'l2',
+      text,
+      attachmentIds: [],
+      secretAccepted: true,
+    })
+    await settle()
+    expect(t.server.requestsFor('turn/start')[0]?.params).toMatchObject({
+      input: [{ type: 'text', text }, NOTE],
+    })
+    expect(t.surface.posted.at(-1)).toMatchObject({ type: 'turnAccepted', localId: 'l2' })
+    // The panel never saw the raw value; the turn carries it to the model.
+    expect(JSON.stringify(t.surface.posted)).not.toContain(secret)
   })
 })
 
@@ -6578,6 +6639,38 @@ describe('ConversationController: permission hardening (D24)', () => {
       type: 'agentEvent',
       event: expect.objectContaining({ type: 'approvalRequested', approvalId: 'a1' }),
     })
+  })
+
+  // M92e (PLAN.md D71): the secret is built at runtime, never as a literal.
+  it('scrubs a secret shell command off the approval card', async () => {
+    const t = setup({ hasApprovalUi: true })
+    await t.send('l1', 'hi')
+    const secret = `sk-${'k'.repeat(24)}`
+    const command = `deploy --token ${secret}`
+    requestApproval(t, 'a1', {
+      toolName: 'bash',
+      rawArgs: JSON.stringify({ command }),
+      subject: { kind: 'shell', command },
+      availableChoices: [
+        { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+        {
+          choiceId: 'allow_session',
+          label: `Always allow: ${command}`,
+          decision: 'approvedPolicyAmendment',
+          scope: 'session',
+        },
+        { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
+      ],
+    })
+    await settle()
+    const cards = agentEvents(t).filter((event) => event.type === 'approvalRequested')
+    expect(cards).toHaveLength(1)
+    expect(cards[0]).toMatchObject({
+      subject: { kind: 'shell', command: 'deploy --token [redacted]' },
+      note: UI_TEXT.approvalSecretNote,
+      availableChoices: [{ choiceId: 'allow_once' }, { choiceId: 'abort' }],
+    })
+    expect(JSON.stringify(t.surface.posted)).not.toContain(secret)
   })
 
   it('answers a plain file-write approval itself in Edit automatically, labelled so', async () => {
@@ -14519,6 +14612,31 @@ describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D
         }),
       })
     })
+  })
+
+  it('scrubs a secret introduced while the reviewer holds the captured approval (RVM92E P1)', async () => {
+    const t = reviewed()
+    await asked(t)
+    await vi.waitFor(() => {
+      expect(sideTurns(t)).toHaveLength(1)
+    })
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const command = `echo ${secret}`
+    t.server.notify('approval/updated', {
+      ...raceUpdated('s1', 1),
+      subject: { kind: 'shell', command },
+    })
+    await vi.waitFor(() => {
+      expect(cards(t)).toHaveLength(1)
+    })
+    const card = cards(t)[0]
+    expect(JSON.stringify(card).includes(secret)).toBe(false)
+    expect(card).toMatchObject({ note: UI_TEXT.approvalSecretNote })
+    expect(card?.availableChoices.map((choice) => choice.choiceId)).toEqual(['allow_once', 'abort'])
+    sideReplies(t, CAPTURED_REPLY)
+    await settle()
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    t.controller.dispose()
   })
 
   it('shows the card with the reviewer’s reason when it asks', async () => {

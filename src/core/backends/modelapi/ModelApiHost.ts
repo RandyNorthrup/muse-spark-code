@@ -3871,9 +3871,11 @@ export class ModelApiSession implements AgentSession {
       const isAllowed = await this.askPaidUse(call, signal, question.paid, requiresUserApproval)
       return { isApproved: isAllowed, feedback: undefined }
     }
+    // M92e (PLAN.md D71): a settled secret ask is not an allow a hook may
+    // take: the card asks with the value redacted.
     const isSettledAsk =
       judgement.settledBy !== undefined &&
-      ['askRule', 'profile', 'complexCommand'].includes(judgement.settledBy)
+      ['askRule', 'profile', 'complexCommand', 'secretDetected'].includes(judgement.settledBy)
     if (
       !requiresUserApproval &&
       !isSettledAsk &&

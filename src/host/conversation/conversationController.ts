@@ -37,6 +37,8 @@ import {
   type TurnSubmission,
 } from '../../core/agent/agentBackend'
 import { editAutomaticallyChoice, isReviewableApproval } from '../../core/agent/approvalRules'
+import { scrubSecretApproval } from '../../core/agent/approvalSecrets'
+import { countSecretMatches, redactDiagnosticEvent, redactSecrets } from '../../core/redact'
 import { toSessionRow } from '../../core/agent/sessionRows'
 import {
   hasUnshownCharacters,
@@ -61,7 +63,6 @@ import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
 import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
 import { chatReferenceText } from '../../core/chatReference'
-import { redactDiagnosticEvent, redactSecrets } from '../../core/redact'
 import type { PlanModeHold, PlanModeRestore } from '../../core/review/planModeHold'
 import type { ReviewMaterial } from '../../core/review/reviewMaterial'
 import { isPrivateFileName } from '../../shared/privateFiles'
@@ -1747,7 +1748,7 @@ export class ConversationController {
     try {
       this.reviews ??= port.reviewer().conversation({
         showCard: (held, note) => {
-          const card = note === undefined ? held : { ...held, note }
+          const card = scrubSecretApproval(note === undefined ? held : { ...held, note })
           this.forward(card)
           this.track(card)
         },
@@ -1981,8 +1982,16 @@ export class ConversationController {
         break
       }
     }
-    this.forward(event)
-    this.track(event)
+    // M92e (PLAN.md D71): the panel never shows a secret a proposed shell
+    // command holds. The decisions above read the raw event; what is
+    // forwarded and tracked is scrubbed, on both backends: the value shown
+    // redacted, a secret note, no standing approve choice.
+    const shown =
+      event.type === 'approvalRequested' || event.type === 'approvalUpdated'
+        ? scrubSecretApproval(event)
+        : event
+    this.forward(shown)
+    this.track(shown)
   }
 
   /**
@@ -3815,7 +3824,11 @@ export class ConversationController {
       type: 'historyLoaded',
       sessionId,
       ...(history.sideChat !== undefined && { sideChat: history.sideChat }),
-      items: [...history.items],
+      items: history.items.map((item) =>
+        item.kind === USER_MESSAGE_KIND && item.text !== undefined
+          ? { ...item, text: redactSecrets(item.text) }
+          : item,
+      ),
       ...(history.name !== undefined && { name: history.name }),
       todos: [...history.todos],
       // Absent when the history could not say (M45): the panel keeps what it knew.
@@ -5503,7 +5516,24 @@ export class ConversationController {
     brief?: BriefExtras,
     cardText?: string,
     handoff?: PendingHandoff,
+    isSecretAccepted = false,
   ): Promise<SendOutcome> {
+    // M92e (PLAN.md D71): a plain composer prompt holding a detected secret
+    // is held before sending. Nothing starts and nothing is released: the
+    // panel shows its dialog (Send anyway / Edit) over the redacted card,
+    // and only a re-post with `secretAccepted` sends it on. Briefs, review
+    // cards and handoffs never reach this hold. Read from the one shared
+    // table in redact.ts.
+    if (
+      brief === undefined &&
+      cardText === undefined &&
+      handoff === undefined &&
+      !isSecretAccepted &&
+      countSecretMatches(text, []) > 0
+    ) {
+      this.post({ type: 'secretPromptDetected', localId, redactedText: redactSecrets(text) })
+      return { isAccepted: false, hasSetTodos: false, turnId: undefined }
+    }
     // Counted once past the review barrier (M70), so a message held behind a
     // starting review does not make that review refuse as busy (M87).
     let isCountedSubmission = false
@@ -7923,6 +7953,10 @@ export class ConversationController {
           message.attachmentIds,
           message.includeEditorContext === true,
           message.reference,
+          undefined,
+          undefined,
+          undefined,
+          message.secretAccepted === true,
         )
         break
       }

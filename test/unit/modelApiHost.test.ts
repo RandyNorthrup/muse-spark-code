@@ -6461,7 +6461,11 @@ describe('ModelApiSession: workspace context (M10)', () => {
         ),
         '.agents/skills/shout/SKILL.md': skillFile('shout', 'Repeat in caps', 'UPPER CASE.'),
       },
-      bundledSkills: { packageRoot, isEnabled: () => true },
+      bundledSkills: {
+        packageRoot,
+        firstPartyRoot: `${ROOT}/.ext/first-party-skills`,
+        isEnabled: () => true,
+      },
     })
     const { session, events, turnDone } = await startSession(t)
     t.api.script(
