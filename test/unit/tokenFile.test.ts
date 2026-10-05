@@ -23,6 +23,7 @@ const tokens: Awaited<ReturnType<typeof createTokenFile>>[] = []
 afterEach(async () => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   for (const token of tokens.splice(0)) await token.remove()
   for (const folder of folders.splice(0)) await fs.rm(folder, { recursive: true, force: true })
 })
@@ -267,6 +268,8 @@ describe('shared token file', () => {
     expect(await fs.readdir(parent)).toEqual([])
   })
   it('uses the bounded Windows launcher with encoded paths and no bearer in arguments or environment', async () => {
+    vi.stubEnv('M104_C_TEST_API_KEY', 'synthetic-private-value')
+    vi.stubEnv('DBUS_SESSION_BUS_ADDRESS', 'synthetic-private-route')
     const run = vi.spyOn(programs, 'runProgram').mockResolvedValue(JSON.stringify(receipt))
     vi.stubGlobal('process', {
       ...process,
@@ -291,6 +294,7 @@ describe('shared token file', () => {
       expect(script).toContain('Get-Acl -LiteralPath')
       expect(script).toContain('Set-Acl -LiteralPath')
       expect(Object.keys(env).some((name) => name.toUpperCase().endsWith('_API_KEY'))).toBe(false)
+      expect(env['DBUS_SESSION_BUS_ADDRESS']).toBeUndefined()
     }
   })
   it.each([
@@ -375,9 +379,16 @@ describe('shared token file', () => {
     const create = fs.open
     vi.spyOn(fs, 'open').mockImplementation(async (file, flags, mode) => {
       const handle = await create(file, flags, mode)
-      await fs.unlink(file)
-      await fs.symlink(outside, file)
-      return handle
+      let isPrepared = false
+      try {
+        await fs.unlink(file)
+        await fs.symlink(outside, file)
+        isPrepared = true
+        return handle
+      } finally {
+        // Windows may refuse symlink creation; the fixture still owns this open handle.
+        if (!isPrepared) await handle.close()
+      }
     })
     await expect(
       createTokenFile(parent, { secure: () => Promise.resolve(receipt) }),
