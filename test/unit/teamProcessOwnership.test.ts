@@ -2,7 +2,14 @@ import { describe, expect, it, vi } from 'vitest'
 import { createProcessOwnership, type ProcessIdentity } from '../../src/host/team/processOwnership'
 
 const id = '11111111-1111-4111-8111-111111111111'
-const leader: ProcessIdentity = { pid: 42, group: '42', startTime: 'boot:123', launchId: id }
+const leader: ProcessIdentity = {
+  pid: 42,
+  group: '42',
+  startTime: 'boot:123',
+  launchId: id,
+  executable: '/fixture/worker',
+  uid: 501,
+}
 const member: ProcessIdentity = { ...leader, pid: 43, startTime: 'boot:124' }
 
 function fixture() {
@@ -37,10 +44,9 @@ describe('M96 K signal-time ownership', () => {
           if (observe === undefined) throw new Error('observer missing')
           f.observe
             .mockImplementationOnce(observe)
-            .mockImplementationOnce(observe)
             .mockImplementationOnce(() => Promise.resolve({ ...leader, startTime: 'reused' }))
         } else f.table.set(leader.pid, { ...leader, launchId: undefined })
-        const result = await f.ownership.signal(member, 'SIGTERM')
+        const result = await f.ownership.signal(isLeaderOwned ? leader : member, 'SIGTERM')
         if (isLeaderOwned) {
           expect(result.signalled).toEqual([])
           expect(f.signal).not.toHaveBeenCalled()
@@ -53,7 +59,7 @@ describe('M96 K signal-time ownership', () => {
       }
     })
   }
-  for (const field of ['pid', 'startTime', 'group', 'launchId'] as const) {
+  for (const field of ['pid', 'startTime', 'group', 'launchId', 'executable', 'uid'] as const) {
     it(`refuses a changed ${field} immediately before a signal`, async () => {
       const f = fixture()
       f.table.set(leader.pid, {
@@ -62,6 +68,8 @@ describe('M96 K signal-time ownership', () => {
         ...(field === 'startTime' && { startTime: 'reused' }),
         ...(field === 'group' && { group: '99' }),
         ...(field === 'launchId' && { launchId: 'different' }),
+        ...(field === 'executable' && { executable: '/foreign/program' }),
+        ...(field === 'uid' && { uid: 502 }),
       })
       expect(await f.ownership.signal(leader, 'SIGTERM')).toEqual({
         signalled: [],
@@ -99,6 +107,14 @@ describe('M96 K signal-time ownership', () => {
     expect(f.signal).toHaveBeenCalledTimes(1)
   })
 
+  it('a launch marker never substitutes for recorded executable and UID', async () => {
+    const f = fixture()
+    const { executable: _executable, uid: _uid, ...legacy } = leader
+    f.table.set(leader.pid, legacy)
+    expect(await f.ownership.signalLaunch(legacy, 'SIGTERM')).toMatchObject({ signalled: [] })
+    expect(f.signal).not.toHaveBeenCalled()
+  })
+
   it('an exact journal identity may authorize one unmarked process', async () => {
     const f = fixture()
     const unmarked = { ...member, launchId: undefined }
@@ -111,14 +127,14 @@ describe('M96 K signal-time ownership', () => {
     expect(f.signal).toHaveBeenCalledWith(unmarked, 'SIGTERM', false)
   })
 
-  it('retirement signals only proved survivors after the group leader has exited', async () => {
+  it('retirement reports unrecorded marked survivors after the group leader has exited', async () => {
     const f = fixture()
     f.table.delete(leader.pid)
     expect(await f.ownership.signalLaunch(leader, 'SIGTERM')).toEqual({
-      signalled: [member.pid],
-      notOwned: [leader.pid],
+      signalled: [],
+      notOwned: [member.pid, leader.pid],
     })
-    expect(f.signal).toHaveBeenCalledWith(member, 'SIGTERM', false)
+    expect(f.signal).not.toHaveBeenCalled()
     expect(await f.ownership.signal(leader, 'SIGTERM')).toEqual({
       signalled: [],
       notOwned: [leader.pid],

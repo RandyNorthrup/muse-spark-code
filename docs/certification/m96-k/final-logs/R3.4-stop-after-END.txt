@@ -1,0 +1,58 @@
+
+ RUN  v5.0.2 /Users/randy/lanes/FIXM96K4
+
+ ❯ test/unit/teamWindowsControl.test.ts (2 tests | 2 failed) 516ms
+   ❯ M96 K Windows END control stream (2)
+     × retirement after END sends no STOP and waits for helper close before saving proved end 212ms
+     × retirement after END has a deadline when helper closure is missing 303ms
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  14:07:02
+   Duration  1.38s (tests 42%, transform 35%, import 13%, setup 10%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamWindowsControl.test.ts > M96 K Windows END control stream > retirement after END sends no STOP and waits for helper close before saving proved end
+AssertionError: expected [ { childExited: false, …(1) } ] to be 'pending' // Object.is equality
+
+- Expected:
+"pending"
+
++ Received:
+[
+  {
+    "childExited": false,
+    "descendants": "uncertain",
+  },
+]
+
+ ❯ test/unit/teamWindowsControl.test.ts:124:68
+    122|     expect(f.control.writableEnded).toBe(true)
+    123|     const retirement = f.lifetime.dispose()
+    124|     expect(await Promise.race([retirement, delay(30, 'pending')])).toB…
+       |                                                                    ^
+    125|     expect(f.writes.map((text) => text.split(' ', 1)[0])).toEqual(['GO…
+    126|     f.child.kill()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/teamWindowsControl.test.ts > M96 K Windows END control stream > retirement after END has a deadline when helper closure is missing
+AssertionError: expected 'write after end' to be 'TEAM_WINDOWS_RETIREMENT_TIMEOUT' // Object.is equality
+
+Expected: "TEAM_WINDOWS_RETIREMENT_TIMEOUT"
+Received: "write after end"
+
+ ❯ test/unit/teamWindowsControl.test.ts:140:64
+    138|     )
+    139|     await vi.advanceTimersByTimeAsync(5000)
+    140|     expect(await Promise.race([result, delay(30, 'pending')])).toBe(
+       |                                                                ^
+    141|       'TEAM_WINDOWS_RETIREMENT_TIMEOUT',
+    142|     )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯

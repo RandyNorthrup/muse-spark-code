@@ -5,6 +5,7 @@ import {
   mkdtemp,
   readFile,
   realpath,
+  rename,
   rm,
   stat,
   symlink,
@@ -21,6 +22,7 @@ import {
   windowHintsDirectory,
   type WindowHint,
 } from '../../src/host/team/windowHints'
+import * as processTree from '../../src/host/processTree'
 import { runProgram, windowsPowerShell } from '../../src/host/processTree'
 import { powerShellQuoted } from '../../src/core/shellQuote'
 import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/shared/constants'
@@ -50,6 +52,7 @@ afterEach(async () => {
   permissionState.ignoresChmod = false
   permissionState.foreignUid = false
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
   vi.useRealTimers()
   for (const directory of directories.splice(0))
     await rm(directory, { recursive: true, force: true })
@@ -225,6 +228,88 @@ describe('M96 K advisory hints', () => {
     expect(await b.hints.check(intent)).toBe('continue')
     await b.hints.dispose()
   })
+
+  it('Windows consumes the handle-verified hint rather than an older opened inode after replacement', async () => {
+    const f = await hintFixture()
+    const foreign = createWindowIdentity(100_000).instanceId
+    const target = path.join(f.directory, `${foreign}.json`)
+    const forged = { ...hintState, instanceId: foreign, at: 100_000, workers: 40 }
+    const safe = { ...forged, trees: [], exclusiveServers: [], workers: 7 }
+    await writeFile(target, JSON.stringify(forged))
+    vi.stubEnv('SystemRoot', String.raw`C:\Windows`)
+    const helper = vi.spyOn(processTree, 'runProgram').mockImplementation(async (_file, args) => {
+      const replacement = path.join(f.directory, 'replacement.tmp')
+      await writeFile(replacement, JSON.stringify(safe))
+      await rename(replacement, target)
+      // Model the opened-handle helper's consumed bytes. The old path-only
+      // verifier says verified while Node retains the unsafe original inode.
+      return args.at(-1)?.includes('MuseTeamHintReader') === true
+        ? JSON.stringify(safe)
+        : 'verified'
+    })
+    const reader = createWindowHints({
+      directory: f.directory,
+      instanceId: createWindowIdentity(100_000).instanceId,
+      platform: 'win32',
+      freshMs: 60_000,
+      writeMs: 10_000,
+      maxHintBytes: 8192,
+      now: () => 100_000,
+      secureWindowsDirectory: () => Promise.resolve(),
+      disabled: f.disabled,
+      question: f.question,
+      overlap: (mine, theirs) => mine.filter((value) => theirs.includes(value)),
+    })
+    expect(await reader.check(intent)).toBe('continue')
+    expect(f.question).not.toHaveBeenCalled()
+    expect(f.disabled).not.toHaveBeenCalled()
+    expect(await reader.advisory()).toMatchObject({ workers: 7 })
+    expect(helper).toHaveBeenCalledTimes(2)
+    await reader.dispose()
+    vi.unstubAllEnvs()
+  })
+
+  if (process.platform === 'win32') {
+    it('native Windows holds the consumed hint against replacement through ACL verification', async () => {
+      const f = await publishedHintFixture()
+      const original = processTree.runProgram
+      const helper = vi
+        .spyOn(processTree, 'runProgram')
+        .mockImplementation(async (file, args, env) => {
+          const instrumented = args.map((argument) =>
+            argument.includes('MuseTeamHintReader')
+              ? argument.replace(
+                  'FileInfo info;',
+                  'try { File.Move(target, target + ".attack"); throw new Exception("replacement was allowed"); } catch (IOException) {} FileInfo info;',
+                )
+              : argument,
+          )
+          return await original(file, instrumented, env)
+        })
+      expect(await f.reader.hints.advisory()).toMatchObject({ workers: hintState.workers })
+      expect(f.disabled).not.toHaveBeenCalled()
+      expect(helper).toHaveBeenCalled()
+      expect(await readFile(f.file, 'utf8')).toContain(f.writer.id)
+      await f.writer.hints.dispose()
+      await f.reader.hints.dispose()
+    })
+
+    it('native Windows rejects an opened hint with another principal granted write access', async () => {
+      const f = await publishedHintFixture()
+      const powershell = windowsPowerShell(process.env['SystemRoot'] ?? '', {})
+      const script = `$f = New-Object IO.FileInfo(${powerShellQuoted(f.file)}); $acl = $f.GetAccessControl(); $everyone = New-Object Security.Principal.SecurityIdentifier('S-1-1-0'); $rule = New-Object Security.AccessControl.FileSystemAccessRule($everyone,'Modify','Allow'); $acl.AddAccessRule($rule); $f.SetAccessControl($acl)`
+      await runProgram(
+        powershell.file,
+        [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
+        powershell.env,
+      )
+      expect(await f.reader.hints.check(intent)).toBe('continue')
+      expect(f.question).not.toHaveBeenCalled()
+      expect(f.disabled).toHaveBeenCalledTimes(1)
+      await f.writer.hints.dispose()
+      await f.reader.hints.dispose()
+    })
+  }
 
   it('disables hints once when folder cannot be used', async () => {
     const f = await hintFixture()
@@ -430,6 +515,8 @@ describe('M96 K orphan decisions', () => {
     group: '42',
     startTime: 'boot:123',
     command: 'fixture-worker',
+    executable: '/fixture/worker',
+    uid: 501,
     launchId: id,
   }
   const record = {
@@ -442,6 +529,8 @@ describe('M96 K orphan decisions', () => {
       group: '42',
       startTime: 'boot:123',
       container: 'processGroup' as const,
+      executable: '/fixture/worker',
+      uid: 501,
     },
     end: { childExited: true, descendants: 'uncertain' as const },
   }
@@ -458,30 +547,59 @@ describe('M96 K orphan decisions', () => {
     const recovery = createOrphanRecovery({ scan, signal, observe })
     const found = await recovery.find([record])
     expect(found).toHaveLength(2)
-    expect(found[1]).toMatchObject({ pid: 43, match: 'matched' })
+    expect(found[1]).toMatchObject({ pid: 43, match: 'uncertain' })
+    expect(await recovery.stop(found[1]!, true)).toBe('changed')
     expect(await recovery.stop(found[0]!, false)).toBe('kept')
     expect(signal).not.toHaveBeenCalled()
     expect(observe).not.toHaveBeenCalled()
     expect(await recovery.stop(found[0]!, true)).toBe('stopped')
     expect(observe.mock.invocationCallOrder[0]).toBeLessThan(signal.mock.invocationCallOrder[0]!)
     expect(signal).toHaveBeenCalledWith(
-      expect.objectContaining(observation),
+      expect.objectContaining({
+        pid: observation.pid,
+        executable: observation.executable,
+        uid: observation.uid,
+      }),
       'SIGTERM',
       process.platform === 'darwin',
     )
   })
 
-  it('refuses changed PID or marker after second check, and labels PID-only match uncertain', async () => {
-    const signal = vi.fn(() => Promise.resolve(true))
-    const observe = vi.fn(() => Promise.resolve({ ...observation, startTime: 'boot:999' }))
-    const recovery = createOrphanRecovery({
-      scan: () => Promise.resolve([{ ...observation, launchId: undefined }]),
-      observe,
-      signal,
+  for (const scenario of [
+    {
+      name: 'a marker-only recovery row cannot stop without a recorded confirmation',
+      scanned: observation,
+      observed: observation,
+      hasConfirmation: false,
+    },
+    {
+      name: 'marker-only recovery cannot authorize an unrelated recorded PID or executable',
+      scanned: { ...observation, executable: '/foreign/program' },
+      observed: observation,
+      hasConfirmation: true,
+    },
+    {
+      name: 'refuses changed PID or marker after second check, and labels PID-only match uncertain',
+      scanned: { ...observation, launchId: undefined },
+      observed: { ...observation, startTime: 'boot:999' },
+      hasConfirmation: true,
+    },
+  ]) {
+    it(scenario.name, async () => {
+      const signal = vi.fn(() => Promise.resolve(true))
+      const recovery = createOrphanRecovery({
+        scan: () => Promise.resolve([scenario.scanned]),
+        observe: () => Promise.resolve(scenario.observed),
+        signal,
+      })
+      const found = await recovery.find([
+        scenario.hasConfirmation
+          ? record
+          : { id, command: 'worker', cwd: '/scratch', taskId: 'task' },
+      ])
+      expect(found[0]).toMatchObject({ match: 'uncertain' })
+      expect(await recovery.stop(found[0]!, true)).toBe('changed')
+      expect(signal).not.toHaveBeenCalled()
     })
-    const found = await recovery.find([record])
-    expect(found[0]).toMatchObject({ match: 'uncertain' })
-    expect(await recovery.stop(found[0]!, true)).toBe('changed')
-    expect(signal).not.toHaveBeenCalled()
-  })
+  }
 })

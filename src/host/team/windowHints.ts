@@ -41,17 +41,78 @@ async function secureNativeWindowsDirectory(directory: string): Promise<void> {
   if (result.trim() !== 'secured') throw new Error('TEAM_HINT_ACL_UNVERIFIED')
 }
 
-async function assertNativeWindowsHintFile(target: string): Promise<void> {
+// The ACL, file metadata and bytes all come from this one opened handle.
+// FileShare.Read additionally denies concurrent writes and path replacement.
+const WINDOWS_HINT_READER = `
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using Microsoft.Win32.SafeHandles;
+public static class MuseTeamHintReader {
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FileInfo {
+        public uint Attributes;
+        public System.Runtime.InteropServices.ComTypes.FILETIME Created, Accessed, Written;
+        public uint Volume, SizeHigh, SizeLow, Links, IndexHigh, IndexLow;
+    }
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+    private static extern SafeFileHandle CreateFile(string path, uint access, uint share,
+        IntPtr security, uint creation, uint flags, IntPtr template);
+    [DllImport("kernel32.dll", SetLastError=true)]
+    private static extern bool GetFileInformationByHandle(SafeFileHandle file, out FileInfo info);
+    [DllImport("advapi32.dll")]
+    private static extern uint GetSecurityInfo(SafeFileHandle file, uint type, uint requested,
+        out IntPtr owner, out IntPtr group, out IntPtr dacl, out IntPtr sacl, out IntPtr descriptor);
+    [DllImport("advapi32.dll")]
+    private static extern uint GetSecurityDescriptorLength(IntPtr descriptor);
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr LocalFree(IntPtr memory);
+    public static string Read(string target, int maximum) {
+        using (var handle = CreateFile(target, 0x80000000, 1, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero)) {
+            if (handle.IsInvalid) throw new IOException("TEAM_HINT_FILE_UNSAFE");
+            using (var file = new FileStream(handle, FileAccess.Read)) {
+            FileInfo info;
+            if (!GetFileInformationByHandle(file.SafeFileHandle, out info) || info.Links != 1 ||
+                (info.Attributes & (uint)(FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
+                throw new IOException("TEAM_HINT_FILE_UNSAFE");
+            IntPtr owner, group, dacl, sacl, descriptor;
+            if (GetSecurityInfo(file.SafeFileHandle, 1, 5, out owner, out group, out dacl,
+                                out sacl, out descriptor) != 0)
+                throw new IOException("TEAM_HINT_FILE_UNSAFE");
+            try {
+                var bytes = new byte[checked((int)GetSecurityDescriptorLength(descriptor))];
+                Marshal.Copy(descriptor, bytes, 0, bytes.Length);
+                var acl = new FileSecurity();
+                acl.SetSecurityDescriptorBinaryForm(bytes);
+                var sid = WindowsIdentity.GetCurrent().User;
+                var rules = acl.GetAccessRules(true, true, typeof(SecurityIdentifier));
+                if (sid == null || !sid.Equals(acl.GetOwner(typeof(SecurityIdentifier))) || rules.Count != 1)
+                    throw new IOException("TEAM_HINT_FILE_UNSAFE");
+                var rule = (FileSystemAccessRule)rules[0];
+                if (!sid.Equals(rule.IdentityReference) || rule.AccessControlType != AccessControlType.Allow ||
+                    rule.FileSystemRights != FileSystemRights.FullControl)
+                    throw new IOException("TEAM_HINT_FILE_UNSAFE");
+            } finally { LocalFree(descriptor); }
+            if (file.Length > maximum) return "TEAM_HINT_TOO_LARGE";
+            using (var reader = new StreamReader(file)) return reader.ReadToEnd();
+            }
+        }
+    }
+}
+`
+
+async function readNativeWindowsHintFile(target: string, maximum: number): Promise<string> {
   const systemRoot = process.env['SystemRoot']
   if (systemRoot === undefined) throw new Error('TEAM_HINT_ACL_UNAVAILABLE')
   const powershell = windowsPowerShell(systemRoot, { SystemRoot: systemRoot })
-  const script = `$ErrorActionPreference='Stop'; $file = New-Object IO.FileInfo(${powerShellQuoted(target)}); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User; $acl = $file.GetAccessControl(); $rules = @($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])); if (($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value -or $rules.Count -ne 1 -or $rules[0].IdentityReference.Value -ne $sid.Value -or $rules[0].AccessControlType -ne 'Allow' -or $rules[0].FileSystemRights -ne 'FullControl') { throw 'TEAM_HINT_FILE_UNSAFE' }; 'verified'`
-  const result = await runProgram(
+  const script = `$ErrorActionPreference='Stop'; Add-Type -TypeDefinition ${powerShellQuoted(WINDOWS_HINT_READER)}; [MuseTeamHintReader]::Read(${powerShellQuoted(target)}, ${String(maximum)})`
+  return await runProgram(
     powershell.file,
     [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
     powershell.env,
   )
-  if (result.trim() !== 'verified') throw new Error('TEAM_HINT_FILE_UNSAFE')
 }
 
 const OWNER_DIRECTORY_MODE = 0o700
@@ -177,26 +238,27 @@ export function createWindowHints(options: {
         if (!name.endsWith('.json')) continue
         const target = path.join(directory, name)
         try {
-          if (options.platform === 'win32') await assertHintPath(target)
-          const handle = await open(
-            target,
-            fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK,
-          )
           let text: string
-          try {
-            const information = await handle.stat()
-            assertSafeHintFile(information, options.platform, false)
-            if (information.size > options.maxHintBytes) continue
-            if (options.platform === 'win32') {
-              try {
-                await assertNativeWindowsHintFile(target)
-              } catch (error: unknown) {
-                throw new Error('TEAM_HINT_FILE_UNSAFE', { cause: error })
-              }
+          if (options.platform === 'win32') {
+            await assertHintPath(target)
+            try {
+              text = await readNativeWindowsHintFile(target, options.maxHintBytes)
+            } catch (error: unknown) {
+              throw new Error('TEAM_HINT_FILE_UNSAFE', { cause: error })
             }
-            text = await handle.readFile('utf8')
-          } finally {
-            await handle.close()
+          } else {
+            const handle = await open(
+              target,
+              fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK,
+            )
+            try {
+              const information = await handle.stat()
+              assertSafeHintFile(information, options.platform, false)
+              if (information.size > options.maxHintBytes) continue
+              text = await handle.readFile('utf8')
+            } finally {
+              await handle.close()
+            }
           }
           if (Buffer.byteLength(text) > options.maxHintBytes) continue
           const parsed = hintSchema.safeParse(JSON.parse(text))

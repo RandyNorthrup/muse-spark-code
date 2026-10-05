@@ -10,6 +10,7 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import type * as fsPromises from 'node:fs/promises'
+import * as fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -39,6 +40,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   return { ...actual, open }
 })
 afterEach(async () => {
+  vi.restoreAllMocks()
   syncState.shouldFail = false
   for (const directory of directories.splice(0))
     await rm(directory, { recursive: true, force: true })
@@ -59,6 +61,17 @@ async function fixture() {
   })
   const journalDirectory = path.join(directory, 'team', 'journal', owner.instanceId)
   return { directory, owner, authority, journal, journalDirectory, recordTakeover }
+}
+
+function foreignDiscovery(directory: string) {
+  const stranger = createWindowIdentity(456)
+  return createTeamJournal({
+    storageDirectory: directory,
+    owner: stranger,
+    authority: createWindowAuthority(stranger, () => Promise.resolve()),
+    maxRecordBytes: 4096,
+    platform: process.platform,
+  })
 }
 
 const request = {
@@ -371,6 +384,34 @@ describe('M96 K launcher contract', () => {
     })
   }
 
+  for (const damage of ['link', 'file', 'removed', 'unreadable'] as const) {
+    it(`warns about a damaged foreign journal directory and keeps valid launches: ${damage}`, async () => {
+      const f = await endedFixture('windowsJob')
+      const root = path.dirname(f.journalDirectory)
+      const damaged = path.join(root, createWindowIdentity(789).instanceId)
+      if (damage === 'link') await symlink(f.journalDirectory, damaged, 'junction')
+      else if (damage === 'file') await writeFile(damaged, 'foreign bytes')
+      else await mkdir(damaged)
+      const readdir = fs.readdir
+      vi.spyOn(fs, 'readdir').mockImplementation(async (target, options) => {
+        if (target === damaged && (damage === 'removed' || damage === 'unreadable'))
+          throw Object.assign(new Error('damaged directory'), {
+            code: damage === 'removed' ? 'ENOENT' : 'EACCES',
+          })
+        return await readdir(target, options)
+      })
+      const discovery = foreignDiscovery(f.directory)
+      const other = await discovery.otherWindows()
+      expect(other.unreadable).toEqual([damaged])
+      expect(other.journals.map((journal) => journal.owner)).toEqual([f.owner])
+      expect(await f.lifetime.recoveryRecords(other.journals[0]!)).toMatchObject([
+        { id: f.child.launchId },
+      ])
+      if (damage === 'file') expect(await readFile(damaged, 'utf8')).toBe('foreign bytes')
+      await f.lifetime.dispose()
+    })
+  }
+
   it('reports a bad launch filename without losing the valid foreign launch', async () => {
     const f = await endedFixture('windowsJob')
     const { lifetime, child } = f
@@ -380,14 +421,7 @@ describe('M96 K launcher contract', () => {
     )
     const bad = path.join(f.journalDirectory, 'launch-bad name.json')
     await writeFile(bad, original)
-    const stranger = createWindowIdentity(456)
-    const discovery = createTeamJournal({
-      storageDirectory: f.directory,
-      owner: stranger,
-      authority: createWindowAuthority(stranger, () => Promise.resolve()),
-      maxRecordBytes: 4096,
-      platform: process.platform,
-    })
+    const discovery = foreignDiscovery(f.directory)
     const other = await discovery.otherWindows()
     const unreadable = [...other.unreadable]
     const records = []

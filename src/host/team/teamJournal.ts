@@ -264,8 +264,14 @@ export function createTeamJournal(options: {
       for (const instance of instances) {
         if (instance === options.owner.instanceId || !z.uuid().safeParse(instance).success) continue
         const foreignDirectory = path.join(root, instance)
-        await assertPath(foreignDirectory)
-        const names = await readdir(foreignDirectory)
+        let names: string[]
+        try {
+          await assertPath(foreignDirectory)
+          names = await readdir(foreignDirectory)
+        } catch {
+          unreadable.push(foreignDirectory)
+          continue
+        }
         let owner: WindowIdentity | undefined
         for (const name of names) {
           if (!name.endsWith('.json')) continue

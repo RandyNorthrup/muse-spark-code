@@ -38,6 +38,29 @@ public static class MuseSparkJob {
   [DllImport("kernel32.dll", SetLastError = true)]
   static extern bool TerminateProcess(IntPtr process, uint exitCode);
 
+  [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+  static extern bool QueryFullProcessImageName(IntPtr process, uint flags, StringBuilder name, ref uint length);
+  [DllImport("advapi32.dll", SetLastError = true)]
+  static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
+
+  static void TeamIdentity(IntPtr process, out long creation, out string executable, out string uid) {
+    long exit, kernel, user;
+    if (!GetProcessTimes(process, out creation, out exit, out kernel, out user))
+      throw new Win32Exception();
+    uint length = 32768; // Win32 maximum path buffer, not an application tunable.
+    var path = new StringBuilder((int)length);
+    if (!QueryFullProcessImageName(process, 0, path, ref length)) throw new Win32Exception();
+    IntPtr token;
+    if (!OpenProcessToken(process, 8, out token)) throw new Win32Exception(); // TOKEN_QUERY
+    try {
+      using (var identity = new System.Security.Principal.WindowsIdentity(token)) {
+        if (identity.User == null) throw new IOException("team process user unavailable");
+        uid = identity.User.Value;
+      }
+    } finally { CloseHandle(token); }
+    executable = path.ToString();
+  }
+
   // Basic-and-extended limits have platform-specific alignment. Marshal the
   // same layout used by the shared suspended-child launcher, not byte offsets.
   [StructLayout(LayoutKind.Sequential)]
@@ -117,10 +140,11 @@ public static class MuseSparkJob {
         using (var reader = new StreamReader(status, Encoding.UTF8, true, 1024, true)) {
           int code = MuseSparkMcpJob.Run(executable, arguments, cwd, parentPid,
             environment, false, ownerPipe, nonce, (pid, process) => {
-              long creation, exit, kernel, user;
-              if (!GetProcessTimes(process, out creation, out exit, out kernel, out user))
-                throw new Win32Exception();
-              lock (writer) writer.WriteLine("CONFIRMED " + pid + " " + DateTime.FromFileTimeUtc(creation).ToString("O"));
+              long creation;
+              string image, uid;
+              TeamIdentity(process, out creation, out image, out uid);
+              lock (writer) writer.WriteLine("CONFIRMED " + pid + " " + DateTime.FromFileTimeUtc(creation).ToString("O") +
+                " " + Convert.ToBase64String(Encoding.UTF8.GetBytes(image)) + " " + uid);
               // Still suspended and assigned. EOF/STOP cancels without running the command.
               if (reader.ReadLine() != "GO " + nonce)
                 throw new IOException("team launch was not released");
@@ -134,7 +158,11 @@ public static class MuseSparkJob {
                     if (command != "STOP " + nonce) continue;
                     // This stable process handle cannot be redirected by PID reuse.
                     // Ending the primary makes Run close its inner kill-on-close job.
-                    if (TerminateProcess(pinned, 1)) return;
+                    long currentCreation;
+                    string currentImage, currentUid;
+                    TeamIdentity(pinned, out currentCreation, out currentImage, out currentUid);
+                    if (currentCreation == creation && currentImage == image && currentUid == uid &&
+                        TerminateProcess(pinned, 1)) return;
                     lock (writer) writer.WriteLine("STOP_FAILED");
                   }
                 } finally {

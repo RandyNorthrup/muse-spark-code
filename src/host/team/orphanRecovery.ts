@@ -1,6 +1,7 @@
 import type { LaunchConfirmation, TeamLaunchRecord } from './processLifetime'
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile, readdir, readlink } from 'node:fs/promises'
 import process from 'node:process'
+import * as z from 'zod/mini'
 import { runProgram } from '../processTree'
 import {
   createProcessOwnership,
@@ -11,30 +12,97 @@ import {
 
 const LAUNCH_MARKER = /(?:^|[\s\0])MUSE_SPARK_LAUNCH_ID=([a-f0-9-]{36})(?=$|[\s\0])/
 const PROC_START_FIELD = 19
-const MAC_START_FIELDS = 5
-const MAC_START_INDEX = 3
+// M98 J's libproc sampling pattern, through the existing isolated stdlib
+// helper lane. ABI fields/constants follow the macOS SDK's proc_info.h.
+// argv is skipped by argc; only exact environment entries are projected.
+const DARWIN_OBSERVE = String.raw`
+import ctypes,json,os,re,select,sys
+lib=ctypes.CDLL('/usr/lib/libproc.dylib',use_errno=True)
+libc=ctypes.CDLL(None,use_errno=True)
+class BSD(ctypes.Structure):
+    _fields_=[(name,ctypes.c_uint32) for name in
+        ('flags','status','xstatus','pid','ppid','uid','gid','ruid','rgid','svuid','svgid','reserved')]+[
+        ('comm',ctypes.c_char*16),('name',ctypes.c_char*32)]+[
+        (name,ctypes.c_uint32) for name in ('nfiles','pgid','pjobc','tdev','tpgid')]+[
+        ('nice',ctypes.c_int32),('seconds',ctypes.c_uint64),('microseconds',ctypes.c_uint64)]
+lib.proc_pidinfo.argtypes=[ctypes.c_int,ctypes.c_int,ctypes.c_uint64,ctypes.c_void_p,ctypes.c_int]
+lib.proc_pidpath.argtypes=[ctypes.c_int,ctypes.c_void_p,ctypes.c_uint32]
+lib.proc_listpids.argtypes=[ctypes.c_uint32,ctypes.c_uint32,ctypes.c_void_p,ctypes.c_int]
+libc.sysctl.argtypes=[ctypes.POINTER(ctypes.c_int),ctypes.c_uint,ctypes.c_void_p,
+                     ctypes.POINTER(ctypes.c_size_t),ctypes.c_void_p,ctypes.c_size_t]
+def sample(pid):
+    info=BSD()
+    path=ctypes.create_string_buffer(4096)
+    if (lib.proc_pidinfo(pid,3,0,ctypes.byref(info),ctypes.sizeof(info))!=ctypes.sizeof(info)
+        or lib.proc_pidpath(pid,path,len(path))<=0 or info.pid!=pid or info.status==5
+        or info.uid!=os.getuid() or info.ruid!=os.getuid()
+        or info.seconds==0 or info.microseconds>=1000000): return None
+    return {'pid':pid,'uid':info.uid,'group':str(info.pgid),
+            'startTime':str(info.seconds)+':'+str(info.microseconds),
+            'command':os.fsdecode(path.value),'executable':os.fsdecode(path.value)}
+def marker(pid):
+    maximum=ctypes.c_int()
+    size=ctypes.c_size_t(ctypes.sizeof(maximum))
+    mib=(ctypes.c_int*2)(1,8)
+    if libc.sysctl(mib,2,ctypes.byref(maximum),ctypes.byref(size),None,0)!=0: return None
+    data=ctypes.create_string_buffer(maximum.value)
+    size=ctypes.c_size_t(len(data))
+    mib=(ctypes.c_int*3)(1,49,pid)
+    if libc.sysctl(mib,3,data,ctypes.byref(size),None,0)!=0: return None
+    raw=data.raw[:size.value]
+    argc=ctypes.c_int.from_buffer_copy(raw[:ctypes.sizeof(ctypes.c_int)]).value
+    offset=raw.index(b'\0',ctypes.sizeof(ctypes.c_int))+1
+    while offset<len(raw) and raw[offset]==0: offset+=1
+    for _ in range(argc): offset=raw.index(b'\0',offset)+1
+    for entry in raw[offset:].split(b'\0'):
+        if re.fullmatch(rb'MUSE_SPARK_LAUNCH_ID=[a-f0-9-]{36}',entry):
+            return entry.split(b'=',1)[1].decode('ascii')
+    return None
+def observe(pid):
+    if pid<=1: return None
+    queue=None
+    try:
+        queue=select.kqueue()
+        if queue is not None:
+            event=select.kevent(pid,filter=select.KQ_FILTER_PROC,
+                flags=select.KQ_EV_ADD|select.KQ_EV_CLEAR,
+                fflags=select.KQ_NOTE_EXIT|select.KQ_NOTE_EXEC)
+            if queue.control([event],1,0): return None
+            before=sample(pid)
+            if before is None or queue.control(None,1,0): return None
+            launch=marker(pid)
+            after=sample(pid)
+            if after!=before or queue.control(None,1,0): return None
+            return dict(before,launchId=launch)
+    except (OSError,ValueError): return None
+    finally:
+        if queue is not None: queue.close()
+if sys.argv[1]=='observe':
+    result=observe(int(sys.argv[2]))
+else:
+    size=lib.proc_listpids(1,0,None,0)
+    pids=(ctypes.c_int*(size//ctypes.sizeof(ctypes.c_int)))()
+    count=lib.proc_listpids(1,0,pids,ctypes.sizeof(pids))//ctypes.sizeof(ctypes.c_int)
+    result=[entry for pid in pids[:count] if (entry:=observe(pid)) is not None]
+print(json.dumps(result))
+`
+const darwinObservationSchema = z.strictObject({
+  pid: z.number().check(z.int(), z.positive()),
+  uid: z.number().check(z.int(), z.nonnegative()),
+  group: z.string().check(z.minLength(1)),
+  startTime: z.string().check(z.minLength(1)),
+  command: z.string().check(z.minLength(1)),
+  executable: z.string().check(z.minLength(1)),
+  launchId: z.nullable(z.uuid()),
+})
+const projectDarwin = (value: z.infer<typeof darwinObservationSchema>): OrphanObservation => ({
+  ...value,
+  launchId: value.launchId ?? undefined,
+})
 
 /** Real user-owned process scan. Only the marker is projected from environment data. */
 export function createNativeOrphanDriver(): OrphanRecoveryDriver {
   const uid = process.getuid?.()
-  const macEnvironment = { PATH: '/usr/bin:/bin', LC_ALL: 'C', TZ: 'UTC' }
-  const macProjection = (snapshot: string, launchId?: string): OrphanObservation | undefined => {
-    const fields = snapshot.trim().split(/\s+/)
-    const group = fields[2]
-    if (
-      group === undefined ||
-      Number(fields[0]) !== uid ||
-      fields.length <= MAC_START_INDEX + MAC_START_FIELDS
-    )
-      return undefined
-    return {
-      pid: Number(fields[1]),
-      group,
-      startTime: fields.slice(MAC_START_INDEX, MAC_START_INDEX + MAC_START_FIELDS).join(' '),
-      command: fields.slice(MAC_START_INDEX + MAC_START_FIELDS).join(' '),
-      launchId,
-    }
-  }
   const observe = async (pid: number): Promise<OrphanObservation | undefined> => {
     if (!Number.isSafeInteger(pid) || pid <= 1) return undefined
     try {
@@ -49,8 +117,8 @@ export function createNativeOrphanDriver(): OrphanRecoveryDriver {
           .split(/\s+/)
         if (fields[0] === 'Z') return undefined
         const environment = await readFile(`${directory}/environ`, 'utf8')
-        const commandLine = await readFile(`${directory}/cmdline`, 'utf8')
-        const command = commandLine.split('\0', 1)[0] ?? ''
+        const executable = await readlink(`${directory}/exe`)
+        const command = executable
         const bootId = await readFile('/proc/sys/kernel/random/boot_id', 'utf8')
         const boot = bootId.trim()
         // Reject exit/reuse during sampling. This grants no journal ownership.
@@ -69,25 +137,19 @@ export function createNativeOrphanDriver(): OrphanRecoveryDriver {
           group,
           startTime: `${boot}:${fields[PROC_START_FIELD]}`,
           command,
+          executable,
+          uid,
           launchId: LAUNCH_MARKER.exec(environment)?.[1],
         }
       }
       if (process.platform === 'darwin') {
-        const args = ['-p', String(pid), '-o', 'uid=,pid=,pgid=,lstart=,comm=']
-        const env = macEnvironment
-        const sample = await runProgram('/bin/ps', args, env)
-        const snapshot = sample.trim()
-        const fields = snapshot.split(/\s+/)
-        if (Number(fields[0]) !== uid || Number(fields[1]) !== pid) return undefined
-        const environment = await runProgram(
-          '/bin/ps',
-          ['-Eww', '-p', String(pid), '-o', 'command='],
-          env,
+        const text = await runProgram(
+          '/usr/bin/python3',
+          ['-I', '-c', DARWIN_OBSERVE, 'observe', String(pid)],
+          {},
         )
-        const resample = await runProgram('/bin/ps', args, env)
-        return resample.trim() === snapshot
-          ? macProjection(snapshot, LAUNCH_MARKER.exec(environment)?.[1])
-          : undefined
+        const value = z.nullable(darwinObservationSchema).parse(JSON.parse(text))
+        return value === null ? undefined : projectDarwin(value)
       }
     } catch {
       /* Exit, restricted environment or an unavailable /proc entry is not a match. */
@@ -96,34 +158,18 @@ export function createNativeOrphanDriver(): OrphanRecoveryDriver {
   }
   return {
     observe,
-    async scan(launchIds) {
+    async scan(_launchIds) {
       let pids: number[] = []
       if (process.platform === 'linux') {
         const entries = await readdir('/proc')
         pids = entries.filter((name) => /^\d+$/.test(name)).map(Number)
       } else if (process.platform === 'darwin') {
-        const markers = new Map<number, string>()
-        const environments = await runProgram(
-          '/bin/ps',
-          ['-Eww', '-ax', '-o', 'uid=,pid=,command='],
-          macEnvironment,
-        )
-        for (const line of environments.split('\n')) {
-          const identity = /^\s*(\d+)\s+(\d+)\s/.exec(line)
-          const marker = LAUNCH_MARKER.exec(line)?.[1]
-          if (marker !== undefined && Number(identity?.[1]) === uid && launchIds.includes(marker))
-            markers.set(Number(identity?.[2]), marker)
-        }
-        const table = await runProgram(
-          '/bin/ps',
-          ['-ax', '-o', 'uid=,pid=,pgid=,lstart=,comm='],
-          macEnvironment,
-        )
+        const text = await runProgram('/usr/bin/python3', ['-I', '-c', DARWIN_OBSERVE, 'scan'], {})
+        const entries = z.array(z.unknown()).parse(JSON.parse(text))
         const found: OrphanObservation[] = []
-        for (const line of table.split('\n')) {
-          const pid = Number(line.trim().split(/\s+/, 2)[1])
-          const observation = macProjection(line, markers.get(pid))
-          if (observation !== undefined) found.push(observation)
+        for (const entry of entries) {
+          const parsed = darwinObservationSchema.safeParse(entry)
+          if (parsed.success) found.push(projectDarwin(parsed.data))
         }
         return found
       }
@@ -162,11 +208,14 @@ export interface OrphanObservation {
   readonly startTime: string
   readonly command: string
   readonly launchId: string | undefined
+  readonly executable?: string | undefined
+  readonly uid?: number | string | undefined
 }
 
 export interface OrphanProcess extends OrphanObservation {
   readonly launchId: string
   readonly match: 'matched' | 'uncertain'
+  readonly recorded?: LaunchConfirmation
 }
 
 export interface OrphanRecoveryDriver extends OwnershipDriver {
@@ -177,7 +226,16 @@ export interface OrphanRecoveryDriver extends OwnershipDriver {
 }
 
 function isSameConfirmation(observation: OrphanObservation, confirmation: LaunchConfirmation) {
-  return observation.pid === confirmation.pid && observation.startTime === confirmation.startTime
+  return (
+    observation.pid === confirmation.pid &&
+    observation.startTime === confirmation.startTime &&
+    observation.group ===
+      (confirmation.container === 'linuxScope' ? String(confirmation.pid) : confirmation.group) &&
+    confirmation.executable !== undefined &&
+    observation.executable === confirmation.executable &&
+    confirmation.uid !== undefined &&
+    observation.uid === confirmation.uid
+  )
 }
 
 /** Recovery reads foreign records, never mutates their journal, copy, branch or refs. */
@@ -201,7 +259,8 @@ export function createOrphanRecovery(driver: OrphanRecoveryDriver) {
           found.push({
             ...observation,
             launchId: record.id,
-            match: matched === undefined ? 'uncertain' : 'matched',
+            match: uncertain === undefined || matched === undefined ? 'uncertain' : 'matched',
+            ...(uncertain?.confirmation !== undefined && { recorded: uncertain.confirmation }),
           })
         }
       }
@@ -217,8 +276,14 @@ export function createOrphanRecovery(driver: OrphanRecoveryDriver) {
       | { readonly kind: 'partiallyStopped'; readonly notOwned: readonly number[] }
     > {
       if (!isUserConfirmed) return 'kept'
+      if (orphan.recorded === undefined || !isSameConfirmation(orphan, orphan.recorded))
+        return 'changed'
       const result = await ownership.signal(
-        { ...orphan, launchId: orphan.match === 'matched' ? orphan.launchId : undefined },
+        {
+          ...orphan.recorded,
+          group: orphan.group,
+          launchId: orphan.match === 'matched' ? orphan.launchId : undefined,
+        },
         'SIGTERM',
       )
       if (!result.signalled.includes(orphan.pid)) return 'changed'

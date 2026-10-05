@@ -16644,6 +16644,24 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+#### Final K review corrections (FIXM96K4, 2026-10-05)
+
+Fix all five RVM96K3 findings, with no dependency or product-wiring change.
+Marker text is discovery information only: signals require the journal's
+recorded PID, kernel start, executable path and UID, re-proved immediately
+before dispatch. macOS reads libproc identity and separately projects only the
+launch marker from same-UID KERN_PROCARGS2 environment entries, following the
+M98 J vetted helper pattern. Invalid scan entries cannot hide valid candidates.
+Missing legacy identity and unrecorded descendants
+remain uncertain and cannot grant signal authority. Retirement never awaits
+an unowned primary. Windows hint ACL proof belongs to the opened object whose
+bytes are consumed; END suppresses STOP and bounds the wait for helper close.
+Damaged foreign journal directories warn and discovery continues. Native Mac
+argv-only-marker coverage runs here; Windows native cases remain gated for
+Win11 integration. Each fix has a full-file regression and SHA-256 restored
+red drill in docs/certification/m96-k.md. The rig brief prohibits aggregate
+quality, merge, rebase and push; individual requested gates run on this rig.
+
 #### Round-3 redesign: process ownership (REDM96K, 2026-10-05)
 
 Replace K's separate signal guards with one ownership module. Every signal
@@ -20278,8 +20296,8 @@ before a repaired one loads (2026-09-30).
   in `docs/certification/m96-k.md`; none is deferred. A gone, changed or
   unreadable POSIX group leader (including changed Linux cgroup/scope), or
   an unavailable Windows native control channel, denies automatic group or
-  container signaling. REDM96K can still retire individually proved marked
-  survivors through its common authority.
+  container signaling. FIXM96K4 requires the journal's recorded PID/start/path/
+  UID identity: marker-only survivors are warnings and never signal authority.
   The uncertain launch remains journalled for user recovery. This can leave
   descendants running, but protects unrelated processes and never supplies
   descendant proof or permission to reuse the old copy. Follow-up: integration
@@ -20293,8 +20311,24 @@ before a repaired one loads (2026-09-30).
   Linux named-scope control still have the documented interval between proof
   and the separate control syscall. The native certification lead owns those
   remaining platform receipts. Unproved ownership refuses group/container
-  signaling; individually proved marked survivors may still be retired and
-  the uncertain launch remains recoverable.
+  signaling; only an exact recorded process identity may authorize a signal,
+  and the uncertain launch remains recoverable.
+
+- **M96 K / FIXM96K4, `K-unrecorded-process-identity`.** RVM96K3's five
+  findings are fixed; none is deferred. A legacy record without executable/UID,
+  a descendant without its own recorded identity, or a primary that changes
+  executable after its durable confirmation cannot grant individual Stop
+  authority, even with the launch marker. POSIX post-release identity refresh
+  is persisted before retirement uses it; a failed refresh leaves uncertainty.
+  Retirement returns the unowned PID and disposal never awaits that primary.
+  Safe for now: no unrelated process is signalled and no descendant proof or
+  copy-reuse permission is invented. Follow-up: integration surfaces the
+  warning and native owners certify Windows ACL/job execution and record any
+  descendant identities before offering individual Stop actions. The isolated
+  macOS libproc helper uses /usr/bin/python3's standard library, as K's Linux
+  pidfd lane does; unavailable native access/runtime fails closed. Native
+  packaging can replace that transport with M98 J's compiled helper without
+  weakening the identity or environment-source requirements.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

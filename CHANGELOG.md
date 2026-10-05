@@ -14,6 +14,11 @@ happened, not what was planned; superseded entries are kept.
   retirement, and use monotonic deadlines. Advisory hints validate the opened
   inode; damaged recovery records warn without hiding valid launches. Product
   wiring and Windows runtime certification remain part of M96 integration.
+- M96 team recovery now uses recorded process identity rather than marker text;
+  macOS reads libproc and a separate environment projection. Retirement avoids
+  waiting for unowned processes, Windows hints consume the ACL-verified handle,
+  Windows END waits for helper closure without another STOP, and damaged foreign
+  journal directories warn without hiding valid launches.
 
 ## [0.12.1] - 2026-10-04
 

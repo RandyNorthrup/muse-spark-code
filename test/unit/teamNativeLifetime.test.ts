@@ -1,3 +1,4 @@
+import process from 'node:process'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
@@ -9,6 +10,7 @@ import * as z from 'zod/mini'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { jobSourceReader } from '../../src/host/backend/jobSource'
 import { createNativeOrphanDriver, createOrphanRecovery } from '../../src/host/team/orphanRecovery'
+import * as processOwnership from '../../src/host/team/processOwnership'
 import * as orphanRecovery from '../../src/host/team/orphanRecovery'
 import * as processTree from '../../src/host/processTree'
 import {
@@ -318,6 +320,10 @@ describe('M96 K real native lifetime', () => {
     expect(records).toHaveLength(1)
     expect(records[0]?.confirmation?.pid).toBeGreaterThan(1)
     expect(records[0]?.confirmation?.startTime).not.toBe('')
+    expect(records[0]?.confirmation?.executable).toBe(await realpath(process.execPath))
+    expect(records[0]?.confirmation?.uid).toEqual(
+      process.platform === 'win32' ? expect.stringMatching(/^S-1-/) : process.getuid?.(),
+    )
     expect(records[0]?.confirmation?.container).toEqual(
       process.platform === 'win32'
         ? 'windowsJob'
@@ -403,6 +409,147 @@ describe('M96 K real native lifetime', () => {
       return { ...f, child }
     }
 
+    for (const wasReportedUnowned of [true, false]) {
+      it(`retirement and dispose never await an unowned primary after survivor signals: ${String(wasReportedUnowned)}`, async () => {
+        const f = await fallbackFixture()
+        const original = processOwnership.createProcessOwnership
+        const signalLaunch = vi.fn(() =>
+          Promise.resolve({ signalled: [42_043], notOwned: [42_042] }),
+        )
+        vi.spyOn(processOwnership, 'createProcessOwnership').mockImplementation((driver) => ({
+          ...original(driver),
+          isOwned: () => Promise.resolve(false),
+          signalLaunch: async (expected) => {
+            const result = await signalLaunch()
+            return { ...result, notOwned: wasReportedUnowned ? [expected.pid] : [] }
+          },
+        }))
+        const child = await f.lifetime.launch(f.request('setInterval(()=>{},1000)'))
+        stops.push(async () => {
+          const closed = new Promise<void>((resolve) =>
+            child.child.once('close', () => {
+              resolve()
+            }),
+          )
+          child.child.kill()
+          await closed
+          await child.ended
+          await f.lifetime.dispose()
+        })
+        const { pid } = await child.confirmation
+        const retirement = child.retire()
+        expect(await Promise.race([retirement, delay(1000, 'pending')])).toEqual({
+          childExited: false,
+          descendants: 'uncertain',
+          notOwned: [pid],
+        })
+        expect(await Promise.race([f.lifetime.dispose(), delay(1000, 'pending')])).toEqual([
+          { childExited: false, descendants: 'uncertain', notOwned: [pid] },
+        ])
+        expect(signalLaunch).toHaveBeenCalledTimes(4)
+      })
+    }
+
+    it('bounds the exit wait even when an owned primary does not acknowledge signals', async () => {
+      const f = await runningFallbackFixture()
+      const { child, observer } = f
+      const retired = child.retire
+      vi.spyOn(observer, 'signal').mockResolvedValue(true)
+      const retirement = retired()
+      const result = (async () => {
+        try {
+          await retirement
+          return 'retired'
+        } catch (error: unknown) {
+          return error instanceof Error ? error.message : 'unexpected error'
+        }
+      })()
+      try {
+        expect(await Promise.race([result, delay(7000, 'pending')])).toBe('TEAM_RETIREMENT_TIMEOUT')
+      } finally {
+        child.child.kill()
+        await result
+        await child.ended
+      }
+    })
+
+    if (process.platform === 'darwin') {
+      function macChild(
+        directory: string,
+        env: NodeJS.ProcessEnv,
+        extraArgs: readonly string[] = [],
+      ) {
+        const child = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)', ...extraArgs], {
+          cwd: directory,
+          env,
+          detached: true,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        })
+        const closed = new Promise<void>((resolve) => {
+          child.once('close', () => {
+            resolve()
+          })
+        })
+        stops.push(async () => {
+          child.kill()
+          await closed
+        })
+        return child
+      }
+
+      it('native macOS reads libproc identity and never mistakes argv for an environment marker', async () => {
+        const f = await fixture()
+        const id = randomUUID()
+        const child = macChild(f.directory, {}, [`MUSE_SPARK_LAUNCH_ID=${id}`])
+        await delay(100)
+        const driver = createNativeOrphanDriver()
+        const identity = await driver.observe(child.pid ?? 0)
+        expect(identity).toMatchObject({
+          pid: child.pid,
+          executable: await realpath(process.execPath),
+          uid: process.getuid?.(),
+          launchId: undefined,
+        })
+        const recovery = createOrphanRecovery(driver)
+        const found = await recovery.find([
+          { id, command: process.execPath, cwd: f.directory, taskId: 'argv-only' },
+        ])
+        expect(found.some((row) => row.pid === child.pid)).toBe(false)
+        expect(child.exitCode).toBeNull()
+      })
+
+      it('native macOS ignores an invalid marker without aborting valid process discovery', async () => {
+        const f = await fixture()
+        const child = macChild(f.directory, {
+          MUSE_SPARK_LAUNCH_ID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        })
+        await delay(100)
+        const found = await createNativeOrphanDriver().scan([])
+        expect(found.some((row) => row.pid === process.pid)).toBe(true)
+        expect(found.some((row) => row.pid === child.pid)).toBe(false)
+      })
+
+      it('native macOS environment markers locate candidates but cannot supply journal ownership', async () => {
+        const f = await fixture()
+        const id = randomUUID()
+        const child = macChild(f.directory, { MUSE_SPARK_LAUNCH_ID: id })
+        await delay(100)
+        const driver = createNativeOrphanDriver()
+        expect(await driver.observe(child.pid ?? 0)).toMatchObject({ launchId: id })
+        const recovery = createOrphanRecovery(driver)
+        const found = await recovery.find([
+          { id, command: process.execPath, cwd: f.directory, taskId: 'env-only' },
+        ])
+        const orphan = found.find((row) => row.pid === child.pid)
+        if (orphan === undefined) throw new Error('environment fixture missing')
+        expect(orphan.match).toBe('uncertain')
+        const signal = vi.spyOn(driver, 'signal')
+        expect(await recovery.stop(orphan, true)).toBe('changed')
+        expect(signal).not.toHaveBeenCalled()
+        expect(child.exitCode).toBeNull()
+      })
+    }
+
     it('signals nothing on disposal after PID and process-group reuse', async () => {
       const f = await runningFallbackFixture()
       const { lifetime, observer, child } = f
@@ -413,6 +560,8 @@ describe('M96 K real native lifetime', () => {
         pid: confirmation.pid,
         group: confirmation.group,
         startTime: 'reused-start',
+        executable: '/foreign/program',
+        uid: process.getuid?.(),
         launchId: child.launchId,
         command: 'unrelated-process',
       })
@@ -438,6 +587,7 @@ describe('M96 K real native lifetime', () => {
         })
         child.child.kill()
         await closed
+        await child.ended
       })
       const confirmation = await child.confirmation
       const observe = observer.observe
@@ -456,12 +606,16 @@ describe('M96 K real native lifetime', () => {
         { childExited: false, descendants: 'uncertain' },
       ])
       expect(signal.mock.calls).toEqual([
-        [expect.objectContaining({ pid: confirmation.pid }), 'SIGTERM', false],
+        [
+          expect.objectContaining({ pid: confirmation.pid }),
+          'SIGTERM',
+          process.platform === 'darwin',
+        ],
       ])
     })
 
     if (process.platform === 'linux') {
-      it('retires real marked group members individually after their leader exits', async () => {
+      it('reports real unrecorded marked group members after their leader exits', async () => {
         const f = await fallbackFixture()
         const { lifetime, observer } = f
         stops.push(() => lifetime.dispose())
@@ -484,10 +638,10 @@ describe('M96 K real native lifetime', () => {
         expect(outcome).toMatchObject({
           childExited: true,
           descendants: 'uncertain',
-          notOwned: [confirmation.pid],
+          notOwned: expect.arrayContaining([confirmation.pid, pid]),
         })
-        expect(signal.mock.calls).toEqual([[expect.objectContaining({ pid }), 'SIGTERM', false]])
-        await until(async () => (await observer.observe(pid)) === undefined)
+        expect(signal).not.toHaveBeenCalled()
+        expect(await observer.observe(pid)).toBeDefined()
       })
 
       it('signals Linux through a stable pidfd and rejects a changed final identity', async () => {
@@ -590,11 +744,9 @@ fd=None`,
         if (orphan === undefined) throw new Error('marked foreign-group member missing')
         const signal = vi.spyOn(observer, 'signal').mockResolvedValue(true)
         const rawKill = vi.spyOn(process, 'kill').mockReturnValue(true)
-        expect(await recovery.stop(orphan, true)).toEqual({
-          kind: 'partiallyStopped',
-          notOwned: [leader.pid],
-        })
-        expect(signal.mock.calls).toEqual([[expect.objectContaining({ pid }), 'SIGTERM', false]])
+        expect(orphan.match).toBe('uncertain')
+        expect(await recovery.stop(orphan, true)).toBe('changed')
+        expect(signal).not.toHaveBeenCalled()
         expect(rawKill).not.toHaveBeenCalled()
         expect(await observer.observe(leader.pid)).toMatchObject({ startTime: leader.startTime })
       })
@@ -602,7 +754,9 @@ fd=None`,
       it('reproves ownership and retries native retirement after transient EPERM', async () => {
         const f = await runningFallbackFixture()
         const { observer, child } = f
-        const identity = { ...(await child.confirmation), launchId: child.launchId }
+        const confirmation = await child.confirmation
+        const identity = await observer.observe(confirmation.pid)
+        if (identity === undefined) throw new Error('retry fixture missing')
         stops.push(async () => {
           await createNativeOrphanDriver().signal(identity, 'SIGKILL', false)
         })
@@ -689,7 +843,7 @@ fd=None`,
       }
     })
 
-    it('scans real marked descendants and stops only after click and second identity check', async () => {
+    it('scans real marked descendants but cannot stop them without recorded identity', async () => {
       const f = await fixture()
       const output = path.join(f.directory, 'descendant.json')
       const descendant = `require('node:fs').writeFileSync(${JSON.stringify(output)}, JSON.stringify({pid:process.pid}));setTimeout(()=>{},20000)`
@@ -710,14 +864,15 @@ fd=None`,
         .parse(JSON.parse(await readFile(output, 'utf8'))).pid
       const observations = await recovery.find(records)
       const found = observations.find((row) => row.pid === pid)
-      expect(found?.match).toBe('matched')
+      expect(found?.match).toBe('uncertain')
       if (found === undefined) throw new Error('marked descendant absent')
       expect(await recovery.stop(found, false)).toBe('kept')
       expect(await createNativeOrphanDriver().observe(found.pid)).toBeDefined()
       expect(await recovery.stop({ ...found, startTime: 'changed' }, true)).toBe('changed')
-      expect(await recovery.stop(found, true)).toBe('stopped')
+      expect(await recovery.stop(found, true)).toBe('changed')
       await child.retire()
-      await until(async () => (await createNativeOrphanDriver().observe(found.pid)) === undefined)
+      const owned = await createNativeOrphanDriver().observe(found.pid)
+      if (owned !== undefined) await createNativeOrphanDriver().signal(owned, 'SIGKILL', false)
     })
 
     it('retains no-scope detached descendants as uncertain after direct child exit', async () => {
@@ -732,7 +887,11 @@ fd=None`,
       const recovery = createOrphanRecovery(createNativeOrphanDriver())
       const found = await recovery.find(records)
       expect(found.length).toBeGreaterThan(0)
-      for (const orphan of found) await recovery.stop(orphan, true)
+      for (const orphan of found) {
+        expect(await recovery.stop(orphan, true)).toBe('changed')
+        const owned = await createNativeOrphanDriver().observe(orphan.pid)
+        if (owned !== undefined) await createNativeOrphanDriver().signal(owned, 'SIGKILL', false)
+      }
       await child.retire()
     })
   }

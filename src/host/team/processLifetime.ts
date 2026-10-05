@@ -147,6 +147,13 @@ const confirmationSchema = z.strictObject({
   /** OS identity, not a timestamp inferred from when spawn returned. */
   startTime: z.string().check(z.minLength(1)),
   container: z.enum(['windowsJob', 'linuxScope', 'processGroup']),
+  executable: z.optional(z.string().check(z.minLength(1))),
+  uid: z.optional(
+    z.union([
+      z.number().check(z.int(), z.nonnegative()),
+      z.string().check(z.regex(/^S-1-[0-9-]+$/)),
+    ]),
+  ),
   /** Linux membership captured while the leader is held behind the launch gate. */
   cgroup: z.optional(z.string().check(z.minLength(1))),
 })
@@ -196,7 +203,10 @@ export interface ContainedTeamChild {
   /** Resolves separately from the direct child's exit. */
   readonly ended: Promise<Retirement>
   /** Release a POSIX command only after this confirmation has been persisted. */
-  resume?(recorded: LaunchConfirmation): Promise<void>
+  resume?(
+    recorded: LaunchConfirmation,
+    saveIdentity?: (value: LaunchConfirmation) => Promise<void>,
+  ): Promise<void>
   retire(): Promise<Retirement>
 }
 
@@ -290,12 +300,17 @@ export function createTeamProcessLifetime(options: {
           lifecycle,
         )
         try {
-          const confirmation = confirmationSchema.parse(await launched.confirmation)
+          let confirmation = confirmationSchema.parse(await launched.confirmation)
           lifecycle.confirm()
           await save({ ...record, confirmation })
           if (lifecycle.phase !== 'confirming') throw new Error('TEAM_PROCESS_LIFETIME_DISPOSED')
           if (launched.resume === undefined) lifecycle.release()
-          else await launched.resume(confirmation)
+          else
+            await launched.resume(confirmation, async (value) => {
+              const updated = confirmationSchema.parse(value)
+              await save({ ...record, confirmation: updated })
+              confirmation = updated
+            })
           lifecycle.releaseIfHeld()
           let endTail = Promise.resolve<Retirement | undefined>(undefined)
           const recordEnd = (raw: Retirement): Promise<Retirement> => {
@@ -532,6 +547,8 @@ export async function createNativeTeamProcessDriver(options: {
               pid: child.pid,
               group: hasScope ? unit : observed.group,
               startTime: observed.startTime,
+              executable: observed.executable,
+              uid: observed.uid,
               container: hasScope ? 'linuxScope' : 'processGroup',
               cgroup:
                 process.platform === 'linux'
@@ -645,7 +662,19 @@ export async function createNativeTeamProcessDriver(options: {
         while (performance.now() < deadline && !(await isEmpty())) await delay(NATIVE_POLL_MS)
         // A direct child's exit is never evidence that a group has no descendants.
         if (!(await isEmpty()) && !(await didSignal('SIGKILL'))) return uncertain()
-        await exited
+        if (
+          !state.isExited &&
+          (notOwned.has(recorded.pid) ||
+            !(await ownership.isOwned({
+              ...recorded,
+              group: hasScope ? String(recorded.pid) : recorded.group,
+              launchId,
+            })))
+        ) {
+          notOwned.add(recorded.pid)
+          return uncertain()
+        }
+        await withDeadline(exited, NATIVE_CONFIRM_MS, 'TEAM_RETIREMENT_TIMEOUT')
         const descendants = (await isEmpty()) ? 'proved' : 'uncertain'
         return {
           childExited: true,
@@ -657,7 +686,7 @@ export async function createNativeTeamProcessDriver(options: {
         child,
         confirmation,
         ended,
-        async resume(value) {
+        async resume(value, saveIdentity) {
           const observed = await confirmation
           const parsed = confirmationSchema.parse(value)
           if (JSON.stringify(parsed) !== JSON.stringify(observed))
@@ -672,6 +701,18 @@ export async function createNativeTeamProcessDriver(options: {
               else reject(error)
             })
           })
+          // The held shell execs the command. Capture and durably record that
+          // live executable before granting later signal authority to it.
+          await delay(NATIVE_POLL_MS)
+          const current = await observer.observe(parsed.pid)
+          if (current?.startTime !== parsed.startTime || current.uid !== parsed.uid) return
+          const updated = confirmationSchema.parse({
+            ...parsed,
+            executable: current.executable,
+            uid: current.uid,
+          })
+          await saveIdentity?.(updated)
+          recorded = updated
         },
         retire,
       }
@@ -749,7 +790,7 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
             })
           })
         lifecycle.hold(() => {
-          void send?.('STOP').catch(fail)
+          if (result.end === undefined) void send?.('STOP').catch(fail)
         })
         let text = ''
         socket.on('data', (bytes: Buffer) => {
@@ -762,11 +803,13 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
           while (newline !== -1) {
             const line = text.slice(0, newline).trim()
             text = text.slice(newline + 1)
-            const match = /^CONFIRMED (\d+) (\S+)$/.exec(line)
+            const match = /^CONFIRMED (\d+) (\S+) (\S+) (\S+)$/.exec(line)
             if (match !== null) {
               const parsed = confirmationSchema.safeParse({
                 pid: Number(match[1]),
                 startTime: match[2],
+                executable: Buffer.from(match[3] ?? '', 'base64').toString('utf8'),
+                uid: match[4],
                 group,
                 container: 'windowsJob',
               })
@@ -848,6 +891,10 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
         },
         async retire() {
           lifecycle.retire()
+          if (result.end !== undefined) {
+            await withDeadline(closed, NATIVE_CONFIRM_MS, 'TEAM_WINDOWS_RETIREMENT_TIMEOUT')
+            return await ended
+          }
           if (send === undefined)
             // No native control channel: keep uncertainty rather than signal an unverified PID.
             return {
@@ -866,7 +913,7 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
                   { once: true, signal: failure.signal },
                 )
                 void closed.then(resolve)
-                void send?.('STOP').catch(reject)
+                if (result.end === undefined) void send?.('STOP').catch(reject)
               }),
               NATIVE_CONFIRM_MS,
               'TEAM_WINDOWS_RETIREMENT_TIMEOUT',

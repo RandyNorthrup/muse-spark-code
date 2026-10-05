@@ -6,6 +6,8 @@ export interface ProcessIdentity {
   readonly group: string
   readonly startTime: string
   readonly launchId: string | undefined
+  readonly executable?: string | undefined
+  readonly uid?: number | string | undefined
 }
 
 export interface OwnershipDriver {
@@ -29,6 +31,10 @@ function isSameProcess(current: ProcessIdentity | undefined, expected: ProcessId
     current?.pid === expected.pid &&
     current.group === expected.group &&
     current.startTime === expected.startTime &&
+    expected.executable !== undefined &&
+    current.executable === expected.executable &&
+    expected.uid !== undefined &&
+    current.uid === expected.uid &&
     (expected.launchId === undefined || current.launchId === expected.launchId)
   )
 }
@@ -52,44 +58,31 @@ export function createProcessOwnership(driver: OwnershipDriver) {
     const isExpectedOwned = await isOwned(expected)
     if (!isExpectedOwned && !shouldFindSurvivors) return { signalled: [], notOwned: [expected.pid] }
     const leaderPid = Number(expected.group)
-    const leader = await driver.observe(leaderPid)
-    const isLeaderOwned =
-      leader?.pid === leaderPid &&
-      leader.group === expected.group &&
-      (leaderPid === expected.pid
-        ? isSameProcess(leader, expected)
-        : expected.launchId !== undefined && leader.launchId === expected.launchId)
-    if (isLeaderOwned && process.platform === 'darwin') {
-      return (await isOwned(leader)) && (await driver.signal(leader, signal, true))
+    // A discovered marker cannot manufacture a journal identity for the leader
+    // or a descendant. Only this exact recorded process may grant authority.
+    if (isExpectedOwned && leaderPid === expected.pid && process.platform === 'darwin') {
+      return (await isOwned(expected)) && (await driver.signal(expected, signal, true))
         ? { signalled: [expected.pid], notOwned: [] }
         : { signalled: [], notOwned: [expected.pid] }
     }
-    // Linux never sends a reusable negative PID. Each member gets a pidfd and
-    // its own final identity proof, even when the leader has already exited.
     const members = await driver.scan(expected.launchId === undefined ? [] : [expected.launchId])
-    const candidates = new Map<number, ProcessIdentity>()
-    if (isExpectedOwned) candidates.set(expected.pid, expected)
-    const notOwned = new Set<number>(isLeaderOwned ? [] : [leaderPid])
-    if (!isExpectedOwned) notOwned.add(expected.pid)
-    for (const member of members) {
-      if (member.group !== expected.group || member.pid === expected.pid) continue
-      if (expected.launchId !== undefined && member.launchId === expected.launchId)
-        candidates.set(member.pid, member)
-      else notOwned.add(member.pid)
-    }
-    const signalled: number[] = []
-    for (const member of candidates.values()) {
-      if ((await isOwned(member)) && (await driver.signal(member, signal, false)))
-        signalled.push(member.pid)
-      else notOwned.add(member.pid)
-    }
-    return { signalled, notOwned: [...notOwned] }
+    const notOwned = new Set<number>(leaderPid === expected.pid ? [] : [leaderPid])
+    for (const member of members)
+      if (member.group === expected.group && member.pid !== expected.pid) notOwned.add(member.pid)
+    if (
+      isExpectedOwned &&
+      (await isOwned(expected)) &&
+      (await driver.signal(expected, signal, false))
+    )
+      return { signalled: [expected.pid], notOwned: [...notOwned] }
+    notOwned.add(expected.pid)
+    return { signalled: [], notOwned: [...notOwned] }
   }
   return {
     isOwned,
     signal: async (expected: ProcessIdentity, name: 'SIGTERM' | 'SIGKILL') =>
       await signal(expected, name, false),
-    /** Automatic retirement can still retire proved members after the primary exits. */
+    /** Unrecorded survivors are reported, never authorized by their marker. */
     signalLaunch: async (expected: ProcessIdentity, name: 'SIGTERM' | 'SIGKILL') =>
       await signal(expected, name, true),
   }
@@ -121,6 +114,8 @@ try:
         owned=(uid is not None and int(uid[1])==os.getuid() and before[0]!='Z'
                and before[1]==expected['group']
                and boot+':'+before[2]==expected['startTime']
+               and int(uid[1])==expected.get('uid')
+               and os.readlink(base+'/exe')==expected.get('executable')
                and (marker is None or ('MUSE_SPARK_LAUNCH_ID='+marker).encode() in environment)
                and sample()==before)
         if owned:
