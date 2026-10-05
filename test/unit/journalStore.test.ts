@@ -1,4 +1,17 @@
-import { mkdtemp, readFile, writeFile, mkdir, rm, stat, utimes, symlink } from 'node:fs/promises'
+import {
+  mkdtemp,
+  readFile,
+  writeFile,
+  mkdir,
+  rm,
+  stat,
+  utimes,
+  symlink,
+  open,
+  rename,
+} from 'node:fs/promises'
+import type * as NodeFs from 'node:fs/promises'
+import { constants } from 'node:fs'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { fork } from 'node:child_process'
@@ -10,6 +23,16 @@ import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { USAGE_ROLLUP_LOCK_STALE_MS } from '../../src/shared/constants'
 
 const roots: string[] = []
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof NodeFs>()
+  return {
+    ...actual,
+    readFile: vi.fn(actual.readFile),
+    open: vi.fn(actual.open),
+    rename: vi.fn(actual.rename),
+    rm: vi.fn(actual.rm),
+  }
+})
 afterEach(async () => {
   await Promise.all(roots.map((root) => rm(root, { recursive: true, force: true })))
   roots.length = 0
@@ -250,24 +273,161 @@ describe('usage journal store and Node filesystem', () => {
     const first = await fs.acquireLock(file, USAGE_ROLLUP_LOCK_STALE_MS)
     expect(first).toBeDefined()
     expect(await fs.acquireLock(file, USAGE_ROLLUP_LOCK_STALE_MS)).toBeUndefined()
+    const firstNames = await fs.list(USAGE_JOURNAL_ROOT)
+    const firstClaim = firstNames.find((name) => /^rollup\.lock\.[\w-]+\.\d+$/.test(name))
+    if (firstClaim === undefined) throw new Error('missing lock claim')
     const past = new Date(Date.now() - USAGE_ROLLUP_LOCK_STALE_MS - 1000)
-    await utimes(path.join(root, file), past, past)
+    await utimes(path.join(root, USAGE_JOURNAL_ROOT, firstClaim), past, past)
     const second = await fs.acquireLock(file, USAGE_ROLLUP_LOCK_STALE_MS)
     expect(second).toBeDefined()
     expect(await first?.isHeld()).toBe(false)
     await first?.release()
     expect(await second?.isHeld()).toBe(true)
     await second?.release()
-    // A crash immediately after wx can leave an empty lock and marker.
-    await fs.append(file, '')
-    await utimes(path.join(root, file), past, past)
-    const marker = `${file}.empty.reclaim`
-    await fs.append(marker, '')
+    // A crash immediately after wx leaves an empty next-generation claim.
+    const nextNames = await fs.list(USAGE_JOURNAL_ROOT)
+    const currentClaim = nextNames.find((name) => /^rollup\.lock\.[\w-]+\.\d+$/.test(name))
+    if (currentClaim === undefined) throw new Error('missing lock claim')
+    const prefix = currentClaim.slice(0, currentClaim.lastIndexOf('.'))
+    const empty = `${USAGE_JOURNAL_ROOT}/${prefix}.${String((second?.generation ?? 0) + 1)}`
+    await fs.append(empty, '')
     expect(await fs.acquireLock(file, USAGE_ROLLUP_LOCK_STALE_MS)).toBeUndefined()
-    await utimes(path.join(root, marker), past, past)
+    await utimes(path.join(root, empty), past, past)
     const recovered = await fs.acquireLock(file, USAGE_ROLLUP_LOCK_STALE_MS)
     expect(recovered).toBeDefined()
     await recovered?.release()
+    // Token-only locks and abandoned reclaim markers from the old format
+    // cannot prevent a numbered successor from recovering a crashed owner.
+    await fs.remove('usage')
+    await fs.append(file, '')
+    await utimes(path.join(root, file), past, past)
+    await fs.append(`${file}.empty.reclaim`, '')
+    const legacy = await fs.acquireLock(file, USAGE_ROLLUP_LOCK_STALE_MS)
+    expect(legacy?.generation).toBe(1)
+    expect(await legacy?.isHeld()).toBe(true)
+    await legacy?.release()
+  })
+  it.each(['reclamation', 'reset'])(
+    'a paused stale release cannot delete its successor generation after %s',
+    async (mode) => {
+      const { fs, root } = await rig()
+      const file = `${USAGE_JOURNAL_ROOT}/rollup.lock`
+      const first = await fs.acquireLock(file, USAGE_ROLLUP_LOCK_STALE_MS)
+      expect(first).toBeDefined()
+      const claims = await fs.list(USAGE_JOURNAL_ROOT)
+      const claim = claims.find((name) => /^rollup\.lock\.[\w-]+\.\d+$/.test(name))
+      if (claim === undefined) throw new Error('missing lock claim')
+      const actual = await vi.importActual<typeof NodeFs>('node:fs/promises')
+      const checked = Promise.withResolvers<undefined>()
+      const resume = Promise.withResolvers<undefined>()
+      vi.mocked(readFile)
+        .mockImplementationOnce(actual.readFile)
+        .mockImplementationOnce(async (...args) => {
+          const content = await actual.readFile(...args)
+          checked.resolve(undefined)
+          await resume.promise
+          return content
+        })
+      const releasing = first?.release()
+      try {
+        await checked.promise
+        const past = new Date(Date.now() - USAGE_ROLLUP_LOCK_STALE_MS - 1000)
+        if (mode === 'reset') await fs.remove('usage')
+        else await utimes(path.join(root, USAGE_JOURNAL_ROOT, claim), past, past)
+        const second = await new NodeUsageFs(root).acquireLock(file, USAGE_ROLLUP_LOCK_STALE_MS)
+        expect(second).toBeDefined()
+        expect(await second?.isHeld()).toBe(true)
+        resume.resolve(undefined)
+        await releasing
+        expect(await second?.isHeld()).toBe(true)
+        expect(await fs.acquireLock(file, USAGE_ROLLUP_LOCK_STALE_MS)).toBeUndefined()
+        await second?.release()
+      } finally {
+        resume.resolve(undefined)
+        await releasing
+      }
+    },
+  )
+  it('delayed predecessor cleanup cannot delete a generation reused after reset', async () => {
+    const { root, fs } = await rig()
+    const file = `${USAGE_JOURNAL_ROOT}/rollup.lock`
+    const first = await fs.acquireLock(file, USAGE_ROLLUP_LOCK_STALE_MS)
+    if (first === undefined) throw new Error('missing lock owner')
+    const names = await fs.list(USAGE_JOURNAL_ROOT)
+    const claim = names.find((name) => /^rollup\.lock\.[\w-]+\.\d+$/.test(name))
+    if (claim === undefined) throw new Error('missing lock claim')
+    // Seed a released predecessor so this cleanup fixture is independent of
+    // the release guard broken by the other whole-file drills.
+    await fs.append(`${USAGE_JOURNAL_ROOT}/${claim}.${first.token}.released`, '')
+    const deleting = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    const remove = fs.remove.bind(fs)
+    vi.spyOn(fs, 'remove').mockImplementationOnce(async (relative) => {
+      deleting.resolve(undefined)
+      await resume.promise
+      await remove(relative)
+    })
+    const delayed = fs.acquireLock(file, USAGE_ROLLUP_LOCK_STALE_MS)
+    try {
+      await deleting.promise
+      const clock = Date.now() + USAGE_ROLLUP_LOCK_STALE_MS + 1000
+      const successorFs = new NodeUsageFs(root, () => clock)
+      const resetter = new UsageJournalStore(successorFs, {
+        writerId: 'resetter',
+        now: Date.now,
+        isEnabled: () => true,
+        onWriteError: vi.fn(),
+      })
+      await resetter.reset()
+      const successor = await successorFs.acquireLock(file, USAGE_ROLLUP_LOCK_STALE_MS)
+      expect(successor?.generation).toBe(1)
+      resume.resolve(undefined)
+      expect(await delayed).toBeUndefined()
+      expect(await successor?.isHeld()).toBe(true)
+      await successor?.release()
+    } finally {
+      resume.resolve(undefined)
+      await delayed
+    }
+  })
+  it('fsyncs staged rollups and retries Windows replacement without exposing partial bytes', async () => {
+    const { fs, root } = await rig()
+    const file = `${USAGE_JOURNAL_ROOT}/rollups/2026-09.json`
+    await fs.writeFileAtomically(file, 'old complete rollup')
+    const actual = await vi.importActual<typeof NodeFs>('node:fs/promises')
+    const events: string[] = []
+    vi.mocked(open).mockImplementation(async (...args) => {
+      const handle = await actual.open(...args)
+      const sync = handle.sync.bind(handle)
+      vi.spyOn(handle, 'sync').mockImplementation(async () => {
+        // FlushFileBuffers on Windows requires a handle with write access.
+        if (typeof args[1] === 'number')
+          expect(args[1] & (constants.O_WRONLY | constants.O_RDWR)).not.toBe(0)
+        events.push('sync')
+        await sync()
+      })
+      return handle
+    })
+    vi.mocked(rename).mockClear()
+    vi.mocked(rm).mockClear()
+    vi.mocked(rename).mockImplementationOnce(async () => {
+      events.push('rename')
+      expect(new TextDecoder().decode(await fs.read(file, 0))).toBe('old complete rollup')
+      throw Object.assign(new Error('held by Windows reader'), { code: 'EPERM' })
+    })
+    try {
+      await fs.writeFileAtomically(file, 'new complete rollup with more bytes')
+    } finally {
+      vi.mocked(open).mockImplementation(actual.open)
+    }
+    expect(events).toEqual(['sync', 'rename', 'sync'])
+    expect(rename).toHaveBeenCalledTimes(2)
+    expect(new TextDecoder().decode(await fs.read(file, 0))).toBe(
+      'new complete rollup with more bytes',
+    )
+    expect(vi.mocked(rm).mock.calls.every(([target]) => target !== path.join(root, file))).toBe(
+      true,
+    )
   })
   it('confines all filesystem operations and refuses linked data folders', async () => {
     const { fs, root } = await rig()

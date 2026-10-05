@@ -5195,9 +5195,15 @@ windowMins?}], account?{usedUsd, limitUsd, remainingUsd, period}, raw?}`.
     12-bucket log-scale latency histogram, so p50 and p95 survive the rollup.
     Rollups are kept for `museSpark.usageHistoryDays` (default 365, 30–1825).
   - A rollup runs under an exclusive-create lock (as What's New's claim does).
-    It writes atomically, records the days it covers, and only then deletes the
-    raw days. The reader ignores any raw day a rollup already covers, so a
-    crash between the two steps counts nothing twice.
+    Immutable numbered claims carry the owner token and generation; release
+    marks only that token, so a paused former owner cannot unlink a successor.
+    Readers take the same lock and verify ownership before returning, retrying
+    one lost generation before an explicit error. A busy lock is also explicit.
+    A rollup is read whole through one open handle and written to a temporary
+    file, fsynced and atomically replaced with the existing Windows retries.
+    It records the days it covers, and only then deletes the raw days. The reader
+    ignores any raw day a rollup already covers, so a crash between the two
+    steps counts nothing twice.
   - **Delete usage history…** removes only `usage/`, after a modal that names
     the record count. Budget and Tab ledgers and paid grants are never touched.
   - `museSpark.usageHistory` (machine scope, default on) stops new records. The
@@ -16064,6 +16070,9 @@ Rollups are read through one open handle without a prior path-size bound, and
 published with a private temporary file, fsync and atomic replacement (including
 Windows rename retries). Lock claims use immutable numbered generations and
 owner-token release markers: a predecessor never unlinks a successor's claim.
+Claim paths also contain an immutable history epoch, published completely by
+the existing exclusive-file helper. Reset chooses a new epoch, so delayed
+predecessor cleanup cannot delete a reused generation in the new history.
 Incomplete usage with a known price keeps `uncertain`, with the reported part
 priced while missing counters stay absent. Each finding gets a deterministic
 regression and a byte-exact guard-break drill in `docs/certification/m102-j.md`.
@@ -16072,6 +16081,17 @@ receive these fixes. Full quality and combined editor wiring remain lead/W work
 as required by the rig brief; do not run full quality or merge in this lane.
 
 ## 7. Gates
+
+**FIXM102J scoped repair receipt (2026-10-05).** The five owned test files
+pass 71/71, all five TypeScript projects pass, and owned-file ESLint/Prettier,
+deadcode, duplication and production build checks pass. Full quality is
+reserved for the lead by this rig brief and was not run. The unchanged
+integration failures remain visible: localization has 14 absent usage tables
+plus 3 unused manifest references (17 problems; L/W), and the host API record
+has one drift in five Node importer counts (W). These are the same failures
+reported at `4207b270`; no rule, cap or threshold is changed. Named follow-ups
+are in §9 and exact commands, guard drills and limits in
+`docs/certification/m102-j.md`.
 
 **M95INT round-two whole-chain receipt (2026-10-05) — still deferred.**
 The single full `npm run quality` authorized by the 150-minute rig brief
@@ -16715,6 +16735,23 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM102J / RVM102J (2026-10-05):** all four P2 findings are repaired;
+  no assigned finding remains. Generation-checked snapshots, complete-handle
+  rollup reads with fsync/atomic publication, owner-token release markers and
+  partial priced usage have regressions and byte-exact red drills in
+  `docs/certification/m102-j.md`. These shared fixes reach every consumer of
+  the journal; combined editor wiring and full quality remain lead/W work.
+- **FIXM102J-L10N-COMPOSITION:** the unchanged localization gate fails for
+  fourteen missing `l10n/usage.<locale>.json` files and three unregistered
+  manifest references. Safe in this isolated, unmerged repair: it adds no UI
+  text, command or setting. L supplies the tables and W binds the manifest;
+  the lead must obtain a green localization gate on the composed release.
+- **FIXM102J-HOST-INVENTORY:** the unchanged host API gate reports one
+  generated-record drift in five Node importer counts. This documentation
+  mismatch changes no runtime policy or VS Code API. W must regenerate and
+  review `docs/ide-compatibility/host-api.md` on the composed tree and pass the
+  gate before release; the repair does not touch that W-owned file.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate

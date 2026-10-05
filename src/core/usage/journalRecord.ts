@@ -92,6 +92,7 @@ function pricedUsage(tokens: UsageTokens, canPricePartial = false): PricedUsage 
   if (
     tokens.input === undefined &&
     tokens.output === undefined &&
+    tokens.reasoning === undefined &&
     tokens.cached === undefined &&
     tokens.cacheWrite === undefined
   )
@@ -99,7 +100,7 @@ function pricedUsage(tokens: UsageTokens, canPricePartial = false): PricedUsage 
   // Only the known portion is settled; absent counters stay absent in the record.
   return {
     inputTokens: tokens.input ?? (tokens.cached ?? 0) + (tokens.cacheWrite ?? 0),
-    outputTokens: tokens.output ?? 0,
+    outputTokens: tokens.output ?? tokens.reasoning ?? 0,
     cachedTokens: tokens.cached,
     cacheWriteTokens: tokens.cacheWrite,
     cacheWriteTokens1h: tokens.cacheWrite1h,
@@ -152,7 +153,8 @@ function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost
   }
   if (context.uncertain === true || context.kind === 'voice') {
     const usd = context.retainedLiabilityUsd ?? paidCost(context)
-    return { certainty: 'uncertain', ...(usd !== undefined && { usd }) }
+    if (usd !== undefined || context.kind === 'voice')
+      return { certainty: 'uncertain', ...(usd !== undefined && { usd }) }
   }
   const reported = context.providerCostUsd
   let usd =
@@ -161,14 +163,17 @@ function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost
     usd = ticksToUsdPerToken(context.costInUsdTicks)
   }
   if (usd !== undefined) {
-    return { certainty: 'reported', usd }
+    return { certainty: context.uncertain === true ? 'uncertain' : 'reported', usd }
   }
   const card = pricing?.kind === 'priced' ? pricing.card : undefined
   const tool = paidCost(context)
   const computed = tool ?? (card === undefined ? metaCost(context, tokens) : cardCost(card, tokens))
   if (computed === undefined) {
     return {
-      certainty: card !== undefined || hasMetaPrice(context) ? 'uncertain' : 'unpriced',
+      certainty:
+        card !== undefined || context.uncertain === true || hasMetaPrice(context)
+          ? 'uncertain'
+          : 'unpriced',
     }
   }
   let date = context.priceDate
@@ -178,7 +183,10 @@ function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost
     else date = card.fetchedAt?.split('T', 1)[0]
   }
   let certainty: UsageCost['certainty'] = 'computed'
-  if (tool === undefined && (tokens.input === undefined || tokens.output === undefined))
+  if (
+    context.uncertain === true ||
+    (tool === undefined && (tokens.input === undefined || tokens.output === undefined))
+  )
     certainty = 'uncertain'
   else if (context.estimatedTokens === true) certainty = 'estimated'
   return {

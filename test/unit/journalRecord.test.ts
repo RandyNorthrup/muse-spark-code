@@ -171,6 +171,7 @@ describe('journal records', () => {
       [{ output_tokens: 20 }, 80.5],
       [{ input_tokens: 100, input_tokens_details: usage.input_tokens_details }, 98.5],
       [{ input_tokens_details: { cached_tokens: 30 } }, 3.5],
+      [{ output_tokens_details: { reasoning_tokens: 4 } }, 16.5],
     ] satisfies [Partial<Usage>, number][]) {
       const record = createUsageRecord(partial, priced)
       expect(record.cost).toEqual({
@@ -183,6 +184,22 @@ describe('journal records', () => {
       expect(record.tokens.output).toBe(partial.output_tokens)
     }
     expect(createUsageRecord(undefined, priced).cost).toEqual({ certainty: 'uncertain' })
+    expect(createUsageRecord({ input_tokens: 100 }, { ...priced, uncertain: true }).cost).toEqual({
+      certainty: 'uncertain',
+      usd: 100.5,
+      source: 'list',
+      date: '2026-10-04',
+    })
+    expect(
+      createUsageRecord(
+        { input_tokens: 100 },
+        {
+          ...priced,
+          uncertain: true,
+          providerCostUsd: 2,
+        },
+      ).cost,
+    ).toEqual({ certainty: 'uncertain', usd: 2 })
     expect(createUsageRecord({ input_tokens: 100 }, context).cost).toEqual({
       certainty: 'unpriced',
     })

@@ -11,6 +11,9 @@ happened, not what was planned; superseded entries are kept.
 
 - Usage history keeps known prices for incomplete calls and records the cost of
   their known token portion as uncertain, without filling unknown counters.
+- Usage history reads stay consistent across retention, read atomically replaced
+  rollups through one handle, and fsync rollups before publication. Generation
+  locks prevent a paused former owner from releasing its successor's lock.
 
 - Package only allowlisted build artifacts with a short landing guide and recent
   release notes. Compact staged translation and manifest JSON preserves every

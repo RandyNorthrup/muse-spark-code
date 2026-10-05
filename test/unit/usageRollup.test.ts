@@ -48,6 +48,100 @@ async function rig() {
 }
 
 describe('usage rollup and retention', () => {
+  it('retries a snapshot when retention reclaims its generation between rollups and raw days', async () => {
+    const { store, root, record } = await rig()
+    store.append(record('2026-09-01'))
+    await store.flush()
+    let clock = Date.now()
+    const readerFs = new NodeUsageFs(root, () => clock)
+    const options = {
+      writerId: 'reader',
+      now: () => new Date(2026, 9, 5, 12).getTime(),
+      isEnabled: () => true,
+      onWriteError: vi.fn(),
+    }
+    const reader = new UsageJournalStore(readerFs, options)
+    const retainer = new UsageJournalStore(new NodeUsageFs(root, () => clock), options)
+    const listing = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    const list = readerFs.list.bind(readerFs)
+    let hasPaused = false
+    vi.spyOn(readerFs, 'list').mockImplementation(async (folder) => {
+      if (!hasPaused && folder === `${USAGE_JOURNAL_ROOT}/days`) {
+        hasPaused = true
+        listing.resolve(undefined)
+        await resume.promise
+      }
+      return await list(folder)
+    })
+    const pending = reader.read()
+    try {
+      await listing.promise
+      expect(await retainer.retain()).toBe(false)
+      clock += USAGE_ROLLUP_LOCK_STALE_MS + 1000
+      expect(await retainer.retain()).toBe(true)
+      resume.resolve(undefined)
+      expect(await pending).toMatchObject({
+        recordCount: 1,
+        records: [],
+        rollups: [{ day: '2026-09-01', records: 1 }],
+      })
+      expect(await reader.read()).toMatchObject({ recordCount: 1 })
+    } finally {
+      resume.resolve(undefined)
+      await pending
+    }
+  })
+  it('refuses busy snapshots and bounds retries when both generations are lost', async () => {
+    const { store, fs } = await rig()
+    const held = await fs.acquireLock(
+      `${USAGE_JOURNAL_ROOT}/rollup.lock`,
+      USAGE_ROLLUP_LOCK_STALE_MS,
+    )
+    await expect(store.read()).rejects.toThrow('usageLocked')
+    await held?.release()
+    const release = vi.fn().mockResolvedValue(undefined)
+    const acquire = vi.spyOn(fs, 'acquireLock').mockResolvedValue({
+      token: 'lost-owner',
+      generation: 1,
+      isHeld: () => Promise.resolve(false),
+      release,
+    })
+    await expect(store.read()).rejects.toThrow('usageLockLost')
+    expect(acquire).toHaveBeenCalledTimes(2)
+    expect(release).toHaveBeenCalledTimes(2)
+  })
+  it('reads a complete atomic rollup replacement when its size changes after stat', async () => {
+    const { store, fs, record } = await rig()
+    store.append(record('2026-09-01'))
+    await store.flush()
+    await store.retain()
+    const file = `${USAGE_JOURNAL_ROOT}/rollups/2026-09.json`
+    const stat = fs.stat.bind(fs)
+    let hasReplaced = false
+    vi.spyOn(fs, 'stat').mockImplementation(async (relative) => {
+      const observed = await stat(relative)
+      if (relative === file && !hasReplaced) {
+        hasReplaced = true
+        await fs.writeFileAtomically(
+          file,
+          JSON.stringify({
+            v: 1,
+            month: '2026-09',
+            days: ['2026-09-01', '2026-09-02'],
+            rows: rollupUsageRecords([record('2026-09-01'), record('2026-09-02')]),
+            limits: [],
+          }),
+        )
+      }
+      return observed
+    })
+    expect(await store.read()).toMatchObject({
+      recordCount: 2,
+      rollups: [{ records: 1 }, { records: 1 }],
+    })
+    expect(await store.read()).toMatchObject({ recordCount: 2 })
+  })
   it('rolls old days up exactly once and leaves 30 detailed days', async () => {
     const { store, fs, record, root } = await rig()
     store.append(record('2026-09-05'))
@@ -210,6 +304,8 @@ describe('usage rollup and retention', () => {
     await expect(store.reset()).rejects.toThrow('usageLocked')
     await held?.release()
     const acquire = vi.spyOn(fs, 'acquireLock').mockResolvedValueOnce({
+      token: 'lost-owner',
+      generation: 1,
       isHeld: () => Promise.resolve(false),
       release: vi.fn().mockResolvedValue(undefined),
     })

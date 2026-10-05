@@ -1,4 +1,4 @@
-// One file per process/day; only maintenance takes the shared lock.
+// One file per process/day; snapshots and maintenance share a generation lock.
 import * as z from 'zod/mini'
 import {
   USAGE_DAYS_FOLDER,
@@ -40,6 +40,8 @@ export interface UsageFileStat {
   readonly mtimeMs: number
 }
 export interface UsageLock {
+  readonly token: string
+  readonly generation: number
   isHeld(): Promise<boolean>
   release(): Promise<void>
 }
@@ -47,7 +49,8 @@ export interface UsageLock {
 export interface UsageFs {
   list(folder: string): Promise<readonly string[]>
   stat(file: string): Promise<UsageFileStat | undefined>
-  read(file: string, offset: number, length: number): Promise<Uint8Array>
+  /** No length: read the complete file through one handle, for atomic rollups. */
+  read(file: string, offset: number, length?: number): Promise<Uint8Array>
   append(file: string, line: string): Promise<void>
   writeFileAtomically(file: string, text: string): Promise<void>
   remove(file: string): Promise<void>
@@ -325,7 +328,7 @@ export class UsageJournalStore {
         else rollups.push(cached.rollup)
         continue
       }
-      const value: unknown = JSON.parse(decoder.decode(await this.fs.read(file, 0, stat.size)))
+      const value: unknown = JSON.parse(decoder.decode(await this.fs.read(file, 0)))
       if (isNewer(value)) {
         newer += 1
         this.rollupCache.set(file, { ...stat, rollup: undefined })
@@ -347,32 +350,7 @@ export class UsageJournalStore {
     }
     return files
   }
-  /** Keeps normalisation, settlement and validation inside the non-failing tap. */
-  public noteUsage(usage: Partial<Usage> | undefined, context: UsageRecordContext): void {
-    try {
-      if (!this.options.isEnabled()) return
-      this.append(createUsageRecord(usage, context))
-    } catch {
-      this.logWriteError()
-    }
-  }
-  /** Fire-and-forget at the model boundary. flush() is for shutdown/tests. */
-  public append(input: unknown): void {
-    try {
-      if (!this.options.isEnabled()) return
-      const entry = usageJournalEntrySchema.parse(input)
-      const file = `${DAYS_ROOT}/${entry.day}/${this.options.writerId}.jsonl`
-      const line = `${JSON.stringify(entry)}\n`
-      this.queue = this.write(this.queue, file, line)
-    } catch {
-      this.logWriteError()
-    }
-  }
-  public async flush(): Promise<void> {
-    await this.queue
-  }
-
-  public async read(): Promise<UsageJournalRead> {
+  private async readSnapshot(): Promise<UsageJournalRead> {
     const stored = await this.readRollups()
     const covered = new Set(stored.rollups.flatMap((rollup) => rollup.days))
     const records: UsageRecord[] = []
@@ -413,6 +391,50 @@ export class UsageJournalStore {
         rollups.reduce((count, row) => count + row.records, 0) +
         newerVersionRecords,
     }
+  }
+  /** Keeps normalisation, settlement and validation inside the non-failing tap. */
+  public noteUsage(usage: Partial<Usage> | undefined, context: UsageRecordContext): void {
+    try {
+      if (!this.options.isEnabled()) return
+      this.append(createUsageRecord(usage, context))
+    } catch {
+      this.logWriteError()
+    }
+  }
+  /** Fire-and-forget at the model boundary. flush() is for shutdown/tests. */
+  public append(input: unknown): void {
+    try {
+      if (!this.options.isEnabled()) return
+      const entry = usageJournalEntrySchema.parse(input)
+      const file = `${DAYS_ROOT}/${entry.day}/${this.options.writerId}.jsonl`
+      const line = `${JSON.stringify(entry)}\n`
+      this.queue = this.write(this.queue, file, line)
+    } catch {
+      this.logWriteError()
+    }
+  }
+  public async flush(): Promise<void> {
+    await this.queue
+  }
+
+  public async read(): Promise<UsageJournalRead> {
+    // A stale lease may be reclaimed while a process is paused. Never return
+    // bytes gathered across generations; retry once, including a raced parse.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const lock = await this.fs.acquireLock(LOCK_FILE, USAGE_ROLLUP_LOCK_STALE_MS)
+      if (lock === undefined) throw new Error('usageLocked')
+      try {
+        const snapshot = await this.readSnapshot()
+        if (await lock.isHeld()) return snapshot
+      } catch (error) {
+        if (await lock.isHeld()) throw error
+      } finally {
+        await lock.release()
+      }
+      this.cache.clear()
+      this.rollupCache.clear()
+    }
+    throw new Error('usageLockLost')
   }
   /** Covers a day atomically before deleting it. Bad/future raw data stays untouched. */
   public async retain(historyDays = USAGE_HISTORY_DAYS_DEFAULT): Promise<boolean> {
