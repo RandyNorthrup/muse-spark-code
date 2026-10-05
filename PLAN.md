@@ -13732,6 +13732,96 @@ The early protected-paths fix is its own pull request,
      Cline's scripts through the `cline` adapter. The plugins' events map
      onto the event list above, and lane X records the mapping in this plan
      before its code.
+- **Lane X event mapping (recorded 2026-10-05, before lane X code).**
+  Sources are the saved research under `hooks-parity/` (cited per row);
+  nothing here is captured live. A plugin answer can only refuse, narrow or
+  add context — never grant; a crash or timeout follows the event's
+  fail-closed rule; the child is killed with the session and bounded in
+  memory and time. The shim offers no shell helper, no client and no model
+  access: a call to one fails that hook.
+  - **Amp** (in-process `amp.on` plugins; `hooks-parity/raw/amp_plugin-api.md`).
+    Runtimes: the user's system `node` ≥ 22.18, plain JS or TS through
+    Node's built-in type stripping; never the extension host's Node.
+
+    | Amp event | Muse event | Answer mapping |
+    | --------- | ---------- | -------------- |
+    | `session.start` (`amp_plugin-api.md:1929`) | SessionStart | Observation; the thread id only |
+    | `tool.call` (`:1953`, results `:1962`) | PreToolUse | `allow` → completed; `reject-and-continue{message}` → blocked with the message; `modify{input}` → completed with `updatedInput` (same tool only); `synthesize{result}` → completed with a tool-result replacement; `error{message}` → failed (blocked where the event is fail-closed) |
+    | `tool.result` (`:2044`, replacement `:2052`) | PostToolUse | `void` → completed; a returned `{status, output?, error?}` → completed with a tool-result replacement |
+    | `agent.start` (`:2074`, result `:2097`) | UserPromptSubmit | `void` → completed; `{message:{content}}` → completed with context |
+    | `agent.end` (`:2109`, result `:2130`) | Stop | `void` → completed; `{action:'continue', userMessage}` → blocked with the user message as the reason (the turn continues); `maxContinuations` is capped by `HOOK_MAX_STOP_CONTINUATIONS` |
+    | `changes.prompt` (`:2148`) | Refused | No Ship/Push workflow here; refused with a reason |
+    | (no `session.end`; `:29`) | SessionEnd | Refused: Amp has no matching event |
+
+  - **OpenCode typed hooks** (`hooks-parity/raw/oc_plugin_index.ts`; the docs
+    list at `hooks-parity/raw/oc_plugins.mdx`). OpenCode is Bun-native, so
+    its plugins run under the user's installed `bun`; when `bun` is absent
+    the hook is refused with a reason. Handler order across plugins is
+    undefined upstream (`raw-kiro-amp-opencode-continue.md:29`); each
+    registered handler runs in load order and one's block ends the chain.
+
+    | OpenCode hook (`oc_plugin_index.ts`) | Muse event | Answer mapping |
+    | ------------------------------------ | ---------- | -------------- |
+    | `tool.execute.before` (`:266`, throw blocks, mutate `output.args`) | PreToolUse | Throw → blocked with the thrown message; mutated `args` → completed with `updatedInput` (same tool only) |
+    | `tool.execute.after` (`:274`, mutate `output.output`) | PostToolUse | Throw → failed; mutated `output` → completed with a tool-result replacement |
+    | `permission.ask` (`:261`, `output.status`) | PermissionRequest | `deny` → deny; `ask` → ask; `allow` is never applied (completed without a grant) |
+    | `command.execute.before` (`:262`) | UserPromptExpansion | Throw → blocked with the reason; otherwise completed |
+    | `chat.message` (`:234`) | UserPromptSubmit | Observation only; a mutated message is not applied |
+    | `experimental.session.compacting` (`:305`, `context`/`prompt`) | PreCompact | `context` entries → context; a full `prompt` replacement is not applied (the prefix stays byte-stable) |
+    | `chat.params` (`:242`), `chat.headers` (`:258`), `experimental.provider.small_model` (`:297`), `tool.definition` (`:332`) | Refused | They choose a model, headers, params or the tool list; refused with a reason |
+    | `experimental.chat.messages.transform` (`:282`), `experimental.chat.system.transform` (`:291`) | Refused | They rewrite earlier request bytes (SoL-Pi rule 1); refused with a reason |
+    | `experimental.compaction.autocontinue` (`:316`), `experimental.text.complete` (`:327`) | Refused | No equivalent operation (auto-continue control, display rewrite); refused with a reason |
+    | `shell.env` (`:270`) | Refused | Environment edits are a secret risk (as Copilot `env`); refused with a reason |
+    | `config`, `tool`, `auth`, `provider`, `dispose` (`:223`) | Refused | Registration, not hook points; refused with a reason |
+
+  - **OpenCode event-bus subset** (bus list `raw-kiro-amp-opencode-continue.md:36;
+    the `event` hook at `oc_plugin_index.ts:224`). The `event` handler
+    returns `void`, so every bus mapping is observation only; a throw fails
+    the hook, never blocks it.
+
+    | Bus event | Muse event |
+    | --------- | ---------- |
+    | `session.created` | SessionStart (observation) |
+    | `session.deleted` | SessionEnd (observation) |
+    | `session.compacted` | PostCompact (observation) |
+    | `todo.updated` | TaskCreated/TaskCompleted (by the item's status; observation, refusals not applied) |
+    | `permission.asked` | PermissionRequest (observation only) |
+    | `permission.replied` denied | PermissionDenied (observation only) |
+    | `file.watcher.updated` | FileChanged (observation; path only) |
+    | `file.edited` | PostToolUse for Edit\|Write (observation) |
+    | `message.updated` | MessageDisplay (observation; a rewrite is not applied) |
+    | `session.error` | StopFailure (observation) |
+    | `tool.execute.before` / `tool.execute.after` on the bus | As the typed hooks above (a plugin subscribed to both fires twice, as upstream) |
+    | `tui.*`, `lsp.*`, `server.connected`, `installation.updated`, `message.part.*`, `message.removed`, `session.diff`, `session.status`, `session.updated`, `command.executed`, `session.idle`, `shell.env` | Refused: TUI/display internals, no equivalent operation, or covered by a typed hook |
+
+  - **Cline v1 scripts** (per-event scripts in `.clinerules/hooks/` and
+    `~/Documents/Cline/Hooks/`; `hooks-parity/raw-copilot-cline.md:13-15,24-26`;
+    the full `cline-hooks-901d1b5c97.mdx` and `cline/src_*` copies named there
+    are not on this rig, so field shapes below stay conservative and every
+    gap is labelled). They run as command hooks through the `cline` contract
+    table, interpreted by the shared engine; no hand-written per-event
+    translator. The newer SDK/CLI file-hook contract
+    (`raw-copilot-cline.md:26`: `tool_call`/`tool_result`/`agent_start` with
+    `cancel`/`review`/`overrideInput`) is a different contract and is
+    refused with a reason. Discovery follows the source platform rules:
+    Windows runs `<HookName>.ps1` only, Unix runs the extensionless
+    `<HookName>` only and it must be executable; anything else is ignored,
+    never converted. Timeout 30 s; a `contextModification` over 50,000 chars
+    is capped; a non-zero exit without JSON does not block
+    (`raw-copilot-cline.md:25`).
+
+    | Cline script | Muse event | Notes |
+    | ------------ | ---------- | ----- |
+    | TaskStart | SessionStart | `cancel` → blocked; `contextModification` → context (see #13554, `raw-copilot-cline.md:27`: upstream may drop it for non-cancelling hooks; ours keeps it) |
+    | TaskResume | SessionStart | As TaskStart (a resumed task starts the session) |
+    | TaskCancel | SessionEnd | Observation; `cancel` has nothing left to block |
+    | TaskComplete | Stop | `cancel` → blocked with the reason (the turn continues); context kept |
+    | PreToolUse | PreToolUse | JSON `cancel` → blocked; a non-zero exit without JSON does not block (`raw-copilot-cline.md:25`) |
+    | PostToolUse | PostToolUse | Observation; context kept |
+    | UserPromptSubmit | UserPromptSubmit | As TaskStart |
+    | PreCompact | PreCompact | `cancel` → blocked (the optional compaction stops; the hard-limit compaction still runs) |
+    | Notification (in `VALID_HOOK_TYPES`, `raw-copilot-cline.md:24`, undocumented) | Notification | Observation; context kept |
+
   10. **Lane W.**
       - The Hooks picker lists both files per scope and says which backend
         runs each.
