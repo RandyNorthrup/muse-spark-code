@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Confidential workspaces resolve current bring-your-own model privacy
+  before selection, including first setup; unknown models and failed
+  resolution are refused. Bare Muse-only pickers retain their existing
+  rows and keyboard wrapping.
+
 ### Added
 
 - **First-run and usage UI for bring-your-own providers (M95 lane U).**

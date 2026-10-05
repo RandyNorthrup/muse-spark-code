@@ -375,7 +375,14 @@ function layoutModels(
       rows.push(row)
     }
   }
-  const footer = providerRows(onAction).filter((row) => needle === '' || isMatch(row.label))
+  const hasByoModels = models.some(
+    (model) =>
+      model.modelId.includes('/') ||
+      (model.providerId !== undefined && model.providerId !== 'meta'),
+  )
+  const footer = hasByoModels
+    ? providerRows(onAction).filter((row) => needle === '' || isMatch(row.label))
+    : []
   for (const row of footer) {
     entries.push({ kind: 'row', key: row.id, index: rows.length })
     rows.push(row)

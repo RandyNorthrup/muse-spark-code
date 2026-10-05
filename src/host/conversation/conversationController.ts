@@ -6255,10 +6255,34 @@ export class ConversationController {
    * Whether the model may be used here: a contributor-tier model is blocked
    * or confirmed once, and a BYO model the listing flagged as training on
    * the content is refused in a confidential workspace (M95, PLAN.md D74).
-   * Never listed or flagged (e.g. the wizard's first save), a model is
-   * allowed: the listing is the guard, and the wizard knows the route.
+   * Confidential BYO selection resolves current host privacy facts, even
+   * before the wizard's first save or after a saved route changes.
    */
   private async allowsModel(modelId: string): Promise<boolean> {
+    if (this.deps.isConfidentialWorkspace() && modelId.includes('/')) {
+      const generation = this.modelGeneration
+      const actionGeneration = this.sendInvalidationEpoch
+      try {
+        const host = await this.deps.ensureHost()
+        const listed = await host.listModels()
+        if (
+          this.isDisposed ||
+          this.modelGeneration !== generation ||
+          this.sendInvalidationEpoch !== actionGeneration
+        ) {
+          return false
+        }
+        const model = listed.find((entry) => entry.modelId === modelId)
+        if (model === undefined || model.trainsOnContent === true) {
+          this.notice('warning', UI_TEXT.trainingBlocked)
+          return false
+        }
+      } catch {
+        this.notice('warning', UI_TEXT.trainingBlocked)
+        return false
+      }
+      return true
+    }
     const isTraining =
       this.models?.find((model) => model.modelId === modelId)?.trainsOnContent === true ||
       this.trainingModelIds.has(modelId)

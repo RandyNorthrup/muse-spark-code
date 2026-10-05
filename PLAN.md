@@ -13879,6 +13879,20 @@ live) and the controller filters its id as well.
 
 ### M95 — Bring-your-own model providers (D74)
 
+**Review correction, FIXM95MU (2026-10-05).** RVM95KMU findings 3
+(panel webview contract), 4, 16, 17, 18, 19 and 20 are this lane's scope.
+Keep `src/shared/modelsPanel.ts` as the single strict, credential-free
+contract: top-level request fields and `modelsPanel/state` / navigation
+replies. Provider edit requests and draft changes identify their provider;
+the host owns the draft. Confidential BYO admission resolves current host
+privacy metadata before selection and refuses absent or failed resolution.
+Bare Muse-only pickers retain their existing selectable rows. Grid keys
+belong to the grid's own focus, and active descendants name mounted items
+only. Correct the five translations without relaxing localization. Each
+finding has a regression and byte-exact red drill in `m95-m.md` or
+`m95-u.md`; composed host-contract acceptance remains the integration
+lane's check after lane K supplies this shared contract.
+
 **Status 2026-10-04: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
 wire captures were recorded 2026-10-04 for the twelve cloud presets the
