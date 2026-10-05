@@ -1972,6 +1972,7 @@
   "teamResourcesRolesLabel": "利用できるロール",
   "teamResourcesLimitLabel": "同時に最大{count}まで",
   "teamResourceBusy": "リソースは使用中、{role}タスク{taskId}が保持しています",
+  "teamToolBindingChanged": "待機中にツールまたはその権限が変更されたか、使用権が失われました。呼び出しは拒否されました。再試行する前にツール一覧を再取得してください。",
   "teamLeaseTakeBack": "取り戻す",
   "teamLeaseTakeBackDetail": "ロックはオーケストレーターに移動します。保持者の次回呼び出しには使用中と応答します。",
   "teamLeaseRestartServer": "サーバーを再起動",

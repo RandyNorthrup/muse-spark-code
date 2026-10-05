@@ -17663,6 +17663,17 @@ Every guard gets a named failing regression and a byte-exact red drill in
 brief forbids merges/pushes and full quality; focused gates run on win11 and
 the lead retains integration gates and the two existing named residuals (§9).
 
+**FIXM96B4 verification (win11, 2026-10-05).** Both RVM96B3 findings are
+fixed, with 102 foundation tests and 29 pool/connection tests passing.
+Twelve complete-suite red drills fail at the intended assertions and restore
+byte-exact to green. Focused ESLint/Prettier, localization (14 tables, zero
+problems), plain knip, duplication (zero clones) and the production build pass
+with unchanged caps. Activation is 582.3/600 KiB; Model API 429.7/475 KiB.
+The host API gate still fails only on the named integration inventory drift,
+recorded crypto/http 36/4 versus actual 38/6. No new review residual; full
+quality and installed editor/runtime wiring remain lead gates. Final receipts:
+`docs/certification/m96-b.md`, `docs/certification/m96-b-final-drills.json`.
+
 #### Round-3 redesign: leases (REDM96B, 2026-10-05)
 
 The owner's third-round rule replaces lane B's holder counters with explicit
@@ -21614,6 +21625,9 @@ before a repaired one loads (2026-09-30).
   on the integrated source, and reruns the unchanged gate before proposing
   the integrated commit. The lane gate failure is recorded in §7 and
   `docs/certification/m96-b.md`.
+  After the 0.13.0 merge, FIXM96B4's win11 gate confirms the same inherited
+  delta: recorded crypto/http **36/4**, actual **38/6**. Neither RVM96B3
+  correction introduces a Node built-in import; follow-up remains unchanged.
 
 - **M96B-LATE-TERMINAL (FIXM96B, RVM96A 10, 2026-10-05): retained
   ownership after a local timeout.** M50 removes a request from its waiting

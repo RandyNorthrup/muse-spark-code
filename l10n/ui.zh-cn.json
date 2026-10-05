@@ -1972,6 +1972,7 @@
   "teamResourcesRolesLabel": "可使用它的角色",
   "teamResourcesLimitLabel": "每次最多 {count} 个",
   "teamResourceBusy": "资源正忙，由{role}任务 {taskId} 持有",
+  "teamToolBindingChanged": "等待期间工具或其权限发生了变化，或已不再持有其使用租约。调用已被拒绝；请在重试前重新获取工具列表。",
   "teamLeaseTakeBack": "收回",
   "teamLeaseTakeBackDetail": "锁转移给编排器；持有者的下一次调用将被告知资源正忙。",
   "teamLeaseRestartServer": "重启服务器",

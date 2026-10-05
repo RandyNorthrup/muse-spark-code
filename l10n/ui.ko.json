@@ -1972,6 +1972,7 @@
   "teamResourcesRolesLabel": "사용할 수 있는 역할",
   "teamResourcesLimitLabel": "동시에 최대 {count}개",
   "teamResourceBusy": "리소스 사용 중, {role} 작업 {taskId}이(가) 보유함",
+  "teamToolBindingChanged": "대기 중에 도구 또는 권한이 변경되었거나 사용권을 더 이상 보유하지 않습니다. 호출이 거부되었습니다. 다시 시도하기 전에 도구 목록을 다시 불러오세요.",
   "teamLeaseTakeBack": "회수",
   "teamLeaseTakeBackDetail": "잠금이 오케스트레이터로 이동합니다. 보유자의 다음 호출에는 사용 중이라고 응답합니다.",
   "teamLeaseRestartServer": "서버 다시 시작",

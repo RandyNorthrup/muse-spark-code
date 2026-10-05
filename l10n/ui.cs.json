@@ -2200,6 +2200,7 @@
   "teamResourcesRolesLabel": "Role, které jej smějí používat",
   "teamResourcesLimitLabel": "Nejvýše {count} najednou",
   "teamResourceBusy": "zdroj je obsazený, drží {role} úloha {taskId}",
+  "teamToolBindingChanged": "Nástroj nebo jeho oprávnění se během čekání změnily, nebo už není držen jeho pronájem. Volání bylo odmítnuto; před dalším pokusem znovu načtěte seznam nástrojů.",
   "teamLeaseTakeBack": "Vzít zpět",
   "teamLeaseTakeBackDetail": "Zámek přechází na orchestrátora; další volání držitele oznámí obsazený zdroj.",
   "teamLeaseRestartServer": "Restartovat server",

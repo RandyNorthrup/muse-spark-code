@@ -156,6 +156,7 @@ describe('McpServerPool (M50)', { timeout: SPAWN_TIMEOUT_MS }, () => {
     ])
     expect(servers.find('mcp__fake__lookup')).toEqual({
       server: 'fake',
+      catalogueGeneration: expect.any(Number),
       tool: 'lookup',
       isReadOnly: true,
     })

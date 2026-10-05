@@ -9,7 +9,9 @@ import {
   type CallToken,
   repositoryResourceSchema,
   resourceDeclarationSchema,
+  type ToolCallBinding,
 } from '../../src/core/team/resources'
+import { UI_TEXT } from '../../src/shared/constants'
 import { createManualClock } from './helpers/manualClock'
 import { ENGINEER, ORCHESTRATOR, RESEARCHER } from './helpers/teamHolders'
 
@@ -440,6 +442,48 @@ describe('the repository file', () => {
 })
 
 describe('roles and kinds', () => {
+  it.each([
+    { changed: 'server', patch: { server: 'notes' } },
+    { changed: 'catalogue generation', patch: { catalogueGeneration: 2 } },
+    { changed: 'tool', patch: { tool: 'write' } },
+    { changed: 'permission class', patch: { isReadOnly: false } },
+    { changed: 'removed tool', patch: undefined },
+    { changed: 'assignment', patch: {} },
+    { changed: 'lease resource', patch: {} },
+    { changed: 'released lease', patch: {} },
+  ])(
+    'RVM96B3-1: registry abandons admission after changed $changed',
+    async ({ changed, patch }) => {
+      const { registry } = chrome()
+      const binding: ToolCallBinding = {
+        server: changed === 'lease resource' ? 'notes' : 'chrome',
+        catalogueGeneration: 1,
+        tool: 'read',
+        isReadOnly: true,
+      }
+      const admission = await registry.acquireCall(
+        'chrome',
+        RESEARCHER,
+        'reader',
+        'binding',
+        new AbortController().signal,
+        {
+          binding,
+          resolve: () => (patch === undefined ? undefined : { ...binding, ...patch }),
+          allowedServers: () => (changed === 'assignment' ? [] : ['chrome', 'notes']),
+        },
+      )
+      if (admission.status !== 'held') throw new Error(admission.status)
+      if (changed === 'released lease') registry.release(admission.call.lease)
+      expect(registry.dispatch(admission.call)).toBeUndefined()
+      expect(admission.signal.reason).toBe(UI_TEXT.teamToolBindingChanged)
+      expect(registry.snapshot()[0]?.holders).toEqual([])
+      expect(registry.snapshot()[0]?.waiters).toEqual([])
+      const replacement = await call(registry, 'after-refusal', ENGINEER)
+      registry.settle(replacement, 'answered')
+    },
+  )
+
   it('RVM96A-11: offers unassigned servers to no role and assigned servers only to their roles', () => {
     const { registry } = drivenRegistry()
     registry.declare({ name: 'chrome', kind: 'exclusive' })

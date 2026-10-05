@@ -2124,6 +2124,7 @@
   "teamResourcesRolesLabel": "Roles que pueden usarlo",
   "teamResourcesLimitLabel": "Como máximo {count} a la vez",
   "teamResourceBusy": "recurso ocupado, en manos de {role} tarea {taskId}",
+  "teamToolBindingChanged": "La herramienta o sus permisos cambiaron durante la espera, o ya no se conserva su concesión de uso. Se rechazó la llamada; vuelva a consultar la lista de herramientas antes de reintentar.",
   "teamLeaseTakeBack": "Recuperar",
   "teamLeaseTakeBackDetail": "El bloqueo pasa al orquestador; la próxima llamada del poseedor dirá que el recurso está ocupado.",
   "teamLeaseRestartServer": "Reiniciar el servidor",

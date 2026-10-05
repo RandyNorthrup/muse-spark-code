@@ -2124,6 +2124,7 @@
   "teamResourcesRolesLabel": "Ruoli autorizzati a usarlo",
   "teamResourcesLimitLabel": "Al massimo {count} alla volta",
   "teamResourceBusy": "risorsa occupata, detenuta da {role} attività {taskId}",
+  "teamToolBindingChanged": "Lo strumento o i suoi permessi sono cambiati durante l’attesa, oppure la sua concessione d’uso non è più detenuta. La chiamata è stata rifiutata; ricarica l’elenco degli strumenti prima di riprovare.",
   "teamLeaseTakeBack": "Riprendi",
   "teamLeaseTakeBackDetail": "Il blocco passa all’orchestratore; la prossima chiamata del detentore dirà che la risorsa è occupata.",
   "teamLeaseRestartServer": "Riavvia il server",

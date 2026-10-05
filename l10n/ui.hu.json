@@ -2048,6 +2048,7 @@
   "teamResourcesRolesLabel": "Használatára jogosult szerepek",
   "teamResourcesLimitLabel": "Egyszerre legfeljebb {count}",
   "teamResourceBusy": "az erőforrás foglalt, {role} {taskId}. feladat tartja",
+  "teamToolBindingChanged": "Az eszköz vagy a jogosultságai megváltoztak a várakozás alatt, vagy már nincs meg a használati joga. A hívás elutasítva; az újrapróbálkozás előtt kérje le újra az eszközök listáját.",
   "teamLeaseTakeBack": "Visszavétel",
   "teamLeaseTakeBackDetail": "A zárolás az irányítóhoz kerül; a birtokos következő hívása foglalt erőforrást jelez.",
   "teamLeaseRestartServer": "Kiszolgáló újraindítása",

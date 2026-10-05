@@ -2048,6 +2048,7 @@
   "teamResourcesRolesLabel": "Rollen, die es nutzen dürfen",
   "teamResourcesLimitLabel": "Höchstens {count} gleichzeitig",
   "teamResourceBusy": "Ressource belegt, gehalten von {role} Aufgabe {taskId}",
+  "teamToolBindingChanged": "Das Werkzeug oder seine Berechtigungen haben sich während des Wartens geändert, oder die Nutzungsfreigabe besteht nicht mehr. Der Aufruf wurde abgelehnt; laden Sie vor einem erneuten Versuch die Werkzeugliste neu.",
   "teamLeaseTakeBack": "Zurücknehmen",
   "teamLeaseTakeBackDetail": "Die Sperre geht an den Orchestrator; der nächste Aufruf des Inhabers meldet eine belegte Ressource.",
   "teamLeaseRestartServer": "Server neu starten",

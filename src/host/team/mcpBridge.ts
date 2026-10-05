@@ -32,8 +32,8 @@ import type { SessionMcpServer } from '../../core/agent/agentBackend'
 import { type CallToolResult, McpError } from '../../core/backends/modelapi/mcp/protocol'
 import type {
   BridgeOfferedTool,
+  BridgeToolRef,
   McpPoolSnapshot,
-  McpToolRef,
 } from '../../core/backends/modelapi/mcp/pool'
 import { messageSchema, type McpRequestKey } from '../../core/mcp'
 import {
@@ -57,7 +57,7 @@ import { isSameLoopbackSecret, listenLoopback, readLoopbackBody } from '../mcpLo
 /** What M50's pool gives the bridge: the single instance of every server. */
 export interface TeamBridgePool {
   snapshot(): McpPoolSnapshot
-  find(functionName: string): McpToolRef | undefined
+  find(functionName: string): BridgeToolRef | undefined
   bridgeTools(): readonly BridgeOfferedTool[]
   callRaw(functionName: string, argsJson: string, signal: AbortSignal): Promise<CallToolResult>
 }
@@ -250,6 +250,11 @@ export class TeamMcpBridge {
       this.clientId(live, serverName),
       requestId,
       signal,
+      {
+        binding: ref,
+        resolve: () => this.deps.pool.find(functionName),
+        allowedServers: () => this.allowedServers(caller),
+      },
     )
     if (outcome.status === 'busy') return this.refused(busyText(outcome.holder))
     if (outcome.status === 'stale') {
@@ -260,10 +265,6 @@ export class TeamMcpBridge {
     if (outcome.status === 'closed') return this.refused('The team bridge is closed')
     if (outcome.status === 'cancelled') return this.refused(describe(outcome.reason))
     if (outcome.status === 'duplicate') return this.refused('Invalid tools/call params')
-    if (!this.allowedServers(caller).includes(ref.server)) {
-      this.deps.leases.cancelCall(outcome.call)
-      return this.refused(`Unknown tool: ${functionName}`)
-    }
     const admittedSignal = this.deps.leases.dispatch(outcome.call)
     if (admittedSignal === undefined) {
       const current = this.deps.leases.checkCall(ref.server, caller.holder)

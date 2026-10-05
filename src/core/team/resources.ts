@@ -194,6 +194,21 @@ export interface CallToken {
   readonly lease: LeaseToken
 }
 
+/** A tool's locally resolved identity, captured before it waits for admission. */
+export interface ToolCallBinding {
+  readonly server: string
+  readonly catalogueGeneration: number
+  readonly tool: string
+  readonly isReadOnly: boolean
+}
+
+/** Current catalogue and assignment readers run synchronously at dispatch. */
+export interface ToolCallAdmission {
+  readonly binding: ToolCallBinding
+  readonly resolve: () => ToolCallBinding | undefined
+  readonly allowedServers: () => readonly string[]
+}
+
 export type AcquireCallOutcome =
   | Exclude<AcquireOutcome, { readonly status: 'held' | 'cancelled' }>
   | { readonly status: 'held'; readonly call: CallToken; readonly signal: AbortSignal }
@@ -219,6 +234,7 @@ interface LiveCall {
   readonly requestId: string
   readonly controller: AbortController
   readonly detach: () => void
+  readonly tool: ToolCallAdmission | undefined
   state: CallState
   admitted: boolean
 }
@@ -737,6 +753,7 @@ export class ResourceRegistry {
     clientId: string,
     requestId: string,
     signal: AbortSignal,
+    tool?: ToolCallAdmission,
   ): Promise<AcquireCallOutcome> {
     const refused = this.refusal(resourceName, holder, signal)
     if (refused !== undefined) {
@@ -762,6 +779,7 @@ export class ResourceRegistry {
       clientId,
       requestId,
       controller,
+      tool: tool === undefined ? undefined : { ...tool, binding: { ...tool.binding } },
       detach: () => {
         signal.removeEventListener('abort', onAbort)
       },
@@ -783,13 +801,28 @@ export class ResourceRegistry {
     const call = this.callFor(token)
     const lease = this.leaseFor(token.lease)
     if (call === undefined || lease === undefined || call.state !== 'pending') return undefined
+    if (call.tool !== undefined) {
+      const admitted = call.tool.binding
+      const current = call.tool.resolve()
+      if (
+        current?.server !== admitted.server ||
+        current.catalogueGeneration !== admitted.catalogueGeneration ||
+        current.tool !== admitted.tool ||
+        current.isReadOnly !== admitted.isReadOnly ||
+        admitted.server !== lease.token.resourceName ||
+        !call.tool.allowedServers().includes(current.server)
+      ) {
+        this.cancelCall(token, UI_TEXT.teamToolBindingChanged)
+        return undefined
+      }
+    }
     if (
       !call.admitted ||
       lease.state !== 'granted' ||
       this.refusal(token.lease.resourceName, lease.token.holder, call.controller.signal) !==
         undefined
     ) {
-      this.cancelCall(token)
+      this.cancelCall(token, call.tool === undefined ? undefined : UI_TEXT.teamToolBindingChanged)
       return undefined
     }
     call.state = 'dispatched'
@@ -835,7 +868,12 @@ export class ResourceRegistry {
     lease.idleTimer?.cancel()
     lease.idleTimer = undefined
     for (const call of lease.calls.values()) {
-      if (call.state === 'pending') this.cancelCall(call.token)
+      if (call.state === 'pending') {
+        this.cancelCall(
+          call.token,
+          call.tool === undefined ? undefined : UI_TEXT.teamToolBindingChanged,
+        )
+      }
     }
     if (lease.calls.size > 0) return
     const live = this.live(token.resourceName)

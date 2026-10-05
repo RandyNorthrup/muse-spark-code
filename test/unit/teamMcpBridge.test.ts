@@ -8,11 +8,20 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { McpConnection } from '../../src/core/backends/modelapi/mcp/connection'
 import { McpServerPool } from '../../src/core/backends/modelapi/mcp/pool'
 import { readMcpServerEntries } from '../../src/core/backends/musecode/museConfigView'
-import { type CallToolResult, McpError } from '../../src/core/backends/modelapi/mcp/protocol'
+import {
+  type CallToolResult,
+  type McpToolInfo,
+  callToolResultSchema,
+  incomingMessageSchema,
+  McpError,
+} from '../../src/core/backends/modelapi/mcp/protocol'
+import { LineFramer, type McpChildProcess } from '../../src/core/backends/modelapi/mcp/stdio'
+import { messageSchema } from '../../src/core/mcp'
+import { UI_TEXT } from '../../src/shared/constants'
 import type {
   BridgeOfferedTool,
+  BridgeToolRef,
   McpPoolSnapshot,
-  McpToolRef,
 } from '../../src/core/backends/modelapi/mcp/pool'
 import { ResourceRegistry } from '../../src/core/team/resources'
 import { type TeamBridgePool, TeamMcpBridge } from '../../src/host/team/mcpBridge'
@@ -22,6 +31,144 @@ import { startFakeMcpHttp } from './helpers/fakeMcpHttpServer'
 import { postLoopback, postLoopbackJson } from './helpers/loopbackHttp'
 import { createManualClock } from './helpers/manualClock'
 import { ENGINEER, ORCHESTRATOR, RESEARCHER } from './helpers/teamHolders'
+
+/** Synthetic child bytes pass through the production stdio framer and connection. */
+function relistingChild(initial: readonly McpToolInfo[]) {
+  let tools = initial
+  let stdout: ((bytes: Uint8Array) => void) | undefined
+  let exit: ((reason: string) => void) | undefined
+  const framer = new LineFramer()
+  const calls: string[] = []
+  const send = (message: unknown) => stdout?.(Buffer.from(`${JSON.stringify(message)}\n`))
+  const answer = (frame: string) => {
+    const message = messageSchema.parse(JSON.parse(frame))
+    if (message.id === undefined || message.id === null) return
+    let result: unknown
+    switch (message.method) {
+      case 'initialize': {
+        result = {
+          protocolVersion: '2025-06-18',
+          capabilities: { tools: { listChanged: true } },
+        }
+        break
+      }
+      case 'tools/list': {
+        result = { tools }
+        break
+      }
+      case 'tools/call': {
+        const name = message.params?.['name']
+        if (typeof name !== 'string') throw new Error('Invalid synthetic tools/call')
+        calls.push(name)
+        result = { content: [{ type: 'text', text: `${name} dispatched` }] }
+        break
+      }
+      default: {
+        throw new Error(`Unexpected synthetic method ${message.method ?? ''}`)
+      }
+    }
+    send({ jsonrpc: '2.0', id: message.id, result })
+  }
+  const child: McpChildProcess = {
+    write: (bytes) => {
+      for (const frame of framer.push(bytes)) {
+        answer(frame)
+      }
+    },
+    onStdout: (listener) => {
+      stdout = listener
+    },
+    onStderr: () => undefined,
+    onExit: (listener) => {
+      exit = listener
+    },
+    endInput: () => exit?.('closed'),
+    kill: () => {
+      exit?.('killed')
+      return Promise.resolve()
+    },
+  }
+  return {
+    child,
+    calls,
+    relist: (next: readonly McpToolInfo[]) => {
+      tools = next
+      send({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' })
+    },
+  }
+}
+
+const RELIST_TOOL: McpToolInfo = {
+  name: 'tool',
+  inputSchema: { type: 'object' },
+  annotations: { readOnlyHint: true },
+}
+const RELIST_KEEPER: McpToolInfo = { ...RELIST_TOOL, name: 'keeper' }
+const RELIST_FUNCTION = 'mcp__server_a__tool'
+
+async function realRelistingBridge(isHttp: boolean) {
+  const first = relistingChild([RELIST_TOOL, RELIST_KEEPER])
+  const second = relistingChild([RELIST_TOOL])
+  const children = new Map([
+    ['server.a', first],
+    ['server_a', second],
+  ])
+  const mcpServers = Object.fromEntries(
+    Array.from(children.keys(), (name) => [
+      name,
+      { command: process.execPath, args: [name], framing: 'line_delimited_json' },
+    ]),
+  )
+  const pool = new McpServerPool({
+    readSettings: () => readMcpServerEntries(JSON.stringify({ mcpServers })),
+    lookupEnv: () => undefined,
+    isWorkspaceTrusted: () => true,
+    workspaceRoot: process.cwd(),
+    platform: process.platform,
+    spawn: (launch) => {
+      const found = children.get(launch.args[0] ?? '')
+      if (found === undefined) throw new Error('Unknown synthetic child')
+      return found.child
+    },
+    fetch: globalThis.fetch.bind(globalThis),
+    clientVersion: '0.0.0-test',
+    log: new FakeLogOutputChannel(),
+  })
+  try {
+    await pool.start()
+    const launched = await started(pool)
+    launched.leases.declare({ name: 'server.a', kind: 'exclusive', assignedRoles: ['research'] })
+    launched.leases.declare({ name: 'server_a', kind: 'exclusive', assignedRoles: ['engineering'] })
+    const endpoint = launched.bridge.registerCaller({
+      id: 'reader',
+      holder: RESEARCHER,
+      readOnly: true,
+    })
+    const blocker = await launched.leases.acquire('server.a', ENGINEER)
+    if (blocker.status !== 'held') throw new Error(blocker.status)
+    expect(pool.find(RELIST_FUNCTION)?.server).toBe('server.a')
+    const pending = isHttp
+      ? (async () => {
+          const wire = await postLoopbackJson(endpoint, {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'tools/call',
+            params: { name: RELIST_FUNCTION, arguments: {} },
+          })
+          return callToolResultSchema.parse(incomingMessageSchema.parse(wire).result)
+        })()
+      : launched.bridge.callAs('reader', RELIST_FUNCTION, '{}', new AbortController().signal)
+    await vi.waitFor(() => {
+      expect(
+        launched.leases.snapshot().find((entry) => entry.name === 'server.a')?.waiters,
+      ).toEqual([RESEARCHER])
+    })
+    return { ...launched, first, second, pool, pending, blocker: blocker.lease }
+  } catch (error: unknown) {
+    await pool.close()
+    throw error
+  }
+}
 
 async function acquiredLease(leases: ResourceRegistry, holder: typeof RESEARCHER) {
   const outcome = await leases.acquire('chrome', holder)
@@ -92,11 +239,16 @@ function fakePool() {
         },
       ],
     }),
-    find: (functionName: string): McpToolRef | undefined => {
+    find: (functionName: string): BridgeToolRef | undefined => {
       const found = TOOLS.find((tool) => tool.functionName === functionName)
       return found === undefined
         ? undefined
-        : { server: found.server, tool: found.tool.name, isReadOnly: found.isReadOnly }
+        : {
+            server: found.server,
+            catalogueGeneration: 1,
+            tool: found.tool.name,
+            isReadOnly: found.isReadOnly,
+          }
     },
     bridgeTools: () => TOOLS,
     callRaw: async (functionName: string, _argsJson: string, signal: AbortSignal) => {
@@ -338,6 +490,66 @@ describe('read-only filtering', () => {
 })
 
 describe('worker configuration isolation', () => {
+  it.each([
+    { change: 'unassigned server', isHttp: false },
+    { change: 'unassigned server', isHttp: true },
+    { change: 'writable tool', isHttp: false },
+    { change: 'writable tool', isHttp: true },
+    { change: 'catalogue generation', isHttp: false },
+  ])(
+    'RVM96B3-1: queued relist to $change never dispatches (HTTP: $isHttp)',
+    async ({ change, isHttp }) => {
+      const { first, second, pool, bridge, leases, blocker, pending } =
+        await realRelistingBridge(isHttp)
+      try {
+        if (change === 'unassigned server') {
+          first.relist([RELIST_KEEPER])
+          await vi.waitFor(() => {
+            expect(pool.find(RELIST_FUNCTION)).toBeUndefined()
+          })
+          second.relist([RELIST_TOOL])
+          await vi.waitFor(() => {
+            expect(pool.find(RELIST_FUNCTION)?.server).toBe('server_a')
+          })
+          expect(leases.serversForRole('research')).not.toContain('server_a')
+        } else if (change === 'catalogue generation') {
+          const generation = pool.find(RELIST_FUNCTION)?.catalogueGeneration
+          first.relist([RELIST_TOOL, RELIST_KEEPER])
+          await vi.waitFor(() => {
+            expect(pool.find(RELIST_FUNCTION)?.catalogueGeneration).not.toBe(generation)
+          })
+        } else {
+          first.relist([{ ...RELIST_TOOL, annotations: { readOnlyHint: false } }])
+          await vi.waitFor(() => {
+            expect(pool.find(RELIST_FUNCTION)?.isReadOnly).toBe(false)
+          })
+        }
+        const expectedTools: Record<string, readonly string[]> = {
+          'unassigned server': ['mcp__server_a__keeper'],
+          'writable tool': [],
+          'catalogue generation': [RELIST_FUNCTION, 'mcp__server_a__keeper'],
+        }
+        expect(bridge.listTools('reader').map((tool) => tool.name)).toEqual(expectedTools[change])
+        leases.release(blocker)
+        const result = await pending
+        expect(result.isError).toBe(true)
+        expect(textOf({ result })).toBe(UI_TEXT.teamToolBindingChanged)
+        expect(first.calls).toEqual([])
+        expect(second.calls).toEqual([])
+        for (const name of ['server.a', 'server_a']) {
+          expect(leases.snapshot().find((entry) => entry.name === name)).toMatchObject({
+            holders: [],
+            waiters: [],
+          })
+        }
+      } finally {
+        bridge.close()
+        leases.release(blocker)
+        await pool.close()
+      }
+    },
+  )
+
   it('refuses a server unassigned while its worker waited', async () => {
     const { fake, gate, leases, pendingFirst, pendingSecond } = await queuedChromeCalls()
     leases.declare({ name: 'chrome', kind: 'exclusive', assignedRoles: ['research'] })

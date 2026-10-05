@@ -2048,6 +2048,7 @@
   "teamResourcesRolesLabel": "Kullanabilecek roller",
   "teamResourcesLimitLabel": "Her seferde en fazla {count}",
   "teamResourceBusy": "kaynak meşgul, {role} görevi {taskId} tutuyor",
+  "teamToolBindingChanged": "Beklerken araç veya izinleri değişti ya da kullanım hakkı artık elde tutulmuyor. Çağrı reddedildi; yeniden denemeden önce araç listesini yenileyin.",
   "teamLeaseTakeBack": "Geri al",
   "teamLeaseTakeBackDetail": "Kilit düzenleyiciye geçer; sahibin sonraki çağrısına kaynağın meşgul olduğu söylenir.",
   "teamLeaseRestartServer": "Sunucuyu yeniden başlat",

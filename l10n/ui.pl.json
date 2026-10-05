@@ -2200,6 +2200,7 @@
   "teamResourcesRolesLabel": "Role, które mogą go używać",
   "teamResourcesLimitLabel": "Najwyżej {count} naraz",
   "teamResourceBusy": "zasób zajęty, dzierży {role} zadanie {taskId}",
+  "teamToolBindingChanged": "Narzędzie lub jego uprawnienia zmieniły się podczas oczekiwania albo prawo do jego użycia już nie jest utrzymywane. Wywołanie odrzucono; przed ponowną próbą pobierz ponownie listę narzędzi.",
   "teamLeaseTakeBack": "Odbierz",
   "teamLeaseTakeBackDetail": "Blokada przechodzi do orkiestratora; kolejne wywołanie posiadacza zgłosi zajęty zasób.",
   "teamLeaseRestartServer": "Uruchom serwer ponownie",

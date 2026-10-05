@@ -529,6 +529,8 @@ export const EN = {
   teamResourcesLimitLabel: 'At most {count} at once',
   // {role}: the holding role's name; {taskId}: the holding task's id.
   teamResourceBusy: 'resource busy, held by {role} task {taskId}',
+  teamToolBindingChanged:
+    'The tool or its permissions changed while waiting, or its lease is no longer held. The call was refused; list the tools again before retrying.',
   teamLeaseTakeBack: 'Take back',
   teamLeaseTakeBackDetail:
     'The lease moves to the orchestrator; the holder’s next call is told the resource is busy.',

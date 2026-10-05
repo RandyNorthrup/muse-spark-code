@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Team MCP dispatch permissions.** Queued tool calls retain their admitted
+  server, catalogue generation, tool and permission class. Registry dispatch
+  rechecks that binding, current assignment and exact lease; changed tools are
+  refused before transport dispatch with a translated error.
+
 - **Team repository resource limits.** User and repository declarations now
   require positive safe integer limits; direct repository application refuses
   invalid limits without blocking an otherwise available shared server.
