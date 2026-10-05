@@ -657,6 +657,46 @@ describe('team schemas', () => {
     expect(teamReportShapeSchema.safeParse('qa').success).toBe(true)
   })
 
+  it('RVM96RB2 R10: round-trips the orchestrator agent identity and model settings', () => {
+    const orchestrator = {
+      agent: {
+        kind: 'engine',
+        agentId: 'meta-model-api',
+        model: 'muse-spark-1.3',
+        provider: 'meta',
+        pays: 'key',
+      },
+      settings: { effort: 'xhigh', outputCap: 100, parallelToolCalls: false },
+    }
+    const snapshot = {
+      roles: [],
+      intensity: 'balanced',
+      orchestratorModel: orchestrator.agent.model,
+      orchestrator,
+    }
+    const save = { type: 'teamRolesSave', requestId: 'orchestrator-settings', snapshot }
+    refuses(teamRolesSaveSchema, {
+      ...save,
+      snapshot: { ...snapshot, orchestratorModel: 'different-model' },
+    })
+    expect(teamRolesSaveSchema.safeParse(save)).toMatchObject({ success: true, data: save })
+    expect(teamRolesUpdateSchema.safeParse({ type: 'teamRolesUpdate', snapshot })).toMatchObject({
+      success: true,
+      data: { snapshot },
+    })
+    refuses(teamRolesSaveSchema, {
+      ...save,
+      snapshot: { ...snapshot, orchestrator: { ...orchestrator, settings: { outputCap: 0 } } },
+    })
+    refuses(teamRolesSaveSchema, {
+      ...save,
+      snapshot: {
+        ...snapshot,
+        orchestrator: { ...orchestrator, agent: { ...orchestrator.agent, model: '' } },
+      },
+    })
+  })
+
   it('carries the workspace team and the panel messages', () => {
     const snapshot: TeamSnapshot = {
       roles: [{ role: 'engineering', pool: [] }],

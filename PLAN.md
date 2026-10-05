@@ -16683,6 +16683,18 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**M96INT round 3b (2026-10-05, macmini).** Integrate the reviewed R/B/K
+redesigns, W redesign, I final fixes and M96c in the brief's order with
+`--no-ff`. Preserve all lane intents and translations; splice S's scheduler,
+O's checks and C's shared-files regions into their M96 owners. W owns the
+single Git classifier, with I's tokenizer guards as clients. Complete X2's
+lazy scheduler/runner packaging, shared Traffic controls and documentation.
+Repeat ordinary-graph, seven request goldens and 4,096-byte activation-growth
+proofs, every owning suite and static/build cap, then full quality once.
+Measure the universal VSIX with the published 0.13.0 helper without raising
+its cap. Windows-native coverage and W/I's subsequent fixes stay in 3c;
+no live/paid calls, push, main merge or rebase is authorized.
+
 **M96INT round 3a (2026-10-05, Windows 11 rig).** Merge lane A's final
 review head `273a9131` with both integration and repair intents preserved.
 Compare production activation metafiles with the pre-M96 main source, then
@@ -16835,6 +16847,58 @@ narrowing, generate charters from the tools actually met, defer team
 protocol validators until team activation, retain entry settings and task
 identity, and record regression/red-drill evidence in `m96-r.md` and
 `m96-0.md`. No new dependency or paid/live call.
+
+#### Round-3 redesign: role resolution
+
+REDM96R (2026-10-05), after `RVM96A` R1/R2/R34/R35 and
+`RVM96RB2` R1/R2/R10. Capture built-in, personal and project definitions,
+root listings, session tool/delegate catalogues, paid availability, permission
+mode, explicit ceilings and hash allowances into one deeply immutable snapshot
+before resolution. An explicitly empty catalogue is known absence; a missing
+listed file, failed listing/read, malformed value, duplicate selector or
+untrusted project input is a typed Unknown. Any Unknown blocks the **whole**
+catalogue and every resolution with a translated refusal; precedence cannot
+hide it and there is no fallback to a lower definition.
+
+One pure permission meet computes tools, write paths, delegates, workspace and
+approval mode against every applicable ceiling. Personal definitions remain
+user-authoritative replacements for built-ins (D75); a project's ceiling is
+its personal definition when present, otherwise its built-in definition, or
+the new-id read/codeIntel ceiling until the exact hash allowance. Session
+availability, paid gates, parent permission and explicit runtime ceilings
+always apply. Read-only modes and empty write-path sets remove file-write tools;
+delegation authorizes its team tools separately from ordinary allowlists.
+Project widening and unconditional in-place/model/skills asks
+refuse before the meet; omitted file permission modes mean denyUnmatched.
+Write-glob inclusion has one conservative proof: identical normalized globs,
+literal paths checked by the existing bounded matcher, and subtrees below a
+literal directory/** ceiling. Unprovable inclusion refuses; no heuristic
+broadens it. Each resolved role carries a deeply frozen final `toolset`:
+session tool names, retained authority groups and the charter's `youMay` words,
+generated after every permission ceiling. Built-in groups are captured with
+the definitions; project copies retain their personal or built-in authority's
+shell policy. Personal replacements remain user-authoritative, with the final
+read-only workspace imposing its shell restriction. Charters consume that
+toolset directly, never infer shell power from shared tool names. The orchestrator
+snapshot/slot retains full agent identity and model settings (RB2 R10).
+
+Property-style tests enumerate permission combinations and Unknown sources;
+named tests cover every assigned review finding. Red drills deliberately
+remove each invariant and restore byte-exact, recorded in
+`docs/certification/m96-r.md`. Direct Kubuntu targeted suites and typecheck,
+lint, format, localization, deadcode, duplication, host-API and production
+build/caps certify this lane. Team modules remain outside ordinary activation.
+The rig brief forbids a main merge, push and full quality run; those integrated
+gates remain with the lead. No dependency, new wire shape or paid/live call.
+
+Final repair FIXM96R3 (2026-10-05), against all three `RVM96R3` P2s:
+withdraw delegation tools when the final delegate intersection is empty;
+preserve explicitly offered configured MCP tools through personal allowlists
+and session inheritance, still intersecting every ceiling; retain the
+authoritative shell-policy groups and return the final resolved tool set for
+charters instead of inferring policy from shared shell names. Keep one
+immutable snapshot, intersection-only ceilings and whole-catalogue refusal.
+Each finding gets a named regression and byte-exact red drill in `m96-r.md`.
 
 - **Goal.** A user builds a team in the Models & Agents panel within two
   minutes, from a template with prefills and suggestions.
@@ -20563,7 +20627,9 @@ before a repaired one loads (2026-09-30).
 
 - **M96 R34-general-glob-inclusion (FIXM96R0).** Literal paths and
   patterns rooted inside a literal `directory/**` ceiling are proved
-  narrower; identical patterns remain allowed. Inclusion between other
+  narrower; identical confined patterns remain allowed. REDM96R also refuses
+  brace alternatives, whose apparent prefix can conceal a path escape.
+  Inclusion between other
   different wildcard patterns (for example `docs/*.md` under `**/*.md`)
   is conservatively refused. This is safe because it cannot widen writes.
   A follow-up may add a bounded glob-language inclusion proof with its own

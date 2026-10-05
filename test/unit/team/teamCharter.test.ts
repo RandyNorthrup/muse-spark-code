@@ -13,9 +13,12 @@ import {
 } from '../../../src/core/team/charter'
 import { describeToolsForCharter, resolveTeamToolset } from '../../../src/core/team/toolsets'
 
-function charterTools(groups: readonly TeamToolGroup[]): CharterTools {
+function charterTools(
+  groups: readonly TeamToolGroup[],
+  writePaths?: readonly string[],
+): CharterTools {
   return resolveTeamToolset(
-    { groups },
+    { groups, writePaths },
     {
       offered: groups.flatMap((group) => TEAM_TOOL_GROUP_TOOLS[group]),
       webSearchAllowed: true,
@@ -85,7 +88,7 @@ describe('buildTeamCharter', () => {
     const groups = ['read', 'write', 'report'] as const
     const { generated } = buildTeamCharter(
       { ...RESEARCH, workspace: 'own-branch', writePaths: ['docs/**'] },
-      charterTools(groups),
+      charterTools(groups, ['docs/**']),
     )
     expect(generated).toContain(`You may: ${describeToolsForCharter([...groups], ['docs/**'])}.`)
     // The charter says what the tools enforce: an own-branch writer merges never.

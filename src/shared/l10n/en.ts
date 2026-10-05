@@ -2450,6 +2450,10 @@ export const EN = {
     'The capabilities of {model} are unknown; it was not checked for the {role} role.',
   // A role or team.json file refused whole. {file}: the file; {detail}: the technical reason.
   teamRoleFileRefused: '{file}: {detail}',
+  teamRoleResolutionUnknown:
+    'Role resolution refused because an input is missing, unreadable, malformed or ambiguous.',
+  teamRoleGlobUnproven: 'Write-path inclusion cannot be proved.',
+  teamRoleNotFound: 'Role {role} is not in the complete catalogue.',
   teamJsonRefused: '{file}: {detail}',
   // {id}: the project role; {detail}: the wider asks.
   teamRoleNeedsAllowance:

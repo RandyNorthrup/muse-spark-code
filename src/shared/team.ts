@@ -356,11 +356,26 @@ export const teamTreeSchema = z.object({
 export type TeamTree = z.infer<typeof teamTreeSchema>
 
 /** The whole workspace team as the Roles section edits it. */
-export const teamSnapshotSchema = z.object({
-  roles: z.array(teamRoleConfigSchema),
-  intensity: teamIntensitySchema,
-  orchestratorModel: z.optional(z.string()),
-})
+export const teamSnapshotSchema = z
+  .object({
+    roles: z.array(teamRoleConfigSchema),
+    intensity: teamIntensitySchema,
+    orchestratorModel: z.optional(z.string().check(z.minLength(1))),
+    orchestrator: z.optional(
+      z.strictObject({
+        agent: z.optional(teamAgentRefSchema),
+        settings: z.optional(teamModelSettingsSchema),
+      }),
+    ),
+  })
+  .check(
+    z.refine(
+      (snapshot) =>
+        snapshot.orchestratorModel === undefined ||
+        snapshot.orchestrator?.agent === undefined ||
+        snapshot.orchestratorModel === snapshot.orchestrator.agent.model,
+    ),
+  )
 export type TeamSnapshot = z.infer<typeof teamSnapshotSchema>
 
 // The panel's messages (M96, lane 0 seam for lane U1's `roles/*` and

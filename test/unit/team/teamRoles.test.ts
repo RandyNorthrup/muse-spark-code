@@ -1,6 +1,7 @@
 // Lane R (M96, PLAN.md D75): the role keys, narrowing and the ceiling.
 
 import { describe, expect, it } from 'vitest'
+import { TEAM_TOOL_GROUPS, TEAM_TOOL_GROUP_TOOLS } from '../../../src/shared/constants'
 import { parseAgentFileForRole } from '../../../src/core/context/customAgents'
 import {
   TEAM_ROLE_FRONT_MATTER_KEYS,
@@ -17,6 +18,7 @@ import {
   resolveRoleWorkspace,
   roleFileSha256,
   type RoleDefinition,
+  type RoleEnvironment,
 } from '../../../src/core/team/roles'
 import { builtinRoleFile, builtinRoles } from '../../../src/core/team/builtInRoles'
 import { loaderDeps } from '../helpers/fakeContextIo'
@@ -37,6 +39,20 @@ const designShadow = () => asRole('design', 'builtin', builtinRoleFile('design')
 
 const PROJECT_ROOT = '/ws/.agents/agents'
 const USER_ROOT = '/ws/.home/.config/muse/agents'
+const inputs = {
+  kind: 'known' as const,
+  value: {
+    session: {
+      offered: TEAM_TOOL_GROUPS.flatMap((group) => TEAM_TOOL_GROUP_TOOLS[group]),
+      delegates: ['qa'],
+      webSearchAllowed: true,
+      imagesAllowed: true,
+    },
+    approvalMode: 'allowAll',
+    ceilings: [],
+    allowances: {},
+  } satisfies RoleEnvironment,
+}
 const roots = [
   { directory: PROJECT_ROOT, source: 'project' as const, confineTo: '/ws' },
   { directory: USER_ROOT, source: 'user' as const, confineTo: undefined },
@@ -340,7 +356,7 @@ describe('the new-id ceiling', () => {
     expect(ceiling.workspace).toBe('read-only')
     expect(ceiling.tools).toEqual(expect.arrayContaining(['read_file']))
     expect(ceiling.tools).not.toContain('edit_file')
-    expect(ceiling.writePaths).toBeUndefined()
+    expect(ceiling.writePaths).toEqual([])
     expect(ceiling.delegates).toEqual([])
     expect(isAllowanceForFile(undefined, role.sha256 ?? '')).toBe(false)
     expect(isAllowanceForFile({ sha256: 'other' }, role.sha256 ?? '')).toBe(false)
@@ -365,7 +381,7 @@ describe('loadRoles', () => {
         const load = await loadRoles(
           loaderDeps({ [`.agents/agents/${id}/AGENT.md`]: text }),
           roots,
-          { trustedWorkspace: true },
+          { trustedWorkspace: true, inputs },
         )
         expect(resolveRole(load, id)).toMatchObject({
           kind: 'unloaded',
@@ -395,7 +411,7 @@ describe('loadRoles', () => {
     const load = await loadRoles(
       loaderDeps({ '.agents/agents/cartography/AGENT.md': text }),
       roots,
-      { trustedWorkspace: true },
+      { trustedWorkspace: true, inputs },
     )
     const role = load.roles.find((candidate) => candidate.id === 'cartography')
     expect(role?.approvalMode).toBe('denyUnmatched')
@@ -405,24 +421,24 @@ describe('loadRoles', () => {
     )
   })
   it('loads the seven built-ins with nothing configured', async () => {
-    const load = await loadRoles(loaderDeps({}), roots, { trustedWorkspace: true })
+    const load = await loadRoles(loaderDeps({}), roots, { trustedWorkspace: true, inputs })
     expect(load.roles.map((role) => `${role.source}:${role.id}`)).toEqual(
       builtinRoles().map((role) => `builtin:${role.id}`),
     )
     expect(load.warnings).toEqual([])
     expect(resolveRole(load, 'research')).toMatchObject({ kind: 'found' })
-    expect(resolveRole(load, 'nope')).toEqual({ kind: 'unknown' })
+    expect(resolveRole(load, 'nope')).toMatchObject({ kind: 'unknown' })
   })
 
   it('loads a project role only in a trusted workspace', async () => {
     const files = {
       '.agents/agents/cartography/AGENT.md': roleFile('Cartography', 'Mapping'),
     }
-    const trusted = await loadRoles(loaderDeps(files), roots, { trustedWorkspace: true })
+    const trusted = await loadRoles(loaderDeps(files), roots, { trustedWorkspace: true, inputs })
     const role = trusted.roles.find((candidate) => candidate.id === 'cartography')
     expect(role?.source).toBe('project')
     expect(role?.sha256).toBe(roleFileSha256(files['.agents/agents/cartography/AGENT.md']))
-    const untrusted = await loadRoles(loaderDeps(files), roots, { trustedWorkspace: false })
+    const untrusted = await loadRoles(loaderDeps(files), roots, { trustedWorkspace: false, inputs })
     expect(untrusted.roles.find((candidate) => candidate.id === 'cartography')).toBeUndefined()
     expect(
       untrusted.holes.find((hole) => hole.source === 'project' && hole.id === undefined),
@@ -443,14 +459,14 @@ describe('loadRoles', () => {
         'tools: read_file\n',
       ),
     }
-    const load = await loadRoles(loaderDeps(files), roots, { trustedWorkspace: true })
+    const load = await loadRoles(loaderDeps(files), roots, { trustedWorkspace: true, inputs })
     // The project file widens research (own-branch with the whole session's
     // tools): the name refuses instead of falling back, M76's fail-closed
     // rule, and the personal file is not offered while the hole stands.
     expect(
       load.holes.find((hole) => hole.source === 'project' && hole.id === 'research'),
     ).toBeDefined()
-    expect(load.roles.find((role) => role.id === 'research')?.source).toBe('user')
+    expect(load.roles).toEqual([])
     expect(resolveRole(load, 'research')).toMatchObject({ kind: 'unloaded' })
     expect(offeredRoles(load).find((role) => role.id === 'research')).toBeUndefined()
   })

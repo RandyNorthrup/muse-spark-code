@@ -7,6 +7,7 @@
 // offers and the paid gates allow (M76's narrowing).
 
 import {
+  MCP_FUNCTION_PREFIX,
   TEAM_DELEGATE_TOOLS,
   TEAM_DIAGNOSTICS_TOOL,
   TEAM_MODEL_TEXT,
@@ -31,6 +32,8 @@ const TEAM_TOOL_ALIASES: Readonly<Record<string, readonly string[]>> = {
 /** What the role asks for: its groups, and the write globs bound to them. */
 export interface TeamToolsetSpec {
   readonly groups: readonly TeamToolGroup[]
+  /** Narrows groups and requests offered configured MCP tools outside them. */
+  readonly tools?: readonly string[] | undefined
   /** The role's `write-paths`; undefined writes nowhere or the whole branch. */
   readonly writePaths?: readonly string[] | undefined
 }
@@ -45,7 +48,7 @@ export interface TeamToolsetSession {
 
 /** A role's tools met with the session: the exact set call admission holds. */
 export interface ResolvedTeamToolset {
-  /** Canonical tool names, in `TEAM_TOOL_GROUPS` order, each once. */
+  /** Session tool names, each once: groups, configured MCP, then delegation. */
   readonly tools: readonly string[]
   /** The groups that kept at least one offered tool, in table order. */
   readonly groups: readonly TeamToolGroup[]
@@ -74,6 +77,28 @@ function meetTool(offered: ReadonlySet<string>, tool: string): string | undefine
   return offered.has(tool)
     ? tool
     : (TEAM_TOOL_ALIASES[tool] ?? []).find((alias) => offered.has(alias))
+}
+
+function canonicalToolName(name: string): string {
+  return (
+    Object.entries(TEAM_TOOL_ALIASES).find(
+      ([tool, aliases]) => tool === name || aliases.includes(name),
+    )?.[0] ?? name
+  )
+}
+
+/** Intersect canonical names and aliases, keeping the session's actual tool names. */
+export function meetTeamToolNames(
+  allowed: readonly string[] | undefined,
+  offered: readonly string[],
+): string[] {
+  const wanted =
+    allowed === undefined ? undefined : new Set(allowed.map((name) => canonicalToolName(name)))
+  return [
+    ...new Set(
+      offered.filter((tool) => wanted === undefined || wanted.has(canonicalToolName(tool))),
+    ),
+  ]
 }
 
 /** The groups an allowlist of tool names touches: a group is kept by one tool. */
@@ -197,14 +222,29 @@ export function resolveTeamToolset(
       }
     }
   }
+  // User-configured MCP tools have no static group. Only an explicit
+  // allowlist can request them; known aliases still obey their group/gate.
+  tools.push(
+    ...meetTeamToolNames(spec.tools ?? [], session.offered).filter(
+      (tool) => tool.startsWith(MCP_FUNCTION_PREFIX) && groupsForTools([tool]).length === 0,
+    ),
+  )
+  const narrowed = meetTeamToolNames(spec.tools, tools)
   if (session.delegates.length > 0) {
     for (const tool of TEAM_DELEGATE_TOOLS) {
-      if (isToolOffered(offered, tool) && !tools.includes(tool)) {
-        tools.push(tool)
+      if (isToolOffered(offered, tool) && !narrowed.includes(tool)) {
+        narrowed.push(tool)
       }
     }
   }
-  return { tools, groups: kept, youMay: describeToolsForCharter(kept, spec.writePaths, tools) }
+  const groups = kept.filter((group) =>
+    TEAM_TOOL_GROUP_TOOLS[group].some((tool) => isToolOffered(new Set(narrowed), tool)),
+  )
+  return {
+    tools: narrowed,
+    groups,
+    youMay: describeToolsForCharter(groups, spec.writePaths, narrowed),
+  }
 }
 
 /** Call admission: a call to anything outside the resolved set is refused. */
