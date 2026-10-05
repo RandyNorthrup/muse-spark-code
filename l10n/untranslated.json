@@ -47,7 +47,8 @@
       "execUsage",
       "execScanUsage",
       "teamRoleFileRefused",
-      "teamJsonRefused"
+      "teamJsonRefused",
+      "teamSwitchRow"
     ],
     "cs": [
       "groupModel",

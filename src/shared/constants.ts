@@ -307,6 +307,11 @@ export const SETTING_DEFAULTS = {
   // Best-of-N parallel attempts (M77, PLAN.md D49): N worktree-rooted
   // conversations per run, each billed to the key.
   modelApiBestOfN: false,
+  // M96 lane A (PLAN.md D75): team tasks billed to a key. The owner's rule
+  // (2026-10-04) turns paid extras on, with one price question before the
+  // first charge: the setting starts on, and the gate still needs the price
+  // accepted, so activation asks once before anything is billed.
+  modelApiTeamWorkers: true,
   // Hook commands are user code outside the agent sandbox (M51). A machine
   // setting must explicitly enable them on the Model API backend.
   modelApiHooks: false,
@@ -380,6 +385,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiScheduledPrompts',
   'modelApiSubagents',
   'modelApiBestOfN',
+  'modelApiTeamWorkers',
   'modelApiHooks',
   // M78: the user's rules and profiles, which loosen as well as tighten.
   // `modelApiRepositoryRules` is not among them: a repository sets it, and
@@ -468,6 +474,8 @@ export const PAID_FEATURES = [
   // M78 (PLAN.md D49): the Auto reviewer's calls.
   'autoReviewer',
   'bestOfN',
+  // M96 lane A (PLAN.md D75): team tasks billed to a key.
+  'teamWorkers',
 ] as const
 // The paid features the Muse Code backend can use too, billed to a stored
 // Model API key (M44, PLAN.md D37): images through the `ide` server and
@@ -484,6 +492,7 @@ export const PAID_FEATURE_SETTINGS = {
   subagents: 'modelApiSubagents',
   autoReviewer: 'modelApiAutoReviewer',
   bestOfN: 'modelApiBestOfN',
+  teamWorkers: 'modelApiTeamWorkers',
 } as const satisfies Readonly<Record<PaidFeature, keyof typeof SETTING_DEFAULTS>>
 // Meta's published prices (dev.meta.ai/docs/pricing-rate-limits, read
 // 2026-09-24), on top of the tokens a turn uses: a web search, an image, and
@@ -2350,6 +2359,8 @@ export const ATOMIC_TEMPORARY_SUFFIX = '.tmp'
 export const ATOMIC_RENAME_ATTEMPTS = 5
 export const ATOMIC_RENAME_DELAY_MS = 25
 export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
+// M96 lane A (PLAN.md D75): a task past its minutes per task is stopped.
+export const MILLISECONDS_PER_MINUTE = 60 * 1000
 // Model API schedules (M52): local jobs expire as Muse Code's do, and no
 // occurrence may run without a fresh paid-run confirmation.
 export const SCHEDULE_MIN_INTERVAL_MS = 60 * 1000
@@ -4318,6 +4329,12 @@ export const TEAM_LOAD_SAMPLE_MS = 5000
 export const TEAM_LOAD_CPU_HIGH = 0.85
 export const TEAM_LOAD_WINDOW_MS = 30_000
 export const TEAM_LOAD_FREE_MEMORY_MIN = 2 * 1024 * 1024 * 1024
+
+// Lane A's durable ledger bounds; all role and provider limits use the shared definitions above.
+export const TEAM_LEDGER_BRIEF_MAX_CHARS = 500
+export const TEAM_LEDGER_LINE_MAX_BYTES = 1_000_000
+export const TEAM_LEDGER_FILE_PREFIX = 'team-'
+export const TEAM_LEDGER_FILE_SUFFIX = '.jsonl'
 
 // The team's text for the model (M96, PLAN.md D75), English whatever the
 // display language. A block of its own beside MODEL_TEXT so that a bundle

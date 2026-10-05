@@ -76,6 +76,7 @@ function confirmationDetail(feature: PaidFeature): string {
     subagents: UI_TEXT.paidConfirmSubagents,
     autoReviewer: UI_TEXT.paidConfirmAutoReviewer,
     bestOfN: UI_TEXT.paidConfirmBestOfN,
+    teamWorkers: UI_TEXT.paidConfirmTeamWorkers,
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
 }

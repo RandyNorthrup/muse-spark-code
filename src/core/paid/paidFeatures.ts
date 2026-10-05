@@ -26,6 +26,10 @@ import { estimateCostUsd } from '../usage/insights'
 export interface PaidFeatureGateDeps {
   /** Whether the feature's `museSpark.*` setting is on. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
+  /** Lane T: a runnable distinct-model team in this conversation, with a key.
+   * Absence keeps workers unavailable and loads no team code at activation.
+   */
+  readonly isTeamAvailable?: () => boolean
   /** Writes the feature's setting in the user's settings. */
   readonly setSetting: (feature: PaidFeature, isOn: boolean) => Promise<void>
   /** The features whose price the user accepted (the extension's own global state). */
@@ -83,9 +87,13 @@ export class PaidFeatureGate {
     this.notify()
   }
 
-  /** Whether the feature may be used: setting on and price accepted. */
+  /** Whether the feature is offered; each use still requires PaidUseConsent. */
   public isOn(feature: PaidFeature): boolean {
-    return this.deps.isSettingOn(feature) && this.deps.readAccepted().has(feature)
+    // D78/owner ruling: the default offers team workers; the first charged
+    // delegate asks through PaidUseConsent, never the activation review.
+    return feature === 'teamWorkers'
+      ? this.deps.isSettingOn(feature) && this.deps.isTeamAvailable?.() === true
+      : this.deps.isSettingOn(feature) && this.deps.readAccepted().has(feature)
   }
 
   /** The features that are on, in their fixed order. */
@@ -114,7 +122,12 @@ export class PaidFeatureGate {
       if (!isSettingOn && isAccepted) {
         await this.setAccepted(feature, false)
         this.deps.log.info(`Paid feature ${feature} turned off`)
-      } else if (isSettingOn && !isAccepted && !this.asking.has(feature)) {
+      } else if (
+        feature !== 'teamWorkers' &&
+        isSettingOn &&
+        !isAccepted &&
+        !this.asking.has(feature)
+      ) {
         pending.push(feature)
       }
     }
@@ -224,6 +237,14 @@ export class PaidUsage {
         this.tally = { ...tally, bestOfNAttempts: (tally.bestOfNAttempts ?? 0) + units }
         break
       }
+      case 'teamWorkers': {
+        this.tally = {
+          ...tally,
+          teamWorkerRequests: (tally.teamWorkerRequests ?? 0) + units,
+          teamWorkerUnknownRequests: (tally.teamWorkerUnknownRequests ?? 0) + units,
+        }
+        break
+      }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
     for (const listener of this.listeners) {
@@ -276,6 +297,28 @@ export class PaidUsage {
       ...this.tally,
       bestOfNRequests: (this.tally.bestOfNRequests ?? 0) + 1,
       bestOfNUnknownRequests: (this.tally.bestOfNUnknownRequests ?? 0) + 1,
+    }
+    for (const listener of this.listeners) listener()
+  }
+
+  /** One team task's reported usage; never replayed from storage (M96 lane A). */
+  public addTeamWorkerUsage(modelId: string, usage: SubagentUsage): void {
+    if (modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate team worker use for an unpriced model')
+    }
+    if (
+      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      usage.cachedTokens > usage.inputTokens
+    ) {
+      throw new Error('Team worker usage must be valid nonnegative token counts')
+    }
+    const unknown = this.tally.teamWorkerUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      teamWorkerUnknownRequests: unknown - 1,
+      teamWorkerTokens: (this.tally.teamWorkerTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      teamWorkerCostUsd: (this.tally.teamWorkerCostUsd ?? 0) + estimateCostUsd(usage, modelId),
     }
     for (const listener of this.listeners) listener()
   }

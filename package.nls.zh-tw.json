@@ -89,6 +89,7 @@
   "config.modelApiVoice.description": "付費，預設為關閉。麥克風會將您錄製的內容傳送至 Meta 的 Muse Voice Transcribe，而不是使用您電腦本身的辨識器，每小時音訊 US$0.18，向您的 Model API 金鑰計費：用於 Model API 後端，以及儲存了金鑰時的 Muse Code 後端。開啟時會請您確認價格，且除非您在此工作區中一律允許 Muse Voice，否則每次錄音前都會先詢問您；使用付費引擎時，麥克風會加以標示。",
   "config.modelApiSubagents.description": "付費功能，預設關閉。在 Model API 後端，子代理程式使用您的 Model API 金鑰。啟用時會要求您接受權杖價格。除非您在此工作區中一律允許子代理程式，否則每項新子工作都須核准，包括 略過權限 模式；每項工作最多四次請求，包含重試。子代理程式權杖費用已包含在對話估算中。",
   "config.modelApiBestOfN.description": "付費功能，預設關閉。在 Model API 後端，相同的提示詞會同時在 2–5 個工作樹中執行，由您選用其中一個。啟用時會要求您接受權杖價格。除非您在此工作區中一律允許 N 選最優，否則每次執行均須核准一次並註明嘗試次數和每次嘗試請求上限，在所有權限模式下皆然，包括 略過權限 模式。嘗試的權杖已包含在用量估算中，絕不計入訂閱。",
+  "config.modelApiTeamWorkers.description": "付費，預設為開啟；首次收費時會詢問一次。在 Model API 後端，團隊工作在計入您 Model API 金鑰的模型上執行；在 Muse Code 後端，有儲存的金鑰時執行。啟用時需要接受權杖價格。啟動金鑰計費工作的首次 delegate 呼叫會在所有權限模式下請求核准（包括略過權限），並列出每個模型的價格和每項工作的上限，除非您在此工作區中一律允許團隊代理。訂閱工作和本機工作從不收費。",
   "config.modelApiHooks.description": "在 Model API 後端執行 Muse Code 鉤子命令。預設關閉。命令僅在受信任的工作區中以您的權限在代理沙箱之外執行。啟用前請在 Muse Spark: Hooks 中檢查命令。Model API 金鑰不會傳給鉤子程序。",
   "config.modelApiRepoMap.description": "在 Model API 後端的系統提示詞中加入儲存庫地圖：用 VS Code 語言服務排序的工作區中最常用的檔案與定義，每次對話產生一次，約 1,000 個權杖。預設關閉：它會在每個請求中加入這些權杖，並向您的 Model API 金鑰計費。無論是否開啟，repo_map 工具都可依需求提供同一張地圖。",
   "config.modelApiObservationPacking.description": "在 Model API 後端打包較長的工具輸出。預設關閉。超過 8,000 個字元的工具輸出在前兩次要求中完整傳送，之後以簡短預留位置（其 ID、大小以及首尾幾行）傳送，模型需要時以 recall_output 工具讀回原文。長對話傳送的輸入權杖較少；帳戶與使用量會顯示估計值。對話在開始或繼續時讀取此設定。",

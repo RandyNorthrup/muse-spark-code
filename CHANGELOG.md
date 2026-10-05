@@ -27,6 +27,8 @@ happened, not what was planned; superseded entries are kept.
   drills in `docs/certification/m96-r.md`. Nothing team-related loads or
   changes requests for a single model.
 
+- **M96 agent roles, lane A (pools, accounting and the ledger)**: pool selection takes the first entry with headroom and moves down the line at a cap, a rate limit or a usage limit, with one switch row and one `TeamAgentSwitch` per move; `continue on next` hands the task off with a brief on the same branch; the exhausted policy answers `ask` (Queue it, Main agent does it, Raise a limit…, Cancel), `queue` (recoverable reasons only, then it asks) or `self`; meters sum ledger rows plus open reservations per measure and window, reported or estimated, charged to the sending entry; the ledger keeps one redacted row per delegation in a daily append-only file, with interrupted rows and retention rollups. New paid feature `teamWorkers` (`museSpark.modelApiTeamWorkers`, on with one price question before the first charge): each delegate call that starts key tasks asks once with each model's prices, each task's ceiling and the shared daily budget.
+
 ### Fixed
 
 - **Project-role restrictions (M96 lane R).** Every project role, including
@@ -36,6 +38,21 @@ happened, not what was planned; superseded entries are kept.
   tool meets generate charters naming only the available capabilities.
 - **The M96 round-4 plan remains the plan of record.** Lane 0 and R keep
   the approved descendant-retirement, recovery and separate team-host rules.
+
+- **M96 lane A, round 4:** uncertain descendants retain worker and shell slots;
+  replacement admission needs spare capacity. Pool budgets include the first
+  request and throttle recovery respects lowered ceilings. Recovery requires
+  an explicit takeover decision and writes only this window's ledger. Retention
+  preserves cumulative usage and reset boundaries without touching other owners.
+- **M96 claim accounting:** an injected D78 journal contract covers shared paid,
+  team and workspace budgets, token measures, a durable latest day and restart
+  lookup/settlement by claim id. Lost acknowledgements retry without another
+  charge or refund; unknown usage retains the whole reservation. Integration
+  must wire the durable adapter before dispatching team requests.
+- **Single-model activation stays quiet:** the default-on team-worker
+  setting no longer opens a price confirmation at activation. The host must
+  declare a runnable team before workers are available; the first paid use
+  keeps the three-choice popup.
 
 ## [0.12.1] - 2026-10-04
 

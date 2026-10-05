@@ -282,6 +282,10 @@ function paidUseText(feature: PaidFeature, tally: PaidTally): string {
     case 'bestOfN': {
       return plural(UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts ?? 0)
     }
+    // M96 lane A: the count row until lane U2 builds the Team section.
+    case 'teamWorkers': {
+      return plural(UI_TEXT.usagePaidTeamTasks, tally.teamWorkerRequests ?? 0)
+    }
   }
 }
 

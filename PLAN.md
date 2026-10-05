@@ -6819,6 +6819,20 @@ serve` and every worker session in it, after a confirmation that
       latest-day record; and a lookup by claim id after a restart, so that
       settlement by id works when the window that made the claim is gone.
       Today's settlement handle is bound to its owner.
+    - **Lane A's integration seam (FINM96A).** `TeamReservationJournal` is
+      injected, with `claim`, `settle`, `refund`, `lookupByClaimId` and
+      `latestDay`. `claim.check` is the synchronous final whole-scope check,
+      including shared paid, team and workspace budgets and entry caps.
+      The D78 code at `4e92a19d` still calls its write `reserve` and exposes
+      owner-bound handles; it does not yet export restart lookup or latest-day
+      persistence. The exact adapter mapping and required journal extensions
+      are in `docs/certification/m96-a.md`. No second paid ledger is created.
+    - **First use, not activation (FINM96A).** `teamWorkers`' default offers
+      the feature only when the host's cached `isTeamAvailable` says a
+      declared, runnable team has a key. With no dependency it is unavailable.
+      Activation review never asks for this feature; the paid-use popup
+      authorizes the first charge. D78's grant writer keeps an Always price
+      acceptance so turning it off invalidates grants in every workspace.
     - `museSpark.teamDailyBudgetUsd` and `museSpark.teamDailyBudgetTokens`
       bound the sum across every window of this editor for the local day.
       The intensity level sets each workspace's own budget beneath it.

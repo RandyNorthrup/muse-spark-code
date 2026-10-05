@@ -1896,6 +1896,33 @@ export const EN = {
     'The same prompt runs in separate worktrees, each billed to your Model API key. {price} Each run asks for approval in every permission mode, including Bypass, unless you allow best-of-N always in this workspace. Actual cost depends on tokens used; other paid tools cost extra. Model API backend only.',
   usagePaidBestOfNAttempts: forms({ one: '{count} attempt', other: '{count} attempts' }),
   usagePaidBestOfNIncluded: 'Reported token estimate: {cost}',
+  // Team workers billed to a key (M96 lane A, PLAN.md D75): the paid feature,
+  // its per-task popup lines and its confirmation. {budget} is the shared
+  // daily team budget in the display language's money format.
+  paidTeamWorkersName: 'Team workers',
+  paidTeamWorkerRates:
+    '{model}: {input} input, {cached} cached input, {output} output per million tokens; up to {tokens} tokens per task.',
+  paidTeamWorkerLine: '{role} on {model}: {rates}',
+  paidTeamWorkerBudget: 'Shared daily team budget: {budget}.',
+  paidTeamWorkersTitle: 'Approve paid team tasks?',
+  paidTeamWorkersDetail:
+    '{tasks}\n\nBilled to your Model API key. Actual cost depends on tokens used. Allow once covers these tasks only.',
+  paidConfirmTeamWorkers:
+    'Team tasks run on models billed to your Model API key. {price} The first delegate call that starts key tasks asks for approval in every permission mode, including Bypass, unless you allow team workers always in this workspace. Subscription and local tasks are not paid uses. Actual cost depends on tokens used; other paid tools cost extra.',
+  usagePaidTeamTasks: forms({ one: '{count} team task', other: '{count} team tasks' }),
+  // Team pool selection (M96 lane A, PLAN.md D75): the switch row and its
+  // reasons, and the two refusals callers surface. {measure} and {window}
+  // are D75's code words (tokens/day); {used} and {amount} are formatted
+  // counts in the display language.
+  teamSwitchRow: '{role}: {from} → {to}, {reason}',
+  teamSwitchReasonCap: '{measure}/{window} cap met, {used} of {amount} used',
+  teamSwitchReasonConcurrency: 'no free running slot',
+  teamSwitchReasonRateLimited: 'rate-limited by the provider',
+  teamSwitchReasonUsageLimit: 'subscription usage limit reached',
+  teamSwitchReasonUnavailable: 'agent unavailable',
+  teamSwitchReasonReset: 'headroom back after reset',
+  teamPoolNotStaffed: 'Role {role} has no entries in its pool: it is not staffed.',
+  teamCapExceeded: '{entry} has no {measure}/{window} headroom left ({used} of {amount} used).',
   // The session board (M77, PLAN.md D49).
   boardTitle: 'Session board',
   boardUnavailable:
