@@ -487,17 +487,121 @@ describe('toolDefinitions / classifyTool', () => {
 })
 
 describe('strict tool schemas and grammar safety (M101 item 24)', () => {
-  it('flags function tools strict only where the model takes it', () => {
+  it('requires every property and makes optional values nullable recursively (F4)', () => {
     const definitions = toolDefinitions('linux')
+    const read = withStrictTools(definitions, true).find(
+      (tool) => tool.type === 'function' && tool.name === 'read_file',
+    )
+    expect(read).toMatchObject({
+      strict: true,
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['path', 'offset', 'limit'],
+        properties: {
+          path: { type: 'string' },
+          offset: { type: ['integer', 'null'] },
+          limit: { type: ['integer', 'null'] },
+        },
+      },
+    })
+    const custom = {
+      type: 'function' as const,
+      name: 'nested',
+      description: 'nested',
+      strict: false,
+      parameters: {
+        type: 'object',
+        properties: {
+          rows: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                label: { type: 'string' },
+                mode: { type: 'string', enum: ['one', 'two'] },
+              },
+              required: ['label'],
+            },
+          },
+        },
+        required: [],
+      },
+    }
+    const before = JSON.stringify(custom)
+    expect(withStrictTools([custom], true)[0]).toMatchObject({
+      parameters: {
+        additionalProperties: false,
+        required: ['rows'],
+        properties: {
+          rows: {
+            type: ['array', 'null'],
+            items: {
+              additionalProperties: false,
+              required: ['label', 'mode'],
+              properties: {
+                label: { type: 'string' },
+                mode: { type: ['string', 'null'], enum: ['one', 'two', null] },
+              },
+            },
+          },
+        },
+      },
+    })
+    expect(JSON.stringify(custom)).toBe(before)
+    const search = { type: 'web_search' as const }
+    expect(withStrictTools([search], true)[0]).toBe(search)
+  })
+
+  it('refuses unsupported strict keywords and malformed schemas before dispatch (F4)', () => {
+    for (const parameters of [
+      { type: 'object', properties: {}, patternProperties: { x: { type: 'string' } } },
+      { type: 'object', properties: { x: { type: 'string', minLength: 1 } } },
+      { type: 'object', properties: { x: { anyOf: [{ type: 'string' }] } } },
+      { type: 'object', additionalProperties: true },
+      { type: 'object', required: ['absent'] },
+      { type: 'object', properties: null },
+      { type: 'object', required: null },
+      { type: 'array', items: { type: 'string' } },
+      { type: 'object', properties: { x: { type: 42 } } },
+    ]) {
+      const tools = [
+        { type: 'function' as const, name: 'bad', description: 'bad', parameters, strict: false },
+      ]
+      expect(() => withStrictTools(tools, true)).toThrow('strict_tool_schema_unsupported')
+      expect(withStrictTools(tools, false)).toBe(tools)
+    }
+  })
+
+  it('rejects malformed and unknown grammar type declarations (F5)', () => {
+    for (const type of [42, null, {}, [], ['wizard'], ['string', 42]]) {
+      expect(isToolSchemaGrammarSafe({ type })).toBe(false)
+    }
+    expect(isToolSchemaGrammarSafe({ type: ['string', 'null'] })).toBe(true)
+  })
+
+  it('flags function tools strict only where the model takes it', () => {
+    const definitions = toolDefinitions('linux', {
+      hasShell: true,
+      hasSkills: true,
+      hasImageGeneration: true,
+      hasSubagents: true,
+      hasMemory: true,
+      hasPackedRecall: true,
+      hasWebFetch: true,
+      hasCodeIntel: true,
+      checks: [{ name: 'unit', command: 'npm test', changedFiles: false }],
+    })
     expect(definitions.length).toBeGreaterThan(0)
     // Off returns the same definitions: the canonical body stays strict:false.
     expect(withStrictTools(definitions, false)).toBe(definitions)
     const strict = withStrictTools(definitions, true)
     expect(strict).not.toBe(definitions)
     for (const tool of strict) {
-      if (tool.type === 'function') {
-        expect(tool.strict).toBe(true)
-      }
+      if (tool.type !== 'function') continue
+      expect(tool.strict).toBe(true)
+      expect(tool.parameters['required']).toEqual(Object.keys(tool.parameters['properties'] ?? {}))
+      expect(tool.parameters['additionalProperties']).toBe(false)
     }
     expect(definitions.every((tool) => !tool.strict)).toBe(true)
   })

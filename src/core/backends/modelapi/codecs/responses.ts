@@ -16,12 +16,15 @@ import {
   streamEventSchema,
   usageSchema,
   webSearchCallItemSchema,
+  withStrictTools,
 } from '../schemas'
 import { parseSse } from '../sse'
 
 export interface ResponsesCodecQuirks {
   readonly sendPromptCacheRetention: boolean
   readonly sendPromptCacheKey: boolean
+  /** Selected model's effective supportsStrictTools; absent stays off. */
+  readonly supportsStrictTools?: boolean | undefined
 }
 
 /** Technical diagnostics contain no provider-controlled text or schema errors. */
@@ -148,7 +151,7 @@ export function createResponsesCodec(quirks: ResponsesCodecQuirks): ResponsesWir
         model: body.model,
         input: body.input,
         instructions: body.instructions,
-        tools: body.tools,
+        tools: withStrictTools(body.tools, quirks.supportsStrictTools === true),
         tool_choice: body.tool_choice,
         reasoning: body.reasoning,
         stream: body.stream,

@@ -11,6 +11,8 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import * as z from 'zod/mini'
+import { customQuirksFor } from '../../src/core/providers/presets'
+import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import {
@@ -634,6 +636,29 @@ describe('chat codec retained-history scenario goldens', () => {
 })
 
 describe('chat codec request goldens', () => {
+  it('rewrites custom strict tools only when supportsStrictTools is on (F4)', () => {
+    const body = tinyBody({ tools: toolDefinitions('linux') })
+    const compat = customQuirksFor('chat', { supportsStrictTools: true })
+    const on = encodeChatRequest(body, 'm', {
+      ...GROQ,
+      presetId: 'custom',
+      supportsStrictTools: compat.supportsStrictTools,
+    })
+    expect(on.body.tools?.[0]?.function).toMatchObject({
+      strict: true,
+      parameters: {
+        additionalProperties: false,
+        required: ['path', 'offset', 'limit'],
+        properties: { offset: { type: ['integer', 'null'] } },
+      },
+    })
+    const before = encodeChatRequest(body, 'm', GROQ)
+    const off = encodeChatRequest(body, 'm', { ...GROQ, supportsStrictTools: false })
+    expect(JSON.stringify(off)).toBe(JSON.stringify(before))
+    expect(off.body.tools?.[0]?.function).not.toHaveProperty('strict')
+    expect(body.tools[0]).toMatchObject({ strict: false })
+  })
+
   it('identifies the chat format for lane T', () => {
     expect(CHAT_CODEC_FORMAT).toBe('chat')
   })

@@ -107,11 +107,10 @@ happened, not what was planned; superseded entries are kept.
   Tests compare byte length and SHA-256 without changing the default timeout
   or the sealed snapshot integrity checks.
 
-
 ### Added
 
 - **Bring-your-own-model keys and panel host (M95 lane K).** The `Start
-  with Your Own Model` wizard (in-memory draft; Save writes
+with Your Own Model` wizard (in-memory draft; Save writes
   `providers.json` and the secret together, Cancel discards), the
   `Models & Agents` panel host with its validated bridge, and the
   `Add Model Provider…` quick-pick fast path: SecretStorage records
@@ -253,6 +252,7 @@ happened, not what was planned; superseded entries are kept.
   required check names and the release artifacts are unchanged. In a merge
   group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
   action refuses that event.
+
 - **The extension loads less at startup**: `dist/extension.js` is
   552.6 KiB, down from 590.6 KiB, under its unchanged 600 KiB budget
   (PLAN.md D6, 2026-10-03 and 2026-10-04). Model text that only a lazily
@@ -485,7 +485,7 @@ happened, not what was planned; superseded entries are kept.
   - **Results and schemas:** the result and events are versioned (v1) and
     validated, and their JSON Schemas ship in the package's `schemas/`;
     `npm run schema:exec` regenerates them. `muse-spark-code-acp
-    scan-secrets <file>` counts likely secrets in one file and prints only
+scan-secrets <file>` counts likely secrets in one file and prints only
     the number.
   - **The Action:** `action/` reviews, or proposes a fix for, a
     same-repository pull request on GitHub-hosted runners (a private
@@ -556,7 +556,7 @@ happened, not what was planned; superseded entries are kept.
   shows the generic failure card. A
   command covered by an always-allow rule could run in the empty folder
   before cancellation lands. On
-  ALLOW the approval is answered *Allow once* (never an "always" choice) for
+  ALLOW the approval is answered _Allow once_ (never an "always" choice) for
   each stage while subject and user request stay the same, and the tool row says "Decided: approved (Auto
   reviewer)" with its reason; on ASK, an unreadable answer, no answer
   within 45 seconds, an error, a busy side session or a tripped breaker,
@@ -972,6 +972,7 @@ happened, not what was planned; superseded entries are kept.
     Muse Code refused the decision and still waits on that very step.
   - The log names the step each answer was for: a multi-step command
     decided step by step had read as repeated answers.
+
 - **A step Muse Code moved without saying so no longer strands its
   card.** After **Always allow in this workspace**, Muse Code 1.4.2 can
   show a step its new rule already allows, refuse the decision for it as
@@ -1594,6 +1595,7 @@ happened, not what was planned; superseded entries are kept.
   presence rather than enabling restore. Native/old/unknown uncertainty
   survives window close, PID death and age. Explicit confirmed recovery removes
   only the exact stale presence marker, preserving checkpoints and history.
+
 - **Checkpoints never touch the workspace's `.git`.** They live in a shadow
   repository under the extension profile's canonical-root global storage, run with hooks,
   fsmonitor, your git configuration and the workspace's filters all off,
@@ -2921,9 +2923,7 @@ The first community fix, and the README brought up to date with the panel.
   drill's budget and measurements are current, and the three upstream Muse
   Code issues are linked from Troubleshooting. Its eleven screenshots are
   rendered from the shipped panel by the UI harness (`npm run
-  harness:shots`) and say so; the 0.1.1 captures are gone.
-
-
+harness:shots`) and say so; the 0.1.1 captures are gone.
 
 ## [0.5.1] - 2026-09-23
 
@@ -3356,7 +3356,7 @@ certified per milestone under `docs/certification/`.
   a chat opens, `muse sandbox windows check` runs once per extension host and
   a `setup_required` result raises a notification with _Set up now_ / _Not
   now_ / _Don't ask again_; _Set up now_ relaunches `muse sandbox windows
-  setup` through the UAC prompt, re-checks, and reports. The new command
+setup` through the UAC prompt, re-checks, and reports. The new command
   **Muse Spark: Set Up Shell Sandbox** runs the same flow on demand, and a
   shell tool failing with `sandbox enforcement unavailable` re-offers it. The
   transcript notice now names that command instead of a terminal recipe.

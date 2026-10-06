@@ -31,6 +31,7 @@ import type {
   StreamEvent,
   Usage,
 } from '../schemas'
+import { withStrictTools } from '../schemas'
 
 /** The format name lane T's `WireCodec` carries for this codec. */
 export const CHAT_CODEC_FORMAT = 'chat' as const
@@ -49,6 +50,8 @@ export type ChatReplayField = 'details' | 'content' | 'text' | 'none'
  * fixed routing object plus attribution headers.
  */
 export interface ChatPresetQuirks {
+  /** Selected model's effective supportsStrictTools; absent stays off. */
+  readonly supportsStrictTools?: boolean | undefined
   /** The preset id (`openrouter`, `groq`, …); binds replayed reasoning. */
   readonly presetId: string
   /** The configured provider id; defaults to the preset id for that preset. */
@@ -171,6 +174,7 @@ export interface ChatFunctionTool {
     readonly description: string
     /** The JSON schema, rewritten the same way every time (no key sorting). */
     readonly parameters: Record<string, unknown>
+    readonly strict?: true | undefined
   }
 }
 
@@ -475,7 +479,8 @@ export function encodeChatRequest(
   messages.push(...pendingImages)
 
   const nativeTools: ChatFunctionTool[] = []
-  for (const tool of body.tools) {
+  const tools = withStrictTools(body.tools, quirks.supportsStrictTools === true)
+  for (const tool of tools) {
     if (tool.type !== 'function') {
       throw new Error('chat codec: hosted search never reaches a BYO model')
     }
@@ -485,6 +490,7 @@ export function encodeChatRequest(
         name: tool.name,
         description: tool.description,
         parameters: tool.parameters,
+        ...(quirks.supportsStrictTools === true && { strict: true as const }),
       },
     })
   }

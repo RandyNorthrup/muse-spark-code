@@ -15723,15 +15723,20 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   same shape without pulling provider core into a startup bundle.
   Full quality runs belong to the lead under this lane brief.
 - **Lane P2 status (2026-10-05).** Done: BYO 5 (shared retry tables in
-  `FormatQuirks`, quota never retried, `Retry-After` over 60 s fails naming
-  the wait), BYO 6 (1-hour writes settled disjointly, tier cache rates,
+  `FormatQuirks`, normalized quota/spend-cap codes refused by the classifier,
+  `Retry-After` over 60 s fails naming the wait; non-Meta transport binding is
+  `M101P2-RETRY-BINDING`), BYO 6 (1-hour writes settled disjointly, tier cache rates,
   dearest-write reservations; lane I wires the host lookup and
   `StoredUsage.cacheWriteTokens`), BYO 12 (every callback parameter,
   `closeAllConnections`; refresh-outside-abort is a constraint on the
   not-yet-built M95b refresh), BYO 14 (strict custom-server compat
   overrides), BYO 16 (latest-wins save queue, header-only listing), item 24
-  (per-format `supportsStrictTools`, `withStrictTools`, grammar-safety
-  check; schema-subset rewrite and codec wiring are lanes T/P1). Scope
+  (conservative strict-subset rewrite, every property required, optional
+  values nullable, closed objects, unsupported keywords refused; Responses
+  and Chat codec request gates read injected `supportsStrictTools`; malformed
+  grammar types refused). The missing selected-model capability/transport
+  binding is named `M101P2-STRICT-BINDING` in §9; item 24 is not certified
+  end-to-end until that integration passes. Scope
   change: BYO 10 and BYO 15 moved to M95 lane N; the host price lookup,
   `insights.ts`, `sessionBudget.ts`, `shared/paid.ts` and `effort.ts` are
   lane I's. Record: `docs/certification/m101-p2.md`.
@@ -16403,6 +16408,40 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M101P2-STRICT-BINDING (RVM101P2 F4, 2026-10-05).** The base's
+  `ModelCapabilities` has no strict-tools field and no provider transport
+  composition reaches these codecs. The subset rewrite and Responses/Chat
+  request gates are implemented and tested using the existing effective
+  `FormatQuirks.supportsStrictTools` reader, as the lead authorized. Absent or
+  false stays off, including Meta and local models; no preset/model name
+  enables it inside a codec. Safe while dispatch remains unwired. Follow-up:
+  M101 integration binds the selected model's capability (including a false
+  override on a strict-capable preset), and translates optional strict null
+  sentinels into omitted arguments before the unchanged tool validators. Run
+  full tool loops and capture counted provider acceptance before enabling
+  strict dispatch; the subset/schema tests alone certify no live acceptance.
+- **M101P2-LLAMA-LIMIT (RVM101P2 F5, 2026-10-05).** The malformed grammar
+  type bug is fixed. The actual llama.cpp grammar limit has no capture; byte
+  and depth tripwires do not establish it. Safe for now because the existing
+  local/llama records keep strict tools off and no upstream-limit claim is
+  made. Lane E must capture the supported grammar bounds, count attempts and
+  verify every emitted schema before certifying that capability.
+- **M101P2-RETRY-BINDING (2026-10-05).** The shared classifier and Meta
+  client are wired; the other provider transports remain absent on this
+  base. All existing normalized quota/spend-cap codes are refused by code,
+  tested without message clues. Safe while those transports remain unwired.
+  Lane T/M101 integration must feed each parser's kind/code/status/wait into
+  the effective retry table and prove no-dispatch quota refusal per provider.
+- **M101P2-PRICE-BINDING (2026-10-05).** Lane I still owns the selected
+  provider's host price lookup, usage consumers and persisted cache-write
+  totals. This lane's price-card helpers are tested, but certify no combined
+  settlement path. Safe only while non-Meta dispatch remains unwired; lane I
+  must bind and certify it before enabling those providers.
+- **M101P2-OAUTH-REFRESH (2026-10-05).** No ChatGPT refresh implementation
+  exists on this base. The loopback fixes are tested; they imply no refresh
+  behavior. M95b must keep refresh outside the turn abort and test that path
+  when implemented.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate

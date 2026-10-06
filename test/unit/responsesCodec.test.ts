@@ -3,6 +3,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
+import { customQuirksFor, PRESETS, quirksOf } from '../../src/core/providers/presets'
+import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
 import {
   createResponsesCodec,
   ResponsesDecodeError,
@@ -166,6 +168,38 @@ function golden(name: string): string {
 }
 
 describe('responsesCodec encodeRequest', () => {
+  it('binds strict request schemas only to the injected supportsStrictTools gate (F4)', () => {
+    const body = { ...firstTurnBody(), tools: toolDefinitions('linux') }
+    for (const preset of PRESETS) {
+      if (preset.format !== 'responses') continue
+      const shouldUseStrictTools = quirksOf(preset).supportsStrictTools
+      const codec = createResponsesCodec({
+        ...withRetention,
+        supportsStrictTools: shouldUseStrictTools,
+      })
+      const tools = z
+        .array(z.object({ strict: z.boolean(), parameters: z.record(z.string(), z.unknown()) }))
+        .parse(codec.encodeRequest(body)['tools'])
+      expect(tools.every((tool) => tool.strict)).toBe(shouldUseStrictTools)
+      if (shouldUseStrictTools) {
+        expect(tools[0]?.parameters['required']).toEqual(['path', 'offset', 'limit'])
+      } else {
+        expect(JSON.stringify(codec.encodeRequest(body))).toBe(
+          JSON.stringify(createResponsesCodec(withRetention).encodeRequest(body)),
+        )
+      }
+    }
+    const custom = customQuirksFor('responses', { supportsStrictTools: true })
+    expect(
+      createResponsesCodec({
+        ...withRetention,
+        supportsStrictTools: custom.supportsStrictTools,
+      }).encodeRequest(body),
+    ).toHaveProperty('tools.0.strict', true)
+    const off = createResponsesCodec({ ...withRetention, supportsStrictTools: false })
+    expect(JSON.stringify(off.encodeRequest(firstTurnBody()))).toBe(golden('openai-first-turn'))
+  })
+
   for (const { provider, model } of [
     { provider: 'openai', model: 'gpt-5.6-luna' },
     { provider: 'xai', model: 'grok-4.3' },

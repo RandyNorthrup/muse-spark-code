@@ -355,8 +355,98 @@ export function withStrictTools(
   shouldUseStrict: boolean,
 ): readonly ToolDefinition[] {
   return shouldUseStrict
-    ? tools.map((tool) => (tool.type === 'function' ? { ...tool, strict: true } : tool))
+    ? tools.map((tool) => {
+        if (tool.type !== 'function') return tool
+        if (tool.parameters['type'] !== 'object') {
+          throw new Error('strict_tool_schema_unsupported')
+        }
+        return { ...tool, parameters: strictToolSchema(tool.parameters), strict: true }
+      })
     : tools
+}
+
+// Conservative common strict subset. Unknown/unsupported constraints refuse
+// the request rather than disappearing or changing their meaning silently.
+const STRICT_SCHEMA_KEYS = new Set([
+  'type',
+  'description',
+  'enum',
+  'properties',
+  'required',
+  'additionalProperties',
+  'items',
+])
+const schemaRecord = z.record(z.string(), z.unknown())
+
+function strictToolSchema(node: unknown, isOptional = false, depth = 0): Record<string, unknown> {
+  const parsed = schemaRecord.safeParse(node)
+  if (!parsed.success || depth > TOOL_SCHEMA_MAX_DEPTH) {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  const schema = parsed.data
+  const type = schema['type']
+  if (!isGrammarType(type) || Object.keys(schema).some((key) => !STRICT_SCHEMA_KEYS.has(key))) {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  if (schema['description'] !== undefined && typeof schema['description'] !== 'string') {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  const types = typeof type === 'string' ? [type] : type
+  // isGrammarType verified the union; parse again to narrow without a cast.
+  const parsedTypes = z.array(z.string()).parse(types)
+  const result = { ...schema }
+  if (isOptional && !parsedTypes.includes('null')) {
+    result['type'] = [...parsedTypes, 'null']
+  }
+  const values = schema['enum']
+  if (values !== undefined) {
+    const enumeration = z
+      .array(z.union([z.string(), z.number(), z.boolean(), z.null()]))
+      .safeParse(values)
+    if (!enumeration.success || enumeration.data.length === 0) {
+      throw new Error('strict_tool_schema_unsupported')
+    }
+    result['enum'] =
+      isOptional && !enumeration.data.includes(null)
+        ? [...enumeration.data, null]
+        : [...enumeration.data]
+  }
+  if (parsedTypes.includes('object')) {
+    if (schema['additionalProperties'] !== undefined && schema['additionalProperties'] !== false) {
+      throw new Error('strict_tool_schema_unsupported')
+    }
+    const properties = schemaRecord.safeParse(
+      schema['properties'] === undefined ? {} : schema['properties'],
+    )
+    const required = z
+      .array(z.string())
+      .safeParse(schema['required'] === undefined ? [] : schema['required'])
+    if (
+      !properties.success ||
+      !required.success ||
+      required.data.some((key) => !Object.hasOwn(properties.data, key))
+    ) {
+      throw new Error('strict_tool_schema_unsupported')
+    }
+    result['properties'] = Object.fromEntries(
+      Object.entries(properties.data).map(([key, value]) => [
+        key,
+        strictToolSchema(value, !required.data.includes(key), depth + 1),
+      ]),
+    )
+    result['required'] = Object.keys(properties.data)
+    result['additionalProperties'] = false
+  } else if (
+    ['properties', 'required', 'additionalProperties'].some((key) => Object.hasOwn(schema, key))
+  ) {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  if (parsedTypes.includes('array')) {
+    result['items'] = strictToolSchema(schema['items'], false, depth + 1)
+  } else if (Object.hasOwn(schema, 'items')) {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  return result
 }
 
 /** JSON-schema keywords no constrained-decoding grammar takes (llama.cpp server, SoL-Pi #59/#65). */
@@ -388,6 +478,14 @@ const GRAMMAR_SAFE_TYPES: ReadonlySet<string> = new Set([
   'null',
 ])
 
+function isGrammarType(value: unknown): boolean {
+  return typeof value === 'string'
+    ? GRAMMAR_SAFE_TYPES.has(value)
+    : Array.isArray(value) &&
+        value.length > 0 &&
+        value.every((type: unknown) => typeof type === 'string' && GRAMMAR_SAFE_TYPES.has(type))
+}
+
 /**
  * Whether a tool parameter schema converts to a constrained-decoding
  * grammar (M101 item 24): known primitive types only, no references or
@@ -417,7 +515,7 @@ export function isToolSchemaGrammarSafe(node: unknown, depth = 0): boolean {
   return entries.every(
     ([key, value]) =>
       !GRAMMAR_UNSAFE_KEYS.has(key) &&
-      (key !== 'type' || typeof value !== 'string' || GRAMMAR_SAFE_TYPES.has(value)) &&
+      (key !== 'type' || isGrammarType(value)) &&
       isToolSchemaGrammarSafe(value, depth + 1),
   )
 }
