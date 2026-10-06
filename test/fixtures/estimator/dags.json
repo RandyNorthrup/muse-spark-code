@@ -1,0 +1,334 @@
+[
+  {
+    "name": "chain",
+    "lanes": [
+      {
+        "id": "A",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": [],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": 1,
+          "accountRequestsPerHour": 1,
+          "accountTokensPerHour": 10,
+          "ciJobs": 0,
+          "ciMinutes": 0
+        },
+        "reviewRounds": 0
+      },
+      {
+        "id": "B",
+        "kind": "core",
+        "estimatedHours": 2,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["A"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": 1,
+          "accountRequestsPerHour": 1,
+          "accountTokensPerHour": 10,
+          "ciJobs": 0,
+          "ciMinutes": 0
+        },
+        "reviewRounds": 0
+      },
+      {
+        "id": "C",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["B"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": 1,
+          "accountRequestsPerHour": 1,
+          "accountTokensPerHour": 10,
+          "ciJobs": 0,
+          "ciMinutes": 0
+        },
+        "reviewRounds": 0
+      }
+    ],
+    "golden": {
+      "criticalPath": ["A", "B", "C"],
+      "criticalPathHours": 4,
+      "finishHoursWithTwoSlots": 4
+    },
+    "distribution": "fixedDuration; no review or redesign rounds; not a calibrated Monte Carlo claim"
+  },
+  {
+    "name": "fan-out",
+    "lanes": [
+      {
+        "id": "A",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": [],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": 1,
+          "accountRequestsPerHour": 1,
+          "accountTokensPerHour": 10,
+          "ciJobs": 0,
+          "ciMinutes": 0
+        },
+        "reviewRounds": 0
+      },
+      {
+        "id": "B",
+        "kind": "core",
+        "estimatedHours": 2,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["A"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": 1,
+          "accountRequestsPerHour": 1,
+          "accountTokensPerHour": 10,
+          "ciJobs": 0,
+          "ciMinutes": 0
+        },
+        "reviewRounds": 0
+      },
+      {
+        "id": "C",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["A"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": 1,
+          "accountRequestsPerHour": 1,
+          "accountTokensPerHour": 10,
+          "ciJobs": 0,
+          "ciMinutes": 0
+        },
+        "reviewRounds": 0
+      }
+    ],
+    "golden": {
+      "criticalPath": ["A", "B"],
+      "criticalPathHours": 3,
+      "finishHoursWithTwoSlots": 3
+    },
+    "distribution": "fixedDuration; no review or redesign rounds; not a calibrated Monte Carlo claim"
+  },
+  {
+    "name": "diamond",
+    "lanes": [
+      {
+        "id": "A",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": [],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": 1,
+          "accountRequestsPerHour": 1,
+          "accountTokensPerHour": 10,
+          "ciJobs": 0,
+          "ciMinutes": 0
+        },
+        "reviewRounds": 0
+      },
+      {
+        "id": "B",
+        "kind": "core",
+        "estimatedHours": 2,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["A"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": 1,
+          "accountRequestsPerHour": 1,
+          "accountTokensPerHour": 10,
+          "ciJobs": 0,
+          "ciMinutes": 0
+        },
+        "reviewRounds": 0
+      },
+      {
+        "id": "C",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["A"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": 1,
+          "accountRequestsPerHour": 1,
+          "accountTokensPerHour": 10,
+          "ciJobs": 0,
+          "ciMinutes": 0
+        },
+        "reviewRounds": 0
+      },
+      {
+        "id": "D",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["B", "C"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": 1,
+          "accountRequestsPerHour": 1,
+          "accountTokensPerHour": 10,
+          "ciJobs": 0,
+          "ciMinutes": 0
+        },
+        "reviewRounds": 0
+      }
+    ],
+    "golden": {
+      "criticalPath": ["A", "B", "D"],
+      "criticalPathHours": 4,
+      "finishHoursWithTwoSlots": 4
+    },
+    "distribution": "fixedDuration; no review or redesign rounds; not a calibrated Monte Carlo claim"
+  },
+  {
+    "name": "affinity-bound",
+    "lanes": [
+      {
+        "id": "A",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": [],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": ["macos"],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": 1,
+          "accountRequestsPerHour": 1,
+          "accountTokensPerHour": 10,
+          "ciJobs": 0,
+          "ciMinutes": 0
+        },
+        "reviewRounds": 0
+      },
+      {
+        "id": "B",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": [],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": ["macos"],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": 1,
+          "accountRequestsPerHour": 1,
+          "accountTokensPerHour": 10,
+          "ciJobs": 0,
+          "ciMinutes": 0
+        },
+        "reviewRounds": 0
+      }
+    ],
+    "golden": {
+      "criticalPath": ["A"],
+      "criticalPathHours": 1,
+      "finishHoursWithTwoSlots": 2
+    },
+    "distribution": "fixedDuration; no review or redesign rounds; not a calibrated Monte Carlo claim"
+  }
+]
