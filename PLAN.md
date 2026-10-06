@@ -11047,6 +11047,7 @@ Gates` appears twice (lines 24216 and 24793) with M98's entry inside the
    | `fleet`                       | —                                                                                                                                                             | agents now: sessions, subagents, best-of-N candidates, schedules, background tasks; team workers and lanes; paired devices; nodes                                                                                                                       | the hosts' live state; M96's team host; M100; M110                               | b (local agents), c           | M96; M100; M110a                        |
    | `security`                    | —                                                                                                                                                             | the vault's tier; items by kind; grants, uses, denials and locks, never a value; developer options' audit (D88's amendment)                                                                                                                             | M109's audit; the developer audit                                                | c                             | M109                                    |
    | `accounts`                    | —                                                                                                                                                             | accounts per provider, their placement, thresholds and use, swaps and stops, confirmations (labels resolved locally)                                                                                                                                    | M108                                                                             | c                             | M108                                    |
+   | `estimate`                    | a goal (as D97.2), `--by <date>`, `--fleet current\|minimum\|optimum`                                                                                         | P50 and P90, the critical path, the limiting resource, the setups with their marginal values, the inputs and the calibration sample sizes                                                                                                               | M117's estimator                                                                 | a, once M117 has merged       | M117                                    |
    | `playbook`                    | `--module <glob>`, `--milestone <id>`                                                                                                                         | the three-strikes counts per module and class, the design decisions and their outcomes (`impossible`, `caught`, `remains`), the gates' drill records, every rule turned off with its reason, and the route-around refusals                              | the playbook's record (D96)                                                      | a, once M116 has merged       | M116                                    |
    | `issues`                      | `--repo <owner/name>`                                                                                                                                         | each watched issue: its stage (acknowledged, triage, deciding, in work, verifying, replied, closed), the verdict, its pull request, what it waits for (owner-blocked first), and the day's cap                                                          | M115w's watchdog record                                                          | a, once M115w has merged      | M115w                                   |
    | `schedules`                   | —                                                                                                                                                             | the timeline of upcoming fires and their collisions; each schedule's trigger, target, delivery, grant and who set it; recent fires with outcomes (ran, refused, missed, skipped, failed), refused actions and cost                                      | M115's store and fire record                                                     | a, once M115 has merged       | M115                                    |
@@ -11906,6 +11907,137 @@ core.hooksPath`, edits under `.husky/`, or skipping a gate are refused
     settings); the CLI's `playbook status|record|settings`; the TUI's and
     the desktop's Agent map.
 
+---
+
+### D97 — The capacity estimator (M117, 2026-10-06)
+
+The owner, 2026-10-06: "we should also build out an estimator tool where the
+user can set a criteria like a milestone to ship or a pr etc and when they
+want it done by and this will give an estimate of how many agents you would
+need across different devices with the option to spin up the estimate i
+imagine a lot of people will use this with vps so the estimator should also
+determine what the optimum and minimum setups would be etc and you should be
+able to take the same criteria ie milestone pr etc and tell it to estimate a
+time line based on maximizing the machines and agents you already have setup
+or linked".
+
+**What exists.** The plan's lanes tables carry hour estimates, starts-after
+dependencies and a rig (M112 onward in columns; M110 and M111 per phase and
+per lane). M113's plan reader (D93.5) reads them under `check:plan`'s
+grammar, with git, pull requests and CI as sources (D93.6), and its
+determinism rules (D93.1). M116's record keeps the review rounds per module
+(D96.1). M107's sampler and governor know each machine's capacity per kind
+(D87.4, D87.6); M100 and M110 list the paired devices and nodes; M108's
+accounts carry their rate and usage limits (D88.3); M96's board runs lanes on
+roles; M109's vault holds credentials as brokered uses (D89.4). Nothing
+answers "how long" or "with what".
+
+1. **Two questions, one engine.**
+   - **(a) A goal and a deadline:** how many agents, on which machines, and
+     the minimum and optimum setups, rented servers included.
+   - **(b) A goal and the current fleet:** the timeline when every linked
+     machine and agent is used fully.
+2. **The goal** is a milestone (`M112`, `12`, `m110a0`, as D93.5 matches), a
+   pull request, a set of issues (numbers or a label), a release (the
+   milestones the delivery order assigns to it), or a custom list of lanes
+   (`M112:Q,U`). Its work comes from M113's reader: each lane's hours, its
+   **Starts** dependencies and its rig; open pull requests and their CI from
+   M113's sources. Merged lanes are done; a running lane's remainder is its
+   estimate less the agent time it has had (M96's board), never below the
+   calibrated minimum. A lane's affinity comes from its rig and its files
+   (`native/windows/**` needs Windows, `native/darwin/**` macOS, `os/**` a
+   Linux builder of its architecture, a GPU lane a GPU).
+3. **The fleet.**
+   - **Machines:** this machine, M100's paired devices, M110's nodes, and
+     rented servers (VPS nodes), each with its OS, architecture, cores, RAM,
+     GPU and the user's caps.
+   - **Capacity** from M107: concurrent lane slots per machine (its
+     governor's capacity per kind, under the user's thresholds), never more.
+   - **Agents and accounts:** M96's roles (which kind of lane a role can
+     take), and M108's accounts, whose rate and usage limits are hard
+     constraints shared by the lanes that use them.
+   - **CI:** concurrent jobs and the minutes left in the period, where the
+     provider reports them.
+4. **History, for calibration.** A journal of past lanes (estimated against
+   actual hours, review rounds from M116, CI durations) per lane kind and
+   machine class, built from M96's board, git (a lane branch's first commit
+   to its merge), M116's record and CI. A documented prior ships
+   (`docs/estimator/prior.md`: a lognormal duration around each estimate,
+   and review-round rates from this repository's own record) and calibration
+   replaces it per kind as the history passes `ESTIMATE_CALIBRATION_MIN_SAMPLES`
+   (20 lanes). Below that, the estimate says "uncalibrated prior" in plain
+   words.
+5. **The engine is deterministic** in D93.1's sense: no model call, no clock
+   but the injected `asOf`, the same inputs give the same bytes.
+   - **The DAG** of the goal's lanes and their dependencies, with the
+     critical path and each lane's slack.
+   - **A resource-constrained schedule:** list scheduling, critical path
+     first, with machine and slot affinity; each lane also holds its
+     account's rate share and its CI jobs.
+   - **Review and fix rounds** are drawn from the calibrated rates, with a
+     third-strike redesign (D96.1) as a modelled risk on a module that has
+     already had two rounds.
+   - **P50 and P90 dates** from a seeded Monte Carlo
+     (`ESTIMATE_RUNS`, 2,000) over the calibrated distributions, with our
+     own small PRNG (no dependency). The seed is the SHA-256 of the canonical
+     inputs, or `--seed`, so a run is reproducible.
+   - **The limiting resource** is named: machines of a class, slots,
+     accounts' rate limits, CI, or the critical path itself, found by
+     re-running with each resource class unbounded and naming the one whose
+     removal shortens the schedule most. When the critical path binds, it
+     says so: more agents would not finish sooner.
+6. **Setup recommendations.**
+   - **The minimum setup** that meets the deadline at P50, and the one at
+     P90; and **the optimum** by cost or by speed (the user chooses): the
+     cheapest setup that meets the deadline at P90, or the fastest whose next
+     machine would still save at least `ESTIMATE_MARGINAL_FLOOR_HOURS` (4).
+   - **Expressed as** N machines of a class (vCPU, RAM, OS, architecture,
+     GPU), M agent slots and K accounts, with the marginal value of each
+     added machine (P50 and P90 hours saved).
+   - **Rented servers** in provider-agnostic size classes
+     (`src/shared/machineClasses.json`). An optional price lookup reads public
+     provider catalogs that need no account, under M113's network setting,
+     cached with its date and shown as "a catalog price on {date}, not a
+     quote".
+7. **"Spin it up."**
+   - **Start lanes now** on the existing fleet: the schedule's first lanes
+     are handed to M96's board (and M110's orchestrator hosts) under M116's
+     playbook: contracts first and the prerequisite audit before each wave.
+   - **Provision rented servers** only through providers the user has
+     connected, with their credential held in M109's vault and used by the
+     broker against the provider's API origin (D89.4), never seen by the
+     estimator.
+     - Each server's price and the total are shown first; each spend (each
+       server) needs its own explicit confirmation, under a hard budget cap
+       the user sets for the run (`estimator.provisionBudgetUsd`, no
+       default); a server past the cap is refused.
+     - **It never pays and never creates an account** (the owner's rule): a
+       provider adapter may call only its allow-listed operations (sizes,
+       images, create, status, delete), and never a billing, payment,
+       sign-up or account endpoint.
+     - The server gets Muse Node OS (where the provider takes a custom image)
+       or the container through M110f's cloud-init and rented-server
+       installer, and is paired through M110d's routes; until those merge,
+       recommendations for rented servers are advice only.
+   - **Tear-down** when a provisioned server has been idle
+     `ESTIMATE_IDLE_TEARDOWN_MINUTES` (30), after a notice with **Keep**,
+     through M110f's teardown and wipe.
+8. **Surfaces.**
+   - `/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]` in
+     every editor's composer, and ACP's `/estimate`.
+   - **The Estimator panel:** a Gantt view with the critical path and the
+     P50 and P90 marks, the bottleneck callout, the setup cards (current,
+     minimum, optimum) with their marginal values, and **Spin it up**.
+   - The CLI's `muse-spark-code-acp estimate <goal> [--by …] [--fleet …]
+[--format md|html|json|text] [--seed …]`; a TUI view; M113's `estimate`
+     report kind.
+   - **Re-estimated as lanes finish** (an M115 event trigger on "lane
+     finished"), with the drift since the last estimate shown.
+9. **Honesty.** Every estimate shows its inputs (lanes, fleet, accounts,
+   CI), its calibration sample size per lane kind, its uncertainty (the
+   P50–P90 band), and the limiting resource. With too little history it says
+   "uncalibrated prior". A price is a dated catalog figure, never a promise.
+
 ## 3. Open questions (need the owner)
 
 - **Q-M115 — What M115 needs from the owner (2026-10-06).** Nothing here
@@ -12564,16 +12696,21 @@ train, and those waiting on outside events, keep their own status lines.
     for usage; M108 for accounts; M109 for security; M96 and, for nodes,
     M110a for fleet; M115 for schedules; M110a0's lane T for the TUI; M111a
     and M111b for the desktop.
-16. **M110a0: the home node, then M110os's first image** (D90) — placed by
+16. **M117: the capacity estimator** (D97) — after M113 and M116, whose
+    plan reader and review-round record it needs (about 107
+    lane-hours). Needs: M113 and M116; M107, M100, M108, M96 and M110
+    join as they land; provisioning rented servers waits for M109,
+    M110d and M110f.
+17. **M110a0: the home node, then M110os's first image** (D90) — placed by
     size (about 360 lane-hours), not by dependency: it needs none of M100,
     M107, M108 or M109, and can start right after 0.16.0 when the owner wants
     it sooner. M110os follows M110a0. Needs: M104a's lanes B, C and D, M63,
     M80 and M89; M114's lane 0 for U1, U2 and TD.
-17. **M110's later phases** — each phase's row in M110's roadmap names its
+18. **M110's later phases** — each phase's row in M110's roadmap names its
     own: M110r's Y1 any time after M106's R and M101's C1 and C2; M110t after
     M110a0; M110a with M100 and M96c; M110b with M107's G and M109; M110c
     after M110a and M110b; M110d to M110h after them. Needs: M110a0.
-18. **M111: Muse Desktop** (D91) — corrected: only M111os and M111i wait for
+19. **M111: Muse Desktop** (D91) — corrected: only M111os and M111i wait for
     M110os (OS1, OS2 and OS4). M111a0 needs only M114's lane 0; M111a is
     built on a Debian 13 virtual machine; M111b runs on fakes and is wired on
     M104a and M110a0; M111c's sections join as M96, M100, M102, M103, M108,
@@ -25452,6 +25589,9 @@ and the headless installer ISO uses M111i's daemon and pages.
 - **The orchestrator playbook is D96's** (M116, 2026-10-06): an orchestrator
   host (M110c's R2) plans, reviews and merges under its policy module, with
   the same per-team settings.
+- **The capacity estimator** (D97, M117, 2026-10-06) provisions rented
+  servers through M110f's installer and teardown and pairs them through
+  M110d's routes, and counts every node in the fleet it schedules on.
 
 - **Goal.** A person installs a node on a PC at home, in a container, a VM, a
   Proxmox LXC, a Kubernetes cluster, a rented server or a Pi, or boots Muse
@@ -27623,6 +27763,157 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
   - [ ] Rule 9's refusals, one drill each; no switch for it anywhere
   - [ ] I's parts with M96, M110 and M115w, or each named as waiting
   - [ ] AGENTS.md rule 14; the `/help` rows; strings in all 14 tables;
+        budgets measured; the full gate green
+
+---
+
+### M117 — The capacity estimator (D97)
+
+**Status 2026-10-06: planned.** No model call is needed. It needs M113's plan
+reader, sources, determinism harness and report renderers, and M116's round
+record; the engine and the panel run on fakes until those merge. M107, M100,
+M108 and M110 join as they land; provisioning waits for M109, M110d and
+M110f.
+
+- **Goal.** For a goal (a milestone, a pull request, issues, a release, a
+  list of lanes), the user sees when it will be done with what they have, or
+  what they need to be done by a date: how many agents, on which machines,
+  the minimum and optimum setups with rented servers, and what limits it.
+  One click starts the lanes or, within a hard budget and with a
+  confirmation per spend, provisions the servers.
+- **Depends on.**
+  - **M113 (D93):** the plan reader (lanes tables, dependencies, the
+    delivery order), the git, pull request and CI sources, the determinism
+    rules and harness, the renderers and the `estimate` kind.
+  - **M116 (D96):** the review-round record.
+  - **Joining as they merge:** M107 (capacity per machine); M100 and M110
+    (devices and nodes); M108 (accounts' limits); M96 (roles, the board,
+    starting lanes); M115 (the "lane finished" trigger); M109 (provider
+    credentials); M110d and M110f (rented servers: routes, installer,
+    teardown).
+- **Scope.** D97 entire; strings in all 14 tables; README ("Estimates":
+  both questions, the setups, what Spin it up may and may not do), PRIVACY
+  (the history journal), SECURITY (provider credentials, the operation
+  allow-list), CHANGELOG, `docs/estimator/prior.md`, `docs/acp.md`
+  (`/estimate`), `docs/ide-compatibility/**` rows, the `/help` rows,
+  certification.
+- **Settings.** `museSpark.estimator.optimize` (`cost`; `speed`),
+  `museSpark.estimator.priceLookup` (follows `museSpark.reports.network`),
+  and, per run, the provisioning budget (no default; required before any
+  spend). Machine-scoped.
+- **Lanes and file ownership.** One integration branch,
+  `feature/m117-estimator`, under M87's region rules. Codex or Claude take S
+  and P; Muse implements the rest; Codex reviews in one pass by class; the
+  lead integrates. **Order:**
+  1. Lane 0.
+  2. G, C, S and U in parallel on lane 0's fakes; R after S.
+  3. P's start-lanes part with M96; its provisioning with M109, M110d and
+     M110f.
+  4. W last.
+
+| Lane                               | Items                                                                                                                                                                                                                                                                                                                                               | Files it owns                                                                                                                                                          | Its regions in shared files                                                                                                                                                                                                                             | Starts                                                     | Rig      | Hours |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | -------- | ----: |
+| 0 Contracts, strings, fakes (lead) | The contracts below; every string; the fakes: a fleet (machines, slots, accounts, CI), a provider with sizes, prices, create and delete, and a refused billing endpoint, a history journal, and the fixture of this repository's M103 and M104 lanes (their estimates, dependencies and actual durations from git and the lead's records, scrubbed) | new `src/shared/estimate.ts`, `src/shared/machineClasses.json`, `test/unit/helpers/estimator/**`, `test/fixtures/estimator/**`, `docs/certification/m117-contracts.md` | `constants.ts` (`ESTIMATE_*`); `en.ts`, the 14 tables, `package.nls*.json`; `src/shared/hostApi/**` (`estimate/*`, with M104 lane 0's owner)                                                                                                            | after M113's lane 0                                        | Kubuntu  |     8 |
+| G Goal and DAG                     | D97.2: goal resolution for each kind; remaining work; affinity from rigs and files; the DAG, the critical path and slack                                                                                                                                                                                                                            | new `src/core/estimator/goal.ts`, `src/core/estimator/dag.ts`                                                                                                          | M113's `src/core/reporting/plan/**` and sources (read only, with M113's owner)                                                                                                                                                                          | after 0                                                    | Kubuntu  |    14 |
+| C Calibration                      | D97.4: the history journal and its builders (the board, git, M116's record, CI); the documented prior; fitting per lane kind and machine class; review-round rates and the redesign risk; sample sizes and the "uncalibrated prior" label                                                                                                           | new `src/core/estimator/calibration/**`, `docs/estimator/prior.md`                                                                                                     | M116's record (read only, with its owner); M96's board events (with its owner, once merged)                                                                                                                                                             | after 0                                                    | Mac mini |    14 |
+| S Schedule and simulation          | D97.5: resource-constrained list scheduling with affinity, slots, accounts' rate shares and CI jobs; the seeded Monte Carlo and its PRNG; P50 and P90; the limiting resource, and the critical-path statement                                                                                                                                       | new `src/core/estimator/schedule.ts`, `src/core/estimator/simulate.ts`, `src/core/estimator/bottleneck.ts`                                                             | —                                                                                                                                                                                                                                                       | after 0                                                    | Kubuntu  |    18 |
+| R Recommendations                  | D97.6: the setup search (minimum at P50 and P90, optimum by cost or speed), marginal values, machine and server classes, the optional dated price lookup and its cache                                                                                                                                                                              | new `src/core/estimator/recommend.ts`, `src/core/estimator/prices.ts`                                                                                                  | M113's network setting and cache (with N's owner)                                                                                                                                                                                                       | after S                                                    | Win11 VM |    12 |
+| P Spin it up                       | D97.7: starting the first lanes through M96's board and M110's hosts under M116's playbook; provider adapters with their operation allow-list; the vault-brokered credential; the price, the per-spend confirmation and the hard cap; installation through M110f's cloud-init and pairing through M110d; idle tear-down with **Keep**               | new `src/core/estimator/provision/**`                                                                                                                                  | M96's board (with its owner); M109's broker (the HTTP use, with its owner); M110f's installer and teardown and M110d's routes (with their owners)                                                                                                       | start lanes with M96; provisioning with M109, M110d, M110f | Win11 VM |    18 |
+| U Surfaces                         | D97.8: `/estimate` in the composer and ACP; the Estimator panel (Gantt, bottleneck callout, setup cards, inputs and honesty block, **Spin it up**); the CLI's `estimate`; the TUI's view; M113's `estimate` kind; re-estimates on M115's "lane finished" with the drift; harness scenes and axe                                                     | new `src/webview/estimator/**` (a lazy chunk), `src/runtime/estimator/command.ts`, `src/acp/estimate.ts`                                                               | `src/shared/palette.ts`; `SLASH_COMMAND_NAMES` (`estimate`); `extension.ts` (commands, loaders only); `src/acp/agent.ts`; `src/runtime/cliArgs.ts`; M113's collector (with its owner); M115's event sources (with E's owner); `styles.css` (its region) | after 0; finished after S and R                            | Mac mini |    18 |
+| W Wiring, docs, gates (lead)       | `dist/estimator.js` (lazy), budgets and the split rule (no backend import), `package.json`, the docs, the `/help` rows, registry rows, certification, the full gate                                                                                                                                                                                 | `docs/certification/m117*.md`                                                                                                                                          | `scripts/build.mjs`; the bundle-size and split gates; the host API record; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ide-compatibility/**`; `src/shared/featureCatalog.ts`; PLAN                                                       | last                                                       | Kubuntu  |     5 |
+
+Total: about 107 lane-hours.
+
+- **Lane 0's contracts,** frozen before the other lanes start:
+  - **`src/shared/estimate.ts`:** the goal and its grammar; the fleet
+    snapshot (machines with OS, architecture, cores, RAM, GPU, slots and
+    caps; accounts with their limits; CI); the history record; the estimate
+    (P50, P90, the schedule, the critical path, the limiting resource, the
+    setups, the inputs, the sample sizes), as a section family of M113's
+    `report-v1`.
+  - **`machineClasses.json`:** provider-agnostic classes with vCPU, RAM, OS,
+    architecture and GPU.
+  - **The provider port:** `sizes()`, `images()`, `create(size, image,
+cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
+    allow-list of endpoints.
+  - **Constants:** `ESTIMATE_RUNS` (2,000), `ESTIMATE_CALIBRATION_MIN_SAMPLES`
+    (20), `ESTIMATE_PRIOR_SIGMA` (0.5), `ESTIMATE_MARGINAL_FLOOR_HOURS` (4),
+    `ESTIMATE_IDLE_TEARDOWN_MINUTES` (30), `ESTIMATE_LOCAL_BUDGET_MS`
+    (2,000 for a milestone of up to 40 lanes).
+- **Steps.**
+  1. Lane 0, after M113's lane 0.
+  2. G, C, S and U on the fakes; R after S.
+  3. P's parts as their milestones merge.
+  4. W and the full gate.
+- **Acceptance** (fakes unless named; no model calls):
+  1. **Goldens.** The fixture DAGs (a chain, a fan-out, a diamond, an
+     affinity-bound set, and this repository's M103 and M104 history) give
+     their golden critical paths, schedules and P50 and P90 dates.
+  2. **Determinism.** Two runs in one process and in two child processes
+     with different `TZ` and `LANG` are byte-identical for the same inputs
+     and `asOf` (D93.1's harness; a red drill reads the clock, and the test
+     fails).
+  3. **The bottleneck.** Scenarios in which machines, slots, an account's
+     rate limit, CI and the critical path each bind name that resource; in
+     the critical-path case, adding machines changes nothing and the
+     estimate says so (a red drill lets slots shorten the critical path, and
+     the test fails).
+  4. **Recommendations.** Minimum at P50 and P90 and optimum by cost and by
+     speed on the fixtures; marginal values fall as machines are added; a
+     price shows its catalog and date, and none shows without a public
+     catalog.
+  5. **Calibration.** Below 20 samples a kind says "uncalibrated prior";
+     above, the fitted distribution replaces the prior and the sample size
+     is shown.
+  6. **Spin it up, on the fake provider.** Each server's price and the total
+     show first; each spend needs its confirmation; a server past the cap is
+     refused before any request; the server is installed and paired through
+     the fakes of M110f and M110d; an idle server is torn down after the
+     notice unless kept.
+  7. **Never pays, never creates an account.** An adapter that tries a
+     billing, payment, sign-up or account endpoint is refused by the
+     allow-list (one red drill each); no payment field is ever filled; no
+     spend happens without its confirmation (a red drill skips it, and the
+     test fails).
+  8. **Start lanes** hands the first wave to the fake board, contracts first,
+     with M116's prerequisite audit.
+  9. **Re-estimate** on a fake "lane finished" event shows the drift.
+  10. **Editors.** The panel's Gantt, callout and cards pass axe in four
+      themes and at 320 px; `/estimate` in the panel and ACP; the CLI's
+      formats; the TUI on the MHP fakes, or named as waiting; M113's
+      `estimate` kind.
+  11. **Speed.** A 40-lane milestone estimates within 2 seconds on each rig.
+- **Tests.** `estimatorGoal.test.ts`, `estimatorDag.test.ts`,
+  `estimatorCalibration.test.ts`, `estimatorSchedule.test.ts`,
+  `estimatorSimulate.test.ts` (seeds, determinism), `estimatorBottleneck.test.ts`,
+  `estimatorRecommend.test.ts`, `estimatorProvision.test.ts` (the fake
+  provider, the cap, the allow-list), `estimateCommand.test.ts`,
+  `acpEstimate.test.ts`, and the e2e `estimator.e2e.test.ts` (a milestone from
+  a fixture plan to a schedule to a started first wave). Each has a red drill
+  recorded in `docs/certification/m117-<lane>.md`.
+- **Gates.** The full `npm run quality`, `check:l10n`, the host API record,
+  D6's budgets and the split guard (`src/core/estimator` imports no backend),
+  `test:a11y`, `check:reference`, semgrep.
+- **Security.** Provider credentials stay in the vault and are used by the
+  broker; the allow-list keeps every adapter away from billing and accounts;
+  every spend is confirmed under a hard cap; nothing is provisioned without
+  a connected provider. The history holds lane ids, hours and counts, never
+  content. PLAN §9 records the residual: a provider can bill for a server
+  between its creation and its tear-down even when it sits idle; the cap and
+  the idle tear-down bound it.
+- **Performance and bundles.** `dist/estimator.js` (~40 KiB, measured + 15%,
+  rounded up to 25 KiB) and the panel's chunk (~14 KiB, inside the 50 KiB
+  optional total) load on first use; `dist/extension.js` gains at most
+  1 KiB; no cap rises.
+- **Size.** M: about 107 lane-hours.
+- **Certification checklist** (§6.0, plus):
+  - [ ] The goldens, including this repository's M103 and M104 history
+  - [ ] Determinism across processes, time zones and languages
+  - [ ] The bottleneck, calibration and recommendation drills
+  - [ ] The fake provider's flow, the cap, and the never-pays and
+        never-creates-accounts drills
+  - [ ] P's parts with M96, M109, M110d and M110f, or each named as waiting
+  - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
         budgets measured; the full gate green
 
 ### ENVFENCE — Shell credential fence (D89.5, security fix for 0.14.1)
