@@ -80,14 +80,20 @@ describe.runIf(process.platform === 'win32')(
         path.resolve('test/unit/helpers/vault/windowsVaultMemoryDpapi.cs'),
         'utf8',
       )
+      const memoryHello = await readFile(
+        path.resolve('test/unit/helpers/vault/windowsVaultMemoryHello.cs'),
+        'utf8',
+      )
       const guardedSource = contents
         .map((text, index) => {
-          if (index === 0)
-            return text
-              .replaceAll('ProtectedData.Protect(', 'VaultMemoryDpapi.Protect(')
-              .replaceAll('ProtectedData.Unprotect(', 'VaultMemoryDpapi.Unprotect(')
-          return index === 1
-            ? text
+          switch (index) {
+            case 0: {
+              return text
+                .replaceAll('ProtectedData.Protect(', 'VaultMemoryDpapi.Protect(')
+                .replaceAll('ProtectedData.Unprotect(', 'VaultMemoryDpapi.Unprotect(')
+            }
+            case 1: {
+              return text
                 .replaceAll('CngKey.Create(', 'VaultMemoryKsp.Create(')
                 .replaceAll('CngKey.Exists(', 'VaultMemoryKsp.Exists(')
                 .replaceAll('CngKey.Open(', 'VaultMemoryKsp.Open(')
@@ -95,7 +101,33 @@ describe.runIf(process.platform === 'win32')(
                   'using (var key = VaultMemoryKsp.Open(name, Provider, CngKeyOpenOptions.Silent)) key.Delete();',
                   'VaultMemoryKsp.Delete(name);',
                 )
-            : text
+            }
+            case 2: {
+              return text
+                .replace(
+                  '{ return Type.GetType(name + ", Windows, ContentType=WindowsRuntime", true); }',
+                  '{ return VaultMemoryHello.Runtime(name); }',
+                )
+                .replace('DeadlineMilliseconds = 120000', 'DeadlineMilliseconds = 40')
+                .replace('Environment.UserInteractive', 'VaultMemoryHello.UserInteractive')
+                .replace('new Form', 'new VaultMemoryWindow')
+            }
+            case 3: {
+              return text
+                .replace(
+                  'WTSRegisterSessionNotification(handle, NotifyThisSession)',
+                  'VaultMemoryLock.Register(handle, NotifyThisSession)',
+                )
+                .replace(
+                  'WTSUnRegisterSessionNotification(handle)',
+                  'VaultMemoryLock.Unregister(handle)',
+                )
+                .replace('Application.Run(window)', 'VaultMemoryLock.Run(window)')
+            }
+            default: {
+              return text
+            }
+          }
         })
         .join('\n')
       const run: RunProgram = (file, args, env) =>
@@ -114,7 +146,7 @@ describe.runIf(process.platform === 'win32')(
         storageDir: paths.root,
         systemRoot: process.env['SystemRoot'] ?? String.raw`C:\Windows`,
         readSource: () =>
-          Promise.resolve(guardedSource + '\n' + memoryKsp + '\n' + memoryDpapi + '\n' + harness),
+          Promise.resolve([guardedSource, memoryKsp, memoryDpapi, memoryHello, harness].join('\n')),
         run,
       })
     })
@@ -175,6 +207,28 @@ describe.runIf(process.platform === 'win32')(
         dpapiCurrentUser: true,
         oaepTamperRefused: true,
         generatedKeyDeleted: true,
+        helloSupported: true,
+        helloSupportRefused: true,
+        helloInteractiveRefused: true,
+        helloSilentNoWindow: true,
+        helloAsyncFailureRefused: true,
+        helloDeadlineCanceled: true,
+        helloOperationClosed: true,
+        helloCredentialFailureRefused: true,
+        helloCreationNoOverwrite: true,
+        helloFailedCreationCleaned: true,
+        helloPssVerified: true,
+        helloPkcs1Verified: true,
+        helloUseChallengeBound: true,
+        helloFreshSignEveryUse: true,
+        helloForeignKeyRefused: true,
+        helloSignFailureRefused: true,
+        helloBadSignatureRefused: true,
+        lockSubscriptionFailureRefused: true,
+        lockSubscriptionReleased: true,
+        lockForeignMessageIgnored: true,
+        lockOtherEventIgnored: true,
+        lockOwnEventClosed: true,
       })
     })
     it('roundtrips a generated DPAPI key or explicitly refuses unavailable current-user protection', async () => {

@@ -21579,6 +21579,15 @@ captures and a screen-lock event need the named Windows-capable integration
 rigs. No threshold, rule, scope or OS protection setting is weakened.
 See `docs/certification/m109-pw.md` and Q-M109-Windows-DPAPI in §3.
 
+**M109 P Windows host-API snapshot deferral (2026-10-06).**
+`npm run check:host-api` exited 1 only for this lane's Node import counts:
+`node:child_process` 13 → 15, `node:crypto` 46 → 49,
+`node:fs/promises` 47 → 48, `node:path` 84 → 86. All portable-module
+checks passed; no VS Code API was added. M109's ownership table assigns
+`docs/ide-compatibility/**` and the host-API record to W, so P leaves that
+file untouched. W regenerates it with `npm run check:host-api -- --write`
+on the integrated tree and runs the unmodified check before certification.
+
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in
 this worktree. Hook-on repair commits require the owning regression files,

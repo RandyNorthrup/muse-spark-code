@@ -693,5 +693,197 @@
     "elapsedMs": 6346,
     "beforeSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee",
     "restoredSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee"
+  },
+  {
+    "guard": "native Hello support and interactive admission",
+    "source": "native/windows/MuseSparkVaultHello.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6846,
+    "beforeSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1",
+    "restoredSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1"
+  },
+  {
+    "guard": "native silent tier has no presence window",
+    "source": "native/windows/MuseSparkVaultHello.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6816,
+    "beforeSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1",
+    "restoredSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1"
+  },
+  {
+    "guard": "native async failure refuses",
+    "source": "native/windows/MuseSparkVaultHello.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6611,
+    "beforeSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1",
+    "restoredSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1"
+  },
+  {
+    "guard": "native async approval deadline cancels",
+    "source": "native/windows/MuseSparkVaultHello.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6819,
+    "beforeSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1",
+    "restoredSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1"
+  },
+  {
+    "guard": "native async operation closes",
+    "source": "native/windows/MuseSparkVaultHello.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6314,
+    "beforeSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1",
+    "restoredSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1"
+  },
+  {
+    "guard": "native Hello credential status",
+    "source": "native/windows/MuseSparkVaultHello.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6348,
+    "beforeSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1",
+    "restoredSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1"
+  },
+  {
+    "guard": "native Hello creation refuses overwrite",
+    "source": "native/windows/MuseSparkVaultHello.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6606,
+    "beforeSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1",
+    "restoredSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1"
+  },
+  {
+    "guard": "native failed Hello creation cleanup",
+    "source": "native/windows/MuseSparkVaultHello.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6273,
+    "beforeSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1",
+    "restoredSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1"
+  },
+  {
+    "guard": "native Hello public key binding",
+    "source": "native/windows/MuseSparkVaultHello.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6312,
+    "beforeSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1",
+    "restoredSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1"
+  },
+  {
+    "guard": "native Hello exact signed use and challenge",
+    "source": "native/windows/MuseSparkVaultHello.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6393,
+    "beforeSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1",
+    "restoredSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1"
+  },
+  {
+    "guard": "native Hello signature result status",
+    "source": "native/windows/MuseSparkVaultHello.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6252,
+    "beforeSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1",
+    "restoredSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1"
+  },
+  {
+    "guard": "native Hello actual signature verification",
+    "source": "native/windows/MuseSparkVaultHello.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6374,
+    "beforeSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1",
+    "restoredSha256": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1"
+  },
+  {
+    "guard": "native screen-lock subscription refuses failure",
+    "source": "native/windows/MuseSparkVaultLock.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6351,
+    "beforeSha256": "661cb29ed1b933ee4e9c26e9cb93cee96bfb5abc003b716bf7fdfbb490618c44",
+    "restoredSha256": "661cb29ed1b933ee4e9c26e9cb93cee96bfb5abc003b716bf7fdfbb490618c44"
+  },
+  {
+    "guard": "native screen-lock event matching",
+    "source": "native/windows/MuseSparkVaultLock.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6345,
+    "beforeSha256": "661cb29ed1b933ee4e9c26e9cb93cee96bfb5abc003b716bf7fdfbb490618c44",
+    "restoredSha256": "661cb29ed1b933ee4e9c26e9cb93cee96bfb5abc003b716bf7fdfbb490618c44"
+  },
+  {
+    "guard": "native screen-lock registration cleanup",
+    "source": "native/windows/MuseSparkVaultLock.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6459,
+    "beforeSha256": "661cb29ed1b933ee4e9c26e9cb93cee96bfb5abc003b716bf7fdfbb490618c44",
+    "restoredSha256": "661cb29ed1b933ee4e9c26e9cb93cee96bfb5abc003b716bf7fdfbb490618c44"
+  },
+  {
+    "guard": "native screen-lock refuses foreign messages",
+    "source": "native/windows/MuseSparkVaultLock.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6263,
+    "beforeSha256": "661cb29ed1b933ee4e9c26e9cb93cee96bfb5abc003b716bf7fdfbb490618c44",
+    "restoredSha256": "661cb29ed1b933ee4e9c26e9cb93cee96bfb5abc003b716bf7fdfbb490618c44"
   }
 ]

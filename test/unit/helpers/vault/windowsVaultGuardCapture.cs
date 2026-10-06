@@ -91,6 +91,7 @@ internal static class VaultGuardCapture
         }
         result.Add("generatedKeyDeleted", !VaultMemoryKsp.Exists(name, CngProvider.MicrosoftSoftwareKeyStorageProvider));
         result.Add("currentUserCreation", VaultMemoryKsp.OnlyCurrentUser);
+        VaultMemoryHello.Capture(result);
         Console.WriteLine(MuseSparkVault.Json.Serialize(result));
     }
 }
