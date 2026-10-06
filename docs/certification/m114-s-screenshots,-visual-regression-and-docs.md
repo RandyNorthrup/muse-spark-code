@@ -240,9 +240,10 @@ not assertions that axe measured their contrast. The durable after receipt
 retains every node. This default-view observation uses the identical product
 UI; the capture-driver fallback changes extra scenes' state discovery only.
 
-## Corrected baseline and actual CLI failures
+## Corrected candidate and actual CLI failures
 
-The final source is `c311144b9`, with a named integrated six-theme review.
+The candidate source is `c311144b9`, with a named integrated six-theme review.
+It is not a certified regression baseline: the repeat failure below remains open.
 Its **4,824** PNGs total **246,338,755 / 536,870,912 bytes** in
 `/home/randy/archive/m114-s-c311144`, outside Git. The after index links all
 67 scenes in six themes at both actual widths, and the manifest records all
@@ -269,3 +270,67 @@ integrity assertions both pass. Disabling the shared size/hash predicate
 failed the complete named baseline-integrity test; source restored to
 `6755dc2bfb7d0475cbdffbf03751a53ece315f586bac66fc3efe273344da78d8`. The owning gate/source suites pass **8/8**, default
 timeouts. This removes repeated work, not an integrity check.
+
+## Strict repeat failure — repair path stopped per brief
+
+The real full comparison fails at
+`panel/approval-moved/focus-visible/light/320`: **2 changed pixels**, at
+(210, 13) and (212, 13), on the header's focus-outline raster. Sources,
+viewport and font fingerprint are identical. An independent real repeated
+scene-prefix test also fails on `agents-details/pressed` with **5 pixels**.
+
+Two different repairs were tried: advancing the frozen clock before/after
+state shots to settle frames, then Chrome `--disable-gpu` software raster.
+The first still fails the repeat. The second passed alone but fails again
+in the final three-file concurrent run, still 5 pixels. The brief's exact
+rule is: “If the same test fails twice after two different fixes, STOP that
+path: write down in your report what you tried and why it failed, and move
+on or end the lane.” S stops this path. Both ineffective changes and their
+unaccepted renderer metadata are removed byte-exact; no product style, AA
+filter, threshold, equality assertion or gate is weakened. The repeat test
+collects both actual captures before its assertion, so a mismatch is a failed
+test rather than a beforeAll-induced skipped test.
+
+The candidate's complete hashes/dimensions, named visual review and external
+archive remain reviewable evidence. **Visual acceptance is not certified**;
+`check:visual` remains genuinely failing and no normal/reconstructed green
+receipt is claimed. The lead must resolve browser raster stability before
+release. PLAN §7 names this deferral alongside the fixture and CI bindings.
+
+The restructured final owning gate/source/repeat run passed **9/9** at
+repository defaults with no skips, showing the raster problem is intermittent;
+this does **not** supersede the failed full-matrix check. Deliberately changing
+one captured RGBA channel failed the actual repeat test assertion (not setup),
+then the test restored byte-exact to `456746f8e80f10655194896240a8620762e53612680b4b92cb606f5254bff440`. No claim of
+repeat certification is based on an intermittently passing unit run.
+
+## Final source replay and scoped gates
+
+The real absent-default-archive drill rebuilt Git source
+`c311144b99ac4d113a1bed7bbdedc4aa05c47665` and rendered **all 4,824 baseline
+images** in Chrome 150.0.7871.186/Linux. Comparison then failed on
+`panel/agents-details/pressed/light/320`, **5 pixels**, independently confirming
+the repeat blocker. The manifest restored SHA-256
+`548a7d33462495c131cc524b927ade317983c2c8238191d03274117b9a6fe7c0`.
+Both temporary source and baseline directories were empty before and after:
+cleanup passes even though comparison fails. The original comparison uses
+the same unchanged manifest. [Comparison/cleanup receipts](m114-s-after/comparison.json)
+retain the failure; source reconstruction is implemented but its full visual
+acceptance is **not green**.
+
+Final scoped ESLint, Prettier (the two raw receipt formats were corrected),
+all five compiler projects, localization (14 tables/165 manifest strings/599
+source files, zero problems), host API, plain knip and jscpd (zero clones)
+pass on Kubuntu. The final production build passes token contrast/staleness,
+all unchanged caps/split/host-global checks and **87 notices, four optional
+fonts**. Sizes remain extension **438.4/600 KiB**, Model API **446.9/475 KiB**,
+eager browser JavaScript **793.2/900 KiB**, ACP **819.3/850 KiB**, lazy fonts
+installer **11.4/25 KiB**, browser deferred JS **49.7/50 KiB**.
+
+The lane does not claim full quality: the brief prohibits that aggregate run.
+Release still needs the strict visual repeat/reconstruction green, lane 0's
+missing `contrastActiveBorder` capture, the workflow's token/visual/history
+binding, the measured 12,741-byte startup-growth compaction, and C/N/D's
+named future milestone bindings. S makes zero live/paid model calls, changes
+no dependency lockfile/node_modules, pushes nothing and merges only the two
+ordered branches named by the brief.

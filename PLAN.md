@@ -29081,6 +29081,18 @@ neither this workflow nor its job scheduling; it records the handoff rather
 than editing another owner's file or adding a network fetch to the gate.
 Missing source revisions fail explicitly, and no local gate skips CI.
 
+**M114 strict capture-repeat deferral (S, 2026-10-06).**
+The complete 4,824-image candidate is outside Git, with its hashes, dimensions,
+review and source revision tracked. The actual comparison fails on 2 header
+focus pixels; an independent repeated real scene prefix fails on 5 pressed
+pixels. Clock/frame settling and Chrome software rasterization both failed
+in final verification. The lane brief requires stopping the repair path after
+two different fixes fail; both ineffective changes are reverted. S retains
+the failing strict gate/test and does not waive AA, pixels or coverage.
+Browser raster stability and a fully green normal/source-reconstructed visual
+receipt remain with the lead before release. See S's certification for the
+exact cases and attempted repairs; no certified baseline is claimed.
+
 **M114 P1 forced-colors repair scoped gates (RVM114P12, 2026-10-06).**
 The rig/shared brief forbids full quality/full unit runs and other lanes'
 file edits. P1 runs the five compiler projects, owning regressions and red
