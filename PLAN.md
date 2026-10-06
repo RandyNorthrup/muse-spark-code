@@ -27687,6 +27687,22 @@ and HELP, quiet hours, the summary and link, the caps, the price and the
 paid ask-once; 18 h, Win11 VM), with the lead's 2 h; it needs M109 and
 M110, and fake providers for every adapter.
 
+- **Lane P review RVM113P corrections (2026-10-06).** Fix all seven P2 and
+  both P3 findings in the shared reader and gate. Decode every returned
+  string before the shared credential scrub; recognize indented GFM tables
+  from delimiters and validate their widths; retain case-insensitive working,
+  milestone and lane dependencies and refuse unparseable Needs; pair branch
+  and PR evidence exactly or report ambiguity; retain owner decision text as
+  answered; validate every ledger reference. Bound UTF-8 input at 4 MiB
+  (`REPORT_PLAN_MAX_BYTES`, in the existing Reports constants region), index
+  headings once and use sets for duplicate ids. Scan folded status text once
+  and index passing ledger evidence by acceptance id. Prove a large synthetic plan
+  within the existing parse budget and today's entire plan with zero false
+  drift. Every finding gets a default-timeout regression and a byte-exact red
+  drill in `docs/certification/m113-p-the-plan-reader-and-check-plan.md`.
+  README, CHANGELOG and feature-reference wording remain W's documented
+  handoff; the pure core fixes apply to every editor/runtime.
+
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **Review RVM113L02 correction (2026-10-06).** Derive comparison capacity
     from the document's section schemas, with an exhaustive type-checked map
@@ -30153,6 +30169,21 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M113-P-review-RVM113P (2026-10-06).** All seven P2 and both P3
+  findings are fixed; no review residual remains. Decoded strings are scrubbed,
+  all indented lane tables and delimiter widths are checked, dependencies
+  retain working/case/lane ids and malformed Needs stay blocked, branch/PR
+  evidence pairs exactly or reports ambiguity, owner decision text is retained
+  as answered, and every ledger reference is validated. A 4 MiB UTF-8 bound,
+  bounded gate reads, one heading index, duplicate-id sets, a single scan of
+  folded statuses and indexed ledger evidence replace unbounded/quadratic
+  parsing. Default-timeout regressions, 23 byte-exact red
+  drills and the real-plan zero-false-drift receipt are recorded in
+  `docs/certification/m113-p-the-plan-reader-and-check-plan.md`.
+  Aggregate quality, integrated surface/docs/reference wiring and the seven
+  unchanged unused Reports manifest keys remain the lead/W handoff already
+  recorded there, rather than a claim that all of M113 ships.
 
 - **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
   finding is fixed with no review residuals. Capacity is derived from the

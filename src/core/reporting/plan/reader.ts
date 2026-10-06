@@ -1,15 +1,18 @@
 import type { PlanFacts, PlanMilestone, ReportQuestion } from '../sources/types'
+import { REPORT_PLAN_MAX_BYTES } from '../../../shared/constants'
 import {
   compact,
   comparePlanText,
   field,
   milestoneHeading,
   milestoneIds,
+  deliveryNeeds,
   PLAN_SECTIONS,
   planLines,
   requiredGates,
   tableCells,
-  isTableSeparator,
+  planTables,
+  scrubPlanStrings,
   type PlanLine,
 } from './grammar'
 import { readLanes, type PlanEvidence } from './lanes'
@@ -76,15 +79,19 @@ function milestone(
   evidence: PlanEvidence,
   drift: Drift[],
   line: number,
+  knownIds: ReadonlyMap<string, string>,
 ): PlanMilestone | null {
   const statuses: { date: string; status: PlanMilestone['status']; note: string }[] = []
   for (let index = 0; index < body.length; index += 1) {
     const row = body[index]
     if (!row || !/^(?:- )?\*\*Status /.test(row.text)) continue
     let text = row.text.replace(/^- /, '')
-    while (!text.includes('**', 2) && index + 1 < body.length) {
+    let hasClosingBold = text.includes('**', 2)
+    while (!hasClosingBold && index + 1 < body.length) {
       index += 1
-      text += `\n${body[index]?.text ?? ''}`
+      const continuation = body[index]?.text ?? ''
+      hasClosingBold = continuation.includes('**')
+      text += `\n${continuation}`
     }
     const match = /^\*\*Status (\d{4}-\d{2}-\d{2})(?: \(([^]*?)\))?: ([^]*?)\*\*/.exec(text)
     if (!match?.[1] || !match[3]) {
@@ -125,14 +132,18 @@ function milestone(
     status: current.status,
     date: current.date,
     goal: field(body, 'Goal'),
-    dependencies: milestoneIds(field(body, 'Depends on')),
+    dependencies: milestoneIds(field(body, 'Depends on'), knownIds),
     requiredGates: requiredGates(field(body, 'Gates')),
     lanes: readLanes(body, id, evidence, drift),
     checklist,
   }
 }
 
-function deliveryOrder(body: readonly PlanLine[], drift: Drift[]): PlanFacts['deliveryOrder'] {
+function deliveryOrder(
+  body: readonly PlanLine[],
+  drift: Drift[],
+  knownIds: ReadonlyMap<string, string>,
+): PlanFacts['deliveryOrder'] {
   const result: { id: string; needs: string[]; reason: string }[] = []
   let expected = 1
   for (let index = 0; index < body.length; index += 1) {
@@ -154,17 +165,21 @@ function deliveryOrder(body: readonly PlanLine[], drift: Drift[]): PlanFacts['de
     } else {
       const label = match[2]
       // A versioned release train is one entry; its component milestones remain in the reason.
-      const id = /^(?:M\d+[a-z\d]*|\d+\.\d+\.\d+)/.exec(label)?.[0] ?? label
+      const id = /^(?:M\d+[a-z\d]*|\d+\.\d+\.\d+)/i.exec(label)?.[0] ?? label
       const primaryNeeds = match[4].split(';', 1)[0]?.split(/ for | with | whose /, 1)[0] ?? ''
-      const needs = primaryNeeds.match(/\bM\d+[a-z\d]*\b|\b\d+\.\d+\.\d+\b/g) ?? []
-      result.push({ id, needs: [...new Set(needs)], reason: `${match[3]} Needs: ${match[4]}.` })
+      const needs = deliveryNeeds(primaryNeeds, knownIds)
+      if (needs === null) drift.push({ code: 'delivery-needs', line: row.line, detail: match[4] })
+      else result.push({ id, needs, reason: `${match[3]} Needs: ${match[4]}.` })
     }
     expected += 1
   }
   return result
 }
 
-function questions(body: readonly PlanLine[]): ReportQuestion[] {
+function questions(
+  body: readonly PlanLine[],
+  knownIds: ReadonlyMap<string, string>,
+): ReportQuestion[] {
   const result: ReportQuestion[] = []
   for (let index = 0; index < body.length; index += 1) {
     const row = body[index]
@@ -181,8 +196,10 @@ function questions(body: readonly PlanLine[]): ReportQuestion[] {
     result.push({
       id: match[1],
       text,
-      milestoneIds: milestoneIds(text),
-      state: /\*\*(?:Resolved|Answered)(?:[ :.]|\*)/.test(text) ? 'answered' : 'open',
+      milestoneIds: milestoneIds(text, knownIds),
+      state: /\*\*(?:Resolved|Answered|Decided|Owner answer)(?:\s|[:.]|\*)/i.test(text)
+        ? 'answered'
+        : 'open',
     })
   }
   return result
@@ -218,8 +235,14 @@ function releases(body: readonly PlanLine[]): PlanFacts['releases'] {
   return records
 }
 
-/** Pure parser. Source owners scrub before calling, and R scrubs each rendered output again. */
+/** Pure parser. Decode and scrub every returned string; R scrubs each rendered output again. */
 export function readPlan(text: string, evidence: PlanEvidence = {}): PlanReadResult {
+  const result = parsePlan(text, evidence)
+  scrubPlanStrings(result)
+  return result
+}
+
+function parsePlan(text: string, evidence: PlanEvidence): PlanReadResult {
   const empty: PlanFacts = {
     format: 'none',
     milestones: [],
@@ -230,6 +253,25 @@ export function readPlan(text: string, evidence: PlanEvidence = {}): PlanReadRes
     deliveryOrder: [],
     drift: [],
   }
+  if (
+    text.length > REPORT_PLAN_MAX_BYTES ||
+    new TextEncoder().encode(text).byteLength > REPORT_PLAN_MAX_BYTES
+  )
+    return {
+      facts: {
+        ...empty,
+        drift: [
+          {
+            code: 'input-size',
+            line: 1,
+            detail: `maxUtf8Bytes=${String(REPORT_PLAN_MAX_BYTES)}`,
+          },
+        ],
+      },
+      sections: [],
+      decisions: [],
+      ledger: null,
+    }
   const ledgers = ledgerFence(text)
   if (ledgers.length > 0) {
     const block = ledgers[0]
@@ -252,17 +294,31 @@ export function readPlan(text: string, evidence: PlanEvidence = {}): PlanReadRes
   const milestones: PlanMilestone[] = []
   const drift: Drift[] = []
   const sectionBodies = new Map<number, PlanLine[]>()
+  const knownIds = new Map<string, string>()
+  const headings: number[] = []
+  // One index pass; each milestone body is visited only within its own boundaries.
+  for (const [index, row] of lines.entries()) {
+    if (/^#{2,3} /.test(row.text)) headings.push(index)
+    const item = milestoneHeading(row.text)
+    if (item) knownIds.set(item.id.toLowerCase(), item.id)
+  }
+  const seenSections = new Set<number>()
+  const seenMilestones = new Set<string>()
+  let nextHeading = 0
   let section = 0
   let delivery: PlanFacts['deliveryOrder'] = []
   for (let index = 0; index < lines.length; index += 1) {
     const row = lines[index]
     if (!row) continue
+    while ((headings[nextHeading] ?? lines.length) <= index) nextHeading += 1
+    const end = headings[nextHeading] ?? lines.length
     const heading = /^## (\d+)\. (.+)$/.exec(row.text)
     if (heading?.[1] && heading[2]) {
       section = Number(heading[1])
-      if (sections.some(({ number }) => number === section))
+      if (seenSections.has(section))
         drift.push({ code: 'section-duplicate', line: row.line, detail: heading[1] })
       sections.push({ number: section, title: heading[2], line: row.line })
+      seenSections.add(section)
       if (!sectionBodies.has(section)) sectionBodies.set(section, [])
       continue
     }
@@ -276,29 +332,28 @@ export function readPlan(text: string, evidence: PlanEvidence = {}): PlanReadRes
         drift.push({ code: 'milestone-section', line: row.line, detail: item.id })
         continue
       }
-      const end = lines.findIndex(({ text }, next) => next > index && /^#{2,3} /.test(text))
       const parsed = milestone(
-        lines.slice(index + 1, end === -1 ? undefined : end),
+        lines.slice(index + 1, end),
         item.id,
         item.title,
         evidence,
         drift,
         row.line,
+        knownIds,
       )
       if (parsed) {
-        if (milestones.some(({ id }) => id.toLowerCase() === parsed.id.toLowerCase()))
+        if (seenMilestones.has(parsed.id.toLowerCase()))
           drift.push({ code: 'milestone-duplicate', line: row.line, detail: parsed.id })
         milestones.push(parsed)
+        seenMilestones.add(parsed.id.toLowerCase())
       }
     } else if (section === PLAN_SECTIONS.milestones && row.text.startsWith('### ')) {
       if (/^### Delivery order(?: \(\d{4}-\d{2}-\d{2}\))?$/.test(row.text)) {
-        const end = lines.findIndex(({ text }, next) => next > index && /^#{2,3} /.test(text))
-        delivery = deliveryOrder(lines.slice(index + 1, end === -1 ? undefined : end), drift)
+        delivery = deliveryOrder(lines.slice(index + 1, end), drift, knownIds)
       } else if (!/^### 6\.0 Standard certification checklist(?: \(.+\))?$/.test(row.text))
         drift.push({ code: 'milestone-heading', line: row.line, detail: row.text })
     } else if (section === PLAN_SECTIONS.milestones && row.text === '**Delivery order**') {
-      const end = lines.findIndex(({ text }, next) => next > index && /^#{2,3} /.test(text))
-      delivery = deliveryOrder(lines.slice(index + 1, end === -1 ? undefined : end), drift)
+      delivery = deliveryOrder(lines.slice(index + 1, end), drift, knownIds)
     }
   }
   if (
@@ -308,13 +363,17 @@ export function readPlan(text: string, evidence: PlanEvidence = {}): PlanReadRes
     return { facts: empty, sections, decisions, ledger: null }
   const risks: { id: string; text: string; milestoneIds: string[] }[] = []
   const riskRows = sectionBodies.get(PLAN_SECTIONS.risks) ?? []
-  for (const row of riskRows) {
-    if (!row.text.startsWith('|') || isTableSeparator(row.text)) continue
-    const cells = tableCells(row.text)
-    if (!cells[0] || cells[0] === 'File' || cells[0] === 'Item') continue
-    const text = cells.join(' | ')
-    risks.push({ id: cells.slice(0, 2).join(': '), text, milestoneIds: milestoneIds(text) })
-  }
+  for (const { rows } of planTables(riskRows, drift))
+    for (const row of rows) {
+      const cells = tableCells(row.text)
+      if (!cells[0]) continue
+      const text = cells.join(' | ')
+      risks.push({
+        id: cells.slice(0, 2).join(': '),
+        text,
+        milestoneIds: milestoneIds(text, knownIds),
+      })
+    }
   const residualLines = sectionBodies.get(PLAN_SECTIONS.residuals) ?? []
   const residuals: { id: string; text: string }[] = []
   for (let index = 0; index < residualLines.length; index += 1) {
@@ -336,7 +395,7 @@ export function readPlan(text: string, evidence: PlanEvidence = {}): PlanReadRes
     facts: {
       format: 'plan-format-v1',
       milestones,
-      questions: questions(sectionBodies.get(PLAN_SECTIONS.questions) ?? []),
+      questions: questions(sectionBodies.get(PLAN_SECTIONS.questions) ?? [], knownIds),
       risks,
       residuals,
       releases: releases(sectionBodies.get(PLAN_SECTIONS.releases) ?? []),

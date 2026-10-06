@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Read the same pure parser as reports. No generated baseline or ignored drift.
 import { Buffer } from 'node:buffer'
-import { readFile } from 'node:fs/promises'
+import { open } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { build } from 'esbuild'
@@ -15,7 +15,7 @@ if (args.length > 2 || args.some((arg) => arg.startsWith('--'))) {
   const { outputFiles } = await build({
     stdin: {
       contents:
-        "export { readPlan } from './src/core/reporting/plan/reader'; export { findMilestone } from './src/core/reporting/plan/selection'; export { UI_TEXT, REPORT_EXIT_CODES } from './src/shared/constants'; export { fill } from './src/shared/l10n/text'; export { redactSecrets } from './src/shared/redact'",
+        "export { readPlan } from './src/core/reporting/plan/reader'; export { findMilestone } from './src/core/reporting/plan/selection'; export { UI_TEXT, REPORT_EXIT_CODES, REPORT_PLAN_MAX_BYTES } from './src/shared/constants'; export { fill } from './src/shared/l10n/text'; export { scrubPlanText } from './src/core/reporting/plan/grammar'",
       resolveDir: root,
       loader: 'ts',
       sourcefile: 'check-plan-entry.ts',
@@ -27,15 +27,42 @@ if (args.length > 2 || args.some((arg) => arg.startsWith('--'))) {
     target: 'node22',
     logLevel: 'silent',
   })
-  const { readPlan, findMilestone, UI_TEXT, REPORT_EXIT_CODES, fill, redactSecrets } = await import(
+  const {
+    readPlan,
+    findMilestone,
+    UI_TEXT,
+    REPORT_EXIT_CODES,
+    REPORT_PLAN_MAX_BYTES,
+    fill,
+    scrubPlanText,
+  } = await import(
     `data:text/javascript;base64,${Buffer.from(outputFiles[0].contents).toString('base64')}`
   )
   const file = path.resolve(args[0] ?? path.join(root, 'PLAN.md'))
   try {
-    const { facts } = readPlan(redactSecrets(await readFile(file, 'utf8')))
+    const input = await open(file, 'r')
+    let text
+    try {
+      const { size } = await input.stat()
+      if (size > REPORT_PLAN_MAX_BYTES) throw new RangeError('input-size')
+      const bytes = Buffer.alloc(REPORT_PLAN_MAX_BYTES + 1)
+      let used = 0
+      for (;;) {
+        const { bytesRead } = await input.read(bytes, used, bytes.length - used, null)
+        used += bytesRead
+        if (used > REPORT_PLAN_MAX_BYTES) throw new RangeError('input-size')
+        if (bytesRead === 0) break
+      }
+      text = bytes.toString('utf8', 0, used)
+    } finally {
+      await input.close()
+    }
+    const { facts } = readPlan(text)
     for (const drift of facts.drift)
       console.error(
-        `${path.basename(file)}:${drift.line}: ${fill(UI_TEXT.reportUi.planDrift, { line: String(drift.line), detail: `${drift.code}: ${drift.detail}` })}`,
+        scrubPlanText(
+          `${path.basename(file)}:${drift.line}: ${fill(UI_TEXT.reportUi.planDrift, { line: String(drift.line), detail: `${drift.code}: ${drift.detail}` })}`,
+        ),
       )
     if (facts.drift.length > 0) process.exitCode = REPORT_EXIT_CODES.failed
     else if (args[1]) {
@@ -43,17 +70,26 @@ if (args.length > 2 || args.some((arg) => arg.startsWith('--'))) {
       process.exitCode = selected.exitCode
       if (selected.exitCode === REPORT_EXIT_CODES.notFound)
         console.error(
-          redactSecrets(
+          scrubPlanText(
             fill(UI_TEXT.reportUi.notFound, { id: args[1], nearest: selected.nearest.join(', ') }),
           ),
         )
-      else console.log(`${selected.milestone.id}: ${selected.milestone.status}`)
+      else console.log(scrubPlanText(`${selected.milestone.id}: ${selected.milestone.status}`))
     } else
       console.log(
         `check:plan: ${facts.format}; ${facts.milestones.length} milestones; ${facts.drift.length} drift`,
       )
-  } catch {
-    console.error(UI_TEXT.reportUi.generationFailed)
+  } catch (error) {
+    console.error(
+      scrubPlanText(
+        error instanceof RangeError
+          ? fill(UI_TEXT.reportUi.planDrift, {
+              line: '1',
+              detail: `input-size: maxUtf8Bytes=${String(REPORT_PLAN_MAX_BYTES)}`,
+            })
+          : UI_TEXT.reportUi.generationFailed,
+      ),
+    )
     process.exitCode = REPORT_EXIT_CODES.failed
   }
 }

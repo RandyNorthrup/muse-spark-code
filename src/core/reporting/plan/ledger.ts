@@ -120,13 +120,9 @@ function hasDuplicateJsonKeys(json: string): boolean {
       stack.pop()
       continue
     }
-    if (
-      !json
-        .slice(token.index + word.length)
-        .trimStart()
-        .startsWith(':')
-    )
-      continue
+    let after = token.index + word.length
+    while (/\s/.test(json[after] ?? '') && after < json.length) after += 1
+    if (json[after] !== ':') continue
     const key: unknown = JSON.parse(word)
     const keys = stack.at(-1)
     if (typeof key !== 'string' || !keys) continue
@@ -192,24 +188,32 @@ export function readLedger(
   uniqueIds(ledger.acceptance, 'acceptance')
   uniqueIds(ledger.tasks, 'tasks')
   uniqueIds(ledger.evidence, 'evidence')
-  const references = (
-    values: readonly string[],
-    records: readonly { readonly id: string }[],
-    field: string,
-  ) => {
+  const requirementIds = new Set(ledger.requirements.map(({ id }) => id))
+  const acceptanceIds = new Set(ledger.acceptance.map(({ id }) => id))
+  const taskIds = new Set(ledger.tasks.map(({ id }) => id))
+  const evidenceIds = new Set(ledger.evidence.map(({ id }) => id))
+  const references = (values: readonly string[], ids: ReadonlySet<string>, field: string) => {
     for (const value of values)
-      if (records.every(({ id }) => id !== value))
+      if (!ids.has(value))
         drift.push({ code: 'ledger-reference', line, detail: `${field}: ${value}` })
   }
-  for (const entry of ledger.requirements) references(entry.acceptance, ledger.acceptance, entry.id)
-  for (const entry of ledger.acceptance)
-    references([entry.requirement], ledger.requirements, entry.id)
-  for (const entry of ledger.tasks) {
-    references(entry.acceptance, ledger.acceptance, entry.id)
-    references(entry.depends_on, ledger.tasks, entry.id)
-    references(entry.evidence, ledger.evidence, entry.id)
+  for (const entry of ledger.requirements) {
+    references(entry.acceptance, acceptanceIds, `${entry.id}.acceptance`)
+    if (entry.superseded_by)
+      references([entry.superseded_by], requirementIds, `${entry.id}.superseded_by`)
   }
-  for (const entry of ledger.evidence) references(entry.acceptance, ledger.acceptance, entry.id)
+  for (const entry of ledger.acceptance)
+    references([entry.requirement], requirementIds, `${entry.id}.requirement`)
+  for (const entry of ledger.tasks) {
+    references(entry.acceptance, acceptanceIds, `${entry.id}.acceptance`)
+    references(entry.depends_on, taskIds, `${entry.id}.depends_on`)
+    references(entry.evidence, evidenceIds, `${entry.id}.evidence`)
+    if (entry.superseded_by) references([entry.superseded_by], taskIds, `${entry.id}.superseded_by`)
+  }
+  for (const entry of ledger.evidence)
+    references(entry.acceptance, acceptanceIds, `${entry.id}.acceptance`)
+  if (ledger.checkpoint)
+    references(ledger.checkpoint.verified_tasks, taskIds, 'checkpoint.verified_tasks')
   let status: PlanMilestone['status'] = ledger.tasks.some(
     ({ status }) => status === 'implemented' || status === 'verified',
   )
@@ -221,6 +225,15 @@ export function readLedger(
     status = 'complete'
   if (ledger.tasks.some(({ status }) => status === 'active')) status = 'building'
   if (ledger.tasks.some(({ status }) => status === 'blocked')) status = 'waiting'
+  const passedChecks = new Map<string, Set<QualityLedger['evidence'][number]['kind']>>()
+  for (const proof of ledger.evidence) {
+    if (proof.status !== 'pass') continue
+    for (const id of proof.acceptance) {
+      const checks = passedChecks.get(id) ?? new Set<QualityLedger['evidence'][number]['kind']>()
+      checks.add(proof.kind)
+      passedChecks.set(id, checks)
+    }
+  }
   return {
     ledger,
     facts: {
@@ -239,14 +252,7 @@ export function readLedger(
             text: `${entry.id}: ${entry.given}; ${entry.when}; ${entry.then}`,
             done:
               entry.checks.length > 0 &&
-              entry.checks.every((kind) =>
-                ledger.evidence.some(
-                  (proof) =>
-                    proof.acceptance.includes(entry.id) &&
-                    proof.kind === kind &&
-                    proof.status === 'pass',
-                ),
-              ),
+              entry.checks.every((kind) => passedChecks.get(entry.id)?.has(kind) === true),
           })),
           lanes: ledger.tasks.map((task) => ({
             id: task.id,

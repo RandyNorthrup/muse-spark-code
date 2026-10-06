@@ -4033,6 +4033,8 @@ export const REPORT_CHECK_RUNS_MAX = 500
 export const REPORT_HISTORY_MAX_PER_KIND = 50
 export const REPORT_LOCAL_BUDGET_MS = 2000
 export const REPORT_PLAN_BUDGET_MS = 200
+/** Whole-project plans are larger than per-message text; refuse above this UTF-8 bound. */
+export const REPORT_PLAN_MAX_BYTES = 4 * 1024 * 1024
 export const REPORT_TEXT_COLUMNS = 80
 export const REPORT_SAVE_RETENTION_DEFAULT = 30
 export const REPORT_EMAIL_CODE_TTL_MS = 15 * 60 * 1000

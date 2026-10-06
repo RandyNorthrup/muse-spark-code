@@ -95,6 +95,43 @@ describe('quality-ledger v1 plan', () => {
   })
 
   it.each([
+    [
+      'requirements.superseded_by',
+      { ...fixture, requirements: [{ ...fixture.requirements[0], superseded_by: 'missing' }] },
+    ],
+    [
+      'tasks.superseded_by',
+      { ...fixture, tasks: [{ ...fixture.tasks[0], superseded_by: 'missing' }] },
+    ],
+    [
+      'checkpoint.verified_tasks',
+      {
+        ...fixture,
+        checkpoint: {
+          scope_sha256: 'a'.repeat(64),
+          inputs: [],
+          environment: fixture.work.environment,
+          verified_tasks: ['missing'],
+          pending_operations: [],
+          next_action: 'Verify',
+          source_revision: null,
+        },
+      },
+    ],
+  ])('rejects dangling %s references', (field, value) => {
+    const parsed = readPlan(fenced(value))
+    expect(parsed.facts.drift).toContainEqual(
+      expect.objectContaining({
+        code: 'ledger-reference',
+        detail: expect.stringContaining('missing'),
+      }),
+    )
+    expect(
+      parsed.facts.drift.some(({ detail }) => detail.includes(field.split('.').at(-1) ?? '')),
+    ).toBe(true)
+  })
+
+  it.each([
     ['active', 'building'],
     ['blocked', 'waiting'],
     ['implemented', 'built'],

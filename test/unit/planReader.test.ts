@@ -3,13 +3,15 @@ import { describe, expect, it } from 'vitest'
 import { readPlan } from '../../src/core/reporting/plan/reader'
 import { findMilestone, nextSteps } from '../../src/core/reporting/plan/selection'
 import { tableCells } from '../../src/core/reporting/plan/grammar'
+import { scrubPlanText } from '../../src/core/reporting/plan/grammar'
 import { STATUS_PHRASES } from '../../src/core/reporting/plan/statusPhrases'
+import { REPORT_PLAN_BUDGET_MS, REPORT_PLAN_MAX_BYTES } from '../../src/shared/constants'
 import {
   PLAN_FORMAT_FIXTURE,
   NO_PLAN_FIXTURE,
   QUALITY_LEDGER_FIXTURE,
 } from './helpers/reporting/plans'
-import { PLAN_DRIFT_CASES } from './helpers/planDrift'
+import { PLAN_DRIFT_CASES, escapedCredentialCanary } from './helpers/planDrift'
 
 const repositoryPlan = readFileSync(new URL('../../PLAN.md', import.meta.url), 'utf8')
 
@@ -72,6 +74,119 @@ describe('plan-format v1', () => {
     expect(parsed.facts.risks.length).toBeGreaterThan(20)
     expect(parsed.facts.residuals.length).toBeGreaterThan(20)
     expect(parsed.facts.releases.some(({ version }) => version === '0.11.0')).toBe(true)
+  })
+
+  it('reads indented lane tables in the fixture and the real M91, M100 and M93 records', () => {
+    const input = PLAN_FORMAT_FIXTURE.replaceAll(/^\|/gm, '      |')
+    expect(readPlan(input).facts.milestones[0]?.lanes).toHaveLength(1)
+    const parsed = readPlan(repositoryPlan)
+    expect(parsed.facts.drift).toEqual([])
+    for (const id of ['M91', 'M100', 'M93'])
+      expect(parsed.facts.milestones.find((item) => item.id === id)?.lanes.length).toBeGreaterThan(
+        0,
+      )
+  })
+
+  it('rejects a delimiter width that differs from the header width', () => {
+    const input = PLAN_FORMAT_FIXTURE.replace(
+      '| --- | --- | --- | --- | --- | --- | ---: |',
+      '| --- |',
+    )
+    expect(readPlan(input).facts.drift).toContainEqual(
+      expect.objectContaining({ code: 'table-delimiter', line: 22 }),
+    )
+    expect(readPlan(input).facts.milestones[0]?.lanes).toEqual([])
+  })
+
+  it('uses delimiter rows to exclude every escape-hatch header regardless of its names', () => {
+    const input = PLAN_FORMAT_FIXTURE.replace('| Item | Reason |', '| Location | Escape hatch |')
+    const parsed = readPlan(input)
+    expect(parsed.facts.risks).toHaveLength(1)
+    expect(parsed.facts.risks[0]?.id).toBe('M12 fixture: No production escape hatch.')
+    expect(
+      readPlan(repositoryPlan).facts.risks.some(({ id }) => id === 'Location: Escape hatch'),
+    ).toBe(false)
+  })
+
+  it('reports owner Decided and Owner answer markers as answered while retaining the decision text', () => {
+    for (const marker of ['Decided 2026-10-06 (owner): yes', 'Owner answer (2026-10-06): yes']) {
+      const input = PLAN_FORMAT_FIXTURE.replace(
+        'The owner chooses the target.',
+        () => `**${marker}.**`,
+      )
+      expect(readPlan(input).facts.questions[0]).toMatchObject({
+        state: 'answered',
+        text: expect.stringContaining(marker),
+      })
+    }
+    const parsed = readPlan(repositoryPlan)
+    for (const id of ['Q-M94a', 'Q-M94b', 'Q-M94c'])
+      expect(parsed.facts.questions.find((item) => item.id === id)).toMatchObject({
+        state: 'answered',
+        text: expect.stringContaining('**Decided'),
+      })
+  })
+
+  it('refuses oversized UTF-8 plans honestly before parsing either format', () => {
+    for (const text of [
+      'x'.repeat(REPORT_PLAN_MAX_BYTES + 1),
+      'é'.repeat(REPORT_PLAN_MAX_BYTES / 2 + 1),
+    ]) {
+      const parsed = readPlan(text)
+      expect(parsed.facts.milestones).toEqual([])
+      expect(parsed.facts.drift).toEqual([
+        {
+          code: 'input-size',
+          line: 1,
+          detail: `maxUtf8Bytes=${String(REPORT_PLAN_MAX_BYTES)}`,
+        },
+      ])
+    }
+  })
+
+  it('parses ten thousand milestones within the named plan budget without per-milestone rescans', () => {
+    const text = `## 6. Milestones\n${Array.from({ length: 10_000 }, (_, index) => `### M${String(index)} — Synthetic\n**Status 2026-10-05: planned.**\n`).join('')}`
+    const start = performance.now()
+    const parsed = readPlan(text)
+    const elapsed = performance.now() - start
+    expect(parsed.facts.drift).toEqual([])
+    expect(parsed.facts.milestones).toHaveLength(10_000)
+    expect(elapsed).toBeLessThan(REPORT_PLAN_BUDGET_MS)
+  })
+
+  it('reports an unterminated folded status within the plan budget without rescanning its prefix', () => {
+    const text = `## 6. Milestones\n### M12 — Folded\n**Status 2026-10-05: planned\n${'unclosed fold\n'.repeat(60_000)}`
+    const start = performance.now()
+    const parsed = readPlan(text)
+    const elapsed = performance.now() - start
+    expect(parsed.facts.drift).toContainEqual(expect.objectContaining({ code: 'status-form' }))
+    expect(elapsed).toBeLessThan(REPORT_PLAN_BUDGET_MS)
+  })
+
+  it('decodes escaped credential strings before scrubbing every returned plan and ledger string', () => {
+    const { canary, escaped } = escapedCredentialCanary()
+    for (const text of [
+      PLAN_FORMAT_FIXTURE.replace('The owner chooses the target.', () => escaped),
+      QUALITY_LEDGER_FIXTURE.replace('Reporting fixture', () => escaped),
+    ]) {
+      const output = JSON.stringify(readPlan(text))
+      expect(output.includes(canary)).toBe(false)
+      expect(output.includes(escaped)).toBe(false)
+      expect(output).toContain('[redacted]')
+    }
+    const nested = escaped.replaceAll('\\', String.raw`\u005c`)
+    expect(scrubPlanText(nested)).toBe('[redacted]')
+    expect(scrubPlanText('\\'.repeat(100_000))).toHaveLength(100_000)
+  })
+
+  it('accepts a lane prerequisite only after that exact lane or its milestone is merged', () => {
+    const input = PLAN_FORMAT_FIXTURE.replace('Needs: M12.', 'Needs: m12:0.')
+    expect(nextSteps(readPlan(input).facts).map(({ id }) => id)).toEqual(['M12'])
+    const evidence = { branches: [{ name: 'm12/l0', commit: 'fixed', merged: true }] }
+    expect(nextSteps(readPlan(input, evidence).facts).map(({ id }) => id)).toEqual([
+      'M12',
+      'M110a0',
+    ])
   })
 
   it.each(PLAN_DRIFT_CASES)(
@@ -226,6 +341,86 @@ describe('plan-format v1', () => {
       branch: 'm12/p',
       pullRequest: 17,
     })
+  })
+
+  it('pairs an open PR only with its exact branch even when a historical lane branch is merged', () => {
+    const input = PLAN_FORMAT_FIXTURE.replace('| 0 Contracts |', '| P Parser |')
+    for (const isMerged of [false, true]) {
+      const parsed = readPlan(input, {
+        branches: [
+          { name: 'm12/p-a', commit: 'old', merged: isMerged },
+          { name: 'refs/remotes/origin/m12/p-b', commit: 'new', merged: false },
+        ],
+        pullRequests: [{ branch: 'm12/p-b', number: 17, state: 'open' }],
+      })
+      expect(parsed.facts.drift).toEqual([])
+      expect(parsed.facts.milestones[0]?.lanes[0]).toMatchObject({
+        branch: 'refs/remotes/origin/m12/p-b',
+        state: 'inReview',
+        pullRequest: 17,
+      })
+    }
+  })
+
+  it('reports ambiguous lane evidence without manufacturing a branch and PR pair', () => {
+    const input = PLAN_FORMAT_FIXTURE.replace('| 0 Contracts |', '| P Parser |')
+    for (const evidence of [
+      {
+        branches: [
+          { name: 'm12/p-a', commit: 'old', merged: true },
+          { name: 'm12/p-b', commit: 'new', merged: false },
+        ],
+        pullRequests: [{ branch: 'm12/p-c', number: 17, state: 'open' }],
+      },
+      {
+        branches: [{ name: 'm12/P', commit: 'fixed', merged: false }],
+        pullRequests: [{ branch: 'm12/p', number: 17, state: 'open' }],
+      },
+    ]) {
+      const parsed = readPlan(input, evidence)
+      expect(parsed.facts.drift).toContainEqual(
+        expect.objectContaining({ code: 'lanes-ambiguous' }),
+      )
+      expect(parsed.facts.milestones[0]?.lanes[0]).toMatchObject({
+        branch: null,
+        pullRequest: null,
+        state: 'planned',
+      })
+    }
+  })
+
+  it('retains lowercase, suffixed, working and lane Needs without making blocked delivery eligible', () => {
+    for (const need of ['m12', 'M12', 'M12:P', 'm12/p', "M12's lane P", 'cifix14c']) {
+      const input = PLAN_FORMAT_FIXTURE.replace('Needs: M12.', () => `Needs: ${need}.`).replace(
+        '### CIFIX14C — CI repair (D1)\n**Status 2026-10-05: complete.**',
+        '### CIFIX14C — CI repair (D1)\n**Status 2026-10-05: building.**',
+      )
+      const parsed = readPlan(input)
+      expect(parsed.facts.drift).toEqual([])
+      expect(parsed.facts.deliveryOrder[1]?.needs.length).toBeGreaterThan(0)
+      expect(nextSteps(parsed.facts).map(({ id }) => id)).toEqual(['M12'])
+    }
+    const working = readPlan(
+      PLAN_FORMAT_FIXTURE.replace('- **Depends on.** M12.', '- **Depends on.** cifix14c, m12:P.'),
+    )
+    expect(working.facts.milestones[1]?.dependencies).toEqual(['CIFIX14C', 'M12:P'])
+    const suffixed = readPlan(
+      PLAN_FORMAT_FIXTURE.replace('Needs: M12.', 'Needs: m12A.').replace('### M12 —', '### M12a —'),
+    )
+    expect(suffixed.facts.deliveryOrder[1]?.needs).toEqual(['M12a'])
+    expect(nextSteps(suffixed.facts).map(({ id }) => id)).not.toContain('M110a0')
+  })
+
+  it('reports unparseable Needs as drift and keeps their delivery entries blocked', () => {
+    for (const need of ['a mystery prerequisite', 'M12 and mystery', '']) {
+      const parsed = readPlan(PLAN_FORMAT_FIXTURE.replace('Needs: M12.', () => `Needs: ${need}.`))
+      expect(
+        parsed.facts.drift.some(
+          ({ code }) => code === 'delivery-needs' || code === 'delivery-form',
+        ),
+      ).toBe(true)
+      expect(nextSteps(parsed.facts).map(({ id }) => id)).not.toContain('M110a0')
+    }
   })
 
   it('recognizes the captured lane-zero l0 branch spelling without treating a neighboring lane as zero', () => {

@@ -1,5 +1,14 @@
 import { PLAN_FORMAT_FIXTURE } from './reporting/plans'
 
+export function escapedCredentialCanary(): { canary: string; escaped: string } {
+  const canary = `sk-${'A'.repeat(48)}`
+  const escaped = canary.replaceAll(
+    /./g,
+    (char) => String.raw`\u${(char.codePointAt(0) ?? 0).toString(16).padStart(4, '0')}`,
+  )
+  return { canary, escaped }
+}
+
 const cases: readonly {
   readonly code: string
   readonly text: string

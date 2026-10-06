@@ -1,5 +1,5 @@
 import type { GitFacts, PlanLane } from '../sources/types'
-import { tableCells, isTableSeparator, comparePlanText, type PlanLine } from './grammar'
+import { tableCells, planTables, comparePlanText, type PlanLine } from './grammar'
 
 /** Evidence is already captured/validated by S/N; the reader performs no IO. */
 export interface PlanEvidence {
@@ -28,6 +28,10 @@ const LANE_COLUMNS = new Set([
   'Current state',
   'Muse implementation ownership',
   'Codex review / acceptance focus',
+  'Review focus',
+  'Muse owns',
+  'Codex review focus',
+  'Adds',
 ])
 
 function shortRef(name: string): string {
@@ -35,7 +39,6 @@ function shortRef(name: string): string {
     .replace(/^refs\/(?:heads|remotes)\//, '')
     .replace(/^remotes\//, '')
     .replace(/^[^/]+\/(?=(?:feature\/|m\d+\/))/, '')
-    .toLowerCase()
 }
 
 export function readLanes(
@@ -45,31 +48,24 @@ export function readLanes(
   drift: { code: string; line: number; detail: string }[],
 ): PlanLane[] {
   const lanes: PlanLane[] = []
-  for (let index = 0; index < body.length; index += 1) {
-    const header = body[index]
-    if (!header || !/^\| Lane(?:\s|\s*\|)/.test(header.text)) continue
-    const columns = tableCells(header.text)
+  for (const { columns, line, rows } of planTables(body, drift)) {
+    if (columns[0] !== 'Lane' && columns[0] !== 'Lane / receipt') continue
     if (
       columns.some((column) => !LANE_COLUMNS.has(column)) ||
-      new Set(columns).size !== columns.length ||
-      !isTableSeparator(body[index + 1]?.text ?? '')
+      new Set(columns).size !== columns.length
     ) {
-      drift.push({ code: 'lanes-columns', line: header.line, detail: columns.join(' | ') })
+      drift.push({ code: 'lanes-columns', line, detail: columns.join(' | ') })
       continue
     }
-    index += 2
-    let row = body[index]
-    while (row?.text.startsWith('|')) {
+    for (const row of rows) {
       const cells = tableCells(row.text)
-      if (cells.length !== columns.length) {
-        drift.push({ code: 'lanes-row', line: row.line, detail: row.text })
-      } else if (!isTableSeparator(row.text)) {
+      if (cells.length === columns.length) {
         const cell = (name: string) => cells[columns.indexOf(name)] ?? ''
         const id = (cells[0] ?? '').replaceAll(/[*`]/g, '').split(/\s+/, 1)[0] ?? ''
         const prefix = milestoneId.toLowerCase()
         const laneIds = id === '0' ? ['0', 'l0'] : [id.toLowerCase()]
         const isLaneBranch = (name: string) => {
-          const ref = shortRef(name)
+          const ref = shortRef(name).toLowerCase()
           return laneIds.some(
             (lane) =>
               ref === `${prefix}/${lane}` ||
@@ -83,10 +79,28 @@ export function readLanes(
           .toSorted(
             (a, b) => Number(b.merged) - Number(a.merged) || comparePlanText(a.name, b.name),
           )
-        const branch = branches[0]
-        const pull = (evidence.pullRequests ?? [])
+        const pulls = (evidence.pullRequests ?? [])
           .filter((pull) => isLaneBranch(pull.branch) && pull.state === 'open')
-          .toSorted((a, b) => a.number - b.number)[0]
+          .toSorted((a, b) => a.number - b.number)
+        const branchNames = branches.map(({ name }) => shortRef(name))
+        const pullNames = pulls.map(({ branch }) => shortRef(branch))
+        const pullRefs = new Set(pullNames)
+        const exactRefs = [...new Set(branchNames.filter((ref) => pullRefs.has(ref)))]
+        const candidates = new Set([...branchNames, ...pullNames])
+        let selectedRef: string | undefined
+        if (exactRefs.length === 1) selectedRef = exactRefs[0]
+        else if (exactRefs.length === 0 && candidates.size === 1) selectedRef = [...candidates][0]
+        const matchingBranches = branches.filter(({ name }) => shortRef(name) === selectedRef)
+        const matchingPulls = pulls.filter(({ branch }) => shortRef(branch) === selectedRef)
+        const isAmbiguous =
+          candidates.size > 0 &&
+          (selectedRef === undefined ||
+            matchingPulls.length > 1 ||
+            new Set(matchingBranches.map(({ merged }) => merged)).size > 1)
+        if (isAmbiguous)
+          drift.push({ code: 'lanes-ambiguous', line: row.line, detail: `${milestoneId}:${id}` })
+        const branch = isAmbiguous ? undefined : matchingBranches[0]
+        const pull = isAmbiguous ? undefined : matchingPulls[0]
         const certification =
           (evidence.certificationPaths ?? [])
             .map((path) => path.replaceAll('\\', '/'))
@@ -103,18 +117,22 @@ export function readLanes(
         lanes.push({
           id,
           scope:
-            cell('Items') || cell('Scope') || cell('Owns') || cell('Muse implementation ownership'),
+            cell('Items') ||
+            cell('Scope') ||
+            cell('Owns') ||
+            cell('Muse implementation ownership') ||
+            cell('Muse owns') ||
+            cell('Adds'),
           branch: branch?.name ?? pull?.branch ?? null,
           state,
           pullRequest: pull?.number ?? null,
           certification,
           hours: /^\d+(?:\.\d+)?$/.test(hours) ? Number(hours) : null,
         })
+      } else {
+        drift.push({ code: 'lanes-row', line: row.line, detail: row.text })
       }
-      index += 1
-      row = body[index]
     }
-    index -= 1
   }
   return lanes
 }

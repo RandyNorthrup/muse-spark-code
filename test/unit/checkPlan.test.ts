@@ -2,8 +2,10 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { Buffer } from 'node:buffer'
 import { afterAll, describe, expect, it } from 'vitest'
-import { PLAN_DRIFT_CASES } from './helpers/planDrift'
+import { PLAN_DRIFT_CASES, escapedCredentialCanary } from './helpers/planDrift'
+import { REPORT_PLAN_MAX_BYTES } from '../../src/shared/constants'
 import {
   PLAN_FORMAT_FIXTURE,
   QUALITY_LEDGER_FIXTURE,
@@ -94,4 +96,71 @@ describe('check:plan', () => {
     expect(unknown.status).toBe(3)
     expect(unknown.stderr.includes(canary)).toBe(false)
   })
+
+  it('scrubs the decoded Unicode-escaped ledger reference canary from gate diagnostics', () => {
+    const { canary, escaped } = escapedCredentialCanary()
+    const text = QUALITY_LEDGER_FIXTURE.replace(
+      '"depends_on":[]',
+      () => `"depends_on":["${escaped}"]`,
+    )
+    const result = check(text)
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('ledger-reference')
+    expect(result.stderr.includes(canary)).toBe(false)
+    expect(result.stderr).toContain('[redacted]')
+    const unknown = check(PLAN_FORMAT_FIXTURE, escaped)
+    expect(unknown.status).toBe(3)
+    expect(unknown.stderr.includes(escaped)).toBe(false)
+    expect(unknown.stderr).toContain('[redacted]')
+  })
+
+  it('refuses an oversized file with an explicit input-size diagnostic', () => {
+    const result = check('x'.repeat(REPORT_PLAN_MAX_BYTES + 1))
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain(`input-size: maxUtf8Bytes=${String(REPORT_PLAN_MAX_BYTES)}`)
+    expect(result.stdout).toBe('')
+  })
+
+  it.each(['oversized', 'growing'])(
+    'bounds the actual gate file read for an %s file and always closes it',
+    async (kind) => {
+      const size = kind === 'oversized' ? REPORT_PLAN_MAX_BYTES + 1 : 0
+      const gate = readFileSync(path.join(root, 'scripts/check-plan.mjs'), 'utf8')
+        .replace(
+          "import { open } from 'node:fs/promises'",
+          () => `
+          export const probe = { reads: 0, length: 0, closed: 0, messages: [], exitCode: 0 };
+          const open = async () => ({
+            stat: async () => ({ size: ${String(size)} }),
+            read: async (_buffer, _offset, length) => {
+              probe.reads += 1; probe.length = length;
+              return { bytesRead: probe.reads === 1 && ${String(kind === 'growing')} ? ${String(REPORT_PLAN_MAX_BYTES + 1)} : 0 };
+            },
+            close: async () => { probe.closed += 1; }
+          });
+          const console = { error: (message) => probe.messages.push(message), log: () => {} };
+        `,
+        )
+        .replace(
+          "import process from 'node:process'",
+          "const process = { argv: ['node', 'gate', 'fixture.md'], exitCode: 0 };",
+        )
+        .replace("'esbuild'", () => JSON.stringify(import.meta.resolve('esbuild')))
+        .replace(
+          "const root = path.resolve(import.meta.dirname, '..')",
+          () => `const root = ${JSON.stringify(root)}`,
+        )
+      const result: unknown = await import(
+        `data:text/javascript;base64,${Buffer.from(`${gate}\nprobe.exitCode = process.exitCode;`).toString('base64')}`
+      )
+      expect(result).toHaveProperty('probe.exitCode', 1)
+      expect(result).toHaveProperty('probe.closed', 1)
+      expect(result).toHaveProperty('probe.reads', kind === 'oversized' ? 0 : 1)
+      expect(result).toHaveProperty(
+        'probe.length',
+        kind === 'oversized' ? 0 : REPORT_PLAN_MAX_BYTES + 1,
+      )
+      expect(result).toHaveProperty('probe.messages', [expect.stringContaining('input-size')])
+    },
+  )
 })

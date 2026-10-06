@@ -55,9 +55,14 @@ const COMPLETE_STATES = new Set<PlanMilestone['status']>([
 /** Keep declared delivery order, and require evidence for every declared dependency. */
 export function nextSteps(facts: PlanFacts): PlanFacts['deliveryOrder'] {
   const complete = (id: string) => {
-    const selected = findMilestone(facts, id)
+    const [milestoneId = '', laneId] = id.split(/[/:]/, 2)
+    const selected = findMilestone(facts, milestoneId)
     return selected.exitCode === REPORT_EXIT_CODES.generated
-      ? COMPLETE_STATES.has(selected.milestone.status)
+      ? COMPLETE_STATES.has(selected.milestone.status) ||
+          (laneId !== undefined &&
+            selected.milestone.lanes.some(
+              (lane) => lane.id.toLowerCase() === laneId.toLowerCase() && lane.state === 'merged',
+            ))
       : facts.releases.some(
           ({ version, text }) =>
             version === id.replace(/^v/, '') && !/^\*\*v?\d+\.\d+\.\d+ preparation \(/.test(text),
