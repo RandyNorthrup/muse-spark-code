@@ -188,3 +188,30 @@ test (exit 1); restored SHA-256
 All three pure owning suites passed **21/21** with default timeouts afterward.
 This changes decoding cost, not captured pixels or the strict comparison
 policy. No gate is relaxed.
+
+## Reconstruction failure cleanup and canonical accessibility
+
+A missing Git source revision exposed an incomplete-reconstruction directory
+left behind by `snapshot`. The complete new test failed on that leftover;
+the error path now removes its own directory before rethrowing the explicit
+Git failure. Removing that cleanup deliberately reproduced the named
+`fails a missing recorded revision and removes its incomplete source
+reconstruction` failure (exit 1). The script restored byte-exact to SHA-256
+`4b58ea24fafb326d91f3f2c5824ed9dff69c6c95818970a7c6901e2c401ac738`.
+The owning source/gate suites passed **8/8**, then the restored source suite
+passed **1/1**, at default timeouts. Scoped lint passed.
+
+The canonical `npm run test:a11y` passed **620 pages** (155 scenarios × four
+VS Code themes): zero violated/undecided rules, zero exempt, zero missing
+results. Its printed limits remain **1,446** obscured/off-view and **20**
+glyph-only contrast observations that axe cannot measure. P1/P2's owning
+checks cover non-text focus/control contrast. The six-theme supplementary
+observations are separately recorded when their complete run finishes.
+A real narrow default-state probe also found **zero** audited components
+whose entire selector set was outside the viewport; all 65 renderer rows
+have visible scene evidence, not only a mounted off-screen node.
+
+The lead's CI binding is now explicit in PLAN §7: the workflow's manual
+static command includes neither token nor visual gates and its checkout is
+shallow. The workflow owner must add them and supply the tracked Git object;
+S does not edit that foreign file or quietly fetch baselines over the network.

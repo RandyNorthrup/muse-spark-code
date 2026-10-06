@@ -56,14 +56,19 @@ async function build(root) {
   await run(process.execPath, ['scripts/build.mjs', '--production'], root)
 }
 
-async function snapshot(root, revision) {
+export async function snapshot(root, revision) {
   const directory = await mkdtemp(path.join(root, 'temp/m114-visual-source-'))
-  const tar = path.join(directory, 'source.tar')
-  await run('git', ['archive', '--format=tar', `--output=${tar}`, revision], root)
-  await run('tar', ['-xf', tar, '-C', directory], root)
-  await rm(tar)
-  await build(directory)
-  return directory
+  try {
+    const tar = path.join(directory, 'source.tar')
+    await run('git', ['archive', '--format=tar', `--output=${tar}`, revision], root)
+    await run('tar', ['-xf', tar, '-C', directory], root)
+    await rm(tar)
+    await build(directory)
+    return directory
+  } catch (error) {
+    await rm(directory, { recursive: true, force: true })
+    throw error
+  }
 }
 
 async function json(root, file) {

@@ -29070,6 +29070,17 @@ caps pass unchanged. P1/P2 own the styles and lane 0 the token outputs;
 the lead retains their named startup compaction handoff. S records both
 JavaScript and CSS rather than excluding a generated sheet or raising a cap.
 
+**M114 visual CI binding (S → lead, 2026-10-06).**
+Local `quality:gates` now includes `check:tokens` and `check:visual`. The
+explicit static command in `.github/workflows/build.yml:93` still lists
+neither; its checkout also has no history depth configured. The workflow
+owner must bind both gates and fetch the tracked visual source revision
+(`git archive` needs that Git object). The six-theme/state source replay is
+a separate long browser operation, not a Vitest timeout exception. S owns
+neither this workflow nor its job scheduling; it records the handoff rather
+than editing another owner's file or adding a network fetch to the gate.
+Missing source revisions fail explicitly, and no local gate skips CI.
+
 **M114 P1 forced-colors repair scoped gates (RVM114P12, 2026-10-06).**
 The rig/shared brief forbids full quality/full unit runs and other lanes'
 file edits. P1 runs the five compiler projects, owning regressions and red
