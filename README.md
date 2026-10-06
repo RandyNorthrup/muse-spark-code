@@ -163,6 +163,16 @@ Earlier releases are in the
 
 ## Screenshots
 
+M106 development: the Model API client paces tagged background requests from
+captured Meta request and token limits. Concurrent responses retain local
+charges, and background work reserves half the observed token budget for the
+foreground. A queued request reports that it is waiting for rate-limit
+headroom, with a separate ten-minute admission deadline; provider idle timing
+starts at dispatch. Gateway-timeout retries remain bounded. Public status
+failures expose fixed text and safe status fields. Its service-status read and usage/report
+presentation ports await the integration bindings listed in
+[the lane R certification](docs/certification/m106-r.md).
+
 Rendered from the shipped panel by its own UI harness (`npm run
 readme:shots`, one harness scenario per image) against a scripted session,
 so they match the build.

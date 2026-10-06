@@ -10,7 +10,7 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 // usage row, `/usage` and `/cost`; centred over the transcript with the
 // chat dimmed behind it.
 
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
 import {
   META_DASHBOARD_URL,
   MILLISECONDS_PER_SECOND,
@@ -52,7 +52,16 @@ import type { SignInMethod } from '../../shared/protocol'
 import { formatDurationMs } from '../agentFormat'
 import { Modal } from './Modal'
 
+import type { ServiceStatusReader } from './ServiceStatusRow'
+
+const ServiceStatusRow = lazy(async () => {
+  const module = await import('./ServiceStatusRow')
+  return { default: module.ServiceStatusRow }
+})
+
 export interface UsageDialogProps {
+  /** Offered only for Meta by the selected provider's host adapter (M106 R). */
+  readonly readServiceStatus?: ServiceStatusReader
   /** undefined while the host has not answered `readUsage`. */
   readonly report: UsageReport | undefined
   readonly usage: UsageSummary | undefined
@@ -685,6 +694,7 @@ function InsightsSection({
 }
 
 export function UsageDialogContent({
+  readServiceStatus,
   report,
   usage,
   context,
@@ -734,6 +744,11 @@ export function UsageDialogContent({
       <>
         <h3 className="usage-heading">{UI_TEXT.usageAccount}</h3>
         <AccountSection report={report} modelId={modelId} />
+        {readServiceStatus === undefined ? null : (
+          <Suspense fallback={<p role="status">{UI_TEXT.usageLoading}</p>}>
+            <ServiceStatusRow read={readServiceStatus} onOpenExternal={onOpenExternal} />
+          </Suspense>
+        )}
         <h3 className="usage-heading">{UI_TEXT.usageHeading}</h3>
         {report.subscription === undefined ? (
           <p className={ROW_META_CLASS}>

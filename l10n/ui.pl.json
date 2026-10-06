@@ -3114,5 +3114,8 @@
   "referenceElicitationTitle": "Formularze MCP",
   "referenceElicitation": "Formularze MCP proszą o informacje dla żądającego serwera MCP. Wysłane wartości trafiają do tego serwera poza rozmową modelu i zapisem rozmowy. Serwer może umieścić je w późniejszych wynikach narzędzia. Nigdy nie wpisuj hasła ani klucza.",
   "referenceNativeAgentsConditions": "Gdy run.subagent_delegation_mode=\"auto\", Muse Code może delegować agentom. Przy \"off\" narzędzia delegowania są niedostępne. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany."
+  "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
+  "modelApiPacingTokenLimit": "Żądanie równoległe przekracza budżet tokenów zarezerwowany dla pracy w tle.",
+  "modelApiPacingWaiting": "Oczekiwanie na wolną przepustowość w limicie żądań…",
+  "modelApiPacingExpired": "Upłynął czas oczekiwania na wolną przepustowość. Wyślij wiadomość ponownie, aby spróbować jeszcze raz."
 }

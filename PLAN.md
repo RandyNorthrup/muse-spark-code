@@ -258,6 +258,14 @@ All editor shells use the shared CSP/asset-origin path. Receipts and final
 before/after sizes: `docs/certification/diet1.md`. FIXDIET1 holds startup
 at 750,942 B (733.3 KiB) and the original deferred group at 32,835 B
 (32.1 KiB), within the review baseline targets.
+**M106R pacing/status UI split (2026-10-06).** `ServiceStatusRow.tsx`
+loads dynamically from the already deferred usage dialog. Its exclusive
+JavaScript measures 1.1 KiB; +15%, rounded up to 25 KiB gives its independent
+25-KiB cap. Static dependencies shared with another optional surface stay
+in the original 50-KiB deferred group (49.9 KiB measured); startup remains
+bounded at 900 KiB. The production split gate requires the new surface to
+be deferred and reachable and `pacing.ts` to remain in `dist/modelApi.js`.
+The new budget and unchanged original cap have one-byte overflow red drills.
 
 **TRAIN14A integration size recovery (2026-10-05).** The initial M94 archive
 has insufficient universal-helper headroom, and the prepared M71 join exceeds
@@ -27804,6 +27812,56 @@ fallbacks or drafts stop. All 118 owning tests and scoped checks pass; all
 three red drills fail and restore the source byte-exactly. Receipts are in
 `docs/certification/m106-o1.md`; the Git-turn accounting binding remains the
 existing lead-owned integration handoff.
+**FIXM106R review repair (Kubuntu, 2026-10-06), authorized scope.** Fix all
+four RVM106R P2s and its P3 with regression tests and byte-exact red drills:
+retain local concurrent debits when reconciling headers; reserve half the
+observed token budget for foreground; start provider idle timing at dispatch
+and bound local admission separately with a localized rate-limit wait notice;
+scrub status failures and expose only HTTP status, Retry-After and a fixed
+category; translate the fan-out refusal in all 14 tables. Isolate the status
+UI in its own lazy chunk with an independently measured +15%, rounded-to-25-KiB
+budget, preserving the existing deferred group's 50-KiB cap, and add pacing
+to the Model API lazy inventory. No dependencies, provider wire guesses,
+live calls, merges or full quality run. No review residual is planned.
+
+**FIXM106R2 response-read repair (Kubuntu, 2026-10-06), authorized scope.**
+Close RVM106R2's sole P2: every dispatched fetch and response-body read in
+`client.ts` uses one idle-deadline helper, including success SSE/JSON,
+non-success envelopes, and each retry. Reuse `MODEL_API_STREAM_IDLE_MS` and
+the localized stalled-response error; abort and cancel stalled transport
+reads, propagate the timeout through `describeFailure`, and keep local
+admission/backoff outside the provider timer. Prove stalled error bodies,
+unchanged successful reads, cancellation and timer cleanup with default-timeout
+regressions and byte-exact red drills. Existing absolute deadlines and paid
+retry/liability fences stay in force. No new dependency, wire shape, guard
+widening, merge, live call or aggregate quality run; no residual is planned.
+
+**Lane R implementation (Kubuntu, 2026-10-06).** Captured Meta headers feed
+the request/token bucket; existing subagent, best-of-N and schedule paid
+tags select background pacing. A foreground request never waits for fan-out
+headroom. A 429 pauses fan-out; the originating request's existing retry
+loop honors its own Retry-After. Status reads are public and schema-checked.
+The usage row accepts an injected read; report facts retain only liveness
+and the captured operational word (future words are unknown in the report,
+while the usage row shows the service's word as escaped text). A paid or
+capped ambiguous 504 retains its liability and is refused unless its owning
+admission policy can safely reserve again; no per-image retry is widened.
+The absent M95/M101 provider tables and M96 team admission, plus bindings
+outside R's owned regions, are named integration handoffs in
+`docs/certification/m106-r.md`. No substitute provider resolver or team
+implementation is introduced. The retry-table patch targets the upstream
+`FormatQuirks.retry` data; the current client exposes its classifier port.
+R's client test factories advance their injected clock when a fake sleep
+completes, so admission tests make progress without real delays or raised
+timeouts. This includes the shared fake client settings and the client
+factory region of `modelApiHost.test.ts`; no engine loop region changes.
+The normalized pacing port can carry a captured provider's own window
+duration; only Meta's U12 interpretation defaults to the documented minute.
+The usage row revalidates its two consumed status fields without importing
+the full transport schemas. FIXM106R resolves the deferred UI budget and module-map blockers: the
+status row has its own checked lazy chunk and pacing is in the Model API
+inventory. Review findings, regression tests and red receipts are recorded
+in `docs/certification/m106-r.md`; no RVM106R residual remains.
 
 - **Goal.** Every guarantee Meta's wire offers the loop is used wherever the
   selected model has it: valid tool arguments, machine-readable side
@@ -31580,6 +31638,24 @@ existing split-gate registration of `toolScheduler.ts`/`repeatGuard.ts`;
 its classification omission is a justified integration deferral, not a
 permission to package or publish. Receipts and red drills:
 `docs/certification/m106-l2.md`.
+**FIXM106R2 response-read repair (Kubuntu, 2026-10-06).** Scoped client and
+dependent regressions use repository-default timeouts and no test filtering.
+Seven red drills fire their named test and restore the client byte-exact;
+receipts are in `docs/certification/m106-r2-review-drills.json`. The rig/common
+brief forbids aggregate quality; full coverage, accessibility, hosted/platform
+and live certification remain with the lead. No gate, timeout, hook, cap or
+paid-call fence is weakened. Final scoped gate results are recorded in
+`docs/certification/m106-r.md`.
+
+**FIXM106R review and bundle repair (Kubuntu, 2026-10-06).** All four
+RVM106R P2s and its P3 are fixed, with failing guard drills and byte-exact
+source restoration. `npm run build` exits 0: original deferred UI 49.9/50 KiB,
+exclusive pacing UI 1.1/25 KiB, eager webview 894.6/900 KiB, Model API
+452.3/475 KiB and activation 437.0/600 KiB. The split gate verifies pacing
+only in its lazy Model API inventory and the dynamically loaded status row.
+The prior R-BUNDLE deferral is closed. Full quality, coverage, accessibility,
+live and platform checks remain the lead's gates under the rig/common brief.
+No dependency, existing cap, timeout, hook or protocol guard is weakened.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -33450,6 +33526,20 @@ review findings and terminal settlement-pricing failure.
   size cap, paid gate or dependency is widened. Follow-up: W integrates
   these bindings/docs and classifications and runs aggregate quality and
   the authorized release checks. See `docs/certification/m106-l2.md`.
+- **FIXM106R2 (2026-10-06): no review residual.** RVM106R2's sole P2 is
+  closed by one idle-deadline helper covering dispatched headers and all
+  response-body reads, including non-success envelopes and retries. A
+  stalled body aborts and cancels its transport; `describeFailure` cannot
+  swallow the localized timeout. Local admission/backoff, existing absolute
+  deadlines and paid retry/liability fences keep their original policies.
+  Public-health failures retain the fixed sanitized status error. The
+  previously named integration handoffs remain with their owners.
+
+- **FIXM106R (2026-10-06): no review residual.** RVM106R's four P2s and
+  P3 are resolved. Status error fields are allowlisted after the shared
+  scrubber; provider prose, identifiers, tokens and causes are discarded.
+  The original provider/team/health/help bindings remain named integration
+  handoffs in the M106 R certification, not newly accepted review findings.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

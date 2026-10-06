@@ -122,6 +122,54 @@ function providersReport(): Partial<UsageDialogProps> {
 }
 
 describe('UsageDialog', () => {
+  it('shows validated service status and opens its public page', async () => {
+    const readServiceStatus = vi.fn((_signal: AbortSignal) =>
+      Promise.resolve({
+        is_alive: true,
+        service_status: 'operational',
+        service_message: '<img src=x onerror=alert(1)>',
+        updated_at: '',
+        model_statuses: [],
+      }),
+    )
+    const view = renderDialog({ readServiceStatus })
+    expect(await screen.findByText('operational')).toBeVisible()
+    expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeVisible()
+    expect(screen.getByRole('dialog').querySelector('img')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: EN.modelApiStatusOpen }))
+    expect(view.onOpenExternal).toHaveBeenCalledWith('https://api.meta.ai/v1/status')
+    view.unmount()
+    expect(readServiceStatus.mock.calls[0]?.[0]).toMatchObject({ aborted: true })
+  })
+
+  it.each(['invalid', 'offline'])(
+    'shows unavailable for %s status instead of trusting an envelope',
+    async (failure) => {
+      renderDialog({
+        readServiceStatus: () =>
+          failure === 'invalid'
+            ? Promise.resolve({ service_status: 'operational' })
+            : Promise.reject(new Error('offline')),
+      })
+      expect(await screen.findByText(EN.modelApiStatusUnavailable)).toBeVisible()
+      expect(screen.queryByText('operational')).toBeNull()
+    },
+  )
+
+  it.each([
+    { service_status: true, service_message: '' },
+    { service_status: 'operational', service_message: { text: 'unsafe' } },
+  ])('rejects non-text captured service fields: %j', async (value) => {
+    renderDialog({ readServiceStatus: () => Promise.resolve(value) })
+    expect(await screen.findByText(EN.modelApiStatusUnavailable)).toBeVisible()
+    expect(screen.queryByText('operational')).toBeNull()
+  })
+
+  it('keeps the service row absent without a selected-provider status port', () => {
+    renderDialog()
+    expect(screen.queryByText(EN.modelApiStatusLabel)).toBeNull()
+  })
+
   it('shows hook additions separately without subtracting them from packing savings', () => {
     renderDialog({
       usage: {

@@ -4,7 +4,11 @@
 // its budget or is missing.
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { webviewDeferredBudgetGroups, webviewStartupOutputs } from './lib/webviewBundles.mjs'
+import {
+  webviewDeferredBudgetGroups,
+  webviewPacingOutputs,
+  webviewStartupOutputs,
+} from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
 // M99: bound the generated notes independently of their ZIP compression.
@@ -214,6 +218,15 @@ for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(webview))
     `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
   )
 }
+
+// M106R: optional pacing/status UI, measured +15%, rounded up to 25 KiB (PLAN D6).
+const WEBVIEW_PACING_BUDGET_KIB = 25
+const pacing = new Set(webviewPacingOutputs(webview))
+const pacingKiB = [...pacing].reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+if (pacingKiB > WEBVIEW_PACING_BUDGET_KIB) hasFailure = true
+console.log(
+  `${pacingKiB <= WEBVIEW_PACING_BUDGET_KIB ? 'ok  ' : 'OVER'} dist/webview pacing JS: ${pacingKiB.toFixed(1)} KiB (budget ${WEBVIEW_PACING_BUDGET_KIB} KiB)`,
+)
 
 if (hasFailure) {
   console.error('bundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)')

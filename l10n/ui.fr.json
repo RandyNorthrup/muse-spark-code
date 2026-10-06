@@ -3011,5 +3011,8 @@
   "referenceElicitationTitle": "Formulaires MCP",
   "referenceElicitation": "Les formulaires MCP demandent des informations pour le serveur MCP demandeur. Les valeurs envoyées vont à ce serveur, hors de la conversation du modèle et de la transcription. Le serveur peut les inclure dans une sortie d’outil ultérieure. Ne saisissez jamais de mot de passe ni de clé.",
   "referenceNativeAgentsConditions": "Quand run.subagent_delegation_mode=\"auto\", Muse Code peut déléguer à des agents. Avec \"off\", les outils de délégation sont indisponibles. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée."
+  "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée.",
+  "modelApiPacingTokenLimit": "La requête parallèle dépasse le budget de jetons réservé au travail en arrière-plan.",
+  "modelApiPacingWaiting": "En attente de capacité dans la limite de requêtes…",
+  "modelApiPacingExpired": "Le délai d’attente de capacité a expiré. Renvoyez le message pour réessayer."
 }

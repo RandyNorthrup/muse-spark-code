@@ -72,6 +72,7 @@ import {
   FAKE_MODEL_API_KEY,
   fakeModelApi,
   fakeModelApiClient,
+  fakeModelApiClientSettings,
   type ScriptedCall,
   type ScriptedReply,
   TINY_PNG_BASE64,
@@ -501,13 +502,9 @@ function setup(
     options.apiKey === undefined
       ? fakeModelApiClient(api, log)
       : new ModelApiClient({
+          ...fakeModelApiClientSettings(log),
           fetch: api.fetch,
-          baseUrl: 'https://api.example.test/v1',
           apiKey: options.apiKey,
-          sleep: () => Promise.resolve(undefined),
-          now: () => 0,
-          random: () => 0,
-          log,
         })
   const host = new ModelApiHost({
     client,
@@ -616,6 +613,23 @@ function setup(
     subagentUsage,
     reviewerUsage,
   }
+}
+
+/** Local pacing has no provider attempt or ambiguous paid liability. */
+function announceLocalPacingWait(t: ReturnType<typeof setup>): void {
+  const stream = t.client.streamResponse.bind(t.client)
+  vi.spyOn(t.client, 'streamResponse').mockImplementation(
+    (body, signal, onRetry, budget, guard) => {
+      onRetry?.({
+        phase: 'pacing',
+        attempt: 0,
+        maxAttempts: MODEL_API_MAX_RETRIES + 1,
+        delayMs: 60_000,
+        reason: UI_TEXT.modelApiPacingWaiting,
+      })
+      return stream(body, signal, onRetry, budget, guard)
+    },
+  )
 }
 
 async function startSession(
@@ -12043,6 +12057,40 @@ describe('ModelApiSession: replay as Meta validates it (protocols/responses)', (
       content: [{ type: 'output_text', text: '(no reply text)' }],
     })
     expect(input[reasoningAt + 2]).toEqual(expect.objectContaining({ role: 'user' }))
+  })
+
+  it('keeps a compaction pacing wait out of ambiguous paid-attempt accounting', async () => {
+    const t = setup({ store: memorySessionStore(), sessionBudgetUsd: 1 })
+    const watched = await preparedBudgetCompaction(t)
+    announceLocalPacingWait(t)
+    await watched.session.compact()
+    const scope = await watched.session.ownedBudgetScope()
+    if (scope === undefined) throw new Error('Expected session budget scope')
+    const spending = await scope.journal.read(scope.sessionId, scope.accountId)
+    expect(spending.hasUnknownHistoricalFees).toBe(false)
+    expect(watched.events).toContainEqual({
+      type: 'backendNotice',
+      level: 'info',
+      text: UI_TEXT.modelApiPacingWaiting,
+    })
+    await t.host.close()
+  })
+
+  it('shows a local pacing wait as status without claiming a failed retry', async () => {
+    const t = setup({ store: memorySessionStore(), sessionBudgetUsd: () => 1 })
+    announceLocalPacingWait(t)
+    const { session, events, turnDone } = await startSession(t)
+    await session.sendTurn([{ type: 'text', text: 'one' }])
+    await turnDone()
+    expect(events).toContainEqual({
+      type: 'backendNotice',
+      level: 'info',
+      text: UI_TEXT.modelApiPacingWaiting,
+    })
+    expect(events.some((event) => event.type === 'turnRetry')).toBe(false)
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'turnCompleted', terminal: 'completed' }),
+    )
   })
 
   it('sends the whole request again when the stream ends with a retryable error, keeping the retried reply', async () => {

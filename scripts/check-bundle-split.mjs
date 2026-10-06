@@ -128,6 +128,7 @@ const ACTIVATION_ALLOWED = new Map([
 const LAZY_ONLY = [
   // TRAIN14A: stored-key image/Tab HTTP calls load the same client on first use.
   'client.ts',
+  'pacing.ts',
   'ModelApiHost.ts',
   // M106: side answers load with the backend, reviewer, judge or Git action.
   'structuredOutput.ts',
@@ -949,7 +950,7 @@ const deferredWebviewSources = [
 ]
 for (const source of deferredWebviewSources) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
-    Object.hasOwn(output.inputs, source),
+    Object.keys(output.inputs).some((input) => input.replaceAll('\\', '/') === source),
   )
   if (outputs.length !== 1 || eagerWebview.has(outputs[0]?.[0])) {
     problems.push(`${source} must occur in exactly one deferred webview chunk`)
@@ -961,8 +962,8 @@ for (const [file, output] of Object.entries(webviewMeta.outputs)) {
     problems.push(`Unreachable or missing webview chunk ${file}`)
   if (
     output.entryPoint &&
-    output.entryPoint !== 'src/webview/main.tsx' &&
-    !deferredWebviewSources.includes(output.entryPoint)
+    output.entryPoint.replaceAll('\\', '/') !== 'src/webview/main.tsx' &&
+    !deferredWebviewSources.includes(output.entryPoint.replaceAll('\\', '/'))
   ) {
     problems.push(`Unlisted deferred webview surface ${output.entryPoint}`)
   }

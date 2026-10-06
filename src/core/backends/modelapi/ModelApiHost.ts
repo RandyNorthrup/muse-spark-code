@@ -1330,7 +1330,6 @@ const SUMMARY_FIELD_PREFIX = 'summary.'
 const EXPANDED_SLASH_NAME = /^\/([\w:-]+)/
 const TEXT_FIELD = 'text'
 const OUTPUT_TEXT = 'output_text'
-const COMMENTARY_PHASE = 'commentary'
 const PRESSURE_LOW = 'low'
 const PRESSURE_MEDIUM = 'medium'
 const PRESSURE_HIGH = 'high'
@@ -4889,6 +4888,10 @@ export class ModelApiSession implements AgentSession {
     const goalCommandRevision = this.goalCommandRevision
     // A retried request is announced in the transcript, as Muse Code's are (D25).
     const onRetry = (notice: RetryNotice) => {
+      if (notice.phase === 'pacing') {
+        this.emit({ type: 'backendNotice', level: 'info', text: notice.reason })
+        return
+      }
       this.allowRateLimitedRetry(notice)
       this.emit({
         type: 'turnRetry',
@@ -5103,7 +5106,7 @@ export class ModelApiSession implements AgentSession {
             // Text before a tool call goes back as commentary: as a final
             // answer before a `function_call` it is a 400 (the docs'
             // conversation structure), and dropping it costs quality.
-            ...(item.phase === COMMENTARY_PHASE && { phase: COMMENTARY_PHASE }),
+            ...(item.phase !== undefined && { phase: item.phase }),
           },
         })
         const entry = open.get(wireId)
@@ -11965,6 +11968,10 @@ export class ModelApiSession implements AgentSession {
           body,
           signal,
           (notice) => {
+            if (notice.phase === 'pacing') {
+              this.emit({ type: 'backendNotice', level: 'info', text: notice.reason })
+              return
+            }
             if (!attemptState.didSend || isAbortRequested(signal)) return
             const usage = attemptState.usage
             // Consume first: failed accounting must not settle this attempt again in cleanup.

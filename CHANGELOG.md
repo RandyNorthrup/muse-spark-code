@@ -29,6 +29,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- M106's Model API client now reads captured Meta rate limits, paces tagged
+  fan-out without holding up the foreground, and supports bounded 504 retries.
+  Public service-health reads, the usage row and sanitized report facts are
+  implemented behind explicit host ports; their remaining provider, team and
+  presentation bindings are recorded in the lane R certification.
 - M106 development contracts now include captured Meta hosted-search,
   structured-output, strict-schema refusal, rate-header, message-phase,
   health and model-list fixtures, plus a six-section compaction answer
@@ -40,6 +45,20 @@ happened, not what was planned; superseded entries are kept.
   within npm-run-all2's existing dependency range.
 
 ### Fixed
+
+- Model API response reads now share one idle deadline for headers, streaming
+  replies and JSON bodies, including failed HTTP responses and retries.
+  Stalled reads abort and cancel the transport with the existing localized
+  timeout error; local pacing and retry waits stay outside that deadline.
+- M106 fan-out pacing now retains concurrent request/token debits when late
+  response headers arrive, reserves half the observed token budget for the
+  foreground, and separates bounded local admission waits from provider idle
+  timing. Rate-limit waits have honest status notices; the token refusal is
+  translated in all 14 languages. Public service-status errors expose only
+  fixed scrubbed text, HTTP status, Retry-After and a fixed category.
+- M106's optional status UI loads in its own lazy chunk with a 25-KiB budget;
+  the existing deferred group keeps its 50-KiB cap. The pacing module is
+  included in the checked lazy Model API inventory.
 
 - Streamed argument previews now show only completed, scrubbed strings from
   each tool's explicit field allowlist. File content, nested values, foreign

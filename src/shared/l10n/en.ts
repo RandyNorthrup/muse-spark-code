@@ -39,6 +39,11 @@ export const EN = {
   outputSchemaLocalValidation:
     'Output schema validation: local (the selected model has no structured-output format).',
   outputSchemaReadFailed: 'Could not read the output schema: {detail}',
+  modelApiPacingTokenLimit:
+    'Fan-out request exceeds the token budget reserved for background work.',
+  modelApiPacingWaiting: 'Waiting for rate limit headroom…',
+  modelApiPacingExpired:
+    'The wait for rate limit headroom expired. Send the message again to retry.',
   modelApiStatusLabel: 'Meta API status',
   modelApiStatusUnavailable: 'Status unavailable',
   modelApiStatusOpen: 'Open service status',

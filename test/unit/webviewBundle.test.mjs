@@ -114,6 +114,7 @@ describe('the production webview chunks (FIX78W)', () => {
     'UsageDialogContent',
     'AgentMapContent',
     'ToolArgumentPreview',
+    'ServiceStatusRow',
   ])('loads %s only through its dynamic import', (name) => {
     const source = `src/webview/components/${name}.tsx`
     const owners = Object.entries(built.outputs).filter(([, output]) =>
@@ -155,10 +156,28 @@ describe('the production webview chunks (FIX78W)', () => {
     'node_modules/react/cjs/react.production.js',
   ])('shares one copy of %s with both panels', (source) => {
     const owners = Object.entries(built.outputs).filter(([, output]) =>
-      Object.hasOwn(output.inputs, source),
+      Object.keys(output.inputs).some((file) => file.replaceAll('\\', '/') === source),
     )
     expect(owners).toHaveLength(1)
     expect(initialOutputs().has(owners[0][0])).toBe(true)
+  })
+
+  it('keeps provider pacing in its lazy Model API inventory', () => {
+    const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+      encoding: 'utf8',
+    })
+    expect(result.status, result.stdout + result.stderr).toBe(0)
+    const source = 'src/core/backends/modelapi/pacing.ts'
+    for (const [meta, present] of [
+      ['dist/meta/modelApi.json', true],
+      ['dist/meta/extension.json', false],
+      ['dist/meta-acp/acp.json', false],
+    ]) {
+      const inputs = Object.keys(JSON.parse(readFileSync(meta, 'utf8')).inputs).map((file) =>
+        file.replaceAll('\\', '/'),
+      )
+      expect(inputs.includes(source)).toBe(present)
+    }
   })
 
   it('packages every emitted browser script, with no stale browser chunks', async () => {

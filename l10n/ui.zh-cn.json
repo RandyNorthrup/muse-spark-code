@@ -2805,5 +2805,8 @@
   "referenceElicitationTitle": "MCP 表单",
   "referenceElicitation": "MCP 表单为提出请求的 MCP 服务器收集信息。提交的表单值传给该服务器，不进入模型对话或记录。服务器可能将这些值包含在后续工具输出中。切勿输入密码或密钥。",
   "referenceNativeAgentsConditions": "当 run.subagent_delegation_mode=\"auto\" 时，Muse Code可以委派给代理。设为 \"off\" 时，委派工具不可用。 run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。"
+  "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
+  "modelApiPacingTokenLimit": "并行请求超出了为后台任务预留的令牌预算。",
+  "modelApiPacingWaiting": "正在等待速率限制内的可用容量…",
+  "modelApiPacingExpired": "等待可用容量的时间已到。请重新发送消息以重试。"
 }

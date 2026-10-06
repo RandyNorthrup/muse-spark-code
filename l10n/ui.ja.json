@@ -2805,5 +2805,8 @@
   "referenceElicitationTitle": "MCP フォーム",
   "referenceElicitation": "MCP フォームは、要求元の MCP サーバーのために情報を尋ねます。送信したフォームの値は、そのサーバーに渡され、モデルの会話や履歴には入りません。ただしサーバーは、後のツール出力に値を含めることができます。パスワードやキーは入力しないでください。",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" の場合、Muse Codeはエージェントに委任できます。\"off\" の場合、委任ツールは使用できません。 run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。"
+  "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
+  "modelApiPacingTokenLimit": "並列リクエストがバックグラウンド処理用のトークン予算を超えています。",
+  "modelApiPacingWaiting": "レート制限の空き容量を待っています…",
+  "modelApiPacingExpired": "レート制限の空き容量を待つ時間が終了しました。再試行するにはメッセージをもう一度送信してください。"
 }

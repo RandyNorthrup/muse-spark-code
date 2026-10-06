@@ -3114,5 +3114,8 @@
   "referenceElicitationTitle": "Formuláře MCP",
   "referenceElicitation": "Formuláře MCP žádají o informace pro příslušný server MCP. Odeslané hodnoty formuláře jdou tomuto serveru mimo konverzaci modelu a přepis. Server je může zahrnout do pozdějšího výstupu nástroje. Nikdy nezadávejte heslo ani klíč.",
   "referenceNativeAgentsConditions": "Když je run.subagent_delegation_mode=\"auto\", Muse Code může delegovat agentům. Při \"off\" nejsou nástroje delegování dostupné. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá."
+  "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
+  "modelApiPacingTokenLimit": "Požadavek souběžného zpracování překračuje rozpočet tokenů vyhrazený pro práci na pozadí.",
+  "modelApiPacingWaiting": "Čekání na dostupnou kapacitu v limitu požadavků…",
+  "modelApiPacingExpired": "Čekání na dostupnou kapacitu v limitu požadavků vypršelo. Zkuste zprávu odeslat znovu."
 }
