@@ -263,6 +263,17 @@ export const modelListSchema = z.object({
   data: z.array(z.object({ id: z.string() })),
 })
 
+/** GET /v1/status, captured 2026-10-05 with and without authentication (M106). */
+export const modelApiStatusSchema = z.object({
+  is_alive: z.boolean(),
+  service_status: z.string(),
+  service_message: z.string(),
+  updated_at: z.string(),
+  // Only an empty list was captured. Preserve future entries without
+  // inventing their fields; lane R must validate any fields it consumes.
+  model_statuses: z.array(z.unknown()),
+})
+
 // A count below zero is no count: it would lower the session budget's base (M82).
 export const inputTokensSchema = z.object({ input_tokens: z.number().check(z.nonnegative()) })
 
@@ -603,6 +614,14 @@ export type ToolDefinition = FunctionToolDefinition | WebSearchToolDefinition
 /** What the response adds beyond its defaults: reasoning to replay, search results to show. */
 export type IncludeField = 'reasoning.encrypted_content' | 'web_search_call.results'
 
+/** U10 (2026-10-05): structured answers coexist with function tools. */
+export interface JsonSchemaTextFormat {
+  readonly type: 'json_schema'
+  readonly name: string
+  readonly schema: Record<string, unknown>
+  readonly strict: boolean
+}
+
 export interface CreateResponseBody {
   readonly model: string
   readonly input: readonly InputItem[]
@@ -617,6 +636,10 @@ export interface CreateResponseBody {
   readonly store: false
   readonly include: readonly IncludeField[]
   readonly max_output_tokens: number
+  /** U8: bounds hosted tool calls, not the harness's function calls. */
+  readonly max_tool_calls?: number
+  /** Omitted on today's text path; lane O1 selects this per session. */
+  readonly text?: { readonly format: JsonSchemaTextFormat }
   /** One key per shared prefix, not per session (promptCache.ts, M56). */
   readonly prompt_cache_key: string
   /** How long Meta is asked to keep the cached prefix; a hint (M56). */
