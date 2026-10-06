@@ -21,12 +21,11 @@ function tool(overrides: Partial<ToolEntry> = {}): ToolEntry {
 describe('diffTally', () => {
   it('returns undefined when there are no edits', () => {
     expect(diffTally([])).toBeUndefined()
-    expect(
-      diffTally([
-        { kind: 'user', id: 'user-1', seq: 1, text: 'Hello', status: 'sent', attachments: [] },
-        { kind: 'assistant', id: 'reply-1', text: 'Hello', isStreaming: false },
-      ]),
-    ).toBeUndefined()
+    const messages: TranscriptEntry[] = [
+      { kind: 'user', id: 'user-1', seq: 1, text: 'Hello', status: 'sent', attachments: [] },
+      { kind: 'assistant', id: 'reply-1', text: 'Hello', isStreaming: false },
+    ]
+    expect(diffTally(messages)).toBeUndefined()
   })
 
   it.each(['edit_file', 'write_file', 'apply_patch', 'rename_symbol'])(
