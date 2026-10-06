@@ -164,20 +164,26 @@ describe('M105 R2 Windows screen recorder', () => {
     },
   )
 
-  it('revalidates the helper through the trusted-path port immediately before launch', async () => {
+  it.each([
+    {
+      title: 'revalidates the helper through the trusted-path port immediately before launch',
+      isTrustFailure: true,
+    },
+    {
+      title: 'refuses a user action which expires during asynchronous preparation',
+      isTrustFailure: false,
+    },
+  ])('$title', async ({ isTrustFailure }) => {
     const harness = setup()
     const recorder = windowsScreenRecorder(harness.deps)
-    expect(await recorder.available()).toEqual({ ok: true })
-    vi.mocked(harness.deps.verifyHelper).mockResolvedValue(false)
-    await expect(outcomeOf(recorder)).resolves.toMatchObject({ ok: false })
-    expect(harness.deps.launch).not.toHaveBeenCalled()
-    expect(harness.deps.removeDirectory).toHaveBeenCalledWith(DIRECTORY)
-  })
-
-  it('refuses a user action which expires during asynchronous preparation', async () => {
-    const harness = setup()
-    vi.mocked(harness.deps.isInteractiveUserAction).mockReturnValueOnce(true).mockReturnValue(false)
-    const recorder = windowsScreenRecorder(harness.deps)
+    if (isTrustFailure) {
+      expect(await recorder.available()).toEqual({ ok: true })
+      vi.mocked(harness.deps.verifyHelper).mockResolvedValue(false)
+    } else {
+      vi.mocked(harness.deps.isInteractiveUserAction)
+        .mockReturnValueOnce(true)
+        .mockReturnValue(false)
+    }
     await expect(outcomeOf(recorder)).resolves.toMatchObject({ ok: false })
     expect(harness.deps.launch).not.toHaveBeenCalled()
     expect(harness.deps.removeDirectory).toHaveBeenCalledWith(DIRECTORY)

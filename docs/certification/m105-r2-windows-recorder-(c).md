@@ -20,7 +20,7 @@ request, paid call, inference, desktop capture, or microphone recording.
   host close/sleep cancellation. No production fake or substitute sniffer is
   supplied on this base.
 - The Windows helper resolves the real Videos known folder, including user
-  redirection, then `Screen Recordings`. It selects the newest recent mp4,
+  local redirection, then `Screen Recordings`. It selects the newest recent mp4,
   case-insensitively, only in that folder. It refuses stale/future, empty,
   oversize and reparse sources, locks out writes/deletes during copying and
   binds the held handle to its canonical path. The original stays intact.
@@ -82,6 +82,8 @@ the fake driver/real native guard suites are independently verified.
    `native/windows/MuseSparkScreenRecord.cs` as `readSource`. Keep native
    source reading and all recorder UI out of activation. No existing cap is
    raised. This lane does not edit W's build, graph, package or manifest files.
+   Install the caller's language table before constructing the lazy factory,
+   as each Node bundle owns its own installed-language state.
 2. **W/E1/E2: trusted process and lifetime.** Reserve a unique, absent
    absolute directory named `muse-spark-screen-<random>` under the trusted
    temp root. Validate installed compiler/helper paths at both build and
@@ -151,6 +153,57 @@ Final checks and the named, byte-exact red-drill table follow below.
 
 These owed checks keep M105 delivery c open; this lane is not a release or
 support claim for direct Windows recording.
+
+## Final lane checks
+
+- Final Vitest batch: `windowsScreenRecorder`, `windowsScreenRecorderNative`,
+  `windowsScreenRecorderBuild`: **67/67 passed** (no skipped Windows checks).
+- Compiler regression batch: existing `jobBuild` and `mcpJobExecutable`:
+  **6/6 passed**. Total distinct tests: **73**, all at the repository timeout,
+  directly on `win11`, in sequential batches of at most three files.
+- All five `npm run typecheck` projects passed on the final code/test shape.
+- Changed TypeScript ESLint/Prettier passed through the first commit's
+  unchanged hooks. Its staged gitleaks scan found no leaks. Final formatting
+  and lint results are checked again with the certification commit.
+- `npm run deadcode`: passed (only the existing configuration hints).
+- `npm run cycles`: passed. A separate dpdm run rooted at the new driver and
+  recorder build entry passed, including their eight dependency files.
+- `npx jscpd`: passed, 1,170 files, zero clones. The first run fired on seven
+  duplicated assertion lines in the two admission cases. They now share a
+  parameterized test, retaining both names, cases and assertions. Their
+  trusted-path and expired-action red controls were rerun after this change;
+  both failed by name and restored the driver byte-exact.
+- `node scripts/check-l10n.mjs`: 14 tables, 164 manifest strings, 593 source
+  files, **zero problems**. No string or manifest key was added in R2.
+- `npm run build`: passed all existing size, split, host-global and notices
+  gates. **No cap was raised.** This is the base's production build; W still
+  owns adding the recorder bundle and packaging its native source.
+- `npm run check:host-api`: **one generated-record mismatch remains for W**:
+  the `node:path` importer count is **84 → 85**. The record still reports 332
+  VS Code APIs, 31 importing files, 25 Node built-ins and 61 theme variables;
+  the new driver imports no `vscode`. `docs/ide-compatibility/host-api.md` is
+  W-owned, so it was not changed here. W must regenerate/review it with the
+  integrated lanes before claiming a green full gate. No gate was ignored or
+  weakened to conceal this mismatch.
+- Full `quality`, coverage, security/a11y/editor suites are reserved for the
+  integrating lead by the common brief; they were not run by this lane.
+
+| Artifact                         |                Measured | Existing cap / interpretation                                                                          |
+| -------------------------------- | ----------------------: | ------------------------------------------------------------------------------------------------------ |
+| activation                       |               436.8 KiB | 600 KiB                                                                                                |
+| Model API                        |               446.7 KiB | 475 KiB                                                                                                |
+| ACP                              |               816.9 KiB | 850 KiB                                                                                                |
+| checkpoint store                 |                77.0 KiB | 225 KiB                                                                                                |
+| compressed English fallback      |                49.2 KiB | 125 KiB                                                                                                |
+| chat startup JS + static imports |               898.9 KiB | 900 KiB                                                                                                |
+| deferred browser JS              |                49.7 KiB | 50 KiB                                                                                                 |
+| standalone Windows driver        | 12,060 bytes (11.8 KiB) | uses existing shared UI/validation plugins; not a complete integrated `screenRecord.js` budget receipt |
+
+The standalone measurement bundles the owned driver to ignored `temp/` with
+the existing shared UI/validation plugins and the same Node target/minifier.
+It does not modify build scripts, budgets, package members or production
+entrypoints. Capture implementation and host/API record integration remain
+open exactly as noted above.
 
 ## Guard-fire record
 
