@@ -97,7 +97,11 @@ beforeAll(async () => {
       ...common,
       outdir: 'dist',
       target: 'node22',
-      entryPoints: { acp: 'src/runtime/main.ts' },
+      entryPoints: {
+        acp: 'src/runtime/main.ts',
+        runtimePanel: 'src/runtime/panel/panelEntry.ts',
+        runtimePanelPorts: 'src/runtime/panel/runtimeFeaturesEntry.ts',
+      },
       plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
       external: ['@napi-rs/keyring'],
     }),

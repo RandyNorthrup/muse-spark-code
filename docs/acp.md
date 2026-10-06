@@ -468,3 +468,22 @@ store the process cannot read reads as no stored key. Anything typed into
 `--description` is capped at 2,000 characters and scrubbed with the rest of
 the draft, but like shell history it still passes through the terminal, so
 keep secrets out of it.
+
+## Experimental MHP panel commands
+
+`muse-spark-code-acp panel --stdio` and
+`muse-spark-code-acp panel --companion` use MHP 1.1 rather than ACP.
+Exactly one transport is required. Backend, workspace-trust, sandbox and
+paid flags retain ACP defaults. A native host negotiates a
+`minimum: mhp/1.1.0`, `maximumExclusive: mhp/1.2.0` range, mandatory
+lifecycle and the service groups it implements. The runtime requests a
+registered chat surface (stdio) or a launch URL opened through UI (companion).
+Surface `opened` and `ready` precede shared `ready`; sequence numbers start
+at one independently in each direction and survive reload.
+
+Companion requests use C's one-use fragment launch code and per-window
+memory bearer, same-origin metadata and `X-Muse-Panel: 1`. Admission is
+204 at `/panel/message` and `/panel/surface`; `/panel/events` returns named
+MHP SSE frames. This base does not yet ship D's browser renderer/bridge.
+See [B2 certification and parity gaps](docs/certification/m104-b2.md) before
+using these experimental carriers in an editor. Existing ACP is unchanged.

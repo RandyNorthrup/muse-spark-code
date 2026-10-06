@@ -2324,6 +2324,7 @@ export const EN = {
   // {command}: the executable's name. The options and values stay as typed.
   acpUsage: [
     'Usage:',
+    '  {command} panel --stdio|--companion [options]',
     '  {command} [options]              Serve the Agent Client Protocol on stdin and stdout',
     '  {command} [options] login        Sign in to Muse Code in this terminal',
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',

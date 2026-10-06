@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Experimental standalone `panel --stdio` and `panel --companion` carriers
+  negotiate frozen MHP 1.1, correlate editor services, bind registered
+  surfaces, bound delivery and replay current conversation history on reload.
+  Both use the portable conversation factory and persistent runtime stores.
+  Browser rendering, ACP full composition and complete editor parity remain
+  open; the certification lists the affected features.
+
 - The standalone companion now admits MHP 1.1 panel/lifecycle messages at
   `/panel/message` and `/panel/surface`, returns empty 204 admissions and
   typed errors, and streams ordered `event: mhp` frames with sequence IDs

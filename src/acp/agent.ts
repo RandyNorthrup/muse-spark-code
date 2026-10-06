@@ -955,7 +955,9 @@ class AgentState {
   private clientCapabilities: ClientCapabilities = {}
 
   public constructor(private readonly deps: AcpAgentDeps) {
-    this.registry = deps.controllers ?? new ControllerRegistry(deps.log)
+    this.registry =
+      deps.controllers ??
+      new ControllerRegistry(deps.log, (id) => RequestError.resourceNotFound(id))
   }
 
   /**

@@ -34,6 +34,27 @@ export const PLUGIN_HOOKS_ONLY = [
 ]
 export const DEFERRED = [
   {
+    output: 'dist/runtimePanelPorts.js',
+    metafile: 'dist/meta/runtimePanelPorts.json',
+    use: 'runtime panel feature composition',
+    files: ['src/runtime/panel/runtimeFeatures.ts', 'src/runtime/panel/runtimeFeaturesEntry.ts'],
+  },
+  {
+    output: 'dist/runtimePanel.js',
+    metafile: 'dist/meta/runtimePanel.json',
+    use: 'the runtime panel command',
+    files: [
+      'src/runtime/panel/panelEntry.ts',
+      'src/runtime/panel/runPanel.ts',
+      'src/runtime/panel/connection.ts',
+      'src/runtime/panel/delivery.ts',
+      'src/runtime/panel/surfaces.ts',
+      'src/runtime/panel/runtimeController.ts',
+      'src/runtime/companion/server.ts',
+      'src/runtime/companion/events.ts',
+    ],
+  },
+  {
     output: 'dist/sessionBoard.js',
     metafile: 'dist/meta/sessionBoard.json',
     files: [

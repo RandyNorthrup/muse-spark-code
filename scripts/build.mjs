@@ -150,6 +150,10 @@ const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
+const RUNTIME_PANEL_PORTS_ENTRY = 'src/runtime/panel/runtimeFeaturesEntry.ts'
+const RUNTIME_PANEL_PORTS_OUTFILE = 'dist/runtimePanelPorts.js'
+const RUNTIME_PANEL_ENTRY = 'src/runtime/panel/panelEntry.ts'
+const RUNTIME_PANEL_OUTFILE = 'dist/runtimePanel.js'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
@@ -446,6 +450,20 @@ const acpOptions = {
   banner: { js: '#!/usr/bin/env node' },
 }
 
+/** @type {import('esbuild').BuildOptions} */
+const runtimePanelOptions = {
+  ...acpOptions,
+  entryPoints: [RUNTIME_PANEL_ENTRY],
+  outfile: RUNTIME_PANEL_OUTFILE,
+  banner: {},
+}
+
+const runtimePanelPortsOptions = {
+  ...runtimePanelOptions,
+  entryPoints: [RUNTIME_PANEL_PORTS_ENTRY],
+  outfile: RUNTIME_PANEL_PORTS_OUTFILE,
+}
+
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
 const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
@@ -557,6 +575,8 @@ if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
+    esbuild.context(runtimePanelOptions),
+    esbuild.context(runtimePanelPortsOptions),
     esbuild.context(tabOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
@@ -596,6 +616,8 @@ if (isWatch) {
   const shipped = {
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
+    runtimePanel: esbuild.build(runtimePanelOptions),
+    runtimePanelPorts: esbuild.build(runtimePanelPortsOptions),
     tab: esbuild.build(tabOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
@@ -653,6 +675,8 @@ if (isWatch) {
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
+  reportSize(RUNTIME_PANEL_OUTFILE)
+  reportSize(RUNTIME_PANEL_PORTS_OUTFILE)
   reportSize(TAB_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(REVIEW_OUTFILE)

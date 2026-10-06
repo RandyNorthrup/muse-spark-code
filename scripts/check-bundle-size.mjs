@@ -17,6 +17,9 @@ const BUDGETS = [
   { path: 'dist/extension.js', budgetKiB: 600 },
   // ACTDIET: first chat surface; 216.0 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/conversation.js', budgetKiB: 250 },
+  // M104 B2: carrier/runtime ports on the panel command; existing ACP cap stays 850.
+  { path: 'dist/runtimePanel.js', budgetKiB: 100 },
+  { path: 'dist/runtimePanelPorts.js', budgetKiB: 75 },
   // M94: provider, engine and ledger on first Tab use (PLAN.md D6).
   { path: 'dist/tab.js', budgetKiB: 75 },
   // The Model API backend, loaded when it first starts (M57). Revisited on

@@ -411,6 +411,17 @@ Get it from the
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
 | **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
 
+**Standalone panel carriers (M104, experimental):** `muse-spark-code-acp
+panel --stdio` speaks negotiated MHP 1.1 NDJSON to a native editor host;
+`muse-spark-code-acp panel --companion` opens the authenticated loopback
+carrier through that host's `ui/openExternal` service. Exactly one transport
+is required. Both accept the agent's existing backend, trust and paid-use
+flags; the Model API key stays in the OS credential store. The native host
+must offer lifecycle plus surfaces (stdio) or UI (companion), and answer
+correlated service requests. These commands stream the shared conversation;
+the browser renderer/bridge and full editor parity are pending. See
+[the tested features and integration handoff](docs/certification/m104-b2.md).
+
 **The ACP agent** needs Node.js 22 or later. Install it from the release:
 
 ```bash

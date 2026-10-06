@@ -51,6 +51,11 @@ export type RuntimeCommand =
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'report'; readonly options: ReportOptions }
+  | {
+      readonly command: 'panel'
+      readonly options: ServeOptions
+      readonly transport: 'stdio' | 'companion'
+    }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'help' | 'version' }
@@ -130,6 +135,12 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     isVerbose: values.verbose === true,
   }
   const [first, second, ...rest] = positionals
+  if (first === 'panel' && second === undefined) {
+    if ((values.stdio === true) === (values.companion === true))
+      return invalid('panel (--stdio | --companion)')
+    return { command: 'panel', options, transport: values.stdio === true ? 'stdio' : 'companion' }
+  }
+  if (values.stdio === true || values.companion === true) return invalid('--stdio | --companion')
   if (first === 'setup' && second === undefined) {
     return options.trustWorkspace
       ? { command: 'setup', options, maintenance: values.maintenance === true }
@@ -251,6 +262,8 @@ function parseCommandLineStrictly(argv: readonly string[]) {
     strict: true,
     options: {
       backend: { type: 'string' },
+      stdio: { type: 'boolean' },
+      companion: { type: 'boolean' },
       'trust-workspace': { type: 'boolean' },
       maintenance: { type: 'boolean' },
       'muse-binary': { type: 'string' },

@@ -1635,7 +1635,7 @@ describe('the ACP agent (M63)', () => {
         return await response
       }),
     ).rejects.toThrow(/killed by signal 9/)
-    expect(h.log.warn).toHaveBeenCalledWith('The museCode backend stopped: killed by signal 9')
+    expect(h.log.warn).toHaveBeenCalledWith('MHP_BACKEND_STOPPED museCode')
   })
 })
 

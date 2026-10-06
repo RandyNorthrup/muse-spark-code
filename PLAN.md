@@ -269,6 +269,8 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
 | `.vsix`                               | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
+| `dist/runtimePanel.js`                | ≤ 100 KiB (M104 B2 carrier, 72.4 KiB measured; lazy command only)                                                                                                                                                                                                                                                                                                                                      |
+| `dist/runtimePanelPorts.js`           | ≤ 75 KiB (M104 B2 feature ports, 53.6 KiB measured; lazy initialization only)                                                                                                                                                                                                                                                                                                                          |
 | `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
 | `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
 | `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
@@ -6868,6 +6870,17 @@ have equivalent functionality even if we need to develop it ourselves".
   commands. B and M110a0 remain incomplete until that continuation qualifies;
   `docs/certification/m104-a.md` names the exact caller contract. No reduced
   panel is advertised.
+
+- **M104 B2 continuation boundaries (2026-10-05):** the experimental native
+  and authenticated HTTP/SSE carriers now instantiate A's shared composition
+  on a real registered backend session. What public rich-parts admission API
+  lets ACP retain ContentBlock/TurnPart translation while becoming a view of
+  that same controller? What owning native broker supplies editor/UI services
+  to D's browser bridge, whose frozen HTTP routes carry only panel traffic?
+  Until those integrations and the runtime feature adapters in
+  `docs/certification/m104-b2.md` qualify, M104 and M110a0 stay incomplete.
+  Default: keep ACP behavior, refuse unavailable ports and binding changes,
+  expose neither secrets nor an unqualified equivalent-editor claim.
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
@@ -19061,6 +19074,15 @@ installs the caller's language table before constructing any ports.
 The registry's protocol error factory is injected by ACP, keeping the
 portable registry independent of the ACP SDK.
 
+**B2 implementation status:** both experimental commands carry real shared
+controller text turns on either backend; native editor requests and paired
+HTTP/SSE clients are tested with isolated fake credentials/backends. No live
+wire shapes were added. Frozen MHP 1.1 remains unchanged. D's renderer/bridge
+is absent, ACP still needs full controller composition, and the runtime ports
+do not implement every VS Code feature. The certification's explicit parity
+table and native/broker handoff are required integration work, not accepted
+feature removal. M104 and M110a0 remain incomplete.
+
 **Lane A implementation (2026-10-05).** The required release/0.14.1 merge
 brings the current activation and 30 host modules importing `vscode`
 (the planning count was 24). Move all 30 with history into `src/host/vscode/`.
@@ -19459,6 +19481,20 @@ assigns full `npm run quality` to the release lead after integration; this
 lane does not run it or weaken any gate. The generic delivery validator's
 ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
+
+**M104 B2 (2026-10-05/06, macmini; experimental carriers, incomplete parity).**
+The rig brief explicitly forbids aggregate quality in this lane. All five
+typechecks, scoped lint/formatting, localization, host inventory, cycles,
+plain Knip, duplication and production build/split/globals/caps pass. Native,
+companion and ACP process suites use isolated fake keyrings/backends; no live
+or paid calls or credential-store reads. Thirty-two deliberately broken
+runtime/transport/bundle guards fail and restore byte-exact with SHA-256
+receipts. The local offline ACP package includes the three lazy panel and
+conversation bundles. ACP full controller composition, D renderer/native
+broker and all 56 editor-feature qualification rows remain required; M104
+and M110a0 are not complete. Detailed results, parity/dependency list, factory
+handoff and remaining work: `docs/certification/m104-b2.md`. Existing caps,
+thresholds and gate levels are unchanged; full quality stays with the lead.
 
 **M104 B (2026-10-05, macmini; incomplete lane).** The rig/common brief
 reserves full quality and aggregate coverage/editor qualification for the
@@ -20409,6 +20445,12 @@ remain available.
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
 ## 8. Escape hatches register
+
+| M104 B2 location                     | Escape hatch                                       | Reason                                                                                                                                                                  |
+| ------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/runtime/main.ts`, panel command | `eslint-disable-next-line unicorn/no-process-exit` | The standalone carrier exits after owned backend cleanup and bounded stdout/stderr flushing; expired/dead SDK request timers must not keep a closed carrier alive.      |
+| `src/runtime/panel/panelLoader.ts`   | Factory signature predicates                       | Same-build packaged exports are trusted only after structural callable guards; factories install the caller's language table. Missing/wrong factories throw.            |
+| `src/runtime/panel/connection.ts`    | Method kind predicates                             | Validated own keys from the frozen method table and their checked request/notification kind determine the mapped union; no foreign method or prototype key is admitted. |
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -27,6 +27,80 @@ function setup() {
 }
 
 describe('controller registry', () => {
+  it('waits for a host-exit release already draining when the registry closes', async () => {
+    const t = setup()
+    await t.registry.adopt(
+      t.host,
+      t.session,
+      t.claim,
+      () => t.controller,
+      () => Promise.resolve(),
+    )
+    const stopped = Promise.withResolvers<boolean>()
+    t.controller.release.mockImplementation(async () => {
+      t.controller.isReleased = true
+      await stopped.promise
+    })
+    t.host.exit('stopped')
+    const closed = vi.fn()
+    const closing = (async () => {
+      await t.registry.close()
+      closed()
+    })()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(closed).not.toHaveBeenCalled()
+    stopped.resolve(true)
+    await closing
+    expect(closed).toHaveBeenCalledOnce()
+  })
+  it('releases the remaining controllers even when an earlier release fails', async () => {
+    const t = setup()
+    await t.registry.adopt(
+      t.host,
+      t.session,
+      t.claim,
+      () => t.controller,
+      () => Promise.resolve(),
+    )
+    const session = new FakeAgentSession('session-two', 'muse-spark-1.3')
+    const release = vi.fn(() => Promise.resolve())
+    await t.registry.adopt(
+      t.host,
+      session,
+      t.registry.claimSession(session.sessionId),
+      () => ({ ...t.controller, sessionId: session.sessionId, release }),
+      () => Promise.resolve(),
+    )
+    t.controller.release.mockRejectedValue(new Error('release failed'))
+    await expect(t.registry.close()).rejects.toThrow('MHP_REGISTRY_RELEASE_FAILED')
+    expect(release).toHaveBeenCalledOnce()
+    expect([...t.registry.controllers()]).toEqual([])
+  })
+  it('closes every owned controller and refuses late claims/adoption', async () => {
+    const t = setup()
+    await t.registry.adopt(
+      t.host,
+      t.session,
+      t.claim,
+      () => t.controller,
+      () => Promise.resolve(),
+    )
+    expect([...t.registry.controllers()]).toEqual([t.controller])
+    await t.registry.close()
+    expect(t.controller.release).toHaveBeenCalledTimes(1)
+    expect([...t.registry.controllers()]).toEqual([])
+    expect(() => t.registry.claimSession('late')).toThrow('MHP_SESSION_NOT_FOUND')
+    await expect(
+      t.registry.adopt(
+        t.host,
+        t.session,
+        t.claim,
+        () => t.controller,
+        () => Promise.resolve(),
+      ),
+    ).rejects.toThrow('MHP_SESSION_NOT_FOUND')
+  })
   it('refuses a session or controller that does not match its claimed binding', async () => {
     const t = setup()
     const wrong = t.registry.claimSession('other-session')

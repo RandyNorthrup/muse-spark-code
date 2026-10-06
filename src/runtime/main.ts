@@ -19,6 +19,9 @@ import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
   ACP_AUTH_METHODS,
+  RUNTIME_PANEL_BUNDLE_FILE,
+  RUNTIME_PANEL,
+  CONVERSATION_BUNDLE_FILE,
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
   EXEC_FORCE_WRITE_MS,
@@ -58,6 +61,7 @@ import { museSettingsPath } from '../host/backend/museSettings'
 import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
+import { panelLoader } from './panel/panelLoader'
 import { uiLocale } from '../shared/l10n/text'
 
 const EXIT_FAILED = 1
@@ -354,7 +358,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
 }
 
 function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
-  if (command.command !== 'serve') {
+  if (command.command !== 'serve' && command.command !== 'panel') {
     return 'warn'
   }
   return command.options.isVerbose ? 'trace' : 'info'
@@ -489,6 +493,50 @@ async function main(): Promise<number> {
   switch (command.command) {
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
+    }
+    case 'panel': {
+      const runtime = runtimeFor(command.options, log)
+      await runtime.forgetUnflaggedGrants()
+      const result = await panelLoader({
+        bundlePath: path.join(distDir, RUNTIME_PANEL_BUNDLE_FILE),
+        log,
+      })().runRuntimePanel(
+        {
+          options: command.options,
+          transport: command.transport,
+          runtime,
+          dataRoot: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
+          conversationBundle: path.join(distDir, CONVERSATION_BUNDLE_FILE),
+          defaultCwd: process.cwd(),
+          input: process.stdin,
+          output: process.stdout,
+          runGit: processGitRunner(),
+          log,
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+      // This standalone carrier owns its process. Its backend cleanup has
+      // completed; stop stale SDK request timers after bounded pipe flushing.
+      const flush = (stream: NodeJS.WriteStream) =>
+        new Promise<void>((resolve) => {
+          if (stream.destroyed) {
+            resolve()
+            return
+          }
+          const timer = setTimeout(resolve, RUNTIME_PANEL.closeTimeoutMs)
+          stream.write('', () => {
+            clearTimeout(timer)
+            resolve()
+          })
+        })
+      await Promise.all([flush(process.stdout), flush(process.stderr)])
+      // eslint-disable-next-line unicorn/no-process-exit -- panel owns its standalone process; awaited backend cleanup and bounded pipe flush precede exit (PLAN §8).
+      return process.exit(result)
     }
     case 'serve': {
       return await serve(command.options, log)

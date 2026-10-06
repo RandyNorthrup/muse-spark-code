@@ -20,6 +20,8 @@ const HOST_BUNDLES = [
   'dist/uiTextSurfaces.js',
   'dist/extension.js',
   'dist/conversation.js',
+  'dist/runtimePanel.js',
+  'dist/runtimePanelPorts.js',
   'dist/tab.js',
   'dist/modelApi.js',
   'dist/review.js',

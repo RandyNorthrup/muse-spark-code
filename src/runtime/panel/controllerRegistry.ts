@@ -1,4 +1,3 @@
-import { RequestError } from '@agentclientprotocol/sdk'
 import type { AgentHost, AgentSession } from '../../core/agent/agentBackend'
 import type { CoreLogger } from '../../core/logging'
 
@@ -17,6 +16,7 @@ export interface SessionController {
 }
 
 export class ControllerRegistry<C extends SessionController> {
+  private isClosed = false
   private readonly sessions = new Map<string, C>()
   private readonly adopting = new Map<string, C>()
   private readonly claims = new Map<string, ControllerClaim>()
@@ -24,7 +24,11 @@ export class ControllerRegistry<C extends SessionController> {
   private readonly watchedHosts = new WeakSet<AgentHost>()
   private readonly exitedHosts = new WeakSet<AgentHost>()
 
-  public constructor(private readonly log: CoreLogger) {}
+  public constructor(
+    private readonly log: CoreLogger,
+    private readonly missing: (sessionId: string) => Error = () =>
+      new Error('MHP_SESSION_NOT_FOUND'),
+  ) {}
 
   /** Remove immediately; a shared barrier prevents a new view racing the old stop. */
   private async releaseAll(sessionId: string): Promise<boolean> {
@@ -46,6 +50,7 @@ export class ControllerRegistry<C extends SessionController> {
   }
 
   public claimSession(sessionId: string): ControllerClaim {
+    if (this.isClosed) throw this.missing(sessionId)
     const claim = { sessionId }
     this.claims.set(sessionId, claim)
     return claim
@@ -53,7 +58,7 @@ export class ControllerRegistry<C extends SessionController> {
 
   public ensureClaim(claim: ControllerClaim, host: AgentHost): void {
     if (this.claims.get(claim.sessionId) !== claim || this.exitedHosts.has(host))
-      throw RequestError.resourceNotFound(claim.sessionId)
+      throw this.missing(claim.sessionId)
   }
 
   public abandonClaim(claim: ControllerClaim): void {
@@ -72,18 +77,18 @@ export class ControllerRegistry<C extends SessionController> {
     let controller: C | undefined
     let isControllerBound = false
     try {
-      if (claim.sessionId !== sessionId) throw RequestError.resourceNotFound(claim.sessionId)
+      if (claim.sessionId !== sessionId) throw this.missing(claim.sessionId)
       this.ensureClaim(claim, host)
       await this.releaseAll(sessionId)
       this.ensureClaim(claim, host)
       controller = create()
       if (controller.sessionId !== sessionId || controller.host !== host)
-        throw RequestError.resourceNotFound(sessionId)
+        throw this.missing(sessionId)
       isControllerBound = true
       this.adopting.set(sessionId, controller)
       await prepare(controller)
       this.ensureClaim(claim, host)
-      if (controller.isReleased) throw RequestError.resourceNotFound(sessionId)
+      if (controller.isReleased) throw this.missing(sessionId)
     } catch (error: unknown) {
       if (controller === undefined || !isControllerBound) session.dispose()
       if (controller !== undefined) await controller.release()
@@ -96,6 +101,29 @@ export class ControllerRegistry<C extends SessionController> {
     return controller
   }
 
+  public controllers(): Iterable<C> {
+    return this.sessions.values()
+  }
+
+  public async close(): Promise<void> {
+    this.isClosed = true
+    this.claims.clear()
+    const ids = new Set([
+      ...this.sessions.keys(),
+      ...this.adopting.keys(),
+      ...this.releasing.keys(),
+    ])
+    const errors: unknown[] = []
+    for (const id of ids) {
+      try {
+        await this.releaseAll(id)
+      } catch (error: unknown) {
+        errors.push(error)
+      }
+    }
+    if (errors.length > 0) throw new AggregateError(errors, 'MHP_REGISTRY_RELEASE_FAILED')
+  }
+
   public held(sessionId: string): C | undefined {
     return this.sessions.get(sessionId)
   }
@@ -103,7 +131,7 @@ export class ControllerRegistry<C extends SessionController> {
   public async closeSession(sessionId: string): Promise<void> {
     const wasClaimed = this.claims.delete(sessionId)
     const wasReleased = await this.releaseAll(sessionId)
-    if (!wasClaimed && !wasReleased) throw RequestError.resourceNotFound(sessionId)
+    if (!wasClaimed && !wasReleased) throw this.missing(sessionId)
   }
 
   public watch(host: AgentHost): void {
@@ -111,12 +139,14 @@ export class ControllerRegistry<C extends SessionController> {
     this.watchedHosts.add(host)
     host.onExit((exit) => {
       this.exitedHosts.add(host)
-      this.log.warn(`The ${host.info.kind} backend stopped: ${exit.description}`)
+      this.log.warn(`MHP_BACKEND_STOPPED ${host.info.kind}`)
       for (const [sessionId, controller] of [...this.sessions, ...this.adopting]) {
         if (controller.host !== host) continue
         controller.hostExited(exit.description)
         this.claims.delete(sessionId)
-        void this.releaseAll(sessionId)
+        void this.releaseAll(sessionId).catch(() => {
+          this.log.error('MHP_REGISTRY_RELEASE_FAILED')
+        })
       }
     })
   }

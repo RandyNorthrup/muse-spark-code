@@ -187,6 +187,25 @@ function fakeChild(): EventEmitter {
 }
 
 describe('parseCommandLine', () => {
+  it('requires exactly one panel carrier and preserves backend flags', () => {
+    expect(parseCommandLine(['panel', '--stdio'])).toEqual({
+      command: 'panel',
+      transport: 'stdio',
+      options: DEFAULTS,
+    })
+    expect(parseCommandLine(['panel', '--companion', '--backend', 'modelApi'])).toEqual({
+      command: 'panel',
+      transport: 'companion',
+      options: { ...DEFAULTS, backend: 'modelApi' },
+    })
+    for (const args of [
+      ['panel'],
+      ['panel', '--stdio', '--companion'],
+      ['--stdio'],
+      ['panel', '--stdio', 'extra'],
+    ])
+      expect(parseCommandLine(args)).toMatchObject({ command: 'invalid' })
+  })
   it('requires explicit trust for Setup and confines maintenance to Setup', () => {
     expect(parseCommandLine(['setup'])).toMatchObject({ command: 'invalid' })
     expect(parseCommandLine(['--trust-workspace', 'setup'])).toMatchObject({
