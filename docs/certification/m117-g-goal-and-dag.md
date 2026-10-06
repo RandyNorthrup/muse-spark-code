@@ -128,7 +128,6 @@ work from future scheduling affinity, using the resolved merge evidence.
 | `G37-association-uniqueness` | rejects duplicate references inside a milestone association | 1 |
 | `G38-association-bound` | bounds association lists even when the selected goal is empty | 1 |
 | `G39-release-uniqueness` | rejects duplicate references inside a release association | 1 |
-
 | `G40-completed-affinity` | does not require scheduling affinity for already merged git work | 1 |
 | `G41-resolved-merge-status` | does not require scheduling affinity for already merged pullRequest work | 1 |
 
@@ -171,4 +170,49 @@ calibration claims, price, spending behavior or editor-only entry point.
 
 ## Scoped gate results
 
-Final results and hooked commit receipts are recorded below after verification.
+All commands below ran directly in this worktree on Mac mini, one heavy
+process at a time. Final tests use the repository timeout, without
+`--testTimeout`, skips or name filters.
+
+| Check                                                                                          | Result                                                                                                                   |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `npx vitest run test/unit/estimatorGoal.test.ts test/unit/estimatorDag.test.ts --maxWorkers=3` | Exit 0; 97 tests: 72 goal, 25 DAG. Cross-process comparisons pass in two TZ/LANG contexts.                               |
+| `npm run typecheck`                                                                            | Exit 0; all five projects on the final code.                                                                             |
+| Scoped `npx eslint --max-warnings=0`                                                           | Exit 0 on both core files, both tests and the fixture helper; hooks also run ESLint.                                     |
+| Scoped `npx prettier --check`                                                                  | Exit 0 on all six changed files; hooks also format them.                                                                 |
+| `npm run deadcode`                                                                             | Exit 0; existing vendor/axe-core configuration hints only. No configuration changed.                                     |
+| `npx jscpd`                                                                                    | Exit 0; zero clones across 1,192 files after sharing the repeated test setup. Threshold remains zero.                    |
+| `node scripts/check-l10n.mjs`                                                                  | Exit 0; 14 tables, 166 manifest strings, 609 source files, zero problems. Existing translated estimator keys are reused. |
+| `npm run check:reference`                                                                      | Exit 0; 53 features, 44 commands, 59 settings, 26 slash commands, 116 CLI entries; generated reference current.          |
+| `npm run check:host-api`                                                                       | Exit 0; zero problems.                                                                                                   |
+| `npm run build`                                                                                | Exit 0; size, split, host-globals and third-party-notice checks all pass.                                                |
+| Commit hooks                                                                                   | Exit 0 on implementation commits; ESLint, Prettier and staged gitleaks found no leaks.                                   |
+
+Build measurements from the final Mac mini production build: extension
+439.5 KiB / 600 KiB, Model API 446.9 KiB / 475 KiB, checkpoint store
+76.9 KiB / 225 KiB, webview startup 797.1 KiB / 900 KiB, deferred webview
+JavaScript 50.0 KiB / 50 KiB. These are measured artifact sizes, not forecasts;
+no cap changed. G has no shipped entry yet: W still owns the estimator's
+lazy chunk, production consumers and final integrated budget proof.
+
+The final forty-lane fixture test took 20.4 ms including its setup and
+assertions, a single measured Vitest sample with unknown timing uncertainty.
+The timed goal/DAG operation passed the 2,000 ms bound. This certifies G on
+Mac mini, not S's complete Monte Carlo engine or a cross-rig performance claim.
+The final determinism test took 414.6 ms, likewise one measured sample with
+unknown timing uncertainty; its bundle is built once in `beforeAll`.
+
+Implementation commits: `03c52932` and `3083f719`, both with hooks enabled.
+The first commit installs the resolver, DAG and regression/drill record; the
+second fixes completed-work affinity and the duplication gate's findings.
+Final certification is committed separately, also with hooks enabled.
+No dependency was installed, credential read, live/paid/model call made,
+cap weakened, branch merged/rebased or push performed. Only G's six files
+changed. Scratch drill reports and logs are removed from the tight-disk rig.
+
+Aggregate `npm run quality`, live M113/M96/C/S bindings, the final estimator
+bundle, UI/editor and complete milestone acceptance remain with their named
+owners. The brief expressly prohibits this lane from running aggregate quality;
+these scoped receipts do not claim it passed. W also owns CHANGELOG and the
+user-facing help/reference rows when the feature is wired. No new command,
+setting or surface is registered by this library-only lane.
