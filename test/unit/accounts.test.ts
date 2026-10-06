@@ -6,14 +6,17 @@ import {
   accountTriggerSchema,
   accountEventSchema,
   accountConfirmationSchema,
+  type Account,
+  type AccountThresholds,
+  type AccountConfirmation,
 } from '../../src/shared/accounts'
 import { providersAccountsSchema } from '../../src/core/providers/providersFile'
 import { usageAccountFields } from '../../src/shared/usageJournal'
 import { deviceAccountHeadroomSchema } from '../../src/shared/devices'
-import { accountsRequestSchema } from '../../src/shared/hostApi/accounts'
+import { accountsRequestSchema, type AccountsRequest } from '../../src/shared/hostApi/accounts'
 import { ACCOUNT_DEFAULT_ID, ACCOUNT_DEFAULTS } from '../../src/shared/constants'
 
-const account = { id: 'work', label: 'Work', order: 0, thresholds: {} }
+const account: Account = { id: 'work', label: 'Work', order: 0, thresholds: {} }
 const time = '2026-10-05T12:00:00.000Z'
 const trigger = {
   kind: 'userCap',
@@ -64,16 +67,15 @@ describe('M108 local accounts contracts', () => {
   })
 
   it('accepts all configured periods, zero caps and percentage endpoints', () => {
-    expect(
-      accountThresholdsSchema.parse({
-        spendUsd: { day: 0, week: 20, month: 50 },
-        inputTokens: { day: 1, week: 2, month: 100 },
-        outputTokens: { month: 100 },
-        requests: { day: 1 },
-        planWindowPercent: { 'five-hour': 100, weekly: 0 },
-        rateLimitHeadroomPercent: { requests: 0, tokens: 100 },
-      }),
-    ).toBeDefined()
+    const thresholds: AccountThresholds = accountThresholdsSchema.parse({
+      spendUsd: { day: 0, week: 20, month: 50 },
+      inputTokens: { day: 1, week: 2, month: 100 },
+      outputTokens: { month: 100 },
+      requests: { day: 1 },
+      planWindowPercent: { 'five-hour': 100, weekly: 0 },
+      rateLimitHeadroomPercent: { requests: 0, tokens: 100 },
+    })
+    expect(thresholds.spendUsd?.day).toBe(0)
   })
 
   it.each([
@@ -101,13 +103,12 @@ describe('M108 local accounts contracts', () => {
 
   it('rejects credentials at configuration and bridge boundaries', () => {
     const canary = 'planted-only-account-secret'
+    const request: AccountsRequest = { type: 'accounts/add', provider: 'meta', account }
     for (const field of ['apiKey', 'accessToken', 'credential', 'secret']) {
       expect(accountSchema.safeParse({ ...account, [field]: canary }).success).toBe(false)
       expect(
         accountsRequestSchema.safeParse({
-          type: 'accounts/add',
-          provider: 'meta',
-          account,
+          ...request,
           [field]: canary,
         }).success,
       ).toBe(false)
@@ -159,7 +160,7 @@ describe('M108 local accounts contracts', () => {
   })
 
   it('binds local confirmations to machine, product and record', () => {
-    const confirmation = {
+    const confirmation: AccountConfirmation = {
       machineId: 'rig',
       provider: 'meta',
       product: 'model-api',
