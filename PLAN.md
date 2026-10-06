@@ -19621,6 +19621,19 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**FIXM107C2 review repair (2026-10-06, Kubuntu).** Repair RVM107C2's
+one P2 in the team slot adapter: after local acquisition waits, use the
+same live capacity helper as the picker before returning runnable work.
+Exclude only the newly acquired local reservation from that check. If
+capacity has fallen, release both unstarted reservations and return to
+the governor queue with the original kind, priority and parent; never hold
+a scheduler slot while waiting again. Preserve child preflight,
+cancellation and retirement rules. Add pause and throttle transitions
+during local acquisition, prove the regressions red before the fix, then
+break the final guard and restore it byte-exact. Record scoped gates in
+`docs/certification/m107-c2-the-team-and-runners.md`; the rig brief leaves
+aggregate quality and the existing M96/M96c production joins with the lead.
+
 **M107INT round 3 (2026-10-06, Win11).** Join T2, U and H with the three
 listed no-fast-forward merges. Resolve shared records additively, preserve
 C1's native launch/retirement and Linux path repairs, and adopt T2's exact
@@ -21458,6 +21471,20 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M107-C2-live-capacity-binding (FIXM107C2, 2026-10-06).** RVM107C2's
+  sole P2 is fixed in the portable adapter, with pause/throttle regressions
+  and byte-exact guard drills. No reviewed finding is accepted as a residual.
+  M96/M96c and the C1/T reserved-permit registry attachment remain absent on
+  this base. Safe for now: C2 is outside every shipped bundle, and rejected
+  unstarted local/governor reservations are withdrawn before requeue; running
+  work is never released by a capacity change. Follow-up: M96c/W must supply
+  the new required `TeamCapacityPort` using the queue's same live governor
+  and registry, existing configured caps, and scheduler occupancy including
+  the newly acquired reservation; bind the exact final permit to C1/T, then
+  certify joined fairness/child rules, runner dispatch, responsiveness,
+  bundle sizes and all editors. The rig forbids aggregate quality here;
+  the lead runs it before integration. See `m107-c2-the-team-and-runners.md`.
 
 - **M107 round-3 delivery qualification (2026-10-06).** T2/U/H are joined
   into C1/G/A/S. Every repository-owned governed payload stop uses its registered

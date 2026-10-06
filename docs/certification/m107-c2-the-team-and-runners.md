@@ -206,3 +206,68 @@ functions and lines. The fresh final unit-project compiler and scoped
 ESLint exit 0; explicit-path Prettier and `git diff --check` pass. Shipping
 metafile inspection finds **zero C2 inputs across 38 metafiles**.
 The finishing explicit-path commit uses the repository's unmodified hooks.
+
+## FIXM107C2 — RVM107C2 repair (2026-10-06, Kubuntu)
+
+Review `RVM107C2.report.md` reports one P2 and no P1/P3. The P2 is fixed:
+`GovernedTeamSlots` now requires the same live `TeamCapacityPort` used by
+the picker and calls `isResourceSlotAvailable` after local acquisition
+returns, before it returns runnable work. The port reads the queue's same
+governor/registry, existing configured caps and current scheduler occupancy.
+The helper excludes exactly the current acquired local reservation, clamps
+the result at zero and still refuses unknown registry occupancy. All worker
+and heavy-check admissions use this single path; the picker uses the same
+helper without a held reservation.
+
+When capacity has fallen, both unstarted reservations are released before
+the same request re-enters the governor queue. Its kind, priority, exact
+parent and combined cancellation signal are preserved. Child preflight
+runs again on each acquired governor permit; a same-kind child made
+impossible by throttle is refused instead of waiting on its parent. No
+running slot or registry tree is retired because the capacity fell. The
+final returned permit is the exact renewed governor reservation, ready for
+the existing C1/T attachment handoff.
+
+Before changing production code, the full owning slot file ran with the
+three capacity-transition cases added. It exited **1**, with **13 existing
+tests passing and 3 regressions failing**: worker/check at pause returned a
+runnable slot, and the two workers at throttle both became runnable. The
+fixture counts local reservations explicitly; it introduces no production
+scheduler or new dependency. The added cancellation/child cases also fail
+under the final guard drill below.
+
+| Finding / case                                                | Status    | Regression in `teamResourceSlots.test.ts`                                                                         | Red drill                                                                              |
+| ------------------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| P2: capacity falls to pause during worker/check local waiting | Fixed     | `rechecks pause after a worker/check waits for a local slot and releases both unstarted reservations` (two cases) | Bypass the final live helper: both fail with a runnable slot at pause                  |
+| P2: capacity falls to one while two workers wait              | Fixed     | `rechecks throttle after two workers wait for local slots and admits at most one`                                 | Bypass the helper, or exclude two local reservations: two workers become runnable      |
+| Requeued cancellation retains no unstarted reservation        | Preserved | `cancels work requeued after local acquisition without holding either reservation`                                | Bypass the helper: the work never requeues                                             |
+| Reduced capacity makes a same-kind child impossible           | Preserved | `refuses a same-kind child made impossible while local acquisition waits`                                         | Bypass the helper, or exclude two reservations: the child resolves instead of refusing |
+
+Two deliberate production mutations ran the **complete 18-test owning
+file**, with default repository timeouts and no filter/skip. Bypassing
+`isResourceSlotAvailable` at final admission exited **1**, failing all five
+new cases while the 13 existing tests passed. Subtracting two reservations
+instead of only the acquired slot exited **1**, failing the throttle and
+same-kind child cases while 16 tests passed. Both mutations restored the
+saved source bytes in `finally` and verified the same SHA-256:
+`3589865fbfa5e3ac9ed1cd93b96315744523ce28e88f2140c301ecd7ca0d7007`.
+These are additional review-repair receipts; the original 28 drills and
+their historical production hashes above remain their original receipts.
+
+The restored three owning suites pass **29/29** with default timeouts.
+Scoped V8 coverage on all five C2 production modules passes unchanged
+thresholds with **100% statements (60/60), branches (30/30), functions
+(12/12), and lines (55/55)**. `npm run typecheck` passes all five projects;
+scoped ESLint passes with no warnings. No suppression, cast escape hatch,
+new user text, wire shape, setting, command or dependency is added.
+The existing `.husky/_/pre-commit` launcher is present; commits use the
+unmodified serial lint-staged and staged redacted gitleaks hooks.
+
+No reviewed P2/P3 remains. The named **M107-C2-live-capacity-binding**
+residual in PLAN §9 carries the existing unshipped M96/M96c and C1/T joins:
+M96c/W must bind the required live capacity port including the acquired
+local reservation, then certify fairness, child rules, dispatch, all-editor
+responsiveness and bundle costs in production. The rig brief overrides
+common.md's historical merge step and prohibits full `npm run quality`;
+the integration lead retains that gate. No merge, push, rebase, credential,
+live/paid call, external message, install or other-lane change occurred.

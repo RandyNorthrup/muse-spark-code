@@ -30,9 +30,11 @@ describe('C2 governor capacity in the team scheduler', () => {
     expect(isResourceSlotAvailable(capacity, 'worker')).toBe(true)
     occupied.mockReturnValue(1)
     expect(isResourceSlotAvailable(capacity, 'worker')).toBe(false)
+    expect(isResourceSlotAvailable(capacity, 'worker', true)).toBe(true)
     configured.mockReturnValue(0)
     occupied.mockReturnValue(0)
     expect(isResourceSlotAvailable(capacity, 'worker')).toBe(false)
+    expect(isResourceSlotAvailable(capacity, 'worker', true)).toBe(false)
   })
 
   it('refuses unknown or occupied registry counts even when scheduler slots are free', async () => {
@@ -76,6 +78,123 @@ describe('C2 governor capacity in the team scheduler', () => {
 })
 
 describe('C2 adds the governor to existing team and heavy-check slots', () => {
+  it.each(['worker', 'check'] as const)(
+    'rechecks pause after a %s waits for a local slot and releases both unstarted reservations',
+    async (kind) => {
+      const h = teamResources()
+      const local = Promise.withResolvers<ReturnType<typeof h.localSlot>>()
+      h.scheduler.acquire.mockImplementationOnce(() => local.promise)
+      const waiting =
+        kind === 'check' ? requestCheckSlot(h.slots, 0) : h.slots.request({ kind, priority: 0 })
+      let runnable: GovernedTeamSlot | undefined
+      const ready = (async () => {
+        const slot = await waiting.ready
+        runnable = slot
+        return slot
+      })()
+      await vi.waitFor(() => {
+        expect(h.scheduler.acquire).toHaveBeenCalledTimes(1)
+      })
+      await h.read({ memoryAvailableBytes: 0 })
+      local.resolve(h.localSlot(kind))
+      await vi.waitFor(() => {
+        expect(runnable).toBeUndefined()
+        expect(h.queue.counts()).toEqual([{ kind, class: 'background', count: 1 }])
+      })
+      expect(h.release).toHaveBeenCalledTimes(1)
+      expect(h.capacity.occupied(kind)).toBe(0)
+      h.governor.resumeNow()
+      const resumed = await ready
+      expect(resumed.permit.kind).toBe(kind)
+      resumed.release()
+      expect(h.release).toHaveBeenCalledTimes(2)
+      h.queue.dispose()
+    },
+  )
+
+  it('rechecks throttle after two workers wait for local slots and admits at most one', async () => {
+    const h = teamResources()
+    const firstLocal = Promise.withResolvers<ReturnType<typeof h.localSlot>>()
+    const nextLocal = Promise.withResolvers<ReturnType<typeof h.localSlot>>()
+    h.scheduler.acquire
+      .mockImplementationOnce(() => firstLocal.promise)
+      .mockImplementationOnce(() => nextLocal.promise)
+    const runnable: GovernedTeamSlot[] = []
+    async function recorded(ready: Promise<GovernedTeamSlot>) {
+      const slot = await ready
+      runnable.push(slot)
+      return slot
+    }
+    const first = recorded(h.slots.request({ kind: 'worker', priority: 0 }).ready)
+    const next = recorded(h.slots.request({ kind: 'worker', priority: 0 }).ready)
+    await vi.waitFor(() => {
+      expect(h.scheduler.acquire).toHaveBeenCalledTimes(2)
+    })
+    await h.throttle()
+    firstLocal.resolve(h.localSlot('worker'))
+    nextLocal.resolve(h.localSlot('worker'))
+    await vi.waitFor(() => {
+      expect(runnable).toHaveLength(1)
+      expect(h.queue.counts()).toEqual([{ kind: 'worker', class: 'background', count: 1 }])
+    })
+    expect(h.capacity.occupied('worker')).toBe(1)
+    runnable[0]?.release()
+    const completed = await Promise.all([first, next])
+    expect(h.capacity.occupied('worker')).toBe(1)
+    for (const slot of completed) slot.release()
+    expect(h.capacity.occupied('worker')).toBe(0)
+    h.queue.dispose()
+  })
+
+  it('cancels work requeued after local acquisition without holding either reservation', async () => {
+    const h = teamResources()
+    const local = Promise.withResolvers<ReturnType<typeof h.localSlot>>()
+    h.scheduler.acquire.mockImplementationOnce(() => local.promise)
+    const waiting = requestCheckSlot(h.slots, 0)
+    await vi.waitFor(() => {
+      expect(h.scheduler.acquire).toHaveBeenCalledTimes(1)
+    })
+    await h.read({ memoryAvailableBytes: 0 })
+    local.resolve(h.localSlot('check'))
+    await vi.waitFor(() => {
+      expect(h.queue.counts()).toEqual([{ kind: 'check', class: 'background', count: 1 }])
+    })
+    const rejected = expect(waiting.ready).rejects.toMatchObject({ name: 'AbortError' })
+    waiting.cancel()
+    await rejected
+    expect(h.queue.counts()).toEqual([])
+    expect(h.capacity.occupied('check')).toBe(0)
+    expect(h.release).toHaveBeenCalledTimes(1)
+    h.governor.resumeNow()
+    const following = await requestCheckSlot(h.slots, 0).ready
+    following.release()
+    h.queue.dispose()
+  })
+
+  it('refuses a same-kind child made impossible while local acquisition waits', async () => {
+    const h = teamResources()
+    const parent = await h.slots.request({ kind: 'worker', priority: 0 }).ready
+    const local = Promise.withResolvers<ReturnType<typeof h.localSlot>>()
+    h.scheduler.acquire.mockImplementationOnce(() => local.promise)
+    const waiting = h.slots.request({ kind: 'worker', priority: 2, parent: parent.permit })
+    const rejected = expect(waiting.ready).rejects.toThrow(
+      'Resource child cannot wait on its parent slot',
+    )
+    await vi.waitFor(() => {
+      expect(h.scheduler.acquire).toHaveBeenCalledTimes(2)
+    })
+    await h.throttle()
+    local.resolve(h.localSlot('worker'))
+    await rejected
+    expect(h.capacity.occupied('worker')).toBe(1)
+    expect(h.release).toHaveBeenCalledTimes(1)
+    expect(h.queue.counts()).toEqual([])
+    parent.release()
+    const following = await h.slots.request({ kind: 'worker', priority: 0 }).ready
+    following.release()
+    h.queue.dispose()
+  })
+
   it('runs one background item per kind and keeps priority/FIFO order through recovery', async () => {
     const h = teamResources()
     await h.throttle()

@@ -17,11 +17,16 @@ export interface TeamCapacityPort {
 }
 
 /** Existing scheduler occupancy includes its reservations, not just spawned roots. */
-export function isResourceSlotAvailable(port: TeamCapacityPort, kind: TeamKind): boolean {
+export function isResourceSlotAvailable(
+  port: TeamCapacityPort,
+  kind: TeamKind,
+  hasSlot = false,
+): boolean {
   const configured = port.configured(kind)
   const capacity = port.governor.capacity(kind)
   const limit = capacity === null ? configured : Math.min(configured, capacity)
-  const occupied = port.occupied(kind)
+  // A slot awaiting final admission already owns one local reservation, not a running tree.
+  const occupied = Math.max(0, port.occupied(kind) - (hasSlot ? 1 : 0))
   if (occupied >= limit) return false
   if (capacity === null) return true
   const running = port.running.backgroundCount(kind)
@@ -29,7 +34,7 @@ export function isResourceSlotAvailable(port: TeamCapacityPort, kind: TeamKind):
 }
 
 interface SchedulerSlot {
-  /** Only failed launch or proved retirement releases a slot. */
+  /** Withdraw unstarted reservations; otherwise require proved retirement. */
   release(): void
 }
 
@@ -50,44 +55,54 @@ export class GovernedTeamSlots {
   constructor(
     private readonly queue: Pick<ResourceQueue, 'request'>,
     private readonly slots: SchedulerSlotPort,
+    private readonly capacity: TeamCapacityPort,
   ) {}
 
   request(request: TeamSlotRequest, signal?: AbortSignal) {
-    const copy: ResourceLaunchRequest = { ...request, class: 'background' }
+    const copy: ResourceLaunchRequest & { kind: TeamKind } = { ...request, class: 'background' }
     // A delegating parent must fail before accepting an impossible wait.
     this.slots.preflight(copy)
     const stop = new AbortController()
     const combined = signal === undefined ? stop.signal : AbortSignal.any([signal, stop.signal])
-    const admission = this.queue.request(copy, combined)
+    let admission = this.queue.request(copy, combined)
     const acquire = async (): Promise<GovernedTeamSlot> => {
-      const permit = await admission.ready
-      let slot: SchedulerSlot | undefined
-      try {
-        combined.throwIfAborted()
-        this.slots.preflight(copy)
-        slot = await this.slots.acquire(copy, combined)
-        combined.throwIfAborted()
-        const acquired = slot
-        let isReleased = false
-        return {
-          permit,
-          release: () => {
-            if (isReleased) return
-            isReleased = true
+      for (;;) {
+        const permit = await admission.ready
+        let slot: SchedulerSlot | undefined
+        let isAdmitted = false
+        try {
+          combined.throwIfAborted()
+          this.slots.preflight(copy)
+          slot = await this.slots.acquire(copy, combined)
+          combined.throwIfAborted()
+          if (isResourceSlotAvailable(this.capacity, copy.kind, true)) {
+            const acquired = slot
+            let isReleased = false
+            isAdmitted = true
+            return {
+              permit,
+              release: () => {
+                if (isReleased) return
+                isReleased = true
+                try {
+                  acquired.release()
+                } finally {
+                  permit.release()
+                }
+              },
+            }
+          }
+        } finally {
+          if (!isAdmitted) {
             try {
-              acquired.release()
+              slot?.release()
             } finally {
               permit.release()
             }
-          },
+          }
         }
-      } catch (error) {
-        try {
-          slot?.release()
-        } finally {
-          permit.release()
-        }
-        throw error
+        // Withdraw unstarted reservations before waiting again on the live governor.
+        admission = this.queue.request(copy, combined)
       }
     }
     return {
