@@ -29132,6 +29132,19 @@ record the four actual UI red drills and two consecutive complete passes;
 startup compaction remains assigned to P1/P2/lane 0 and integration. The
 historical failed receipts above remain evidence of the superseded policy.
 
+**M114 S continuation final boundary (2026-10-06).** The reviewed tolerance,
+four real UI red drills, missing theme capture and required CI binding are
+implemented. All 25 owning tests pass at default deadlines and scoped
+compiler/static/build gates pass. The complete 4,824-image replacement is
+235.37 MiB outside Git, with 108 scoped Git-source replay images passing.
+Its full CLI comparison reports 4,752 captures before a 30-second page-root
+mount timeout; no pixel regression is reported. Zero of the required two
+complete comparisons pass, so the candidate remains unaccepted. The
+90-minute continuation ends with that failure recorded in S's certification;
+the lead must resolve the mount failure and collect both full receipts.
+No capture, threshold, deadline or CI gate is waived. Startup compaction and
+aggregate/hosted certification retain their named integration owners.
+
 **M114 P1 forced-colors repair scoped gates (RVM114P12, 2026-10-06).**
 The rig/shared brief forbids full quality/full unit runs and other lanes'
 file edits. P1 runs the five compiler projects, owning regressions and red

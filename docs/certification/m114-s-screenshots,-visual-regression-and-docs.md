@@ -474,6 +474,74 @@ default timeouts. No product source or tolerance changes.
 The final local requirement is two consecutive **complete archive comparisons**.
 A scoped real Git-source replay also exercises the reconstruction pipeline;
 full source reconstruction runs in the new CI job, whose hosted execution
-belongs to the lead. This keeps the continuation within its 90-minute brief
-without describing a scoped replay as a full source comparison. The final
-receipts distinguish both paths explicitly.
+belongs to the lead. The scoped replay limits local reconstruction time
+without describing it as a full source comparison. The final receipts
+distinguish both paths explicitly.
+
+## Final replacement baseline and source replay
+
+The completed replacement names source
+`c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0`, review
+`M114-S-mounted-native-layout-and-lead-tolerance-2026-10-06`, and archive
+`/home/randy/archive/m114-s-settled-c4f37c6f7-complete`. All **4,824 PNGs**
+cover the original 67 scenes and 65 renderers at both widths, in all six
+themes and six states. Their **246,807,746 bytes (235.37 MiB)** fit the
+unchanged 512 MiB cap. Only their manifest and receipts are tracked. The
+manifest is formatted before replay; its SHA-256 is
+`1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6`.
+The two corrected light/narrow approval views were inspected after capture;
+both show the actual one-row empty composer at the restored width.
+[The baseline receipt](m114-s-after/continuation-baseline.json) names the
+browser, font fingerprint, fixed environment and exact policy.
+
+An earlier generation was terminated with exit 143 after 1,650 images;
+it produced no visual failure and no completed manifest. Its partial archive
+is retained as **unaccepted**, outside Git, and is not used by the final
+manifest. [The interruption receipt](m114-s-after/interrupted-generation.json)
+distinguishes it from the complete replacement. The sequential verification
+worker then completed generation without altering repository test timeouts.
+
+All four actual UI drills were repeated against this final archive and
+failed at the first image with the same **2,252 / 1,659 / 434 / 54** pixel
+counts and allowance 12. All product files were SHA-256-restored. Together
+with the ten policy/CI/theme, two native-layout and one capped-layout owning
+drills, the continuation has **17 deliberate failures**, each restored.
+
+[The scoped source receipt](m114-s-after/continuation-source-smoke.json)
+records a real `git archive`/production-build replay of the recorded source:
+`agents-details`, `approval-narrow` and `whats-new-highlights`, all six
+themes and six states at 320 px. **108/108** captures pass with **zero**
+changed pixels. Actual control targets, applied states and renderer coverage
+match the reviewed archive; browser and font fingerprints match too. The
+manifest remains byte-identical and the source, profile and fixture directories
+are cleaned. No PNG is retained from this smoke check. This is explicitly
+scoped; the new hosted visual job performs the complete source reconstruction.
+
+## Final scoped checks and remaining certification failure
+
+Final Kubuntu runs use the repository's own test/hook deadlines with no
+`--testTimeout`: gate/matrix/source **19/19** (1.37 s), capture/repeat **6/6**
+(14.37 s). All **25 tests** pass. The five compiler projects, changed-file
+ESLint/Prettier, plain knip, duplication (zero clones), token/localization/host-API
+gates, production build and Actionlint pass. Localization reports all 14
+tables and zero problems. Production sizes are extension **438.4/600 KiB**,
+Model API **446.9/475 KiB**, ACP **819.3/850 KiB** and deferred webview JS
+**49.7/50 KiB**. No cap, hook, lint level or test deadline changes.
+
+The complete CLI comparison remains **red**. It reports **4,752 completed
+captures** before `page.waitForSelector('#root > *')` exceeds the unchanged
+30,000 ms page deadline. No pixel regression is reported. The log lacks
+scene context, so no exact failing scene is inferred. The comparison cleans
+its browser/fixtures, restores the exact manifest and exits 1; the sequential
+worker stops before a second comparison. [The failed-run receipt](m114-s-after/mount-comparison-failure.json)
+and [comparison record](m114-s-after/continuation-comparison.json) therefore
+claim **zero of the required two complete passes**. The manifest/index point
+to a complete but **unaccepted candidate**, not a certified baseline.
+
+At the continuation's 90-minute timebox, the mount failure and two complete
+replays remain open for the lead. The reviewed tolerance, four real UI drills,
+native-layout owning tests, actual missing-theme capture and both-tier CI
+binding are completed; visual certification is **not completed**. The CI job
+will correctly block on a failed capture. Hosted execution, aggregate quality
+and the unchanged **12,741-byte startup-growth** compaction remain integration
+handoffs. No full quality run, workflow dispatch, push or live/paid call occurs.
