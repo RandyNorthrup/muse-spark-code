@@ -10,6 +10,7 @@ import {
 } from './autoReviewer'
 import type { ConfirmedModelRequest, ResponseAttemptGuard } from './client'
 import type { CreateResponseBody, StreamEvent, Usage } from './schemas'
+import { isFunctionCallItem } from './schemas'
 import {
   helperRequestSettlement,
   estimateInput,
@@ -31,6 +32,8 @@ import {
 } from '../../../shared/constants'
 import { fill, setUiText } from '../../../shared/l10n/text'
 import type { UiText } from '../../../shared/l10n/en'
+import { reviewerAnswerSchema } from '../../../shared/sideCallSchemas'
+import { sideCallBody, structuredSideCall, type SideCallAttempt } from './structuredOutput'
 
 // M91 hook model turns share the paid helper bundle and its existing lazy boundary.
 export { runHookModelTurn } from './hookModelEntry'
@@ -40,7 +43,14 @@ type ReviewerResult =
 interface ReviewerContext {
   readonly deps: Pick<
     ModelApiHostDeps,
-    'client' | 'workspaceRoot' | 'platform' | 'newId' | 'log' | 'noteReviewerUsage'
+    | 'client'
+    | 'workspaceRoot'
+    | 'platform'
+    | 'newId'
+    | 'log'
+    | 'noteReviewerUsage'
+    | 'sideCallFormats'
+    | 'forceSideCallTool'
   >
   readonly table: UiText
   readonly locale: string
@@ -151,7 +161,7 @@ export async function reviewPaidCall(
   return isAllowedByReviewer ? { decision: 'allow' } : { decision: 'ask', note }
 }
 
-/** One request, no retry, with the original session's live admission guard. */
+/** Each structured attempt keeps the original session's live admission guard. */
 async function callReviewer(
   context: ReviewerContext,
   tool: string,
@@ -160,6 +170,35 @@ async function callReviewer(
   confirmed: ConfirmedModelRequest,
   budgetScope: OwnedSessionBudgetScope | undefined,
 ): Promise<ReviewAnswer | 'failed' | 'unreadable'> {
+  try {
+    return await structuredSideCall<ReviewAnswer | 'unreadable'>({
+      formats: context.deps.sideCallFormats?.(confirmed.modelId),
+      name: 'reviewer_answer',
+      schema: reviewerAnswerSchema,
+      request: async (attempt) =>
+        await requestReviewer(context, tool, action, signal, confirmed, budgetScope, attempt),
+      signal,
+      fallback: (text) => parseReviewerAnswer(text) ?? 'unreadable',
+      notice: (text) => {
+        context.emit({ type: 'backendNotice', level: 'warning', text })
+      },
+    })
+  } catch {
+    if (signal.aborted) throw context.abortError()
+    context.deps.log.warn('The Auto reviewer call failed; the user decides')
+    return 'failed'
+  }
+}
+
+async function requestReviewer(
+  context: ReviewerContext,
+  tool: string,
+  action: string,
+  signal: AbortSignal,
+  confirmed: ConfirmedModelRequest,
+  budgetScope: OwnedSessionBudgetScope | undefined,
+  attempt: SideCallAttempt,
+): Promise<string> {
   const input = reviewerInput({
     userRequest: context.userRequest,
     recentCalls: context.recentCalls,
@@ -168,20 +207,27 @@ async function callReviewer(
     workspaceRoot: context.deps.workspaceRoot,
     platform: context.deps.platform,
   })
-  let body = context.keyed({
-    model: confirmed.modelId,
-    input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: input }] }],
-    instructions: AUTO_REVIEWER_MODEL_TEXT.autoReviewerInstructions,
-    tools: [],
-    tool_choice: 'auto',
-    reasoning: { effort: MODEL_API_EFFORT_OFF, summary: 'auto' },
-    stream: true,
-    store: false,
-    include: ['reasoning.encrypted_content'],
-    max_output_tokens: AUTO_REVIEWER_MAX_OUTPUT_TOKENS,
-  })
+  let body = context.keyed(
+    sideCallBody(
+      context.keyed({
+        model: confirmed.modelId,
+        input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: input }] }],
+        instructions: AUTO_REVIEWER_MODEL_TEXT.autoReviewerInstructions,
+        tools: [],
+        tool_choice: 'auto',
+        reasoning: { effort: MODEL_API_EFFORT_OFF, summary: 'auto' },
+        stream: true,
+        store: false,
+        include: ['reasoning.encrypted_content'],
+        max_output_tokens: AUTO_REVIEWER_MAX_OUTPUT_TOKENS,
+      }),
+      attempt,
+      context.deps.forceSideCallTool,
+    ),
+  )
   const modelId = confirmed.modelId
   let text = ''
+  let hasCompleted = false
   let usage: Usage | null | undefined
   let claim: SessionBudgetClaim | undefined
   let directBudget: DirectResponseBudget | undefined
@@ -236,7 +282,7 @@ async function callReviewer(
       body,
       AbortSignal.any([signal, AbortSignal.timeout(AUTO_REVIEWER_TIMEOUT_MS)]),
       undefined,
-      // Its one attempt: a failed review asks the user, it is never sent again.
+      // No transport retry; structured repair is separately admitted and settled.
       { retriesUsed: MODEL_API_MAX_RETRIES },
       admission,
       {
@@ -247,6 +293,15 @@ async function callReviewer(
       },
     )
     for await (const event of events) {
+      if (event.type === 'response.completed') hasCompleted = true
+      if (
+        attempt.mode === 'forced_tool' &&
+        event.type === 'response.output_item.done' &&
+        isFunctionCallItem(event.item) &&
+        event.item.name === attempt.name
+      ) {
+        text += event.item.arguments
+      }
       const part = reviewPart(event)
       text += part.text
       if (part.usage !== undefined) {
@@ -260,13 +315,14 @@ async function callReviewer(
         throw new Error(`the review ended with ${part.failure}`)
       }
     }
+    if (!hasCompleted && attempt.mode !== 'text')
+      throw new Error('the structured review has no completed response')
   } catch (error: unknown) {
     wasRefused = context.isRefused(error)
     if (signal.aborted) {
       throw context.abortError()
     }
-    context.deps.log.warn('The Auto reviewer call failed; the user decides')
-    return 'failed'
+    throw error
   } finally {
     if (usage !== null && usage !== undefined && context.isCountedUsage(usage)) {
       context.deps.noteReviewerUsage(modelId, {
@@ -287,5 +343,5 @@ async function callReviewer(
       await claim.settle(settlement.costUsd, settlement.isUnknown)
     }
   }
-  return parseReviewerAnswer(text) ?? 'unreadable'
+  return text
 }

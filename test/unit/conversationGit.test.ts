@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ConversationGit } from '../../src/host/git/conversationGit'
+import type { GitDraftOutputPort } from '../../src/core/git/gitText'
+import type { SideCallAttempt } from '../../src/core/backends/modelapi/structuredOutput'
+import type { GitDraftKind } from '../../src/shared/git'
 import type { GitSurface } from '../../src/host/conversation/conversationController'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
@@ -18,7 +21,7 @@ const TOKEN_SHAPE = `ghp_${'7'.repeat(36)}`
 const REPO_PATH = '/repos/RandyNorthrup/muse-spark-code'
 const OWN_SHA = CAPTURED_PULL_OWN.head.sha
 
-function setup(options: FakeGitWindowOptions = {}) {
+function setup(options: FakeGitWindowOptions = {}, draftOutput?: GitDraftOutputPort) {
   const fake = fakeGitWindow(options)
   const posted: HostToWebviewMessage[] = []
   // What the user reads in the panel, and which of it may reach the log.
@@ -40,7 +43,7 @@ function setup(options: FakeGitWindowOptions = {}) {
     },
     sessionId: () => session.id,
   }
-  const git = new ConversationGit(fake.window, surface)
+  const git = new ConversationGit(Object.assign(fake.window, { draftOutput }), surface)
   const ofType = <T extends HostToWebviewMessage['type']>(type: T) =>
     posted.filter(
       (message): message is Extract<HostToWebviewMessage, { type: T }> => message.type === type,
@@ -951,7 +954,109 @@ function completed(turnId: string, text: string): AgentEvent[] {
   ]
 }
 
+function structuredDraftSetup(
+  request: GitDraftOutputPort['request'],
+  prepare: GitDraftOutputPort['prepare'] = () => undefined,
+) {
+  return setup(
+    {},
+    { formats: () => ({ state: 'yes', value: ['strict_schema'] }), prepare, request },
+  )
+}
+
 describe('drafts inside the user’s own turn (M71)', () => {
+  it('starts only one repair when a terminal notification repeats', async () => {
+    const pending = Promise.withResolvers<string>()
+    const request = vi.fn(() => pending.promise)
+    const t = structuredDraftSetup(request)
+    t.git.generationStarting('commitMessage')
+    t.git.generationSubmitted('repeat')
+    for (const event of completed('repeat', 'invalid')) t.git.onEvent(event)
+    await vi.waitFor(() => {
+      expect(request).toHaveBeenCalledTimes(1)
+    })
+    t.git.onEvent({ type: 'turnCompleted', turnId: 'repeat', terminal: 'completed' })
+    pending.resolve('{"message":"single repair"}')
+    await vi.waitFor(() => {
+      expect(t.ofType('gitDraft').at(-1)?.draft).toEqual({
+        kind: 'commitMessage',
+        message: 'single repair',
+      })
+    })
+    expect(request).toHaveBeenCalledTimes(1)
+  })
+  it('prepares the existing turn format and fills an editable structured draft with no extra call', async () => {
+    const prepare = vi.fn()
+    const request = vi.fn(() => Promise.reject(new Error('unexpected extra call')))
+    const t = structuredDraftSetup(request, prepare)
+    t.git.generationStarting('pullRequest')
+    expect(prepare).toHaveBeenCalledWith(
+      'pullRequest',
+      expect.objectContaining({ mode: 'strict_schema', name: 'pull_request_draft' }),
+    )
+    t.git.generationSubmitted('structured')
+    const events = completed(
+      'structured',
+      JSON.stringify({ title: '  Preserve title  ', body: `Mask ${TOKEN_SHAPE}` }),
+    )
+    for (const event of events) t.git.onEvent(event)
+    await vi.waitFor(() => {
+      expect(t.ofType('gitDraft').at(-1)?.draft).toEqual({
+        kind: 'pullRequest',
+        title: '  Preserve title  ',
+        body: 'Mask [redacted]',
+      })
+    })
+    expect(request).not.toHaveBeenCalled()
+    expect(t.repository.calls.some((call) => call.method === 'commit')).toBe(false)
+    expect(t.github.requests).toEqual([])
+  })
+
+  it('repairs a structured draft once then reads a fresh text continuation', async () => {
+    const request = vi.fn((_kind: GitDraftKind, attempt: SideCallAttempt) =>
+      Promise.resolve(attempt.mode === 'text' ? 'Legacy commit draft' : '{"message":""}'),
+    )
+    const t = structuredDraftSetup(request)
+    t.git.generationStarting('commitMessage')
+    t.git.generationSubmitted('repair')
+    for (const event of completed('repair', '{"message":"","allow":true}')) t.git.onEvent(event)
+    await vi.waitFor(() => {
+      expect(t.ofType('gitDraft').at(-1)?.draft).toEqual({
+        kind: 'commitMessage',
+        message: 'Legacy commit draft',
+      })
+    })
+    expect(request).toHaveBeenCalledTimes(2)
+    expect(request.mock.calls.map((call) => call[1].mode)).toEqual(['strict_schema', 'text'])
+  })
+
+  it('aborts a pending repair when a new draft replaces the held turn', async () => {
+    const pending = Promise.withResolvers<string>()
+    let repairSignal: AbortSignal | undefined
+    const request: GitDraftOutputPort['request'] = (_kind, _attempt, signal) => {
+      repairSignal = signal
+      return pending.promise
+    }
+    const t = structuredDraftSetup(request)
+    t.git.generationStarting('commitMessage')
+    t.git.generationSubmitted('old')
+    for (const event of completed('old', 'invalid')) t.git.onEvent(event)
+    await vi.waitFor(() => {
+      expect(repairSignal).toBeDefined()
+    })
+    t.git.generationStarting('commitMessage')
+    expect(repairSignal?.aborted).toBe(true)
+    pending.resolve('{"message":"stale"}')
+    t.git.generationSubmitted('new')
+    for (const event of completed('new', '{"message":"fresh"}')) t.git.onEvent(event)
+    await vi.waitFor(() => {
+      expect(t.ofType('gitDraft').at(-1)?.draft).toEqual({
+        kind: 'commitMessage',
+        message: 'fresh',
+      })
+    })
+    expect(JSON.stringify(t.posted)).not.toContain('stale')
+  })
   it('retires the first commit form draft after a manual commit before opening second.ts', async () => {
     const repository = fakeRepository({ indexChanges: [change('first.ts')] })
     const t = setup({ repository })

@@ -1,4 +1,10 @@
 import { redactDiagnosticEvent } from '../../redact'
+import {
+  sideCallBody,
+  structuredCompaction,
+  type SideCallAttempt,
+  type StructuredOutputDeps,
+} from './structuredOutput'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
 // replay, `store: false`) with the in-process tool harness, the permission
@@ -468,7 +474,7 @@ export interface ModelApiPaidHooks {
   readonly hookModelDailyBudget?: HookModelDailyBudget | undefined
 }
 
-export interface ModelApiHostDeps extends ModelApiPaidHooks {
+export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDeps {
   /** M98: injected same-model source; all paid dispatch admitted by lane A. */
   readonly judge?: JudgeAdvisory | undefined
   readonly client: ModelApiClient
@@ -6060,6 +6066,8 @@ export class ModelApiSession implements AgentSession {
       {
         deps: this.deps,
         tools: kind === 'agent' ? this.hookModelTools() : [],
+        table: UI_TEXT,
+        locale: uiLocale(),
         executeReadOnlyTool: async (name, argsJson, toolSignal) =>
           await this.executeHookModelTool(name, argsJson, toolSignal),
         ...this.paidModelObservers(turnId),
@@ -10580,41 +10588,65 @@ export class ModelApiSession implements AgentSession {
     await this.refreshBudgetSpend()
     // The compaction is a request like any other: the session budget
     // reserves it too, and refuses it when it cannot fit (M82).
-    const compactionBody = (): CreateResponseBody =>
+    const compactionBody = (attempt: SideCallAttempt): CreateResponseBody =>
       this.budgeted(
-        this.keyed({
-          ...this.body(),
-          // Within Meta's image budget too (M54): a conversation past it can still be compacted.
-          input: this.budget.fit([
-            ...this.replay.map((entry) => entry.item),
+        this.keyed(
+          sideCallBody(
             {
-              type: 'message',
-              role: 'user',
-              content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.compactionPrompt }],
+              ...this.body(),
+              // Within Meta's image budget too (M54): a conversation past it can still be compacted.
+              input: this.budget.fit([
+                ...this.replay.map((entry) => entry.item),
+                {
+                  type: 'message',
+                  role: 'user',
+                  content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.compactionPrompt }],
+                },
+              ]),
+              tools: [],
+              include: ['reasoning.encrypted_content'],
             },
-          ]),
-          tools: [],
-          include: ['reasoning.encrypted_content'],
-        }),
+            attempt,
+            this.deps.forceSideCallTool,
+          ),
+        ),
       )
     const turnId = this.turnIds.at(-1) ?? COMPACTION_TURN_ID
-    const requestId = this.deps.newId()
-    await this.beforeModelCall(turnId, compactionBody(), requestId, 1, 0, signal)
-    const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
-    await this.refreshBudgetSpend()
-    const body = compactionBody()
-    const { text: summary, response } = await this.collectText(body, signal, chargedGoalId)
-    const post = await this.runHooks(
-      'PostLLMCall',
-      turnId,
-      postModelCallFields(body, response, requestId, 1, 0, this.sessionId),
-      MODEL_API_HOOK_PROVIDER,
+    const postContexts: string[] = []
+    const summary = await structuredCompaction({
+      formats: this.deps.sideCallFormats?.(this.modelId),
       signal,
-      false,
-    )
-    if (post.blockedReason !== undefined) {
-      throw new HookStoppedError(post.blockedReason)
-    }
+      isTerminalError: (error) =>
+        error instanceof HookStoppedError || error instanceof SessionBudgetExceededError,
+      notice: (text) => {
+        this.emit({ type: 'backendNotice', level: 'warning', text })
+      },
+      request: async (attempt) => {
+        const requestId = this.deps.newId()
+        await this.beforeModelCall(turnId, compactionBody(attempt), requestId, 1, 0, signal)
+        const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
+        await this.refreshBudgetSpend()
+        const body = compactionBody(attempt)
+        const { text, response } = await this.collectText(body, signal, chargedGoalId)
+        const post = await this.runHooks(
+          'PostLLMCall',
+          turnId,
+          postModelCallFields(body, response, requestId, 1, 0, this.sessionId),
+          MODEL_API_HOOK_PROVIDER,
+          signal,
+          false,
+        )
+        if (post.blockedReason !== undefined) throw new HookStoppedError(post.blockedReason)
+        postContexts.push(...post.contexts)
+        if (attempt.mode === 'forced_tool') {
+          const call = response.output.find(
+            (item) => isFunctionCallItem(item) && item.name === attempt.name,
+          )
+          return call !== undefined && isFunctionCallItem(call) ? call.arguments : text
+        }
+        return text
+      },
+    })
     this.replay.splice(0, this.replay.length, {
       turnId: COMPACTION_TURN_ID,
       item: {
@@ -10629,7 +10661,7 @@ export class ModelApiSession implements AgentSession {
     // session total like the token counts.
     this.packing?.reset()
     this.compactedThroughTurnId = this.turnIds.at(-1)
-    this.appendHookContexts(COMPACTION_TURN_ID, post.contexts)
+    this.appendHookContexts(COMPACTION_TURN_ID, postContexts)
     const item: ItemSnapshot = {
       itemId: this.deps.newId(),
       kind: 'compaction',

@@ -16,7 +16,6 @@ import { JUDGE_MIN_CACHED_PREFIX_TOKENS } from '../../shared/constants'
 import type {
   ModelApiJudgeSource,
   ModelApiJudgeTransport,
-  ModelApiSideResponse,
 } from '../../core/judge/same/modelApiSource'
 export type {
   ModelApiJudgeSource,
@@ -31,8 +30,14 @@ import {
 } from '../../core/judge/same/batches'
 import { settleBatch } from '../../core/judge/same/answers'
 import { planSideRequest } from '../../core/judge/same/sideRequest'
+import { judgeDistributionAnswerSchema, judgeNoulAnswerSchema } from '../../shared/sideCallSchemas'
+import {
+  sideCallBody,
+  structuredSideCall,
+  type StructuredOutputDeps,
+} from '../../core/backends/modelapi/structuredOutput'
 
-export interface ModelApiJudgeDeps extends SameJudgeRunnerDeps {
+export interface ModelApiJudgeDeps extends SameJudgeRunnerDeps, StructuredOutputDeps {
   readonly source: ModelApiJudgeSource
   readonly transport: ModelApiJudgeTransport
   /** Secret redaction (redactSecrets): redaction runs before anything remote. */
@@ -136,9 +141,42 @@ export class ModelApiSameJudge {
     const canReusePrefix =
       planned.mode === 'shared-prefix' && main.tools.every((tool) => tool.type === 'function')
     const body = canReusePrefix ? planned.body : this.standaloneBody(main, tail)
-    let response: ModelApiSideResponse
+    let reservedCostUsd: number | undefined
+    let settledCostUsd: number | undefined
+    let replyText: string
     try {
-      response = await this.deps.transport.send(body, signal)
+      const question = batch.questions[0]
+      const schema =
+        question?.kind === 'noul'
+          ? judgeNoulAnswerSchema
+          : judgeDistributionAnswerSchema(question?.options?.length ?? 0)
+      replyText = await structuredSideCall({
+        formats: this.deps.sideCallFormats?.(this.deps.modelId),
+        name: 'judge_answer',
+        schema: schema.transform((answer) => JSON.stringify(answer)),
+        signal,
+        fallback: (text) => text,
+        request: async (attempt) => {
+          const formatted = sideCallBody(body, attempt, this.deps.forceSideCallTool)
+          const request =
+            attempt.mode === 'forced_tool'
+              ? {
+                  ...formatted,
+                  prompt_cache_key: this.deps.source.keyPrefix({
+                    model: formatted.model,
+                    instructions: formatted.instructions,
+                    tools: formatted.tools,
+                  }),
+                }
+              : formatted
+          const response = await this.deps.transport.send(request, signal)
+          if (response.reservedCostUsd !== undefined)
+            reservedCostUsd = (reservedCostUsd ?? 0) + response.reservedCostUsd
+          if (response.settledCostUsd !== undefined)
+            settledCostUsd = (settledCostUsd ?? 0) + response.settledCostUsd
+          return response.text
+        },
+      })
     } catch (error: unknown) {
       settleFailed()
       throw error
@@ -156,11 +194,11 @@ export class ModelApiSameJudge {
     const settled = settleBatch({
       questions: batch.questions,
       questionIds: batch.questionIds,
-      replyText: response.text,
+      replyText,
       model: this.deps.modelId,
       advisoryThreshold: tuning.advisoryThreshold,
-      reservedCostUsd: response.reservedCostUsd ?? job.reservedCostUsd,
-      settledCostUsd: response.settledCostUsd ?? job.settledCostUsd,
+      reservedCostUsd: reservedCostUsd ?? job.reservedCostUsd,
+      settledCostUsd: settledCostUsd ?? job.settledCostUsd,
     })
     commitSettledAnswers({
       entries: this.deps.entries,
