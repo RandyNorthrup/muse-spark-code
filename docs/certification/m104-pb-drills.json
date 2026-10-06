@@ -390,5 +390,201 @@
     "exitCode": 1,
     "sha256Before": "ea9f1ab472411c92452883c6fb2966e68acf96921b9b8266952742c25b386555",
     "sha256Restored": "ea9f1ab472411c92452883c6fb2966e68acf96921b9b8266952742c25b386555"
+  },
+  {
+    "drill": "worktree-owner",
+    "file": "src/runtime/features/worktrees.ts",
+    "exitCode": 1,
+    "sha256Before": "087184b934e81996c542107b5b23dbcb1fdce63c3ee062648a34be86b39958ee",
+    "sha256Restored": "087184b934e81996c542107b5b23dbcb1fdce63c3ee062648a34be86b39958ee"
+  },
+  {
+    "drill": "worktree-trust",
+    "file": "src/runtime/features/worktrees.ts",
+    "exitCode": 1,
+    "sha256Before": "087184b934e81996c542107b5b23dbcb1fdce63c3ee062648a34be86b39958ee",
+    "sha256Restored": "087184b934e81996c542107b5b23dbcb1fdce63c3ee062648a34be86b39958ee"
+  },
+  {
+    "drill": "worktree-process-admission",
+    "file": "src/runtime/features/worktrees.ts",
+    "exitCode": 1,
+    "sha256Before": "087184b934e81996c542107b5b23dbcb1fdce63c3ee062648a34be86b39958ee",
+    "sha256Restored": "087184b934e81996c542107b5b23dbcb1fdce63c3ee062648a34be86b39958ee"
+  },
+  {
+    "drill": "worktree-physical-owner",
+    "file": "src/runtime/features/worktrees.ts",
+    "exitCode": 1,
+    "sha256Before": "087184b934e81996c542107b5b23dbcb1fdce63c3ee062648a34be86b39958ee",
+    "sha256Restored": "087184b934e81996c542107b5b23dbcb1fdce63c3ee062648a34be86b39958ee"
+  },
+  {
+    "drill": "worktree-after-admission",
+    "file": "src/runtime/features/worktrees.ts",
+    "exitCode": 1,
+    "sha256Before": "087184b934e81996c542107b5b23dbcb1fdce63c3ee062648a34be86b39958ee",
+    "sha256Restored": "087184b934e81996c542107b5b23dbcb1fdce63c3ee062648a34be86b39958ee"
+  },
+  {
+    "drill": "worktree-release",
+    "file": "src/runtime/features/worktrees.ts",
+    "exitCode": 1,
+    "sha256Before": "087184b934e81996c542107b5b23dbcb1fdce63c3ee062648a34be86b39958ee",
+    "sha256Restored": "087184b934e81996c542107b5b23dbcb1fdce63c3ee062648a34be86b39958ee"
+  },
+  {
+    "drill": "transfer-owner",
+    "file": "src/runtime/features/transfer.ts",
+    "exitCode": 1,
+    "sha256Before": "caa4376771e8155e546625af221277819b9acd4bec795cf99c9e091f4d8ed329",
+    "sha256Restored": "caa4376771e8155e546625af221277819b9acd4bec795cf99c9e091f4d8ed329"
+  },
+  {
+    "drill": "transfer-release",
+    "file": "src/runtime/features/transfer.ts",
+    "exitCode": 1,
+    "sha256Before": "caa4376771e8155e546625af221277819b9acd4bec795cf99c9e091f4d8ed329",
+    "sha256Restored": "caa4376771e8155e546625af221277819b9acd4bec795cf99c9e091f4d8ed329"
+  },
+  {
+    "drill": "transfer-utf8",
+    "file": "src/runtime/features/transfer.ts",
+    "exitCode": 1,
+    "sha256Before": "caa4376771e8155e546625af221277819b9acd4bec795cf99c9e091f4d8ed329",
+    "sha256Restored": "caa4376771e8155e546625af221277819b9acd4bec795cf99c9e091f4d8ed329"
+  },
+  {
+    "drill": "transfer-cap",
+    "file": "src/runtime/features/transfer.ts",
+    "exitCode": 1,
+    "sha256Before": "caa4376771e8155e546625af221277819b9acd4bec795cf99c9e091f4d8ed329",
+    "sha256Restored": "caa4376771e8155e546625af221277819b9acd4bec795cf99c9e091f4d8ed329"
+  },
+  {
+    "drill": "shared-lifetime-owner",
+    "file": "src/runtime/features/lifetime.ts",
+    "exitCode": 1,
+    "sha256Before": "0959be61d0c0da14d026d27a9c2f1536c08256746eae4b9a21617e015c264dc9",
+    "sha256Restored": "0959be61d0c0da14d026d27a9c2f1536c08256746eae4b9a21617e015c264dc9"
+  },
+  {
+    "drill": "shared-lifetime-release",
+    "file": "src/runtime/features/lifetime.ts",
+    "exitCode": 1,
+    "sha256Before": "0959be61d0c0da14d026d27a9c2f1536c08256746eae4b9a21617e015c264dc9",
+    "sha256Restored": "0959be61d0c0da14d026d27a9c2f1536c08256746eae4b9a21617e015c264dc9"
+  },
+  {
+    "drill": "shared-lifetime-drain",
+    "file": "src/runtime/features/lifetime.ts",
+    "exitCode": 1,
+    "sha256Before": "0959be61d0c0da14d026d27a9c2f1536c08256746eae4b9a21617e015c264dc9",
+    "sha256Restored": "0959be61d0c0da14d026d27a9c2f1536c08256746eae4b9a21617e015c264dc9"
+  },
+  {
+    "drill": "fetch-owner",
+    "file": "src/runtime/features/webFetch.ts",
+    "exitCode": 1,
+    "sha256Before": "2b8ec2cd0a27741c82e352d604fbab63affd32106b4f0729a7e29f98800b3a67",
+    "sha256Restored": "2b8ec2cd0a27741c82e352d604fbab63affd32106b4f0729a7e29f98800b3a67"
+  },
+  {
+    "drill": "fetch-policy",
+    "file": "src/runtime/features/webFetch.ts",
+    "exitCode": 1,
+    "sha256Before": "2b8ec2cd0a27741c82e352d604fbab63affd32106b4f0729a7e29f98800b3a67",
+    "sha256Restored": "2b8ec2cd0a27741c82e352d604fbab63affd32106b4f0729a7e29f98800b3a67"
+  },
+  {
+    "drill": "fetch-release",
+    "file": "src/runtime/features/webFetch.ts",
+    "exitCode": 1,
+    "sha256Before": "2b8ec2cd0a27741c82e352d604fbab63affd32106b4f0729a7e29f98800b3a67",
+    "sha256Restored": "2b8ec2cd0a27741c82e352d604fbab63affd32106b4f0729a7e29f98800b3a67"
+  },
+  {
+    "drill": "fetch-caller-cancel",
+    "file": "src/runtime/features/webFetch.ts",
+    "exitCode": 1,
+    "sha256Before": "2b8ec2cd0a27741c82e352d604fbab63affd32106b4f0729a7e29f98800b3a67",
+    "sha256Restored": "2b8ec2cd0a27741c82e352d604fbab63affd32106b4f0729a7e29f98800b3a67"
+  },
+  {
+    "drill": "browser-owner",
+    "file": "src/runtime/features/browser.ts",
+    "exitCode": 1,
+    "sha256Before": "b1af98aae504ea65b336337996fb031b70f429e83c62edcf13c5503b1b1ffdbf",
+    "sha256Restored": "b1af98aae504ea65b336337996fb031b70f429e83c62edcf13c5503b1b1ffdbf"
+  },
+  {
+    "drill": "browser-policy",
+    "file": "src/runtime/features/browser.ts",
+    "exitCode": 1,
+    "sha256Before": "b1af98aae504ea65b336337996fb031b70f429e83c62edcf13c5503b1b1ffdbf",
+    "sha256Restored": "b1af98aae504ea65b336337996fb031b70f429e83c62edcf13c5503b1b1ffdbf"
+  },
+  {
+    "drill": "browser-process-admission",
+    "file": "src/runtime/features/browser.ts",
+    "exitCode": 1,
+    "sha256Before": "b1af98aae504ea65b336337996fb031b70f429e83c62edcf13c5503b1b1ffdbf",
+    "sha256Restored": "b1af98aae504ea65b336337996fb031b70f429e83c62edcf13c5503b1b1ffdbf"
+  },
+  {
+    "drill": "browser-vision-request",
+    "file": "src/runtime/features/browser.ts",
+    "exitCode": 1,
+    "sha256Before": "b1af98aae504ea65b336337996fb031b70f429e83c62edcf13c5503b1b1ffdbf",
+    "sha256Restored": "b1af98aae504ea65b336337996fb031b70f429e83c62edcf13c5503b1b1ffdbf"
+  },
+  {
+    "drill": "browser-vision-withhold",
+    "file": "src/runtime/features/browser.ts",
+    "exitCode": 1,
+    "sha256Before": "b1af98aae504ea65b336337996fb031b70f429e83c62edcf13c5503b1b1ffdbf",
+    "sha256Restored": "b1af98aae504ea65b336337996fb031b70f429e83c62edcf13c5503b1b1ffdbf"
+  },
+  {
+    "drill": "browser-release",
+    "file": "src/runtime/features/browser.ts",
+    "exitCode": 1,
+    "sha256Before": "b1af98aae504ea65b336337996fb031b70f429e83c62edcf13c5503b1b1ffdbf",
+    "sha256Restored": "b1af98aae504ea65b336337996fb031b70f429e83c62edcf13c5503b1b1ffdbf"
+  },
+  {
+    "drill": "response-historical-tariff",
+    "file": "src/core/backends/modelapi/client.ts",
+    "exitCode": 1,
+    "sha256Before": "daad2ef4324e98ce0825068a82d50f037bc1d2adec3f20dec753d6725b9dc56d",
+    "sha256Restored": "daad2ef4324e98ce0825068a82d50f037bc1d2adec3f20dec753d6725b9dc56d"
+  },
+  {
+    "drill": "response-request-binding",
+    "file": "src/runtime/features/paidRequest.ts",
+    "exitCode": 1,
+    "sha256Before": "07e061aa109a0af3701bdba09329c19fb99a2094911b56663db90bca7d65dec3",
+    "sha256Restored": "07e061aa109a0af3701bdba09329c19fb99a2094911b56663db90bca7d65dec3"
+  },
+  {
+    "drill": "runtime-fetch-binding",
+    "file": "src/runtime/backends.ts",
+    "exitCode": 1,
+    "sha256Before": "8a47761d9dfaa146354a617925cf5889fefcfc1ee1a68c82db17fb8dbbd03483",
+    "sha256Restored": "8a47761d9dfaa146354a617925cf5889fefcfc1ee1a68c82db17fb8dbbd03483"
+  },
+  {
+    "drill": "runtime-browser-binding",
+    "file": "src/runtime/backends.ts",
+    "exitCode": 1,
+    "sha256Before": "8a47761d9dfaa146354a617925cf5889fefcfc1ee1a68c82db17fb8dbbd03483",
+    "sha256Restored": "8a47761d9dfaa146354a617925cf5889fefcfc1ee1a68c82db17fb8dbbd03483"
+  },
+  {
+    "drill": "runtime-network-exec-exclusion",
+    "file": "src/runtime/backends.ts",
+    "exitCode": 1,
+    "sha256Before": "8a47761d9dfaa146354a617925cf5889fefcfc1ee1a68c82db17fb8dbbd03483",
+    "sha256Restored": "8a47761d9dfaa146354a617925cf5889fefcfc1ee1a68c82db17fb8dbbd03483"
   }
 ]

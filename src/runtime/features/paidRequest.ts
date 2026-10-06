@@ -1,6 +1,8 @@
 import type { ModelApiClientDeps } from '../../core/backends/modelapi/client'
 import type { PaidFeature } from '../../shared/constants'
 import type { createRuntimePaidBudget } from './paidBudget'
+import type { BillableUsage } from '../../core/usage/insights'
+import type { CreateResponseBody } from '../../core/backends/modelapi/schemas'
 
 type ReserveRequest = NonNullable<ModelApiClientDeps['reservePaidRequest']>
 
@@ -8,6 +10,8 @@ type ReserveRequest = NonNullable<ModelApiClientDeps['reservePaidRequest']>
 export interface RuntimePaidRequestPrice {
   readonly costUsd: number
   readonly isCurrent: () => boolean
+  /** Captured dispatch tariff, including any metered tool fees; never the new selection's rates. */
+  readonly receiptCost?: (usage: BillableUsage) => number | undefined
 }
 
 export interface RuntimePaidRequestDeps {
@@ -18,9 +22,13 @@ export interface RuntimePaidRequestDeps {
 }
 
 /** Consent precedes this port; every paid request still needs a durable claim. */
-export function runtimePaidRequestAdmission(deps: RuntimePaidRequestDeps): ReserveRequest {
-  return async (...args) => {
-    const [, feature, , signal] = args
+export function runtimePaidRequestAdmission(deps: RuntimePaidRequestDeps) {
+  const tariffs = new WeakMap<
+    CreateResponseBody,
+    { readonly feature: PaidFeature; readonly tariff: RuntimePaidRequestPrice }
+  >()
+  const reserve: ReserveRequest = async (...args) => {
+    const [body, feature, , signal] = args
     const tariff = deps.price(...args)
     const check = () => {
       signal?.throwIfAborted()
@@ -36,6 +44,7 @@ export function runtimePaidRequestAdmission(deps: RuntimePaidRequestDeps): Reser
       await claim.settle(0)
       throw error
     }
+    if ('input' in body) tariffs.set(body, { feature, tariff })
     return {
       ...claim,
       check: (capUsd) => {
@@ -44,4 +53,13 @@ export function runtimePaidRequestAdmission(deps: RuntimePaidRequestDeps): Reser
       },
     }
   }
+  const responseCost: NonNullable<ModelApiClientDeps['paidResponseCost']> = (
+    body,
+    feature,
+    usage,
+  ) => {
+    const bound = tariffs.get(body)
+    return bound?.feature === feature ? bound.tariff.receiptCost?.(usage) : undefined
+  }
+  return Object.assign(reserve, { responseCost })
 }

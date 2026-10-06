@@ -402,12 +402,6 @@ export class PaidUsage {
   /** One hook run's reported billable usage; never replayed from storage. */
   public addHookModelUsage(modelId: string, usage: SubagentUsage): void {
     const cost = this.usageCost(modelId, usage)
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
-      throw new Error('Hook model usage must be valid nonnegative token counts')
-    }
     const unknown = this.tally.hookModelUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {
@@ -436,12 +430,6 @@ export class PaidUsage {
    */
   public addTabUsage(modelId: string, usage: SubagentUsage): void {
     const cost = this.usageCost(modelId, usage)
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
-      throw new Error('Tab usage must be valid nonnegative token counts')
-    }
     const unknown = this.tally.tabUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {
@@ -457,12 +445,6 @@ export class PaidUsage {
   /** One owned host's per-response delta, never a cumulative/replayed frame. */
   public addBestOfNUsage(modelId: string, usage: SubagentUsage): void {
     const cost = this.usageCost(modelId, usage)
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
-      throw new Error('Best-of-N usage must be valid nonnegative token counts')
-    }
     const unknown = this.tally.bestOfNUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {

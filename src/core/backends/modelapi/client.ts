@@ -47,10 +47,16 @@ import {
   streamEventSchema,
 } from './schemas'
 import { parseSse } from './sse'
-import { estimateCostUsd } from '../../usage/insights'
+import { estimateCostUsd, type BillableUsage } from '../../usage/insights'
 
 export interface ModelApiClientDeps {
-  /** Interactive VS Code extras only; ACP/headless clients omit this port. */
+  /** Verified historical request tariff; an absent receipt retains the original claim's liability. */
+  readonly paidResponseCost?: (
+    body: CreateResponseBody,
+    feature: PaidFeature,
+    usage: BillableUsage,
+  ) => number | undefined
+  /** Interactive paid services; ACP/headless clients omit this port. */
   readonly reservePaidRequest?: (
     body: CreateResponseBody | CreateImageBody,
     feature: PaidFeature,
@@ -634,6 +640,7 @@ export class ModelApiClient {
           if (known.success) {
             if (
               claim !== undefined &&
+              feature !== undefined &&
               ['response.completed', 'response.incomplete', 'response.failed'].includes(
                 known.data.type,
               ) &&
@@ -652,16 +659,18 @@ export class ModelApiClient {
                 cached >= 0 &&
                 cached <= usage.input_tokens
               ) {
-                await claim.settle(
-                  estimateCostUsd(
-                    {
-                      inputTokens: usage.input_tokens,
-                      outputTokens: usage.output_tokens,
-                      cachedTokens: cached,
-                    },
-                    body.model,
-                  ),
-                )
+                const tokens = {
+                  inputTokens: usage.input_tokens,
+                  outputTokens: usage.output_tokens,
+                  cachedTokens: cached,
+                }
+                const cost =
+                  this.deps.paidResponseCost === undefined
+                    ? estimateCostUsd(tokens, body.model)
+                    : this.deps.paidResponseCost(body, feature, tokens)
+                if (cost === undefined || !Number.isFinite(cost) || cost < 0)
+                  await claim.settle(claim.reservedUsd, true)
+                else await claim.settle(cost)
               }
             }
             yield known.data

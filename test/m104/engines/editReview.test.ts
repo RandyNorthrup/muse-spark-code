@@ -1,8 +1,7 @@
-import { realpathSync } from 'node:fs'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { engineFixtures } from './fixtures'
+import { readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createRuntimeEditReview } from '../../../src/runtime/features/editReview'
 import { canonicalPath } from '../../../src/host/canonicalPath'
 import { UI_TEXT } from '../../../src/shared/constants'
@@ -15,16 +14,10 @@ const patch = JSON.stringify({
     { path: 'notes.md', hunks: [{ oldStart: 1, newStart: 1, lines: ['-before', '+after'] }] },
   ],
 })
-const folders: string[] = []
-const owners: ReturnType<typeof createRuntimeEditReview>[] = []
-afterEach(async () => {
-  await Promise.all(owners.splice(0).map((owner) => owner.dispose()))
-  await Promise.all(folders.splice(0).map((folder) => rm(folder, { recursive: true, force: true })))
-})
+const fixtures = engineFixtures()
 
 async function setup(backend: 'museCode' | 'modelApi') {
-  const root = realpathSync.native(await mkdtemp(path.join(tmpdir(), 'm104-pb-review-')))
-  folders.push(root)
+  const root = await fixtures.folder('m104-pb-review-')
   const file = path.join(root, 'notes.md')
   await writeFile(file, 'after\n')
   let isTrusted = true
@@ -54,7 +47,7 @@ async function setup(backend: 'museCode' | 'modelApi') {
     UI_TEXT,
     'en',
   )
-  owners.push(owner)
+  fixtures.own(owner)
   return {
     root,
     file,

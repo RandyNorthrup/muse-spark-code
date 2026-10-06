@@ -53,6 +53,10 @@ import type { createRuntimeVerify } from './features/verify'
 import type { createRuntimeHooks } from './features/hooks'
 import type { createRuntimeCodeIntel } from './features/codeIntel'
 import type { LanguageServiceHost } from '../core/codeIntel/languageService'
+import type { WebFetcher } from '../core/web/webFetch'
+import type { BrowserCheckHost } from '../core/browser/browserTool'
+import type { createRuntimeWebFetch } from './features/webFetch'
+import type { createRuntimeBrowser } from './features/browser'
 import type { McpPoolSnapshot, McpToolSource } from '../core/backends/modelapi/mcp/pool'
 import type { ScheduleStore } from '../shared/schedule'
 import type { McpPoolFactory } from '../host/backend/modelApiBundle'
@@ -118,6 +122,11 @@ export interface RuntimeBackendDeps {
   readonly verify?: (workspaceRoot: string) => ReturnType<typeof createRuntimeVerify>
   readonly hooks?: (workspaceRoot: string) => ReturnType<typeof createRuntimeHooks>
   readonly codeIntel?: (workspaceRoot: string) => ReturnType<typeof createRuntimeCodeIntel>
+  readonly webFetch?: (
+    workspaceRoot: string,
+    fetchPage: WebFetcher,
+  ) => ReturnType<typeof createRuntimeWebFetch>
+  readonly browser?: (workspaceRoot: string) => ReturnType<typeof createRuntimeBrowser>
   readonly mcp?: (
     workspaceRoot: string,
     newPool: McpPoolFactory,
@@ -131,6 +140,7 @@ export interface RuntimeBackendDeps {
   readonly isWorkspaceTrusted?: (workspaceRoot: string) => boolean
   readonly interactivePaid?: RuntimePaidUse
   readonly reservePaidRequest?: NonNullable<ModelApiClientDeps['reservePaidRequest']>
+  readonly paidResponseCost?: NonNullable<ModelApiClientDeps['paidResponseCost']>
   readonly paidUsage?: PaidUsage
 }
 
@@ -152,12 +162,17 @@ export interface RuntimeBackend {
   readonly verifyFor?: (workspaceRoot: string) => ReturnType<typeof createRuntimeVerify>
   readonly hooksFor?: (workspaceRoot: string) => ReturnType<typeof createRuntimeHooks>
   readonly codeIntelFor?: (workspaceRoot: string) => ReturnType<typeof createRuntimeCodeIntel>
+  readonly webFetchFor?: (workspaceRoot: string) => ReturnType<typeof createRuntimeWebFetch>
+  readonly browserFor?: (workspaceRoot: string) => ReturnType<typeof createRuntimeBrowser>
   readonly mcpSnapshotFor?: (workspaceRoot: string) => McpPoolSnapshot | undefined
 }
 
 // No editor proxy setting exists outside VS Code; the CLI reads the
 // environment's HTTPS_PROXY and NO_PROXY as it inherits them.
 const NO_EDITOR_PROXY: ProxySettings = { proxy: '', noProxy: [] }
+function unpricedResponse(): undefined {
+  return
+}
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -208,6 +223,8 @@ function modelApiManager(
   checkpoints: RuntimeCheckpoints | undefined,
   verify: VerifyHooks | undefined,
   codeIntel: LanguageServiceHost | undefined,
+  webFetch: WebFetcher | undefined,
+  browserCheck: BrowserCheckHost | undefined,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
   const paidUsage = deps.exec === undefined ? deps.paidUsage : undefined
@@ -339,11 +356,15 @@ function modelApiManager(
     }),
     listAttemptFiles: (attemptRoot) => filesIn(attemptRoot)(),
     contextIo: fileContextIo,
-    webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
+    webFetch:
+      webFetch ??
+      createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
+    ...(browserCheck !== undefined && { browserCheck }),
     fetch: deps.fetch,
     ...(deps.exec === undefined &&
       deps.reservePaidRequest !== undefined && {
         reservePaidRequest: deps.reservePaidRequest,
+        paidResponseCost: deps.paidResponseCost ?? unpricedResponse,
       }),
     ...(deps.exec !== undefined && { streamIdleMs: deps.exec.streamIdleMs }),
     newId: () => randomUUID(),
@@ -449,6 +470,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   const hookFactory = deps.exec === undefined ? deps.hooks : undefined
   const codeIntelHosts = new Map<string, ReturnType<typeof createRuntimeCodeIntel>>()
   const codeIntelFactory = deps.exec === undefined ? deps.codeIntel : undefined
+  const webFetchHosts = new Map<string, ReturnType<typeof createRuntimeWebFetch>>()
+  const webFetchFactory = deps.exec === undefined ? deps.webFetch : undefined
+  const browserHosts = new Map<string, ReturnType<typeof createRuntimeBrowser>>()
+  const browserFactory = deps.exec === undefined ? deps.browser : undefined
   let isDisposed = false
   let closing: Promise<void> | undefined
   const assertOpen = () => {
@@ -473,6 +498,28 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     if (codeIntelFactory === undefined) throw new Error('MHP_CODE_INTEL_UNAVAILABLE')
     const service = codeIntelHosts.get(root) ?? codeIntelFactory(root)
     codeIntelHosts.set(root, service)
+    return service
+  }
+  const webFetchFor = (root: string) => {
+    assertOpen()
+    if (webFetchFactory === undefined) throw new Error('MHP_WEB_FETCH_UNAVAILABLE')
+    const service =
+      webFetchHosts.get(root) ??
+      webFetchFactory(
+        root,
+        createWebFetcher(
+          deps.log,
+          pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), deps.log),
+        ),
+      )
+    webFetchHosts.set(root, service)
+    return service
+  }
+  const browserFor = (root: string) => {
+    assertOpen()
+    if (browserFactory === undefined) throw new Error('MHP_BROWSER_UNAVAILABLE')
+    const service = browserHosts.get(root) ?? browserFactory(root)
+    browserHosts.set(root, service)
     return service
   }
   const checkpointsFor = async (root: string): Promise<RuntimeCheckpoints> => {
@@ -621,6 +668,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       checkpoints,
       verifyFactory === undefined ? undefined : verifyFor(cwd).verify,
       codeIntelFactory === undefined ? undefined : codeIntelFor(cwd).service,
+      webFetchFactory === undefined ? undefined : webFetchFor(cwd).fetchPage,
+      browserFactory === undefined ? undefined : browserFor(cwd).host,
     )
     modelApiHosts.set(cwd, { manager, identity: key })
     return await manager.ensureHost()
@@ -654,6 +703,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     ...(verifyFactory !== undefined && { verifyFor }),
     ...(hookFactory !== undefined && { hooksFor }),
     ...(codeIntelFactory !== undefined && { codeIntelFor }),
+    ...(webFetchFactory !== undefined && { webFetchFor }),
+    ...(browserFactory !== undefined && { browserFor }),
     ...(deps.exec === undefined &&
       deps.mcp !== undefined && {
         mcpSnapshotFor: (root: string) => modelApiHosts.get(root)?.manager.mcpSnapshot(),
@@ -671,6 +722,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
           ...Array.from(verifyHosts.values(), (service) => service.dispose()),
           ...Array.from(hookHosts.values(), (service) => service.dispose()),
           ...Array.from(codeIntelHosts.values(), (service) => service.dispose()),
+          ...Array.from(webFetchHosts.values(), (service) => service.dispose()),
+          ...Array.from(browserHosts.values(), (service) => service.dispose()),
           ...(deps.exec === undefined && deps.interactivePaid !== undefined
             ? [deps.interactivePaid.dispose()]
             : []),
@@ -684,6 +737,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         verifyHosts.clear()
         hookHosts.clear()
         codeIntelHosts.clear()
+        webFetchHosts.clear()
+        browserHosts.clear()
         const released = await Promise.allSettled(
           Array.from(checkpointHosts.values(), async (pending) => {
             const services = await pending

@@ -4,7 +4,11 @@ import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runtimePaidRequestAdmission } from '../../../src/runtime/features/paidRequest'
 import { createRuntimePaidBudget } from '../../../src/runtime/features/paidBudget'
-import { ModelApiClient } from '../../../src/core/backends/modelapi/client'
+import {
+  ModelApiClient,
+  type ResponseAttemptGuard,
+} from '../../../src/core/backends/modelapi/client'
+import type { CreateResponseBody } from '../../../src/core/backends/modelapi/schemas'
 import { PaidUsage } from '../../../src/core/paid/paidFeatures'
 import { UI_TEXT, MODEL_API_IMAGE_MODEL } from '../../../src/shared/constants'
 import {
@@ -16,6 +20,35 @@ import { FakeLogOutputChannel } from '../../unit/helpers/fakes'
 
 const roots: string[] = []
 const budgets: ReturnType<typeof createRuntimePaidBudget>[] = []
+const responseBody: CreateResponseBody = {
+  model: 'muse-spark-1.3',
+  input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'fixture' }] }],
+  instructions: 'fixture',
+  tools: [],
+  tool_choice: 'auto',
+  reasoning: { effort: 'high', summary: 'auto' },
+  stream: true,
+  store: false,
+  include: ['reasoning.encrypted_content'],
+  max_output_tokens: 100,
+  prompt_cache_key: 'fixture',
+  prompt_cache_retention: '24h',
+}
+const paidGuard: ResponseAttemptGuard = Object.assign(() => undefined, {
+  paidFeature: 'subagents' as const,
+})
+async function responseFrames(client: ModelApiClient) {
+  const types: string[] = []
+  const frames = client.streamResponse(
+    responseBody,
+    new AbortController().signal,
+    undefined,
+    undefined,
+    paidGuard,
+  )
+  for await (const frame of frames) types.push(frame.type)
+  return types
+}
 afterEach(async () => {
   await Promise.all(budgets.splice(0).map((budget) => budget.dispose()))
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
@@ -56,6 +89,43 @@ async function setup() {
 }
 
 describe('priced portable request admission', () => {
+  it('settles the original verified request tariff after the selected model changes', async () => {
+    const { budget, settings, api, state } = await setup()
+    const receipt = vi.fn(() => 0.25)
+    const admission = runtimePaidRequestAdmission({
+      budget,
+      isOn: () => true,
+      price: () => ({ costUsd: 0.4, isCurrent: () => state.isCurrent, receiptCost: receipt }),
+    })
+    const client = new ModelApiClient({
+      ...settings,
+      fetch: api.fetch,
+      reservePaidRequest: admission,
+      paidResponseCost: admission.responseCost,
+    })
+    api.script({
+      text: 'done',
+      onRequest: () => {
+        state.isCurrent = false
+      },
+    })
+    await expect(responseFrames(client)).resolves.toContain('response.completed')
+    expect(receipt).toHaveBeenCalledOnce()
+    expect(receipt).toHaveBeenCalledWith({ inputTokens: 10, outputTokens: 5, cachedTokens: 0 })
+    await expect(budget.latestDay()).resolves.toMatchObject({ spentUsd: 0.25 })
+  })
+  it('retains liability for an unpriced response receipt instead of substituting Meta rates', async () => {
+    const { budget, settings, api, reserve } = await setup()
+    const client = new ModelApiClient({
+      ...settings,
+      fetch: api.fetch,
+      reservePaidRequest: reserve,
+      paidResponseCost: reserve.responseCost,
+    })
+    api.script({ text: 'done' })
+    await expect(responseFrames(client)).resolves.toContain('response.completed')
+    await expect(budget.latestDay()).rejects.toThrow(UI_TEXT.paidDailyLedgerUnavailable)
+  })
   it('reserves before the actual fake image transport and refuses its unaffordable next request', async () => {
     const { client, body, api, budget } = await setup()
     const image = await client.createImage(body, new AbortController().signal)

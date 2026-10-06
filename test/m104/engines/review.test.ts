@@ -1,24 +1,16 @@
+import { engineFixtures } from './fixtures'
 import { execFileSync } from 'node:child_process'
-import { realpathSync } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createRuntimeReview } from '../../../src/runtime/features/review'
 import { UI_TEXT, REVIEW_MARKER_BYTES } from '../../../src/shared/constants'
 import { aliasedReviewRepositories } from '../../unit/helpers/reviewRoots'
 
-const folders: string[] = []
-const owners: ReturnType<typeof createRuntimeReview>[] = []
+const fixtures = engineFixtures()
 const git = (args: readonly string[], cwd: string) =>
   execFileSync('git', [...args], { cwd, encoding: 'utf8' })
-afterEach(async () => {
-  await Promise.all(owners.splice(0).map((owner) => owner.dispose()))
-  await Promise.all(folders.splice(0).map((folder) => rm(folder, { recursive: true, force: true })))
-})
+
 async function setup() {
-  const base = realpathSync.native(await mkdtemp(path.join(tmpdir(), 'm104-pb-review-')))
-  folders.push(base)
+  const base = await fixtures.folder('m104-pb-review-')
   const repositories = await aliasedReviewRepositories(base, 'review')
   const state = { isTrusted: true, isAvailable: true, isCurrent: true }
   const runGit = vi.fn(
@@ -39,7 +31,7 @@ async function setup() {
     UI_TEXT,
     'en',
   )
-  owners.push(owner)
+  fixtures.own(owner)
   return { owner, state, runGit, repositories, git }
 }
 const request = { scope: 'uncommitted', focus: 'general' } as const

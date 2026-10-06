@@ -257,3 +257,97 @@ raising any cap. C renders the resulting material/findings using shared views.
 The optional PlanModeHoldDeps.isCurrent is now checked before each mode change;
 the controller's original callback still protects turn admission and user mode
 choices. Dispose before a replaced conversation can send/restore any old hold.
+
+### A/C/D/E/F — F34 transfer and F35 worktrees
+
+Bind `createRuntimeTransferFiles(deps, table, locale)` from
+`src/runtime/features/transfer.ts` to the conversation's existing
+`SessionTransferFiles`. Its native `pickFile(title, signal)` returns a validated
+local file URI or undefined; `confirm(title, detail, signal)` preserves Deny.
+Supply immutable profile ownership and native prompt cancellation. Register its
+awaited dispose with that conversation. It reads the actual selected file
+through the existing bounded, canonical, single-handle reader and fatal UTF-8
+before the controller's strict import parser. Export/share still use the real
+existing controller serializers with live handles removed; bind their native
+save/clipboard services separately. The frozen MHP file-dialog service is
+absent: A must specify a native chooser/save contract, validate both ends and
+regenerate the lock before connecting D/E/F. No guessed provider wire is needed.
+
+Bind `createRuntimeWorktrees(deps, table, locale)` from
+`src/runtime/features/worktrees.ts` to the existing `newWorktree` and
+`removeWorktree` host actions. It reuses actual Git/worktree commands with a
+captured physical workspace and live trust/current owner. Its required runGit
+accepts args/cwd/timeout/**beforeRun**/AbortSignal; the sanitized process must
+invoke beforeRun immediately before spawning. Supply native input/picker/
+confirmation/open-folder ports, real recordWorktree persistence and cancellation,
+and shared checkpoint process admission. Await dispose before rebinding the
+profile. Test alias retarget, Deny removal, admission failure/no process,
+revoked trust and release during input/Git. Native dialog services and same-root
+ownership must be delivered by A/D/E/F. F36 Git/push/PR remains separate work.
+
+Both factories share the tested `runtimeFeatureLifetime`: cancellation starts
+immediately, late results refuse, native cancel errors still drain accepted
+work, and one release promise owns cleanup. Ship them only in A's own named
+lazy entry with unchanged caps/discovery and caller language installation.
+
+### A/C/D/E/F — F31 fetch and F33 browser
+
+Interactive `RuntimeBackendDeps.webFetch(root, fetchPage)` must return
+`createRuntimeWebFetch` from `src/runtime/features/webFetch.ts`, using the supplied
+existing pinned public-address transport and isolated page converter. Inject
+live trust/network/catalog tool support and immutable owner; redirects consume
+the same live predicate. `webFetchFor(root)` exposes this exact backend-owned
+service. No replacement HTTP stack or system proxy/browser is introduced.
+
+Bind `RuntimeBackendDeps.browser(root)` to `createRuntimeBrowser` from
+`src/runtime/features/browser.ts`. Supply existing verified browserCheck.js and
+browserRuntime.js paths, canonical local storage, logger, runtimeMode,
+askConsent/onAdmissionChange native services, live trust/network/held-worktree
+ceiling/tool capability, vision capability, extra hosts and checkpoint process
+admission. `browserFor(root).host` is the actual injected Model API tool service.
+Muse Code's ide tools must consume those same hosts. Text checks remain offered
+without vision; screenshots are neither requested nor returned after vision
+withdraws. The same pinned consented runtime remains mandatory. Binding the
+standalone Download command (`BrowserChecks.prepareOnly`) is still open; do not
+claim that this adapter implements its native menu/installer UI. Root release
+aborts and drains both services; ACP/exec ignore both interactive injections.
+
+Validate native consent cancellation, download/install integrity, network/scope
+changes during checks, selected capability withdrawal, no-process admission,
+Windows path handling and profile release. Fake bundle/port scenarios and a
+real runtime tool turn are component evidence, not installed browser/editor or
+non-Meta transport qualification. Add only a named lazy reader/inventory; do
+not enlarge startup or deferred budgets.
+
+### A/D/F — original dispatch tariff for response settlement
+
+The priced admission function now also exports `admission.responseCost`.
+Supply **both** `reservePaidRequest: admission` and
+`paidResponseCost: admission.responseCost` to interactive RuntimeBackendDeps.
+`price(...args)` may return `receiptCost(usage)` bound to that dispatch's
+verified immutable tariff, including all metered fees. It is never recomputed
+from the newly selected model/profile. A missing/invalid receipt cost retains
+the reserved claim as uncertain; the portable path never substitutes Meta
+rates. A verifiable worst-case bound must include hosted tool fees; refuse
+unbounded/unknown tariffs before dispatch. The root supplies an unpriced reader
+when admission exists without settlement pricing. D's adapter must adopt the
+same reader when supporting non-Meta providers; its legacy Meta-only caller is
+unchanged. PaidUsage's repeated token validation was removed only after its
+shared usageCost/reviewerCost validation already checks the same units.
+
+Deliver captured provider responses/transports and catalog tariffs first.
+These changes use the existing captured Meta stream fixture and internal cost
+ports; they add no provider parser or guessed response shape. Validate the
+original tariff after selection replacement and retained liability when a
+receipt is unknown, plus all actual provider/backends before qualifying rows.
+
+### F — checkpoint 5/6 documentation and remaining scope
+
+Add an Unreleased note for bounded portable session transfer, guarded physical
+worktrees, fetch/browser tool owners and historical paid response pricing.
+Keep all native/composition/provider qualification prerequisites visible in
+PLAN §3/§7, help/catalog and the support matrix. No new command/setting or UI
+translation key was added by B. The original XL lane still needs F6/F17/F18/
+F20/F23/F24/F36/F37/F38/F41/F42/F53/F54/F55/F56 implementation/bindings and full
+qualification; partially exposed rows also remain P until assembled receipts.
+No registry status is changed by B.

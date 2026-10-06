@@ -1,3 +1,5 @@
+import * as nativeWebFetcher from '../../../src/host/web/webFetcher'
+import { browserReport } from './networkFixtures'
 import { realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -42,6 +44,8 @@ import { createRuntimeCodeIntel } from '../../../src/runtime/features/codeIntel'
 import type { HostServices } from '../../../src/shared/hostApi/methods'
 import { parseMhpResult } from '../../../src/shared/hostApi/protocol'
 import { MHP } from '../../../src/shared/constants'
+import { createRuntimeWebFetch } from '../../../src/runtime/features/webFetch'
+import { createRuntimeBrowser } from '../../../src/runtime/features/browser'
 
 const folders: string[] = []
 const runtimes: RuntimeBackend[] = []
@@ -49,6 +53,10 @@ const services: Awaited<ReturnType<typeof createRuntimeCheckpoints>>[] = []
 const paidBudgets: ReturnType<typeof createRuntimePaidBudget>[] = []
 const dist = { folder: '' }
 const jobs = fixtureJobLifecycle()
+const finishAdmission = () => undefined
+function noAdmissionListener() {
+  return finishAdmission
+}
 beforeAll(async () => {
   await jobs.setup()
   dist.folder = await mkdtemp(path.join(tmpdir(), 'm104-pb-checkpoint-dist-'))
@@ -116,6 +124,8 @@ async function setup() {
       | 'exec'
       | 'mcp'
       | 'codeIntel'
+      | 'webFetch'
+      | 'browser'
     > = {},
   ) => {
     const runtime = createRuntimeBackend({
@@ -162,19 +172,23 @@ async function setup() {
   }
 }
 
-async function changeNote(
-  runtime: RuntimeBackend,
-  root: string,
-  api: ReturnType<typeof fakeModelApi>,
-  onWriteRequest?: () => void,
-) {
+async function startRuntimeSession(runtime: RuntimeBackend, root: string) {
   const host = await runtime.backend.hostFor(root)
   const session = await host.startSession({
     workspaceRoot: root,
     modelId: 'muse-spark-1.3',
     approvalMode: 'allowAll',
   })
-  const watched = watchSessionTurns(session)
+  return { session, watched: watchSessionTurns(session) }
+}
+
+async function changeNote(
+  runtime: RuntimeBackend,
+  root: string,
+  api: ReturnType<typeof fakeModelApi>,
+  onWriteRequest?: () => void,
+) {
+  const { session, watched } = await startRuntimeSession(runtime, root)
   api.script(
     { calls: [{ name: 'read_file', arguments: JSON.stringify({ path: 'note.txt' }) }] },
     {
@@ -192,6 +206,79 @@ async function changeNote(
 }
 
 describe('portable checkpoint backend recording', () => {
+  it('uses portable fetch and browser owners in actual runtime tools and drains them on close', async () => {
+    const { root, create, backend, api, log } = await setup()
+    vi.spyOn(nativeWebFetcher, 'createWebFetcher').mockReturnValue(() =>
+      Promise.reject(new Error('fixture forbids fallback network')),
+    )
+    const fetched = createRuntimeWebFetch({
+      fetchPage: () =>
+        Promise.resolve({
+          kind: 'page',
+          page: {
+            url: 'https://example.com/',
+            finalUrl: 'https://example.com/',
+            status: 200,
+            type: 'text/plain',
+            bytes: 1,
+          },
+          text: 'fixture web page',
+        }),
+      assertCurrent: () => undefined,
+      isOffered: () => true,
+    })
+    const report = browserReport()
+    const browser = createRuntimeBrowser({
+      checkBundlePath: 'fixture/browserCheck.js',
+      runtimeBundlePath: 'fixture/browserRuntime.js',
+      storageDir: root,
+      log,
+      runtimeMode: () => 'ask',
+      askConsent: () => Promise.resolve('decline'),
+      onAdmissionChange: noAdmissionListener,
+      loadBundle: () => ({ runBrowserCheck: () => Promise.resolve(report) }),
+      assertCurrent: () => undefined,
+      isAllowed: () => true,
+      canReadScreenshots: () => false,
+      extraHosts: () => [],
+      beforeWorkspaceProcessStart: () => Promise.resolve(),
+    })
+    const runtime = backend('modelApi', () => create(), {
+      webFetch: () => fetched,
+      browser: () => browser,
+    })
+    const { session, watched } = await startRuntimeSession(runtime, root)
+    api.script(
+      {
+        calls: [
+          { name: 'web_fetch', arguments: '{"url":"https://example.com/"}' },
+          { name: 'browser_check', arguments: '{"url":"http://localhost/"}' },
+        ],
+      },
+      { text: 'done' },
+    )
+    const done = watched.turnDone()
+    await session.sendTurn([{ type: 'text', text: 'check the fixture web page' }])
+    await done
+    expect(watched.events).toContainEqual(
+      expect.objectContaining({
+        type: 'itemCompleted',
+        item: expect.objectContaining({ tool: 'web_fetch', visibleOutput: 'fixture web page' }),
+      }),
+    )
+    expect(watched.events).toContainEqual(
+      expect.objectContaining({
+        type: 'itemCompleted',
+        item: expect.objectContaining({
+          tool: 'browser_check',
+          visibleOutput: expect.stringContaining('localhost'),
+        }),
+      }),
+    )
+    await runtime.close()
+    expect(fetched.isOffered()).toBe(false)
+    expect(browser.host.isOffered()).toBe(false)
+  })
   it('runs native definition data through the actual Model API tool and drains it with the backend', async () => {
     const { root, create, backend, api } = await setup()
     const file = path.join(root, 'note.ts')
@@ -223,13 +310,7 @@ describe('portable checkpoint backend recording', () => {
       libraryRoots: () => [],
     })
     const runtime = backend('modelApi', () => create(), { codeIntel: () => service })
-    const agent = await runtime.backend.hostFor(root)
-    const session = await agent.startSession({
-      workspaceRoot: root,
-      modelId: 'muse-spark-1.3',
-      approvalMode: 'allowAll',
-    })
-    const watched = watchSessionTurns(session)
+    const { session, watched } = await startRuntimeSession(runtime, root)
     api.script(
       { calls: [{ name: 'find_definition', arguments: '{"path":"note.ts","line":1,"column":7}' }] },
       { text: 'done' },
@@ -278,13 +359,7 @@ describe('portable checkpoint backend recording', () => {
           newPool,
         ),
     })
-    const host = await runtime.backend.hostFor(root)
-    const session = await host.startSession({
-      workspaceRoot: root,
-      modelId: 'muse-spark-1.3',
-      approvalMode: 'allowAll',
-    })
-    const watched = watchSessionTurns(session)
+    const { session, watched } = await startRuntimeSession(runtime, root)
     api.script(
       { calls: [{ name: 'mcp__fake__echo', arguments: '{"text":"runtime"}' }] },
       { text: 'done' },
@@ -314,10 +389,18 @@ describe('portable checkpoint backend recording', () => {
     const codeIntel = vi.fn(() => {
       throw new Error('exec must not acquire an editor service')
     })
+    const webFetch = vi.fn(() => {
+      throw new Error('exec must not acquire an interactive fetch owner')
+    })
+    const browser = vi.fn(() => {
+      throw new Error('exec must not acquire a browser owner')
+    })
     const runtime = backend('modelApi', checkpointFactory, {
       interactivePaid: paid,
       mcp,
       codeIntel,
+      webFetch,
+      browser,
       exec: { isEphemeral: true, headlessPaid: () => Promise.resolve(false), streamIdleMs: 1 },
     })
     expect(runtime.paid).not.toBe(paid)
@@ -326,6 +409,8 @@ describe('portable checkpoint backend recording', () => {
     expect(runtime.hooksFor).toBeUndefined()
     expect(runtime.mcpSnapshotFor).toBeUndefined()
     expect(runtime.codeIntelFor).toBeUndefined()
+    expect(runtime.webFetchFor).toBeUndefined()
+    expect(runtime.browserFor).toBeUndefined()
     const host = await runtime.backend.hostFor(root)
     const session = await host.startSession({
       workspaceRoot: root,
@@ -335,6 +420,8 @@ describe('portable checkpoint backend recording', () => {
     expect(session.schedules).toBeUndefined()
     expect(mcp).not.toHaveBeenCalled()
     expect(codeIntel).not.toHaveBeenCalled()
+    expect(webFetch).not.toHaveBeenCalled()
+    expect(browser).not.toHaveBeenCalled()
     expect(checkpointFactory).not.toHaveBeenCalled()
     await runtime.close()
     await paid.dispose()
@@ -365,13 +452,7 @@ describe('portable checkpoint backend recording', () => {
         price: () => ({ costUsd: 0.4, isCurrent: () => true }),
       }),
     })
-    const host = await runtime.backend.hostFor(root)
-    const session = await host.startSession({
-      workspaceRoot: root,
-      modelId: 'muse-spark-1.3',
-      approvalMode: 'allowAll',
-    })
-    const watched = watchSessionTurns(session)
+    const { session, watched } = await startRuntimeSession(runtime, root)
     const accepted = Promise.withResolvers<'once'>()
     ask.mockReturnValue(accepted.promise)
     api.script(
