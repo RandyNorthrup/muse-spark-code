@@ -19097,6 +19097,19 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**FIXM105C review repair (2026-10-06).** Fix all four P2 findings and P3
+from `RVM105C`: canonical exact USD for media admission, bills and chips;
+one token reservation per request when a paid feature also applies;
+ceiling currency display with at least two significant sub-cent digits;
+calibration-cache write failures warn without replacing successful replies;
+and concurrent settlement/finalization shares one selected bill and one
+in-flight write, with retries limited to failed ledger writes. Add regressions,
+property checks and byte-exact red drills in
+`docs/certification/m105-c-cost-(b).md`. The absent shared USD helper is
+copied with the identical API from `m106/h` for the M106H/M108T handoff.
+No dependency, guard threshold, provider wire or paid/live call is added.
+The existing W-owned bundle and binding handoffs remain release blockers.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:
@@ -20032,6 +20045,16 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM105C rig lane (2026-10-06).** The fix brief/common rules reserve the
+full quality/coverage/accessibility run for the lead; this lane runs all
+five typecheck projects, changed-file lint/format checks, owned whole-file
+tests at default timeouts, localization/host-API/deadcode/duplication and a
+production build. The pre-existing W-owned deferred-webview size and
+unlisted lazy chip split failures remain explicit integration deferrals;
+no cap, check, ignore or timeout is weakened. Exact money also introduces
+the shared USD helper used by M106H/M108T. Final sizes, gate results and red
+drills are in `docs/certification/m105-c-cost-(b).md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -21205,6 +21228,19 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM105C-W-integration (2026-10-06).** The four RVM105C P2 findings
+  and P3 are being repaired in lane C; release still waits on W's existing lazy
+  surface registration/bundle fitting, real calibration/tariff/store and
+  editor bindings. Money now crosses media ledger and chip ports as
+  canonical decimal strings with the identical M106H/M108T `Usd` API.
+  Follow-up: W binds exact authoritative journal amounts and independently
+  admitted hosted fees, fits the unchanged bundle caps, runs the full gate
+  and captures the remaining receipts. Safe for now: this base constructs
+  media accounting only in tests and does not enable paid uploads, hosted
+  fees, headless media or a new production dispatch. These are explicit
+  integration handoffs, not accepted unfixed review defects. Certification:
+  `docs/certification/m105-c-cost-(b).md`.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { MediaCostEstimator, reserveMediaRequest } from '../../src/core/media/mediaCost'
@@ -19,7 +20,7 @@ async function setup(reply?: ScriptedReply) {
   const modelId = 'muse-spark-1.3-contributor'
   const claims = [0, 1].map(() => ({
     check: vi.fn(),
-    settle: vi.fn((_usd: number, _hasUnknownCost?: boolean) => Promise.resolve()),
+    settle: vi.fn((_usd: UsdAmount, _hasUnknownCost?: boolean) => Promise.resolve()),
   }))
   const write = vi.fn((_points: readonly unknown[]) => Promise.resolve())
   const estimator = new MediaCostEstimator({
@@ -93,7 +94,7 @@ describe('media accounting at the transport', () => {
         ...(terminal === 'failed' && { failed: { code: 'fake', message: 'failed' } }),
       })
       await t.run()
-      const actual = (2000 * 0.1 + 1000 * 0.025 + 40 * 0.2) / 1_000_000
+      const actual = '0.000233'
       for (const claim of t.claims)
         expect(claim.settle).toHaveBeenCalledExactlyOnceWith(actual, false)
       expect(t.write).toHaveBeenCalledOnce()
@@ -107,7 +108,8 @@ describe('media accounting at the transport', () => {
     })
     await expect(t.run()).rejects.toThrow('daily changed')
     expect(t.api.requests).toHaveLength(0)
-    for (const claim of t.claims) expect(claim.settle).toHaveBeenCalledExactlyOnceWith(0, false)
+    for (const claim of t.claims)
+      expect(claim.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount(), false)
     expect(t.write).not.toHaveBeenCalled()
   })
 
@@ -136,7 +138,8 @@ describe('media accounting at the transport', () => {
   it.each([400, 429])('refunds an explicitly refused HTTP %s request', async (status) => {
     const t = await setup({ httpError: { status } })
     await expect(t.run()).rejects.toThrow()
-    for (const claim of t.claims) expect(claim.settle).toHaveBeenCalledExactlyOnceWith(0, false)
+    for (const claim of t.claims)
+      expect(claim.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount(), false)
   })
 
   it('retries an explicitly nonsent 429, but never an ambiguous 500 or network failure', async () => {
@@ -171,13 +174,13 @@ describe('media accounting at the transport', () => {
         ),
       ),
     ).rejects.toThrow('No Model API key')
-    expect(missing.claims[0]!.settle).toHaveBeenCalledExactlyOnceWith(0, false)
+    expect(missing.claims[0]!.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount(), false)
     const changed = await setup()
     await expect(changed.run({ ...changed.body, model: 'muse-spark-1.3' })).rejects.toThrow(
       'reservation does not match',
     )
     expect(changed.api.requests).toHaveLength(0)
-    expect(changed.claims[0]!.settle).toHaveBeenCalledWith(0, false)
+    expect(changed.claims[0]!.settle).toHaveBeenCalledWith(Usd.from(0).toAmount(), false)
     const stopped = await setup()
     await expect(
       Array.fromAsync(
@@ -191,6 +194,6 @@ describe('media accounting at the transport', () => {
       ),
     ).rejects.toThrow()
     expect(stopped.api.requests).toHaveLength(0)
-    expect(stopped.claims[0]!.settle).toHaveBeenCalledWith(0, false)
+    expect(stopped.claims[0]!.settle).toHaveBeenCalledWith(Usd.from(0).toAmount(), false)
   })
 })

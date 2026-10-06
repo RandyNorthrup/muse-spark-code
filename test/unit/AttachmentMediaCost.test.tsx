@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
+import { Usd } from '../../src/shared/usd'
 import type { AttachmentSummary } from '../../src/shared/protocol'
 import { AttachmentChips } from '../../src/webview/components/AttachmentChips'
 
@@ -23,8 +24,8 @@ const clip: AttachmentSummary = {
     estimate: {
       estimatedInputTokens: 35_000,
       upperBoundInputTokens: 70_000,
-      standardCostUsd: 0.05,
-      contributorCostUsd: 0.02,
+      standardCostUsd: Usd.from(0.05).toAmount(),
+      contributorCostUsd: Usd.from(0.02).toAmount(),
     },
   },
 }
@@ -34,6 +35,27 @@ beforeEach(() => {
 })
 
 describe('lazy media chip cost', () => {
+  it('shows both positive U4 prices with two significant digits and ceilings the charge', async () => {
+    const u4 = {
+      ...clip,
+      sizeBytes: 500_000,
+      media: {
+        info: { ...clip.media!.info, sizeBytes: 500_000, durationSeconds: 10 },
+        estimate: {
+          estimatedInputTokens: 2751,
+          upperBoundInputTokens: 5502,
+          standardCostUsd: Usd.from('0.00343875').toAmount(),
+          contributorCostUsd: Usd.from('0.0002751').toAmount(),
+        },
+      },
+    }
+    render(<AttachmentChips attachments={[u4]} onRemove={vi.fn()} />)
+    expect(await screen.findByText(/2,751 tokens \(est\.\)/)).toHaveTextContent(
+      '10s · 500 kB · Sound · ~2,751 tokens (est.) · $0.0035 Standard / $0.00028 Contributor',
+    )
+    expect(screen.queryByText(/\$0\.00 Standard|\$0\.00 Contributor/)).not.toBeInTheDocument()
+  })
+
   it('shows duration, bytes, sound and tokens marked as an estimate beside both prices', async () => {
     render(<AttachmentChips attachments={[clip]} onRemove={vi.fn()} isContributor />)
     expect(await screen.findByText(/35,000 tokens \(est\.\)/)).toHaveTextContent(

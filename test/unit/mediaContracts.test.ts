@@ -121,7 +121,7 @@ describe('M105 media metadata', () => {
       upperBoundInputTokens: 3000,
       standardCostUsd: 0.01,
     }
-    expect(mediaEstimateSchema.parse(estimate)).toEqual(estimate)
+    expect(mediaEstimateSchema.parse(estimate)).toEqual({ ...estimate, standardCostUsd: '0.01' })
     expect(mediaEstimateSchema.safeParse({ ...estimate, upperBoundInputTokens: 169 }).success).toBe(
       false,
     )

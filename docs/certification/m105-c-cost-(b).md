@@ -279,3 +279,70 @@ The full quality/coverage/accessibility gates remain the lead's run under the
 shared lane rules. These local commits are reviewable lane work; neither the
 build nor M105 release certification is claimed green. Hooks remain enabled;
 both local commits run the repository's lint-staged and secret scan.
+
+## FIXM105C — RVM105C money and display repair (2026-10-06)
+
+The rig fix brief requires all four P2 findings and P3 fixed. This record
+supersedes the numeric money portions of the original delivery above.
+
+- **RVM105C-P2-exact-money:** media reservation, settlement and chip price
+  arithmetic uses `Usd`. The session/daily ports and serialized chip prices
+  now carry canonical branded decimal strings. Historical numeric chip
+  inputs normalize once through `legacyUsdSchema`; no result is converted
+  back to binary floating-point. Tariffs are parsed once per reservation.
+- **RVM105C-P2-zero-price:** shared `formatUsd` ceilings exact amounts and
+  preserves at least two significant digits below one cent. U4's 2,751
+  tokens render `$0.0035 Standard / $0.00028 Contributor`. Locale patterns,
+  grouping and non-Latin digits still come from Intl.
+- **Identical-API handoff C→M106H/M108T:** `src/shared/usd.ts` and
+  `usdConstants.ts` are byte-identical copies from `m106/h` at
+  `5ab7d0c9c914fbca1e1a26abc75811655a684e89`. The helper SHA-256 is
+  `10fea8369cef7407d603a8ba534fac0327263b56729f45a466059125ce89e9a1`.
+  `formatUsd` uses that branch's shared ceiling implementation. The branch
+  advanced during reading; the initial test incorrectly called the removed
+  `toNumber` API. That test was corrected to the copied API. An Arabic test
+  now requests `ar-u-nu-arab` explicitly because ICU's default `ar` digits
+  depend on its version; no runtime locale behavior was changed for it.
+- Generated property cases check integer nano-USD reservation/bill oracles,
+  add/subtract/multiply/divide identities, canonical serialization and
+  ceiling displays. The exact-cap regression admits `$0.0005872` with no
+  epsilon, rounding allowance or weakened cap.
+
+Money/display mutation drills are recorded after execution below. All run
+whole test files, at default timeouts, with `--maxWorkers=3`; no network or
+model request is involved. Existing W-owned bundle fitting and registration,
+real store/tariff bindings, captured calibration and editor wiring remain the
+named integration handoffs. W must adapt real journal ports to exact money
+rather than arithmetic on converted numbers; this lane adds no production
+binding or hosted-fee admission.
+
+### Money/display red drills
+
+| Guard broken                                             | Named failing test                                                                                        | Result / restored SHA-256                                                  |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Reservation replaced with binary multiplication/addition | `mediaAccounting > admits the exact reservation at an equal cap without a floating-point overage`         | exit 1; `388c3575ec9f04d514cb6007016ca8a7fd82216ec3c93049e61cd84308fab6e5` |
+| Settlement replaced with binary multiplication/addition  | `mediaAccounting > matches integer nano-USD tariffs across generated reservations and cached settlements` | exit 1; same mediaCost digest                                              |
+| Chip tariff multiplied as a binary number                | `mediaCost > keeps generated chip prices exact against integer nano-USD tariffs`                          | exit 1; same mediaCost digest                                              |
+| Sub-cent display precision forced back to two decimals   | `AttachmentMediaCost > shows both positive U4 prices with two significant digits and ceilings the charge` | exit 1; `dd16df17ebd2ffb31375ea6c7ca4e6ff9cfaffb74c91d945080fc93d2c31e440` |
+
+The first chip-price mutation passed the single U4 price fixture: its
+particular product happens to round to the same decimal. Added generated
+prices/durations against an independent integer nano-USD oracle, then reran
+the drill and saw that named test fail. All source restorations compared
+SHA-256 byte-exact in `finally`; scratch logs stay under `temp/`.
+
+Initial green verification: all five TypeScript projects; 21 tests in
+mediaAccounting/USD/chips and 46 in mediaCost/contracts/client (67 total,
+before the additional generated chip-price test). These initial counts do not include the additional chip property test or
+the later lifecycle regressions.
+
+C→W CHANGELOG handoff: under `[Unreleased]`, include exact media admission
+and settlement, nonzero ceiling estimates, a single request-token claim,
+cache-write warnings that preserve successful replies, and concurrent
+settlement/finalization coalescing. No command, setting or catalog entry is
+added by this repair. CHANGELOG and feature-help files remain W-owned under
+the lane's file-scope rule.
+
+Money/display verification after restoration: 68 tests passed across all
+six affected whole files (21 + 47); all five typecheck projects passed.
+Changed-file ESLint passed after fixing two test-only style violations.

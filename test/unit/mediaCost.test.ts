@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { Usd } from '../../src/shared/usd'
 import { MediaCostEstimator, MediaContributorConsent } from '../../src/core/media/mediaCost'
 import type { MediaInfo } from '../../src/shared/media'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -177,6 +178,33 @@ describe('media calibration', () => {
     expect(blank.cost.estimate(provider, modelId, { info: clip }, false)).toBeUndefined()
   })
 
+  it('keeps generated chip prices exact against integer nano-USD tariffs', () => {
+    const { cost } = estimator()
+    for (const durationSeconds of [1, 2, 10, 30, 120]) {
+      for (const [price, nanoPerToken] of [
+        [0.1, 100n],
+        [0.025, 25n],
+        [1.25, 1250n],
+      ] as const) {
+        const estimate = cost.chipEstimate(
+          provider,
+          modelId,
+          { info: { ...clip, durationSeconds } },
+          { standardInput: price, contributorInput: price },
+          true,
+        )
+        expect(estimate).toBeDefined()
+        for (const amount of [estimate?.standardCostUsd, estimate?.contributorCostUsd]) {
+          expect(
+            Usd.from(amount ?? '0')
+              .times(1_000_000_000)
+              .toString(),
+          ).toBe(String(BigInt(estimate?.estimatedInputTokens ?? 0) * nanoPerToken))
+        }
+      }
+    }
+  })
+
   it('prices the chip from verified tier tariffs while preserving an unknown estimate', () => {
     const { cost } = estimator()
     expect(
@@ -193,8 +221,8 @@ describe('media calibration', () => {
     ).toEqual({
       estimatedInputTokens: 2751,
       upperBoundInputTokens: 5502,
-      standardCostUsd: (2751 * 1.25) / 1_000_000,
-      contributorCostUsd: (2751 * 0.1) / 1_000_000,
+      standardCostUsd: '0.00343875',
+      contributorCostUsd: '0.0002751',
     })
     expect(
       cost.chipEstimate(provider, modelId, { info: clip }, { standardInput: 1 }, false),

@@ -9,6 +9,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { Usd, type UsdAmount } from '../../shared/usd'
 import { mediaInfoSchema, mediaEstimateSchema, type MediaInfo } from '../../shared/media'
 import { usageSchema, type Usage } from '../backends/modelapi/schemas'
 
@@ -146,10 +147,15 @@ export class MediaCostEstimator {
     for (const price of Object.values(prices)) z.number().check(z.gte(0)).parse(price)
     return mediaEstimateSchema.parse({
       ...estimate,
-      standardCostUsd: (estimate.estimatedInputTokens * prices.standardInput) / TOKENS_PER_MILLION,
+      standardCostUsd: Usd.from(prices.standardInput)
+        .times(estimate.estimatedInputTokens)
+        .divide(TOKENS_PER_MILLION)
+        .toAmount(),
       ...(prices.contributorInput !== undefined && {
-        contributorCostUsd:
-          (estimate.estimatedInputTokens * prices.contributorInput) / TOKENS_PER_MILLION,
+        contributorCostUsd: Usd.from(prices.contributorInput)
+          .times(estimate.estimatedInputTokens)
+          .divide(TOKENS_PER_MILLION)
+          .toAmount(),
       }),
     })
   }
@@ -198,16 +204,16 @@ export class MediaCostEstimator {
 /** Metadata, selected-model tariff and both existing ledgers are injected. */
 export interface MediaCostClaim {
   check(): void
-  settle(costUsd: number, hasUnknownCost?: boolean): Promise<unknown>
+  settle(costUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>
 }
 export interface MediaCostLedger {
-  reserve(costUsd: number): Promise<MediaCostClaim>
+  reserve(costUsd: UsdAmount): Promise<MediaCostClaim>
 }
 export interface MediaRequestAccounting {
   readonly modelId: string
   readonly maxOutputTokens: number
   readonly inputTokens: number
-  readonly reservedUsd: number
+  readonly reservedUsd: UsdAmount
   check(): void
   started(): void
   refused(): void
@@ -249,25 +255,31 @@ export async function reserveMediaRequest(request: {
     inputTokens += estimate.upperBoundInputTokens
   }
   tokens.parse(inputTokens)
-  const reservedUsd =
-    (inputTokens * request.prices.input + request.maxOutputTokens * request.prices.output) /
-    TOKENS_PER_MILLION
-  z.number().check(z.gte(0)).parse(reservedUsd)
-  if (request.prices.cachedInput > request.prices.input)
+  const prices = {
+    input: Usd.from(request.prices.input),
+    output: Usd.from(request.prices.output),
+    cachedInput: Usd.from(request.prices.cachedInput),
+  }
+  const reservedUsd = prices.input
+    .times(inputTokens)
+    .add(prices.output.times(request.maxOutputTokens))
+    .divide(TOKENS_PER_MILLION)
+    .toAmount()
+  if (prices.cachedInput.compare(prices.input) > 0)
     throw new Error('Cache tariff exceeds list price')
   const session = await request.session.reserve(reservedUsd)
   let daily: MediaCostClaim
   try {
     daily = await request.daily.reserve(reservedUsd)
   } catch (error: unknown) {
-    await session.settle(0)
+    await session.settle(Usd.from(0).toAmount())
     throw error
   }
   let wasSent = false
   let isSettled = false
   const closed = new Set<MediaCostClaim>()
-  let bill: { costUsd: number; hasUnknownCost: boolean; usage: Usage } | undefined
-  const settleBoth = async (costUsd: number, hasUnknownCost = false) => {
+  let bill: { costUsd: UsdAmount; hasUnknownCost: boolean; usage: Usage } | undefined
+  const settleBoth = async (costUsd: UsdAmount, hasUnknownCost = false) => {
     const results = await Promise.allSettled(
       [session, daily]
         .filter((claim) => !closed.has(claim))
@@ -305,11 +317,12 @@ export async function reserveMediaRequest(request: {
       const output = tokens.parse(reported.output_tokens)
       const cached = tokens.parse(reported.input_tokens_details?.cached_tokens ?? 0)
       if (cached > input) throw new Error('Cached usage exceeds input usage')
-      const costUsd =
-        ((input - cached) * request.prices.input +
-          cached * request.prices.cachedInput +
-          output * request.prices.output) /
-        TOKENS_PER_MILLION
+      const costUsd = prices.input
+        .times(input - cached)
+        .add(prices.cachedInput.times(cached))
+        .add(prices.output.times(output))
+        .divide(TOKENS_PER_MILLION)
+        .toAmount()
       bill = { costUsd, hasUnknownCost: false, usage: reported }
       await settleBoth(costUsd)
       isSettled = true
@@ -324,7 +337,7 @@ export async function reserveMediaRequest(request: {
     async finish() {
       if (isSettled) return
       await settleBoth(
-        bill?.costUsd ?? (wasSent ? reservedUsd : 0),
+        bill?.costUsd ?? (wasSent ? reservedUsd : Usd.from(0).toAmount()),
         bill?.hasUnknownCost ?? wasSent,
       )
       isSettled = true

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { MediaCostEstimator, reserveMediaRequest } from '../../src/core/media/mediaCost'
 import { MODEL_API_MEDIA_PER_REQUEST } from '../../src/shared/constants'
 
@@ -33,9 +34,9 @@ function setup() {
   function ledger() {
     const claim = {
       check: vi.fn(),
-      settle: vi.fn((_usd: number, _hasUnknownCost?: boolean) => Promise.resolve()),
+      settle: vi.fn((_usd: UsdAmount, _hasUnknownCost?: boolean) => Promise.resolve()),
     }
-    return { claim, reserve: vi.fn((_usd: number) => Promise.resolve(claim)) }
+    return { claim, reserve: vi.fn((_usd: UsdAmount) => Promise.resolve(claim)) }
   }
   const session = ledger()
   const daily = ledger()
@@ -55,11 +56,55 @@ function setup() {
 }
 
 describe('media request accounting', () => {
+  it('admits the exact reservation at an equal cap without a floating-point overage', async () => {
+    const t = setup()
+    t.session.reserve.mockImplementation((amount) =>
+      Usd.from(amount).compare(Usd.from('0.0005872')) > 0
+        ? Promise.reject(new Error('session cap'))
+        : Promise.resolve(t.session.claim),
+    )
+    const reservation = await reserveMediaRequest(t.request)
+    expect(reservation.reservedUsd).toBe('0.0005872')
+  })
+
+  it('matches integer nano-USD tariffs across generated reservations and cached settlements', async () => {
+    for (const text of [0, 1, 170, 2751, 5672, 90_001]) {
+      for (const output of [0, 1, 40, 100]) {
+        const t = setup()
+        const reservation = await reserveMediaRequest({
+          ...t.request,
+          textInputTokens: text,
+          maxOutputTokens: output,
+        })
+        const reservedNano = BigInt(text + 5502) * 100n + BigInt(output) * 200n
+        expect(Usd.from(reservation.reservedUsd).times(1_000_000_000).toString()).toBe(
+          String(reservedNano),
+        )
+        reservation.started()
+        const cached = Math.floor(text / 2)
+        await reservation.settle({
+          input_tokens: text,
+          output_tokens: output,
+          input_tokens_details: { cached_tokens: cached },
+        })
+        const actual = t.daily.claim.settle.mock.calls[0]?.[0]
+        expect(actual).toBeDefined()
+        const actualNano =
+          BigInt(text - cached) * 100n + BigInt(cached) * 25n + BigInt(output) * 200n
+        expect(
+          Usd.from(actual ?? '0')
+            .times(1_000_000_000)
+            .toString(),
+        ).toBe(String(actualNano))
+      }
+    }
+  })
+
   it('reserves the calibrated upper bound plus text and full output in both ledgers', async () => {
     const t = setup()
     const reservation = await reserveMediaRequest(t.request)
     expect(reservation.inputTokens).toBe(5672)
-    expect(reservation.reservedUsd).toBeCloseTo((5672 * 0.1 + 100 * 0.2) / 1_000_000)
+    expect(reservation.reservedUsd).toBe('0.0005872')
     expect(t.session.reserve).toHaveBeenCalledWith(reservation.reservedUsd)
     expect(t.daily.reserve).toHaveBeenCalledWith(reservation.reservedUsd)
     reservation.check()
@@ -79,7 +124,7 @@ describe('media request accounting', () => {
     await reservation.settle(usage)
     await reservation.settle(usage)
     await reservation.finish()
-    const cost = (2000 * 0.1 + 1000 * 0.025 + 40 * 0.2) / 1_000_000
+    const cost = '0.000233'
     for (const ledger of [t.session, t.daily]) {
       expect(ledger.claim.settle).toHaveBeenCalledExactlyOnceWith(cost, false)
     }
@@ -99,11 +144,11 @@ describe('media request accounting', () => {
       await reservation.finish()
       await reservation.finish()
       expect(t.session.claim.settle).toHaveBeenCalledExactlyOnceWith(
-        isSent ? reservation.reservedUsd : 0,
+        isSent ? reservation.reservedUsd : Usd.from(0).toAmount(),
         isSent,
       )
       expect(t.daily.claim.settle).toHaveBeenCalledExactlyOnceWith(
-        isSent ? reservation.reservedUsd : 0,
+        isSent ? reservation.reservedUsd : Usd.from(0).toAmount(),
         isSent,
       )
       expect(t.write).not.toHaveBeenCalled()
@@ -114,7 +159,7 @@ describe('media request accounting', () => {
     const t = setup()
     t.daily.reserve.mockRejectedValueOnce(new Error('daily cap'))
     await expect(reserveMediaRequest(t.request)).rejects.toThrow('daily cap')
-    expect(t.session.claim.settle).toHaveBeenCalledExactlyOnceWith(0)
+    expect(t.session.claim.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount())
   })
 
   it('refuses unknown duration, rate or more than 50 items before either ledger admits', async () => {
@@ -193,7 +238,7 @@ describe('media request accounting', () => {
     t.item.info.durationSeconds = 1
     reservation.started()
     await reservation.settle({ input_tokens: 3000, output_tokens: 40 })
-    expect(t.daily.claim.settle).toHaveBeenCalledWith((3000 * 0.1 + 40 * 0.2) / 1_000_000, false)
+    expect(t.daily.claim.settle).toHaveBeenCalledWith('0.000308', false)
     expect(t.write.mock.calls[0]?.[0]).toEqual(
       expect.arrayContaining([expect.objectContaining({ units: 10, inputTokens: 3000 })]),
     )
@@ -208,7 +253,7 @@ describe('media request accounting', () => {
       'daily write',
     )
     await reservation.finish()
-    const actual = (3000 * 0.1 + 40 * 0.2) / 1_000_000
+    const actual = '0.000308'
     expect(t.session.claim.settle).toHaveBeenCalledExactlyOnceWith(actual, false)
     expect(t.daily.claim.settle).toHaveBeenLastCalledWith(actual, false)
     expect(t.write).toHaveBeenCalledOnce()
