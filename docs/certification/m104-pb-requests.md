@@ -483,3 +483,55 @@ and take UI/native flows remain to qualify. The runner's current Meta-specific
 tariff lookup needs verified catalog injection before M95 providers are on.
 Unknown tariffs/tool support refuse; do not substitute Meta rates. F owns
 PLAN/Unreleased/help for these component receipts and remaining requirements.
+
+### A/D/E/F — F36 pure Git engine and native repository services
+
+`createRuntimeGit(deps, surface, table, locale)` in features/git.ts returns
+`git: ConversationGitPort` and an awaited idempotent dispose. Publish its port
+as features.createGit(surface); register the owner immediately. It reuses
+ConversationGit and its existing commit/push/PR forms and consent/fingerprint
+checks. The pure conversation path now bundles without a VS Code value import;
+`ownedRepository.ts` performs injected physical-owner checks. The installed
+VS Code bundle entry explicitly preserves its native error identities. D may
+reuse the new helper with its native error constructor to remove its older
+duplicate implementation; B did not edit D's adapter.
+
+Native service requirements are the existing GitWindow repository contract
+(status, diff, commit, non-force push, fetch, log, diffBetween), immutable
+physical captureGitOwner (reuse captureWorkspaceIdentity), cancellable exact
+commit/push confirmations, untracked fingerprint/read, held-worktree trust,
+links and secure GitHub REST transport. Runtime deps.beforeWorkspaceProcessStart
+must use the real checkpoint/process gate; deps.admit must check the same
+immutable owner at final native entry, with sanitized environment. cancelPrompts
+and drain must cancel/drain that owner's requests/process tree. MHP auth/github
+currently returns only a boolean and cannot supply a usable REST transport.
+Keep GitHub credentials in the native auth service; add a concrete protected
+transport contract rather than send a token through ordinary panel messages.
+No provider wire/parser was changed. Add the pure factory's owned lazy reader
+and hard size/inventory check; GIT_MODEL_TEXT must stay in its declared reader.
+Native credentials/Git/GitHub installed qualification remains open.
+
+### A/D/E/F — F37 v2 auth contributions and trusted key-entry terminal
+
+`createRuntimeAuth(deps, table, locale)` in features/auth.ts returns features
+(auth, ensureHost, accountFacts), isKeyStored (boolean) and awaited dispose.
+Use these v2 contribution fields, replacing A's temporary unsupported auth
+actions. It reuses AuthService's captured CLI/browser/installer/sign-out state
+machine. Native callbacks are injected, guarded and drained. The key path
+retires old hosts before replacement, gates ensureHost/engine admission while
+entry runs, and waits for a cancelled entry process before sign-out clears the
+OS store. The helper never receives/returns a key to the panel: runKeySignIn
+launches the trusted existing ACP `auth set` in the user's terminal and returns
+only its completion boolean. Input stays private stdin, never a file, argument
+or environment variable. It must check beforeRun at final launch and honour
+the signal/cancelNative, with drainNative awaiting exit. Owner identity here
+is the profile/auth service lifetime, so its own backend restart can complete.
+
+Native wrappers must deliver AuthBackendFacts, device sign-in, installer
+terminal, OS-store CredentialStore, durable logout hold, accountFacts and
+boolean stored-key facts. No raw account label/avatar/key is logged or bridged.
+An existing failed-sign-out hold remains held; terminal key entry cannot fake
+its release. Other M95 provider credentials need their captured/validated
+provider-specific OS-store/key command contract first: this Meta credential
+service is not generic provider qualification. Bind an owned lazy factory
+reader with existing budgets. F owns PLAN/Unreleased/help and native receipts.

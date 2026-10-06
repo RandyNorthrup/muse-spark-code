@@ -749,5 +749,47 @@
     "exitCode": 1,
     "sha256Before": "91551637b6c5b1df031c18639c8b2dfa52d6eb641401afc18a5bc5956a79c83e",
     "sha256Restored": "91551637b6c5b1df031c18639c8b2dfa52d6eb641401afc18a5bc5956a79c83e"
+  },
+  {
+    "drill": "portable-git-no-vscode",
+    "file": "src/host/git/conversationGit.ts",
+    "exitCode": 1,
+    "sha256Before": "ab92721941faf8fec1d48d74d4c7b419176fb2fff8f8928cdc9ab33b610a5bae",
+    "sha256Restored": "ab92721941faf8fec1d48d74d4c7b419176fb2fff8f8928cdc9ab33b610a5bae"
+  },
+  {
+    "drill": "portable-git-trust",
+    "file": "src/runtime/features/git.ts",
+    "exitCode": 1,
+    "sha256Before": "37b2eddf6a1b453057d24d7cb7bccbcb082d2232fbd7f8a4182fb3da366ebae5",
+    "sha256Restored": "37b2eddf6a1b453057d24d7cb7bccbcb082d2232fbd7f8a4182fb3da366ebae5"
+  },
+  {
+    "drill": "portable-git-physical-owner",
+    "file": "src/host/git/ownedRepository.ts",
+    "exitCode": 1,
+    "sha256Before": "c25b3600ad455ec175b0ff77b89e9af87a1e4303f65352304a8822c9c0c45b36",
+    "sha256Restored": "c25b3600ad455ec175b0ff77b89e9af87a1e4303f65352304a8822c9c0c45b36"
+  },
+  {
+    "drill": "portable-auth-key-owner",
+    "file": "src/runtime/features/auth.ts",
+    "exitCode": 1,
+    "sha256Before": "1849bc264f3ed1cd9d30a81db82a88f6d393b957a7581de15a292469348cbc23",
+    "sha256Restored": "1849bc264f3ed1cd9d30a81db82a88f6d393b957a7581de15a292469348cbc23"
+  },
+  {
+    "drill": "portable-auth-key-host-gate",
+    "file": "src/runtime/features/auth.ts",
+    "exitCode": 1,
+    "sha256Before": "1849bc264f3ed1cd9d30a81db82a88f6d393b957a7581de15a292469348cbc23",
+    "sha256Restored": "1849bc264f3ed1cd9d30a81db82a88f6d393b957a7581de15a292469348cbc23"
+  },
+  {
+    "drill": "portable-auth-key-drain",
+    "file": "src/runtime/features/auth.ts",
+    "exitCode": 1,
+    "sha256Before": "1849bc264f3ed1cd9d30a81db82a88f6d393b957a7581de15a292469348cbc23",
+    "sha256Restored": "1849bc264f3ed1cd9d30a81db82a88f6d393b957a7581de15a292469348cbc23"
   }
 ]
