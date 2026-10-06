@@ -10,16 +10,20 @@ import { removeFolder } from './helpers/temporaryFolders'
 
 const metadata = { kind: 'check', class: 'foreground', sessionId: null } as const
 
+function noUserManager() {
+  const actualRun = treeRun.runTreeProgram
+  return vi
+    .spyOn(treeRun, 'runTreeProgram')
+    .mockImplementation((file, args, env) =>
+      args.includes('--user')
+        ? Promise.reject(new Error('no user manager'))
+        : actualRun(file, args, env),
+    )
+}
+
 describe.runIf(process.platform === 'linux')('native cgroup launch and completion', () => {
   it('keeps fallback group authority until the caller observes completion', async () => {
-    const actualRun = treeRun.runTreeProgram
-    const probe = vi
-      .spyOn(treeRun, 'runTreeProgram')
-      .mockImplementation((file, args, env) =>
-        args.includes('--user')
-          ? Promise.reject(new Error('no user manager'))
-          : actualRun(file, args, env),
-      )
+    const probe = noUserManager()
     let launch: Awaited<ReturnType<typeof launchLinuxResourceTree>> | undefined
     try {
       launch = await launchLinuxResourceTree('/bin/sleep', ['30'], metadata)
@@ -151,14 +155,7 @@ describe.runIf(process.platform === 'linux')('native cgroup launch and completio
       expect(await launch.stop()).toMatchObject({ status: 'done' })
       await exited
       launch = undefined
-      const actualRun = treeRun.runTreeProgram
-      const probe = vi
-        .spyOn(treeRun, 'runTreeProgram')
-        .mockImplementation((file, args, env) =>
-          args.includes('--user')
-            ? Promise.reject(new Error('no user manager'))
-            : actualRun(file, args, env),
-        )
+      const probe = noUserManager()
       try {
         await expect(
           launchLinuxResourceTree('/bin/sh', ['-c', 'exit 0'], metadata, {

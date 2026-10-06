@@ -20119,8 +20119,14 @@ native cgroup launch/Stop on Kubuntu, deliberate guard mutations and serial
 static/build gates. Full integrated quality/coverage and all editor/spawn
 wiring remain the lead's handoff. No gate configuration or dependency changes.
 The existing W-owned host-API snapshot must include the new Linux launcher
-and timer imports on integration; this lane records its actual check result
-in docs/certification/m107-t3.md rather than claiming that deferral green.
+and timer imports on integration: node:child_process 13→15, node:crypto 46→47,
+node:fs/promises 47→49, node:path 84→87, node:process 1→3 and
+node:timers/promises 3→5. Its gate exits 1 for those six counts; the generated
+file is untouched. W regenerates and reviews the record after integration.
+All other required scoped checks pass, with 161 tests, eight existing platform
+skips and 17 deliberately failing/restored drills; exact receipts are in
+docs/certification/m107-t3.md. This is the existing deferral, not a green
+host-API or full-quality claim.
 
 **M107 T2 scoped certification (2026-10-06).** The rig brief prohibits
 aggregate quality and merges; the lead retains integrated quality/coverage

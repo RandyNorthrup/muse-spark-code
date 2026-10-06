@@ -89,25 +89,49 @@ function world() {
   }
 }
 
+async function readyWorld() {
+  const w = world()
+  await w.registry.register(ticket)
+  return w
+}
+function moveOutsideOnStat(w: ReturnType<typeof world>, afterReads: number) {
+  const original = w.read.getMockImplementation()!
+  let reads = 0
+  w.read.mockImplementation((file) => {
+    if (file === '/proc/711/stat' && ++reads === afterReads) w.inside.delete(711)
+    return original(file)
+  })
+}
+async function expectRefusedSignal(w: ReturnType<typeof world>, signal: ResourceSignal) {
+  expect(await w.registry.signal(ticket, { pid: 711, startTime: '1001' }, signal)).toBe('refused')
+  expect(w.sendSignal).not.toHaveBeenCalled()
+}
+function deferEvents(w: ReturnType<typeof world>) {
+  const receipt = Promise.withResolvers<string>()
+  const original = w.read.getMockImplementation()!
+  w.read.mockImplementation((file) =>
+    file.endsWith('/cgroup.events') ? receipt.promise : original(file),
+  )
+  return receipt
+}
+function unsupportedKill(w: ReturnType<typeof world>, code: string) {
+  const original = w.write.getMockImplementation()!
+  w.write.mockImplementation((file, value) =>
+    file.endsWith('/cgroup.kill')
+      ? Promise.reject(Object.assign(new Error('unsupported'), { code }))
+      : original(file, value),
+  )
+}
+
 describe('Linux cgroup authority', () => {
   it('does not enroll a same-tick replacement that moves outside during the sample', async () => {
-    const w = world()
-    await w.registry.register(ticket)
-    const original = w.read.getMockImplementation()!
-    let reads = 0
-    w.read.mockImplementation((file) => {
-      if (file === '/proc/711/stat' && ++reads === 2) w.inside.delete(711)
-      return original(file)
-    })
+    const w = await readyWorld()
+    moveOutsideOnStat(w, 2)
     expect(await w.registry.members(ticket)).toEqual([ticket.root])
-    expect(await w.registry.signal(ticket, { pid: 711, startTime: '1001' }, 'SIGKILL')).toBe(
-      'refused',
-    )
-    expect(w.sendSignal).not.toHaveBeenCalled()
+    await expectRefusedSignal(w, 'SIGKILL')
   })
   it('omits ESRCH member churn without losing healthy cgroup accounting', async () => {
-    const w = world()
-    await w.registry.register(ticket)
+    const w = await readyWorld()
     const original = w.read.getMockImplementation()!
     w.read.mockImplementation((file) =>
       file === '/proc/711/stat'
@@ -124,13 +148,8 @@ describe('Linux cgroup authority', () => {
     await expect(w.registry.register(ticket)).rejects.toThrow('not proven')
   })
   it('waits for the frozen receipt before signalling any member', async () => {
-    const w = world()
-    await w.registry.register(ticket)
-    const receipt = Promise.withResolvers<string>()
-    const original = w.read.getMockImplementation()!
-    w.read.mockImplementation((file) =>
-      file.endsWith('/cgroup.events') ? receipt.promise : original(file),
-    )
+    const w = await readyWorld()
+    const receipt = deferEvents(w)
     const stopped = w.registry.kill(ticket, 'SIGTERM')
     await vi.waitFor(() => {
       expect(w.write).toHaveBeenCalledWith(`${scope}/cgroup.freeze`, '1')
@@ -140,22 +159,12 @@ describe('Linux cgroup authority', () => {
     expect(await stopped).toMatchObject({ status: 'done' })
   })
   it('refuses a member that moves outside after its final birth read', async () => {
-    const w = world()
-    await w.registry.register(ticket)
-    const original = w.read.getMockImplementation()!
-    let reads = 0
-    w.read.mockImplementation((file) => {
-      if (file === '/proc/711/stat' && ++reads === 6) w.inside.delete(711)
-      return original(file)
-    })
-    expect(await w.registry.signal(ticket, { pid: 711, startTime: '1001' }, 'SIGTERM')).toBe(
-      'refused',
-    )
-    expect(w.sendSignal).not.toHaveBeenCalled()
+    const w = await readyWorld()
+    moveOutsideOnStat(w, 6)
+    await expectRefusedSignal(w, 'SIGTERM')
   })
   it('refuses an outside replacement from a stale frozen PID list and thaws', async () => {
-    const w = world()
-    await w.registry.register(ticket)
+    const w = await readyWorld()
     w.inside.delete(711)
     const original = w.read.getMockImplementation()!
     w.read.mockImplementation((file) =>
@@ -167,8 +176,7 @@ describe('Linux cgroup authority', () => {
     expect(w.remove).not.toHaveBeenCalled()
   })
   it('refuses completion after retirement while a dispatched kernel kill is pending', async () => {
-    const w = world()
-    await w.registry.register(ticket)
+    const w = await readyWorld()
     w.events.populated = false
     const dispatch = Promise.withResolvers<undefined>()
     w.write.mockReturnValueOnce(dispatch.promise)
@@ -206,8 +214,7 @@ describe('Linux cgroup authority', () => {
     },
   )
   it('retains a populated scope when the completion deadline expires', async () => {
-    const w = world()
-    await w.registry.register(ticket)
+    const w = await readyWorld()
     vi.useFakeTimers()
     try {
       const stopped = w.registry.kill(ticket)
@@ -219,8 +226,7 @@ describe('Linux cgroup authority', () => {
     }
   })
   it('does not downgrade permission denial to the freeze fallback', async () => {
-    const w = world()
-    await w.registry.register(ticket)
+    const w = await readyWorld()
     w.events.populated = false
     w.write.mockRejectedValueOnce(Object.assign(new Error('denied'), { code: 'EACCES' }))
     expect(await w.registry.kill(ticket)).toMatchObject({ status: 'refused' })
@@ -228,14 +234,8 @@ describe('Linux cgroup authority', () => {
     expect(w.sendSignal).not.toHaveBeenCalled()
   })
   it('thaws after a failed frozen signal and retains ownership', async () => {
-    const w = world()
-    await w.registry.register(ticket)
-    const original = w.write.getMockImplementation()!
-    w.write.mockImplementation((file, value) =>
-      file.endsWith('/cgroup.kill')
-        ? Promise.reject(Object.assign(new Error('unsupported'), { code: 'EOPNOTSUPP' }))
-        : original(file, value),
-    )
+    const w = await readyWorld()
+    unsupportedKill(w, 'EOPNOTSUPP')
     w.sendSignal.mockImplementationOnce(() => {
       throw Object.assign(new Error('denied'), { code: 'EPERM' })
     })
@@ -245,8 +245,7 @@ describe('Linux cgroup authority', () => {
     expect(w.registry.tickets()).toEqual([ticket])
   })
   it('includes nested cgroups in frozen signals and removes child scopes first', async () => {
-    const w = world()
-    await w.registry.register(ticket)
+    const w = await readyWorld()
     const original = w.read.getMockImplementation()!
     w.directories.mockImplementation((directory) =>
       Promise.resolve(directory === scope ? ['nested'] : []),
@@ -276,16 +275,13 @@ describe('Linux cgroup authority', () => {
   })
 
   it('never enrolls or signals same-tick replacement 711 or its child 712 outside the cgroup', async () => {
-    const w = world()
-    await w.registry.register(ticket)
+    const w = await readyWorld()
     expect(await w.registry.members(ticket)).toHaveLength(2)
     w.inside.delete(711)
     w.rows.set(711, { birth: '1001', parent: 1 })
     w.rows.set(712, { birth: '1002', parent: 711 })
     expect(await w.registry.members(ticket)).toEqual([ticket.root])
-    expect(await w.registry.signal(ticket, { pid: 711, startTime: '1001' }, 'SIGKILL')).toBe(
-      'refused',
-    )
+    await expectRefusedSignal(w, 'SIGKILL')
     expect(await w.registry.contains(ticket, { pid: 712, startTime: '1002' })).toBe(false)
     w.events.populated = false
     expect(await w.registry.kill(ticket)).toMatchObject({ status: 'done' })
@@ -295,8 +291,7 @@ describe('Linux cgroup authority', () => {
     expect(w.rows.has(712)).toBe(true)
   })
   it('enrolls kernel-contained orphans without a parent witness or a live original root', async () => {
-    const w = world()
-    await w.registry.register(ticket)
+    const w = await readyWorld()
     w.rows.delete(710)
     w.inside.delete(710)
     w.rows.delete(711)
@@ -307,13 +302,8 @@ describe('Linux cgroup authority', () => {
     expect(await w.registry.usage(ticket)).toEqual({ cpuSeconds: 12, residentBytes: 4096 })
   })
   it('waits for populated zero before returning completion or removing the cgroup', async () => {
-    const w = world()
-    await w.registry.register(ticket)
-    const receipt = Promise.withResolvers<string>()
-    const original = w.read.getMockImplementation()!
-    w.read.mockImplementation((file) =>
-      file === `${scope}/cgroup.events` ? receipt.promise : original(file),
-    )
+    const w = await readyWorld()
+    const receipt = deferEvents(w)
     let isFinished = false
     const stopped = (async () => {
       const result = await w.registry.kill(ticket)
@@ -330,14 +320,8 @@ describe('Linux cgroup authority', () => {
     expect(w.remove).toHaveBeenCalledWith(scope)
   })
   it('freezes and signals kernel members when cgroup.kill is unavailable, then thaws', async () => {
-    const w = world()
-    await w.registry.register(ticket)
-    const original = w.write.getMockImplementation()!
-    w.write.mockImplementation((file, value) =>
-      file.endsWith('/cgroup.kill')
-        ? Promise.reject(Object.assign(new Error('unsupported'), { code: 'ENOENT' }))
-        : original(file, value),
-    )
+    const w = await readyWorld()
+    unsupportedKill(w, 'ENOENT')
     w.events.populated = false
     expect(await w.registry.kill(ticket)).toMatchObject({ status: 'done' })
     expect(w.sendSignal.mock.calls).toEqual([
@@ -351,8 +335,7 @@ describe('Linux cgroup authority', () => {
     ])
   })
   it('refuses unreadable completion and retirement while keeping the scope', async () => {
-    const w = world()
-    await w.registry.register(ticket)
+    const w = await readyWorld()
     const original = w.read.getMockImplementation()!
     w.read.mockImplementation((file) =>
       file === `${scope}/cgroup.events` ? Promise.reject(new Error('unreadable')) : original(file),
