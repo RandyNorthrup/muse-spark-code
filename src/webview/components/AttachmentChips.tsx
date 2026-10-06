@@ -32,7 +32,7 @@ export function AttachmentChips({ attachments, onRemove }: AttachmentChipsProps)
           <span className="chip-size">{sizeLabel(attachment)}</span>
           <button
             type="button"
-            className="chip-remove"
+            className="chip-remove chat-control"
             title={UI_TEXT.removeAttachment}
             aria-label={fill(UI_TEXT.removeAttachmentNamed, { name: attachment.name })}
             onClick={() => {

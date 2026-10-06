@@ -245,7 +245,7 @@ function TaskAction({
     return (
       <button
         type="button"
-        className="tool-more tool-task-action"
+        className="tool-more tool-task-action chat-control"
         aria-label={`${UI_TEXT.stopTask}: ${row}`}
         title={UI_TEXT.stopTaskTitle}
         disabled={entry.taskRequest !== undefined}
@@ -260,7 +260,7 @@ function TaskAction({
   return presentation.body === 'shell' ? (
     <button
       type="button"
-      className="tool-more tool-task-action"
+      className="tool-more tool-task-action chat-control"
       aria-label={`${UI_TEXT.moveToBackground}: ${row}`}
       title={UI_TEXT.moveToBackgroundTitle}
       disabled={entry.taskRequest !== undefined}
@@ -572,7 +572,7 @@ function ToolRowView({
       <div className="tool-header" inert={menu.isOpen}>
         <button
           type="button"
-          className="tool-toggle"
+          className="tool-toggle chat-control"
           aria-expanded={isOpen}
           disabled={!hasBody}
           onClick={toggle}
@@ -588,7 +588,7 @@ function ToolRowView({
         {filePath === undefined ? null : (
           <button
             type="button"
-            className="tool-path"
+            className="tool-path chat-control"
             title={UI_TEXT.openFileTitle}
             onClick={openFile}
           >
@@ -604,7 +604,7 @@ function ToolRowView({
         {hasBody ? (
           <button
             type="button"
-            className="tool-chevron"
+            className="tool-chevron chat-control"
             aria-label={UI_TEXT.toggleDetails}
             aria-expanded={isOpen}
             onClick={toggle}

@@ -942,7 +942,7 @@ export function Composer(props: ComposerProps) {
           <span>{banner}</span>
           <button
             type="button"
-            className="icon-button"
+            className="icon-button chat-control"
             title={UI_TEXT.bannerDismiss}
             aria-label={UI_TEXT.bannerDismiss}
             onClick={onDismissBanner}
@@ -1009,7 +1009,7 @@ export function Composer(props: ComposerProps) {
         <div className="composer-toolbar-group">
           <button
             type="button"
-            className="icon-button"
+            className="icon-button chat-control"
             title={UI_TEXT.attachTitle}
             aria-label={UI_TEXT.attachTitle}
             onMouseDown={keepMenuFocus}
@@ -1019,7 +1019,7 @@ export function Composer(props: ComposerProps) {
           </button>
           <button
             type="button"
-            className="icon-button"
+            className="icon-button chat-control"
             title={UI_TEXT.commandsTitle}
             aria-label={UI_TEXT.commandsTitle}
             onMouseDown={keepMenuFocus}
@@ -1029,7 +1029,7 @@ export function Composer(props: ComposerProps) {
           </button>
           <button
             type="button"
-            className="pill"
+            className="pill chat-control"
             title={UI_TEXT.modelPillTitle}
             aria-label={UI_TEXT.modelPillLabel}
             onMouseDown={keepMenuFocus}
@@ -1048,7 +1048,7 @@ export function Composer(props: ComposerProps) {
               <span className="editor-chip-label">{editorContextLabel}</span>
               <button
                 type="button"
-                className="chip-remove"
+                className="chip-remove chat-control"
                 title={UI_TEXT.editorContextRemove}
                 aria-label={`${UI_TEXT.editorContextRemove}: ${editorContextLabel}`}
                 onMouseDown={keepMenuFocus}
@@ -1064,7 +1064,7 @@ export function Composer(props: ComposerProps) {
               <span className="editor-chip-label">{referenceLabel}</span>
               <button
                 type="button"
-                className="chip-remove"
+                className="chip-remove chat-control"
                 title={UI_TEXT.referenceRemove}
                 aria-label={`${UI_TEXT.referenceRemove}: ${referenceLabel}`}
                 onMouseDown={keepMenuFocus}
@@ -1079,7 +1079,7 @@ export function Composer(props: ComposerProps) {
           {paidBadge === undefined ? null : (
             <button
               type="button"
-              className="paid-badge"
+              className="paid-badge chat-control"
               title={paidBadge.title}
               onMouseDown={keepMenuFocus}
               onClick={onOpenUsage}
@@ -1090,7 +1090,7 @@ export function Composer(props: ComposerProps) {
           <ContextMeter context={context} onCompact={onCompact} />
           <button
             type="button"
-            className="mode-button"
+            className="mode-button chat-control"
             title={
               onOpenModeMenu === undefined ? UI_TEXT.sideChatPlanOnly : UI_TEXT.permissionModeTitle
             }
@@ -1108,7 +1108,7 @@ export function Composer(props: ComposerProps) {
           </button>
           <button
             type="button"
-            className={`icon-button mic-button mic-${dictation.status}${dictation.engine === 'museVoice' ? ' mic-paid' : ''}`}
+            className={`icon-button mic-button mic-${dictation.status}${dictation.engine === 'museVoice' ? ' mic-paid' : ''} chat-control`}
             title={dictationTitle(dictation)}
             aria-label={
               dictation.engine === 'museVoice' ? UI_TEXT.dictationPaidLabel : UI_TEXT.dictationLabel
@@ -1124,7 +1124,7 @@ export function Composer(props: ComposerProps) {
           {isRunning ? (
             <button
               type="button"
-              className="send-button send-button-stop"
+              className="send-button send-button-stop chat-control"
               title={UI_TEXT.stopTitle}
               aria-label={UI_TEXT.stopTitle}
               onClick={onStop}
@@ -1134,7 +1134,7 @@ export function Composer(props: ComposerProps) {
           ) : (
             <button
               type="button"
-              className="send-button"
+              className="send-button chat-control"
               title={sendTitle(canSend, isShellMode)}
               aria-label={isShellMode ? UI_TEXT.runCommandTitle : UI_TEXT.sendTitle}
               disabled={!canSend}

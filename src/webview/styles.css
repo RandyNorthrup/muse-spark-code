@@ -287,13 +287,15 @@ body {
 
 .message-error {
   margin-top: var(--ms-space-4);
-  color: var(--vscode-errorForeground);
+  padding-inline-start: var(--ms-space-4);
+  border-inline-start: var(--ms-focus-width) solid var(--vscode-errorForeground);
+  color: var(--ms-text);
   font-size: var(--ms-font-small);
 }
 
 .message-error-card {
   align-self: stretch;
-  color: var(--vscode-errorForeground);
+  color: var(--ms-error-text);
   background: var(--ms-error-surface);
   border: 1px solid var(--ms-error-border);
 }
@@ -581,11 +583,7 @@ body {
 .icon-button:focus-visible,
 .pill:focus-visible,
 .mode-button:focus-visible,
-.send-button:focus-visible {
-  outline: var(--ms-focus-width) solid var(--ms-text);
-  outline-offset: var(--ms-focus-offset);
-}
-
+.send-button:focus-visible,
 .button-primary:focus-visible,
 .button-secondary:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
@@ -1006,66 +1004,47 @@ body {
 
 .notice {
   align-self: stretch;
-  padding: 4px calc(var(--ms-gap) * 1.5);
-  border-radius: var(--ms-radius);
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.9em;
+  padding: var(--ms-space-4) calc(var(--ms-gap) * 1.5);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-muted);
+  font-size: var(--ms-font-size);
 }
 
-/* A restore's Redo (M72), at the end of its notice. */
 .notice-action {
+  min-height: var(--ms-space-24);
   margin-inline-start: var(--ms-gap);
-  padding: 0 6px;
-  border: 1px solid var(--vscode-button-border, var(--vscode-panel-border));
-  border-radius: var(--ms-radius);
-  color: var(--vscode-textLink-foreground);
+  padding: 0 var(--ms-space-8);
+  border: 1px solid var(--ms-control-border);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-info);
   font: inherit;
   background: transparent;
   cursor: pointer;
 }
 
-.notice-action:hover {
-  background: var(--vscode-toolbar-hoverBackground);
-}
-
-.notice-action:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: 1px;
-}
-
-/* How many times a notice was said (D26): small and outlined in the
-   notice's own colour, so its contrast is the notice's. */
+/* Repeated notices retain a non-colour count cue. */
 .notice-repeat {
   display: inline-block;
-  padding: 0 5px;
+  padding: 0 var(--ms-space-4);
   border: 1px solid currentcolor;
-  border-radius: 999px;
-  font-size: 0.85em;
+  border-radius: var(--ms-radius-pill);
+  font-size: var(--ms-font-small);
   font-variant-numeric: tabular-nums;
-  line-height: 1.3;
+  line-height: var(--ms-line-ui);
 }
 
 .notice-warning {
-  color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
-  background: var(--vscode-inputValidation-warningBackground, transparent);
+  color: var(--ms-warning-text);
+  background: var(--ms-warning-surface);
 }
 
-/* The theme's text colour on the error tint, as VS Code's own validation
-   message does: errorForeground on that tint is below 4.5:1 in Light (2.6)
-   and Dark (3.8). The edge keeps it red. */
 .notice-error {
-  border-inline-start: 2px solid
-    var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
-  color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground));
-  background: var(--vscode-inputValidation-errorBackground, transparent);
+  border-inline-start: var(--ms-focus-width) solid var(--ms-error-border);
+  color: var(--ms-error-text);
+  background: var(--ms-error-surface);
 }
 
 /* --- states for the additions: (0,2,0) --- */
-
-.chip-remove:focus-visible {
-  outline: var(--ms-focus-width) solid var(--ms-text);
-  outline-offset: var(--ms-focus-offset);
-}
 
 .palette-filter:focus-visible,
 .popover-list:focus-visible {
@@ -1075,11 +1054,6 @@ body {
 
 .slider-step:disabled {
   cursor: default;
-}
-
-.chip-remove:hover {
-  color: var(--ms-text);
-  opacity: 85%;
 }
 
 .slider-step:hover:enabled {
@@ -1340,6 +1314,7 @@ body {
 }
 
 .tool-more {
+  min-height: var(--ms-space-24);
   padding: calc(var(--ms-space-4) / 2) var(--ms-space-8);
   border: 0;
   color: var(--ms-info);
@@ -1558,10 +1533,10 @@ body {
 }
 
 .markdown-inline {
-  padding: 0 3px;
+  padding: 0 var(--ms-space-4);
   border-radius: var(--ms-radius-xs);
   font-family: var(--ms-font-code);
-  font-size: 0.95em;
+  font-size: var(--ms-code-size);
   background: var(--ms-code-surface);
 }
 
@@ -1820,11 +1795,9 @@ body {
   cursor: pointer;
 }
 
-.todo-title:focus-visible,
-.todo-open:focus-visible,
 .todo-window:focus-visible {
-  outline: var(--ms-focus-width) solid var(--ms-text);
-  outline-offset: var(--ms-focus-offset);
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
 }
 
 .todo-open:hover:enabled,
@@ -2225,11 +2198,6 @@ body {
   color: var(--vscode-errorForeground);
 }
 
-.context-meter:focus-visible {
-  outline: var(--ms-focus-width) solid var(--ms-text);
-  outline-offset: var(--ms-focus-offset);
-}
-
 .context-meter:hover:enabled {
   background: var(--ms-toolbar-hover);
 }
@@ -2372,17 +2340,6 @@ body {
 
 /* --- states for the additions: (0,2,0) --- */
 
-.tool-toggle:focus-visible,
-.tool-path:focus-visible,
-.tool-chevron:focus-visible,
-.steps-toggle:focus-visible,
-.tool-more:focus-visible,
-.code-block-button:focus-visible,
-.code-block-body:focus-visible {
-  outline: var(--ms-focus-width) solid var(--ms-text);
-  outline-offset: var(--ms-focus-offset);
-}
-
 .question-option:focus-visible,
 .approval-feedback:focus-visible,
 .question-input:focus-visible {
@@ -2393,6 +2350,11 @@ body {
 .code-block-button:hover,
 .tool-more:hover {
   color: var(--ms-text);
+}
+
+.tool-more:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 /* A git form button that cannot act yet (M71). */
@@ -2520,9 +2482,9 @@ body {
 
 /* A reply's tokens and dollar estimate under it (M82, Model API only). */
 .response-usage {
-  margin-top: 4px;
-  font-size: 0.85em;
-  color: var(--vscode-descriptionForeground);
+  margin-top: var(--ms-space-4);
+  font-size: var(--ms-font-small);
+  color: var(--ms-muted);
 }
 
 /* Save plan and Implement under the latest Plan-mode reply (M79): they wrap
@@ -2530,9 +2492,9 @@ body {
 .plan-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 8px 0 4px;
-  padding-right: 52px;
+  gap: var(--ms-space-8);
+  margin: var(--ms-space-8) 0 var(--ms-space-4);
+  padding-right: calc(var(--ms-icon-size) * 3 + var(--ms-space-4));
 }
 
 /* The handoff dialog's editable brief (M74) and its Start/Cancel row. */
@@ -3845,72 +3807,43 @@ li:focus-within > .row-actions .row-actions-button,
 
 /* --- conversation interaction states (M114 P1) --- */
 
-/* Host focus colours can fail 3:1 in third-party themes. The exterior text
-   ring meets the surrounding surface; the inner host focus border remains.
-   No ring paints over a primary button's fill. */
-:is(
-  .jump-latest,
-  .chip-remove,
-  .tool-toggle,
-  .tool-chevron,
-  .tool-path,
-  .tool-open,
-  .tool-expand,
-  .tool-more,
-  .tool-image,
-  .steps-toggle,
-  .code-block-button,
-  .code-block-body,
-  .paid-badge,
-  .context-meter,
-  .todo-title,
-  .todo-open,
-  .todo-window,
-  .diff-tally-review,
-  .goal-edit-input
-):focus-visible {
+/* HC Light's translucent selection lacks a foreground. Only these controls
+   pair the host's opaque primary roles for pressed and selected states. */
+:is(.vscode-high-contrast, .vscode-high-contrast-light) .chat-control {
+  --ms-selection: var(--ms-accent);
+  --ms-on-selection: var(--ms-on-accent);
+}
+
+/* The exterior text ring remains readable when a theme's focus role fails
+   3:1. The host focus border stays inside the composer's ring. */
+.chat-control:disabled,
+.composer-toolbar [aria-disabled='true'] {
+  color: var(--ms-disabled);
+  cursor: default;
+}
+
+.chat-control[aria-disabled='true']:hover {
+  color: var(--ms-disabled);
+  background: transparent;
+}
+
+.chat-control:focus-visible {
   outline: var(--ms-focus-width) solid var(--ms-text);
   outline-offset: var(--ms-focus-offset);
 }
 
-:is(
-    .chip-remove,
-    .tool-toggle,
-    .tool-chevron,
-    .tool-open,
-    .tool-expand,
-    .tool-more,
-    .tool-image,
-    .steps-toggle,
-    .code-block-button,
-    .paid-badge,
-    .context-meter,
-    .todo-title
-  ):hover:not(:disabled, [aria-disabled='true']) {
+.chat-control:not(.pill, .send-button, .jump-latest, .goal-edit-input, .code-block-body):hover:not(
+    :disabled,
+    [aria-disabled='true']
+  ) {
   background-color: var(--ms-toolbar-hover);
   color: var(--ms-text);
 }
 
-:is(
-    .chip-remove,
-    .tool-toggle,
-    .tool-chevron,
-    .tool-path,
-    .tool-open,
-    .tool-expand,
-    .tool-more,
-    .tool-image,
-    .steps-toggle,
-    .code-block-button,
-    .paid-badge,
-    .context-meter,
-    .todo-title,
-    .todo-open,
-    .todo-window,
-    .diff-tally-review,
-    .icon-button,
-    .mode-button
-  ):active:not(:disabled, [aria-disabled='true']) {
+.chat-control:not(.pill, .send-button, .jump-latest, .goal-edit-input, .code-block-body):active:not(
+    :disabled,
+    [aria-disabled='true']
+  ) {
   background-color: var(--ms-selection);
   color: var(--ms-on-selection);
 }
@@ -3929,29 +3862,6 @@ li:focus-within > .row-actions .row-actions-button,
   color: var(--ms-on-selection);
   background-color: var(--ms-selection);
   border-color: var(--ms-text);
-}
-
-:is(
-  .jump-latest,
-  .chip-remove,
-  .tool-toggle,
-  .tool-chevron,
-  .tool-path,
-  .tool-expand,
-  .tool-more,
-  .tool-image,
-  .steps-toggle,
-  .code-block-button,
-  .paid-badge,
-  .context-meter,
-  .todo-title,
-  .todo-open,
-  .todo-window,
-  .diff-tally-review
-):disabled,
-.composer-toolbar [aria-disabled='true'] {
-  color: var(--ms-disabled);
-  cursor: default;
 }
 
 :is(.markdown, .citations-list, .web-results) a:focus-visible {
@@ -3991,8 +3901,6 @@ li:focus-within > .row-actions .row-actions-button,
   background: var(--ms-progress);
 }
 
-/* Padding inside the scrolling containers leaves the entire exterior ring
-   visible when the last control is scrolled into view. */
 :is(.tool-output, .shell, .code-block, .local-schedules) {
   scroll-padding: var(--ms-space-4);
 }
@@ -4002,8 +3910,24 @@ li:focus-within > .row-actions .row-actions-button,
   outline-offset: calc(-1 * var(--ms-focus-width));
 }
 
-/* High-contrast borders replace elevation, including a clipped diff's
-   expand button. Translucency is reserved for P2's overlays and popovers. */
+:is(.tool-toggle, .tool-chevron, .steps-toggle):active:enabled
+  :is(.tool-summary, .steps-summary, .chevron) {
+  color: inherit;
+}
+
+.plan-actions :is(.button-primary, .button-secondary):focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+.plan-actions .button-primary:active:enabled {
+  background: var(--ms-pressed);
+}
+
+.plan-actions .button-secondary:active:enabled {
+  background: var(--ms-secondary-hover);
+}
+
 :is(.vscode-high-contrast, .vscode-high-contrast-light)
   :is(
     .jump-latest,
@@ -4018,37 +3942,6 @@ li:focus-within > .row-actions .row-actions-button,
   ) {
   border-color: var(--ms-contrast-border);
   box-shadow: var(--ms-elevation-flat);
-}
-
-/* HC Light supplies a translucent selection fill without a foreground.
-   Use its opaque, paired primary roles for our pressed/selected controls. */
-:is(.vscode-high-contrast, .vscode-high-contrast-light)
-  :is(
-    .chip-remove,
-    .tool-toggle,
-    .tool-chevron,
-    .tool-path,
-    .tool-open,
-    .tool-expand,
-    .tool-more,
-    .tool-image,
-    .steps-toggle,
-    .code-block-button,
-    .paid-badge,
-    .context-meter,
-    .todo-title,
-    .todo-open,
-    .todo-window,
-    .diff-tally-review,
-    .icon-button,
-    .mode-button
-  ):active:not(:disabled, [aria-disabled='true']),
-:is(.vscode-high-contrast, .vscode-high-contrast-light)
-  :is(.pill, .icon-button, .mode-button, .tool-more)[aria-pressed='true'],
-:is(.vscode-high-contrast, .vscode-high-contrast-light)
-  :is(.icon-button, .mode-button)[aria-expanded='true'] {
-  color: var(--ms-on-accent);
-  background-color: var(--ms-accent);
 }
 
 @media (forced-colors: active) {

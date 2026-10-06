@@ -27,21 +27,24 @@ const controls = [
   'mode-button',
   'send-button',
   'pill',
+  'notice-action',
 ]
-const source = `
+const source = String.raw`
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {StatusLine} from './src/webview/components/StatusLine';
 import {CodeBlock} from './src/webview/components/CodeBlock';
+import {Clipped} from './src/webview/components/ToolBlocks';
 createRoot(document.getElementById('actual')).render(<>
   <ul className="transcript"><StatusLine/></ul>
+  <Clipped text={"Sample output\n".repeat(100)} className="tool-output"/>
   <CodeBlock code={'const answer = "yes"; // comment'} language="typescript" onOpen={()=>{}}/>
 </>);`
 const markup = `<main>
   <div class="composer"><textarea class="composer-input" placeholder="Ask for a change"></textarea></div>
-  <div class="composer-toolbar">${controls.map((c) => `<button class="${c}">${c}</button>`).join('')}</div>
-  <div class="tool-output"><div class="tool-open" role="button" tabindex="0">Output</div></div>
-  <div class="goal"><input class="question-input goal-edit-input" aria-label="Objective"><progress class="usage-bar" max="100" value="25"></progress></div>
+  <div class="composer-toolbar">${controls.map((c) => `<button class="${c} chat-control">${c}</button>`).join('')}</div>
+  <div class="tool-output"><div class="tool-open chat-control" role="button" tabindex="0">Output</div></div>
+  <div class="goal"><input class="question-input goal-edit-input chat-control" aria-label="Objective"><progress class="usage-bar" max="100" value="25"></progress></div>
   <div class="approval-dock"><p class="approval-dock-count">Two waiting</p><button class="tool-more">Last action</button></div>
   <p class="markdown"><a href="https://example.com">Source</a><span class="cursor"></span></p>
   <span class="tool-dot-running"></span><button class="mic-button mic-listening">Microphone</button>
@@ -114,7 +117,8 @@ const colour = (value) => {
     alpha: channels[3] ?? 1,
   }
 }
-const ratio = (fg, bg) => contrastRatio(colour(fg), colour(bg))
+const ratio = (fg, bg, canvas) =>
+  contrastRatio(colour(fg), colour(bg), canvas === undefined ? undefined : colour(canvas))
 const stylesOf = (page, selector, pseudo) =>
   page
     .locator(selector)
@@ -155,7 +159,7 @@ async function forceState(page, selector, state) {
   const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector })
   await cdp.send('CSS.enable')
   await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: state })
-  return cdp
+  return { session: cdp, nodeId }
 }
 
 describe('M114 P1 conversation contract', () => {
@@ -200,17 +204,40 @@ describe('M114 P1 conversation contract', () => {
     async (theme) => {
       const page = await pageFor(theme)
       try {
+        const canvas = await styleValue(page, 'body', 'backgroundColor')
+        await page.locator('.tool-toggle').evaluate((el) => {
+          el.innerHTML = '<span class="tool-summary">Long path</span>'
+        })
+        await page.locator('.tool-chevron').evaluate((el) => {
+          el.innerHTML = '<span class="chevron">›</span>'
+        })
         for (const c of [
           'chip-remove',
           'tool-toggle',
+          'tool-chevron',
           'code-block-button',
           'todo-open',
           'icon-button',
+          'notice-action',
         ]) {
-          const cdp = await forceState(page, `.${c}`, ['hover', 'active'])
+          const forced = await forceState(page, `.${c}`, ['hover'])
+          const hovered = await stylesOf(page, `.${c}`)
+          expect(hovered.backgroundColor, c).not.toBe('rgba(0, 0, 0, 0)')
+          expect(hovered.opacity, c).toBe('1')
+          expect(ratio(hovered.color, hovered.backgroundColor, canvas), c).toBeGreaterThanOrEqual(
+            4.5,
+          )
+          await forced.session.send('CSS.forcePseudoState', {
+            nodeId: forced.nodeId,
+            forcedPseudoClasses: ['hover', 'active'],
+          })
           const pressed = await stylesOf(page, `.${c}`)
           expect(pressed.backgroundColor, c).not.toBe('rgba(0, 0, 0, 0)')
           expect(ratio(pressed.color, pressed.backgroundColor), c).toBeGreaterThanOrEqual(4.5)
+          if (c === 'tool-toggle' || c === 'tool-chevron') {
+            const child = await stylesOf(page, `.${c} > span`)
+            expect(ratio(child.color, pressed.backgroundColor), c).toBeGreaterThanOrEqual(4.5)
+          }
           await page
             .locator(`.${c}`)
             .first()
@@ -220,7 +247,7 @@ describe('M114 P1 conversation contract', () => {
           const disabled = await stylesOf(page, `.${c}`)
           expect(disabled.color, c).not.toBe(pressed.color)
           expect(disabled.backgroundColor, c).not.toBe(pressed.backgroundColor)
-          await cdp.detach()
+          await forced.session.detach()
         }
         await page.locator('.mode-button').evaluate((el) => el.setAttribute('aria-pressed', 'true'))
         const selected = await stylesOf(page, '.mode-button')
@@ -314,6 +341,8 @@ describe('M114 P1 conversation contract', () => {
         return { padding: s.paddingBottom, scrollPadding: s.scrollPaddingBottom }
       })
       expect(dock).toEqual({ padding: '4px', scrollPadding: '4px' })
+      const more = await page.locator('#actual .tool-more').first().boundingBox()
+      expect(more.height).toBeGreaterThanOrEqual(24)
       await page.locator('.code-block-body').focus()
       expect(await styleValue(page, '.code-block-body', 'outlineOffset')).toBe('-2px')
       const source = await readFile(

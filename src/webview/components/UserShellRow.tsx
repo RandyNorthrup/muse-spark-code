@@ -60,7 +60,7 @@ function UserShellRowView({ entry, canStop, onOpenOutput, onStopTask }: UserShel
         {isRunning && canStop ? (
           <button
             type="button"
-            className="tool-more tool-task-action"
+            className="tool-more tool-task-action chat-control"
             aria-label={`${UI_TEXT.stopTask}: ${command}`}
             title={UI_TEXT.stopUserShellTitle}
             disabled={entry.taskRequest !== undefined}

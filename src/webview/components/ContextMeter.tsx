@@ -36,7 +36,7 @@ export function ContextMeter({ context, onCompact }: ContextMeterProps) {
   return (
     <button
       type="button"
-      className={`context-meter context-meter-${level}`}
+      className={`context-meter context-meter-${level} chat-control`}
       aria-label={`${label} · ${detail}${over}`}
       title={`${label} · ${detail}${over} · ${UI_TEXT.contextCompactTitle}`}
       onClick={onCompact}
