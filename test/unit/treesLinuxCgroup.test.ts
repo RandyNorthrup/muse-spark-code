@@ -75,6 +75,7 @@ function world() {
     pinDirectory: (directory) =>
       Promise.resolve({
         path: directory,
+        removalPath: directory,
         matches: () => Promise.resolve(true),
         close: () => Promise.resolve(),
       }),
@@ -146,6 +147,20 @@ async function expectHarnessSafeStop(w: ReturnType<typeof world>, signal: Resour
 }
 
 describe('Linux cgroup authority', () => {
+  it('reports harness_in_tree for late harness placement after freeze and thaws without signalling', async () => {
+    const w = await readyWorld()
+    const original = w.write.getMockImplementation()!
+    w.write.mockImplementation(async (file, value) => {
+      await original(file, value)
+      if (value === '1' && file.endsWith('/cgroup.freeze')) w.inside.add(process.pid)
+    })
+    expect(await w.registry.kill(ticket, 'SIGTERM')).toMatchObject({ status: 'harness_in_tree' })
+    expect(w.sendSignal).not.toHaveBeenCalled()
+    expect(w.events.frozen).toBe(false)
+    expect(w.registry.tickets()).toHaveLength(1)
+    expect(w.remove).not.toHaveBeenCalled()
+  })
+
   it.each(['SIGKILL', 'SIGTERM'] as const)(
     'moves the harness out when inserted before the scan, then safely stops with %s',
     async (signal) => {

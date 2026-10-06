@@ -288,6 +288,7 @@ function linuxWorld(scope?: string, overrides: Partial<LinuxTreeDeps> = {}) {
     pinDirectory: (directory) =>
       Promise.resolve({
         path: directory,
+        removalPath: directory,
         matches: () => Promise.resolve(true),
         close: () => Promise.resolve(),
       }),

@@ -164,5 +164,16 @@
   "config.judge.engine.enumDescriptions.same": "자신의 채팅 모델만 판단합니다. 모델을 전환하지 않습니다.",
   "config.judge.engine.enumDescriptions.off": "판단 없음. 승인은 판단자가 없을 때와 정확히 동일하게 동작합니다.",
   "command.openHelp.title": "도움말 및 참조",
-  "config.shell.passEnvironmentVariables.description": "기본 세션의 대화형 셸 명령에 전달할 환경 변수 이름입니다. 일반적으로 제외되는 자격 증명 변수도 포함됩니다. 값이 아닌 이름만 지정하세요. 기본값: 없음. 명령이 이 값을 대화 및 모델 제공자에게 노출할 수 있습니다. 검증/then_run, 예약 작업, 하위/팀 작업자 및 훅에는 여기 이름을 지정해도 자격 증명 변수가 전달되지 않습니다. 백그라운드로 이동한 대화형 명령은 시작 시 환경을 유지합니다. Muse Code나 명시적으로 구성한 MCP 서버 환경은 변경하지 않습니다."
+  "config.shell.passEnvironmentVariables.description": "기본 세션의 대화형 셸 명령에 전달할 환경 변수 이름입니다. 일반적으로 제외되는 자격 증명 변수도 포함됩니다. 값이 아닌 이름만 지정하세요. 기본값: 없음. 명령이 이 값을 대화 및 모델 제공자에게 노출할 수 있습니다. 검증/then_run, 예약 작업, 하위/팀 작업자 및 훅에는 여기 이름을 지정해도 자격 증명 변수가 전달되지 않습니다. 백그라운드로 이동한 대화형 명령은 시작 시 환경을 유지합니다. Muse Code나 명시적으로 구성한 MCP 서버 환경은 변경하지 않습니다.",
+  "config.resourceGovernor.description": "에이전트 실행 환경이 시작한 작업을 늦추거나 연기하여 컴퓨터의 응답성을 유지합니다. 기본적으로 켜져 있습니다.",
+  "config.resourceCpuMaxPercent.description": "컴퓨터의 CPU 사용량이 30초 동안 이 비율을 넘으면 처리를 제한합니다.",
+  "config.resourceMemoryMaxPercent.description": "사용 중인 메모리가 연속 두 번의 측정에서 이 비율을 넘으면 처리를 제한합니다.",
+  "config.resourceMemoryMinFreeGiB.description": "최소 사용 가능 메모리(GiB)로, 이 컴퓨터 RAM의 15%로 제한됩니다.",
+  "config.resourceGpuMaxPercent.description": "선택적인 GPU 사용량 한도(%)입니다. 설정하지 않으면 GPU를 측정하지 않습니다.",
+  "config.resourceDiskBusyMaxPercent.description": "선택적인 디스크 사용률 한도(%)입니다. 설정하지 않으면 디스크를 측정하지 않습니다.",
+  "config.resourceDiskMinFreeGiB.description": "디스크 여유 공간 하한(GiB)입니다. 기본값은 10 GiB와 볼륨의 10% 중 작은 값이며, 최소 2 GiB입니다.",
+  "config.resourceRelocate.description": "컴퓨터 사용량이 높을 때 대기 중인 팀 작업과 검사를 이동할 위치입니다. 기존 장치 동의와 제공 조건은 계속 적용됩니다.",
+  "config.resourceRelocate.enumDescriptions.paired": "리소스 사용량이 정상인, 이미 승인된 페어링 장치를 사용합니다.",
+  "config.resourceRelocate.enumDescriptions.ask": "대기 중인 작업을 이동하기 전에 묻습니다.",
+  "config.resourceRelocate.enumDescriptions.off": "이 컴퓨터에서 작업을 유지합니다."
 }

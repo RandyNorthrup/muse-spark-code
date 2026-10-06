@@ -14,6 +14,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Linux resource Stop retains cgroup and parent descriptors until direct
+  registry kills settle, removes empty scopes through a pinned parent and
+  reports late harness insertion explicitly while thawing safely.
+
 - Resource history keeps known minute readings and merges final tree accounting
   idempotently after a read-time flush, including the same cached sample timestamp.
 - Resource history rejects dates outside the supported formatter range, including

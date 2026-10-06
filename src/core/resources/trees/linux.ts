@@ -1,4 +1,13 @@
-import { constants, open, readFile, readdir, realpath, rmdir, writeFile } from 'node:fs/promises'
+import {
+  type FileHandle,
+  constants,
+  open,
+  readFile,
+  readdir,
+  realpath,
+  rmdir,
+  writeFile,
+} from 'node:fs/promises'
 import path from 'node:path'
 import { UI_TEXT } from '../../../shared/l10n/text'
 import { handleIdentity, lstatIdentity, sameFile } from '../../fs/fileIdentity'
@@ -28,6 +37,8 @@ import {
 
 interface LinuxCgroupHandle {
   readonly path: string
+  /** Removal resolves the leaf through a separately retained parent descriptor. */
+  readonly removalPath: string
   matches(): Promise<boolean>
   close(): Promise<void>
 }
@@ -37,23 +48,45 @@ export async function pinLinuxCgroupDirectory(directory: string): Promise<LinuxC
     directory,
     constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
   )
+  let parent: FileHandle
+  try {
+    parent = await open(
+      path.posix.dirname(directory),
+      constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+    )
+  } catch (error: unknown) {
+    await handle.close()
+    throw error
+  }
   try {
     const identity = await handleIdentity(handle)
+    const removalPath = `/proc/self/fd/${String(parent.fd)}/${path.posix.basename(directory)}`
     return {
       path: `/proc/self/fd/${String(handle.fd)}`,
+      removalPath,
       async matches() {
         const observed = await lstatIdentity(directory)
+        const leaf = await lstatIdentity(removalPath)
         const pinned = await handleIdentity(handle)
         return (
           observed.isDirectory() &&
+          leaf.isDirectory() &&
           pinned.nlink > WORKSPACE_IDENTITY_ZERO &&
-          sameFile(observed, identity)
+          sameFile(observed, identity) &&
+          sameFile(leaf, identity)
         )
       },
-      close: () => handle.close(),
+      async close() {
+        try {
+          await handle.close()
+        } finally {
+          await parent.close()
+        }
+      },
     }
   } catch (error: unknown) {
     await handle.close()
+    await parent.close()
     throw error
   }
 }
@@ -119,6 +152,7 @@ export class LinuxResourceTreeReader extends PosixResourceTreeReader {
 
 class LinuxTreeSource implements PosixTreeSource {
   private readonly retired = new Set<string>()
+  private readonly activeKills = new Map<string, number>()
   private readonly handles = new Map<
     string,
     { signature: string; directory: string; handle: Promise<LinuxCgroupHandle> }
@@ -265,13 +299,9 @@ class LinuxTreeSource implements PosixTreeSource {
     const text = raw.trim()
     if (text !== '' && !/^\d+(?:\s+\d+)*$/.test(text)) throw new Error('Invalid cgroup members')
     const pids = text === '' ? [] : text.split(/\s+/).map(Number)
-    if (
-      pids.some(
-        (pid) =>
-          !Number.isSafeInteger(pid) || pid <= 0 || (!isIncludeHarness && pid === process.pid),
-      )
-    )
+    if (pids.some((pid) => !Number.isSafeInteger(pid) || pid <= 0))
       throw new Error('Unsafe cgroup member')
+    if (!isIncludeHarness && pids.includes(process.pid)) throw new Error('Harness in cgroup')
     const children = await this.directories(scope)
     for (const child of children)
       pids.push(...(await this.cgroupPids(path.posix.join(scope, child), isIncludeHarness)))
@@ -315,7 +345,14 @@ class LinuxTreeSource implements PosixTreeSource {
     for (const child of children)
       await this.removeCgroup(path.posix.join(scope, child), isRegistered)
     if (!isRegistered()) throw new Error('Cgroup removal retired')
-    await (this.deps.remove ?? rmdir)(await this.directory(scope))
+    await this.directory(scope)
+    let removalPath = scope
+    for (const pinned of this.handles.values()) {
+      const handle = await pinned.handle
+      if (scope === handle.path) removalPath = handle.removalPath
+    }
+    if (!isRegistered()) throw new Error('Cgroup removal retired')
+    await (this.deps.remove ?? rmdir)(removalPath)
   }
 
   private async matches(handle: LinuxCgroupHandle): Promise<boolean> {
@@ -393,7 +430,11 @@ class LinuxTreeSource implements PosixTreeSource {
   forget(ticket: ResourceTicket): void {
     this.retired.add(JSON.stringify(ticket))
     const pinned = this.handles.get(ticket.id)
-    if (pinned?.signature !== JSON.stringify(ticket)) return
+    if (
+      pinned?.signature !== JSON.stringify(ticket) ||
+      (this.activeKills.get(pinned.signature) ?? 0) > 0
+    )
+      return
     this.handles.delete(ticket.id)
     void this.close(pinned.handle)
     this.releaseHome()
@@ -407,7 +448,7 @@ class LinuxTreeSource implements PosixTreeSource {
 
   async completed(ticket: ResourceTicket, isRegistered: () => boolean): Promise<boolean> {
     try {
-      if (!isRegistered()) return false
+      if (!isRegistered() || (this.activeKills.get(JSON.stringify(ticket)) ?? 0) > 0) return false
       const root = await this.stat(ticket.root.pid)
       if (
         !isRegistered() ||
@@ -526,6 +567,8 @@ class LinuxTreeSource implements PosixTreeSource {
     signal: ResourceSignal,
     isRegistered: () => boolean,
   ): Promise<ResourceTreeKillResult> {
+    const signature = JSON.stringify(ticket)
+    this.activeKills.set(signature, (this.activeKills.get(signature) ?? 0) + 1)
     try {
       const scope = await this.cgroup(ticket)
       if (scope === null || !isRegistered()) return { status: 'refused', members: [] }
@@ -588,6 +631,13 @@ class LinuxTreeSource implements PosixTreeSource {
       return {
         status: 'refused',
         members: [],
+      }
+    } finally {
+      const remaining = (this.activeKills.get(signature) ?? 1) - 1
+      if (remaining > 0) this.activeKills.set(signature, remaining)
+      else {
+        this.activeKills.delete(signature)
+        if (this.retired.has(signature)) this.forget(ticket)
       }
     }
   }

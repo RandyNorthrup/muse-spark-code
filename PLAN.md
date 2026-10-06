@@ -30564,6 +30564,15 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+**M107-W-T3-empty-removal-window (2026-10-06).** The cgroup and its parent
+are pinned, final removal resolves the leaf through the parent descriptor,
+and both pathname and pinned-parent leaf identities are checked before
+removal. Linux has no directory unlink by fd: a same-user racer can still
+substitute an empty leaf after the identity read and before rmdir. Populated
+substitutes are refused and no recursive file content is removed. Keep this
+bounded residual until a kernel identity-bound removal primitive is available.
+The harness-placement dispatch and PID/tick assumptions below remain unchanged.
+
 - **M107-J-M102-history-binding (FIXM107J, 2026-10-06).** RVM107J's
   review findings are repaired, with scoped receipts in J's certification.
   M102 still must bind consent, retention/rollups, atomic/idempotent append

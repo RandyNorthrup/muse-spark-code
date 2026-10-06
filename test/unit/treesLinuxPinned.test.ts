@@ -44,7 +44,7 @@ async function fixture() {
   const handle = await pinLinuxCgroupDirectory(directory)
   const close = vi.spyOn(handle, 'close')
   const write = vi.fn((file: string, text: string) => writeFile(file, text))
-  const remove = vi.fn(() => Promise.resolve())
+  const remove = vi.fn<(file: string) => Promise<void>>(() => Promise.resolve())
   const read = vi.fn((file: string) => {
     if (file === '/proc/710/cgroup')
       return Promise.resolve(`0::${scope.slice('/sys/fs/cgroup'.length)}\n`)
@@ -157,9 +157,35 @@ describe.runIf(process.platform === 'linux')('pinned cgroup directory identity',
             .every(([file]) => file.startsWith(`${w.handle.path}/`)),
         ).toBe(true)
         expect(w.close).not.toHaveBeenCalled()
+        expect(w.remove).toHaveBeenCalledWith(
+          expect.stringMatching(/^\/proc\/self\/fd\/\d+\/tree$/),
+        )
       } finally {
         await retire(w)
       }
     },
   )
+  it('keeps cgroup and home pins alive until a direct registry kill has settled after retirement', async () => {
+    const w = await fixture()
+    const receipt = Promise.withResolvers<undefined>()
+    const original = w.write.getMockImplementation()!
+    w.write.mockImplementation(async (file, text) => {
+      if (file.endsWith('/cgroup.kill')) await receipt.promise
+      await original(file, text)
+    })
+    const stopped = w.registry.kill(ticket)
+    try {
+      await vi.waitFor(() => {
+        expect(w.write).toHaveBeenCalledWith(`${w.handle.path}/cgroup.kill`, '1')
+      })
+      w.registry.unregister(ticket)
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      expect(w.close).not.toHaveBeenCalled()
+      expect(w.homeClose).not.toHaveBeenCalled()
+    } finally {
+      receipt.resolve(undefined)
+      await stopped
+      await retire(w)
+    }
+  })
 })
