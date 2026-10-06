@@ -32,7 +32,7 @@
       "test/unit/webviewBundles.test.mjs"
     ]
   },
-  "recordedAt": "2026-10-06T22:18:48.069Z",
+  "recordedAt": "2026-10-06T22:59:16.567Z",
   "files": [
     "AGENTS.md",
     "CHANGELOG.md",
@@ -106,6 +106,7 @@
     "test/unit/helpers/transcriptFixtures.tsx",
     "test/unit/html.test.ts",
     "test/unit/m95PlanUi.test.tsx",
+    "test/unit/modelsWebviewEntry.test.tsx",
     "test/unit/planActions.test.tsx",
     "test/unit/referenceGenerator.test.mjs",
     "test/unit/reviewUi.test.tsx",
@@ -119,7 +120,7 @@
     "test/unit/vsixPackaging.test.mjs",
     "test/unit/webviewBundle.test.mjs",
     "test/unit/webviewBundles.test.mjs",
-    "test/unit/modelsWebviewEntry.test.tsx"
+    "docs/certification/train-0.15.0-train15g-a11y.txt"
   ],
   "originalTrain": {
     "helperless": 2600909,
@@ -9942,9 +9943,12 @@
       }
     ],
     "accessibility": {
-      "pending": true,
       "args": ["scripts/a11y.mjs"],
-      "started": "2026-10-06T22:16:30.886Z"
+      "started": "2026-10-06T22:16:30.886Z",
+      "ended": "2026-10-06T22:57:10.646Z",
+      "exit": 0,
+      "summary": "a11y: 864 pages (216 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+      "log": "temp/train15g/a11y.log"
     }
   },
   "fixes": [
@@ -9955,5 +9959,121 @@
   "timingReceipts": [
     "Unchanged execFetch file initially had two failures with a 50-ms idle seam alongside a real-bundle suite; all 35 tests pass on an isolated whole-file rerun at the default test timeout.",
     "Unchanged subscriptionIntegration first browser/host scenario initially exceeded 5 seconds alongside two other files; all six pass on the isolated whole-file rerun (scenario 4938.1947 ms). No timeout, threshold or exclusion changed."
-  ]
+  ],
+  "boundaryCommit": "0641937f441ddd7248e1a0a0a3d89004e880880c",
+  "boundaryHooks": {
+    "passed": true,
+    "stagedBytes": 99248,
+    "noLeaks": true,
+    "log": "temp/train15g/commit-boundaries.log"
+  },
+  "buildBudgetLines": [
+    "ok   dist/extension.js: 459.1 KiB (budget 600 KiB)",
+    "ok   dist/conversation.js: 210.6 KiB (budget 250 KiB)",
+    "ok   dist/tab.js: 51.9 KiB (budget 75 KiB)",
+    "ok   dist/modelApi.js: 455.4 KiB (budget 475 KiB)",
+    "ok   dist/modelApiHooks.js: 28.3 KiB (budget 50 KiB)",
+    "ok   dist/modelApiMcp.js: 49.0 KiB (budget 75 KiB)",
+    "ok   dist/runtimeAccounting.js: 26.1 KiB (budget 50 KiB)",
+    "ok   dist/providerPolicy.js: 7.7 KiB (budget 25 KiB)",
+    "ok   dist/runtimeEngine.js: 758.1 KiB (budget 875 KiB)",
+    "ok   dist/modelApiBoundaries.js: 23.5 KiB (budget 25 KiB)",
+    "ok   dist/providers.js: 128.4 KiB (budget 150 KiB)",
+    "ok   dist/subscriptions.js: 29.3 KiB (budget 50 KiB)",
+    "ok   dist/configuredProviders.js: 24.9 KiB (budget 50 KiB)",
+    "ok   dist/modelsPanel.js: 90.3 KiB (budget 125 KiB)",
+    "ok   dist/usageService.js: 77.2 KiB (budget 100 KiB)",
+    "ok   dist/usageCompanion.js: 38.3 KiB (budget 50 KiB)",
+    "ok   dist/usagePanel.js: 54.0 KiB (budget 75 KiB)",
+    "ok   dist/webview/usage.js + static imports: 396.2 KiB (budget 500 KiB)",
+    "ok   dist/webview/usage.css: 7.4 KiB (budget 25 KiB)",
+    "ok   dist/webview/models.js + static imports: 379.7 KiB (budget 500 KiB)",
+    "ok   dist/review.js: 29.3 KiB (budget 50 KiB)",
+    "ok   dist/sessionBoard.js: 45.6 KiB (budget 75 KiB)",
+    "ok   dist/reviewer.js: 45.8 KiB (budget 75 KiB)",
+    "ok   dist/team.js: 46.6 KiB (budget 75 KiB)",
+    "ok   dist/teamRunners.js: 53.0 KiB (budget 75 KiB)",
+    "ok   dist/teamScheduler.js: 58.6 KiB (budget 75 KiB)",
+    "ok   dist/foreignHooks.js: 68.2 KiB (budget 100 KiB)",
+    "ok   dist/hookRuntime.js: 41.8 KiB (budget 50 KiB)",
+    "ok   dist/pluginHooks.js: 34.8 KiB (budget 50 KiB)",
+    "ok   dist/planMarkdown.js: 144.1 KiB (budget 150 KiB)",
+    "ok   dist/checkpointStore.js: 77.8 KiB (budget 225 KiB)",
+    "ok   dist/agentImport.js: 117.1 KiB (budget 125 KiB)",
+    "ok   dist/browserCheck.js: 42.6 KiB (budget 75 KiB)",
+    "ok   dist/browserRuntime.js: 19.3 KiB (budget 50 KiB)",
+    "ok   dist/conversationGit.js: 75.0 KiB (budget 150 KiB)",
+    "ok   dist/bundledSkills.js: 17.9 KiB (budget 50 KiB)",
+    "ok   dist/legalScan.js: 117.7 KiB (budget 150 KiB)",
+    "ok   dist/codeIntel.js: 40.2 KiB (budget 100 KiB)",
+    "ok   dist/voice.js: 19.9 KiB (budget 50 KiB)",
+    "ok   dist/webFetch.js: 39.3 KiB (budget 75 KiB)",
+    "ok   dist/museCodeReviewer.js: 23.0 KiB (budget 75 KiB)",
+    "ok   dist/extensionHooks.js: 34.8 KiB (budget 75 KiB)",
+    "ok   dist/report.js: 23.8 KiB (budget 75 KiB)",
+    "ok   dist/recorder.js: 26.4 KiB (budget 75 KiB)",
+    "ok   dist/whatsNew.js: 19.2 KiB (budget 50 KiB)",
+    "ok   dist/whatsNew.json: 7.6 KiB (budget 40 KiB)",
+    "ok   dist/judge.js: 46.7 KiB (budget 100 KiB)",
+    "ok   dist/uiText.js: 76.3 KiB (budget 125 KiB)",
+    "ok   dist/uiTextRuntime.js: 4.1 KiB (budget 25 KiB)",
+    "ok   dist/uiTextHooks.js: 4.7 KiB (budget 25 KiB)",
+    "ok   dist/uiTextSurfaces.js: 2.5 KiB (budget 25 KiB)",
+    "ok   dist/validation.js: 42.7 KiB (budget 50 KiB)",
+    "ok   dist/wire.js: 44.0 KiB (budget 50 KiB)",
+    "ok   dist/searchWorker.js: 5.1 KiB (budget 50 KiB)",
+    "ok   dist/imageResizeWorker.js: 58.6 KiB (budget 75 KiB)",
+    "ok   dist/pageWorker.js: 188.6 KiB (budget 300 KiB)",
+    "ok   dist/webview/main.js + static imports: 796.7 KiB (budget 900 KiB)",
+    "ok   dist/webview/whatsNew.js + static imports: 1.3 KiB (budget 25 KiB)",
+    "ok   dist/webview/referencePage.js: 21.0 KiB (budget 50 KiB)",
+    "ok   dist/reference.js: 76.7 KiB (budget 100 KiB)",
+    "ok   dist/acp.js: 146.4 KiB (budget 850 KiB)",
+    "ok   dist/headless.js: 77.9 KiB (budget 100 KiB)",
+    "ok   dist/webview models body: 56.3 KiB (budget 75 KiB)",
+    "ok   dist/webview usage body: 35.4 KiB (budget 50 KiB)",
+    "ok   dist/webview/chunks/YTVF55MS.js (SignIn): 4.2 KiB (budget 25 KiB)",
+    "ok   dist/webview/chunks/KB5M5BLL.js (GoalPanel): 3.2 KiB (budget 25 KiB)",
+    "ok   dist/webview/chunks/R26MVD5B.js (SchedulePanel): 1.7 KiB (budget 25 KiB)",
+    "ok   dist/webview/chunks/3TLD3IOL.js (Palette): 7.0 KiB (budget 25 KiB)",
+    "ok   dist/webview/chunks/CQF6C23E.js (PopoverMenu): 2.0 KiB (budget 25 KiB)",
+    "ok   dist/webview/chunks/6NNEXRHN.js (GooeyMenuContent): 5.0 KiB (budget 25 KiB)",
+    "ok   dist/webview/chunks/QHODUKRR.js (UsageDialogContent): 9.5 KiB (budget 25 KiB)",
+    "ok   dist/webview/chunks/PNCQPQAP.js (AgentMapContent): 8.7 KiB (budget 25 KiB)",
+    "ok   dist/webview deferred JS: 32.5 KiB (budget 50 KiB)",
+    "ok   dist/webview help reference: 21.0 KiB (budget 50 KiB)",
+    "ok   dist/webview paid usage: 3.4 KiB (budget 25 KiB)",
+    "ok   dist/webview provider usage: 1.7 KiB (budget 25 KiB)",
+    "ok   dist/webview SignIn: 4.2 KiB (budget 25 KiB)",
+    "ok   dist/webview GoalPanel: 3.2 KiB (budget 25 KiB)",
+    "ok   dist/webview SchedulePanel: 1.7 KiB (budget 25 KiB)",
+    "ok   dist/webview Palette: 9.2 KiB (budget 25 KiB)",
+    "ok   dist/webview PopoverMenu: 2.0 KiB (budget 25 KiB)",
+    "ok   dist/webview GooeyMenuContent: 5.0 KiB (budget 25 KiB)",
+    "ok   dist/webview UsageDialogContent: 9.8 KiB (budget 25 KiB)",
+    "ok   dist/webview AgentMapContent: 8.7 KiB (budget 25 KiB)",
+    "ok   dist/webview code highlighting: 88.1 KiB (budget 125 KiB)",
+    "ok   dist/webview action dialogs: 18.1 KiB (budget 25 KiB)",
+    "ok   dist/webview tasks tab: 1.4 KiB (budget 25 KiB)",
+    "ok   dist/webview team UI: 15.9 KiB (budget 25 KiB)"
+  ],
+  "lateStatic": [
+    {
+      "id": "duplication",
+      "exit": 0,
+      "clones": 0,
+      "log": "temp/train15g/final-duplication.log"
+    },
+    {
+      "id": "localization",
+      "exit": 0,
+      "problems": 0,
+      "uiTables": 14,
+      "usageTables": 14,
+      "manifestStrings": 187,
+      "sourceFiles": 908,
+      "log": "temp/train15g/final-l10n.log"
+    }
+  ],
+  "accessibilityLog": "docs/certification/train-0.15.0-train15g-a11y.txt"
 }

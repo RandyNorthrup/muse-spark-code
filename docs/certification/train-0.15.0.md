@@ -1057,7 +1057,7 @@ across chat, Models and Usage. Their 425/413-KiB startup totals count shared
 files per page, rather than separate copies in the VSIX. Keep the common ESM
 graph, replace the older train English codec with main’s native codec, and
 defer both optional panel bodies through DeferredSurface under their existing page error boundaries. Models startup
-falls from 431.6 to 379.7 KiB; Usage from 420.1 to 396.1 KiB. Full non-bootstrap
+falls from 431.6 to 379.7 KiB; Usage from 420.1 to 396.2 KiB. Full non-bootstrap
 body closures are 57,621 / 36,212 bytes, with new 75/50-KiB caps from measured
 +15%, rounded up to 25 KiB. Existing individual caps remain unchanged.
 
@@ -1124,6 +1124,6 @@ The new README browser command succeeds against real production ESM: all eight d
 
 Final actual archives are helperless **2,609,228 bytes**, SHA-256 bc03297914bd4c5abe3a3497f96a8956a7f7631dede4911487899e0f8cf058b9, and universal **2,688,776 bytes**, SHA-256 6327978420b7a8f5ebe274a230aaff98db2ad98d11723fd0e444051b66a528e9. Each is 2,003 bytes over the post-main pre-lazy measurement; React/shared UI already had a single physical owner, so no vendor copy was deleted. The final formula is ceil(2,688,776 × 1.05 / 25,600) × 25,600 = **2,841,600 bytes (2775 KiB)**, with 152,824 bytes of headroom. The ACP tarball is **1,713,250 bytes**, SHA-256 1f152b806341ce5ad1a991a7b51f3061f464db98e1eb632e9a03a0329cf76a9d. Archive inspection finds no tests, maps, fonts or node_modules; universal helper bytes/hash/0755 match the certified native receipt. Version, README What’s New and all released changelog text are unchanged.
 
-Full accessibility is running; its completed receipt will be committed separately.
+Full accessibility passes: a11y: 864 pages (216 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result.
 
 Full aggregate quality and the hosted/native/live release matrices remain with the lead under the rig’s scoped-check rule. No public network, credentials or paid/live model calls; no push or Git configuration changes.
