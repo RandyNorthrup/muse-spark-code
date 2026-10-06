@@ -7,6 +7,7 @@ import vm from 'node:vm'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
+import { L10N_COMPACT_TOKEN_FIRST, L10N_COMPACT_TOKEN_LAST } from '../../src/shared/constants'
 import { compactEnglishSource } from '../../src/shared/l10n/compactEnglish'
 import {
   UI_TEXT_REGIONS,
@@ -173,5 +174,19 @@ it('round-trips every browser English key, value and plural form inline', () => 
 })
 
 it('refuses an English value that collides with reserved dictionary tokens', () => {
-  expect(() => compactEnglishSource({ label: '\u{E000}' })).toThrow('reserved dictionary token')
+  for (const token of [L10N_COMPACT_TOKEN_FIRST, L10N_COMPACT_TOKEN_LAST]) {
+    const text = String.fromCodePoint(token)
+    expect(() => compactEnglishSource({ label: text })).toThrow('reserved dictionary token')
+    expect(() => compactEnglishSource({ [text]: 'Label' })).toThrow('reserved dictionary token')
+  }
+})
+
+it('preserves Unicode outside the reserved range', () => {
+  const sample = { label: 'é € \u{E000}' }
+  const module = { exports: {} }
+  vm.runInNewContext(
+    compactEnglishSource(sample).replace('export const EN=', 'module.exports.EN='),
+    { module },
+  )
+  expect(module.exports.EN).toEqual(sample)
 })

@@ -1,0 +1,115 @@
+[
+  {
+    "drill": "windows-path-normalization",
+    "file": "scripts/lib/reference.mjs",
+    "mutation": {
+      "before": "return file.replaceAll('\\\\', '/')",
+      "after": "return file"
+    },
+    "command": "npx vitest run test/unit/referenceGenerator.test.mjs --maxWorkers=3 --reporter=verbose --reporter=json --outputFile.json=/home/randy/lanes/REL0142/temp/rel0142/round4-drill-windows-path-normalization.json",
+    "exitCode": 1,
+    "expectedFailure": "accepts Windows evidence paths",
+    "failures": [
+      {
+        "name": "the code-derived reference gate accepts Windows evidence paths and still rejects a keyboard registry bypass",
+        "durationMs": 21.000628000000233,
+        "messages": [
+          "TypeError: Cannot read properties of undefined (reading 'split')\n    at buildReference (/home/randy/lanes/REL0142/scripts/lib/reference.mjs:389:6)\n    at build (/home/randy/lanes/REL0142/test/unit/referenceGenerator.test.mjs:27:7)\n    at /home/randy/lanes/REL0142/test/unit/referenceGenerator.test.mjs:135:12\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)"
+        ]
+      },
+      {
+        "name": "the code-derived reference gate accepts Windows recursive directory entries for the Composer IME check",
+        "durationMs": 280.32616499999995,
+        "messages": [
+          "Error: Keyboard dispatch bypasses registry: src/webview/components\\Composer.tsx\n    at buildReference (/home/randy/lanes/REL0142/scripts/lib/reference.mjs:1055:32)\n    at build (/home/randy/lanes/REL0142/test/unit/referenceGenerator.test.mjs:27:7)\n    at /home/randy/lanes/REL0142/test/unit/referenceGenerator.test.mjs:154:12\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)"
+        ]
+      }
+    ],
+    "beforeSha256": "05ee62e99e5421ff9390e0982dcc060e759f37db14cc209c7c7d80af1e5906d5",
+    "restoredSha256": "05ee62e99e5421ff9390e0982dcc060e759f37db14cc209c7c7d80af1e5906d5",
+    "restoredByteExact": true
+  },
+  {
+    "drill": "keyboard-cache-content-invalidation",
+    "file": "scripts/lib/reference.mjs",
+    "mutation": {
+      "before": "if (previous?.text === text) return previous",
+      "after": "if (previous !== undefined) return previous"
+    },
+    "command": "npx vitest run test/unit/referenceGenerator.test.mjs --maxWorkers=3 --reporter=verbose --reporter=json --outputFile.json=/home/randy/lanes/REL0142/temp/rel0142/round4-drill-keyboard-cache-content-invalidation.json",
+    "exitCode": 1,
+    "expectedFailure": "accepts Windows evidence paths",
+    "failures": [
+      {
+        "name": "the code-derived reference gate accepts Windows evidence paths and still rejects a keyboard registry bypass",
+        "durationMs": 64.249057,
+        "messages": [
+          "AssertionError: expected [Function] to throw an error\n    at Proxy.<anonymous> (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/index.DGdajAO2.js:2288:114)\n    at Proxy.<anonymous> (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/index.DGdajAO2.js:1945:14)\n    at Proxy.methodWrapper (file:///home/randy/lanes/REL0142/node_modules/chai/index.js:1700:25)\n    at /home/randy/lanes/REL0142/test/unit/referenceGenerator.test.mjs:141:49\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20"
+        ]
+      },
+      {
+        "name": "RVHELPREF truth regressions R18 rejects source drift in defaults, scalar enums, actions, keyboards and adapters",
+        "durationMs": 97.5393869999998,
+        "messages": [
+          "AssertionError: expected [Function] to throw an error\n    at Proxy.<anonymous> (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/index.DGdajAO2.js:2288:114)\n    at Proxy.<anonymous> (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/index.DGdajAO2.js:1945:14)\n    at Proxy.methodWrapper (file:///home/randy/lanes/REL0142/node_modules/chai/index.js:1700:25)\n    at /home/randy/lanes/REL0142/test/unit/referenceGenerator.test.mjs:617:49\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20"
+        ]
+      },
+      {
+        "name": "RVHELPREF2 runtime truth regressions B06 rejects free Judge even after its relationship is removed",
+        "durationMs": 51.912311000000045,
+        "messages": [
+          "AssertionError: expected [Function] to throw an error\n    at Proxy.<anonymous> (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/index.DGdajAO2.js:2288:114)\n    at Proxy.<anonymous> (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/index.DGdajAO2.js:1945:14)\n    at Proxy.methodWrapper (file:///home/randy/lanes/REL0142/node_modules/chai/index.js:1700:25)\n    at /home/randy/lanes/REL0142/test/unit/referenceGenerator.test.mjs:976:49\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20"
+        ]
+      }
+    ],
+    "beforeSha256": "05ee62e99e5421ff9390e0982dcc060e759f37db14cc209c7c7d80af1e5906d5",
+    "restoredSha256": "05ee62e99e5421ff9390e0982dcc060e759f37db14cc209c7c7d80af1e5906d5",
+    "restoredByteExact": true
+  },
+  {
+    "drill": "cached-registry-membership",
+    "file": "scripts/lib/reference.mjs",
+    "mutation": {
+      "before": "if (Object.hasOwn(source.WEBVIEW_KEYBINDINGS, context))",
+      "after": "if (true)"
+    },
+    "command": "npx vitest run test/unit/referenceGenerator.test.mjs --maxWorkers=3 --reporter=verbose --reporter=json --outputFile.json=/home/randy/lanes/REL0142/temp/rel0142/round4-drill-cached-registry-membership.json",
+    "exitCode": 1,
+    "expectedFailure": "rechecks registry membership",
+    "failures": [
+      {
+        "name": "the code-derived reference gate rechecks registry membership after caching unchanged keyboard source",
+        "durationMs": 71.52520400000003,
+        "messages": [
+          "AssertionError: expected [Function] to throw an error\n    at Proxy.<anonymous> (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/index.DGdajAO2.js:2288:114)\n    at Proxy.<anonymous> (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/index.DGdajAO2.js:1945:14)\n    at Proxy.methodWrapper (file:///home/randy/lanes/REL0142/node_modules/chai/index.js:1700:25)\n    at /home/randy/lanes/REL0142/test/unit/referenceGenerator.test.mjs:37:70\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20"
+        ]
+      }
+    ],
+    "beforeSha256": "05ee62e99e5421ff9390e0982dcc060e759f37db14cc209c7c7d80af1e5906d5",
+    "restoredSha256": "05ee62e99e5421ff9390e0982dcc060e759f37db14cc209c7c7d80af1e5906d5",
+    "restoredByteExact": true
+  },
+  {
+    "drill": "shared-baseline-model",
+    "file": "test/unit/referenceGenerator.test.mjs",
+    "mutation": {
+      "before": "pkg === manifest && Object.keys(overrides).length === 0",
+      "after": "false"
+    },
+    "command": "npx vitest run test/unit/referenceGenerator.test.mjs --maxWorkers=3 --reporter=verbose --reporter=json --outputFile.json=/home/randy/lanes/REL0142/temp/rel0142/round4-drill-shared-baseline-model.json",
+    "exitCode": 1,
+    "expectedFailure": "shares the unchanged reference",
+    "failures": [
+      {
+        "name": "the code-derived reference gate shares the unchanged reference between lookups",
+        "durationMs": 154.68274199999996,
+        "messages": [
+          "AssertionError: expected { Object (features, commands, ...) } to be { Object (features, commands, ...) } // Object.is equality\n\nIf it should pass with deep equality, replace \"toBe\" with \"toStrictEqual\"\n\nExpected: { Object (features, commands, ...) }\nReceived: serializes to the same string\n\n    at /home/randy/lanes/REL0142/test/unit/referenceGenerator.test.mjs:31:21\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file:///home/randy/lanes/REL0142/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+        ]
+      }
+    ],
+    "beforeSha256": "8e4854a40d813627f59f29416fa2afeb91f66d9de0aa2cf91e567beb53d5ad95",
+    "restoredSha256": "8e4854a40d813627f59f29416fa2afeb91f66d9de0aa2cf91e567beb53d5ad95",
+    "restoredByteExact": true
+  }
+]

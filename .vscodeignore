@@ -35,7 +35,10 @@
 !dist/pageWorker.js
 !dist/report.js
 !dist/recorder.js
+!dist/reference.js
 !dist/webview/main.js
+!dist/webview/referencePage.js
+!dist/webview/referencePage.css
 !dist/webview/chunks/*.js
 !dist/webview/main.css
 !dist/webview/whatsNew.js

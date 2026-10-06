@@ -404,3 +404,8 @@ and a byte-exact restoration recorded before certification.
 
 The Windows release-shell fixtures use Git Bash's installed path when it
 exists, otherwise Bash from PATH. A missing Bash remains a test failure.
+
+Every new command, setting or feature updates `src/shared/featureCatalog.ts`
+in the same PR (and the shared CLI table for runtime commands). Run
+`npm run reference:generate`, then `npm run check:reference`; the gate rejects
+missing descriptions, invalid relationships and stale generated references.

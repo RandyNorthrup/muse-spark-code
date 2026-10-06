@@ -209,6 +209,12 @@ const modelApiOptions = {
   target: HOST_NODE_TARGET,
 }
 
+const referenceOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/shared/reference/referenceEntry.ts'],
+  outfile: 'dist/reference.js',
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const sessionBoardOptions = {
   ...modelApiOptions,
@@ -517,7 +523,19 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  plugins: isProduction ? [compactBrowserEnglish] : [],
+  plugins: [
+    ...(isProduction ? [compactBrowserEnglish] : []),
+    {
+      name: 'reference-page',
+      setup(build) {
+        build.onResolve({ filter: /\/components\/ReferencePage$/ }, (args) =>
+          args.kind === 'dynamic-import'
+            ? { path: './referencePage.js', external: true }
+            : undefined,
+        )
+      },
+    },
+  ],
   charset: 'utf8',
   entryPoints: [WEBVIEW_ENTRY],
   outdir: WEBVIEW_OUTDIR,
@@ -528,6 +546,18 @@ const webviewOptions = {
   chunkNames: 'chunks/[hash]',
   target: BROWSER_TARGET,
   jsx: 'automatic',
+}
+
+const referencePageOptions = {
+  ...common,
+  entryPoints: ['src/webview/components/ReferencePage.tsx'],
+  outfile: 'dist/webview/referencePage.js',
+  platform: 'browser',
+  format: 'esm',
+  target: BROWSER_TARGET,
+  jsx: 'transform',
+  jsxFactory: 'React.createElement',
+  tsconfigRaw: { compilerOptions: { jsx: 'react', jsxFactory: 'React.createElement' } },
 }
 
 // What's New's page script and stylesheet (M99): dist/webview/whatsNew.js
@@ -578,6 +608,7 @@ if (isWatch) {
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
+    esbuild.context(referenceOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(foreignHooksOptions),
     esbuild.context(hookRuntimeOptions),
@@ -612,6 +643,7 @@ if (isWatch) {
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
+    esbuild.context(referencePageOptions),
     esbuild.context(whatsNewPageOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
@@ -629,6 +661,7 @@ if (isWatch) {
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
+    reference: esbuild.build(referenceOptions),
     reviewer: esbuild.build(reviewerOptions),
     foreignHooks: esbuild.build(foreignHooksOptions),
     hookRuntime: esbuild.build(hookRuntimeOptions),
@@ -661,6 +694,7 @@ if (isWatch) {
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
+    referencePage: esbuild.build(referencePageOptions),
     whatsNewPage: esbuild.build(whatsNewPageOptions),
   }
   const acp = esbuild.build(acpOptions)
@@ -699,6 +733,7 @@ if (isWatch) {
   reportSize(MODEL_API_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
+  reportSize('dist/reference.js')
   reportSize(REVIEWER_OUTFILE)
   reportSize(FOREIGN_HOOKS_OUTFILE)
   reportSize(HOOK_RUNTIME_OUTFILE)
