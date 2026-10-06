@@ -90,7 +90,7 @@ export interface ModelApiClientDeps {
   /** 0 ≤ n < 1, for the retry jitter; injected so tests are deterministic. */
   readonly random: () => number
   readonly log: CoreLogger
-  /** How long a reply stream may send nothing; the constant unless a test shortens it. */
+  /** Idle limit for headers and all response-body reads; tests may shorten it. */
   readonly streamIdleMs?: number
   /**
    * Whose settings a request that never reached Meta names (M56): VS Code's
@@ -173,7 +173,8 @@ async function describeFailure(response: Response): Promise<ModelApiError> {
   let body: unknown
   try {
     body = await response.json()
-  } catch {
+  } catch (error: unknown) {
+    if (error instanceof ModelApiError) throw error
     body = undefined
   }
   const parsed = errorBodySchema.safeParse(body)
@@ -334,6 +335,71 @@ export class ModelApiClient {
     return Math.min((suggestedMs ?? exponential) + jitter, MODEL_API_RETRY_MAX_MS)
   }
 
+  /** Bound headers and every body read, without timing local admission, backoff or consumers. */
+  private async fetchWithIdleDeadline(url: string, init: RequestInit): Promise<Response> {
+    const idleMs = this.deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
+    const stalled = fill(UI_TEXT.modelApiStalled, {
+      seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
+    })
+    const stall = new AbortController()
+    const active = AbortSignal.any([
+      stall.signal,
+      ...(init.signal === undefined || init.signal === null ? [] : [init.signal]),
+    ])
+    const within = async <T>(waiting: Promise<T>): Promise<T> => {
+      if (active.aborted) {
+        void waiting.catch(ignoreClosingError)
+        throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
+      }
+      const aborted = whenAborted(active)
+      try {
+        return await withDeadline(Promise.race([waiting, aborted.promise]), idleMs, stalled)
+      } catch (error: unknown) {
+        if (error instanceof DeadlineError) {
+          stall.abort()
+          throw new ModelApiError(stalled, NETWORK_FAILURE_STATUS, undefined, undefined)
+        }
+        throw error
+      } finally {
+        aborted.dispose()
+      }
+    }
+    const response = await within(this.deps.fetch(url, { ...init, signal: active }))
+    if (response.body === null) return response
+    const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader()
+    const cancel = (reason: unknown) => {
+      stall.abort()
+      void reader.cancel(reason).catch(ignoreClosingError)
+      reader.releaseLock()
+    }
+    const body = new ReadableStream<Uint8Array>(
+      {
+        async pull(controller) {
+          try {
+            const next = await within(reader.read())
+            if (next.done) {
+              reader.releaseLock()
+              controller.close()
+            } else {
+              controller.enqueue(next.value)
+            }
+          } catch (error: unknown) {
+            controller.error(error)
+            cancel(error)
+          }
+        },
+        cancel,
+      },
+      // Read only when a consumer asks; local event handling has no provider idle timer.
+      { highWaterMark: 0 },
+    )
+    return new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    })
+  }
+
   /**
    * One request with the documented retry policy. The response is handed
    * back unread on success; a non-2xx status becomes a `ModelApiError`.
@@ -364,7 +430,6 @@ export class ModelApiClient {
     budget?: RetryBudget,
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
-    providerDeadline?: (waiting: Promise<Response>) => Promise<Response>,
   ): Promise<Response> {
     const isRateLimitOnly = init.retries === 'rateLimitOnly' || init.paid !== undefined
     const fixedHeaders =
@@ -468,8 +533,7 @@ export class ModelApiClient {
       const sent = this.pacing.snapshot(account)
       let response: Response
       try {
-        const fetching = this.deps.fetch(url, requestInit)
-        response = await (providerDeadline === undefined ? fetching : providerDeadline(fetching))
+        response = await this.fetchWithIdleDeadline(url, requestInit)
       } catch (error: unknown) {
         if (error instanceof ModelApiError || signal?.aborted === true) {
           throw error instanceof ModelApiError
@@ -625,7 +689,7 @@ export class ModelApiClient {
     let status = NETWORK_FAILURE_STATUS
     let retryAfter: number | undefined
     try {
-      const response = await this.deps.fetch(`${MODEL_API_BASE_URL}/status`, {
+      const response = await this.fetchWithIdleDeadline(`${MODEL_API_BASE_URL}/status`, {
         method: 'GET',
         headers: { Accept: JSON_MEDIA_TYPE },
         signal: AbortSignal.any([
@@ -635,7 +699,10 @@ export class ModelApiClient {
       })
       status = response.status
       retryAfter = retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now())
-      if (!response.ok) throw new Error(UI_TEXT.modelApiStatusUnavailable)
+      if (!response.ok) {
+        void response.body?.cancel().catch(ignoreClosingError)
+        throw new Error(UI_TEXT.modelApiStatusUnavailable)
+      }
       return modelApiStatusSchema.parse(await response.json())
     } catch {
       // Shared scrubber plus an allowlist: provider prose, identifiers, stack and causes never cross.
@@ -700,24 +767,6 @@ export class ModelApiClient {
     ) {
       throw new Error(UI_TEXT.scheduleConfirmationExpired)
     }
-    // Nothing from the server for this long, headers or a frame, ends the
-    // turn (M39); the request is aborted too, which frees the connection.
-    const idleMs = this.deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
-    const stalled = fill(UI_TEXT.modelApiStalled, {
-      seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
-    })
-    const stall = new AbortController()
-    const within = async <T>(waiting: Promise<T>): Promise<T> => {
-      try {
-        return await withDeadline(waiting, idleMs, stalled)
-      } catch (error: unknown) {
-        if (error instanceof DeadlineError) {
-          stall.abort()
-          throw new ModelApiError(stalled, NETWORK_FAILURE_STATUS, undefined, undefined)
-        }
-        throw error
-      }
-    }
     let feature = admitAttempt?.paidFeature
     if (feature === undefined && confirmed !== undefined) feature = 'scheduledPrompts'
     if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search'))
@@ -747,12 +796,11 @@ export class ModelApiClient {
                 .length) + body.max_output_tokens,
           ...(paid !== undefined && { paid }),
         },
-        AbortSignal.any([signal, stall.signal]),
+        signal,
         onRetry,
         budget,
         admitAttempt,
         confirmed,
-        within,
       )
       if (response.body === null) {
         throw new ModelApiError('The response had no body', response.status, undefined, undefined)
@@ -760,7 +808,7 @@ export class ModelApiClient {
       const frames = parseSse(response.body)[Symbol.asyncIterator]()
       try {
         for (;;) {
-          const next = await within(frames.next())
+          const next = await frames.next()
           if (next.done === true) {
             return
           }

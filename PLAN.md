@@ -19446,6 +19446,18 @@ budget, preserving the existing deferred group's 50-KiB cap, and add pacing
 to the Model API lazy inventory. No dependencies, provider wire guesses,
 live calls, merges or full quality run. No review residual is planned.
 
+**FIXM106R2 response-read repair (Kubuntu, 2026-10-06), authorized scope.**
+Close RVM106R2's sole P2: every dispatched fetch and response-body read in
+`client.ts` uses one idle-deadline helper, including success SSE/JSON,
+non-success envelopes, and each retry. Reuse `MODEL_API_STREAM_IDLE_MS` and
+the localized stalled-response error; abort and cancel stalled transport
+reads, propagate the timeout through `describeFailure`, and keep local
+admission/backoff outside the provider timer. Prove stalled error bodies,
+unchanged successful reads, cancellation and timer cleanup with default-timeout
+regressions and byte-exact red drills. Existing absolute deadlines and paid
+retry/liability fences stay in force. No new dependency, wire shape, guard
+widening, merge, live call or aggregate quality run; no residual is planned.
+
 **Lane R implementation (Kubuntu, 2026-10-06).** Captured Meta headers feed
 the request/token bucket; existing subagent, best-of-N and schedule paid
 tags select background pacing. A foreground request never waits for fan-out
@@ -20094,6 +20106,15 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM106R2 response-read repair (Kubuntu, 2026-10-06).** Scoped client and
+dependent regressions use repository-default timeouts and no test filtering.
+Seven red drills fire their named test and restore the client byte-exact;
+receipts are in `docs/certification/m106-r2-review-drills.json`. The rig/common
+brief forbids aggregate quality; full coverage, accessibility, hosted/platform
+and live certification remain with the lead. No gate, timeout, hook, cap or
+paid-call fence is weakened. Final scoped gate results are recorded in
+`docs/certification/m106-r.md`.
 
 **FIXM106R review and bundle repair (Kubuntu, 2026-10-06).** All four
 RVM106R P2s and its P3 are fixed, with failing guard drills and byte-exact
@@ -21277,6 +21298,15 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM106R2 (2026-10-06): no review residual.** RVM106R2's sole P2 is
+  closed by one idle-deadline helper covering dispatched headers and all
+  response-body reads, including non-success envelopes and retries. A
+  stalled body aborts and cancels its transport; `describeFailure` cannot
+  swallow the localized timeout. Local admission/backoff, existing absolute
+  deadlines and paid retry/liability fences keep their original policies.
+  Public-health failures retain the fixed sanitized status error. The
+  previously named integration handoffs remain with their owners.
 
 - **FIXM106R (2026-10-06): no review residual.** RVM106R's four P2s and
   P3 are resolved. Status error fields are allowlisted after the shared

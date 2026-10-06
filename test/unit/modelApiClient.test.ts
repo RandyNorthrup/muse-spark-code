@@ -19,12 +19,13 @@ import {
 import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/modelapi/schemas'
 import {
   MODEL_API_MAX_RETRIES,
+  MODEL_API_STREAM_IDLE_MS,
   PACING_ADMISSION_TIMEOUT_MS,
   PACING_WINDOW_MS,
   UI_TEXT,
 } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeModelApi } from './helpers/fakeModelApi'
+import { fakeModelApi, streamFor } from './helpers/fakeModelApi'
 import { readRateCaptures } from './helpers/modelApiRateCapture'
 
 const body: CreateResponseBody = {
@@ -87,6 +88,226 @@ async function expectResponseFailure(client: ModelApiClient, status: number): Pr
     collect(client.streamResponse(body, new AbortController().signal)),
   ).rejects.toMatchObject({ status })
 }
+
+/** A partial wire body whose teardown also works when a deliberately broken guard hangs. */
+function heldResponse(text: string, status = 200) {
+  let source: ReadableStreamDefaultController<Uint8Array> | undefined
+  const cancel = vi.fn(() => {
+    source = undefined
+  })
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      source = controller
+      controller.enqueue(new TextEncoder().encode(text))
+    },
+    cancel,
+  })
+  return {
+    response: new Response(stream, { status }),
+    cancel,
+    close: () => {
+      source?.close()
+      source = undefined
+    },
+  }
+}
+
+async function recordOutcome(work: Promise<unknown>, outcomes: unknown[]): Promise<void> {
+  try {
+    outcomes.push(await work)
+  } catch (error: unknown) {
+    outcomes.push(error)
+  }
+}
+
+describe('M106 response read deadlines', () => {
+  it.each([401, 504])(
+    'times out a stalled HTTP %i error body at the repository idle deadline',
+    async (status) => {
+      vi.useFakeTimers()
+      const stop = new AbortController()
+      const wire = heldResponse('{"error":', status)
+      try {
+        let requestSignal: AbortSignal | undefined
+        const fetch = vi.fn(
+          (_input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) => {
+            requestSignal = init?.signal ?? undefined
+            return Promise.resolve(wire.response)
+          },
+        )
+        const t = setup(undefined, fetch)
+        const outcomes: unknown[] = []
+        const pending = recordOutcome(collect(t.client.streamResponse(body, stop.signal)), outcomes)
+        await vi.advanceTimersByTimeAsync(MODEL_API_STREAM_IDLE_MS)
+        expect(outcomes).toHaveLength(1)
+        expect(outcomes[0]).toMatchObject({
+          name: 'ModelApiError',
+          status: 0,
+          message: expect.stringContaining('sent nothing for 300 s'),
+        })
+        expect(requestSignal?.aborted).toBe(true)
+        expect(wire.cancel).toHaveBeenCalledOnce()
+        expect(fetch).toHaveBeenCalledOnce()
+        expect(t.sleeps).toEqual([])
+        await pending
+        expect(vi.getTimerCount()).toBe(0)
+      } finally {
+        stop.abort()
+        wire.close()
+        vi.useRealTimers()
+      }
+    },
+  )
+
+  it('stops a stalled error-body read immediately even when the transport ignores abort', async () => {
+    vi.useFakeTimers()
+    const stop = new AbortController()
+    const wire = heldResponse('{"error":', 504)
+    try {
+      const t = setup(undefined, () => Promise.resolve(wire.response))
+      const outcomes: unknown[] = []
+      const pending = recordOutcome(collect(t.client.streamResponse(body, stop.signal)), outcomes)
+      await vi.advanceTimersByTimeAsync(0)
+      stop.abort()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(outcomes).toHaveLength(1)
+      expect(outcomes[0]).toMatchObject({ status: 0, message: 'cancelled' })
+      await pending
+      expect(wire.cancel).toHaveBeenCalledOnce()
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      wire.close()
+      vi.useRealTimers()
+    }
+  })
+
+  const image = {
+    model: 'muse-image-1.0',
+    prompt: 'a cat',
+    n: 1,
+    size: '1024x1024',
+    response_format: 'b64_json',
+    output_format: 'png',
+  } as const
+  const { stream: _stream, ...countable } = body
+  it.each([
+    { path: 'models', read: (client: ModelApiClient) => client.listModels() },
+    { path: 'input_tokens', read: (client: ModelApiClient) => client.countInputTokens(countable) },
+    {
+      path: 'images/generations',
+      read: (client: ModelApiClient) => client.createImage(image, new AbortController().signal),
+    },
+    {
+      path: 'images/edits',
+      read: (client: ModelApiClient) =>
+        client.editImage({ ...image, images: [] }, new AbortController().signal),
+    },
+    { path: 'status', read: (client: ModelApiClient) => client.readServiceStatus() },
+  ])('bounds a stalled successful JSON read on $path', async ({ path, read }) => {
+    vi.useFakeTimers()
+    const wire = heldResponse('{')
+    try {
+      let requestSignal: AbortSignal | undefined
+      const t = setup(
+        undefined,
+        (_input, init) => {
+          requestSignal = init?.signal ?? undefined
+          return Promise.resolve(wire.response)
+        },
+        50,
+      )
+      const outcomes: unknown[] = []
+      const pending = recordOutcome(read(t.client), outcomes)
+      await vi.advanceTimersByTimeAsync(50)
+      expect(outcomes).toHaveLength(1)
+      expect(outcomes[0]).toMatchObject({
+        name: 'ModelApiError',
+        message:
+          path === 'status'
+            ? UI_TEXT.modelApiStatusUnavailable
+            : expect.stringContaining('sent nothing'),
+      })
+      expect(requestSignal?.aborted).toBe(true)
+      expect(wire.cancel).toHaveBeenCalledOnce()
+      await pending
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      wire.close()
+      vi.useRealTimers()
+    }
+  })
+
+  it('cancels a rejected public status body without reading provider prose', async () => {
+    const wire = heldResponse('{"error":', 504)
+    try {
+      const t = setup(undefined, () => Promise.resolve(wire.response))
+      await expect(t.client.readServiceStatus()).rejects.toMatchObject({
+        status: 504,
+        message: UI_TEXT.modelApiStatusUnavailable,
+      })
+      expect(wire.cancel).toHaveBeenCalledOnce()
+    } finally {
+      wire.close()
+    }
+  })
+
+  it('keeps successful SSE events unchanged while chunks arrive within each idle deadline', async () => {
+    vi.useFakeTimers()
+    try {
+      const text = streamFor({ text: 'complete', reasoning: 'think', doneSentinel: true }, 'fixed')
+      const baseline = setup(undefined, () => Promise.resolve(new Response(text)))
+      const expected = await collect(
+        baseline.client.streamResponse(body, new AbortController().signal),
+      )
+      const bytes = new TextEncoder().encode(text)
+      let offset = 0
+      const chunkSize = Math.ceil(bytes.length / 3)
+      const stream = new ReadableStream<Uint8Array>(
+        {
+          async pull(controller) {
+            await new Promise((resolve) => setTimeout(resolve, 40))
+            controller.enqueue(bytes.subarray(offset, offset + chunkSize))
+            offset += chunkSize
+            if (offset >= bytes.length) controller.close()
+          },
+        },
+        { highWaterMark: 0 },
+      )
+      const t = setup(undefined, () => Promise.resolve(new Response(stream)), 50)
+      const pending = collect(t.client.streamResponse(body, new AbortController().signal))
+      await vi.advanceTimersByTimeAsync(120)
+      await expect(pending).resolves.toEqual(expected)
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('gives each retry fresh network deadlines without timing the retry pause', async () => {
+    vi.useFakeTimers()
+    try {
+      const api = fakeModelApi()
+      api.script({ httpError: { status: 504 } }, { text: 'complete' })
+      const t = setup(
+        undefined,
+        async (input, init) => {
+          await new Promise((resolve) => setTimeout(resolve, 40))
+          return await api.fetch(input, init)
+        },
+        50,
+        { sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)), random: () => 0 },
+      )
+      const pending = collect(t.client.streamResponse(body, new AbortController().signal))
+      await vi.advanceTimersByTimeAsync(1080)
+      const events = await pending
+      expect(events.at(-1)?.type).toBe('response.completed')
+      expect(api.responseBodies()).toHaveLength(2)
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
 
 describe('M106 client pacing and retry boundaries', () => {
   it('dispatches six one-RPM background requests after admission without starting provider idle timing in the queue', async () => {

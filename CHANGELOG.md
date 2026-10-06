@@ -22,6 +22,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Model API response reads now share one idle deadline for headers, streaming
+  replies and JSON bodies, including failed HTTP responses and retries.
+  Stalled reads abort and cancel the transport with the existing localized
+  timeout error; local pacing and retry waits stay outside that deadline.
 - M106 fan-out pacing now retains concurrent request/token debits when late
   response headers arrive, reserves half the observed token budget for the
   foreground, and separates bounded local admission waits from provider idle
