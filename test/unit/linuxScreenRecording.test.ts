@@ -300,10 +300,18 @@ describe('Linux portal recorder', () => {
     'rejects sniffed invalid output: %s',
     async (kind) => {
       const h = setup()
+      const sizeBytes =
+        new Map([
+          ['empty', 0],
+          ['bytes', 209_715_201],
+        ]).get(kind) ?? 100
+      let durationSeconds: number | null = 1
+      if (kind === 'duration') durationSeconds = 11
+      else if (kind === 'unknown') durationSeconds = null
       const info = {
         ...INFO,
-        sizeBytes: kind === 'empty' ? 0 : kind === 'bytes' ? 209_715_201 : 100,
-        durationSeconds: kind === 'duration' ? 11 : kind === 'unknown' ? null : 1,
+        sizeBytes,
+        durationSeconds,
         hasSoundtrack: kind === 'sound',
         mediaType: kind === 'type' ? 'video/webm' : 'video/mp4',
         ...(kind === 'shape' && { bytes: 'canary' }),

@@ -129,11 +129,158 @@ Do not advertise those entry points as shipped on this contracts-only base.
   hard writer byte cap, EOS grace/kill, parent crash, desktop sleep and cleanup.
   The injected ports require these behaviors; this lane's fakes cannot certify
   the host bindings. This rig has ffmpeg/gdbus but no gst-launch-1.0.
-- Playwright Chromium with a synthetic capture device, real mp4 playback,
-  permission denial and browser close; Safari/unsupported browser receipts.
+- Browser permission denial and process-close receipts; Safari/unsupported
+  browser receipts. Chromium's synthetic capture and real mp4 playback are
+  completed below, with no actual desktop or microphone.
 - E3's guarded upload, M2/C's model capability/contributor/paid fences, W's
   lazy chunk registration/budget/split checks and the equal-editor matrix.
   Native Linux logic imports no VS Code API and the component uses no editor
   API; the runtime and native bridges bind the same driver port.
 - Full quality/coverage/a11y/security and Windows/macOS CI are the lead's gate,
   as the rig brief forbids this lane's full quality run and other lane edits.
+
+## Companion guard drills and fixes
+
+**34 companion mutations plus 8 additional mutations** each failed the named
+assertion, exited 1, and restored the file byte-exact with SHA-256. Together
+with the first Linux set this is **79 deliberate red drills**. Each invocation
+ran an entire owned test file with `--maxWorkers=3` and the repository's default
+timeout; no test-name filter or timeout override was used.
+
+The asynchronous Stop test first failed on the unguarded preview-URL callback.
+The controller now catches that callback's failure, releases capture and the
+blob, and reports the fixed localized refusal without exposing exception text.
+Late upload success/failure cannot cancel or overwrite a new recording.
+The default browser port stops the display immediately even while microphone
+permission is pending, and closes the mixer and its output tracks too.
+
+| Broken guard/action                  | Named failing test                                                                         |
+| ------------------------------------ | ------------------------------------------------------------------------------------------ |
+| companion interactive entry          | refuses non-user starts before capture                                                     |
+| companion mp4 support                | refuses an unsupported browser by name before permission                                   |
+| companion options bounds             | refuses invalid recording bounds 0 before capture                                          |
+| companion single capture             | refuses concurrent starts while the picker is pending                                      |
+| pending capture epoch                | cancels pending permissions and releases late resources without starting a recorder        |
+| nonempty track set                   | cleans failure at empty-tracks                                                             |
+| live tracks                          | cleans failure at track                                                                    |
+| late recorder event epoch            | discards without uploading, even when a late stop callback arrives                         |
+| retained chunk byte cap              | rejects the first over-limit chunk, stops every track and never creates a preview          |
+| nonempty mp4 output                  | cleans failure at empty-output                                                             |
+| OS track end                         | stops when the operating system ends a capture track                                       |
+| companion duration maximum           | counts down and stops at the maximum using repository-default test timeout                 |
+| companion sleep detection            | stops after sleep or wall clock jump -3000 without extending the recording                 |
+| companion stalled clock              | stops after sleep or wall clock jump 3000 without extending the recording                  |
+| stop every capture track             | stops live tracks immediately while the final mp4 flush is pending                         |
+| attach only after preview            | refuses a second Attach while its first upload is pending                                  |
+| abort pending permission             | cancels pending permissions and releases late resources without starting a recorder        |
+| abort upload on close                | aborts upload on owner close and ignores its late completion                               |
+| release private blob URL             | attaches only after preview and releases the blob and URL after successful upload          |
+| release capture resources            | passes explicit sound selections false/false and stops to preview without uploading        |
+| native browser mp4 capability        | probes mp4 support without requesting capture and refuses absent browser APIs              |
+| request system audio opt-in          | requests silent display by default, removes unsolicited audio and never opens a microphone |
+| remove unsolicited system audio      | requests silent display by default, removes unsolicited audio and never opens a microphone |
+| request microphone opt-in            | requests silent display by default, removes unsolicited audio and never opens a microphone |
+| selected system audio exists         | cleans denied or missing system audio                                                      |
+| selected microphone exists           | cleans denied or missing microphone audio                                                  |
+| browser lifecycle cancellation       | refuses capture after its lifecycle was already aborted                                    |
+| release pending capture immediately  | stops screen tracks immediately when owner closes while microphone consent is pending      |
+| release audio mixer output           | mixes selected microphone, with system audio false                                         |
+| inactive recorder stop               | does not stop an already inactive MediaRecorder a second time                              |
+| trusted UI click                     | starts only from the user button and leaves both audio boxes unchecked                     |
+| recording visible indicator          | shows a live countdown, disables sound changes, and gives Stop and Discard                 |
+| audio controls locked during capture | shows a live countdown, disables sound changes, and gives Stop and Discard                 |
+| owner pagehide                       | allows cancelling the permission picker and cancels on pagehide and unmount                |
+| asynchronous Stop error              | handles a preview URL failure from an asynchronous recorder Stop event                     |
+| actual mp4 encoder format            | requests silent display by default, removes unsolicited audio and never opens a microphone |
+| no native startup probe              | does nothing at construction or availability except probe verified encoder support         |
+| encoder probe refusal                | availability refuses a failed encoder probe by name                                        |
+| latest metadata schema               | disposes an invalid latest preview: schema                                                 |
+| separator normalization              | normalizes Windows separators and keeps GNOME WebM for the explicit conversion offer       |
+| no companion startup capture         | does not capture or upload at construction, attach or Stop before Start                    |
+| late upload/recorder ownership       | ignores late upload resolve while a new recording is running                               |
+
+Restoration hashes (source versions at drill time):
+
+- `src/webview/media/recorder/browserRecorder.ts`: `540a3b12798960ce1d0805af3d2df37283f298de10a1189ac1dc57f79acb519b`
+- `src/webview/media/recorder/browserCapture.ts`: `dc0fef1d5d983889ef636e627ce2c493294edc1d161a4e989133c566f1cd3603`
+- `src/webview/media/recorder/CompanionRecorder.tsx`: `facd6278b8d86b6abacf2026085e528bfe9e8906c72fae972c304d4c6aeca7c8`
+- `src/core/media/record/linux.ts`: `fb510a4a0dc2a4a39600aad6ff9296bcc3cf834c10d5cb81ccb7e24fb6fcb14f`
+
+Two fixture issues found by the real gates were fixed: repeated pending-upload
+setup is shared by the tests, and nested native fixture ternaries became plain
+branches because ESLint's automatic parentheses and Prettier disagreed. No
+rule, ignore, threshold or test deadline changed.
+
+## Chromium and accessibility receipts
+
+`m105-r3-browser-receipt.json` records headless Chrome 150 with its synthetic
+capture device and a fresh private profile. DISPLAY/Wayland and credential
+variables were excluded from the browser environment. A trusted Start click
+recorded `video/mp4`; Stop produced a playable 320×240 clip, **1.0472 seconds,
+22,012 bytes**, readyState 4. Nothing was attached before the explicit Attach
+click; one in-memory fake upload callback then received the mp4. No actual
+desktop, microphone, provider or model was used, and the profile was removed.
+The generated preview is `m105-r3-companion-preview-320.png`.
+
+The same real browser checked the preview at **320 and 1200 px in light, dark,
+high-contrast light and high-contrast dark**. There was no horizontal overflow
+and **zero axe violations**. `m105-r3-a11y-receipt.json` preserves every result:
+**video-caption was undecided in all eight scans**. The generated clip is
+silent, but arbitrary user recordings can contain speech; caption review and
+caption integration remain with E3/W. This is **not** a passing repository
+accessibility-gate claim. No empty caption track, axe ignore or exemption was
+added. Initial page-heading/landmark findings were in the standalone test
+page; its real title was placed inside its main landmark before the final scan.
+
+## Final lane validation (Kubuntu)
+
+- Final Vitest batches, repository default timeout, at most three files/run:
+  `linuxScreenRecording`, `browserScreenRecording`, `browserCapture`:
+  **106/106 passed**; `CompanionRecorder`: **6/6 passed**. Total **112/112**.
+- `npm run typecheck`: **passed**, all five projects (host, webview, unit,
+  end-to-end and integration).
+- ESLint over all changed source/tests, Stylelint on the new CSS and Prettier
+  over changed text: passed. Localization: **14 tables, 164 manifest strings,
+  596 source files, zero problems**. Every displayed phrase uses the existing
+  lane-0 translated tables at runtime; no string or setting was added here.
+- Dead-code check: passed. Duplication: **1,175 files, zero clones**, after
+  sharing the repeated pending-upload fixture. Owned module dependency graph:
+  **no cycles**.
+- Host API check: **one stale generated count only**, `node:path` importers
+  **84 → 85**; 332 VS Code APIs and 31 importing files unchanged. W owns
+  `docs/ide-compatibility/host-api.md` and must regenerate it with the merged
+  source. No `vscode` import was added to the portable implementation.
+- No dependencies installed, npm pins changed, OS settings changed, credentials
+  read, live/paid/model calls made, or provider uploads created. No merge,
+  rebase or push. Commits use the repository's hooks and explicit paths.
+
+## Deferred module measurements and W binding
+
+The isolated production-style native build used the repository's real
+`sharedUiText` and `sharedValidation` plugins: **13,142 bytes (12.8 KiB)**.
+The browser modules with React/constants/l10n/media validation shared by the
+companion page were **7,375 JS bytes (7.2 KiB)**, plus the small recorder CSS.
+These are module measurements, not registered shipped chunks. W must bind and
+budget `dist/screenRecord.js` and a **separate lazy companion page chunk**;
+this browser module cannot be added to the nearly-full chat optional total.
+No existing cap is raised. W's lazy Node factory must install the caller's
+language table before constructing the driver; companion modules share the
+page's installed-language state. Every helper/plugin probe as well as the
+encoder launch uses the trusted-path verifier.
+
+`npm run build`: **exit 0**, production compilation, hard size budgets,
+bundle splits, host-global checks and third-party notices. The final build's
+output was saved in gitignored `temp/r3-final-build.log` because the earlier
+terminal receipt was truncated; no gate was changed. Existing shipped sizes:
+
+| Bundle                           | Built size | Hard budget |
+| -------------------------------- | ---------- | ----------- |
+| `dist/extension.js`              | 436.7 KiB  | 600 KiB     |
+| `dist/modelApi.js`               | 446.7 KiB  | 475 KiB     |
+| `dist/checkpointStore.js`        | 77.0 KiB   | 225 KiB     |
+| webview main plus static imports | 898.9 KiB  | 900 KiB     |
+| webview deferred JS              | 49.7 KiB   | 50 KiB      |
+
+This production build verifies the current registered entry points. R3's new
+modules remain behind the named W/E3 bindings above; their isolated module
+measurements do not claim those bindings or budgets are already registered.
