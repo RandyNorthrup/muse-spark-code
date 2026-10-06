@@ -2684,6 +2684,12 @@
     "recordingStop": "Остановить запись",
     "uploadDeleteFailed": "Не удалось удалить {name}: {reason}",
     "conversionFailed": "Не удалось преобразовать: {reason}",
-    "replayMetadata": "Медиа: {name} ({duration}, {size})"
+    "replayMetadata": "Медиа: {name} ({duration}, {size})",
+    "filesOurs": "Загружено этим приложением",
+    "filesOtherApp": "Из другого приложения",
+    "filesEmpty": "Нет загруженных файлов.",
+    "fileNoExpiry": "Срок действия не задан",
+    "fileSessions": "Сеансы: {sessions}",
+    "filesInUse": "Перед удалением уберите этот файл из ссылающихся на него сеансов."
   }
 }

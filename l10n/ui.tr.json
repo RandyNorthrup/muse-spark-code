@@ -2494,6 +2494,12 @@
     "recordingStop": "Kaydı durdur",
     "uploadDeleteFailed": "{name} silinemedi: {reason}",
     "conversionFailed": "Dönüştürme başarısız: {reason}",
-    "replayMetadata": "Medya: {name} ({duration}, {size})"
+    "replayMetadata": "Medya: {name} ({duration}, {size})",
+    "filesOurs": "Bu uygulama tarafından yüklendi",
+    "filesOtherApp": "Başka bir uygulamadan",
+    "filesEmpty": "Yüklenmiş dosya yok.",
+    "fileNoExpiry": "Son kullanma tarihi ayarlanmamış",
+    "fileSessions": "Oturumlar: {sessions}",
+    "filesInUse": "Silmeden önce bu dosyayı bağlı olduğu oturumlardan kaldırın."
   }
 }

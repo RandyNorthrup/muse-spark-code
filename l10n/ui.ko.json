@@ -2399,6 +2399,12 @@
     "recordingStop": "녹화 중지",
     "uploadDeleteFailed": "{name}을(를) 삭제하지 못했습니다: {reason}",
     "conversionFailed": "변환 실패: {reason}",
-    "replayMetadata": "미디어: {name} ({duration}, {size})"
+    "replayMetadata": "미디어: {name} ({duration}, {size})",
+    "filesOurs": "이 앱에서 업로드함",
+    "filesOtherApp": "다른 앱에서 가져옴",
+    "filesEmpty": "업로드된 파일이 없습니다.",
+    "fileNoExpiry": "만료일이 설정되지 않음",
+    "fileSessions": "세션: {sessions}",
+    "filesInUse": "삭제하기 전에 이 파일을 참조하는 세션에서 제거하세요."
   }
 }

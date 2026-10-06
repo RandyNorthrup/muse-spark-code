@@ -445,6 +445,7 @@ function setup(
     /** The window's Auto reviewer on Muse Code (M90). */
     museCodeReviewer?: ConversationDeps['museCodeReviewer']
     judge?: ConversationDeps['judge']
+    uploadedFiles?: ConversationDeps['uploadedFiles']
   } = {},
 ) {
   const planFiles = fakePlanFiles()
@@ -689,6 +690,7 @@ function setup(
           : { signInMethod: 'apiKey' as const },
       ),
     usageInsights: () => Promise.resolve(options.usageInsights),
+    ...(options.uploadedFiles !== undefined && { uploadedFiles: options.uploadedFiles }),
     ensureHost: async () => {
       await options.beforeEnsureHost?.()
       const gate = options.hostGate?.current
@@ -4154,6 +4156,80 @@ describe('ConversationController: account & usage (M8)', () => {
     t.server.notify('usage/changed', usage)
     await settle()
     expect(t.surface.posted.filter((message) => message.type === 'usageReport')).toHaveLength(3)
+  })
+
+  it('reads uploaded account files independently of sign-in and delegates explicit cleanup with confirmation', async () => {
+    const report = {
+      provider: 'meta',
+      isReadOnly: true,
+      poolBytes: 100,
+      usedBytes: 3,
+      files: [
+        {
+          fileId: 'file-one',
+          name: 'clip.mp4',
+          bytes: 3,
+          expiresAt: 1_800_000_000,
+          ours: true,
+          sessions: ['s1'],
+        },
+      ],
+    }
+    const port = {
+      read: vi.fn(() => Promise.resolve(report)),
+      post: vi.fn(),
+      deleteFile: vi.fn(async (_id: string, isConfirmed: (name: string) => Promise<boolean>) => {
+        await isConfirmed('other.pdf')
+      }),
+      deleteAllOurs: vi.fn(() => Promise.resolve()),
+      confirmForeign: vi.fn(() => Promise.resolve(false)),
+    }
+    const t = setup({ status: 'signedOut', uploadedFiles: port })
+    await t.controller.readUploadedFiles()
+    expect(port.post).toHaveBeenCalledWith(report)
+    await t.controller.deleteUploadedFiles('file-other')
+    expect(port.confirmForeign).toHaveBeenCalledWith(
+      'Another app may still use other.pdf. Delete it anyway?',
+    )
+    await t.controller.deleteUploadedFiles()
+    expect(port.deleteAllOurs).toHaveBeenCalledOnce()
+  })
+
+  it('refuses byte-bearing uploaded-file reports and does not post after disposal', async () => {
+    const port = {
+      read: vi.fn(() =>
+        Promise.resolve({
+          provider: 'meta',
+          isReadOnly: false,
+          poolBytes: 100,
+          usedBytes: 3,
+          files: [
+            {
+              fileId: 'file-one',
+              name: 'clip.mp4',
+              bytes: 3,
+              ours: true,
+              sessions: [],
+              file_data: 'data:CANARY',
+            },
+          ],
+        }),
+      ),
+      post: vi.fn(),
+      deleteFile: vi.fn(() => Promise.resolve()),
+      deleteAllOurs: vi.fn(() => Promise.resolve()),
+      confirmForeign: vi.fn(() => Promise.resolve(false)),
+    }
+    const t = setup({ uploadedFiles: port })
+    await t.controller.handle({ type: 'readUsage' })
+    expect(port.post).not.toHaveBeenCalled()
+    expect(
+      t.surface.posted.some((message) => message.type === 'notice' && message.level === 'error'),
+    ).toBe(true)
+    t.controller.dispose()
+    port.read.mockClear()
+    await t.controller.readUploadedFiles()
+    expect(port.read).not.toHaveBeenCalled()
   })
 
   it('reports a host failure as a notice', async () => {

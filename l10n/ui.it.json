@@ -2589,6 +2589,12 @@
     "recordingStop": "Ferma registrazione",
     "uploadDeleteFailed": "Impossibile eliminare {name}: {reason}",
     "conversionFailed": "Conversione non riuscita: {reason}",
-    "replayMetadata": "Contenuto multimediale: {name} ({duration}, {size})"
+    "replayMetadata": "Contenuto multimediale: {name} ({duration}, {size})",
+    "filesOurs": "Caricato da questa app",
+    "filesOtherApp": "Da un’altra app",
+    "filesEmpty": "Nessun file caricato.",
+    "fileNoExpiry": "Nessuna scadenza impostata",
+    "fileSessions": "Sessioni: {sessions}",
+    "filesInUse": "Rimuovi questo file dalle sue sessioni prima di eliminarlo."
   }
 }

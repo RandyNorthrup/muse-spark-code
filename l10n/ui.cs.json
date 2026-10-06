@@ -2684,6 +2684,12 @@
     "recordingStop": "Zastavit nahrávání",
     "uploadDeleteFailed": "Soubor {name} nelze smazat: {reason}",
     "conversionFailed": "Převod selhal: {reason}",
-    "replayMetadata": "Média: {name} ({duration}, {size})"
+    "replayMetadata": "Média: {name} ({duration}, {size})",
+    "filesOurs": "Nahráno touto aplikací",
+    "filesOtherApp": "Z jiné aplikace",
+    "filesEmpty": "Žádné nahrané soubory.",
+    "fileNoExpiry": "Doba platnosti není nastavena",
+    "fileSessions": "Relace: {sessions}",
+    "filesInUse": "Před odstraněním odeberte tento soubor z jeho relací."
   }
 }

@@ -49,13 +49,22 @@ export interface FilesApiDeps {
   readonly client: Pick<ModelApiClient, 'requestFile'>
   readonly provider: string
   /** U6c's storage decision and any necessary paid admission, supplied by the owner. */
-  readonly authorizeUpload: (signal: AbortSignal) => Promise<void>
+  readonly authorizeUpload: (
+    signal: AbortSignal,
+    storage: { readonly bytes: number; readonly expirySeconds: number; readonly provider: string },
+  ) => Promise<void>
   readonly maxBytes?: number
   readonly expirySeconds?: number
+  readonly expectedAccountId?: string
 }
 
 export class FilesApi {
   public constructor(private readonly deps: FilesApiDeps) {}
+
+  /** Bind every request at final dispatch to the ledger's key digest. */
+  public forAccount(accountId: string): FilesApi {
+    return new FilesApi({ ...this.deps, expectedAccountId: accountId })
+  }
 
   public async upload(
     source: UploadSource,
@@ -87,7 +96,11 @@ export class FilesApi {
     ) {
       throw new Error('Invalid upload metadata')
     }
-    await this.deps.authorizeUpload(signal)
+    await this.deps.authorizeUpload(signal, {
+      bytes: source.bytes,
+      expirySeconds: expiry,
+      provider: this.deps.provider,
+    })
     signal.throwIfAborted()
     const active = AbortSignal.any([signal, AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)])
     const boundary = `muse-${randomUUID()}`
@@ -129,13 +142,22 @@ export class FilesApi {
         await iterator.return()
       },
     })
-    let created: ProviderFile | undefined
+    let createdId: string | undefined
     try {
-      const response = await this.deps.client.requestFile('/files', 'POST', active, {
-        body,
-        contentType: `multipart/form-data; boundary=${boundary}`,
-      })
-      created = fileSchema.parse(await response.json())
+      const response = await this.deps.client.requestFile(
+        '/files',
+        'POST',
+        active,
+        {
+          body,
+          contentType: `multipart/form-data; boundary=${boundary}`,
+        },
+        this.deps.expectedAccountId,
+      )
+      const raw: unknown = await response.json()
+      const identity = z.object({ id: fileId }).safeParse(raw)
+      if (identity.success) createdId = identity.data.id
+      const created = fileSchema.parse(raw)
       active.throwIfAborted()
       if (
         sha256 === undefined ||
@@ -157,7 +179,7 @@ export class FilesApi {
       })
     } catch (error: unknown) {
       // A known receipt is attributable; a lost receipt is bounded by expiry.
-      if (created !== undefined) await this.delete(created.id)
+      if (createdId !== undefined) await this.delete(createdId)
       throw error
     } finally {
       await iterator.return()
@@ -169,6 +191,8 @@ export class FilesApi {
       `/files/${fileId.parse(id)}`,
       'GET',
       signal ?? AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      undefined,
+      this.deps.expectedAccountId,
     )
     const result = fileSchema.parse(await response.json())
     if (result.id !== id) throw new Error('Mismatched file receipt')
@@ -181,7 +205,13 @@ export class FilesApi {
     let route = '/files'
     const active = signal ?? AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
     for (;;) {
-      const response = await this.deps.client.requestFile(route, 'GET', active)
+      const response = await this.deps.client.requestFile(
+        route,
+        'GET',
+        active,
+        undefined,
+        this.deps.expectedAccountId,
+      )
       const page = listSchema.parse(await response.json())
       for (const file of page.data) {
         if (files.every((known) => known.id !== file.id)) files.push(file)
@@ -199,8 +229,21 @@ export class FilesApi {
       `/files/${fileId.parse(id)}`,
       'DELETE',
       signal ?? AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      undefined,
+      this.deps.expectedAccountId,
     )
     const result = deletionSchema.parse(await response.json())
     if (result.id !== id) throw new Error('Mismatched delete receipt')
+  }
+
+  /** Provider-neutral metadata for the shared ownership ledger and account UI. */
+  public async accountFiles() {
+    const listed = await this.list()
+    return listed.map((file) => ({
+      fileId: file.id,
+      name: file.filename,
+      bytes: file.bytes,
+      ...(file.expires_at !== undefined && { expiresAt: file.expires_at }),
+    }))
   }
 }

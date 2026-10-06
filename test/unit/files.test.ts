@@ -54,6 +54,18 @@ const noCredentialTransport: typeof fetch = async (url, init) =>
     headers: { 'Content-Type': new Headers(init?.headers).get('Content-Type') ?? '' },
   })
 
+function uploadReply(
+  apiClient: ModelApiClient,
+  replace: (response: Response) => Promise<Response>,
+): Pick<ModelApiClient, 'requestFile'> {
+  return {
+    requestFile: async (...args) => {
+      const response = await apiClient.requestFile(...args)
+      return args[1] === 'POST' ? await replace(response) : response
+    },
+  }
+}
+
 async function setup(overrides: Partial<FilesApiDeps> = {}) {
   let hasFile = true
   const server = await fakeFilesServer({
@@ -155,15 +167,11 @@ describe('Files API captured U6 wire', () => {
     const api = new FilesApi({
       provider: 'meta',
       authorizeUpload: () => Promise.resolve(),
-      client: {
-        requestFile: async (route, method, signal, multipart) => {
-          const response = await apiClient.requestFile(route, method, signal, multipart)
-          if (method !== 'POST') return response
-          const received = Response.json(await response.json())
-          stopped.abort()
-          return received
-        },
-      },
+      client: uploadReply(apiClient, async (response) => {
+        const received = Response.json(await response.json())
+        stopped.abort()
+        return received
+      }),
     })
     await expect(api.upload(source, stopped.signal)).rejects.toThrow()
     expect(server.deletedIds).toEqual([capture.id])
@@ -175,17 +183,32 @@ describe('Files API captured U6 wire', () => {
     const api = new FilesApi({
       provider: 'meta',
       authorizeUpload: () => Promise.resolve(),
-      client: {
-        requestFile: async (route, method, signal, multipart) => {
-          const response = await apiClient.requestFile(route, method, signal, multipart)
-          return method === 'POST' ? Response.json(withoutExpiry) : response
-        },
-      },
+      client: uploadReply(apiClient, () => Promise.resolve(Response.json(withoutExpiry))),
     })
     await expect(api.upload(source, new AbortController().signal)).rejects.toThrow(
       'Invalid upload receipt',
     )
     expect(server.deletedIds).toEqual([capture.id])
+  })
+
+  it('deletes an identifiable malformed receipt and passes storage units to admission', async () => {
+    const { source, apiClient, server } = await setup()
+    const authorizeUpload = vi.fn(() => Promise.resolve())
+    const api = new FilesApi({
+      provider: 'meta',
+      authorizeUpload,
+      client: uploadReply(apiClient, () =>
+        Promise.resolve(Response.json({ ...capture, expires_at: -1 })),
+      ),
+    })
+    const signal = new AbortController().signal
+    await expect(api.upload(source, signal)).rejects.toThrow()
+    expect(server.deletedIds).toEqual([capture.id])
+    expect(authorizeUpload).toHaveBeenCalledWith(signal, {
+      bytes: source.bytes,
+      expirySeconds: 604_800,
+      provider: 'meta',
+    })
   })
 
   it('refuses expiry, size, metadata and storage admission before reading or dispatching', async () => {
@@ -259,14 +282,9 @@ describe('Files API captured U6 wire', () => {
     const api = new FilesApi({
       provider: 'meta',
       authorizeUpload: () => Promise.resolve(),
-      client: {
-        requestFile: async (route, method, signal, multipart) => {
-          const response = await apiClient.requestFile(route, method, signal, multipart)
-          return method === 'POST'
-            ? Response.json({ ...capture, bytes: source.bytes + 1 })
-            : response
-        },
-      },
+      client: uploadReply(apiClient, () =>
+        Promise.resolve(Response.json({ ...capture, bytes: source.bytes + 1 })),
+      ),
     })
     await expect(
       api.upload({ ...source, bytes: source.bytes + 1 }, new AbortController().signal),
@@ -289,8 +307,12 @@ describe('Files API captured U6 wire', () => {
       Promise.resolve(Response.json({ ...deletion, deleted: false })),
     )
     await expect(api.delete(capture.id)).rejects.toThrow()
+    requestFile.mockImplementation(() =>
+      Promise.resolve(Response.json({ ...deletion, id: 'file-other' })),
+    )
+    await expect(api.delete(capture.id)).rejects.toThrow('Mismatched delete receipt')
     await expect(api.delete('../responses')).rejects.toThrow()
-    expect(requestFile).toHaveBeenCalledTimes(3)
+    expect(requestFile).toHaveBeenCalledTimes(4)
   })
 
   it('passes a streaming body to the configured transport with no ambiguous retry or redirect', async () => {
@@ -323,5 +345,41 @@ describe('Files API captured U6 wire', () => {
       apiClient.requestFile('/files/../responses', 'GET', new AbortController().signal),
     ).rejects.toThrow('Invalid Files route')
     expect(sent).toHaveBeenCalledOnce()
+  })
+
+  it('checks the account digest after reading the key and before dispatch', async () => {
+    const sent = vi.fn<typeof fetch>(() => Promise.resolve(Response.json(capture)))
+    const transport = client('https://api.meta.ai/v1', sent, () =>
+      Promise.resolve('fixture-authorization'),
+    )
+    const api = new FilesApi({
+      provider: 'meta',
+      client: transport,
+      authorizeUpload: () => Promise.resolve(),
+    }).forAccount('0'.repeat(64))
+    await expect(api.retrieve(capture.id)).rejects.toThrow('read-only')
+    expect(sent).not.toHaveBeenCalled()
+  })
+
+  it('refuses a repeated or missing Files cursor instead of losing account entries', async () => {
+    const page = { object: 'list', data: [capture], has_more: true, last_id: capture.id }
+    let reads = 0
+    const requestFile = vi.fn(() => {
+      reads += 1
+      return reads <= 2
+        ? Promise.resolve(Response.json(page))
+        : Promise.reject(new Error('Read past repeated cursor'))
+    })
+    const api = new FilesApi({
+      provider: 'meta',
+      client: { requestFile },
+      authorizeUpload: () => Promise.resolve(),
+    })
+    await expect(api.list()).rejects.toThrow('Invalid Files pagination')
+    expect(requestFile).toHaveBeenCalledTimes(2)
+    requestFile.mockImplementation(() =>
+      Promise.resolve(Response.json({ object: 'list', data: [capture], has_more: true })),
+    )
+    await expect(api.list()).rejects.toThrow('Invalid Files pagination')
   })
 })

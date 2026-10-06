@@ -2589,6 +2589,12 @@
     "recordingStop": "Arrêter l’enregistrement",
     "uploadDeleteFailed": "Impossible de supprimer {name} : {reason}",
     "conversionFailed": "Échec de la conversion : {reason}",
-    "replayMetadata": "Média : {name} ({duration}, {size})"
+    "replayMetadata": "Média : {name} ({duration}, {size})",
+    "filesOurs": "Téléversé par cette application",
+    "filesOtherApp": "Depuis une autre application",
+    "filesEmpty": "Aucun fichier téléversé.",
+    "fileNoExpiry": "Aucune expiration définie",
+    "fileSessions": "Sessions : {sessions}",
+    "filesInUse": "Retirez ce fichier de ses sessions avant de le supprimer."
   }
 }

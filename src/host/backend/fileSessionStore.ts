@@ -30,6 +30,8 @@ import { writeFileAtomically } from '../fsAtomic'
 import type { Logger } from '../logger'
 import { describeStoreError, storeErrorCode } from './storeErrors'
 import { createSessionBudgetJournal, type SessionBudgetJournalDeps } from './sessionBudgetJournal'
+import type { SessionUploadLifecycle } from '../../core/media/uploadLedger'
+import type { UploadedMediaRef } from '../../shared/media'
 
 export interface FileSessionStoreDeps {
   readonly directory: string
@@ -42,6 +44,15 @@ export interface FileSessionStoreDeps {
   readonly sleep: (ms: number) => Promise<void>
   /** `fs.rename`; tests stand in a scanner holding the file. */
   readonly rename?: (from: string, to: string) => Promise<void>
+  /** Lazy account-scoped ledger; required only for sessions carrying uploads. */
+  readonly uploads?: (accountId: string) => Promise<SessionUploadLifecycle>
+}
+
+function fileRefsOf(session: StoredSession): readonly UploadedMediaRef[] {
+  return [
+    ...(session.fileRefs ?? []),
+    ...(session.children ?? []).flatMap((child) => fileRefsOf(child.session)),
+  ]
 }
 
 const FILE_EXTENSION = '.json'
@@ -86,7 +97,20 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       deps.log.warn(`Session file ${name} skipped: ${parsed.reason}`)
       return undefined
     }
+    if (`${parsed.session.sessionId}${FILE_EXTENSION}` !== name) {
+      deps.log.warn('Session file skipped: identity does not match its filename')
+      return undefined
+    }
     return parsed.session
+  }
+
+  const uploadLifecycle = async (
+    session: StoredSession,
+  ): Promise<SessionUploadLifecycle | undefined> => {
+    if (fileRefsOf(session).length === 0) return undefined
+    if (session.accountId === undefined || deps.uploads === undefined)
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    return await deps.uploads(session.accountId)
   }
 
   const journalDeps: SessionBudgetJournalDeps = {
@@ -121,15 +145,19 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     if (days <= 0 || Number.isNaN(idleMs) || idleMs <= days * MILLISECONDS_PER_DAY) {
       return false
     }
+    let isRemoved = false
     try {
+      const uploads = await uploadLifecycle(session)
       await rm(fileFor(session.sessionId), { force: true })
+      isRemoved = true
+      await uploads?.releaseSession(session.sessionId)
       deps.log.info(`Session ${session.sessionId} idle for more than ${String(days)} days deleted`)
     } catch (error: unknown) {
       deps.log.warn(
         `Expired session ${session.sessionId} not deleted: ${describeStoreError(error)}`,
       )
     }
-    return true
+    return isRemoved
   }
 
   return {
@@ -204,17 +232,30 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       ) {
         throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
       }
+      const uploads =
+        (await uploadLifecycle(projected)) ??
+        (previous === undefined ? undefined : await uploadLifecycle(previous))
+      // Retain both snapshots until the durable rename; a failed save cannot
+      // delete media that the previous on-disk conversation still references.
+      await uploads?.syncSession(session.sessionId, [
+        ...fileRefsOf(projected),
+        ...(previous === undefined ? [] : fileRefsOf(previous)),
+      ])
       await writeFileAtomically(fileFor(session.sessionId), JSON.stringify(projected), {
         sleep: deps.sleep,
         ...(deps.rename !== undefined && { rename: deps.rename }),
       })
+      await uploads?.syncSession(session.sessionId, fileRefsOf(projected))
       if (previous === undefined && projected.accountId !== undefined) {
         await budget.read(projected.sessionId, projected.accountId)
       }
     },
     async remove(sessionId) {
       assertSessionId(sessionId)
+      const session = await readOne(`${sessionId}${FILE_EXTENSION}`)
+      const uploads = session === undefined ? undefined : await uploadLifecycle(session)
       await rm(fileFor(sessionId), { force: true })
+      await uploads?.releaseSession(sessionId)
     },
   }
 }

@@ -2684,6 +2684,12 @@
     "recordingStop": "Zatrzymaj nagrywanie",
     "uploadDeleteFailed": "Nie można usunąć {name}: {reason}",
     "conversionFailed": "Konwersja nie powiodła się: {reason}",
-    "replayMetadata": "Multimedia: {name} ({duration}, {size})"
+    "replayMetadata": "Multimedia: {name} ({duration}, {size})",
+    "filesOurs": "Przesłano przez tę aplikację",
+    "filesOtherApp": "Z innej aplikacji",
+    "filesEmpty": "Brak przesłanych plików.",
+    "fileNoExpiry": "Nie ustawiono terminu wygaśnięcia",
+    "fileSessions": "Sesje: {sessions}",
+    "filesInUse": "Przed usunięciem usuń ten plik z jego sesji."
   }
 }

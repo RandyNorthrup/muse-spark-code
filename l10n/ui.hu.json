@@ -2494,6 +2494,12 @@
     "recordingStop": "Felvétel leállítása",
     "uploadDeleteFailed": "A(z) {name} nem törölhető: {reason}",
     "conversionFailed": "A konvertálás sikertelen: {reason}",
-    "replayMetadata": "Média: {name} ({duration}, {size})"
+    "replayMetadata": "Média: {name} ({duration}, {size})",
+    "filesOurs": "Ez az alkalmazás töltötte fel",
+    "filesOtherApp": "Másik alkalmazásból",
+    "filesEmpty": "Nincsenek feltöltött fájlok.",
+    "fileNoExpiry": "Nincs lejárat beállítva",
+    "fileSessions": "Munkamenetek: {sessions}",
+    "filesInUse": "Törlés előtt távolítsa el ezt a fájlt a munkameneteiből."
   }
 }

@@ -8,7 +8,7 @@ import {
   createFileSessionStore,
   type FileSessionStoreDeps,
 } from '../../src/host/backend/fileSessionStore'
-import { MILLISECONDS_PER_DAY } from '../../src/shared/constants'
+import { MILLISECONDS_PER_DAY, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -19,6 +19,16 @@ afterAll(() => removeFolder(root))
 const LAST_ACTIVITY = '2026-09-22T10:00:00.000Z'
 // The tests' clock: a day after the sessions' last activity.
 const NOW = Date.parse(LAST_ACTIVITY) + MILLISECONDS_PER_DAY
+
+const uploadedFile = {
+  fileId: 'file-one',
+  provider: 'meta',
+  expiresAt: 1_800_000_000,
+  sha256: 'a'.repeat(64),
+  bytes: 3,
+  name: 'clip.mp4',
+  mime: 'video/mp4',
+}
 
 const stored = (sessionId: string, name?: string): StoredSession => ({
   version: 1,
@@ -58,6 +68,90 @@ function storeIn(directory: string, overrides: Partial<FileSessionStoreDeps> = {
 }
 
 describe('createFileSessionStore', () => {
+  it('retains uploads across a durable save, fork and rewind, then releases on delete and purge', async () => {
+    const directory = path.join(root, 'upload-lifecycle')
+    const file = uploadedFile
+    const lifecycle = {
+      syncSession: vi.fn(() => Promise.resolve()),
+      releaseSession: vi.fn(() => Promise.resolve()),
+    }
+    const uploads = vi.fn(() => Promise.resolve(lifecycle))
+    const t = storeIn(directory, { uploads, retentionDays: () => 0 })
+    const parent = { ...stored('parent'), accountId: 'b'.repeat(64), fileRefs: [file] }
+    await t.store.save(parent)
+    expect(uploads).toHaveBeenCalledWith(parent.accountId)
+    expect(lifecycle.syncSession.mock.calls).toEqual([
+      ['parent', [file]],
+      ['parent', [file]],
+    ])
+    expect(await t.store.load('parent')).toMatchObject({ fileRefs: [file] })
+    await t.store.save({ ...parent, sessionId: 'fork', forkedFrom: 'parent' })
+    await t.store.save(parent)
+    await t.store.remove('parent')
+    expect(lifecycle.releaseSession).toHaveBeenCalledWith('parent')
+    const expiring = storeIn(directory, { uploads, now: () => NOW + 30 * MILLISECONDS_PER_DAY })
+    expect(await expiring.store.list()).toEqual([])
+    expect(lifecycle.releaseSession).toHaveBeenCalledWith('fork')
+  })
+
+  it('keeps old upload references when the atomic session save fails', async () => {
+    const directory = path.join(root, 'upload-save-failure')
+    const file = uploadedFile
+    const lifecycle = {
+      syncSession: vi.fn((_id: string, _refs: readonly unknown[]) => Promise.resolve()),
+      releaseSession: vi.fn(() => Promise.resolve()),
+    }
+    const uploads = () => Promise.resolve(lifecycle)
+    const session = { ...stored('saved'), accountId: 'b'.repeat(64), fileRefs: [file] }
+    await storeIn(directory, { uploads }).store.save(session)
+    lifecycle.syncSession.mockClear()
+    const failing = storeIn(directory, { uploads, rename: () => Promise.reject(busy('ENOSPC')) })
+    await expect(failing.store.save({ ...session, fileRefs: [] })).rejects.toThrow('ENOSPC')
+    expect(lifecycle.syncSession.mock.calls).toEqual([['saved', [file]]])
+    expect(await failing.store.load('saved')).toMatchObject({ fileRefs: [file] })
+    expect(lifecycle.releaseSession).not.toHaveBeenCalled()
+  })
+
+  it('requires the ledger for uploads, carries nested child refs and refuses a forged file identity', async () => {
+    const directory = path.join(root, 'upload-boundaries')
+    const file = uploadedFile
+    const session = { ...stored('saved'), accountId: 'b'.repeat(64), fileRefs: [file] }
+    await expect(storeIn(directory).store.save(session)).rejects.toThrow(
+      UI_TEXT.sessionBudgetStoreUnavailable,
+    )
+    const lifecycle = {
+      syncSession: vi.fn((_id: string, _refs: readonly unknown[]) => Promise.resolve()),
+      releaseSession: vi.fn(() => Promise.resolve()),
+    }
+    const t = storeIn(directory, { uploads: () => Promise.resolve(lifecycle) })
+    await t.store.save({
+      ...stored('parent'),
+      accountId: session.accountId,
+      children: [
+        {
+          id: 'child',
+          role: 'worker',
+          objective: 'check',
+          itemId: 'i1',
+          parentTurnId: 't1',
+          startedAt: NOW,
+          state: 'closed',
+          pendingMessages: [],
+          session,
+        },
+      ],
+    })
+    expect(lifecycle.syncSession).toHaveBeenCalledWith('parent', [file])
+    await writeFile(
+      path.join(directory, 'forged.json'),
+      JSON.stringify({ ...stored('../outside'), lastActivityAt: LAST_ACTIVITY }),
+    )
+    expect(await t.store.load('forged')).toBeUndefined()
+    expect(t.log.warn).toHaveBeenCalledWith(
+      'Session file skipped: identity does not match its filename',
+    )
+  })
+
   it('lists nothing before the directory exists, then round-trips saved sessions', async () => {
     const { store, log } = storeIn(path.join(root, 'fresh'))
     await expect(store.list()).resolves.toEqual([])

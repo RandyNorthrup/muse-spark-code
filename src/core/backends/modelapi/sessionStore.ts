@@ -5,6 +5,7 @@
 // its validation, and the store interface the host implements. Pure.
 
 import * as z from 'zod/mini'
+import { uploadedMediaRefSchema, type UploadedMediaRef } from '../../../shared/media'
 import {
   type ItemSnapshot,
   itemSnapshotFields,
@@ -86,6 +87,8 @@ export interface StoredSession {
   readonly sessionId: string
   /** SHA-256 digest of the owning Model API key; absent on legacy files. */
   readonly accountId?: string
+  /** M105: durable upload references only; source bytes and paths never belong here. */
+  readonly fileRefs?: readonly UploadedMediaRef[]
   readonly sideChat?: boolean
   /**
    * Built from an imported session-export file (M84, PLAN.md D49), or forked
@@ -235,6 +238,7 @@ const storedSessionFields = {
   sessionId: z.string(),
   // Legacy sessions remain readable for retention, but are never admitted.
   accountId: z.optional(z.string().check(z.regex(/^[a-f0-9]{64}$/))),
+  fileRefs: z.optional(z.array(uploadedMediaRefSchema)),
   sideChat: z.optional(z.boolean()),
   imported: z.optional(z.literal(true)),
   workspaceRoot: z.string(),
@@ -367,6 +371,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
   // Optional fields are absent in a StoredSession, never undefined.
   const {
     accountId,
+    fileRefs,
     name,
     forkedFrom,
     firstPrompt,
@@ -416,6 +421,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     session: {
       ...rest,
       ...(accountId !== undefined && { accountId }),
+      ...(fileRefs !== undefined && { fileRefs }),
       replay,
       ...(name !== undefined && { name }),
       ...(forkedFrom !== undefined && { forkedFrom }),

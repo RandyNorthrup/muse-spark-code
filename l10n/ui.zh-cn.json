@@ -2399,6 +2399,12 @@
     "recordingStop": "停止录制",
     "uploadDeleteFailed": "无法删除 {name}：{reason}",
     "conversionFailed": "转换失败：{reason}",
-    "replayMetadata": "媒体：{name}（{duration}、{size}）"
+    "replayMetadata": "媒体：{name}（{duration}、{size}）",
+    "filesOurs": "由此应用上传",
+    "filesOtherApp": "来自其他应用",
+    "filesEmpty": "没有已上传的文件。",
+    "fileNoExpiry": "未设置有效期",
+    "fileSessions": "会话：{sessions}",
+    "filesInUse": "删除前，请先从引用此文件的会话中移除它。"
   }
 }
