@@ -62,6 +62,9 @@ export const surfaceKindSchema = z.enum([
   'settings',
   'walkthrough',
   'diff',
+  'plans',
+  'manager',
+  'roles',
 ])
 export const themeSchema = z.strictObject({
   kind: z.enum(['light', 'dark', 'highContrastLight', 'highContrastDark']),

@@ -1,5 +1,6 @@
 import { startBrowserFixture } from '../unit/helpers/companion'
 import * as z from 'zod/mini'
+import { panelBindingSchema } from '../../src/shared/hostApi/panel'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { panelProcessSuite } from './panelProcess'
 
@@ -50,6 +51,10 @@ describe('runtime companion panel process', () => {
       if (bearer === null) throw new Error('Fake window missing bearer')
       const page = await fetch(origin, { headers: { ...headers, Authorization: bearer } })
       const html = await page.text()
+      const bindingText =
+        /<script type="application\/json" id="muse-panel">([^<]+)<\/script>/u.exec(html)?.[1]
+      if (bindingText === undefined) throw new Error('Fake page missing surface binding')
+      const { surface } = panelBindingSchema.parse(JSON.parse(bindingText))
       const sessionId = /data-session-id="([^"]+)"/u.exec(html)?.[1]
       if (sessionId === undefined) throw new Error('Fake page missing session binding')
       const authenticated = { ...headers, Authorization: bearer }
@@ -69,9 +74,9 @@ describe('runtime companion panel process', () => {
         }
       })()
       const binding = {
-        mhp: '1.2',
+        mhp: '1.3',
         kind: 'surface',
-        surface: 'browser-view',
+        surface,
         sessionId,
         surfaceKind: 'chat',
       }
@@ -86,9 +91,9 @@ describe('runtime companion panel process', () => {
       const ready = await post('/panel/surface', { ...binding, event: 'ready' })
       expect(ready.status).toBe(204)
       const message = {
-        mhp: '1.2',
+        mhp: '1.3',
         kind: 'panel',
-        surface: 'browser-view',
+        surface,
         direction: 'toHost',
         seq: 1,
         payload: { type: 'ready' },
@@ -109,7 +114,7 @@ describe('runtime companion panel process', () => {
         },
         { timeout: 10_000 },
       )
-      expect(events).toContain('event: mhp\nid: browser-view:toPanel:')
+      expect(events).toContain(`event: mhp\nid: ${surface}:toPanel:`)
       expect(events).not.toContain('LLM|')
       const replay = await post('/panel/message', { ...message, seq: 2 })
       expect(replay.status).toBe(409)
@@ -166,13 +171,6 @@ describe('runtime companion panel process', () => {
             attachmentIds: [],
           })
         })
-        if (backend === 'modelApi') {
-          const dialog = page.getByRole('dialog')
-          await dialog.waitFor()
-          expect(await dialog.innerText()).toContain('$')
-          expect(fixture().api.responseBodies()).toHaveLength(before)
-          await page.getByRole('button', { name: 'Deny', exact: true }).click()
-        }
         await page
           .getByText(
             backend === 'museCode' ? 'echo: hello browser' : 'From the fake panel model.',
@@ -180,6 +178,13 @@ describe('runtime companion panel process', () => {
           )
           .first()
           .waitFor()
+        if (backend === 'modelApi') {
+          expect(await page.getByRole('dialog').count()).toBe(0)
+          expect(fixture().api.responseBodies()).toHaveLength(before + 1)
+          expect(JSON.stringify(fixture().api.responseBodies().at(-1)?.['tools'])).not.toContain(
+            'web_search',
+          )
+        }
         expect(errors).toEqual([])
         expect(requests.some((url) => url.includes('/assets/portable/chunks/'))).toBe(true)
         expect(requests.some((url) => url.includes('#k='))).toBe(false)

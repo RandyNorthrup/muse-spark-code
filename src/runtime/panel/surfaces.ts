@@ -47,6 +47,7 @@ export class PanelSurfaces {
     private readonly lookup: (binding: MhpPanelBinding) => PanelView | undefined,
     private readonly log: CoreLogger,
     private readonly fatal: () => void,
+    private readonly onClosed?: (binding: MhpPanelBinding) => void,
   ) {}
 
   private error(
@@ -144,7 +145,10 @@ export class PanelSurfaces {
       this.surfaces.get(parsed.data.surface)?.binding ?? this.closing.get(parsed.data.surface),
     )
     if (this.isClosed) return this.error('MHP_PANEL_UNKNOWN_SURFACE', frame.surface)
-    if (frame.event === 'closed' && this.closing.delete(frame.surface)) return
+    if (frame.event === 'closed' && this.closing.delete(frame.surface)) {
+      this.onClosed?.(frame)
+      return
+    }
     if (frame.event === 'opened') {
       if (this.retired.has(frame.surface))
         return this.error('MHP_PANEL_INVALID_LIFECYCLE', frame.surface)
@@ -212,6 +216,7 @@ export class PanelSurfaces {
       }
       case 'closed': {
         this.remove(surface)
+        this.onClosed?.(frame)
         break
       }
       case 'hidden': {

@@ -16,6 +16,12 @@
 import { forms } from './forms'
 
 export const EN = {
+  paidProviderUseDetail:
+    '{subject}\n\nUp to {price} for this use, billed to your {provider} key. Shared daily budget: {budget}. Your subscription does not pay for this use.',
+  presentationRolesTitle: 'Roles',
+  presentationTrafficTitle: 'Message traffic',
+  presentationRulesTitle: 'Rules',
+  presentationAgentsTitle: 'Custom agents',
   fallbackContinue: 'Continue',
   fallbackNoMatches: 'No matching items',
   fallbackNotifications: 'Notifications',

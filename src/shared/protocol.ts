@@ -213,6 +213,9 @@ export const HOST_ACTIONS = [
   'declineBundledSkills',
   /** The palette's "What's New" (M99, PLAN.md D79): this version's release notes in an editor tab. */
   'showWhatsNew',
+  'showWalkthrough',
+  'showRoles',
+  'showPlans',
 ] as const
 export type HostAction = (typeof HOST_ACTIONS)[number]
 

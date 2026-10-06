@@ -1,7 +1,6 @@
 import * as z from 'zod/mini'
 import { describe, expect, it, vi } from 'vitest'
-import { ACP_PAID_OPTIONS, MHP_PANEL } from '../../src/shared/constants'
-import { MHP_METHODS } from '../../src/shared/hostApi/methods'
+import { MHP_PANEL } from '../../src/shared/constants'
 import { panelProcessSuite } from './panelProcess'
 
 const fixture = panelProcessSuite()
@@ -18,7 +17,7 @@ async function open(backend: string, args?: readonly string[]) {
   const frame = openSchema.parse(await agent.wait((value) => openSchema.safeParse(value).success))
   agent.send({ jsonrpc: '2.0', id: frame.id, result: { surfaceId: 'native-view' } })
   const binding = {
-    mhp: '1.2',
+    mhp: '1.3',
     kind: 'surface',
     surface: 'native-view',
     sessionId: frame.params.sessionId,
@@ -27,7 +26,7 @@ async function open(backend: string, args?: readonly string[]) {
   agent.send({ ...binding, event: 'opened' })
   agent.send({ ...binding, event: 'ready' })
   agent.send({
-    mhp: '1.2',
+    mhp: '1.3',
     kind: 'panel',
     surface: 'native-view',
     direction: 'toHost',
@@ -56,7 +55,7 @@ describe('runtime panel native process', () => {
           z.object({ code: z.literal('MHP_PANEL_UNKNOWN_SURFACE') }).safeParse(value).success,
       )
       agent.send({
-        mhp: '1.2',
+        mhp: '1.3',
         kind: 'panel',
         surface: 'native-view',
         direction: 'toHost',
@@ -69,7 +68,7 @@ describe('runtime panel native process', () => {
         ),
       )
       agent.send({
-        mhp: '1.2',
+        mhp: '1.3',
         kind: 'panel',
         surface: 'native-view',
         direction: 'toHost',
@@ -84,30 +83,24 @@ describe('runtime panel native process', () => {
       agent.child.stdin.end()
       expect(await agent.exited).toBe(0)
     })
-  it('asks priced paid-use consent before enabling hosted search on the fake API', async () => {
+  it('refuses hosted search before a popup without a verified native catalog and ledger', async () => {
     const agent = await open('modelApi', ['--web-search'])
     const before = fixture().api.responseBodies().length
     agent.send({
-      mhp: '1.2',
+      mhp: '1.3',
       kind: 'panel',
       surface: 'native-view',
       direction: 'toHost',
       seq: 2,
       payload: { type: 'sendMessage', localId: 'paid', text: 'hello', attachmentIds: [] },
     })
-    const questionSchema = z.object({
-      id: z.string(),
-      method: z.literal('ui/confirm'),
-      params: MHP_METHODS['ui/confirm'].params,
-    })
-    const question = questionSchema.parse(
-      await agent.wait((value) => questionSchema.safeParse(value).success),
-    )
-    expect(question.params.message).toContain('$')
-    expect(question.params.choices.map((choice) => choice.id)).toContain(ACP_PAID_OPTIONS.deny)
-    expect(fixture().api.responseBodies()).toHaveLength(before)
-    agent.send({ jsonrpc: '2.0', id: question.id, result: ACP_PAID_OPTIONS.deny })
     await agent.wait((value) => JSON.stringify(value).includes('From the fake panel model.'))
+    expect(fixture().api.responseBodies()).toHaveLength(before + 1)
+    expect(
+      agent.frames.some(
+        (frame) => z.object({ method: z.literal('ui/confirm') }).safeParse(frame).success,
+      ),
+    ).toBe(false)
     expect(JSON.stringify(fixture().api.responseBodies().at(-1)?.['tools'])).not.toContain(
       'web_search',
     )
@@ -121,7 +114,7 @@ describe('runtime panel native process', () => {
         payload.safeParse(value).success && payload.parse(value).payload.type === 'sessionInfo',
     )
     agent.send({
-      mhp: '1.2',
+      mhp: '1.3',
       kind: 'panel',
       surface: 'native-view',
       direction: 'toHost',
@@ -239,7 +232,7 @@ for (const backend of ['museCode', 'modelApi'])
         payload.safeParse(value).success && payload.parse(value).payload.type === 'historyLoaded',
     )
     agent.send({
-      mhp: '1.2',
+      mhp: '1.3',
       kind: 'panel',
       surface: 'native-view',
       direction: 'toHost',
@@ -268,7 +261,7 @@ for (const backend of ['museCode', 'modelApi'])
     agent.send({ ...binding, event: 'opened' })
     agent.send({ ...binding, event: 'ready' })
     agent.send({
-      mhp: '1.2',
+      mhp: '1.3',
       kind: 'panel',
       surface: 'fresh-view',
       direction: 'toHost',

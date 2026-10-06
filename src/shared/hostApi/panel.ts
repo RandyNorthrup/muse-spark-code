@@ -1,7 +1,8 @@
-// Reviewed MHP 1.2 boundaries reuse the current shared UI payload schemas.
+// Reviewed MHP 1.3 boundaries reuse the current shared UI payload schemas.
 import * as z from 'zod/mini'
 import { MHP, MHP_PANEL } from '../constants'
 import { hostToWebviewMessageSchema, webviewToHostMessageSchema } from '../protocol'
+import { presentationRequestSchema, presentationMessageSchema } from '../presentationProtocol'
 import { tasksHostMessageSchema, tasksWebviewMessageSchema } from '../tasksProtocol'
 import { whatsNewMessageSchema } from '../whatsNewMessages'
 import { offeredCapabilitiesSchema } from './capabilities'
@@ -19,10 +20,12 @@ export const panelToHostPayloadSchema = z.union([
   webviewToHostMessageSchema,
   tasksWebviewMessageSchema,
   whatsNewMessageSchema,
+  presentationRequestSchema,
 ])
 export const panelToPanelPayloadSchema = z.union([
   hostToWebviewMessageSchema,
   tasksHostMessageSchema,
+  presentationMessageSchema,
 ])
 const envelope = {
   mhp: z.literal(MHP_PANEL.wireVersion),
@@ -55,6 +58,7 @@ export const panelStateRequestSchema = z.union([
   webviewToHostMessageSchema.def.options[0],
   tasksWebviewMessageSchema.def.options[0],
   usageStateRequestSchema,
+  presentationRequestSchema.def.options[0],
   z.null(),
 ])
 const lifecycle = {
@@ -147,6 +151,16 @@ export function parseMhpPanelEnvelope(
         parsed.data.direction === 'toHost' ? tasksWebviewMessageSchema : tasksHostMessageSchema
       break
     }
+    case 'plans':
+    case 'manager':
+    case 'roles':
+    case 'traffic':
+    case 'diff':
+    case 'walkthrough': {
+      payloadSchema =
+        parsed.data.direction === 'toHost' ? presentationRequestSchema : presentationMessageSchema
+      break
+    }
     case 'whatsNew': {
       payloadSchema = parsed.data.direction === 'toHost' ? whatsNewMessageSchema : z.never()
       break
@@ -186,6 +200,12 @@ export function parseMhpSurfaceNotification(value: unknown, binding: MhpPanelBin
   if (frame.event === 'reloaded') {
     const requestSchemas: Partial<Record<MhpPanelBinding['surfaceKind'], z.ZodMiniType>> = {
       tasks: tasksWebviewMessageSchema.def.options[0],
+      plans: presentationRequestSchema.def.options[0],
+      manager: presentationRequestSchema.def.options[0],
+      roles: presentationRequestSchema.def.options[0],
+      traffic: presentationRequestSchema.def.options[0],
+      diff: presentationRequestSchema.def.options[0],
+      walkthrough: presentationRequestSchema.def.options[0],
       whatsNew: z.null(),
       usage: usageStateRequestSchema,
     }

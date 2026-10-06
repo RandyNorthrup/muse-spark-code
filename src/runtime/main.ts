@@ -35,6 +35,7 @@ import {
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
+import type { RuntimeBackendExtensions } from './panel/backendEntry'
 import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -221,8 +222,17 @@ function signInMethod(options: ServeOptions): SignInMethod {
   }
 }
 
-function runtimeFor(options: ServeOptions, log: Logger) {
+async function hasStoredKey(): Promise<boolean> {
+  try {
+    return Boolean(await secrets.get(SECRET_KEYS.modelApiKey))
+  } catch {
+    return false
+  }
+}
+
+function runtimeFor(options: ServeOptions, log: Logger, extensions?: RuntimeBackendExtensions) {
   return createRuntimeBackend({
+    ...extensions,
     options,
     version: packageVersion(),
     distDir,
@@ -538,7 +548,15 @@ async function main(): Promise<number> {
           options: command.options,
           transport: command.transport,
           runtime,
-          configureRuntime: (options) => Promise.resolve(runtimeFor(options, log)),
+          configureRuntime: (options, _settings, _root, extensions) =>
+            Promise.resolve(runtimeFor(options, log, extensions)),
+          portable: {
+            version: packageVersion(),
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+            hasStoredKey,
+          },
           loadLanguage: (language) =>
             loadUiTable({
               language,
@@ -644,15 +662,7 @@ async function main(): Promise<number> {
         hasEnvironmentApiKey: museCodeCredentials.some(
           (variable) => variable.name === META_API_KEY_VARIABLE,
         ),
-        readStoredKeyPresence: async () => {
-          try {
-            const stored = await secrets.get(SECRET_KEYS.modelApiKey)
-            return stored !== undefined && stored !== ''
-          } catch {
-            // A store that cannot be read reads no (documented in docs/acp.md).
-            return false
-          }
-        },
+        readStoredKeyPresence: hasStoredKey,
         nowMs,
         // Reading prunes expired records but sets and consumes no marker.
         readJournal: async () => {

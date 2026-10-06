@@ -44,8 +44,21 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
   },
 ]
 
-export function webviewDeferredBudgetGroups(meta) {
-  const eager = new Set(webviewStartupOutputs(meta))
+export const PORTABLE_PRESENTATION_BUDGETS = [
+  ['Walkthrough', 'src/webview/fallbacks/Walkthrough.tsx'],
+  ['DiffPage', 'src/webview/fallbacks/DiffPage.tsx'],
+  ['ManagerPage', 'src/webview/fallbacks/ManagerPage.tsx'],
+  ['PlanPage', 'src/webview/presentation/PlanPage.tsx'],
+  ['RoleTrafficPage', 'src/webview/presentation/RoleTrafficPage.tsx'],
+].map(([name, entry]) => ({ name, entries: [entry], budgetKiB: 5 }))
+
+export function webviewDeferredBudgetGroups(meta, isPortable = false) {
+  const eager = new Set(
+    webviewStartupOutputs(
+      meta,
+      isPortable ? 'dist/webview/portable/main.js' : 'dist/webview/main.js',
+    ),
+  )
   const entries = (sources) =>
     Object.entries(meta.outputs)
       .filter(([, output]) => sources.includes(output.entryPoint))
@@ -57,7 +70,10 @@ export function webviewDeferredBudgetGroups(meta) {
     ),
   )
   const assigned = new Set()
-  const groups = ADDITIONAL_WEBVIEW_BUDGETS.map((budget) => {
+  const groups = [
+    ...ADDITIONAL_WEBVIEW_BUDGETS,
+    ...(isPortable ? PORTABLE_PRESENTATION_BUDGETS : []),
+  ].map((budget) => {
     const outputs = staticOutputs(meta, entries(budget.entries)).filter((file) => !eager.has(file))
     for (const file of outputs) if (!legacy.has(file)) assigned.add(file)
     return { ...budget, outputs }
