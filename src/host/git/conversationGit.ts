@@ -66,7 +66,7 @@ import type {
   GitSurface,
   NewPullRequestRequest,
 } from '../conversation/conversationController'
-import type { CaptureGitOwner, GitChange, GitRepository } from '../vscode/git/gitExtension'
+import type { CaptureGitOwner, GitChange, GitRepository } from './repositoryPort'
 import { GitUnavailableError, openOwnedRepository } from './ownedRepository'
 import type { PullRequestLink, PullRequestLinks } from './pullRequestLinks'
 

@@ -1,6 +1,6 @@
 import { isSameFolder } from '../../core/worktrees'
 import { UI_TEXT } from '../../shared/constants'
-import type { CaptureGitOwner, GitRepository } from '../vscode/git/gitExtension'
+import type { CaptureGitOwner, GitRepository } from './repositoryPort'
 
 /** Runtime error identity; the installed VS Code entry supplies its native identity. */
 export class GitUnavailableError extends Error {

@@ -619,3 +619,49 @@ captured validated protocol, with native cancellable approval, revocation and
 process ownership; availability cannot be guessed without an authorized live
 capture. Building a broker/control service exceeds the stop rule. No placeholder
 factory, new listener or registry support promotion was made for these rows.
+
+### A/F — final auth admission and Judge type compatibility
+
+Terminal key sign-in now rejects while that same auth owner's sign-out is
+still clearing credentials. Its existing key-entry/host gates and cancelled
+entry drain remain in place; a new terminal cannot race the final store clear.
+Native key launch must still honour its final beforeRun/signal contract.
+JudgeWindowDeps keeps the actual PaidUsage public type, including current;
+the new narrower policy fields do not hide the existing read-only tally.
+F owns the PLAN/Unreleased note for this final refusal. Workflow notification
+fixtures retain their captured methods, with a flat selection expression that
+passes both format and lint gates. No command/setting/schema/key was added.
+
+### D/F — portable Git types and static graph
+
+B's `src/host/git/repositoryPort.ts` defines the existing immutable repository,
+change and physical-owner callback shapes without a native module import.
+ConversationGit and its pure ownership helper use it. D's existing Git API
+is structurally compatible and was not edited; D may import/re-export these
+shared shapes when consolidating its declarations. Push still has no force
+argument. The host-API graph counts type edges too, so future portable services
+must not import D's adapter even solely for types. The direct value-bundle and
+Windows owner controls remain; restoring the native type edge fires the actual
+static gate. F regenerates only the source-derived inventory after integration.
+
+### A/F — continuation 2 final gate handoff
+
+Fresh final results are persisted in m104-pb-continuation-gates.json: all five
+repository typechecks, owned-engine TypeScript, changed lint/format, zero-clone
+duplication, zero-problem localization, production build and 1,749 tests across
+64 files pass. All 25 engine files (225 tests) pass under the repository setup/
+deadlines with at most three files/workers and no skip/env override. There are
+146 byte-exact mutation receipts, 51 new in this continuation.
+
+Actual plain deadcode remains 1: 43 files plus createRuntimeCheckpoints, because
+central A discovery/lazy wiring is absent. The exact central-config probe adds
+only the owned engine test entry and exits 0; actual shipment needs the named
+owned factories in guarded lazy readers/inventories with unchanged budgets.
+Actual host-API remains 1 solely for F's generated Node import inventory:
+crypto 53→54, fs 36→37, path 90→92, url 7→11. Portable type/value graph passes;
+VS Code API 349 / importing files 32 / theme variables 61 are unchanged. F must
+record these integration deferrals in PLAN §7 and regenerate/review its record.
+Do not add ignores, weaken gates, raise caps or claim qualification from these
+component tests. Full quality and assembled native/provider/live checks are
+the lead's aggregate; F53/F55/F56 and the listed implementation prerequisites
+remain open under the shared bounded-finding rule.

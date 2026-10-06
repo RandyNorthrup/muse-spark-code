@@ -75,6 +75,7 @@ export function createRuntimeAuth(deps: RuntimeAuthDeps, table: UiText, locale: 
   }
   const signIn: AuthPort['signIn'] = (method) =>
     lifetime.track(async () => {
+      if (isSigningOut) throw new Error(UI_TEXT.signInCancelled)
       if (method !== 'apiKey') return await service.signIn(method)
       if (signingIn !== undefined) return await signingIn
       const flow = new AbortController()

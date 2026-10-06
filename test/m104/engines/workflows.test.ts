@@ -56,15 +56,13 @@ async function setup() {
 describe('F18 captured workflows through the portable backend', () => {
   it('keeps all seven real run revisions, child usage and reconciled results', async () => {
     const rig = await setup()
-    for (const item of WORKFLOW_REVISIONS)
-      rig.wire.server.notify(
-        item.status === 'completed'
-          ? 'item/completed'
-          : item.revision === 1
-            ? 'item/started'
-            : 'item/updated',
-        { sessionId: rig.session.sessionId, item },
-      )
+    for (const item of WORKFLOW_REVISIONS) {
+      const method = item.revision === 1 ? 'item/started' : 'item/updated'
+      rig.wire.server.notify(item.status === 'completed' ? 'item/completed' : method, {
+        sessionId: rig.session.sessionId,
+        item,
+      })
+    }
     await vi.waitFor(() => {
       expect(rig.events).toHaveLength(WORKFLOW_REVISIONS.length)
     })

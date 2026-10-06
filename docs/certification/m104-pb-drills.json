@@ -1001,5 +1001,26 @@
     "exitCode": 1,
     "sha256Before": "c25b3600ad455ec175b0ff77b89e9af87a1e4303f65352304a8822c9c0c45b36",
     "sha256Restored": "c25b3600ad455ec175b0ff77b89e9af87a1e4303f65352304a8822c9c0c45b36"
+  },
+  {
+    "drill": "portable-auth-signout-key-admission",
+    "file": "src/runtime/features/auth.ts",
+    "exitCode": 1,
+    "sha256Before": "7f7eb92e1a43a59262799586823e760cdd7ed030d01495e05d073dfd1458ace6",
+    "sha256Restored": "7f7eb92e1a43a59262799586823e760cdd7ed030d01495e05d073dfd1458ace6"
+  },
+  {
+    "drill": "portable-git-type-boundary",
+    "file": "src/host/git/conversationGit.ts",
+    "exitCode": 1,
+    "sha256Before": "ba006d4fafaf556c6600395d5c4f620220009195f58d52d4bbb75addb00705ba",
+    "sha256Restored": "ba006d4fafaf556c6600395d5c4f620220009195f58d52d4bbb75addb00705ba"
+  },
+  {
+    "drill": "portable-shell-original-suite-refusal",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "exitCode": 1,
+    "sha256Before": "4d16e4ea2c1d1f90624fb6e8976bf70c69d46552cf839674dd8819a71195d585",
+    "sha256Restored": "4d16e4ea2c1d1f90624fb6e8976bf70c69d46552cf839674dd8819a71195d585"
   }
 ]

@@ -34,7 +34,7 @@ export interface JudgeWindowDeps {
   readonly paid: {
     readonly gate: Pick<PaidFeatureGate, 'isOn'>
     readonly consent: Pick<PaidUseConsent, 'remembered'>
-    readonly usage: Pick<PaidUsage, 'add' | 'addJudgeUsage'>
+    readonly usage: PaidUsage
     readonly allowsJudgeUse: (modelId: string) => Promise<boolean>
   }
   readonly emit: (action: JudgeEntryParts, event: AgentEvent) => void

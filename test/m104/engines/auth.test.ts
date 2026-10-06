@@ -152,6 +152,27 @@ describe('F37 portable auth', () => {
     expect(rig.secrets.values.has(SECRET_KEYS.modelApiKey)).toBe(false)
     expect(rig.auth.backend).toBeUndefined()
   })
+  it('refuses new key entry while sign-out is clearing the credential store', async () => {
+    const rig = setup()
+    rig.secrets.values.set(SECRET_KEYS.modelApiKey, FAKE_MODEL_API_KEY)
+    const clearing = Promise.withResolvers<undefined>()
+    const deleting = vi.spyOn(rig.secrets, 'delete').mockImplementation(async (name) => {
+      await clearing.promise
+      rig.secrets.values.delete(name)
+    })
+    const ending = rig.auth.signOut()
+    await vi.waitFor(() => {
+      expect(deleting).toHaveBeenCalledOnce()
+    })
+    try {
+      await expect(rig.auth.signIn('apiKey')).rejects.toThrow(UI_TEXT.signInCancelled)
+      expect(rig.key).not.toHaveBeenCalled()
+    } finally {
+      clearing.resolve(undefined)
+      await ending
+    }
+    expect(rig.service.isKeyStored()).toBe(false)
+  })
   it('rechecks profile ownership after old hosts retire and before key entry launches', async () => {
     const rig = setup()
     rig.restart.mockImplementation(() => {
