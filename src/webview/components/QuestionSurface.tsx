@@ -1,17 +1,25 @@
+// The small startup store shared by both lazy question views.
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useCallback,
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+} from 'react'
 import { DOCK_TYPING_GRACE_MS } from '../../shared/constants'
-import { createContext, type ReactNode, useContext, useCallback, useMemo, useState } from 'react'
 import type { UiState } from '../state/uiState'
+
 export interface QuestionDraft {
   readonly chosen: readonly string[]
   readonly isOther: boolean
   readonly other: string
 }
 
-export const EMPTY_DRAFT: QuestionDraft = { chosen: [], isOther: false, other: '' }
-type Draft = Readonly<Record<string, QuestionDraft>>
-
 export interface CardDraft {
-  readonly choices: Draft
+  readonly choices: Readonly<Record<string, QuestionDraft>>
   readonly activeIndex: number
   readonly isExplaining: boolean
   readonly explanation: string
@@ -89,7 +97,12 @@ export function QuestionSurface({
   return <AttentionContext value={value}>{children}</AttentionContext>
 }
 
-export function isTyping(element: Element | null, lastKeyAt: number): boolean {
+/**
+ * Whether the user is typing where focus is: a field holding text, or one
+ * that took a key a moment ago. A card arriving then leaves focus there.
+ * An empty composer that merely kept focus after a send is not typing.
+ */
+function isTyping(element: Element | null, lastKeyAt: number): boolean {
   const isRecentKey = Date.now() - lastKeyAt < DOCK_TYPING_GRACE_MS
   const isTextField = element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement
   return isTextField
@@ -97,4 +110,28 @@ export function isTyping(element: Element | null, lastKeyAt: number): boolean {
     : (element instanceof HTMLSelectElement ||
         (element instanceof HTMLElement && element.isContentEditable)) &&
         isRecentKey
+}
+
+export function useAttentionFocus<T extends HTMLElement>(
+  focusKey: string | undefined,
+  selector: string,
+  isInert: boolean,
+) {
+  const dock = useRef<T>(null)
+  const lastKeyAt = useRef(0)
+  useEffect(() => {
+    const onKey = () => {
+      lastKeyAt.current = Date.now()
+    }
+    document.addEventListener('keydown', onKey, { capture: true })
+    return () => {
+      document.removeEventListener('keydown', onKey, { capture: true })
+    }
+  }, [])
+  useEffect(() => {
+    if (focusKey === undefined || isInert || isTyping(document.activeElement, lastKeyAt.current))
+      return
+    dock.current?.querySelector<HTMLElement>(selector)?.focus()
+  }, [focusKey, selector, isInert])
+  return dock
 }

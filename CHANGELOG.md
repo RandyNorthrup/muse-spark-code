@@ -34,7 +34,8 @@ happened, not what was planned; superseded entries are kept.
 - Question cards and settled outcomes load when first shown. ACP forms and
   elicitation parsing use `acpQuestions.js`; private registry and queue storage
   use `runtimeQuestions.js`. Both backends load the shared deferral note only
-  when a question defers. The five M112 startup growth targets remain intact.
+  when a question defers. Every existing hard cap remains unchanged; the lead
+  accepted the webview startup growth in PLAN §9.
 - Cancelling ACP preparation restores a leased answer queue before any turn
   starts; an uncertain submission retires its prefix so a restart cannot send
   it again. Failed grouped deferrals cancel each failed backend request.
@@ -45,6 +46,17 @@ happened, not what was planned; superseded entries are kept.
 - Correct the frozen question contract: scheduled/unattended prompts defer
   immediately, including when interactive deferral is disabled.
 
+- Question snapshots now retire stale open cards and their controls together;
+  known terminal states survive same-session history refreshes. The attention
+  dock prioritizes the newest waiting question over past reminders while
+  preserving a focused question and retaining inactive drafts.
+
+### Changed
+
+- Question choices, explanations, countdowns and dock controls now load in a
+  separate lazy browser chunk on the first question. A minimal arrival card
+  stays visible while loading, and the shared draft survives loading and
+  remounting. The chunk has its own 25 KiB budget; existing caps are unchanged.
 ## [0.14.1] - 2026-10-05
 
 ### Security

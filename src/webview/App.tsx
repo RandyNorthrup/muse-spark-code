@@ -1024,7 +1024,7 @@ export function App({
     (userInputId: string, reply: OpenQuestionAnswer | 'dismiss' | undefined) => {
       const sessionId = store.getState().sessionId
       const attachmentEpoch = store.getState().attachmentEpoch
-      void import('./components/QuestionDock')
+      void import('./components/QuestionUi')
         .then((actions) => {
           const current = store.getState()
           if (current.sessionId === sessionId && current.attachmentEpoch === attachmentEpoch)
@@ -1068,11 +1068,11 @@ export function App({
   )
 
   useEffect(() => {
-    const count = state.openQuestions.filter((question) => question.state === 'open').length
+    const count = questionsInOrder(state).filter((question) => question.state === 'open').length
     const title = state.title ?? UI_TEXT.untitledConversation
     document.title =
       count === 0 ? title : `${title} · ${plural(UI_TEXT.openQuestionsTabCount, count)}`
-  }, [state.title, state.openQuestions])
+  }, [state])
   // All three lock the form until the host settles it (M91 lane M).
   const onAcceptElicitation = useCallback(
     (elicitationId: string, values: Record<string, unknown>) => {

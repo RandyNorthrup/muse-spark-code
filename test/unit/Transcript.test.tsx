@@ -324,7 +324,7 @@ describe('Transcript', () => {
       }),
     ])
     await act(async () => {
-      await import('../../src/webview/components/QuestionCard')
+      await import('../../src/webview/components/QuestionUi')
     })
     expect(screen.getByText(/Failed: sandbox enforcement unavailable/)).toBeInTheDocument()
     expect(screen.getByText(/Rejected/)).toBeInTheDocument()
@@ -354,7 +354,7 @@ describe('Transcript', () => {
     ])
     renderTranscript(entries, { isFocusView: true })
     await act(async () => {
-      await import('../../src/webview/components/QuestionCard')
+      await import('../../src/webview/components/QuestionUi')
     })
     // Focus view folds a single step too, as before, now under its summary (M87).
     const summaries = screen.getAllByRole('button', { name: 'Read a file' })
@@ -979,7 +979,7 @@ describe('Transcript rows (M25)', () => {
       }),
     ])
     await act(async () => {
-      await import('../../src/webview/components/QuestionCard')
+      await import('../../src/webview/components/QuestionUi')
     })
     expect(screen.getByRole('radio', { name: 'Red' })).toBeDisabled()
     expect(screen.getByText('Submit')).toBeDisabled()

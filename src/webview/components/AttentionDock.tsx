@@ -8,18 +8,14 @@
 // panel's live region announces it then): onto the card itself, never onto
 // a choice that a stray Enter would make.
 
-import { lazy, Suspense, useEffect, useRef } from 'react'
 import { ATTENTION_DOCK_MAX_VIEWPORT_FRACTION, UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
 import type { PendingQuestion, PendingElicitation, WaitingApproval } from '../state/uiState'
 import { ApprovalCard, type ApprovalCardProps } from './ApprovalCard'
-import { isTyping } from './QuestionSurface'
 import type { QuestionCardProps } from './QuestionCard'
 import type { ElicitationCardProps } from './ElicitationCard'
-const QuestionDock = lazy(async () => {
-  const module = await import('./QuestionDock')
-  return { default: module.QuestionDock }
-})
+import { useAttentionFocus } from './QuestionSurface'
+import { DeferredQuestionDock } from './DeferredQuestionUi'
 
 export interface AttentionDockProps {
   /** The approvals waiting, oldest first. */
@@ -40,47 +36,25 @@ export interface AttentionDockProps {
   }
 }
 
-/**
- * Whether the user is typing where focus is: a field holding text, or one
- * that took a key a moment ago. A card arriving then leaves focus there.
- * An empty composer that merely kept focus after a send is not typing.
- */
-
 export function AttentionDock({
   waiting,
   onDecide,
   isInert = false,
   questionGroup,
 }: AttentionDockProps) {
-  const dock = useRef<HTMLElement>(null)
-  const lastKeyAt = useRef(0)
-  useEffect(() => {
-    const onKey = () => {
-      lastKeyAt.current = Date.now()
-    }
-    document.addEventListener('keydown', onKey, { capture: true })
-    return () => {
-      document.removeEventListener('keydown', onKey, { capture: true })
-    }
-  }, [])
   const first = waiting[0]
   const stageKey =
     first === undefined
       ? undefined
       : `${first.approval.approvalId}:${String(first.approval.requirementId.sourceIndex)}`
-  const focusKey = stageKey
-  useEffect(() => {
-    if (focusKey === undefined || isInert || isTyping(document.activeElement, lastKeyAt.current)) {
-      return
-    }
-    dock.current?.querySelector<HTMLElement>('[role="group"]')?.focus()
-  }, [focusKey, stageKey, isInert])
-  if (
-    first === undefined &&
-    (questionGroup?.questions.length ?? 0) === 0 &&
-    (questionGroup?.elicitations.length ?? 0) === 0
-  )
-    return null
+  const dock = useAttentionFocus<HTMLElement>(stageKey, '[role="group"]', isInert)
+  const hasQuestions =
+    questionGroup !== undefined &&
+    (questionGroup.questions.some((question) =>
+      ['waiting', 'open'].includes(question.state ?? 'waiting'),
+    ) ||
+      questionGroup.elicitations.length > 0)
+  if (first === undefined && !hasQuestions) return null
   return (
     <section
       ref={dock}
@@ -100,17 +74,13 @@ export function AttentionDock({
           onDecide={onDecide}
         />
       )}
-      {questionGroup === undefined ||
-      (questionGroup.questions.length === 0 && questionGroup.elicitations.length === 0) ? null : (
-        <Suspense fallback={null}>
-          <QuestionDock
-            questionGroup={questionGroup}
-            hasApproval={first !== undefined}
-            isInert={isInert}
-            lastKeyAt={lastKeyAt}
-          />
-        </Suspense>
-      )}
+      {hasQuestions ? (
+        <DeferredQuestionDock
+          questionGroup={questionGroup}
+          hasApproval={first !== undefined}
+          isInert={isInert}
+        />
+      ) : null}
     </section>
   )
 }

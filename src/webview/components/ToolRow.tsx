@@ -37,12 +37,13 @@ import {
 } from '../toolPresentation'
 import { CloseIcon, ExpandChevron, FileIcon, RewindIcon } from './icons'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
-import {
-  DeferredQuestionCard as QuestionCard,
-  DeferredQuestionCard as DeferredQuestionOutcome,
-} from './DeferredQuestionCard'
 import type { QuestionCardProps } from './QuestionCard'
 import { useAttentionSurface } from './QuestionSurface'
+import {
+  DeferredQuestionCard,
+  DeferredQuestionCard as DeferredQuestionOutcome,
+} from './DeferredQuestionUi'
+
 import { ElicitationCard, type ElicitationCardProps } from './ElicitationCard'
 import { Clipped, DiffTable } from './ToolBlocks'
 import {
@@ -375,7 +376,9 @@ function ToolRowView({
   const presentation = useMemo(() => describeTool(entry.tool, entry.args), [entry.tool, entry.args])
   const imagePaths = imagePathsOf(entry, presentation.imagePath)
   const isQuestionOpen =
-    entry.question !== undefined && ['waiting', 'open'].includes(entry.question.state ?? 'waiting')
+    entry.question !== undefined &&
+    entry.question.isNoLongerOpen !== true &&
+    ['waiting', 'open'].includes(entry.question.state ?? 'waiting')
   const isWaiting = entry.approval !== undefined || isQuestionOpen
   // Shell and edit rows show their body from the start, as Claude Code's do,
   // and so does a row with a picture (M43); the others open on click (M16).
@@ -462,7 +465,11 @@ function ToolRowView({
       },
     })
   }
-  if (attention !== undefined && entry.question?.state === 'open') {
+  if (
+    attention !== undefined &&
+    entry.question?.state === 'open' &&
+    entry.question.isNoLongerOpen !== true
+  ) {
     const question = entry.question
     items.push({
       id: 'dismiss-question',
@@ -677,7 +684,7 @@ function ToolRowView({
         </div>
       )}
       {entry.question === undefined ? null : (
-        <QuestionCard
+        <DeferredQuestionCard
           key={`${attention?.sessionId ?? ''}:${entry.question.userInputId}`}
           question={entry.question}
           onAnswer={onAnswer}

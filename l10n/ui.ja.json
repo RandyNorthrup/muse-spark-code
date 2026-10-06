@@ -721,6 +721,7 @@
   "questionBackToChoices": "選択肢に戻る",
   "questionClarified": "説明済み",
   "questionOpen": "未回答の質問",
+  "questionNoLongerOpen": "受付終了",
   "questionDeferred": "保留",
   "questionAnsweredLater": "後から回答済み",
   "questionAnsweredOnReask": "再質問時に回答済み",

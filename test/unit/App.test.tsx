@@ -153,8 +153,7 @@ async function askColour() {
     },
   })
   await act(async () => {
-    await import('../../src/webview/components/QuestionDock')
-    await import('../../src/webview/components/QuestionCard')
+    await import('../../src/webview/components/QuestionUi')
   })
   fireEvent.click(within(screen.getByRole('main')).getByRole('radio', { name: 'Red' }))
 }
@@ -1010,7 +1009,7 @@ describe('App transcript (M4)', () => {
     await askColour()
 
     await act(async () => {
-      await import('../../src/webview/components/QuestionDock')
+      await import('../../src/webview/components/QuestionUi')
       fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
     })
     expect(postMessage).toHaveBeenLastCalledWith({
@@ -2389,7 +2388,7 @@ describe('App webview and UI state (M25)', () => {
     await askColour()
 
     await act(async () => {
-      await import('../../src/webview/components/QuestionDock')
+      await import('../../src/webview/components/QuestionUi')
       fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
       fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
       fireEvent.click(within(screen.getByRole('main')).getByText('Cancel'))
@@ -2402,7 +2401,7 @@ describe('App webview and UI state (M25)', () => {
     // The host refused the answer: the card opens again for another try.
     deliver({ type: 'notice', level: 'error', text: 'The answer was not accepted: gone' })
     await act(async () => {
-      await import('../../src/webview/components/QuestionDock')
+      await import('../../src/webview/components/QuestionUi')
       fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
     })
     expect(answers()).toHaveLength(2)

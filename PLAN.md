@@ -267,6 +267,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Webview original deferred surfaces    | ≤ 50 KiB aggregate for the original seven surfaces and unclassified/shared deferred helpers (TRAIN13B; unchanged in STARTDIET)                                                                                                                                                                                                                                                                         |
 | Webview highlighting import closure   | ≤ 125 KiB (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                         |
 | Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
+| Webview question UI import closure    | ≤ 25 KiB (FIXM112U: first question; 10.8 KiB +15%, rounded up to 25 KiB; separate from the unchanged unclassified deferred group)                                                                                                                                                                                                                                                                      |
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
 | `.vsix`                               | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
 | `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
@@ -18869,6 +18870,29 @@ lane T and M111b. One short live check per backend (step 3).
 
 ---
 
+### FIXM112U — RVM112U surface repairs (2026-10-06)
+
+Authority: the rig brief and lead decisions, refining D92/M112 from
+`plan/m105-m107`. No producer, wire contract or paid-call change.
+
+- [x] P2-1: the same-session snapshot owns the open set. An absent active
+      transcript card becomes locally unavailable, retaining any known terminal
+      state. Counts, chip, navigation and delivery use the same derived set.
+- [x] P2-2: one same-session history merge preserves approval outcomes and
+      question cards/outcomes, including retired terminal records.
+- [x] P2-3: approvals first, then newest waiting question; protect a question
+      focus or typing in its draft; retain inactive drafts. Reminders rank only
+      among deferred questions.
+- [x] P3: separate lazy question renderer/dock region/chip from the small
+      startup draft context and approval shell. Keep a minimal loading card;
+      preserve drafts. Measure startup against the 3 KiB target and allocate the
+      question closure measured size +15%, rounded up to 25 KiB, independently
+      of the unchanged unclassified deferred cap.
+- [x] Complete-file regressions, red drills with byte-exact restoration,
+      scoped rig gates and hooks-on local commits; record in
+      `docs/certification/m112-u.md`. Lead retains aggregate quality and existing
+      Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
+
 ## 7. Gates
 
 **M112 integration closure (2026-10-06, Windows 11 rig).** The listed U
@@ -18897,7 +18921,8 @@ so HELPREF must add the named dock, setting, navigation, ACP commands and flag
 when its sources arrive. Native MHP adapters/envelopes are absent; acceptance
 12 certifies only shared schemas/fakes, with M104b–d/M110a0/M111b handoffs
 named in the record. Live model behavior, installed editor keys, README
-shots and the U review continuation remain release-lead checks. No paid/live
+shots remain release-lead checks. U's review continuation is merged in round 2;
+its startup target waiver is recorded in §9. No paid/live
 call, dependency install, cap increase or gate suppression was made.
 
 **FIXM112A (2026-10-06, RVM112A).** Repair all six ACP findings in lane A:
@@ -20133,7 +20158,7 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
-- **M112 integration (2026-10-06, Windows rig).** Bind the real question store and registry to the extension and ACP launcher, with an owner-only bounded durable late-answer queue and session removal. ACP owns its deadline timer; the registry accepts its frozen arrival timing without another timer. History carries per-session counts from authenticated listed sessions. Move question UI and runtime implementation to guarded lazy closures to meet additive targets; preserve every existing cap. Reconcile model-text readers with actual lazy ownership, prove changed guards with red controls, and record all acceptance evidence in docs/certification/m112.md. HELPREF and M104 sources are absent on this base: their named handoffs stay explicit; no substitute protocol or full catalog is invented. Live checks, U review continuation and hosted full quality remain with the lead.
+- **M112 integration (2026-10-06, Windows rig).** Bind the real question store and registry to the extension and ACP launcher, with an owner-only bounded durable late-answer queue and session removal. ACP owns its deadline timer; the registry accepts its frozen arrival timing without another timer. History carries per-session counts from authenticated listed sessions. Move question UI and runtime implementation to guarded lazy closures; preserve every existing cap. Reconcile model-text readers with actual lazy ownership, prove changed guards with red controls, and record all acceptance evidence in docs/certification/m112.md. Round 2 integrates U's authoritative open set, retained history and newest-waiting dock priority while preserving session-generation delivery guards and settled outcomes. HELPREF and M104 sources are absent on this base: their named handoffs stay explicit; no substitute protocol or full catalog is invented. Live checks and hosted full quality remain with the lead; the startup growth waiver follows below.
 
 - **FIXM112Q (2026-10-06).** All six RVM112Q findings are corrected; none is
   accepted as a residual. Permission admission and session recovery are the
@@ -20158,6 +20183,24 @@ before a repaired one loads (2026-09-30).
   quality, remeasure Q/U/A growth, and collect the installed-editor and
   authorized live receipts. HELPREF/M104 bindings remain the named handoffs
   in the same certification record; this repair adds no command or setting.
+
+- **FIXM112U-P3-STARTUP — WAIVED by the lead 2026-10-06.** M112's measured
+  webview startup growth is 4.74 KiB against the plan's 3 KiB target. The
+  approval shell and shared draft context must remain at startup; the question
+  UI is lazy, measured at 10.83/25 KiB in U's reviewed build. This is an
+  explicit acceptance waiver, with no additional implementation requested.
+  The startup hard cap remains 900 KiB, the question closure cap remains
+  25 KiB, and the unclassified deferred cap remains 50 KiB. Round-2 integrated
+  production measurements are recorded in `docs/certification/m112.md`.
+
+- **FIXM112U-INTEGRATION (inherited Q/A/editor holds).** Backend
+  `deferQuestions` implementations, question-model-text readers, generated
+  host API contributions and unseen-session History counts are connected in
+  the integration. Round 2 merges all RVM112U lifecycle and lazy-render fixes.
+  The shared React fixes apply to every host consuming this webview; no native
+  adapter is claimed as newly shipped. HELPREF's absent catalogue/reference,
+  aggregate quality and the installed editor/backend matrix remain lead
+  handoffs, with no live or paid call in this rig lane.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

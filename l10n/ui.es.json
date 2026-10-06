@@ -761,6 +761,7 @@
   "questionBackToChoices": "Volver a las opciones",
   "questionClarified": "Explicada",
   "questionOpen": "Pregunta pendiente",
+  "questionNoLongerOpen": "Ya no está abierta",
   "questionDeferred": "Aplazada",
   "questionAnsweredLater": "Respondida más tarde",
   "questionAnsweredOnReask": "Respondida al preguntar de nuevo",
