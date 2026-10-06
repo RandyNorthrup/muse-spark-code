@@ -6405,6 +6405,671 @@ Decisions:
   It changes no decision. The product's local judge stays on the user's own
   machine; the rigs are development infrastructure.
 
+### D85 — Multimodal input: video, audio, documents, screen recordings and the Files API (M105, 2026-10-05)
+
+The Meta coverage audit of 2026-10-05
+(`docs/research/meta-coverage-2026-10-05.md`) found video missing on every
+surface, no Files API (every PDF and image re-sent as base64 on each tool
+round), no screen recording anywhere, media costed at one token per encoded
+byte, and an ACP bug that treats every embedded blob as an image. Meta's
+Responses API takes video as `input_video` (a data URI, a URL or an uploaded
+`file_id`, with `fps`) or as an `input_file`. The owner-authorized live
+captures the same evening (§6 of the research record: 9 inference calls and
+36 that inferred nothing, all on contributor models; 4 uploads, all deleted)
+settled what the documentation left open:
+
+- `POST /responses/input_tokens` does not count media at all;
+- Muse Spark 1.3 does not hear a video's soundtrack, and 1.2 does;
+- `input_audio` is accepted and silently ignored;
+- QuickTime (mov) is accepted beside mp4, and WebM is refused;
+- the Files API wire works as documented, `expires_after` included.
+
+The owner's standing rulings apply:
+
+- enhancements are on by default (D78);
+- every feature is on exactly where the selected model can use it, whatever
+  the vendor (D81.2);
+- every editor gets equal functionality (D84);
+- paid use is opt in and loud, asked once with its price (rule 12, D48, D78);
+- real calls in testing use the contributor model and throwaway content.
+
+1. **A modality is a capability of the selected model, never of a vendor.**
+   M95 lane N's evidence-bearing `ModelCapabilityRecord`
+   (`src/core/providers/capabilityRecord.ts`) gains, with provenance and
+   "unknown" kept distinct from "no":
+   - `modalities.video`: mime types, the inline and upload byte limits, the
+     fps range and default, the maximum duration, and `hearsSoundtrack`;
+   - `modalities.audio`, widened from a flag: formats, the inline limit, and
+     whether a standalone `input_audio` part is actually heard;
+   - `files`: which Files API the provider has (Meta's, OpenAI's, Anthropic's,
+     Gemini's, or none), its per-file and pool limits, and its expiry range.
+
+   Meta's rows come from the captures: Muse Spark 1.3 takes mp4 and mov but
+   `hearsSoundtrack` is no (U4); 1.2 takes both and hears the soundtrack; on
+   both, `input_audio` is not heard (U7). 1.1 stays unknown until it is
+   captured. On after each one's capture: Gemini (its own Files API and inline
+   data), OpenRouter routes whose record says video, and local
+   vision-language servers (vLLM and SGLang serving Qwen-VL take `video_url`)
+   once their served capability is established. A model whose record says
+   no, or unknown, is refused before anything is sent, with a named reason.
+   Nothing is withheld because one vendor lacks it.
+
+2. **Upload once, replay the id.** Video always goes through the provider's
+   Files API where the record has one. PDFs and images larger than
+   `MEDIA_FILE_ID_MIN_BYTES` (1 MiB), and any media still in replay after its
+   first delivery, move to a `file_id` where the capability exists, which ends
+   the per-round base64 re-sends. Small images stay inline (cheap, and cached
+   as part of the prefix). Providers without a Files API keep D47's inline
+   path and its budgets unchanged.
+   - **Transport.** The host or runtime streams the file from disk (never a
+     whole-file buffer), with progress and Stop, hashing it with SHA-256 as it
+     goes. The key is only in that request's header (rule 8); the upload uses
+     the same endpoint checks as every other Model API request.
+   - **The wire, as captured (U6).** A multipart upload with
+     `purpose=user_data` and the expiry as the bracket-form fields
+     `expires_after[anchor]=created_at` and `expires_after[seconds]`.
+     Retrieve, list, content (byte-exact) and delete all work; a deleted file
+     no longer lists. A `store: false` turn can reference a `file_id`.
+   - **Expiry.** Every upload sets `expires_after`. The default is
+     `MEDIA_FILE_EXPIRY_DEFAULT_S` (7 days), within Meta's documented
+     3,600–2,592,000 seconds; U6 saw `expires_at` set. A crash can therefore
+     never leave a file at Meta indefinitely.
+   - **Lifecycle.** A per-session upload ledger maps the SHA-256 to
+     `{fileId, provider, expiresAt, bytes, name, mime}`. Fork and rewind share
+     an upload by reference count. Deleting a session, the
+     `cleanupPeriodDays` purge and **Delete uploaded files** delete the
+     provider's copy (`DELETE /v1/files/{id}`) once no session refers to it.
+     A replay that meets "not found" re-uploads once after the source file's
+     hash matches, and otherwise says the upload expired and asks for the
+     file again.
+   - **Account & usage** lists the account's files: name, size, session,
+     expiry, and the total against the provider's pool (100 GiB at Meta).
+     The captures found other files on the account that this product did
+     not upload (Muse Code or other use), so the list shows every file and
+     marks ours. **Delete** and **Delete all ours** act on ours. Another
+     file is deleted only after a confirmation saying that another app may
+     still use it. If the key is removed, the list stays, read-only, and
+     names each file's expiry.
+
+3. **History keeps ids and metadata, never bytes.** Session files, rewind,
+   fork, export and share (M84), the problem report (M93), the usage journal
+   (M102) and the logs hold only the file id, SHA-256, name, mime type, size,
+   duration, soundtrack flag, dimensions, expiry and provider. Exports and
+   shares carry the metadata line and no file id. Inline parts keep D47's
+   after-first-delivery replacement.
+
+4. **Sniff the bytes, never trust the name.** Ours, with no dependency and
+   no frame decoding, bounded by `MEDIA_SNIFF_MAX_BYTES` from the head and a
+   tail window (a `moov` box may sit at the end):
+   - mp4 by its ISO-BMFF `ftyp` brand, and QuickTime by `qt  ` (sent as
+     `video/quicktime`, which U5 shows Meta accepts though its documentation
+     says mp4 only); duration from `moov/mvhd`, size from `tkhd`, a soundtrack
+     from an `hdlr` of `soun`;
+   - WebM and Matroska (EBML), which U5 shows Meta refuses at upload and
+     inline, and m4a (not captured) are refused with a conversion hint;
+   - wav (RIFF `WAVE`) and mp3 (ID3 or frame sync) are audio;
+   - a file whose `moov` is not found within the window is "duration
+     unknown", allowed unless the model's record sets a maximum duration (and
+     refused in a capped session, decision 6).
+
+   **Convert to mp4** is offered only when a converter is already on the
+   machine (`avconvert`, which macOS ships, or an `ffmpeg` on PATH, found by
+   absolute path and run with an argument array into an owner-only temporary
+   file). Nothing is bundled or installed.
+
+5. **Sound, routed to where it is heard.**
+   - **A video with a soundtrack, on a model that does not hear it** (Muse
+     Spark 1.3, U4). The chip says "1.3 does not hear this video's sound" and
+     offers:
+     - **Transcribe the sound** (the default): Muse Voice Transcribe's batch
+       endpoint at $0.18 per audio hour, a paid feature under rule 12,
+       available by default on interactive Model API with D78's ask-once
+       popup. The transcript goes beside the video as text, and the user's
+       model stays. It is offered where capture U18 shows the batch endpoint
+       takes the video's container, or a converter can extract the sound.
+     - **Use 1.2 for this message**, which hears it (U4). The pill says so for
+       that message only.
+     - **Send without sound**.
+   - **A standalone audio file** (wav, mp3). `input_audio` is accepted and
+     silently ignored on Meta (U7), so no Meta request carries it until
+     Meta fixes it (decision 15) and a new capture shows it heard. The
+     default is **Transcribe**, as above. **Send to 1.2 as a video** (the
+     sound wrapped with a still frame) is offered only where a converter is
+     on the machine.
+   - **Other vendors.** `input_audio` goes to models whose record says it is
+     heard (Gemini, OpenAI's audio models), each from its own capture.
+
+6. **Cost is estimated from real usage, reserved at the worst case, settled
+   from the bill.** One token per encoded byte goes.
+   - **Meta's count route cannot help.** U1, U2, U3 and U17 show
+     `POST /responses/input_tokens` returns about 170 tokens whatever the
+     media: a 600-second video, 49 images, any fps or detail. It is still
+     used for text.
+   - **The estimator** (`src/core/media/mediaCost.ts`) is calibrated per
+     model from actual billed usage: tokens per second of video at each fps,
+     per image at each detail, per PDF page. Each calibration point is a
+     recorded capture.
+     - The first point: a 10-second, 0.5 MB clip billed 2,751 input tokens
+       on 1.3 (about 2,580 for the video) and 1,671 on 1.2.
+     - M105's step 1 adds lengths, fps values and image details.
+   - **Reservation** takes the estimator's upper bound (the largest
+     calibrated rate times the duration, times
+     `MEDIA_ESTIMATE_SAFETY_FACTOR`). D78's daily ledger and M82's session
+     reservation admit that figure. Settlement uses the reported usage, and
+     each settled turn becomes a new calibration observation, kept locally.
+   - **The chip** shows duration, size, sound, the estimated tokens and their
+     price, marked as an estimate, for example "2:14 · 38 MB · sound · ~35k
+     tokens (est.) · $0.05 Standard / $0.02 Contributor".
+   - **Unknown means refused when capped.** In a capped session, media with
+     no calibrated rate for its model, or an unknown duration, is refused
+     with the reason, never sent on a guess.
+   - **The 50-media limit** is enforced on our side before sending. The count
+     endpoint did not refuse 51 (U3), and a real turn's behaviour is capture
+     U3b.
+   - **Storage.** Whether Files storage is billed could not be read from the
+     API (U6). Step 1 reads the billing dashboard, signed in and read-only,
+     after a day with uploads (U6c).
+     - If storage is billed, uploads become a paid feature under rule 12:
+       D48's popup names the storage rate and the expiry, `PaidUsage` counts
+       storage-days, and the D78 ledger admits them.
+     - If it is not billed, uploads ask nothing beyond decision 7.
+     - The upload path ships with neither default until U6c is recorded.
+
+7. **The contributor tier warns.** On a contributor model (Meta may train on
+   its inputs), attaching a video, an audio file or a screen recording shows
+   the warning on the chip and asks once per conversation: **Send**, **Use
+   the Standard model**, or **Remove**. A screen recording always asks there,
+   because it holds whatever was on the screen.
+
+8. **Every editor gets every entry point** (D84). The table below is the
+   media row of M104's feature registry.
+
+9. **The ACP blob fix.** An embedded resource's `blob` is dispatched on its
+   `mimeType` and its sniffed header: an image to the image part, a PDF to
+   the document part where the backend and model take it, video and audio to
+   the media path above, and anything else to a named refusal (never "Only
+   PNG, JPEG, GIF and WebP…"). `promptCapabilities.audio` becomes true; the
+   ACP capability is the agent's, so a session whose model cannot take audio
+   refuses the block with the reason.
+
+10. **A screen recording is a user action only.** No tool, hook, schedule,
+    subagent, team worker, best-of-N candidate or headless run can start one.
+    - **Bounds.** At most `museSpark.screenRecordingMaxSeconds` (120 by
+      default, up to 600), with a visible countdown and Stop beside the
+      operating system's own indicator. The microphone and system audio are
+      off unless the user ticks them for that recording.
+    - **Preview first.** The recording opens in a preview (play, then
+      **Attach** or **Discard**); nothing is sent before **Attach**. The file
+      sits in an owner-only temporary folder and is deleted after its upload
+      or its discard.
+    - **macOS.** A `--record-screen` mode in the existing Swift helper, using
+      ScreenCaptureKit with `AVAssetWriter` writing H.264 and AAC into mp4.
+      The permission prompt names the helper, as M28's disclaim makes it do.
+      Where ScreenCaptureKit is missing, `screencapture -v` (with `-G` for
+      audio) followed by `avconvert`.
+    - **Windows.** **Attach latest recording** takes the newest mp4 from the
+      Snipping Tool's `Videos\Screen Recordings` folder (made within
+      `RECENT_RECORDING_MAX_AGE_MS`). A Windows.Graphics.Capture helper in C#,
+      compiled on first use by `jobBuild` like M27's, records directly
+      through Media Foundation's H.264 sink.
+    - **Linux.** The xdg-desktop-portal ScreenCast interface (the portal's
+      own picker and consent), recorded from its PipeWire stream by
+      GStreamer's `pipewiresrc` or an `ffmpeg` on PATH into mp4; plus
+      **Attach latest recording** from `~/Videos/Screencasts` and Spectacle's
+      folder (GNOME saves WebM, which goes through **Convert to mp4**).
+    - **The companion page.** `getDisplayMedia` with `MediaRecorder` writing
+      `video/mp4` where `MediaRecorder.isTypeSupported` says so (current
+      Chromium and Safari); elsewhere a refusal that names the browser.
+    - **VS Code webviews** have no `getDisplayMedia`, so VS Code uses the
+      native helpers. In a remote window the helper would run on the remote
+      host, which has no screen: there the menu offers the companion page or
+      a recording file the user picks, and says why.
+
+11. **Model switches and replay.** Switching to a model without video (or
+    audio) replaces each replayed item with one line, for example "clip.mp4
+    (2:14) was left out: <model> does not take video", as Muse Code itself
+    does. Switching back restores the `file_id` while it has not expired.
+    Compaction (M101 lane C1) keeps the `file_id` parts in the recent tail and
+    names older media by its metadata.
+
+12. **The companion page, and D30.** D84 supersedes D30's "no web app of
+    ours" for the loopback companion page. Its upload endpoint sits behind
+    M104 lane C's guard: a one-use launch code in the URL fragment, a
+    per-window bearer, exact `Host` and `Origin`, Fetch-Metadata checks, the
+    custom header, no cookies and no CORS. It has its own streamed size cap.
+    The page never binds a LAN address, so nothing here makes the panel
+    reachable from another device; D30's Remote Control ruling is unchanged.
+
+13. **Nothing at startup, no dependency.**
+    - The sniffers, limits, upload ledger and cost code live in a portable
+      lazy `dist/media.js`, loaded at the first non-image media chip, the
+      first media `read_file` or the first upload, in the extension and the
+      ACP package alike.
+    - The recorder drivers live in a lazy `dist/screenRecord.js`.
+    - The preview and the companion's recording UI are lazy browser chunks.
+    - Encoders are the operating system's; no existing cap rises (D6).
+
+14. **Privacy.** PRIVACY says what reaches the provider (uploads persist
+    until their expiry or deletion), that contributor models may train on
+    them, that a screen recording holds whatever was on screen, and that
+    deleting a session deletes its uploads. README carries the modality
+    matrix per backend and model.
+
+15. **Four upstream requests to Meta's Model API**, each a task in M105's
+    lane 0. Each is filed after a dedupe search through Meta's developer
+    support channel for the Model API (or the meta-models GitHub tracker
+    where one covers the API), with no private content, and its link is
+    recorded:
+    1. `POST /responses/input_tokens` should count image, video, audio and
+       PDF tokens.
+    2. Muse Spark 1.3 does not hear a video's soundtrack; 1.2 does.
+    3. `input_audio` parts are silently ignored on
+       `muse-spark-1.2-contributor`, while the count endpoint accepts them.
+    4. Document mov support or refuse it consistently. Also document the
+       minimum `compact_threshold` (1,000) and whether `store: false`
+       supports server compaction (U11; D86 keeps server compaction an
+       evaluated arm only).
+
+    The Muse Code SDK request for an MSP video/file part is D86.7's.
+
+**Editor matrix (media).** "Runs in" is where the bytes are read and
+uploaded from.
+
+| Editor                                                                             | Attach (pick, drop, paste)                                                                                                                                                  | Screen recording                                                                  | Runs in               | When                                                   |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------ |
+| VS Code, VSCodium, Cursor, Windsurf, Kiro, Positron, Theia                         | the picker with a media filter, drop and paste; the webview sends a path or URI token and the host streams the file                                                         | **Attach screen recording…** and **Attach latest recording** (the native helpers) | extension host        | M105                                                   |
+| Remote SSH, WSL, Dev Containers, Codespaces, code-server                           | as above; a local file is read through VS Code's file system API and streamed by the remote host                                                                            | the companion page, or a recording file the user picks (the menu says why)        | remote extension host | M105                                                   |
+| JetBrains IDEs, Visual Studio, Eclipse (M104b–d)                                   | the IDE's file chooser and drop into the embedded panel, through MHP's `attachments/*` and the bridge                                                                       | the runtime's helpers                                                             | the runtime           | contract and fakes in M105; wired by M104b–d           |
+| Zed, Xcode, Qt Creator, Neovim, Emacs, Sublime (companion-paired, M104e)           | ACP `resource_link` and embedded resources by `mimeType`; `/attach <path>`; the companion page's file input and drop                                                        | `/record` (the runtime's helpers) or the companion page                           | agent process         | M105                                                   |
+| Other ACP clients (JetBrains AI Assistant, CodeCompanion, agent-shell, Jupyter AI) | ACP blocks by `mimeType`; `/attach <path>`                                                                                                                                  | `/record`                                                                         | agent process         | M105                                                   |
+| The companion page                                                                 | file input, drop and paste, uploaded through its guarded streamed endpoint                                                                                                  | `getDisplayMedia` and `MediaRecorder` into mp4 where the browser supports it      | the runtime           | M105                                                   |
+| Headless `exec`                                                                    | `--attach <path>`, repeatable, inside the workspace's confinement                                                                                                           | refused: nobody is there to preview it                                            | CLI process           | M105                                                   |
+| The Muse Code backend, in any editor                                               | images as today; a video becomes an `@path` mention for the CLI's own `read_file` if capture U16 proves it reads one, and is refused naming the Model API backend otherwise | as an attachment, by the same rule                                                | `muse serve`          | M105; an MSP part waits on the upstream request (M106) |
+
+---
+
+### D86 — Agent-loop wire guarantees (M106, 2026-10-05)
+
+The same audit (§3 of `docs/research/meta-coverage-2026-10-05.md`) compared
+the loop with Meta's coding-agent guidance. The loop matches it on the
+Responses wire, encrypted reasoning replay, retries and the window. It does
+not use the guarantees Meta offers: strict tool arguments, structured output
+for the calls whose text code reads, a bound on hosted tool calls, streamed
+arguments, concurrent reads, the recommended output cap, rate-limit headers,
+or the Muse Code SDK's current release. The live captures of the same evening
+(§6 of the research record) confirmed U8, U9, U10, U12 and U13, left U11
+(server compaction) inconclusive, and showed `?client=` on the models list
+changes nothing (U14).
+
+1. **The SoL-Pi gains are invariants** (D49, D81.5).
+   - With a feature off, the golden requests are byte-identical to the base.
+     A feature on by default re-baselines its goldens on purpose, with the
+     byte diff in its certification record (D81.2).
+   - Nothing per request enters `instructions`, the tool list or the
+     `prompt_cache_key` digest: each choice below is fixed for the session.
+   - `then_run`, ObservationPack, the todo compaction and the one paid gate
+     are untouched. No reducer exists (D81.1).
+   - The M75 evaluation stays comparable: a tool-schema change re-runs its
+     pair before it is on by default.
+
+2. **Strict tool schemas, consumed from M101.** M101 item 24 owns the
+   strict-subset rewrite: lane P2 delivered `supportsStrictTools` and
+   `withStrictTools`, and its fix lane FIXM101P2 is implementing the rewrite
+   (every key required, optional ones nullable, the grammar-safety check).
+   M106 only wires it:
+   - Meta's Responses function tools carry `strict: true` (today a literal
+     `false` type at `schemas.ts`);
+   - the harness's own tools always pass through the rewrite;
+   - an MCP tool is strict only when the rewrite converts it losslessly;
+     otherwise that tool stays `strict: false` and one log line names it;
+   - other providers follow their format's `supportsStrictTools`.
+
+   `museSpark.modelApiStrictTools` (default on) turns it off. Capture U9
+   showed strict tools stream normally (`function_call_arguments.delta`
+   events, then `.done`). An invalid strict schema gets an immediate 400,
+   "'additionalProperties' is required to be supplied and to be false", and
+   that captured text is what the refusal parser reads.
+
+3. **Structured output for every call whose text code reads.**
+   - **The sites.** The Auto reviewer's verdict (M78), Muse Judge's stated
+     verdict (M98), prompt and agent hooks' decisions (M91), M71's commit and
+     pull-request drafts, M101 lane C1's structured compaction summary, and
+     the verify loop's check claims where the model writes them (read by
+     M96c's claim check). Lane 0 inventories every parser of model text; a
+     site that turns out to read none is recorded and dropped.
+   - **The mode** is the strongest the model's record offers in
+     `output.formats`: a strict JSON schema, then a JSON schema, then a forced
+     tool, then today's text parser. Capture U10 showed Meta's strict
+     `json_schema` works with a function tool present, at effort minimal.
+   - **Validation.** Every answer is parsed with zod (rule 7). An invalid
+     answer gets one repair request, then the old text path; it never passes
+     silently.
+   - **Compaction can never be blocked.** The structured summary is rendered
+     into C1's fixed Markdown byte-for-byte deterministically; any failure
+     falls back to the text summary.
+   - **Headless `exec --output-schema <file>`**, as Muse Code's own `exec`
+     has it. The user's JSON Schema is refused before any call if it is
+     outside the strict subset. The final answer is requested in that format,
+     validated, and returned in the exec result's `output`; a mismatch exits
+     with its own code. The schema's digest goes in the run ledger, and the
+     exec result schema gets an additive field under M80's versioning rule.
+
+4. **Hosted tools are bounded per response.**
+   - Every request that carries `web_search` sets `max_tool_calls`
+     (`museSpark.webSearchMaxPerRequest`, 5 by default, 1–20). Capture U8
+     showed `max_tool_calls: 1` bounds `web_search_call` to exactly one.
+   - D78's reservation becomes the tokens plus the bound times the search
+     price. Settlement counts the `web_search_call` items actually returned;
+     more than the bound is still settled in full and logged as an anomaly.
+   - Web search is offered again in VS Code under the daily budget: the
+     blanket "no verified limit" refusal is replaced by that bound check, in
+     capped sessions (M82) too.
+   - The ACP flag and the headless exception (hosted search unavailable in
+     CI) are unchanged.
+   - The record gains `hosted.maxToolCalls`, so the other vendors' hosted
+     search (CAPAUDIT item 6, M95c) reuses the bound.
+
+5. **Loop UX and throughput.**
+   - **Streamed-argument previews** (`tools.streamingArguments`): long
+     write and edit content appears in the tool row as it streams, labelled
+     as a preview and bounded by `TOOL_ARGUMENT_PREVIEW_MAX_CHARS`. Nothing
+     runs, asks or calls a hook before `.done`, and the preview never enters
+     replay.
+   - **Concurrent read-only calls, in call order.**
+     - The set is fixed in code: `read_file`, listing, search, glob, the code
+       intelligence queries, the diagnostics read and `recall_output`.
+     - Never shell, a write, anything that asks, or an MCP tool (a server's
+       `readOnlyHint` is untrusted).
+     - PreToolUse hooks run first, serially, in call order.
+     - The allowed reads then run up to `MODEL_API_PARALLEL_READS` (4) at a
+       time.
+     - Results, D47's media reservations, M73's packing and PostToolUse
+       hooks are applied in call order.
+     - Any other call is a barrier: the calls before it finish, it runs
+       alone, then the rest continue.
+     - Replay bytes equal serial execution's.
+     - `museSpark.modelApiParallelReads` (default on) turns it off.
+   - **Output cap per model.** It comes from the record's `output.maxTokens`;
+     Meta's models get the recommended 131,072 (from 32,768). The reservation
+     clamps it to what the budget allows. One continuation follows an
+     `incomplete` reply for `max_output_tokens`
+     (`MODEL_API_CONTINUATIONS_MAX` = 1), then a notice. Tool calls in a
+     cut-short reply keep M101 item 8's rule: answered with an error, never
+     run.
+   - **The repeat guard.** The same tool with the same canonical arguments
+     and the same result three times in a row: the third is not run and
+     returns a fixed `MODEL_TEXT` note; a fourth ends the turn with a "stuck"
+     notice.
+   - **The message phase.** Capture U13 saw only `commentary`, and most
+     messages carry no phase at all; `final_answer` never came back. So a
+     phase is resent exactly as it arrived (today's behaviour), and the audit's
+     `final_answer` item is recorded as not applicable.
+   - **Server compaction is not taken.** Capture U11 was inconclusive:
+     `compact_threshold` must be at least 1,000, and with `store: false` and a
+     6.2k-token input no compaction item came back. It stays an evaluated arm
+     only, after another capture, and D85.15's fourth upstream request asks
+     Meta to document it.
+
+6. **Limits and health.**
+   - **Rate-limit headers.** M102 stores the allow-listed headers as
+     reported. Capture U12 found Meta's `x-ratelimit-limit-requests`,
+     `x-ratelimit-remaining-requests`, `x-ratelimit-limit-tokens` and
+     `x-ratelimit-remaining-tokens` on every response, streamed or not; the
+     contributor key showed 150 requests and 3,000,000 tokens per minute (not
+     the documented 100 RPM). No reset header was seen, so the window is the
+     documented minute. M106 turns these into a per-key request and token
+     bucket, read live from the latest response and never hard-coded. Each
+     other provider's headers are interpreted only after its own capture.
+   - **Fan-out pacing.** Subagents (M48), best-of-N (M77), team workers
+     (M96), the judge (M98) and scheduled runs (M52) draw from that bucket.
+     The main turn always goes first, and a 429's `Retry-After` pauses the
+     bucket. Before the first response gives the key's limits, fan-out starts
+     at `PACING_START_REQUESTS_PER_MINUTE`.
+   - **Meta's status.** `GET /v1/status` is shown in Account & usage and the
+     problem report (M93), and a 5xx banner links it.
+   - **504** joins the retried statuses in `FormatQuirks`' retry table (M101
+     lane P2), with the same jitter and budget re-reservation.
+
+7. **Muse Code SDK 1.4.2.** This lifts SDK142's "keep the SDK at 1.3.0".
+   - The pin moves to 1.4.2 with its fingerprint.
+   - `model/list`'s `variants`, `reasoningEffortVariants` and
+     `defaultReasoningEffort` drive the Muse Code effort slider instead of
+     D10's static tiers.
+   - `feedback/submit` from a turn's ⋯ menu: the classification and a note.
+     Files and the session record go only with their own checkboxes (off by
+     default), and the dialog says what Muse Code uploads. The outcome is
+     shown as returned.
+   - `session/delete` and `session/deleteCompleted` serve History's delete
+     on Muse Code; `session/started`, `session/closed` and
+     `session/listChanged` keep History current.
+   - Every new frame is parsed from a captured frame (rule 13) through zod
+     (rule 7).
+   - **Upstream.** After a dedupe search, a comment on
+     meta-models/muse-code-sdk#48 (file input) asks for video and audio
+     parts, citing the CLI's own `read_file` support. No private content.
+
+8. **Multi-vendor, by capability** (D81.2). Each item reads the M95 record:
+   strict tools `supportsStrictTools`; structured output `output.formats`;
+   previews `tools.streamingArguments`; the output cap `output.maxTokens`;
+   the hosted bound `hosted.maxToolCalls`; pacing each provider's captured
+   headers. Concurrent reads and the repeat guard are the harness's own and
+   apply to every tool-calling model; the 504 retry applies to all.
+
+---
+
+### D87 — Resource governor: CPU and memory thresholds that throttle or relocate work (M107, 2026-10-05)
+
+The owner, 2026-10-05: "we need to be able to set performance thresholds like
+cpu and memory caps that when met the project throttles the work or
+relocates".
+
+What exists: M96 lane K's load guard holds back new team work when CPU stays
+above 85% for 30 seconds or free memory falls below 2 GiB, and team processes
+run below normal priority. M96c's check slots and SSH runners take heavy
+checks off the machine, and M100 plans paired devices as lane pools. Each
+covers part of the work, and none takes the user's own numbers. D87 makes
+one governor for everything the harness starts.
+
+1. **One governor per harness process, for everything it starts.**
+   - It lives in portable `src/core/resources/**` (no `vscode`, on M60's
+     portable list), built as `dist/resourceGovernor.js`.
+   - The extension, the ACP agent and headless `exec` load it at the first
+     governed spawn, never at activation.
+   - It replaces M96 lane K's `loadGuard.ts`: the team host reads the
+     governor, so there is one sampler and one set of thresholds.
+
+2. **The work it governs.** Every child the harness starts is registered at
+   launch with a kind and a class.
+   - **Kinds:**
+     - `toolShell`: Model API tool shells (M7);
+     - `backgroundTask` (M46);
+     - `check`: M68's check commands and M96c's heavy commands and check
+       slots;
+     - `mcpServer` (M50);
+     - `worker`: M96's team workers;
+     - `subagent` (M48);
+     - `bestOfN` (M77);
+     - `schedule` (M52);
+     - `browserCheck` (M81);
+     - `hook`: command hooks (M51, M91);
+     - `museServe`: the Muse Code CLI and its tree;
+     - `other`: the voice and recording helpers.
+   - **Classes.** `foreground` is what the user is waiting on now: the
+     active turn's own tool call, the `!` user shell, that turn's hooks,
+     checkpoints, and the panel's git calls. `background` is everything else.
+   - **Never governed:**
+     - the user's own processes and terminals;
+     - the editor, the extension host and the runtime themselves, and the
+       webview;
+     - in-process network calls (model requests, Tab);
+     - Stop, cancel and the process-tree kill;
+     - approvals and the paid popup.
+
+3. **The thresholds are the user's, per machine.** Machine-scoped settings
+   (D15); a workspace cannot change them. The ACP agent and the CLI read the
+   same values from the runtime's settings store, and headless takes flags.
+   - `museSpark.resourceGovernor`: on by default (D78).
+   - `museSpark.resourceCpuMaxPercent`: 85 (30–100), sustained for
+     `RESOURCE_CPU_WINDOW_MS` (30 seconds), M96's figures.
+   - `museSpark.resourceMemoryMaxPercent`: 90 (40–98), memory in use.
+   - `museSpark.resourceMemoryMinFreeGiB`: 2 (0.5–64), available memory; on
+     a small machine the floor is at most `RESOURCE_MEMORY_FLOOR_MAX_FRACTION`
+     (15%) of the RAM, so an 8 GB laptop trips at 1.2 GB.
+   - `museSpark.resourceGpuMaxPercent` and
+     `museSpark.resourceDiskBusyMaxPercent`: unset, and not sampled, until
+     the user sets them.
+   - `museSpark.resourceRelocate`: `paired` (default), `ask` or `off`.
+   - M96's `teamHeavyCommandSlots` and `teamWorkerPriority` stay; the
+     governor only ever narrows below them.
+
+4. **The sampler is cheap and honest.**
+   - **The machine,** every `RESOURCE_SAMPLE_MS` (5 seconds), with no child
+     process:
+     - CPU from `os.cpus()` deltas (`os.loadavg()` is all zeros on Windows),
+       plus Linux's pressure files (`/proc/pressure/cpu` and `memory`) where
+       present;
+     - memory from `os.freemem()` and `process.availableMemory()`, and inside
+       a container from cgroup v2's `memory.max` and `memory.current`;
+     - on macOS, what lane 0 measures on the Mac mini: if `os.freemem()`
+       counts free pages only, `kern.memorystatus_level` instead, at a slower
+       cadence.
+   - **The harness's own trees,** every `RESOURCE_TREE_SAMPLE_MS` (15
+     seconds), only while governed work runs: CPU time and resident memory
+     per tree.
+     - Windows: from the job object (a query mode of M27's helper).
+     - Linux: from M96 lane K's cgroup scope, or `/proc` for a process group.
+     - macOS: one `ps` call for every group.
+   - **The GPU,** only when a threshold is set:
+     - `nvidia-smi` where it is installed;
+     - Linux's `gpu_busy_percent`;
+     - Windows' GPU engine counters;
+     - on macOS it is stated as unavailable (it needs root).
+   - **Disk,** only when a threshold is set: Linux's `/proc/diskstats`, and
+     the platform counters on Windows and macOS, at 15 seconds.
+   - **Its own cost** stays under 0.5% of one core, measured on the rigs.
+   - **A failed reading is "unknown", never 0.** An unknown reading neither
+     trips nor clears a level.
+
+5. **Levels with hysteresis:** normal, throttle, relocate, pause.
+   - **Enter.** A threshold held for its window (CPU 30 seconds; memory two
+     samples in a row).
+   - **Escalate** after `RESOURCE_ESCALATE_MS` (60 seconds) without
+     recovery. Relocate is skipped when no target exists.
+   - **Critical** (CPU at least 97% for 60 seconds, or available memory below
+     half the floor) goes straight to pause.
+   - **Exit** one level at a time, once every reading has stayed below its
+     threshold less `RESOURCE_HYSTERESIS_POINTS` (10 points; memory 0.5 GiB
+     above the floor) for `RESOURCE_EXIT_MS` (60 seconds).
+   - **Dwell.** Each level is held for at least `RESOURCE_MIN_DWELL_MS` (60
+     seconds), so a load near a threshold never flaps.
+
+6. **Throttle first: priority, concurrency, deferral.**
+   - **Priority of background trees.**
+     - Windows: the job's priority class goes to below normal (idle at
+       pause), and optionally the job's CPU rate cap (hard cap at
+       `RESOURCE_JOB_CPU_RATE_PERCENT`). Both are restored when the level
+       drops.
+     - Linux: cgroup v2 `cpu.weight`, `io.weight` and `memory.high` (which
+       slows a tree without killing it) on M96 lane K's scope where systemd
+       delegates them, restored on recovery. Otherwise `nice` and
+       `ionice -c3` per member. An unprivileged process cannot raise its nice
+       value back, so without a cgroup, renice happens only at pause, and the
+       record says that process stays lowered for its life.
+     - macOS: `taskpolicy -b` (background CPU and I/O), undone where lane 0
+       proves `-B` restores it; otherwise only at pause, as on Linux.
+   - **Concurrency.** The governor publishes a capacity per kind, read by
+     M96c's pick and slots, M77, M46, M52 and M48: one running background item
+     per kind at throttle, no new ones at pause. M96c's child-slot rule still
+     holds, so nothing waits on its own parent.
+   - **Deferral.** A new background launch waits in the governor's queue,
+     first in first out per kind under M96c's priorities, shown as "waiting:
+     machine busy". Running work keeps running.
+   - **Foreground** is never deferred at throttle. At pause, a new
+     foreground spawn waits at most `RESOURCE_FOREGROUND_WAIT_MS` (20
+     seconds) behind a visible row with **Run now**, then runs anyway.
+
+7. **Relocate: only where M100 or M96c already allow it, never silently.**
+   - **Targets.**
+     - A paired device (M100) whose approved offer covers this repository
+       and the task's role or check, and whose own governor is at normal.
+     - An M96c SSH runner, for heavy checks.
+   - **What can move.**
+     - Queued team tasks that have not started, and queued checks.
+     - A running check only when the user chooses **Move to <device>**, after
+       M96c's retirement proves the local attempt stopped.
+     - Never: tool shells, background tasks (arbitrary command strings,
+       D80.4), subagents, best-of-N candidates, schedules, MCP servers or
+       Muse Code turns.
+   - **Seen every time.**
+     - The task row names the device and the reason.
+     - A notice appears once per conversation.
+     - The Traffic view (M96c) and the usage journal (M102) record it.
+     - **Keep here** works until the receiver admits the task.
+   - **Consent is M100's, unchanged:** pairing, the offer, the repository
+     mapping, the base-snapshot approval, and the receiver's own permissions
+     and paid popup. The dispatch is M100's own; the governor adds only a
+     reason code and its level.
+   - **Headroom.** M100's offer status gains
+     `resource: {level, headroom: 'ample' | 'some' | 'none'}`: a bucket,
+     never readings, processes or paths. The receiver's governor refuses
+     admission at throttle or above (D80.5's local load guard).
+
+8. **Pause, and tell the user.** At pause no background process starts and
+   queued work waits. The chip turns to a warning, and one notice per
+   conversation names the reading, the threshold and what is waiting, with:
+   - **Resume now**: an override for `RESOURCE_OVERRIDE_MS` (15 minutes);
+   - **Settings**;
+   - **Show resources**.
+
+9. **Never kill; never touch what is not ours.**
+   - The governor ends nothing: no kill, no suspend, and no hard memory cap
+     (one that fails allocations is a kill by another name).
+   - It acts only on a process proven to be in a tree it registered:
+     Windows job membership; on Linux the cgroup, or the process group plus
+     the start time; on macOS the process group plus the start time.
+   - It re-checks membership before each change, so a reused process id is
+     never touched.
+   - It never raises a priority above normal and never uses elevated
+     rights.
+   - Stop, cancel, approvals and the paid popup never wait on it.
+
+10. **Every editor shows it** (D84):
+
+    | Surface                                     | Shows                                                                                                | Controls                                                                                     | History                            |
+    | ------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------- |
+    | VS Code family                              | a status bar item while not at normal; a chip beside the panel's heartbeat; its popover              | **Resume now**, **Settings**, **Show resources**; **Move to** and **Keep here** on task rows | the usage page's Resources section |
+    | JetBrains, Visual Studio, Eclipse (M104b–d) | the IDE's status widget through MHP's status item; the shared chip in the embedded panel             | the same, in the popover                                                                     | the usage tab                      |
+    | The companion page                          | the shared chip                                                                                      | the same                                                                                     | the companion usage page           |
+    | ACP clients                                 | `/resources`; one notice per change that affects the session's work; `_meta` on a deferred tool call | `/resources resume`                                                                          | `/usage resources`                 |
+    | Any terminal                                | `muse-spark-code-acp resources [status\|history] [--json]`                                           | `resources resume`                                                                           | `usage resources`                  |
+    | Headless `exec`                             | `resource` events in the exec event schema, and a stderr line                                        | `--resource-governor on\|off`, `--cpu-max`, `--memory-max`; relocation refused               | the run ledger                     |
+
+11. **History on the usage page.** M102's journal gains `type: "resource"`
+    records, under D82's retention and rollups:
+    - per-minute aggregates: machine CPU %, memory in use %, an
+      available-memory bucket, GPU and disk where set, and the level;
+    - events: level changes, deferred, relocated and paused counts by kind,
+      and overrides;
+    - per kind, the CPU-seconds and peak memory of the harness's own work.
+
+    Never in a record: process ids, command lines, paths, process names,
+    the environment, or anything about the user's own processes. The usage
+    page's Resources section draws CPU and memory against their thresholds as
+    step lines, with a level band, an events table and the harness's share;
+    `/usage resources` and `usage resources` give the same as text.
+
+12. **Several windows and editors.** Each process runs its own governor over
+    the same machine readings, so all of them back off together, as M96's
+    load guard argued. Each publishes its level in M96's hint file for the
+    Traffic view. A machine-wide total stays M96d's coordinator.
+
+13. **No dependency, nothing at startup.** Node built-ins, the existing C#
+    helper (`MuseSparkJob.cs` gains query and priority modes, compiled on
+    first use), and operating-system tools found by absolute path and run
+    with argument arrays. Activation gains nothing: the status item
+    registers when the governor first loads. Each spawning bundle gains only
+    its admission call, and no cap rises (D6).
+
 ## 3. Open questions (need the owner)
 
 - **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
@@ -18203,6 +18868,742 @@ joined with M57, M58 and PR #49's sign-in
   - [x] M92e: prompt and shell secret guards, with drills
         (`docs/certification/m92.md`); the commit guard skipped, no
         commit-writing path exists
+
+---
+
+### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
+
+**Status 2026-10-05: planned.** The research is
+`docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
+deliveries, in order:
+
+- **a:** the Files API, the media core, Meta's wire, and the VS Code, ACP,
+  headless and companion entry points, with the ACP blob fix;
+- **b:** cost, audio and the vendor codecs;
+- **c:** screen recording on all three platforms and the companion page;
+- **d:** the native plugins' surfaces, with M104b–d.
+
+a ships alone if the rest slips: it fixes the ACP bug and brings video to
+every Model API user in every editor.
+
+- **Goal.** In any editor, a user can attach a video (with its sound), an
+  audio file, a document or a screen recording, see what it will cost before
+  sending, and have it reach every model that can take it, uploaded once and
+  never re-sent as bytes.
+- **Depends on.**
+  - **M95 (D74):** lane N's capability record, the codecs, the transport and
+    the registry.
+  - **Existing milestones:** D47 and M54 (the PDF wire and its budgets), M44
+    (images), D78 and M82 (budgets), M35 (Muse Voice; this adds its batch
+    endpoint), M84 (export), M93 (the report's scrub), M28 (the helper's
+    disclaim), M27 (`jobBuild`).
+  - **M101:** lane C1 (compaction keeps the parts), lane P2 (per-model image
+    limits in the media budget), lane T item 21 (downscaling on entry).
+  - **M102:** the journal's `units` gain `videoSeconds` and `uploadedBytes`,
+    in its lane 0 region.
+  - **M104:** lane C's companion server (merged, or as the base), lane 0's
+    MHP for `attachments/*`, lanes B and D for the runtime's panel and the
+    bridges.
+  - **M106 lane S** files the upstream MSP request; nothing here waits on it.
+- **Scope.** D85 entire; strings in all 14 tables; README (the modality
+  matrix), PRIVACY, SECURITY, CHANGELOG, `docs/acp.md`, `docs/ci.md`,
+  `docs/ide-compatibility/**` rows, M104's registry rows, certification.
+- **Settings** (machine-scoped where they run or bill, D15):
+  - `museSpark.mediaUploadExpiryDays`: 7 (1–30);
+  - `museSpark.mediaMaxUploadMiB`: 200 (up to 1,024);
+  - `museSpark.screenRecordingMaxSeconds`: 120 (10–600);
+  - `museSpark.mediaAudioAction`: `transcribe` (the default where the
+    model's audio is degraded) or `sendAudio`.
+- **Commands.** **Attach file…** gains the media filter; **Attach screen
+  recording…**; **Attach latest screen recording**; **Delete uploaded
+  files…**; ACP `/attach <path>` and `/record`; `exec --attach <path>`.
+- **Lanes and file ownership.** One integration branch,
+  `feature/m105-media`, under M87's region rules. Muse implements, Codex
+  reviews each lane read-only in one pass by class, and the lead integrates.
+  Lanes F, M2, E2 and E3 (uploads, replay, ACP and the companion's new
+  endpoint) go to Codex or Claude. **Order:**
+  1. Lane 0: the captures first, then the contracts and strings.
+  2. F, M1, C, R1, R2 and R3 in parallel, against lane 0's fakes.
+  3. M2 once F's ledger interface exists; A after M1; E1 and E2 after M1 and
+     M2; E3 once M104 lane C is merged; V after M2 and M95.
+  4. W last.
+
+| Lane                                           | Items                                                                                                                                                                                                                                                                                      | Files it owns                                                                                                                                                                                                       | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                                    | Starts                           |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| 0 Contracts, strings, captures (lead)          | The remaining captures (step 1); the four upstream requests (D85.15); D85.1's record groups; the part schemas from the 2026-10-05 captures; `MediaInfo`, the chip and upload-state types; the recorder driver interface; the companion upload message; MHP's `attachments/*`; every string | new `src/shared/media.ts`, `src/core/media/record/driver.ts` (the interface), `test/unit/helpers/media/**` (a fake Files server built from U6's frames, the fixture builder), `docs/certification/m105-captures.md` | `schemas.ts` (media parts); `capabilityRecord.ts` (`modalities.video`, `modalities.audio`, `files`); `constants.ts` (`MEDIA_*`, `SCREEN_RECORDING_*`); `en.ts`, the 14 `l10n/ui.*.json` and `package.nls*.json` (media region); `src/shared/protocol.ts` (attachment messages); `src/shared/hostApi/**` (with M104 lane 0); `src/shared/usageJournal.ts` units (with M102 lane 0)              | day 0                            |
+| F Files API (a)                                | D85.2: the streamed multipart upload with progress and Stop, expiry, retrieve, list and delete; the per-session upload ledger with reference counts; deletion with the session and the purge; the one re-upload; Account & usage's list                                                    | new `src/core/backends/modelapi/files.ts`, `src/core/media/uploadLedger.ts`                                                                                                                                         | `client.ts` (the multipart transport); `sessionStore.ts` (`fileRefs`); `src/host/backend/fileSessionStore.ts` (delete and purge hooks); `UsageDialog.tsx` (the uploaded files section); the account region of `conversationController.ts`                                                                                                                                                      | after 0                          |
+| M1 Media core (a)                              | D85.4: the sniffers, duration, soundtrack, dimensions, limits and the conversion offer                                                                                                                                                                                                     | new `src/core/media/sniff/{isoBmff,ebml,riff,mp3}.ts`, `src/core/media/limits.ts`, `src/core/media/convert.ts`                                                                                                      | `src/core/attachments.ts` (the kind dispatch and `AttachmentStore.add`'s gate)                                                                                                                                                                                                                                                                                                                 | after 0                          |
+| M2 Wire, gate and replay (a)                   | D85.1, D85.3, D85.11: the parts' encoding, the modality gate, `file_id` replay, the model-switch note, video's slots in the media budget                                                                                                                                                   | new `src/core/media/modalityGate.ts`, `src/core/media/replayMedia.ts`                                                                                                                                               | `ModelApiHost.ts` (the request builder's media region, the replay region, the model switch); `mediaBudget.ts`; `codecs/responses.ts` (media parts); `sessionStore.ts` (the part schema, after F)                                                                                                                                                                                               | after 0 and F's ledger interface |
+| C Cost (b)                                     | D85.6 and D85.7: the calibrated estimator, the chip's estimate, worst-case reservations settled from reported usage, the capped-session refusal, the storage paid feature (only if U6c finds storage billed), the contributor question                                                     | new `src/core/media/mediaCost.ts`                                                                                                                                                                                   | `client.ts` (usage settlement for media); `sessionBudget.ts` (media tokens); `src/core/paid/paidFeatures.ts` and `src/shared/paid.ts` (`filesStorage`, per U6c); `AttachmentChips.tsx` (the estimate and the warning)                                                                                                                                                                          | after 0                          |
+| A Audio (b)                                    | D85.5: sound routed to where it is heard: Muse Voice's batch transcription of a soundtrack or an audio file, **Use 1.2 for this message**, **Send without sound**, **Send to 1.2 as a video** where a converter exists; no `input_audio` to Meta                                           | new `src/core/voice/transcribeBatch.ts`                                                                                                                                                                             | `AttachmentChips.tsx` (sound actions, after C); `ModelApiHost.ts` (the per-message model choice and the transcript part, after M2); Muse Voice's row in `paidFeatures.ts`                                                                                                                                                                                                                      | after M1                         |
+| V Vendor codecs (b)                            | D85.1's vendor rows, each from its own capture: Gemini (its Files API and inline data), OpenAI-compatible `video_url` (vLLM, SGLang), and the explicit refusals elsewhere                                                                                                                  | —                                                                                                                                                                                                                   | `codecs/gemini.ts` and `codecs/chat.ts` (media regions); `presets.ts` (records)                                                                                                                                                                                                                                                                                                                | after M2, with M95 merged        |
+| E1 VS Code (a)                                 | The picker's filter, drop and paste, the path token the host streams, chips and banners, the commands' loaders, the recording preview tab                                                                                                                                                  | new `src/host/media/mediaAttach.ts`, `src/host/media/previewPanel.ts`                                                                                                                                               | `Composer.tsx` (paste and drop); `AttachmentChips.tsx` (kinds); `conversationController.ts` (the attachment handler); `extension.ts` (the command region, loaders only)                                                                                                                                                                                                                        | after M1                         |
+| E2 ACP, headless and `read_file` (a)           | D85.9's blob fix; audio blocks; `promptCapabilities.audio`; `/attach` and `/record`; `exec --attach`; `read_file` for mp4, mp3 and wav                                                                                                                                                     | new `src/acp/media.ts`, `src/runtime/exec/attachArgs.ts`                                                                                                                                                            | `src/acp/translate.ts` (`blockPart`); `src/acp/agent.ts` (capabilities and commands); `src/runtime/cliArgs.ts`; `runExec.ts`; `tools.ts` (`read_file`'s media); `toolIo.ts` (the media read)                                                                                                                                                                                                   | after M1 and M2                  |
+| E3 Companion, native plugins, Muse Code (a, d) | The companion's guarded streamed upload with its picker, drop and recording UI; MHP's `attachments/*` with a fake bridge; on Muse Code, U16's path or the refusal, and video in tool rows                                                                                                  | new `src/runtime/companion/upload.ts`, `src/webview/media/**` (lazy chunks: picker, drop target, recorder, preview)                                                                                                 | `src/runtime/companion/server.ts` (the route table, with M104 lane C's owner); `MuseCodeHost.ts` (the attachment refusal); `toolPresentation.ts` (video content)                                                                                                                                                                                                                               | after 0, with M104 lane C merged |
+| R1 macOS recorder (c)                          | ScreenCaptureKit's `--record-screen` mode; the `screencapture -v` and `avconvert` fallback; the permission-denied recovery                                                                                                                                                                 | new `native/darwin/ScreenRecord.swift`, `src/core/media/record/macos.ts`                                                                                                                                            | `native/darwin/build.sh`; `Info.plist` (the usage string); `check-disclaim.sh`                                                                                                                                                                                                                                                                                                                 | after 0                          |
+| R2 Windows recorder (c)                        | **Attach latest recording**; the Windows.Graphics.Capture helper through Media Foundation                                                                                                                                                                                                  | new `native/windows/MuseSparkScreenRecord.cs`, `src/core/media/record/windows.ts`                                                                                                                                   | `src/host/backend/jobBuild.ts` (its entry)                                                                                                                                                                                                                                                                                                                                                     | after 0                          |
+| R3 Linux and companion recorders (c)           | The portal's ScreenCast through `pipewiresrc` or `ffmpeg`; **Attach latest** from GNOME's and Spectacle's folders; the companion page's `MediaRecorder` path                                                                                                                               | new `src/core/media/record/linux.ts`, `src/webview/media/recorder/**` (inside E3's chunk)                                                                                                                           | —                                                                                                                                                                                                                                                                                                                                                                                              | after 0                          |
+| W Wiring, docs and gates (last)                | Bundles and budgets, `package.json`, the docs, the editor matrix, the registry rows, certification, the full gate                                                                                                                                                                          | `docs/certification/m105*.md`                                                                                                                                                                                       | `scripts/build.mjs` (`dist/media.js`, `dist/screenRecord.js`, the chunks); `scripts/check-bundle-size.mjs`; `check-bundle-split.mjs`; the host API record; knip and dpdm entries; `.vscodeignore`; `scripts/package-acp.mjs`; `package.json` (commands and settings); README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; AGENTS.md's layout; PLAN | last                             |
+
+- **Steps.**
+  1. **Captures, before any schema or constant they decide** (AGENTS rule
+     13).
+     - **Done 2026-10-05** (owner-authorized, contributor models only): U1–U7,
+       U8–U11, U13, U14 and U17's count. That was 9 inference calls (one of
+       them refused before inference) and 36 that inferred nothing, with 4
+       uploads, all deleted and confirmed gone. The findings are in §6 of the
+       research record, and the scrubbed raw records go into
+       `docs/certification/m105-captures.md`.
+     - **Still to run**, in `C:\muse-live-ws` on `muse-spark-1.3-contributor`
+       and `muse-spark-1.2-contributor`, with throwaway media made on the rig
+       (a generated test pattern with a spoken line):
+       - the estimator's calibration: billed usage for 30-, 120- and
+         600-second clips at the default fps and at `fps: 1`, on both models,
+         and images at each `detail`, `original` included (U17b);
+       - U3b: a real turn with 50 and 51 media;
+       - U18: whether Muse Voice Transcribe's batch endpoint takes mp4 and
+         mov directly;
+       - U16: `@clip.mp4` over MSP in Muse Code 1.4.2, one subscription turn;
+       - U6c: storage billing, read from the billing dashboard (signed in,
+         read-only) a day after an upload.
+
+       Expected: about 12 inference turns, about 3 transcription calls, about
+       10 calls that infer nothing, and one Muse Code turn. Every upload is
+       deleted afterwards and confirmed gone. The attempts are counted from
+       the trace log and the request ledger, and the spend is recorded.
+  2. Lane 0, including filing D85.15's four upstream requests.
+  3. Delivery a: F, M1, M2, E1, E2 and E3, with drills.
+  4. Delivery b: C, A and V, with drills; V's vendor captures counted the
+     same way.
+  5. Delivery c: R1, R2 and R3 on the Mac mini, the Win11 VM and Kubuntu.
+  6. Delivery d: E3's MHP contract passes its fake bridge; M104b–d wire it.
+  7. Lane W, then the live check: one video turn, one PDF over 1 MiB by
+     `file_id`, one audio transcription and one screen recording per
+     platform, about six turns on the contributor model in an empty
+     workspace, with the uploads deleted and confirmed gone.
+- **Acceptance** (fakes unless named):
+  1. **Sniffing.** Fixtures give the kind, duration, soundtrack and size, or
+     the named refusal, with reads bounded by `MEDIA_SNIFF_MAX_BYTES`. The
+     fixtures: mp4 with the `isom`, `mp42` and `avc1` brands; `moov` first
+     and last; with and without sound; fragmented (`moof`); QuickTime;
+     WebM; Matroska; wav; mp3 with ID3 and with a bare frame sync; m4a; a
+     WebM renamed `.mp4`; truncated files; a `moov` claiming a huge size.
+  2. **Files API** (the fake server from U6's frames).
+     - The upload streams, reports progress and stops on Stop; a stopped
+       upload the server had created is deleted.
+     - The same bytes upload once per session; fork and rewind share them by
+       reference count.
+     - Deleting a session, the `cleanupPeriodDays` purge and **Delete
+       uploaded files** delete the provider's copy once nothing refers to
+       it; expiry is always set.
+     - "Not found" on replay re-uploads once when the source's hash matches,
+       and refuses with the reason otherwise.
+     - Account & usage lists names, sizes, expiries and the total against the
+       pool. With the key removed the list is read-only and names each
+       expiry.
+  3. **Wire.**
+     - Meta requests carry `input_video` with the `file_id` (and `fps` when
+       set), `input_file` by `file_id` for a PDF over 1 MiB, mov as
+       `video/quicktime`, and never `input_audio` (U7; a red drill sends one,
+       and the test fails).
+     - Golden requests without media are byte-identical to the base; the new
+       media goldens are recorded.
+     - After the first delivery, no request carries a base64 copy of an
+       uploaded file.
+  4. **The gate.**
+     - Muse Spark 1.3 takes video, and a soundtrack shows D85.5's choices;
+       1.2 takes video and hears its soundtrack.
+     - A model whose record says no refuses before sending, with the reason;
+       unknown refuses with "not known to take video".
+     - A model switch replaces the media with D85.11's note, and switching
+       back restores it.
+     - The certification record's provider × modality table has "on" or
+       "off: reason" in every cell.
+  5. **Cost.**
+     - The chip shows duration, size, sound, the estimated tokens marked as an
+       estimate, and the price.
+     - The estimator reproduces every recorded calibration point within its
+       tolerance, and its upper bound is never below a recorded bill.
+     - M82 and D78 reserve the upper bound and settle from the reported
+       usage; a settled turn adds a local calibration observation.
+     - No media cost is taken from `input_tokens` (a red drill does, and the
+       10-second fixture's reservation of about 170 tokens fails the test).
+     - A capped session refuses media with no calibrated rate or an unknown
+       duration.
+     - More than 50 media in one message is refused before sending.
+     - The storage paid path matches U6c's finding.
+     - On the contributor model, the question appears once per conversation,
+       and every time for a screen recording.
+  6. **Sound.**
+     - On 1.3, a video with a soundtrack offers **Transcribe the sound**
+       (D48's popup with Muse Voice's price), **Use 1.2 for this message**
+       (the pill says so for that message) and **Send without sound**.
+     - A standalone wav or mp3 offers **Transcribe**, and **Send to 1.2 as a
+       video** only where a converter exists.
+     - On Muse Code, audio is refused with the reason.
+  7. **VS Code.** The picker's filter, drop and paste of every kind; the
+     webview never holds a file's bytes (the host streams by path); every
+     refusal has its banner, the previously silent `.mov` and `.webm`
+     included.
+  8. **ACP.**
+     - Blobs of PDF, video, audio, image and an unknown type each take
+       D85.9's path (red drill: route a PDF blob to the image part, and the
+       test fails).
+     - A `resource_link` is read under the workspace's confinement.
+     - An audio block is refused, with the reason, by a session whose model
+       takes no audio.
+     - `/attach` and `/record` work between turns.
+  9. **Headless.** `--attach` repeats; the limits and refusals have their
+     exit codes; exec events carry media metadata only.
+  10. **`read_file`.** mp4, mp3 and wav read inside the confinement and
+      approval rules, under the media budget, by `file_id`.
+  11. **The companion page.**
+      - The upload endpoint refuses a request without the bearer, the custom
+        header or the exact `Origin`; over its cap; and of a type that does
+        not sniff as accepted media.
+      - It streams to an owner-only temporary file and removes it after the
+        upload.
+      - Playwright's Chromium, with a fake capture device, records an mp4
+        through `MediaRecorder`; a browser without mp4 support gets the
+        refusal naming it.
+  12. **Native plugins.** MHP's `attachments/*` passes its fake bridge (the
+      JCEF, WebView2 and SWT fakes from M102).
+  13. **Muse Code.** U16's outcome is implemented as recorded: the `@path`
+      mention with its note, or the refusal naming the Model API backend.
+      Tool rows render the video content MSP items carry.
+  14. **Screen recording** on the Mac mini, the Win11 VM and Kubuntu.
+      - Records and stops early; honours the maximum.
+      - With and without sound, the result sniffs as valid mp4.
+      - A denied permission shows the recovery (on macOS, opening the Screen
+        Recording pane).
+      - The preview attaches or discards; a discard deletes the file.
+      - **No tool can start a recording:** a red drill registers a
+        recording tool, and the test fails.
+  15. **Privacy.** Session files, exports, shares, problem reports, the
+      journal and logs from the e2e suite hold no media bytes, and exports
+      and shares no file id (grep tests with planted canaries).
+  16. **Editors.** Every "M105" row of D85's matrix is run against fakes and
+      recorded in `docs/ide-compatibility/hosts.md`; the rows that wait name
+      their milestone.
+  17. **Budgets.** As in the table below, with no existing cap raised.
+- **Tests.** Unit tests per lane, each with a red drill recorded in
+  `docs/certification/m105-<lane>.md`:
+  - the sniffer fixtures, built at run time (no binary fixture over 64 KiB
+    in the repository);
+  - `files.test.ts` against the fake Files server;
+  - `uploadLedger.test.ts` (reference counts, purge, a crash between upload
+    and ledger write);
+  - `modalityGate.test.ts` over generated records;
+  - `replayMedia.test.ts` (switches, expiry, compaction);
+  - `mediaCost.test.ts` (every calibration point, the upper bound against
+    each recorded bill, settlement observations);
+  - `translate.test.ts`'s blob cases;
+  - `attachArgs.test.ts`;
+  - `companionUpload.test.ts` (each guard case, the cap, the temporary
+    file's mode);
+  - recorder driver tests against fake helpers, plus each helper on its rig;
+  - the e2e `media.e2e.test.ts` (fake Model API with fake Files, a recorded
+    session through to the replay bytes);
+  - the integration test (the picker and drop in the extension host).
+
+  **Red drills,** each guard broken once and the failure confirmed:
+  - trust the extension over the sniff;
+  - send base64 after an upload;
+  - skip the gate for unknown;
+  - drop the expiry;
+  - keep bytes in the session file;
+  - accept a foreign `Origin` on upload;
+  - let the webview read file bytes;
+  - let a tool start a recording;
+  - skip the contributor question;
+  - price media at one token per byte.
+
+- **Gates.** The full `npm run quality`, `check-l10n` (also `--packaged`), the
+  host API record (no `vscode` under `src/core/media`), D6's budgets and the
+  split guard, the VSIX size (both builds), `test:a11y` (the preview and
+  the chips, in four themes and at 320 px), PSScriptAnalyzer if a
+  PowerShell helper is added, semgrep, and the macOS helper's build and
+  disclaim checks in CI. CI on three operating systems is the merge gate.
+- **Security.**
+  - Every boundary is zod-checked: the Files API's responses, the upload
+    ledger on read, the companion's upload headers and MHP's
+    `attachments/*`.
+  - The key is only in the upload request's header and never reaches a
+    helper, a converter or the companion page (rule 8).
+  - Converters and recorders are found by absolute path and run with
+    argument arrays, writing only into an owner-only temporary folder.
+  - Reads stay inside the workspace's confinement and approvals; uploads use
+    the transport's endpoint checks.
+  - No listener beyond the companion's guarded loopback route.
+  - A screen recording is user-started, previewed and size-capped.
+- **Docs.** README (Attachments: the modality matrix per backend and model,
+  screen recording per platform, the Files API and its expiry); PRIVACY
+  (what is uploaded, for how long, contributor training, recordings);
+  SECURITY (the companion upload route); `docs/acp.md` (`/attach`,
+  `/record`, the blob rules); `docs/ci.md` (`--attach`); CONTRIBUTING (new
+  media wire needs a capture); CHANGELOG; this plan; certification.
+- **Performance and bundles.** No existing cap rises (D6); the new code is
+  lazy.
+
+  | Artifact                     |              M105 adds (target) | Cap                                                                   |
+  | ---------------------------- | ------------------------------: | --------------------------------------------------------------------- |
+  | `dist/extension.js`          | ≤ 1 KiB (command registrations) | 600 KiB, unchanged                                                    |
+  | `dist/modelApi.js`           |    ≤ 4 KiB (encoders, the gate) | 475 KiB, unchanged                                                    |
+  | `dist/acp.js`                |                         ≤ 4 KiB | 850 KiB, unchanged                                                    |
+  | `dist/uiText.js`             |                       ≤ 0.5 KiB | 125 KiB, unchanged (media strings in a regional block)                |
+  | Chat browser startup         |                       ≤ 0.5 KiB | 900 KiB, unchanged                                                    |
+  | `dist/media.js` (new)        |                         ~35 KiB | measured + 15%, rounded up to 25 KiB                                  |
+  | `dist/screenRecord.js` (new) |                         ~15 KiB | measured + 15%, rounded up to 25 KiB                                  |
+  | Webview media chunks         |                         ~20 KiB | inside the 50 KiB optional total, or a page entry with its own budget |
+  | VSIX                         |         measured (helper modes) | 2,200 KiB, unchanged                                                  |
+
+- **Size.** L overall; a is M.
+- **Certification checklist** (§6.0, plus):
+  - [x] Captures of 2026-10-05 (U1–U11, U13, U14, U17's count) run: 9
+        inference and 36 other calls, 4 uploads deleted (research record §6)
+  - [ ] Remaining captures (calibration, U3b, U6c, U16, U17b, U18)
+        recorded with their counts and spend; every upload deleted and
+        confirmed gone
+  - [ ] D85.15's four upstream requests filed after a dedupe search, with
+        their links recorded
+  - [ ] Delivery a with drills: Files API, media core, wire, gate, replay,
+        VS Code, ACP (the blob fix), headless, `read_file`, the companion
+        upload, Muse Code
+  - [ ] Delivery b with drills: cost, audio, vendor codecs with their
+        captures
+  - [ ] Delivery c: a recording on each platform and on the companion page,
+        with drills
+  - [ ] Delivery d: MHP's `attachments/*` on the fake bridges; native rows
+        named as waiting for M104b–d where they do
+  - [ ] Provider × modality table complete; editor matrix rows recorded
+  - [ ] Privacy canaries pass; strings in all 14 tables; budgets measured on
+        one rig; full gate green; the live check counted and reported
+
+---
+
+### M106 — Agent-loop wire guarantees (D86)
+
+**Status 2026-10-05: planned.** The research is
+`docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
+FIXM101P2; everything else starts against lane 0's contracts.
+
+- **Goal.** Every guarantee Meta's wire offers the loop is used wherever the
+  selected model has it: valid tool arguments, machine-readable side
+  answers, bounded hosted tools, live previews, concurrent reads, the full
+  output window, rate-aware fan-out and the current Muse Code SDK. A user
+  who turns a feature off gets today's bytes.
+- **Depends on.**
+  - **M101:** item 24 (FIXM101P2's strict-subset rewrite, consumed here,
+    not duplicated); lane C1's structured summary; lane P2's retry table in
+    `FormatQuirks`; item 8 (tool calls in a cut-short reply).
+  - **M95:** the capability record's `output`, `tools` and `hosted` groups;
+    the codecs.
+  - **M102:** the rate-limit header allow list and its storage.
+  - **D78 and M82:** the search reservation.
+  - **M78, M90, M91, M98, M71, M68:** the side calls that become structured.
+  - **SDK142:** the 1.4.2 fingerprint record, which this milestone
+    supersedes on the pin.
+- **Scope.** D86 entire; strings in all 14 tables; README, `docs/ci.md`
+  (`--output-schema`), `docs/acp.md`, CHANGELOG, this plan, certification.
+- **Settings.** `museSpark.modelApiStrictTools` (on),
+  `museSpark.modelApiParallelReads` (on), `museSpark.webSearchMaxPerRequest`
+  (5; 1–20). Machine-scoped (D15).
+- **Lanes and file ownership.** One integration branch,
+  `feature/m106-loop`, under M87's region rules. Muse implements, Codex
+  reviews in one pass by class, and the lead integrates. L2 (concurrency in
+  the tool batch) and R (pacing across fan-out) go to Codex or Claude.
+  `ModelApiHost.ts` is shared by H, L1 and L2, each in its own region; L2
+  owns the tool-batch loop. **Order:**
+  1. Lane 0: captures, then contracts and strings.
+  2. O1, O2, H, L1, L2, R and S in parallel.
+  3. T as soon as FIXM101P2 is merged.
+  4. W last.
+
+| Lane                                       | Items                                                                                                                                                                                                                | Files it owns                                                                                                | Its regions in shared files                                                                                                                                                                                                                                                                                                             | Starts                         |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| 0 Contracts, strings, captures (lead)      | The captured frames of U8, U9, U10, U12 and U13 into fixtures; `GET /v1/status`; the `text.format` and `max_tool_calls` fields; the side-call answer schemas; the record's `hosted.maxToolCalls`; constants; strings | new `src/shared/sideCallSchemas.ts`, `docs/certification/m106-captures.md`                                   | `schemas.ts` (request fields); `capabilityRecord.ts` (`hosted.maxToolCalls`); `constants.ts` (the M106 block: `MODEL_API_PARALLEL_READS`, `MODEL_API_CONTINUATIONS_MAX`, `TOOL_REPEAT_LIMIT`, `TOOL_ARGUMENT_PREVIEW_MAX_CHARS`, pacing); `en.ts`, the 14 tables, `package.nls*.json`; `MODEL_TEXT` (the repeat and continuation notes) | day 0                          |
+| T Strict tools                             | D86.2: `strict: true` through FIXM101P2's rewrite for harness and convertible MCP tools; the setting; goldens on and off; the M75 pair                                                                               | —                                                                                                            | `schemas.ts` (the `strict` field); `tools.ts` (declarations); `mcp/functions.ts` (conversion); `codecs/responses.ts` (strict); `test/fixtures/golden-requests/**`                                                                                                                                                                       | after 0, with FIXM101P2 merged |
+| O1 Structured side calls                   | D86.3: mode selection by record; the reviewer, the judge's stated verdict, prompt and agent hooks, git drafts, the compaction summary; the repair and fallback                                                       | new `src/core/backends/modelapi/structuredOutput.ts`                                                         | `reviewerEntry.ts`; `hookModelEntry.ts`; `src/host/judge/modelApiSameJudge.ts` (the stated source); `src/core/git/gitText.ts` and its caller; the compaction prompt region (with M101 C1's owner)                                                                                                                                       | after 0                        |
+| O2 Headless schema and verify claims       | D86.3: `exec --output-schema`; the verify loop's claims; the exec result schema's additive field                                                                                                                     | new `src/runtime/exec/outputSchema.ts`                                                                       | `execArgs.ts`; `runExec.ts`; `execOutput.ts`; `docs/schemas/*`; `verifyLoop.ts` (the claim region)                                                                                                                                                                                                                                      | after 0                        |
+| H Hosted-tool bounds                       | D86.4: `max_tool_calls`; search under D78's budget in VS Code and in capped sessions; settlement by count                                                                                                            | —                                                                                                            | `ModelApiHost.ts` (`isWebSearchOffered` and `webSearchConsent`); `client.ts` (`hasPaidDailyBudget` and the reservation); `sessionBudget.ts` (the search bound); `paidFeatures.ts` (the search price); `extension.ts` (search availability, loaders only)                                                                                | after 0                        |
+| L1 Previews                                | D86.5: streamed-argument previews, from U9's delta frames; the phase resent exactly as it arrived (`final_answer` not applicable, U13)                                                                               | new `src/core/backends/modelapi/argumentPreview.ts`, `src/webview/components/ToolArgumentPreview.tsx` (lazy) | `ModelApiHost.ts` (the stream event region); `src/shared/agentEvents.ts` (the preview event); `toolPresentation.ts` (the tool row)                                                                                                                                                                                                      | after 0                        |
+| L2 Concurrency, continuation and the guard | D86.5: concurrent read-only calls in call order; the per-model output cap and one continuation; the repeat guard                                                                                                     | new `src/core/backends/modelapi/toolScheduler.ts`, `src/core/backends/modelapi/repeatGuard.ts`               | `ModelApiHost.ts` (the tool-batch loop, the incomplete-reply branch); `sessionBudget.ts` (the output clamp)                                                                                                                                                                                                                             | after 0                        |
+| R Limits and health                        | D86.6: header interpretation from U12; the pacing bucket and its fan-out callers; `/v1/status`; the 504 retry                                                                                                        | new `src/core/backends/modelapi/pacing.ts`                                                                   | `client.ts` (the header tap, with M102 lane R and M95 lane T); `presets.ts` (`FormatQuirks`' retry table); `subagentTools.ts`; `bestOfNRunner.ts`; the team pool's admission region (M96); `UsageDialog.tsx` (the status row); the report dialog's facts (M93)                                                                          | after 0                        |
+| S Muse Code SDK 1.4.2                      | D86.7: the pin and fingerprint; effort variants; `feedback/submit`; `session/delete`; the lifecycle notifications; the upstream request; the exec client's router seam                                               | new `src/core/backends/musecode/feedback.ts`, `src/webview/components/FeedbackDialog.tsx` (lazy)             | `package.json` and `package-lock.json` (the pin); `MuseCodeHost.ts` (`model/list` and lifecycle); `mapNotification.ts`; `EffortSlider.tsx` (variants); `HistoryDialog.tsx` (delete on Muse Code); the MSP fingerprint map; `src/runtime/exec/execClient.ts` (the reflected router seam)                                                 | after 0                        |
+| W Wiring, docs and gates (last)            | Bundles and budgets, `package.json`, docs, the registry rows, certification, the full gate                                                                                                                           | `docs/certification/m106*.md`                                                                                | `scripts/build.mjs`; the bundle-size and split gates; the host API record; README; `docs/ci.md`; `docs/acp.md`; CHANGELOG; PLAN (§8's M80 lane B row, which names SDK 1.4.0 where the pin was 1.3.0, corrected with lane S's re-check)                                                                                                  | last                           |
+
+- **Steps.**
+  1. **Captures** (AGENTS rule 13).
+     - **Done 2026-10-05,** within M105's capture run: U8, U9, U10, U12 and
+       U13, plus U11 (inconclusive; server compaction is not taken). Their
+       scrubbed frames become lane 0's fixtures.
+     - **Still to run:** `GET /v1/status`, which infers nothing, and the
+       per-provider header and strict-tool captures each vendor row needs
+       before it turns on (counted the same way).
+
+  2. Lane 0.
+  3. Lanes O1, O2, H, L1, L2, R and S; T once FIXM101P2 lands.
+  4. **The M75 pair** for strict tools (and for L2 if its replay bytes
+     differ at all, which acceptance 7 forbids). It runs on dry runs plus
+     the counted live arm, as M101's item 20 did.
+  5. Lane W, then a live check: one turn with each feature on, about four
+     turns.
+- **Acceptance** (fakes unless named):
+  1. **Off means today's bytes.** For each of strict tools, parallel reads,
+     the output cap's continuation, previews and the search bound, the
+     golden requests with the feature off are byte-identical to the base.
+     With it on they match their re-baselined fixtures, and the byte diff is
+     in the certification record.
+  2. **Strict tools.**
+     - Harness tools are strict.
+     - A convertible MCP tool is strict; one that cannot convert stays
+       `strict: false`, with one log line naming it.
+     - A refused schema's 400 is parsed from U9's frame.
+     - The M75 pair meets its floors before the default is on.
+  3. **Structured side calls.**
+     - Each site sends the strongest format its model's record offers, or
+       today's text request where none.
+     - An invalid answer gets one repair, then the text path, never a pass.
+     - The compaction summary renders C1's Markdown byte-identically from
+       the structured answer. A failed structured summary still compacts
+       (red drill: let the failure block compaction, and the test fails).
+  4. **`exec --output-schema`.**
+     - A schema outside the strict subset is refused before any call.
+     - A valid answer is in the result's `output`; a mismatch exits with its
+       code.
+     - The schema's digest is in the ledger, and the result schema
+       validates.
+  5. **Search.**
+     - Offered in VS Code under the daily budget.
+     - The reservation equals tokens plus the bound times the price.
+     - Settlement counts the returned search calls; more than the bound is
+       settled in full and logged.
+     - Capped sessions admit search when the bound fits; headless still
+       refuses it.
+  6. **Previews.**
+     - Argument deltas render in the tool row, bounded.
+     - Nothing runs, asks or calls a hook before `.done` (a red drill
+       executes on the first delta, and the test fails).
+     - No preview bytes reach replay.
+  7. **Concurrent reads.**
+     - Up to four read-only calls run at once (a timing fake).
+     - Results, media reservations, packing and PostToolUse hooks follow
+       call order. A write, shell or asking call is a barrier.
+     - PreToolUse hooks run serially in call order.
+     - `then_run` is unchanged.
+     - Replay bytes equal serial execution's, for generated batches (a
+       property test).
+  8. **Output.** Meta's cap is 131,072, clamped by the budget. One
+     continuation follows `max_output_tokens`, then a notice. Calls in a
+     cut-short reply are answered with an error, never run.
+  9. **The repeat guard.** The third identical call with the same result is
+     not run and returns the note; a fourth ends the turn with "stuck". A
+     changed argument or result resets the count.
+  10. **The phase.** A phase is resent exactly as it arrived, and none is
+      invented; the record names `final_answer` not applicable (U13).
+  11. **Pacing.**
+      - Meta's four `x-ratelimit-*` headers become the request and token
+        bucket, from U12's frames. A key's limits are read from its latest
+        response, never a constant (a red drill hard-codes 100 RPM, and the
+        150 RPM fixture fails the test). Other providers' headers stay "as
+        reported" until their capture.
+      - Subagents, best-of-N, workers, the judge and schedules draw from the
+        bucket, and the main turn is never delayed by them.
+      - `Retry-After` pauses the bucket.
+  12. **Health.** `/v1/status` shows in Account & usage and the problem
+      report, and a 5xx banner links it. A 504 is retried with jitter and
+      re-reserved.
+  13. **SDK 1.4.2.**
+      - The fingerprint is recognised.
+      - The effort slider shows each model's variants and default.
+      - The feedback dialog sends only what its checkboxes allow (a spy
+        checks `withFiles` and `attachSessionRecord` stay false unless
+        ticked), and shows the outcome.
+      - Delete and the lifecycle notifications keep History right.
+      - The exec client's router seam is re-verified against 1.4.2.
+      - The upstream comment's link is recorded.
+  14. **Multi-vendor.** A provider × item table (Meta, OpenAI, xAI, Azure,
+      Anthropic, Gemini, OpenRouter/chat, Ollama/local, custom) with "on" or
+      "off: reason" in every cell.
+  15. **Budgets.** As below, with no existing cap raised.
+- **Tests.** Unit tests per lane with a red drill each, recorded in
+  `docs/certification/m106-<lane>.md`:
+  - `structuredOutput.test.ts` (modes, repair, fallback);
+  - `outputSchema.test.ts`;
+  - `toolScheduler.test.ts` (ordering, barriers, the property test);
+  - `repeatGuard.test.ts`;
+  - `argumentPreview.test.ts`;
+  - `pacing.test.ts`;
+  - the search reservation and settlement cases in `sessionBudget.test.ts`;
+  - the golden requests on and off;
+  - the fake MSP's 1.4.2 frames from captures;
+  - the e2e loop with each feature on.
+
+  **Red drills:**
+  - drop the strict flag on one harness tool;
+  - accept an unvalidated side answer;
+  - let compaction wait on the structured call;
+  - reserve search without the bound;
+  - execute on a delta;
+  - return reads in completion order;
+  - continue twice;
+  - let a background fan-out delay the main turn;
+  - send the feedback record without its checkbox.
+
+- **Gates.** The full `npm run quality`, `check-l10n`, the host API record,
+  D6's budgets and the split guard, the exec schema check
+  (`npm run schema:exec -- --check`), `test:a11y` (the preview and the
+  feedback dialog), semgrep, `npm audit` for the SDK bump (rule 9: the
+  peer ranges and audit recorded).
+- **Security.**
+  - Side answers are data and are zod-checked; a hook's structured "allow"
+    never widens D83's or M92's guarded settles.
+  - The feedback dialog never sends files or the session record unasked.
+  - Previews are escaped text and never run.
+  - Concurrent reads keep the confinement, the protected paths and D47's
+    budgets.
+  - Pacing never drops a Stop.
+  - The SDK bump pins exactly and records the audit.
+- **Docs.** README (the loop's guarantees per provider, search in VS Code
+  with its bound, feedback); `docs/ci.md` (`--output-schema`);
+  `docs/acp.md`; CHANGELOG; this plan; certification.
+- **Performance and bundles.** Each side call's structured code lives in the
+  bundle that already holds that call (`dist/reviewer.js`, `dist/judge.js`,
+  `dist/hookRuntime.js`, `dist/conversationGit.js`). `dist/modelApi.js`
+  gains only the tool scheduler, the preview, the guard and the pacing
+  bucket (a target of 6 KiB). If its measured size would pass 475 KiB, the
+  preview and pacing code moves to a lazy bundle: no cap rises (D6). The
+  webview's preview and feedback dialog are lazy chunks inside the optional
+  total.
+- **Size.** M–L.
+- **Certification checklist** (§6.0, plus):
+  - [x] Captures U8, U9, U10, U11, U12 and U13 run on 2026-10-05 (in
+        M105's run, research record §6)
+  - [ ] Their frames turned into fixtures; `/v1/status` captured
+  - [ ] Each feature's off-golden byte-identical; its on-golden diff
+        recorded
+  - [ ] Lanes T, O1, O2, H, L1, L2, R and S with drills
+  - [ ] The M75 pair for strict tools passes its floors
+  - [ ] SDK 1.4.2's audit and peer ranges recorded; the upstream comment
+        linked
+  - [ ] Provider × item table complete; strings in all 14 tables; budgets
+        measured; full gate green; the live check counted
+
+---
+
+### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
+
+**Status 2026-10-05: planned.** No model call is needed anywhere in this
+milestone. Lanes S, T, G, A, C1, U and H depend only on main and lane 0's
+contracts. C2 waits for M96 and M96c, R for M100's lanes S and E, J for M102.
+Each joins when its dependency merges, and none blocks the others.
+
+- **Goal.** The user sets CPU and memory caps (and optionally GPU and disk)
+  for the machine. When work the harness started pushes past them, the
+  harness slows that work, moves queued work to a linked device with room,
+  or pauses new work and says so. The user's machine stays responsive, and
+  nothing the user started is ever touched.
+- **Depends on.**
+  - **M27** (Windows job objects and their helper), `src/host/processTree.ts`
+    (the process table, tree kill), D15 (machine scope).
+  - **M96 lane K:** process lifetime, the cgroup scopes, below-normal
+    priority, the hint file, and the load guard this replaces.
+  - **M96c:** the scheduler's pick and slots, check slots, runners and their
+    routing, retirement, the Traffic view.
+  - **M100:** pools, offers, receiver admission and consent.
+  - **M102:** the journal and the usage page.
+  - **M104:** MHP's status item, the bridges and the companion page.
+  - **M80:** exec's events and schemas.
+- **Scope.** D87 entire; strings in all 14 tables; README (a "Keeping your
+  machine responsive" section), PRIVACY, SECURITY, CHANGELOG, `docs/acp.md`,
+  `docs/ci.md`, `docs/ide-compatibility/**` rows, registry rows,
+  certification.
+- **Settings.** As D87.3, machine-scoped. **Commands:** Show resources;
+  Resume work now; ACP `/resources` and `/resources resume`; CLI
+  `resources [status|history|resume]`.
+- **Lanes and file ownership.** One integration branch,
+  `feature/m107-governor`, under M87's region rules. Muse implements, Codex
+  reviews in one pass by class, and the lead integrates. T, A, G and R
+  (process identity, priority changes, the state machine, relocation) go
+  to Codex or Claude. **Order:**
+  1. Lane 0.
+  2. S, T, G and U in parallel against the fakes.
+  3. A after T's registry interface; C1 and H after G.
+  4. C2, R and J as their dependencies merge.
+  5. W last.
+
+| Lane                                               | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Files it owns                                                                                          | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                        | Starts                                   |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| 0 Contracts, strings, fakes, platform facts (lead) | The sample, level, event, ticket and status types; the settings schema; the device headroom field; the `resource` journal record; the exec `resource` event. The fakes: a scripted sampler, a fake process tree, a fake clock, a fake linked device. The platform facts, with no model call: what `os.freemem()` and `process.availableMemory()` mean on the Mac mini; cgroup v2 delegation on Kubuntu; the job CPU rate cap on the Win11 VM; whether `taskpolicy -B` undoes `-b` | new `src/shared/resources.ts`, `test/unit/helpers/resources/**`, `docs/certification/m107-platform.md` | `constants.ts` (`RESOURCE_*`); `en.ts`, the 14 tables, `package.nls*.json` (settings and commands); `src/shared/hostApi/**` (the status item, with M104 lane 0); `src/shared/devices.ts` (the offer's `resource` field, with M100 lane 0); `src/shared/usageJournal.ts` (the `resource` record, with M102 lane 0); `docs/schemas/exec-event-*.schema.json` (with M80's versioning) | day 0                                    |
+| S Sampler                                          | D87.4: the machine sampler (CPU deltas, Linux pressure files, memory, container limits, macOS per lane 0's fact); the GPU and disk probes, lazy and only when set; the self-cost bound                                                                                                                                                                                                                                                                                            | new `src/core/resources/sampler/**`                                                                    | —                                                                                                                                                                                                                                                                                                                                                                                  | after 0                                  |
+| T Trees                                            | D87.2 and D87.9: the launch registry (ticket, root process, start time, job, cgroup or group, kind, class, session); the membership proof; per-platform accounting                                                                                                                                                                                                                                                                                                                | new `src/core/resources/trees/**`                                                                      | `native/windows/MuseSparkJob.cs` (a query mode); `src/host/processTree.ts` (the shared table parse, moved to `src/core/resources/trees/processTable.ts` if the host API gate needs it portable)                                                                                                                                                                                    | after 0                                  |
+| G Governor                                         | D87.5, D87.6 (capacity, queue, foreground wait), D87.8: the levels, hysteresis, escalation, critical, dwell, override and events                                                                                                                                                                                                                                                                                                                                                  | new `src/core/resources/governor.ts`, `queue.ts`, `events.ts`                                          | —                                                                                                                                                                                                                                                                                                                                                                                  | after 0                                  |
+| A Actuators                                        | D87.6's priority: the Windows job priority class and CPU rate cap; Linux cgroup knobs or nice and ionice; macOS `taskpolicy`; the reversibility table; restore on recovery                                                                                                                                                                                                                                                                                                        | new `src/core/resources/actuators/**`                                                                  | `MuseSparkJob.cs` (the priority and rate mode, after T's region); M96 lane K's `processLifetime.ts` (the scope's delegated knobs)                                                                                                                                                                                                                                                  | after T's registry interface             |
+| C1 Spawn sites: the Model API and the window       | Admission and registration at every spawn on main: tool shells, background tasks, checks and the verify loop, MCP servers, best-of-N, subagents, schedules, the browser check, command hooks, `muse serve`'s tree                                                                                                                                                                                                                                                                 | —                                                                                                      | `toolIo.ts` (spawn); `mcpServers.ts`, `mcpJobLaunch.ts`, `mcp/pool.ts` (start); `bestOfNRunner.ts`; `subagentTools.ts`; `schedules.ts`; `verifyTools.ts`; `src/host/browser/browserProcess.ts`; the hook spawn region; `museCodeBackendManager.ts` (tree registration)                                                                                                             | after G                                  |
+| C2 The team and runners                            | `loadGuard.ts` retired, its callers on the governor; M96c's pick and slots read the capacity; check slots; the runners' routing takes the local level                                                                                                                                                                                                                                                                                                                             | —                                                                                                      | `src/host/team/loadGuard.ts` (removed); `processLifetime.ts` (the registry hook); `src/core/team/scheduler/pick.ts` and `slots.ts` (capacity); `src/host/team/checkSlots.ts`; `src/core/runners/routing.ts`                                                                                                                                                                        | after G, with M96 and M96c merged        |
+| R Relocation                                       | D87.7: pool routing by headroom; the receiver's admission by its own level; **Move to** after retirement; **Keep here**; the events                                                                                                                                                                                                                                                                                                                                               | new `src/core/resources/relocate.ts`                                                                   | `src/core/team/remotePool.ts` (routing); `src/host/devices/devicePool.ts`; `src/host/devices/deviceReceiver.ts` (admission); `src/core/runners/routing.ts` (after C2)                                                                                                                                                                                                              | after G and C2, with M100 S and E merged |
+| U Surfaces                                         | D87.10's VS Code and shared parts: the chip and popover, the status bar item, the panel's mount, the Traffic view's row, MHP's status item through a fake bridge, the companion page; harness scenes and axe                                                                                                                                                                                                                                                                      | new `src/webview/resources/**` (a lazy chunk), `src/host/resources/resourceStatus.ts`                  | `App.tsx` (the mount beside `HeartbeatTrace`); `src/webview/components/traffic/TrafficView.tsx` (the row, with M96c V's owner); `extension.ts` (the command region, loaders only); `styles.css` (its region); `test/harness` scenes                                                                                                                                                | after 0; finished after G                |
+| H Runtime, ACP and headless                        | D87.10's other rows: the runtime's governor host, `/resources`, the notices and `_meta`, the CLI's `resources`, exec's events and flags, the runtime settings                                                                                                                                                                                                                                                                                                                     | new `src/runtime/resources/**`, `src/acp/resources.ts`                                                 | `src/acp/agent.ts` (commands); `src/runtime/cliArgs.ts` and `main.ts` (`resources`); `runExec.ts` and `execProtocol.ts` (events); the runtime settings store (with M104 lane B)                                                                                                                                                                                                    | after G                                  |
+| J Journal and the usage page                       | D87.11: the resource records, their aggregation, the page's Resources section, the text summary                                                                                                                                                                                                                                                                                                                                                                                   | new `src/core/usage/resourceRecords.ts`, `src/webview/usage/ResourcesSection.tsx`                      | `src/core/usage/aggregate.ts` (resource buckets); `usageText.ts`; `UsageApp.tsx` (the mount)                                                                                                                                                                                                                                                                                       | after 0, with M102 merged                |
+| W Wiring, docs and gates (last)                    | `dist/resourceGovernor.js`, budgets, `package.json`, docs, registry rows, certification, the full gate                                                                                                                                                                                                                                                                                                                                                                            | `docs/certification/m107*.md`                                                                          | `scripts/build.mjs`; the bundle-size and split gates; the host API record (no `vscode` under `src/core/resources`); knip and dpdm; `scripts/package-acp.mjs`; `package.json`; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; AGENTS.md's layout; PLAN                                                                             | last                                     |
+
+- **Acceptance** (fakes unless named; no model calls):
+  1. **Settings.**
+     - The defaults hold on a new install, with the governor on.
+     - A workspace setting changes nothing (a red drill reads the workspace
+       value, and the test fails).
+     - Each range is enforced. The memory floor caps at 15% of RAM.
+     - The runtime and headless read the same values, and their flags.
+  2. **The sampler.**
+     - Scripted readings give the expected CPU, memory and pressure figures.
+     - Windows' zero `loadavg` is ignored.
+     - A failed reading is unknown: it trips nothing and clears nothing.
+     - Container limits are used inside a cgroup.
+     - The GPU and disk probes start only once a threshold is set.
+     - The sampler costs under 0.5% of one core on each rig.
+  3. **Trees.**
+     - Every governed spawn is registered with its kind and class.
+     - An action reaches only a process proven in its tree. A spy that
+       records every priority call sees no unregistered process id, and a
+       reused id (a fake tree that recycles one) is refused.
+     - The user's own processes never appear in any action or record.
+  4. **Levels.**
+     - Scripted series give the expected transitions: enter, escalate,
+       critical, stepwise exit.
+     - A series oscillating around a threshold changes level at most once
+       per dwell (a red drill removes hysteresis, and the flapping test
+       fails).
+     - **Resume now** holds normal for 15 minutes, then the readings decide
+       again.
+  5. **Throttle on the rigs.**
+     - Windows' job priority class and CPU rate cap, Linux's cgroup weights
+       and `memory.high` (or nice and ionice), and macOS's `taskpolicy` are
+       each read back from the operating system after they are set.
+     - Each is restored on recovery where lane 0 proved it reversible, and
+       otherwise applied only at pause, with the record saying so.
+  6. **Capacity.**
+     - At throttle, at most one background item runs per kind; at pause,
+       none starts.
+     - Queued work starts in order when the level drops.
+     - A delegating worker never waits on its own slot (M96c's rule, re-run).
+  7. **Foreground.** It is never deferred at throttle. At pause it waits at
+     most 20 seconds behind a row with **Run now**, then runs.
+  8. **Never throttled.** Stop, cancel, the tree kill, approvals and the
+     paid popup complete within their usual deadlines at every level. A red
+     drill routes Stop through the queue, and the test fails.
+  9. **Relocation** (the fake linked device and a fake runner).
+     - A queued task goes to a device whose offer covers it and whose level
+       is normal; a device at throttle refuses admission.
+     - No offer, `off`, or a Devices-off user means no relocation, and no
+       device activity at all (M100's acceptance J re-run).
+     - `ask` asks; **Keep here** works until admission.
+     - A running check moves only on the user's **Move to**, after
+       retirement is proved.
+     - Every move has its row, notice, Traffic entry and journal record.
+     - The dispatch frames carry nothing beyond M100's own fields, the
+       reason code and the level (a frame inspection test with planted
+       canaries).
+  10. **Pause.** One notice per conversation names the reading, the
+      threshold and what waits, with its three actions.
+  11. **Surfaces.**
+      - VS Code's status bar item, chip and popover; harness scenes for each
+        level, passing axe in four themes and at 320 px.
+      - The companion chip.
+      - MHP's status item through the fake JCEF, WebView2 and SWT bridges.
+      - ACP: `/resources`, the notices and `_meta`.
+      - The CLI: `resources --json`.
+      - Exec: the `resource` events validate against the new schema version.
+  12. **History.**
+      - The usage page's Resources section, its chart and its table agree
+        with the journal (a property test).
+      - The records hold no process id, command line, path, process name or
+        environment (canaries planted in fake trees and commands).
+  13. **Several windows.** Two governors on one fake machine back off
+      together, and each publishes its level to the hint file.
+  14. **Muse Code.** `muse serve`'s tree is accounted, and its descendants'
+      priority is lowered only at pause. README states the residual: the
+      governor cannot defer Muse Code's own tool processes.
+  15. **The owner's case** (2026-10-01: fifteen agents' test runs pinned 20
+      cores). On the Kubuntu rig, fifteen fake heavy checks are started
+      against all cores. The governor holds one per kind, the host's
+      event-loop delay (`monitorEventLoopDelay`) p95 is measured with and
+      without the governor, and a second window's activation time is
+      recorded. The figures go in the certification record.
+  16. **Budgets.** As below, with activation unchanged.
+- **Tests.** Every test can fail: each runs against a fake that can be made
+  to lie (the scripted sampler, the fake process tree, the fake clock, the
+  fake linked device), and each has a red drill recorded in
+  `docs/certification/m107-<lane>.md`:
+  - `sampler.test.ts`;
+  - `trees.test.ts` (membership, reuse, accounting per platform's parser);
+  - `governor.test.ts` (transitions, flapping, override, critical);
+  - `queue.test.ts`;
+  - `actuators.test.ts` (fake actuators, plus real child processes on the
+    rigs);
+  - `relocate.test.ts` (the fake device and runner);
+  - `resourceStatus.test.ts`;
+  - `acpResources.test.ts`;
+  - `execResources.test.ts`;
+  - `resourceRecords.test.ts`;
+  - the e2e `governor.e2e.test.ts` (a fake Model API turn whose tool shell
+    and a background task run under a scripted overload).
+
+  **Red drills:**
+  - remove hysteresis;
+  - act on an unregistered process;
+  - let unknown clear a level;
+  - throttle a foreground call at the throttle level;
+  - route Stop through the queue;
+  - relocate without an offer;
+  - relocate without a row;
+  - write a process id into the journal;
+  - read the workspace setting;
+  - let the governor load at activation.
+
+- **Gates.** The full `npm run quality`, `check-l10n`, the host API record,
+  D6's budgets and the split guard, the exec schema check, `test:a11y`, the
+  PSScriptAnalyzer gate if a PowerShell probe is added, semgrep, the C#
+  helper's build on Windows CI.
+- **Security.**
+  - No secret is read, logged or sent by the governor.
+  - Relocated work follows M100's rules unchanged; peer headroom is an
+    untrusted, zod-checked bucket that can only attract work the peer was
+    already offered.
+  - Probes and actuators are run by absolute path with argument arrays; no
+    elevated rights, no `sudo`, never a priority above normal.
+  - cgroup writes only inside the harness's own scope, whose path is checked
+    under the user's slice.
+  - The governor kills, suspends and hard-caps nothing.
+  - PLAN §9 records the residuals: Muse Code's own tools cannot be deferred;
+    a burst of starts inside one sample can still overload the machine; on
+    POSIX without a cgroup, a lowered priority stays for that process's
+    life.
+- **Docs.** README ("Keeping your machine responsive": the settings, the
+  levels, what is never touched, relocation and its consent, each editor's
+  surface); PRIVACY (resource history holds no process details); SECURITY
+  (the actuators' limits); `docs/acp.md` (`/resources`); `docs/ci.md`
+  (flags, events); CHANGELOG; this plan; certification.
+- **Performance and bundles.**
+
+  | Artifact                          |                       M107 adds (target) | Cap                                                     |
+  | --------------------------------- | ---------------------------------------: | ------------------------------------------------------- |
+  | `dist/extension.js`               |                            0 (lazy load) | 600 KiB, unchanged                                      |
+  | `dist/modelApi.js`                | ≤ 1 KiB (admission calls at spawn sites) | 475 KiB, unchanged                                      |
+  | `dist/acp.js`                     |                                  ≤ 2 KiB | 850 KiB, unchanged                                      |
+  | `dist/team.js` and other spawners |                             ≤ 1 KiB each | unchanged                                               |
+  | `dist/resourceGovernor.js` (new)  |                                  ~40 KiB | measured + 15%, rounded up to 25 KiB                    |
+  | Webview resources chunk           |                                   ~8 KiB | inside the 50 KiB optional total, or its own page entry |
+  | `dist/uiText.js`                  |                                ≤ 0.5 KiB | 125 KiB, unchanged (strings in a regional block)        |
+
+- **Size.** M–L.
+- **Certification checklist** (§6.0, plus):
+  - [ ] Lane 0's platform facts on the Mac mini, Kubuntu and the Win11 VM
+  - [ ] Lanes S, T, G, A, C1, U and H with drills
+  - [ ] C2 with M96c; R with M100's fake and then two paired rigs; J with
+        M102 — or each named as waiting for its dependency
+  - [ ] The owner's case (acceptance 15) measured and recorded
+  - [ ] Editor matrix rows recorded; strings in all 14 tables; budgets
+        measured; full gate green
 
 ## 7. Gates
 
