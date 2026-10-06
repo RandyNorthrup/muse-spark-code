@@ -12,7 +12,8 @@ function settledDeferral(): Promise<void> {
 
 /** The existing full fake session, with M112's required injected capability and scripted submissions. */
 export class ScriptedQuestionSession extends FakeAgentSession implements QuestionDeferralPort {
-  public readonly deferQuestions = vi.fn<QuestionDeferralPort['deferQuestions']>(settledDeferral)
+  public override readonly deferQuestions =
+    vi.fn<QuestionDeferralPort['deferQuestions']>(settledDeferral)
 
   /** Error includes a refused steer or an uncertain failure, without hidden fallback logic. */
   public queueSteer(result: TurnSubmission | Error): void {

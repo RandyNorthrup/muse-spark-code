@@ -13,6 +13,7 @@
 // Stop knows which approvals are part decided (MuseSession.cancel).
 
 import type { AgentEvent, RequirementRef } from '../../../shared/agentEvents'
+import { questionSettlementOutcome } from './mapNotification'
 
 type ApprovalRequested = Extract<AgentEvent, { type: 'approvalRequested' }>
 type ApprovalUpdated = Extract<AgentEvent, { type: 'approvalUpdated' }>
@@ -32,6 +33,7 @@ export class PromptLedger {
   /** Open approvals as their card now reads (the request with its latest stage). */
   private readonly approvals = new Map<string, ApprovalRequested>()
   private readonly questions = new Map<string, QuestionRequested>()
+  private readonly deferredQuestions = new Set<string>()
   /** Approvals the host closed: on our terminal decision, or `alreadyTerminal`. */
   private readonly closed = new Set<string>()
   /** Stages a decision was sent for (in flight or accepted), by `stageKey`. */
@@ -197,12 +199,28 @@ export class PromptLedger {
       }
       case 'questionSettled': {
         this.questions.delete(event.userInputId)
-        return event
+        const outcome = questionSettlementOutcome(
+          event.outcome,
+          this.deferredQuestions.delete(event.userInputId),
+        )
+        return { ...event, outcome }
       }
       default: {
         return event
       }
     }
+  }
+
+  /** Reserve the id before dispatch: settlement may precede its command acknowledgement. */
+  public markQuestionDeferred(userInputId: string): boolean {
+    if (!this.questions.has(userInputId) || this.deferredQuestions.has(userInputId)) return false
+    this.deferredQuestions.add(userInputId)
+    return true
+  }
+
+  /** A proven command refusal admits no deferral. */
+  public unmarkQuestionDeferred(userInputId: string): void {
+    this.deferredQuestions.delete(userInputId)
   }
 
   /** The prompts still waiting, as a surface that starts listening now should see them. */
