@@ -19645,6 +19645,24 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM115U2 review repair.** All four RVM115U2 P1s and its P2 are repaired;
+  none is accepted as residual. Child tasks inside a fire are refused at the
+  shared task admission, including completed-child follow-ups, queued-message
+  ingress and future direct send/steer routes. Scoped memory/context/file/checkpoint adapters
+  share canonical fire decisions; cached skills authorize their actual source
+  before use. Replay delivery hashes and fire-owned decision provenance stay
+  in memory, with exact-content checks before each request. Already delivered
+  pre-fire history may replay; known unsent file output at a steer boundary
+  is reauthorized, and unproved new notes/child results are refused or retained
+  for an interactive turn. A restored legacy replay lacking delivery evidence
+  refuses unattended egress until a person has sent it in this process; this
+  conservative refusal does not infer authority from an older snapshot.
+  Native admission claims after validation, and finalizing turns refuse steers
+  before acknowledgment. Core ports cover every editor/runtime; existing
+  integration bindings and W/lead's aggregate quality gate remain unchanged.
+  Regression and final-source mutation receipts: `docs/certification/m115-u.md`
+  and `docs/certification/fixm115-u2-drills.json`.
+
 - **FIXM115U review repair.** All eight RVM115U findings are repaired; no
   finding is accepted as residual. Twenty-five named red drills restore the
   final source byte-exact; receipts are in

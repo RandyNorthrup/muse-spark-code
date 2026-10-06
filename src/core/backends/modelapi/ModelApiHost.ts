@@ -216,7 +216,11 @@ import type { JudgeAdvisory, JudgeFence } from '../../judge/use'
 import type { ModelApiJudgeConnection } from '../../judge/same/modelApiSource'
 import { approvalHost } from '../../web/hostName'
 import { checkPageUrl } from '../../web/pageUrl'
-import { IndexLineStoppedError, type MemoryStore } from '../../memory/memoryStore'
+import {
+  IndexLineStoppedError,
+  type MemoryStore,
+  type MemoryWrites,
+} from '../../memory/memoryStore'
 import { type CodeIntelDeps, CodeIntelRefusal } from '../../codeIntel/codeIntelQuery'
 import { codeIntelToolOf } from '../../codeIntel/definitions'
 import type { LanguageServiceHost } from '../../codeIntel/languageService'
@@ -660,6 +664,12 @@ interface ReplayItem {
   readonly backgroundTaskId?: string
 }
 
+function attachmentPaths(parts: readonly TurnPart[]): string[] {
+  return parts.flatMap((part) =>
+    part.type === 'file' || part.type === 'textFile' ? [part.name] : [],
+  )
+}
+
 /** A tool-read file until a completed model request has actually carried its media part. */
 interface PendingReadFile {
   /** The model's line in its place if a stop drops it first. */
@@ -745,6 +755,8 @@ interface ChildRecord {
 
 /** One consented child task; only in memory, never in the session snapshot. */
 interface ChildTaskGrant {
+  /** Captured at task admission; never replaced by a later session's authority. */
+  readonly scheduleRun?: UnattendedRun
   /** The model the child runs on: a custom agent's own, else the session's. */
   readonly modelId: string
   /** The session's model when the grant was approved; a later switch ends the task. */
@@ -792,6 +804,10 @@ const GOAL_WAKING_VERBS: ReadonlySet<GoalCommandVerb> = new Set(['set', 'edit', 
 
 interface ActiveTurn {
   scheduleRun?: UnattendedRun
+  /** Immutable evidence of content already sent before this fire took authority. */
+  scheduleHistory?: ReadonlySet<string>
+  scheduleUndelivered?: ReadonlySet<ReplayItem>
+  scheduleInstructions?: ReadonlySet<string>
   schedulePermissions?: PermissionEngine
 
   readonly turnId: string
@@ -1908,6 +1924,22 @@ export class ModelApiSession implements ScheduledAgentSession {
   private lastJudgeBody: CreateResponseBody | undefined
   private readonly listeners = new Set<SessionEventListener>()
   private readonly replay: ReplayItem[] = []
+  private readonly sentReplay = new Set<string>()
+  private readonly sentInstructions = new Set<string>()
+  private readonly contextSourcePaths = new Set<string>()
+  private isLoadingContextMemory = false
+  /** Fire-owned, in-memory provenance; never persisted with replay or credentials. */
+  private readonly replayDecisions = new WeakMap<
+    ReplayItem,
+    {
+      readonly run: UnattendedRun | undefined
+      readonly requiresAsking: boolean
+      readonly digest: string
+      readonly paths: readonly string[]
+    }
+  >()
+  private readonly readFileDecisions = new WeakMap<VisibleFile, UnattendedRun | undefined>()
+  private readonly withheldChildResults = new WeakSet<UnattendedRun>()
   private readonly transcript: TranscriptItem[] = []
   private readonly turnIds: string[] = []
   /** The real last turn summarized by an accepted compaction, not inferred from replay gaps. */
@@ -2171,6 +2203,34 @@ export class ModelApiSession implements ScheduledAgentSession {
      */
     private readonly extensionHooks: readonly ExtensionHookDefinition[] = [],
   ) {
+    // Every consumer receives these ports, including lazy context/hook readers.
+    // The raw adapters stay only inside the wrappers, never on session deps.
+    this.deps = {
+      ...deps,
+      io: this.scheduledIo(deps.io),
+      contextIo: {
+        ...deps.contextIo,
+        readFile: this.guardWorkspaceIo(async (...args: Parameters<ContextIo['readFile']>) => {
+          const bytes = await deps.contextIo.readFile(...args)
+          if (bytes !== undefined) this.contextSourcePaths.add(args[0])
+          return bytes
+        }, 'mcp'),
+        listDirectory: this.guardWorkspaceIo(
+          deps.contextIo.listDirectory.bind(deps.contextIo),
+          'mcp',
+        ),
+      },
+      memory: deps.memory?.withIo((io) => ({
+        ...io,
+        ...this.guardedMemoryWrites(io),
+        readFile: this.guardWorkspaceIo(async (path: string) => {
+          const text = await io.readFile(path)
+          if (text !== undefined && this.isLoadingContextMemory) this.contextSourcePaths.add(path)
+          return text
+        }, 'mcp'),
+        listEntries: this.guardWorkspaceIo(io.listEntries.bind(io), 'mcp'),
+      })),
+    }
     this.scheduledClient = deps.client.withScheduleAuthority(() => this.active?.scheduleRun)
     this.workspaceEdits.add(this.ledger)
     this.modelId = modelId
@@ -2187,9 +2247,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     // calls are its parent's conversation to pack, never its own.
     this.packing =
       !isSubagent && deps.observationPacking?.() === true ? new ObservationPack() : undefined
-    const { memory } = deps
+    const { memory } = this.deps
     this.context = new WorkspaceContext({
-      io: deps.contextIo,
+      io: this.deps.contextIo,
       workspaceRoot: deps.workspaceRoot,
       platform: deps.platform,
       personalSkillsRoot: deps.personalSkillsRoot,
@@ -2198,7 +2258,17 @@ export class ModelApiSession implements ScheduledAgentSession {
       // A child cannot spawn, so it reads no agents (M76).
       hasAgents: !isSubagent,
       isWorkspaceTrusted: deps.isWorkspaceTrusted,
-      loadMemory: memory === undefined ? undefined : () => memory.snapshot(),
+      loadMemory:
+        memory === undefined
+          ? undefined
+          : async () => {
+              this.isLoadingContextMemory = true
+              try {
+                return await memory.snapshot()
+              } finally {
+                this.isLoadingContextMemory = false
+              }
+            },
       warn: (message) => {
         deps.log.warn(`Workspace context: ${message}`)
       },
@@ -2703,19 +2773,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         : {
             ...codeIntel,
             open: async (path: string) => {
-              const safe = await run.decide(
-                {
-                  id: this.deps.newId(),
-                  class: 'mcp',
-                  tool: MODEL_API_TOOLS.readFile,
-                  paths: [path],
-                  requiresAsking: false,
-                  protectedPath: false,
-                },
-                false,
-              )
-              if (!safe.allowed || this.getScheduledRun() !== run)
-                throw new Error(safe.reason ?? run.modelText.approvalRefused)
+              await this.workspaceAccess(path, 'mcp')
+              if (this.getScheduledRun() !== run) throw new AbortedError()
               return await codeIntel.open(path)
             },
           }
@@ -2826,6 +2885,26 @@ export class ModelApiSession implements ScheduledAgentSession {
    * since withholds it, after a resume too. The model is told it was.
    */
   private drainChildResults(): void {
+    const run = this.getScheduledRun()
+    if (run !== undefined && this.pendingChildResults.length > 0) {
+      // A different conversation's unsent result has no file provenance here.
+      // Retain it for the person's next turn instead of leaking it into a fire.
+      if (!this.withheldChildResults.has(run)) {
+        this.withheldChildResults.add(run)
+        run.refuse(
+          {
+            id: this.deps.newId(),
+            class: 'requiresAsking',
+            tool: 'subagents',
+            paths: [],
+            requiresAsking: true,
+            protectedPath: false,
+          },
+          run.modelText.requiresAskingRefused,
+        )
+      }
+      return
+    }
     for (const pending of this.pendingChildResults.splice(0)) {
       const text = this.isRevisionCurrent([pending.revision])
         ? pending.text
@@ -3569,6 +3648,8 @@ export class ModelApiSession implements ScheduledAgentSession {
           // Packing counts the conversation's request only once it is really
           // sent (M73); a direct review's body is not the conversation's.
           this.packing?.noteSent(body.input)
+          for (const item of body.input) this.sentReplay.add(fingerprint(JSON.stringify(item)))
+          this.sentInstructions.add(fingerprint(body.instructions))
         } else {
           directBudget.isSent = true
         }
@@ -3618,18 +3699,22 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
   }
 
-  private appendUserMessage(
+  private async appendUserMessage(
     turnId: string,
     parts: readonly TurnPart[],
     displayText: string | undefined,
     reservedUserMessageId?: string,
-  ): void {
+  ): Promise<void> {
+    const run = this.getScheduledRun()
+    await run?.checkParts(parts)
     const itemId = reservedUserMessageId ?? this.deps.newId()
-    this.replay.push({
+    const entry: ReplayItem = {
       turnId,
       userMessageId: itemId,
       item: { type: 'message', role: 'user', content: this.contentParts(parts) },
-    })
+    }
+    this.replay.push(entry)
+    this.recordReplayDecision(entry, run, attachmentPaths(parts))
     const text = displayText ?? typedText(parts)
     this.firstPrompt ??= text
     const attachments = attachmentsOf(parts)
@@ -4183,6 +4268,57 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
   }
 
+  private recordReplayDecision(
+    entry: ReplayItem,
+    run: UnattendedRun | undefined,
+    paths: readonly string[],
+    requiresAsking = false,
+  ): void {
+    this.replayDecisions.set(entry, {
+      run,
+      paths,
+      requiresAsking,
+      digest: fingerprint(JSON.stringify(entry.item)),
+    })
+  }
+
+  /** Only pre-fire delivery or this fire's exact decided bytes may leave. */
+  private async checkScheduledReplay(run: UnattendedRun, body: CreateResponseBody): Promise<void> {
+    const turn = this.active
+    if (turn?.scheduleRun !== run || !run.isActive()) throw new AbortedError()
+    if (!turn.scheduleInstructions?.has(fingerprint(body.instructions))) {
+      for (const path of this.contextSourcePaths) await this.workspaceAccess(path, 'mcp')
+    }
+    for (const entry of this.replay) {
+      const digest = fingerprint(JSON.stringify(entry.item))
+      if (turn.scheduleHistory?.has(digest)) continue
+      const provenance = this.replayDecisions.get(entry)
+      if (
+        provenance?.digest !== digest ||
+        provenance.requiresAsking ||
+        (provenance.run !== run && !turn.scheduleUndelivered?.has(entry))
+      ) {
+        throw new Error(
+          run.refuse(
+            {
+              id: this.deps.newId(),
+              class: 'requiresAsking',
+              tool: 'replay',
+              paths: [],
+              requiresAsking: true,
+              protectedPath: false,
+            },
+            run.modelText.requiresAskingRefused,
+          ),
+        )
+      }
+      for (const path of provenance.paths) await this.workspaceAccess(path, 'mcp')
+      if (provenance.run !== run) this.recordReplayDecision(entry, run, provenance.paths)
+    }
+    if (this.active !== turn || turn.scheduleRun !== run || !run.isActive())
+      throw new AbortedError()
+  }
+
   /** One model call's stream, applied to the transcript. */
   private async streamAttempt(
     turnId: string,
@@ -4194,7 +4330,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   ): Promise<StreamedCall> {
     const requestId = this.deps.newId()
     const run = this.active?.scheduleRun
-    if (run !== undefined) await run.checkParts(this.active?.inputParts ?? [])
+    if (run !== undefined) await this.checkScheduledReplay(run, this.body())
     const attempt = budget.retriesUsed + 1
     // A request that cannot fit the session budget left is never sent (M82),
     // nor shown to the hooks; the body sent is reserved afresh below, since
@@ -4222,7 +4358,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       })
     }
     await this.refreshBudgetSpend()
-    if (run !== undefined) await run.checkParts(this.active?.inputParts ?? [])
+    if (run !== undefined) await this.checkScheduledReplay(run, this.body())
     const body = this.budgeted(this.body())
     this.lastJudgeBody = body
     const reservation = this.sending(body)
@@ -4258,7 +4394,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.markReadFileMediaDelivered(turnId, body.input)
       wasFitted = this.commitFittedReplay(requestReplay, body.input)
       this.markOutputMediaDelivered(requestReplay, body.input)
+      const outputStart = this.replay.length
       calls = this.adoptOutput(turnId, final, open, chargedGoalId)
+      for (const entry of this.replay.slice(outputStart)) {
+        this.sentReplay.add(fingerprint(JSON.stringify(entry.item)))
+        this.recordReplayDecision(entry, run, [])
+      }
     } catch (error: unknown) {
       this.noteRequestRefusal(reservation, error)
       throw error
@@ -5380,6 +5521,17 @@ export class ModelApiSession implements ScheduledAgentSession {
     })
     const replay: ReplayItem = { turnId, item: { type: 'message', role: 'user', content } }
     this.replay.push(replay)
+    const run = this.getScheduledRun()
+    if (
+      files.every(
+        (file) => this.readFileDecisions.has(file) && this.readFileDecisions.get(file) === run,
+      )
+    )
+      this.recordReplayDecision(
+        replay,
+        run,
+        files.flatMap((file) => attachmentPaths([file.part])),
+      )
     if (pending.length > 0) {
       this.readFileMessages.set(replay, pending)
     }
@@ -5569,6 +5721,20 @@ export class ModelApiSession implements ScheduledAgentSession {
     const skill = this.context.skill(parsed.data.id)
     if (skill === undefined) {
       return toolFailure(`${MODEL_API_MODEL_TEXT.skillNotFound} ${parsed.data.id}`)
+    }
+    if (this.getScheduledRun() !== undefined) {
+      let root = skill.packageRoot
+      if (skill.source === PROJECT_SKILL_SOURCE)
+        root = pathModule(this.deps.platform).join(
+          this.deps.workspaceRoot,
+          ...PROJECT_SKILLS_DIR_SEGMENTS,
+        )
+      else if (skill.source === 'user') root = this.deps.personalSkillsRoot
+      if (root === undefined) throw new AbortedError()
+      await this.workspaceAccess(
+        pathModule(this.deps.platform).join(root, skill.id, SKILL_FILE_NAME),
+        'mcp',
+      )
     }
     const loaded: ToolOutcome = {
       output: `Skill ${skill.id}: ${skill.description}\n\n${skillBodyForModel(skill)}`,
@@ -6136,51 +6302,77 @@ export class ModelApiSession implements ScheduledAgentSession {
     }).filter((tool) => HOOK_MODEL_READ_TOOLS.has(tool.name))
   }
 
-  /** Recheck the fire's canonical safety at every workspace I/O entry. */
-  private scheduledIo(io: ToolIo): ToolIo {
-    const run = this.active?.scheduleRun
-    if (run === undefined) return io
-    const check = async (path: string, actionClass: 'edit' | 'mcp') => {
-      if (this.getScheduledRun() !== run) throw new AbortedError()
-      const safe = await run.decide(
-        {
-          id: this.deps.newId(),
-          class: actionClass,
-          tool: actionClass === 'edit' ? MODEL_API_TOOLS.writeFile : MODEL_API_TOOLS.readFile,
-          paths: [path],
-          requiresAsking: false,
-          protectedPath: false,
-        },
-        false,
-      )
-      if (!safe.allowed) throw new Error(safe.reason ?? run.modelText.protectedRefused)
-      if (this.getScheduledRun() !== run) throw new AbortedError()
+  /** The single canonical decision boundary for all session workspace ports. */
+  private async workspaceAccess(path: string, actionClass: 'edit' | 'mcp'): Promise<void> {
+    const run = this.getScheduledRun()
+    if (run === undefined) return
+    const safe = await run.decide(
+      {
+        id: this.deps.newId(),
+        class: actionClass,
+        tool: actionClass === 'edit' ? MODEL_API_TOOLS.writeFile : MODEL_API_TOOLS.readFile,
+        paths: [path],
+        requiresAsking: false,
+        protectedPath: false,
+      },
+      false,
+    )
+    if (!safe.allowed) throw new Error(safe.reason ?? run.modelText.protectedRefused)
+    if (this.getScheduledRun() !== run) throw new AbortedError()
+  }
+
+  private guardWorkspaceIo<Args extends [string, ...unknown[]], Result>(
+    operation: (...args: Args) => Promise<Result>,
+    actionClass: 'edit' | 'mcp',
+  ): (...args: Args) => Promise<Result> {
+    return async (...args) => {
+      await this.workspaceAccess(args[0], actionClass)
+      return await operation(...args)
     }
+  }
+
+  private guardedMemoryWrites(io: MemoryWrites): MemoryWrites {
+    return {
+      writeFile: this.guardWorkspaceIo(
+        (...args: Parameters<MemoryWrites['writeFile']>) => io.writeFile(...args),
+        'edit',
+      ),
+      createFile: this.guardWorkspaceIo(
+        (...args: Parameters<MemoryWrites['createFile']>) => io.createFile(...args),
+        'edit',
+      ),
+    }
+  }
+
+  /** Checkpoint/file adapters share the same boundary as memory and context. */
+  private scheduledIo(io: ToolIo): ToolIo {
     return {
       ...io,
-      readFile: async (...args) => {
-        await check(args[0], 'mcp')
-        return await io.readFile(...args)
-      },
-      readBytes: async (...args) => {
-        await check(args[0], 'mcp')
-        return await io.readBytes(...args)
-      },
-      writeFile: async (...args) => {
-        await check(args[0], 'edit')
-        await io.writeFile(...args)
-      },
-      writeFileIfUnchanged: async (...args) => {
-        await check(args[0], 'edit')
-        return await io.writeFileIfUnchanged(...args)
-      },
+      runShell: (...args) => io.runShell(...args),
+      realPath: (path) => io.realPath(path),
+      readFile: this.guardWorkspaceIo(
+        (...args: Parameters<ToolIo['readFile']>) => io.readFile(...args),
+        'mcp',
+      ),
+      readBytes: this.guardWorkspaceIo(
+        (...args: Parameters<ToolIo['readBytes']>) => io.readBytes(...args),
+        'mcp',
+      ),
+      writeFile: this.guardWorkspaceIo(
+        (...args: Parameters<ToolIo['writeFile']>) => io.writeFile(...args),
+        'edit',
+      ),
+      writeFileIfUnchanged: this.guardWorkspaceIo(
+        (...args: Parameters<ToolIo['writeFileIfUnchanged']>) => io.writeFileIfUnchanged(...args),
+        'edit',
+      ),
       reserveFile: async (...args) => {
-        await check(args[0], 'edit')
+        await this.workspaceAccess(args[0], 'edit')
         const reservation = await io.reserveFile(...args)
         return {
           release: () => reservation.release(),
           fill: async (bytes) => {
-            await check(args[0], 'edit')
+            await this.workspaceAccess(args[0], 'edit')
             return await reservation.fill(bytes)
           },
         }
@@ -6190,16 +6382,16 @@ export class ModelApiSession implements ScheduledAgentSession {
         const allowed: string[] = []
         for (const path of files) {
           try {
-            await check(path, 'mcp')
+            await this.workspaceAccess(path, 'mcp')
             allowed.push(path)
           } catch {
-            if (!run.isActive() || this.getScheduledRun() !== run) throw new AbortedError()
+            if (this.getScheduledRun()?.isActive() === false) throw new AbortedError()
           }
         }
         return allowed
       },
       searchFiles: async (job) => {
-        for (const file of job.files) await check(file.absolute, 'mcp')
+        for (const file of job.files) await this.workspaceAccess(file.absolute, 'mcp')
         return await io.searchFiles(job)
       },
     }
@@ -6752,6 +6944,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     keyDigest: string | undefined,
     childModelId: string,
   ): ChildTaskRefusal | undefined {
+    const run = this.unattendedChildAuthority(grant)
+    if (run !== undefined) {
+      this.refuseChildTask(run)
+      return 'consentDeclined'
+    }
     if (this.isDisposed) {
       return 'consentDeclined'
     }
@@ -6784,6 +6981,29 @@ export class ModelApiSession implements ScheduledAgentSession {
     return grant.remainingAttempts <= 0 ? 'requestLimit' : undefined
   }
 
+  /** All child admission routes read the originating task, then its live caller. */
+  private unattendedChildAuthority(grant?: ChildTaskGrant): UnattendedRun | undefined {
+    return (
+      grant?.scheduleRun ??
+      this.active?.scheduleRun ??
+      (this.isSubagent ? this.parentSession?.getScheduledRun() : undefined)
+    )
+  }
+
+  private refuseChildTask(run: UnattendedRun): void {
+    run.refuse(
+      {
+        id: this.deps.newId(),
+        class: 'paidExtra',
+        tool: 'subagents',
+        paths: [],
+        requiresAsking: false,
+        protectedPath: false,
+      },
+      run.modelText.paidRefused,
+    )
+  }
+
   /**
    * A child task's paid gates, checked before anything is asked: paid
    * subagents on, a goal with budget left, a verified price, and (a model a
@@ -6791,6 +7011,11 @@ export class ModelApiSession implements ScheduledAgentSession {
    * contributor model in a confidential workspace.
    */
   private childTaskGate(modelId: string): ChildTaskRefusal | undefined {
+    const run = this.unattendedChildAuthority()
+    if (run !== undefined) {
+      this.refuseChildTask(run)
+      return 'consentDeclined'
+    }
     if (!this.deps.isPaidFeatureOn('subagents')) {
       return 'paidOff'
     }
@@ -6807,6 +7032,7 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** The grant a child task's consent buys: what its rechecks compare the session against. */
   private async newChildGrant(modelId: string): Promise<ChildTaskGrant> {
+    const scheduleRun = this.unattendedChildAuthority()
     const parentModelId = this.modelId
     const goalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
     const isWebSearchAllowed =
@@ -6815,6 +7041,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       modelId,
       parentModelId,
       keyDigest: await this.client.currentKeyDigest(),
+      ...(scheduleRun !== undefined && { scheduleRun }),
       goalId,
       remainingAttempts: SUBAGENT_TASK_MAX_REQUESTS,
       isWebSearchAllowed,
@@ -7320,6 +7547,11 @@ export class ModelApiSession implements ScheduledAgentSession {
         : await this.waitForChild(child, parsed.data.timeout_ms ?? SUBAGENT_WAIT_DEFAULT_MS, signal)
     }
     if (call.name === MODEL_API_SUBAGENT_TOOLS.sendMessage) {
+      const run = this.unattendedChildAuthority(grant)
+      if (run !== undefined) {
+        this.refuseChildTask(run)
+        return childTaskFailure('consentDeclined')
+      }
       const parsed = sendMessageArgs.safeParse(args)
       if (!parsed.success) {
         return subagentFailure('invalid subagent_send_message arguments')
@@ -8500,7 +8732,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       return { ...(await runMemoryCall(memory, placed, assertOwner)), touched }
     }
     // What the write goes through, taken when the call starts (M86).
-    const writes = this.toolWrites()?.memory
+    const recordedWrites = this.toolWrites()?.memory
+    const writes =
+      recordedWrites === undefined ? undefined : this.guardedMemoryWrites(recordedWrites)
     let refusal: ToolOutcome | undefined
     const assertCurrent = () => {
       assertOwner()
@@ -9406,6 +9640,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     call: FunctionCallItem,
     outcome: ToolOutcome,
     status: string,
+    run?: UnattendedRun,
+    paths: readonly string[] = [],
   ): ReplayItem {
     const { itemId } = started
     const outputRef = outcome.patch === undefined ? undefined : `${OUTPUT_REF_PREFIX}${itemId}`
@@ -9436,12 +9672,21 @@ export class ModelApiSession implements ScheduledAgentSession {
       },
     }
     this.replay.push(replay)
+    this.recordReplayDecision(
+      replay,
+      run,
+      paths,
+      run === undefined &&
+        outcome.failureReason === undefined &&
+        outcome.touched?.complete !== true,
+    )
     const outputImages = outcome.outputParts?.filter((part) => part.type === 'input_image') ?? []
     if (outputImages.length > 0) {
       this.pendingOutputMedia.set(replay, outputImages)
     }
     if (outcome.visibleFile !== undefined) {
       this.readFiles.push(outcome.visibleFile)
+      this.readFileDecisions.set(outcome.visibleFile, run)
     }
     return replay
   }
@@ -9539,6 +9784,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     // wait. Native entry rechecks the captured owner's isAllowed admission;
     // a later turn or an idle session cannot grant this command pass-through.
     const origin = this.active
+    const originRun = origin?.scheduleRun
     const isInteractiveShell =
       !this.isSubagent &&
       !this.isSideChat &&
@@ -9641,9 +9887,28 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     const { admission } = slot
     const { isRejected, running, hookEffects } = result
-    // The one point every outcome crosses: no await from here to the model's
-    // replay. A rejection brought nothing back and keeps its own words.
+    // Every outcome crosses this fence before entering replay. A rejection
+    // brought nothing back and keeps its own words.
     let outcome = isRejected ? result.outcome : this.fencedOutcome(admission, result.outcome)
+    let replayPaths: readonly string[] = outcome.touched?.names ?? []
+    if (originRun !== undefined && outcome.failureReason === undefined) {
+      replayPaths = outcome.touched?.names ?? []
+      const decision = await originRun.decide(
+        {
+          id: itemId,
+          class: 'mcp',
+          tool: effectiveCall.name,
+          paths: [...replayPaths],
+          requiresAsking: isSubagentTool(effectiveCall.name) && outcome.touched?.complete !== true,
+          protectedPath: false,
+        },
+        false,
+      )
+      if (!decision.allowed) {
+        outcome = toolFailure(decision.reason ?? originRun.modelText.approvalRefused)
+        replayPaths = []
+      }
+    }
     let attemptReplay: ReplayItem | undefined
     if (running === undefined) {
       if (!this.canQueueToolMedia(outcome)) {
@@ -9657,7 +9922,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (outcome.failureReason !== undefined) {
         status = isRejected ? REJECTED : FAILED
       }
-      attemptReplay = this.finishCall(turnId, started, effectiveCall, outcome, status)
+      attemptReplay = this.finishCall(
+        turnId,
+        started,
+        effectiveCall,
+        outcome,
+        status,
+        originRun,
+        replayPaths,
+      )
       if (
         effectiveCall.name === MODEL_API_TOOLS.todoWrite &&
         outcome.failureReason !== undefined &&
@@ -9965,9 +10238,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     for (const { parts, userMessageId: itemId, scheduleRun } of turn.steered.splice(0)) {
       if (scheduleRun !== undefined) {
         turn.scheduleRun = scheduleRun
+        turn.scheduleHistory = new Set(this.sentReplay)
+        turn.scheduleUndelivered = new Set(this.replay)
+        turn.scheduleInstructions = new Set(this.sentInstructions)
         turn.schedulePermissions = new PermissionEngine(mspApprovalMode(scheduleRun.context.mode))
         turn.confirmedRequest = this.scheduledRequest(scheduleRun)
       }
+      await turn.scheduleRun?.checkParts(parts)
       turn.inputParts.push(...parts)
       // Admitted user input (M68): the fix loop, rejections and runs start
       // afresh; what the conversation wrote stays until the next message. A
@@ -9977,7 +10254,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       const text = typedText(parts)
       const replayStart = this.replay.length
-      this.replay.push({
+      const entry: ReplayItem = {
         turnId: turn.turnId,
         userMessageId: itemId,
         item: {
@@ -9988,7 +10265,10 @@ export class ModelApiSession implements ScheduledAgentSession {
             ...this.contentParts(parts),
           ],
         },
-      })
+      }
+      this.replay.push(entry)
+      if (turn.scheduleRun !== undefined)
+        this.recordReplayDecision(entry, turn.scheduleRun, attachmentPaths(parts))
       const attachments = attachmentsOf(parts)
       this.recordTranscript(turn.turnId, {
         itemId,
@@ -10570,6 +10850,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     const turn: ActiveTurn = {
       ...(queued.scheduleRun !== undefined && {
         scheduleRun: queued.scheduleRun,
+        scheduleHistory: new Set(this.sentReplay),
+        scheduleUndelivered: new Set(this.replay),
+        scheduleInstructions: new Set(this.sentInstructions),
         schedulePermissions: new PermissionEngine(mspApprovalMode(queued.scheduleRun.context.mode)),
       }),
       turnId: queued.turnId,
@@ -10659,7 +10942,12 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.appendHookContexts(turn.turnId, [typedText(queued.parts)])
       } else {
         const replayStart = this.replay.length
-        this.appendUserMessage(turn.turnId, queued.parts, queued.displayText, queued.userMessageId)
+        await this.appendUserMessage(
+          turn.turnId,
+          queued.parts,
+          queued.displayText,
+          queued.userMessageId,
+        )
         await this.expandSkillsForHooks(
           turn.turnId,
           queued.parts,
@@ -11253,6 +11541,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.isDisposed) {
       return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
     }
+    const childRun = this.isSubagent
+      ? this.unattendedChildAuthority(this.childTaskGrant)
+      : undefined
+    if (childRun !== undefined) {
+      this.refuseChildTask(childRun)
+      return Promise.reject(new ChildTaskRefusedError('consentDeclined'))
+    }
     const textBudgetError = textAttachmentBudgetError(textAttachmentBytes(parts))
     if (textBudgetError !== undefined) {
       return Promise.reject(textBudgetError)
@@ -11407,6 +11702,13 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.active.isFinalizing === true
     ) {
       return Promise.reject(new SteerRefusedError(TURN_NOT_RUNNING))
+    }
+    const childRun = this.isSubagent
+      ? this.unattendedChildAuthority(this.childTaskGrant)
+      : undefined
+    if (childRun !== undefined) {
+      this.refuseChildTask(childRun)
+      return Promise.reject(new ChildTaskRefusedError('consentDeclined'))
     }
     const addedTextBytes = textAttachmentBytes(parts)
     const textBudgetError = textAttachmentBudgetError(

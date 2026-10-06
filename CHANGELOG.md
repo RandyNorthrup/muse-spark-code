@@ -12,7 +12,10 @@ happened, not what was planned; superseded entries are kept.
 - Close M115's native admission race after attachment validation: competing
   fires cannot replace a running grant or change an ordinary turn's mode.
   A scheduled steer during checkpoint finalization refuses before acceptance,
-  so delivery can retry it as a separate turn.
+  so delivery can retry it as a separate turn. Child follow-ups and queued
+  messages refuse before escaping fire authority, memory and skill access uses the guarded
+  workspace port, and request replay checks the provenance of content added
+  during the fire while permitting already delivered pre-fire history.
 
 - Repair M115's unshipped unattended authority: every paid response and image
   uses its fire's reservation, zero consent cannot enable unlimited spending,

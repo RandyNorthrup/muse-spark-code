@@ -666,6 +666,8 @@ export class MuseSession implements ScheduledAgentSession {
   private readonly scheduledApprovals = new Map<string, UnattendedRun>()
   private readonly scheduledQuestions = new Set<string>()
   private currentTurnId: string | undefined
+  private startingTurns = 0
+  private turnStateRevision = 0
   private heldScheduleEvents: AgentEvent[] | undefined
   private admittingScheduleRun: UnattendedRun | undefined
   private failedAdmissionRun: UnattendedRun | undefined
@@ -768,7 +770,7 @@ export class MuseSession implements ScheduledAgentSession {
       this.failedAdmissionRun !== undefined ||
       this.currentApprovalMode === undefined ||
       (expectedTurnId === undefined
-        ? this.currentTurnId !== undefined || this.scheduledTurns.size > 0
+        ? this.currentTurnId !== undefined || this.startingTurns > 0 || this.scheduledTurns.size > 0
         : this.currentTurnId !== expectedTurnId || (owner !== undefined && owner !== run))
     )
       throw new SteerRefusedError(UI_TEXT.scheduleBusy)
@@ -1085,12 +1087,19 @@ export class MuseSession implements ScheduledAgentSession {
     if (this.isDisposed) {
       return
     }
+    // UI buffering never hides the live state from admission checks.
+    if (event.type === 'turnStarted') {
+      this.currentTurnId = event.turnId
+      this.turnStateRevision += 1
+    } else if (event.type === 'turnCompleted' || event.type === 'turnWithdrawn') {
+      if (this.currentTurnId === event.turnId) this.currentTurnId = undefined
+      this.turnStateRevision += 1
+    }
     if (this.heldScheduleEvents !== undefined) {
       this.heldScheduleEvents.push(event)
       return
     }
     if (event.type === 'approvalModeChanged') this.currentApprovalMode = event.mode
-    else if (event.type === 'turnStarted') this.currentTurnId = event.turnId
     else if (event.type === 'itemStarted' && event.item.turnId !== undefined) {
       const run = this.scheduledTurns.get(event.item.turnId)
       if (run !== undefined) this.scheduledItems.set(event.item.itemId, run)
@@ -1259,10 +1268,15 @@ export class MuseSession implements ScheduledAgentSession {
       (scheduledOwner === undefined && this.admittingScheduleRun !== undefined) ||
       this.failedAdmissionRun !== undefined ||
       (scheduledOwner !== undefined &&
-        (!scheduledOwner.isActive() || this.admittingScheduleRun !== scheduledOwner))
+        (!scheduledOwner.isActive() ||
+          this.admittingScheduleRun !== scheduledOwner ||
+          this.currentTurnId !== undefined ||
+          this.startingTurns > 0))
     )
       throw new Error(UI_TEXT.scheduleBusy)
     let ack: unknown
+    const stateRevision = this.turnStateRevision
+    this.startingTurns += 1
     try {
       ack = await this.command('turn/start', {
         input: mspInput(parts),
@@ -1270,9 +1284,16 @@ export class MuseSession implements ScheduledAgentSession {
       })
     } catch (error: unknown) {
       throw faultOr(error, 'approvalReplay')
+    } finally {
+      this.startingTurns -= 1
     }
     const result = turnStartResultSchema.parse(ack)
-    return { turnId: result.turnId, disposition: result.disposition ?? DEFAULT_DISPOSITION }
+    const disposition = result.disposition ?? DEFAULT_DISPOSITION
+    // A captured start ack is evidence too; do not wait for its delayed event
+    // or resurrect a turn whose terminal event arrived ahead of the ack.
+    if (disposition === 'started' && this.turnStateRevision === stateRevision)
+      this.currentTurnId = result.turnId
+    return { turnId: result.turnId, disposition }
   }
 
   /**

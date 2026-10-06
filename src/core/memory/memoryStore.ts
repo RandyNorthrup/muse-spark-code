@@ -490,6 +490,11 @@ export class MemoryStore {
     }
   }
 
+  /** A session lends its guarded I/O without mutating the window's shared store. */
+  public withIo(guard: (io: MemoryIo) => MemoryIo): MemoryStore {
+    return new MemoryStore({ ...this.deps, io: guard(this.deps.io) })
+  }
+
   /** The scopes this window has: `personal` with a home, the other two with a folder. */
   public async availableScopes(): Promise<readonly MemoryScope[]> {
     const roots = await Promise.all(MEMORY_SCOPES.map((scope) => this.root(scope)))
