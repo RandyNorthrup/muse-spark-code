@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- An Arduino IDE 2.3.x VSIX variant of the same product, targeting VS Code API
+  1.96, Node 20.14 and Chromium 124, with an isolated older-API typecheck,
+  unchanged package and startup budgets, and side-load installation guidance.
+
 ### Fixed
 
 - **The README's "What's new" section matches the release again.** 0.12.1 and

@@ -326,6 +326,40 @@ from Open VSX or a `.vsix`.
 
 ### Install in your editor
 
+#### Arduino IDE 2.3.x
+
+Use the release asset ending in **`-arduino.vsix`**. It is the same Muse
+Spark Code (Unofficial) product, built for Arduino IDE's VS Code API 1.96,
+Node 20.14 and Chromium 124. Arduino supports themes officially; this full
+extension is an unsupported side-load. There is no extension store in the IDE.
+
+Quit Arduino IDE, unzip the asset, and copy its `extension/` directory to
+`~/.arduinoIDE/plugins/muse-spark-code/` (on Windows,
+`%USERPROFILE%\.arduinoIDE\plugins\muse-spark-code\`). Restart the IDE,
+then open **Muse Spark: Open in New Tab** from its command palette. Updating
+means replacing that directory while the IDE is closed; uninstalling means
+removing it. Keep your normal Muse Code sign-in or Model API key setup.
+
+The IDE's optional `vscode-arduino-api` provider supplies the selected sketch,
+FQBN and port. Reading that selection opens no device. Close the IDE's Serial
+Monitor before using another serial tool: it holds the port, and another
+window may hold it too. Hardware actions retain the shared maker approval
+policy when the maker lanes are integrated.
+
+Build the Arduino asset locally with these commands (Node 22 for tooling):
+
+```sh
+node scripts/typecheck-arduino.mjs
+node scripts/build.mjs --production --arduino
+node scripts/package-arduino.mjs
+```
+
+The typecheck installs pinned `@types/vscode` 1.96.0 into `temp/arduino-types/`
+and checks the shared host and integration sources without changing the
+regular project's declarations. Packaging runs the regular bundle-size,
+split, host-global, notices, localization and VSIX-size gates. The regular
+VS Code and ACP builds retain their existing floors.
+
 Get it from the
 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
 [Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code) or

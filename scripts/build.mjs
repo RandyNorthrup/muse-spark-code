@@ -50,6 +50,7 @@
 import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
+import { buildProfile } from './lib/arduinoBuild.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
   writeWhatsNewContent,
@@ -58,6 +59,8 @@ import {
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
 const isWatch = args.has('--watch')
+const profile = buildProfile(args.has('--arduino'))
+const BUILD_PROFILE_FILE = 'dist/build-profile.json'
 
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
@@ -114,9 +117,12 @@ const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // The extension host of the oldest VS Code the manifest accepts: 1.99 runs
 // Node 20.18 (PLAN.md M62). The ACP agent runs on the user's own Node 22.
+// Recorded normal-build floor (check-host-api); the profile selects the variant.
 const HOST_NODE_TARGET = 'node20.18'
 const AGENT_NODE_TARGET = 'node22'
 const BROWSER_TARGET = 'chrome128'
+const hostNodeTarget = args.has('--arduino') ? profile.host : HOST_NODE_TARGET
+const browserTarget = args.has('--arduino') ? profile.browser : BROWSER_TARGET
 const BYTES_PER_KIB = 1024
 const METAFILE_DIR = 'dist/meta'
 
@@ -184,7 +190,7 @@ const hostOptions = {
   outfile: HOST_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
   external: ['vscode'],
 }
 
@@ -196,7 +202,7 @@ const modelApiOptions = {
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -221,7 +227,7 @@ const reviewOptions = {
   outfile: REVIEW_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -232,7 +238,7 @@ const planMarkdownOptions = {
   outfile: PLAN_MARKDOWN_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 // Neither imports `vscode`, so it is not external there and a stray import
@@ -276,7 +282,7 @@ const whatsNewOptions = {
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -288,7 +294,7 @@ const agentImportOptions = {
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -299,7 +305,7 @@ const bundledSkillsOptions = {
   outfile: BUNDLED_SKILLS_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -310,7 +316,7 @@ const searchWorkerOptions = {
   outfile: SEARCH_WORKER_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -321,7 +327,7 @@ const checkpointStoreOptions = {
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -332,7 +338,7 @@ const browserCheckOptions = {
   outfile: BROWSER_CHECK_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -343,7 +349,7 @@ const browserRuntimeOptions = {
   outfile: BROWSER_RUNTIME_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -366,7 +372,7 @@ const uiTextOptions = {
   outfile: UI_TEXT_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 const validationOptions = {
@@ -383,7 +389,7 @@ const pageWorkerOptions = {
   outfile: PAGE_WORKER_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -395,7 +401,7 @@ const webviewOptions = {
   format: 'esm',
   splitting: true,
   chunkNames: 'chunks/[name]-[hash]',
-  target: BROWSER_TARGET,
+  target: browserTarget,
   jsx: 'automatic',
 }
 
@@ -423,7 +429,7 @@ const integrationTestOptions = {
   outdir: INTEGRATION_TEST_OUTDIR,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
   external: ['vscode', 'mocha'],
 }
 
@@ -431,6 +437,9 @@ function reportSize(path) {
   const kib = (statSync(path).size / BYTES_PER_KIB).toFixed(1)
   console.log(`  ${path}  ${kib} KiB`)
 }
+
+// A failed or watch build cannot certify a package from earlier output.
+rmSync(BUILD_PROFILE_FILE, { force: true })
 
 // Content-hashed chunks from an earlier build must never enter a package.
 rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
@@ -493,7 +502,7 @@ if (isWatch) {
   }
   const acp = esbuild.build(acpOptions)
   const builds = [...Object.values(shipped), acp]
-  if (!isProduction) {
+  if (!isProduction || args.has('--integration-tests')) {
     builds.push(esbuild.build(integrationTestOptions))
   }
   await Promise.all(builds)
@@ -507,6 +516,7 @@ if (isWatch) {
     const { metafile } = await acp
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
   }
+  writeFileSync(BUILD_PROFILE_FILE, JSON.stringify({ ...profile, production: isProduction }))
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
