@@ -88,11 +88,21 @@ describe('resolved model policy', () => {
     for (const kind of ['local', 'unpriced', 'plan'] as const) {
       const model = await registry({ kind }).resolve(ref)
       const cost = model.price.settle({ inputTokens: 100, outputTokens: 1 })
-      expect(cost).toBe(kind === 'local' ? 0 : undefined)
+      expect(cost).toBe(kind === 'unpriced' ? undefined : 0)
       expect(model.price.reserve({ inputTokens: 100, outputTokens: 1 })).toBe(
-        kind === 'local' ? 0 : undefined,
+        kind === 'unpriced' ? undefined : 0,
       )
-      if (kind === 'local') {
+      if (kind === 'unpriced') {
+        expect(() =>
+          reserveRequest({
+            capUsd: 1,
+            spentUsd: 0,
+            estimatedInputTokens: 100,
+            modelId: ref,
+            price: model.price,
+          }),
+        ).toThrow('whose price this extension does not know')
+      } else {
         expect(
           reserveRequest({
             capUsd: 1,
@@ -103,16 +113,6 @@ describe('resolved model policy', () => {
             price: model.price,
           }).maxOutputTokens,
         ).toBe(100)
-      } else {
-        expect(() =>
-          reserveRequest({
-            capUsd: 1,
-            spentUsd: 0,
-            estimatedInputTokens: 100,
-            modelId: ref,
-            price: model.price,
-          }),
-        ).toThrow('whose price this extension does not know')
       }
     }
   })

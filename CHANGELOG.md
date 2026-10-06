@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Include the lazy subscription and configured-provider bundles in the VSIX
+  allowlist and keep crash-report frames aligned with the packaged files.
+- Preserve normalized Gemini model IDs when joining free model scans to
+  catalogue capabilities, so captured tool-capable models remain selectable.
 - Pin the patched development source-map parser, `source-map-js` 1.2.2,
   after the dependency audit reports GHSA-68fv-2mgg-jv7q.
 - Record the plugin runtime launcher's deliberate, bounded subprocess

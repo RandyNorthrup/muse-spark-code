@@ -18210,6 +18210,31 @@ the real VS Code factory and shared ACP runtime. General credential-management
 CLI/headless commands and live OpenRouter connect/usage remain separate open
 acceptance work; no unsupported command is advertised.
 
+The final configured-provider review also covers Gemini's captured free model
+list: preserve the existing parser's normalized model ID when carrying native
+metadata into the shared capability scan. The captured `models/` prefix must
+not prevent catalogue evidence from joining the selected model. Prove this
+with the entire transport test file failing before the product correction.
+
+The final whole-suite integration also checks the diet's exact VSIX allowlist:
+include the two new lazy bundles, remove duplicate allowlist entries and keep
+the crash-report frame vocabulary equal to the actual shipped JavaScript.
+Account-modal App tests must await the newly lazy account content before
+checking its report, retaining immediate clearing at an account boundary.
+The fake-only headless package guards must also supply the production packer's
+newly required bundles and real localization/export-check inputs. Keep those
+checks active and test removal of every newly required archive member.
+The existing model-policy test must match D74's zero-dollar plan reserve and
+settlement, retaining its refusal for unpriced models and its local assertions.
+Keep the exact English/German help assertions complete by including the new
+provider-command usage entry. The production browser build hook uses the rig's
+120-second deadline; retain every size assertion. Package-guard fixtures may
+reuse the owning packer's exact output only for identical bundle/table bytes,
+while every package still runs the real localization check. For identical tar
+bytes, checker source, Node version and command mode, the isolated fixture may
+reuse a successful native export check; every distinct artifact runs the
+owning checker, and failures are never cached. Production checking is unchanged.
+
 **M95R3 cost and gate repairs (2026-10-05).** Strengthen the unpriced
 usage regression with a cached total and retain dollar estimates only when
 the legacy Model API tariff is known and pricing is not unpriced, local or
@@ -21110,6 +21135,26 @@ generator and package script are absent; integrating that system is a lead
 prerequisite. General provider credential CLI/headless and OpenRouter
 connect/usage are still explicit open acceptance work. No live/support closure
 is inferred from the offline transport tests.
+
+R4's sole aggregate quality invocation exits 1 at lint; its four findings are
+repaired and whole-tree lint passes. The individual continuation completes the
+563-file coverage invocation with 545 passing files, 11 failing files and 7
+skipped files (39 failed, 12,049 passed, 118 skipped tests). Five unchanged
+checkpoint files contribute nine failures. Package/report allowlists, lazy
+account assertions, plan price expectations, CLI help expectations and the
+production-build hook receive scoped repairs; their final receipts are in the
+certificate. The full history scan reports one unclassified finding at
+`0bffa2de1f7ac8929b3417a79beeda63230cb459:docs/certification/m95-x.md:73`.
+Only redacted metadata was inspected. No history rewrite or scanner ignore is
+authorized. SAST passes 529 rules on 1,382 files. Release certification remains
+open: the original brief permits one aggregate run and 150 minutes; the request
+for a recovery run/time extension has no answer. These local review checkpoints
+do not propose a release or claim green quality/coverage.
+The scoped App and report files then pass all 217 cases; the package file still
+fails because GNU tar interprets a Windows drive letter as a remote host. Pin
+native Windows tar in the owning export checker. Its final rerun, the new
+archive-member assertions and the tariff/help/build-hook reruns are deferred
+at the original time-box boundary, explicitly unproven rather than green.
 
 The preflight audit also reports newly reviewed high advisory
 GHSA-68fv-2mgg-jv7q in development-only `source-map-js` 1.2.1. Upstream fixes

@@ -147,7 +147,11 @@ if (isMainThread) {
   after(() => rmSync(scratch, { recursive: true, force: true }))
   let packageRoot = path.resolve(artifact)
   if (kind === 'acp') {
-    execFileSync('tar', ['-xzf', packageRoot, '-C', scratch])
+    const archiveTar =
+      process.platform === 'win32'
+        ? path.join(process.env['SystemRoot'] ?? String.raw`C:\Windows`, 'System32', 'tar.exe')
+        : 'tar'
+    execFileSync(archiveTar, ['-xzf', packageRoot, '-C', scratch])
     packageRoot = path.join(scratch, 'package')
   }
   const files = readdirSync(path.join(packageRoot, 'dist'))

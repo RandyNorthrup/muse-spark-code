@@ -31,6 +31,7 @@ import type { StreamEvent, Usage } from '../backends/modelapi/schemas'
 import type { ProviderEntry } from './providersFile'
 import type { RegistryModel } from './providerRegistry'
 import type { ModelCapabilityRecord } from './capabilityRecord'
+import type { NativeModelMetadata } from './modelMetadata'
 import { parseSse } from '../backends/modelapi/sse'
 import { withDeadline } from '../timeouts'
 import {
@@ -255,7 +256,7 @@ export function createConfiguredProviderServices(
     entry: ProviderEntry,
     supplied?: string,
     signal = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-  ) => {
+  ): Promise<readonly NativeModelMetadata[]> => {
     try {
       const response = await send(
         entry,
@@ -276,7 +277,10 @@ export function createConfiguredProviderServices(
       if (entry.format === 'anthropic')
         return anthropic.parseAnthropicModelsList(value).map((row) => row.native ?? fail())
       if (entry.format === 'gemini')
-        return gemini.parseGeminiModelsList(value).map((row) => row.native ?? fail())
+        return gemini.parseGeminiModelsList(value).map((row) => ({
+          ...(row.native ?? fail()),
+          id: row.id,
+        }))
       return entry.format === 'ollama'
         ? ollama.parseOllamaModelsList(value)
         : modelMetadata.parseNativeModelsList(value)

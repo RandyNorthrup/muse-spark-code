@@ -91,15 +91,13 @@ export function createModelsPanelSeam(options: {
   const catalog = new Map<string, PresetInfo>()
   for (const preset of [...listedPresets(), ...PLAN_KEY_PRESETS]) {
     const origin = preset.origin.kind === 'fixed' ? preset.origin.origin : ''
+    let kind: PresetInfo['kind'] = preset.category === 'custom' ? 'cloud' : preset.category
+    if (PLAN_KEY_PRESETS.some((plan) => plan.id === preset.id)) kind = 'subscription'
     catalog.set(preset.id, {
       id: preset.id,
       name: preset.label,
       description: preset.description,
-      kind: PLAN_KEY_PRESETS.some((plan) => plan.id === preset.id)
-        ? 'subscription'
-        : preset.category === 'custom'
-          ? 'cloud'
-          : preset.category,
+      kind,
       origin,
       format: preset.format,
       auth: preset.auth,

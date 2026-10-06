@@ -443,6 +443,42 @@ describe('configured provider production transport', () => {
     )
   })
 
+  it('keeps normalized Gemini IDs when joining the captured model list to capabilities', async () => {
+    const f = await fixture()
+    const entry = providerEntrySchema.parse({
+      id: 'gemini',
+      preset: 'gemini',
+      address: 'https://generativelanguage.googleapis.com',
+      format: 'gemini',
+      auth: 'apiKey',
+      models: ['gemini-2.5-flash'],
+    })
+    const parsed = z
+      .object({ response: z.object({ bodySummary: z.object({ sample: z.array(z.json()) }) }) })
+      .parse(
+        JSON.parse(
+          await readFile('docs/certification/m95-captures/gemini/01-models-list.json', 'utf8'),
+        ),
+      )
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['8.8.8.8']),
+      send: () =>
+        Promise.resolve(
+          response(Buffer.from(JSON.stringify({ models: parsed.response.bodySummary.sample }))),
+        ),
+    })
+    const rows = await services.scanRows(entry, 'test-owned-key')
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        id: 'gemini-2.5-flash',
+        toolCapable: true,
+        context: 1_048_576,
+      }),
+    )
+    expect(rows.every((row) => !row.id.startsWith('models/'))).toBe(true)
+  })
+
   it.each([
     'origin',
     'credential rotation',

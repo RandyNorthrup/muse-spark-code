@@ -12,6 +12,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -113,19 +114,77 @@ function packagingFixture() {
   for (const script of ['package-acp.mjs', 'package-acp-test.mjs']) {
     cpSync(path.join(ROOT, 'scripts', script), path.join(dir, 'scripts', script))
   }
+  const packer = path.join(dir, 'scripts/package-acp.mjs')
+  const exportCheck = path.join(dir, 'scripts/native-exports.cjs')
+  writeFileSync(
+    exportCheck,
+    `const { createHash } = require('node:crypto');
+const { execFileSync } = require('node:child_process');
+const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
+const path = require('node:path');
+const checker = ${JSON.stringify(path.join(ROOT, 'test/packaging/moduleExports.test.mjs'))};
+const hash = createHash('sha256').update(readFileSync(process.argv[3]))
+  .update(readFileSync(checker)).update(process.version).update(process.argv[2]).digest('hex');
+const cache = path.join(${JSON.stringify(WORK)}, 'native-export-cache');
+const marker = path.join(cache, hash);
+if (!existsSync(marker)) {
+  execFileSync(process.execPath, [checker, ...process.argv.slice(2)], { stdio: 'inherit' });
+  mkdirSync(cache, { recursive: true });
+  writeFileSync(marker, hash);
+}
+`,
+  )
+  writeFileSync(
+    packer,
+    readFileSync(packer, 'utf8')
+      .replace("'scripts/check-l10n.mjs'", () =>
+        JSON.stringify(path.join(ROOT, 'scripts/check-l10n.mjs')),
+      )
+      .replace("'test/packaging/moduleExports.test.mjs'", () => JSON.stringify(exportCheck)),
+  )
   mkdirSync(path.join(dir, 'scripts/lib'))
   writeFileSync(
     path.join(dir, 'scripts/lib/packageArchive.mjs'),
-    `export { packRuntimeArchive } from ${JSON.stringify(pathToFileURL(path.join(ROOT, 'scripts/lib/packageArchive.mjs')).href)};`,
+    `import { packRuntimeArchive as pack } from ${JSON.stringify(pathToFileURL(path.join(ROOT, 'scripts/lib/packageArchive.mjs')).href)};
+import { createHash } from 'node:crypto';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+export async function packRuntimeArchive(root, stage, files, tables) {
+  const hash = createHash('sha256').update(JSON.stringify(tables));
+  for (const file of files) hash.update(file).update(readFileSync(path.join(root, file)));
+  const cache = path.join(${JSON.stringify(WORK)}, 'archive-cache', hash.digest('hex'));
+  const members = [...files, 'l10n/ui.tables.json.br', 'dist/runtime.bundles.json.br'];
+  if (!existsSync(path.join(cache, 'complete'))) {
+    await pack(root, stage, files, tables);
+    for (const file of members) {
+      mkdirSync(path.dirname(path.join(cache, file)), { recursive: true });
+      cpSync(path.join(stage, file), path.join(cache, file));
+    }
+    writeFileSync(path.join(cache, 'complete'), 'complete');
+  } else {
+    for (const file of members) {
+      mkdirSync(path.dirname(path.join(stage, file)), { recursive: true });
+      cpSync(path.join(cache, file), path.join(stage, file));
+    }
+  }
+}
+`,
   )
   writeFileSync(
     path.join(dir, 'scripts', 'third-party-notices.mjs'),
     'import {writeFileSync} from "node:fs"; writeFileSync(process.argv.at(-1), "test fixture notices");',
   )
-  writeFileSync(path.join(dir, 'scripts/check-l10n.mjs'), '// test-owned source gate\n')
+  cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
+  cpSync(path.join(ROOT, 'src/core/whatsNew'), path.join(dir, 'src/core/whatsNew'), {
+    recursive: true,
+  })
+  for (const name of readdirSync(ROOT)) {
+    if (/^package\.nls.*\.json$/.test(name)) cpSync(path.join(ROOT, name), path.join(dir, name))
+  }
   writeFileSync(
     path.join(dir, 'package.json'),
     JSON.stringify({
+      ...JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')),
       name: 'test-fixture',
       version: '0.0.0',
       license: 'MIT',
@@ -138,6 +197,8 @@ function packagingFixture() {
     'acp',
     'modelApi',
     'providers',
+    'subscriptions',
+    'configuredProviders',
     'reviewer',
     // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
     'foreignHooks',
@@ -153,15 +214,13 @@ function packagingFixture() {
     'searchWorker',
     'pageWorker',
   ]) {
-    writeFileSync(
-      path.join(dir, 'dist', `${bundle}.js`),
-      bundle.startsWith('uiText') ? 'exports.EN={};\n' : '// test-owned inert bundle\n',
-    )
+    cpSync(path.join(ROOT, 'dist', `${bundle}.js`), path.join(dir, 'dist', `${bundle}.js`))
   }
+  cpSync(path.join(ROOT, 'dist/providerCatalog.json'), path.join(dir, 'dist/providerCatalog.json'))
   for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
-  writeFileSync(path.join(dir, 'l10n', 'ui.de.json'), '{}\n')
+  cpSync(path.join(ROOT, 'l10n'), path.join(dir, 'l10n'), { recursive: true })
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')
   writeFileSync(path.join(dir, 'docs', 'npm-readme.md'), '# Test-owned npm page\n')
@@ -255,6 +314,10 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     'schemas/exec-event-v1.schema.json',
     'l10n/ui.tables.json.br',
     'dist/runtime.bundles.json.br',
+    'dist/providers.js',
+    'dist/subscriptions.js',
+    'dist/configuredProviders.js',
+    'dist/providerCatalog.json',
   ])('build tarball guard rejects missing %s', (missing) => {
     const dir = packagingFixture()
     expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
@@ -526,11 +589,16 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
         'l10n',
         'docs',
         'test/integration',
+        'test/packaging',
       ]) {
         cpSync(path.join(ROOT, folder), path.join(BUILD_ROOT, folder), { recursive: true })
       }
       for (const file of ['package.json', 'tsconfig.json', 'LICENSE', 'CHANGELOG.md']) {
         cpSync(path.join(ROOT, file), path.join(BUILD_ROOT, file))
+      }
+      for (const file of readdirSync(ROOT)) {
+        if (/^package\.nls.*\.json$/.test(file))
+          cpSync(path.join(ROOT, file), path.join(BUILD_ROOT, file))
       }
       symlinkSync(
         path.join(ROOT, 'node_modules'),

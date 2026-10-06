@@ -38,7 +38,7 @@ beforeAll(() => {
   cpSync('dist/webview', path.join(built.fixture, 'dist/webview'), { recursive: true })
   cpSync('.vscodeignore', path.join(built.fixture, '.vscodeignore'))
   cpSync('package.json', path.join(built.fixture, 'package.json'))
-})
+}, 120_000)
 
 afterAll(() => {
   if (built.fixture !== '') rmSync(built.fixture, { recursive: true, force: true })

@@ -4,6 +4,8 @@
 !dist/tab.js
 !dist/modelApi.js
 !dist/providers.js
+!dist/subscriptions.js
+!dist/configuredProviders.js
 !dist/sessionBoard.js
 !dist/reviewer.js
 !dist/foreignHooks.js
@@ -28,12 +30,10 @@
 !dist/whatsNew.js
 !dist/whatsNew.json
 !dist/judge.js
-!dist/uiText.js
 !dist/uiTextRuntime.js
 !dist/uiTextHooks.js
 !dist/uiTextSurfaces.js
 !dist/runtime.bundles.json.br
-!dist/validation.js
 !dist/wire.js
 !dist/searchWorker.js
 !dist/pageWorker.js

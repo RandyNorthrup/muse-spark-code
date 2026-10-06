@@ -207,7 +207,11 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     const help = spawnSync(process.execPath, [AGENT, '--help'], { encoding: 'utf8', env })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(fill(UI_TEXT.acpUsage, { command: 'muse-spark-code-acp' }))
+    expect(help.stdout.trim()).toBe(
+      [UI_TEXT.acpUsage, UI_TEXT.acpChatGpt.usage]
+        .map((value) => fill(value, { command: 'muse-spark-code-acp' }))
+        .join('\n'),
+    )
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
@@ -216,9 +220,9 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(wrong.stderr).toContain(help.stdout)
   })
 
-  it('prints the complete translated usage from one table entry', () => {
+  it('prints complete translated usage for the agent and provider commands', () => {
     const table = z
-      .object({ acpUsage: z.string() })
+      .object({ acpUsage: z.string(), acpChatGpt: z.object({ usage: z.string() }) })
       .parse(JSON.parse(readFileSync(path.join(PACKAGE, 'l10n', 'ui.de.json'), 'utf8')))
     const help = spawnSync(process.execPath, [AGENT, '--help'], {
       encoding: 'utf8',
@@ -226,7 +230,11 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(table.acpUsage.replaceAll('{command}', 'muse-spark-code-acp'))
+    expect(help.stdout.trim()).toBe(
+      [table.acpUsage, table.acpChatGpt.usage]
+        .map((value) => fill(value, { command: 'muse-spark-code-acp' }))
+        .join('\n'),
+    )
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
   })
 
