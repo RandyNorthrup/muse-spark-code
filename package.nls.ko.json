@@ -171,5 +171,13 @@
   "config.suggestedProvider.description": "작업 영역은 ID로 모델 공급자 프리셋 하나를 제안할 수 있으며, 패널은 해당 프리셋으로 모델 및 에이전트를 여는 것을 제안합니다. 비어 있으면 아무것도 제안하지 않습니다. 작업 영역은 주소나 자격 증명을 설정할 수 없습니다.",
   "walkthrough.gettingStarted.step.ownModel.title": "자신의 모델로 시작",
   "walkthrough.gettingStarted.step.ownModel.description": "Muse 구독이나 Meta API 키가 없나요? 자신의 모델 공급자(OpenRouter, Anthropic, OpenAI 또는 로컬 서버)를 추가하고 모델을 선택하세요.\n[자신의 모델로 시작](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "긴 Model API 대화를 자동으로 압축합니다. 기본값은 켜짐이지만 비교 평가를 통과할 때까지 비활성 상태입니다. 추가 유료 호출마다 가격과 일일 예산에 대한 동의가 필요합니다."
+  "config.modelApiAutoCompaction.description": "긴 Model API 대화를 자동으로 압축합니다. 기본값은 켜짐이지만 비교 평가를 통과할 때까지 비활성 상태입니다. 추가 유료 호출마다 가격과 일일 예산에 대한 동의가 필요합니다.",
+  "config.legalHeaderPolicy.description": "법률 검사를 위한 저작권 및 SPDX 헤더 검사: 필수 값은 일치하는 헤더가 없는 모든 프로젝트 소유 소스 파일을 표시하고, 선택 값은 감지된 프로젝트 스타일이나 REUSE 선언에 어긋나는 헤더만 표시하며, 끄기 값은 헤더 검사를 건너뜁니다. 기본값은 선택이며, 생성된 파일은 항상 제외됩니다.",
+  "config.legalHeaderPolicy.enumDescriptions.required": "프로젝트 소유의 모든 소스 파일에는 일치하는 저작권 및 SPDX 헤더가 필요합니다.",
+  "config.legalHeaderPolicy.enumDescriptions.optional": "감지된 프로젝트 스타일이나 REUSE 선언에 어긋나는 헤더만 발견 사항입니다. 기본값입니다.",
+  "config.legalHeaderPolicy.enumDescriptions.off": "헤더 검사를 건너뜁니다. 보고서에 그 사실이 표시됩니다.",
+  "command.legalScan.title": "법률 검사",
+  "config.legalRegistryLookups.description": "레지스트리와 전송할 패키지 이름 및 버전을 최초 한 번 안내한 후 공개 레지스트리 조회를 허용합니다. 끄면 로컬 메타데이터만 사용합니다.",
+  "config.legalExplanation": "선택 사항인 Model API 설명: USD. 사용할 때마다 동의를 요청하며 일일 유료 예산을 공유합니다.",
+  "config.paidDailyBudgetUsd": "유료 추가 기능의 공유 일일 예산: USD."
 }

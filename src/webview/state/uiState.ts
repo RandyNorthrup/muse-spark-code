@@ -37,7 +37,7 @@ import {
   USER_SHELL_PREFIX,
   WORKFLOW_KIND,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, plural } from '../../shared/l10n/text'
 import type {
   AttachmentSummary,
   AuthStatus,
@@ -59,6 +59,9 @@ import type {
   SkillOption,
 } from '../../shared/protocol'
 import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
+import { isLegalPrompt } from '../../shared/legalCommand'
+import type { LegalScanResult } from '../../shared/legal'
+import type { LegalFixPreviewMessage, LegalFixResultMessage } from '../../shared/legalFix'
 import type { ScheduleView } from '../../shared/schedule'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import type { BoardRow } from '../../shared/sessionBoard'
@@ -445,6 +448,13 @@ export interface UiState {
   readonly reviewPane: ReviewPaneState | undefined
   /** What the user did with each change in the pane (M70), by `reviewHunkKey`; never saved. */
   readonly reviewHunks: Readonly<Record<string, ReviewHunkState>>
+  /** The legal scan's latest report (M97 lane W), with the request it answers; never saved. */
+  readonly legalReport: { readonly requestId: string; readonly result: LegalScanResult } | undefined
+  /** The selected-fix preview the report last asked for (M97 lane W); never saved. */
+  readonly legalFixRequestId?: string | undefined
+  readonly legalFixPreview: LegalFixPreviewMessage | undefined
+  /** What the last confirmed fix batch ended as (M97 lane W); never saved. */
+  readonly legalFixResult: LegalFixResultMessage | undefined
   /** Monotonic counter behind locally generated transcript ids. */
   readonly localSequence: number
   /**
@@ -595,6 +605,9 @@ export type UiAction =
   | { readonly type: 'setupCompleteDismissed' }
   /** Cancel (or Escape, the × or the backdrop) on the report dialog (M93 lane W). */
   | { readonly type: 'reportClosed' }
+  /** The × (or Escape, or the backdrop) on the legal report (M97 lane W). */
+  | { readonly type: 'legalReportClosed' }
+  | { readonly type: 'legalFixRequested'; readonly requestId: string }
 
 export const initialUiState: UiState = {
   pendingApprovalResolutions: [],
@@ -671,6 +684,9 @@ export const initialUiState: UiState = {
   toolImages: {},
   reviewPane: undefined,
   reviewHunks: {},
+  legalReport: undefined,
+  legalFixPreview: undefined,
+  legalFixResult: undefined,
   localSequence: 0,
   sequence: 0,
   editorContext: undefined,
@@ -2387,6 +2403,9 @@ function clearedConversation(state: UiState): UiState {
     toolImages: {},
     reviewPane: undefined,
     reviewHunks: {},
+    legalReport: undefined,
+    legalFixPreview: undefined,
+    legalFixResult: undefined,
     share: undefined,
     isImported: false,
   }
@@ -3240,6 +3259,27 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'reviewHunkResult': {
       return reviewHunkSettled(state, message)
     }
+    case 'legalScanReport': {
+      // A new scan invalidates the older selection's preview and outcome:
+      // the report the dialog shows is always the one the handoff guards.
+      const report = { requestId: message.requestId, result: message.result }
+      const text =
+        message.result.findings.length === 0
+          ? UI_TEXT.legalScanEmpty
+          : plural(UI_TEXT.legalFindingsCount, message.result.findings.length)
+      return announce(
+        { ...state, legalReport: report, legalFixPreview: undefined, legalFixResult: undefined },
+        `${UI_TEXT.legalScanTitle}: ${text}`,
+      )
+    }
+    case 'legalFixPreview': {
+      return message.requestId !== undefined && message.requestId !== state.legalFixRequestId
+        ? state
+        : { ...state, legalFixPreview: message }
+    }
+    case 'legalFixResult': {
+      return { ...state, legalFixResult: message }
+    }
     case 'userShellRefused': {
       // The command comes back to an empty prompt, to be fixed and run again (M46).
       const restored =
@@ -3556,6 +3596,24 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         closedReportSession: Math.max(state.closedReportSession, state.report?.session ?? 0),
       }
     }
+    case 'legalFixRequested': {
+      return {
+        ...state,
+        legalFixRequestId: action.requestId,
+        legalFixPreview: undefined,
+        legalFixResult: undefined,
+      }
+    }
+    case 'legalReportClosed': {
+      return {
+        ...state,
+        legalReport: undefined,
+        focusRequests: state.focusRequests + 1,
+        legalFixRequestId: undefined,
+        legalFixPreview: undefined,
+        legalFixResult: undefined,
+      }
+    }
     case 'conversationCleared': {
       return {
         ...clearedConversation(state),
@@ -3611,6 +3669,7 @@ export function userShellCommandOf(draft: string): string | undefined {
 
 /** Whether the composer may submit right now (a running turn is steered; `!` needs a command). */
 export function canSend(state: UiState): boolean {
+  if (isLegalPrompt(state.draft)) return true
   if (state.auth.status !== 'signedIn') {
     return false
   }

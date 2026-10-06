@@ -46,8 +46,7 @@ const MODELS_BUNDLE_PATH = 'dist/webview/models.js'
 const VIEWPORT = { width: 690, height: 673 }
 const SIZED_VIEWPORT_HEIGHT = 760
 const MAX_WORKERS = 6
-// Windows headless Chrome stalled on the long transcript plus jump button
-// with four concurrent pages (M46); two workers passed twice with all rules.
+// Bound concurrent axe work on Windows as before; every page still runs.
 const WINDOWS_MAX_WORKERS = 2
 // Each worker's browser holds this many pages at once; a page spends most of
 // its time in the harness's 5 s settle, in real time now.

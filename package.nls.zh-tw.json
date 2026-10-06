@@ -171,5 +171,13 @@
   "config.suggestedProvider.description": "工作區最多可按 id 推薦一個模型提供者預設；面板會提供使用該預設開啟「模型與代理」。為空則不推薦。工作區不能設定位址或憑證。",
   "walkthrough.gettingStarted.step.ownModel.title": "使用自己的模型開始",
   "walkthrough.gettingStarted.step.ownModel.description": "沒有 Muse 訂閱或 Meta API 金鑰？新增您自己的模型提供者（OpenRouter、Anthropic、OpenAI 或本機伺服器）並選擇模型。\n[使用自己的模型開始](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "自動壓縮較長的 Model API 對話。預設開啟，但在配對評估通過前維持停用。每次額外付費呼叫都需要同意價格與每日預算。"
+  "config.modelApiAutoCompaction.description": "自動壓縮較長的 Model API 對話。預設開啟，但在配對評估通過前維持停用。每次額外付費呼叫都需要同意價格與每日預算。",
+  "config.legalHeaderPolicy.description": "用於法律掃描的版權與 SPDX 標頭檢查：必要會標記每個缺少相符標頭的專案自有原始檔，選用僅標記與偵測到的專案風格或其 REUSE 聲明相矛盾的標頭，關閉則略過標頭檢查。預設為選用；產生的檔案一律排除。",
+  "config.legalHeaderPolicy.enumDescriptions.required": "每個專案自有原始檔都需要相符的版權與 SPDX 標頭。",
+  "config.legalHeaderPolicy.enumDescriptions.optional": "僅與偵測到的專案風格或其 REUSE 聲明相矛盾的標頭才算發現。預設值。",
+  "config.legalHeaderPolicy.enumDescriptions.off": "略過標頭檢查；報告中會說明。",
+  "command.legalScan.title": "法律掃描",
+  "config.legalRegistryLookups.description": "首次通知列出登錄庫及傳送的套件名稱與版本後，允許查詢公開登錄庫。關閉後僅使用本機中繼資料。",
+  "config.legalExplanation": "選用 Model API 解釋：USD。每次使用皆徵求同意，並共用每日付費預算。",
+  "config.paidDailyBudgetUsd": "付費附加功能的共用每日預算：USD。"
 }

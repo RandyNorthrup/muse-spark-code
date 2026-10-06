@@ -5,6 +5,8 @@
 !dist/modelApi.js
 !dist/modelApiBoundaries.js
 !dist/providers.js
+!dist/legalScan.js
+!dist/legal-data/**
 !dist/sessionBoard.js
 !dist/reviewer.js
 !dist/team.js
@@ -74,3 +76,4 @@
 !vendor/models-dev/LICENSE
 !vendor/models-dev/VENDOR.json
 !first-party-skills/**
+!skills/**

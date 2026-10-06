@@ -53,7 +53,7 @@ export interface PaidFeaturesDeps {
   readonly isSettingOn: (feature: PaidFeature) => boolean
   readonly isAvailable?: (feature: PaidFeature) => boolean
   readonly isDefaultOn?: (feature: PaidFeature) => boolean
-  readonly dailyBudgetUsd?: () => number | undefined
+  readonly dailyBudgetUsd?: (feature?: PaidFeature) => number | undefined
   /** Separate from startup review, since subscription judging has no price popup. */
   readonly isJudgeOn?: (() => boolean) | undefined
   /** Whether a Model API key is stored, as last read (M44). */
@@ -85,6 +85,7 @@ function confirmationDetail(feature: PaidFeature): string {
     subagents: UI_TEXT.paidConfirmSubagents,
     autoReviewer: UI_TEXT.paidConfirmAutoReviewer,
     bestOfN: UI_TEXT.paidConfirmBestOfN,
+    legalExplanation: UI_TEXT.legalExplainConfirm,
     teamWorkers: UI_TEXT.paidConfirmTeamWorkers,
     // Tab (M94, PLAN.md D73): the confirmation quotes both tiers' rates
     // (`paidFeaturePrice('tab')`); the per-use popup quotes the request's
@@ -292,7 +293,8 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
         ),
       )
     },
-    ask: (request, canRemember) => askPaidUse(request, canRemember, deps.dailyBudgetUsd?.()),
+    ask: (request, canRemember) =>
+      askPaidUse(request, canRemember, deps.dailyBudgetUsd?.(request.feature)),
     log: deps.log,
   })
   const usage = new PaidUsage(deps.log)

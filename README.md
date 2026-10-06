@@ -2391,7 +2391,7 @@ palette with a filter box of its own. Its groups:
 Type a letter after the `/` and the palette gives way to a flat list of slash
 commands narrowed as you type: `/agents`, `/changes`, `/clear`, `/compact`,
 `/config`, `/cost`, `/export`, `/goal`, `/handoff`, `/hooks`, `/logout`, `/mcp`,
-`/memory`, `/model`, `/permissions`, `/resume`, `/review`,
+`/legal`, `/memory`, `/model`, `/permissions`, `/resume`, `/review`,
 `/security-review`, `/usage`, `/loop` (Model API backend),
 and the session's skills. Names that start with your letters come first. Up
 and Down move, `Enter` runs a command (a skill, `/goal`, `/review` or `/handoff`
@@ -3290,6 +3290,83 @@ What stays in English:
 | Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                                                                                          |
 | Opened tool outputs              | 16 MiB each; the latest 20, and 33,554,432 characters together                                                                                                                                                                                                  |
 
+## Legal scan (M97)
+
+`/legal` runs a deterministic, local licensing and copyright/header scan in
+an open, trusted workspace. The slash palette offers the same action.
+`/legal src/index.ts` limits per-file header checks; project licenses,
+dependencies and distribution remain workspace-wide facts. The workspace
+setting `museSpark.legalHeaderPolicy` accepts `required`, `optional` (the
+default) and `off`; it does not invent ownership or update old years.
+
+The scanner reads existing manifests, locks, installed metadata, licenses,
+notices, bundle inventories and provenance across npm/pnpm/Yarn, Python,
+Cargo, Go, Maven/Gradle, NuGet, Composer and Ruby gems. It runs no model,
+package manager, build, shell command, hook, formatter or installation and
+uses local evidence before optional registry enrichment. The scan costs nothing and requires no account. A live
+conversation temporarily holds Plan mode only while the scan owns that hold.
+The same scanner serves the Model API's `legal_scan` and Muse Code's
+`mcp__ide__legalScan`; tool results requested during a normal model turn can
+travel to Meta with that turn and use its ordinary billing.
+
+The report groups evidence by severity and retains exclusions, uncertainty,
+recommendations and fixability. A recognized SPDX identifier or a low finding
+count does not establish legal compliance. Missing locks or license data,
+dynamic metadata, binary files, links, stale artifacts and bounded-out input
+remain incomplete. Identifier matching is pinned; license-text recognition is
+heuristic. **Not legal advice; for distribution decisions consult a lawyer.**
+
+Select findings or choose **Fix all safe ones** to review exact patches before
+applying them. Supported fixes add missing SPDX/copyright headers from the
+project's existing license and copyright evidence. They preserve old years,
+existing headers, BOMs, shebangs, Python encoding cookies and line endings.
+Ownership and applicable terms require a separate confirmation. Plan and
+Restricted Mode refuse writes; every selected write uses the existing
+checkpoint admission and conditional edit path, rechecking saved bytes and
+live state. Failures are listed, and a fresh scan follows the apply attempt.
+Unknown ownership, conflicting terms, unsupported file syntax, dependency
+files and project-license changes remain recommendations.
+
+**Export Markdown…** asks for a local destination and saves the report's
+scrubbed evidence, limitations and disclaimer only after that request.
+Scanner findings and controls have real translations in all 14 supported
+languages; identifiers and SPDX license IDs stay unchanged. Public npm/PyPI
+metadata lookup is offered by default after a one-time workspace notice naming
+the hosts and disclosing package names and versions. The
+`museSpark.legalRegistryLookups` setting disables enrichment. Requests use HTTPS
+and refuse redirects; private registry configuration is never contacted.
+
+**Explain with model (paid)** is available by default on interactive Model API
+under the machine setting `museSpark.legalExplanation`; Muse Code requires an
+explicit opt-in, and existing explicit false settings remain off. It requires a stored Model API key,
+asks permission with the price and shared daily budget, and reserves/settles
+against the same D78 ledger used by other paid callers. The machine setting
+`museSpark.paidDailyBudgetUsd` defaults to USD 5 (range USD 0.50–500). Only
+technical finding categories and recognized license IDs are sent; source,
+paths, excerpts and package names are excluded. One request has no tools or
+retries and at most 512 output tokens. A sent request without verified usage
+retains its reserved cost as unknown liability. The subscription pays none of
+it; deterministic scanning needs no model call.
+
+ACP editors can send `/legal` on either backend without starting a model turn;
+`/legal --offline` disables registry lookup. The shared runtime command also
+serves companion and native editor adapters. Native adapter certification
+belongs to each editor's existing compatibility milestone.
+
+The headless accessibility check runs keyboard, accessibility-tree, narrow
+layout and 100%/200% browser-metric zoom checks in four themes and English/pseudo
+locales, followed by WCAG checks. Run `npm run test:legal-a11y`; the Windows rig
+runs `npm run test:legal-a11y -- --platform=win32 --out=temp/m97-windows-a11y`.
+A mismatched platform fails before launching a browser. The input branch has
+macOS and Windows/NVDA receipts; the merged package needs fresh platform
+certification from the lead. See the [certification
+record](docs/certification/m97.md) for receipts and platform scope.
+
+The ACP package also provides the reserved offline command
+`muse-spark-code-acp exec legal-scan --json`, with the older top-level `legal`
+command retained as an alias; see [its guide](docs/acp.md#deterministic-legal-scan-m97).
+The reserved command never becomes a model prompt and never performs automatic fixes.
+
 ## Commands and keybindings
 
 | Command                                             | Default keybinding                                                                               | What it does                                                                                                                                                                                                                  |
@@ -4111,6 +4188,15 @@ The package localization check also runs directly as
 `node scripts/check-l10n.mjs --packaged-acp dist/acp-package`; it compares every
 decoded ACP language against the source JSON with the strict localization rules.
 Manifest translations remain ordinary JSON for VS Code.
+The VSIX package step uses Python's standard-library `zipfile` to apply maximum
+DEFLATE compression after `vsce` creates the archive. Python 3 (`python3`,
+`python` or `py`) is required, as for the semgrep toolchain. Unavailable launchers
+are skipped, including Windows' Microsoft Store aliases. The step preserves
+entry paths, metadata, every UI JSON value and all other uncompressed bytes.
+Only packaged translation JSON whitespace is compacted; source tables stay
+unchanged and malformed JSON refuses publication. The 2475 KiB universal VSIX budget covers the 0.15.0 feature set; individual bundle caps stay fixed.
+The legal scanner's pinned data is embedded in its lazy bundle, with separate
+notice/provenance files in both packages.
 
 **Tests.** Unit tests (`test/unit/**`) run under vitest with `vscode` aliased
 to `test/unit/mocks/vscode.ts` and webview components under jsdom; the fakes
@@ -4377,3 +4463,13 @@ The shared production Node English fallback uses the same built-in compression.
 The conversation implementation loads when the first chat surface needs it. The
 first opening includes that local load; commands and backend restart handling
 remain registered at activation.
+Legal scanner limits: 20,000 files/directory entries, 1,000,000 UTF-8 bytes per
+file, 10,000,000 bytes per scan, 100 findings per rule (500 total), and 120
+seconds. Reaching a limit is reported as incomplete. License title and clause
+matching remains heuristic; review the original terms before distribution.
+
+Editor legal scans offer public npm/PyPI metadata lookup by default, after a
+one-time notice naming each registry and explaining that only package names
+and versions leave over HTTPS. Disable `museSpark.legalRegistryLookups` for
+local-only scans; missing dependency licences remain unknown. Private registry
+configuration is never contacted. CLI lookup still requires `--registry`.

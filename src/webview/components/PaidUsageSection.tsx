@@ -18,6 +18,7 @@ import { formatDurationMs } from '../agentFormat'
 
 /** What this window used of one paid feature: "3 searches", "2 images", "1m 30s of audio". */
 function paidUseText(feature: PaidFeature, tally: PaidTally): string {
+  if (feature === 'legalExplanation') return formatNumber(tally.legalExplanations ?? 0)
   if (feature === 'voice') {
     return fill(UI_TEXT.usagePaidAudio, {
       duration: formatDurationMs(tally.voiceSeconds * MILLISECONDS_PER_SECOND),
@@ -96,6 +97,12 @@ function paidRowState(feature: PaidFeature, paid: PaidState): string {
 
 function paidTokenTally(feature: PaidFeature, { tally }: PaidState) {
   if (feature === 'judge') return [tally.judgeCalls, tally.judgeUnknownRequests, tally.judgeTokens]
+  if (feature === 'legalExplanation')
+    return [
+      tally.legalExplanations,
+      tally.legalExplanationUnknownRequests,
+      tally.legalExplanationTokens,
+    ]
   if (feature === 'autoReviewer') {
     return [tally.autoReviews, tally.autoReviewUnknownRequests, tally.autoReviewTokens]
   }
@@ -165,7 +172,7 @@ function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly pa
     return <TabRow paid={paid} />
   }
   const state = paidRowState(feature, paid)
-  const isReview = feature === 'autoReviewer'
+  const isReview = feature === 'autoReviewer' || feature === 'legalExplanation'
   const isAttempt = feature === 'bestOfN'
   const [requests = 0, unknown = 0, tokens = 0] = paidTokenTally(feature, paid)
   const isTokenFeature =

@@ -17,6 +17,7 @@ import {
   type EffortLevel,
   GOAL_SLASH_COMMAND,
   HANDOFF_SLASH_COMMAND,
+  LEGAL_SLASH_COMMAND,
   LOOP_SLASH_COMMAND,
   HOOK_RUN_SLASH_COMMAND,
   type GoalCommandVerb,
@@ -32,7 +33,10 @@ import {
   type ReviewRequest,
   reviewRequestSchema,
 } from '../shared/reviewCommand'
+import { isLegalPrompt, parseLegalPrompt } from '../shared/legalCommand'
+import type { LegalScanRequestMessage } from '../shared/legal'
 import { editorContextLabel } from '../shared/editorContext'
+import type { LegalFinding } from '../shared/legal'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
@@ -68,6 +72,7 @@ import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
 import { SetupBanner } from './components/SetupBanner'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
+import { LegalReport } from './components/LegalReport'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import { Palette, type PaletteKeys, type PaletteView } from './components/Palette'
@@ -233,6 +238,8 @@ const LOOP_PROMPT_START = `/${LOOP_SLASH_COMMAND} `
 const HOOK_PROMPT_START = `/${HOOK_RUN_SLASH_COMMAND} `
 // What choosing `/review` leaves: the command, ready for what to review (M70).
 const REVIEW_PROMPT_START = `/${REVIEW_SLASH_COMMAND} `
+// What choosing `/legal` leaves: the command, ready for a file subset (M97).
+const LEGAL_PROMPT_START = `/${LEGAL_SLASH_COMMAND} `
 // What choosing `/handoff` leaves in the prompt: the command, ready for the goal (M74).
 const HANDOFF_PROMPT_START = `/${HANDOFF_SLASH_COMMAND} `
 const GATED_STATUSES = new Set(['noCli', 'installing', 'signedOut', 'signingIn', 'error'])
@@ -345,6 +352,9 @@ function promptStartFor(action: PaletteAction): string | undefined {
     }
     case 'startReview': {
       return REVIEW_PROMPT_START
+    }
+    case 'startLegalScan': {
+      return LEGAL_PROMPT_START
     }
     case 'startHandoff': {
       return HANDOFF_PROMPT_START
@@ -666,8 +676,30 @@ export function App({
     },
     [dispatch, newLocalId, postMessage],
   )
+  // `/legal …` and the palette's legal row (M97): the host runs the
+  // deterministic scan and answers with the report (lane W renders it), so
+  // no card is submitted. The parse is total over the schema, so the input
+  // always posts as parsed.
+  const onLegalScan = useCallback(
+    (text: string): boolean => {
+      if (!isLegalPrompt(text)) return false
+      const input = parseLegalPrompt(text)
+      if (input === undefined) {
+        dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.legalCommandUsage })
+        return true
+      }
+      postMessage({ type: 'requestLegalScan', input } satisfies LegalScanRequestMessage)
+      setIsPinnedToEnd(true)
+      return true
+    },
+    [dispatch, postMessage],
+  )
   const onSubmit = useCallback(() => {
     const current = store.getState()
+    if (onLegalScan(current.draft.trim())) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      return
+    }
     if (!canSend(current)) {
       return
     }
@@ -779,7 +811,17 @@ export function App({
     })
     // The reader's own message always lands in view (M15).
     setIsPinnedToEnd(true)
-  }, [store, dispatch, newLocalId, now, postMessage, onGoalCommand, onReview, onHandoff])
+  }, [
+    store,
+    dispatch,
+    newLocalId,
+    now,
+    postMessage,
+    onGoalCommand,
+    onReview,
+    onLegalScan,
+    onHandoff,
+  ])
   // Send exactly the payload the dialog previewed. The composer may now
   // hold a newer draft, different chips or a different reference.
   const onSecretPromptSendAnyway = useCallback(() => {
@@ -1012,6 +1054,44 @@ export function App({
     },
     [postMessage],
   )
+  // The legal report's selected-fix handoff (M97 lane W): preview fixes for
+  // exactly the selected findings, then confirm exactly the shown preview.
+  // The host rechecks mode, trust, workspace and hashes before any write.
+  const onRequestLegalFix = useCallback(
+    (findings: readonly LegalFinding[], isProjectLicenseIncluded: boolean) => {
+      const report = store.getState().legalReport
+      if (report === undefined) {
+        return
+      }
+      const requestId = newLocalId()
+      dispatch({ type: 'legalFixRequested', requestId })
+      postMessage({
+        type: 'requestLegalFix',
+        requestId,
+        scan: {
+          scanId: report.requestId,
+          ruleVersion: report.result.ruleVersion,
+          dataVersion: report.result.dataVersion,
+          scope: report.result.scope,
+        },
+        findings: [...findings],
+        includeProjectLicense: isProjectLicenseIncluded,
+      })
+    },
+    [postMessage, store, dispatch, newLocalId],
+  )
+  const onConfirmLegalFix = useCallback(
+    (previewId: string) => {
+      postMessage({ type: 'confirmLegalFix', previewId })
+    },
+    [postMessage],
+  )
+  const onRescanLegal = useCallback(() => {
+    postMessage({ type: 'requestLegalScan' })
+  }, [postMessage])
+  const onCloseLegalReport = useCallback(() => {
+    dispatch({ type: 'legalReportClosed' })
+  }, [dispatch])
   const onRefuseLink = useCallback(() => {
     dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.linkOutsideWorkspace })
   }, [dispatch])
@@ -1780,6 +1860,12 @@ export function App({
           closeOverlay()
           break
         }
+        case 'startLegalScan': {
+          // The prompt becomes `/legal ` for a file subset (M97).
+          dispatch({ type: 'draftChanged', draft: LEGAL_PROMPT_START })
+          closeOverlay()
+          break
+        }
         case 'review': {
           onReview(action.request, reviewCommandText(action.request))
           closeOverlay()
@@ -1876,7 +1962,8 @@ export function App({
     [onPromptAction],
   )
   const onSlashMenuOpen = useCallback(() => {
-    if (store.getState().skills === undefined) {
+    const current = store.getState()
+    if (current.auth.status === 'signedIn' && current.skills === undefined) {
       postMessage({ type: 'listSkills' })
     }
   }, [store, postMessage])
@@ -2300,11 +2387,41 @@ export function App({
     reviewPane !== null ||
     isInstallConfirmOpen ||
     state.share !== undefined
+  // The legal report opens over the transcript when its scan answers, like
+  // the handoff brief: it waits while another modal owns the panel (M74),
+  // and closes with Escape, the × button or the backdrop (M97 lane W).
+  const legalReport =
+    isOtherModalOpen ||
+    state.report !== undefined ||
+    state.secretPrompt !== undefined ||
+    state.legalReport === undefined ? null : (
+      <LegalReport
+        key={state.legalReport.requestId}
+        result={state.legalReport.result}
+        preview={state.legalFixPreview}
+        fixResult={state.legalFixResult}
+        permissionMode={state.permissionMode}
+        onRequestFix={onRequestLegalFix}
+        onConfirm={onConfirmLegalFix}
+        onExplain={() => {
+          postMessage({ type: 'requestLegalExplanation' })
+        }}
+        onExport={() => {
+          postMessage({ type: 'exportLegalReport' })
+        }}
+        onRescan={onRescanLegal}
+        onOpenFile={onOpenFile}
+        onClose={onCloseLegalReport}
+      />
+    )
   // The report dialog (M93) keeps the same policy: it waits for those, and a
   // brief that arrives while it is open waits for it in turn, so two modals
   // never share the panel and the open one keeps focus.
   const handoffDialog =
-    isOtherModalOpen || state.report !== undefined || state.handoff === undefined ? null : (
+    isOtherModalOpen ||
+    legalReport !== null ||
+    state.report !== undefined ||
+    state.handoff === undefined ? null : (
       <HandoffDialog
         goal={state.handoff.goal}
         todos={state.handoff.todos}
@@ -2344,6 +2461,7 @@ export function App({
   // the rest of the panel is inert.
   const isModalOpen =
     isOtherModalOpen ||
+    legalReport !== null ||
     state.handoff !== undefined ||
     state.secretPrompt !== undefined ||
     state.report !== undefined
@@ -2388,6 +2506,7 @@ export function App({
       <DeferredSurface onClose={onHandoffCancel}>{handoffDialog}</DeferredSurface>
       <DeferredSurface onClose={onSecretPromptDismiss}>{secretPromptDialog}</DeferredSurface>
       {reportDialog}
+      {legalReport}
       {state.share === undefined ? null : (
         <DeferredSurface onClose={onCloseShare}>
           <ShareView

@@ -2,3 +2,6 @@
 // original use; browser and integration builds retain inline validation.
 export * from '../core/backends/modelapi/schemas'
 export * from './teamConversation'
+export * from './paidBoundary'
+export * from './legal'
+export * from '../core/backends/modelapi/legalScanTool'

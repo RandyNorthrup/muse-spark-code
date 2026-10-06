@@ -4,7 +4,8 @@ Worktree `/home/randy/lanes/TRAIN15A`, branch `release/train-0.15.0`,
 base `6a0207c1` (0.14.1 / PR #123). Integration runs directly on Kubuntu.
 The brief authorizes the five ordered merges only; the two unfinished inputs
 and full quality remain for the continuation. No push, rebase, live/paid model
-call, credential access or gate/cap changes.
+call or credential access. TRAIN15D later authorizes only the conditional
+universal VSIX cap change recorded below; all individual caps remain fixed.
 
 The CI-shaped VSIX uses the actual universal helper extracted from the shared
 0.13.0 archive after verifying its adjacent SHA256SUMS. The helper is
@@ -14,11 +15,11 @@ it remains executable. Native compilation/runtime on macOS is external proof.
 Local badge checks use the supported named network-only skip because shared
 rules prohibit public network requests; all static and exact-stage checks run.
 
-**Current disposition (TRAIN15C): stage 4 recovers the original deferred cap.
-The M96 integration candidate is resolved and independently checked below;
-Model API remains 63 bytes over after two bounded fixes, so that recovery path
-and the two subsequent input merges are held by the shared stop rule. Full
-release certification waits for M95/M102 and the lead's aggregate gate.**
+**Current disposition (TRAIN15D): all six authorized steps are complete,
+including both held `--no-ff` input merges. Every bundle and the universal VSIX
+pass their caps; scoped gates, owning tests and local editor/accessibility
+receipts pass. Full release certification still waits for M95/M102 and the
+lead’s aggregate, native and hosted/live gates.**
 
 **First-run disposition:** budget stop after M101. The original receipt follows;
 the resumed measurements and bounded stop are appended below.
@@ -629,3 +630,125 @@ headroom**. Runtime byte counts and the eager chat closure are unchanged.
 | TRAIN15D step               | extension.js | modelApi.js | Chat startup |     ACP | Universal VSIX |  VSIX cap |
 | --------------------------- | -----------: | ----------: | -----------: | ------: | -------------: | --------: |
 | 5 — M96 fixture/publication |      454,262 |     486,312 |      821,206 | 840,264 |      2,397,289 | 2,534,400 |
+
+### Step 6 — M97 legal scan and NVDA continuation
+
+Input `m97/sr` at `24c211b2c`, merged with `--no-ff` after step 5. Resolve
+79 conflict paths by retaining the release’s D78 defaults, compaction,
+providers, deferred conversation/browser graph, validated runtime archives,
+shared validation and current host inventory; add the legal scanner, registry
+consent, safe-fix/export report, paid explanation and all genuine translated
+keys. The exact conflict list and selected scalar policies are in the JSON
+receipt. Released changelog sections stay byte-identical to `6a0207c1`;
+one Unreleased section and two Highlights remain. Existing try markers name
+only contributed commands/settings. No wire shape or dependency is invented.
+
+The incoming English phrase encoder is expanded to the canonical values and
+then uses this release’s existing lossless build encoder. In scanner plurals,
+the selected numeric slot becomes `{count}` in English and all fourteen tables,
+using the current Intl/plural contract without changing displayed numbers.
+The new paid palette tip has fourteen real translations; the free scan tip
+reuses its existing translated description. Both existing palette contracts
+fired before the fixes and pass afterward.
+
+The first combined Model API build exceeds its unchanged 475-KiB cap by about
+4 KiB. Move the exact pure paid schemas/accounting into `paidBoundary.ts` and
+share it, legal validators and the legal tool adapter through the existing
+25-KiB `modelApiBoundaries.js` owner. Public paid exports remain compatible;
+pricing UI stays in its original reader. The split inventory guards every
+moved source against activation/Model API/ACP duplication. Model-facing legal
+text has a separate guarded constants block and retains its exact words. The
+adapter receives the caller’s installed disclaimer rather than another
+bundle’s language state. The scanner stays in lazy `legalScan.js`, with the
+input’s independent 150-KiB guard and its SPDX notices/provenance.
+
+M97 explanation on Muse Code now reserves/settles against the same daily
+ledger as Model API. The consent callback names its shared budget on either
+backend; other Muse Code extras retain their existing backend policy. D78
+applies to the new setting: interactive Model API offers it by default,
+explicit false stays off, Muse Code requires opt-in, and per-use consent still
+precedes dispatch. Plan ownership, confidential-model admission, current
+submission serialization, Restricted Mode, cancellation and retained unknown
+liability remain intact.
+
+The first universal archive is 2,536,048 bytes, 1,648 over the approved cap.
+Moving legal English into the surfaces region increases it to 2,543,484 because
+that region also retains an inline fallback; restore its original placement.
+Maximum Brotli quality (11 instead of 10) in the existing archive/fallback codec
+reduces the measured package to 2,512,465, preserving version, decoded values,
+digests, bounds and loaders. The complete packaging suite round-trips all
+fourteen tables and canonical fallbacks, rejects malformed/tampered members,
+preserves archive metadata and confirms deterministic ordering. No deadline,
+assertion, ignore, existing bundle cap or loader admission is weakened.
+
+New integration drills deliberately remove legal daily reservation and budget
+disclosure (two failures), substitute the shared adapter’s fallback disclaimer
+(one failure), and remove its shared-owner mappings (the real production split
+guard reports seven duplicate sources). Every target restores byte-exact by
+SHA-256; restored complete files pass. The incoming legal bundle cap and host
+global drills also replay against the merged fixture builds. The new disclosure
+fixture first lacked Muse Code’s price acceptance; correct the fixture rather
+than production admission, then show the corrected drill fail and restore.
+
+Five compiler projects, changed-file ESLint/Prettier, plain knip, dpdm and jscpd
+all exit 0 (zero clones). Localization reports 14 tables, 181 manifest strings,
+805 source files and zero problems. Regenerated/checked host inventory reports
+334 VS Code APIs, 35 VS Code-importing files, 26 Node built-ins and 61 theme
+variables, zero problems. Exec schemas pass. The newest successful per-file
+receipts cover 73 complete files / 2,850 tests, zero failures/skips; batches use
+at most three files/workers with the brief’s 120-second admission. The earlier
+stdio replay failed on stale dist after a table edit; its rebuilt production
+ACP package and all 38 stdio tests pass, alongside all 161 App and 22 report
+tests. No test filtering or timeout change occurs.
+
+Protocol exception: one final stdio replay’s actual ACP packager inherited no
+`BADGE_CHECK_SKIP_NETWORK`, so its badge HTTPS check ran. This was an omission
+of the common brief’s public-network restriction; remaining packaging/replays
+use the supported named network-only skip. No paid/live model call or credential
+operation occurs. Static and exact staged badge checks still run. The omission
+is recorded, not hidden as a zero-network receipt.
+
+The legal report component is byte-identical to `24c211b2c`; its Windows/NVDA
+receipt retains its original input artifact and platform binding. This Linux
+run does not claim a fresh Windows screen-reader or macOS/native receipt.
+The absent featureCatalogue/reference-generator machinery remains with its
+owning integration lane. M95/M102, missing M96 production panel/Traffic bindings,
+loaded Windows publication acceptance, full quality and the final release’s
+native/hosted/live receipts remain for the lead.
+
+Fresh Linux legal accessibility passes 96 native Chromium accessibility-tree,
+keyboard/focus and 100%/200% browser-metric zoom cases across English/pseudo,
+four themes, three scenarios and 690/320 widths. The following 24 WCAG pages
+have zero violations, undecided rules, exemptions or missing results. Axe
+cannot certify off-screen contrast: 104 English and 128 pseudo elements were
+not visible. The receipt keeps that measurement limitation; it is not a native
+Windows screen-reader claim.
+
+Fresh `npm run package` and `npm run package:acp` both exit 0. The final universal
+VSIX is **2,512,254 / 2,534,400 bytes**, **22,146 headroom**. All 43 VSIX and
+21 ACP native import/require/export probes pass with zero skips, including the
+caller-language legal adapter. The ACP tarball is **1,266,362 bytes**. Both exact
+stages pass localization and static badge validation with the named network
+skip. No cap is increased after step 4. Every deferred cohort stays within its
+unchanged guard; the original cohort is 48,104 / 51,200, legal scan is 120,409 /
+153,600, and the shared Model API boundaries owner stays below 25 KiB.
+
+| TRAIN15D step      | extension.js | modelApi.js | Chat startup |     ACP | Universal VSIX |  VSIX cap |
+| ------------------ | -----------: | ----------: | -----------: | ------: | -------------: | --------: |
+| 6 — M97 legal/NVDA |      461,171 |     485,864 |      851,272 | 852,845 |      2,512,254 | 2,534,400 |
+
+The installed local VS Code **1.130.0**, under xvfb with isolated profiles,
+disabled updates/telemetry, explicit Model API backend and registry lookup off,
+passes the complete two-test `test/integration/legal.test.ts` file. The command
+palette starts a free scan without sign-in; the actual lazy scanner/data give
+identical native and MCP facts without a model. This is a local development-host
+receipt, not the lead’s minimum/stable or cross-platform release matrix.
+
+The actual packaged keyless commands `exec legal-scan --json`, `legal --format
+text`, and `legal --format json --out <private path>` work on the clean fixture.
+JSON envelopes are parsed by the production zod schema; lookup is disabled,
+queried names and received registry bytes are empty/zero, and explicit export
+leaves stdout empty. All return documented exit 2 with eleven incomplete checks
+and no findings; they are not claimed as complete legal-compliance/CI receipts.
+Artifact digests, final step sizes, complete owning filenames, conflict paths,
+restored drill hashes and all extra checks are in `train-0.15.0-train15d.json`.

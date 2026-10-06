@@ -171,5 +171,13 @@
   "config.suggestedProvider.description": "Egy munkaterület legfeljebb egy modellszolgáltató-előbeállítást javasolhat azonosító alapján; a panel felajánlja a Modellek és ügynökök megnyitását ezzel az előbeállítással. Üresen semmit sem javasol. A munkaterület nem adhat meg címet vagy hitelesítő adatot.",
   "walkthrough.gettingStarted.step.ownModel.title": "Kezdje saját modellel",
   "walkthrough.gettingStarted.step.ownModel.description": "Nincs Muse-előfizetése vagy Meta API-kulcsa? Adjon hozzá saját modellszolgáltatót — OpenRouter, Anthropic, OpenAI vagy helyi kiszolgáló — és válasszon modellt.\n[Kezdés saját modellel](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "Hosszú Model API beszélgetések automatikus tömörítése. Alapértelmezés szerint bekapcsolva, de sikeres páros értékelésig inaktív. Minden további fizetős híváshoz az ár és a napi keret jóváhagyása szükséges."
+  "config.modelApiAutoCompaction.description": "Hosszú Model API beszélgetések automatikus tömörítése. Alapértelmezés szerint bekapcsolva, de sikeres páros értékelésig inaktív. Minden további fizetős híváshoz az ár és a napi keret jóváhagyása szükséges.",
+  "config.legalHeaderPolicy.description": "Szerzői jogi és SPDX-fejlécek ellenőrzése a jogi ellenőrzéshez: kötelező jelöli a megfelelő fejléc nélküli minden saját forrásfájlt, választható csak az észlelt projektstílussal vagy REUSE-nyilatkozataival ellentétes fejlécet, kikapcsolt állapotban pedig kihagyja a fejlécellenőrzést. Alapértelmezett a választható; a generált fájlok mindig ki vannak zárva.",
+  "config.legalHeaderPolicy.enumDescriptions.required": "Minden saját forrásfájlnak megfelelő szerzői jogi és SPDX-fejlécre van szüksége.",
+  "config.legalHeaderPolicy.enumDescriptions.optional": "Csak az észlelt projektstílussal vagy REUSE-nyilatkozataival ellentétes fejléc számít megállapításnak. Az alapértelmezett érték.",
+  "config.legalHeaderPolicy.enumDescriptions.off": "A fejlécellenőrzés kimarad; a jelentés ezt jelzi.",
+  "command.legalScan.title": "Jogi ellenőrzés",
+  "config.legalRegistryLookups.description": "Nyilvános regiszterlekérdezések engedélyezése a regisztereket és az elküldött csomagneveket, verziókat megnevező egyszeri értesítés után. Kikapcsolva csak helyi metaadatokat használ.",
+  "config.legalExplanation": "Választható Model API-magyarázat: USD. Minden használat engedélyt kér, és a közös napi keretet terheli.",
+  "config.paidDailyBudgetUsd": "A fizetős extrák közös napi kerete: USD."
 }

@@ -145,6 +145,8 @@ const LAZY_ONLY = [
   'hookHandlers.ts',
   'extensionHooks.ts',
   'instructions.ts',
+  // M97: the native `legal_scan` tool's Model API side (read-only, like the
+  // code intelligence reads above): offered only with lane S's scanner.
   'mediaBudget.ts',
   'memoryTools.ts',
   'modelCallHooks.ts',
@@ -206,6 +208,8 @@ for (const name of onDisk) {
   const lists =
     Number(ACTIVATION_ALLOWED.has(name)) +
     Number(lazy.has(name)) +
+    // The adapter is guarded in DEFERRED's modelApiBoundaries inventory.
+    Number(name === 'legalScanTool.ts') +
     Number(DEFERRED_ONLY.includes(name)) +
     Number(name.startsWith('codecs/')) +
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
@@ -655,6 +659,45 @@ for (const file of BUNDLED_SKILLS_ONLY) {
   }
 }
 
+// M97 lane R: the headless `legal` command lives in the ACP agent's runtime
+// and must never reach activation. The scanner itself (lane S,
+// src/core/legal/**) loads lazily as dist/legalScan.js; while it is absent
+// the second half passes vacuously, and it starts guarding the day it lands.
+const LEGAL_RUNTIME_ONLY = [
+  'src/runtime/legal/legalArgs.ts',
+  'src/runtime/legal/legalRegistry.ts',
+  'src/runtime/legal/legalScanner.ts',
+  'src/runtime/legal/runLegal.ts',
+]
+for (const file of LEGAL_RUNTIME_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which belongs to the headless command`)
+    }
+  }
+  if (!inputsOf(BUNDLES.acp).has(file)) {
+    problems.push(`${BUNDLES.acp.output} no longer carries ${file}`)
+  }
+}
+const legalScannerFiles = existsSync('src/core/legal')
+  ? readdirSync('src/core/legal', { recursive: true })
+      .map((name) => `src/core/legal/${String(name).split(path.sep).join('/')}`)
+      .filter((name) => name.endsWith('.ts'))
+  : []
+const legalScanInputs = inputsOf(
+  ON_FIRST_USE.find((bundle) => bundle.output === 'dist/legalScan.js'),
+)
+for (const file of legalScannerFiles) {
+  // finding.ts exports only an erased type; the barrel can also be erased.
+  if (!legalScanInputs.has(file) && !['index.ts', 'finding.ts'].includes(path.basename(file)))
+    problems.push(`dist/legalScan.js no longer carries ${file}`)
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which loads only with the legal scan`)
+    }
+  }
+}
+
 // Keep Tab's full source inventory guarded when adding an engine module.
 const tabFiles = ON_FIRST_USE.find((bundle) => bundle.output === 'dist/tab.js').files
 for (const file of readdirSync('src/core/tab')) {
@@ -804,6 +847,11 @@ const TEXT_BLOCKS = [
     sentinels: ['undeclaredTool'],
     readers: ['dist/modelApiBoundaries.js'],
   },
+  {
+    block: 'LEGAL_SCAN_TOOL_MODEL_TEXT',
+    sentinels: ['legalScanRestrictedMode', 'headerPolicyDescription'],
+    readers: ['dist/modelApiBoundaries.js'],
+  },
   // M96 workers are not wired into a shipped bundle yet: forbid their text everywhere.
   { block: 'WORKER_MODEL_TEXT', sentinels: ['boundedExcerpt'], readers: [] },
   {
@@ -821,6 +869,11 @@ const TEXT_BLOCKS = [
     sentinels: ['hookPromptRole', 'hookAgentRole', 'hookAnswer'],
     // Lane H's prompt and agent handlers run from the hook runtime (M91).
     readers: ['dist/hookRuntime.js'],
+  },
+  {
+    block: 'LEGAL_EXPLANATION_MODEL_TEXT',
+    sentinels: ['legalExplanationInstructions'],
+    readers: ['dist/reviewer.js'],
   },
   {
     block: 'MODEL_API_MODEL_TEXT',

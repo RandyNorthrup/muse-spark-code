@@ -171,5 +171,13 @@
   "config.suggestedProvider.description": "工作区最多可按 id 推荐一个模型提供方预设；面板会提供使用该预设打开“模型与智能体”。为空则不推荐。工作区不能设置地址或凭据。",
   "walkthrough.gettingStarted.step.ownModel.title": "使用自己的模型开始",
   "walkthrough.gettingStarted.step.ownModel.description": "没有 Muse 订阅或 Meta API 密钥？添加您自己的模型提供方（OpenRouter、Anthropic、OpenAI 或本地服务器）并选择模型。\n[使用自己的模型开始](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "自动压缩较长的 Model API 对话。默认开启，但在配对评估通过前保持停用。每次额外付费调用都需要同意价格和每日预算。"
+  "config.modelApiAutoCompaction.description": "自动压缩较长的 Model API 对话。默认开启，但在配对评估通过前保持停用。每次额外付费调用都需要同意价格和每日预算。",
+  "config.legalHeaderPolicy.description": "用于法律扫描的版权与 SPDX 头检查：必需标记每个缺少匹配头的项目自有源文件，可选仅标记与检测到的项目风格或其 REUSE 声明相矛盾的头，关闭则跳过头检查。默认为可选；生成的文件始终排除在外。",
+  "config.legalHeaderPolicy.enumDescriptions.required": "每个项目自有源文件都需要匹配的版权与 SPDX 头。",
+  "config.legalHeaderPolicy.enumDescriptions.optional": "仅与检测到的项目风格或其 REUSE 声明相矛盾的头才算作发现。默认值。",
+  "config.legalHeaderPolicy.enumDescriptions.off": "跳过头检查；报告中会说明。",
+  "command.legalScan.title": "法律扫描",
+  "config.legalRegistryLookups.description": "首次通知列出注册表及发送的软件包名称和版本后，允许查询公共注册表。关闭后仅使用本地元数据。",
+  "config.legalExplanation": "可选 Model API 解释：USD。每次使用均征求同意，并共用每日付费预算。",
+  "config.paidDailyBudgetUsd": "付费附加功能的共用每日预算：USD。"
 }

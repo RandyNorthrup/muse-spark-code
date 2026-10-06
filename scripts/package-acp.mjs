@@ -35,6 +35,7 @@ const BUNDLES = [
   'acp.js',
   'modelApi.js',
   'modelApiBoundaries.js',
+  'legalScan.js',
   'reviewer.js',
   'team.js',
   'teamRunners.js',
@@ -109,6 +110,7 @@ for (const schema of SCHEMAS) {
 for (const bundle of BUNDLES) {
   copyFileSync(path.join('dist', bundle), path.join(STAGE, 'dist', bundle))
 }
+cpSync('dist/legal-data', path.join(STAGE, 'dist', 'legal-data'), { recursive: true })
 for (const source of JOB_SOURCES) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))

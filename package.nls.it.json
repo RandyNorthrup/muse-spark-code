@@ -171,5 +171,13 @@
   "config.suggestedProvider.description": "Un’area di lavoro può suggerire un solo preset di provider di modelli tramite id; il pannello offre di aprire Modelli e agenti con quel preset. Vuoto non suggerisce nulla. Un’area di lavoro non può impostare un indirizzo né una credenziale.",
   "walkthrough.gettingStarted.step.ownModel.title": "Inizia con il tuo modello",
   "walkthrough.gettingStarted.step.ownModel.description": "Nessun abbonamento Muse o chiave API Meta? Aggiungi il tuo provider di modelli — OpenRouter, Anthropic, OpenAI o un server locale — e scegli un modello.\n[Inizia con il tuo modello](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "Compattare automaticamente le conversazioni lunghe di Model API. Attivo per impostazione predefinita, ma inattivo fino al superamento di una valutazione abbinata. Ogni chiamata aggiuntiva a pagamento richiede il consenso al prezzo e al budget giornaliero."
+  "config.modelApiAutoCompaction.description": "Compattare automaticamente le conversazioni lunghe di Model API. Attivo per impostazione predefinita, ma inattivo fino al superamento di una valutazione abbinata. Ogni chiamata aggiuntiva a pagamento richiede il consenso al prezzo e al budget giornaliero.",
+  "config.legalHeaderPolicy.description": "Controlli delle intestazioni di copyright e SPDX per l’analisi legale: obbligatorio segnala ogni file sorgente del progetto senza intestazione corrispondente, facoltativo solo un’intestazione che contraddice lo stile rilevato del progetto o le sue dichiarazioni REUSE, e disattivato ignora questi controlli. Il valore predefinito è facoltativo; i file generati sono sempre esclusi.",
+  "config.legalHeaderPolicy.enumDescriptions.required": "Ogni file sorgente del progetto deve avere un’intestazione di copyright e SPDX corrispondente.",
+  "config.legalHeaderPolicy.enumDescriptions.optional": "Solo un’intestazione che contraddice lo stile rilevato del progetto o le sue dichiarazioni REUSE è un rilievo. Il valore predefinito.",
+  "config.legalHeaderPolicy.enumDescriptions.off": "I controlli delle intestazioni vengono ignorati; il rapporto lo segnala.",
+  "command.legalScan.title": "Analisi legale",
+  "config.legalRegistryLookups.description": "Consentire ricerche nei registri pubblici dopo un avviso unico che indica i registri e i nomi e le versioni inviati. Disattivare per usare solo metadati locali.",
+  "config.legalExplanation": "Spiegazione Model API facoltativa: USD. Ogni utilizzo chiede il consenso e condivide il budget giornaliero.",
+  "config.paidDailyBudgetUsd": "Budget giornaliero condiviso per gli extra a pagamento: USD."
 }

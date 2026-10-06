@@ -312,6 +312,11 @@
         "command": "museSpark.addModelProvider",
         "title": "%command.addModelProvider.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.legalScan",
+        "title": "%command.legalScan.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -416,6 +421,10 @@
         },
         {
           "command": "museSpark.stopBackgroundTasks",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.legalScan",
           "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
         }
       ],
@@ -1020,7 +1029,8 @@
           "minimum": 0.5,
           "maximum": 500,
           "description": "%config.paidDailyBudgetUsd.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "markdownDescription": "%config.paidDailyBudgetUsd%"
         },
         "museSpark.dictationEngine": {
           "type": "string",
@@ -1151,6 +1161,33 @@
           "default": true,
           "description": "%config.modelApiAutoCompaction.description%",
           "scope": "machine"
+        },
+        "museSpark.legalHeaderPolicy": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional",
+            "off"
+          ],
+          "enumDescriptions": [
+            "%config.legalHeaderPolicy.enumDescriptions.required%",
+            "%config.legalHeaderPolicy.enumDescriptions.optional%",
+            "%config.legalHeaderPolicy.enumDescriptions.off%"
+          ],
+          "default": "optional",
+          "description": "%config.legalHeaderPolicy.description%"
+        },
+        "museSpark.legalRegistryLookups": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "description": "%config.legalRegistryLookups.description%"
+        },
+        "museSpark.legalExplanation": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "markdownDescription": "%config.legalExplanation%"
         }
       }
     },
@@ -1244,7 +1281,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/shared/modelApiBoundariesEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/host/backend/providersEntry.ts src/shared/validationEntry.ts src/host/models/modelsPanelEntry.ts src/webview/models/models.tsx src/host/teamViewBundle.ts src/core/team/teamEntry.ts src/core/team/teamSchedulerEntry.ts src/host/runners/teamRunnersEntry.ts",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/shared/modelApiBoundariesEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/host/backend/providersEntry.ts src/shared/validationEntry.ts src/host/models/modelsPanelEntry.ts src/webview/models/models.tsx src/host/teamViewBundle.ts src/core/team/teamEntry.ts src/core/team/teamSchedulerEntry.ts src/host/runners/teamRunnersEntry.ts src/core/legal/entry.ts",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",
@@ -1256,7 +1293,7 @@
     "security:audit": "node scripts/audit.mjs",
     "security:secrets": "gitleaks git --redact --no-banner .",
     "quality:gates": "run-s format:check lint typecheck check:badges check:l10n check:host-api deadcode cycles duplication test:unit build security:audit",
-    "quality": "run-s quality:gates test:a11y security:secrets security:sast",
+    "quality": "run-s quality:gates test:a11y test:legal-a11y security:secrets security:sast",
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",
     "package": "npm run build && node scripts/package-vsix.mjs",
@@ -1264,7 +1301,8 @@
     "images": "node scripts/render-images.mjs",
     "prepare": "husky",
     "security:sast": "node scripts/sast.mjs",
-    "schema:exec": "node scripts/exec-schema.mjs"
+    "schema:exec": "node scripts/exec-schema.mjs",
+    "test:legal-a11y": "node scripts/legal-a11y.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [

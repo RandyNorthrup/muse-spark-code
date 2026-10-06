@@ -15,8 +15,12 @@ import path from 'node:path'
 import process from 'node:process'
 
 const SEMGREP = 'semgrep'
+// Shared rigs: keep every file/rule and deadline, bound competing analyses.
+const MAX_WORKERS = 2
 const SEMGREP_ARGS = [
   'scan',
+  '--jobs',
+  String(MAX_WORKERS),
   '--config',
   'auto',
   '--error',

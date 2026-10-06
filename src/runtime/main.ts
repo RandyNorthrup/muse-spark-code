@@ -1,3 +1,4 @@
+import { legalScanLoader } from '../host/ide/legalScanBundle'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
 // speak the Agent Client Protocol, and the sign-in commands their terminal
 // sign-ins run (D61). stdout carries the protocol; everything the user or
@@ -25,6 +26,10 @@ import {
   EXTENSION_HOOKS_BUNDLE_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
+  EXEC_STOP_GRACE_MS,
+  LEGAL_EXIT,
+  LEGAL_SCAN_TIMEOUT_MS,
+  LEGAL_SCAN_BUNDLE_FILE,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
@@ -32,7 +37,7 @@ import type { SecretStore } from '../host/auth/credentialStore'
 import { fill } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
 import { createRuntimeBackend } from './backends'
-import { parseCommandLine, type ServeOptions } from './cliArgs'
+import { isHeadlessCommand, parseCommandLine, type ServeOptions } from './cliArgs'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
@@ -51,6 +56,9 @@ import { createFdWriter } from './exec/fdWriter'
 import { createExecLogger, redactWhole } from './exec/execOutput'
 import { runExec } from './exec/runExec'
 import { runSecretScan } from './exec/scanSecrets'
+import { loadLegalScanner } from './legal/legalScanner'
+import { runLegalCommand } from './legal/runLegal'
+
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
 import { createToolIo } from '../host/backend/toolIo'
@@ -63,6 +71,16 @@ import { uiLocale } from '../shared/l10n/text'
 const EXIT_FAILED = 1
 // The Model API key variable Muse Code reads; the report says only whether it was set.
 const META_API_KEY_VARIABLE = 'META_API_KEY'
+/** The headless deadlines beside exec's own (M97 lane R: the workspace scan). */
+const HEADLESS_FIXED_TIMEOUT_MS = {
+  'scan-secrets': EXEC_SCAN_TIMEOUT_MS,
+  legal: LEGAL_SCAN_TIMEOUT_MS,
+} as const
+/** What a headless command answers when its own wiring fails (D76: 2 for the scan). */
+const HEADLESS_WIRING_EXIT = {
+  'scan-secrets': EXEC_EXIT.usage,
+  legal: LEGAL_EXIT.incomplete,
+} as const
 // Credential variables leave the agent's own environment before anything
 // starts a process; only Muse Code's processes get them back (rule 8).
 const museCodeCredentials = takeCredentials(process.env)
@@ -325,7 +343,35 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   // runs; there is no crash offer outside the editor, so startup's is unused.
   const journal = await reportJournal(log)
   await journal.startup()
+  const legalRegistryNotices = new Map<string, Set<string>>()
+  const agentLegalBundle = legalScanLoader({
+    bundlePath: path.join(distDir, LEGAL_SCAN_BUNDLE_FILE),
+    log,
+  })
   const agent = createAcpAgent({
+    legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
+      const bundle = agentLegalBundle()
+      const handle = await bundle.runLegalScan({ workspaceRoot: cwd, input: {}, signal })
+      const render = bundle.renderLegalMarkdown
+      if (render === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
+      signal.throwIfAborted()
+      const enrich = bundle.enrichInteractiveLegalScan
+      if (enrich === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
+      const noticed = legalRegistryNotices.get(cwd) ?? new Set<string>()
+      legalRegistryNotices.set(cwd, noticed)
+      const result = await enrich(handle, {
+        isOn: () => isRegistryOn,
+        isNoticed: (host) => noticed.has(host),
+        notice: allowsRegistryLookup,
+        markNoticed: (hosts) => {
+          for (const host of hosts) noticed.add(host)
+          return Promise.resolve()
+        },
+        fetch: globalThis.fetch.bind(globalThis),
+        signal,
+      })
+      return render(result)
+    },
     backend: runtime.backend,
     version: packageVersion(),
     options: {
@@ -370,16 +416,20 @@ async function main(): Promise<number> {
     const isFlushed = await stderr.flush(EXEC_FORCE_WRITE_MS)
     exitHeadless(EXEC_EXIT.usage, !isFlushed)
   }
-  if (command.command === 'exec' || command.command === 'scan-secrets') {
+  if (isHeadlessCommand(command)) {
     const closed = () => {
       lifecycle.latch({ kind: 'output_closed' })
     }
     const stdout = createFdWriter(process.stdout.fd, closed)
     const stderr = createFdWriter(process.stderr.fd, closed)
     const now = () => performance.timeOrigin + performance.now()
+    const headlessTimeoutMs =
+      command.command === 'exec'
+        ? command.options.timeoutMs
+        : HEADLESS_FIXED_TIMEOUT_MS[command.command]
     const lifecycle = createLifecycle({
       processStartMs: performance.timeOrigin,
-      timeoutMs: command.command === 'exec' ? command.options.timeoutMs : EXEC_SCAN_TIMEOUT_MS,
+      timeoutMs: headlessTimeoutMs,
       now,
       setTimer: (ms, callback) => {
         const timer = setTimeout(callback, ms)
@@ -437,6 +487,44 @@ async function main(): Promise<number> {
           return headlessCode
         }
       }
+      // The reserved read-only scan (M97 lane R): no backend, no auth, no
+      // model. stdout carries only the rendered report; every other word
+      // goes to stderr, as the sign-in commands' own output does.
+      if (command.command === 'legal') {
+        try {
+          const outcome = await lifecycle.race(
+            runLegalCommand({
+              options: command.options,
+              deps: {
+                scan: (scanInput) =>
+                  loadLegalScanner({ distDir }).scan({
+                    workspaceRoot: process.cwd(),
+                    input: scanInput,
+                    signal: lifecycle.signal,
+                  }),
+                fetch: globalThis.fetch.bind(globalThis),
+                writeFile: (file, data) => writeFile(file, data, 'utf8'),
+                signal: lifecycle.signal,
+              },
+            }),
+          )
+          if (outcome.out !== '') stdout.write(outcome.out)
+          if (outcome.err !== '') stderr.write(`${outcome.err}\n`)
+          const [outFlushed, errFlushed] = await Promise.all([
+            stdout.flush(EXEC_STOP_GRACE_MS),
+            stderr.flush(EXEC_STOP_GRACE_MS),
+          ])
+          headlessCode =
+            outFlushed && errFlushed && !lifecycle.signal.aborted
+              ? outcome.exitCode
+              : LEGAL_EXIT.incomplete
+          return headlessCode
+        } catch (error: unknown) {
+          log.error(error instanceof Error ? error.message : String(error))
+          headlessCode = LEGAL_EXIT.incomplete
+          return headlessCode
+        }
+      }
       headlessCode = await runExec(lifecycle, {
         options: command.options,
         version: packageVersion(),
@@ -462,7 +550,8 @@ async function main(): Promise<number> {
     } catch (error: unknown) {
       log.error(error instanceof Error ? (error.stack ?? error.message) : String(error))
       await stderr.flush(lifecycle.remainingGraceMs())
-      headlessCode = command.command === 'scan-secrets' ? EXEC_EXIT.usage : EXEC_EXIT.internal
+      headlessCode =
+        command.command === 'exec' ? EXEC_EXIT.internal : HEADLESS_WIRING_EXIT[command.command]
       return headlessCode
     } finally {
       if (command.command === 'scan-secrets')

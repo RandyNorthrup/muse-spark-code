@@ -1,6 +1,6 @@
 import { MspError } from '@muse-code/sdk'
 import { Buffer } from 'node:buffer'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import {
   copyFileSync,
   mkdirSync,
@@ -72,6 +72,7 @@ import {
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   GIT_MODEL_TEXT,
   CONVERSATION_MODEL_TEXT,
+  LEGAL_RESULT_VERSION,
   MSP_READ_OUTPUT_CONCURRENCY,
   REVIEW_MODEL_TEXT,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
@@ -88,6 +89,8 @@ import { textFileDisplay } from '../../src/shared/textFileDisplay'
 import { planFileName, planLogName, planSlug, planTitle } from '../../src/core/plans/planDocument'
 import { briefText, PLAN_MARKDOWN } from '../../src/core/plans/planMarkdown'
 import type { ConversationMessage } from '../../src/host/views/chatSurface'
+import { PlanModeHold } from '../../src/core/review/planModeHold'
+import type { LegalScanInput, LegalScanResult } from '../../src/shared/legal'
 import { logLines } from './helpers/logText'
 import type { CheckpointPort } from '../../src/host/checkpoints/checkpointHost'
 import type { RestoreOutcome } from '../../src/host/checkpoints/checkpointStore'
@@ -409,6 +412,7 @@ function setup(
     readToolImage?: ConversationDeps['readToolImage']
     /** VS Code's workspace trust (M46: Restricted Mode runs no `!` command). */
     isWorkspaceTrusted?: boolean
+    workspaceTrust?: { current: boolean }
     isSideChat?: boolean
     /** The side panel's original fork ID, including after window reload. */
     sideSessionId?: string
@@ -451,6 +455,12 @@ function setup(
     /** The window's Auto reviewer on Muse Code (M90). */
     museCodeReviewer?: ConversationDeps['museCodeReviewer']
     judge?: ConversationDeps['judge']
+    /** The deterministic legal scanner (M97); undefined until lane R wires the bundle. */
+    legalFixApplier?: ConversationDeps['legalFixApplier']
+    legalMarkdown?: ConversationDeps['legalMarkdown']
+    legalScan?: ConversationDeps['legalScan']
+    /** The Plan-mode hold a live Muse Code conversation takes for a scan (M97). */
+    createLegalHold?: ConversationDeps['createLegalHold']
   } = {},
 ) {
   const planFiles = fakePlanFiles()
@@ -664,7 +674,7 @@ function setup(
       return options.confirmsFileAction ?? true
     },
     setPaidFeature: vi.fn(() => Promise.resolve()),
-    isWorkspaceTrusted: () => options.isWorkspaceTrusted ?? true,
+    isWorkspaceTrusted: () => options.workspaceTrust?.current ?? options.isWorkspaceTrusted ?? true,
     isWorktreeHeld: () => worktreeHold.isHeld,
     createGit: (gitSurface) => new ConversationGit(gitFake.window, gitSurface),
     onForegroundTasksChanged: vi.fn<() => void>(),
@@ -729,8 +739,13 @@ function setup(
           : Promise.resolve({ bytes: new TextEncoder().encode('example text'), isPdf: false }),
       canonicalRelativePath: (fsPath: string) =>
         Promise.resolve(
-          fsPath.startsWith('/ws/')
-            ? { canonical: fsPath.slice('/ws/'.length), checkedAbsolute: fsPath }
+          path.relative(path.resolve('/ws'), fsPath) !== '' &&
+            !path.relative(path.resolve('/ws'), fsPath).startsWith('..') &&
+            !path.isAbsolute(path.relative(path.resolve('/ws'), fsPath))
+            ? {
+                canonical: path.relative(path.resolve('/ws'), fsPath).split(path.sep).join('/'),
+                checkedAbsolute: fsPath,
+              }
             : undefined,
         ),
       pickMentionFile: () => Promise.resolve(mentionChoice),
@@ -805,6 +820,10 @@ function setup(
     review:
       options.review ??
       reviewParts(() => Promise.resolve({ kind: 'refused', refusal: 'notRepository' })),
+    ...(options.legalFixApplier !== undefined && { legalFixApplier: options.legalFixApplier }),
+    ...(options.legalMarkdown !== undefined && { legalMarkdown: options.legalMarkdown }),
+    ...(options.legalScan !== undefined && { legalScan: options.legalScan }),
+    ...(options.createLegalHold !== undefined && { createLegalHold: options.createLegalHold }),
     openDocument: (title: string, content: string) => {
       opened.push([title, content])
       return Promise.resolve()
@@ -15920,5 +15939,466 @@ describe('ConversationController: Muse Judge card lifecycle (M98-U)', () => {
     expect(t.judge.prepare).not.toHaveBeenCalled()
     expect(t.server.requestsFor('approval/decide')).toHaveLength(1)
     t.controller.dispose()
+  })
+})
+
+function emptyLegalResult(): LegalScanResult {
+  return {
+    version: LEGAL_RESULT_VERSION,
+    ruleVersion: 'r1',
+    dataVersion: 'd1',
+    scope: '',
+    distribution: 'The workspace ships as a VS Code extension.',
+    exclusions: [],
+    incompleteChecks: [],
+    findings: [],
+  }
+}
+
+interface LegalSetupOptions extends Omit<
+  NonNullable<Parameters<typeof setup>[0]>,
+  'legalScan' | 'createLegalHold'
+> {
+  /** The scan waits here, so a test can act mid-scan. */
+  readonly scanGate?: Promise<void>
+  /** The scan throws this instead of answering. */
+  readonly scanError?: Error
+  readonly withoutScanner?: boolean
+  /** The hold without the scan: still unavailable, never half-held. */
+  readonly holdOnly?: boolean
+}
+
+function legalSetup(options: LegalSetupOptions = {}) {
+  const inputs: LegalScanInput[] = []
+  const signals: AbortSignal[] = []
+  const { scanGate, scanError, withoutScanner, holdOnly, ...rest } = options
+  const t = setup({
+    ...rest,
+    ...(withoutScanner !== true &&
+      holdOnly !== true && {
+        legalScan: async (input: LegalScanInput, signal: AbortSignal) => {
+          inputs.push(input)
+          signals.push(signal)
+          await scanGate
+          if (scanError !== undefined) {
+            throw scanError
+          }
+          return emptyLegalResult()
+        },
+      }),
+    ...((withoutScanner !== true || holdOnly === true) && {
+      createLegalHold: (holdDeps) => new PlanModeHold(holdDeps),
+    }),
+  })
+  return { ...t, inputs, signals }
+}
+
+function legalReports(t: ReturnType<typeof legalSetup>) {
+  return t.surface.posted.filter((message) => message.type === 'legalScanReport')
+}
+
+function legalNotices(t: ReturnType<typeof legalSetup>) {
+  return t.surface.posted.filter((message) => message.type === 'notice')
+}
+
+function legalApprovalModes(t: ReturnType<typeof legalSetup>) {
+  return t.server.requestsFor('session/setApprovalMode').map((request) => request.params?.['mode'])
+}
+
+/** A live conversation with no turn running: the message sent, its turn ended. */
+async function liveLegalConversation(t: ReturnType<typeof legalSetup>) {
+  await t.send('l1', 'hi')
+  t.finishTurn()
+  await settle()
+}
+
+// `/legal` (M97, PLAN.md D76): the deterministic scan on both backends, the
+// Plan-mode hold on a live Muse Code conversation, and the refusals. The
+// scanner is a fake behind lane 0's contract; applying fixes is never this
+// lane's (no write path exists to attempt).
+describe('ConversationController: legal scan (M97)', () => {
+  it.each(['museCode', 'modelApi'] as const)(
+    'scans signed out on %s without starting a backend',
+    async (backendKind) => {
+      const t = legalSetup({ status: 'signedOut', backendKind })
+      await t.controller.handle({ type: 'requestLegalScan' })
+      expect(t.inputs).toHaveLength(1)
+      expect(legalReports(t)).toHaveLength(1)
+      expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    },
+  )
+  it('never scans after trust is lost during hold admission', async () => {
+    const workspaceTrust = { current: true }
+    const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true, workspaceTrust })
+    await liveLegalConversation(t)
+    t.server.handle('session/setApprovalMode', (params) => {
+      if (params['mode'] === 'denyUnmatched') workspaceTrust.current = false
+      return { mode: params['mode'] }
+    })
+    await t.controller.handle({ type: 'requestLegalScan' })
+    expect(t.inputs).toHaveLength(0)
+    expect(legalReports(t)).toHaveLength(0)
+    expect(legalNotices(t).at(-1)).toMatchObject({ text: UI_TEXT.legalScanUntrusted })
+  })
+  it('reports the first held scanner failure without a second invocation', async () => {
+    const t = legalSetup({
+      backendKind: 'museCode',
+      hasApprovalUi: true,
+      scanError: new Error('first failure'),
+    })
+    await liveLegalConversation(t)
+    await t.controller.handle({ type: 'requestLegalScan' })
+    expect(t.inputs).toHaveLength(1)
+    expect(legalNotices(t).at(-1)).toMatchObject({
+      text: fill(UI_TEXT.legalScanFailed, { reason: 'first failure' }),
+    })
+  })
+  it('refuses a scan while a model send is preparing before its turn acknowledgement', async () => {
+    const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true, isAutosaveEnabled: true })
+    await liveLegalConversation(t)
+    const saving = Promise.withResolvers<undefined>()
+    t.saveAll.mockClear()
+    t.saveAll.mockImplementationOnce(() => saving.promise)
+    const sending = t.send('l2', 'next turn')
+    await vi.waitFor(() => {
+      expect(t.saveAll).toHaveBeenCalledOnce()
+    })
+    try {
+      await t.controller.handle({ type: 'requestLegalScan' })
+      expect(t.inputs).toHaveLength(0)
+      expect(legalApprovalModes(t)).toHaveLength(0)
+      expect(legalNotices(t).at(-1)).toMatchObject({ text: UI_TEXT.legalScanBusy })
+    } finally {
+      saving.resolve(undefined)
+      await sending
+    }
+  })
+
+  it('holds a new model turn until the scan and mode restoration settle', async () => {
+    const gate = Promise.withResolvers<undefined>()
+    const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true, scanGate: gate.promise })
+    await liveLegalConversation(t)
+    const scanning = t.controller.handle({ type: 'requestLegalScan' })
+    await vi.waitFor(() => {
+      expect(t.inputs).toHaveLength(1)
+    })
+    const sending = t.send('l2', 'next turn')
+    await settle()
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    gate.resolve(undefined)
+    await scanning
+    await sending
+    expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+    expect(legalApprovalModes(t)).toEqual(['denyUnmatched', 'promptUnmatched'])
+  })
+  it.each([false, true])('Stop aborts the slash scan (live session: %s)', async (live) => {
+    const gate = Promise.withResolvers<undefined>()
+    const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true, scanGate: gate.promise })
+    if (live) await liveLegalConversation(t)
+    const scanning = t.controller.handle({ type: 'requestLegalScan' })
+    await vi.waitFor(() => {
+      expect(t.inputs).toHaveLength(1)
+    })
+    await t.controller.handle({ type: 'cancelTurn' })
+    expect(t.signals[0]?.aborted).toBe(true)
+    gate.resolve(undefined)
+    await scanning
+    expect(legalReports(t)).toHaveLength(0)
+  })
+
+  it('posts the report for a bare /legal without starting a backend', async () => {
+    const t = legalSetup()
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(t.inputs).toEqual([{}])
+    // A scan never starts a backend (D76): no session, no mode change.
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    expect(legalApprovalModes(t)).toHaveLength(0)
+    expect(legalReports(t)).toEqual([
+      { type: 'legalScanReport', requestId: 'legal-1', result: emptyLegalResult() },
+    ])
+  })
+
+  it('scans an explicit file subset and defaults an omitted input', async () => {
+    const t = legalSetup()
+    await t.controller.handle({ type: 'requestLegalScan', input: { paths: ['a.ts'] } })
+    await t.controller.handle({ type: 'requestLegalScan' })
+    expect(t.inputs).toEqual([{ paths: ['a.ts'] }, {}])
+    expect(legalReports(t)).toHaveLength(2)
+    expect(legalReports(t).map((report) => report.requestId)).toEqual(['legal-1', 'legal-2'])
+  })
+
+  // A refused scan reads nothing and reports nothing: the panel says why.
+  it.each([
+    {
+      name: 'without a scanner, saying the bundle is unavailable',
+      options: { withoutScanner: true },
+      text: UI_TEXT.legalScanUnavailable,
+    },
+    {
+      name: 'half a scanner: the hold without the scan is unavailable',
+      options: { holdOnly: true },
+      text: UI_TEXT.legalScanUnavailable,
+    },
+    {
+      name: 'in an untrusted workspace before reading anything',
+      options: { isWorkspaceTrusted: false },
+      text: UI_TEXT.legalScanUntrusted,
+    },
+  ])('refuses $name', async ({ options, text }) => {
+    const t = legalSetup(options)
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(t.inputs).toHaveLength(0)
+    expect(legalReports(t)).toHaveLength(0)
+    expect(legalNotices(t).at(-1)).toEqual({ type: 'notice', level: 'warning', text })
+  })
+
+  it('starts one scan at a time: a second scan waits its turn', async () => {
+    const gate = Promise.withResolvers<undefined>()
+    const t = legalSetup({ scanGate: gate.promise })
+    const first = t.controller.handle({ type: 'requestLegalScan', input: {} })
+    await vi.waitFor(() => {
+      expect(t.inputs).toHaveLength(1)
+    })
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(t.inputs).toHaveLength(1)
+    expect(legalNotices(t).at(-1)).toMatchObject({ level: 'info', text: UI_TEXT.legalScanBusy })
+    gate.resolve(undefined)
+    await first
+    expect(legalReports(t)).toHaveLength(1)
+  })
+
+  it('waits for the running turn: a scan starts once it has ended', async () => {
+    const t = legalSetup()
+    await t.send('l1', 'hi')
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(t.inputs).toHaveLength(0)
+    expect(legalReports(t)).toHaveLength(0)
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(legalReports(t)).toHaveLength(1)
+  })
+
+  it('redacts scanner failures before showing a panel report', async () => {
+    const t = legalSetup({ scanError: new Error('access_token=synthetic-marker') })
+    await t.controller.handle({ type: 'requestLegalScan' })
+    expect(JSON.stringify(legalNotices(t))).not.toContain('synthetic-marker')
+  })
+
+  it('says why a scan failed, in the scanner’s words', async () => {
+    const t = legalSetup({ scanError: new Error('disk went away') })
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(legalReports(t)).toHaveLength(0)
+    expect(legalNotices(t).at(-1)).toEqual({
+      type: 'notice',
+      level: 'warning',
+      text: fill(UI_TEXT.legalScanFailed, { reason: 'disk went away' }),
+    })
+  })
+
+  it('holds Plan mode around the scan on a live Muse Code conversation and puts it back', async () => {
+    const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true })
+    await liveLegalConversation(t)
+    expect(legalApprovalModes(t)).toHaveLength(0)
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    await vi.waitFor(() => {
+      expect(legalReports(t)).toHaveLength(1)
+    })
+    expect(legalApprovalModes(t)).toEqual(['denyUnmatched', 'promptUnmatched'])
+    expect(legalNotices(t)).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: UI_TEXT.legalScanPlanModeNotice,
+    })
+  })
+
+  // No hold to take, nothing to put back: a live Model API conversation,
+  // and a Muse Code one already in Plan mode.
+  it.each([
+    { name: 'a live Model API conversation', options: { backendKind: 'modelApi' as const } },
+    {
+      name: 'an already-Plan conversation',
+      options: { backendKind: 'museCode' as const, initialPermissionMode: 'plan' as const },
+    },
+  ])('scans $name with no hold to take', async ({ options }) => {
+    const t = legalSetup(options)
+    await liveLegalConversation(t)
+    await t.controller.handle({ type: 'requestLegalScan', input: {} })
+    expect(legalReports(t)).toHaveLength(1)
+    expect(legalApprovalModes(t)).toHaveLength(0)
+  })
+
+  it('a user mode choice mid-scan releases the hold: the scan continues, nothing is put back', async () => {
+    const gate = Promise.withResolvers<undefined>()
+    const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true, scanGate: gate.promise })
+    await liveLegalConversation(t)
+    const scanning = t.controller.handle({ type: 'requestLegalScan', input: {} })
+    await vi.waitFor(() => {
+      expect(legalApprovalModes(t)).toEqual(['denyUnmatched'])
+    })
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'acceptEdits' })
+    gate.resolve(undefined)
+    await scanning
+    await vi.waitFor(() => {
+      expect(legalReports(t)).toHaveLength(1)
+    })
+    await settle()
+    // The user's choice stands: no restore over it, the panel left there.
+    expect(legalApprovalModes(t)).toEqual(['denyUnmatched', 'promptUnmatched'])
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      permissionMode: 'acceptEdits',
+    })
+  })
+
+  it('a dropped scan says nothing: the conversation moved on', async () => {
+    const gate = Promise.withResolvers<undefined>()
+    const t = legalSetup({ scanGate: gate.promise })
+    const scanning = t.controller.handle({ type: 'requestLegalScan', input: {} })
+    await vi.waitFor(() => {
+      expect(t.inputs).toHaveLength(1)
+    })
+    t.controller.dispose()
+    gate.resolve(undefined)
+    await scanning
+    await settle()
+    expect(legalReports(t)).toHaveLength(0)
+    expect(legalNotices(t)).toHaveLength(0)
+  })
+})
+
+describe('the legal selected-fix handoff (M97 lane W)', () => {
+  const header: {
+    id: string
+    severity: 'advice'
+    category: 'codeQualityHeader'
+    file: string
+    line: number
+    evidenceSource: string
+    confidence: number
+    explanation: string
+    recommendation: string
+    fixable: boolean
+  } = {
+    id: 'header/1/1',
+    severity: 'advice',
+    category: 'codeQualityHeader',
+    file: 'src/a.ts',
+    line: 1,
+    evidenceSource: 'header reader',
+    confidence: 1,
+    explanation: 'The file has no copyright header.',
+    recommendation: 'Add the project copyright header.',
+    fixable: true,
+  }
+  const scan = { scanId: 'legal-1', ruleVersion: '1', dataVersion: '2026-10-04', scope: '' }
+
+  const ready = async (
+    over: Pick<Partial<ConversationDeps>, 'legalFixApplier' | 'legalMarkdown'> = {},
+  ) => {
+    const t = setup({
+      ...over,
+      createLegalHold: (holdDeps) => new PlanModeHold(holdDeps),
+      legalScan: () =>
+        Promise.resolve({
+          ...emptyLegalResult(),
+          ruleVersion: '1',
+          dataVersion: '2026-10-04',
+          findings: [header],
+          evidenceFiles: [
+            { path: 'src/a.ts', hash: createHash('sha256').update('example text').digest('hex') },
+          ],
+        }),
+    })
+    await t.controller.handle({ type: 'requestLegalScan' })
+    expect(t.surface.posted.filter((message) => message.type === 'legalScanReport')).toHaveLength(1)
+    return t
+  }
+
+  it('routes a fix preview and refuses the guarded confirm without an applier', async () => {
+    const t = await ready()
+    await t.controller.handle({
+      type: 'requestLegalFix',
+      scan,
+      findings: [header],
+      includeProjectLicense: false,
+    })
+    const preview = t.surface.posted.findLast((message) => message.type === 'legalFixPreview')
+    expect(preview).toMatchObject({
+      eligible: ['header/1/1'],
+      excluded: [],
+      paths: ['src/a.ts'],
+    })
+    if (preview?.type !== 'legalFixPreview' || preview.snapshot === undefined) {
+      throw new Error('expected a stored legal fix preview')
+    }
+    await t.controller.handle({ type: 'confirmLegalFix', previewId: preview.previewId })
+    expect(t.surface.posted.findLast((message) => message.type === 'legalFixResult')).toMatchObject(
+      { outcome: 'refused', refusal: 'fixUnavailable' },
+    )
+  })
+
+  it('F3 a fresh scan after dropping the session can establish new previews', async () => {
+    const t = await ready()
+    await t.controller.handle({ type: 'clearConversation' })
+    await t.controller.handle({ type: 'requestLegalScan' })
+    await t.controller.handle({
+      type: 'requestLegalFix',
+      scan: { ...scan, scanId: 'legal-2' },
+      findings: [header],
+      includeProjectLicense: false,
+    })
+    expect(
+      t.surface.posted.findLast((message) => message.type === 'legalFixPreview'),
+    ).toMatchObject({ eligible: [header.id], paths: ['src/a.ts'] })
+  })
+
+  it('refuses a confirm for an unknown preview', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'confirmLegalFix', previewId: 'nope' })
+    expect(t.surface.posted.findLast((message) => message.type === 'legalFixResult')).toMatchObject(
+      { outcome: 'refused', refusal: 'previewExpired' },
+    )
+  })
+
+  it('rescans after a partial apply and retains its per-path failure after the fresh report', async () => {
+    const apply = vi
+      .fn<NonNullable<ConversationDeps['legalFixApplier']>['apply']>()
+      .mockResolvedValue({
+        applied: [],
+        failed: [{ path: 'src/a.ts', reason: 'Changed bytes' }],
+      })
+    const t = await ready({
+      legalFixApplier: {
+        prepare: () => Promise.resolve([{ path: 'src/a.ts', diff: '+// verified header' }]),
+        apply,
+      },
+    })
+    await t.controller.handle({
+      type: 'requestLegalFix',
+      scan,
+      findings: [header],
+      includeProjectLicense: false,
+    })
+    const preview = t.surface.posted.findLast((message) => message.type === 'legalFixPreview')
+    if (preview?.type !== 'legalFixPreview') throw new Error('missing preview')
+    await t.controller.handle({ type: 'confirmLegalFix', previewId: preview.previewId })
+    expect(apply).toHaveBeenCalledOnce()
+    expect(t.surface.posted.filter((message) => message.type === 'legalScanReport')).toHaveLength(2)
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'legalFixResult',
+      outcome: 'partial',
+      failed: [{ path: 'src/a.ts', reason: 'Changed bytes' }],
+    })
+  })
+
+  it('exports only the host-owned report after an explicit request, without starting a backend', async () => {
+    const render = vi
+      .fn<(result: LegalScanResult) => string>()
+      .mockReturnValue('legal Markdown with disclaimer')
+    const t = await ready({ legalMarkdown: render })
+    expect(t.exported.markdown).toHaveLength(0)
+    await t.controller.handle({ type: 'exportLegalReport' })
+    expect(render).toHaveBeenCalledOnce()
+    expect(t.exported.markdown).toHaveLength(1)
   })
 })

@@ -11,6 +11,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { brotliDecompressSync } from 'node:zlib'
 import { L10N_TABLE_MAX_BYTES, L10N_TABLE_ARCHIVE_FILE } from '../shared/constants'
+import { unpackUiTable } from '../shared/l10n/packed'
 import { tableProblems } from '../shared/l10n/check'
 import { EN, type UiText } from '../shared/l10n/en'
 import {
@@ -73,7 +74,7 @@ export async function loadUiTable(deps: UiTableDeps): Promise<UiTable> {
   const file = `${TABLE_DIRECTORY}/${fileName}`
   let parsed: unknown
   try {
-    parsed = JSON.parse(await deps.readExtensionFile([TABLE_DIRECTORY, fileName]))
+    parsed = unpackUiTable(JSON.parse(await deps.readExtensionFile([TABLE_DIRECTORY, fileName])))
   } catch (error: unknown) {
     deps.log.warn(`${file} could not be read, so the panel stays in English: ${describe(error)}`)
     return english

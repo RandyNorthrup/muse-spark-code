@@ -1,6 +1,9 @@
 import { isJudgeEngineOn } from './core/judge/engine'
 import { judgeWindowPort } from './host/judge/judgeBundle'
 import { storeErrorCode } from './host/backend/storeErrors'
+import { LEGAL_EXPLANATION_BUNDLE_FILE } from './shared/constants'
+import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
+import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
@@ -109,6 +112,10 @@ import { ideBrowserCheckTools } from './host/ide/browserCheckTool'
 import { type BrowserCheckHost, browserScopeKey } from './core/browser/browserTool'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
+import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTool'
+import { LEGAL_REGISTRY_NOTICE_KEY } from './shared/constants'
+import { fill as fillLegalNotice } from './shared/l10n/text'
+import { legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
@@ -240,6 +247,8 @@ import {
   CODE_INTEL_BUNDLE_FILE,
   MODELS_PANEL_BUNDLE_FILE,
   PROVIDERS_BUNDLE_FILE,
+  LEGAL_SCAN_BUNDLE_FILE,
+  EXTENSION_SKILLS_DIR,
   WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
@@ -931,7 +940,8 @@ async function activateWindow(
     isAvailable: (feature) =>
       feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
     isDefaultOn: isDefaultPaidOn,
-    dailyBudgetUsd: () => (paidBackend === 'modelApi' ? dailyPaid.capUsd() : undefined),
+    dailyBudgetUsd: (feature) =>
+      paidBackend === 'modelApi' || feature === 'legalExplanation' ? dailyPaid.capUsd() : undefined,
     isKeyStored: () => isKeyStored,
     // "Allow always in this workspace" (M58) needs a workspace to keep it,
     // and never in Restricted Mode.
@@ -1855,10 +1865,62 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CODE_INTEL_BUNDLE_FILE).fsPath,
     log,
   })
+  // The deterministic legal scan (M97, PLAN.md D76): dist/legalScan.js (D6),
+  // required on the first scan; the tool list stays at activation.
+  const paidLegalExplanation = legalExplanationLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', LEGAL_EXPLANATION_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
+  const legalScanBundle = legalScanLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', LEGAL_SCAN_BUNDLE_FILE).fsPath,
+    log,
+  })
+  const runLegalScan: LegalScanRunner = async (input, signal) => {
+    if (!vscode.workspace.isTrusted) throw new Error(UI_TEXT.legalScanUntrusted)
+    if (workspaceRoot === undefined) throw new Error(UI_TEXT.noWorkspaceReason)
+    const handle = await legalScanBundle().runLegalScan({
+      workspaceRoot,
+      input: { ...input, headerPolicy: input.headerPolicy ?? currentSettings().legalHeaderPolicy },
+      signal,
+    })
+    const enrich = legalScanBundle().enrichInteractiveLegalScan
+    if (enrich === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
+    return legalScanResultSchema.parse(
+      await enrich(handle, {
+        isOn: () => currentSettings().legalRegistryLookups && vscode.workspace.isTrusted,
+        isNoticed: (host) =>
+          context.workspaceState.get<boolean>(`${LEGAL_REGISTRY_NOTICE_KEY}:${host}`) === true,
+        notice: async (hosts) => {
+          const accept = UI_TEXT.allowOnce
+          const answer = await vscode.window.showInformationMessage(
+            fillLegalNotice(UI_TEXT.legalRegistryNotice, { hosts: hosts.join(', ') }),
+            { modal: true },
+            accept,
+          )
+          return answer === accept
+        },
+        markNoticed: async (hosts) => {
+          for (const host of hosts)
+            await context.workspaceState.update(`${LEGAL_REGISTRY_NOTICE_KEY}:${host}`, true)
+        },
+        fetch: liveFetch,
+        signal,
+      }),
+    )
+  }
   const ideServer = new IdeMcpServer(
     () => [
       diagnostics,
       ...ideCodeIntelTools(codeIntel, codeIntelBundle),
+      // Read-only and trust-gated, like the code intelligence tools: listed
+      // only in a trusted workspace, refused while it is not.
+      ...ideLegalScanTools({
+        isOffered: () =>
+          workspaceRoot !== undefined && isIdeLegalScanOffered(vscode.workspace.isTrusted),
+        runScan: runLegalScan,
+        log,
+      }),
       // The server is attached in Restricted Mode too, and has no session
       // identity: the tool is listed only in a trusted workspace whose
       // sandbox network setting allows the network, and every call asks.
@@ -2015,6 +2077,9 @@ async function activateWindow(
     vendorRoot: bundledPackageRoot,
     skillsRoot: personalSkillsRoot(museConfig()),
     sourcesRoot: bundledSkillSourcesRoot(museConfig()),
+    // The extension's own skills (M97, PLAN.md D76): installed beside the
+    // vendored package through the same mechanism, without touching it.
+    extensionSkillsRoot: vscode.Uri.joinPath(context.extensionUri, EXTENSION_SKILLS_DIR).fsPath,
   })
   const bundledSkillsOffer = createBundledSkillsOffer({
     isEnabled: () => currentSettings().bundledSkills,
@@ -2329,6 +2394,7 @@ async function activateWindow(
           log,
         }),
       ),
+    legalScan: workspaceRoot === undefined ? undefined : runLegalScan,
     ideTools,
     webFetch,
     browserCheck,
@@ -3075,6 +3141,64 @@ async function activateWindow(
             }
             return false
           },
+          // The deterministic legal scan (M97, PLAN.md D76): dist/legalScan.js
+          // (D6) on the first scan; the Plan hold stays in the host review bundle.
+          legalScan: runLegalScan,
+          legalExplanation: async (report, signal) => {
+            if (!isKeyStored) throw new Error(UI_TEXT.legalExplainUnavailable)
+            return await paidLegalExplanation(
+              report,
+              {
+                gate: paid.gate,
+                consent: paid.consent,
+                reserve: dailyPaid.reserve,
+                capUsd: dailyPaid.capUsd,
+                keyDigest: () => modelApi.accountId(),
+                usage: paid.usage,
+                stream: (body, active, guard) =>
+                  modelApi.streamLegalExplanation(body, active, guard),
+              },
+              signal,
+            )
+          },
+          legalMarkdown: (report) => {
+            const render = legalScanBundle().renderLegalMarkdown
+            if (render === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
+            return render(report)
+          },
+          legalFixApplier: createLegalFixApplier({
+            prepare: async (findings) => {
+              if (workspaceRoot === undefined || !vscode.workspace.isTrusted) return []
+              const prepare = legalScanBundle().prepareLegalFixes
+              if (prepare === undefined) throw new Error(UI_TEXT.legalFixRefusedUnavailable)
+              return await prepare(workspaceRoot, findings)
+            },
+            ...legalFixFileEdits({
+              workspaceRoot,
+              platform: process.platform,
+              io: toolIo,
+              withAdmission: async (check, canPublish) => {
+                const workspaceCheck = backend.workspaceActionGuard(nativeStarts.signal)
+                const assertCanWrite = () => {
+                  workspaceCheck()
+                  check()
+                }
+                return await withCheckpointEdit(
+                  checkpoints,
+                  log,
+                  assertCanWrite,
+                  async () => await canPublish(assertCanWrite),
+                )
+              },
+            }),
+            approveOwnership: async (paths) =>
+              (await vscode.window.showWarningMessage(
+                fill(UI_TEXT.legalFixOwnership, { paths: paths.join(', ') }),
+                { modal: true },
+                UI_TEXT.legalFixApply,
+              )) === UI_TEXT.legalFixApply,
+          }),
+          createLegalHold: (holdDeps) => review.createHold(holdDeps),
           bestOfNCoordinator,
           bestOfNWorkspaceEdits: (session) => {
             const owner =
@@ -3719,6 +3843,11 @@ async function activateWindow(
       log,
       COMMAND_IDS.toggleThinking,
       forActiveConversation((controller) => controller.toggleThinking()),
+    ),
+    registerLoggedCommand(
+      log,
+      COMMAND_IDS.legalScan,
+      forActiveConversation((controller) => controller.handle({ type: 'requestLegalScan' })),
     ),
     // Ctrl+B and "Stop Background Tasks" (M46, PLAN.md D39).
     registerLoggedCommand(

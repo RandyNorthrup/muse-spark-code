@@ -11,7 +11,11 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { MODEL_API_MODEL_TEXT, type PaidFeature } from '../../src/shared/constants'
+import {
+  LEGAL_RESULT_VERSION,
+  MODEL_API_MODEL_TEXT,
+  type PaidFeature,
+} from '../../src/shared/constants'
 import { ModelApiHost, type ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import {
   classifiedToolNames,
@@ -20,6 +24,7 @@ import {
   type ToolIo,
 } from '../../src/core/backends/modelapi/tools'
 import type { VerifyHooks } from '../../src/core/backends/modelapi/verifyLoop'
+import type { LegalScanRunner } from '../../src/shared/legal'
 import type { LanguageServiceHost } from '../../src/core/codeIntel/languageService'
 import { isTeamTool } from '../../src/core/team/teamTools'
 import type { McpTool } from '../../src/core/mcp'
@@ -257,6 +262,16 @@ const CASES: readonly FenceCase[] = [
     hold: { at: 'searchFiles' },
     change: { kind: 'deny', path: 'private.txt' },
     isComplete: true,
+  },
+  {
+    tool: 'legal_scan',
+    args: {},
+    // The scan reads the workspace through the host's I/O (the fixture's
+    // scripted scanner reads the held file the way lane S's will): denied
+    // mid-scan. Opaque like the code intelligence reads — the host cannot
+    // list what the scanner read — so a deny elsewhere refuses it too.
+    hold: { at: 'readFile', ...at('private.txt') },
+    change: { kind: 'deny', path: 'private.txt' },
   },
   {
     tool: 'write_file',
@@ -827,6 +842,36 @@ function fixture(c: FenceCase) {
       isOffered: () => true,
     },
     codeIntel: heldService(service, point === 'service', held, count),
+    // The deterministic scanner (M97): lane S's scan through lane 0's
+    // contract. The scripted runner reads the held file through the
+    // fixture's counted I/O and reports a finding carrying the marker, the
+    // way a real scan's evidence carries what it read.
+    ...(c.tool === 'legal_scan' && {
+      legalScan: (async () => {
+        const text = await io.readFile(`${ROOT}/private.txt`)
+        return {
+          version: LEGAL_RESULT_VERSION,
+          ruleVersion: 'fence',
+          dataVersion: 'fence',
+          scope: '',
+          distribution: `the scan read: ${text ?? 'nothing'}`,
+          exclusions: [],
+          incompleteChecks: [],
+          findings: [
+            {
+              id: 'fence',
+              severity: 'advice',
+              category: 'noticeFile',
+              evidenceSource: 'the held read',
+              confidence: 1,
+              explanation: `the scan saw ${MARKER}`,
+              recommendation: 'change nothing',
+              fixable: false,
+            },
+          ],
+        }
+      }) satisfies LegalScanRunner,
+    }),
     // Packing (M73) offers recall_output: only its row packs.
     observationPacking: () => c.tool === 'recall_output',
     // The checks would run after every edit: only the case that runs them has them.

@@ -66,6 +66,62 @@ script as the first argument, before the others:
 `<npm root -g>` is the folder `npm root -g` prints (usually
 `%APPDATA%\npm\node_modules`). The same form works on every platform.
 
+## Deterministic legal scan (M97)
+
+From the workspace you want to inspect, run:
+
+```sh
+muse-spark-code-acp exec legal-scan --json
+muse-spark-code-acp legal --format text
+muse-spark-code-acp legal --format json --out legal-report.json
+```
+
+These invocations use the packaged local scanner. No model, backend, sign-in,
+credential store, package manager, build or ACP connection is started. The
+scan is free and offline by default. `--out` writes only the report destination
+you explicitly name; ordinary scans do not change the workspace. Without
+`--out`, JSON stdout is one `{ disclaimer, result, registry }` envelope, with
+no ACP frames; `--out` leaves stdout empty. Status words go to stderr. Keep reports private when they contain package names, paths or source
+URLs. Known secret formats and email values are scrubbed; universal PII
+recognition is not promised.
+
+| Exit | Meaning                                                                         |
+| ---- | ------------------------------------------------------------------------------- |
+| 0    | Complete coverage, with no blocker; should-fix and advice findings are allowed. |
+| 1    | Complete coverage, with a blocker.                                              |
+| 2    | Incomplete coverage, invalid input, interruption or operational failure.        |
+
+A missing lock, unresolved license, binary file, excluded link or read bound
+can make coverage incomplete even when there are no blockers. Findings,
+rule/data versions, distribution assumptions, exclusions and incomplete checks
+are in `result`. No automatic fix is available. The reserved
+`exec legal-scan --json` route is admitted before prompt, credential and paid
+argument parsing. The older `legal --format json` invocation remains an alias.
+Both refuse prompt text and model/credential flags.
+
+The current scanner also lists human review, full license-text matching and
+artifact freshness as incomplete checks on every real run. Even a fixture
+with no findings therefore returns exit 2; the complete exit-0/1 branches are
+tested with injected reports and are not yet real-scanner CI receipts.
+
+Registry enrichment uses npm/PyPI HTTPS metadata, sends only package names and
+versions, refuses redirects and never reads private registry configuration.
+Headless commands require `--registry`; their default stays offline. Scanner
+prose, counts and the disclaimer follow the installed supported language.
+
+Within an ACP editor, `/legal` directly invokes the shared scanner on either
+backend without sending a model turn. Before the first registry lookup in
+that workspace during this agent process, the editor's permission prompt names
+every registry and exactly what is sent. Declining leaves local unknowns in the
+report; `/legal --offline` skips both notice and lookup. The one-time notice
+resets when the agent process ends. JetBrains, Zed, Neovim, Emacs and other ACP
+clients receive ordinary text report updates; Visual Studio, Eclipse, Xcode,
+Sublime and companion adapters can invoke the same keyless reserved runtime
+command. The optional panel paid explanation uses a portable core executor;
+this ACP command itself stays free. Native editor UI adapters retain their
+existing compatibility milestones. **Not legal advice; for distribution
+decisions consult a lawyer.**
+
 ## Choose who pays
 
 The agent runs on one backend, chosen when the editor starts it; it never

@@ -171,5 +171,13 @@
   "config.suggestedProvider.description": "Pracovní prostor smí navrhnout jednu předvolbu poskytovatele modelů podle id; panel nabídne otevření Modelů a agentů s touto předvolbou. Prázdné nenavrhuje nic. Pracovní prostor nemůže nastavit adresu ani údaj.",
   "walkthrough.gettingStarted.step.ownModel.title": "Začněte s vlastním modelem",
   "walkthrough.gettingStarted.step.ownModel.description": "Nemáte předplatné Muse ani klíč Meta API? Přidejte vlastního poskytovatele modelů — OpenRouter, Anthropic, OpenAI nebo místní server — a vyberte model.\n[Začít s vlastním modelem](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "Automaticky zhušťovat dlouhé konverzace Model API. Výchozí nastavení je zapnuto, ale funkce zůstává neaktivní do úspěšného párového vyhodnocení. Každé další placené volání vyžaduje souhlas s cenou a denním rozpočtem."
+  "config.modelApiAutoCompaction.description": "Automaticky zhušťovat dlouhé konverzace Model API. Výchozí nastavení je zapnuto, ale funkce zůstává neaktivní do úspěšného párového vyhodnocení. Každé další placené volání vyžaduje souhlas s cenou a denním rozpočtem.",
+  "config.legalHeaderPolicy.description": "Kontroly hlaviček autorských práv a SPDX pro právní kontrolu: povinné označuje každý vlastní zdrojový soubor bez odpovídající hlavičky, volitelné pouze hlavičku odporující zjištěnému stylu projektu nebo jeho deklaracím REUSE a vypnuté kontroly hlaviček přeskakuje. Výchozí je volitelné; generované soubory jsou vždy vyloučeny.",
+  "config.legalHeaderPolicy.enumDescriptions.required": "Každý vlastní zdrojový soubor potřebuje odpovídající hlavičku autorských práv a SPDX.",
+  "config.legalHeaderPolicy.enumDescriptions.optional": "Nálezem je pouze hlavička odporující zjištěnému stylu projektu nebo jeho deklaracím REUSE. Výchozí hodnota.",
+  "config.legalHeaderPolicy.enumDescriptions.off": "Kontroly hlaviček se přeskakují; zpráva to uvádí.",
+  "command.legalScan.title": "Právní kontrola",
+  "config.legalRegistryLookups.description": "Povolit dotazy do veřejných registrů po jednorázovém oznámení registrů a odesílaných názvů a verzí balíčků. Vypnutím použijete jen místní metadata.",
+  "config.legalExplanation": "Volitelné vysvětlení Model API: USD. Každé použití žádá souhlas a sdílí denní rozpočet.",
+  "config.paidDailyBudgetUsd": "Společný denní rozpočet placených doplňků: USD."
 }

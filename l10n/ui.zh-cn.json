@@ -1140,7 +1140,7 @@
   "acpQuestionAsked": "Muse 有一个问题；此编辑器无法以表单形式显示，请在下一条消息中回答：",
   "acpUnknownArgument": "未知参数：{argument}",
   "acpPaidNeedsModelApi": "{argument} 需要 --backend modelApi：付费功能会计费到 Model API 密钥。",
-  "acpUsage": "用法：\n  {command} [选项]              通过 stdin 和 stdout 提供 Agent Client Protocol\n  {command} [选项] login        在此终端中登录 Muse Code\n  {command} auth set|status|clear  存储、检查或移除 Meta Model API 密钥\n  {command} exec [options] <prompt>  无界面运行一轮\n  {command} scan-secrets <file> [--key-stdin]  统计单个文件中疑似机密的数量（仅输出数量）\n  {command} report [options]  输出已清理的问题报告（不启动后端，不打开浏览器）\n选项：\n  --backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥\n  --trust-workspace                加载文件夹的规则、技能和记忆\n  --muse-binary <路径>             要运行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙盒\n  --allow-dangerously-skip-permissions  提供“绕过权限”模式\n  --allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）\n  --web-search                     提供付费网页搜索（Model API 后端；会先询问价格）\n  --image-generation               提供付费图片生成（Model API 后端；会先询问价格）\n  --verbose                        在 stderr 上记录所有细节\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  运行 Setup 钩子并退出",
+  "acpUsage": "用法：\n  {command} [选项]              通过 stdin 和 stdout 提供 Agent Client Protocol\n  {command} [选项] login        在此终端中登录 Muse Code\n  {command} auth set|status|clear  存储、检查或移除 Meta Model API 密钥\n  {command} exec [options] <prompt>  无界面运行一轮\n  {command} scan-secrets <file> [--key-stdin]  统计单个文件中疑似机密的数量（仅输出数量）\n  {command} report [options]  输出已清理的问题报告（不启动后端，不打开浏览器）\n  {command} legal [options]  运行只读法律扫描（无需后端、无需登录）\n选项：\n  --backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥\n  --trust-workspace                加载文件夹的规则、技能和记忆\n  --muse-binary <路径>             要运行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙盒\n  --allow-dangerously-skip-permissions  提供“绕过权限”模式\n  --allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）\n  --web-search                     提供付费网页搜索（Model API 后端；会先询问价格）\n  --image-generation               提供付费图片生成（Model API 后端；会先询问价格）\n  --verbose                        在 stderr 上记录所有细节\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  运行 Setup 钩子并退出",
   "reportUsage": "用法：\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  将已清理的问题报告输出到 stdout，或使用 --out 将其写入 <file>。\n  不启动后端，不登录任何位置，不打开浏览器。\n选项：\n  --out <file>         将报告写入文件而不是 stdout\n  --description <text>  用自己的话描述当时发生了什么\n  --no-facts           不包含支持信息\n  --no-events          不包含最近事件",
   "exportSessionLine": "会话：`{id}`",
   "exportBackendLine": "后端：{backend}",
@@ -1217,12 +1217,12 @@
   "dictationDarwinEarlyExit": "macOS 在听写帮助程序就绪之前结束了它。如果出现过权限步骤，说明 macOS 拒绝了该权限（授予 muse-dictate 的权限，或在帮助程序无法以自身名义请求时，授予启动它的应用的权限）；如果根本没有出现任何步骤，说明 macOS 拒绝运行该帮助程序本身，因为它未经公证。README 的“Voice dictation”一节解释了这两种情况。",
   "museLoginTerminalName": "Muse Code 登录",
   "museExitMeanings": {
-    "5": "此 Muse Code 版本不提供此扩展使用的 SDK 接口；请更新 Muse Code",
+    "0": "Muse Code 已停止",
+    "1": "Muse Code 因未处理的错误而失败",
+    "2": "Muse Code 拒绝了其命令行（用法错误）",
     "3": "Muse Code 拒绝了其配置；请检查其 settings.json 和 museSpark.environmentVariables",
     "4": "另一个 Muse Code 客户端占用着此会话；该客户端退出后即会释放",
-    "2": "Muse Code 拒绝了其命令行（用法错误）",
-    "0": "Muse Code 已停止",
-    "1": "Muse Code 因未处理的错误而失败"
+    "5": "此 Muse Code 版本不提供此扩展使用的 SDK 接口；请更新 Muse Code"
   },
   "museExitedWithCode": "Muse Code 已退出（退出代码 {code}）",
   "museExitMeaning": "{meaning}（退出代码 {code}）",
@@ -2159,7 +2159,8 @@
     "hookRun": "立即运行 spark-hooks.json 中的一个 Manual 钩子。",
     "switchModel": "选择此对话的模型。",
     "continue:codex": "在此对话中继续未完成的 Codex 工作。",
-    "attachFile": "为下一条消息附加文件。"
+    "attachFile": "为下一条消息附加文件。",
+    "paid:legalExplanation": "开启或关闭法律发现的付费解释。费用记在已存储的 Model API 密钥下。"
   },
   "paletteSkillTip": "运行 {name} 技能。",
   "webFetchUnavailable": "无法加载网页获取功能，因此未获取任何内容；请重新安装扩展并重新加载窗口。日志中有详细信息。",
@@ -3160,5 +3161,361 @@
   "toolEditOverlap": "编辑范围重叠，两个条目不能更改同一段文本。",
   "toolReadPastEnd": "偏移量 {offset} 超出了 {path} 的末尾。",
   "toolReadText": "已读取文本文件 `{path}`。",
-  "toolReadRange": "第 {start}–{end} 行，共 {total} 行；offset={offset}"
+  "toolReadRange": "第 {start}–{end} 行，共 {total} 行；offset={offset}",
+  "legalScanTitle": "法律扫描",
+  "legalScanDisclaimer": "不构成法律建议；如需作出分发决策，请咨询律师。",
+  "legalScanEmpty": "扫描完成，未发现问题。",
+  "legalFindingsCount": {
+    "other": "{count} 个发现"
+  },
+  "legalFilesScanned": "已扫描文件：{count}",
+  "legalScanIncomplete": "不完整：{checks}",
+  "legalScanFailed": "法律扫描失败：{reason}",
+  "legalScanUnavailable": "法律扫描器无法加载；请重新安装扩展并重新加载窗口。详细信息见日志。",
+  "legalSeverities": {
+    "blocker": "阻止",
+    "should-fix": "应修复",
+    "advice": "建议"
+  },
+  "legalCategories": {
+    "license": "许可证",
+    "copyrightHeader": "版权头",
+    "spdxIdentifier": "SPDX 标识符",
+    "noticeFile": "声明文件",
+    "dependencyLicense": "依赖许可证",
+    "distribution": "分发",
+    "codeQualityHeader": "代码质量头"
+  },
+  "legalHeaderPolicies": {
+    "required": "必需",
+    "optional": "可选",
+    "off": "关闭"
+  },
+  "legalFixable": "可修复",
+  "legalNotFixable": "仅为建议",
+  "legalEvidenceLabel": "证据：{evidence}",
+  "legalConfidenceLabel": "置信度：{confidence}",
+  "legalScanItem": "/legal",
+  "legalCommandUsage": "用法：/legal [相对于工作区的路径 …]。不支持选项。",
+  "legalScanItemDetail": "扫描工作区中的许可、署名和标头问题",
+  "legalScanBusy": "当前回合结束后才会开始法律扫描。",
+  "legalScanUntrusted": "法律扫描需要读取工作区，但受限模式不允许。信任此工作区即可使用。",
+  "legalScanPlanModeNotice": "此次法律扫描在读取工作区期间会将对话保持在规划模式，结束后会恢复你原来的权限模式。",
+  "legalDistributionLine": "分发：{distribution}",
+  "legalRegistryLine": "注册表（{hosts}）：已查询 {queried}，找到 {found}，跳过 {skipped}，接收 {bytes}。",
+  "legalRegistryOff": "未启用注册表补充。使用 --registry 重新运行以补充缺失的许可证。",
+  "legalWroteFile": "法律扫描报告已写入 {path}。",
+  "legalFormatInvalid": "格式必须是 text 或 json。",
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "已排除：{exclusions}",
+  "legalScanNoDistribution": "扫描未完成，因此未假设任何分发。",
+  "legalReportFindings": "法律问题",
+  "legalFixSelect": "修复 {id}",
+  "legalSelectedCount": {
+    "other": "已选择 {count} 项"
+  },
+  "legalFixAllSafe": "修复所有安全的项",
+  "legalPreviewFixes": "预览修复",
+  "legalFixPreviewTitle": "修复预览",
+  "legalFixApply": "应用修复",
+  "legalFixFiles": "将要更改的文件",
+  "legalFixExcluded": "未包含",
+  "legalFixReasonNotFixable": "没有安全的修复方法，仅为建议。",
+  "legalFixReasonProjectLicense": "项目许可证变更需要单独确认。",
+  "legalFixReasonUnknown": "不属于本次扫描。",
+  "legalFixReasonTooLarge": "文件过大，无法保护；请手动修复。",
+  "legalFixNothingSelected": "请至少选择一个要修复的问题，即使在 Bypass 模式下也是如此。扫描不会预先授权任何内容。",
+  "legalFixSeparateConfirm": "我单独确认项目许可证变更。",
+  "legalFixRefusedPlan": "Plan 模式拒绝修复，该模式从不写入。",
+  "legalFixRefusedTrust": "工作区不受信任时拒绝修复。",
+  "legalFixRefusedWorkspace": "自预览以来工作区已更改。请请求新的预览。",
+  "legalFixRefusedStale": "自预览以来证据已更改。请运行新的扫描。",
+  "legalFixRefusedExpired": "预览已过期。请请求新的预览。",
+  "legalFixRefusedUnavailable": "此版本不支持应用修复。",
+  "legalFixRescanHint": "请运行新的扫描以确认剩余内容。",
+  "legalScanAgain": "重新扫描",
+  "legalFixOwnership": "请确认这些文件属于项目，且预览中的许可证和版权适用于这些文件：{paths}",
+  "legalFixDenied": "编辑未获批准。",
+  "legalExportMarkdown": "导出 Markdown…",
+  "legalRegistryNotice": "首次查询前通知：{hosts}。仅通过 HTTPS 发送软件包名称和版本；不会上传源代码、路径或锁文件内容。关闭注册表查询可离线扫描。",
+  "legalRegistryOfflineUnknown": "离线：注册表查询已关闭或被拒绝，缺失的依赖项许可证仍然未知。",
+  "legalRegistryFact": "{name}@{version}：注册表声明为 {license}。",
+  "legalRegistryRecommendation": "请核实原始条款和分发义务；注册表元数据并不能证明权利。",
+  "legalRegistryMetadataOnly": "注册表元数据仅为补充信息；原始条款和不完整的本地结果仍需审核。",
+  "legalScanner": {
+    "m001": "{v0} 的兼容性分析",
+    "m002": "{v0} 为双许可证；相对于 {v2}，{v1} 是兼容选项。分发前确认所选条款。",
+    "m003": "记录分发所遵循的许可证分支。",
+    "m004": "{v0} 声明 {v1} 为替代的 copyleft 条款；分发时须选择并满足源码和链接义务。",
+    "m005": "与律师确认许可证分支及其义务。",
+    "m006": "{v0} 以 {v1} 分发，而项目声明 {v2}：组合分发可能要求公开整体源码。这是待确认问题，并非结论。",
+    "m007": "请律师确认分发是否触发 copyleft 义务以及涉及的代码。",
+    "m008": "{v0} 仅在开发范围声明 {v1}。",
+    "m009": "确认永不分发；强 copyleft 依赖项一旦分发，可能要求公开源码。",
+    "m010": "{v0} 声明 {v1}，分发情况未知；分发组合可能要求公开源码。",
+    "m011": "确定依赖项是否分发，再与律师确认义务。",
+    "m012": "{v0} 声明 {v1}{v2}：文件级 copyleft 适用于覆盖文件；LGPL 链接须满足源码及重新链接条款。",
+    "m013": "保留文件条款和通知，确认 LGPL 链接证据。",
+    "m014": "{v0} 声明 {v1}{v2}：源码可查看或受限条款，并非开源授权。识别不等于认可。",
+    "m015": "请律师审核此次分发，确认适用的 BUSL 变更日期或 Commons Clause 范围。",
+    "m016": "{v0} 声明 {v1}，本分析未分类；请人工确认条款。",
+    "m017": "按本次分发审核许可证原文。",
+    "m018": "{v0} 按 {v1} 分发，但无许可证授权。",
+    "m019": "确认此确切版本的私有所有权，否则从分发中移除。",
+    "m020": "{v0} 在分发范围之外声明 {v1}。",
+    "m021": "确认永不分发；分发专有依赖项需要所有权证明。",
+    "m022": "未检查：{v0} 软件包 {v1}@{v2} 缺少许可证证据。",
+    "m023": "{v0} 声明 {v1}，不是有效 SPDX 表达式：{v2}。",
+    "m024": "根据包元数据修正声明，或人工确认条款。",
+    "m025": "{v0} 声明自定义引用 {v1}；条款需要人工阅读。",
+    "m026": "确认所引用的许可证原文及其与分发的兼容性。",
+    "m027": "{v0} 声明已弃用 SPDX 形式 {v1}；末尾 + 不再明确适用的后续版本。",
+    "m028": "使用包实际意图的当前 -only 或 -or-later 标识符。",
+    "m029": "{v0} 声明例外 {v1}，不在 SPDX 例外列表中。",
+    "m030": "确认例外原文；例外会改变分析。",
+    "m031": "{v0} 的许可证证据冲突：{v1}。不会静默以某一来源消除冲突。",
+    "m032": "共同审核原始许可证及声明，再决定适用条款。",
+    "m033": "未检查：{v0} 的许可证证据冲突需要人工审核。",
+    "m034": "{v1} 处的 {v0} 分析",
+    "m035": "未检查：仅凭文件名无法确认构建产物是否最新。",
+    "m036": "未检查：打包输入缺失或与工作区清单相比已过时。",
+    "m037": {
+      "other": "依据 {count} 个已知打包输入分析分发"
+    },
+    "m038": "本地源码，分发未知：缺少打包输入或包清单证据。",
+    "m039": "未检查：分发范围未知；无打包或文件清单证据时不假定分发任何内容。",
+    "m040": "未检查：包模式数量超出清单上限。",
+    "m041": "未检查：包文件模式不受支持；分发范围为估算。",
+    "m042": "未检查：.vscodeignore 模式 {v0} 使用不支持的语法；分发范围为估算。",
+    "m043": "未检查：包清单无法证实内嵌打包输入或产物是否最新。",
+    "m044": "依据包文件及 .vscodeignore 估算分发；未构建产物可能不同。",
+    "m045": "分发分析",
+    "m046": {
+      "other": "{count} 个依赖项可能被分发，但无通知文件记录归属。"
+    },
+    "m047": "添加覆盖分发内容的 THIRD_PARTY_NOTICES 或等效通知文件。",
+    "m048": "{v0} 可能被分发，但现有通知未提及它。",
+    "m049": "在 THIRD_PARTY_NOTICES 或等效文件中标注此包。",
+    "m050": "未检查：{v0} 缺少可读的 NOTICE 归属信息。",
+    "m051": "{v0} 处的分发分析",
+    "m052": "{v0} 含上游 NOTICE 文件，但现有通知未记录其归属。",
+    "m053": "在 THIRD_PARTY_NOTICES 或等效文件中保留适用 NOTICE 归属信息。",
+    "m054": "拒绝工作区外或超出限制的路径",
+    "m055": "未检查：复杂 REUSE 模式、优先级及所有权关系；仅遵循完整的精确路径注释。",
+    "m056": "{v0} 处的资源清单",
+    "m057": "{v0} 无已观察到的单文件来源声明；文件名不能证明所有权或分发权。",
+    "m058": "根据已验证所有权，在附属文件或 REUSE 中记录来源、作者及条款。",
+    "m059": "{v0} 处的来源引用",
+    "m060": "{v0} 含需审核来源及条款的引用；引用本身不证明复制或侵权。",
+    "m061": "核实来源、作者、日期、许可证及署名，保留合法上游文件头。",
+    "m062": "未检查：策略已关闭版权文件头检查。",
+    "m063": "未检查：{v0} 的文件头不可读或为二进制。",
+    "m064": "{v0} 处的文件头分析",
+    "m065": "{v0} 开头缺少版权行，但策略要求提供。",
+    "m066": "根据已验证所有权添加项目版权行；永不替换第三方文件头。",
+    "m067": "{v0} 缺少策略要求的 SPDX-License-Identifier 行。",
+    "m068": "添加与适用许可证匹配的 SPDX 标识符。",
+    "m069": "{v0} 的开头缺少 {v1}。",
+    "m070": "添加项目版权文件头以改善规范；策略将其设为可选。",
+    "m071": "{v0} 有版权行，但 {v1}。",
+    "m072": "与权利人修正日期；较早年份本身并非过时。",
+    "m073": "{v0} 声明 SPDX-License-Identifier {v1}，无法解析：{v2}。",
+    "m074": "以 SPDX 表达式填写标识符，AND、OR、WITH 须大写。",
+    "m075": "确认引用原文位于文件旁或 REUSE.toml。",
+    "m076": "{v0} 声明已弃用 SPDX 形式 {v1}。",
+    "m077": "使用 SPDX License List 中当前标识符。",
+    "m078": "{v0} 含不同 SPDX 声明 {v1} 和 {v2}。",
+    "m079": "确认各声明适用条款；保留合法上游许可证。",
+    "m080": "{v0} 声明 {v1}，不属于项目许可证 {v2}。",
+    "m081": "确认文件采用第三方条款并保留文件头，或修正标识符。",
+    "m082": "{v0} 处的项目许可证分析",
+    "m083": "用 SPDX 表达式填写许可证，AND、OR、WITH 大写，并使用必要括号。",
+    "m084": "未检查：完整 SPDX 文本匹配及修改条款；标题和条款匹配属于启发式分析。",
+    "m085": "{v0} 未识别为已知许可证文本；需人工阅读条款。",
+    "m086": "确认文件授予的许可证并在清单中声明。",
+    "m087": "{v0} 指向工作区中不存在的 {v1}。",
+    "m088": "添加引用的许可证文件，或修正清单字段。",
+    "m089": "{v0} 将项目标记为 UNLICENSED：默认为专有，保留所有权利。",
+    "m090": "仅向预定接收者分发；公开分发需要许可证授权。",
+    "m091": "{v0} 和 {v1} 处的项目许可证分析",
+    "m092": "{v0} 声明 {v1}，但许可证文件识别为 {v2}。",
+    "m093": "分发前协调元数据和许可证；变更许可证须明确确认。",
+    "m094": "项目许可证分析",
+    "m095": "清单相互冲突，且无许可证文件可解决：{v0}。",
+    "m096": "分发前协调清单；变更许可证须明确确认。",
+    "m097": "清单声明条款，但未找到根目录许可证文件。",
+    "m098": "分发前根据已验证所有权添加适用许可证文本。",
+    "m099": "README 声明 {v0}，项目却声明 {v1}。",
+    "m100": "分发前协调 README、许可证文件及清单。",
+    "m101": "许可证 {v0} 仅在 README 声明；无许可证文件或清单字段。",
+    "m102": "根据已验证所有权添加 LICENSE 和清单许可证字段。",
+    "m103": "未找到 LICENSE、清单字段或 README 声明；未分发代码默认保留所有权利。",
+    "m104": "明确确认所选许可证，并在 LICENSE 和清单中声明。",
+    "m105": "{v0} 含未识别的类似许可证文本；内嵌第三方代码须在通知中注明归属。",
+    "m106": "{v0} 在工作区内含 {v1} 条款；内嵌第三方代码须在通知中注明归属。",
+    "m107": "确认第三方代码在 THIRD_PARTY_NOTICES 或等效文件中获得归属说明。",
+    "m108": "未知文件头策略",
+    "m109": "所选路径过多",
+    "m110": "未检查：资源、复制代码来源、专有条款及完整许可证文本匹配需人工审核。",
+    "m111": "法律扫描已取消",
+    "m112": "扫描达到限制而停止：时间",
+    "m113": "未检查：{v0} 无法作为文本读取。",
+    "m114": "扫描达到限制而停止：{v0} 超出文本读取预算。",
+    "m115": {
+      "other": "未检查：读取 {count} 个文件后停止，另有 {v1} 个未读取。"
+    },
+    "m116": {
+      "other": "未检查：达到依赖项证据限制，省略 {count} 个条目。"
+    },
+    "m117": "未检查：{v0} 在 {v1} 的许可证文本未识别。",
+    "m118": "{v0} 处的许可证文本分析",
+    "m119": {
+      "other": "分发未知且有 {count} 个生产依赖项；按未分发的源码目录分析义务。"
+    },
+    "m120": "提供打包输入或包清单证据，以准确确定分发义务。",
+    "m121": "扫描达到限制而停止：{v0} 的报告已截断",
+    "m122": {
+      "other": "报告已截断：超出 {v1} 项上限的 {count} 个发现被省略；优先保留阻断项和应修复项。"
+    },
+    "m123": {
+      "other": "报告已截断：省略超出限制的 {count} 个生成文件排除项。"
+    },
+    "m124": "扫描生成无效结果：{v0}",
+    "m125": "未检查：证据字段超出报告限制并被截断。",
+    "m126": "意外字符 {v0}",
+    "m127": "WITH 必须指定许可证例外",
+    "m128": "表达式意外结束",
+    "m129": "缺少右括号",
+    "m130": "运算符旁缺少许可证",
+    "m131": "许可证表达式为空",
+    "m132": "表达式后出现意外文本",
+    "m133": "许可证表达式超出文本限制",
+    "m134": "许可证表达式嵌套超出限制",
+    "m135": "许可证标识符格式错误",
+    "m136": "许可证表达式选项超出限制",
+    "m137": "扫描根路径不是目录",
+    "m138": "未检查：{v0} 为链接或越界目录。",
+    "m139": "扫描达到限制而停止：目录条目预算耗尽，其余树未枚举。",
+    "m140": "未检查：{v0} 在枚举期间发生变化。",
+    "m141": "未检查：{v0} 是仓库内部数据。",
+    "m142": "未检查：{v0} 是链接。",
+    "m143": "未检查：{v0} 是特殊文件。",
+    "m144": "未检查：{v0} 无法获准读取。",
+    "m145": "未检查：{v0} 含所有权及解析元数据未知的路径 crate。",
+    "m146": "未检查：{v0} 含未静态解析的继承或嵌套 Cargo 声明。",
+    "m147": {
+      "other": "未检查：{count} 个 Cargo 锁条目无许可证元数据，也无内嵌 crate 清单覆盖。"
+    },
+    "m148": {
+      "other": "未检查：{count} 个 Cargo 要求在 Cargo.lock 中无已解析版本。"
+    },
+    "m149": "未检查：未找到 Cargo 清单或锁文件。",
+    "m150": "未检查：{v0} 不是有效 JSON，要求及许可证未知。",
+    "m151": "未检查：{v0} 不是有效 JSON，锁定版本未知。",
+    "m152": "未检查：{v0} 在 {v1} 与 {v2} 之间的许可证证据冲突。",
+    "m153": {
+      "other": "未检查：{count} 个 Composer 要求在 composer.lock 中无锁定版本。"
+    },
+    "m154": {
+      "other": "未检查：{count} 个 Composer 包在锁或安装数据中无许可证元数据。"
+    },
+    "m155": "未检查：未找到 composer.json、composer.lock 或 installed.json。",
+    "m156": "未检查：{v0} 使用可执行代码，永不运行；仅读取静态赋值。",
+    "m157": "未检查：静态读取 {v0}；不求值 Ruby 计算元数据及条件赋值。",
+    "m158": {
+      "other": "未检查：{count} 个 gem 要求在 Gemfile.lock 中无锁定版本。"
+    },
+    "m159": {
+      "other": "未检查：{count} 个 gem 无许可证元数据；现有 gem 规范可补充。"
+    },
+    "m160": "未检查：未找到 Gemfile、Gemfile.lock 或 gemspec 文件。",
+    "m161": "未检查：Go 替换目标、工具模块映射及非内嵌传递选择需审核；校验和可包含未使用版本。",
+    "m162": {
+      "other": "未检查：{count} 个 Go 模块无许可证元数据；校验和及路径不是许可证，内嵌许可证原文可补充。"
+    },
+    "m163": {
+      "other": "未检查：{count} 个 Go 工具要求无已解析版本；许可证未知。"
+    },
+    "m164": "未检查：未找到 go.mod、go.sum 或 vendor/modules.txt。",
+    "m165": "未检查：{v0} 在 {v1} 与 {v2} 之间的许可证元数据冲突：{v3} 对 {v4}。",
+    "m166": "未检查：静态读取 {v0}；不求值可执行逻辑、目录及计算声明。",
+    "m167": "未检查：静态 POM 声明不解析 Maven 传递图、父级属性和配置。",
+    "m168": {
+      "other": "未检查：{count} 个 Maven/Gradle 要求在锁或目录中无已解析版本。"
+    },
+    "m169": {
+      "other": "未检查：{count} 个 Maven/Gradle 包无许可证元数据；现有产物 POM 可补充。"
+    },
+    "m170": "未检查：未找到 POM、Gradle 声明、锁或目录。",
+    "m171": "未检查：{v0} 的 npm 锁元数据不可读。",
+    "m172": "未检查：{v0} 使用不支持的 npm 锁版本。",
+    "m173": "未检查：{v0} 超出 npm 嵌套锁深度限制。",
+    "m174": {
+      "other": "未检查：{v1} 中的 {count} 个 npm 锁条目无许可证元数据，也无安装包数据覆盖。"
+    },
+    "m175": "未检查：{v0} 无可读的 Yarn 包条目。",
+    "m176": {
+      "other": "未检查：{v0} 记录版本，但 {count} 个包无许可证元数据；安装包数据可补充。"
+    },
+    "m177": "未检查：{v0} 使用不支持的 pnpm 锁版本或缺少可读包节。",
+    "m178": "未检查：{v0}@{v1} 在 {v2} 与 {v3} 之间的许可证证据冲突。",
+    "m179": {
+      "other": "未检查：{count} 个 npm 要求在锁文件中无已解析版本；传递许可证未知。"
+    },
+    "m180": "未检查：未找到 npm 清单、锁或安装元数据。",
+    "m181": "未检查：NuGet 条件或动态声明、版本范围及多框架冲突需审核。",
+    "m182": {
+      "other": "未检查：{count} 个 NuGet 要求在锁、资源或中央版本文件中无已解析版本。"
+    },
+    "m183": {
+      "other": "未检查：{count} 个 NuGet 包无许可证元数据；现有 .nuspec 文件可补充。"
+    },
+    "m184": "未检查：未找到 NuGet 声明、锁或资源文件。",
+    "m185": "未检查：{v0} 包含 {v1}；不递归解析任意包含名称。",
+    "m186": "未检查：{v0} 包含工作区中不存在的 {v1}。",
+    "m187": "未检查：{v0} 含未静态解析的要求选项或可编辑来源。",
+    "m188": {
+      "other": "未检查：{v1} 中的 {count} 行要求使用本分析无法解析的格式。"
+    },
+    "m189": "未检查：{v0} 未命名项目，要求无法归属。",
+    "m190": "未检查：{v0} 无可读的包节。",
+    "m191": {
+      "other": "未检查：{v0} 记录版本，但 {count} 个包无许可证元数据；现有分发元数据可补充。"
+    },
+    "m192": "未检查：{v0} 的安装元数据版本不符，锁定许可证未知。",
+    "m193": "未检查：无锁及安装元数据时，Python 静态声明不保证完整传递覆盖；永不求值动态构建元数据。",
+    "m194": {
+      "other": "未检查：{count} 个 Python 包无匹配许可证元数据。"
+    },
+    "m195": {
+      "other": "未检查：{count} 个 Python 要求无已解析版本；传递许可证未知。"
+    },
+    "m196": "未检查：未找到 Python 清单、锁或分发元数据。",
+    "unknown": "未知",
+    "unresolved": "未解析",
+    "noLicense": "无许可证",
+    "shipment": "（分发中）",
+    "copyrightSpdxLines": "版权或 SPDX-License-Identifier 行",
+    "spdxLine": "SPDX-License-Identifier 行",
+    "copyrightLine": "版权行",
+    "invalidYear": "年份 {value} 不是四位数",
+    "impossibleYear": "年份 {value} 不可能",
+    "reversedYears": "范围 {value} 的结束早于开始",
+    "selectedPaths": {
+      "other": "已选路径：{count}"
+    },
+    "moreUnchecked": {
+      "other": "另外省略超出限制的 {count} 个未检查条目"
+    },
+    "declaration": "{file} 声明 {license}",
+    "licenseFile": "许可证文件",
+    "bundleLoad": "无法加载 {file}",
+    "bundleShape": "{file} 结构不符合预期",
+    "invalidResult": "扫描返回无效结果"
+  },
+  "legalExplainPaid": "解释检查结果（付费）",
+  "paidLegalExplanationName": "解释检查结果",
+  "legalExplainConsent": "使用 {model} 解释这些结果，按 {price} 向您的 Model API 密钥计费。订阅不承担费用。仅发送结果标识、类别、严重程度和已识别的许可证标识；不发送源码、路径或摘录。",
+  "legalExplainConfirm": "可选 Model API 解释：{price}。每次使用均征求同意，并共用每日付费预算。",
+  "legalExplainUnavailable": "请先在账户与用量中启用付费法律解释，并保存 Model API 密钥。"
 }

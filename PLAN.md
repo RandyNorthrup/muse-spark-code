@@ -424,6 +424,28 @@ plus 15% rounded to 25 KiB. It contains the sources, latch, admission and
 usage and is required only at an eligible approval. Every existing cap
 stays unchanged; `JUDGE_MODEL_TEXT` is guarded in that bundle alone.
 
+| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                   |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                       |
+| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                         |
+| `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                   |
+| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                          |
+| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
+| `dist/webview/main.js`     | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                    |
+| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job) |
+| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
+| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
+| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
+| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)       |
+| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
+| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
+| `dist/agentImport.js`      | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
+| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                        |
+| `dist/legalScan.js`        | ≤ 150 KiB (M97 integration proposal before wiring: lane S shared-English probe 130,608 bytes; +15%, rounded up to 25 KiB; real adapter and Plan hold measured at delivery)                                        |
+| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
+| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
+| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                             |
+
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
 has its own `scripts/check-vsix-size.mjs` gate in the CI package job. This table
@@ -10649,6 +10671,167 @@ every line of ours it cites, is `docs/research/pi-solpi-2026-10-05.md`.
   exact bounds/cursor identity; leave the original hosted trigger unconfirmed
   until its receipt is available. Evidence: `docs/certification/deflake3.md`.
 
+### D76 — `/legal`: evidence first, fixes only after selection (M97, 2026-10-04)
+
+The owner asked for a read-only codebase scan of licensing, legal risks and
+copyright/header hygiene, followed by recommendations and an optional,
+authorized fix phase. **Planned; this lane writes documentation only.** D70–D75
+and M91–M96 belong to other drafts; their absence here does not release those
+numbers. Research: `docs/certification/m97-research.md`.
+
+- **Two phases, with a real boundary.** `/legal` and a command-palette entry
+  run the deterministic scanner locally, without a model, writes or network.
+  The report appears before any optional explanation or repair. Scan takes the
+  existing Plan-mode hold (M70) only for a live conversation, restored only
+  while it still owns that hold. A scan never starts a backend;
+  no edit, formatter, hook, verify-loop check, install, build, package-manager
+  evaluation or arbitrary shell command runs. Read files directly; any needed
+  read-only command must pass the existing admission guard. `legal_scan` never
+  exposes a write operation. A skill is guidance, not the security boundary.
+  Muse Code's native tools cannot be disabled through `SessionConfig` (D69):
+  certify its Plan-mode behavior, including standing allow rules, before a
+  model explanation can run. If read-only admission cannot be proved, keep the
+  deterministic report available and refuse that explanation with a reason.
+- **Facts, not a legal certificate.** A versioned, zod-validated result carries
+  stable finding ids, rule/data versions, distribution assumptions, scan scope,
+  exclusions, incomplete checks and sorted evidence. Each finding has severity
+  (`blocker`, `should-fix`, `advice`), workspace-relative file:line when available,
+  package@version and license expression where applicable, its evidence source,
+  confidence, explanation, recommendation and fixable flag. Missing evidence
+  remains unknown; a heuristic never becomes a proven violation or a clean bill
+  of health. Every panel, JSON and requested Markdown export says:
+  “not legal advice; for distribution decisions consult a lawyer”.
+- **Across ecosystems, without running their build files.** Read manifests,
+  locks and installed metadata already present within the chosen workspace;
+  cover direct and transitive packages, preserving conflicting evidence.
+  Missing locks, unresolved versions, dynamic metadata, absent installed data,
+  unsupported lock versions or an unreadable subtree make coverage incomplete.
+  No resolver, lifecycle script, `setup.py`, Gradle/Maven plugin or helper is run.
+
+| Ecosystem         | Local evidence to recognize                                                                                                                                                   |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| npm / pnpm / Yarn | `package.json`, npm locks, `pnpm-lock.yaml`, Yarn classic/Berry locks, present package license/NOTICE files; absent PnP/install metadata stays unknown                        |
+| pip / uv / Poetry | `pyproject.toml`, requirements, `uv.lock`, `poetry.lock`, present distribution `METADATA` and license files; requirements without resolved transitive versions are incomplete |
+| Cargo             | `Cargo.toml`, `Cargo.lock`, present crate manifests, `license` / `license-file` and vendored licenses                                                                         |
+| Go modules        | `go.mod`, `go.sum`, `vendor/modules.txt`, present module/vendor license files; checksums alone are not license metadata                                                       |
+| Maven / Gradle    | POMs, Gradle declarations/locks and present artifact POM/license metadata; do not evaluate executable build logic                                                             |
+| NuGet             | project/package declarations, `packages.lock.json`, `project.assets.json`, present `.nuspec`, license expressions/files                                                       |
+| Composer          | `composer.json`, `composer.lock`, present package licenses                                                                                                                    |
+| Ruby gems         | `Gemfile`, `Gemfile.lock`, static gemspec declarations and present gem metadata; never execute a gemspec                                                                      |
+
+- **Project and dependency licenses.** Recognize LICENSE/COPYING and SPDX
+  declarations using pinned matching data; compare project manifest and README
+  declarations. Preserve custom `LicenseRef` text and unknown/UNLICENSED or
+  proprietary declarations. Parse `AND`, `OR`, `WITH` and parentheses; an `OR`
+  alternative is a choice, not two mandatory licenses, and an exception changes
+  the analysis. Flag possible GPL/AGPL obligations when an MIT/Apache project
+  combines or distributes that code, LGPL linking/source/relinking questions,
+  and MPL file-level obligations, with version and usage evidence. Do not call
+  permissive-to-GPL combination categorically incompatible. Flag SSPL,
+  Business Source License (`BUSL-1.1`, distinct from Boost `BSL-1.0`), Commons
+  Clause and CC-BY-NC restrictions; SPDX recognition is not OSI approval.
+- **What actually ships.** Separate development, production, optional and
+  transitive dependencies, then identify distributed ones from existing bundle
+  metafiles and package manifests/inventories. A dev dependency can still ship.
+  Reuse the approach in `scripts/third-party-notices.mjs`, which reads esbuild
+  inputs and actual license/NOTICE files; its permissive allow-list is not a
+  universal compatibility engine. Check upstream Apache NOTICE obligations
+  when a NOTICE exists, complete `THIRD_PARTY_NOTICES` for bundled/vendored
+  code, and inclusion through `.vscodeignore` / package `files`. Absent or stale
+  build evidence leaves distribution unknown; scanning never rebuilds or packs.
+- **Copied code and assets.** Find vendor folders, foreign headers and source
+  references such as “adapted from”, CodePen and Stack Overflow. Preserve source
+  URLs, attribution and license evidence; a source mention is only a lead.
+  Stack Overflow uses CC BY-SA versions tied to contribution dates, not one
+  guessed version. Check fonts, icons, images and sounds for adjacent license
+  files, `.license` sidecars or REUSE declarations; known restricted families
+  need provenance evidence, not a verdict from their filenames.
+- **The owner's code-quality scope is header hygiene.** Check SPDX identifiers
+  against the applicable license and existing copyright holders/year format.
+  `museSpark.legalHeaderPolicy` is a workspace enum `required` / `optional` /
+  `off`, default `optional`, honoring the detected project style and REUSE
+  declarations. Generated files are excluded from header checks and the report
+  names that exclusion; shipped generated code still counts for notices.
+  Multiple upstream holders can be legitimate. An earlier year alone is not
+  stale; flag conflicting/impossible dates or a breach of the chosen policy.
+  Never invent ownership or replace third-party headers with the project owner.
+- **Other risks are explicitly heuristic.** Third-party marks in names, icons
+  and README, and missing disclaimers (this product remains Unofficial / not
+  endorsed by Meta); apparent data collection without a privacy policy; store
+  README/LICENSE and npm license-field omissions; crypto/export indicators;
+  model-weight/config license conditions such as Llama community terms. No
+  assertion of trademark permission, export clearance or worldwide compliance.
+  Reuse `src/core/redact.ts` and the existing secret-scan rules (`security:secrets`)
+  for secret/PII indicators; list location/type only, never their values.
+- **Offline first; enrichment is a separate choice.** “Fetch missing license
+  metadata” first lists registry hosts, exact package/version queries, request
+  count and the identifiers that will leave the machine. Confirm before any
+  public registry API call; obey D43's proxy/TLS/network posture, bounded
+  responses, cancellation and public-address checks. No credentials, source
+  upload, arbitrary URL fetch, install or persistent cache. Private names are
+  not queried without explicit disclosure/consent. Capture each real response
+  shape before writing its parser (rule 13); failures remain unknown.
+- **An accessible report, saved only on request.** Summary and severity groups
+  show evidence, limitations, suggestions and fixable markers. Labelled
+  checkboxes select findings; “Fix all safe ones” previews the exact eligible
+  findings and patches before confirmation. Nothing is pre-authorized by scan.
+  Preserve keyboard operation, screen-reader status/labels, focus return,
+  narrow-panel wrapping, zoom and all four themes (D32). Markdown is created
+  only after the user requests export and chooses a destination; exported
+  text has the same scrub/disclaimer policy.
+- **Fix is optional and bounded.** After explicit selection/patch confirmation,
+  use normal edit tools and the current permission mode's approvals; Plan or
+  Restricted Mode cannot write. Recheck trust, workspace, permission state and
+  evidence hashes before each selected patch; a changed file needs a fresh
+  report/preview. Batch authorization names only the selected paths; formatting
+  stays within them, and installs/builds/check scripts need their normal
+  independent approval rather than inheriting that authorization. Add LICENSE,
+  NOTICE/THIRD_PARTY_NOTICES, SPDX/copyright headers,
+  attribution comments or project-owned manifest license metadata only from
+  verified evidence and confirmed ownership. A supported dependency-license
+  declaration in a project manifest is a correction of metadata, never a grant
+  of rights. No dependency-code edits, guessed licenses, automatic removal,
+  overwriting existing notices or silent change of the chosen project license.
+  Missing or changed project license needs separate explicit confirmation and
+  cannot enter “safe ones”; unknown ownership/terms are recommendations only.
+- **One scanner, both backends and CI.** Pure `src/core/legal/`, no `vscode`;
+  host/runtime adapters load it lazily as `dist/legalScan.js`, with a measured
+  D6 budget proposed before implementation merges and no existing cap raised.
+  Model API gets native `legal_scan`; Muse Code gets the same read-only tool
+  over the authenticated loopback `ide` MCP bridge (as code-intelligence tools
+  do today, `readOnlyHint` plus actual guards). Missing `sessionMcp` capability
+  is reported, never a guessed protocol fallback. The bundled `/legal` skill
+  uses D68's loading/install mechanism without modifying its pinned upstream
+  vendor package; report authorization stays host-owned even if a user skill
+  shadows it. Headless/ACP exposes `muse-spark-code-acp exec legal-scan --json`
+  as a reserved deterministic subcommand before prompt parsing: no backend,
+  sign-in, credential-store access, model call or ACP-frame stdout mixing.
+  Exit 0 = complete/no blockers, 1 = complete/blockers, 2 = incomplete/input or
+  operational failure; advice alone does not fail CI. No headless auto-fix.
+- **Cost.** The deterministic scan and report cost nothing. An explicit Explain
+  choice permits at most one short, bounded turn over scrubbed findings, never
+  raw source or secret/PII snippets. Muse Code uses the user's subscription;
+  Model API states its estimated cost and cap before consent and follows
+  D30/D48's paid gate, per-use popup, badge, paid row and PaidUsage. Denial or
+  unavailable consent leaves the free report usable; no automatic paid fallback.
+  Fixing through a model is the user's separately requested normal coding turn,
+  with its backend's existing billing and approvals.
+- **Data provenance.** Vendor a pinned, checksummed SPDX identifier/matching
+  dataset only with its own verified redistribution terms and recorded source.
+  CC0 identifier lists are available; exception lists and tools may have other
+  licenses. Preserve their notices, review updates in a PR and build offline;
+  a CC0 dataset does not relicense the licenses it describes. No new package or
+  tool installation is approved by this design record (D3/D9 apply at delivery).
+
+## 3. Open questions (need the owner)
+
+- **M97:** No owner step or design answer blocks this plan. Default header
+  policy is optional; the report chooses no license or owner on the user's
+  behalf. Delivery must prove Muse Code explanation confinement, each registry
+  response shape and the exact vendored dataset's terms/size. If proof is
+  missing, keep that capability unavailable with an explicit limitation;
+  do not weaken read-only admission or claim complete coverage.
+
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
   settled. F1 uses micro-USD and upward rounding; F2 preserves observed stream
@@ -11050,11 +11233,42 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 Scope and the sole conditional cap decision are recorded in D6 above.
 Receipts: `docs/certification/train-0.15.0.md` and the TRAIN15D JSON record.
 
-- [ ] Measure M96's shared browser graph and existing packed-data inventory.
-- [ ] Move the post-tool event tail into the lazy team runtime; certify behavior.
-- [ ] Measure universal VSIX, apply only the explicitly authorized cap if needed.
-- [ ] Merge and measure `m96/ifix-win4`, then `m97/sr`; resolve by meaning.
-- [ ] Complete scoped compiler/lint/l10n/host/schema/owning-suite checks and drills.
+M97 integration retains the current shared validation, English regions, runtime
+Brotli archives and deferred conversation/browser graph. Its legacy indexed
+locale decoder remains compatible; packaged ACP translations keep the existing
+validated archive instead of repacking a Brotli member as JSON. Keep the legal
+scan and paid explanation lazy, preserving Plan holds, confidential-model
+admission, NVDA focus behavior, bounded registry consent and all fixed caps.
+The first combined Model API build exceeds its fixed cap by about 4 KiB.
+Share the canonical paid schemas/accounting (paidBoundary.ts), legal validators and legal tool adapter through
+the existing modelApiBoundaries bundle; preserve its 25-KiB cap and every
+implementation. Its model-facing text gets its own guarded reader block.
+Both new palette rows retain the current tooltip contract, reusing the free
+scan’s translated description. Budget-disclosure fixtures explicitly accept the
+Muse Code price before asserting its per-use question.
+Scanner plural messages use the Intl `{count}` slot for their selected count
+in every language, satisfying the current plural gate without changing output.
+The first universal M97 package is 2,536,048 bytes, 1,648 above the
+lead-approved 2,534,400 cap. The attempted English surfaces-region move
+increased it to 2,543,484 because the region retains an inline fallback; restore
+that placement. Use maximum Brotli quality (11 instead of 10) in the existing
+lossless archives, preserving their version, decoded values, SHA validation,
+bounds and loaders. A compression-only preview saves 12,953 bytes on the
+locale archive alone. No region or individual bundle cap changes.
+The new legal explanation setting follows D78’s interactive Model API default;
+explicit false stays off and Muse Code still requires its opt-in. The legal
+explanation shares the daily paid ledger on both backends; the
+existing other-feature backend policy stays intact. Regenerate current host
+inventories and add the scanner to the existing deferred inventory. The common
+brief's featureCatalog/gen-reference/check:reference machinery is absent from
+this release tree and both merge inputs; README/manifest/slash/ACP docs record
+M97 here, with that later reference-system integration left to its owning lane.
+
+- [x] Measure M96's shared browser graph and existing packed-data inventory.
+- [x] Move the post-tool event tail into the lazy team runtime; certify behavior.
+- [x] Measure universal VSIX, apply only the explicitly authorized cap if needed.
+- [x] Merge and measure `m96/ifix-win4`, then `m97/sr`; resolve by meaning.
+- [x] Complete scoped compiler/lint/l10n/host/schema/owning-suite checks and drills.
 
 ### TRAIN15B — Resume the 0.15.0 batch within the existing caps (2026-10-05)
 
@@ -26229,6 +26443,184 @@ joined with M57, M58 and PR #49's sign-in
       byte-exact restoration. Focused certification is appended to
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
+### M97 — Read-only legal scan, then selected fixes (D76, integrated candidate; certification incomplete)
+
+- **Goal.** Both backends offer an evidence-based legal/licensing and header
+  hygiene report without modifying the project; the user can then authorize
+  selected, supported fixes. The feature does not certify that everything is legal.
+- **Scope.** D76's ecosystem readers, license expressions/matching and evidence
+  provenance, distribution/notices, copied code/assets, header policy and
+  heuristic risks; the lazy scanner, native/MCP tools, bundled skill,
+  slash/palette entry, report and selected-fix handoff, deterministic ACP/CI
+  subcommand, opt-in registry enrichment and optional explanation.
+- **Depends on.** D68/M89 bundled skills; M70's Plan hold; M67/M69's `ide`
+  tools/confinement; M80's exec routing; D43 and D48. Reuse current boundaries,
+  not another approval engine or a hosted compliance service.
+- **Lanes and file ownership.** Muse codes; Codex independently reviews each
+  lane's finished diff and gate-fire evidence. Lead serializes shared files,
+  integration and aggregate gates; no lane rewrites another's region.
+
+| Lane                   | Muse implementation ownership                                                                                                                       | Codex review / acceptance focus                                                                                                 |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Contract / strings   | Finding/tool/postMessage schemas, named limits in `constants.ts`, English and all 14 `l10n/ui.*.json`, manifest translations, header-policy setting | Boundary validation, runtime text reads, complete real translations, no secret-bearing result fields                            |
+| S Scanner              | `src/core/legal/**`, pinned data/provenance, ecosystem and distribution fixtures in `test/**`                                                       | Offline/no execution/no writes, expressions, evidence conflicts, incomplete coverage, actual shipped dependency set             |
+| B Backend / skill      | Native tool, `src/host/ide/**` adapter, `/legal` routing and Plan hold, D68 bundled-skill integration                                               | Both backends, actual read-only enforcement, trust/cancellation/hold ownership, no vendor-package mutation                      |
+| W Report / fix         | Accessible webview report and selected-patch handoff using existing approval/edit paths; owned harness cases                                        | Exact selection/preview, stale evidence refusal, Bypass still requires user selection, Plan refuses writes, themes/narrow panel |
+| R Runtime / enrichment | Reserved exec subcommand in `src/runtime/**`, lazy build/package wiring, optional public registry reader                                            | No backend/auth/ACP stdout contamination; exit semantics; captures before parsers; disclosed bounded network calls              |
+| I Docs / integration   | README, `docs/acp.md`, `docs/PRIVACY.md`, CHANGELOG, PLAN and `docs/certification/m97.md`                                                           | Truthful scope/cost, packaged notices/data, exact-tree rig and installed-host receipts                                          |
+
+- **Acceptance.**
+  1. `/legal`, palette and both tools yield the same deterministic findings for
+     identical workspace bytes, policy, distribution evidence and rule/data
+     versions; changing only the model/backend cannot change the facts.
+  2. All ecosystem rows in D76 have known-license and incomplete/conflicting
+     metadata fixtures. Unknown, UNLICENSED, proprietary and source-available
+     entries stay visible; dual licenses/exceptions are evaluated correctly.
+  3. A copyleft/distribution fixture flags its specific unmet obligation;
+     permissive/GPL combination, LGPL linkage, MPL files and development-only
+     versus actually bundled dependencies do not collapse into one rule.
+  4. Missing/mismatched project LICENSE/manifest/README, missing Apache NOTICE
+     attribution, incomplete packaged third-party notices, foreign vendored
+     headers and an asset lacking provenance each have attributable findings.
+  5. Required/optional/off header policies, existing REUSE/sidecars, generated
+     exclusions, conflicting holders/year formats and legitimate old years are
+     covered; no guessed owner or automatic year rewrite is offered.
+  6. Scan writes nothing: compare the complete fixture tree's paths, types and
+     SHA-256 bytes before/after success, error and cancellation, and assert no
+     write/network/spawn/format/hook/check adapter was invoked. Seed an unsafe
+     shell/build/gemspec and a prompt-injection file; neither executes. Deny
+     traversal, escaping links/reparse points and unbounded input. Optional
+     enrichment runs only after its exact query list is approved.
+  7. Selecting fixes changes only selected project-owned files after explicit
+     preview/authorization and current-mode approval. Denial, Plan/Restricted
+     Mode, changed bytes, trust loss, disposal or switched workspace refuses
+     writes. Project-license changes ask separately; dependency edits and
+     automatic removal remain impossible. Partial failures are listed and
+     rescanned, never reported as complete success.
+  8. Report/export preserves severity, evidence, uncertainty, fixability and
+     disclaimer, with no secret/PII values in model context, logs or exports.
+     Keyboard/screen-reader, 320px panel, zoom, four themes and pseudo-locale
+     receipts pass; all user strings are translated in the 14 tables.
+  9. Installed VSIX on Muse Code and Model API, and installed ACP headless
+     `exec legal-scan --json`, exercise real scanner routing with fake model
+     transports. No credential or model is required for deterministic scan.
+     Optional explanations have separate confinement and billed-use receipts.
+  10. Scanner stays lazy, packaged data/skill/licenses/notices ship, and every
+      existing D6 cap plus the reviewed scanner cap passes on the final tree.
+- **Tests and red drills.** Fixture repos live only under `test/**`, use small
+  local files and fake registries, and cover every item above. Each new assertion
+  and guard is deliberately broken once, observed failing, restored byte-exact
+  (SHA-256), then its complete owning test file rerun; record mutation, failure,
+  restoration, machine and exit code in `docs/certification/m97.md`. Include
+  scan write/network admission, expression/NOTICE mismatches, missing adapters,
+  secret redaction, selected-file authorization and stale-file refusal. Never
+  mutate a user's repo as a drill. Windows reparse/path and installed-host
+  checks run on Windows 11; other checks/builds use Mac mini and Kubuntu.
+- **Gates.** Lead runs full `npm run quality` and required CI/installed-host
+  gates on the final integrated tree. Lane tests/builds and multi-project types
+  run on rigs; local changed-file formatting/lint only. Preserve coverage,
+  security, localization, host-API, accessibility, duplication, dead-code,
+  bundle/split and package budgets. New external response parsers need counted
+  captures before implementation, not invented fixtures. No paid/live call is
+  authorized by this planning lane.
+- **Security and cost.** Bound all reads, file counts and result sizes through
+  named constants; root-confine and cancel; treat repository contents as data.
+  No workspace scripts, credentials, model weights or confidential file bodies
+  are uploaded. D76's free default, registry disclosure and one-turn explanation
+  consent apply. Existing hidden-turn, request packing, checkpoint, paid-use and
+  verification invariants remain intact; run their owning regression files if
+  routing changes them.
+- **Docs and owner steps.** None expected from the owner. Delivery documents
+  commands/settings only after each documented invocation succeeds; update
+  README, ACP guide, PRIVACY, CHANGELOG and certification together. This planning
+  commit documents the decision, not availability of a new product command.
+- **Integration status (2026-10-04, lane I, macmini).** S/B/R/W merged in
+  order with their intent retained; real lazy scanner, native manager wiring,
+  packaging/data notices and report metadata integrated. Aggregate receipts and
+  acceptance gaps are in `docs/certification/m97.md`. Selected-fix application,
+  Markdown export, scanner-prose translations, registry consent/network review,
+  optional explanations and installed/Windows checks remain open; no full M97
+  delivery or compliance certification is claimed.
+  The continuation's unchanged zero-duplication gate caught repeated legal
+  schema fields and test setup. Reuse the scan contract's field schemas and
+  local fixture helpers, retaining strict validation and every assertion.
+  The full coverage run also caught M80's isolated packaging fixture missing
+  M97's new bundle/data inputs. Extend that fixture and its packed-content
+  assertions; preserve every existing headless/package guard.
+  The combined coverage run caught the canonical entry importing a timer
+  module outside the scanner's strict import boundary. Use the existing Node
+  global scheduler for the same event-loop yield; preserve final cancellation
+  admission and the unchanged guard. Three unrelated timing failures on the
+  shared rig are retried with two test workers, preserving every deadline and
+  coverage threshold.
+- **Finish lane (2026-10-05, M97FIN).** Merge the finished S/W repair branch
+  without merging main. Close deterministic fixes using verified existing
+  project headers only: prepare exact diffs, confirm project ownership, admit
+  each selected edit through the existing checkpoint/conditional-write path,
+  recheck live mode/trust/evidence, list failures and rescan. No guessed owner
+  or license is permitted. Keep attribution patterns linear on malformed
+  whitespace. Add requested Markdown export and tool disclaimers.
+  Remove dynamic scanner regex construction and review historical gitleaks
+  findings without exposing values; only exact benign fingerprints may be
+  ignored. Run every full-quality gate and package cap unchanged. A persistent
+  Chrome driver may replace the slow per-page CLI launch while retaining all
+  all 460 pages (including S/W additions), harness assertions, axe rules and
+  fail-closed result admission.
+  Remaining cross-platform/live/explanation and translation gaps keep explicit
+  owners and release-blocking dispositions in §9 until their receipts exist.
+- **Certification checklist.**
+  - [x] Owner request, D76 design, lanes and source-grounded research recorded.
+  - [ ] Acceptance 1–10, each with its failing drill and passing receipt.
+  - [x] Optional registry shapes captured; SPDX data provenance/terms pinned.
+  - [x] Windows final-head legal accessibility receipt: 96 Chromium/keyboard/
+        device-metric zoom checks and 24 English/pseudo WCAG pages on Windows
+        11 25H2, build 26200.9457; exit 0 on `2fd060c3`. Receipt and screen-reader
+        scope are recorded in `docs/certification/m97.md` (M97WIN).
+  - [x] Windows installed VSIX: both selected backends pass 3/3 keyless host
+        checks; NVDA 2026.2 speaks all report controls, evidence links, native
+        dialogs, export and shipped notices/license editors. Fifteen controls
+        retain visual focus order at 100% and actual 207% VS Code zoom; native
+        dialog containment/restoration and raw UIA bridge limits are recorded
+        in `docs/certification/m97.md` and `m97sr-receipt.json` (M97SR).
+  - [ ] M97SR rig directory cleanup: extension uninstalled, private extension
+        list empty, owned Code/NVDA stopped and temporary task removed.
+        Automatic approval review rejects unlinking the four private skill
+        junctions and removing `C:/lanes/M97SR-host` with only "blocked by
+        policy". The inactive directory remains; no deletion bypass is used.
+  - [ ] Muse Code explanation read-only confinement proved, or explicitly refused.
+  - [ ] Final-tree rig/full-quality, a11y, package/bundle and installed-host gates.
+  - [ ] Delivered commands, costs, limits and privacy documented from real runs.
+
+- **Windows packaging repair (2026-10-05, M97WIN; before implementation).**
+  The unchanged `vsixCompression` archive-preservation test fails because
+  Windows' `python3` Store alias exits 9009, while the installed `python` and
+  `py` both work. Probe each existing interpreter candidate with `--version`
+  before dispatch; skip unavailable candidates, but retain the selected
+  compressor's real exit code without retrying failed compression. Add no
+  dependency, configuration option, gate exception or machine-setting change.
+  Prove the existing complete test file red/green, deliberately remove the new
+  availability guard once, restore byte-exact with SHA-256, and record receipts.
+  With compression now reached, the same test exposes a separate fixture
+  failure: printing the full Czech table through Python's Windows cp1252
+  stdout raises UnicodeEncodeError. Print that JSON transport with ASCII
+  escapes; retain every real UTF-8 archive byte/value and metadata assertion,
+  and the parsed table must still equal the complete original translation.
+
+- **Installed Windows screen-reader repair (2026-10-05, M97SR; before implementation).**
+  NVDA's input/output log from the installed VSIX shows a spurious sign-in
+  warning when an unauthenticated user types `/legal`: opening the local
+  slash menu requests authenticated skills before the free scanner runs.
+  Request skills only while signed in. Keep the local legal command available,
+  and prove both the signed-out scan and signed-in skill request in the full
+  report test file before rebuilding the installed artifact and repeating
+  the keyboard/speech receipt. This adds no new command, string or auth bypass.
+  The installed native Save As cancellation also leaves the open report's
+  focus on the webview document, losing the Export button. Remember that
+  button for the export's window-focus return only; clear the pending return
+  after restoring it, and remove the listener when the report closes. Prove
+  cancellation and ordinary focus retention in the owning report tests, then
+  repeat native cancellation in the rebuilt installed VSIX.
+
 ## 7. Gates
 
 **TRAIN15C M96 bounded size stop (2026-10-05, kubuntu).** The first composed
@@ -28939,6 +29331,57 @@ crypto 32→34, fs 24→25, fs/promises 34→36, path 65→68, zlib 1→2).
 Its gate is unchanged; X2 must regenerate and review its owned record before
 full quality. Native Windows parser/runtime certification is explicitly
 pending in §9 and `docs/certification/m96c-o.md`.
+**M97 integration gate blockers (earlier 2026-10-05, lane I; superseded by M97FIN receipts).** Full quality did not
+exit 0. Source coverage and every production cap pass, but the 456-page a11y
+run was stopped within the lane time box after very slow Chrome progress.
+Gitleaks reports five historical `authSource.test.ts` findings; only redacted
+metadata was inspected. SAST reports five non-literal RegExp findings in the
+legal ecosystem readers and rule timeouts. No history, ignore, threshold or
+rule was changed. These are release blockers, not waivers; exact receipts are
+in `docs/certification/m97.md`. Installed-host certification remains pending.
+
+**M97FIN SAST resource correction (2026-10-05, before implementation).**
+The default full run reports five rule timeouts on the existing large host,
+controller and webview files. A full-scope `--jobs 2` probe runs the same 529
+rules on the same 766 targets with zero findings and zero timeouts. Bound the
+SAST worker count at two for shared rigs. Keep every rule, file selection,
+per-rule timeout and timeout threshold unchanged; this limits contention
+rather than suppressing analysis. Restore the old dynamic TOML constructor
+once to prove the configured gate still fails, then rerun full quality.
+
+**M97FIN package follow-up (2026-10-05, before implementation).** The new
+verified fixes/export/translation controls measure 2,256,312 bytes, 3,512 over
+the unchanged VSIX cap. Higher DEFLATE-memory/strategy probes do not fit.
+Whitespace-only compaction of packaged UI/nls JSON measures 2,247,264 bytes;
+all parsed values are identical. Compact only those archive entries, leaving
+source tables and every runtime/scanner/attribution asset byte-exact. Retain
+entry order/comments/metadata and atomic replacement; malformed JSON refuses
+rather than publishing. Tests must prove values, ordinary bytes and refusal.
+
+**M97 package compression (lane I, before changing the package script).**
+The universal VSIX initially measures 2,260,558 bytes, 7,758 bytes above the
+unchanged 2,252,800-byte cap. A maximum-DEFLATE probe preserves every archive
+entry's uncompressed bytes and measures 2,249,578 bytes. The package command
+will recompress its own VSIX through Python's standard-library `zipfile`
+(maximum level), preserving paths, metadata and content; no npm dependency is
+added and no cap changes. Red/green archive-content tests certify the step.
+Python is already required for this repository's semgrep tooling. Duplicate
+raw SPDX arrays need not ship separately: the lazy bundle contains all pinned
+identifier data, and each package retains its notice/provenance.
+
+**M97 integration deferral (2026-10-04).** Lane S's current English scanner
+prose is a named delivery blocker under AGENTS rule 5; a passing localization
+inventory does not prove that prose was translated. No rule, threshold or
+ignore is changed. Other M97 acceptance gaps are named in §9 and the aggregate
+certification record. Full quality and package receipts are recorded there on
+the integrated tree; an open checklist item stays open until its receipt exists.
+
+**M97 planning lane (2026-10-04).** Documentation only; its brief forbids this
+lane's aggregate quality run and delegates it to the lead. Changed Markdown,
+commit hooks and rig static/build results are recorded in
+`docs/certification/m97-research.md`. No executable file or new test/guard is
+delivered; no runtime acceptance or gate-fire certification is claimed. M97's
+implementation checklist above remains open, with existing gates unchanged.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
@@ -30988,6 +31431,71 @@ collision tests do not certify these host-owned seams or the assembled team.
   behavior. M95b must keep refresh outside the turn abort and test that path
   when implemented.
 
+**M97 finish dispositions (2026-10-05; see `docs/certification/m97.md`).**
+Unresolved items remain delivery/security gaps, not accepted legal conclusions:
+
+- I-R1 — **open, release blocker; owner: lead/localization lane.** Scanner
+  findings, labels and incomplete/error prose still need the full UI_TEXT and
+  14-language conversion. The three new controls and report disclaimer are
+  translated; a passing inventory does not certify scanner prose. The ACP
+  lazy scanner also needs caller-language installation for nested report text;
+  its outer text/disclaimer already uses the installed table.
+- I-R2 — **closed for supported missing headers; owner: M97FIN.** Production
+  exact patches require verified root license/holder evidence, explicit
+  ownership consent, live mode/trust/workspace admission, confined conditional
+  writes and per-path failures followed by rescan. Unsupported license,
+  notice and manifest repairs remain recommendations rather than guessed edits.
+- I-R3 — **closed; owner: M97FIN.** Markdown export retains all report fields
+  and the disclaimer; native and MCP tool reports include that disclaimer.
+- I-R4 — **open; owner: registry/runtime lane and lead.** Enrichment needs
+  prior exact-query consent/private-name disclosure and D43 proxy/TLS/public-
+  address review. Offline scans make no registry request.
+- I-R5 — **open; owner: paid/backend lane and lead.** Bounded optional
+  explanation, paid-use and read-only confinement receipts are absent. This
+  lane made no paid/live calls. Ordinary coding-turn billing remains ordinary.
+- I-R6 — **Windows headless, installed-host and NVDA/actual-zoom receipts
+  closed for the recorded free flows; other platform/hosted receipts open;
+  owner: M97WIN/M97SR/lead/platform rigs.** The final-head command on
+  Windows 11 25H2 (26200.9457) passes 96 real Chromium accessibility-tree,
+  keyboard and device-metric zoom checks plus 24 English/pseudo WCAG pages,
+  exit 0; the platform-mismatch drill exits 1. The Windows workspace suite
+  passes all 11 tests, including junction/reparse and path admission checks.
+  M97SR's repaired installed VSIX passes 3/3 keyless tests with each selected
+  backend, 15-control NVDA focus/speech loops at 100% and actual 207% VS Code
+  zoom, native dialog containment/restoration, six evidence links and shipped
+  notices/license editor reads. Windows' raw native UIA Pane names/roles and
+  NVDA's logical MSAA names are retained separately in the receipt; this is
+  not a claim that every internal Win32 Pane has a meaningful UIA name.
+  Other-platform actual zoom/OS screen-reader sessions and hosted platform
+  receipts remain outstanding. Actual local VSIX installs on Mac in
+  both selected backend profiles now pass 3/3 tests apiece; fake transports
+  compare the shipped native/MCP scanner without a signed-in model.
+- I-R7 — **command contract closed; owner: M97FIN.** Reserved
+  `exec legal-scan --json` and legacy `legal --format json` share the scanner;
+  complete should-fix exits 0 and blocker exits 1. Real scans retain documented
+  human-review/full-matching/freshness limitations and therefore exit 2.
+- I-R8 — **open, documented scanner limit; owner: scanner lane and lead.**
+  Identifier/title heuristics are not complete license-text matching or legal
+  analysis; static readers cannot resolve arbitrary build logic or linkage.
+- I-R9 — **closed; owner: M97FIN.** Merge `242a47f2` incorporates all 20
+  finished S/W findings from `aa181639`; combined targeted suites pass.
+- I-R10 — **local aggregate closed; owner: FIN4/lead.** Full
+  `npm run quality` on `c8c3cfd8` exits 0 in 1,523.55 seconds on macmini:
+  385 test files / 7,406 tests, coverage above all unchanged thresholds,
+  every production bundle/split/notices gate, audit, 460 general accessibility
+  pages, 96 native Chromium legal checks and 24 legal WCAG pages, history
+  scanning with no leaks, and 529 SAST rules / 771 targets with zero findings.
+  Existing 4/60 test skips, 48 a11y exemptions and the reviewed audit exception
+  are unchanged; no new exemption, retry or raised deadline was used. Five
+  original failures and four additional timing fixtures are repaired and their
+  guards proved in `docs/certification/m97.md`. The earlier pass on `62e881ad`
+  and failed documentation-head repeat on `21676725` remain historical
+  receipts. FIN4's first complete attempt on the repaired source head includes
+  reviewer turn completion and full-depth traversal assertions and passes every
+  stage; no further code change or mutation drill was needed. The exact exit
+  metadata and aggregate security tail are recorded in the certification file.
+  Platform/live release receipts remain separate requirements.
+
 ## 10. Definition of done and release records
 
 M0–M8 certified (owner decision 2026-09-22: both backends ship in v0.1.0);
@@ -31499,3 +32007,82 @@ against `SHA256SUMS`, installs as 0.11.0 in throwaway profiles on the
 Windows host (VS Code 1.140.0), the Windows 11 VM (1.139.1), the Mac mini
 (1.139.1) and Kubuntu (1.130.0); the GitHub tarball installs on Kubuntu and
 `muse-spark-code-acp --version` prints 0.11.0.
+
+**M97 FIN2 continuation (2026-10-05, before implementation).** Close scanner
+localization with runtime table reads in every scanner reader and all fourteen
+translations. Give scan admission explicit byte, total-byte, per-rule and time
+limits with honest incomplete results and boundary tests. Registry lookup is
+available by default in interactive editors after a one-time disclosure of the
+named public HTTPS registries and package/version identifiers; offline setting
+and headless flag retain local-only scanning. Never read private registry
+configuration or contact its URLs. Reuse D78's shared paid gate for an explicit,
+bounded, scrubbed explanation; deterministic scanning remains free and model
+independent. Add headless platform-gated accessibility receipts/commands and
+record all editors' shared engine paths. Run full quality once on final source,
+report actual exit/tail and rebuild/package under unchanged budgets. No live or
+paid calls, pushes, main merges or rebases. Required Windows execution belongs
+to the Windows rig, as the owner explicitly directed in the FIN2 brief.
+
+FIN2 D6 packaging detail: preserve every translated value and plural category
+while packaging sorted English leaf indexes instead of repeating object keys.
+Source JSON stays complete; host/ACP loading expands and validates the entire
+table before installation. English fallback shares lossless phrases to keep
+all unchanged bundle/VSIX caps. Corrupt indexed tables must fail closed.
+
+FIN2 paid adapter detail (before final certification): port only D78's
+`createPaidDailyBudget` and its M82 daily-scope initialization from local
+`4e92a19d`, preserving the shared `paid-daily` account/day ledger and monotonic
+Stop. No branch merge. A legal explanation uses PaidFeatureGate, PaidUseConsent,
+D78 reserve/check/settle and PaidUsage. Its executor lives in shared core/paid
+and the existing paid reviewer bundle, keeping the free scanner independent
+and every D6 cap unchanged. One no-tools/no-retry request has a 512-token output
+cap and 12,000-character technical input cap; admission checks signal, stored
+key identity, feature state and the shared budget. Unknown dispatched cost
+retains its reserved liability. Source, paths, excerpts, arbitrary IDs and
+unrecognized license IDs never enter the payload.
+
+All-editor routes: VS Code-compatible editors render the shared React legal
+report through the host bridge; ACP `/legal` and `/legal --offline` directly
+invoke runtime/main -> legalScanLoader -> dist/legalScan.js on both backends,
+without a model turn. Registry notice uses ACP permission requests, remembered
+per workspace during the agent process; the Model API also offers `legal_scan`
+through runtime/backends -> loadLegalScanner -> dist/legalScan.js. The keyless
+`exec legal-scan --json` route is common to JetBrains, Visual Studio, Eclipse,
+Zed, Xcode, Neovim, Emacs, Sublime and companion hosts invoking the runtime;
+none of the scan, registry admission or explanation engine imports vscode.
+The native JCEF/WebView2/SWT adapters remain their existing M64/M65 milestones,
+not claimed as implemented by M97.
+
+**M97 FIN3 quality closure (2026-10-05, before implementation).** Repair the
+five failures on `7114f12e` without changing timeouts, adding retries or
+removing tests. The fake Action agent must install signal handlers before its
+readiness report. Manifest scope expectations must retain the interactive
+registry's window scope, and both paid palettes must include FIN2's explicit
+legal explanation. Give the shared explanation name its own translated base
+label so the palette's paid template adds its marker once. The VSIX fixture
+must supply a complete translated table and verify every indexed string and
+plural form alongside unchanged archive bytes/metadata and malformed-input
+refusal. Run full quality on the finished local head; record its actual exit,
+tail and any deliberately failing drills in `docs/certification/m97.md`.
+No push, merge, rebase, paid/live model call or gate weakening is authorized.
+
+FIN3's first complete quality attempt on `02f32bc6` clears all five original
+failures but finds two independent wall-clock races. D9's 100 ms process
+deadline can expire during backend startup, leaving no dispatched reservation;
+use controlled Date/timers, wait for the fake response request, then advance
+the same 100 ms deadline. Legal byte-boundary tests share a real 10 ms scanner
+deadline; hold Date.now constant for those tests while retaining the explicit
+9/10 ms elapsed-time boundary assertions. Preserve every deadline, liability
+assertion, byte cap and whole-file test; demonstrate both guards still fail.
+
+FIN3's documentation-head repeat on `21676725` finds two additional timing
+failures, after the complete pass on `62e881ad`: the finite-cap reviewer test
+polls for a completed command under vi.waitFor's short deadline before awaiting
+its existing turn-completion event; await that event first and retain every
+journal/usage assertion. The deep-tree walker test also measures parse5's
+known nonlinear hostile-HTML parsing cost. Build identical 5,000-div and
+2,000-list-level trees through the real parse5 adapter in linear time, retaining
+the depths, original input and expected Markdown; every other converter case
+continues through the real parser. Prove the deep traversal still rejects a
+recursive mutant. No timeout, retry, test or gate is changed. A further complete
+quality run needs more time than remains in the brief's 90-minute limit.

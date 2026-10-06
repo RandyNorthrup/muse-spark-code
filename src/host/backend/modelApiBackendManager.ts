@@ -1,3 +1,4 @@
+import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 // Owns the Model API host for this extension host (M7): one in-process
 // `ModelApiHost` over the real `fetch`, the stored key and the workspace's
 // files, with the MCP servers of Muse Code's settings (M50), which it starts
@@ -22,6 +23,7 @@ import type {
 import type { ResponseAttemptGuard, ModelApiClientDeps } from '../../core/backends/modelapi/client'
 import type { OwnedSessionBudgetScope } from '../../core/backends/modelapi/sessionBudget'
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
+import type { LegalScanRunner } from '../../shared/legal'
 import type { ScheduleStore } from '../../shared/schedule'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
 import type { VerifyHooks } from '../../core/backends/modelapi/verifyLoop'
@@ -111,6 +113,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
     | ((workspaceRoot: string, newPool: McpPoolFactory) => McpToolSource | Promise<McpToolSource>)
     | undefined
   /** The extension's own IDE tools, offered in process (M50). */
+  readonly legalScan?: LegalScanRunner | undefined
   readonly ideTools?: readonly McpTool[] | undefined
   /** The window's web fetch, run in this bundle for the backend's `web_fetch` (M69). */
   readonly webFetch?: WebFetcher | undefined
@@ -174,6 +177,7 @@ interface HostVariant {
   readonly scheduleStore: ScheduleStore | undefined
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   readonly isPaidFeatureOn: ModelApiBackendManagerDeps['isPaidFeatureOn']
+  readonly legalScan: LegalScanRunner | undefined
   readonly ideTools: readonly McpTool[] | undefined
   readonly allowsPaidUse: ModelApiBackendManagerDeps['allowsPaidUse']
   readonly isPaidUseRemembered: ModelApiBackendManagerDeps['isPaidUseRemembered']
@@ -303,6 +307,7 @@ export class ModelApiBackendManager {
         promptCacheRetention: this.deps.promptCacheRetention,
         sessionBudgetUsd: this.deps.sessionBudgetUsd,
         showReplyUsage: this.deps.showReplyUsage,
+        legalScan: variant.legalScan,
         ideTools: variant.ideTools,
         webFetch: variant.webFetch,
         browserCheck: variant.browserCheck,
@@ -356,6 +361,7 @@ export class ModelApiBackendManager {
       scheduleStore: this.deps.scheduleStore,
       describeEnvironment: this.deps.describeEnvironment,
       isPaidFeatureOn: this.deps.isPaidFeatureOn,
+      legalScan: this.deps.legalScan,
       ideTools: this.deps.ideTools,
       allowsPaidUse: this.deps.allowsPaidUse,
       isPaidUseRemembered: this.deps.isPaidUseRemembered,
@@ -387,6 +393,31 @@ export class ModelApiBackendManager {
    * could change the main checkout (the review of PR #89). Closed by the
    * run when the attempt settles.
    */
+  public streamLegalExplanation(
+    body: CreateResponseBody,
+    signal: AbortSignal,
+    guard: ResponseAttemptGuard,
+  ): AsyncIterable<StreamEvent> {
+    const stream = this.loadBundle().streamLegalExplanation
+    if (stream === undefined) throw new Error(UI_TEXT.legalExplainUnavailable)
+    return stream(
+      {
+        fetch: this.deps.fetch,
+        baseUrl: MODEL_API_BASE_URL,
+        apiKey: this.deps.getApiKey,
+        sleep: this.deps.sleep,
+        now: this.deps.now,
+        random: this.deps.random,
+        log: this.deps.log,
+      },
+      body,
+      signal,
+      guard,
+      UI_TEXT,
+      uiLocale(),
+    )
+  }
+
   public async buildAttemptHost(
     worktreeRoot: string,
     admitRequest: ResponseAttemptGuard,
@@ -444,6 +475,7 @@ export class ModelApiBackendManager {
         scheduleStore: undefined,
         describeEnvironment: () => this.deps.describeAttemptEnvironment(worktreeRoot),
         isPaidFeatureOn: () => false,
+        legalScan: undefined,
         ideTools: undefined,
         allowsPaidUse: () => Promise.resolve(false),
         isPaidUseRemembered: () => false,

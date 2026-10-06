@@ -63,7 +63,9 @@
       "pickerMetaGroup",
       "teamRoleFileRefused",
       "teamJsonRefused",
-      "teamSwitchRow"
+      "teamSwitchRow",
+      "legalScanItem",
+      "legalUsage"
     ],
     "cs": [
       "groupModel",

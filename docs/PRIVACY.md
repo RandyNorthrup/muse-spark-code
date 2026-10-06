@@ -22,6 +22,41 @@ workspaces and keys in this profile share it; it stores no prompts or keys
 and sends nothing. Failed or unreadable storage refuses spending. Tab's
 independent $1/day journal is excluded. ACP and headless policies are unchanged.
 
+## Legal scan (M97 candidate)
+
+The deterministic phase of an explicit `/legal` request stays local: the deterministic scanner reads a
+bounded workspace snapshot and starts no model, backend, auth, shell command,
+package manager, hook, formatter or build. The report is held in the panel;
+scan does not save it to a file. The reserved headless `exec legal-scan`
+command (and its older `legal` alias) writes a report
+only with an explicit `--out` destination. Reports can identify local paths,
+package names/versions, source URLs and bounded evidence excerpts. Known
+credential formats and email values are scrubbed in findings. Scope paths pass the same scrubber after the S/W repairs. Other identifying text may remain, so treat exported reports
+as workspace information.
+
+The Model API native tool and Muse Code's authenticated loopback `ide` tool
+use the same scanner. When a model requests the tool in a normal coding turn,
+the scrubbed findings become a tool result and can be sent to Meta under that
+backend's existing terms and billing. Running the panel's deterministic scan
+itself makes no paid call. Optional model explanations require the paid feature setting, stored Model API key, priced consent and the shared daily budget. Only technical categories, severity and recognized license IDs are sent to Meta; source, paths, excerpts and package names are excluded. Missing returned usage retains reserved cost as unknown liability. Selected header repairs are
+local user edits: the preview stays local, requires separate ownership
+confirmation, and uses guarded conditional writes. Markdown export is saved
+only after an explicit request and destination choice; it uses the same
+scrubbed report facts and disclaimer.
+
+Editor registry enrichment is available by default, after a one-time workspace
+notice naming `registry.npmjs.org` and/or `pypi.org` as applicable and disclosing
+that only package names and versions are sent. Disable
+`museSpark.legalRegistryLookups` for local-only scanning. ACP uses the same
+notice through the editor permission prompt, remembered for this agent process;
+`/legal --offline` disables it. Headless commands remain off unless `--registry`
+is supplied. Only fixed public HTTPS registries are queried; redirects are
+refused. Private registry configuration, source, paths, source excerpts, keys,
+headers and lockfile bodies are never uploaded. No persistent registry cache
+is kept. Unknown local findings remain when enrichment is declined or offline;
+registry metadata supplements evidence and never enables a fix or settles
+ownership. This feature does not certify legal compliance.
+
 ## What the extension sends, and to whom
 
 - **Your prompts, attachments and mentioned files.** Everything you type into

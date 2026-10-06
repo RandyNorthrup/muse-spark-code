@@ -41,6 +41,9 @@ export const DEFERRED = [
       'src/shared/modelApiBoundariesEntry.ts',
       'src/core/backends/modelapi/schemas.ts',
       'src/shared/teamConversation.ts',
+      'src/shared/paidBoundary.ts',
+      'src/shared/legal.ts',
+      'src/core/backends/modelapi/legalScanTool.ts',
     ],
   },
   {
@@ -106,6 +109,36 @@ export const DEFERRED = [
 // Split out of activation on 2026-10-03 (D6): each loads on its first use.
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
+  {
+    output: 'dist/legalScan.js',
+    metafile: 'dist/meta/legalScan.json',
+    use: 'the first legal scan',
+    files: [
+      'src/core/legal/compat.ts',
+      'src/core/legal/data.ts',
+      'src/core/legal/depLicenses.ts',
+      'src/core/legal/dependencies.ts',
+      'src/core/legal/distribution.ts',
+      'src/core/legal/ecosystems/cargo.ts',
+      'src/core/legal/ecosystems/composer.ts',
+      'src/core/legal/ecosystems/gems.ts',
+      'src/core/legal/ecosystems/go.ts',
+      'src/core/legal/ecosystems/jvm.ts',
+      'src/core/legal/ecosystems/npm.ts',
+      'src/core/legal/ecosystems/nuget.ts',
+      'src/core/legal/ecosystems/python.ts',
+      'src/core/legal/ecosystems/toml.ts',
+      'src/core/legal/entry.ts',
+      'src/core/legal/files.ts',
+      'src/core/legal/headerFix.ts',
+      'src/core/legal/headers.ts',
+      'src/core/legal/markdown.ts',
+      'src/core/legal/projectLicense.ts',
+      'src/core/legal/scan.ts',
+      'src/core/legal/spdx.ts',
+      'src/core/legal/workspace.ts',
+    ],
+  },
   {
     output: 'dist/conversation.js',
     metafile: 'dist/meta/conversation.json',
@@ -447,13 +480,20 @@ export const sharedWire = {
 export const sharedModelApiBoundaries = {
   name: 'shared-model-api-boundaries',
   setup(build) {
-    build.onResolve({ filter: /\/(?:schemas|teamConversation)(?:\.[jt]s)?$/ }, (args) => {
-      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
-      return ['src/core/backends/modelapi/schemas.ts', 'src/shared/teamConversation.ts'].some(
-        (file) => source === path.resolve(file),
-      )
-        ? { path: './modelApiBoundaries.js', external: true }
-        : undefined
-    })
+    build.onResolve(
+      { filter: /\/(?:schemas|teamConversation|paidBoundary|legal|legalScanTool)(?:\.[jt]s)?$/ },
+      (args) => {
+        const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        return [
+          'src/core/backends/modelapi/schemas.ts',
+          'src/shared/teamConversation.ts',
+          'src/shared/paidBoundary.ts',
+          'src/shared/legal.ts',
+          'src/core/backends/modelapi/legalScanTool.ts',
+        ].some((file) => source === path.resolve(file))
+          ? { path: './modelApiBoundaries.js', external: true }
+          : undefined
+      },
+    )
   },
 }

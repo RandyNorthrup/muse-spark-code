@@ -171,5 +171,13 @@
   "config.suggestedProvider.description": "Ein Arbeitsbereich kann genau eine Modellanbieter-Vorlage per ID vorschlagen; das Panel bietet an, Modelle & Agenten mit dieser Vorlage zu öffnen. Leer schlägt nichts vor. Ein Arbeitsbereich kann keine Adresse und keine Anmeldedaten festlegen.",
   "walkthrough.gettingStarted.step.ownModel.title": "Mit eigenem Modell starten",
   "walkthrough.gettingStarted.step.ownModel.description": "Kein Muse-Abonnement und kein Meta-API-Schlüssel? Fügen Sie Ihren eigenen Modellanbieter hinzu — OpenRouter, Anthropic, OpenAI oder einen lokalen Server — und wählen Sie ein Modell.\n[Mit eigenem Modell starten](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "Lange Model-API-Unterhaltungen automatisch komprimieren. Standardmäßig aktiviert, aber bis zu einer erfolgreichen gepaarten Auswertung inaktiv. Jeder zusätzliche kostenpflichtige Aufruf erfordert die Zustimmung zu Preis und Tagesbudget."
+  "config.modelApiAutoCompaction.description": "Lange Model-API-Unterhaltungen automatisch komprimieren. Standardmäßig aktiviert, aber bis zu einer erfolgreichen gepaarten Auswertung inaktiv. Jeder zusätzliche kostenpflichtige Aufruf erfordert die Zustimmung zu Preis und Tagesbudget.",
+  "config.legalHeaderPolicy.description": "Copyright- und SPDX-Headerprüfungen für den Legal-Scan: „Erforderlich“ meldet jede projekteigene Quelldatei ohne passenden Header, „Optional“ nur einen Header, der dem erkannten Projektstil oder seinen REUSE-Angaben widerspricht, und „Aus“ überspringt die Headerprüfungen. Standard ist „Optional“; generierte Dateien sind immer ausgenommen.",
+  "config.legalHeaderPolicy.enumDescriptions.required": "Jede projekteigene Quelldatei braucht einen passenden Copyright- und SPDX-Header.",
+  "config.legalHeaderPolicy.enumDescriptions.optional": "Nur ein Header, der dem erkannten Projektstil oder seinen REUSE-Angaben widerspricht, ist ein Befund. Die Standardeinstellung.",
+  "config.legalHeaderPolicy.enumDescriptions.off": "Headerprüfungen werden übersprungen; der Bericht weist darauf hin.",
+  "command.legalScan.title": "Legal-Scan",
+  "config.legalRegistryLookups.description": "Öffentliche Registrierungsabfragen nach einem einmaligen Hinweis auf die Registrierungen und die gesendeten Paketnamen und Versionen erlauben. Deaktivieren für ausschließlich lokale Metadaten.",
+  "config.legalExplanation": "Optionale Model-API-Erklärung: USD. Jede Nutzung fragt nach Zustimmung und nutzt das gemeinsame Tagesbudget.",
+  "config.paidDailyBudgetUsd": "Gemeinsames Tagesbudget für kostenpflichtige Extras: USD."
 }

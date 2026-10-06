@@ -171,5 +171,13 @@
   "config.suggestedProvider.description": "Çalışma alanı, kimliğine göre tek bir model sağlayıcı ön ayarı önerebilir; panel, Modeller ve Ajanlar'ı bu ön ayarla açmayı önerir. Boş değer hiçbir şey önermez. Çalışma alanı adres veya kimlik bilgisi belirleyemez.",
   "walkthrough.gettingStarted.step.ownModel.title": "Kendi modelinizle başlayın",
   "walkthrough.gettingStarted.step.ownModel.description": "Muse aboneliğiniz veya Meta API anahtarınız yok mu? Kendi model sağlayıcınızı ekleyin — OpenRouter, Anthropic, OpenAI veya yerel sunucu — ve bir model seçin.\n[Kendi modelinizle başlayın](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "Uzun Model API konuşmalarını otomatik sıkıştır. Varsayılan olarak açık, ancak eşleştirilmiş değerlendirmeyi geçene kadar etkin değil. Her ek ücretli çağrı için fiyat ve günlük bütçe onayı gerekir."
+  "config.modelApiAutoCompaction.description": "Uzun Model API konuşmalarını otomatik sıkıştır. Varsayılan olarak açık, ancak eşleştirilmiş değerlendirmeyi geçene kadar etkin değil. Her ek ücretli çağrı için fiyat ve günlük bütçe onayı gerekir.",
+  "config.legalHeaderPolicy.description": "Yasal tarama için telif hakkı ve SPDX başlığı denetimleri: gerekli, eşleşen başlığı olmayan her projeye ait kaynak dosyayı işaretler, isteğe bağlı yalnızca algılanan proje stiliyle veya REUSE bildirimleriyle çelişen başlığı işaretler, kapalı ise başlık denetimlerini atlar. Varsayılan isteğe bağlıdır; oluşturulan dosyalar her zaman hariç tutulur.",
+  "config.legalHeaderPolicy.enumDescriptions.required": "Projeye ait her kaynak dosyanın eşleşen bir telif hakkı ve SPDX başlığı olmalıdır.",
+  "config.legalHeaderPolicy.enumDescriptions.optional": "Yalnızca algılanan proje stiliyle veya REUSE bildirimleriyle çelişen başlık bulgudur. Varsayılan değer.",
+  "config.legalHeaderPolicy.enumDescriptions.off": "Başlık denetimleri atlanır; rapor bunu belirtir.",
+  "command.legalScan.title": "Yasal tarama",
+  "config.legalRegistryLookups.description": "Kayıt depoları ile gönderilen paket adları ve sürümlerini belirten tek seferlik bildirimden sonra herkese açık kayıt depolarını sorgulamaya izin verin. Yalnızca yerel meta veriler için kapatın.",
+  "config.legalExplanation": "İsteğe bağlı Model API açıklaması: USD. Her kullanım onay ister ve ortak günlük bütçeyi kullanır.",
+  "config.paidDailyBudgetUsd": "Ücretli ek özelliklerin ortak günlük bütçesi: USD."
 }

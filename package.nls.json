@@ -171,5 +171,13 @@
   "config.suggestedProvider.description": "A workspace may suggest one model-provider preset by id; the panel offers to open Models & Agents with that preset chosen. Empty suggests nothing. A workspace cannot set an address or a credential.",
   "walkthrough.gettingStarted.step.ownModel.title": "Start with your own model",
   "walkthrough.gettingStarted.step.ownModel.description": "No Muse subscription or Meta API key? Add your own model provider — OpenRouter, Anthropic, OpenAI or a local server — and pick a model.\n[Start with your own model](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "Automatically compact long Model API conversations. Defaults on, but remains inactive until a paired evaluation passes. Additional paid calls require consent to the price and daily budget."
+  "config.modelApiAutoCompaction.description": "Automatically compact long Model API conversations. Defaults on, but remains inactive until a paired evaluation passes. Additional paid calls require consent to the price and daily budget.",
+  "config.legalHeaderPolicy.description": "Copyright and SPDX header checks for the legal scan: required flags every project-owned source file without a matching header, optional flags only a header that contradicts the detected project style or its REUSE declarations, and off skips header checks. Default optional; generated files are always excluded.",
+  "config.legalHeaderPolicy.enumDescriptions.required": "Every project-owned source file needs a matching copyright and SPDX header.",
+  "config.legalHeaderPolicy.enumDescriptions.optional": "Only a header that contradicts the detected project style or its REUSE declarations is a finding. The default.",
+  "config.legalHeaderPolicy.enumDescriptions.off": "Header checks are skipped; the report says so.",
+  "command.legalScan.title": "Legal scan",
+  "config.legalRegistryLookups.description": "Allow public registry lookups after a one-time notice naming the registries and the package names and versions sent. Turn off to scan local metadata only.",
+  "config.legalExplanation": "Optional Model API explanation: USD. Each use asks for consent and shares the daily paid budget.",
+  "config.paidDailyBudgetUsd": "Shared daily budget for interactive paid extras: USD."
 }

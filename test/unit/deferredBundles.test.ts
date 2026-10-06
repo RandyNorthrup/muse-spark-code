@@ -1,7 +1,8 @@
 // Build the real shipped Node entries once with the production plugins.
 // Each drill changes its own metafile copy, never shared dist/ files.
+import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
@@ -27,6 +28,7 @@ import {
 import type * as validation from '../../src/shared/validationEntry'
 import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
+import { legalReportEnvelopeSchema } from '../../src/runtime/legal/runLegal'
 
 const metafileSchema = z.looseObject({
   inputs: z.record(z.string(), z.unknown()),
@@ -79,6 +81,7 @@ beforeAll(async () => {
       outdir: 'dist',
       entryPoints: {
         extension: 'src/extension.ts',
+        legalScan: 'src/core/legal/entry.ts',
         providers: 'src/host/backend/providersEntry.ts',
         modelsPanel: 'src/host/models/modelsPanelEntry.ts',
         conversation: 'src/host/conversation/conversationEntry.ts',
@@ -345,6 +348,88 @@ describe('deferred cohort bundles', () => {
     }
   })
 
+  it('emits the legal scanner once and keeps it out of both initial bundles', () => {
+    expect(inputs('legalScan')).toContain('src/core/legal/entry.ts')
+    expect(inputs('extension')).not.toContain('src/core/legal/entry.ts')
+    const acp: unknown = fixture('dist/meta-acp/acp.json').meta
+    expect(metafileSchema.parse(acp).outputs['dist/acp.js']?.inputs).not.toHaveProperty(
+      'src/core/legal/entry.ts',
+    )
+  })
+  it('runs the production headless scanner with pure JSON and no network, backend or keyring', () => {
+    const entry = path.resolve('dist/acp.js')
+    const wrapper = `
+      const entry = process.argv[1];
+      const denied = (surface) => { process.stderr.write('unexpected ' + surface); throw new Error(surface); };
+      globalThis.fetch = () => denied('network');
+      require('node:child_process').spawn = () => denied('backend');
+      const Module = require('node:module');
+      const original = Module._load;
+      Module._load = function(request, ...rest) {
+        if (request === '@napi-rs/keyring') return denied('keyring');
+        return Reflect.apply(original, this, [request, ...rest]);
+      };
+      process.argv = [process.execPath, entry, 'legal', '--format', 'json'];
+      require(entry);
+    `
+    const result = spawnSync(process.execPath, ['-e', wrapper, entry], {
+      cwd: path.resolve('test/fixtures/legal/tree'),
+      encoding: 'utf8',
+      timeout: 120_000,
+    })
+    expect(result.error).toBeUndefined()
+    expect([0, 1, 2]).toContain(result.status)
+    // Locale diagnostics belong on stderr; any forbidden surface emits our sentinel.
+    expect(result.stderr).not.toContain('unexpected')
+    const body: unknown = JSON.parse(result.stdout)
+    const report = legalReportEnvelopeSchema.parse(body)
+    expect(report.result.ruleVersion).not.toBe('unavailable')
+    expect(report.registry).toMatchObject({ enabled: false, queried: [] })
+    expect(report.disclaimer.length).toBeGreaterThan(0)
+  })
+
+  it('fires the legal scanner cap and restores the artifact byte-exact', () => {
+    const file = 'dist/legalScan.js'
+    const original = readFileSync(file)
+    const hash = createHash('sha256').update(original).digest('hex')
+    try {
+      writeFileSync(file, Buffer.alloc(150 * 1024 + 1))
+      const red = spawnSync(process.execPath, ['scripts/check-bundle-size.mjs'], {
+        encoding: 'utf8',
+      })
+      expect(red.status).toBe(1)
+      expect(red.stdout).toContain('OVER dist/legalScan.js')
+    } finally {
+      writeFileSync(file, original)
+    }
+    expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
+    const green = spawnSync(process.execPath, ['scripts/check-bundle-size.mjs'], {
+      encoding: 'utf8',
+    })
+    expect(green.status, green.stderr).toBe(0)
+  })
+
+  it('fires the legal scanner host-global guard and restores the artifact byte-exact', () => {
+    const file = 'dist/legalScan.js'
+    const original = readFileSync(file)
+    const hash = createHash('sha256').update(original).digest('hex')
+    try {
+      writeFileSync(file, Buffer.concat([original, Buffer.from('\nvoid navigator;\n')]))
+      const red = spawnSync(process.execPath, ['scripts/check-host-globals.mjs'], {
+        encoding: 'utf8',
+      })
+      expect(red.status).toBe(1)
+      expect(red.stdout).toContain('FAIL dist/legalScan.js')
+    } finally {
+      writeFileSync(file, original)
+    }
+    expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
+    const green = spawnSync(process.execPath, ['scripts/check-host-globals.mjs'], {
+      encoding: 'utf8',
+    })
+    expect(green.status, green.stderr).toBe(0)
+  })
+
   it('keeps board and best-of-N execution out of activation', () => {
     const files = inputs('extension')
     expect(files).not.toContain('src/host/bestOfN/bestOfNManager.ts')
@@ -393,6 +478,9 @@ describe('deferred cohort bundles', () => {
     for (const source of [
       'src/core/backends/modelapi/schemas.ts',
       'src/shared/teamConversation.ts',
+      'src/shared/paidBoundary.ts',
+      'src/shared/legal.ts',
+      'src/core/backends/modelapi/legalScanTool.ts',
     ]) {
       expect(inputs('modelApiBoundaries')).toContain(source)
       for (const parent of ['extension', 'modelApi', 'acp', 'providers']) {
@@ -534,6 +622,7 @@ describe('deferred cohort bundles', () => {
     ['providers', 'src/core/backends/modelapi/codecs/responses.ts', 'missing'],
     ['providers', 'src/core/backends/modelapi/codecs/chat.ts', 'missing'],
     ['providers', 'src/core/backends/modelapi/codecs/ollama.ts', 'missing'],
+    ['extension', 'src/core/legal/entry.ts', 'on the first legal scan'],
     // M90: the Auto reviewer on Muse Code, required on the first review.
     ['extension', 'src/host/review/museCodeReviewer.ts', 'on the first review'],
   ])(

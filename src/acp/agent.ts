@@ -1,3 +1,4 @@
+import { unlessAborted } from '../core/timeouts'
 // The Muse Spark agent over the Agent Client Protocol (PLAN.md D62): one
 // client on stdio, any number of sessions, each an AgentSession of the
 // backend chosen at launch. The client's editor shows the chat, the tool
@@ -130,6 +131,15 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  readonly legalScan?:
+    | ((
+        cwd: string,
+        signal: AbortSignal,
+        isRegistryOn: boolean,
+        canLookupRegistry: (hosts: readonly string[]) => Promise<boolean>,
+      ) => Promise<string>)
+    | undefined
+
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -231,6 +241,7 @@ class AcpSession {
    * A prompt before its turn starts, while the session's skills are first
    * announced: the session is busy, and a cancel ends the prompt there.
    */
+  private legalStop: AbortController | undefined
   private preparing: PreparingPrompt | undefined
   private skills: readonly SkillSummary[] = []
   private areCommandsAnnounced = false
@@ -321,8 +332,11 @@ class AcpSession {
       sessionUpdate: 'available_commands_update',
       availableCommands: [
         { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
+        ...(this.deps.legalScan === undefined
+          ? []
+          : [{ name: 'legal', description: UI_TEXT.legalScanDisclaimer, input: null }]),
         ...this.skills
-          .filter((skill) => skill.selector !== ACP_COMPACT_COMMAND)
+          .filter((skill) => skill.selector !== ACP_COMPACT_COMMAND && skill.selector !== 'legal')
           .map((skill) => ({
             name: skill.selector,
             description: skill.description === '' ? skill.displayName : skill.description,
@@ -661,6 +675,54 @@ class AcpSession {
     }
   }
 
+  private async runLegalScan(
+    scan: NonNullable<AcpAgentDeps['legalScan']>,
+    isRegistryOn: boolean,
+  ): Promise<StopReason> {
+    const stop = new AbortController()
+    const preparing: PreparingPrompt = { isCancelled: false }
+    this.legalStop = stop
+    this.preparing = preparing
+    try {
+      const text = await scan(this.cwd, stop.signal, isRegistryOn, async (hosts) => {
+        const response = permissionResponse(
+          await unlessAborted(
+            this.client.request('session/request_permission', {
+              sessionId: this.sessionId,
+              toolCall: {
+                toolCallId: 'legal-registry-notice',
+                title: fill(UI_TEXT.legalRegistryNotice, { hosts: hosts.join(', ') }),
+                kind: 'other',
+                status: 'pending',
+                content: [],
+                locations: [],
+              },
+              options: [
+                { optionId: 'legal-registry-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
+                { optionId: 'legal-registry-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+              ],
+            }),
+            stop.signal,
+          ),
+        )
+        return (
+          response.outcome.outcome === 'selected' &&
+          response.outcome.optionId === 'legal-registry-allow'
+        )
+      })
+      if (stop.signal.aborted || preparing.isCancelled || this.isDisposed) return 'cancelled'
+      this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+      await this.outbox
+      return 'end_turn'
+    } catch {
+      if (stop.signal.aborted) return 'cancelled'
+      throw RequestError.internalError(undefined, UI_TEXT.legalScanUnavailable)
+    } finally {
+      if (this.legalStop === stop) this.legalStop = undefined
+      if (this.preparing === preparing) this.preparing = undefined
+    }
+  }
+
   /**
    * The question before a paid use (M58, PLAN.md D48): a row naming what is
    * about to be billed and its price, and a permission prompt on it with the
@@ -841,6 +903,12 @@ class AcpSession {
     if (!parsed.ok) {
       throw RequestError.invalidParams(undefined, parsed.reason)
     }
+    if (
+      ['/legal', '/legal --offline'].includes(parsed.displayText.trim()) &&
+      this.deps.legalScan !== undefined &&
+      parsed.parts.every((part) => part.type === 'text')
+    )
+      return await this.runLegalScan(this.deps.legalScan, parsed.displayText.trim() === '/legal')
     const preparing: PreparingPrompt = { isCancelled: false }
     this.preparing = preparing
     try {
@@ -909,6 +977,7 @@ class AcpSession {
   }
 
   public async cancel(): Promise<void> {
+    this.legalStop?.abort()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
@@ -957,6 +1026,7 @@ class AcpSession {
       return
     }
     this.isDisposed = true
+    this.legalStop?.abort()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
     }

@@ -17,7 +17,7 @@ differs from the source. Do not edit it by hand.
 | `capabilities.untrustedWorkspaces` | `limited`                                                                                                                    |
 | `enabledApiProposals`              | none                                                                                                                         |
 | `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`, `onStartupFinished`                                                                    |
-| `contributes`                      | `commands` (46), `configuration` (2), `keybindings` (8), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
+| `contributes`                      | `commands` (47), `configuration` (2), `keybindings` (8), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
 
 ## Build targets
 
@@ -435,19 +435,19 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ---------------------- | ----- |
 | `node:buffer`          | 44    |
 | `node:child_process`   | 15    |
-| `node:crypto`          | 61    |
+| `node:crypto`          | 62    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 3     |
 | `node:events`          | 1     |
-| `node:fs`              | 36    |
+| `node:fs`              | 37    |
 | `node:fs/promises`     | 62    |
 | `node:http`            | 8     |
 | `node:https`           | 1     |
 | `node:module`          | 2     |
 | `node:net`             | 9     |
 | `node:os`              | 14    |
-| `node:path`            | 99    |
+| `node:path`            | 102   |
 | `node:process`         | 3     |
 | `node:stream`          | 13    |
 | `node:stream/promises` | 2     |

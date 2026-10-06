@@ -8,7 +8,6 @@ import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
-  PAID_DAILY_BUDGET,
   type BackendMode,
   BROWSER_CHECK_EXTRA_HOSTS_MAX,
   BROWSER_RUNTIME_MODES,
@@ -17,11 +16,14 @@ import {
   type EnvironmentVariable,
   JUDGE_ENGINES,
   type JudgeEngine,
+  LEGAL_HEADER_POLICIES,
+  type LegalHeaderPolicy,
   PROMPT_CACHE_RETENTIONS,
   type PromptCacheRetention,
   SANDBOX_NETWORK_MODES,
   type SandboxNetworkMode,
   SETTING_DEFAULTS,
+  PAID_DAILY_BUDGET,
   SETTINGS_SECTION,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
@@ -41,7 +43,6 @@ import { type SettingsSnapshot, settingsSnapshotShape } from '../shared/protocol
 import type { Logger } from './logger'
 
 export interface ExtensionSettings extends SettingsSnapshot {
-  readonly paidDailyBudgetUsd: number
   readonly dictationEngine: 'system' | 'museVoice'
   /** Absolute path to the `muse` executable; empty means "discover". */
   readonly museBinaryPath: string
@@ -131,6 +132,11 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiReplyUsage: boolean
   /** Session budget cap in USD for Model API requests; 0 is no cap (M82). */
   readonly modelApiSessionBudgetUsd: number
+  /** Copyright/SPDX header hygiene for the read-only legal scan (M97). */
+  readonly legalRegistryLookups: boolean
+  readonly legalExplanation: boolean
+  readonly paidDailyBudgetUsd: number
+  readonly legalHeaderPolicy: LegalHeaderPolicy
 }
 
 /**
@@ -203,11 +209,14 @@ const settingSchemas = {
   showWhatsNewOnUpdate: z.boolean(),
   notifyOnBackgroundTurn: z.boolean(),
   modelApiReplyUsage: z.boolean(),
+  dictationEngine: z.enum(['system', 'museVoice']),
+  modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
+  legalRegistryLookups: z.boolean(),
+  legalExplanation: z.boolean(),
   paidDailyBudgetUsd: z
     .number()
     .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
-  dictationEngine: z.enum(['system', 'museVoice']),
-  modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
+  legalHeaderPolicy: z.enum(LEGAL_HEADER_POLICIES),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -312,6 +321,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     tabMultiline: readSetting(config, 'tabMultiline', log),
     tabTrigger: readSetting(config, 'tabTrigger', log),
     tabWithCopilot: readSetting(config, 'tabWithCopilot', log),
+    legalRegistryLookups: readSetting(config, 'legalRegistryLookups', log),
+    legalExplanation: readSetting(config, 'legalExplanation', log),
+    legalHeaderPolicy: readSetting(config, 'legalHeaderPolicy', log),
   }
 }
 

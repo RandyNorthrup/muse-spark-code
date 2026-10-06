@@ -171,5 +171,13 @@
   "config.suggestedProvider.description": "Obszar roboczy może zasugerować jeden preset dostawcy modeli według id; panel proponuje otwarcie Modeli i agentów z tym presetem. Pusty nie sugeruje nic. Obszar roboczy nie może ustawić adresu ani poświadczenia.",
   "walkthrough.gettingStarted.step.ownModel.title": "Zacznij od własnego modelu",
   "walkthrough.gettingStarted.step.ownModel.description": "Brak subskrypcji Muse lub klucza API Meta? Dodaj własnego dostawcę modeli — OpenRouter, Anthropic, OpenAI albo serwer lokalny — i wybierz model.\n[Zacznij od własnego modelu](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "Automatycznie kompaktuj długie rozmowy Model API. Domyślnie włączone, ale nieaktywne do zaliczenia oceny porównawczej. Każde dodatkowe płatne wywołanie wymaga zgody na cenę i dzienny budżet."
+  "config.modelApiAutoCompaction.description": "Automatycznie kompaktuj długie rozmowy Model API. Domyślnie włączone, ale nieaktywne do zaliczenia oceny porównawczej. Każde dodatkowe płatne wywołanie wymaga zgody na cenę i dzienny budżet.",
+  "config.legalHeaderPolicy.description": "Kontrole nagłówków praw autorskich i SPDX na potrzeby kontroli prawnej: wymagane zgłasza każdy własny plik źródłowy bez pasującego nagłówka, opcjonalne tylko nagłówek sprzeczny z wykrytym stylem projektu lub jego deklaracjami REUSE, a wyłączone pomija kontrole nagłówków. Domyślnie opcjonalne; pliki generowane są zawsze wykluczone.",
+  "config.legalHeaderPolicy.enumDescriptions.required": "Każdy własny plik źródłowy potrzebuje pasującego nagłówka praw autorskich i SPDX.",
+  "config.legalHeaderPolicy.enumDescriptions.optional": "Ustaleniem jest tylko nagłówek sprzeczny z wykrytym stylem projektu lub jego deklaracjami REUSE. Wartość domyślna.",
+  "config.legalHeaderPolicy.enumDescriptions.off": "Kontrole nagłówków są pomijane; raport to odnotowuje.",
+  "command.legalScan.title": "Kontrola prawna",
+  "config.legalRegistryLookups.description": "Zezwól na zapytania do publicznych rejestrów po jednorazowym powiadomieniu wskazującym rejestry oraz wysyłane nazwy i wersje pakietów. Wyłącz, aby używać tylko lokalnych metadanych.",
+  "config.legalExplanation": "Opcjonalne wyjaśnienie Model API: USD. Każde użycie wymaga zgody i korzysta ze wspólnego budżetu dziennego.",
+  "config.paidDailyBudgetUsd": "Wspólny dzienny budżet płatnych dodatków: USD."
 }

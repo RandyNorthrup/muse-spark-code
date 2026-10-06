@@ -4,83 +4,23 @@
 //
 // Shared by host and webview: no `vscode`, Node, or DOM imports.
 
-import * as z from 'zod/mini'
 import {
   BEST_OF_N_DEFAULT_ATTEMPTS,
   BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
   MUSE_CODE_PAID_FEATURES,
   DEFAULT_MODEL_ID,
   CONTRIBUTOR_MODEL_SUFFIX,
-  MODEL_API_PRICED_MODELS,
   MODEL_API_PRICES_PER_MILLION,
+  MODEL_API_PRICED_MODELS,
   MODEL_API_PRICE_DECIMALS,
   PAID_FEATURES,
   PAID_PRICES_USD,
   type PaidFeature,
-  SEARCHES_PER_PRICE_UNIT,
-  SECONDS_PER_HOUR,
   SUBAGENT_TASK_MAX_REQUESTS,
   UI_TEXT,
 } from './constants'
 import { fill, formatNumber, formatUsd } from './l10n/text'
 import type { BackendKind } from './protocol'
-
-const paidCountSchema = z.optional(z.int().check(z.nonnegative()))
-const paidCostSchema = z.optional(z.number().check(z.nonnegative()))
-
-/** What this window used of each paid feature since it opened. */
-export const paidTallySchema = z.object({
-  webSearches: z.number(),
-  images: z.number(),
-  voiceSeconds: z.number(),
-  scheduledRuns: z.number(),
-  // Optional for panels saved before M48; absent means no child use recorded.
-  subagentRequests: paidCountSchema,
-  subagentUnknownRequests: paidCountSchema,
-  subagentTokens: paidCountSchema,
-  subagentCostUsd: paidCostSchema,
-  // Optional for panels saved before M78; absent means no review made.
-  autoReviews: paidCountSchema,
-  autoReviewUnknownRequests: paidCountSchema,
-  autoReviewTokens: paidCountSchema,
-  autoReviewCostUsd: paidCostSchema,
-  // Best-of-N runs started this window (M77); absent means none.
-  bestOfNAttempts: paidCountSchema,
-  bestOfNRequests: paidCountSchema,
-  bestOfNUnknownRequests: paidCountSchema,
-  bestOfNTokens: paidCountSchema,
-  bestOfNCostUsd: paidCostSchema,
-  // Team tasks started this window (M96 lane A, PLAN.md D75); absent means none.
-  teamWorkerRequests: paidCountSchema,
-  teamWorkerUnknownRequests: paidCountSchema,
-  teamWorkerTokens: paidCountSchema,
-  teamWorkerCostUsd: paidCostSchema,
-  // Tab suggestion requests sent this window (M94, PLAN.md D73); absent
-  // means none. Lane L counts them, lane U shows them in Account & usage.
-  tabRequests: z.optional(z.int().check(z.nonnegative())),
-  tabUnknownRequests: z.optional(z.int().check(z.nonnegative())),
-  tabTokens: z.optional(z.int().check(z.nonnegative())),
-  tabCachedTokens: z.optional(z.int().check(z.nonnegative())),
-  tabCostUsd: z.optional(z.number().check(z.nonnegative())),
-  // M91 prompt/agent hook runs started this window (D70); absent means none.
-  hookModelRuns: z.optional(z.int().check(z.nonnegative())),
-  hookModelUnknownRequests: z.optional(z.int().check(z.nonnegative())),
-  hookModelTokens: z.optional(z.int().check(z.nonnegative())),
-  hookModelCostUsd: z.optional(z.number().check(z.nonnegative())),
-  // Same-model judge calls this window (M98, PLAN.md D77); absent means none.
-  judgeCalls: z.optional(z.int().check(z.nonnegative())),
-  judgeUnknownRequests: z.optional(z.int().check(z.nonnegative())),
-  judgeTokens: z.optional(z.int().check(z.nonnegative())),
-  judgeCostUsd: z.optional(z.number().check(z.nonnegative())),
-})
-export type PaidTally = z.infer<typeof paidTallySchema>
-
-export const EMPTY_PAID_TALLY: PaidTally = {
-  webSearches: 0,
-  images: 0,
-  voiceSeconds: 0,
-  scheduledRuns: 0,
-}
 
 export interface SubagentTaskConfirmation {
   readonly role: string
@@ -107,18 +47,6 @@ export interface TeamWorkerConfirmation {
   readonly taskCeilingTokens: number
 }
 
-/** Unknown model tariffs cannot authorize a paid child task. */
-export function modelApiPaidTier(
-  modelId: string,
-): keyof typeof MODEL_API_PRICES_PER_MILLION | undefined {
-  const standard: readonly string[] = MODEL_API_PRICED_MODELS.standard
-  if (standard.includes(modelId)) {
-    return 'standard'
-  }
-  const contributor: readonly string[] = MODEL_API_PRICED_MODELS.contributor
-  return contributor.includes(modelId) ? 'contributor' : undefined
-}
-
 /** Exact published rates and the task's HTTP attempt cap, in the installed locale. */
 export function subagentTaskPrice(modelId: string, attemptLimit: number): string {
   const tier = modelApiPaidTier(modelId)
@@ -135,28 +63,6 @@ export function subagentTaskPrice(modelId: string, attemptLimit: number): string
   })
 }
 
-/** The features that are on (setting on and price accepted), and the tally. */
-export const paidStateSchema = z.object({
-  features: z.array(z.enum(PAID_FEATURES)),
-  tally: paidTallySchema,
-  /** A Model API key is stored (M44): the Muse Code backend can use the key's paid features. */
-  isKeyStored: z.boolean(),
-  /** The features that are on and allowed always in this workspace (M58): they no longer ask. */
-  alwaysAllowed: z.array(z.enum(PAID_FEATURES)),
-  /**
-   * Tab's day (M94, D73; RVM94HU 23–24): the configured daily budget, and
-   * today's total across every window from the ledger once Tab has run in
-   * this window (absent before: the ledger is read by dist/tab.js).
-   */
-  tab: z.optional(
-    z.object({
-      budgetUsd: z.number().check(z.nonnegative()),
-      todayUsd: z.optional(z.number().check(z.nonnegative())),
-    }),
-  ),
-})
-export type PaidState = z.infer<typeof paidStateSchema>
-
 /**
  * One paid use the user is asked about (M58, PLAN.md D48): what the popup
  * names before anything is billed. Web search asks once per prompt, since
@@ -167,6 +73,7 @@ export type PaidUseRequest =
   | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: number }
   | { readonly feature: 'webSearch' }
   | { readonly feature: 'voice' }
+  | { readonly feature: 'legalExplanation'; readonly modelId: string }
   | {
       readonly feature: 'imageGeneration'
       readonly kind: 'generate' | 'edit'
@@ -234,57 +141,6 @@ export function usablePaidFeatures(
   return backend === 'museCode' && isKeyStored ? MUSE_CODE_PAID_FEATURES : []
 }
 
-/** The estimated cost of one feature's use in the tally, in dollars. */
-export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
-  switch (feature) {
-    case 'webSearch': {
-      return (tally.webSearches * PAID_PRICES_USD.webSearchPerThousand) / SEARCHES_PER_PRICE_UNIT
-    }
-    case 'imageGeneration': {
-      return tally.images * PAID_PRICES_USD.imageGeneration
-    }
-    case 'voice': {
-      return (tally.voiceSeconds * PAID_PRICES_USD.voicePerHour) / SECONDS_PER_HOUR
-    }
-    case 'scheduledPrompts': {
-      // Scheduled runs use ordinary Model API tokens. UsageDialog prices those
-      // tokens already; adding them to the extra-features total doubles them.
-      return 0
-    }
-    case 'subagents': {
-      return tally.subagentCostUsd ?? 0
-    }
-    case 'autoReviewer': {
-      // Billed apart from the conversation, so counted here alone.
-      return tally.autoReviewCostUsd ?? 0
-    }
-    case 'bestOfN': {
-      // Separate worktree hosts do not contribute to the parent's token
-      // estimate. Count only reported costs here, not unknown HTTP tries.
-      return tally.bestOfNCostUsd ?? 0
-    }
-    case 'teamWorkers': {
-      // A worker's tokens already count in the conversation's estimate
-      // through the ledger; the row prices the reported part apart.
-      return tally.teamWorkerCostUsd ?? 0
-    }
-    case 'tab': {
-      // Tab requests are billed apart from every conversation, so they are
-      // counted here alone. Count only reported costs, not unknown tries.
-      return tally.tabCostUsd ?? 0
-    }
-    case 'hookModels': {
-      // A hook's own model call is billed apart from the conversation, like
-      // a review's. Count only reported costs, not unanswered runs.
-      return tally.hookModelCostUsd ?? 0
-    }
-    case 'judge': {
-      // Billed apart from the conversation, so counted here alone.
-      return tally.judgeCostUsd ?? 0
-    }
-  }
-}
-
 /**
  * The paid features Account & usage lists (the review of PR #30): the ones
  * this backend can use, and any this window has already used, whatever the
@@ -301,24 +157,13 @@ export function listedPaidFeatures(
       (feature === 'scheduledPrompts' && tally.scheduledRuns > 0) ||
       (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
       (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
+      (feature === 'legalExplanation' && (tally.legalExplanations ?? 0) > 0) ||
       (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0) ||
       (feature === 'teamWorkers' && (tally.teamWorkerRequests ?? 0) > 0) ||
       (feature === 'tab' && (tally.tabRequests ?? 0) > 0) ||
       (feature === 'hookModels' && (tally.hookModelRuns ?? 0) > 0) ||
       (feature === 'judge' && (tally.judgeCalls ?? 0) > 0),
   )
-}
-
-/** The whole tally's estimated cost. */
-export function paidTotalUsd(tally: PaidTally): number {
-  // Child token cost is already part of the conversation's token estimate.
-  let total = 0
-  for (const feature of PAID_FEATURES) {
-    if (feature !== 'subagents' && feature !== 'teamWorkers') {
-      total += paidCostUsd(feature, tally)
-    }
-  }
-  return total
 }
 
 // Built per call, never at module load: the display language's table is
@@ -338,6 +183,7 @@ export function paidFeatureName(feature: PaidFeature): string {
     tab: UI_TEXT.paidTabName,
     hookModels: UI_TEXT.paidHookModelName,
     judge: UI_TEXT.paidJudgeName,
+    legalExplanation: UI_TEXT.paidLegalExplanationName,
   }
   return names[feature]
 }
@@ -425,6 +271,7 @@ export function paidFeaturePrice(feature: PaidFeature): string {
     }
     case 'scheduledPrompts':
     case 'autoReviewer':
+    case 'legalExplanation':
     case 'tab':
     case 'judge': {
       // The judge runs on the conversation's own model, at its token rates.
@@ -466,3 +313,14 @@ export function paidFeaturePrice(feature: PaidFeature): string {
     }
   }
 }
+
+import { modelApiPaidTier, paidCostUsd, type PaidTally } from './paidBoundary'
+export {
+  paidTallySchema,
+  EMPTY_PAID_TALLY,
+  modelApiPaidTier,
+  paidStateSchema,
+  paidCostUsd,
+  paidTotalUsd,
+} from './paidBoundary'
+export type { PaidTally, PaidState } from './paidBoundary'

@@ -3755,6 +3755,142 @@ li:focus-within > .row-actions .row-actions-button,
   max-width: 100%;
 }
 
+/* --- Legal report and selected-fix handoff (M97 lane W) --- */
+
+/* The dialog reads in every theme through VS Code's own colours only; rows
+   wrap anywhere, so a 320px panel and 200% zoom never clip a finding. */
+.legal-report {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding: 12px 14px;
+}
+
+.legal-disclaimer {
+  margin: 0;
+  font-weight: 600;
+}
+
+.legal-summary {
+  margin: 0;
+}
+
+.legal-meta {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
+
+.legal-group-heading {
+  margin: 8px 0 4px;
+  font-size: 1em;
+}
+
+.legal-group-heading:focus {
+  outline: none;
+}
+
+.legal-subheading {
+  margin: 6px 0 2px;
+  font-size: 0.9em;
+}
+
+.legal-findings,
+.legal-paths,
+.legal-eligible,
+.legal-excluded {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legal-finding {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+}
+
+.legal-finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  margin: 0;
+}
+
+/* The severity is a word in the text colour with a plain border, never the
+   text's colour (contrast in every theme, WCAG 1.4.3). */
+.legal-severity {
+  padding: 0 6px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  font-size: 0.85em;
+}
+
+.legal-category {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+.legal-id {
+  overflow-wrap: anywhere;
+}
+
+.legal-location {
+  overflow-wrap: anywhere;
+}
+
+.legal-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.legal-excerpt {
+  max-width: 100%;
+  margin: 0;
+  padding: 4px 6px;
+  overflow-x: auto;
+  border-radius: var(--ms-radius);
+  background: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background));
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.85em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.legal-select {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.legal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legal-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.legal-eligible,
+.legal-excluded,
+.legal-paths {
+  overflow-wrap: anywhere;
+}
+
 /* --- Session board and best-of-N (M77) --- */
 
 .bestofn-title {

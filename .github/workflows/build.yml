@@ -190,6 +190,7 @@ jobs:
       # Every scenario/theme; identical browser bundle. Measured Ubuntu 4m54s,
       # Windows 8m11s (run 37211362498). Platform behavior stays in native tests.
       - run: npm run test:a11y
+      - run: npm run test:legal-a11y
 
   integration:
     name: integration (${{ matrix.os }})
@@ -341,6 +342,7 @@ jobs:
             extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
             extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \
             extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
+            extension/dist/legalScan.js extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json \
             extension/dist/sessionBoard.js extension/dist/reviewer.js \
             extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js \
             extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
@@ -372,6 +374,7 @@ jobs:
             package/dist/recorder.js \
             package/dist/runtime.bundles.json.br \
             package/dist/searchWorker.js package/dist/pageWorker.js \
+            package/dist/legalScan.js package/dist/legal-data/NOTICE.md package/dist/legal-data/provenance.json \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
             package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json; do

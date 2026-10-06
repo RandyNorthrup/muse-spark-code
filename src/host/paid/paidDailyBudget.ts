@@ -141,7 +141,7 @@ export function createPaidDailyBudget(deps: {
     signal = new AbortController().signal,
   ) => {
     signal.throwIfAborted()
-    if (!deps.isModelApi()) return
+    if (feature !== 'legalExplanation' && !deps.isModelApi()) return
     if (
       feature === 'webSearch' ||
       ('tools' in body && body.tools.some((tool) => tool.type === 'web_search'))

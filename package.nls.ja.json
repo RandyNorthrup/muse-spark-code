@@ -171,5 +171,13 @@
   "config.suggestedProvider.description": "ワークスペースはモデルプロバイダーのプリセットを ID で 1 件だけ提案できます。パネルはそのプリセットで「モデルとエージェント」を開くことを提案します。空の場合は何も提案しません。ワークスペースはアドレスや資格情報を設定できません。",
   "walkthrough.gettingStarted.step.ownModel.title": "自分のモデルで始める",
   "walkthrough.gettingStarted.step.ownModel.description": "Muse サブスクリプションも Meta API キーもありませんか？自分のモデルプロバイダー (OpenRouter、Anthropic、OpenAI、ローカルサーバー) を追加してモデルを選んでください。\n[自分のモデルで始める](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "Model API の長い会話を自動でコンパクションします。既定ではオンですが、対照評価に合格するまでは無効です。追加の有料呼び出しには、価格と日次予算への同意が必要です。"
+  "config.modelApiAutoCompaction.description": "Model API の長い会話を自動でコンパクションします。既定ではオンですが、対照評価に合格するまでは無効です。追加の有料呼び出しには、価格と日次予算への同意が必要です。",
+  "config.legalHeaderPolicy.description": "ライセンススキャン向けの著作権・SPDX ヘッダーチェック: 必須は対応するヘッダーのないプロジェクト所有のソースファイルすべてを指摘し、任意は検出したプロジェクト様式や REUSE 宣言に反するヘッダーのみを指摘し、オフはヘッダーチェックを省略します。既定は任意で、生成ファイルは常に除外されます。",
+  "config.legalHeaderPolicy.enumDescriptions.required": "プロジェクト所有の各ソースファイルに対応する著作権・SPDX ヘッダーが必要です。",
+  "config.legalHeaderPolicy.enumDescriptions.optional": "検出したプロジェクト様式や REUSE 宣言に反するヘッダーのみが検出事項です。既定値です。",
+  "config.legalHeaderPolicy.enumDescriptions.off": "ヘッダーチェックを省略します。レポートにその旨を記載します。",
+  "command.legalScan.title": "ライセンススキャン",
+  "config.legalRegistryLookups.description": "レジストリと送信するパッケージ名・バージョンを初回通知した後、公開レジストリへの照会を許可します。無効にするとローカルのメタデータのみを使用します。",
+  "config.legalExplanation": "任意の Model API 説明：USD。使用ごとに同意を求め、日次有料予算を共有します。",
+  "config.paidDailyBudgetUsd": "有料追加機能の共有日次予算：USD。"
 }

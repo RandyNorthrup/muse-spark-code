@@ -307,6 +307,7 @@ describe('buildPalette', () => {
       '/compact',
       '/handoff',
       '/goal',
+      '/legal',
       '/export',
       'Export session log…',
       'Export session as JSON…',
@@ -532,6 +533,7 @@ describe('slashCommandsOf', () => {
       'compact',
       'handoff',
       'goal',
+      'legal',
       'export',
       'clear',
       'logout',
@@ -553,6 +555,18 @@ describe('slashCommandsOf', () => {
     expect(commands.find((command) => command.name === 'goal')?.action).toEqual({
       type: 'startGoal',
     })
+    // M97: /legal readies the prompt for a file subset, on both backends.
+    expect(commands.find((command) => command.name === 'legal')).toMatchObject({
+      detail: 'Scan the workspace for licensing, attribution and header findings',
+      action: { type: 'startLegalScan' },
+    })
+    for (const backend of ['museCode', 'modelApi', undefined] as const) {
+      expect(
+        slashCommandsOf(buildPalette({ ...context, backend })).some(
+          (command) => command.name === 'legal',
+        ),
+      ).toBe(true)
+    }
     expect(commands.find((command) => command.name === 'acme:deploy')?.action).toEqual({
       type: 'insertSkill',
       selector: 'acme:deploy',
@@ -605,7 +619,7 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
     expect(paidRows(buildPalette(context))).toEqual([])
   })
 
-  it('offers the key’s images and voice on the Muse Code backend when a key is stored (M44)', () => {
+  it('offers the key’s images, voice and legal explanation on Muse Code (M44, M97)', () => {
     const rows = paidRows(buildPalette({ ...context, isKeyStored: true }))
     // Web search is Muse Code's own there, on the subscription.
     // D75 also exposes the key's team setting; paid delegate consent still gates use.
@@ -613,7 +627,13 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
       'paid:imageGeneration',
       'paid:voice',
       'paid:teamWorkers',
+      'paid:legalExplanation',
     ])
+    expect(rows.at(-1)).toMatchObject({
+      label: 'Explain findings (paid)',
+      widget: { kind: 'toggle', isOn: false },
+      action: { type: 'setPaidFeature', feature: 'legalExplanation', isOn: true },
+    })
   })
 
   it('offers each paid feature as a toggle naming its price on the Model API backend', () => {
@@ -695,6 +715,13 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
           'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'judge', isOn: true },
+      ],
+      [
+        'Explain findings (paid)',
+        'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
+        { kind: 'toggle', isOn: false },
+        { type: 'setPaidFeature', feature: 'legalExplanation', isOn: true },
       ],
     ])
   })

@@ -82,6 +82,7 @@ import { MEMORY_TOOL_DEFINITIONS } from './memoryTools'
 
 import type { ToolClass } from './permissions'
 import type { FunctionOutputPart, FunctionToolDefinition } from './schemas'
+import { LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS } from './legalScanTool'
 import { RECALL_TOOL_DEFINITION } from './observationPack'
 import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
 import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
@@ -511,6 +512,9 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   // M81 (PLAN.md D49): it starts a browser that reaches the page's host, so
   // it asks per host as web fetch does; Plan refuses it.
   [MODEL_API_TOOLS.browserCheck]: 'network',
+  // M97 (PLAN.md D76): the deterministic scan reads, in every mode; it
+  // never writes, runs a command or installs.
+  [MODEL_API_TOOLS.legalScan]: 'read',
   // M67 (PLAN.md D49): the language services read, in every mode; a rename is an edit.
   [CODE_INTEL_TOOLS.findDefinition]: 'read',
   [CODE_INTEL_TOOLS.findReferences]: 'read',
@@ -602,6 +606,8 @@ export interface ToolDefinitionOptions {
   readonly hasWebFetch?: boolean
   /** The browser check, trusted workspaces only, when the host can run one (M81, PLAN.md D49). */
   readonly hasBrowserCheck?: boolean
+  /** The deterministic legal scan (M97, PLAN.md D76): a scanner is behind it. */
+  readonly hasLegalScan?: boolean
   /** The code intelligence tools, while VS Code's language services are at hand (M67). */
   readonly hasCodeIntel?: boolean
 }
@@ -839,6 +845,9 @@ export function toolDefinitions(
       ? MODEL_API_CODE_INTEL_DEFINITIONS.map((tool) =>
           define(CODE_INTEL_TOOLS[tool.tool], tool.description, tool.properties, tool.required),
         )
+      : []),
+    ...(options.hasLegalScan === true
+      ? [define(MODEL_API_TOOLS.legalScan, LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS, [])]
       : []),
   ]
 }

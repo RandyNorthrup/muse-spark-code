@@ -87,6 +87,8 @@ export type PaletteAction =
   | { readonly type: 'setPaidFeature'; readonly feature: PaidFeature; readonly isOn: boolean }
   /** `/review ` in the prompt, for what to review (M70). */
   | { readonly type: 'startReview' }
+  /** `/legal ` in the prompt, for the read-only legal scan (M97). */
+  | { readonly type: 'startLegalScan' }
   /** A review preset (M70): the request as the host takes it. */
   | { readonly type: 'review'; readonly request: ReviewRequest }
   /** The review pane over the conversation's changes (M70). */
@@ -663,6 +665,14 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           label: UI_TEXT.goalItem,
           detail: UI_TEXT.goalItemDetail,
           action: { type: 'startGoal' },
+        },
+        // The read-only legal scan (M97, PLAN.md D76), on both backends.
+        {
+          id: 'legal',
+          label: UI_TEXT.legalScanItem,
+          detail: UI_TEXT.legalScanItemDetail,
+          tip: UI_TEXT.legalScanItemDetail,
+          action: { type: 'startLegalScan' },
         },
         ...scheduleItems(context.backend),
         ...exportItems(context.backend),

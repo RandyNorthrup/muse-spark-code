@@ -533,3 +533,30 @@ describe('M98 judge first-charge detail', () => {
     },
   )
 })
+
+// TRAIN15D: an explanation on Muse Code still names its shared daily budget.
+it('passes the legal explanation feature to daily-budget disclosure before consent', async () => {
+  const readBudget = vi.fn((feature?: PaidFeature) =>
+    feature === 'legalExplanation' ? 5 : undefined,
+  )
+  const store = memento(
+    new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['legalExplanation']]]),
+  )
+  const paid = createPaidFeatures({
+    globalState: store,
+    workspaceState: store,
+    isSettingOn: () => true,
+    isKeyStored: () => true,
+    canRememberPaidUse: () => false,
+    dailyBudgetUsd: readBudget,
+    log: new FakeLogOutputChannel(),
+  })
+  answerWith(UI_TEXT.paidDeny)
+  expect(
+    await paid.consent.allows({ feature: 'legalExplanation', modelId: 'muse-spark-1.3' }),
+  ).toBe(false)
+  expect(readBudget).toHaveBeenCalledWith('legalExplanation')
+  const detail = vi.mocked(confirmModal).mock.calls.at(-1)?.[1]?.detail ?? ''
+  expect(detail).toContain('$5.00')
+  expect(detail).toContain('$1.250/1M input')
+})

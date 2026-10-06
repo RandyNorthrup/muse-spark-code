@@ -217,6 +217,9 @@ export const SCENARIOS = [
   'models-narrow',
   'report',
   'report-narrow',
+  'legal',
+  'legal-narrow',
+  'legal-preview',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -277,6 +280,7 @@ export const SIZED_SCENARIOS = {
   'judge-usage': { width: 690, ready: '[role="dialog"]' },
   // M91 lane M: the MCP elicitation form at the panel's narrowest width.
   'elicitation-narrow': { width: 320, ready: 'form' },
+  'legal-narrow': { width: 320, ready: '[role="dialog"]' },
   'report-narrow': { width: 320, ready: '[role="dialog"]' },
   'chat-menu-narrow': { width: 320, ready: '[role="menu"]' },
   'chat-tool-menu-narrow': { width: 320, ready: '[role="menu"]' },

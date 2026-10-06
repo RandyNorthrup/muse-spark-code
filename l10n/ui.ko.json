@@ -1140,7 +1140,7 @@
   "acpQuestionAsked": "Muse가 질문이 있습니다. 이 편집기에서는 양식으로 표시할 수 없으니 다음 메시지로 답해 주세요:",
   "acpUnknownArgument": "알 수 없는 인수: {argument}",
   "acpPaidNeedsModelApi": "{argument}에는 --backend modelApi가 필요합니다. 유료 기능은 Model API 키에 청구됩니다.",
-  "acpUsage": "사용법:\n  {command} [옵션]              stdin과 stdout으로 Agent Client Protocol을 제공합니다\n  {command} [옵션] login        이 터미널에서 Muse Code에 로그인합니다\n  {command} auth set|status|clear  Meta Model API 키를 저장, 확인 또는 제거합니다\n  {command} exec [options] <prompt>  헤드리스 한 턴 실행\n  {command} scan-secrets <file> [--key-stdin]  파일 하나에서 비밀로 보이는 항목 수 세기(개수만 출력)\n  {command} report [options]  정제된 문제 보고서 출력(백엔드를 시작하지 않고 브라우저를 열지 않음)\n옵션:\n  --backend museCode|modelApi      결제 주체: Muse Code(기본값) 또는 Model API 키\n  --trust-workspace                폴더의 규칙, 스킬, 메모리를 불러옵니다\n  --muse-binary <경로>             실행할 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code의 셸 샌드박스\n  --allow-dangerously-skip-permissions  \"권한 우회\" 모드를 제공합니다\n  --allow-contributor-models       기여자 등급 모델을 표시합니다(Meta가 해당 콘텐츠로 학습할 수 있음)\n  --web-search                     유료 웹 검색을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --image-generation               유료 이미지 생성을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --verbose                        모든 세부 정보를 stderr에 기록합니다\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup 후크를 실행하고 종료합니다",
+  "acpUsage": "사용법:\n  {command} [옵션]              stdin과 stdout으로 Agent Client Protocol을 제공합니다\n  {command} [옵션] login        이 터미널에서 Muse Code에 로그인합니다\n  {command} auth set|status|clear  Meta Model API 키를 저장, 확인 또는 제거합니다\n  {command} exec [options] <prompt>  헤드리스 한 턴 실행\n  {command} scan-secrets <file> [--key-stdin]  파일 하나에서 비밀로 보이는 항목 수 세기(개수만 출력)\n  {command} report [options]  정제된 문제 보고서 출력(백엔드를 시작하지 않고 브라우저를 열지 않음)\n  {command} legal [options]  읽기 전용 법률 검사를 실행합니다(백엔드, 로그인 불필요)\n옵션:\n  --backend museCode|modelApi      결제 주체: Muse Code(기본값) 또는 Model API 키\n  --trust-workspace                폴더의 규칙, 스킬, 메모리를 불러옵니다\n  --muse-binary <경로>             실행할 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code의 셸 샌드박스\n  --allow-dangerously-skip-permissions  \"권한 우회\" 모드를 제공합니다\n  --allow-contributor-models       기여자 등급 모델을 표시합니다(Meta가 해당 콘텐츠로 학습할 수 있음)\n  --web-search                     유료 웹 검색을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --image-generation               유료 이미지 생성을 제공합니다(Model API 백엔드, 먼저 요금을 묻습니다)\n  --verbose                        모든 세부 정보를 stderr에 기록합니다\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup 후크를 실행하고 종료합니다",
   "reportUsage": "사용법:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  정제된 문제 보고서를 stdout에 출력하거나 --out와 함께 <file>에 쓴다.\n  백엔드를 시작하지 않고, 어디에도 로그인하지 않으며, 브라우저를 열지 않는다.\n옵션:\n  --out <file>         stdout 대신 파일에 보고서 쓰기\n  --description <text>  무슨 일이 있었는지 자신의 말로\n  --no-facts           지원 정보 제외\n  --no-events          최근 이벤트 제외",
   "exportSessionLine": "세션: `{id}`",
   "exportBackendLine": "백엔드: {backend}",
@@ -1217,12 +1217,12 @@
   "dictationDarwinEarlyExit": "macOS가 준비되기 전에 받아쓰기 도우미를 종료했습니다. 권한 단계를 거친 후라면 macOS가 해당 권한을 거부한 것입니다(muse-dictate에 대해, 또는 도우미가 자체 이름으로 요청할 수 없는 경우 도우미를 시작한 앱에 대해). 단계가 전혀 없었다면 macOS가 공증되지 않은 도우미 자체의 실행을 거부한 것입니다. README의 Voice dictation 섹션에서 두 경우를 모두 설명합니다.",
   "museLoginTerminalName": "Muse Code 로그인",
   "museExitMeanings": {
-    "5": "이 Muse Code 빌드는 확장이 사용하는 SDK 인터페이스를 제공하지 않습니다. Muse Code를 업데이트하세요",
+    "0": "Muse Code가 중지되었습니다",
+    "1": "Muse Code가 처리되지 않은 오류로 실패했습니다",
+    "2": "Muse Code가 명령줄을 거부했습니다(사용법 오류)",
     "3": "Muse Code가 구성을 거부했습니다. settings.json과 museSpark.environmentVariables를 확인하세요",
     "4": "다른 Muse Code 클라이언트가 이 세션을 보유하고 있습니다. 해당 클라이언트가 종료되면 해제됩니다",
-    "2": "Muse Code가 명령줄을 거부했습니다(사용법 오류)",
-    "0": "Muse Code가 중지되었습니다",
-    "1": "Muse Code가 처리되지 않은 오류로 실패했습니다"
+    "5": "이 Muse Code 빌드는 확장이 사용하는 SDK 인터페이스를 제공하지 않습니다. Muse Code를 업데이트하세요"
   },
   "museExitedWithCode": "Muse Code가 종료되었습니다(코드 {code})",
   "museExitMeaning": "{meaning}(종료 코드 {code})",
@@ -2159,7 +2159,8 @@
     "hookRun": "spark-hooks.json의 Manual 후크 하나를 지금 실행합니다.",
     "switchModel": "이 대화의 모델을 선택합니다.",
     "continue:codex": "완료되지 않은 Codex 작업을 이 대화에서 이어서 진행합니다.",
-    "attachFile": "다음 메시지에 파일을 첨부합니다."
+    "attachFile": "다음 메시지에 파일을 첨부합니다.",
+    "paid:legalExplanation": "법적 발견 사항의 유료 설명을 켜거나 끕니다. 저장된 Model API 키에 요금이 청구됩니다."
   },
   "paletteSkillTip": "{name} 스킬 실행.",
   "webFetchUnavailable": "페이지 가져오기를 불러오지 못해 아무것도 가져오지 않았습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그에 있습니다.",
@@ -3160,5 +3161,361 @@
   "toolEditOverlap": "편집 범위가 겹칩니다. 두 항목이 같은 텍스트를 변경할 수 없습니다.",
   "toolReadPastEnd": "오프셋 {offset}이 {path}의 끝을 넘어갑니다.",
   "toolReadText": "텍스트 파일 `{path}`을 읽었습니다.",
-  "toolReadRange": "전체 {total}줄 중 {start}–{end}줄; offset={offset}"
+  "toolReadRange": "전체 {total}줄 중 {start}–{end}줄; offset={offset}",
+  "legalScanTitle": "법률 검사",
+  "legalScanDisclaimer": "법률 자문이 아닙니다. 배포 결정에 대해서는 변호사에게 문의하세요.",
+  "legalScanEmpty": "검사가 완료되었으며 발견 사항이 없습니다.",
+  "legalFindingsCount": {
+    "other": "{count}개의 발견 사항"
+  },
+  "legalFilesScanned": "검사한 파일: {count}",
+  "legalScanIncomplete": "불완전: {checks}",
+  "legalScanFailed": "법률 검사에 실패했습니다: {reason}",
+  "legalScanUnavailable": "법률 스캐너를 로드할 수 없습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그를 참조하세요.",
+  "legalSeverities": {
+    "blocker": "차단",
+    "should-fix": "수정 필요",
+    "advice": "조언"
+  },
+  "legalCategories": {
+    "license": "라이선스",
+    "copyrightHeader": "저작권 헤더",
+    "spdxIdentifier": "SPDX 식별자",
+    "noticeFile": "고지 파일",
+    "dependencyLicense": "종속성 라이선스",
+    "distribution": "배포",
+    "codeQualityHeader": "코드 품질 헤더"
+  },
+  "legalHeaderPolicies": {
+    "required": "필수",
+    "optional": "선택",
+    "off": "끄기"
+  },
+  "legalFixable": "수정 가능",
+  "legalNotFixable": "권장 사항만",
+  "legalEvidenceLabel": "근거: {evidence}",
+  "legalConfidenceLabel": "신뢰도: {confidence}",
+  "legalScanItem": "/legal",
+  "legalCommandUsage": "사용법: /legal [작업 영역의 상대 경로 …]. 옵션은 지원되지 않습니다.",
+  "legalScanItemDetail": "라이선스, 저작자 표시, 헤더 소견에 대해 작업 영역을 검사합니다",
+  "legalScanBusy": "현재 턴이 끝나면 법률 검사가 시작됩니다.",
+  "legalScanUntrusted": "법률 검사는 작업 영역을 읽지만, 제한 모드에서는 허용되지 않습니다. 사용하려면 작업 영역을 신뢰하세요.",
+  "legalScanPlanModeNotice": "이 법률 검사는 작업 영역을 읽는 동안 대화를 계획 모드로 유지하며, 끝나면 원래 권한 모드로 돌아갑니다.",
+  "legalDistributionLine": "배포: {distribution}",
+  "legalRegistryLine": "레지스트리({hosts}): {queried}개 조회, {found}개 확인, {skipped}개 건너뜀, {bytes} 수신.",
+  "legalRegistryOff": "레지스트리 보강이 꺼져 있습니다. 누락된 라이선스를 보강하려면 --registry와 함께 다시 실행하세요.",
+  "legalWroteFile": "법률 검사 보고서를 {path}에 썼습니다.",
+  "legalFormatInvalid": "형식은 text 또는 json이어야 합니다.",
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "제외: {exclusions}",
+  "legalScanNoDistribution": "검사가 완료되지 않아 배포를 가정하지 않았습니다.",
+  "legalReportFindings": "법적 소견",
+  "legalFixSelect": "{id} 수정",
+  "legalSelectedCount": {
+    "other": "{count}개 선택됨"
+  },
+  "legalFixAllSafe": "안전한 항목 모두 수정",
+  "legalPreviewFixes": "수정 내용 미리 보기",
+  "legalFixPreviewTitle": "수정 미리 보기",
+  "legalFixApply": "수정 적용",
+  "legalFixFiles": "변경될 파일",
+  "legalFixExcluded": "제외됨",
+  "legalFixReasonNotFixable": "안전한 수정 방법 없음. 권장 사항뿐입니다.",
+  "legalFixReasonProjectLicense": "프로젝트 라이선스 변경에는 별도 확인이 필요합니다.",
+  "legalFixReasonUnknown": "이번 검사의 대상이 아닙니다.",
+  "legalFixReasonTooLarge": "보호하기에 너무 큽니다. 수동으로 수정하세요.",
+  "legalFixNothingSelected": "Bypass 모드에서도 수정할 소견을 하나 이상 선택하세요. 검사는 아무것도 사전 승인하지 않습니다.",
+  "legalFixSeparateConfirm": "프로젝트 라이선스 변경을 별도로 확인합니다.",
+  "legalFixRefusedPlan": "Plan 모드에서는 수정이 거부됩니다. 이 모드는 쓰기를 하지 않습니다.",
+  "legalFixRefusedTrust": "작업 영역이 신뢰되지 않는 동안 수정이 거부됩니다.",
+  "legalFixRefusedWorkspace": "미리 보기 이후 작업 영역이 변경되었습니다. 새 미리 보기를 요청하세요.",
+  "legalFixRefusedStale": "미리 보기 이후 증거가 변경되었습니다. 새 검사를 실행하세요.",
+  "legalFixRefusedExpired": "미리 보기가 만료되었습니다. 새 미리 보기를 요청하세요.",
+  "legalFixRefusedUnavailable": "이 빌드에서는 수정 적용을 사용할 수 없습니다.",
+  "legalFixRescanHint": "남은 내용을 확인하려면 새 검사를 실행하세요.",
+  "legalScanAgain": "다시 검사",
+  "legalFixOwnership": "이 파일들이 프로젝트 소유이며 미리 보기의 라이선스와 저작권이 적용됨을 확인하세요: {paths}",
+  "legalFixDenied": "편집이 승인되지 않았습니다.",
+  "legalExportMarkdown": "Markdown 내보내기…",
+  "legalRegistryNotice": "첫 조회 전 안내: {hosts}. HTTPS로 패키지 이름과 버전만 전송하며 소스, 경로, 잠금 파일 내용은 업로드하지 않습니다. 오프라인 검사에는 레지스트리 조회를 끄세요.",
+  "legalRegistryOfflineUnknown": "오프라인: 레지스트리 조회가 비활성화되거나 거부되어 누락된 종속성 라이선스는 알 수 없는 상태로 남습니다.",
+  "legalRegistryFact": "{name}@{version}: 레지스트리가 {license}를 선언합니다.",
+  "legalRegistryRecommendation": "원본 조건과 배포 의무를 확인하세요. 레지스트리 메타데이터는 권리를 증명하지 않습니다.",
+  "legalRegistryMetadataOnly": "레지스트리 메타데이터는 보충 자료입니다. 원본 조건과 불완전한 로컬 결과는 계속 검토해야 합니다.",
+  "legalScanner": {
+    "m001": "{v0} 호환성 분석",
+    "m002": "{v0}에는 이중 라이선스가 있습니다. {v2}와 함께 {v1}은 호환되는 선택입니다. 배포 전 조건을 확인하세요.",
+    "m003": "배포에서 준수하는 라이선스 분기를 기록하세요.",
+    "m004": "{v0}는 대체 카피레프트 조건 {v1}을 선언합니다. 배포 시 선택한 소스 및 링크 의무를 충족해야 합니다.",
+    "m005": "라이선스 분기와 의무를 변호사와 확인하세요.",
+    "m006": "{v0}는 {v1}으로 배포되며 프로젝트는 {v2}를 선언합니다. 조합의 소스 공개가 필요할 수 있습니다. 판결이 아닌 확인 사항입니다.",
+    "m007": "카피레프트 의무 적용 여부와 대상 코드를 변호사와 확인하세요.",
+    "m008": "{v0}는 개발 범위에서만 {v1}을 선언합니다.",
+    "m009": "배포하지 않는지 확인하세요. 강한 카피레프트 종속성을 배포하면 소스 공개가 필요할 수 있습니다.",
+    "m010": "{v0}는 {v1}을 선언하며 배포 여부는 불명입니다. 조합 배포 시 소스 공개가 필요할 수 있습니다.",
+    "m011": "종속성 배포 여부를 정하고 변호사와 의무를 확인하세요.",
+    "m012": "{v0}는 {v1}{v2}를 선언합니다. 파일 카피레프트는 해당 파일에 적용되며 LGPL 링크에는 소스와 재링크 조건이 필요합니다.",
+    "m013": "파일 조건과 고지를 보존하고 LGPL 링크 증거를 확인하세요.",
+    "m014": "{v0}는 {v1}{v2}를 선언합니다. 소스 열람 가능 또는 제한 조건이며 오픈 소스 허가는 아닙니다. 인식은 승인이 아닙니다.",
+    "m015": "변호사와 이번 배포 조건을 검토하고 BUSL 변경일과 Commons Clause 범위를 확인하세요.",
+    "m016": "{v0}는 분류되지 않은 {v1}을 선언합니다. 조건을 직접 확인하세요.",
+    "m017": "이번 배포에 맞춰 라이선스 원문을 검토하세요.",
+    "m018": "{v0}는 {v1} 조건으로 배포되나 라이선스 허가가 없습니다.",
+    "m019": "이 정확한 버전의 사적 소유권을 확인하거나 배포에서 제외하세요.",
+    "m020": "{v0}는 배포 범위 밖에서 {v1}을 선언합니다.",
+    "m021": "배포하지 않는지 확인하세요. 독점 종속성 배포에는 소유권 증거가 필요합니다.",
+    "m022": "미확인: {v0} 패키지 {v1}@{v2}에 라이선스 증거가 없습니다.",
+    "m023": "{v0}는 유효하지 않은 SPDX 식 {v1}을 선언합니다: {v2}.",
+    "m024": "메타데이터로 선언을 수정하거나 조건을 직접 확인하세요.",
+    "m025": "{v0}는 사용자 정의 참조 {v1}을 선언합니다. 조건은 사람이 읽어야 합니다.",
+    "m026": "참조 원문과 배포 호환성을 확인하세요.",
+    "m027": "{v0}는 폐기된 SPDX 형식 {v1}을 선언합니다. 끝의 +는 적용될 이후 버전을 명확히 지정하지 않습니다.",
+    "m028": "의도에 맞는 현재 -only 또는 -or-later 식별자를 쓰세요.",
+    "m029": "{v0}는 SPDX 예외 목록에 없는 {v1}을 선언합니다.",
+    "m030": "예외 원문을 확인하세요. 예외는 분석을 바꿉니다.",
+    "m031": "{v0} 라이선스 증거 충돌: {v1}. 특정 출처로 충돌을 조용히 해소하지 않습니다.",
+    "m032": "적용 조건을 정하기 전에 원문과 선언을 함께 검토하세요.",
+    "m033": "미확인: {v0}의 충돌하는 라이선스 증거는 사람의 검토가 필요합니다.",
+    "m034": "{v1}의 {v0} 분석",
+    "m035": "미확인: 파일 이름만으로 결과물의 최신 상태를 증명하지 못합니다.",
+    "m036": "미확인: 번들 입력이 없거나 작업 영역 목록에 비해 오래되었습니다.",
+    "m037": {
+      "other": "알려진 번들 입력 {count}개로 배포 분석"
+    },
+    "m038": "로컬 소스, 배포 불명: 번들 입력 및 패키지 목록 증거가 없습니다.",
+    "m039": "미확인: 배포 범위 불명이며 번들이나 파일 증거 없이는 아무것도 배포되지 않는다고 가정합니다.",
+    "m040": "미확인: 패키지 패턴 수가 제한을 초과합니다.",
+    "m041": "미확인: 지원하지 않는 파일 패턴으로 배포는 추정입니다.",
+    "m042": "미확인: .vscodeignore 패턴 {v0}의 구문이 지원되지 않아 배포는 추정입니다.",
+    "m043": "미확인: 목록은 포함된 번들 입력이나 결과물 최신 상태를 입증하지 못합니다.",
+    "m044": "파일 및 .vscodeignore로 배포를 추정하며 빌드 전 결과물은 다를 수 있습니다.",
+    "m045": "배포 분석",
+    "m046": {
+      "other": "종속성 {count}개가 귀속 고지 파일 없이 배포될 수 있습니다."
+    },
+    "m047": "배포 내용을 포함하는 THIRD_PARTY_NOTICES 또는 동등한 고지를 추가하세요.",
+    "m048": "{v0}가 배포될 수 있으나 현재 고지에 이름이 없습니다.",
+    "m049": "THIRD_PARTY_NOTICES 또는 동등한 고지에 패키지를 명시하세요.",
+    "m050": "미확인: {v0}에 읽을 수 있는 NOTICE 귀속이 없습니다.",
+    "m051": "{v0} 배포 분석",
+    "m052": "{v0}에 상위 NOTICE 파일이 있으나 현재 고지에 귀속이 없습니다.",
+    "m053": "THIRD_PARTY_NOTICES 또는 동등한 고지에 해당 NOTICE 귀속을 유지하세요.",
+    "m054": "작업 영역 밖 또는 제한을 초과하는 경로를 거부했습니다",
+    "m055": "미확인: 복잡한 REUSE 패턴, 우선순위 및 소유 관계이며 완전한 정확 경로 주석만 적용합니다.",
+    "m056": "{v0} 리소스 목록",
+    "m057": "{v0}에 관찰된 파일별 출처 선언이 없습니다. 파일명은 소유권이나 배포권 증거가 아닙니다.",
+    "m058": "확인된 소유권으로 출처, 작성자 및 조건을 부속 파일이나 REUSE에 기록하세요.",
+    "m059": "{v0} 출처 참조",
+    "m060": "{v0}에 출처와 조건 검토가 필요한 참조가 있습니다. 참조만으로 복제나 침해를 입증하지 못합니다.",
+    "m061": "출처, 작성자, 날짜, 라이선스 및 귀속을 확인하고 정당한 상위 헤더를 유지하세요.",
+    "m062": "미확인: 정책으로 저작권 헤더 검사가 꺼져 있습니다.",
+    "m063": "미확인: {v0} 헤더를 읽을 수 없거나 바이너리입니다.",
+    "m064": "{v0} 헤더 분석",
+    "m065": "{v0} 첫 부분에 정책이 요구하는 저작권 줄이 없습니다.",
+    "m066": "확인된 소유권으로 프로젝트 저작권을 추가하며 타사 헤더를 대체하지 마세요.",
+    "m067": "{v0}에 필요한 SPDX-License-Identifier 줄이 없습니다.",
+    "m068": "적용 라이선스와 일치하는 SPDX 식별자를 추가하세요.",
+    "m069": "{v0} 첫 부분에 {v1}이 없습니다.",
+    "m070": "프로젝트 저작권 헤더를 정비하세요. 정책상 선택 사항입니다.",
+    "m071": "{v0}에 저작권 줄이 있으나 {v1}.",
+    "m072": "권리자와 날짜를 수정하세요. 이전 연도만으로 오래된 것은 아닙니다.",
+    "m073": "{v0}는 파싱할 수 없는 SPDX-License-Identifier {v1}을 선언합니다: {v2}.",
+    "m074": "AND, OR 및 WITH를 대문자로 쓴 SPDX 식을 입력하세요.",
+    "m075": "참조 원문이 파일 옆 또는 REUSE.toml에 있는지 확인하세요.",
+    "m076": "{v0}는 폐기된 SPDX 형식 {v1}을 선언합니다.",
+    "m077": "SPDX License List의 현재 식별자를 쓰세요.",
+    "m078": "{v0}에 서로 다른 SPDX 선언 {v1} 및 {v2}가 있습니다.",
+    "m079": "각 선언의 조건을 확인하고 정당한 상위 라이선스를 유지하세요.",
+    "m080": "{v0}는 프로젝트 라이선스 {v2} 밖의 {v1}을 선언합니다.",
+    "m081": "타사 조건을 확인하고 헤더를 유지하거나 식별자를 수정하세요.",
+    "m082": "{v0} 프로젝트 라이선스 분석",
+    "m083": "AND, OR, WITH를 대문자로 쓰고 필요한 괄호를 넣은 SPDX 식을 입력하세요.",
+    "m084": "미확인: 완전한 SPDX 텍스트 비교와 수정 조건이며 제목과 조항 일치는 휴리스틱입니다.",
+    "m085": "{v0}는 알려진 라이선스 원문으로 인식되지 않아 사람이 읽어야 합니다.",
+    "m086": "허가된 라이선스를 확인하고 매니페스트에 선언하세요.",
+    "m087": "{v0}가 작업 영역에 없는 {v1}을 참조합니다.",
+    "m088": "참조 라이선스를 추가하거나 매니페스트를 수정하세요.",
+    "m089": "{v0}는 프로젝트를 UNLICENSED로 표시합니다. 기본적으로 독점이며 모든 권리가 유보됩니다.",
+    "m090": "예정된 수신자에게만 배포하세요. 공개 배포에는 라이선스 허가가 필요합니다.",
+    "m091": "{v0} 및 {v1} 프로젝트 라이선스 분석",
+    "m092": "{v0}는 {v1}을 선언하나 라이선스 파일은 {v2}로 인식됩니다.",
+    "m093": "배포 전에 메타데이터와 라이선스를 조정하고 라이선스 변경은 명시적으로 확인하세요.",
+    "m094": "프로젝트 라이선스 분석",
+    "m095": "매니페스트가 충돌하며 해결할 라이선스 파일이 없습니다: {v0}.",
+    "m096": "배포 전에 매니페스트를 조정하고 라이선스 변경은 명시적으로 확인하세요.",
+    "m097": "매니페스트는 조건을 선언하나 루트 라이선스 파일을 찾지 못했습니다.",
+    "m098": "배포 전 확인된 소유권으로 적용 원문을 추가하세요.",
+    "m099": "README는 {v0}를, 프로젝트는 {v1}을 선언합니다.",
+    "m100": "배포 전에 README, 라이선스 및 매니페스트를 조정하세요.",
+    "m101": "라이선스 {v0}는 README에만 있으며 라이선스 파일과 매니페스트 필드가 없습니다.",
+    "m102": "확인된 소유권으로 LICENSE 및 매니페스트 필드를 추가하세요.",
+    "m103": "LICENSE, 매니페스트 필드 및 README 선언이 없습니다. 미배포 코드의 권리는 기본 유보됩니다.",
+    "m104": "명시적으로 라이선스를 선택하여 LICENSE와 매니페스트에 선언하세요.",
+    "m105": "{v0}에 인식되지 않은 라이선스 유사 원문이 있습니다. 포함된 코드는 고지에 귀속이 필요합니다.",
+    "m106": "{v0}가 작업 영역 안에 {v1} 조건을 포함합니다. 포함된 코드는 고지에 귀속이 필요합니다.",
+    "m107": "THIRD_PARTY_NOTICES 또는 동등한 고지에 포함된 코드의 귀속을 확인하세요.",
+    "m108": "알 수 없는 헤더 정책",
+    "m109": "선택한 경로가 너무 많습니다",
+    "m110": "미확인: 리소스, 복제 코드 출처, 독점 조건 및 전체 라이선스 비교는 사람의 검토가 필요합니다.",
+    "m111": "법률 검사가 취소되었습니다",
+    "m112": "제한으로 검사 중단: 시간",
+    "m113": "미확인: {v0}를 텍스트로 읽을 수 없습니다.",
+    "m114": "제한으로 검사 중단: {v0}가 텍스트 읽기 예산을 초과합니다.",
+    "m115": {
+      "other": "미확인: {count}개 파일 후 중단했으며 추가 {v1}개는 읽지 않았습니다."
+    },
+    "m116": {
+      "other": "미확인: 종속성 증거 제한으로 {count}개 항목을 생략했습니다."
+    },
+    "m117": "미확인: {v1}의 {v0} 라이선스 원문을 인식하지 못했습니다.",
+    "m118": "{v0} 라이선스 원문 분석",
+    "m119": {
+      "other": "배포가 불명이며 운영 종속성이 {count}개 있습니다. 미배포 소스로 의무를 평가합니다."
+    },
+    "m120": "번들 입력이나 패키지 목록으로 배포 의무를 명확히 하세요.",
+    "m121": "제한으로 검사 중단: {v0} 보고서 잘림",
+    "m122": {
+      "other": "보고서 잘림: 제한 {v1}개를 넘은 결과 {count}개를 생략하고 차단 및 수정 항목을 우선 유지했습니다."
+    },
+    "m123": {
+      "other": "보고서 잘림: 제한을 넘은 생성 제외 항목 {count}개를 생략했습니다."
+    },
+    "m124": "검사가 잘못된 결과를 생성했습니다: {v0}",
+    "m125": "미확인: 증거 필드가 보고서 제한을 초과하여 잘렸습니다.",
+    "m126": "예상하지 못한 문자 {v0}",
+    "m127": "WITH는 라이선스 예외를 지정해야 합니다",
+    "m128": "표현식이 예상하지 못하게 끝났습니다",
+    "m129": "닫는 괄호가 없습니다",
+    "m130": "인접 라이선스가 없는 예상 밖 연산자",
+    "m131": "빈 라이선스 표현식",
+    "m132": "표현식 뒤의 예상 밖 텍스트",
+    "m133": "라이선스 표현식이 텍스트 제한을 초과합니다",
+    "m134": "라이선스 표현식 중첩이 제한을 초과합니다",
+    "m135": "잘못된 라이선스 식별자",
+    "m136": "라이선스 대안 수가 제한을 초과합니다",
+    "m137": "검사 루트가 디렉터리가 아닙니다",
+    "m138": "미확인: {v0}는 링크나 범위 밖 디렉터리입니다.",
+    "m139": "제한으로 검사 중단: 디렉터리 항목 예산에 도달해 나머지는 열거하지 않습니다.",
+    "m140": "미확인: 열거 중 {v0}가 바뀌었습니다.",
+    "m141": "미확인: {v0}는 저장소 내부 데이터입니다.",
+    "m142": "미확인: {v0}는 링크입니다.",
+    "m143": "미확인: {v0}는 특수 파일입니다.",
+    "m144": "미확인: {v0}를 허용할 수 없습니다.",
+    "m145": "미확인: {v0}에 소유권 및 해석 메타데이터가 불명인 경로 crate가 있습니다.",
+    "m146": "미확인: {v0}에 정적으로 해석하지 않는 상속 또는 중첩 Cargo 선언이 있습니다.",
+    "m147": {
+      "other": "미확인: Cargo 잠금 항목 {count}개에 라이선스가 없고 포함된 crate 매니페스트도 없습니다."
+    },
+    "m148": {
+      "other": "미확인: Cargo 요구 사항 {count}개에 Cargo.lock의 해석된 버전이 없습니다."
+    },
+    "m149": "미확인: Cargo 매니페스트와 잠금 파일이 없습니다.",
+    "m150": "미확인: {v0}가 잘못된 JSON이므로 요구 사항과 라이선스가 불명입니다.",
+    "m151": "미확인: {v0}가 잘못된 JSON이므로 잠금 버전이 불명입니다.",
+    "m152": "미확인: {v0}의 라이선스 증거가 {v1}과 {v2}에서 충돌합니다.",
+    "m153": {
+      "other": "미확인: Composer 요구 사항 {count}개에 composer.lock의 잠금 버전이 없습니다."
+    },
+    "m154": {
+      "other": "미확인: Composer 패키지 {count}개에 잠금 또는 설치 정보의 라이선스가 없습니다."
+    },
+    "m155": "미확인: composer.json, composer.lock 및 installed.json이 없습니다.",
+    "m156": "미확인: {v0}의 실행 코드는 실행하지 않으며 정적 할당만 읽습니다.",
+    "m157": "미확인: {v0}를 정적으로 읽으며 Ruby 계산 메타데이터와 조건 할당은 평가하지 않습니다.",
+    "m158": {
+      "other": "미확인: gem 요구 사항 {count}개에 Gemfile.lock 잠금 버전이 없습니다."
+    },
+    "m159": {
+      "other": "미확인: gem {count}개에 라이선스가 없으며 기존 명세가 있으면 보완할 수 있습니다."
+    },
+    "m160": "미확인: Gemfile, Gemfile.lock 및 gemspec이 없습니다.",
+    "m161": "미확인: Go 대체 대상, 도구 매핑 및 포함되지 않은 전이 선택은 검토가 필요하며 체크섬에 미사용 버전이 있을 수 있습니다.",
+    "m162": {
+      "other": "미확인: Go 모듈 {count}개에 라이선스가 없습니다. 체크섬과 경로는 라이선스가 아니며 포함된 원문이 있으면 보완할 수 있습니다."
+    },
+    "m163": {
+      "other": "미확인: Go 도구 요구 사항 {count}개에 해석된 버전이 없고 라이선스는 불명입니다."
+    },
+    "m164": "미확인: go.mod, go.sum 및 vendor/modules.txt가 없습니다.",
+    "m165": "미확인: {v0}의 라이선스 정보가 {v1}과 {v2}에서 충돌합니다: {v3} 대 {v4}.",
+    "m166": "미확인: {v0}를 정적으로 읽으며 실행 논리, 카탈로그 및 계산 선언은 평가하지 않습니다.",
+    "m167": "미확인: 정적 POM 선언은 Maven 전이 그래프, 상위 속성 및 프로필을 해석하지 않습니다.",
+    "m168": {
+      "other": "미확인: Maven/Gradle 요구 사항 {count}개에 잠금이나 카탈로그의 해석된 버전이 없습니다."
+    },
+    "m169": {
+      "other": "미확인: Maven/Gradle 패키지 {count}개에 라이선스가 없으며 기존 POM이 있으면 보완할 수 있습니다."
+    },
+    "m170": "미확인: POM, Gradle 선언, 잠금 및 카탈로그가 없습니다.",
+    "m171": "미확인: {v0}의 npm 잠금 메타데이터를 읽을 수 없습니다.",
+    "m172": "미확인: {v0}는 지원하지 않는 npm 잠금 버전입니다.",
+    "m173": "미확인: {v0}가 npm 잠금 중첩 깊이 제한을 초과합니다.",
+    "m174": {
+      "other": "미확인: {v1}의 npm 잠금 항목 {count}개에 라이선스나 해당 설치 정보가 없습니다."
+    },
+    "m175": "미확인: {v0}에 읽을 수 있는 Yarn 패키지 항목이 없습니다.",
+    "m176": {
+      "other": "미확인: {v0}는 버전만 기록하며 패키지 {count}개의 라이선스가 없습니다. 설치 정보로 보완할 수 있습니다."
+    },
+    "m177": "미확인: {v0}는 지원하지 않는 pnpm 잠금이거나 읽을 수 있는 패키지 절이 없습니다.",
+    "m178": "미확인: {v0}@{v1}의 라이선스 증거가 {v2}와 {v3}에서 충돌합니다.",
+    "m179": {
+      "other": "미확인: npm 요구 사항 {count}개에 해석된 버전이 없고 전이 라이선스는 불명입니다."
+    },
+    "m180": "미확인: npm 매니페스트, 잠금 및 설치 메타데이터가 없습니다.",
+    "m181": "미확인: NuGet 조건/동적 선언, 버전 범위 및 다중 프레임워크 충돌은 검토가 필요합니다.",
+    "m182": {
+      "other": "미확인: NuGet 요구 사항 {count}개에 잠금, 자산 및 중앙 버전 파일의 해석된 버전이 없습니다."
+    },
+    "m183": {
+      "other": "미확인: NuGet 패키지 {count}개에 라이선스가 없으며 기존 .nuspec으로 보완할 수 있습니다."
+    },
+    "m184": "미확인: NuGet 선언, 잠금 및 자산 파일이 없습니다.",
+    "m185": "미확인: {v0}는 {v1}을 포함하나 임의 포함 이름은 재귀 해석하지 않습니다.",
+    "m186": "미확인: {v0}는 작업 영역에 없는 {v1}을 포함합니다.",
+    "m187": "미확인: {v0}에 정적으로 해석하지 않는 요구 옵션이나 편집 가능 소스가 있습니다.",
+    "m188": {
+      "other": "미확인: {v1}의 요구 행 {count}개는 지원하지 않는 형식입니다."
+    },
+    "m189": "미확인: {v0}에 프로젝트명이 없어 요구 사항을 귀속할 수 없습니다.",
+    "m190": "미확인: {v0}에 읽을 수 있는 패키지 절이 없습니다.",
+    "m191": {
+      "other": "미확인: {v0}는 버전만 기록하며 패키지 {count}개의 라이선스가 없습니다. 배포 정보로 보완할 수 있습니다."
+    },
+    "m192": "미확인: {v0}의 설치 버전이 달라 잠금 라이선스가 불명입니다.",
+    "m193": "미확인: Python 정적 선언만으로는 잠금 및 설치 메타데이터 없이 전이 범위를 완전히 입증하지 못하며 동적 빌드 정보는 평가하지 않습니다.",
+    "m194": {
+      "other": "미확인: Python 패키지 {count}개에 일치하는 라이선스 정보가 없습니다."
+    },
+    "m195": {
+      "other": "미확인: Python 요구 사항 {count}개에 해석된 버전이 없고 전이 라이선스는 불명입니다."
+    },
+    "m196": "미확인: Python 매니페스트, 잠금 및 배포 메타데이터가 없습니다.",
+    "unknown": "알 수 없음",
+    "unresolved": "미해결",
+    "noLicense": "라이선스 없음",
+    "shipment": "(배포 대상)",
+    "copyrightSpdxLines": "저작권 또는 SPDX-License-Identifier 줄",
+    "spdxLine": "SPDX-License-Identifier 줄",
+    "copyrightLine": "저작권 줄",
+    "invalidYear": "연도 {value}가 네 자리가 아닙니다",
+    "impossibleYear": "연도 {value}는 불가능합니다",
+    "reversedYears": "기간 {value}가 시작보다 먼저 끝납니다",
+    "selectedPaths": {
+      "other": "선택한 경로 {count}개"
+    },
+    "moreUnchecked": {
+      "other": "상한을 넘은 미확인 항목 {count}개 추가 생략"
+    },
+    "declaration": "{file}는 {license}를 선언",
+    "licenseFile": "라이선스 파일",
+    "bundleLoad": "{file}를 로드할 수 없습니다",
+    "bundleShape": "{file}의 형식이 예상과 다릅니다",
+    "invalidResult": "검사가 잘못된 결과를 반환했습니다"
+  },
+  "legalExplainPaid": "검사 결과 설명 (유료)",
+  "paidLegalExplanationName": "검사 결과 설명",
+  "legalExplainConsent": "{model}로 결과를 설명하며 Model API 키에 {price} 요금이 청구됩니다. 구독은 비용을 부담하지 않습니다. 결과 ID, 분류, 심각도와 인식된 라이선스 ID만 전송하며 소스, 경로와 발췌문은 보내지 않습니다.",
+  "legalExplainConfirm": "선택 사항인 Model API 설명: {price}. 사용할 때마다 동의를 요청하며 일일 유료 예산을 공유합니다.",
+  "legalExplainUnavailable": "계정 및 사용량에서 유료 법률 설명을 켜고 Model API 키를 먼저 저장하세요."
 }

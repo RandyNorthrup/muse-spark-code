@@ -559,3 +559,14 @@ describe('D78 interactive paid daily budget', () => {
     await expect(readdir(state.directory)).resolves.toEqual([])
   })
 })
+
+// TRAIN15D: M97 explanations use this ledger even while Muse Code owns chat.
+it('reserves and settles legal explanation spend on Muse Code while other extras keep their backend policy', async () => {
+  const daily = budget(5, false)
+  expect(await daily.reserve(IMAGE, 'imageGeneration', undefined)).toBeUndefined()
+  const claim = requireClaim(await daily.reserve(BODY, 'legalExplanation', 100))
+  expect(claim.reservedUsd).toBeGreaterThan(0)
+  await claim.settle(0.01)
+  const settled = await daily.latestDay()
+  expect(settled.spentUsd).toBe(0.01)
+})

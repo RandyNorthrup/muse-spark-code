@@ -94,6 +94,10 @@ async function main() {
   const manifest = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
   const archive = path.join(root, `${manifest.name}-${manifest.version}.vsix`)
   await pack({ cwd: stage, dependencies: false, packagePath: archive })
+  execFileSync(process.execPath, ['scripts/compress-vsix.mjs', archive], {
+    cwd: root,
+    stdio: 'inherit',
+  })
   execFileSync(process.execPath, ['scripts/check-vsix-size.mjs', archive], {
     cwd: root,
     stdio: 'inherit',
