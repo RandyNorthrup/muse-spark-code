@@ -20,7 +20,7 @@ function holdUntilAbort(panel: Panel) {
   return () => signal
 }
 function stream(panel: Panel, token: string) {
-  const outgoing = request(new URL('/events', panel.url), { headers: headers(panel, token) })
+  const outgoing = request(new URL('/panel/events', panel.url), { headers: headers(panel, token) })
   const ready = new Promise<IncomingMessage>((resolve, reject) => {
     outgoing.once('response', resolve)
     outgoing.once('error', reject)
@@ -89,10 +89,9 @@ describe('companion lifecycle and SSE', () => {
     expect(response.statusCode).toBe(200)
     expect(response.headers['content-type']).toBe('text/event-stream')
     const received = streamText(response)
-    expect(await call(panel, '/events', 'GET', undefined, headers(panel, token))).toHaveProperty(
-      'status',
-      403,
-    )
+    expect(
+      await call(panel, '/panel/events', 'GET', undefined, headers(panel, token)),
+    ).toHaveProperty('status', 403)
     const emit = panel.listeners.values().next().value!
     emit({ kind: 'event', text: 'line one\nline two' })
     await vi.waitFor(() => {
@@ -149,13 +148,13 @@ describe('companion lifecycle and SSE', () => {
   it('requires exact Origin and token for events', async () => {
     const panel = await tracked()
     const token = await login(panel)
-    expect(await call(panel, '/events')).toHaveProperty('status', 401)
+    expect(await call(panel, '/panel/events')).toHaveProperty('status', 401)
     const base = headers(panel, token)
     expect(
-      await call(panel, '/events', 'GET', undefined, [...base.slice(0, 2), ...base.slice(4)]),
+      await call(panel, '/panel/events', 'GET', undefined, [...base.slice(0, 2), ...base.slice(4)]),
     ).toHaveProperty('status', 403)
     expect(
-      await call(panel, '/events', 'GET', undefined, [
+      await call(panel, '/panel/events', 'GET', undefined, [
         ...base.slice(0, 2),
         'Origin',
         'http://127.0.0.1:1',
@@ -169,7 +168,7 @@ describe('companion lifecycle and SSE', () => {
     const token = await login(panel)
     const bad = await call(
       panel,
-      '/events',
+      '/panel/events',
       'POST',
       '{"apiKey":"synthetic-private"}',
       headers(panel, token),
@@ -180,7 +179,7 @@ describe('companion lifecycle and SSE', () => {
   it('refuses a token that expires while the request body is arriving', async () => {
     const panel = await tracked({ sessionTtlMs: 100 })
     const token = await login(panel)
-    const outgoing = request(new URL('/post', panel.url), {
+    const outgoing = request(new URL('/panel/message', panel.url), {
       method: 'POST',
       headers: [...headers(panel, token), 'Content-Length', '15'],
     })
@@ -206,7 +205,7 @@ describe('companion lifecycle and SSE', () => {
     await new Promise<void>((resolve) => response.once('end', resolve))
     expect(panel.stop).toHaveBeenCalledTimes(1)
     expect(
-      await call(panel, '/post', 'POST', '{"kind":"ping"}', headers(panel, token)),
+      await call(panel, '/panel/message', 'POST', '{"kind":"ping"}', headers(panel, token)),
     ).toHaveProperty('status', 401)
   })
   it('aborts a stuck handler at request deadline and hides private errors', async () => {
@@ -214,7 +213,7 @@ describe('companion lifecycle and SSE', () => {
     const token = await login(panel)
     const signal = holdUntilAbort(panel)
     await expect(
-      call(panel, '/post', 'POST', '{"kind":"ping"}', headers(panel, token)),
+      call(panel, '/panel/message', 'POST', '{"kind":"ping"}', headers(panel, token)),
     ).rejects.toThrow()
     expect(signal()?.aborted).toBe(true)
   })
@@ -225,7 +224,7 @@ describe('companion lifecycle and SSE', () => {
     const response = await live.ready
     response.resume()
     const signal = holdUntilAbort(panel)
-    const pending = call(panel, '/post', 'POST', '{"kind":"ping"}', headers(panel, token))
+    const pending = call(panel, '/panel/message', 'POST', '{"kind":"ping"}', headers(panel, token))
     const failed = expect(pending).rejects.toThrow()
     await vi.waitFor(() => {
       expect(signal()).toBeDefined()

@@ -7,8 +7,8 @@ const streams: CompanionEvents[] = []
 afterEach(() => {
   for (const stream of streams.splice(0)) stream.close()
 })
-function fixture() {
-  const events = new CompanionEvents(100)
+function fixture(maxBytes = 100) {
+  const events = new CompanionEvents(maxBytes)
   streams.push(events)
   const response = new ServerResponse(new IncomingMessage(new Socket()))
   vi.spyOn(response, 'writeHead').mockReturnThis()
@@ -94,6 +94,16 @@ describe('companion SSE bounds', () => {
     )
     expect(stop).toHaveBeenCalledTimes(1)
     expect(events.has('synthetic-cookie')).toBe(false)
+  })
+  it('caps queued and unfinished messages while a slow writer waits for drain', () => {
+    const value = fixture(100_000)
+    value.write.mockReturnValue(false)
+    for (let index = 0; index < 128; index += 1) value.emit({ text: 'safe' })
+    expect(value.stop).not.toHaveBeenCalled()
+    expect(value.write).toHaveBeenCalledTimes(2)
+    value.emit({ text: 'overflow' })
+    expect(value.stop).toHaveBeenCalledTimes(1)
+    expect(value.events.has('synthetic-cookie')).toBe(false)
   })
   it('still closes the response when the runtime unsubscribe fails', () => {
     const value = fixture()

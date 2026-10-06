@@ -3781,11 +3781,15 @@ export const JSON_RPC_ERRORS = {
 export const HTTP_STATUS = {
   ok: 200,
   accepted: 202,
+  noContent: 204,
   badRequest: 400,
   unauthorized: 401,
   forbidden: 403,
   notFound: 404,
   methodNotAllowed: 405,
+  conflict: 409,
+  payloadTooLarge: 413,
+  tooManyRequests: 429,
   internalServerError: 500,
 } as const
 
@@ -5283,6 +5287,18 @@ export const MHP_PANEL = {
   maximumEnvelopeBytes: 16_777_216,
   maximumQueuedBytes: 33_554_432,
   maximumQueuedMessages: 128,
+} as const
+
+// Runtime panel carrier bounds; credential lifetime remains in the backend.
+export const RUNTIME_PANEL_PORTS_BUNDLE_FILE = 'runtimePanelPorts.js'
+export const RUNTIME_PANEL_BUNDLE_FILE = 'runtimePanel.js'
+export const RUNTIME_PANEL = {
+  requestTimeoutMs: 30_000,
+  closeTimeoutMs: 5000,
+  idleTimeoutMs: 600_000,
+  launchCodeTtlMs: 60_000,
+  sessionTtlMs: 86_400_000,
+  maximumWindows: 16,
 } as const
 
 // Credential-free per-key runtime settings and storage (M104 B).

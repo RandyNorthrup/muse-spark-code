@@ -1,7 +1,13 @@
 import { randomBytes } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import * as z from 'zod/mini'
-import { HTTP_STATUS, IDE_MCP_LOOPBACK_HOST, IDE_MCP_TOKEN_BYTES } from '../../shared/constants'
+import {
+  HTTP_STATUS,
+  IDE_MCP_LOOPBACK_HOST,
+  IDE_MCP_TOKEN_BYTES,
+  MHP_PANEL,
+} from '../../shared/constants'
+import { MhpPanelError, type panelLifecycleSchema } from '../../shared/hostApi/panel'
 import { CompanionEvents } from './events'
 import { isSameOrigin, readJson, secureHeaders, sessionBearer, singleHeader } from './guard'
 import { launchPage } from './page'
@@ -12,7 +18,13 @@ export interface CompanionHandler<Input, Output> {
   readonly inputSchema: z.ZodMiniType<Input>
   readonly outputSchema: z.ZodMiniType<Output>
   post(message: Input, sessionId: string, signal: AbortSignal): Promise<void>
-  subscribe(sessionId: string, emit: (message: unknown) => void): () => void
+  surface?(
+    message: z.infer<typeof panelLifecycleSchema>,
+    sessionId: string,
+    signal: AbortSignal,
+  ): Promise<void>
+  readonly surfaceSchema?: typeof panelLifecycleSchema
+  subscribe(sessionId: string, emit: (message: unknown, complete?: () => void) => void): () => void
 }
 
 export interface CompanionLimits {
@@ -49,6 +61,41 @@ function reply(response: ServerResponse, status: number, error?: string): void {
   response.end(error === undefined ? undefined : JSON.stringify({ error }))
 }
 
+function admissionError(code: MhpPanelError['frame']['code']): MhpPanelError {
+  return new MhpPanelError({
+    mhp: MHP_PANEL.wireVersion,
+    kind: 'panelError',
+    surface: null,
+    seq: null,
+    code,
+  })
+}
+function panelReply(response: ServerResponse, error: MhpPanelError): void {
+  let status: number = HTTP_STATUS.badRequest
+  switch (error.frame.code) {
+    case 'MHP_PANEL_UNKNOWN_SURFACE': {
+      status = HTTP_STATUS.notFound
+      break
+    }
+    case 'MHP_PANEL_TOO_LARGE': {
+      status = HTTP_STATUS.payloadTooLarge
+      break
+    }
+    case 'MHP_PANEL_BACKPRESSURE': {
+      status = HTTP_STATUS.tooManyRequests
+      break
+    }
+    case 'MHP_PANEL_OUT_OF_ORDER':
+    case 'MHP_PANEL_NOT_READY':
+    case 'MHP_PANEL_BINDING_MISMATCH': {
+      status = HTTP_STATUS.conflict
+      break
+    }
+  }
+  response.writeHead(status, { 'Content-Type': 'application/json', Connection: 'close' })
+  response.end(JSON.stringify(error.frame))
+}
+
 /** Browser boundary. Close on runtime abort, process signal, or authenticated inactivity. */
 export async function startCompanionServer<Input, Output>(
   options: CompanionOptions<Input, Output>,
@@ -82,8 +129,9 @@ export async function startCompanionServer<Input, Output>(
   const server = createServer((request, response) => {
     const nonce = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
     secureHeaders(response, nonce)
-    void handle(request, response, nonce).catch(() => {
+    void handle(request, response, nonce).catch((error: unknown) => {
       if (response.headersSent) response.destroy()
+      else if (error instanceof MhpPanelError) panelReply(response, error)
       else reply(response, HTTP_STATUS.internalServerError, 'EPANEL_HANDLER')
     })
   })
@@ -117,7 +165,7 @@ export async function startCompanionServer<Input, Output>(
     response: ServerResponse,
     nonce: string,
   ): Promise<void> {
-    const isPrivileged = request.method === 'POST' || request.url === '/events'
+    const isPrivileged = request.method === 'POST' || request.url === '/panel/events'
     if (!isSameOrigin(request, origin, isPrivileged)) {
       reply(response, HTTP_STATUS.forbidden, 'EPANEL_ORIGIN')
       return
@@ -145,7 +193,7 @@ export async function startCompanionServer<Input, Output>(
         response.writeHead(HTTP_STATUS.ok, { 'Content-Type': 'text/html; charset=utf-8' })
         response.end(session === undefined ? launchPage(nonce) : options.renderPage(nonce))
         if (session !== undefined) activity()
-      } else if (session !== undefined && request.url === '/events') {
+      } else if (session !== undefined && request.url === '/panel/events') {
         openEvents(session, response)
       } else {
         if (asset === undefined) {
@@ -158,7 +206,12 @@ export async function startCompanionServer<Input, Output>(
       }
       return
     }
-    if (request.url !== '/session' && request.url !== '/post' && request.url !== '/events') {
+    if (
+      request.url !== '/session' &&
+      request.url !== '/panel/message' &&
+      request.url !== '/panel/surface' &&
+      request.url !== '/panel/events'
+    ) {
       reply(response, HTTP_STATUS.notFound, 'EPANEL_PATH')
       return
     }
@@ -176,7 +229,18 @@ export async function startCompanionServer<Input, Output>(
       let input: unknown
       try {
         input = await readJson(request, limits.maxBodyBytes)
-      } catch {
+      } catch (error: unknown) {
+        if (request.url === '/panel/message' || request.url === '/panel/surface') {
+          panelReply(
+            response,
+            admissionError(
+              error instanceof Error && error.message === 'EPANEL_TOO_LARGE'
+                ? 'MHP_PANEL_TOO_LARGE'
+                : 'MHP_PANEL_INVALID_ENVELOPE',
+            ),
+          )
+          return
+        }
         reply(response, HTTP_STATUS.badRequest, 'EPANEL_BODY')
         return
       }
@@ -196,7 +260,7 @@ export async function startCompanionServer<Input, Output>(
           reply(response, HTTP_STATUS.unauthorized, 'EPANEL_BEARER')
           return
         }
-        if (request.url === '/events') {
+        if (request.url === '/panel/events') {
           if (!eventsSchema.safeParse(input).success) {
             reply(response, HTTP_STATUS.badRequest, 'EPANEL_MESSAGE')
             return
@@ -204,14 +268,25 @@ export async function startCompanionServer<Input, Output>(
           openEvents(session, response)
           return
         }
+        if (request.url === '/panel/surface') {
+          const parsed = handler.surfaceSchema?.safeParse(input)
+          if (parsed?.success !== true || handler.surface === undefined) {
+            panelReply(response, admissionError('MHP_PANEL_INVALID_LIFECYCLE'))
+            return
+          }
+          await handler.surface(parsed.data, session.id, controller.signal)
+          if (!controller.signal.aborted) reply(response, HTTP_STATUS.noContent)
+          activity()
+          return
+        }
         const parsed = handler.inputSchema.safeParse(input)
         if (!parsed.success) {
-          reply(response, HTTP_STATUS.badRequest, 'EPANEL_MESSAGE')
+          panelReply(response, admissionError('MHP_PANEL_INVALID_PAYLOAD'))
           return
         }
         await handler.post(parsed.data, session.id, controller.signal)
         if (controller.signal.aborted) return
-        reply(response, HTTP_STATUS.accepted)
+        reply(response, HTTP_STATUS.noContent)
       }
       activity()
     } finally {

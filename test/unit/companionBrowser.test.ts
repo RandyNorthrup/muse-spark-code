@@ -15,8 +15,8 @@ async function postFromPage(isRequest: boolean): Promise<number> {
     body: '{"kind":"ping"}',
   }
   const response = isRequest
-    ? await fetch(new Request(new URL('/post', location.href), init))
-    : await fetch('/post', init)
+    ? await fetch(new Request(new URL('/panel/message', location.href), init))
+    : await fetch('/panel/message', init)
   return response.status
 }
 
@@ -91,7 +91,7 @@ describe('companion browser security', () => {
       ).toBe('EPANEL_ORIGIN')
       const opened = await page.evaluate(async (url) => {
         const { TextDecoder } = globalThis
-        const response = await globalThis.fetch(`${url}events`, {
+        const response = await globalThis.fetch(`${url}panel/events`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' },
           body: '{}',
@@ -106,13 +106,13 @@ describe('companion browser security', () => {
       }, panel.url)
       expect(opened).toBe('open')
       const nativeRequest = page.waitForRequest(
-        (request) => request.url() === `${panel.url}events` && request.method() === 'GET',
+        (request) => request.url() === `${panel.url}panel/events` && request.method() === 'GET',
       )
       const nativeResult = await page.evaluate(
         (url) =>
           new Promise<string>((resolve) => {
             const { EventSource } = globalThis
-            const events = new EventSource(`${url}events`)
+            const events = new EventSource(`${url}panel/events`)
             events.addEventListener('open', () => {
               events.close()
               resolve('accepted')
@@ -132,7 +132,7 @@ describe('companion browser security', () => {
       await attack.goto(`http://127.0.0.1:${String(address.port)}/`)
       expect(capturedCookie).toBeUndefined()
       expect(capturedAuthorization).toBeUndefined()
-      const replay = await call(panel, '/post', 'POST', '{"kind":"ping"}', [
+      const replay = await call(panel, '/panel/message', 'POST', '{"kind":"ping"}', [
         ...headers(panel),
         'Cookie',
         capturedCookie ?? '',
@@ -146,13 +146,15 @@ describe('companion browser security', () => {
           globalThis.sessionStorage.length,
         ]),
       ).toEqual([0, 0])
-      const formReply = attack.waitForResponse((response) => response.url() === `${panel.url}post`)
+      const formReply = attack.waitForResponse(
+        (response) => response.url() === `${panel.url}panel/message`,
+      )
       await attack.evaluate((url) => {
         const frame = document.createElement('iframe')
         frame.name = 'attack'
         document.body.append(frame)
         const form = document.createElement('form')
-        form.action = `${url}post`
+        form.action = `${url}panel/message`
         form.method = 'POST'
         form.target = 'attack'
         document.body.append(form)
@@ -163,7 +165,7 @@ describe('companion browser security', () => {
       const result = await attack.evaluate(async (url) => {
         let fetchResult: string
         try {
-          await window.fetch(`${url}post`, {
+          await window.fetch(`${url}panel/message`, {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' },
@@ -174,7 +176,7 @@ describe('companion browser security', () => {
           fetchResult = 'refused'
         }
         const eventsResult = await new Promise<string>((resolve) => {
-          const events = new EventSource(`${url}events`, { withCredentials: true })
+          const events = new EventSource(`${url}panel/events`, { withCredentials: true })
           events.addEventListener('open', () => {
             events.close()
             resolve('accepted')
@@ -185,7 +187,7 @@ describe('companion browser security', () => {
           })
         })
         const socketResult = await new Promise<string>((resolve) => {
-          const socket = new WebSocket(`${url.replace('http:', 'ws:')}post`)
+          const socket = new WebSocket(`${url.replace('http:', 'ws:')}panel/message`)
           socket.addEventListener('open', () => {
             socket.close()
             resolve('accepted')
@@ -227,7 +229,7 @@ describe('companion browser security', () => {
         expect(
           await page.evaluate(async () => {
             const { fetch, window } = globalThis
-            const response = await fetch('/events', {
+            const response = await fetch('/panel/events', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' },
               body: '{}',
@@ -236,7 +238,7 @@ describe('companion browser security', () => {
             return response.status
           }),
         ).toBe(200)
-        expect(await page.evaluate(postFromPage, index === 1)).toBe(202)
+        expect(await page.evaluate(postFromPage, index === 1)).toBe(204)
       }
       expect(panel.handler.subscribe).toHaveBeenCalledTimes(2)
       expect(panel.listeners.size).toBe(2)
@@ -257,14 +259,14 @@ describe('companion browser security', () => {
         await openPage(page, panel.launchUrl())
       }
       for (const [index, page] of context.pages().entries()) {
-        const request = page.waitForRequest((value) => value.url().endsWith('/post'))
-        expect(await page.evaluate(postFromPage, false)).toBe(202)
+        const request = page.waitForRequest((value) => value.url().endsWith('/panel/message'))
+        expect(await page.evaluate(postFromPage, false)).toBe(204)
         const captured = await request
         const authorization = await captured.headerValue('authorization')
         expect(authorization?.startsWith('Bearer ')).toBe(true)
         const other = index === 0 ? second : first
         expect(
-          await call(other, '/post', 'POST', '{"kind":"ping"}', [
+          await call(other, '/panel/message', 'POST', '{"kind":"ping"}', [
             ...headers(other),
             'Authorization',
             authorization ?? '',

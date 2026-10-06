@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- The standalone companion now admits MHP 1.1 panel/lifecycle messages at
+  `/panel/message` and `/panel/surface`, returns empty 204 admissions and
+  typed errors, and streams ordered `event: mhp` frames with sequence IDs
+  at `/panel/events`. Existing per-window authentication guards remain.
+
 - VS Code adapter modules now live under `src/host/vscode/`; the host API
   gate enforces this boundary while preserving the existing panel behavior.
 - Portable conversation composition now shares backend, paid-use, review,

@@ -19035,6 +19035,32 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**Lane B2 continuation (2026-10-05).** The rig brief authorizes the larger
+runtime composition after A's factory landed. Implement the frozen 1.1
+carrier with correlated editor-service requests, immutable registered
+surfaces, bounded ordered queues, reload replay and close/drop accounting.
+Align companion endpoints and SSE while retaining C's per-window bearer and
+all origin/metadata/header guards. Wire runtime settings/storage and backend
+ports through `composeConversationDeps`; keep ACP translation and permission
+prompts in its view. Verify with fake-only panel processes and ACP regression
+suites. D's browser bridge and the distribution lane must integrate their
+owned files; absent browser files receive a concrete handoff. Record every
+unavailable feature and its dependency before claiming editor parity or
+unblocking M110a0. Scoped rig checks replace aggregate quality in this lane;
+no gate or size cap changes.
+The first inline build measures ACP at 895.0 KiB against its unchanged
+850 KiB cap. Follow the shared lane rule's lazy-bundle remedy: a checked
+`dist/runtimePanel.js` loads only for `panel`, uses the existing conversation
+factory bundle, installs the caller's language table, and is included in the
+ACP package and notices. Existing caps remain unchanged; the new carrier
+bundle is bounded at 100 KiB using D6's measured-size/headroom convention.
+The carrier first measures 103.5 KiB against its new 100 KiB cap. Keep that
+cap too: load the feature-port composition on first initialization from a
+separately checked `dist/runtimePanelPorts.js` (75 KiB initial budget); it
+installs the caller's language table before constructing any ports.
+The registry's protocol error factory is injected by ACP, keeping the
+portable registry independent of the ACP SDK.
+
 **Lane A implementation (2026-10-05).** The required release/0.14.1 merge
 brings the current activation and 30 host modules importing `vscode`
 (the planning count was 24). Move all 30 with history into `src/host/vscode/`.
