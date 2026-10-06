@@ -6844,6 +6844,32 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM115E — Repair shared event burst and replay identities (2026-10-06)
+
+Repair all three RVM115E P2 findings within lane E, with no dependency or
+shipping feature added. The owner's decisions in the rig brief govern:
+
+- P2-1: replace host-local buffering/per-event admission with an injected
+  atomic shared claim transaction. One open burst per schedule holds the
+  scrubbed representative, owner, trailing window end and count; every unique
+  member joins that burst. Only its owner drains before the window plus a
+  lease (one debounce interval); after that any host can atomically take it.
+  Removal/claim precedes delivery and is permanent. S/W bind durable storage,
+  cross-process locking and a common clock; E supplies the transition logic.
+- P2-2: Git identity uses repository identity, ref, new OID and previous OID
+  only. Loose/packed storage and metadata never participate. Repeating the
+  same content transition deliberately reuses its identity.
+- P2-3: hash every raw key before scrubbing in the domain-separated `evk1:`
+  namespace using a length-prefixed UTF-8 encoding. Only scrubbed payloads
+  and safe identities reach shared state. Recognize existing legacy receipts
+  without issuing new receipts in their ambiguous namespace.
+
+Each fix has a regression and a byte-exact restored red drill in
+`docs/certification/m115-e.md`. The rig brief forbids aggregate quality,
+merges, pushes, rebases and live/paid calls; run owned suites (at most three
+files per run), static checks and the build directly on Kubuntu. Hooks stay
+on. Record any residual by name here in §9 and in the lane certification.
+
 ### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
 
 Repair all six RVM115L0 P2 findings before M115's wave lanes bind the

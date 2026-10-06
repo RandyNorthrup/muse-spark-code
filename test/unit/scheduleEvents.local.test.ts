@@ -24,7 +24,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 })
 
 describe('local git and workspace file event sources', () => {
-  it('reads real git refs with stable cross-editor revisions and distinct revisited commits', async () => {
+  it('uses one content identity and fire for loose-then-packed observations across editors', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'm115-e-git-'))
     const env = {
       ...withoutCredentials(process.env),
@@ -58,12 +58,31 @@ describe('local git and workspace file event sources', () => {
       await git('update-ref', 'refs/heads/main', b)
       await git('update-ref', 'refs/tags/v1', a)
       const changed = await first.poll(1)
+      await git('pack-refs', '--all')
       const otherEditor = await second.poll(1)
       expect(changed.map((event) => event.kind)).toEqual(['branchUpdated', 'tagCreated'])
       expect(otherEditor.map((event) => event.eventKey)).toEqual(
         changed.map((event) => event.eventKey),
       )
       expect(changed[0]?.fields).toEqual({ branch: 'main', commit: b })
+      const receipts = new Set<string>()
+      const claim = (id: string) => {
+        if (receipts.has(id)) return Promise.resolve(false)
+        receipts.add(id)
+        return Promise.resolve(true)
+      }
+      const privacy = new ScheduleEventPrivacy([], { mark: vi.fn() }, 'Untrusted data')
+      const firstEngine = new ScheduleEventEngine(() => now, claim, privacy)
+      const secondEngine = new ScheduleEventEngine(() => now, claim, privacy)
+      const [firstEvent] = changed
+      const [secondEvent] = otherEditor
+      if (!firstEvent || !secondEvent) throw new Error('Missing branch event')
+      const trigger = { kind: 'event', source: 'git', event: 'branchUpdated', conditions: [] }
+      expect(await firstEngine.enqueue('schedule', trigger, firstEvent)).toBe(true)
+      expect(await secondEngine.enqueue('schedule', trigger, secondEvent)).toBe(false)
+      now += SCHEDULE_EVENT_DEBOUNCE_MS
+      expect([...firstEngine.drain(), ...secondEngine.drain()]).toHaveLength(1)
+      expect(receipts.size).toBe(1)
       expect(await first.poll(1)).toEqual(changed)
       now = 2
       await git('update-ref', 'refs/heads/main', a)
@@ -73,7 +92,7 @@ describe('local git and workspace file event sources', () => {
       now += 1
       await git('update-ref', 'refs/heads/main', b)
       const revisited = await first.poll(now)
-      expect(revisited[0]?.eventKey).not.toEqual(changed[0]?.eventKey)
+      expect(revisited[0]?.eventKey).toEqual(changed[0]?.eventKey)
       expect(
         await new ScheduleGitSource(
           localGitRefs(root, () => true),

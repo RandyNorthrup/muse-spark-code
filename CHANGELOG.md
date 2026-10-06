@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M115's internal Git event identities now use repository/ref content
+  transitions, so packing refs cannot replay an observed branch update.
+  This repair does not enable scheduled-prompts v2 in the shipped extension.
+
 - Correct M115's internal schedule contracts before implementation: stale
   whole-record updates cannot restore revoked grants, crash-receipt migration
   accepts fractional filesystem times, repeated fake approval requests remain

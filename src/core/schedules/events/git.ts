@@ -21,6 +21,7 @@ import { noEventHistory, unavailableSource, type ScheduleSnapshotPort } from './
 import { retainedPollEvents } from './conditions'
 
 const refSchema = z.strictObject({
+  repository: z.string().check(z.minLength(1), z.maxLength(SCHEDULE_EVENT_FIELD_MAX_CHARS)),
   name: z.string().check(
     z.maxLength(SCHEDULE_EVENT_FIELD_MAX_CHARS),
     z.regex(/^refs\/(?:heads|tags)\//),
@@ -86,9 +87,13 @@ export function localGitRefs(
           const parts = line.trimEnd().split('\0')
           if (parts.length !== 2) throw new Error('gitRefShape')
           const [name, objectId] = parts
-          const ref = refSchema.parse({ name, objectId, revision: 'pending' })
-          // The shared ref file's revision gives both editors the same identity;
-          // revisiting an old commit after another update is a fresh occurrence.
+          const ref = refSchema.parse({
+            repository: common.stdout.trim(),
+            name,
+            objectId,
+            revision: 'pending',
+          })
+          // Metadata detects an unstable read; it never identifies an event.
           let metadata
           let file = path.join(common.stdout.trim(), ref.name)
           try {
@@ -151,7 +156,7 @@ export class ScheduleGitSource implements SchedulePollingEventSource {
           source: this.id,
           kind: isBranch ? 'branchUpdated' : 'tagCreated',
           eventKey: createHash('sha256')
-            .update(JSON.stringify([ref.name, ref.objectId, ref.revision]))
+            .update(JSON.stringify([ref.repository, ref.name, ref.objectId, old?.objectId ?? '']))
             .digest('hex'),
           observedAt: this.now(),
           fields: { branch: ref.name.replace(/^refs\/(?:heads|tags)\//, ''), commit: ref.objectId },
