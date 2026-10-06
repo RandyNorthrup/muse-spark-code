@@ -3,7 +3,7 @@ import { PassThrough, Writable } from 'node:stream'
 import { randomBytes } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VAULT_APPROVAL_TTL_MS, VAULT_LIMITS } from '../../src/shared/constants'
-import { invokeMacVault } from '../../src/runtime/vault/slots/macVaultProtocol'
+import { invokeMacVault, MacVaultError } from '../../src/runtime/vault/slots/macVaultProtocol'
 import { macVaultTransport } from '../../src/runtime/vault/slots/macVaultTransport'
 
 const mocks = vi.hoisted(() => ({ spawn: vi.fn() }))
@@ -112,6 +112,7 @@ describe('private Mac helper process', () => {
       child.stdout.write(output.subarray(2))
       child.emit('close', 1)
       await failed
+      await expect(pending).rejects.toBeInstanceOf(MacVaultError)
       expect(output.every((byte) => byte === 0)).toBe(true)
       expect(child.input[2]?.every((byte) => byte === 0)).toBe(true)
     },

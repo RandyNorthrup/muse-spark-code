@@ -100,6 +100,90 @@ struct MacVaultNativeTests {
             }
             print("PASS native-status-\(expected.rawValue)")
         }
+        for (count, status, expected) in [
+            (31, errSecSuccess, VaultFailure.authentication),
+            (33, errSecSuccess, VaultFailure.authentication),
+            (32, errSecItemNotFound, VaultFailure.itemMissing),
+            (32, errSecInteractionNotAllowed, VaultFailure.keychainLocked),
+            (32, errSecUserCanceled, VaultFailure.cancelled)
+        ] {
+            var bytes = Data(repeating: 0x7b, count: count)
+            defer { erasePrivateBytes(&bytes) }
+            do {
+                try validateWrappingKey(&bytes, status: status)
+                print("FAIL wrapping-result-rejection")
+                exit(1)
+            } catch let failure as VaultFailure {
+                guard failure == expected, bytes.allSatisfy({ $0 == 0 }) else {
+                    print("FAIL wrapping-result-erasure")
+                    exit(1)
+                }
+            }
+        }
+        var accepted = Data(repeating: 0x7b, count: VaultNative.keyBytes)
+        defer { erasePrivateBytes(&accepted) }
+        try validateWrappingKey(&accepted, status: errSecSuccess)
+        guard accepted == Data(repeating: 0x7b, count: VaultNative.keyBytes) else {
+            print("FAIL wrapping-result-handoff")
+            exit(1)
+        }
+        print("PASS wrapping-result-erasure-and-handoff")
+        // The helper's actual private reader, with generated input only. No
+        // Keychain call or authentication prompt is reachable from these cases.
+        for (count, failsRead, name) in [
+            (0, false, "empty-private-input"),
+            (31, false, "truncated-private-input-31"),
+            (32, false, "complete-private-input"),
+            (33, false, "trailing-private-input"),
+            (31, true, "read-failure-during-private-input"),
+            (32, true, "read-failure-after-private-input")
+        ] {
+            let header = try JSONSerialization.data(withJSONObject: [
+                "v": 1, "operation": "wrap", "identity": [
+                    "slotId": identity.slotId, "vaultId": identity.vaultId, "tier": identity.tier
+                ]
+            ])
+            var length = UInt32(header.count).bigEndian
+            var packet = withUnsafeBytes(of: &length) { Data($0) }
+            packet.append(header)
+            packet.append(Data(repeating: 0x7b, count: count))
+            defer { erasePrivateBytes(&packet) }
+            var offset = 0
+            var wipedSizes: [Int] = []
+            var wasInvalid = false
+            do {
+                var (_, privateKey) = try readRequest(read: { size in
+                    if offset == packet.count && failsRead { throw VaultFailure.invalidRequest }
+                    let end = min(offset + size, packet.count)
+                    defer { offset = end }
+                    return Data(packet[offset..<end])
+                }, erasePrivate: { bytes in
+                    wipedSizes.append(bytes.count)
+                    erasePrivateBytes(&bytes)
+                    guard bytes.allSatisfy({ $0 == 0 }) else {
+                        print("FAIL private-buffer-erasure")
+                        exit(1)
+                    }
+                })
+                defer { erasePrivateBytes(&privateKey) }
+                guard privateKey == Data(repeating: 0x7b, count: VaultNative.keyBytes) else {
+                    print("FAIL complete-private-input")
+                    exit(1)
+                }
+            } catch let failure as VaultFailure {
+                wasInvalid = failure == .invalidRequest
+            }
+            guard wasInvalid == (count != VaultNative.keyBytes || failsRead),
+                  wipedSizes.contains(min(count, VaultNative.keyBytes)),
+                  (count != 31 || wipedSizes.filter({ $0 == 31 }).count == 2),
+                  (count != 33 || wipedSizes.contains(1)),
+                  (count != 32 || !failsRead || wipedSizes.filter({ $0 == 32 }).count == 2),
+                  (count != 32 || failsRead || wipedSizes.filter({ $0 == 32 }).count == 1) else {
+                print("FAIL \(name): invalidRequest/cleanup")
+                exit(1)
+            }
+            print("PASS \(name): cleanup")
+        }
         print("PASS native-contracts")
     }
 }

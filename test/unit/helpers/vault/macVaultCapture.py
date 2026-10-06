@@ -53,6 +53,7 @@ class NativeProtocol(unittest.TestCase):
             ("unknown-field", {"v": 1, "operation": "probe", "secret": "canary"}, b""),
             ("trailing-bytes", {"v": 1, "operation": "probe"}, b"extra"),
             ("short-key", {"v": 1, "operation": "wrap", "identity": identity}, b""),
+            ("truncated-private-key-31", {"v": 1, "operation": "wrap", "identity": identity}, os.urandom(31)),
             ("long-key", {"v": 1, "operation": "wrap", "identity": identity}, os.urandom(33)),
             ("nested-field", {"v": 1, "operation": "delete", "identity": {**identity, "extra": 1}}, b""),
             ("missing-identity", {"v": 1, "operation": "delete", "identity": None}, b""),

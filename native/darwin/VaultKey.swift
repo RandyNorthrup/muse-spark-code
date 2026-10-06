@@ -72,16 +72,25 @@ struct MacRequest: Decodable {
 
 // JSON carries public metadata/ciphertext. The optional trailing 32 bytes are
 // secret. Reading is bounded even if the writer never closes its input pipe.
-func readRequest() throws -> (MacRequest, Data) {
-    let input = FileHandle.standardInput
-    func exact(_ count: Int) throws -> Data {
+func erasePrivateBytes(_ bytes: inout Data) {
+    bytes.resetBytes(in: bytes.startIndex..<bytes.endIndex)
+}
+
+// Injected I/O/erasure lets pure tests observe cleanup, without a Keychain item.
+// Production always uses stdin and the eraser; neither is a protocol option.
+func readRequest(read: (Int) throws -> Data? = { try FileHandle.standardInput.read(upToCount: $0) },
+                 erasePrivate: (inout Data) -> Void = erasePrivateBytes) throws -> (MacRequest, Data) {
+    func exact(_ count: Int, isPrivate: Bool = false) throws -> Data {
         var result = Data()
+        var isTransferred = false
+        defer { if isPrivate && !isTransferred { erasePrivate(&result) } }
         while result.count < count {
-            guard let part = try input.read(upToCount: count - result.count), !part.isEmpty else {
-                throw VaultFailure.invalidRequest
-            }
+            var part = try read(count - result.count) ?? Data()
+            defer { if isPrivate { erasePrivate(&part) } }
+            guard !part.isEmpty else { throw VaultFailure.invalidRequest }
             result.append(part)
         }
+        isTransferred = true
         return result
     }
     let length = try exact(MemoryLayout<UInt32>.size).reduce(0) { ($0 << 8) | Int($1) }
@@ -119,11 +128,14 @@ func readRequest() throws -> (MacRequest, Data) {
         }
         try container.validate(for: identity)
     }
-    var key = operation == "wrap" ? try exact(VaultNative.keyBytes) : Data()
-    guard try input.read(upToCount: 1)?.isEmpty != false else {
-        key.resetBytes(in: key.startIndex..<key.endIndex)
-        throw VaultFailure.invalidRequest
-    }
+    var key = Data()
+    var isTransferred = false
+    defer { if !isTransferred { erasePrivate(&key) } }
+    if operation == "wrap" { key = try exact(VaultNative.keyBytes, isPrivate: true) }
+    var trailing = try read(1) ?? Data()
+    defer { erasePrivate(&trailing) }
+    guard trailing.isEmpty else { throw VaultFailure.invalidRequest }
+    isTransferred = true
     return (request, key)
 }
 
@@ -177,10 +189,19 @@ func readWrappingKey(_ identity: SlotIdentity) throws -> Data {
     query[kSecMatchLimit as String] = kSecMatchLimitOne
     var result: CFTypeRef?
     let status = SecItemCopyMatching(query as CFDictionary, &result)
+    var bytes = (result as? Data) ?? Data()
+    result = nil
+    try validateWrappingKey(&bytes, status: status)
+    return bytes
+}
+
+// Validate/erase the owned result separately so pure tests never query a store.
+func validateWrappingKey(_ bytes: inout Data, status: OSStatus) throws {
+    var isValidated = false
+    defer { if !isValidated { erasePrivateBytes(&bytes) } }
     try requireKeychainSuccess(status)
-    guard let data = result as? Data,
-          data.count == VaultNative.keyBytes else { throw VaultFailure.authentication }
-    return data
+    guard bytes.count == VaultNative.keyBytes else { throw VaultFailure.authentication }
+    isValidated = true
 }
 
 // These explicit inputs let the capture harness exercise Q-M109; production
@@ -206,7 +227,7 @@ func wrap(_ key: Data, identity: SlotIdentity, certified: Bool = VaultNative.enc
         let sealed = try AES.GCM.seal(key, using: wrapping, authenticating: identity.binding)
         guard let combined = sealed.combined else { throw VaultFailure.authentication }
         var bytes = wrapping.withUnsafeBytes { Data($0) }
-        defer { bytes.resetBytes(in: bytes.startIndex..<bytes.endIndex) }
+        defer { erasePrivateBytes(&bytes) }
         try storeWrappingKey(bytes, identity: identity)
         return MacContainer(v: VaultNative.version, identity: identity, sealed: combined,
                             keyBlob: nil, ephemeral: nil, salt: nil)
@@ -234,7 +255,7 @@ func unwrap(_ container: MacContainer, identity: SlotIdentity, use: String,
     let sealed = try AES.GCM.SealedBox(combined: container.sealed)
     if identity.tier == "osStore" {
         var bytes = try readWrappingKey(identity)
-        defer { bytes.resetBytes(in: bytes.startIndex..<bytes.endIndex) }
+        defer { erasePrivateBytes(&bytes) }
         return try AES.GCM.open(sealed, using: SymmetricKey(data: bytes), authenticating: identity.binding)
     }
     try requireEnclave(certified: certified)
@@ -264,7 +285,7 @@ func writeResponse(_ header: [String: Any], key: Data = Data()) throws {
 
 func runVaultHelper() throws {
     var (request, key) = try readRequest()
-    defer { key.resetBytes(in: key.startIndex..<key.endIndex) }
+    defer { erasePrivateBytes(&key) }
     if request.operation == "probe" {
         try writeResponse(["v": VaultNative.version, "status": "ok", "secureEnclave": SecureEnclave.isAvailable,
                            "certified": VaultNative.enclaveCertified])
@@ -279,7 +300,7 @@ func runVaultHelper() throws {
     case "unwrap":
         guard let container = request.container, let use = request.use else { throw VaultFailure.invalidRequest }
         var unwrapped = try unwrap(container, identity: identity, use: use)
-        defer { unwrapped.resetBytes(in: unwrapped.startIndex..<unwrapped.endIndex) }
+        defer { erasePrivateBytes(&unwrapped) }
         try writeResponse(["v": VaultNative.version, "status": "ok"], key: unwrapped)
     case "delete":
         guard identity.tier == "osStore" else { throw VaultFailure.invalidRequest }

@@ -54,5 +54,77 @@
     "failed": true,
     "exit": 1,
     "restoredSha256": "adf3280a85cbacddbed3dd7e76fb2a82d3083502df1a0d5cd31e45d031dbebae"
+  },
+  {
+    "guard": "p3-partial-buffer",
+    "file": "native/darwin/VaultKey.swift",
+    "test": "FAIL truncated-private-input-31",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "cdbcb256b2f54c6a1590905efaa504cb9cc67674b546fd0479c1d19d3ec2c6c5"
+  },
+  {
+    "guard": "p3-read-chunk",
+    "file": "native/darwin/VaultKey.swift",
+    "test": "FAIL truncated-private-input-31",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "cdbcb256b2f54c6a1590905efaa504cb9cc67674b546fd0479c1d19d3ec2c6c5"
+  },
+  {
+    "guard": "p3-key-on-read-error",
+    "file": "native/darwin/VaultKey.swift",
+    "test": "FAIL read-failure-after-private-input",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "cdbcb256b2f54c6a1590905efaa504cb9cc67674b546fd0479c1d19d3ec2c6c5"
+  },
+  {
+    "guard": "p3-trailing-byte",
+    "file": "native/darwin/VaultKey.swift",
+    "test": "FAIL trailing-private-input",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "cdbcb256b2f54c6a1590905efaa504cb9cc67674b546fd0479c1d19d3ec2c6c5"
+  },
+  {
+    "guard": "p3-actual-erasure",
+    "file": "native/darwin/VaultKey.swift",
+    "test": "FAIL wrapping-result-erasure",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "cdbcb256b2f54c6a1590905efaa504cb9cc67674b546fd0479c1d19d3ec2c6c5"
+  },
+  {
+    "guard": "p3-keychain-result",
+    "file": "native/darwin/VaultKey.swift",
+    "test": "FAIL wrapping-result-erasure",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "cdbcb256b2f54c6a1590905efaa504cb9cc67674b546fd0479c1d19d3ec2c6c5"
+  },
+  {
+    "guard": "p3-keychain-handoff",
+    "file": "native/darwin/VaultKey.swift",
+    "test": "FAIL wrapping-result-handoff",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "cdbcb256b2f54c6a1590905efaa504cb9cc67674b546fd0479c1d19d3ec2c6c5"
+  },
+  {
+    "guard": "p3-reader-handoff",
+    "file": "native/darwin/VaultKey.swift",
+    "test": "FAIL complete-private-input",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "cdbcb256b2f54c6a1590905efaa504cb9cc67674b546fd0479c1d19d3ec2c6c5"
+  },
+  {
+    "guard": "p3-accumulated-handoff",
+    "file": "native/darwin/VaultKey.swift",
+    "test": "FAIL complete-private-input",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "cdbcb256b2f54c6a1590905efaa504cb9cc67674b546fd0479c1d19d3ec2c6c5"
   }
 ]
