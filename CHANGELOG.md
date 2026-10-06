@@ -15,6 +15,12 @@ happened, not what was planned; superseded entries are kept.
   from persistence failures, preserving unrelated pairs after stale requests.
 - M100's pairing/storage test fixtures create and clean their own OS temporary
   directories, so a clean worktree does not need an ignored `temp/` directory.
+- Harden the unshipped paired-device transport: listener startup settles on
+  unlink, close or its startup deadline, and a stale listener disposer cannot
+  close a replacement listener or its connections. Setup and incomplete-frame
+  deadlines check monotonic and wall clocks at progress transitions, including
+  backwards wall jumps and delayed timer callbacks. Frame reassembly copies
+  once per completed frame and refuses more than 4,096 fragments.
 
 ## [0.14.1] - 2026-10-05
 

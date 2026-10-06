@@ -17764,6 +17764,18 @@ byte-exact red/restored receipt in `docs/certification/m100-p.md`. No new
 dependency, listener, installed-host claim or paid/live call. The rig brief
 forbids merges and aggregate quality; the lead retains those joined-tree gates.
 
+**FIXM100T review repair (2026-10-06).** Repair every RVM100T finding in
+T's transport/framing modules and owning tests: settle listener startup on
+listening/error/close/unlink with its own deadline and a named revoked error;
+bind cleanup to the listener generation; check absolute setup deadlines at
+DNS, TLS, initial-offer and readiness transitions against monotonic and wall
+clocks, refusing backwards wall jumps; assemble frames once from bounded
+chunks. The required fragment cap belongs to the existing `DEVICE_LIMITS`
+region. Each repair gets a failing regression and a byte-exact red/restored
+receipt in `docs/certification/m100-t.md`. Loopback only; no new dependency,
+paid/live calls, merge or push. Full quality and the existing I-owned
+host-API/split registration remain joined-tree gates, without any waiver.
+
 - **Goal.** The owner explicitly links his four LAN devices, offers a bounded
   pool from each open extension, delegates independent lanes and checks from
   one board, and receives reviewable Git branches without moving credentials
@@ -18634,6 +18646,16 @@ API record and `DEVICE_MODEL_TEXT` split registration remain I-owned;
 neither guard is weakened or bypassed. The lead must regenerate/review the
 joined host record, register the actual lazy bundle readers and pass full
 quality/coverage before proposing a product commit or release.
+
+**FIXM100T transport/review repair (2026-10-06).** The rig brief requires
+direct Kubuntu owning-file runs (at most three files/workers), scoped static
+checks, normal-hook local commits and no aggregate quality, merge or push.
+The three RVM100T P2s and one P3 are repaired and have named regressions and
+byte-exact red/restored receipts in `docs/certification/m100-t.md`. No gate is
+weakened. The inherited host-API record and `DEVICE_MODEL_TEXT` split-reader
+registration stay I-owned; §9 names that joined-tree handoff. Full quality,
+coverage, installed-host/firewall/multicast, security and packaging evidence
+remain the lead's exact integrated-tree prerequisites.
 
 **DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
 complete Windows unit inventory in batches of at most three files and
@@ -19626,6 +19648,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M100-T-JOINED-GATES (inherited integration handoff).** T's transport is
+  unshipped and ordinary chat does not load it. Its inherited generated host
+  API import counts and missing `DEVICE_MODEL_TEXT` split-reader registration
+  still fail their unchanged gates; no runtime or released support is claimed
+  from loopback tests. Safe for this isolated review lane while Devices remains
+  unshipped. Follow-up: I regenerates/reviews the host API inventory, registers
+  the real lazy Devices readers, and runs full quality, packaging and installed
+  four-device qualification before shipment. All four RVM100T findings are
+  repaired; none is deferred. Receipts: `docs/certification/m100-t.md`.
 
 - **M100-LOCAL-ACCOUNT (FIXM100L0).** The OS, logged-in account, extension
   host and installed extensions/helpers are trusted. Another local user can
