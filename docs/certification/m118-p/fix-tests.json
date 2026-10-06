@@ -1,0 +1,40 @@
+{
+  "machine": "macmini",
+  "runs": [
+    {
+      "command": "npx vitest run test/unit/promptStore.test.ts test/unit/promptNative.test.ts test/unit/promptMenus.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=temp/fix-tests-1.json",
+      "exit": 0,
+      "passed": 28,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": "npx vitest run test/unit/promptLibrary.test.tsx test/unit/promptEntry.test.ts test/unit/sharingArtifacts.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=temp/fix-tests-2.json",
+      "exit": 0,
+      "passed": 13,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": "npx vitest run test/unit/promptImport.test.ts test/unit/promptPrivacy.test.ts test/unit/prompts.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=temp/fix-tests-3.json",
+      "exit": 0,
+      "passed": 35,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": "npx vitest run test/unit/Composer.test.tsx test/unit/Transcript.test.tsx test/unit/paletteRegistry.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=temp/fix-tests-4.json",
+      "exit": 0,
+      "passed": 177,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": "npx vitest run test/unit/shareContracts.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=temp/fix-tests-5.json",
+      "exit": 0,
+      "passed": 42,
+      "failed": 0,
+      "pending": 0
+    }
+  ]
+}

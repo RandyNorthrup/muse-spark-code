@@ -17,6 +17,24 @@ import { forms } from './forms'
 
 export const EN = {
   // M118: prompt library and local sharing; read UI_TEXT at use time.
+  promptLimits: 'The prompt exceeds the size limit, or this scope has too many prompts.',
+  promptWorkspaceRequired: 'Open a workspace to save workspace prompts.',
+  promptScopeDamaged:
+    '{scope}: The prompt store is unreadable or damaged. Its files were kept unchanged.',
+  promptImportConfirmScope: 'Save imported prompt in {scope}',
+  promptStoreDamaged: 'The prompt store is unreadable or damaged. Its files were kept unchanged.',
+  promptStoreBusy: 'The prompt store is busy or changed. Try again.',
+  promptSecretsNote: 'Prompts are stored as plain text. Do not save passwords or keys.',
+  promptSearch: 'Search prompts and tags',
+  promptEmpty: 'No saved prompts match.',
+  promptDuplicate: 'Duplicate',
+  promptRun: 'Review variables and insert',
+  promptEdit: 'Edit prompt',
+  promptDelete: 'Delete prompt',
+  promptDeleteConfirm: 'Delete this prompt?',
+  promptLink: 'Import from link or raw gist URL',
+  promptFromFile: 'Import from file',
+  promptImportConfirm: 'Save imported prompt',
   promptSave: 'Save prompt',
   promptUseSaved: 'Use saved prompt…',
   promptLibrary: 'Prompt library',

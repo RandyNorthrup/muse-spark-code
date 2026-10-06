@@ -2370,5 +2370,22 @@
   "shareTooLarge": "分享内容超出了文件大小或对话记录限制。",
   "shareAttachmentUnavailable": "此范围内无法获取所选附件的内容。",
   "sharePreviewExpired": "预览已更改或过期。分享前请重新预览。",
-  "shareDecision": "决定"
+  "shareDecision": "决定",
+  "promptLimits": "提示词超过大小上限，或此范围中的提示词过多。",
+  "promptWorkspaceRequired": "请打开工作区以保存工作区提示词。",
+  "promptScopeDamaged": "{scope}：提示词存储无法读取或已损坏。文件保持不变。",
+  "promptImportConfirmScope": "将导入的提示词保存到{scope}",
+  "promptStoreDamaged": "提示词存储无法读取或已损坏。文件保持不变。",
+  "promptStoreBusy": "提示词存储正忙或已更改。请重试。",
+  "promptSecretsNote": "提示词以明文存储。请勿保存密码或密钥。",
+  "promptSearch": "搜索提示词和标签",
+  "promptEmpty": "没有匹配的已保存提示词。",
+  "promptDuplicate": "复制副本",
+  "promptRun": "检查变量并插入",
+  "promptEdit": "编辑提示词",
+  "promptDelete": "删除提示词",
+  "promptDeleteConfirm": "删除此提示词？",
+  "promptLink": "从链接或gist原始内容网址导入",
+  "promptFromFile": "从文件导入",
+  "promptImportConfirm": "保存导入的提示词"
 }

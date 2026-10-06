@@ -1,3 +1,6 @@
+import type { PromptLibraryProps } from '../prompts/PromptLibrary'
+import { lazy } from 'react'
+import { DeferredSurface } from './DeferredSurface'
 // The prompt box: textarea with Claude-Code key semantics (Enter sends,
 // Shift+Enter newline, optional Ctrl/Cmd+Enter-to-send, Shift+Tab cycles the
 // permission mode, "@" opens the mention menu), attachment chips, paste/drop of images and editor files,
@@ -99,7 +102,16 @@ export interface SlashPaletteSlot {
   readonly onActiveRowChange: (elementId: string | undefined) => void
 }
 
+const PromptLibrary = lazy(async () => {
+  const module = await import('../prompts/PromptLibrary')
+  return { default: module.PromptLibrary }
+})
+
 export interface ComposerProps {
+  /** M118-P-REACT-BRIDGE: bound by W/native hosts; IO stays in the host. */
+  readonly promptLibrary?: Omit<PromptLibraryProps, 'onClose'>
+  readonly onSavePrompt?: (text: string) => void
+  readonly onSharePrompt?: (text: string) => void
   readonly draft: string
   readonly placeholder: string
   readonly settings: SettingsSnapshot
@@ -328,6 +340,7 @@ function slashMenuOf(draft: string, caret: number): 'palette' | 'commands' | und
 }
 
 export function Composer(props: ComposerProps) {
+  const [isPromptLibraryOpen, setPromptLibraryOpen] = useState(false)
   const {
     draft,
     placeholder,
@@ -924,6 +937,12 @@ export function Composer(props: ComposerProps) {
   return (
     <footer
       className="composer"
+      data-vscode-context={JSON.stringify({
+        'museSpark.promptSource': 'composer',
+        'museSpark.promptText': draft,
+        'museSpark.composerHasText': draft.trim() !== '',
+        'museSpark.chatAvailable': true,
+      })}
       onFocus={() => {
         setIsFocusWithin(true)
       }}
@@ -1005,6 +1024,52 @@ export function Composer(props: ComposerProps) {
           onFocusChange(false)
         }}
       />
+      {isPromptLibraryOpen && props.promptLibrary !== undefined ? (
+        <DeferredSurface
+          onClose={() => {
+            setPromptLibraryOpen(false)
+          }}
+        >
+          <PromptLibrary
+            {...props.promptLibrary}
+            onClose={() => {
+              setPromptLibraryOpen(false)
+            }}
+          />
+        </DeferredSurface>
+      ) : null}
+      {props.onSavePrompt === undefined ? null : (
+        <button
+          type="button"
+          disabled={draft.trim() === ''}
+          onClick={() => {
+            props.onSavePrompt?.(draft)
+          }}
+        >
+          {UI_TEXT.promptSave}
+        </button>
+      )}
+      {props.onSharePrompt === undefined ? null : (
+        <button
+          type="button"
+          disabled={draft.trim() === ''}
+          onClick={() => {
+            props.onSharePrompt?.(draft)
+          }}
+        >
+          {UI_TEXT.sharePrompt}
+        </button>
+      )}
+      {props.promptLibrary === undefined ? null : (
+        <button
+          type="button"
+          onClick={() => {
+            setPromptLibraryOpen(true)
+          }}
+        >
+          {UI_TEXT.promptUseSaved}
+        </button>
+      )}
       <div className="composer-toolbar">
         <div className="composer-toolbar-group">
           <button

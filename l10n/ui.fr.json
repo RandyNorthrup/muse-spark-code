@@ -2558,5 +2558,22 @@
   "shareTooLarge": "Ce partage dépasse la limite de taille du fichier ou de la transcription.",
   "shareAttachmentUnavailable": "Le contenu de la pièce jointe sélectionnée est indisponible dans cette plage.",
   "sharePreviewExpired": "L’aperçu a changé ou a expiré. Affichez-le à nouveau avant de partager.",
-  "shareDecision": "Décision"
+  "shareDecision": "Décision",
+  "promptLimits": "Le prompt dépasse la taille limite ou cette portée contient trop de prompts.",
+  "promptWorkspaceRequired": "Ouvrez un espace de travail pour y enregistrer des prompts.",
+  "promptScopeDamaged": "{scope} : Le stockage des prompts est illisible ou endommagé. Les fichiers sont restés inchangés.",
+  "promptImportConfirmScope": "Enregistrer le prompt importé dans {scope}",
+  "promptStoreDamaged": "Le stockage des prompts est illisible ou endommagé. Les fichiers sont restés inchangés.",
+  "promptStoreBusy": "Le stockage des prompts est occupé ou a changé. Réessayez.",
+  "promptSecretsNote": "Les prompts sont stockés en texte brut. Ne stockez ni mots de passe ni clés.",
+  "promptSearch": "Rechercher des prompts et des étiquettes",
+  "promptEmpty": "Aucun prompt enregistré ne correspond.",
+  "promptDuplicate": "Dupliquer",
+  "promptRun": "Vérifier les variables et insérer",
+  "promptEdit": "Modifier le prompt",
+  "promptDelete": "Supprimer le prompt",
+  "promptDeleteConfirm": "Supprimer ce prompt ?",
+  "promptLink": "Importer depuis un lien ou une URL de gist brut",
+  "promptFromFile": "Importer depuis un fichier",
+  "promptImportConfirm": "Enregistrer le prompt importé"
 }

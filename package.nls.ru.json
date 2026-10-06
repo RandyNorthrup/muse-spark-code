@@ -169,5 +169,6 @@
   "command.promptLibrary.title": "Библиотека промптов",
   "command.savePrompt.title": "Сохранить промпт",
   "command.useSavedPrompt.title": "Использовать сохранённый промпт…",
-  "command.copyToMyPrompts.title": "Скопировать в мои промпты"
+  "command.copyToMyPrompts.title": "Скопировать в мои промпты",
+  "config.syncPromptsAndBookmarks.description": "Копировать запросы для всех рабочих областей в синхронизацию настроек. Запросы рабочей области остаются локальными."
 }

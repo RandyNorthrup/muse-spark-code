@@ -2464,5 +2464,22 @@
   "shareTooLarge": "A megosztás meghaladja a fájlméret vagy az átirat korlátját.",
   "shareAttachmentUnavailable": "A kiválasztott melléklet tartalma ebben a tartományban nem érhető el.",
   "sharePreviewExpired": "Az előnézet megváltozott vagy lejárt. Megosztás előtt nyissa meg újra.",
-  "shareDecision": "Döntés"
+  "shareDecision": "Döntés",
+  "promptLimits": "A prompt túllépi a méretkorlátot, vagy ebben a hatókörben túl sok prompt van.",
+  "promptWorkspaceRequired": "Nyisson meg egy munkaterületet a munkaterületi promptok mentéséhez.",
+  "promptScopeDamaged": "{scope}: A prompttároló olvashatatlan vagy sérült. A fájlok változatlanok maradtak.",
+  "promptImportConfirmScope": "Importált prompt mentése ide: {scope}",
+  "promptStoreDamaged": "A prompttár olvashatatlan vagy sérült. A fájlok változatlanok maradtak.",
+  "promptStoreBusy": "A prompttár foglalt vagy megváltozott. Próbálja újra.",
+  "promptSecretsNote": "A promptok egyszerű szövegként tárolódnak. Ne mentsen jelszavakat vagy kulcsokat.",
+  "promptSearch": "Promptok és címkék keresése",
+  "promptEmpty": "Nincs megfelelő mentett prompt.",
+  "promptDuplicate": "Másolat készítése",
+  "promptRun": "Változók ellenőrzése és beszúrás",
+  "promptEdit": "Prompt szerkesztése",
+  "promptDelete": "Prompt törlése",
+  "promptDeleteConfirm": "Törli ezt a promptot?",
+  "promptLink": "Importálás hivatkozásból vagy nyers gist URL-ből",
+  "promptFromFile": "Importálás fájlból",
+  "promptImportConfirm": "Importált prompt mentése"
 }

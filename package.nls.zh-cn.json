@@ -169,5 +169,6 @@
   "command.promptLibrary.title": "提示词库",
   "command.savePrompt.title": "保存提示词",
   "command.useSavedPrompt.title": "使用已保存的提示词…",
-  "command.copyToMyPrompts.title": "复制到我的提示词"
+  "command.copyToMyPrompts.title": "复制到我的提示词",
+  "config.syncPromptsAndBookmarks.description": "将所有工作区的提示词镜像到设置同步。工作区提示词保留在本地。"
 }

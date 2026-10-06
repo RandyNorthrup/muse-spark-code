@@ -2652,5 +2652,22 @@
   "shareTooLarge": "Sdílený obsah překračuje limit velikosti souboru nebo přepisu.",
   "shareAttachmentUnavailable": "Obsah vybrané přílohy není v tomto rozsahu dostupný.",
   "sharePreviewExpired": "Náhled se změnil nebo vypršel. Před sdílením jej zobrazte znovu.",
-  "shareDecision": "Rozhodnutí"
+  "shareDecision": "Rozhodnutí",
+  "promptLimits": "Prompt překračuje limit velikosti nebo je v tomto rozsahu příliš mnoho promptů.",
+  "promptWorkspaceRequired": "Pro uložení promptů pracovního prostoru otevřete pracovní prostor.",
+  "promptScopeDamaged": "{scope}: Úložiště promptů je nečitelné nebo poškozené. Soubory zůstaly beze změny.",
+  "promptImportConfirmScope": "Uložit importovaný prompt do {scope}",
+  "promptStoreDamaged": "Úložiště promptů je nečitelné nebo poškozené. Soubory zůstaly beze změny.",
+  "promptStoreBusy": "Úložiště promptů je zaneprázdněné nebo se změnilo. Zkuste to znovu.",
+  "promptSecretsNote": "Prompty se ukládají jako prostý text. Neukládejte hesla ani klíče.",
+  "promptSearch": "Hledat prompty a štítky",
+  "promptEmpty": "Žádné uložené prompty neodpovídají.",
+  "promptDuplicate": "Duplikovat",
+  "promptRun": "Zkontrolovat proměnné a vložit",
+  "promptEdit": "Upravit prompt",
+  "promptDelete": "Smazat prompt",
+  "promptDeleteConfirm": "Smazat tento prompt?",
+  "promptLink": "Importovat z odkazu nebo adresy surového gistu",
+  "promptFromFile": "Importovat ze souboru",
+  "promptImportConfirm": "Uložit importovaný prompt"
 }

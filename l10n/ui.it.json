@@ -2558,5 +2558,22 @@
   "shareTooLarge": "La condivisione supera il limite di dimensione del file o della trascrizione.",
   "shareAttachmentUnavailable": "Il contenuto dell’allegato selezionato non è disponibile in questo intervallo.",
   "sharePreviewExpired": "L’anteprima è cambiata o è scaduta. Visualizzala di nuovo prima di condividere.",
-  "shareDecision": "Decisione"
+  "shareDecision": "Decisione",
+  "promptLimits": "Il prompt supera il limite di dimensione oppure questo ambito contiene troppi prompt.",
+  "promptWorkspaceRequired": "Apri uno spazio di lavoro per salvarvi i prompt.",
+  "promptScopeDamaged": "{scope}: L’archivio dei prompt è illeggibile o danneggiato. I file sono rimasti invariati.",
+  "promptImportConfirmScope": "Salva il prompt importato in {scope}",
+  "promptStoreDamaged": "L’archivio dei prompt è illeggibile o danneggiato. I file sono rimasti invariati.",
+  "promptStoreBusy": "L’archivio dei prompt è occupato o è cambiato. Riprova.",
+  "promptSecretsNote": "I prompt sono salvati come testo semplice. Non salvare password o chiavi.",
+  "promptSearch": "Cerca prompt e tag",
+  "promptEmpty": "Nessun prompt salvato corrisponde.",
+  "promptDuplicate": "Duplica",
+  "promptRun": "Controlla le variabili e inserisci",
+  "promptEdit": "Modifica prompt",
+  "promptDelete": "Elimina prompt",
+  "promptDeleteConfirm": "Eliminare questo prompt?",
+  "promptLink": "Importa da link o URL di gist grezzo",
+  "promptFromFile": "Importa da file",
+  "promptImportConfirm": "Salva prompt importato"
 }

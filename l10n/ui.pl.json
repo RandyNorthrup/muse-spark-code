@@ -2652,5 +2652,22 @@
   "shareTooLarge": "Udostępniana treść przekracza limit rozmiaru pliku lub zapisu rozmowy.",
   "shareAttachmentUnavailable": "Treść wybranego załącznika jest niedostępna w tym zakresie.",
   "sharePreviewExpired": "Podgląd zmienił się lub wygasł. Wyświetl go ponownie przed udostępnieniem.",
-  "shareDecision": "Decyzja"
+  "shareDecision": "Decyzja",
+  "promptLimits": "Prompt przekracza limit rozmiaru lub w tym zakresie jest zbyt wiele promptów.",
+  "promptWorkspaceRequired": "Otwórz obszar roboczy, aby zapisać w nim prompty.",
+  "promptScopeDamaged": "{scope}: Magazyn promptów jest nieczytelny lub uszkodzony. Pliki zachowano bez zmian.",
+  "promptImportConfirmScope": "Zapisz zaimportowany prompt w {scope}",
+  "promptStoreDamaged": "Magazyn promptów jest nieczytelny lub uszkodzony. Pliki pozostały bez zmian.",
+  "promptStoreBusy": "Magazyn promptów jest zajęty lub zmieniony. Spróbuj ponownie.",
+  "promptSecretsNote": "Prompty są zapisywane jako zwykły tekst. Nie zapisuj haseł ani kluczy.",
+  "promptSearch": "Szukaj promptów i tagów",
+  "promptEmpty": "Brak pasujących zapisanych promptów.",
+  "promptDuplicate": "Duplikuj",
+  "promptRun": "Sprawdź zmienne i wstaw",
+  "promptEdit": "Edytuj prompt",
+  "promptDelete": "Usuń prompt",
+  "promptDeleteConfirm": "Usunąć ten prompt?",
+  "promptLink": "Importuj z linku lub adresu surowego gistu",
+  "promptFromFile": "Importuj z pliku",
+  "promptImportConfirm": "Zapisz zaimportowany prompt"
 }

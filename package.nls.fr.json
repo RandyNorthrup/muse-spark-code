@@ -169,5 +169,6 @@
   "command.promptLibrary.title": "Bibliothèque de prompts",
   "command.savePrompt.title": "Enregistrer le prompt",
   "command.useSavedPrompt.title": "Utiliser un prompt enregistré…",
-  "command.copyToMyPrompts.title": "Copier dans mes prompts"
+  "command.copyToMyPrompts.title": "Copier dans mes prompts",
+  "config.syncPromptsAndBookmarks.description": "Copier les prompts de tous les espaces de travail dans la synchronisation des paramètres. Les prompts de l’espace restent locaux."
 }

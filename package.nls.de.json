@@ -169,5 +169,6 @@
   "command.promptLibrary.title": "Prompt-Bibliothek",
   "command.savePrompt.title": "Prompt speichern",
   "command.useSavedPrompt.title": "Gespeicherten Prompt verwenden…",
-  "command.copyToMyPrompts.title": "In meine Prompts kopieren"
+  "command.copyToMyPrompts.title": "In meine Prompts kopieren",
+  "config.syncPromptsAndBookmarks.description": "Prompts für alle Arbeitsbereiche in die Einstellungssynchronisierung spiegeln. Arbeitsbereich-Prompts bleiben lokal."
 }

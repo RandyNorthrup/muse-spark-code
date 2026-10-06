@@ -1,3 +1,5 @@
+import { promptBundleLoader } from './host/prompts/promptBundle'
+import type { PromptHostDeps } from './host/prompts/promptEntry'
 import { isJudgeEngineOn } from './core/judge/engine'
 import { judgeWindowPort } from './host/judge/judgeBundle'
 import { storeErrorCode } from './host/backend/storeErrors'
@@ -260,6 +262,10 @@ import {
   MUSE_INSTALL_COMMANDS,
   OUTPUT_DOCUMENT_SCHEME,
   PRODUCT_NAME,
+  PROMPT_BUNDLE_FILE,
+  PROMPT_COMMAND_IDS,
+  PROMPT_SYNC_KEY,
+  PROMPT_SYNC_SETTING,
   SANDBOX_NETWORK_SETTING,
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
@@ -689,7 +695,17 @@ async function activateWindow(
     context.workspaceState.get(WORKSPACE_STATE_KEYS.lastSession) !== undefined ||
     existsSync(context.globalStorageUri.fsPath)
   // A page seen on one machine is not shown again on another (Settings Sync).
-  context.globalState.setKeysForSync([GLOBAL_STATE_KEYS.whatsNewLastSeenVersion])
+  const refreshPromptSync = () => {
+    const isOn =
+      vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect<boolean>(PROMPT_SYNC_SETTING)
+        ?.globalValue === true
+    context.globalState.setKeysForSync([
+      GLOBAL_STATE_KEYS.whatsNewLastSeenVersion,
+      ...(isOn ? [PROMPT_SYNC_KEY] : []),
+    ])
+    return isOn
+  }
+  refreshPromptSync()
   // M16 stored an account-agnostic usage snapshot. Remove it before any
   // surface opens: a later sign-in may belong to another Meta account.
   try {
@@ -710,6 +726,9 @@ async function activateWindow(
   })
 
   const registry = new SurfaceRegistry()
+  const readyPromptSurfaces = new Set<string>()
+  let promptSurfaceEvents: Parameters<PromptHostDeps['chat']['observe']>[0] | undefined
+
   const controllers = new Map<string, ConversationController>()
   // Approvals and questions waiting on the user, shared by every surface's
   // controller so the session board marks them window-wide (M77).
@@ -3119,6 +3138,8 @@ async function activateWindow(
       )
     },
     onSurfaceReady: (surface, attachmentEpoch) => {
+      readyPromptSurfaces.add(surface.id)
+      promptSurfaceEvents?.ready(surface)
       const controller = controllerFor(surface)
       controller.surfaceReady(attachmentEpoch)
       // `Report a Problem` opened this surface (M93): its dialog now has a page to show in.
@@ -3152,6 +3173,8 @@ async function activateWindow(
   }
 
   registry.onRemoved((surface) => {
+    readyPromptSurfaces.delete(surface.id)
+    promptSurfaceEvents?.closed(surface)
     controllers.get(surface.id)?.dispose()
     controllers.delete(surface.id)
     tasksTabs.get(surface.id)?.release()
@@ -3181,6 +3204,44 @@ async function activateWindow(
       return
     }
     openChatPanel(hostContext, registry)
+  }
+  // P registers commands only; W builds the lazy entry and binds the shared panel ports.
+  const loadPrompts = promptBundleLoader(
+    path.join(context.extensionUri.fsPath, 'dist', PROMPT_BUNDLE_FILE),
+    log,
+  )
+  const promptDeps: PromptHostDeps = {
+    workspaceRoot,
+    state: context.globalState,
+    isConfidentialWorkspace: () => currentSettings().confidentialWorkspace,
+    registeredSecrets: async () => {
+      const key = await credentials.getApiKey()
+      return key === undefined ? [] : [key]
+    },
+    chat: {
+      active: () => registry.active,
+      open: async () => {
+        if (currentSettings().preferredLocation === 'sidebar') {
+          await openSidebar()
+          return SIDEBAR_SURFACE_ID
+        }
+        openChatPanel(hostContext, registry)
+        const surface = registry.active
+        if (surface === undefined) throw new Error(UI_TEXT.promptFileInvalid)
+        return surface.id
+      },
+      isReady: (surface) => readyPromptSurfaces.has(surface.id),
+      observe: (events) => {
+        promptSurfaceEvents = events
+      },
+    },
+  }
+  for (const name of ['save', 'use', 'library', 'copyToUser', 'sharePrompt'] as const) {
+    context.subscriptions.push(
+      registerLoggedCommand(log, PROMPT_COMMAND_IDS[name], async (input: unknown) => {
+        await loadPrompts().runPromptCommand(name, input, promptDeps, UI_TEXT, uiLocale())
+      }),
+    )
   }
   const resolveCli = () => {
     const resolution = backend.resolveLaunch()
@@ -3330,6 +3391,13 @@ async function activateWindow(
       { webviewOptions: { retainContextWhenHidden: true } },
     ),
     vscode.workspace.onDidChangeConfiguration((event) => {
+      if (
+        event.affectsConfiguration(`${SETTINGS_SECTION}.${PROMPT_SYNC_SETTING}`) &&
+        refreshPromptSync()
+      )
+        void loadPrompts()
+          .runPromptCommand('synchronise', undefined, promptDeps, UI_TEXT, uiLocale())
+          .catch(logRejection(log, 'prompt sync'))
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         void withHookRunner((runner) => runner.noteSettingsChange(), false).catch(
           logRejection(log, 'ConfigChange hook'),

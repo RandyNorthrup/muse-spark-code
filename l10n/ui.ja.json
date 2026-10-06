@@ -2370,5 +2370,22 @@
   "shareTooLarge": "共有内容がファイルサイズまたは会話記録の上限を超えています。",
   "shareAttachmentUnavailable": "選択した添付ファイルの内容はこの範囲では利用できません。",
   "sharePreviewExpired": "プレビューが変更されたか期限切れです。共有前にもう一度プレビューしてください。",
-  "shareDecision": "判断"
+  "shareDecision": "判断",
+  "promptLimits": "プロンプトがサイズ上限を超えているか、この範囲のプロンプトが多すぎます。",
+  "promptWorkspaceRequired": "ワークスペース用プロンプトを保存するにはワークスペースを開いてください。",
+  "promptScopeDamaged": "{scope}: プロンプトストアを読み取れないか、破損しています。ファイルは変更されずに保持されています。",
+  "promptImportConfirmScope": "インポートしたプロンプトを{scope}に保存",
+  "promptStoreDamaged": "プロンプトの保存先が読み取れないか破損しています。ファイルは変更していません。",
+  "promptStoreBusy": "プロンプトの保存先が使用中か変更されました。もう一度お試しください。",
+  "promptSecretsNote": "プロンプトは平文で保存されます。パスワードやキーを保存しないでください。",
+  "promptSearch": "プロンプトとタグを検索",
+  "promptEmpty": "一致する保存済みプロンプトはありません。",
+  "promptDuplicate": "複製",
+  "promptRun": "変数を確認して挿入",
+  "promptEdit": "プロンプトを編集",
+  "promptDelete": "プロンプトを削除",
+  "promptDeleteConfirm": "このプロンプトを削除しますか？",
+  "promptLink": "リンクまたはgistの生データURLからインポート",
+  "promptFromFile": "ファイルからインポート",
+  "promptImportConfirm": "インポートしたプロンプトを保存"
 }

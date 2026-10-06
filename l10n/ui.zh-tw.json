@@ -2370,5 +2370,22 @@
   "shareTooLarge": "分享內容超出了檔案大小或對話記錄限制。",
   "shareAttachmentUnavailable": "此範圍內無法取得所選附件的內容。",
   "sharePreviewExpired": "預覽已變更或過期。分享前請重新預覽。",
-  "shareDecision": "決定"
+  "shareDecision": "決定",
+  "promptLimits": "提示詞超過大小上限，或此範圍中的提示詞過多。",
+  "promptWorkspaceRequired": "請開啟工作區以儲存工作區提示詞。",
+  "promptScopeDamaged": "{scope}：提示詞儲存區無法讀取或已損壞。檔案保持不變。",
+  "promptImportConfirmScope": "將匯入的提示詞儲存至{scope}",
+  "promptStoreDamaged": "提示詞儲存區無法讀取或已損壞。檔案保持不變。",
+  "promptStoreBusy": "提示詞儲存區忙碌或已變更。請重試。",
+  "promptSecretsNote": "提示詞以純文字儲存。請勿儲存密碼或金鑰。",
+  "promptSearch": "搜尋提示詞和標籤",
+  "promptEmpty": "沒有符合的已儲存提示詞。",
+  "promptDuplicate": "建立副本",
+  "promptRun": "檢查變數並插入",
+  "promptEdit": "編輯提示詞",
+  "promptDelete": "刪除提示詞",
+  "promptDeleteConfirm": "刪除此提示詞？",
+  "promptLink": "從連結或gist原始內容網址匯入",
+  "promptFromFile": "從檔案匯入",
+  "promptImportConfirm": "儲存匯入的提示詞"
 }
