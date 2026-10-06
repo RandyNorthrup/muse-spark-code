@@ -5134,6 +5134,13 @@ every line of ours it cites, is `docs/research/pi-solpi-2026-10-05.md`.
 
 ## 3. Open questions (need the owner)
 
+- **Q-M95BINT live receipts (2026-10-05):** the supplied findings identify
+  `acdc0f60…` and `577bc807…` (0 + 1 model attempts), but do not name the
+  exact raw-capture workspace or provide a successful plan tool/reasoning/
+  cached-token response. Supply those receipts when Subscription Sharing
+  headroom returns; also confirm the scrubbed usage-limit code and test an
+  installed Copilot host/remote callback. No new live call is authorized here.
+
 - **Q-M95INT2 release prerequisite (2026-10-05):** the rig brief says
   `m95/scfix` contains `928a9200` (0.13.0), but its actual `e5a114b4` tip
   contains only `a95f24cf`. May the exact local release commit be merged
@@ -15100,6 +15107,26 @@ release acceptance are still pending.**
 
 ### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
 
+**M95BINT integration (2026-10-05, Windows 11 rig).** Merge S/C/V/X/U's
+reviewed work, preserve their records, and close the production seams: exact
+subscription schemas, account-catalogue discovery, a lazy provider registry
+over the existing Model API client contract, panel actions and extension
+commands, and the same registry in the ACP runtime. Plan attempts bypass
+dollar reservations, retain their own request/token tallies, and supply the
+qualified model/provider to hooks. Fake-only end-to-end checks cover browser
+sign-in, catalogue selection, a turn and the captured HTTP-200 SSE limit;
+Copilot uses its host adapter and remains unavailable outside VS Code. Update
+all translations, subscriptions/privacy docs and acceptance 1–10 in
+`docs/certification/m95b.md`. The first composed build measured chat startup
+at 901.3/900 KiB; defer the optional Handoff and Best-of-N dialogs through the existing
+dismissible loading surface and add it to the existing 25-KiB deferred cap
+and split guard (no threshold changes). No live or paid calls; full quality and hosted
+editor/live receipts remain the lead's gates under the 150-minute rig brief.
+The host API gate caught a core type import reaching the VS Code entry; its
+seam contract now lives with the existing pure provider ports. The compiled
+Models bundle's language regression also failed before repair: subscription
+factories install both their local language state and the providers bundle's.
+
 **FIXM95BS review repair (2026-10-05, Windows 11 rig).** Repair all four
 RVM95BS findings in the owned sign-in core and tests: atomically persist a
 replacement grant as a pending refresh before validation, preserve it in
@@ -15154,9 +15181,12 @@ the unchanged provider-core exclusion guard; the factory installs the caller's
 language table before use. Parser-only grammar stays in cliArgs, so help,
 invalid arguments and headless/Meta-only command parsing load no provider core.
 
-**Status 2026-10-04: planned with M95; research in
-`docs/certification/m95-research.md` §6. Starts when M95's seam (lanes P, T
-and I) has merged.**
+**Status 2026-10-05: ChatGPT/Copilot production paths integrated with
+fake-server evidence; release certification remains open.** The account
+catalogue, headerless SSE, limit recovery, plan tallies, VS Code actions and
+ACP dispatch now compose. Plan-key transports/Hugging Face registration and
+the owner/live/installed-editor receipts remain prerequisites; see
+`docs/certification/m95b.md` and Q-M95BINT.
 
 - **Goal.** A user with a ChatGPT Plus or Pro plan, or a Copilot plan, runs
   the harness on that plan's inference with one click in the same panel,
@@ -15271,7 +15301,7 @@ and I) has merged.**
 - **Certification checklist.**
   - [ ] Step 1 capture recorded with its counted calls.
   - [ ] Acceptance 1–10 with tests and drills (`docs/certification/m95b.md`).
-  - [ ] README, PRIVACY, CHANGELOG and this record updated.
+  - [x] README, PRIVACY, CHANGELOG and this record updated.
 
 ### M95c — More providers and integrations after the first release (D74)
 
@@ -15801,6 +15831,18 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   - [ ] Provider × item table complete; full gate green
 
 ## 7. Gates
+
+**M95BINT rig delegation (2026-10-05).** The explicit integration brief
+requires whole-file lane suites with at most three files and three workers,
+all five typechecks, scoped lint/format, deadcode, duplication, localization,
+cycles, generated host API and every production cap. It expressly forbids
+full quality on the shared rig; the lead must run `npm run quality` before a
+release/commit proposal is accepted. Local commits preserve reviewable work
+with unchanged hooks. No test, threshold, timeout, rule or ignore is relaxed.
+Acceptance 9 remains deferred because the base has no general M95 transport
+composition; the panel's ordinary provider ports continue to throw their
+explicit unavailable error. Building that missing prerequisite exceeds this
+subscription integration lane. No API-key/plan-key success is fabricated.
 
 **FIXM95BC gate boundary (2026-10-05).** The rig/common brief prohibits
 aggregate `npm run quality` and full-test runs in this lane; the lead owns
@@ -16353,6 +16395,17 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
+M95BINT extends the existing Models bundle predicate to require both callable
+factories (`createModelsPanelFeatures`, `createSubscriptionFeatures`). Their
+signatures are trusted only within one typed source/build/package; the
+missing-factory regression, built split gate and real subscription factory
+integration test cover this boundary. No suppression, `any`, or unchecked
+cast is added. Literal `as const` annotations retain compiler-verified values.
+
+| M95BINT file                           | Construct                    | Reason                                                                                                                                       | Added      |
+| -------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/models/modelsPanelBundle.ts` | `value is ModelsPanelBundle` | Both callable factories come from one typed build/package; missing exports fail closed, and real factories are exercised with fake services. | 2026-10-05 |
+
 | M95 K repair file                     | Construct                                                    | Reason                                                                                                                                                    | Added      |
 | ------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/models/modelsPanelEntry.ts` | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal. | 2026-10-05 |
@@ -16494,9 +16547,12 @@ before a repaired one loads (2026-09-30).
   dispatch; this is an integration prerequisite, not a supported-live-turn
   claim. No paid or live model calls are authorized in this repair lane.
 
-- **RVM95BV-4-SUBSCRIPTION-INTEGRATION (FIXM95BV, 2026-10-05), release
-  blocker.** The owned Providers rows and extension command path remain
-  unfinished. This base has no `ProviderRegistry` or shared `ProviderClient`;
+- **RVM95BV-4-SUBSCRIPTION-INTEGRATION (FIXM95BV, 2026-10-05), repaired
+  offline by M95BINT.** Shared schemas/dispatch, translated panel actions,
+  production commands and both real factories now compose under fake-server
+  tests and unchanged membership/size gates. Installed/live release checks
+  remain open. The following describes the original FIXM95BV base: its owned
+  Providers rows and extension command path were unfinished. This base has no `ProviderRegistry` or shared `ProviderClient`;
   the provider file, host port and strict Models panel schemas accept only
   `apiKey`/`none`, and the strings tables contain none of the required ChatGPT
   or Copilot notices/errors. A working flow requires coordinated shared

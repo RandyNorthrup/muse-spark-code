@@ -251,6 +251,16 @@
         "command": "museSpark.addModelProvider",
         "title": "%command.addModelProvider.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.connectChatGpt",
+        "title": "%command.connectChatGpt%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.connectCopilot",
+        "title": "%command.connectCopilot%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [

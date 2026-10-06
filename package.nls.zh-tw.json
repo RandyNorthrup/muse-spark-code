@@ -125,5 +125,7 @@
   "command.addModelProvider.title": "新增模型提供者…",
   "config.suggestedProvider.description": "工作區最多可按 id 推薦一個模型提供者預設；面板會提供使用該預設開啟「模型與代理」。為空則不推薦。工作區不能設定位址或憑證。",
   "walkthrough.gettingStarted.step.ownModel.title": "使用自己的模型開始",
-  "walkthrough.gettingStarted.step.ownModel.description": "沒有 Muse 訂閱或 Meta API 金鑰？新增您自己的模型提供者（OpenRouter、Anthropic、OpenAI 或本機伺服器）並選擇模型。\n[使用自己的模型開始](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "沒有 Muse 訂閱或 Meta API 金鑰？新增您自己的模型提供者（OpenRouter、Anthropic、OpenAI 或本機伺服器）並選擇模型。\n[使用自己的模型開始](command:museSpark.startWithOwnModel)",
+  "command.connectChatGpt": "使用 ChatGPT 繼續",
+  "command.connectCopilot": "使用我的 Copilot 模型"
 }

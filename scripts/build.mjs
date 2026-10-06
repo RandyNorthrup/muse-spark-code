@@ -139,9 +139,12 @@ const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
     build.onResolve(
-      { filter: /\/(?:sessionBoardEntry|reviewerEntry|chatGptProviderCommands)(?:\.[jt]s)?$/ },
+      {
+        filter:
+          /\/(?:sessionBoardEntry|reviewerEntry|chatGptProviderCommands|providersEntry)(?:\.[jt]s)?$/,
+      },
       (args) => {
-        if (args.kind !== 'dynamic-import') return
+        if (args.kind !== 'dynamic-import' && !args.path.endsWith('providersEntry')) return
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
         let output
         switch (source) {
@@ -153,6 +156,7 @@ const deferredCohort = {
             output = REVIEWER_OUTFILE
             break
           }
+          case path.resolve(PROVIDERS_ENTRY):
           case path.resolve('src/runtime/chatGptProviderCommands.ts'): {
             output = PROVIDERS_OUTFILE
             break
@@ -275,7 +279,7 @@ const museCodeReviewerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelsPanelOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
   entryPoints: [MODELS_PANEL_ENTRY],
   outfile: MODELS_PANEL_OUTFILE,
   platform: 'node',

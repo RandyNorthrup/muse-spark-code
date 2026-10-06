@@ -125,5 +125,7 @@
   "command.addModelProvider.title": "모델 공급자 추가…",
   "config.suggestedProvider.description": "작업 영역은 ID로 모델 공급자 프리셋 하나를 제안할 수 있으며, 패널은 해당 프리셋으로 모델 및 에이전트를 여는 것을 제안합니다. 비어 있으면 아무것도 제안하지 않습니다. 작업 영역은 주소나 자격 증명을 설정할 수 없습니다.",
   "walkthrough.gettingStarted.step.ownModel.title": "자신의 모델로 시작",
-  "walkthrough.gettingStarted.step.ownModel.description": "Muse 구독이나 Meta API 키가 없나요? 자신의 모델 공급자(OpenRouter, Anthropic, OpenAI 또는 로컬 서버)를 추가하고 모델을 선택하세요.\n[자신의 모델로 시작](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Muse 구독이나 Meta API 키가 없나요? 자신의 모델 공급자(OpenRouter, Anthropic, OpenAI 또는 로컬 서버)를 추가하고 모델을 선택하세요.\n[자신의 모델로 시작](command:museSpark.startWithOwnModel)",
+  "command.connectChatGpt": "ChatGPT로 계속",
+  "command.connectCopilot": "내 Copilot 모델 사용"
 }

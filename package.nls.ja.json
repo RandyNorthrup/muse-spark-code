@@ -125,5 +125,7 @@
   "command.addModelProvider.title": "モデルプロバイダーを追加…",
   "config.suggestedProvider.description": "ワークスペースはモデルプロバイダーのプリセットを ID で 1 件だけ提案できます。パネルはそのプリセットで「モデルとエージェント」を開くことを提案します。空の場合は何も提案しません。ワークスペースはアドレスや資格情報を設定できません。",
   "walkthrough.gettingStarted.step.ownModel.title": "自分のモデルで始める",
-  "walkthrough.gettingStarted.step.ownModel.description": "Muse サブスクリプションも Meta API キーもありませんか？自分のモデルプロバイダー (OpenRouter、Anthropic、OpenAI、ローカルサーバー) を追加してモデルを選んでください。\n[自分のモデルで始める](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Muse サブスクリプションも Meta API キーもありませんか？自分のモデルプロバイダー (OpenRouter、Anthropic、OpenAI、ローカルサーバー) を追加してモデルを選んでください。\n[自分のモデルで始める](command:museSpark.startWithOwnModel)",
+  "command.connectChatGpt": "ChatGPT で続行",
+  "command.connectCopilot": "自分のCopilotモデルを使う"
 }

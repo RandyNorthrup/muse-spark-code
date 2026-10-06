@@ -67,9 +67,7 @@ import { Header } from './components/Header'
 import { HistoryDialog } from './components/HistoryDialog'
 import { ReviewPane } from './components/ReviewPane'
 import { SessionBoardDialog } from './components/SessionBoardDialog'
-import { BestOfNDialog } from './components/BestOfNDialog'
 import { DeferredSurface } from './components/DeferredSurface'
-import { HandoffDialog } from './components/HandoffDialog'
 import { ShareView } from './components/ShareView'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
@@ -103,6 +101,14 @@ import {
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
 
+const BestOfNDialog = lazy(async () => {
+  const module = await import('./components/BestOfNDialog')
+  return { default: module.BestOfNDialog }
+})
+const HandoffDialog = lazy(async () => {
+  const module = await import('./components/HandoffDialog')
+  return { default: module.HandoffDialog }
+})
 const UsageDialog = lazy(async () => {
   const module = await import('./components/UsageDialog')
   return { default: module.UsageDialog }
@@ -2088,7 +2094,7 @@ export function App({
         />
         {history}
         {board}
-        {bestOfN}
+        <DeferredSurface onClose={closeOverlay}>{bestOfN}</DeferredSurface>
       </div>
       <DeferredSurface onClose={closeOverlay}>{usageDialog}</DeferredSurface>
       <Suspense fallback={null}>
@@ -2104,7 +2110,7 @@ export function App({
           />
         ) : null}
       </Suspense>
-      {handoffDialog}
+      <DeferredSurface onClose={onHandoffCancel}>{handoffDialog}</DeferredSurface>
       {agentMap}
       {reviewPane}
       {state.share === undefined ? null : (

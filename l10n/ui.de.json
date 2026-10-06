@@ -2282,6 +2282,13 @@
     "tokenCounts": "{input} Eingabe · {output} Ausgabe · Anfragen: {requests}",
     "reduced": "Eingeschränkte Funktionen",
     "aiContent": "KI-generierte Inhalte können ungenau sein. Copilot fügt eigene Regeln hinzu und nutzt deine KI-Guthaben; Token-Zahlen sind Schätzungen, wenn keine Nutzung gemeldet wird.",
-    "reportContent": "Schädliche Inhalte melden"
+    "reportContent": "Schädliche Inhalte melden",
+    "copilotConnect": "Meine Copilot-Modelle verwenden",
+    "copilotUnavailable": "Copilot-Modelle sind nicht verfügbar. Aktivieren Sie Copilot und versuchen Sie es erneut.",
+    "copilotQuota": "Ihr Copilot-Kontingent ist aufgebraucht. Verwalten Sie die Nutzung oder wählen Sie ein anderes Modell.",
+    "copilotRateLimit": "Copilot begrenzt die Anfragerate. Versuchen Sie es später erneut.",
+    "copilotConsent": "Erlauben Sie den Zugriff im Zustimmungsdialog von Copilot.",
+    "expired": "ChatGPT hat eine zu kurze Gültigkeit für diese Anfrage gewährt. Melden Sie sich erneut an.",
+    "retry": "ChatGPT ist vorübergehend nicht verfügbar. Versuchen Sie es erneut."
   }
 }

@@ -2282,6 +2282,13 @@
     "tokenCounts": "{input} bemeneti · {output} kimeneti · kérések: {requests}",
     "reduced": "Korlátozott képességek",
     "aiContent": "Az AI által létrehozott tartalom pontatlan lehet. A Copilot saját szabályokat ad hozzá és az Ön AI-kreditjeit használja; a tokenszámok becslések, ha a használat nincs jelentve.",
-    "reportContent": "Káros tartalom jelentése"
+    "reportContent": "Káros tartalom jelentése",
+    "copilotConnect": "Saját Copilot-modellek használata",
+    "copilotUnavailable": "A Copilot-modellek nem érhetők el. Engedélyezze a Copilotot, és próbálja újra.",
+    "copilotQuota": "A Copilot-kerete elfogyott. Kezelje a használatot, vagy válasszon másik modellt.",
+    "copilotRateLimit": "A Copilot korlátozza a kérések gyakoriságát. Próbálja később.",
+    "copilotConsent": "A folytatáshoz engedélyezze a hozzáférést a Copilot beleegyezési ablakában.",
+    "expired": "A ChatGPT túl rövid érvényességet adott a kéréshez. Jelentkezzen be újra.",
+    "retry": "A ChatGPT átmenetileg nem érhető el. Próbálja újra."
   }
 }

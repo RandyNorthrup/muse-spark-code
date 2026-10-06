@@ -3035,7 +3035,7 @@ describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
     ['a declined paid-use popup', 'warning', () => UI_TEXT.bestOfNConsentDeclined],
     ['a missing budget journal', 'warning', () => UI_TEXT.bestOfNBudgetUnavailable],
     ['a host that failed to start', 'error', () => `${UI_TEXT.bestOfNTitle}: spawn failed`],
-  ] as const)('keeps the form and its prompt after %s', (_refusal, level, text) => {
+  ] as const)('keeps the form and its prompt after %s', async (_refusal, level, text) => {
     const postMessage = renderReady()
     deliver({
       type: 'paidState',
@@ -3048,7 +3048,7 @@ describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.boardTitle }))
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.boardStartBestOfN }))
-    const prompt = screen.getByLabelText(UI_TEXT.bestOfNPromptLabel)
+    const prompt = await screen.findByLabelText(UI_TEXT.bestOfNPromptLabel)
     fireEvent.change(prompt, { target: { value: 'leave a note' } })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.bestOfNStart }))
     expect(postMessage).toHaveBeenLastCalledWith(

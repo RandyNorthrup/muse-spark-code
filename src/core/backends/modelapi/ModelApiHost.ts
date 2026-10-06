@@ -1,3 +1,4 @@
+import type { PlanUsageRow } from '../../../shared/usage'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
 // replay, `store: false`) with the in-process tool harness, the permission
@@ -17,6 +18,7 @@ import type {
 import {
   AGENT_SOURCE_LABELS,
   AUTH_REQUIRED_ERROR_KIND,
+  CHATGPT_PLAN_LIMIT_ERROR_KIND,
   AUTO_REVIEW_ROW_TOOL,
   AUTO_REVIEWER_RECENT_CALLS,
   BACKGROUND_INITIATOR_USER,
@@ -52,7 +54,6 @@ import {
   MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_EFFORT_OFF,
-  MODEL_API_HOOK_PROVIDER,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
@@ -213,7 +214,7 @@ import type { reviewPaidCall as ReviewPaidCall } from './reviewerEntry'
 import {
   type ConfirmedModelRequest,
   MissingApiKeyError,
-  type ModelApiClient,
+  type ProviderClient,
   ModelApiError,
   type RetryBudget,
   type RetryNotice,
@@ -392,7 +393,7 @@ export interface ModelApiPaidHooks {
 }
 
 export interface ModelApiHostDeps extends ModelApiPaidHooks {
-  readonly client: ModelApiClient
+  readonly client: ProviderClient
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly io: ToolIo
@@ -1947,7 +1948,7 @@ export class ModelApiSession implements AgentSession {
       cwd: this.deps.workspaceRoot,
       transcript_path: null,
       model: this.modelId,
-      model_provider: 'meta',
+      model_provider: this.modelId.includes('/') ? this.modelId.split('/', 1)[0] : 'meta',
       permission_mode: this.permissions.currentMode,
       ...fields,
     }
@@ -2059,7 +2060,7 @@ export class ModelApiSession implements AgentSession {
       'PreLLMCall',
       turnId,
       preModelCallFields(body, requestId, attempt, step),
-      MODEL_API_HOOK_PROVIDER,
+      this.modelId.includes('/') ? this.modelId.split('/', 1)[0] : 'meta',
       signal,
       false,
     )
@@ -2235,7 +2236,7 @@ export class ModelApiSession implements AgentSession {
    */
   private budgeted(body: CreateResponseBody): CreateResponseBody {
     this.openReservation = undefined
-    if (this.isSubagent) return body
+    if (this.isSubagent || this.deps.client.isPlanModel?.(body.model) === true) return body
     const capUsd = this.currentBudgetCap()
     if (capUsd <= 0 && this.budgetJournal() === undefined) {
       return body
@@ -2327,11 +2328,14 @@ export class ModelApiSession implements AgentSession {
   }
 
   private currentBudgetCap(): number {
+    if (this.deps.client.isPlanModel?.(this.modelId) === true) return 0
     return this.isSubagent ? 0 : (this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd())
   }
 
   private budgetJournal(): SessionStore['budget'] {
-    return this.deps.budgetScope?.journal ?? this.deps.store?.budget
+    return this.deps.client.isPlanModel?.(this.modelId) === true
+      ? undefined
+      : (this.deps.budgetScope?.journal ?? this.deps.store?.budget)
   }
 
   /** Read shared spending before computing any new request's allowance. */
@@ -2745,6 +2749,7 @@ export class ModelApiSession implements AgentSession {
    */
   private isWebSearchOffered(): boolean {
     return (
+      this.deps.client.isPlanModel?.(this.modelId) !== true &&
       this.currentBudgetCap() <= 0 &&
       this.active?.isWebSearchAllowed === true &&
       this.deps.isPaidFeatureOn('webSearch')
@@ -2758,7 +2763,10 @@ export class ModelApiSession implements AgentSession {
    * A child task never asks: its grant carries its parent's answer.
    */
   private async webSearchConsent(signal: AbortSignal): Promise<boolean> {
-    if (!this.deps.isPaidFeatureOn('webSearch')) {
+    if (
+      this.deps.client.isPlanModel?.(this.modelId) === true ||
+      !this.deps.isPaidFeatureOn('webSearch')
+    ) {
       return false
     }
     if (this.currentBudgetCap() > 0) {
@@ -2848,7 +2856,11 @@ export class ModelApiSession implements AgentSession {
         this.admitChildAttempt(keyDigest, body)
       }
       const ownerAccount = this.budgetOwner().budgetAccountId
-      if (ownerAccount !== undefined && keyDigest !== ownerAccount) {
+      if (
+        ownerAccount !== undefined &&
+        keyDigest !== ownerAccount &&
+        this.deps.client.isPlanModel?.(body.model) !== true
+      ) {
         throw new Error(UI_TEXT.notSignedInReason)
       }
       if (
@@ -3109,8 +3121,9 @@ export class ModelApiSession implements AgentSession {
       cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
     }
     const sentModelId = this.sendingModelId ?? this.modelId
-    const hasKnownPrice = modelApiPaidTier(sentModelId) !== undefined
-    const costUsd = estimateCostUsd(billable, sentModelId)
+    const isPlan = this.deps.client.isPlanModel?.(sentModelId) === true
+    const hasKnownPrice = isPlan || modelApiPaidTier(sentModelId) !== undefined
+    const costUsd = isPlan ? 0 : estimateCostUsd(billable, sentModelId)
     const nextUsage = {
       inputTokens: this.usage.inputTokens + billable.inputTokens,
       outputTokens: this.usage.outputTokens + billable.outputTokens,
@@ -3618,7 +3631,7 @@ export class ModelApiSession implements AgentSession {
       'PostLLMCall',
       turnId,
       postModelCallFields(body, final, requestId, attempt, step, this.sessionId),
-      MODEL_API_HOOK_PROVIDER,
+      this.modelId.includes('/') ? this.modelId.split('/', 1)[0] : 'meta',
       signal,
       false,
     )
@@ -8530,7 +8543,9 @@ export class ModelApiSession implements AgentSession {
         if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
         } else {
-          errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
+          if (error instanceof ModelApiError && error.code === CHATGPT_PLAN_LIMIT_ERROR_KIND)
+            errorKind = CHATGPT_PLAN_LIMIT_ERROR_KIND
+          else errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
         }
         this.deps.log.warn(
           error instanceof HookStoppedError
@@ -8745,7 +8760,7 @@ export class ModelApiSession implements AgentSession {
       'PostLLMCall',
       turnId,
       postModelCallFields(body, response, requestId, 1, 0, this.sessionId),
-      MODEL_API_HOOK_PROVIDER,
+      this.modelId.includes('/') ? this.modelId.split('/', 1)[0] : 'meta',
       signal,
       false,
     )
@@ -10504,17 +10519,30 @@ export class ModelApiHost implements AgentHost {
     return NO_UNSUBSCRIBE
   }
 
+  public readPlanUsage(): readonly PlanUsageRow[] {
+    return this.deps.client.readPlanUsage?.() ?? []
+  }
+
   public async listModels(sessionId?: string): Promise<readonly ModelSummary[]> {
     const ids = await this.deps.client.listModels()
     const active = sessionId === undefined ? undefined : this.sessions.get(sessionId)?.modelId
     return ids
-      .filter((id) => id.startsWith(MODEL_API_MODEL_PREFIX))
+      .filter((id) => id.startsWith(MODEL_API_MODEL_PREFIX) || id.includes('/'))
       .map((id) => ({
         modelId: id,
         displayLabel: id,
-        contextLimit: MODEL_API_CONTEXT_WINDOW,
+        contextLimit:
+          this.deps.client.isPlanModel?.(id) === true
+            ? this.deps.client.modelContextLimit?.(id)
+            : MODEL_API_CONTEXT_WINDOW,
         isDefault: id === DEFAULT_MODEL_ID,
         isActive: id === active,
+        ...(this.deps.client.isPlanModel?.(id) === true && {
+          providerId: id.split('/', 1)[0],
+          providerLabel: id.startsWith('chatgpt/') ? 'ChatGPT' : 'Copilot',
+          pricing: 'plan' as const,
+          trainsOnContent: id.startsWith('copilot/'),
+        }),
       }))
   }
 

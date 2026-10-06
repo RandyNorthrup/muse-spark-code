@@ -125,5 +125,7 @@
   "command.addModelProvider.title": "Añadir un proveedor de modelos…",
   "config.suggestedProvider.description": "Un área de trabajo puede sugerir un ajuste preestablecido de proveedor de modelos por su id; el panel ofrece abrir Modelos y agentes con ese ajuste. Vacío no sugiere nada. Un área de trabajo no puede fijar una dirección ni una credencial.",
   "walkthrough.gettingStarted.step.ownModel.title": "Empiece con su propio modelo",
-  "walkthrough.gettingStarted.step.ownModel.description": "¿Sin suscripción a Muse ni clave API de Meta? Añada su propio proveedor de modelos — OpenRouter, Anthropic, OpenAI o un servidor local — y elija un modelo.\n[Empezar con su propio modelo](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "¿Sin suscripción a Muse ni clave API de Meta? Añada su propio proveedor de modelos — OpenRouter, Anthropic, OpenAI o un servidor local — y elija un modelo.\n[Empezar con su propio modelo](command:museSpark.startWithOwnModel)",
+  "command.connectChatGpt": "Continuar con ChatGPT",
+  "command.connectCopilot": "Usar mis modelos de Copilot"
 }

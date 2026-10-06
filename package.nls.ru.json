@@ -125,5 +125,7 @@
   "command.addModelProvider.title": "Добавить поставщика моделей…",
   "config.suggestedProvider.description": "Рабочая область может предложить один пресет поставщика моделей по его id; панель предложит открыть «Модели и агенты» с этим пресетом. Пустое значение ничего не предлагает. Рабочая область не может задавать адрес или данные.",
   "walkthrough.gettingStarted.step.ownModel.title": "Начните со своей моделью",
-  "walkthrough.gettingStarted.step.ownModel.description": "Нет подписки Muse или ключа Meta API? Добавьте своего поставщика моделей — OpenRouter, Anthropic, OpenAI или локальный сервер — и выберите модель.\n[Начать со своей моделью](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Нет подписки Muse или ключа Meta API? Добавьте своего поставщика моделей — OpenRouter, Anthropic, OpenAI или локальный сервер — и выберите модель.\n[Начать со своей моделью](command:museSpark.startWithOwnModel)",
+  "command.connectChatGpt": "Продолжить с ChatGPT",
+  "command.connectCopilot": "Использовать мои модели Copilot"
 }

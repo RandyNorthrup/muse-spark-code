@@ -2364,6 +2364,13 @@
     "tokenCounts": "{input} de entrada · {output} de salida · solicitudes: {requests}",
     "reduced": "Funciones reducidas",
     "aiContent": "El contenido generado por IA puede ser inexacto. Copilot añade sus propias reglas y usa tus créditos de IA; los recuentos de tokens son estimaciones cuando no se informa del uso.",
-    "reportContent": "Denunciar contenido dañino"
+    "reportContent": "Denunciar contenido dañino",
+    "copilotConnect": "Usar mis modelos de Copilot",
+    "copilotUnavailable": "Los modelos de Copilot no están disponibles. Activa Copilot e inténtalo de nuevo.",
+    "copilotQuota": "Tu cuota de Copilot se ha agotado. Gestiona el uso o elige otro modelo.",
+    "copilotRateLimit": "Copilot limita la frecuencia de solicitudes. Inténtalo más tarde.",
+    "copilotConsent": "Permite el acceso en el diálogo de consentimiento de Copilot para continuar.",
+    "expired": "ChatGPT concedió muy poco tiempo para esta solicitud. Inicia sesión de nuevo.",
+    "retry": "ChatGPT no está disponible temporalmente. Inténtalo de nuevo."
   }
 }

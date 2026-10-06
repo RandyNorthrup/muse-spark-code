@@ -1,4 +1,4 @@
-// Account & usage stays inert until its optional chunk loads. Closing
+// Optional dialogs stay inert until their chunks load. Closing
 // unmounts the pending dialog; a late load cannot reopen it.
 import { type ReactNode, Suspense } from 'react'
 import { UI_TEXT } from '../../shared/constants'

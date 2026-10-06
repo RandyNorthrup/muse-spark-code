@@ -17,6 +17,53 @@ import { parseModelRef } from '../core/providers/modelRef'
 import { createRuntimeChatGptHost, type RuntimeChatGptOptions } from './chatGptHost'
 import { ACP_AGENT_NAME, OAUTH_CODE_TTL_MS, UI_TEXT } from '../shared/constants'
 import { fill, setUiText } from '../shared/l10n/text'
+import type { ProviderClient } from '../core/backends/modelapi/client'
+import {
+  createSubscriptionClient,
+  chatGptAccountId,
+} from '../core/providers/subscriptions/registry'
+import { PROVIDER_SECRET_PREFIX, SECRET_KEYS } from '../shared/constants'
+
+/** The same registry serves JetBrains, Visual Studio, Eclipse and every ACP client. */
+export function runtimeSubscriptionClient(
+  options: RuntimeChatGptOptions & { readonly configFile: string },
+) {
+  let host: Promise<ChatGptHostPort> | undefined
+  const getHost = () =>
+    (host ??= (async () => {
+      try {
+        return await createRuntimeChatGptHost(options)
+      } catch (error) {
+        host = undefined
+        throw error
+      }
+    })())
+  const accountId = async () => {
+    const stored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)
+    const value: unknown = stored === undefined ? undefined : JSON.parse(stored)
+    return chatGptAccountId(value)
+  }
+  return {
+    accountId,
+    createClient: async (meta: ProviderClient): Promise<ProviderClient> => {
+      const read = async () => {
+        const result = await readProvidersFile(options.configFile)
+        if (result.ok) return result.file
+        if (result.reason === 'missing') return emptyProvidersFile()
+        throw new Error(UI_TEXT.actionFailed)
+      }
+      const file = await read()
+      if (file.providers.every((entry) => entry.id !== 'chatgpt')) return meta
+      return createSubscriptionClient(meta, {
+        fetch: options.fetch,
+        hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
+        providers: read,
+        accountId,
+        chatgpt: async () => new ChatGptSignIn(await getHost()),
+      })
+    },
+  }
+}
 
 export type ChatGptProviderAction = 'add' | 'remove' | 'status'
 export type ChatGptLocalStatus = 'signed-in' | 'expired' | 'signed-out'
@@ -109,10 +156,22 @@ export function chatGptCommandText(): ChatGptCommandText {
     beforeSignIn: () => UI_TEXT.acpChatGpt.notice,
     alreadyAdded: () => UI_TEXT.acpChatGpt.alreadyAdded,
     status: (state) => UI_TEXT.acpChatGpt.states[state],
-    failure: (code) =>
-      code === 'store-unavailable'
-        ? UI_TEXT.acpChatGpt.storeUnavailable
-        : UI_TEXT.acpChatGpt.failure,
+    failure: (code) => {
+      switch (code) {
+        case 'store-unavailable': {
+          return UI_TEXT.acpChatGpt.storeUnavailable
+        }
+        case 'expired': {
+          return UI_TEXT.planUi.expired
+        }
+        case 'request-failed': {
+          return UI_TEXT.planUi.retry
+        }
+        default: {
+          return UI_TEXT.acpChatGpt.failure
+        }
+      }
+    },
   }
 }
 

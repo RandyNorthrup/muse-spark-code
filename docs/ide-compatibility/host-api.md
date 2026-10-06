@@ -17,7 +17,7 @@ differs from the source. Do not edit it by hand.
 | `capabilities.untrustedWorkspaces` | `limited`                                                                                                                    |
 | `enabledApiProposals`              | none                                                                                                                         |
 | `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`                                                                                         |
-| `contributes`                      | `commands` (34), `configuration` (2), `keybindings` (7), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
+| `contributes`                      | `commands` (36), `configuration` (2), `keybindings` (7), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
 
 ## Build targets
 
@@ -29,35 +29,36 @@ differs from the source. Do not edit it by hand.
 
 ## Files that import `vscode`
 
-The VS Code adapter: 25 files. Everything else reaches VS Code only through them.
+The VS Code adapter: 26 files. Everything else reaches VS Code only through them.
 
-| File                                       | VS Code APIs used |
-| ------------------------------------------ | ----------------- |
-| `src/extension.ts`                         | 146               |
-| `src/host/agentImportHost.ts`              | 29                |
-| `src/host/cliFeatures.ts`                  | 28                |
-| `src/host/codeIntel/languageServices.ts`   | 45                |
-| `src/host/conversation/transferDialogs.ts` | 9                 |
-| `src/host/editor/verifyEditor.ts`          | 55                |
-| `src/host/memoryFeatures.ts`               | 17                |
-| `src/host/mention/mentionQuickPick.ts`     | 10                |
-| `src/host/models/modelsPanel.ts`           | 20                |
-| `src/host/models/modelsPanelEntry.ts`      | 28                |
-| `src/host/paid/paidHost.ts`                | 11                |
-| `src/host/popups.ts`                       | 2                 |
-| `src/host/providers/chatgptSignIn.ts`      | 3                 |
-| `src/host/providers/copilotClient.ts`      | 29                |
-| `src/host/providers/keyPrompt.ts`          | 6                 |
-| `src/host/providers/providersHost.ts`      | 4                 |
-| `src/host/quickPick.ts`                    | 5                 |
-| `src/host/views/ChatViewProvider.ts`       | 11                |
-| `src/host/views/chatPanel.ts`              | 11                |
-| `src/host/views/surfaceRegistry.ts`        | 1                 |
-| `src/host/views/tasksPanel.ts`             | 28                |
-| `src/host/views/webviewSetup.ts`           | 11                |
-| `src/host/voice/dictationHost.ts`          | 5                 |
-| `src/host/web/webFetchConfirm.ts`          | 5                 |
-| `src/host/worktreeFeatures.ts`             | 16                |
+| File                                         | VS Code APIs used |
+| -------------------------------------------- | ----------------- |
+| `src/extension.ts`                           | 147               |
+| `src/host/agentImportHost.ts`                | 29                |
+| `src/host/cliFeatures.ts`                    | 28                |
+| `src/host/codeIntel/languageServices.ts`     | 45                |
+| `src/host/conversation/transferDialogs.ts`   | 9                 |
+| `src/host/editor/verifyEditor.ts`            | 55                |
+| `src/host/memoryFeatures.ts`                 | 17                |
+| `src/host/mention/mentionQuickPick.ts`       | 10                |
+| `src/host/models/modelsPanel.ts`             | 20                |
+| `src/host/models/modelsPanelEntry.ts`        | 28                |
+| `src/host/paid/paidHost.ts`                  | 11                |
+| `src/host/popups.ts`                         | 2                 |
+| `src/host/providers/chatgptSignIn.ts`        | 3                 |
+| `src/host/providers/copilotClient.ts`        | 29                |
+| `src/host/providers/keyPrompt.ts`            | 6                 |
+| `src/host/providers/providersHost.ts`        | 4                 |
+| `src/host/providers/subscriptionFeatures.ts` | 2                 |
+| `src/host/quickPick.ts`                      | 5                 |
+| `src/host/views/ChatViewProvider.ts`         | 11                |
+| `src/host/views/chatPanel.ts`                | 11                |
+| `src/host/views/surfaceRegistry.ts`          | 1                 |
+| `src/host/views/tasksPanel.ts`               | 28                |
+| `src/host/views/webviewSetup.ts`             | 11                |
+| `src/host/voice/dictationHost.ts`            | 5                 |
+| `src/host/web/webFetchConfirm.ts`            | 5                 |
+| `src/host/worktreeFeatures.ts`               | 16                |
 
 ## Portable modules
 
@@ -78,7 +79,7 @@ These never reach `vscode` through their imports, type-only ones included; the g
 - `src/host/conversation/conversationController.ts`
 - `src/host/ide/ideMcpServer.ts`
 
-## VS Code API used at run time (311)
+## VS Code API used at run time (313)
 
 Functions, variables, classes, enums and members declared in `@types/vscode`; the members of a VS Code interface the code implements (a provider, an options object); and the members of a VS Code object handed to code that takes it by shape.
 
@@ -124,6 +125,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `ExtensionContext.extensionUri`                                                      | `src/extension.ts`                                                                                                                                                                                                                                                                     |
 | `ExtensionContext.globalState`                                                       | `src/extension.ts`                                                                                                                                                                                                                                                                     |
 | `ExtensionContext.globalStorageUri`                                                  | `src/extension.ts`                                                                                                                                                                                                                                                                     |
+| `ExtensionContext.languageModelAccessInformation`                                    | `src/extension.ts`                                                                                                                                                                                                                                                                     |
 | `ExtensionContext.secrets`                                                           | `src/extension.ts`                                                                                                                                                                                                                                                                     |
 | `ExtensionContext.storageUri`                                                        | `src/extension.ts`                                                                                                                                                                                                                                                                     |
 | `ExtensionContext.subscriptions`                                                     | `src/extension.ts`                                                                                                                                                                                                                                                                     |
@@ -152,8 +154,9 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `InputBoxOptions.title`                                                              | `src/extension.ts`, `src/host/memoryFeatures.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/providers/keyPrompt.ts`, `src/host/providers/providersHost.ts`, `src/host/worktreeFeatures.ts`                                                                                      |
 | `InputBoxOptions.validateInput`                                                      | `src/extension.ts`, `src/host/memoryFeatures.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/providers/keyPrompt.ts`, `src/host/worktreeFeatures.ts`                                                                                                                             |
 | `InputBoxOptions.value`                                                              | `src/host/models/modelsPanelEntry.ts`                                                                                                                                                                                                                                                  |
+| `LanguageModelAccessInformation.canSendRequest`                                      | `src/host/providers/subscriptionFeatures.ts`                                                                                                                                                                                                                                           |
 | `LanguageModelChat.countTokens`                                                      | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                  |
-| `LanguageModelChat.id`                                                               | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                  |
+| `LanguageModelChat.id`                                                               | `src/host/providers/copilotClient.ts`, `src/host/providers/subscriptionFeatures.ts`                                                                                                                                                                                                    |
 | `LanguageModelChat.maxInputTokens`                                                   | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                  |
 | `LanguageModelChat.sendRequest`                                                      | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                  |
 | `LanguageModelChat.vendor`                                                           | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                  |
@@ -402,21 +405,21 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ---------------------- | ----- |
 | `node:buffer`          | 27    |
 | `node:child_process`   | 10    |
-| `node:crypto`          | 38    |
+| `node:crypto`          | 39    |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 1     |
 | `node:fs`              | 24    |
 | `node:fs/promises`     | 36    |
-| `node:http`            | 4     |
+| `node:http`            | 5     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
-| `node:net`             | 4     |
+| `node:net`             | 5     |
 | `node:os`              | 6     |
 | `node:path`            | 67    |
 | `node:process`         | 1     |
 | `node:stream`          | 9     |
 | `node:string_decoder`  | 1     |
-| `node:timers/promises` | 5     |
+| `node:timers/promises` | 7     |
 | `node:tls`             | 1     |
 | `node:url`             | 3     |
 | `node:util`            | 4     |

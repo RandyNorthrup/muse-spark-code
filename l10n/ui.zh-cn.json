@@ -2200,6 +2200,13 @@
     "tokenCounts": "输入 {input} · 输出 {output} · 请求数：{requests}",
     "reduced": "功能受限",
     "aiContent": "AI 生成的内容可能不准确。Copilot 会添加自己的规则并使用你的 AI 点数；未报告用量时，令牌数为估算值。",
-    "reportContent": "举报有害内容"
+    "reportContent": "举报有害内容",
+    "copilotConnect": "使用我的 Copilot 模型",
+    "copilotUnavailable": "Copilot 模型不可用。请启用 Copilot 后重试。",
+    "copilotQuota": "Copilot 配额已用尽。请管理用量或选择其他模型。",
+    "copilotRateLimit": "Copilot 请求频率受限。请稍后重试。",
+    "copilotConsent": "请在 Copilot 授权对话框中允许访问以继续。",
+    "expired": "ChatGPT 授予的有效期不足以完成此请求。请重新登录。",
+    "retry": "ChatGPT 暂时不可用。请重试。"
   }
 }

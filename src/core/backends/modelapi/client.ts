@@ -44,6 +44,14 @@ import {
   streamEventSchema,
 } from './schemas'
 import { parseSse } from './sse'
+import type { PlanUsageRow } from '../../../shared/usage'
+
+/** Public transport contract shared by Meta, plan clients and host adapters. */
+export type ProviderClient = Pick<ModelApiClient, keyof ModelApiClient> & {
+  readonly modelContextLimit?: (model: string) => number | undefined
+  readonly isPlanModel?: (model: string) => boolean
+  readonly readPlanUsage?: () => readonly PlanUsageRow[]
+}
 
 export interface ModelApiClientDeps {
   readonly fetch: typeof fetch

@@ -17,6 +17,13 @@ import { forms } from './forms'
 
 export const EN = {
   planUi: {
+    copilotConnect: 'Use my Copilot models',
+    copilotUnavailable: 'Copilot models are unavailable. Enable Copilot and try again.',
+    copilotQuota: 'Your Copilot quota is exhausted. Manage usage or choose another model.',
+    copilotRateLimit: 'Copilot is rate limited. Try again later.',
+    copilotConsent: 'Allow access to Copilot in its consent dialog to continue.',
+    expired: 'ChatGPT granted too little time to finish this request. Sign in again.',
+    retry: 'ChatGPT is temporarily unavailable. Try again.',
     // M95b: plan billing, allowance recovery and Copilot's required content note.
     chatGptMark: 'Using ChatGPT plan',
     providerMark: 'Using {provider} plan',

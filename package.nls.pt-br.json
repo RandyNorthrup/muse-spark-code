@@ -125,5 +125,7 @@
   "command.addModelProvider.title": "Adicionar um provedor de modelos…",
   "config.suggestedProvider.description": "Um workspace pode sugerir um preset de provedor de modelos pelo id; o painel oferece abrir Modelos e agentes com esse preset. Vazio não sugere nada. Um workspace não pode definir um endereço nem uma credencial.",
   "walkthrough.gettingStarted.step.ownModel.title": "Comece com seu próprio modelo",
-  "walkthrough.gettingStarted.step.ownModel.description": "Sem assinatura Muse nem chave API da Meta? Adicione seu próprio provedor de modelos — OpenRouter, Anthropic, OpenAI ou um servidor local — e escolha um modelo.\n[Começar com seu próprio modelo](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Sem assinatura Muse nem chave API da Meta? Adicione seu próprio provedor de modelos — OpenRouter, Anthropic, OpenAI ou um servidor local — e escolha um modelo.\n[Começar com seu próprio modelo](command:museSpark.startWithOwnModel)",
+  "command.connectChatGpt": "Continuar com ChatGPT",
+  "command.connectCopilot": "Usar meus modelos do Copilot"
 }

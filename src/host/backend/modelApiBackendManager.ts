@@ -55,6 +55,8 @@ import {
 } from './modelApiBundle'
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
+  readonly createProviderClient?: ModelApiBundleDeps['createProviderClient']
+  readonly getProviderAccountId?: () => Promise<string | undefined>
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
   readonly workspaceRoot: string | undefined
@@ -243,6 +245,9 @@ export class ModelApiBackendManager {
     const host = await bundle.createModelApiHost({
       uiText: UI_TEXT,
       uiLocale: uiLocale(),
+      ...(this.deps.createProviderClient !== undefined && {
+        createProviderClient: this.deps.createProviderClient,
+      }),
       client: {
         fetch: this.deps.fetch,
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
@@ -272,7 +277,9 @@ export class ModelApiBackendManager {
         scheduleStore: variant.scheduleStore,
         getAccountId: async () => {
           const key = await this.deps.getApiKey()
-          return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+          return key === undefined
+            ? await this.deps.getProviderAccountId?.()
+            : createHash('sha256').update(key).digest('hex')
         },
         admitResponseAttempt: variant.admitResponseAttempt,
         noteResponseUsage: variant.noteResponseUsage,
@@ -439,7 +446,9 @@ export class ModelApiBackendManager {
   /** Hash-only identity, without starting the host or requiring a workspace. */
   public async accountId(): Promise<string | undefined> {
     const key = await this.deps.getApiKey()
-    return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+    return key === undefined
+      ? await this.deps.getProviderAccountId?.()
+      : createHash('sha256').update(key).digest('hex')
   }
 
   /** The host, created on first use with the stored sessions read. Rejects without a workspace. */

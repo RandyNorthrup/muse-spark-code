@@ -5,6 +5,34 @@ to Meta's Muse Spark model. This page says what leaves your machine, where it
 goes, and what stays local. It is written for the extension's users; the
 security notes for contributors are in `PLAN.md` §9.
 
+## ChatGPT and Copilot subscriptions (M95b integration)
+
+When you choose a ChatGPT model, OpenAI receives the conversation history,
+instructions, attachments supported by the codec, tool definitions and tool
+results at `https://api.openai.com/v1/responses`, as it would for an OpenAI
+API-key request. `store: false` is requested; OpenAI's terms govern retention.
+Sign-in, ID-token validation, refresh and revocation contact
+`https://auth.openai.com`. Catalogue discovery contacts OpenAI's models
+endpoint without sending a conversation. The opaque installation identifier is
+random, never an account name. OpenAI may rewrite a request's cache key; we do
+not use it as account identity.
+
+The extension keeps its issued client, access and refresh tokens only in VS
+Code SecretStorage. The standalone ACP runtime uses the operating system's
+credential store. Lock and installation-id files contain no token. The
+webview, tools, hooks and child processes never receive the grant. Remove
+revokes and deletes this product's record, including deletion after a revoke
+failure. Other applications' OAuth files are not consulted.
+
+With a Copilot model, the same conversation and tool results go through VS
+Code's language-model API to GitHub's Copilot service and its selected model
+provider. VS Code owns consent and credentials; this product does not extract
+them. GitHub's retention and training terms, including terms applicable to
+individual plans, apply. Copilot is unavailable in confidential workspaces.
+The plan notice identifies AI-generated content and includes GitHub's report
+link. Token estimates and dispatched-request tallies stay locally in the
+extension's state; ACP ChatGPT tallies currently live for the process lifetime.
+
 ## What the extension sends, and to whom
 
 - **Your prompts, attachments and mentioned files.** Everything you type into

@@ -102,8 +102,11 @@ Status makes no network request; Remove attempts revocation and clears the
 local grant and configuration. ACP authentication verifies the local action
 independently of Meta sign-in. An unavailable store gives a fixed message to
 sign in from an interactive desktop session with the store unlocked; Linux
-also requires Secret Service. Combined M95b inference/editor certification
-remains open; these actions certify sign-in management.
+also requires Secret Service. For ChatGPT inference, configure the agent with its existing `--backend model-api`
+argument; it uses the account catalogue and the same subscription dispatch as
+the extension. Fake-server inference now passes; installed-editor and live
+success certification remain open. Copilot requires VS Code and is unavailable
+in the standalone agent.
 
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,

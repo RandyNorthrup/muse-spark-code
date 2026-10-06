@@ -102,7 +102,7 @@ function requestFields(body: CreateResponseBody, requestId: string, attempt: num
   const messages = messageSummaries(body)
   const tools = toolSummaries(body)
   return {
-    provider: MODEL_API_HOOK_PROVIDER,
+    provider: body.model.includes('/') ? body.model.split('/', 1)[0] : MODEL_API_HOOK_PROVIDER,
     request_id: requestId,
     attempt,
     step,
@@ -150,7 +150,7 @@ export function postModelCallFields(
     .join('')
   const usage = response.usage
   return {
-    provider: MODEL_API_HOOK_PROVIDER,
+    provider: body.model.includes('/') ? body.model.split('/', 1)[0] : MODEL_API_HOOK_PROVIDER,
     request_id: requestId,
     attempt,
     step,

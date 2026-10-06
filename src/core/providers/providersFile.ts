@@ -6,10 +6,15 @@
 // `muse-spark-code-acp providers`; read by the extension and the ACP agent.
 
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { setTimeout as pause } from 'node:timers/promises'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { PROVIDERS_FILE_VERSION } from '../../shared/constants'
+import {
+  ATOMIC_RENAME_ATTEMPTS,
+  ATOMIC_RENAME_DELAY_MS,
+  PROVIDERS_FILE_VERSION,
+} from '../../shared/constants'
 import { UI_TEXT } from '../../shared/l10n/text'
 import { openRouterRoutingSchema } from '../../shared/providerRouting'
 import { isProviderId, parseModelRef } from './modelRef'
@@ -20,7 +25,7 @@ export const providerFormatSchema = z.enum(['responses', 'chat', 'anthropic', 'g
 export type ProviderFormat = z.infer<typeof providerFormatSchema>
 
 /** How a provider authenticates in M95 (`subscription` arrives in M95b). */
-export const providerAuthSchema = z.enum(['apiKey', 'none'])
+export const providerAuthSchema = z.enum(['apiKey', 'none', 'subscription'])
 export type ProviderAuth = z.infer<typeof providerAuthSchema>
 
 /** A user-entered price card for one model (numbers are USD per token). */
@@ -82,6 +87,21 @@ export const providerEntrySchema = z
   .check(
     z.refine(
       (entry) =>
+        entry.auth !== 'subscription' ||
+        (entry.models.length > 0 &&
+          entry.models.every((id) => id !== '') &&
+          ((entry.id === 'chatgpt' &&
+            entry.preset === 'chatgpt' &&
+            entry.address === 'https://api.openai.com' &&
+            entry.format === 'responses') ||
+            (entry.id === 'copilot' &&
+              entry.preset === 'copilot' &&
+              entry.address === 'https://github.com/copilot' &&
+              entry.format === 'chat'))),
+      { error: () => UI_TEXT.actionFailed },
+    ),
+    z.refine(
+      (entry) =>
         entry.preset !== 'custom' ||
         entry.models.every(
           (modelId) => entry.modelLimits !== undefined && Object.hasOwn(entry.modelLimits, modelId),
@@ -90,17 +110,6 @@ export const providerEntrySchema = z
     ),
   )
 export type ProviderEntry = z.infer<typeof providerEntrySchema>
-
-// A separate, exact subscription variant leaves every existing API-key and
-// local-provider guard intact. No other origin, preset or format is accepted.
-const chatGptProviderEntrySchema = z.strictObject({
-  id: z.literal('chatgpt'),
-  preset: z.literal('chatgpt'),
-  address: z.literal('https://api.openai.com'),
-  format: z.literal('responses'),
-  auth: z.literal('subscription'),
-  models: z.array(z.string().check(z.minLength(1))).check(z.minLength(1)),
-})
 
 export const providersFileSchema = z.object({
   v: z.literal(PROVIDERS_FILE_VERSION),
@@ -112,7 +121,19 @@ export const providersFileSchema = z.object({
       }),
     ),
   ),
-  providers: z.array(z.union([providerEntrySchema, chatGptProviderEntrySchema])),
+  providers: z.array(
+    z.union([
+      providerEntrySchema.check(z.refine((entry) => entry.auth !== 'subscription')),
+      z
+        .strictObject(providerEntrySchema.shape)
+        .check(
+          z.refine(
+            (entry) =>
+              entry.auth === 'subscription' && providerEntrySchema.safeParse(entry).success,
+          ),
+        ),
+    ]),
+  ),
 })
 export type ProvidersFile = z.infer<typeof providersFileSchema>
 
@@ -187,6 +208,7 @@ export type ProvidersFileWrite =
 export async function writeProvidersFileAtomic(
   filePath: string,
   file: unknown,
+  renameFile: typeof rename = rename,
 ): Promise<ProvidersFileWrite> {
   const parsed = z.safeParse(providersFileSchema, file)
   if (!parsed.success) {
@@ -197,7 +219,21 @@ export async function writeProvidersFileAtomic(
   try {
     await mkdir(path.dirname(filePath), { recursive: true })
     await writeFile(temporary, text, { encoding: 'utf8', flag: 'wx' })
-    await rename(temporary, filePath)
+    // Windows readers briefly deny replacement; retry the same complete file.
+    // Never delete the old destination to make a rename succeed.
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        await renameFile(temporary, filePath)
+        break
+      } catch (error) {
+        if (
+          !['EPERM', 'EACCES', 'EBUSY'].includes(errorCode(error) ?? '') ||
+          attempt >= ATOMIC_RENAME_ATTEMPTS
+        )
+          throw error
+        await pause(ATOMIC_RENAME_DELAY_MS * 2 ** (attempt - 1))
+      }
+    }
     return { ok: true }
   } catch (error) {
     // Cleanup is best-effort; preserve the write/rename failure for the caller.

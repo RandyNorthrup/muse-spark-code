@@ -18,9 +18,10 @@ import type { ModelApiBundleDeps } from './modelApiBundle'
 export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<ModelApiHost> {
   setUiText(deps.uiText, deps.uiLocale)
   const { host: hostDeps, hookSettingsPath } = deps
+  const meta = new ModelApiClient(deps.client)
   const host = new ModelApiHost({
     ...hostDeps,
-    client: new ModelApiClient(deps.client),
+    client: (await deps.createProviderClient?.(meta)) ?? meta,
     mcpServers: await deps.createMcpServers?.((poolDeps) => new McpServerPool(poolDeps)),
     loadHooks: async () =>
       hookSettingsPath !== undefined && hostDeps.isHooksEnabled?.() === true

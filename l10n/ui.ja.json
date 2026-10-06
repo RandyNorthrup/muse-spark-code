@@ -2200,6 +2200,13 @@
     "tokenCounts": "入力：{input} · 出力：{output} · リクエスト数：{requests}",
     "reduced": "機能制限あり",
     "aiContent": "AIが生成した内容は不正確な場合があります。Copilotは独自のルールを追加し、AIクレジットを使用します。使用量が報告されない場合、トークン数は推定値です。",
-    "reportContent": "有害な内容を報告"
+    "reportContent": "有害な内容を報告",
+    "copilotConnect": "自分のCopilotモデルを使う",
+    "copilotUnavailable": "Copilotモデルを利用できません。Copilotを有効にして再試行してください。",
+    "copilotQuota": "Copilotの利用枠を使い切りました。利用状況を管理するか別のモデルを選んでください。",
+    "copilotRateLimit": "Copilotのリクエスト頻度が制限されています。後で再試行してください。",
+    "copilotConsent": "続けるにはCopilotの同意画面でアクセスを許可してください。",
+    "expired": "ChatGPTが付与した有効期間ではこのリクエストを完了できません。再度サインインしてください。",
+    "retry": "ChatGPTを一時的に利用できません。再試行してください。"
   }
 }

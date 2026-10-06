@@ -2446,6 +2446,13 @@
     "tokenCounts": "Vstup: {input} · výstup: {output} · požadavky: {requests}",
     "reduced": "Omezené možnosti",
     "aiContent": "Obsah vytvořený AI může být nepřesný. Copilot přidává vlastní pravidla a čerpá vaše kredity AI; počty tokenů jsou odhady, pokud využití není hlášeno.",
-    "reportContent": "Nahlásit škodlivý obsah"
+    "reportContent": "Nahlásit škodlivý obsah",
+    "copilotConnect": "Použít mé modely Copilot",
+    "copilotUnavailable": "Modely Copilot nejsou dostupné. Zapněte Copilot a zkuste to znovu.",
+    "copilotQuota": "Kvóta Copilot je vyčerpána. Spravujte využití nebo vyberte jiný model.",
+    "copilotRateLimit": "Copilot omezuje počet požadavků. Zkuste to později.",
+    "copilotConsent": "Pro pokračování povolte přístup v dialogu souhlasu Copilot.",
+    "expired": "ChatGPT poskytl příliš krátkou platnost pro tento požadavek. Přihlaste se znovu.",
+    "retry": "ChatGPT je dočasně nedostupný. Zkuste to znovu."
   }
 }

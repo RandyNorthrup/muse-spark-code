@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto'
 import {
   mkdir,
+  lstat,
   mkdtemp,
   readdir,
   readFile,
@@ -26,13 +27,13 @@ import {
   PROVIDER_SECRET_PREFIX,
   UI_TEXT,
 } from '../../shared/constants'
-import { isPkceState, pkceRandom } from '../../core/providers/pkce'
+import { isPkceState, pkceRandom } from '../backend/providersEntry'
 import {
   ChatGptSignIn,
   ChatGptSignInError,
   parseChatGptCallback,
   type ChatGptHostPort,
-} from '../../core/providers/subscriptions/chatgpt'
+} from '../backend/providersEntry'
 import type { RecordStore } from './credentialRecords'
 
 type ChatGptCallback = Awaited<ReturnType<ChatGptHostPort['startCallback']>> & {
@@ -168,7 +169,12 @@ async function hasRecoveredLock(lockPath: string): Promise<boolean> {
     await rmdir(lockPath)
     return true
   } catch (error) {
-    if (['ENOENT', 'ENOTEMPTY', 'ENOTDIR'].includes(String(fileErrorCode(error)))) return false
+    if (
+      ['ENOENT', 'ENOTEMPTY', 'ENOTDIR', 'EPERM', 'EACCES', 'EBUSY'].includes(
+        String(fileErrorCode(error)),
+      )
+    )
+      return false
     throw error
   }
 }
@@ -200,11 +206,27 @@ async function withFileLock<T>(
     )
     while (!isOwned) {
       try {
+        // Windows rename can replace a regular legacy file with a directory.
+        // A present ownerless file must remain closed, including on Windows.
+        try {
+          const stat = await lstat(lockPath)
+          if (!stat.isDirectory()) {
+            if (Date.now() >= deadline) throw new ChatGptSignInError('request-failed')
+            await pause(Math.min(pollMs, Math.max(0, deadline - Date.now())))
+            continue
+          }
+        } catch (error) {
+          if (fileErrorCode(error) !== 'ENOENT') throw error
+        }
         await rename(prepared, lockPath)
         isOwned = true
         activeLocks.add(file)
       } catch (error) {
-        if (!['EEXIST', 'ENOTEMPTY', 'ENOTDIR', 'EPERM'].includes(String(fileErrorCode(error))))
+        if (
+          !['EEXIST', 'ENOTEMPTY', 'ENOTDIR', 'EPERM', 'EACCES', 'EBUSY'].includes(
+            String(fileErrorCode(error)),
+          )
+        )
           throw error
         const isRecovered = await hasRecoveredLock(lockPath)
         if (Date.now() >= deadline) throw new ChatGptSignInError('request-failed')

@@ -492,7 +492,7 @@ describe('VS Code subscription ports', () => {
     tester.fetcher.mockImplementationOnce(() =>
       Promise.resolve(new Response(null, { status: 400 })),
     )
-    await expect(core.remove()).rejects.toThrow('chatgpt.sign-in-required')
+    await expect(core.remove()).rejects.toThrow('chatgpt.request-failed')
     expect(tester.secrets.delete).toHaveBeenCalledWith('museSpark.provider.chatgpt')
     expect(tester.records.size).toBe(0)
   })

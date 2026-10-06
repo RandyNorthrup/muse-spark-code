@@ -458,7 +458,7 @@ describe('ACP ChatGPT OS-store adapter and commands', () => {
         expect(await readFile(file, 'utf8')).toBe(invalid)
         expect(run.values.has(ACCOUNT)).toBe(false)
         expect(run.requests.at(-1)?.url).toContain('/oauth/revoke')
-        expect(run.errors).toEqual([UI_TEXT.acpChatGpt.failure])
+        expect(run.errors).toEqual([UI_TEXT.planUi.retry])
       } finally {
         await removeFolder(dir)
       }
@@ -517,7 +517,7 @@ describe('ACP ChatGPT OS-store adapter and commands', () => {
     await expect(methods[1]?.verify?.()).resolves.toBeUndefined()
     await expect(methods[2]?.verify?.()).resolves.toBeUndefined()
     const broken = chatGptAuthenticationMethods(fail)
-    await expect(broken[0]?.verify?.()).resolves.toBe(UI_TEXT.acpChatGpt.failure)
+    await expect(broken[0]?.verify?.()).resolves.toBe(UI_TEXT.planUi.retry)
     expect(run.requests).toEqual([])
   })
 
@@ -727,7 +727,7 @@ describe('ACP ChatGPT OS-store adapter and commands', () => {
     expect(await runChatGptProviderCommand('remove', run.deps)).toBe(1)
     expect(run.values.has(ACCOUNT)).toBe(false)
     expect(run.deps.providers.remove).toHaveBeenCalledOnce()
-    expect(run.errors).toEqual(['Synthetic failure sign-in-required'])
+    expect(run.errors).toEqual(['Synthetic failure request-failed'])
   })
 
   it('revokes and rolls back the grant if provider configuration cannot be saved', async () => {

@@ -7,7 +7,21 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- M95b connects ChatGPT and Copilot subscription actions to the Models panel,
+  command palette and shared harness. ChatGPT uses the account catalogue and
+  parses headerless SSE, including usage limits inside HTTP 200; ACP editors
+  use the same dispatch. Plan attempts have separate token/request tallies
+  and bypass USD reservations. Copilot uses host consent and remains reduced
+  and unavailable in confidential workspaces. Live success certification and
+  plan-key transport integration remain pending.
+
 ### Fixed
+
+- Windows concurrent ChatGPT refresh recovery retries transient sharing
+  refusals without deleting a live owner or replacing a legacy ownerless lock.
+
 
 - ChatGPT provider add, remove and status commands now reach the ACP executable
   and appear as terminal or manual actions in every ACP editor. Sign-in saves

@@ -7327,6 +7327,7 @@ export class ConversationController {
       account,
       ...(shown !== undefined && { subscription: shown }),
       ...(insights !== undefined && { insights }),
+      ...(host.readPlanUsage !== undefined && { plans: [...host.readPlanUsage()] }),
     })
   }
 

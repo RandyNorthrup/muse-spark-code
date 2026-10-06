@@ -2282,6 +2282,13 @@
     "tokenCounts": "{input} girdi · {output} çıktı · istekler: {requests}",
     "reduced": "Sınırlı özellikler",
     "aiContent": "Yapay zeka tarafından üretilen içerik hatalı olabilir. Copilot kendi kurallarını ekler ve yapay zeka kredilerinizi kullanır; kullanım bildirilmediğinde token sayıları tahminidir.",
-    "reportContent": "Zararlı içeriği bildir"
+    "reportContent": "Zararlı içeriği bildir",
+    "copilotConnect": "Copilot modellerimi kullan",
+    "copilotUnavailable": "Copilot modelleri kullanılamıyor. Copilot’u etkinleştirip tekrar deneyin.",
+    "copilotQuota": "Copilot kotanız tükendi. Kullanımı yönetin veya başka bir model seçin.",
+    "copilotRateLimit": "Copilot istek sıklığını sınırlıyor. Daha sonra tekrar deneyin.",
+    "copilotConsent": "Devam etmek için Copilot onay penceresinde erişime izin verin.",
+    "expired": "ChatGPT bu istek için çok kısa bir geçerlilik süresi verdi. Yeniden oturum açın.",
+    "retry": "ChatGPT geçici olarak kullanılamıyor. Tekrar deneyin."
   }
 }
