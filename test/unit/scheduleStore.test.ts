@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { setTimeout as delay } from 'node:timers/promises'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
@@ -41,11 +42,17 @@ beforeAll(async () => {
           if (mode === 'advance') result = await store.advance(JSON.parse(value));
           if (mode === 'update') result = await store.update(JSON.parse(value));
           if (mode === 'crashAfterCas') result = await store.update(JSON.parse(value));
-          if (mode === 'queue') {
+          if (mode === 'queueWait' || mode === 'queueProbe') {
+            const fs = require('node:fs/promises');
+            if (mode === 'queueProbe') await fs.writeFile(directory + '/probe-ready', '');
             await createNodeScheduleQueue(directory).serialize(value, async () => {
-              const fs = require('node:fs/promises');
               await fs.appendFile(directory + '/order.txt', 'start\n');
-              await new Promise(resolve => setTimeout(resolve, 50));
+              if (mode === 'queueWait') {
+                for (;;) {
+                  try { await fs.access(directory + '/release'); break; } catch {}
+                  await new Promise(resolve => setTimeout(resolve, 10));
+                }
+              }
               await fs.appendFile(directory + '/order.txt', 'end\n');
             });
             result = true;
@@ -194,12 +201,23 @@ describe('M115 durable shared store', () => {
   it('serializes target batches in two real processes until their final settlement', async () => {
     const directory = path.join(root, 'queues')
     await createNodeScheduleFs(directory).publish('order.txt', '')
-    expect(
-      await Promise.all([
-        worker(directory, 'queue', 'workspace:session'),
-        worker(directory, 'queue', 'workspace:session'),
-      ]),
-    ).toEqual(['true', 'true'])
+    const first = worker(directory, 'queueWait', 'workspace:session')
+    await vi.waitFor(
+      async () => {
+        expect(await readFile(path.join(directory, 'order.txt'), 'utf8')).toBe('start\n')
+      },
+      { timeout: 120_000 },
+    )
+    const second = worker(directory, 'queueProbe', 'workspace:session')
+    try {
+      await vi.waitFor(() => readFile(path.join(directory, 'probe-ready')), { timeout: 120_000 })
+      await delay(1000)
+      expect(await readFile(path.join(directory, 'order.txt'), 'utf8')).toBe('start\n')
+    } finally {
+      await writeFile(path.join(directory, 'release'), '')
+      await Promise.allSettled([first, second])
+    }
+    expect(await Promise.all([first, second])).toEqual(['true', 'true'])
     expect(await readFile(path.join(directory, 'order.txt'), 'utf8')).toBe(
       'start\nend\nstart\nend\n',
     )
