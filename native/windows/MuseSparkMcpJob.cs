@@ -164,7 +164,7 @@ public static class MuseSparkMcpJob {
 
   public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
     string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
-    ulong jobMemoryLimit) {
+    ulong jobMemoryLimit, string registeredJobName = null, bool independent = false) {
     IntPtr job = IntPtr.Zero, input = IntPtr.Zero, output = IntPtr.Zero, error = IntPtr.Zero;
     IntPtr parent = IntPtr.Zero;
     IntPtr attributeList = IntPtr.Zero, handleList = IntPtr.Zero;
@@ -177,8 +177,8 @@ public static class MuseSparkMcpJob {
       if (parent == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
       if (WaitForSingleObject(parent, 0) != WAIT_TIMEOUT)
         throw new Exception("creating Node process has already exited");
-      ConfirmOwner(controlPipe, controlNonce, parent);
-      job = CreateJobObjectW(IntPtr.Zero, "Local\\MuseSparkMcp-" + Guid.NewGuid().ToString("N"));
+      if (registeredJobName == null) ConfirmOwner(controlPipe, controlNonce, parent);
+      job = CreateJobObjectW(IntPtr.Zero, registeredJobName ?? "Local\\MuseSparkMcp-" + Guid.NewGuid().ToString("N"));
       if (job == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
       var limits = new EXTENDED_LIMITS();
       limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
@@ -189,6 +189,12 @@ public static class MuseSparkMcpJob {
       }
       if (!SetInformationJobObject(job, 9, ref limits, Marshal.SizeOf(typeof(EXTENDED_LIMITS))))
         throw new Win32Exception(Marshal.GetLastWin32Error());
+      if (registeredJobName != null) {
+        // LSP root is the launcher itself. Registry proves its birth/job before GO.
+        if (!AssignProcessToJobObject(job, System.Diagnostics.Process.GetCurrentProcess().Handle))
+          throw new Win32Exception(Marshal.GetLastWin32Error());
+        ConfirmOwner(controlPipe, controlNonce, parent);
+      }
       input = InheritStandard(-10);
       output = InheritStandard(-11);
       error = InheritStandard(-12);
@@ -227,7 +233,7 @@ public static class MuseSparkMcpJob {
       if (WaitForSingleObject(parent, 0) != WAIT_TIMEOUT) throw new Exception("creating Node process exited before resume");
       if (ResumeThread(process.hThread) == 0xffffffff)
         throw new Win32Exception(Marshal.GetLastWin32Error());
-      uint wait = WaitForMultipleObjects(2, new IntPtr[] { process.hProcess, parent }, false, 0xffffffff);
+      uint wait = independent ? WaitForSingleObject(process.hProcess, 0xffffffff) : WaitForMultipleObjects(2, new IntPtr[] { process.hProcess, parent }, false, 0xffffffff);
       if (wait == WAIT_OBJECT_0 + 1) return 4;
       if (wait != WAIT_OBJECT_0) throw new Win32Exception(Marshal.GetLastWin32Error());
       uint exitCode;
@@ -245,7 +251,10 @@ public static class MuseSparkMcpJob {
       if (attributeList != IntPtr.Zero) Marshal.FreeHGlobal(attributeList);
       if (handleList != IntPtr.Zero) Marshal.FreeHGlobal(handleList);
       if (environmentBlock != IntPtr.Zero) Marshal.FreeHGlobal(environmentBlock);
-      if (job != IntPtr.Zero) CloseHandle(job);
+      // A registered launcher is itself a member. Keep its kill-on-close handle
+      // until Main returns and the OS closes it, rather than self-kill here
+      // before the requested workload exit code reaches the process boundary.
+      if (job != IntPtr.Zero && registeredJobName == null) CloseHandle(job);
       if (parent != IntPtr.Zero) CloseHandle(parent);
     }
   }

@@ -1,26 +1,18 @@
 // Independent process supervision: Stop never enters the model/request queue.
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { mkdtemp, readdir, rm, type FileHandle } from 'node:fs/promises'
+import { readdir, rm, type FileHandle } from 'node:fs/promises'
 import { createConnection, createServer } from 'node:net'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { tmpdir } from 'node:os'
 import type { Readable, Writable } from 'node:stream'
 import * as z from 'zod/mini'
-import { jobSourceReader } from '../../host/backend/jobSource'
-import { mcpJobExecutable } from '../../host/backend/mcpJobExecutable'
-import { spawnMcpJob } from '../../host/backend/mcpJobLaunch'
-import { killTree, sweepExitedTree, treeSpawnOptions } from '../../host/processTree'
-import { RUNTIME_STOP } from '../../shared/constants'
+import type { ResourceTicket } from '../../shared/resources'
+import { RUNTIME_STOP, LSP_LIMITS } from '../../shared/constants'
 import { workspaceKey } from '../dataFolder'
 import { withoutCredentials } from '../credentialVariables'
 import { isProcessAlive } from '../../host/checkpoints/windowPresence'
 import { privateDirectory, openPrivateRecord, writePrivateRecord } from './registry'
-
-// Private child diagnostics never enter the editor log.
-const log = () => {
-  /* Native helper diagnostics are private; Stop reports fixed technical failures. */
-}
 
 const ownerSchema = z.strictObject({
   pid: z.optional(z.int().check(z.gte(1))),
@@ -46,52 +38,18 @@ export interface SupervisorDeps {
   readonly stdout: Writable
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-/** A leader's exit alone does not prove its process group has exited. */
-async function groupExited(pid: number | undefined): Promise<void> {
-  if (pid === undefined || process.platform === 'win32') return
-  const deadline = Date.now() + RUNTIME_STOP.exitMs
-  for (;;) {
-    try {
-      process.kill(-pid, 0)
-    } catch (error: unknown) {
-      // Called only after the guardian has verified the process table. macOS can
-      // report EPERM for an empty former group; that attestation covers this case.
-      if (
-        error instanceof Error &&
-        'code' in error &&
-        (error.code === 'ESRCH' || error.code === 'EPERM')
-      )
-        return
-      throw error
-    }
-    if (Date.now() >= deadline) throw new Error('ESTOP_TREE')
-    await delay(RUNTIME_STOP.pollMs)
-  }
-}
-
 /** The supervisor owns pipes and a group/job; the child never owns Stop. */
 export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
   await privateDirectory(deps.registry, true)
   const env = withoutCredentials(deps.env)
-  let jobExecutablePath: string | undefined
-  if (process.platform === 'win32') {
-    const systemRoot = env['SystemRoot']
-    if (systemRoot === undefined) throw new Error('ESTOP_JOB')
-    jobExecutablePath = await mcpJobExecutable({
-      storageDir: deps.registry,
-      systemRoot,
-      log,
-      readJobSource: jobSourceReader(deps.packageRoot),
-    })()
-    if (jobExecutablePath === undefined) throw new Error('ESTOP_JOB')
-  }
-  const directory = await mkdtemp(path.join(tmpdir(), 'muse-stop-'))
+  const { processAuthority } = await import('./processAuthority')
+  const authority = await processAuthority(deps.packageRoot, deps.registry)
+  const directory = path.join(
+    tmpdir(),
+    `ms-${randomBytes(LSP_LIMITS.socketNameBytes).toString('hex')}`,
+  )
+  const created = await privateDirectory(directory, true)
+  if (!created.isNew) throw new Error('ELSP_PRIVATE')
   const token = randomBytes(RUNTIME_STOP.tokenBytes).toString('hex')
   const pipe =
     process.platform === 'win32'
@@ -101,41 +59,22 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
   let child: ChildProcessWithoutNullStreams | undefined
   let watchdog: ChildProcessWithoutNullStreams | undefined
   let watchdogDone: Promise<number> | undefined
+  let childTicket: ResourceTicket | undefined
+  let watchdogTicket: ResourceTicket | undefined
   let stopping: Promise<void> | undefined
   const { promise: startup, resolve: finishStartup } = Promise.withResolvers<undefined>()
   const { promise: closed, resolve: closeOwner } = Promise.withResolvers<undefined>()
-  const startedAt = Date.now()
-  const treeDeps = { platform: process.platform, systemRoot: env['SystemRoot'], log }
   const stop = () => {
     stopping ??= (async () => {
       await startup
       if (child === undefined) return
-      child.kill('SIGTERM')
-      await delay(RUNTIME_STOP.graceMs)
-      if (process.platform !== 'win32') {
-        if (child.exitCode === null && child.signalCode === null) {
-          await killTree(child, treeDeps, startedAt)
-        } else {
-          await sweepExitedTree(child.pid, startedAt, Date.now(), treeDeps)
-        }
-      }
-      // The independent guardian verifies surviving groups and detached identities.
+      if (childTicket !== undefined) await authority.stop(childTicket, true)
+      // EOF guardian has independently enrolled the same exact ticket before admission.
       if (watchdog !== undefined && watchdogDone !== undefined) {
         watchdog.stdin.end()
         const result = await watchdogDone
         if (result !== 0) throw new Error('ESTOP_WATCHDOG')
-        await groupExited(child.pid)
-      }
-      if (process.platform === 'win32') {
-        await new Promise<void>((resolve, reject) => {
-          const timer = setTimeout(() => {
-            reject(new Error('ESTOP_TREE'))
-          }, RUNTIME_STOP.exitMs)
-          void closed.then(() => {
-            clearTimeout(timer)
-            resolve()
-          })
-        })
+        if (watchdogTicket !== undefined) await authority.stop(watchdogTicket)
       }
       child.stdin.destroy()
       child.stdout.destroy()
@@ -192,20 +131,21 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
     process.on('SIGTERM', stop)
     process.on('SIGINT', stop)
     if (process.platform !== 'win32') {
-      // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- installed private POSIX guardian, fixed owner PID and sanitized env; independent of the supervised model queue (PLAN.md §8).
-      watchdog = spawn(
+      const launched = await authority.launch(
         process.execPath,
         [
           deps.watchdogFile ?? path.join(deps.packageRoot, 'dist', 'runtimeWatchdog.js'),
           String(process.pid),
+          deps.packageRoot,
+          deps.registry,
         ],
-        {
-          cwd: deps.cwd,
-          env,
-          stdio: 'pipe',
-          detached: true,
-        },
+        deps.cwd,
+        env,
+        deps.watchdogFile ?? path.join(deps.packageRoot, 'dist', 'runtimeWatchdog.js'),
       )
+      watchdog = launched.child
+      watchdogTicket = launched.ticket
+      launched.admit()
       const guard = watchdog
       watchdogDone = new Promise<number>((resolve) => {
         guard.once('close', (code) => {
@@ -231,26 +171,15 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
       guard.stdout.resume()
       guard.once('exit', stop)
     }
-    child =
-      jobExecutablePath === undefined
-        ? // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the installed ACP bundle supervises its own Node/argv; tests inject a fake child, no shell or credential environment (PLAN.md §8).
-          spawn(deps.file, [...deps.args], {
-            cwd: deps.cwd,
-            env,
-            stdio: 'pipe',
-            ...treeSpawnOptions(process.platform),
-          })
-        : spawnMcpJob({
-            executablePath: jobExecutablePath,
-            file: deps.file,
-            args: deps.args,
-            isVerbatim: false,
-            cwd: deps.cwd,
-            env,
-            log,
-          })
-    if (watchdog !== undefined && child.pid !== undefined)
-      watchdog.stdin.write(`${JSON.stringify({ pid: child.pid })}\n`)
+    const launched = await authority.launch(
+      deps.file,
+      deps.args,
+      deps.cwd,
+      env,
+      deps.watchdogFile ?? path.join(deps.packageRoot, 'dist', 'runtimeWatchdog.js'),
+    )
+    child = launched.child
+    childTicket = launched.ticket
     child.on('error', () => {
       closeOwner(undefined)
     })
@@ -258,6 +187,25 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
       closeOwner(undefined)
     })
     child.on('exit', stop)
+    if (watchdog !== undefined) {
+      const guard = watchdog
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error('ESTOP_WATCHDOG'))
+        }, RUNTIME_STOP.exitMs)
+        guard.stdout.once('data', (bytes: Buffer) => {
+          clearTimeout(timer)
+          if (bytes.toString('ascii') === 'OWNED\n') resolve()
+          else reject(new Error('ESTOP_WATCHDOG'))
+        })
+        guard.once('close', () => {
+          clearTimeout(timer)
+          reject(new Error('ESTOP_WATCHDOG'))
+        })
+        guard.stdin.write(`${JSON.stringify({ ticket: childTicket })}\n`)
+      })
+    }
+    launched.admit()
     // Piping preserves byte boundaries/backpressure; provider stderr is private.
     deps.stdin.pipe(child.stdin)
     child.stdin.on('error', stop)
@@ -268,28 +216,43 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
     stop()
     await stopping
     return child.pid === undefined ? 1 : (child.exitCode ?? 0)
+  } catch (error: unknown) {
+    if (child === undefined && error instanceof Error && 'code' in error && error.code === 'ENOENT')
+      return 1
+    throw error
   } finally {
     finishStartup(undefined)
-    process.off('SIGTERM', stop)
-    process.off('SIGINT', stop)
-    if (watchdog !== undefined) {
-      watchdog.stdin.end()
-      await watchdogDone
-    }
-    if (child !== undefined) deps.stdin.unpipe(child.stdin)
-    deps.stdin.destroy()
-    await new Promise<void>((resolve) => {
-      // Let the final acknowledgement drain before closing authenticated peers.
-      const timer = setTimeout(() => {
-        for (const socket of sockets) socket.destroy()
-      }, RUNTIME_STOP.graceMs)
-      control.close(() => {
-        clearTimeout(timer)
-        resolve()
+    stop()
+    try {
+      await stopping
+    } finally {
+      process.off('SIGTERM', stop)
+      process.off('SIGINT', stop)
+      if (watchdog !== undefined) {
+        watchdog.stdin.end()
+        await watchdogDone
+        const ticket = watchdogTicket
+        if (
+          ticket !== undefined &&
+          authority.registry.tickets().some((entry) => entry.id === ticket.id)
+        )
+          await authority.stop(ticket)
+      }
+      if (child !== undefined) deps.stdin.unpipe(child.stdin)
+      deps.stdin.destroy()
+      await new Promise<void>((resolve) => {
+        // Let the final acknowledgement drain before closing authenticated peers.
+        const timer = setTimeout(() => {
+          for (const socket of sockets) socket.destroy()
+        }, RUNTIME_STOP.graceMs)
+        control.close(() => {
+          clearTimeout(timer)
+          resolve()
+        })
       })
-    })
-    await rm(record, { force: true })
-    await rm(directory, { recursive: true, force: true })
+      await rm(record, { force: true })
+      await rm(directory, { recursive: true, force: true })
+    }
   }
 }
 

@@ -28,6 +28,13 @@ describe('the ACP agent npm landing page', () => {
     expect(script).toContain("copyFileSync(README, path.join(STAGE, 'README.md'))")
   })
 
+  it('ships the shared process authority and the signed native Darwin artifact required by LSP', () => {
+    const script = read('scripts', 'package-acp.mjs')
+    expect(script).toContain("'runtimeProcessAuthority.js'")
+    expect(script).toContain("path.join('native', 'darwin', 'muse-dictate')")
+    expect(script).toContain('copyFileSync(source, path.join(STAGE, source))')
+  })
+
   it('has no relative link or image target', () => {
     const targets = linkTargets(read('docs', 'npm-readme.md'))
     expect(targets.length).toBeGreaterThan(0)

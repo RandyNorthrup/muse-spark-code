@@ -452,6 +452,12 @@ const lspOptions = {
   outfile: 'dist/lsp.js',
   banner: undefined,
 }
+const processAuthorityOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/lsp/processAuthority.ts'],
+  outfile: 'dist/runtimeProcessAuthority.js',
+  banner: undefined,
+}
 const watchdogOptions = {
   ...acpOptions,
   entryPoints: ['src/runtime/lsp/watchdogEntry.ts'],
@@ -572,6 +578,7 @@ if (isWatch) {
     esbuild.context(tabOptions),
     esbuild.context(lspOptions),
     esbuild.context(watchdogOptions),
+    esbuild.context(processAuthorityOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
@@ -613,6 +620,7 @@ if (isWatch) {
     tab: esbuild.build(tabOptions),
     lsp: esbuild.build(lspOptions),
     runtimeWatchdog: esbuild.build(watchdogOptions),
+    runtimeProcessAuthority: esbuild.build(processAuthorityOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),

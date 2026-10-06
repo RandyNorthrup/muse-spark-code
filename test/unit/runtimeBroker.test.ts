@@ -1,3 +1,4 @@
+import './helpers/lspPrivateDirectoryMock'
 import { mkdtemp, readFile, mkdir, writeFile, rm, chmod, symlink } from 'node:fs/promises'
 import * as fs from 'node:fs/promises'
 import { createConnection, createServer } from 'node:net'

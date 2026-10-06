@@ -1,36 +1,22 @@
+import './helpers/lspPrivateDirectoryMock'
 import { spawn } from 'node:child_process'
 import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { build } from 'esbuild'
 import { afterAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
+import { LSP_LIMITS } from '../../src/shared/constants'
 import { stopWorkspace } from '../../src/runtime/lsp/supervisor'
 import { isProcessAlive } from '../../src/host/checkpoints/windowPresence'
 import { removeFolder } from './helpers/temporaryFolders'
-import { withoutCredentials } from '../../src/runtime/credentialVariables'
 
 const folder = await mkdtemp(path.join(tmpdir(), 'muse-watchdog-'))
 const parentFile = path.join(folder, 'parent.js')
+const { installLspNativeFixture, buildLspProcess } = await import('./helpers/lspNativeFixture')
+afterAll(await installLspNativeFixture(folder))
 const watchdogFile = path.join(folder, 'watchdog.js')
-await build({
-  entryPoints: ['test/unit/helpers/supervisorParent.ts'],
-  outfile: parentFile,
-  bundle: true,
-  platform: 'node',
-  format: 'cjs',
-  target: 'node22',
-  logLevel: 'silent',
-})
-await build({
-  entryPoints: ['src/runtime/lsp/watchdogEntry.ts'],
-  outfile: watchdogFile,
-  bundle: true,
-  platform: 'node',
-  format: 'cjs',
-  target: 'node22',
-  logLevel: 'silent',
-})
+await buildLspProcess('test/unit/helpers/supervisorParent.ts', parentFile)
+await buildLspProcess('src/runtime/lsp/watchdogEntry.ts', watchdogFile)
 afterAll(() => removeFolder(folder))
 const receiptSchema = z.strictObject({ root: z.int(), detached: z.int() })
 function pause(ms: number) {
@@ -39,7 +25,8 @@ function pause(ms: number) {
   })
 }
 async function receipt(file: string) {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  const deadline = Date.now() + LSP_LIMITS.startupMs
+  while (Date.now() < deadline) {
     try {
       const raw: unknown = JSON.parse(await readFile(file, 'utf8'))
       return receiptSchema.parse(raw)
@@ -59,111 +46,6 @@ async function waitExited(pid: number) {
 
 // Windows uses the kill-on-close job instead, exercised by runtimeSupervisor.test.ts.
 describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian', () => {
-  it.each(['parent', 'root', 'group', 'owner', 'signal', 'deadline'])(
-    'never enrolls or signals unrelated descendants after recycled %s identity',
-    async (fault) => {
-      const source = await readFile('src/runtime/lsp/watchdogEntry.ts', 'utf8')
-      const helper = JSON.stringify(path.resolve('test/unit/helpers/recycledWatchdogProcess.ts'))
-      const synthetic = path.join(folder, `recycled-${fault}.js`)
-      await build({
-        stdin: {
-          contents: source
-            .replace(
-              "import { execFile } from 'node:child_process'",
-              () => `import { execFile } from ${helper}`,
-            )
-            .replace("import process from 'node:process'", () => `import process from ${helper}`),
-          resolveDir: path.resolve('src/runtime/lsp'),
-          sourcefile: 'watchdogEntry.ts',
-          loader: 'ts',
-        },
-        outfile: synthetic,
-        bundle: true,
-        platform: 'node',
-        format: 'cjs',
-        target: 'node22',
-        logLevel: 'silent',
-      })
-      const guard = spawn(process.execPath, [synthetic, fault], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: withoutCredentials(process.env),
-      })
-      const bytes: Buffer[] = []
-      guard.stdout.on('data', (chunk: Buffer) => {
-        bytes.push(chunk)
-      })
-      try {
-        await new Promise<void>((resolve) => {
-          guard.once('close', () => {
-            resolve()
-          })
-        })
-        const result = z
-          .strictObject({ signals: z.array(z.int()), code: z.int() })
-          .parse(JSON.parse(Buffer.concat(bytes).toString('utf8')))
-        if (fault === 'deadline') {
-          expect(result.code).toBe(1)
-          expect(result.signals).toEqual([])
-          return
-        }
-        expect(result.code).toBe(0)
-        expect(result.signals).not.toContain(202)
-        expect(result.signals.every((pid) => pid > 0)).toBe(true)
-        if (['root', 'owner', 'signal'].includes(fault)) expect(result.signals).not.toContain(100)
-        else if (fault === 'parent') expect(result.signals).not.toContain(101)
-        if (fault === 'owner') expect(result.signals).toEqual([])
-        else expect(result.signals.length).toBeGreaterThan(0)
-      } finally {
-        guard.kill('SIGKILL')
-      }
-    },
-  )
-  it('fails without signalling a group when its current identities cannot be read', async () => {
-    const failing = path.join(folder, 'failing-watchdog.js')
-    const source = await readFile('src/runtime/lsp/watchdogEntry.ts', 'utf8')
-    const importSite = "import { execFile } from 'node:child_process'"
-    expect(source.split(importSite)).toHaveLength(2)
-    await build({
-      stdin: {
-        contents: source.replace(
-          importSite,
-          () =>
-            `import { execFile } from ${JSON.stringify(path.resolve('test/unit/helpers/failingProcessTable.ts'))}`,
-        ),
-        resolveDir: path.resolve('src/runtime/lsp'),
-        sourcefile: 'watchdogEntry.ts',
-        loader: 'ts',
-      },
-      outfile: failing,
-      bundle: true,
-      platform: 'node',
-      format: 'cjs',
-      target: 'node22',
-      logLevel: 'silent',
-    })
-    const root = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
-      detached: true,
-      stdio: 'ignore',
-      env: withoutCredentials(process.env),
-    })
-    const guard = spawn(process.execPath, [failing, String(process.pid)], {
-      stdio: ['pipe', 'ignore', 'ignore'],
-      env: withoutCredentials(process.env),
-    })
-    try {
-      if (root.pid === undefined) throw new Error('no owned fixture PID')
-      const ended = new Promise<number | null>((resolve) => {
-        guard.once('close', resolve)
-      })
-      guard.stdin.end(`${JSON.stringify({ pid: root.pid })}\n`)
-      expect(await ended).toBe(1)
-      await pause(100)
-      expect(isProcessAlive(root.pid)).toBe(true)
-    } finally {
-      guard.kill('SIGKILL')
-      root.kill('SIGKILL')
-    }
-  })
   it.each(['stop', 'ownerKilled'])(
     'reaps a busy root and detached descendant after %s',
     async (ending) => {

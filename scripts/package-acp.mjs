@@ -32,6 +32,7 @@ const BUNDLES = [
   'acp.js',
   'lsp.js',
   'runtimeWatchdog.js',
+  'runtimeProcessAuthority.js',
   'modelApi.js',
   'reviewer.js',
   'foreignHooks.js',
@@ -54,6 +55,8 @@ const JOB_SOURCES = [
   path.join('native', 'windows', 'MuseSparkMcpLauncher.cs'),
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
+  // Same signed universal artifact the package job already downloads for VSIX.
+  path.join('native', 'darwin', 'muse-dictate'),
 ]
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const PACKAGE_NAME = 'muse-spark-code-acp'

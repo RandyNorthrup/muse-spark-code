@@ -82,6 +82,27 @@ func runProcIdentityIfRequested() {
     exit(0)
 }
 
+// M104L: inspect an inherited no-follow directory fd; never reopen its path.
+func runPrivateDirectoryIfRequested() {
+    guard CommandLine.arguments.dropFirst().first == "private-directory" else { return }
+    guard CommandLine.arguments.count == 3, let fd = Int32(CommandLine.arguments[2]), fd >= 3 else { exit(2) }
+    var info = stat()
+    guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFDIR,
+          info.st_uid == getuid(), (info.st_mode & 0o777) == 0o700 else { exit(2) }
+    errno = 0
+    if let acl = acl_get_fd(fd) {
+        acl_free(UnsafeMutableRawPointer(acl))
+        exit(2)
+    }
+    // Darwin reports ENOENT when no extended ACL exists on this inode.
+    guard errno == ENOENT else { exit(2) }
+    let receipt: [String: String] = ["device": String(info.st_dev), "inode": String(info.st_ino)]
+    guard let data = try? JSONSerialization.data(withJSONObject: receipt) else { exit(2) }
+    FileHandle.standardOutput.write(data)
+    exit(0)
+}
+runPrivateDirectoryIfRequested()
+
 // Dispatch before responsibility/audio setup: process probes must never ask TCC.
 runProcIdentityIfRequested()
 

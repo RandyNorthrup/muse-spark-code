@@ -7651,20 +7651,13 @@ It builds on:
 
 ## 3. Open questions (need the owner)
 
-- **Q-REDM104L-T-API (2026-10-05, required dependency stop).** The
-  redesign brief requires consuming `m107/t` (`13f7f252`) as the one process
-  authority and stopping if its API lacks something essential. T supplies
-  registration and read-only membership/accounting, not a verified actuator;
-  its certification explicitly hands actions to A and macOS's native
-  `inspect` binding to M96 K/W. The POSIX sample discards zombie state and
-  carries neither parent identity nor detached-descendant enrollment. A
-  group ticket requires the root to lead that group. Consequently a minimal
-  adapter cannot implement all-launch authority, detached descendants and
-  exited/zombie retirement through T without changing its contracts/readers
-  beyond the permitted additive export. Which reviewed actuator/native and
-  lifecycle APIs should L consume? The listed merge is completed; redesign
-  implementation stops under the brief's explicit rule. Existing P1s remain
-  release blockers. Evidence: `docs/certification/m104-l.md`, REDM104L.
+- **Q-REDM104L-T-API (resolved 2026-10-06 by `m107/t2`).**
+  `98c183c7` merges the completed native identity, verified action and
+  departed/zombie lifecycle APIs. L consumes them as its only process
+  authority without modifying the readers. The historical 2026-10-05 stop
+  required those three APIs; it is superseded by the continuation and its
+  review dispositions in `docs/certification/m104-l.md`. Native Windows/Linux
+  qualification and the separately stated POSIX action interval remain.
 
 - **Q-M104L-CONTROLLER (2026-10-05).** The required release and C merges
   contain the M94 engine and authenticated companion transport, but no B
@@ -7675,12 +7668,15 @@ It builds on:
   the open-panel/Fix/Explain command port? L implements and tests the LSP
   service boundary; production advertises no review provider and refuses
   those commands explicitly until the real controller is composed.
-- **Q-M104L-POSIX-CONTAINMENT (2026-10-05).** Process groups plus an
-  independent bounded process-table guardian reap observed detached children,
-  including after supervisor SIGKILL. A double-fork/reparent before the first
-  sample, or supervisor death between spawn and guardian PID handoff, can
-  escape on POSIX. Universal containment needs a platform kernel/container
-  boundary; do not describe this sampling policy as an orphan-free guarantee.
+- **Q-M104L-POSIX-CONTAINMENT (updated 2026-10-06).** The shared exact
+  registry and independent EOF guardian reap observed detached children,
+  including after supervisor SIGKILL. Node roots wait for registration and
+  guardian handoff before admission, closing the earlier managed-root handoff
+  window. A complete descendant fork/reparent/exit chain between samples
+  can still escape POSIX user-space ancestry. Without a pidfd, the final
+  kernel birth read and synchronous signal are also non-atomic; the helper
+  return/scheduling interval counts. Adjacent exact comparison/signal and
+  registry epochs mitigate it; no kernel containment guarantee is claimed.
 
 - **Q-M104H2-BASE (2026-10-05):** H2's assigned `c38ef8a5` has no M94
   Tab engine (also recorded in D78), B/C panel composition, or native rig
@@ -19791,6 +19787,35 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**REDM104L continuation (2026-10-06).** The listed `m107/t2` merge
+supplies exact native identities, verified per-member actions and departed/
+zombie enrollment. Replace LSP's local ps/birth table, direct child/group
+signals and exited-tree sweep with that authority. Workload launches wait
+for registration before admission; guardian EOF cleanup uses the same
+registry. Native Windows launch wiring may add the minimal named-job and
+registration handshake to the existing job launcher. A registered launcher
+keeps its own kill-on-close job handle until process exit, avoiding a
+finally-block self-kill before Main can preserve the workload exit code;
+the native Windows rerun must qualify that path. Private namespaces use
+one portable helper: POSIX create 0700 and verify via a no-follow directory
+fd; Windows CreateDirectoryW with a protected owner/SYSTEM DACL and ACL
+verification through the held non-reparse handle. Unsafe existing paths are
+refused. Keep all five P2 regressions and record native Mac and portable
+Linux/Windows receipts and deliberate failures in m104-l.md. Reader sources
+remain unchanged. The first production build measured ACP 857.1/850 KiB,
+LSP 130.2/106 KiB and guardian 42.9/11 KiB: embedding the same native
+authority exceeds all three existing caps. Use the existing deferred-cohort
+dynamic import for one first-use `dist/runtimeProcessAuthority.js` bundle,
+shipped by the ACP packager and guarded by the split check. The ACP package
+also ships the existing universal signed Darwin helper: its package job
+already downloads that artifact, but previously copied only Windows sources.
+Missing native source/artifact refuses packaging. Its first
+41.1 KiB production measurement plus 15%, rounded up, gives a new 50 KiB cap; existing budgets
+remain unchanged. Both POSIX paths retain the adjacent exact identity-read/
+synchronous-signal race without a pidfd; Windows actions retain one handle.
+Aggregate quality and native Linux/Windows/editor qualification remain the
+lead's integration work under the bounded-lane rule in §7.
+
 **REDM104L supervision redesign (2026-10-05):** the owner authorizes the
 listed two-parent merge of `m107/t` (`13f7f252`), LSP-only launch adapters and
 one shared directory helper, while forbidding reader changes except a
@@ -21412,6 +21437,22 @@ and owning fake-only suites; hook-on local commits use those receipts. No
 threshold or rule is weakened. Native GUI, Windows and missing controller
 composition remain unqualified in `docs/certification/m104-h.md`.
 
+**REDM104L resumed certification (2026-10-06).** The continuation consumes
+the completed M107 T2 registry without editing its tree readers. The rig/common
+brief still prohibits aggregate `npm run quality` and full coverage; hook-on
+local commits use the scoped static/build gates and 28 complete owning test
+files (394 passed, nine existing platform skips). All five typechecks, changed
+lint/format, localization, reference, deadcode, duplication and production
+build pass; no existing budget or gate is weakened. The existing W-owned
+host-API snapshot remains deferred: current source reports Node import rows
+`node:child_process` 16→17, `node:crypto` 54→55, `node:fs` 36→38,
+`node:fs/promises` 53→55 and `node:path` 91→97; VS Code API/theme counts do
+not change. W must regenerate/review the snapshot at integration and rerun
+the gate. Native Linux/Windows, controller composition and the lead's full
+integrated quality gate remain required. The exact residual, per-finding
+disposition, 25 deliberate guard violations and rerun list are in
+`docs/certification/m104-l.md`.
+
 M104H2's common lane rules reserve aggregate `npm run quality` for the lead.
 The lane runs the specified local static/build gates and owning fake-only
 suites; full coverage, a11y and native-editor qualification remain with
@@ -22192,11 +22233,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| M104L location                     | Escape hatch                              | Reason                                                                                                                                  | Date       |
-| ---------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/runtime/lsp/lspEntry.ts`      | `nosemgrep` on worker spawn               | Trusted installed Node/ACP argv with sanitized environment, detached supervisor and no shell. No stored key crosses the child boundary. | 2026-10-05 |
-| `src/runtime/lsp/watchdogEntry.ts` | `nosemgrep` on fixed `/bin/ps`            | Bounded process identity table only (PID, parent, group, birth); no command lines or credential environment.                            | 2026-10-05 |
-| `src/runtime/lsp/supervisor.ts`    | `nosemgrep` on independent guardian spawn | Installed private guardian receives fixed owner PID and sanitized environment; it does not enter the model queue.                       | 2026-10-05 |
+| M104L location                        | Escape hatch                         | Reason                                                                                                                                                            | Date       |
+| ------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/lsp/processAuthority.ts` | `nosemgrep` on registered Node spawn | Installed Node/argv waits on a private launch fd until exact M107 registration; credential variables and keyring routes are removed. No shell or bare PID signal. | 2026-10-06 |
+| `src/runtime/privateDirectory.ts`     | `nosemgrep` on native fd ACL probe   | Shipped signed Darwin helper reads only the inherited no-follow directory fd, with a credential-free environment.                                                 | 2026-10-06 |
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -22318,9 +22358,22 @@ before a repaired one loads (2026-09-30).
 | File                                                                                | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
-| `src/runtime/lsp/supervisor.ts`                                                     | `nosemgrep` on the POSIX spawn                                     | The CLI supervises its own installed Node/ACP argv without a shell and with credential variables removed; only fake-only unit tests inject another executable. Native Windows launch uses the existing suspended-process, kill-on-close MCP job helper.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **REDM104L POSIX action residual (2026-10-06).** Linux and Darwin
+  recheck the exact kernel birth immediately before synchronous positive-PID
+  kill, with no intervening await in M107's mutation path. Without a pidfd
+  (or an equivalent retained Darwin process handle), a process can exit and
+  its PID can be reused in the interval between that final identity recheck
+  and kill. Registration, fresh ancestry proofs, descendant-first snapshots,
+  no negative/group signals and per-member outcome/exit checks mitigate but
+  do not eliminate that final interval. No native dependency is invented.
+  Windows checks birth, job and live state and terminates through one held
+  process handle. Observed detached/reparented descendants remain enrolled;
+  an entire fork/reparent/exit chain between observations can escape POSIX
+  user-space ancestry, as recorded before this redesign. Stop proves the
+  registered/observed identities departed, never a pidfd containment theorem.
 
 - **M107-T-native-and-integration (existing W/native handoff, FIXM107T).**
   The three RVM107T P2 findings are fixed; native Windows job execution,

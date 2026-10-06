@@ -3,7 +3,6 @@ import { mkdtemp, realpath, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { build } from 'esbuild'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { lspTransport } from '../../src/runtime/lsp/transport'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
@@ -12,24 +11,10 @@ import { removeFolder } from './helpers/temporaryFolders'
 
 const folder = await realpath(await mkdtemp(path.join(tmpdir(), 'mlf-')))
 const entry = path.join(folder, 'entry.js')
-await build({
-  entryPoints: ['test/unit/helpers/runtimeLspParent.ts'],
-  outfile: entry,
-  bundle: true,
-  platform: 'node',
-  format: 'cjs',
-  target: 'node22',
-  logLevel: 'silent',
-})
-await build({
-  entryPoints: ['src/runtime/lsp/watchdogEntry.ts'],
-  outfile: path.join(folder, 'watchdog.js'),
-  bundle: true,
-  platform: 'node',
-  format: 'cjs',
-  target: 'node22',
-  logLevel: 'silent',
-})
+const { installLspNativeFixture, buildLspProcess } = await import('./helpers/lspNativeFixture')
+afterAll(await installLspNativeFixture(folder))
+await buildLspProcess('test/unit/helpers/runtimeLspParent.ts', entry)
+await buildLspProcess('src/runtime/lsp/watchdogEntry.ts', path.join(folder, 'watchdog.js'))
 afterAll(() => removeFolder(folder))
 
 function child(args: readonly string[]) {

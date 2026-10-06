@@ -27,6 +27,7 @@ for (const file of [
     'acp.js',
     'lsp.js',
     'runtimeWatchdog.js',
+    'runtimeProcessAuthority.js',
     'modelApi.js',
     'recorder.js',
     'uiText.js',

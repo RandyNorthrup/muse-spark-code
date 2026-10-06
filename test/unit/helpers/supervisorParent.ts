@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { superviseRuntime } from '../../../src/runtime/lsp/supervisor'
 const [registry, workspace, watchdogFile, receipt] = process.argv.slice(2)
@@ -25,7 +26,7 @@ void superviseRuntime({
   args: ['-e', source, receipt],
   watchdogFile,
   env: process.env,
-  packageRoot: process.cwd(),
+  packageRoot: path.dirname(__filename),
   stdin: new PassThrough(),
   stdout,
 })

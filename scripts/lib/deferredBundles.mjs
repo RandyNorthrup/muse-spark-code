@@ -34,6 +34,24 @@ export const PLUGIN_HOOKS_ONLY = [
 ]
 export const DEFERRED = [
   {
+    output: 'dist/runtimeProcessAuthority.js',
+    metafile: 'dist/meta/runtimeProcessAuthority.json',
+    use: 'the first supervised launch or guardian action',
+    parents: [
+      BUNDLES.activation,
+      BUNDLES.modelApi,
+      BUNDLES.acp,
+      { output: 'dist/lsp.js', metafile: 'dist/meta/lsp.json' },
+      { output: 'dist/runtimeWatchdog.js', metafile: 'dist/meta/runtimeWatchdog.json' },
+    ],
+    files: [
+      'src/runtime/lsp/processAuthority.ts',
+      ...['registry', 'actions', 'linux', 'mac', 'posix', 'posixTable', 'windows', 'run'].map(
+        (name) => `src/core/resources/trees/${name}.ts`,
+      ),
+    ],
+  },
+  {
     output: 'dist/sessionBoard.js',
     metafile: 'dist/meta/sessionBoard.json',
     files: [
@@ -242,9 +260,11 @@ export function checkDeferredBundles(inputsOf) {
   const problems = []
   for (const bundle of [...DEFERRED, ...ON_FIRST_USE]) {
     const inputs = inputsOf(bundle)
-    const parents = DEFERRED.includes(bundle)
-      ? [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]
-      : [BUNDLES.activation]
+    const parents =
+      bundle.parents ??
+      (DEFERRED.includes(bundle)
+        ? [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]
+        : [BUNDLES.activation])
     for (const file of bundle.files) {
       for (const parent of parents) {
         if (inputsOf(parent).has(file)) {
@@ -319,6 +339,7 @@ export const sharedValidation = {
 /** @type {import('esbuild').Plugin} */
 const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/runtime/lsp/lspEntry.ts'), 'dist/lsp.js'],
+  [path.resolve('src/runtime/lsp/processAuthority.ts'), 'dist/runtimeProcessAuthority.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
@@ -335,7 +356,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:lspEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
+          /\/(?:lspEntry|processAuthority|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (args.kind !== 'dynamic-import') return

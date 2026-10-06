@@ -89,6 +89,9 @@ beforeAll(async () => {
         checkpointStore: 'src/host/checkpoints/checkpointStoreEntry.ts',
         pageWorker: 'src/host/web/pageWorker.ts',
         searchWorker: 'src/host/backend/searchWorker.ts',
+        lsp: 'src/runtime/lsp/lspEntry.ts',
+        runtimeWatchdog: 'src/runtime/lsp/watchdogEntry.ts',
+        runtimeProcessAuthority: 'src/runtime/lsp/processAuthority.ts',
       },
       plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
       external: ['vscode', '@napi-rs/keyring'],
@@ -292,6 +295,23 @@ describe('deferred cohort bundles', () => {
     }
   })
 
+  it('loads the process authority dynamically from every runtime owner without embedding a second copy', () => {
+    for (const name of ['acp', 'lsp', 'runtimeWatchdog']) {
+      const output = fixture(`dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`).meta
+        .outputs[`dist/${name}.js`]
+      expect(output?.imports).toContainEqual(
+        expect.objectContaining({
+          path: './runtimeProcessAuthority.js',
+          kind: 'dynamic-import',
+          external: true,
+        }),
+      )
+      for (const file of ['registry', 'linux', 'mac', 'windows', 'actions', 'posix'])
+        expect(inputs(name)).not.toContain(`src/core/resources/trees/${file}.ts`)
+    }
+    expect(inputs('runtimeProcessAuthority')).toContain('src/runtime/lsp/processAuthority.ts')
+  })
+
   it('keeps board and best-of-N execution out of activation', () => {
     const files = inputs('extension')
     expect(files).not.toContain('src/host/bestOfN/bestOfNManager.ts')
@@ -431,6 +451,21 @@ describe('deferred cohort bundles', () => {
 
   it.each([
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
+    [
+      'acp',
+      'src/runtime/lsp/processAuthority.ts',
+      'on the first supervised launch or guardian action',
+    ],
+    [
+      'lsp',
+      'src/core/resources/trees/registry.ts',
+      'on the first supervised launch or guardian action',
+    ],
+    [
+      'runtimeWatchdog',
+      'src/core/resources/trees/mac.ts',
+      'on the first supervised launch or guardian action',
+    ],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],
     ['acp', 'src/host/support/reportJournal.ts', 'from the recorder bundle'],

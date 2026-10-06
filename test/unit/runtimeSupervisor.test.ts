@@ -1,6 +1,10 @@
+import './helpers/lspPrivateDirectoryMock'
+import type { ResourceTicket } from '../../src/shared/resources'
+import type { ResourceSignal } from '../../src/core/resources/trees/actions'
+import { processAuthority } from '../../src/runtime/lsp/processAuthority'
+import { ResourceTreeRegistry } from '../../src/core/resources/trees/registry'
 import { mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import * as fs from 'node:fs/promises'
-import { build } from 'esbuild'
 import * as childProcess from 'node:child_process'
 import { createConnection } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -20,15 +24,9 @@ vi.mock('node:fs/promises', async (importOriginal) => ({ ...(await importOrigina
 
 const directory = await mkdtemp(path.join(tmpdir(), 'muse-supervisor-test-'))
 const watchdogFile = path.join(directory, 'watchdog.js')
-await build({
-  entryPoints: ['src/runtime/lsp/watchdogEntry.ts'],
-  outfile: watchdogFile,
-  bundle: true,
-  platform: 'node',
-  format: 'cjs',
-  target: 'node22',
-  logLevel: 'silent',
-})
+const { installLspNativeFixture, buildLspProcess } = await import('./helpers/lspNativeFixture')
+afterAll(await installLspNativeFixture(directory))
+await buildLspProcess('src/runtime/lsp/watchdogEntry.ts', watchdogFile)
 afterAll(() => removeFolder(directory))
 
 function pause(ms: number): Promise<void> {
@@ -46,6 +44,15 @@ async function waitFor(file: string): Promise<string> {
     }
   }
   throw new Error(`no receipt: ${file}`)
+}
+
+function captureWorkload(receive: (child: childProcess.ChildProcess) => void) {
+  const nativeSpawn = childProcess.spawn
+  return vi.spyOn(childProcess, 'spawn').mockImplementation((...args) => {
+    const child = nativeSpawn(...args)
+    if (Array.isArray(args[1]) && args[1].includes('-e')) receive(child)
+    return child
+  })
 }
 
 function start(cwd: string, source: string, args: readonly string[] = [], guardian?: string) {
@@ -78,16 +85,16 @@ describe('M104H2 runtime supervision', () => {
     await fs.mkdir(registry, { mode: 0o700 })
     const record = path.join(registry, `${workspaceKey(directory)}-race.json`)
     await writeFile(record, '{}', { mode: 0o600 })
-    const opening = vi.spyOn(fs, 'open')
+    const actualOpen = fs.open
+    let failure = Object.assign(new Error('fixture vanished'), { code: 'ENOENT' })
+    const opening = vi.spyOn(fs, 'open').mockImplementation(async (file, flags, mode) => {
+      if (file === record) throw failure
+      return await actualOpen(file, flags, mode)
+    })
     try {
-      opening.mockRejectedValueOnce(
-        Object.assign(new Error('fixture vanished'), { code: 'ENOENT' }),
-      )
       await expect(stopWorkspace(registry, directory)).resolves.toBeUndefined()
       expect(opening).toHaveBeenCalledWith(record, expect.any(Number))
-      opening.mockRejectedValueOnce(
-        Object.assign(new Error('fixture forbidden'), { code: 'EACCES' }),
-      )
+      failure = Object.assign(new Error('fixture forbidden'), { code: 'EACCES' })
       await expect(stopWorkspace(registry, directory)).rejects.toThrow('fixture forbidden')
     } finally {
       opening.mockRestore()
@@ -113,14 +120,11 @@ describe('M104H2 runtime supervision', () => {
       const ready = path.join(directory, 'startup-child')
       await writeFile(
         guardian,
-        String.raw`const fs = require('node:fs'); const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(release)})) { clearInterval(timer); process.stdout.write('READY\n') } }, 10); process.stdin.resume(); process.stdin.once('end', () => process.exit(0));`,
+        String.raw`if (require.main !== module) { require(${JSON.stringify(watchdogFile)}); delete require.cache[__filename]; } else { const fs = require('node:fs'); const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(release)})) { clearInterval(timer); process.stdout.write('READY\n') } }, 10); process.stdin.resume(); process.stdin.on('data', () => process.stdout.write('OWNED\n')); process.stdin.once('end', () => process.exit(0)); }`,
       )
-      const nativeSpawn = childProcess.spawn
       let owned: childProcess.ChildProcess | undefined
-      const spawning = vi.spyOn(childProcess, 'spawn').mockImplementation((...args) => {
-        const child = nativeSpawn(...args)
-        if (Array.isArray(args[1]) && args[1][0] === '-e') owned = child
-        return child
+      const spawning = captureWorkload((child) => {
+        owned = child
       })
       const run = start(
         directory,
@@ -157,8 +161,15 @@ describe('M104H2 runtime supervision', () => {
         expect(owned.exitCode !== null || owned.signalCode !== null).toBe(true)
       } finally {
         await writeFile(release, 'ready')
-        // A red drill can launch after prematurely acknowledging Stop.
-        await pause(100)
+        // A red drill can launch after prematurely acknowledging Stop. Wait for
+        // its workload admission, so teardown cannot outrun native registration.
+        if (owned === undefined || (owned.exitCode === null && owned.signalCode === null)) {
+          try {
+            await waitFor(ready)
+          } catch {
+            /* Failed startup has no workload receipt to await. */
+          }
+        }
         owned?.kill('SIGKILL')
         spawning.mockRestore()
         await stopping
@@ -166,6 +177,86 @@ describe('M104H2 runtime supervision', () => {
       }
     },
   )
+  it.runIf(process.platform !== 'win32')(
+    'holds the Node workload until both registry registration and explicit admission',
+    async () => {
+      const marker = path.join(directory, 'gated-child')
+      const authority = await processAuthority(directory, path.join(directory, 'owners'))
+      const held = Promise.withResolvers<undefined>()
+      const reached = Promise.withResolvers<undefined>()
+      const registering = authority.registry.register.bind(authority.registry)
+      const guard = vi.spyOn(authority.registry, 'register').mockImplementation(async (ticket) => {
+        reached.resolve(undefined)
+        await held.promise
+        return await registering(ticket)
+      })
+      const launching = authority.launch(
+        process.execPath,
+        [
+          '-e',
+          `require('node:fs').writeFileSync(process.argv[1],'ready');setInterval(()=>{},1000)`,
+          marker,
+        ],
+        directory,
+        process.env,
+        watchdogFile,
+      )
+      void launching.catch(() => undefined)
+      try {
+        await reached.promise
+        await pause(100)
+        await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' })
+        held.resolve(undefined)
+        const launched = await launching
+        await pause(100)
+        await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' })
+        launched.admit()
+        expect(await waitFor(marker)).toBe('ready')
+        await authority.stop(launched.ticket)
+      } finally {
+        held.resolve(undefined)
+        guard.mockRestore()
+        const launched = await launching
+        launched.child.stdio[3]?.destroy()
+        if (authority.registry.tickets().some((entry) => entry.id === launched.ticket.id))
+          await authority.stop(launched.ticket)
+      }
+    },
+  )
+
+  it.runIf(process.platform !== 'win32')(
+    'retires a registered child without admitting it when guardian handoff fails',
+    async () => {
+      const guardian = path.join(directory, 'refusing-watchdog.js')
+      const marker = path.join(directory, 'refused-child')
+      await writeFile(
+        guardian,
+        String.raw`if (require.main !== module) { require(${JSON.stringify(watchdogFile)}); delete require.cache[__filename]; } else { process.stdout.write('READY\n'); process.stdin.once('data',()=>process.exit(1)); }`,
+      )
+      let owned: childProcess.ChildProcess | undefined
+      const spawning = captureWorkload((child) => {
+        owned = child
+      })
+      try {
+        const run = start(
+          directory,
+          `require('node:fs').writeFileSync(process.argv[1],'admitted');setInterval(()=>{},1000)`,
+          [marker],
+          guardian,
+        )
+        await expect(run.done).rejects.toThrow('ESTOP_WATCHDOG')
+        if (owned === undefined) throw new Error('no child spawn')
+        expect(owned.pid).toBeTypeOf('number')
+        expect(owned.exitCode !== null || owned.signalCode !== null).toBe(true)
+        await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' })
+        expect(await readdir(path.join(directory, 'owners'))).toEqual([])
+      } finally {
+        owned?.kill('SIGKILL')
+        spawning.mockRestore()
+      }
+    },
+  )
+
   it('builds its own guardian without a production dist directory', async () => {
     const run = start(
       directory,
@@ -204,7 +295,7 @@ describe('M104H2 runtime supervision', () => {
         file: path.join(directory, 'missing'),
         args: [],
         env: process.env,
-        packageRoot: process.cwd(),
+        packageRoot: process.platform === 'win32' ? process.cwd() : directory,
         watchdogFile,
         stdin: new PassThrough(),
         stdout: new PassThrough(),
@@ -269,7 +360,7 @@ describe('M104H2 runtime supervision', () => {
   })
 
   it.runIf(process.platform !== 'win32')(
-    'does not acknowledge Stop until the process group has exited',
+    'does not acknowledge Stop until registry actions attest that every identity has exited',
     async () => {
       const ready = path.join(directory, 'group.ready')
       const run = start(
@@ -278,11 +369,22 @@ describe('M104H2 runtime supervision', () => {
         [ready],
       )
       await waitFor(ready)
-      const nativeKill = process.kill.bind(process)
+      const actualKill = ResourceTreeRegistry.prototype.kill
       let isGroupReleased = false
-      const kill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
-        return (signal === 0 && !isGroupReleased && pid < 0) || nativeKill(pid, signal)
-      })
+      class HeldExitRegistry extends ResourceTreeRegistry {
+        override async kill(ticket: ResourceTicket, signal?: ResourceSignal) {
+          const result = await actualKill.call(this, ticket, signal)
+          return !isGroupReleased && result.status === 'gone'
+            ? {
+                status: 'done' as const,
+                members: [{ identity: ticket.root, result: 'done' as const }],
+              }
+            : result
+        }
+      }
+      const kill = vi
+        .spyOn(ResourceTreeRegistry.prototype, 'kill')
+        .mockImplementation(HeldExitRegistry.prototype.kill)
       let didStop = false
       const stopping = (async () => {
         await stopWorkspace(path.join(directory, 'owners'), directory)

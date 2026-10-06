@@ -15,6 +15,8 @@ using System.Text;
 
 [DataContract]
 public sealed class MuseSparkMcpLaunchConfig {
+  [DataMember(Name = "independent", IsRequired = false)] public bool Independent { get; set; }
+  [DataMember(Name = "jobName", IsRequired = false)] public string JobName { get; set; }
   [DataMember(Name = "file", IsRequired = true)] public string File { get; set; }
   [DataMember(Name = "args", IsRequired = true)] public string[] Args { get; set; }
   [DataMember(Name = "cwd", IsRequired = true)] public string Cwd { get; set; }
@@ -51,7 +53,7 @@ public static class MuseSparkMcpJobEntry {
       foreach (var entry in config.Env) pairs.Add(entry.Key + "=" + entry.Value);
       return MuseSparkMcpJob.Run(config.File, config.Args, config.Cwd,
         config.ParentPid, pairs.ToArray(), config.IsVerbatim,
-        config.ControlPipe, config.ControlNonce, config.JobMemoryLimit);
+        config.ControlPipe, config.ControlNonce, config.JobMemoryLimit, config.JobName, config.Independent);
     } catch (Exception error) {
       Exception cause = error.GetBaseException();
       if (cause is Win32Exception) {

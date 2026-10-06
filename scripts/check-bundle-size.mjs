@@ -144,6 +144,8 @@ const BUDGETS = [
   // New runtime-only LSP/guardian budgets; extension and ACP activation caps stay fixed.
   { path: 'dist/lsp.js', budgetKiB: 106 },
   { path: 'dist/runtimeWatchdog.js', budgetKiB: 11 },
+  // Exact process authority split from all three runtime bundles; first measurement 41.1 KiB + 15%, rounded up.
+  { path: 'dist/runtimeProcessAuthority.js', budgetKiB: 50 },
 ]
 
 let hasFailure = false

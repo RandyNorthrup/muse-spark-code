@@ -37,6 +37,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- LSP supervision now registers workload launches with M107's exact process
+  authority before admission and uses its verified per-member actions for
+  every Stop signal. Local `ps lstart` tracking and exited-group sweeps are
+  removed; zombies and genuine reuse of departed PIDs use the shared registry.
+- Private LSP directories are created with final owner-only permissions:
+  no-follow fd verification on POSIX, protected owner/SYSTEM DACL creation and
+  held-handle verification on Windows. Unsafe existing namespaces are refused.
+  Native Windows/Linux qualification and POSIX's final read-to-signal interval
+  remain explicitly recorded.
+
 - The POSIX guardian verifies parent/root birth identities before enrolling
   descendants and rechecks each process before an individual signal. Broker
   and Stop records require an owner-only namespace, no symlinks, verified

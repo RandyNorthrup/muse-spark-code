@@ -222,7 +222,7 @@ export interface BrokerLaunch {
   readonly workspace: string
   readonly configuration: string
   /** Trusted installed runtime, supervised independently, no shell or credential environment. */
-  launch(): void
+  launch(): void | Promise<void>
 }
 
 /** Exclusive startup directory, then a validated private record. A dead owner is replaceable. */
@@ -273,7 +273,7 @@ export async function connectWorkspaceBroker(deps: BrokerLaunch): Promise<Socket
         JSON.stringify({ pid: process.pid }),
       )
       try {
-        deps.launch()
+        await deps.launch()
         didLaunch = true
       } catch (error: unknown) {
         await rm(folder, { recursive: true, force: true })

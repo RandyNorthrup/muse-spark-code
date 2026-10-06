@@ -27,6 +27,11 @@ export interface McpJobLaunch {
   readonly log: (message: string) => void
   /** The whole job's memory in bytes (M91b, plugin children); absent sets no limit. */
   readonly jobMemoryLimit?: number | undefined
+  /** LSP: hold named-job admission until exact launcher registration completes. */
+  readonly jobName?: string
+  /** Workspace owner survives the frontend after authenticated launch admission. */
+  readonly independent?: boolean
+  readonly registered?: (pid: number) => Promise<void>
 }
 
 /** The raw pipes belong to this ChildProcess; no text relay touches MCP frames. */
@@ -57,8 +62,18 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
         return
       }
       isAuthorized = true
-      socket.end(`GO ${controlNonce}\n`)
-      closeControl()
+      void (async () => {
+        if (launch.registered !== undefined) {
+          if (child?.pid === undefined) throw new Error('ESTOP_JOB')
+          await launch.registered(child.pid)
+        }
+        socket.end(`GO ${controlNonce}\n`)
+        closeControl()
+      })().catch(() => {
+        socket.destroy()
+        closeControl()
+        // Named-job launch refuses before creating the workload; no bare PID action.
+      })
     })
   })
   const closeControl = () => {
@@ -71,7 +86,7 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
   })
   control.on('error', (error) => {
     launch.log(`the MCP job control pipe could not listen: ${redactSecrets(error.message)}`)
-    child?.kill()
+    if (launch.registered === undefined) child?.kill()
   })
   control.listen(`\\\\.\\pipe\\${controlPipe}`)
   control.unref()
@@ -85,6 +100,8 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
       isVerbatim: launch.isVerbatim,
       controlPipe,
       controlNonce,
+      ...(launch.independent === true && { independent: true }),
+      ...(launch.jobName !== undefined && { jobName: launch.jobName }),
       ...(launch.jobMemoryLimit !== undefined && { jobMemoryLimit: launch.jobMemoryLimit }),
     }),
     'utf8',

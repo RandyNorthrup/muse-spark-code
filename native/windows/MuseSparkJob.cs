@@ -234,3 +234,91 @@ public static class MuseSparkJob {
     }
   }
 }
+
+// M104L: creation and ACL proof are bound to the opened directory, never Set-Acl.
+public static class MuseSparkPrivateDirectory {
+  [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+  struct SECURITY_ATTRIBUTES {
+    public int Length;
+    public IntPtr Descriptor;
+    public int Inherit;
+  }
+  [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+  struct FILE_INFO {
+    public uint Attributes;
+    public System.Runtime.InteropServices.ComTypes.FILETIME Created, Accessed, Written;
+    public uint Volume, SizeHigh, SizeLow, Links, IndexHigh, IndexLow;
+  }
+  [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+  static extern bool CreateDirectoryW(string path, ref SECURITY_ATTRIBUTES attributes);
+  [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+  static extern IntPtr CreateFileW(string path, uint access, uint share, IntPtr attributes, uint disposition, uint flags, IntPtr template);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern bool GetFileInformationByHandle(IntPtr handle, out FILE_INFO info);
+  [DllImport("advapi32.dll", SetLastError = true)]
+  static extern uint GetSecurityInfo(IntPtr handle, int kind, uint requested, out IntPtr owner, out IntPtr group, out IntPtr dacl, out IntPtr sacl, out IntPtr descriptor);
+  [DllImport("advapi32.dll")]
+  static extern uint GetSecurityDescriptorLength(IntPtr descriptor);
+  [DllImport("kernel32.dll")]
+  static extern IntPtr LocalFree(IntPtr pointer);
+  [DllImport("kernel32.dll")]
+  static extern bool CloseHandle(IntPtr handle);
+  const uint READ_CONTROL = 0x00020000, SHARE_READ_WRITE = 3, OPEN_EXISTING = 3;
+  const uint OPEN_REPARSE_BACKUP = 0x02200000, DIRECTORY = 0x10, REPARSE = 0x400;
+  const int ALREADY_EXISTS = 183, FULL_CONTROL = 0x1f01ff;
+  const uint OWNER_DACL = 5;
+
+  public static string Verify(string path, bool create) {
+    var current = System.Security.Principal.WindowsIdentity.GetCurrent().User;
+    var system = new System.Security.Principal.SecurityIdentifier("S-1-5-18");
+    bool isNew = false;
+    if (create) {
+      var security = new System.Security.AccessControl.DirectorySecurity();
+      security.SetOwner(current);
+      security.SetAccessRuleProtection(true, false);
+      var inheritance = System.Security.AccessControl.InheritanceFlags.ContainerInherit | System.Security.AccessControl.InheritanceFlags.ObjectInherit;
+      foreach (var sid in new[] { current, system })
+        security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(sid,
+          System.Security.AccessControl.FileSystemRights.FullControl, inheritance,
+          System.Security.AccessControl.PropagationFlags.None, System.Security.AccessControl.AccessControlType.Allow));
+      byte[] binary = security.GetSecurityDescriptorBinaryForm();
+      var pinned = System.Runtime.InteropServices.GCHandle.Alloc(binary, System.Runtime.InteropServices.GCHandleType.Pinned);
+      try {
+        var attributes = new SECURITY_ATTRIBUTES();
+        attributes.Length = Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));
+        attributes.Descriptor = pinned.AddrOfPinnedObject();
+        isNew = CreateDirectoryW(path, ref attributes);
+        if (!isNew && Marshal.GetLastWin32Error() != ALREADY_EXISTS) throw new Win32Exception();
+      } finally { pinned.Free(); }
+    }
+    // Omitting FILE_SHARE_DELETE prevents rename/replacement throughout the receipt.
+    IntPtr handle = CreateFileW(path, READ_CONTROL, SHARE_READ_WRITE, IntPtr.Zero, OPEN_EXISTING, OPEN_REPARSE_BACKUP, IntPtr.Zero);
+    if (handle == new IntPtr(-1)) throw new Win32Exception();
+    try {
+      FILE_INFO info;
+      if (!GetFileInformationByHandle(handle, out info)) throw new Win32Exception();
+      if ((info.Attributes & DIRECTORY) == 0 || (info.Attributes & REPARSE) != 0) throw new InvalidOperationException("unsafe directory");
+      IntPtr owner, group, dacl, sacl, descriptor;
+      uint error = GetSecurityInfo(handle, 1, OWNER_DACL, out owner, out group, out dacl, out sacl, out descriptor);
+      if (error != 0) throw new Win32Exception((int)error);
+      try {
+        byte[] binary = new byte[GetSecurityDescriptorLength(descriptor)];
+        Marshal.Copy(descriptor, binary, 0, binary.Length);
+        var security = new System.Security.AccessControl.RawSecurityDescriptor(binary, 0);
+        if (!current.Equals(security.Owner) || (security.ControlFlags & System.Security.AccessControl.ControlFlags.DiscretionaryAclProtected) == 0 || security.DiscretionaryAcl == null)
+          throw new InvalidOperationException("unsafe owner or ACL");
+        bool hasOwner = false;
+        foreach (System.Security.AccessControl.GenericAce entry in security.DiscretionaryAcl) {
+          var ace = entry as System.Security.AccessControl.CommonAce;
+          if (ace == null || ace.IsCallback || ace.AceQualifier != System.Security.AccessControl.AceQualifier.AccessAllowed ||
+              (ace.AceFlags & (System.Security.AccessControl.AceFlags.Inherited | System.Security.AccessControl.AceFlags.InheritOnly)) != 0 ||
+              ace.AccessMask != FULL_CONTROL || (!current.Equals(ace.SecurityIdentifier) && !system.Equals(ace.SecurityIdentifier)))
+            throw new InvalidOperationException("unsafe grant");
+          hasOwner |= current.Equals(ace.SecurityIdentifier);
+        }
+        if (!hasOwner) throw new InvalidOperationException("missing owner grant");
+      } finally { LocalFree(descriptor); }
+      return "{\"isNew\":" + (isNew ? "true" : "false") + ",\"volume\":\"" + info.Volume.ToString() + "\",\"index\":\"" + (((ulong)info.IndexHigh << 32) | info.IndexLow).ToString() + "\"}";
+    } finally { CloseHandle(handle); }
+  }
+}

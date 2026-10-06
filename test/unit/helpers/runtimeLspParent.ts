@@ -32,6 +32,8 @@ async function main(): Promise<number> {
     stdout: process.stdout,
     executable: process.execPath,
     entry: __filename,
+    packageRoot: path.dirname(__filename),
+    watchdogFile: path.join(path.dirname(__filename), 'watchdog.js'),
     registry,
     dataFolder: path.join(workspace, 'data'),
     grantsFile: path.join(workspace, 'grants.json'),

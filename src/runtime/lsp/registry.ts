@@ -1,6 +1,6 @@
 // Broker and Stop records are authority only inside a verified owner-only namespace.
 import { constants, type BigIntStats } from 'node:fs'
-import { mkdir, open, writeFile } from 'node:fs/promises'
+import { open, writeFile } from 'node:fs/promises'
 import { Buffer } from 'node:buffer'
 import process from 'node:process'
 import * as z from 'zod/mini'
@@ -109,22 +109,7 @@ $rules = @($acl.GetAccessRules($true, $true, [System.Security.Principal.Security
   return info
 }
 
-export async function privateDirectory(
-  directory: string,
-  shouldCreate = false,
-): Promise<{ isNew: boolean }> {
-  let isNew = false
-  if (shouldCreate) {
-    try {
-      await mkdir(directory, { mode: LSP_LIMITS.directoryMode })
-      isNew = true
-    } catch (error: unknown) {
-      if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
-    }
-  }
-  await privatePath(directory, true, isNew)
-  return { isNew }
-}
+export { privateDirectory } from '../privateDirectory'
 export async function writePrivateRecord(file: string, text: string): Promise<void> {
   await writeFile(file, text, { flag: 'wx', mode: LSP_LIMITS.fileMode })
   await privatePath(file, false, true)

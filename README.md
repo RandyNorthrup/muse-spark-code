@@ -488,15 +488,27 @@ configuration, Qt Creator can use its generic language client, and Zed has
 Rust extension source. Each shim's Stop route runs a separate authenticated
 control command; it can run while the request queue is blocked.
 
-Stop gives TERM 500 ms, then escalates to group/tree kill. On POSIX an
-independent guardian checks process identities and observed detached
-children, including after supervisor SIGKILL. A descendant that double-forks
-before observation can still escape this sampling policy. Windows uses the
-existing kill-on-close job helper and awaits Windows qualification.
+Stop gives TERM 500 ms, then uses verified per-member KILL. Workload launches
+wait for registration with the shared process authority: Linux kernel start
+ticks, macOS kernel microseconds from the shipped signed helper, or Windows
+creation FILETIME/job membership. The POSIX EOF guardian uses that same
+registry after supervisor SIGKILL. Zombies count as exited; observed detached
+or reparented descendants retain their exact identities. A descendant that
+double-forks wholly between observations can still escape this sampling
+policy. Windows uses a named native job and awaits Windows qualification.
 
-The broker and Stop refuse existing directories or records with unsafe
-ownership, permissions, symlinks or ACLs. POSIX guardian ownership discovery
-and every guardian signal require a current matching PID and birth identity.
+The broker and Stop create private directories with final permissions and
+refuse unsafe existing namespaces. POSIX checks the owner/mode via a
+no-follow directory fd, including a held-fd ACL check on macOS. Windows
+creates a protected owner/SYSTEM DACL and verifies it through an open handle;
+it never hardens a directory after creation. Records retain their private
+permissions and exact file-identity checks.
+
+POSIX actions recheck the exact birth immediately before synchronous signal,
+without an intervening await. A residual remains between that recheck and
+kill if the PID is reused during that interval; no pidfd binding is installed.
+Windows acts through one retained process handle. Stop requires per-member
+exit receipts rather than counting an admitted signal as completion.
 
 LSP Stop and shutdown remain available when ordinary requests fill their
 queue. Stop during guardian startup waits for child cleanup. Deny or closing

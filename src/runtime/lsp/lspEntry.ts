@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { realpath } from 'node:fs/promises'
 import path from 'node:path'
@@ -14,7 +13,6 @@ import type { UiText } from '../../shared/l10n/en'
 import type { SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
 import type { LspOptions } from '../cliArgs'
-import { withoutCredentials } from '../credentialVariables'
 import { paidGrantFile } from '../paidGrants'
 import { runtimeTab } from '../tabServe'
 import { connectWorkspaceBroker, startWorkspaceBroker } from './broker'
@@ -26,6 +24,8 @@ export interface LspRuntimeDeps {
   readonly stdout: Writable
   readonly executable: string
   readonly entry: string
+  readonly packageRoot?: string
+  readonly watchdogFile?: string
   readonly registry: string
   readonly dataFolder: string
   readonly grantsFile: string
@@ -68,17 +68,29 @@ export async function runLsp(options: LspOptions, deps: LspRuntimeDeps): Promise
       registry: deps.registry,
       workspace,
       configuration,
-      launch: () => {
-        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- installed runtime, literal argv, no shell, credential-free supervisor; one workspace owner (PLAN.md §8).
-        const child = spawn(deps.executable, [deps.entry, 'supervise', ...workerArgs], {
-          cwd: workspace,
-          env: withoutCredentials(deps.env),
-          detached: true,
-          stdio: 'ignore',
-        })
+      launch: async () => {
+        const packageRoot = deps.packageRoot ?? path.resolve(deps.entry, '../..')
+        const { processAuthority } = await import('./processAuthority')
+        const authority = await processAuthority(packageRoot, deps.registry)
+        const launched = await authority.launch(
+          deps.executable,
+          [deps.entry, 'supervise', ...workerArgs],
+          workspace,
+          deps.env,
+          deps.watchdogFile ?? path.join(packageRoot, 'dist', 'runtimeWatchdog.js'),
+          true,
+        )
+        const { child, ticket } = launched
         child.on('error', () => {
           status.didFail = true
         })
+        child.once('close', () => {
+          authority.registry.unregister(ticket)
+        })
+        launched.admit()
+        child.stdin.end()
+        child.stdout.destroy()
+        child.stderr.destroy()
         child.unref()
       },
     })
