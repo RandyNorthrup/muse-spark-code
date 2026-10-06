@@ -630,6 +630,39 @@ describe('scheduled Model API dispatch', () => {
       await fixture.host.close()
     },
   )
+  it('refuses scheduled steering during checkpoint finalization and delivers a retry as its own turn', async () => {
+    const finalizing = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const fixture = await modelBackend({
+      afterTurnRuns: async () => {
+        finalizing.resolve(undefined)
+        await release.promise
+      },
+    })
+    fixture.api.script({ text: 'ordinary done' }, { text: 'fire done' })
+    const ordinary = await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
+    await finalizing.promise
+    const { run } = fixture.run()
+    await expect(
+      fixture.session.steerScheduledTurn(
+        ordinary.turnId,
+        [{ type: 'text', text: 'Finalization fire' }],
+        run,
+      ),
+    ).rejects.toThrow()
+    const retry = await fixture.session.sendScheduledTurn(
+      [{ type: 'text', text: 'Finalization fire' }],
+      run,
+    )
+    expect(retry.disposition).toBe('queued')
+    release.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(fixture.events.filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
+    })
+    expect(JSON.stringify(fixture.api.responseBodies()[1])).toContain('Finalization fire')
+    expect(fixture.reserve).toHaveBeenCalledTimes(1)
+    await fixture.host.close()
+  })
   it('Stop settles a scheduled turn while deferred-question persistence remains pending', async () => {
     const fixture = await modelBackend()
     const held = Promise.withResolvers<undefined>()
@@ -812,6 +845,86 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
     ).rejects.toThrow()
     expect(hasChanged).toBe(true)
     expect(fixture.server.requestsFor('turn/start')).toHaveLength(0)
+    await fixture.host.close()
+  })
+  it('claims native ownership after held attachment validation so fire B cannot replace fire A', async () => {
+    const fixture = await museBackend()
+    await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
+    fixture.server.notify('turn/started', {
+      sessionId: fixture.session.sessionId,
+      turnId: 'schedule-turn',
+      viewCursor: '',
+    })
+    await settle()
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const a = unattendedRun()
+    const b = unattendedRun({
+      context: { ...commandContext(), runId: 'fire-B' },
+      io: {
+        realPath: async (path) => {
+          if (path.replaceAll('\\', '/').endsWith('/src/held.txt')) {
+            entered.resolve(undefined)
+            await release.promise
+          }
+          return path
+        },
+      },
+    })
+    const pending = fixture.session.steerScheduledTurn(
+      'schedule-turn',
+      [{ ...PROTECTED_ATTACHMENT, name: 'src/held.txt' }],
+      b.run,
+    )
+    const refused = expect(pending).rejects.toThrow()
+    await entered.promise
+    await fixture.session.steerScheduledTurn(
+      'schedule-turn',
+      [{ type: 'text', text: 'Fire A' }],
+      a.run,
+    )
+    release.resolve(undefined)
+    await refused
+    expect(fixture.session.getScheduledRun('schedule-turn')).toBe(a.run)
+    expect(fixture.server.requestsFor('turn/steer')).toHaveLength(1)
+    fixture.notifyApproval()
+    await museDecided(fixture)
+    expect(fixture.server.requestsFor('approval/decide')[0]?.params?.['choiceId']).toBe('abort')
+    expect(b.audit).not.toHaveBeenCalled()
+    await fixture.host.close()
+  })
+  it('rechecks the native idle boundary after held attachment validation before changing mode', async () => {
+    const fixture = await museBackend()
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const { run } = unattendedRun({
+      io: {
+        realPath: async (path) => {
+          if (path.replaceAll('\\', '/').endsWith('/src/held.txt')) {
+            entered.resolve(undefined)
+            await release.promise
+          }
+          return path
+        },
+      },
+    })
+    const pending = fixture.session.sendScheduledTurn(
+      [{ ...PROTECTED_ATTACHMENT, name: 'src/held.txt' }],
+      run,
+    )
+    const refused = expect(pending).rejects.toThrow()
+    await entered.promise
+    await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
+    fixture.server.notify('turn/started', {
+      sessionId: fixture.session.sessionId,
+      turnId: 'schedule-turn',
+      viewCursor: '',
+    })
+    await settle()
+    release.resolve(undefined)
+    await refused
+    expect(fixture.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+    expect(fixture.server.requestsFor('turn/start')).toHaveLength(1)
     await fixture.host.close()
   })
   it('checks ordinary steered attachments against the active native fire before wire submission', async () => {

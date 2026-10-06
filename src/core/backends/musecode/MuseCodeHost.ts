@@ -756,11 +756,24 @@ export class MuseSession implements ScheduledAgentSession {
   private async admitScheduled(
     run: UnattendedRun,
     send: () => Promise<TurnSubmission>,
+    expectedTurnId?: string,
   ): Promise<TurnSubmission> {
     await this.restoringScheduleMode
-    if (this.heldScheduleEvents !== undefined) throw new Error(UI_TEXT.scheduleBusy)
-    if (this.currentApprovalMode === undefined) throw new Error(UI_TEXT.scheduleBusy)
-    this.previousScheduleMode = this.currentApprovalMode
+    // Check and claim together after all attachment/mode-restoration waits.
+    // Nothing may replace an admitted owner's grant, even before its ack.
+    const owner = expectedTurnId === undefined ? undefined : this.scheduledTurns.get(expectedTurnId)
+    if (
+      !run.isActive() ||
+      this.heldScheduleEvents !== undefined ||
+      this.failedAdmissionRun !== undefined ||
+      this.currentApprovalMode === undefined ||
+      (expectedTurnId === undefined
+        ? this.currentTurnId !== undefined || this.scheduledTurns.size > 0
+        : this.currentTurnId !== expectedTurnId || (owner !== undefined && owner !== run))
+    )
+      throw new SteerRefusedError(UI_TEXT.scheduleBusy)
+    if (expectedTurnId !== undefined) this.scheduledTurns.set(expectedTurnId, run)
+    this.previousScheduleMode ??= this.currentApprovalMode
     this.heldScheduleEvents = []
     this.admittingScheduleRun = run
     try {
@@ -1218,11 +1231,15 @@ export class MuseSession implements ScheduledAgentSession {
     if (existing !== undefined && existing !== run)
       throw new SteerRefusedError(UI_TEXT.scheduleBusy)
     await run.checkParts(parts)
-    return await this.admitScheduled(run, async () => {
-      await this.changeApprovalMode(mspApprovalMode(run.context.mode))
-      if (!run.isActive()) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
-      return await this.steer(expectedTurnId, run.parts(parts), run)
-    })
+    return await this.admitScheduled(
+      run,
+      async () => {
+        await this.changeApprovalMode(mspApprovalMode(run.context.mode))
+        if (!run.isActive()) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
+        return await this.steer(expectedTurnId, run.parts(parts), run)
+      },
+      expectedTurnId,
+    )
   }
 
   /** Submit one user turn; queued behind a running turn by host default. */
@@ -1276,6 +1293,8 @@ export class MuseSession implements ScheduledAgentSession {
       if (
         !run.isActive() ||
         (this.admittingScheduleRun !== run && this.getScheduledRun(expectedTurnId) !== run) ||
+        (this.scheduledTurns.has(expectedTurnId) &&
+          this.scheduledTurns.get(expectedTurnId) !== run) ||
         (this.currentTurnId !== undefined && this.currentTurnId !== expectedTurnId)
       )
         throw new SteerRefusedError(UI_TEXT.scheduleBusy)

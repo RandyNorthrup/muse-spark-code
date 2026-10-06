@@ -6459,6 +6459,27 @@ scheduled command released after its turn ends. Deliberately break each fix,
 observe the named tests fail, restore byte-exact and record the evidence in
 `docs/certification/envfence.md`. No new dependency or broader exception.
 
+### D95 — Unattended authority amendment (FIXM115U2, 2026-10-06)
+
+The lead's second review fixes these boundaries for every editor/runtime:
+
+- A child task started inside a fire carries the same `UnattendedRun`, paid
+  reservation client and audit, with its own permissions intersected, or is
+  refused at task admission. Client selection reads the task's run context.
+- Native admission checks and claims the live idle state and turn owner in
+  one synchronous step after attachment/canonical validation, before mode
+  changes or dispatch. Conflicting fires refuse; delivery may retry/queue.
+- All model workspace I/O uses one guarded port during a fire: canonicalise,
+  `run.decide`, then access. Memory, skills, context, tools and checkpoint
+  adapters share that boundary, including cached content before use.
+- History already sent to the same provider in this conversation before the
+  fire began may replay. Content added during the fire (including tools,
+  attachments and reads) records its decision provenance; send-time checks
+  refuse anything lacking that provenance. Prior interactive authority does
+  not authorize a new read during the fire.
+- Steering during finalization refuses before acknowledgment, so delivery
+  can send a new turn and never silently lose an accepted fire.
+
 ## 3. Open questions (need the owner)
 
 - **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
@@ -6843,6 +6864,17 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### FIXM115U2 — Close the second review's authority routes (2026-10-06)
+
+Repair all four P1 and the P2 in RVM115U2 with structural task admission,
+atomic native ownership claims, a shared guarded I/O port and replay decision
+provenance under D95's amendment. Regressions reproduce the completed-explorer,
+held-realPath A/B and idle-boundary, memory read/write, project-skill, retained
+history and finalization cases. Each guard gets a failing mutation with
+byte-exact restoration recorded in `docs/certification/m115-u.md`. No new
+scope/dependency/wire shape, live or paid calls, merges, pushes or rebases.
+Bounded suites use repository-default timeouts; W/lead owns aggregate quality.
 
 ### FIXM115U — One unattended authority per scheduled fire (2026-10-06)
 

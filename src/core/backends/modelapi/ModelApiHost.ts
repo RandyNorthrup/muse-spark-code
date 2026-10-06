@@ -11401,7 +11401,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.isDisposed) {
       return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
     }
-    if (this.active?.turnId !== expectedTurnId || this.active.abort.signal.aborted) {
+    if (
+      this.active?.turnId !== expectedTurnId ||
+      this.active.abort.signal.aborted ||
+      this.active.isFinalizing === true
+    ) {
       return Promise.reject(new SteerRefusedError(TURN_NOT_RUNNING))
     }
     const addedTextBytes = textAttachmentBytes(parts)
@@ -11562,7 +11566,11 @@ export class ModelApiSession implements ScheduledAgentSession {
   ): Promise<TurnSubmission> {
     await run.checkParts(parts)
     this.scheduledRequest(run)
-    if (this.active?.turnId !== expectedTurnId || this.active.abort.signal.aborted)
+    if (
+      this.active?.turnId !== expectedTurnId ||
+      this.active.abort.signal.aborted ||
+      this.active.isFinalizing === true
+    )
       throw new SteerRefusedError(TURN_NOT_RUNNING)
     return this.active.scheduleRun !== undefined ||
       this.active.steered.some((steer) => steer.scheduleRun !== undefined)

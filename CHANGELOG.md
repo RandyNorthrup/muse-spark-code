@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Close M115's native admission race after attachment validation: competing
+  fires cannot replace a running grant or change an ordinary turn's mode.
+  A scheduled steer during checkpoint finalization refuses before acceptance,
+  so delivery can retry it as a separate turn.
+
 - Repair M115's unshipped unattended authority: every paid response and image
   uses its fire's reservation, zero consent cannot enable unlimited spending,
   and overlapping scheduled steers get separate turns and audits. Canonical
