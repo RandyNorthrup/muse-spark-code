@@ -235,6 +235,11 @@ export class VaultBroker implements VaultBrokerPort {
       taint,
     })
   }
+  private async ticketExpired(operation: Operation): Promise<boolean> {
+    if (this.clock.now() < operation.ticket.expiresAt) return false
+    await this.record(operation.request, 'deny', 'failClosed', null, 'expired')
+    return true
+  }
   private async ticket(
     request: VaultApprovalRequest,
     authority: Authorized['authority'],
@@ -593,10 +598,7 @@ export class VaultBroker implements VaultBrokerPort {
         return deny('peer')
       try {
         if (!(await this.current()) || ticket.lockEpoch !== this.epoch) return deny('locked')
-        if (this.clock.now() >= ticket.expiresAt) {
-          await this.record(operation.request, 'deny', 'failClosed', null, 'expired')
-          return deny('expired')
-        }
+        if (await this.ticketExpired(operation)) return deny('expired')
         if (vaultUseDigest(actual) !== ticket.digest) {
           await this.record(operation.request, 'deny', 'failClosed', null, 'denied')
           return deny('digest')
@@ -628,10 +630,7 @@ export class VaultBroker implements VaultBrokerPort {
           }
         }
         if (!(await this.current()) || ticket.lockEpoch !== this.epoch) return deny('locked')
-        if (this.clock.now() >= ticket.expiresAt) {
-          await this.record(operation.request, 'deny', 'failClosed', null, 'expired')
-          return deny('expired')
-        }
+        if (await this.ticketExpired(operation)) return deny('expired')
         if (this.tickets.get(ticket.id) !== operation || !this.registrations.has(requesterId))
           return deny('policy')
         this.active.set(ticket.id, { operation, lifetime, material: null, released: false })

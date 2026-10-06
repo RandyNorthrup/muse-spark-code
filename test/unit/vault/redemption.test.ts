@@ -34,6 +34,13 @@ async function redeem(fixture: Awaited<ReturnType<typeof setup>>) {
   )
   expect(result.kind).toBe('ticket')
 }
+async function expectMaterialDenied(fixture: Awaited<ReturnType<typeof setup>>) {
+  const run = vi.fn(() => Promise.resolve())
+  await expect(
+    fixture.broker.withApprovedMaterial(fixture.ticket.id, fixture.identity.id, use(), run),
+  ).rejects.toThrow()
+  expect(run).not.toHaveBeenCalled()
+}
 function secret(item: VaultItem): Uint8Array {
   if (item.material.kind !== 'secret') throw new Error('expected secret')
   return item.material.value
@@ -67,11 +74,7 @@ describe('broker-owned approved material', () => {
       waiting.resolve(undefined)
       const result = await admission
       expect(result.kind).toBe('denied')
-      const run = vi.fn(() => Promise.resolve())
-      await expect(
-        fixture.broker.withApprovedMaterial(fixture.ticket.id, fixture.identity.id, use(), run),
-      ).rejects.toThrow()
-      expect(run).not.toHaveBeenCalled()
+      await expectMaterialDenied(fixture)
     },
   )
   it('rechecks grant expiry, target and revocation at redemption', async () => {
@@ -142,21 +145,13 @@ describe('broker-owned approved material', () => {
     const expired = await setup()
     await redeem(expired)
     expired.clock.advance(VAULT_APPROVAL_TTL_MS)
-    const run = vi.fn(() => Promise.resolve())
-    await expect(
-      expired.broker.withApprovedMaterial(expired.ticket.id, expired.identity.id, use(), run),
-    ).rejects.toThrow()
-    expect(run).not.toHaveBeenCalled()
+    await expectMaterialDenied(expired)
   })
   it('metadata changed after admission is refused before a destination sees material', async () => {
     const fixture = await setup()
     await redeem(fixture)
     await fixture.change({ policy: { ...fixture.stored.metadata.policy, mode: 'never' } })
-    const run = vi.fn(() => Promise.resolve())
-    await expect(
-      fixture.broker.withApprovedMaterial(fixture.ticket.id, fixture.identity.id, use(), run),
-    ).rejects.toThrow()
-    expect(run).not.toHaveBeenCalled()
+    await expectMaterialDenied(fixture)
   })
   it.each(['lock', 'grant', 'item'] as const)(
     '%s during a destination call erases material immediately and rejects its late completion',

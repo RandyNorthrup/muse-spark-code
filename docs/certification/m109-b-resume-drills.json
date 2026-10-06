@@ -2,31 +2,31 @@
   {
     "guard": "local lock remains effective when the shared epoch writer fails",
     "file": "src/core/vault/broker/broker.ts",
-    "sourceSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4",
-    "mutatedSha256": "2123d5512162c19b7b2c13b0e9e4ebef8a60bc317805d97ae474ad5299a814f4",
+    "sourceSha256": "0a4348e044b8c2570198e90f1deaa5cd971030734330686ef1c8dfb45d659279",
+    "mutatedSha256": "c1a6ed44b45e3482213a36e9ae3c7cd74d5fab32085118d8e2e08c2e537753bf",
     "exitCode": 1,
     "failedTests": [
       "vault broker lifetime and isolation lock failure to persist the shared epoch still erases keys and cancels local uses",
       "vault broker lifetime and isolation exit failure to persist the shared epoch still erases keys and cancels local uses"
     ],
-    "restoredSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4"
+    "restoredSha256": "0a4348e044b8c2570198e90f1deaa5cd971030734330686ef1c8dfb45d659279"
   },
   {
     "guard": "material release rechecks the deadline after a pending store read",
     "file": "src/core/vault/broker/broker.ts",
-    "sourceSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4",
-    "mutatedSha256": "818787af3e3c0fe52679013943939c2d42b20936cc9fb4b622773f405ab509dd",
+    "sourceSha256": "0a4348e044b8c2570198e90f1deaa5cd971030734330686ef1c8dfb45d659279",
+    "mutatedSha256": "f118cd01e505b1a446419609bb8ee158f8770b1b78d7c83db924bab0f6f328e0",
     "exitCode": 1,
     "failedTests": [
       "vault broker lifetime and isolation an admitted ticket that expires during the material read never reaches its destination"
     ],
-    "restoredSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4"
+    "restoredSha256": "0a4348e044b8c2570198e90f1deaa5cd971030734330686ef1c8dfb45d659279"
   },
   {
     "guard": "redemption remains visible to revocation while grant validation is pending",
     "file": "src/core/vault/broker/broker.ts",
-    "sourceSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4",
-    "mutatedSha256": "eaa989ba346a71810c288990f25071decdddac62fcce90587fbef9f59062e70b",
+    "sourceSha256": "0a4348e044b8c2570198e90f1deaa5cd971030734330686ef1c8dfb45d659279",
+    "mutatedSha256": "91e94c5220cb67bdff61f7081718e1a277915db34cdc5c27aea6fb79eb50a269",
     "exitCode": 1,
     "failedTests": [
       "broker-owned approved material reuse during a pending grant read cannot resurrect a ticket or release material",
@@ -37,28 +37,28 @@
       "broker-owned approved material grant during a destination call erases material immediately and rejects its late completion",
       "broker-owned approved material item during a destination call erases material immediately and rejects its late completion"
     ],
-    "restoredSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4"
+    "restoredSha256": "0a4348e044b8c2570198e90f1deaa5cd971030734330686ef1c8dfb45d659279"
   },
   {
     "guard": "cancelled ticket snapshots cannot be revived by requester reuse",
     "file": "src/core/vault/broker/broker.ts",
-    "sourceSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4",
-    "mutatedSha256": "7ccef6d7804d0d4a41c397306dd8b6922d4da56466fe60e4f8ffec002a387450",
+    "sourceSha256": "0a4348e044b8c2570198e90f1deaa5cd971030734330686ef1c8dfb45d659279",
+    "mutatedSha256": "37561b37a87548353a1dd35a8a3d5512c250300af0e1af55618ab7c030730650",
     "exitCode": 1,
     "failedTests": [
       "broker-owned approved material reuse during a pending grant read cannot resurrect a ticket or release material"
     ],
-    "restoredSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4"
+    "restoredSha256": "0a4348e044b8c2570198e90f1deaa5cd971030734330686ef1c8dfb45d659279"
   },
   {
     "guard": "redemption rechecks the deadline after a pending grant read",
     "file": "src/core/vault/broker/broker.ts",
-    "sourceSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4",
-    "mutatedSha256": "abee1b441811bdc20d8a4dcfcb2ecfebb711d0508ddaedaaa673ba9bc433cc4e",
+    "sourceSha256": "0a4348e044b8c2570198e90f1deaa5cd971030734330686ef1c8dfb45d659279",
+    "mutatedSha256": "f37a1bbbe134f81256d34597f9e5f3a96d40ce78aa0227d4eca0a5baaf45d57d",
     "exitCode": 1,
     "failedTests": [
       "broker-owned approved material expiry during a pending grant read cannot resurrect a ticket or release material"
     ],
-    "restoredSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4"
+    "restoredSha256": "0a4348e044b8c2570198e90f1deaa5cd971030734330686ef1c8dfb45d659279"
   }
 ]
