@@ -78,9 +78,28 @@ export function playbookCounterText(counter: ReturnType<typeof playbookCounters>
   return `${counter.module} · ${label}: ${plural(UI_TEXT.playbookStrikeBadge, counter.round)}`
 }
 
+export function playbookNotePriority(note: PlaybookWhyNote): number {
+  if (note.needsUser) return 0
+  switch (note.code) {
+    case 'checksPassed':
+    case 'reordered':
+    case 'offloaded':
+    case 'localCheck':
+    case 'ciGate':
+    case 'ownerFirst':
+    case 'ruleDisabled': {
+      return 2
+    }
+    default: {
+      return 1
+    }
+  }
+}
+
 function prioritized(entry: PlaybookRecord): number {
-  if (entry.kind === 'note') return entry.value.needsUser ? 0 : 2
+  if (entry.kind === 'note') return playbookNotePriority(entry.value)
   if (entry.kind === 'design' && entry.value.outcome === 'remains') return 0
+  if (entry.kind === 'design' && entry.value.outcome !== 'impossible') return 1
   return entry.kind === 'round' && entry.value.findings.length > 0 ? 1 : 2
 }
 
@@ -191,15 +210,16 @@ export function playbookText(
     return records.length === 0
       ? UI_TEXT.playbookEmpty
       : records.map((entry) => playbookRecordText(entry)).join('\n\n')
+  const entries = orderedPlaybookRecords([
+    ...records.filter((entry) => entry.kind === 'note'),
+    ...playbookDesigns(snapshot.records),
+  ])
   return [
-    ...records
-      .filter((entry) => entry.kind === 'note' && entry.value.needsUser)
-      .map((entry) => playbookRecordText(entry)),
-    ...playbookDesigns(snapshot.records).map((entry) => playbookRecordText(entry)),
+    ...entries.filter((entry) => prioritized(entry) < 2).map((entry) => playbookRecordText(entry)),
     UI_TEXT.playbookTitle,
     ...playbookCounters(snapshot.records).map((counter) => playbookCounterText(counter)),
-    ...records
-      .filter((entry) => entry.kind === 'note' && !entry.value.needsUser)
+    ...entries
+      .filter((entry) => prioritized(entry) === 2)
       .map((entry) => playbookRecordText(entry)),
     records.length === 0 ? UI_TEXT.playbookEmpty : '',
     settingsText(snapshot.settings),

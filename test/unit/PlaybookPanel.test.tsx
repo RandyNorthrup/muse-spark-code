@@ -5,7 +5,13 @@ import { UI_TEXT } from '../../src/shared/l10n/text'
 import { PlaybookPanel } from '../../src/webview/playbook/PlaybookPanel'
 import { PlaybookNoteRows, PlaybookStrikeBadge } from '../../src/webview/playbook/PlaybookRows'
 import { createPlaybookBridge, playbookRequestSchema } from '../../src/webview/playbook/bridge'
-import { surfacePort, surfaceRound, surfaceSnapshot } from './playbookSurfaceFixtures'
+import {
+  surfacePort,
+  surfacePriorityNotes,
+  surfaceRound,
+  surfaceSnapshot,
+} from './playbookSurfaceFixtures'
+import { playbookNoteText } from '../../src/runtime/playbook/text'
 import { ToolRow } from '../../src/webview/components/ToolRow'
 import { tool, transcriptProps } from './helpers/transcriptFixtures'
 
@@ -157,6 +163,17 @@ describe('M116 shared playbook surfaces', () => {
       UI_TEXT.playbookResolutions.caught,
     )
     expect(screen.queryByText(/Structurally impossible/u)).not.toBeInTheDocument()
+  })
+
+  it('places transcript failure notes before informational progress', () => {
+    const notes = surfacePriorityNotes()
+    render(<PlaybookNoteRows notes={notes} />)
+    expect(screen.getAllByRole('note').map((row) => row.textContent)).toEqual(
+      [notes[2], notes[1], notes[0]].map((note) => {
+        if (note === undefined) throw new Error('missing priority fixture')
+        return playbookNoteText(note)
+      }),
+    )
   })
 })
 

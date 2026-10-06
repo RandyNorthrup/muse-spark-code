@@ -3,6 +3,7 @@ import {
   defaultPlaybookSettings,
   playbookModuleSchema,
   type PlaybookRecord,
+  type PlaybookWhyNote,
 } from '../../src/shared/playbook'
 import {
   changedPlaybookSettings,
@@ -16,6 +17,23 @@ export const surfaceModule = playbookModuleSchema.parse({
   files: ['src/core/schedules/store.ts'],
   source: 'lane',
 })
+
+/** Deliberately progress-first input: every presentation must reorder it. */
+export function surfacePriorityNotes(): PlaybookWhyNote[] {
+  return [
+    { rule: 'onePassReview', code: 'checksPassed', at: 0, needsUser: false },
+    {
+      rule: 'threeStrikes',
+      code: 'redesignRequired',
+      module: surfaceModule.key,
+      round: 3,
+      classes: ['concurrency'],
+      at: 1,
+      needsUser: false,
+    },
+    { rule: 'neverAround', code: 'classifierBlocked', at: 2, needsUser: true },
+  ]
+}
 export function surfaceRound(
   round = 3,
   findingClass?: 'concurrency',

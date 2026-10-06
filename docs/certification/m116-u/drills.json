@@ -66,17 +66,6 @@
     "observed": "FAIL  test/unit/playbookCommand.test.ts > M116 CLI and shared settings adapter > shows owner items first and retains stable module/class counts and caught outcomes"
   },
   {
-    "id": "owner-first",
-    "file": "src/runtime/playbook/text.ts",
-    "mutation": "if (entry.kind === 'note') return entry.value.needsUser ? 0 : 2 -> if (entry.kind === 'note') return 2",
-    "test": "test/unit/playbookCommand.test.ts",
-    "name": "shows owner items first and retains stable module/class counts and caught outcomes",
-    "exit": 1,
-    "before": "2a377c0bfd39478aab8bbfc5d688227b6554f4528e0bd9a59ede36979e55e04d",
-    "restored": "2a377c0bfd39478aab8bbfc5d688227b6554f4528e0bd9a59ede36979e55e04d",
-    "observed": "FAIL  test/unit/playbookCommand.test.ts > M116 CLI and shared settings adapter > shows owner items first and retains stable module/class counts and caught outcomes"
-  },
-  {
     "id": "ui-reason",
     "file": "src/webview/playbook/PlaybookPanel.tsx",
     "mutation": "setError(!parsed.success) -> setError(false)",
@@ -284,5 +273,49 @@
     "before": "5804949f9c5e73a4e574263fad7bef27bbea9feeb53bef1c3f00a8147ef0bf59",
     "restored": "5804949f9c5e73a4e574263fad7bef27bbea9feeb53bef1c3f00a8147ef0bf59",
     "observed": "FAIL  test/unit/playbookBundles.test.mjs > M116 lazy surface budget > bounds the additional lazy closure to its own 25 KiB budget"
+  },
+  {
+    "id": "owner-first",
+    "file": "src/runtime/playbook/text.ts",
+    "mutation": "if (note.needsUser) return 0 -> if (note.needsUser) return 2",
+    "test": "test/unit/playbookCommand.test.ts",
+    "name": "shows owner items first and retains stable module/class counts and caught outcomes",
+    "exit": 1,
+    "before": "fa5c4b3631ebfe985a6c518bb66448e6dfacae9b56b67c7387d78a97fdb98350",
+    "restored": "fa5c4b3631ebfe985a6c518bb66448e6dfacae9b56b67c7387d78a97fdb98350",
+    "observed": "FAIL  test/unit/playbookCommand.test.ts > M116 CLI and shared settings adapter > shows owner items first and retains stable module/class counts and caught outcomes"
+  },
+  {
+    "id": "failure-first",
+    "file": "src/runtime/playbook/text.ts",
+    "mutation": "default: {\n      return 1\n    } -> default: {\n      return 2\n    }",
+    "test": "test/unit/playbookCommand.test.ts",
+    "name": "puts failure notes before progress in both status and record",
+    "exit": 1,
+    "before": "fa5c4b3631ebfe985a6c518bb66448e6dfacae9b56b67c7387d78a97fdb98350",
+    "restored": "fa5c4b3631ebfe985a6c518bb66448e6dfacae9b56b67c7387d78a97fdb98350",
+    "observed": "FAIL  test/unit/playbookCommand.test.ts > M116 CLI and shared settings adapter > puts failure notes before progress in both status and record"
+  },
+  {
+    "id": "open-design-first",
+    "file": "src/runtime/playbook/text.ts",
+    "mutation": "if (entry.kind === 'design' && entry.value.outcome !== 'impossible') return 1 -> if (entry.kind === 'design' && entry.value.outcome !== 'impossible') return 2",
+    "test": "test/unit/playbookCommand.test.ts",
+    "name": "puts failure notes before progress in both status and record",
+    "exit": 1,
+    "before": "fa5c4b3631ebfe985a6c518bb66448e6dfacae9b56b67c7387d78a97fdb98350",
+    "restored": "fa5c4b3631ebfe985a6c518bb66448e6dfacae9b56b67c7387d78a97fdb98350",
+    "observed": "FAIL  test/unit/playbookCommand.test.ts > M116 CLI and shared settings adapter > puts failure notes before progress in both status and record"
+  },
+  {
+    "id": "transcript-failure-first",
+    "file": "src/webview/playbook/PlaybookRows.tsx",
+    "mutation": ".toSorted((a, b) => playbookNotePriority(a) - playbookNotePriority(b)) -> .toSorted((a, b) => Number(b.needsUser) - Number(a.needsUser))",
+    "test": "test/unit/PlaybookPanel.test.tsx",
+    "name": "places transcript failure notes before informational progress",
+    "exit": 1,
+    "before": "693a03de975d9dc2b49740dc25839bfca00ea8b81705d2fd5a56d110dcdcb4d2",
+    "restored": "693a03de975d9dc2b49740dc25839bfca00ea8b81705d2fd5a56d110dcdcb4d2",
+    "observed": "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > places transcript failure notes before informational progress"
   }
 ]

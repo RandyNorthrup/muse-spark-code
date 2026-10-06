@@ -10,6 +10,7 @@ import {
   playbookCounters,
   playbookCounterText,
   playbookNoteText,
+  playbookNotePriority,
 } from '../../runtime/playbook/text'
 
 export function PlaybookNoteRows({ notes }: { readonly notes: readonly PlaybookWhyNote[] }) {
@@ -17,7 +18,7 @@ export function PlaybookNoteRows({ notes }: { readonly notes: readonly PlaybookW
   return (
     <ul className="playbook-notes" aria-label={UI_TEXT.playbookTitle}>
       {parsed
-        .toSorted((a, b) => Number(b.needsUser) - Number(a.needsUser))
+        .toSorted((a, b) => playbookNotePriority(a) - playbookNotePriority(b))
         .map((note, index) => (
           <li key={`${String(note.at)}:${note.code}:${String(index)}`}>
             <div role="note" className="playbook-note" data-needs-user={note.needsUser}>

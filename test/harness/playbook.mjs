@@ -15,13 +15,18 @@ import {
   playbookRequestSchema,
   playbookResponseSchema,
 } from '../../src/webview/playbook/bridge'
-import { surfacePort, surfaceSnapshot } from '../unit/playbookSurfaceFixtures'
+import { surfacePort, surfacePriorityNotes, surfaceSnapshot } from '../unit/playbookSurfaceFixtures'
 
 const query = new globalThis.URLSearchParams(globalThis.location.search)
 const locale = query.get('lang') ?? 'en'
 const theme = query.get('theme') ?? 'light'
 const scene = query.get('scene') ?? 'status'
 const snapshot = surfaceSnapshot()
+snapshot.records.unshift(
+  ...surfacePriorityNotes()
+    .filter((note) => note.code === 'checksPassed')
+    .map((value) => ({ kind: 'note', value })),
+)
 snapshot.settings.rules.offload = {
   enabled: false,
   reason: 'Worker maintenance',

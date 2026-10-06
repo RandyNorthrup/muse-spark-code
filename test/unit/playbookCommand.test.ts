@@ -18,7 +18,12 @@ import { EN } from '../../src/shared/l10n/en'
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { formatDateTime, plural, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import { loadUiTable } from '../../src/host/l10n'
-import { surfacePort, surfaceRound, surfaceSnapshot } from './playbookSurfaceFixtures'
+import {
+  surfacePort,
+  surfacePriorityNotes,
+  surfaceRound,
+  surfaceSnapshot,
+} from './playbookSurfaceFixtures'
 
 afterEach(() => {
   setUiText(EN, 'en')
@@ -184,6 +189,25 @@ describe('M116 CLI and shared settings adapter', () => {
       'guard catches it',
     ])
       expect(text).toContain(part)
+  })
+
+  it('puts failure notes before progress in both status and record', () => {
+    const snapshot = surfaceSnapshot()
+    const notes = surfacePriorityNotes()
+    snapshot.records = [
+      ...notes.map((value) => ({ kind: 'note' as const, value })),
+      ...snapshot.records.filter((record) => record.kind === 'design'),
+    ]
+    const [progress, failure, owner] = notes.map((note) => playbookNoteText(note))
+    if (progress === undefined || failure === undefined || owner === undefined)
+      throw new Error('missing priority fixtures')
+    for (const view of ['status', 'record'] as const) {
+      const text = playbookText(view, snapshot)
+      expect(text.indexOf(owner)).toBe(0)
+      expect(text.indexOf(failure)).toBeGreaterThan(text.indexOf(owner))
+      expect(text.indexOf(progress)).toBeGreaterThan(text.indexOf(failure))
+      expect(text.indexOf(UI_TEXT.playbookResolutions.caught)).toBeLessThan(text.indexOf(progress))
+    }
   })
 
   it('keeps design status current while the record preserves outcome history', () => {
