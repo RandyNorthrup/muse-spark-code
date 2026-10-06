@@ -3891,6 +3891,13 @@ results and what is still open.
 
 ## Development
 
+M118's prompt library and chat sharing contracts are staged for implementation;
+their commands are not registered yet. The P/C/X integration notes are in
+`docs/certification/m118-handoff-*.md`, with the pending command/menu patch in
+`m118-manifest-patch.json`. `npm run schema:exec -- --check` checks both the
+existing exec schemas and `docs/schemas/share-v1.schema.json` against their
+production zod boundaries; `npm run schema:exec` regenerates them.
+
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's
 image-proxy copies. It needs no secret; stale caches or network failures warn

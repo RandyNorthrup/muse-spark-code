@@ -163,5 +163,11 @@
   "config.judge.engine.enumDescriptions.auto": "Kendi sohbet modeliniz değerlendirir (1. aşamada `same`); ayrı bir değerlendirici yapılandırıldığında katılır.",
   "config.judge.engine.enumDescriptions.same": "Yalnızca kendi sohbet modeliniz değerlendirir; modeli asla değiştirmez.",
   "config.judge.engine.enumDescriptions.off": "Değerlendirici yok: onaylar tam olarak değerlendiricisiz olduğu gibi davranır.",
-  "config.shell.passEnvironmentVariables.description": "Ana oturumdaki etkileşimli kabuk komutlarına aktarılacak ortam değişkenlerinin adları; normalde dışarıda tutulan kimlik bilgileri de dahil. Yalnızca adlar, asla değerler. Varsayılan: hiçbiri. Bir komut bu değerleri konuşmada ve model sağlayıcısına açığa çıkarabilir. Doğrulama/then_run, zamanlanmış işler, alt/ekip çalışanları ve kancalar, burada adları yazılsa bile kimlik bilgisi değişkenlerini asla almaz. Arka plana taşınan etkileşimli bir komut başlangıç ortamını korur. Muse Code veya açıkça yapılandırılmış MCP sunucusu ortamlarını değiştirmez."
+  "config.shell.passEnvironmentVariables.description": "Ana oturumdaki etkileşimli kabuk komutlarına aktarılacak ortam değişkenlerinin adları; normalde dışarıda tutulan kimlik bilgileri de dahil. Yalnızca adlar, asla değerler. Varsayılan: hiçbiri. Bir komut bu değerleri konuşmada ve model sağlayıcısına açığa çıkarabilir. Doğrulama/then_run, zamanlanmış işler, alt/ekip çalışanları ve kancalar, burada adları yazılsa bile kimlik bilgisi değişkenlerini asla almaz. Arka plana taşınan etkileşimli bir komut başlangıç ortamını korur. Muse Code veya açıkça yapılandırılmış MCP sunucusu ortamlarını değiştirmez.",
+  "command.shareChat.title": "Sohbeti paylaş…",
+  "command.sharePrompt.title": "İstemi paylaş…",
+  "command.promptLibrary.title": "İstem kitaplığı",
+  "command.savePrompt.title": "İstemi kaydet",
+  "command.useSavedPrompt.title": "Kayıtlı istemi kullan…",
+  "command.copyToMyPrompts.title": "İstemlerime kopyala"
 }

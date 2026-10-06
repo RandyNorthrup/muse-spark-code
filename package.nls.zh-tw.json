@@ -163,5 +163,11 @@
   "config.judge.engine.enumDescriptions.auto": "您自己的聊天模型評判（第1階段即`same`）；設定單獨的評判器後會加入。",
   "config.judge.engine.enumDescriptions.same": "僅您自己的聊天模型評判；從不切換模型。",
   "config.judge.engine.enumDescriptions.off": "無評判器：審批與沒有評判器時完全一致。",
-  "config.shell.passEnvironmentVariables.description": "傳遞給主工作階段互動式 shell 命令的環境變數名稱，包括通常被排除的憑證變數。僅填寫名稱，不填寫值。預設不傳遞。命令可能在對話中以及向模型供應商揭露這些值。驗證/then_run、排程、子代理/團隊工作者和掛鉤永遠不會接收憑證變數，即使在此列出名稱。移至背景的互動式命令保留啟動時的環境。不會變更 Muse Code 或明確設定的 MCP 伺服器環境。"
+  "config.shell.passEnvironmentVariables.description": "傳遞給主工作階段互動式 shell 命令的環境變數名稱，包括通常被排除的憑證變數。僅填寫名稱，不填寫值。預設不傳遞。命令可能在對話中以及向模型供應商揭露這些值。驗證/then_run、排程、子代理/團隊工作者和掛鉤永遠不會接收憑證變數，即使在此列出名稱。移至背景的互動式命令保留啟動時的環境。不會變更 Muse Code 或明確設定的 MCP 伺服器環境。",
+  "command.shareChat.title": "分享聊天…",
+  "command.sharePrompt.title": "分享提示詞…",
+  "command.promptLibrary.title": "提示詞庫",
+  "command.savePrompt.title": "儲存提示詞",
+  "command.useSavedPrompt.title": "使用已儲存的提示詞…",
+  "command.copyToMyPrompts.title": "複製到我的提示詞"
 }

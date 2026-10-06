@@ -4037,6 +4037,30 @@ export const EXPORT_FILE_EXTENSIONS: Readonly<Record<ExportFormat, string>> = {
 // ends, with every known credential shape scrubbed. No hosted sharing.
 export const SESSION_EXPORT_FORMAT = 'muse-spark-session-export'
 export const SESSION_EXPORT_VERSION = 1
+// M118 lane 0: our portable prompt/share formats, never provider wire shapes.
+export const PROMPT_SCHEMA_VERSION = 1
+export const PROMPT_FILE_EXTENSION = '.muse-prompt.md'
+export const PROMPT_USER_FOLDER = 'prompts'
+export const PROMPT_WORKSPACE_FOLDER = '.muse/prompts'
+export const PROMPT_COMMAND_IDS = {
+  shareChat: 'museSpark.shareChat',
+  sharePrompt: 'museSpark.sharePrompt',
+  library: 'museSpark.promptLibrary',
+  save: 'museSpark.savePrompt',
+  use: 'museSpark.useSavedPrompt',
+  copyToUser: 'museSpark.copyToMyPrompts',
+} as const
+export const SHARE_SCHEMA_VERSION = 1
+export const SHARE_DESTINATIONS = [
+  'copy',
+  'file',
+  'browser',
+  'gist',
+  'nodeLink',
+  'team',
+  'email',
+] as const
+export const SHARE_LOCAL_DESTINATIONS = ['copy', 'file', 'browser'] as const
 // A file is read whole and its transcript posted to the panel. It holds text
 // only (no image or PDF bytes), so 16 MiB is far past a long conversation;
 // an export over it is refused, so every file written can be read back.

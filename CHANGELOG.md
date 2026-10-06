@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Stage M118's shared prompt/share contracts, lossless portable prompt files,
+  insert-only loading, conversation-only allow-lists, privacy and confirmation
+  boundaries, versioned share JSON Schema, all-kind test fixtures, and English
+  plus fourteen translations. Command/menu contributions are an integration
+  handoff; the prompt library and sharing UI are not registered by this lane.
+
 ## [0.14.1] - 2026-10-05
 
 ### Security

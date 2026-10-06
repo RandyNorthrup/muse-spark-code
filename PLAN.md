@@ -6844,6 +6844,40 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### M118 lane 0 — Prompt and chat sharing contracts (2026-10-05)
+
+The authoritative rig brief stages D98/M118 for P (prompt library), C (chat
+sharing) and X (ACP/CLI/TUI/MHP). This lane adds only validated contracts,
+translations, fake fixtures and integration handoffs. D67's unimplemented
+VS Code state storage is superseded here by portable user prompts in
+`agentDataFolder()/prompts/` and workspace prompts in `.muse/prompts/`.
+Loading inserts into the active chat, creating one if needed, never sends.
+Right-click Save prompt covers own transcript messages, composer text and
+editor selections; the composer also offers Use saved prompt. Both scopes
+remain visible, user first, preserving duplicates across scopes.
+
+Saved prompts use versioned JSON front matter (a YAML-compatible subset)
+followed by verbatim Markdown, with declared built-in/named variables and
+an imported-untrusted flag. Sharing has inclusive message-id ranges,
+full/conversation modes, explicit final confirmation, local phase-one
+destinations and reserved hosted destinations. Conversation mode uses an
+allow-list beside each existing transcript representation; future kinds
+stay excluded. Privacy ports reuse registered-secret and shared redaction,
+normalise workspace/home/absolute paths and recheck the existing
+confidential-workspace setting immediately before release. Attachment
+contents require explicit selection. These are our own formats, not new
+provider wire shapes; no live or paid captures are needed.
+
+- [x] Contracts, round trips, default-deny guards and all-kind fakes.
+- [x] Fourteen real translations, pending manifest patch and strict checks.
+- [x] Deterministic share JSON Schema/check; P/C/X entry-point handoffs.
+- [x] Bounded rig checks and 45 byte-exact deliberate-failure controls;
+      `docs/certification/m118-l0.md` records receipts and integration limits.
+
+`src/shared/featureCatalog.ts` and its generation/check scripts do not exist
+on base `81a5ccfa`; no commands are registered by this lane. P/C/X must add
+their actual commands to the help reference when that parallel feature lands.
+
 ### BADGEFIX — Exact package versions on store pages (2026-10-05)
 
 - [x] Generate static Marketplace/Open VSX and npm/GitHub release version
@@ -18370,6 +18404,14 @@ joined with M57, M58 and PR #49's sign-in
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**M118 lane 0 bounded certification.** The rig brief and shared rules prohibit
+aggregate quality, merges and pushes. Run the owning contracts, typecheck,
+scoped lint/format, localization, deadcode, duplication, host API and build
+directly on macmini. Full integrated quality remains the lead's. No caps,
+thresholds, ignores or rule levels change. Contract-only exports have test
+and schema-generator consumers until P/C/X merge; the lead must then check
+production consumers and remove any unused contract instead of adding ignores.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning

@@ -396,6 +396,12 @@ export const transcriptEntrySchema = z.discriminatedUnion('kind', [
 ])
 export type TranscriptEntry = z.infer<typeof transcriptEntrySchema>
 
+// M118: adding a union member never admits it to conversation-only sharing.
+const CONVERSATION_SHARE_ENTRY_KINDS: ReadonlySet<string> = new Set(['user', 'assistant'])
+export function isConversationShareEntry(entry: { readonly kind: string }): boolean {
+  return CONVERSATION_SHARE_ENTRY_KINDS.has(entry.kind)
+}
+
 /** A subagent's own transcript, read for the Agent map (M14). */
 export const childTranscriptSchema = z.object({
   name: z.optional(z.string()),

@@ -163,5 +163,11 @@
   "config.judge.engine.enumDescriptions.auto": "Votre propre modèle de conversation évalue (`same` en phase 1) ; un évaluateur distinct le rejoint dès qu’un est configuré.",
   "config.judge.engine.enumDescriptions.same": "Seul votre propre modèle de conversation évalue ; il ne change jamais de modèle.",
   "config.judge.engine.enumDescriptions.off": "Aucun évaluateur : les approbations se comportent exactement comme sans lui.",
-  "config.shell.passEnvironmentVariables.description": "Noms des variables d’environnement transmises aux commandes shell interactives de la session principale, y compris les identifiants normalement exclus. Uniquement des noms, jamais des valeurs. Par défaut : aucune. Une commande peut révéler ces valeurs dans la conversation et au fournisseur du modèle. Les vérifications/then_run, tâches planifiées, agents secondaires/d’équipe et hooks ne reçoivent jamais de variables d’identifiants, même si elles sont nommées ici. Une commande interactive passée en arrière-plan conserve son environnement initial. Ne modifie pas les environnements de Muse Code ni des serveurs MCP configurés explicitement."
+  "config.shell.passEnvironmentVariables.description": "Noms des variables d’environnement transmises aux commandes shell interactives de la session principale, y compris les identifiants normalement exclus. Uniquement des noms, jamais des valeurs. Par défaut : aucune. Une commande peut révéler ces valeurs dans la conversation et au fournisseur du modèle. Les vérifications/then_run, tâches planifiées, agents secondaires/d’équipe et hooks ne reçoivent jamais de variables d’identifiants, même si elles sont nommées ici. Une commande interactive passée en arrière-plan conserve son environnement initial. Ne modifie pas les environnements de Muse Code ni des serveurs MCP configurés explicitement.",
+  "command.shareChat.title": "Partager le chat…",
+  "command.sharePrompt.title": "Partager le prompt…",
+  "command.promptLibrary.title": "Bibliothèque de prompts",
+  "command.savePrompt.title": "Enregistrer le prompt",
+  "command.useSavedPrompt.title": "Utiliser un prompt enregistré…",
+  "command.copyToMyPrompts.title": "Copier dans mes prompts"
 }

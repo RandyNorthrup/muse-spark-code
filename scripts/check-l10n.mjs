@@ -34,6 +34,10 @@ import { loadL10n } from './lib/l10nSource.mjs'
 
 const MANIFEST = 'package.json'
 const MANIFEST_STRINGS = 'package.nls.json'
+// M118 contract lane: commands are not registered until P/C implement them.
+// Check the pending contribution with the same text/reference rules, never
+// an unused-key ignore. Integration removes this path after applying it.
+const MANIFEST_HANDOFF = 'docs/certification/m118-manifest-patch.json'
 const MANIFEST_TRANSLATION = /^package\.nls\.(.+)\.json$/
 const UNTRANSLATED = 'untranslated.json'
 const UNTRANSLATED_SECTIONS = ['ui', 'manifest']
@@ -313,6 +317,7 @@ function unmovedText(value, where) {
 function checkManifest(l10n, untranslatedFor, strings, problems) {
   const { TABLE_LOCALES, tableProblems } = l10n
   const manifest = readJson(MANIFEST, problems)
+  const handoff = readJson(MANIFEST_HANDOFF, problems)
   if (!isRecord(strings)) {
     problems.push(`${MANIFEST_STRINGS}: an object of strings by key expected`)
   }
@@ -325,6 +330,7 @@ function checkManifest(l10n, untranslatedFor, strings, problems) {
       { contributes: manifest.contributes, capabilities: manifest.capabilities },
       MANIFEST,
     ),
+    ...unmovedText(handoff, MANIFEST_HANDOFF),
   ].filter(([, text]) => typeof text === 'string' && !NLS_LIKE.test(text))
   for (const [where, text] of shown) {
     problems.push(
@@ -332,7 +338,10 @@ function checkManifest(l10n, untranslatedFor, strings, problems) {
     )
   }
   const used = new Set()
-  for (const [where, text] of stringsIn(manifest, MANIFEST)) {
+  for (const [where, text] of [
+    ...stringsIn(manifest, MANIFEST),
+    ...stringsIn(handoff, MANIFEST_HANDOFF),
+  ]) {
     const key = NLS_REFERENCE.exec(text)?.[1]
     if (key === undefined && NLS_LIKE.test(text)) {
       problems.push(`${where}: ${text}: vsce accepts only letters, digits, _ and . in a key`)

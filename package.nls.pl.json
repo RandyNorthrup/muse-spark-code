@@ -163,5 +163,11 @@
   "config.judge.engine.enumDescriptions.auto": "Ocenia Twój własny model rozmowy (w fazie 1 `same`); osobny oceniający dołączy, gdy zostanie skonfigurowany.",
   "config.judge.engine.enumDescriptions.same": "Ocenia tylko Twój własny model rozmowy; nigdy nie zmienia modelu.",
   "config.judge.engine.enumDescriptions.off": "Bez oceniającego: zatwierdzenia zachowują się dokładnie jak bez niego.",
-  "config.shell.passEnvironmentVariables.description": "Nazwy zmiennych środowiskowych przekazywanych do interaktywnych poleceń powłoki głównej sesji, w tym zwykle wykluczanych danych uwierzytelniających. Tylko nazwy, nigdy wartości. Domyślnie: brak. Polecenie może ujawnić te wartości w rozmowie i dostawcy modelu. Weryfikacja/then_run, harmonogramy, pracownicy podrzędni/zespołowi i hooki nigdy nie otrzymują zmiennych uwierzytelniających, nawet jeśli są tu wymienione. Interaktywne polecenie przeniesione do tła zachowuje początkowe środowisko. Nie zmienia środowisk Muse Code ani jawnie skonfigurowanych serwerów MCP."
+  "config.shell.passEnvironmentVariables.description": "Nazwy zmiennych środowiskowych przekazywanych do interaktywnych poleceń powłoki głównej sesji, w tym zwykle wykluczanych danych uwierzytelniających. Tylko nazwy, nigdy wartości. Domyślnie: brak. Polecenie może ujawnić te wartości w rozmowie i dostawcy modelu. Weryfikacja/then_run, harmonogramy, pracownicy podrzędni/zespołowi i hooki nigdy nie otrzymują zmiennych uwierzytelniających, nawet jeśli są tu wymienione. Interaktywne polecenie przeniesione do tła zachowuje początkowe środowisko. Nie zmienia środowisk Muse Code ani jawnie skonfigurowanych serwerów MCP.",
+  "command.shareChat.title": "Udostępnij czat…",
+  "command.sharePrompt.title": "Udostępnij prompt…",
+  "command.promptLibrary.title": "Biblioteka promptów",
+  "command.savePrompt.title": "Zapisz prompt",
+  "command.useSavedPrompt.title": "Użyj zapisanego promptu…",
+  "command.copyToMyPrompts.title": "Kopiuj do moich promptów"
 }

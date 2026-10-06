@@ -163,5 +163,11 @@
   "config.judge.engine.enumDescriptions.auto": "Posuzuje váš vlastní chatovací model (ve fázi 1 `same`); samostatný posuzovatel se přidá, jakmile se nastaví.",
   "config.judge.engine.enumDescriptions.same": "Posuzuje pouze váš vlastní chatovací model; model nikdy nemění.",
   "config.judge.engine.enumDescriptions.off": "Bez posuzovatele: schvalování se chová přesně jako bez něj.",
-  "config.shell.passEnvironmentVariables.description": "Názvy proměnných prostředí předávaných interaktivním příkazům shellu hlavní relace, včetně proměnných s přihlašovacími údaji, které jsou běžně skryté. Pouze názvy, nikdy hodnoty. Výchozí: žádné. Příkaz může tyto hodnoty odhalit v konverzaci a poskytovateli modelu. Ověřování/then_run, plány, podřízení/týmoví pracovníci a hooky nikdy nedostávají proměnné s přihlašovacími údaji, ani když jsou zde uvedené. Interaktivní příkaz přesunutý na pozadí si ponechá počáteční prostředí. Nemění prostředí Muse Code ani explicitně nakonfigurovaných serverů MCP."
+  "config.shell.passEnvironmentVariables.description": "Názvy proměnných prostředí předávaných interaktivním příkazům shellu hlavní relace, včetně proměnných s přihlašovacími údaji, které jsou běžně skryté. Pouze názvy, nikdy hodnoty. Výchozí: žádné. Příkaz může tyto hodnoty odhalit v konverzaci a poskytovateli modelu. Ověřování/then_run, plány, podřízení/týmoví pracovníci a hooky nikdy nedostávají proměnné s přihlašovacími údaji, ani když jsou zde uvedené. Interaktivní příkaz přesunutý na pozadí si ponechá počáteční prostředí. Nemění prostředí Muse Code ani explicitně nakonfigurovaných serverů MCP.",
+  "command.shareChat.title": "Sdílet chat…",
+  "command.sharePrompt.title": "Sdílet prompt…",
+  "command.promptLibrary.title": "Knihovna promptů",
+  "command.savePrompt.title": "Uložit prompt",
+  "command.useSavedPrompt.title": "Použít uložený prompt…",
+  "command.copyToMyPrompts.title": "Zkopírovat do mých promptů"
 }

@@ -231,6 +231,13 @@ for (const name of [
 }
 
 const activation = inputsOf(BUNDLES.activation)
+// M118: prompt/share implementations load with their first action, never
+// activation. Type-only imports contribute no runtime bytes.
+for (const file of ['src/shared/prompts.ts', 'src/shared/share.ts']) {
+  if (activation.has(file)) {
+    problems.push(`${BUNDLES.activation.output} carries the lazy prompt/share contract ${file}`)
+  }
+}
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
 const extensionHooks = inputsOf({

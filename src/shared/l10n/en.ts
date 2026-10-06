@@ -16,6 +16,38 @@
 import { forms } from './forms'
 
 export const EN = {
+  // M118: prompt library and local sharing; read UI_TEXT at use time.
+  promptSave: 'Save prompt',
+  promptUseSaved: 'Use saved prompt…',
+  promptLibrary: 'Prompt library',
+  promptCopyToUser: 'Copy to my prompts',
+  promptTitle: 'Title',
+  promptBody: 'Prompt text',
+  promptTags: 'Tags',
+  promptVariables: 'Variables',
+  promptScopeUser: 'All workspaces',
+  promptScopeWorkspace: 'This workspace',
+  promptImport: 'Import prompt…',
+  promptUntrusted:
+    'Imported prompt: untrusted text. Review the text and variables before inserting.',
+  promptInsert: 'Insert into chat',
+  promptFileInvalid: 'The prompt file is invalid or unsupported.',
+  shareChat: 'Share chat…',
+  sharePrompt: 'Share prompt…',
+  shareFull: 'Full transcript',
+  shareConversation: 'Conversation only',
+  shareCodeBlocks: 'Include code blocks',
+  shareAttachmentNames: 'Include attachment names',
+  shareDiffs: 'Include diffs',
+  sharePreview: 'Preview',
+  shareConfirm: 'Confirm sharing',
+  shareCopy: 'Copy',
+  shareFile: 'Save file…',
+  shareBrowser: 'Open in browser',
+  shareConfidential: 'Sharing is blocked while this workspace is confidential.',
+  shareReviewPrivacy:
+    'Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.',
+  shareCancelled: 'Sharing cancelled',
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:
