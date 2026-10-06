@@ -91,7 +91,7 @@ def capture_keychain():
                                          "container": container, "use": "M109 throwaway slot capture"})
         assert code == 0 and unwrapped == key, "Keychain roundtrip"
         code, response, secret = call({"v": 1, "operation": "wrap", "identity": identity}, os.urandom(32))
-        assert code == 1 and response["code"] == "keychain" and secret == b"", "duplicate must not overwrite"
+        assert code == 1 and response["code"] == "invalidRequest" and secret == b"", "duplicate must not overwrite"
         # Same identity, corrupted authenticated ciphertext: no key may return.
         import base64
         sealed = bytearray(base64.b64decode(container["sealed"]))
@@ -107,7 +107,7 @@ def capture_keychain():
         print("PASS throwaway login-Keychain item deleted")
     code, response, secret = call({"v": 1, "operation": "unwrap", "identity": identity,
                                   "container": container, "use": "M109 deleted item capture"})
-    assert code == 1 and response["code"] == "keychain" and secret == b"", "deleted item inaccessible"
+    assert code == 1 and response["code"] == "itemMissing" and secret == b"", "deleted item inaccessible"
     print("PASS deleted slot unavailable")
 
 

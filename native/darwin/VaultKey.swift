@@ -20,7 +20,7 @@ enum VaultNative {
 }
 
 enum VaultFailure: String, Error {
-    case invalidRequest, unavailable, keychain, authentication, cancelled
+    case invalidRequest, unavailable, keychainLocked, itemMissing, authentication, cancelled
 }
 
 struct SlotIdentity: Codable, Equatable {
@@ -127,12 +127,24 @@ func readRequest() throws -> (MacRequest, Data) {
     return (request, key)
 }
 
+// Keep native failures fixed and distinct without relaying OS diagnostics.
+func requireKeychainSuccess(_ status: OSStatus) throws {
+    switch status {
+    case errSecSuccess: return
+    case errSecUserCanceled: throw VaultFailure.cancelled
+    case errSecInteractionNotAllowed: throw VaultFailure.keychainLocked
+    case errSecItemNotFound: throw VaultFailure.itemMissing
+    case errSecAuthFailed: throw VaultFailure.authentication
+    case errSecParam, errSecDuplicateItem: throw VaultFailure.invalidRequest
+    default: throw VaultFailure.unavailable
+    }
+}
+
 func loginKeychain() throws -> SecKeychain {
     var keychain: SecKeychain?
     let path = NSHomeDirectory() + "/Library/Keychains/login.keychain-db"
-    guard SecKeychainOpen(path, &keychain) == errSecSuccess, let keychain else {
-        throw VaultFailure.keychain
-    }
+    try requireKeychainSuccess(SecKeychainOpen(path, &keychain))
+    guard let keychain else { throw VaultFailure.unavailable }
     return keychain
 }
 
@@ -146,16 +158,17 @@ func keychainQuery(_ identity: SlotIdentity) throws -> [String: Any] {
 func storeWrappingKey(_ key: Data, identity: SlotIdentity) throws {
     var trusted: SecTrustedApplication?
     var access: SecAccess?
-    guard SecTrustedApplicationCreateFromPath(nil, &trusted) == errSecSuccess, let trusted,
-          SecAccessCreate(VaultNative.service as CFString, [trusted] as CFArray, &access) == errSecSuccess,
-          let access else { throw VaultFailure.keychain }
+    try requireKeychainSuccess(SecTrustedApplicationCreateFromPath(nil, &trusted))
+    guard let trusted else { throw VaultFailure.unavailable }
+    try requireKeychainSuccess(SecAccessCreate(VaultNative.service as CFString, [trusted] as CFArray, &access))
+    guard let access else { throw VaultFailure.unavailable }
     var query = try keychainQuery(identity)
     query.removeValue(forKey: kSecMatchSearchList as String)
     query[kSecUseKeychain as String] = try loginKeychain()
     query[kSecAttrAccess as String] = access
     query[kSecValueData as String] = key
     // Add only: a reused slot cannot overwrite an existing entry.
-    guard SecItemAdd(query as CFDictionary, nil) == errSecSuccess else { throw VaultFailure.keychain }
+    try requireKeychainSuccess(SecItemAdd(query as CFDictionary, nil))
 }
 
 func readWrappingKey(_ identity: SlotIdentity) throws -> Data {
@@ -164,9 +177,9 @@ func readWrappingKey(_ identity: SlotIdentity) throws -> Data {
     query[kSecMatchLimit as String] = kSecMatchLimitOne
     var result: CFTypeRef?
     let status = SecItemCopyMatching(query as CFDictionary, &result)
-    if status == errSecUserCanceled { throw VaultFailure.cancelled }
-    guard status == errSecSuccess, let data = result as? Data,
-          data.count == VaultNative.keyBytes else { throw VaultFailure.keychain }
+    try requireKeychainSuccess(status)
+    guard let data = result as? Data,
+          data.count == VaultNative.keyBytes else { throw VaultFailure.authentication }
     return data
 }
 
@@ -271,7 +284,7 @@ func runVaultHelper() throws {
     case "delete":
         guard identity.tier == "osStore" else { throw VaultFailure.invalidRequest }
         let status = SecItemDelete(try keychainQuery(identity) as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else { throw VaultFailure.keychain }
+        if status != errSecItemNotFound { try requireKeychainSuccess(status) }
         try writeResponse(["v": VaultNative.version, "status": "ok"])
     default: throw VaultFailure.invalidRequest
     }

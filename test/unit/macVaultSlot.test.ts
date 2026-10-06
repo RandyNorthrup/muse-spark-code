@@ -394,6 +394,25 @@ describe('Mac native frame boundary', () => {
     expect(output.every((byte) => byte === 0)).toBe(true)
   })
 
+  it.each([
+    'cancelled',
+    'unavailable',
+    'keychainLocked',
+    'itemMissing',
+    'authentication',
+    'invalidRequest',
+  ])(
+    'preserves the validated %s failure from an injected transport and erases its frame',
+    async (code) => {
+      const output = frame({ v: 1, status: 'error', code })
+      const transport: MacVaultTransport = { exchange: () => Promise.resolve(output) }
+      await expect(invokeMacVault(transport, { v: 1, operation: 'probe' })).rejects.toMatchObject({
+        code,
+      })
+      expect(output.every((byte) => byte === 0)).toBe(true)
+    },
+  )
+
   it('erases an owned key on transport failure without exposing its error', async () => {
     let received: Uint8Array | undefined
     const transport: MacVaultTransport = {

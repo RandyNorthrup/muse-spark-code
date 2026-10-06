@@ -1,6 +1,7 @@
 // Pure native assertions: no Keychain item, entitlement or authentication prompt.
 import Foundation
 import CryptoKit
+import Security
 
 func rejects(_ name: String, _ action: () throws -> Void) throws {
     do {
@@ -78,6 +79,27 @@ struct MacVaultNativeTests {
         try requireEnclave(available: true, certified: true)
         try rejects("hardware-unavailable") { try requireEnclave(available: false, certified: true) }
         try rejects("Q-M109-certification") { try requireEnclave(available: true, certified: false) }
+        try requireKeychainSuccess(errSecSuccess)
+        for (status, expected) in [
+            (errSecUserCanceled, VaultFailure.cancelled),
+            (errSecInteractionNotAllowed, VaultFailure.keychainLocked),
+            (errSecItemNotFound, VaultFailure.itemMissing),
+            (errSecAuthFailed, VaultFailure.authentication),
+            (errSecParam, VaultFailure.invalidRequest),
+            (errSecDuplicateItem, VaultFailure.invalidRequest),
+            (errSecNotAvailable, VaultFailure.unavailable)
+        ] {
+            do {
+                try requireKeychainSuccess(status)
+                preconditionFailure("FAIL native-status-\(expected.rawValue)")
+            } catch let failure as VaultFailure {
+                guard failure == expected else {
+                    print("FAIL native-status-\(expected.rawValue)")
+                    exit(1)
+                }
+            }
+            print("PASS native-status-\(expected.rawValue)")
+        }
         print("PASS native-contracts")
     }
 }

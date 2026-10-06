@@ -6,7 +6,7 @@ import {
   VAULT_KEY_BYTES,
   VAULT_LIMITS,
 } from '../../../shared/constants'
-import type { MacVaultTransport } from './macVaultProtocol'
+import { macVaultFailure, type MacVaultTransport } from './macVaultProtocol'
 
 /** One trusted helper process per use; callers may cancel when the broker locks. */
 export function macVaultTransport(helper: string, signal?: AbortSignal): MacVaultTransport {
@@ -22,22 +22,25 @@ export function macVaultTransport(helper: string, signal?: AbortSignal): MacVaul
         const chunks: Buffer[] = []
         let size = 0
         let isSettled = false
-        const finish = (isOk: boolean) => {
+        const finish = (isOk: boolean, hasNativeFailure = false) => {
           if (isSettled) return
           isSettled = true
           clearTimeout(timer)
           signal?.removeEventListener('abort', abort)
-          if (isOk) {
-            const output = Buffer.alloc(size)
+          const output = Buffer.alloc(isOk || hasNativeFailure ? size : 0)
+          if (isOk || hasNativeFailure) {
             let offset = 0
             for (const chunk of chunks) {
               output.set(chunk, offset)
               offset += chunk.length
             }
-            resolve(output)
-          } else {
+          }
+          if (isOk) resolve(output)
+          else {
+            const failure = hasNativeFailure ? macVaultFailure(output) : undefined
+            output.fill(0)
             child.kill('SIGKILL')
-            reject(new Error(UI_TEXT.vault.noAccess))
+            reject(failure ?? new Error(UI_TEXT.vault.noAccess))
           }
           for (const chunk of chunks) chunk.fill(0)
         }
@@ -66,7 +69,7 @@ export function macVaultTransport(helper: string, signal?: AbortSignal): MacVaul
           chunk.fill(0)
         })
         child.on('close', (code) => {
-          finish(code === 0)
+          finish(code === 0, code === 1)
         })
         const length = Buffer.alloc(Uint32Array.BYTES_PER_ELEMENT)
         length.writeUInt32BE(header.length)

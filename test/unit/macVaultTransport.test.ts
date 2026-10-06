@@ -43,6 +43,7 @@ describe('private Mac helper process', () => {
   })
   afterEach(() => {
     for (const chunk of child.input) chunk.fill(0)
+    vi.restoreAllMocks()
     vi.useRealTimers()
   })
 
@@ -84,6 +85,87 @@ describe('private Mac helper process', () => {
     const result = await pending
     expect(result.probe?.secureEnclave).toBe(true)
     expect(stderr.every((byte) => byte === 0)).toBe(true)
+  })
+
+  it.each([
+    ['cancelled', 'MacVaultCancelledError', 'requestAgain'],
+    ['unavailable', 'MacVaultUnavailableError', 'usePassphrase'],
+    ['keychainLocked', 'MacVaultKeychainLockedError', 'unlockKeychain'],
+    ['itemMissing', 'MacVaultItemMissingError', 'restoreSlot'],
+    ['authentication', 'MacVaultAuthenticationError', 'restoreBackup'],
+    ['invalidRequest', 'MacVaultInvalidRequestError', 'repairRequest'],
+  ])(
+    'preserves native %s and its recovery action through exit 1',
+    async (code, name, recoveryAction) => {
+      const pending = invokeMacVault(
+        macVaultTransport('/test/muse-vault'),
+        {
+          v: 1,
+          operation: 'wrap',
+          identity: { slotId: 'a'.repeat(32), vaultId: 'b'.repeat(32), tier: 'osStore' },
+        },
+        randomBytes(32),
+      )
+      const failed = expect(pending).rejects.toMatchObject({ name, code, recoveryAction })
+      const output = response({ v: 1, status: 'error', code })
+      child.stdout.write(output.subarray(0, 2))
+      child.stdout.write(output.subarray(2))
+      child.emit('close', 1)
+      await failed
+      expect(output.every((byte) => byte === 0)).toBe(true)
+      expect(child.input[2]?.every((byte) => byte === 0)).toBe(true)
+    },
+  )
+
+  it('erases the reconstructed native failure frame before rejecting', async () => {
+    const pending = invokeMacVault(macVaultTransport('/test/muse-vault'), {
+      v: 1,
+      operation: 'probe',
+    })
+    const failed = expect(pending).rejects.toMatchObject({ code: 'cancelled' })
+    child.stdout.write(response({ v: 1, status: 'error', code: 'cancelled' }))
+    const allocated: Buffer[] = []
+    const allocate = Buffer.alloc
+    vi.spyOn(Buffer, 'alloc').mockImplementation((size, fill, encoding) => {
+      const bytes = allocate(size, fill, encoding)
+      allocated.push(bytes)
+      return bytes
+    })
+    child.emit('close', 1)
+    await failed
+    expect(allocated).toHaveLength(1)
+    expect(allocated[0]?.every((byte) => byte === 0)).toBe(true)
+  })
+
+  it('does not trust a native error frame after an unexpected exit code', async () => {
+    const pending = invokeMacVault(macVaultTransport('/test/muse-vault'), {
+      v: 1,
+      operation: 'probe',
+    })
+    const failed = expect(pending).rejects.toMatchObject({ name: 'Error', message: 'No access' })
+    child.stdout.write(response({ v: 1, status: 'error', code: 'cancelled' }))
+    child.emit('close', 2)
+    await failed
+  })
+
+  it.each([
+    response({ v: 1, status: 'error', code: 'cancelled', detail: 'private account/path' }),
+    response({ v: 1, status: 'error', code: 'foreign' }),
+    response({ v: 1, status: 'error', code: 'keychain' }),
+    response({ v: 1, status: 'error', code: 'cancelled' }, randomBytes(1)),
+    response({ v: 1, status: 'ok', secureEnclave: true, certified: true }),
+    Buffer.from([0, 0, 0, 1, 123]),
+  ])('scrubs invalid error frames on exit 1 without trusting diagnostics %s', async (frame) => {
+    const pending = invokeMacVault(macVaultTransport('/test/muse-vault'), {
+      v: 1,
+      operation: 'probe',
+    })
+    const failed = expect(pending).rejects.toMatchObject({ name: 'Error', message: 'No access' })
+    const output = Buffer.from(frame)
+    child.stdout.write(output)
+    child.emit('close', 1)
+    await failed
+    expect(output.every((byte) => byte === 0)).toBe(true)
   })
 
   it('rejects relative executable paths without spawning', () => {

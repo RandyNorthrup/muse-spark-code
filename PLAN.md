@@ -7854,9 +7854,10 @@ It builds on:
 
 - **Q-M109 — A Mac for the Secure Enclave slot (2026-10-05).** D89.2's
   Secure Enclave slot needs a Mac where `SecureEnclave.isAvailable`: Apple
-  silicon, or an Intel Mac with Touch ID. The Mac mini rig is Intel without
-  Touch ID, so it cannot run the capture that shows our ad hoc signed helper
-  may create the key and keep its blob in a file (research §7). Keychain
+  silicon, or a capable Intel Mac. The Intel Mac mini rig's T2 chip reports
+  `SecureEnclave.isAvailable=true` and has exercised a generated-key blob
+  roundtrip; it does not certify per-use presence or helper-only real-item
+  access. The owner's Touch ID Mac capture remains pending. Keychain
   items with SE-backed access control or biometry need more: a provisioned
   entitlement, so a helper `.app` signed under an Apple Developer Program
   team, which only the owner can join. **Default:** macOS uses the login
@@ -20622,6 +20623,20 @@ Each joins when its dependency merges, and none blocks the others.
 **Status 2026-10-05: planned.** The research is
 `docs/research/credential-vault-2026-10-05.md`.
 
+**P-mac review repair (FIXM109PM, 2026-10-06).** RVM109PM P2 preserves
+validated fixed native failures across exit 1 and parser cleanup, with a named
+error and recovery action for cancelled, unavailable, keychainLocked,
+itemMissing, authentication and invalidRequest. Missing items and a locked
+Keychain get distinct native codes. P3 installs erasure before private reads,
+including partial EOF, read failures and trailing input. Each repair gets a
+failing regression and a byte-exact restored red drill in `m109-p.md`. No
+credential item or paid/live call is needed. The broker's display belongs to B
+(the broker is absent on this lane base); P supplies the failure/action pair.
+Production SE certification stays false until the owner's real-item capture
+also proves a second executable cannot read the item silently. This Intel Mac
+mini's T2 reports `SecureEnclave.isAvailable=true`; that probe is not presence
+or helper-only-access certification.
+
 - **Lanes 0, C, P, B and U** need nothing unmerged.
 - **S, X, T, O and M** follow B; **L** also needs M81's lane A1.
 - **H** follows B and U.
@@ -20933,6 +20948,13 @@ Each joins when its dependency merges, and none blocks the others.
         14 tables; budgets measured; full gate green
 
 ## 7. Gates
+
+**FIXM109PM review repair (2026-10-06, Mac mini).** The rig brief and common
+lane rules prohibit `npm run quality` and any merge/push/rebase. Focused tests,
+local gate commands and native generated-material checks run directly here;
+the lead retains aggregate quality, the integrated host API record and hosted
+CI. This is a lane receipt, not a release certification; no gate is weakened.
+See `docs/certification/m109-p.md` for results and byte-exact red drills.
 
 **FIXM109L0 review repair (2026-10-05, Mac mini).** RVM109L0's two P2
 contract findings and its P3 fake ownership finding are fixed. A distinct
@@ -22140,6 +22162,22 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **P-mac/B-error-surface (FIXM109PM, 2026-10-06).** The macOS native
+  helper and slot port now preserve six fixed named failures with distinct
+  recovery-action identifiers. The broker does not exist on this lane base;
+  B owns translating and displaying them. Safe for now: P is not bound into
+  shipped vault bundles and every failure refuses access. Follow-up: B's
+  integration must test each native code through its broker/client UI, rather
+  than collapse it to No access. See `docs/certification/m109-p.md`.
+
+- **P-mac/owner-certification (FIXM109PM, 2026-10-06).** This Intel Mac mini
+  has a T2 chip and reports `SecureEnclave.isAvailable=true`; availability is
+  not production certification. Real-item access, per-use presence and stale
+  authorization remain unproved. Safe for now: the native certification flag
+  stays false and neither SE mode is offered. Follow-up: the owner's Touch ID
+  Mac capture after 17:00 must also prove a second executable cannot read the
+  real item silently. No helper-only ACL guarantee is asserted meanwhile.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

@@ -73,8 +73,58 @@ const doneSchema = z.strictObject(responseBase)
 const errorSchema = z.strictObject({
   v: z.literal(VAULT_FORMAT_VERSION),
   status: z.literal('error'),
-  code: z.enum(['invalidRequest', 'unavailable', 'keychain', 'authentication', 'cancelled']),
+  code: z.enum([
+    'invalidRequest',
+    'unavailable',
+    'keychainLocked',
+    'itemMissing',
+    'authentication',
+    'cancelled',
+  ]),
 })
+
+// Fixed protocol metadata for B's recovery UI; no native diagnostic text escapes.
+const failures = {
+  cancelled: { name: 'MacVaultCancelledError', recoveryAction: 'requestAgain' },
+  unavailable: { name: 'MacVaultUnavailableError', recoveryAction: 'usePassphrase' },
+  keychainLocked: { name: 'MacVaultKeychainLockedError', recoveryAction: 'unlockKeychain' },
+  itemMissing: { name: 'MacVaultItemMissingError', recoveryAction: 'restoreSlot' },
+  authentication: { name: 'MacVaultAuthenticationError', recoveryAction: 'restoreBackup' },
+  invalidRequest: { name: 'MacVaultInvalidRequestError', recoveryAction: 'repairRequest' },
+} as const
+
+export class MacVaultError extends Error {
+  readonly recoveryAction
+  constructor(readonly code: z.infer<typeof errorSchema>['code']) {
+    super(UI_TEXT.vault.noAccess)
+    this.name = failures[code].name
+    this.recoveryAction = failures[code].recoveryAction
+  }
+}
+
+function readFrame(output: Uint8Array) {
+  const frame = Buffer.from(output.buffer, output.byteOffset, output.byteLength)
+  const start = Uint32Array.BYTES_PER_ELEMENT
+  if (frame.length < start) throw new Error(UI_TEXT.vault.useChanged)
+  const length = frame.readUInt32BE(0)
+  if (length === 0 || length > VAULT_LIMITS.text || frame.length < start + length) {
+    throw new Error(UI_TEXT.vault.useChanged)
+  }
+  const metadata: unknown = JSON.parse(frame.subarray(start, start + length).toString('utf8'))
+  return { metadata, privateBytes: frame.subarray(start + length) }
+}
+
+/** A failed child may return only a complete fixed error frame, never private bytes. */
+export function macVaultFailure(output: Uint8Array): MacVaultError | undefined {
+  try {
+    const { metadata, privateBytes } = readFrame(output)
+    const failure = errorSchema.safeParse(metadata)
+    if (failure.success && privateBytes.length === 0) return new MacVaultError(failure.data.code)
+  } catch {
+    // An invalid frame is an uncoded failure, with no parser/native diagnostics.
+  }
+  return undefined
+}
 
 /** Implementations own returned bytes; invoke erases the transport buffer after parsing. */
 export interface MacVaultTransport {
@@ -98,37 +148,27 @@ export async function invokeMacVault(
   const ownedKey = Buffer.alloc(key.length)
   ownedKey.set(key)
   let output: Uint8Array | undefined
+  const inaccessible = new Error(UI_TEXT.vault.noAccess)
   try {
     output = await transport.exchange(header, ownedKey)
-    const frame = Buffer.from(output.buffer, output.byteOffset, output.byteLength)
-    if (frame.length < Uint32Array.BYTES_PER_ELEMENT) throw new Error(UI_TEXT.vault.useChanged)
-    const length = frame.readUInt32BE(0)
-    if (
-      length === 0 ||
-      length > VAULT_LIMITS.text ||
-      frame.length < Uint32Array.BYTES_PER_ELEMENT + length
-    ) {
-      throw new Error(UI_TEXT.vault.useChanged)
-    }
-    const start = Uint32Array.BYTES_PER_ELEMENT
-    const metadata: unknown = JSON.parse(frame.subarray(start, start + length).toString('utf8'))
+    const { metadata, privateBytes } = readFrame(output)
     const failure = errorSchema.safeParse(metadata)
     if (failure.success) {
-      if (frame.length !== start + length) throw new Error(UI_TEXT.vault.useChanged)
-      throw new Error(UI_TEXT.vault.noAccess)
+      if (privateBytes.length > 0) throw new Error(UI_TEXT.vault.useChanged)
+      throw new MacVaultError(failure.data.code)
     }
     const expected = request.operation === 'unwrap' ? VAULT_KEY_BYTES : 0
-    if (frame.length !== start + length + expected) throw new Error(UI_TEXT.vault.useChanged)
+    if (privateBytes.length !== expected) throw new Error(UI_TEXT.vault.useChanged)
     const probe = request.operation === 'probe' ? probeSchema.parse(metadata) : undefined
     const wrapped = request.operation === 'wrap' ? wrapSchema.parse(metadata) : undefined
     if (probe === undefined && wrapped === undefined) doneSchema.parse(metadata)
     const unwrapped = Buffer.alloc(expected)
-    unwrapped.set(frame.subarray(start + length))
+    unwrapped.set(privateBytes)
     return { probe, container: wrapped?.container, key: unwrapped }
-  } catch {
-    // JSON, Zod, transport and OS diagnostics can contain caller text. Never
-    // attach their message/cause to an error crossing the broker boundary.
-    throw new Error(UI_TEXT.vault.noAccess)
+  } catch (error) {
+    // JSON, Zod, transport and OS diagnostics can contain caller text. Only
+    // the validated fixed error class may cross the broker boundary.
+    throw error instanceof MacVaultError ? error : inaccessible
   } finally {
     ownedKey.fill(0)
     output?.fill(0)

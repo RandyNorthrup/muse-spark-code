@@ -1,0 +1,58 @@
+[
+  {
+    "guard": "p2-transport-code",
+    "file": "src/runtime/vault/slots/macVaultTransport.ts",
+    "test": "preserves native cancelled",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "78db5716e4b169feea7ada95f901e5790e3919c3f6034f1cd3ddfb4b8dc95671"
+  },
+  {
+    "guard": "p2-transport-wipe",
+    "file": "src/runtime/vault/slots/macVaultTransport.ts",
+    "test": "erases the reconstructed native failure frame",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "78db5716e4b169feea7ada95f901e5790e3919c3f6034f1cd3ddfb4b8dc95671"
+  },
+  {
+    "guard": "p2-unexpected-exit",
+    "file": "src/runtime/vault/slots/macVaultTransport.ts",
+    "test": "does not trust a native error frame after an unexpected exit code",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "78db5716e4b169feea7ada95f901e5790e3919c3f6034f1cd3ddfb4b8dc95671"
+  },
+  {
+    "guard": "p2-parser-code",
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "test": "preserves the validated cancelled failure",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "76f03428002407d389d58e425f7562d438f4f16df7e602ff9389ceb577e97330"
+  },
+  {
+    "guard": "p2-error-tail",
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "test": "scrubs invalid error frames on exit 1",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "76f03428002407d389d58e425f7562d438f4f16df7e602ff9389ceb577e97330"
+  },
+  {
+    "guard": "p2-native-missing",
+    "file": "native/darwin/VaultKey.swift",
+    "test": "FAIL native-status-itemMissing",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "adf3280a85cbacddbed3dd7e76fb2a82d3083502df1a0d5cd31e45d031dbebae"
+  },
+  {
+    "guard": "p2-native-locked",
+    "file": "native/darwin/VaultKey.swift",
+    "test": "FAIL native-status-keychainLocked",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "adf3280a85cbacddbed3dd7e76fb2a82d3083502df1a0d5cd31e45d031dbebae"
+  }
+]
