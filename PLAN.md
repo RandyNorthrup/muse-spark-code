@@ -25485,6 +25485,22 @@ launch and request regressions plus scoped gates, generated host inventory
 and every existing build cap. No full quality, disk-space implementation,
 paid/live calls, push or rebase. Record conflicts, audit and measured sizes
 in `docs/certification/m107-int.md`; W retains final delivery qualification.
+**FIXM107DK4 (2026-10-06, Kubuntu; final review repair).** Close RVM107DK3G's
+rename-overwrite, empty-name replacement and creation-adoption findings. All
+POSIX quarantine/restore renames use the existing native helper's Linux
+RENAME_NOREPLACE or Darwin RENAME_EXCL. Manifest publication links a staged
+file without replacement, exchanges an existing manifest atomically where
+supported, verifies displaced identity and rolls back/refuses a mismatch.
+Creation records the identity returned by the native mkdir/open port, which
+also rejects a birth timestamp older than the mkdir call. Every final
+empty-directory removal immediately compares a no-follow name stat against
+the held descriptor. Windows retains FILE_CREATE and no-replace handle
+renames. Keep native delivery within W's existing qualification handoff;
+missing helpers refuse without a Node rename fallback. Add regression tests,
+byte-exact red drills and the precise final same-user empty-directory residual
+to the DK certification and §9. No dependency, merge, live call or aggregate
+quality run; final tests use repository-default timeouts.
+
 **FIXM107DK2 (2026-10-06, Kubuntu).** Repair every RVM107DK2G finding.
 Replace pathname recursion with an identity-checked directory-handle walk:
 Linux uses pinned `/proc/self/fd` paths, Darwin uses openat/unlinkat/fstatat,
@@ -29056,6 +29072,16 @@ Regression tests and byte-exact red drills certify each fix. Keep startup at mos
 733.8 KiB, the original deferred group at most 32.1 KiB and each moved
 surface within 25 KiB. No dependency, gate relaxation, model call or merge.
 
+**M107-W continuation qualification (2026-10-06).** The new rig brief
+explicitly authorizes the final DK no-fast-forward merge and a complete
+unit/e2e suite in batches of at most three files, `--maxWorkers=3`, with the
+repository's default test timeout. Recheck the latest locally supplied main,
+run all requested static/build/package/reference/localization/host-API gates,
+fix merge failures without relaxing gates, and update the final integration
+record. Aggregate quality/coverage, hosted OS/editor/native and performance
+qualification remain with the lead; the prior scoped-only W restriction below
+is historical to the first delivery brief. No push or unlisted merge.
+
 **M107-W lane qualification (2026-10-06).** The rig brief explicitly forbids
 aggregate quality/whole-unit coverage in this lane. Run scoped complete files
 with default deadlines, all five typechecks and the required static/build/
@@ -30618,14 +30644,14 @@ M104 B/b–d supplies native/companion status and settings. These ports remain
 unbound on this base; no shipped fake stands in. See the exact handoff matrix
 in `docs/certification/m107.md`.
 
-**M107-W-DK4-review-block (2026-10-06).** RVM107DK3G reports a P1 POSIX
-rename destination overwrite and P2 final-empty-removal/creation-adoption
-races in the explicitly requested DK snapshot `54194ed2f`. FIXM107DK4 is
-separately assigned to DK. W preserves that snapshot and names the block;
-it does not accept these as harmless residuals or certify disk cleanup.
-The lead must integrate the repaired branch and its native/default-timeout
-race receipts before release. Existing older DK “no reviewed finding” wording
-is historical to that earlier review, not clearance of this re-review.
+**M107-W-DK4-review-block (resolved in W continuation, 2026-10-06).**
+The explicitly authorized no-fast-forward merge of final DK `bf84f179c`
+supersedes the requested `54194ed2f` snapshot. Preserve T3's `48e3b63c1`
+repairs and qualify no-replace renames, immediate held/name identity checks
+and native birth-time creation checks with the complete owning suites.
+The final empty-directory-name window is documented separately below;
+manifest-artifact growth/recovery and native delivery/platform receipts remain
+named qualifications, not clearance of production disk cleanup.
 
 **M107-W-T3-empty-removal-window (2026-10-06).** The cgroup and its parent
 are pinned, final removal resolves the leaf through the parent descriptor,
@@ -30700,35 +30726,48 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   dependency/containment boundary for W/lead, not a registered member action.
   Historical T/U/H snapshot/factory handoffs below
   are superseded only where the round-3 receipts explicitly close them.
-  **M107 DK integration qualifications.** Disk sampling and admission extend
-  S/G/C1, without guessing external leftover locations. U/H/W must supply the
-  remaining workspace/worktree/data/log/node-state watch targets, persisted
-  per-harness registry discovery/recovery, safe-point and pre-write adapter
-  bindings, manifest setting and surfaces. C1/C2/H mark install/build/worktree/
-  download admissions disk-heavy through the explicit fourth admission argument;
-  checks/browser checks are marked by default. W installs its table/locale
-  through the lazy factory port. M100/R consumes validated disk
-  headroom and refuses unknown/below-floor disk-heavy placement. M96c/M109
-  supplies archived/merged-and-clean proof for worktrees/dependency copies.
-  Lane 0 must measure OS leftovers on macOS/Windows; DK cannot certify the
-  Mac mini killed-browser receipt from Kubuntu. Cleanup requires a private, canonical base, a stored native directory identity
-  and marker hash, the marker read through the held root, and fresh tree-exit
-  proof. Null or absent identity/hash is report-only, including interrupted
-  creation intents. Creation immediately opens its random directory through the
-  pinned base, proves it empty and current-user-owned, writes through that
-  handle, and records fstat identity. `recordCreated` only reclassifies creations
-  made by this registry instance; an external proof cannot authorize adoption.
-  Every descended directory is opened without following links and compared with
-  its observed native identity and root device; Linux also compares the kernel
-  mount ID read through each held descriptor, so a same-device bind mount is
-  refused. Linux uses pinned fd paths;
-  Darwin uses openat/fstatat/unlinkat; Windows uses relative NtCreateFile and
-  handle disposition in the existing job helper. Final removal is empty-only.
-  No pathname recursive deletion or foreign-platform pathname fallback remains.
-  A refused walk can have removed some genuine tree content before discovering
-  an obstruction; it retains/reports the root or quarantine, never recursively
-  removes a replacement. Failed manifest stages are retained: even a stage name
-  can be exchanged after its creation handle was opened.
+
+**M107 DK integration qualifications.** Disk sampling and admission extend
+S/G/C1, without guessing external leftover locations. U/H/W must supply the
+remaining workspace/worktree/data/log/node-state watch targets, persisted
+per-harness registry discovery/recovery, safe-point and pre-write adapter
+bindings, manifest setting and surfaces. C1/C2/H mark install/build/worktree/
+download admissions disk-heavy through the explicit fourth admission argument;
+checks/browser checks are marked by default. W installs its table/locale
+through the lazy factory port. M100/R consumes validated disk
+headroom and refuses unknown/below-floor disk-heavy placement. M96c/M109
+supplies archived/merged-and-clean proof for worktrees/dependency copies.
+Lane 0 must measure OS leftovers on macOS/Windows; DK cannot certify the
+Mac mini killed-browser receipt from Kubuntu. Cleanup requires a private, canonical base, a stored native directory identity
+and marker hash, the marker read through the held root, and fresh tree-exit
+proof. Null or absent identity/hash is report-only, including interrupted
+creation intents. Creation uses the native mkdir/open port, requires empty/current-user
+ownership and a birth timestamp at or after its pre-mkdir clock sample,
+and returns fstat identity. Linux uses CLOCK_REALTIME_COARSE (the filesystem's
+clock) and statx STATX_BTIME; absent birth metadata refuses. The Node marker
+writer opens only that returned identity through the pinned base; a swap
+between the helper and Node open refuses. `recordCreated` only reclassifies creations
+made by this registry instance; an external proof cannot authorize adoption.
+Every descended directory is opened without following links and compared with
+its observed native identity and root device; Linux also compares the kernel
+mount ID read through each held descriptor, so a same-device bind mount is
+refused. Linux uses pinned fd paths;
+Darwin uses openat/fstatat/unlinkat; Windows uses relative NtCreateFile and
+handle disposition in the existing job helper. Final removal immediately compares the no-follow name identity with the
+held descriptor and is empty-only.
+No pathname recursive deletion or foreign-platform pathname fallback remains.
+A refused walk can have removed some genuine tree content before discovering
+an obstruction; it retains/reports the root or quarantine, never recursively
+removes a replacement. All manifest stages and displaced manifests are retained: even their names
+can be exchanged after creation/open. Publication is a no-replace hard link;
+POSIX updates use atomic exchange and verify the displaced identity, exchanging
+back and refusing a mismatch. Unsupported exchange refuses, without overwrite.
+Windows links through the held stage with NtSetInformationFile
+(FileLinkInformation, ReplaceIfExists=0), moving the held previous manifest to
+a no-replace backup name first and restoring it on failed publication when
+possible. That Windows two-step update is safe from overwrites but is not
+crash-atomic; an interruption can leave the previous manifest in its backup.
+See the named artifact/delivery qualification below.
 
 **M107-DK-tree-content (FIXM107DK2, owner rule).** Content a same-user process
 moves **into an already harness-created root** is treated as that tree's
@@ -30736,8 +30775,31 @@ content. This includes moved ordinary directories, files and symlink entries;
 symlink targets are never followed and a different-device directory is refused.
 A replacement of the root, quarantine or ancestor is not content moved into
 that held root. The owner accepts this single content-ownership rule; no
-reviewed P1/P2/P3 finding is left as a residual.
+reviewed P1/P2/P3 finding from FIXM107DK2 was left as a residual; the final
+FIXM107DK4 qualification below supersedes that earlier claim.
 
+- **M107-DK-empty-name-final-window (FIXM107DK4, lead-approved residual).**
+  Inside the harness's private 0700 base, a same-user process racing the
+  cleaner (for example with inotify) can still replace the exact random trash
+  name between the final no-follow identity recheck and rmdir/unlinkat. Only
+  an EMPTY substitute can be removed: non-empty substitutes are refused and
+  no-replace quarantine/restore renames never overwrite a file or directory.
+  No file content can be lost through this remaining directory-name window.
+  Same-user processes are not a security boundary, consistent with M104 L.
+  Follow-up: the platform lead qualifies the kernel interleaving receipts;
+  stronger isolation would require a distinct OS identity or private mount
+  namespace, outside this final lane's scope.
+- **M107-DK-manifest-artifacts (FIXM107DK4 operational qualification).**
+  Keeping staging/displaced names avoids a file-loss race at POSIX unlink:
+  an identity recheck cannot bind a subsequent name-based file deletion.
+  These are small registry metadata artifacts, never credentials or user
+  content. They can accumulate; no bounded reclamation or crash recovery of
+  Windows' two-step publication is claimed. Follow-up: W qualifies storage
+  growth and interrupted-publication recovery before shipping, and any
+  reclamation requires an isolated owner or equivalent safe deletion port.
+  Safety now: no unlink of these external names, no overwritten destination,
+  and missing/uncertain manifests refuse cleanup or leave identity-less intent
+  report-only; they never grant deletion authority.
 - **M107-DK-Windows-owner (updated FIXM107DK2).** The native helper now
   checks base/root/marker owner SID through their held handles. Node's
   manifest stat remains no Windows owner/DACL proof; no ACL is changed and
@@ -30752,8 +30814,17 @@ reviewed P1/P2/P3 finding is left as a residual.
   build/sign/disclaim and native interleaving receipts, Windows PowerShell 5.1
   compilation plus NT identity/reparse/empty-directory race receipts, and
   foreign editor/runtime delivery remain the platform lead's qualification.
-  Standalone foreign registry callers must install the same trusted helper
-  port; direct Node-only allocation on those platforms deliberately refuses.
+  Standalone callers on every platform must install the trusted file helper
+  port (`files`, or the full `directories` helper). Linux's default governor
+  binding expects `native/linux/muse-created`, compiled from the existing
+  `native/darwin/MuseSparkCreated.c` with MUSE_CREATED_STANDALONE and libcrypto;
+  W owns per-architecture acquisition/packaging alongside the already unshipped
+  resource bundles. Missing helpers, unsupported no-replace/exchange operations
+  or absent Linux birth metadata refuse; Node fs.rename is never a fallback.
+  Kubuntu's shared test helper compiles once in beforeAll. Windows publication
+  now checks held stage/previous-manifest owner SIDs too; its kernel hard-link
+  receipt and interrupted-update recovery remain owed to W. No editor-specific
+  alternative or unsupported shipping claim is made.
 
 - **FIXM107INT qualification (2026-10-06).** The four RVM107INT findings
   are repaired at their launch, queue and ownership boundaries; none is

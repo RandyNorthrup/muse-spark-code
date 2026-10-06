@@ -17,7 +17,7 @@ happened, not what was planned; superseded entries are kept.
 - M107 delivery candidate: eight machine-scoped resource settings and generated
   Help coverage; independent governor/admission/control/history artifacts with
   measured budgets, split/package guards and exec-event-v2 schema packaging.
-  Editor/runtime/actuator, disk re-review and M96/M96c/M100/M102 bindings remain
+  Editor/runtime/actuator, native delivery/storage and M96/M96c/M100/M102 bindings remain
   explicitly pending in the integration certification.
 
 ### Fixed
@@ -57,6 +57,15 @@ happened, not what was planned; superseded entries are kept.
 
 - Runtime resource settings preserve injected class stores' methods. ACP
   shows one full pause warning per conversation while continuing level updates.
+- Temp quarantine and restore use native no-replace renames. Manifest
+  publication links without replacement and verifies/rolls back POSIX exchanges;
+  stages and displaced manifests are retained to protect exchanged names.
+  Cleanup rechecks each directory name against its held identity immediately
+  before empty-only removal. Creation rejects an older directory swapped into
+  mkdir/open and binds the marker writer to the native creation identity.
+  The final same-user empty-trash-name window and native delivery/artifact
+  qualifications are recorded in PLAN §9 and the M107 DK certification.
+
 - Temp cleanup now walks identity-checked directory handles on Linux and in
   the native macOS/Windows helpers, refuses filesystem and Linux mount boundaries
   (including same-device bind mounts), and removes

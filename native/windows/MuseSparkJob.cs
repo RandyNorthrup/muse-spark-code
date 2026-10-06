@@ -448,6 +448,7 @@ public static class MuseSparkCreated {
   [StructLayout(LayoutKind.Sequential)] struct IoStatus { public IntPtr Status, Information; }
   [StructLayout(LayoutKind.Sequential)] struct Info { public uint Attributes; public System.Runtime.InteropServices.ComTypes.FILETIME Creation, Access, Write; public uint Volume, SizeHigh, SizeLow, Links, IndexHigh, IndexLow; }
   [DllImport("ntdll.dll")] static extern int NtCreateFile(out SafeFileHandle file, uint access, ref Attributes attributes, out IoStatus status, IntPtr allocation, uint fileAttributes, uint share, uint disposition, uint options, IntPtr ea, uint eaLength);
+  [DllImport("ntdll.dll")] static extern int NtSetInformationFile(SafeFileHandle file, out IoStatus status, IntPtr buffer, uint length, int kind);
   [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern SafeFileHandle CreateFileW(string name, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool GetFileInformationByHandle(SafeFileHandle file, out Info info);
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool GetFileInformationByHandleEx(SafeFileHandle file, int kind, IntPtr buffer, uint length);
@@ -506,14 +507,17 @@ public static class MuseSparkCreated {
     try { Marshal.WriteInt32(flags, 1 | 2 | 0x10); if (!SetFileInformationByHandle(file, 21, flags, 4)) Refuse(); }
     finally { Marshal.FreeHGlobal(flags); }
   }
-  static void Rename(SafeFileHandle source, SafeFileHandle parent, string trash) {
+  static void Rename(SafeFileHandle source, SafeFileHandle parent, string trash, bool link = false) {
     int rootOffset = IntPtr.Size, lengthOffset = rootOffset + IntPtr.Size, nameOffset = lengthOffset + 4;
     byte[] name = Encoding.Unicode.GetBytes(trash); IntPtr buffer = Marshal.AllocHGlobal(nameOffset + name.Length);
     try {
       for (int i = 0; i < nameOffset; i++) Marshal.WriteByte(buffer, i, 0);
       Marshal.WriteIntPtr(buffer, rootOffset, parent.DangerousGetHandle()); Marshal.WriteInt32(buffer, lengthOffset, name.Length);
       Marshal.Copy(name, 0, IntPtr.Add(buffer, nameOffset), name.Length);
-      if (!SetFileInformationByHandle(source, 3, buffer, (uint)(nameOffset + name.Length))) Refuse();
+      if (link) {
+        IoStatus status;
+        if (NtSetInformationFile(source, out status, buffer, (uint)(nameOffset + name.Length), 11) < 0) Refuse();
+      } else if (!SetFileInformationByHandle(source, 3, buffer, (uint)(nameOffset + name.Length))) Refuse();
     } finally { Marshal.FreeHGlobal(buffer); }
   }
   static void Marker(SafeFileHandle root, string id, string expected) {
@@ -537,7 +541,27 @@ public static class MuseSparkCreated {
     }
   }
   public static string Execute(string[] args) {
-    if (args.Length != 7 || !Regex.IsMatch(args[3], "^muse-tree-[0-9a-f-]+$") || !Regex.IsMatch(args[4], "^[0-9a-f-]+$")) Refuse();
+    if (args.Length != 7) Refuse();
+    if (args[0] == "publish") {
+      using (SafeFileHandle parent = CreateFileW(args[1], ACCESS, 7, IntPtr.Zero, 3, 0x02000000 | FILE_FLAG_OPEN_REPARSE_POINT, IntPtr.Zero)) {
+        if (parent.IsInvalid) Refuse(); Private(parent); Match(Sample(parent), args[2]);
+        using (SafeFileHandle stage = Open(parent, args[3], false, false)) {
+          Owned(stage); Info held = Sample(stage); Match(held, args[6]);
+          if ((held.Attributes & (DIRECTORY | REPARSE)) != 0) Refuse();
+          if (args[5] == "") Rename(stage, parent, args[4], true);
+          else using (SafeFileHandle previous = Open(parent, args[4], false, false)) {
+            Match(Sample(previous), args[5]); Owned(previous);
+            // Windows has no atomic exchange here: preserve the held old file under a no-replace name.
+            Rename(previous, parent, args[3] + ".previous");
+            try { Rename(stage, parent, args[4], true); }
+            catch { try { Rename(previous, parent, args[4]); } catch { /* Retain both files on a raced name. */ } throw; }
+          }
+          using (SafeFileHandle current = Open(parent, args[4], false, false)) { Match(Sample(current), args[6]); }
+          return "{\"published\":true}";
+        }
+      }
+    }
+    if (!Regex.IsMatch(args[3], "^muse-tree-[0-9a-f-]+$") || !Regex.IsMatch(args[4], "^[0-9a-f-]+$")) Refuse();
     using (SafeFileHandle parent = CreateFileW(args[1], ACCESS, 7, IntPtr.Zero, 3, 0x02000000 | FILE_FLAG_OPEN_REPARSE_POINT, IntPtr.Zero)) {
       if (parent.IsInvalid) Refuse(); Private(parent); Match(Sample(parent), args[2]);
       if (args[0] == "create") {

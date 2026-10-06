@@ -104,6 +104,13 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
             () => clock.now(),
             {
               directories,
+              files:
+                directories ??
+                ((args) =>
+                  runTreeProgram(
+                    path.join(__dirname, '..', 'native', 'linux', 'muse-created'),
+                    args,
+                  )),
               exited: (owner) => Promise.resolve(state.host?.hasRetired(owner) ?? false),
               archivedAndClean: () =>
                 Promise.reject(new Error('Archive/clean proof is not installed')),
