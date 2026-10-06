@@ -538,6 +538,13 @@ const whatsNewPageOptions = {
   entryPoints: { [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY },
 }
 
+// M103 U: the host-rendered STL page has its own entry, never a chat import.
+const makerPreviewOptions = {
+  ...webviewOptions,
+  splitting: false,
+  entryPoints: { makerPreview: 'src/webview/maker/previewMain.ts' },
+}
+
 function listIntegrationTests() {
   return readdirSync(INTEGRATION_TEST_DIR, { recursive: true })
     .map(String)
@@ -608,6 +615,7 @@ if (isWatch) {
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
     esbuild.context(whatsNewPageOptions),
+    esbuild.context(makerPreviewOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -653,6 +661,7 @@ if (isWatch) {
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
     whatsNewPage: esbuild.build(whatsNewPageOptions),
+    makerPreview: esbuild.build(makerPreviewOptions),
   }
   const acp = esbuild.build(acpOptions)
   const builds = [...Object.values(shipped), acp]

@@ -11,8 +11,8 @@ import type { WebviewState } from './state/snapshot'
 /** Where the host's messages arrive: `message` events whose `data` is the message. */
 export type MessageSource = Pick<Window, 'addEventListener' | 'removeEventListener'>
 
-export interface HostBridge {
-  post(message: WebviewToHostMessage): void
+export interface HostBridge<Message = WebviewToHostMessage> {
+  post(message: Message): void
   /** The state saved before the document last went away, unvalidated (`restoredUiState` checks it). */
   savedState(): unknown
   saveState(state: WebviewState): void
@@ -20,7 +20,9 @@ export interface HostBridge {
 }
 
 /** VS Code's bridge; `messages` is the window VS Code posts the host's messages to. */
-export function vsCodeHostBridge(messages: MessageSource): HostBridge {
+export function vsCodeHostBridge<Message = WebviewToHostMessage>(
+  messages: MessageSource,
+): HostBridge<Message> {
   const api = acquireVsCodeApi()
   return {
     post: (message) => {

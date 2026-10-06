@@ -879,6 +879,26 @@ for (const key of modelTextKeys) {
 // emitted JS chunk must be reachable and packaged; stale output is refused.
 const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
 const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
+// M103 U: only makerEntry's lazy loader may be eager. Guard every UI helper,
+// including future files, rather than relying solely on the named entry list.
+for (const [file, output] of Object.entries(webviewMeta.outputs)) {
+  if (eagerWebview.has(file)) {
+    for (const source of Object.keys(output.inputs)) {
+      if (source.startsWith('src/webview/maker/'))
+        problems.push(`Maker UI must stay deferred: ${source}`)
+    }
+  }
+}
+const makerPreviewMeta = JSON.parse(readFileSync('dist/meta/makerPreview.json', 'utf8'))
+for (const source of Object.keys(makerPreviewMeta.inputs)) {
+  if (
+    source.startsWith('src/core/') ||
+    source.startsWith('src/host/') ||
+    source.startsWith('src/shared/l10n/') ||
+    source.startsWith('node_modules/react')
+  )
+    problems.push(`Maker preview must stay portable and independent: ${source}`)
+}
 for (const file of eagerWebview) {
   const sources = Object.keys(webviewMeta.outputs[file].inputs)
   for (const source of sources) {
@@ -935,7 +955,10 @@ const validationExports = new Set(
   Object.keys(createRequire(import.meta.url)(path.resolve('dist/validation.js'))),
 )
 const nodeMetafiles = readdirSync('dist/meta')
-  .filter((name) => !['validation.json', 'webview.json', 'whatsNewPage.json'].includes(name))
+  .filter(
+    (name) =>
+      !['validation.json', 'webview.json', 'whatsNewPage.json', 'makerPreview.json'].includes(name),
+  )
   .map((name) => `dist/meta/${name}`)
 nodeMetafiles.push('dist/meta-acp/acp.json')
 const validationReaders = new Set()

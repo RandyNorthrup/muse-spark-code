@@ -15,6 +15,8 @@ import {
   MAKER_PROTOCOL_VERSION,
 } from './constants'
 import { checkCommandSchema } from './checkCommandSchema'
+import { makerMeshMessageSchema } from './makerProtocolPreview'
+export { makerMeshMessageSchema } from './makerProtocolPreview'
 
 const nonnegative = z.number().check(z.gte(0))
 export const makerPointSchema = z.object({ x: z.number(), y: z.number(), z: z.number() })
@@ -254,6 +256,7 @@ export type MakerPreview = z.infer<typeof makerPreviewSchema>
 
 const envelope = { v: z.literal(MAKER_PROTOCOL_VERSION) }
 export const makerHostMessageSchema = z.discriminatedUnion('type', [
+  makerMeshMessageSchema,
   z.strictObject({
     ...envelope,
     type: z.literal('makerApproval'),

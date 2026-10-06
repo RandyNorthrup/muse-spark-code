@@ -1,0 +1,96 @@
+.maker-surface {
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+}
+
+.maker-toolbar {
+  position: fixed;
+  top: 48px;
+  right: 8px;
+  max-width: calc(100% - 16px);
+  z-index: 30;
+  padding: 6px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-editorWidget-border);
+}
+
+.maker-toolbar,
+.maker-stop,
+.maker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.maker-surface button {
+  min-height: 26px;
+}
+
+.maker-surface .modal-backdrop {
+  z-index: 40;
+}
+
+.maker-surface .modal {
+  max-height: calc(100vh - 100px);
+}
+
+.maker-surface .modal-body {
+  overflow-y: auto;
+}
+
+.maker-surface .modal-body .maker-stop-slot {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-block: 4px;
+  background: var(--vscode-editorWidget-background);
+}
+
+.maker-surface pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.maker-surface label {
+  display: block;
+  margin-block: 8px;
+}
+
+.maker-surface input:not([type='checkbox']),
+.maker-surface select,
+.maker-surface textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  font: inherit;
+}
+
+.maker-surface :focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.maker-surface fieldset {
+  min-width: 0;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.maker-surface > p[role='status'] {
+  position: fixed;
+  bottom: 16px;
+  left: 8px;
+  max-width: calc(100% - 32px);
+  padding: 8px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-editorWidget-border);
+  z-index: 31;
+}
+
+.maker-log {
+  padding-inline-start: 24px;
+}

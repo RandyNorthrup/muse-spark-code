@@ -1,0 +1,31 @@
+body {
+  margin: 16px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-editorWidget-background);
+  font-family: var(--vscode-font-family);
+}
+
+[id='maker-canvas'] {
+  display: block;
+  width: min(100%, 640px);
+  aspect-ratio: 1;
+  margin: auto;
+}
+
+.maker-preview-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.maker-preview-controls button {
+  min-height: 28px;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border: 1px solid var(--vscode-input-border);
+}
+
+.maker-preview-controls button:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}

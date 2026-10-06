@@ -23,6 +23,18 @@ export function webviewStartupOutputs(meta) {
 // and every unclassified deferred output retain the existing 50 KiB total cap.
 export const ADDITIONAL_WEBVIEW_BUDGETS = [
   {
+    name: 'maker surfaces',
+    entries: [
+      'src/webview/maker/MakerSurface.tsx',
+      'src/webview/maker/ApprovalDialog.tsx',
+      'src/webview/maker/StopChip.tsx',
+      'src/webview/maker/DevicePanel.tsx',
+      'src/webview/maker/MachineWizard.tsx',
+      'src/webview/maker/DeviceLog.tsx',
+    ],
+    budgetKiB: 25,
+  },
+  {
     name: 'code highlighting',
     entries: ['src/webview/components/HighlightedCode.tsx'],
     budgetKiB: 125,

@@ -10,11 +10,13 @@ import { createRoot } from 'react-dom/client'
 import { lazy, Suspense, useSyncExternalStore } from 'react'
 import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
 import type { WebviewToHostMessage } from '../shared/protocol'
+import type { MakerSurfaceMessage } from '../shared/makerProtocol'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
+import { listenForMaker } from './makerEntry'
 import { installEmbeddedTable } from './installTable'
 import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore, type UiStore } from './state/store'
@@ -98,7 +100,8 @@ function mountTasks(element: Element): void {
 }
 
 function mountChat(element: Element): void {
-  const host = vsCodeHostBridge(window)
+  const host = vsCodeHostBridge<WebviewToHostMessage | MakerSurfaceMessage>(window)
+  listenForMaker(host)
   // What throws here reaches the host's log (M39): a render the boundary
   // caught, an error or a rejected promise nothing handled, a host message.
   // Window errors, rejected promises and boundary failures also post the

@@ -13,6 +13,14 @@ export const HARNESS_PATH = 'test/harness/index.html'
 export const PAGE_TIMEOUT_MS = 120_000
 // Every `?scenario=` test/harness/index.html plays.
 export const SCENARIOS = [
+  'maker-approval',
+  'maker-approval-narrow',
+  'maker-serial-approval',
+  'maker-devices',
+  'maker-hardware-off',
+  'maker-wizard',
+  'maker-log',
+  'maker-preview',
   'empty',
   'signin',
   'signin-nocli',
@@ -213,6 +221,7 @@ export function serveRepo(repoRoot) {
  * scrollbars headless Chrome otherwise hides, as its check measures one.
  */
 export const SIZED_SCENARIOS = {
+  'maker-approval-narrow': { width: 320, ready: '#maker-approval-title' },
   'judge-narrow': { width: 320, ready: '.judge-status' },
   judge: { width: 690, ready: '.judge-status' },
   'judge-slow': { width: 690, ready: '.judge-status' },

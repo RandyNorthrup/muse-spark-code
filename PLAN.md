@@ -18754,6 +18754,17 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**M103U bounded rig verification (2026-10-06, Win11).** The lane brief
+explicitly forbids aggregate quality/full-unit runs and branch merges.
+Run the complete owning files in groups of at most three with the prescribed
+rig worker/timeout settings, all five typechecks, changed-file lint/format,
+localization, plain Knip, host inventory, duplication, build/caps and axe on
+every new harness scene. Commit locally with unchanged hooks; no push,
+credentials, physical operation or model call. Full quality and installed
+editor/cross-platform qualification remain with W/E/lead. Help catalog and
+reference tooling are absent on this integration base, as already recorded
+by I/0; joining that independent facility stays with W/lead.
+
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
 test files, deliberate failures, typecheck, scoped lint/format, deadcode,
@@ -18909,6 +18920,41 @@ ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
+
+**M103U shared surfaces (2026-10-06, Win11).** Build the approval dialog,
+independent Stop chip, devices/serial panel, secretless machine registration
+wizard, local device log and in-house WebGL preview behind generic HostBridge
+and makerProtocol only. Mount the shared surfaces through a lazy entry;
+each optional view has its own dynamic import. Echo the engine's complete
+approval snapshot once, reject dismissal/expiry, and disable attended actions
+when host admission is false; Stop remains reachable in every admission state.
+The engine retains the binding and revalidates at dispatch. No classifier or
+guard is reproduced here. Add only a bounded makerMesh host message with the
+host-owned artifact UUID: the existing preview metadata has no geometry and
+cannot render an STL by itself. Its own browser page accepts only matching
+validated geometry, has no file/network loader and stays within 25 KiB.
+The first U build proves the standalone preview's imports pull the browser's
+entire English fallback through constants.ts (152.1 KiB, over its 25 KiB
+cap). Keep the same makerMesh schema re-exported from makerProtocol.ts,
+with its implementation in narrow makerProtocolPreview.ts and import-free
+makerPreviewConstants.ts (re-exported by constants.ts). This follows the
+existing browser-runtime constants pattern. The page reads only this
+projection of the same protocol, avoiding React/English/core imports;
+no cap is raised.
+The real VSIX allowlist regression fails when the new preview page is omitted;
+include only its two built script/style assets in .vscodeignore. Final host
+preview HTML, adapter routing and package qualification remain with W.
+U's production receipt is 434.0 KiB activation, 798.7 KiB browser startup,
+22.8 KiB lazy maker views and 22.0 KiB standalone preview. All existing caps
+pass unchanged. The browser's inline English fallback and tiny loader grow
+about 4.2 KiB against I/0; D83's final zero-growth qualification remains with
+W/E/lead, as already recorded by the integration lane. UI certification:
+docs/certification/m103-u.md.
+Owning fake suites, intentional guard failures with byte-exact restoration,
+localized harness scenes/axe, static gates and unchanged build caps supply
+the lane evidence. V/R own actual adapters and W owns final command/tool and
+package wiring; native plugins use the same bridge or companion, while ACP
+uses its editor permission prompt. No hardware or paid/model calls.
 
 **M103INT integration and lanes I/0 (2026-10-05, Kubuntu).** Merge only
 m103/sfix, m103/dfix, m103/pfix2, m103/mfix3, m103/x, m103/afix and

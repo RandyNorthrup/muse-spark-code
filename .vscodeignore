@@ -40,6 +40,8 @@
 !dist/webview/main.css
 !dist/webview/whatsNew.js
 !dist/webview/whatsNew.css
+!dist/webview/makerPreview.js
+!dist/webview/makerPreview.css
 !media/icon.svg
 !media/icon.png
 !resources/walkthrough/**

@@ -137,6 +137,7 @@ const BUDGETS = [
   // What's New's page script (M99): it only passes clicks back to the host.
   // 0.7 KiB when made, plus 15%, rounded up to 25 KiB.
   { path: 'dist/webview/whatsNew.js', budgetKiB: 25 },
+  { path: 'dist/webview/makerPreview.js', budgetKiB: 25 },
   // The ACP agent (M63, PLAN.md D62), a process of its own installed once,
   // never loaded by VS Code: the engine without the webview or the Model API
   // backend (dist/modelApi.js, M57), plus the ACP SDK and the classic zod it

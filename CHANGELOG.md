@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Shared lazy maker views for exact per-action approval, independent Stop,
+  device/serial controls, secretless machine registration and the local device
+  log, plus a separate bounded WebGL STL preview page. All surfaces use the
+  portable maker protocol and include real translations in fourteen languages.
+  Final command/tool, host adapter and package wiring remains in M103 W/V/R.
+
 - A consolidated maker text region for approvals, hardware admission and
   physical-stop warnings, target/payload analysis, logs, previews and device
   counts, with real translations in all fourteen UI languages. Maker commands
