@@ -9,6 +9,8 @@ import { webviewDeferredBudgetGroups, webviewStartupOutputs } from './lib/webvie
 const BYTES_PER_KIB = 1024
 // M99: bound the generated notes independently of their ZIP compression.
 const WHATS_NEW_CONTENT_BUDGET_KIB = 40
+// FIXM112U: independently measured question closure +15%, rounded to 25 KiB.
+const QUESTION_UI_BUDGET_KIB = 25
 
 /**
  * @type {ReadonlyArray<{ path: string; budgetKiB: number }>}
@@ -166,7 +168,10 @@ for (const { path, budgetKiB } of BUDGETS) {
 // Each new lazy closure has its own cap; old surfaces and unclassified
 // deferred helpers stay under TRAIN13B's unchanged aggregate 50 KiB cap.
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
-for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(webview)) {
+for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(
+  webview,
+  QUESTION_UI_BUDGET_KIB,
+)) {
   const sizeKiB = outputs.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   if (sizeKiB > budgetKiB) hasFailure = true
   console.log(

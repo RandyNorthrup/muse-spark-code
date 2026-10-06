@@ -41,7 +41,7 @@ describe('webview import budgets', () => {
   })
 
   it('keeps legacy shared/unclassified bytes charged to their original cap', () => {
-    const groups = webviewDeferredBudgetGroups(metafile())
+    const groups = webviewDeferredBudgetGroups(metafile(), 25)
     expect(groups.find(({ name }) => name === 'deferred JS')).toEqual({
       name: 'deferred JS',
       budgetKiB: 50,
@@ -53,12 +53,41 @@ describe('webview import budgets', () => {
     })
   })
 
+  it('assigns question-only bytes their own cap without moving legacy shared bytes', () => {
+    const meta = metafile()
+    const question = 'dist/webview/chunks/questions.js'
+    const helper = 'dist/webview/chunks/question-helper.js'
+    meta.outputs[MAIN].imports.push(edge(question, 'dynamic-import'))
+    meta.outputs[question] = output(
+      [edge(CORE), edge(helper), edge(SHARED)],
+      'src/webview/components/QuestionUi.tsx',
+    )
+    meta.outputs[helper] = output()
+    const groups = webviewDeferredBudgetGroups(meta, 25)
+    expect(groups.find(({ name }) => name === 'question UI')).toEqual({
+      name: 'question UI',
+      entries: [
+        'src/webview/components/QuestionUi.tsx',
+        'src/webview/components/QuestionCard.tsx',
+        'src/webview/components/OpenQuestionsChip.tsx',
+      ],
+      budgetKiB: 25,
+      outputs: [question, helper, SHARED],
+    })
+    expect(groups.find(({ name }) => name === 'deferred JS')?.outputs).toEqual([
+      HISTORY,
+      SHARED,
+      UNKNOWN,
+    ])
+  })
+
   it('charges a statically re-imported lazy module and its dependencies to startup', () => {
     const meta = metafile()
     meta.outputs[MAIN].imports.push(edge(HIGHLIGHT))
     expect(webviewStartupOutputs(meta)).toEqual([MAIN, CORE, HIGHLIGHT, GRAMMARS, SHARED])
     expect(
-      webviewDeferredBudgetGroups(meta).find(({ name }) => name === 'code highlighting')?.outputs,
+      webviewDeferredBudgetGroups(meta, 25).find(({ name }) => name === 'code highlighting')
+        ?.outputs,
     ).toEqual([])
   })
 

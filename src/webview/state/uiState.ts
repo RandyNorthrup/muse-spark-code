@@ -2076,6 +2076,7 @@ function applyAgentEvent(
       const question: PendingQuestion = {
         userInputId: event.userInputId,
         questions: event.questions,
+        askedAt: at,
       }
       return announce(
         withToolEntry(
@@ -2111,7 +2112,12 @@ function applyAgentEvent(
                         ...entry.question,
                         state: settledState,
                         isSubmitted: false,
-                        isNoLongerOpen: false,
+                        isNoLongerOpen:
+                          settledState === 'open' &&
+                          state.openQuestions.every(
+                            (record) =>
+                              record.userInputId !== event.userInputId || record.state !== 'open',
+                          ),
                       },
                 questionOutcome: {
                   outcome: event.outcome,

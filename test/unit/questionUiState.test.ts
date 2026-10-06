@@ -44,6 +44,19 @@ describe('M112 surface question state', () => {
     expect(transcriptEntrySchema.safeParse(retired.transcript[0]).success).toBe(true)
     expect(uiReducer(retired, { type: 'questionJump', direction: 'next' })).toBe(retired)
     expect(uiReducer(retired, { type: 'questionSubmitted', userInputId: 'q-1' })).toBe(retired)
+    const deferred = host(
+      {
+        type: 'agentEvent',
+        event: {
+          type: 'questionSettled',
+          userInputId: 'q-1',
+          outcome: 'deferred',
+          answers: [],
+        },
+      },
+      retired,
+    )
+    expect(deferred.transcript[0]).toMatchObject({ question: { isNoLongerOpen: true } })
     const terminal = host(
       {
         type: 'agentEvent',

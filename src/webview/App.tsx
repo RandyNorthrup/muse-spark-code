@@ -60,7 +60,7 @@ import type {
 import type { GitFormEdit } from './state/gitState'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { AttentionDock } from './components/AttentionDock'
-import { QuestionSurface } from './components/QuestionCard'
+import { QuestionSurface } from './components/QuestionSurface'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
 import { DiffTally } from './components/DiffTally'
 import { EffortSlider } from './components/EffortSlider'

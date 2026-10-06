@@ -83,7 +83,40 @@ function sizeFixture(sharedBytes) {
   return spawnSync(process.execPath, [SIZE_GATE], { cwd: built.fixture, encoding: 'utf8' })
 }
 
+function questionSizeFixture(bytes) {
+  sizeFixture(0)
+  const metaPath = path.join(built.fixture, 'dist/meta/webview.json')
+  const meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+  const file = 'dist/webview/question.js'
+  meta.outputs[ENTRY].imports.push({ path: file, kind: 'dynamic-import', external: false })
+  meta.outputs[file] = { imports: [], entryPoint: 'src/webview/components/QuestionUi.tsx' }
+  writeFileSync(path.join(built.fixture, file), Buffer.alloc(bytes))
+  writeFileSync(metaPath, JSON.stringify(meta))
+  return spawnSync(process.execPath, [SIZE_GATE], { cwd: built.fixture, encoding: 'utf8' })
+}
+
 describe('the production webview chunks (FIX78W)', () => {
+  it('keeps the question renderer and dock in one independently budgeted lazy closure', () => {
+    for (const name of ['QuestionCard', 'QuestionUi', 'OpenQuestionsChip']) {
+      const source = `src/webview/components/${name}.tsx`
+      const owners = Object.entries(built.outputs).filter(([, output]) =>
+        Object.hasOwn(output.inputs, source),
+      )
+      expect(owners).toHaveLength(1)
+      expect(initialOutputs().has(owners[0][0])).toBe(false)
+      expect(built.outputs[owners[0][0]].entryPoint).toBe('src/webview/components/QuestionUi.tsx')
+    }
+  })
+
+  it('enforces the question closure cap independently of the full legacy deferred group', () => {
+    const withinBudget = questionSizeFixture(25 * 1024)
+    expect(withinBudget.status, withinBudget.stdout + withinBudget.stderr).toBe(0)
+    expect(withinBudget.stdout).toContain('question UI: 25.0 KiB (budget 25 KiB)')
+    const overflow = questionSizeFixture(25 * 1024 + 1)
+    expect(overflow.status).toBe(1)
+    expect(overflow.stdout).toContain('OVER dist/webview question UI:')
+  })
+
   it('keeps all initial JavaScript within the unchanged 900 KiB cap', () => {
     const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
     expect(bytes).toBeLessThanOrEqual(900 * 1024)

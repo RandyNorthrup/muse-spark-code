@@ -134,7 +134,7 @@ function expectRewindRequest(
 }
 
 /** The agent asks one single-choice question and the user picks Red. */
-function askColour() {
+async function askColour() {
   deliver({
     type: 'agentEvent',
     event: {
@@ -152,7 +152,7 @@ function askColour() {
       ],
     },
   })
-  fireEvent.click(within(screen.getByRole('main')).getByRole('radio', { name: 'Red' }))
+  fireEvent.click(await within(screen.getByRole('main')).findByRole('radio', { name: 'Red' }))
 }
 
 function renderReady(status: 'signedIn' | 'signedOut' = 'signedIn') {
@@ -942,7 +942,7 @@ describe('App approval card: one decision per stage (D26)', () => {
 })
 
 describe('App transcript (M4)', () => {
-  it('decides an approval from its card and answers a question from its card', () => {
+  it('decides an approval from its card and answers a question from its card', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'agentEvent',
@@ -1003,7 +1003,7 @@ describe('App transcript (M4)', () => {
     expect(screen.getByText('Allow once')).toBeDisabled()
     stageUpdate(1)
     expect(screen.getByText('Allow once')).toBeEnabled()
-    askColour()
+    await askColour()
 
     fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
     expect(postMessage).toHaveBeenLastCalledWith({
@@ -2377,9 +2377,9 @@ describe('App webview and UI state (M25)', () => {
     expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'openFile' }))
   })
 
-  it('posts a question answer once, however often Submit is pressed', () => {
+  it('posts a question answer once, however often Submit is pressed', async () => {
     const postMessage = renderReady()
-    askColour()
+    await askColour()
 
     fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
     fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))

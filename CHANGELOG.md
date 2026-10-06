@@ -12,7 +12,14 @@ happened, not what was planned; superseded entries are kept.
 - Question snapshots now retire stale open cards and their controls together;
   known terminal states survive same-session history refreshes. The attention
   dock prioritizes the newest waiting question over past reminders while
-  preserving a focused or drafted question.
+  preserving a focused question and retaining inactive drafts.
+
+### Changed
+
+- Question choices, explanations, countdowns and dock controls now load in a
+  separate lazy browser chunk on the first question. A minimal arrival card
+  stays visible while loading, and the shared draft survives loading and
+  remounting. The chunk has its own 25 KiB budget; existing caps are unchanged.
 
 ## [0.14.1] - 2026-10-05
 

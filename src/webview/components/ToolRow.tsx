@@ -37,7 +37,9 @@ import {
 } from '../toolPresentation'
 import { CloseIcon, ExpandChevron, FileIcon, RewindIcon } from './icons'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
-import { QuestionCard, type QuestionCardProps, useAttentionSurface } from './QuestionCard'
+import type { QuestionCardProps } from './QuestionCard'
+import { useAttentionSurface } from './QuestionSurface'
+import { DeferredQuestionCard } from './DeferredQuestionUi'
 import { ElicitationCard, type ElicitationCardProps } from './ElicitationCard'
 import { Clipped, DiffTable } from './ToolBlocks'
 import {
@@ -702,7 +704,7 @@ function ToolRowView({
         </div>
       )}
       {entry.question === undefined ? null : (
-        <QuestionCard
+        <DeferredQuestionCard
           key={`${attention?.sessionId ?? ''}:${entry.question.userInputId}`}
           question={entry.question}
           onAnswer={onAnswer}

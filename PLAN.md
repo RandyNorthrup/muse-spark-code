@@ -267,6 +267,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Webview original deferred surfaces    | ≤ 50 KiB aggregate for the original seven surfaces and unclassified/shared deferred helpers (TRAIN13B; unchanged in STARTDIET)                                                                                                                                                                                                                                                                         |
 | Webview highlighting import closure   | ≤ 125 KiB (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                         |
 | Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
+| Webview question UI import closure    | ≤ 25 KiB (FIXM112U: first question; 10.8 KiB +15%, rounded up to 25 KiB; separate from the unchanged unclassified deferred group)                                                                                                                                                                                                                                                                      |
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
 | `.vsix`                               | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
 | `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
@@ -18380,13 +18381,14 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
 - [x] P2-2: one same-session history merge preserves approval outcomes and
       question cards/outcomes, including retired terminal records.
 - [x] P2-3: approvals first, then newest waiting question; protect a question
-      draft or focused card. Reminders rank only among deferred questions.
-- [ ] P3: separate lazy question renderer/dock region/chip from the small
+      focus or typing in its draft; retain inactive drafts. Reminders rank only
+      among deferred questions.
+- [x] P3: separate lazy question renderer/dock region/chip from the small
       startup draft context and approval shell. Keep a minimal loading card;
       preserve drafts. Measure startup against the 3 KiB target and allocate the
       question closure measured size +15%, rounded up to 25 KiB, independently
       of the unchanged unclassified deferred cap.
-- [ ] Complete-file regressions, red drills with byte-exact restoration,
+- [x] Complete-file regressions, red drills with byte-exact restoration,
       scoped rig gates and hooks-on local commits; record in
       `docs/certification/m112-u.md`. Lead retains aggregate quality and existing
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
@@ -19599,6 +19601,30 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM112U-P3-STARTUP (RVM112U performance target).** The question renderer,
+  dock region and chip now occupy one independently budgeted lazy closure
+  (25 KiB: measured size +15%, rounded up to 25 KiB). Startup growth is 4.74 KiB, exceeding
+  the 3 KiB target; final measurements are in `docs/certification/m112-u.md`.
+  Safe for now: every existing hard cap and the unclassified 50 KiB cap stays
+  unchanged, the question UI is absent from startup, and placeholder/draft
+  regressions pass. The remaining synchronous reconciliation, delivery,
+  shared draft context and loading shell serve all React hosts. Moving those
+  state/delivery paths behind an async boundary needs an ordered-message
+  design beyond this bounded renderer repair. Follow-up: lead/build owner
+  allocates that startup work at Q/U/A integration; the 3 KiB acceptance
+  target remains uncertified.
+
+- **FIXM112U-INTEGRATION (inherited Q/A/editor holds).** Backend
+  `deferQuestions` implementations and question-model-text readers, generated
+  host API contributions, public README/reference updates and unseen-session
+  History counts remain with their named producer/docs lanes. The shared
+  React fixes apply to every host consuming this webview; no adapter is
+  claimed as newly shipped. Safe for this unmerged lane: scoped surface
+  regression tests and hard budgets pass; no live or paid call occurs.
+  Follow-up: lead integrates Q/U/A, refreshes the host record and absent help
+  catalogue, runs aggregate quality and the editor/backend matrix. These are
+  inherited integration limits, not deferred RVM112U lifecycle findings.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

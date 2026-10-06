@@ -7,7 +7,8 @@ import {
 } from '../../src/shared/constants'
 import { QUESTION_STATES } from '../../src/shared/questions'
 import { AttentionDock, type AttentionDockProps } from '../../src/webview/components/AttentionDock'
-import { QuestionCard, QuestionSurface } from '../../src/webview/components/QuestionCard'
+import { QuestionCard } from '../../src/webview/components/QuestionCard'
+import { QuestionSurface } from '../../src/webview/components/QuestionSurface'
 import type {
   PendingElicitation,
   PendingQuestion,
@@ -81,6 +82,13 @@ function scene(
     </QuestionSurface>
   )
 }
+async function mountScene(...args: Parameters<typeof scene>) {
+  const view = render(scene(...args))
+  await act(async () => {
+    await import('../../src/webview/components/QuestionUi')
+  })
+  return view
+}
 function dock() {
   return screen.getByRole('region')
 }
@@ -92,20 +100,54 @@ afterEach(() => {
   vi.useRealTimers()
 })
 describe('M112 attention dock and the two views', () => {
-  it.each(['focus', 'draft'])(
+  it('lets a new waiting question replace an unfocused retained draft without losing it', async () => {
+    const actions = group([waitingQuestion()])
+    const { rerender } = await mountScene(actions)
+    const input = within(dock()).getByLabelText('Other: Colour')
+    act(() => {
+      input.focus()
+    })
+    fireEvent.change(input, { target: { value: 'Teal' } })
+    const composer = document.createElement('textarea')
+    composer.value = 'typing'
+    document.body.append(composer)
+    act(() => {
+      composer.focus()
+    })
+    const newest = waitingQuestion({
+      userInputId: 'q-2',
+      askedAt: 2000,
+      questions: [{ ...questionFixture().questions[0]!, header: 'Newest' }],
+    })
+    rerender(scene({ ...actions, questions: [questionFixture(), newest] }))
+    expect(within(dock()).getByRole('group', { name: 'Newest' })).toBeVisible()
+    expect(composer).toHaveFocus()
+    rerender(scene({ ...actions, questions: [questionFixture()] }))
+    fireEvent.click(within(dock()).getByRole('button', { name: '1 open question' }))
+    expect(within(dock()).getByLabelText('Other: Colour')).toHaveValue('Teal')
+    composer.remove()
+  })
+
+  it('prefers the last arrival when waiting questions have matching timestamps', async () => {
+    const newest = waitingQuestion({
+      userInputId: 'q-2',
+      questions: [{ ...questionFixture().questions[0]!, header: 'Newest' }],
+    })
+    await mountScene(group([waitingQuestion(), newest]))
+    expect(within(dock()).getByRole('group', { name: 'Newest' })).toBeVisible()
+  })
+
+  it.each(['focus', 'typing'])(
     'protects a question with %s when a newer waiting question arrives',
-    (protection) => {
+    async (protection) => {
       const actions = group([waitingQuestion()])
-      const { rerender } = render(scene(actions))
+      const { rerender } = await mountScene(actions)
       const input = within(dock()).getByLabelText('Other: Colour')
       act(() => {
         input.focus()
       })
-      if (protection === 'draft') {
+      if (protection === 'typing') {
         fireEvent.change(input, { target: { value: 'Teal' } })
-        act(() => {
-          input.blur()
-        })
       }
       const newest = waitingQuestion({
         userInputId: 'q-2',
@@ -115,18 +157,18 @@ describe('M112 attention dock and the two views', () => {
       rerender(scene({ ...actions, questions: [questionFixture(), newest] }))
       expect(within(dock()).getByRole('group', { name: 'Colour' })).toBeVisible()
       expect(within(dock()).queryByRole('group', { name: 'Newest' })).toBeNull()
-      if (protection === 'draft') expect(input).toHaveValue('Teal')
-      else expect(input).toHaveFocus()
+      if (protection === 'typing') expect(input).toHaveValue('Teal')
+      expect(input).toHaveFocus()
     },
   )
 
-  it('pins waiting questions newest first, MCP forms next, with one full dock card', () => {
+  it('pins waiting questions newest first, MCP forms next, with one full dock card', async () => {
     const older = waitingQuestion({
       userInputId: 'old',
       askedAt: 0,
       questions: [{ ...questionFixture().questions[0]!, header: 'Oldest' }],
     })
-    render(scene(group([waitingQuestion(), older], [form])))
+    await mountScene(group([waitingQuestion(), older], [form]))
     const region = within(dock())
     expect(
       region
@@ -143,9 +185,9 @@ describe('M112 attention dock and the two views', () => {
     expect(MCP_ELICITATION_TIMEOUT_MS).toBe(300_000)
   })
 
-  it('puts approvals first and keeps every question/form compact until the approval settles', () => {
+  it('puts approvals first and keeps every question/form compact until the approval settles', async () => {
     const questions = group([waitingQuestion(), questionFixture({ userInputId: 'open-2' })], [form])
-    const { rerender } = render(scene(questions, [approval]))
+    const { rerender } = await mountScene(questions, [approval])
     const region = within(dock())
     expect(region.getByRole('button', { name: 'Allow once' })).toBeEnabled()
     expect(region.queryByRole('radio')).toBeNull()
@@ -155,9 +197,9 @@ describe('M112 attention dock and the two views', () => {
     expect(within(dock()).getByRole('group', { name: 'Colour' })).toBeVisible()
   })
 
-  it('shares choices, explanation and active tab between row and dock without coupling radio groups', () => {
+  it('shares choices, explanation and active tab between row and dock without coupling radio groups', async () => {
     const questions = group([waitingQuestion()])
-    render(scene(questions))
+    await mountScene(questions)
     const row = within(screen.getByRole('main'))
     fireEvent.click(row.getByRole('radio', { name: 'Blue' }))
     expect(within(dock()).getByRole('radio', { name: 'Blue' })).toBeChecked()
@@ -171,9 +213,9 @@ describe('M112 attention dock and the two views', () => {
     )
   })
 
-  it('defers on the host snapshot while keeping a focused or drafted card full, preserving its late answer', () => {
+  it('defers on the host snapshot while keeping a focused or drafted card full, preserving its late answer', async () => {
     const actions = group([waitingQuestion()])
-    const { rerender } = render(scene(actions))
+    const { rerender } = await mountScene(actions)
     const box = within(dock()).getByLabelText('Other: Colour')
     act(() => {
       box.focus()
@@ -193,14 +235,14 @@ describe('M112 attention dock and the two views', () => {
     ])
   })
 
-  it('folds an unfocused undrafted question at deferral and opens it from the chip', () => {
+  it('folds an unfocused undrafted question at deferral and opens it from the chip', async () => {
     const actions = group([waitingQuestion()])
     // Typing in the composer prevents arrival focus, as it does for approvals.
     const composer = document.createElement('textarea')
     composer.value = 'typing'
     document.body.append(composer)
     composer.focus()
-    const { rerender } = render(scene(actions))
+    const { rerender } = await mountScene(actions)
     rerender(scene({ ...actions, questions: [questionFixture()] }))
     expect(composer).toHaveFocus()
     const region = within(dock())
@@ -213,9 +255,9 @@ describe('M112 attention dock and the two views', () => {
     composer.remove()
   })
 
-  it('preserves an MCP draft while selecting another card; settlement removes its send controls', () => {
+  it('preserves an MCP draft while selecting another card; settlement removes its send controls', async () => {
     const actions = group([waitingQuestion()], [form])
-    const { rerender } = render(scene(actions))
+    const { rerender } = await mountScene(actions)
     fireEvent.click(within(dock()).getByRole('button', { name: 'Profile' }))
     fireEvent.change(within(dock()).getByLabelText('nickname'), { target: { value: 'River' } })
     fireEvent.click(within(dock()).getByRole('button', { name: 'Open question: Colour' }))
@@ -228,9 +270,9 @@ describe('M112 attention dock and the two views', () => {
     expect(within(dock()).queryByRole('form')).toBeNull()
   })
 
-  it('clears only the question draft on a session change and never takes focus behind a modal', () => {
+  it('clears only the question draft on a session change and never takes focus behind a modal', async () => {
     const actions = group([waitingQuestion()])
-    const { rerender } = render(scene(actions))
+    const { rerender } = await mountScene(actions)
     const box = within(dock()).getByLabelText('Other: Colour')
     fireEvent.change(box, { target: { value: 'Old draft' } })
     rerender(scene(actions, [], true, 'other'))
@@ -238,11 +280,11 @@ describe('M112 attention dock and the two views', () => {
     expect(dock()).toHaveAttribute('inert')
   })
 
-  it('has a non-ticking countdown, no live region in the card, and distinct terminal state labels/icons', () => {
+  it('has a non-ticking countdown, no live region in the card, and distinct terminal state labels/icons', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(1000)
     const actions = group([waitingQuestion()])
-    const { container, rerender } = render(scene(actions))
+    const { container, rerender } = await mountScene(actions)
     expect(within(dock()).getByText('Muse keeps working in 60 s if you don’t answer')).toBeVisible()
     act(() => {
       vi.advanceTimersByTime(1000)
