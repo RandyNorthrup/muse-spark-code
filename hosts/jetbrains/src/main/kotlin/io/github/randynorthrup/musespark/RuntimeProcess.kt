@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class RuntimeProcess private constructor(
   val process: Process,
   private val containment: Closeable,
+  val workspaceRoot: Path,
 ) : Closeable {
   private var stderr: Thread? = null
   private val closed = AtomicBoolean()
@@ -215,7 +216,7 @@ class RuntimeProcess private constructor(
           process.outputStream.write("start\n".toByteArray(Charsets.UTF_8))
           process.outputStream.flush()
         }
-        RuntimeProcess(process, containment)
+        RuntimeProcess(process, containment, cwd.toAbsolutePath().normalize())
       }.onFailure {
         containment.close()
         process.destroyForcibly()

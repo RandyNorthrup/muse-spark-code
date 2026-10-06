@@ -15,7 +15,7 @@ def send(value):
 
 def panel(surface, payload):
     sequence[surface] = sequence.get(surface, 0) + 1
-    send({"mhp": "1.1", "kind": "panel", "surface": surface,
+    send({"mhp": "1.2", "kind": "panel", "surface": surface,
           "direction": "toPanel", "seq": sequence[surface], "payload": payload})
 
 
@@ -29,12 +29,10 @@ def record(value):
             output.write(json.dumps(value) + "\n")
 
 
-send({"jsonrpc": "2.0", "id": "initialize", "method": "initialize", "params": {
-    "host": {"id": "fake-runtime", "version": "1.0"},
-    "protocolRange": {"minimum": "mhp/1.1.0", "maximumExclusive": "mhp/1.2.0"},
-    "capabilities": ["lifecycle", "ui", "surfaces"], "locale": "en",
-    "theme": {"kind": "dark", "tokens": {}}, "folders": [], "trusted": True,
-}})
+initial = json.loads(sys.stdin.readline())
+assert initial["method"] == "initialize"
+send({"jsonrpc": "2.0", "id": initial["id"], "result": {
+    "protocolVersion": "mhp/1.2.0", "capabilities": ["lifecycle", "ui", "surfaces"]}})
 settings = {
     "preferredLocation": "panel", "initialPermissionMode": "manual", "autosave": False,
     "attachOpenFile": False, "useCtrlEnterToSend": False, "hideOnboarding": True,
@@ -44,9 +42,6 @@ settings = {
 }
 for line in sys.stdin:
     frame = json.loads(line)
-    if frame.get("id") == "initialize":
-        assert frame["result"]["protocolVersion"] == "mhp/1.1.0"
-        continue
     if frame.get("kind") != "panel":
         continue
     surface, payload = frame["surface"], frame["payload"]

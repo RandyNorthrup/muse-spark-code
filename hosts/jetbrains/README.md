@@ -1,9 +1,9 @@
 # Muse Spark Code (Unofficial) for JetBrains
 
 This plugin embeds the repository's shared React panel in JCEF and implements
-the frozen MHP 1.1 host contract. It declares IntelliJ Platform 2025.3–2026.2,
+the frozen MHP 1.2 host contract. It declares IntelliJ Platform 2025.3–2026.2,
 JDK 21 for development, and the `muse-spark-code-acp` executable on PATH. The
-runtime is developed separately in M104 lane B. No credential is accepted by
+shared runtime owns conversation, providers and paid admission. No credential is accepted by
 the plugin; credentials remain in the runtime's operating-system store.
 
 Build from the repository root:
@@ -30,11 +30,12 @@ Native document reads use open buffers. Edits require workspace trust, a
 matching document version, a clean writable buffer and non-overlapping UTF-16
 ranges, and run in one undo command. All child environments remove credential
 variables. Runtime stderr is drained without copying its contents into logs.
-The shared browser entries are bundled from the built React assets and loaded
-through JCEF's public HTML loader. Scripts use a nonce; CSS stays inline;
-network connections, remote assets, ordinary file navigation, popups and
-developer tools are refused. This avoids the stalled native resource/network
-loading path found on the qualification rig.
+The shared portable module graph runs through a native asset bridge. The bridge
+returns only paths present in the packaged manifest; the browser verifies byte
+lengths, SHA-256 and import offsets before executing modules. Static imports share
+one cached module instance and dynamic imports remain deferred. Every script
+starts from the native nonce with `strict-dynamic`; network connections,
+ordinary file navigation, popups and developer tools remain refused.
 
 The plugin advertises only implemented native capability groups. Other groups
 use the fallbacks declared in the frozen contract, including runtime settings
@@ -90,22 +91,22 @@ are rejected rather than applied to the wrong buffer.
 JCEF absence, construction failure or the readiness deadline selects
 `panel --companion`; the runtime opens its fresh launch URL through the frozen
 `ui/openExternal` method and the IDE's browser. The tool window retains visible
-status. The real companion/controller implementation is not present at this
-branch's base, so its assembled qualification remains an integration item.
+status. Assembled native/companion qualification remains an integration item.
 
-A runtime offering `hostMetadata` and a range containing `mhp/1.2.0` receives
-IDE identity/version, locale, theme tokens, workspace folders and trust in
-`initialize.result.hostMetadata`. Other peers receive the exact legacy 1.1
-result. Metadata collection runs outside the actor with a two-second deadline; failure
-tears down the entire connection attempt and displays a failure. Shutdown
-cancels initialization and late metadata cannot reopen it. Wire coordinates
-are checked before integer narrowing, so oversized positions cannot wrap into
-valid edits.
-The native resource build measures the shipped inline main script against
-950 KiB (the unchanged shared startup 900 KiB plus deferred 50 KiB), and
-What's New against its existing 25 KiB. The shared startup gate still applies.
-This local proposal is specified in PLAN D84; the frozen shipped 1.1
-schema and other hosts are unchanged.
+The editor initiates `initialize` with identity/version, installed locale,
+theme, folders and trust. Only MHP 1.2 is accepted; the rejected `hostMetadata`
+proposal and legacy 1.1 reply are refused. The first folder is the exact runtime
+working directory. Metadata collection runs outside the actor with a two-second
+deadline; the runtime reply has a separate bounded initialization deadline.
+Editor services and runtime services keep independent capability records.
+Closing the owner cancels initialization and late metadata cannot reopen it.
+The runtime opens the initial surface with its actual session ID.
+
+The native resource build measures the complete static startup graph plus the
+native module loader against the existing 950 KiB cap; What's New retains its
+25 KiB cap. The shared startup 900 KiB, deferred 50 KiB and complete portable
+graph gates remain unchanged. See [the parity checkpoint](../../docs/certification/m104-pe.md)
+for current receipts and outstanding F1–F56 qualification.
 
 This is a development artifact, not a usable or supported Marketplace release. The
 qualification evidence, F1–F56 coverage and outstanding integration work are

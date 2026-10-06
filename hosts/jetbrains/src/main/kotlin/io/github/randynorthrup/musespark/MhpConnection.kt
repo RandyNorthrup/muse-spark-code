@@ -46,7 +46,6 @@ data class ConnectionEvents(
   val initialized: () -> Unit,
   val diagnostic: (String) -> Unit,
   val failed: (String) -> Unit = {},
-  val stopped: () -> Unit = {},
   val completion: (Int, () -> Unit) -> Unit = { _, action -> action() },
   val epoch: Long = 0,
 )
@@ -76,6 +75,7 @@ class MhpConnection(
   private val requestBudget = QueueBudget(boundary)
   private var metadataTask: CompletableFuture<JsonObject?>? = null
   private var initializing = false
+  private var capabilities = emptySet<String>()
   private var negotiated = false
   private var closed = false
   private var nextId = 1L
@@ -109,49 +109,80 @@ class MhpConnection(
       pending.future.completeExceptionally(IllegalStateException("MHP_RUNTIME_REQUEST_FAILED"))
     } else {
       boundary.result(pending.method, frame)
+      if (pending.method == "initialize") {
+        val selected =
+          frame
+            .getAsJsonObject("result")
+            .getAsJsonArray("capabilities")
+            .map { it.asString }
+            .toSet()
+        require("lifecycle" in selected) { "MHP_INVALID_CAPABILITIES" }
+        capabilities = selected
+        negotiated = true
+        initializing = false
+      }
       outbound.remove(frame["id"].toString())
       pending.future.complete(frame["result"])
+      if (pending.method == "initialize") events.initialized()
     }
   }
 
   private fun receiveCall(frame: JsonObject) {
     val definition = boundary.call(frame)
     val method = frame["method"].asString
-    require(method == "initialize" || method == "shutdown" || negotiated) { "MHP_INCOMPATIBLE_VERSION" }
+    require(negotiated) { "MHP_INCOMPATIBLE_VERSION" }
     require(definition["direction"].asString != "hostToRuntime") { "MHP_INVALID_REQUEST" }
     when (method) {
       "$/cancelRequest" -> inbound[frame.getAsJsonObject("params")["id"].toString()]?.cancellation?.cancel()
-      "initialize" -> initialize(frame)
-      "shutdown" -> {
-        sendMhpReply(boundary, send, method, frame["id"], jsonValue(null))
-        close()
-        events.stopped()
-      }
       else -> dispatch(frame, definition)
     }
   }
 
-  private fun initialize(frame: JsonObject) {
-    require(!negotiated && !initializing) { "MHP_INVALID_REQUEST" }
-    val params = frame.getAsJsonObject("params")
-    val range = params.getAsJsonObject("protocolRange")
-    if (params.getAsJsonArray("capabilities").any { it.asString == "hostMetadata" } &&
-      compareVersion(range["minimum"].asString, METADATA_VERSION) <= 0 &&
-      compareVersion(range["maximumExclusive"].asString, METADATA_VERSION) > 0
-    ) {
-      initializing = true
-      // Never hold the connection monitor across the host's IDE-thread handoff.
-      val task = CompletableFuture.supplyAsync { services.metadata }
-      metadataTask = task
-      task.orTimeout(METADATA_TIMEOUT_SECONDS, TimeUnit.SECONDS).whenComplete { metadata, failure ->
-        events.completion(metadata?.toString()?.toByteArray(Charsets.UTF_8)?.size ?: 1) {
-          synchronized(this) {
-            if (!closed) {
-              runCatching {
-                if (failure != null) throw failure
-                finishInitialize(frame, metadata)
-              }.onFailure {
-                sendMhpFailure(boundary, send, events, frame["id"], "MHP_INTERNAL_ERROR")
+  /** Collect IDE metadata outside the actor monitor, then initiate the frozen handshake. */
+  @Synchronized
+  fun start() {
+    check(!closed && !initializing && !negotiated) { "MHP_INVALID_REQUEST" }
+    initializing = true
+    val task = CompletableFuture.supplyAsync { services.metadata }
+    metadataTask = task
+    task.orTimeout(METADATA_TIMEOUT_SECONDS, TimeUnit.SECONDS).whenComplete { metadata, failure ->
+      events.completion(metadata?.toString()?.toByteArray(Charsets.UTF_8)?.size ?: 1) {
+        synchronized(this) {
+          if (!closed) {
+            runCatching {
+              if (failure != null) throw failure
+              val params =
+                requireNotNull(metadata).deepCopy().apply {
+                  add("protocolRange", json("minimum" to PANEL_VERSION, "maximumExclusive" to MAXIMUM_VERSION))
+                  add("capabilities", jsonValue(services.capabilities))
+                }
+              initializing = false
+              initialize(params)
+            }.onFailure {
+              close()
+              events.failed("MHP_METADATA_FAILED")
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @Synchronized
+  fun initialize(params: JsonObject): CompletableFuture<JsonElement> {
+    check(!closed && !initializing && !negotiated) { "MHP_INVALID_REQUEST" }
+    initializing = true
+    return runCatching {
+      require(params.getAsJsonArray("capabilities").map { it.asString }.toSet() == services.capabilities.toSet()) {
+        "MHP_INVALID_CAPABILITIES"
+      }
+      val future = request("initialize", params)
+      metadataTask = null
+      future.orTimeout(INITIALIZE_TIMEOUT_SECONDS, TimeUnit.SECONDS).whenComplete { _, failure ->
+        if (failure != null) {
+          events.completion(1) {
+            synchronized(this) {
+              if (!closed) {
                 close()
                 events.failed("MHP_METADATA_FAILED")
               }
@@ -159,33 +190,11 @@ class MhpConnection(
           }
         }
       }
-    } else {
-      finishInitialize(frame, null)
-    }
-  }
-
-  private fun finishInitialize(
-    frame: JsonObject,
-    metadata: JsonObject?,
-  ) {
-    val range = frame.getAsJsonObject("params").getAsJsonObject("protocolRange")
-    val selected = if (metadata == null) PANEL_VERSION else METADATA_VERSION
-    require(
-      compareVersion(range["minimum"].asString, selected) <= 0 &&
-        compareVersion(range["maximumExclusive"].asString, selected) > 0 &&
-        compareVersion(range["maximumExclusive"].asString, MAXIMUM_VERSION) <= 0,
-    ) { "MHP_INCOMPATIBLE_VERSION" }
-    val result =
-      json(
-        "protocolVersion" to selected,
-        "capabilities" to if (metadata == null) services.capabilities else services.capabilities + "hostMetadata",
-      )
-    metadata?.let { result.add("hostMetadata", it) }
-    sendMhpReply(boundary, send, "initialize", frame["id"], result)
-    initializing = false
-    metadataTask = null
-    negotiated = true
-    events.initialized()
+      future
+    }.onFailure {
+      close()
+      events.failed("MHP_METADATA_FAILED")
+    }.getOrThrow()
   }
 
   private fun dispatch(
@@ -239,12 +248,15 @@ class MhpConnection(
     method: String,
     params: JsonObject,
   ): CompletableFuture<JsonElement> {
-    check(negotiated && !closed) { "MHP_INCOMPATIBLE_VERSION" }
+    check(!closed && (negotiated || (method == "initialize" && initializing))) { "MHP_INCOMPATIBLE_VERSION" }
     require(outbound.size < boundary.maximumQueuedMessages) { "MHP_PANEL_BACKPRESSURE" }
     val id = "jetbrains-${events.epoch}-${nextId++}"
     val frame = json("jsonrpc" to "2.0", "id" to id, "method" to method, "params" to params)
     val definition = boundary.call(frame)
     require(definition["direction"].asString == "hostToRuntime") { "MHP_INVALID_REQUEST" }
+    require(
+      method == "initialize" || definition["capability"].asString in capabilities,
+    ) { "MHP_UNSUPPORTED_CAPABILITY" }
     val future = CompletableFuture<JsonElement>()
     outbound[jsonValue(id).toString()] = Pending(method, future)
     runCatching { send(frame, null) }.onFailure { outbound.remove(jsonValue(id).toString()) }.getOrThrow()
@@ -270,6 +282,7 @@ class MhpConnection(
     require(definition["kind"].asString == "notification" && definition["direction"].asString != "runtimeToHost") {
       "MHP_INVALID_REQUEST"
     }
+    require(definition["capability"].asString in services.capabilities) { "MHP_UNSUPPORTED_CAPABILITY" }
     send(frame, null)
   }
 
@@ -289,9 +302,9 @@ class MhpConnection(
   }
 
   companion object {
-    const val PANEL_VERSION = "mhp/1.1.0"
+    const val PANEL_VERSION = "mhp/1.2.0"
     private const val METADATA_TIMEOUT_SECONDS = 2L
-    private const val METADATA_VERSION = "mhp/1.2.0"
+    private const val INITIALIZE_TIMEOUT_SECONDS = 100L
     private const val MAXIMUM_VERSION = "mhp/1.3.0"
     private val ERRORS =
       setOf(
@@ -308,15 +321,6 @@ class MhpConnection(
 
     fun technicalCode(failure: Throwable): String = failure.message?.takeIf { it in ERRORS } ?: "MHP_INTERNAL_ERROR"
   }
-}
-
-private fun compareVersion(
-  left: String,
-  right: String,
-): Int {
-  val parts = left.removePrefix("mhp/").split('.').map(String::toBigInteger)
-  val others = right.removePrefix("mhp/").split('.').map(String::toBigInteger)
-  return parts.zip(others).map { (one, other) -> one.compareTo(other) }.firstOrNull { it != 0 } ?: 0
 }
 
 private fun sendMhpFailure(

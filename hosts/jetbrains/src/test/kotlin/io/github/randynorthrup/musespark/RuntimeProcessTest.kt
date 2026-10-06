@@ -58,6 +58,7 @@ class RuntimeProcessTest {
     try {
       runtime.drainStderr(diagnostics::add)
       pipe.start()
+      connection.start()
       assertTrue(delivered.await(WAIT_SECONDS, TimeUnit.SECONDS))
       surface.delivered(1)
       checkReload(surface)
@@ -143,6 +144,7 @@ class RuntimeProcessTest {
 
   private fun paidFixture(): EditorServices =
     object : EditorServices {
+      override val metadata = fixtureMetadata()
       override val capabilities = listOf("lifecycle", "ui", "surfaces")
 
       override fun request(

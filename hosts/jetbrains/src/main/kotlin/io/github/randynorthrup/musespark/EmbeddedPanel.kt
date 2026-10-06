@@ -54,6 +54,20 @@ class EmbeddedPanel(
         val request = JsonBoundary.parse(text).asJsonObject
         require(request.keySet() == setOf("operation", "value")) { "MHP_INVALID_REQUEST" }
         when (request["operation"].asString) {
+          "module" -> {
+            val requested = request["value"].asString
+            val manifest = JsonBoundary.parse(JsonBoundary.resource("/webview/portable/modules.json")).asJsonObject
+            val module =
+              manifest
+                .getAsJsonArray(
+                  "modules",
+                ).singleOrNull { it.asJsonObject["path"].asString == requested }
+            requireNotNull(module) { "MHP_MODULE_UNLISTED" }
+            require(Regex("/assets/portable/(?:chunks/)?[\\w.-]+\\.js").matches(requested)) { "MHP_MODULE_UNLISTED" }
+            val source = JsonBoundary.resource("/webview/portable/" + requested.removePrefix("/assets/portable/"))
+            require(source.toByteArray(Charsets.UTF_8).size <= boundary.maximumFrameBytes) { "MHP_PANEL_TOO_LARGE" }
+            return@addHandler JBCefJSQuery.Response(source)
+          }
           "ready" -> {
             require(request["value"].isJsonNull)
             surface.subscribe()
@@ -157,7 +171,7 @@ class EmbeddedPanel(
     val safeConfig = config.toString().replace("<", "\\u003c")
     val safeScript =
       JsonBoundary.resource("/embedded.mjs") +
-        "\nwindow.installMuseHost($safeConfig,(request,onSuccess,onFailure)=>{$injection});"
+        "\nwindow.installMuseHost($safeConfig,(request,onSuccess,onFailure)=>{$injection});" + moduleBridge(injection)
     val kind = if (surface.kind in setOf("tasks", "whatsNew")) surface.kind else "chat"
     return JsonBoundary
       .resource("/pages/$kind.$locale.html")
@@ -173,13 +187,30 @@ class EmbeddedPanel(
       }
   }
 
+  private fun moduleBridge(injection: String): String {
+    val manifest = JsonBoundary.resource("/webview/portable/modules.json").replace("<", "\\u003c")
+    return if (surface.kind == "whatsNew") {
+      ""
+    } else {
+      JsonBoundary.resource("/nativeModules.mjs") +
+        "\nwindow.installMuseModules($manifest,(path,onSuccess,onFailure)=>{" +
+        "const request=JSON.stringify({operation:'module',value:path});$injection})" +
+        ".catch(()=>{document.documentElement.dataset.launch='failed'});"
+    }
+  }
+
   private fun inlineAssets(
     html: String,
     kind: String,
   ): String {
     val entry = if (kind == "whatsNew") "whatsNew" else "main"
-    val script = JsonBoundary.resource("/pages/$entry.inline.js").replace("</script", "<\\/script", ignoreCase = true)
-    val style = JsonBoundary.resource("/webview/$entry.css")
+    val script =
+      if (entry == "main") {
+        ""
+      } else {
+        JsonBoundary.resource("/pages/$entry.inline.js").replace("</script", "<\\/script", ignoreCase = true)
+      }
+    val style = JsonBoundary.resource(if (entry == "main") "/webview/portable/main.css" else "/webview/$entry.css")
     return html
       .replace(
         Regex("<meta http-equiv=\"Content-Security-Policy\"[^>]*>"),

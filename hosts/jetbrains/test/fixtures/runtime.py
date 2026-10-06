@@ -18,24 +18,18 @@ assert not any(name.upper().endswith("_API_KEY") for name in os.environ)
 assert "META_KEY" not in os.environ
 sys.stderr.write("fixture-only account/path text must never enter the host log\n")
 sys.stderr.flush()
-send({
-    "jsonrpc": "2.0", "id": "initialize", "method": "initialize",
-    "params": {
-        "host": {"id": "fake-runtime", "version": "1.0"},
-        "protocolRange": {"minimum": "mhp/1.1.0", "maximumExclusive": "mhp/1.2.0"},
-        "capabilities": ["lifecycle", "ui", "surfaces"],
-        "locale": "en", "theme": {"kind": "dark", "tokens": {}},
-        "folders": [], "trusted": True,
-    },
-})
-assert receive()["result"]["protocolVersion"] == "mhp/1.1.0"
+initial = receive()
+assert initial["method"] == "initialize"
+assert initial["params"]["protocolRange"]["minimum"] == "mhp/1.2.0"
+send({"jsonrpc": "2.0", "id": initial["id"], "result": {
+    "protocolVersion": "mhp/1.2.0", "capabilities": ["lifecycle", "ui", "surfaces"]}})
 opened = receive()
 assert opened["event"] == "opened"
 assert receive()["event"] == "ready"
 ready = receive()
 assert ready["seq"] == 1 and ready["payload"] == {"type": "ready"}
 send({
-    "mhp": "1.1", "kind": "panel", "surface": opened["surface"],
+    "mhp": "1.2", "kind": "panel", "surface": opened["surface"],
     "direction": "toPanel", "seq": 1, "payload": {"type": "attachmentsCleared"},
 })
 reloaded = receive()
@@ -54,5 +48,3 @@ send({
     },
 })
 assert receive()["result"] == "once"
-send({"jsonrpc": "2.0", "id": "shutdown", "method": "shutdown", "params": {}})
-assert receive() == {"jsonrpc": "2.0", "id": "shutdown", "result": None}

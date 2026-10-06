@@ -49,6 +49,12 @@ class NativeTabTest : BasePlatformTestCase() {
     pipe = MhpPipe(runtime.process.inputStream, runtime.process.outputStream, boundary, peer::receive, {})
     try {
       pipe.start()
+      peer.initialize(
+        fixtureMetadata().apply {
+          add("protocolRange", json("minimum" to "mhp/1.2.0", "maximumExclusive" to "mhp/1.3.0"))
+          add("capabilities", jsonValue(services.capabilities))
+        },
+      )
       assertTrue(registered.await(WAIT_SECONDS, TimeUnit.SECONDS))
       assertTrue(project.getService(NativeTab::class.java).enabled("invoke"))
       assertFalse(project.getService(NativeTab::class.java).enabled("automatic"))

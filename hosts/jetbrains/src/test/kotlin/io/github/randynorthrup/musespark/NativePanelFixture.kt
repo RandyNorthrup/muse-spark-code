@@ -37,6 +37,7 @@ class NativePanelFixture(
     MhpConnection(
       boundary,
       object : EditorServices {
+        override val metadata = fixtureMetadata()
         override val capabilities = listOf("lifecycle", "ui", "surfaces")
 
         override fun request(
@@ -54,6 +55,7 @@ class NativePanelFixture(
   fun start() {
     pipe = MhpPipe(runtime.process.inputStream, runtime.process.outputStream, boundary, peer::receive, {})
     pipe.start()
+    peer.start()
     check(initialized.await(WAIT_SECONDS, TimeUnit.SECONDS)) { "MHP_FAKE_INITIALIZE_FAILED" }
     surface.open()
   }

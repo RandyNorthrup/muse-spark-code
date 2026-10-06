@@ -48,98 +48,36 @@ class MhpConnectionTest {
     id: String = "request",
   ) = json("jsonrpc" to "2.0", "id" to id, "method" to method, "params" to params)
 
-  private fun initialize(maximum: String = "mhp/1.2.0") {
+  private fun initialize() {
+    connection.initialize(
+      json(
+        "host" to json("id" to "jetbrains", "version" to "253"),
+        "protocolRange" to json("minimum" to "mhp/1.2.0", "maximumExclusive" to "mhp/1.3.0"),
+        "capabilities" to services.capabilities,
+        "locale" to "en",
+        "theme" to json("kind" to "dark", "tokens" to json()),
+        "folders" to emptyList<String>(),
+        "trusted" to true,
+      ),
+    )
     connection.receive(
-      call(
-        "initialize",
-        json(
-          "host" to json("id" to "jetbrains", "version" to "253"),
-          "protocolRange" to json("minimum" to "mhp/1.0.0", "maximumExclusive" to maximum),
-          "capabilities" to services.capabilities,
-          "locale" to "en",
-          "theme" to json("kind" to "dark", "tokens" to json()),
-          "folders" to emptyList<String>(),
-          "trusted" to true,
-        ),
-        "initialize",
+      json(
+        "jsonrpc" to "2.0",
+        "id" to sent.last()["id"],
+        "result" to
+          json("protocolVersion" to "mhp/1.2.0", "capabilities" to services.capabilities),
       ),
     )
   }
 
   @Test
-  fun metadataProposalRequiresCapabilityAndCompatibleMinorAndKeepsLegacyReplyExact() {
-    val metadata =
-      json(
-        "host" to json("id" to "jetbrains", "version" to "253"),
-        "locale" to "de",
-        "theme" to json("kind" to "light", "tokens" to json("--muse-foreground" to "#000000")),
-        "folders" to listOf(json("uri" to "file:///workspace", "name" to "workspace")),
-        "trusted" to false,
-      )
-    for ((maximum, offered, expected) in listOf(
-      Triple("mhp/1.2.0", false, false),
-      Triple("mhp/1.3.0", false, false),
-      Triple("mhp/1.2.0", true, false),
-      Triple("mhp/1.3.0", true, true),
-    )) {
-      val replies = CopyOnWriteArrayList<JsonObject>()
-      val replied = CountDownLatch(1)
-      val peer =
-        MhpConnection(
-          boundary,
-          object : EditorServices {
-            override val capabilities = listOf("lifecycle")
-
-            override val metadata = metadata
-
-            override fun request(
-              method: String,
-              params: JsonObject,
-              cancellation: RequestCancellation,
-            ) = jsonValue(null)
-          },
-          Executor(Runnable::run),
-          { frame, _ ->
-            replies.add(frame)
-            replied.countDown()
-          },
-          {},
-          ConnectionEvents({}, {}),
-        )
-      peer.receive(
-        call(
-          "initialize",
-          json(
-            "host" to json("id" to "runtime", "version" to "1"),
-            "protocolRange" to json("minimum" to "mhp/1.1.0", "maximumExclusive" to maximum),
-            "capabilities" to if (offered) listOf("lifecycle", "hostMetadata") else listOf("lifecycle"),
-            "locale" to "en",
-            "theme" to json("kind" to "dark", "tokens" to json()),
-            "folders" to emptyList<String>(),
-            "trusted" to true,
-          ),
-        ),
-      )
-      assertTrue(replied.await(5, TimeUnit.SECONDS))
-      val result = replies.single().getAsJsonObject("result")
-      if (expected) {
-        assertEquals("mhp/1.2.0", result["protocolVersion"].asString)
-        assertEquals(metadata, result["hostMetadata"])
-        assertEquals(jsonValue(listOf("lifecycle", "hostMetadata")), result["capabilities"])
-      } else {
-        assertEquals(json("protocolVersion" to "mhp/1.1.0", "capabilities" to listOf("lifecycle")), result)
-      }
-      peer.close()
-    }
-  }
-
-  @Test
   fun negotiatesOnlyTheExplicitCarrierRangeBeforePanelTraffic() {
     assertThrows(Exception::class.java) { connection.receive(call("ui/confirm", json())) }
-    assertThrows(Exception::class.java) { initialize("mhp/2.0.0") }
+    assertThrows(Exception::class.java) { connection.request("tab/complete", json()) }
     initialize()
-    assertEquals("mhp/1.1.0", sent.last().getAsJsonObject("result")["protocolVersion"].asString)
+    assertEquals("initialize", sent.last()["method"].asString)
     assertThrows(Exception::class.java) { initialize() }
+    assertThrows(Exception::class.java) { connection.receive(call("initialize", json())) }
   }
 
   @Test
@@ -280,40 +218,21 @@ class MhpConnectionTest {
           replied.countDown()
         },
         {},
-        ConnectionEvents({ initialized.countDown() }, {}),
+        ConnectionEvents({ initialized.countDown() }, {}, { replied.countDown() }),
       )
     try {
-      val receive =
-        CompletableFuture.runAsync {
-          peer.receive(
-            call(
-              "initialize",
-              json(
-                "host" to json("id" to "runtime", "version" to "1"),
-                "protocolRange" to json("minimum" to "mhp/1.1.0", "maximumExclusive" to "mhp/1.3.0"),
-                "capabilities" to listOf("lifecycle", "hostMetadata"),
-                "locale" to "en",
-                "theme" to json("kind" to "dark", "tokens" to json()),
-                "folders" to emptyList<String>(),
-                "trusted" to true,
-              ),
-              "initialize",
-            ),
-          )
-        }
+      val receive = CompletableFuture.runAsync { peer.start() }
       assertTrue(entered.await(5, TimeUnit.SECONDS))
       receive.get(1, TimeUnit.SECONDS)
       if (shutdown) {
-        CompletableFuture.runAsync { peer.receive(call("shutdown", json(), "shutdown")) }.get(1, TimeUnit.SECONDS)
-        assertEquals("shutdown", sent.single()["id"].asString)
+        CompletableFuture.runAsync { peer.close() }.get(1, TimeUnit.SECONDS)
       } else {
         assertTrue(replied.await(5, TimeUnit.SECONDS))
-        assertTrue(sent.single().has("error"))
       }
-      assertThrows(IllegalStateException::class.java) { peer.receive(call("shutdown", json(), "late-shutdown")) }
+      assertThrows(IllegalStateException::class.java) { peer.receive(call("ui/input", json(), "late")) }
       release.countDown()
       assertTrue(finished.await(5, TimeUnit.SECONDS))
-      assertEquals(1, sent.size)
+      assertTrue(sent.isEmpty())
       assertEquals(1L, initialized.count)
     } finally {
       release.countDown()

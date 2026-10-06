@@ -35,6 +35,7 @@ object NativeTheme {
       values,
       palette.foreground,
       "foreground",
+      "textPreformat-foreground",
       "editorWidget-foreground",
       "button-secondaryForeground",
     )
@@ -49,6 +50,8 @@ object NativeTheme {
     colors(
       values,
       palette.border,
+      "contrastBorder",
+      "textBlockQuote-border",
       "panel-border",
       "widget-border",
       "editorWidget-border",
@@ -126,6 +129,7 @@ object NativeTheme {
       values,
       palette.scheme.getAttributes(EditorColors.REFERENCE_HYPERLINK_COLOR)?.foregroundColor ?: palette.selected,
       "textLink-foreground",
+      "textLink-activeForeground",
     )
     colors(
       values,

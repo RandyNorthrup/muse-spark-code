@@ -131,7 +131,7 @@ class JetBrainsPanelHost(
     val services =
       NativeHostServices(project, { method, params ->
         surfaceRequest(method, params, checkEpoch)
-      }, widgets, checkEpoch = checkEpoch)
+      }, widgets, checkEpoch = checkEpoch, workspaceRoot = process.workspaceRoot)
     NativeTheme.install(project, lifetime) { if (!disposed) panels.values.forEach(EmbeddedPanel::updateTheme) }
     owner =
       RuntimeConnection(
@@ -144,18 +144,7 @@ class JetBrainsPanelHost(
         ConnectionEvents({
           SwingUtilities.invokeLater {
             if (!disposed && nativeLifetime === lifetime) {
-              if (embedded) {
-                toolWindow.contentManager.contents.firstOrNull { it.component == loading }?.let {
-                  toolWindow.contentManager.removeContent(it, true)
-                }
-                runCatching { open("chat", project.getService(PanelState::class.java).state.sessionId, "side") }
-                  .onFailure {
-                    diagnostic("MHP_JCEF_UNAVAILABLE")
-                    useCompanion()
-                  }
-              } else {
-                status.text = PRODUCT_NAME
-              }
+              status.text = PRODUCT_NAME
               if (nativeLifetime === lifetime) {
                 installEditorEvents(project, services, requireNotNull(connection), lifetime)
               }
@@ -178,14 +167,15 @@ class JetBrainsPanelHost(
     services: NativeHostServices,
     embedded: Boolean,
     checkEpoch: () -> Unit,
-  ): EditorServices =
-    object : EditorServices {
+  ): EditorServices {
+    val metadata = services.metadata
+    return object : EditorServices {
       override val capabilities = services.capabilities.filter { embedded || it != "surfaces" }
 
       override val metadata: JsonObject get() =
-        onEdt {
+        run {
           checkEpoch()
-          services.metadata
+          metadata.deepCopy()
         }
 
       override fun request(
@@ -200,6 +190,7 @@ class JetBrainsPanelHost(
           services.request(method, params, cancellation)
         }
     }
+  }
 
   private fun surfaceRequest(
     method: String,
@@ -209,6 +200,9 @@ class JetBrainsPanelHost(
     checkEpoch()
     return when (method) {
       "surfaces/open" -> {
+        toolWindow.contentManager.contents.firstOrNull { it.component == loading }?.let {
+          toolWindow.contentManager.removeContent(it, true)
+        }
         val session = params["sessionId"]?.asString ?: project.getService(PanelState::class.java).state.sessionId
         json("surfaceId" to open(params["kind"].asString, session, params["placement"].asString))
       }
@@ -283,7 +277,7 @@ class JetBrainsPanelHost(
       val code = failure.message?.takeIf { it in PANEL_ERRORS } ?: "MHP_PANEL_INVALID_PAYLOAD"
       val error =
         json(
-          "mhp" to "1.1",
+          "mhp" to "1.2",
           "kind" to "panelError",
           "surface" to id,
           "seq" to frame["seq"],

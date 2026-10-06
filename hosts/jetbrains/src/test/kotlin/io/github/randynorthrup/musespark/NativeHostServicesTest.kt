@@ -104,22 +104,18 @@ class NativeHostServicesTest : BasePlatformTestCase() {
       MhpConnection(JsonBoundary(), services, Executor(Runnable::run), { frame, _ -> sent.add(frame) }, {
       }, ConnectionEvents({}, {}))
     Disposer.register(testRootDisposable) { peer.close() }
+    peer.initialize(
+      fixtureMetadata().apply {
+        add("protocolRange", json("minimum" to "mhp/1.2.0", "maximumExclusive" to "mhp/1.3.0"))
+        add("capabilities", jsonValue(services.capabilities))
+      },
+    )
     peer.receive(
       json(
         "jsonrpc" to "2.0",
-        "id" to "initialize",
-        "method" to "initialize",
-        "params" to
-          json(
-            "host" to json("id" to "runtime", "version" to "1"),
-            "locale" to "en",
-            "theme" to json("kind" to "dark", "tokens" to json()),
-            "folders" to emptyList<String>(),
-            "trusted" to true,
-          ).apply {
-            add("protocolRange", json("minimum" to "mhp/1.1.0", "maximumExclusive" to "mhp/1.2.0"))
-            add("capabilities", jsonValue(services.capabilities))
-          },
+        "id" to sent.last()["id"],
+        "result" to
+          json("protocolVersion" to "mhp/1.2.0", "capabilities" to services.capabilities),
       ),
     )
     installEditorEvents(project, services, peer, testRootDisposable)

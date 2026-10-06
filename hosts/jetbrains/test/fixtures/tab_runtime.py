@@ -10,13 +10,10 @@ def send(value):
     print(json.dumps(value), flush=True)
 
 
-send({"jsonrpc": "2.0", "id": "initialize", "method": "initialize", "params": {
-    "host": {"id": "fake-tab", "version": "1"},
-    "protocolRange": {"minimum": "mhp/1.1.0", "maximumExclusive": "mhp/1.2.0"},
-    "capabilities": ["lifecycle", "tab"], "locale": "en",
-    "theme": {"kind": "dark", "tokens": {}}, "folders": [], "trusted": True,
-}})
-assert json.loads(sys.stdin.readline())["result"]["protocolVersion"] == "mhp/1.1.0"
+initial = json.loads(sys.stdin.readline())
+assert initial["method"] == "initialize"
+send({"jsonrpc": "2.0", "id": initial["id"], "result": {
+    "protocolVersion": "mhp/1.2.0", "capabilities": ["lifecycle", "tab"]}})
 send({"jsonrpc": "2.0", "id": "register", "method": "tab/register",
       "params": {"languages": ["TEXT"], "trigger": "invoke"}})
 assert json.loads(sys.stdin.readline())["result"] is None

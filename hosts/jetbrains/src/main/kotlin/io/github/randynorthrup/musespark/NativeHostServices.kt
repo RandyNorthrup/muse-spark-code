@@ -44,6 +44,7 @@ class NativeHostServices(
   private val widgets: NativeWidgets,
   private val openBrowser: (String) -> Unit = BrowserUtil::browse,
   private val checkEpoch: () -> Unit = {},
+  private val workspaceRoot: Path? = null,
 ) : EditorServices {
   override val capabilities =
     listOf(
@@ -116,12 +117,22 @@ class NativeHostServices(
     }
   }
 
-  fun folders(): JsonElement =
-    jsonValue(
-      ProjectRootManager.getInstance(project).contentRoots.map {
-        json("uri" to DocumentServices.uri(it), "name" to it.name)
-      },
+  fun folders(): JsonElement {
+    val root = workspaceRoot ?: Path.of(requireNotNull(project.basePath) { "MHP_WORKSPACE_UNAVAILABLE" })
+    val uri = root.toUri().toASCIIString()
+    return jsonValue(
+      listOf(json("uri" to uri, "name" to root.fileName.toString())) +
+        ProjectRootManager
+          .getInstance(project)
+          .contentRoots
+          .filter {
+            it.fileSystem.protocol == "file" &&
+              DocumentServices.uri(it) != uri
+          }.map {
+            json("uri" to DocumentServices.uri(it), "name" to it.name)
+          },
     )
+  }
 
   private fun focused(): Boolean {
     val frame = WindowManager.getInstance().getFrame(project) ?: return false
