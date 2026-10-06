@@ -11,6 +11,25 @@ export const PRODUCT_NAME = 'Muse Spark'
 // M110a0 lane 0: standalone home-node bounds. No node module is loaded by
 // the extension; the service/companion bindings are separate runtime entries.
 export const NODE_PROTOCOL_VERSION = 1
+// M110-N: owner-only durable service files and bounded lifecycle.
+export const NODE_DIRECTORY_MODE = 0o700
+export const NODE_FILE_MODE = 0o600
+export const NODE_PRIVATE_MODE_MASK = 0o077
+export const NODE_BIGINT_ZERO = 0n
+export const NODE_SINGLE_LINK = 1n
+export const NODE_STATE_MAX_BYTES = 12 * 1024 * 1024
+export const NODE_STATE_FILE = 'state.v1.json'
+export const NODE_LOCK_FILE = 'service.lock'
+export const NODE_COMMAND_TIMEOUT_MS = 5000
+export const NODE_STOP_TIMEOUT_MS = 5000
+export const NODE_RESTART_DELAY_MS = 1000
+export const NODE_RESTART_MAX_MS = 30_000
+export const NODE_APPROVAL_TTL_MS = 5 * 60 * 1000
+export const NODE_BUNDLE_FILE = 'node.js'
+export const NODE_DATA_SUBFOLDER = 'node'
+export const NODE_IMAGE_DATA_ROOT = '/var/lib/muse-spark-code-node'
+export const NODE_DAYS_TO_MS = 24 * 60 * 60 * 1000
+export const NODE_ZERO_DIGEST = /* @__PURE__ */ '0'.repeat(64)
 export const NODE_DEFAULT_PORT = 7443
 export const NODE_MAX_PORT = 65_535
 export const NODE_SERVICE_USER = 'muse-node'
