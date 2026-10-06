@@ -54,7 +54,7 @@ export function listenerRequest(isWebsocket = false): IncomingMessage {
     'Sec-Fetch-Mode',
     isWebsocket ? 'websocket' : 'cors',
     'Sec-Fetch-Dest',
-    'empty',
+    isWebsocket ? 'websocket' : 'empty',
   ]
   if (isWebsocket)
     request.rawHeaders.push(

@@ -40,7 +40,9 @@ push, merge or rebase. Local commits use the unchanged hooks.
 - Closed Git uses a Linux FD-anchored bounded private snapshot of objects,
   refs, index and HEAD, a constructed inert config, fixed Git options and
   an allow-list environment. Repository config, hooks, drivers, helpers,
-  includes, alternates and replace refs cannot enter credentialed Git.
+  includes, alternates and loose replace refs cannot enter credentialed Git;
+  packed replace refs remain inert under the fixed `--no-replace-objects`
+  option (named `M110N-packed-replace-ref` residual below).
   A trusted network port consumes/rechecks the exact proof/destination/ref/
   head and supplies a pinned SSH wrapper/socket; mutation publication goes
   through U1's stale-write and tools-UID boundary. Raw Git output is for U1
@@ -264,3 +266,34 @@ import-count snapshot. The actual VS Code APIs (332), importers (31), built-ins
 5→6. This deferral and the lead's full-quality responsibility are recorded
 in PLAN §7; the snapshot is not reported green. No merge, push, rebase,
 installation, paid/live attempt, production fake or machine setting change.
+
+## RVM110NG corrections (FIXM110N2, 2026-10-06)
+
+H07 is fixed in `listenerGuard.ts`: WebSocket upgrades require both mode
+and destination `websocket`; HTTP retains destination `empty`. Both retain
+exact Host/Origin and `Sec-Fetch-Site: same-origin`. Synthetic request and
+real local TLS fixtures now send those transport-specific values. Metadata
+mapping source: [Fetch Metadata §§2.1–2.3](https://www.w3.org/TR/fetch-metadata/),
+read 2026-10-06: destination and mode map the request attributes, and site
+maps its origin relationship. The browser WebSocket destination is the
+explicit acceptance value in the rig brief; these are synthetic header
+fixtures, not a new browser/platform capture. No model attempts were made.
+
+The new `H07 uses browser Fetch Metadata for WebSocket=true` regression
+failed against the original code (two failures, 58 passes). Corrected listener,
+guard and socket suites pass: **96 tests in three files**, repository default
+timeout on Kubuntu, at most three workers. Four accepted red drills revert
+the destination to `empty`, remove destination separation, remove site and
+remove Origin individually. The last two fail the new HTTP and WebSocket
+foreign-site/origin cases. All restore the production source byte-exact:
+[review drill receipts](m110-n-review-drills.json).
+
+**Named residual `M110N-packed-replace-ref` (RVM110NG P3):** `gitSnapshot.ts`
+rejects loose replacement refs but still imports packed replacement refs.
+Safe for now: all `NodeGitRunner` operations prepend `NODE_GIT_OPTIONS`,
+including `--no-replace-objects`, and current commands ignore replacement
+objects. Existing `nodeMethods.test.ts` asserts that fixed option and the
+Git canary/drills prove policy options reach the child. Follow-up: N/U1
+reject packed replacement refs in the bounded FD-held importer, add a packed
+replacement regression/red drill, and qualify before expanding the invocation
+surface. PLAN §9 records the same residual. No P1 or P2 is deferred.

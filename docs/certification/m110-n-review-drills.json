@@ -1,0 +1,62 @@
+[
+  {
+    "drill": "H07-review-browser-destination",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H06/H07 accepts same-origin transports and refuses every cookie",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 uses browser Fetch Metadata for WebSocket=true"
+    ],
+    "sha256Before": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24",
+    "sha256After": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24"
+  },
+  {
+    "drill": "H07-review-destination-separation",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Dest document",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Sec-Fetch-Dest",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 uses browser Fetch Metadata for WebSocket=false",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 uses browser Fetch Metadata for WebSocket=true"
+    ],
+    "sha256Before": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24",
+    "sha256After": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24"
+  },
+  {
+    "drill": "H07-review-cross-site-both-transports",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Site cross-site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Site same-site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Site none",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Sec-Fetch-Site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses foreign HTTP/WebSocket=false Sec-Fetch-Site cross-site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses foreign HTTP/WebSocket=true Sec-Fetch-Site cross-site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses foreign HTTP/WebSocket=false Sec-Fetch-Site same-site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses foreign HTTP/WebSocket=true Sec-Fetch-Site same-site"
+    ],
+    "sha256Before": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24",
+    "sha256After": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24"
+  },
+  {
+    "drill": "H07-review-cross-origin-both-transports",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Origin https://evil.local",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Origin null",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Origin https://home.local:7443/",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Origin",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses foreign HTTP/WebSocket=false Origin https://evil.local:7443",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses foreign HTTP/WebSocket=true Origin https://evil.local:7443"
+    ],
+    "sha256Before": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24",
+    "sha256After": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24"
+  }
+]

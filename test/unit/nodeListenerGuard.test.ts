@@ -109,6 +109,31 @@ describe('M110-N listener guards', () => {
     expect(() => nodeRoute('/node/stop?bearer=synthetic')).toThrow()
     expect(() => nodeRoute('/__proto__')).toThrow()
   })
+  it.each([false, true])('H07 uses browser Fetch Metadata for WebSocket=%s', (isWs) => {
+    const req = listenerRequest(isWs)
+    const config = listenerFixture().options.config
+    expect(() => {
+      guardNodeRequest(req, config, isWs)
+    }).not.toThrow()
+    req.rawHeaders[req.rawHeaders.indexOf('Sec-Fetch-Dest') + 1] = isWs ? 'empty' : 'websocket'
+    expect(() => {
+      guardNodeRequest(req, config, isWs)
+    }).toThrow()
+  })
+  it.each([
+    [false, 'Sec-Fetch-Site', 'cross-site'],
+    [true, 'Sec-Fetch-Site', 'cross-site'],
+    [false, 'Sec-Fetch-Site', 'same-site'],
+    [true, 'Sec-Fetch-Site', 'same-site'],
+    [false, 'Origin', 'https://evil.local:7443'],
+    [true, 'Origin', 'https://evil.local:7443'],
+  ])('H07 refuses foreign HTTP/WebSocket=%s %s %s', (isWs, name, value) => {
+    const req = listenerRequest(isWs)
+    req.rawHeaders[req.rawHeaders.indexOf(name) + 1] = value
+    expect(() => {
+      guardNodeRequest(req, listenerFixture().options.config, isWs)
+    }).toThrow()
+  })
   it('H07 a coherent forged Host and Origin still cannot escape the configured names', () => {
     const req = listenerRequest()
     req.rawHeaders[req.rawHeaders.indexOf('Host') + 1] = 'evil.local:7443'

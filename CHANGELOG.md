@@ -29,6 +29,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Home-node WebSocket upgrades accept the browser's `websocket` Fetch
+  Metadata destination while HTTP requests keep `empty`; both transports
+  continue to reject foreign origins and sites.
 - Home-node tool requests preserve empty arguments after a nonempty executable,
   including through the scripted tool-host contract.
 - The home-node tool-host contract now supplies ordered terminal output and

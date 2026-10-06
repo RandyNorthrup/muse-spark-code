@@ -74,7 +74,7 @@ export function guardNodeRequest(
     !(isWebsocket ? ['websocket'] : ['cors', 'same-origin']).includes(
       nodeHeader(request, 'sec-fetch-mode') ?? '',
     ) ||
-    nodeHeader(request, 'sec-fetch-dest') !== 'empty' ||
+    nodeHeader(request, 'sec-fetch-dest') !== (isWebsocket ? 'websocket' : 'empty') ||
     nodeHeader(request, 'cookie') !== undefined
   ) {
     throw new NodeListenerError('forbidden')

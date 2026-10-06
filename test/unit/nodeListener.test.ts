@@ -184,7 +184,7 @@ async function terminalSocket(origin: string): Promise<Duplex> {
         Origin: origin,
         'Sec-Fetch-Site': 'same-origin',
         'Sec-Fetch-Mode': 'websocket',
-        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Dest': 'websocket',
         Upgrade: 'websocket',
         Connection: 'Upgrade',
         'Sec-WebSocket-Version': '13',

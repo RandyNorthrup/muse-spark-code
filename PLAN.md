@@ -22535,6 +22535,18 @@ drills and the named `N-A1-VERIFIER`, `N-A1-S0-TLS`, `N-C-LISTENER`,
 sign-in (including H20 console recovery), issuance, OS deployment and user
 surfaces remain their owners' integration work; unbound serve still refuses.
 
+**FIXM110N2 scope (RVM110NG, 2026-10-06).** Correct H07's WebSocket
+destination to `websocket` while HTTP keeps `empty`, with fixtures derived
+from Fetch Metadata and negative cases for both transports. Correct H08's
+attendance to track first verification and latest authenticated activity on
+the monotonic clock, bounded by the existing idle/absolute maxima; reject
+future or over-long public session metadata. Reverification never resets the
+absolute clock. Retain expired attachment records until A1 detaches/ends them
+so a repeated id cannot restart either limit; the existing session cap bounds
+that memory. Add before-fix regressions and byte-exact guard-fire receipts.
+The P3 packed replace-ref finding is the named §9 residual below; no guard,
+dependency, protocol shape or unrelated lane file changes.
+
 **RVM110L0 corrections (FIXM110L0).** Before freezing these contracts,
 close all three review findings: require a closed, service-owned Git
 configuration with fixed overrides/environment and immutable SSH destination
@@ -24168,6 +24180,15 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M110N-packed-replace-ref (RVM110NG P3).** The private Git snapshot
+  rejects loose `refs/replace/*` but copies packed replacement refs as data.
+  Safe for now: every `NodeGitRunner` invocation prepends
+  `NODE_GIT_OPTIONS`, including `--no-replace-objects`, so those refs cannot
+  replace objects during any current operation. Follow-up: N/U1 reject packed
+  replacement refs in the bounded FD-held import, add a packed-ref regression
+  and red drill, and qualify it before expanding the Git invocation surface.
+  This is retained data, not permission to enable Git replacement objects.
 
 - **M110L0-Git-runtime-qualification (RVM110L0-1).** The closed configuration,
   fixed Git policy and immutable SSH destination contracts are fixed in L0;
