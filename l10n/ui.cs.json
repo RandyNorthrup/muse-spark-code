@@ -2638,5 +2638,8 @@
   "feedbackSending": "Odesílání zpětné vazby…",
   "feedbackSubmitted": "Zpětná vazba byla odeslána.",
   "feedbackFailed": "Zpětnou vazbu se nepodařilo odeslat.",
-  "feedbackResult": "Muse Code vrátil: {result}"
+  "feedbackResult": "Muse Code vrátil: {result}",
+  "modelApiPacingTokenLimit": "Požadavek souběžného zpracování překračuje rozpočet tokenů vyhrazený pro práci na pozadí.",
+  "modelApiPacingWaiting": "Čekání na dostupnou kapacitu v limitu požadavků…",
+  "modelApiPacingExpired": "Čekání na dostupnou kapacitu v limitu požadavků vypršelo. Zkuste zprávu odeslat znovu."
 }

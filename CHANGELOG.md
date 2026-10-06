@@ -22,6 +22,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M106 fan-out pacing now retains concurrent request/token debits when late
+  response headers arrive, reserves half the observed token budget for the
+  foreground, and separates bounded local admission waits from provider idle
+  timing. Rate-limit waits have honest status notices; the token refusal is
+  translated in all 14 languages. Public service-status errors expose only
+  fixed scrubbed text, HTTP status, Retry-After and a fixed category.
+- M106's optional status UI loads in its own lazy chunk with a 25-KiB budget;
+  the existing deferred group keeps its 50-KiB cap. The pacing module is
+  included in the checked lazy Model API inventory.
+
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

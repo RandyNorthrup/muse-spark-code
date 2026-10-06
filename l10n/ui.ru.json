@@ -2638,5 +2638,8 @@
   "feedbackSending": "Отправка отзыва…",
   "feedbackSubmitted": "Отзыв отправлен.",
   "feedbackFailed": "Не удалось отправить отзыв.",
-  "feedbackResult": "Muse Code вернул: {result}"
+  "feedbackResult": "Muse Code вернул: {result}",
+  "modelApiPacingTokenLimit": "Параллельный запрос превышает бюджет токенов, выделенный для фоновой работы.",
+  "modelApiPacingWaiting": "Ожидание свободной ёмкости в пределах лимита запросов…",
+  "modelApiPacingExpired": "Время ожидания свободной ёмкости истекло. Отправьте сообщение ещё раз, чтобы повторить попытку."
 }

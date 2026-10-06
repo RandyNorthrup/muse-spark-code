@@ -2356,5 +2356,8 @@
   "feedbackSending": "正在发送反馈…",
   "feedbackSubmitted": "反馈已提交。",
   "feedbackFailed": "无法提交反馈。",
-  "feedbackResult": "Muse Code 返回：{result}"
+  "feedbackResult": "Muse Code 返回：{result}",
+  "modelApiPacingTokenLimit": "并行请求超出了为后台任务预留的令牌预算。",
+  "modelApiPacingWaiting": "正在等待速率限制内的可用容量…",
+  "modelApiPacingExpired": "等待可用容量的时间已到。请重新发送消息以重试。"
 }

@@ -2544,5 +2544,8 @@
   "feedbackSending": "Envoi du retour…",
   "feedbackSubmitted": "Retour envoyé.",
   "feedbackFailed": "Impossible d’envoyer le retour.",
-  "feedbackResult": "Muse Code a renvoyé : {result}"
+  "feedbackResult": "Muse Code a renvoyé : {result}",
+  "modelApiPacingTokenLimit": "La requête parallèle dépasse le budget de jetons réservé au travail en arrière-plan.",
+  "modelApiPacingWaiting": "En attente de capacité dans la limite de requêtes…",
+  "modelApiPacingExpired": "Le délai d’attente de capacité a expiré. Renvoyez le message pour réessayer."
 }

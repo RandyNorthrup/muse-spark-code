@@ -2544,5 +2544,8 @@
   "feedbackSending": "Invio del feedback…",
   "feedbackSubmitted": "Feedback inviato.",
   "feedbackFailed": "Impossibile inviare il feedback.",
-  "feedbackResult": "Muse Code ha restituito: {result}"
+  "feedbackResult": "Muse Code ha restituito: {result}",
+  "modelApiPacingTokenLimit": "La richiesta parallela supera il budget di token riservato al lavoro in background.",
+  "modelApiPacingWaiting": "In attesa di capacità disponibile entro il limite di richieste…",
+  "modelApiPacingExpired": "Il tempo di attesa della capacità disponibile è scaduto. Invia di nuovo il messaggio per riprovare."
 }

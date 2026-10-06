@@ -2450,5 +2450,8 @@
   "feedbackSending": "Feedback wird gesendet…",
   "feedbackSubmitted": "Feedback gesendet.",
   "feedbackFailed": "Feedback konnte nicht gesendet werden.",
-  "feedbackResult": "Muse Code hat zurückgegeben: {result}"
+  "feedbackResult": "Muse Code hat zurückgegeben: {result}",
+  "modelApiPacingTokenLimit": "Die parallele Anfrage überschreitet das für Hintergrundarbeit reservierte Tokenbudget.",
+  "modelApiPacingWaiting": "Warten auf freie Kapazität im Ratenlimit…",
+  "modelApiPacingExpired": "Die Wartezeit auf freie Kapazität im Ratenlimit ist abgelaufen. Senden Sie die Nachricht erneut."
 }

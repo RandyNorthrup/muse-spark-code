@@ -25,6 +25,7 @@ import {
   MODEL_API_STREAM_IDLE_MS,
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
+  PACING_ADMISSION_TIMEOUT_MS,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { DeadlineError, withDeadline } from '../../timeouts'
@@ -58,6 +59,7 @@ import {
   type RequestPacer,
 } from './pacing'
 import { fanOutPacingClass } from './subagentTools'
+import { redactSecrets } from '../../redact'
 
 export interface ModelApiClientDeps {
   /** Share across clients for one process; omitted clients own a bucket themselves. */
@@ -210,6 +212,8 @@ export function retryAfterMs(header: string | null, now: number): number | undef
 
 /** One retry the client is about to make, for the transcript's notice. */
 export interface RetryNotice {
+  /** A local admission wait is neither a failed attempt nor a billed retry. */
+  readonly phase?: 'pacing'
   readonly attempt: number
   readonly maxAttempts: number
   readonly delayMs: number
@@ -360,6 +364,7 @@ export class ModelApiClient {
     budget?: RetryBudget,
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
+    providerDeadline?: (waiting: Promise<Response>) => Promise<Response>,
   ): Promise<Response> {
     const isRateLimitOnly = init.retries === 'rateLimitOnly' || init.paid !== undefined
     const fixedHeaders =
@@ -405,12 +410,29 @@ export class ModelApiClient {
       const account = `${provider.identity.provider}:${this.deps.baseUrl}:${credentials.keyDigest}`
       const kind = init.pacingClass ?? 'foreground'
       if (path === '/responses' && init.method === 'POST') {
-        await this.pacing.acquire(
-          account,
-          kind,
-          init.estimatedTokens ?? 0,
-          signal ?? new AbortController().signal,
-        )
+        const admission = new AbortController()
+        try {
+          await withDeadline(
+            this.pacing.acquire(
+              account,
+              kind,
+              init.estimatedTokens ?? 0,
+              AbortSignal.any([signal ?? new AbortController().signal, admission.signal]),
+              (delayMs) =>
+                onRetry?.({
+                  phase: 'pacing',
+                  attempt,
+                  maxAttempts: MODEL_API_MAX_RETRIES + 1,
+                  delayMs,
+                  reason: UI_TEXT.modelApiPacingWaiting,
+                }),
+            ),
+            PACING_ADMISSION_TIMEOUT_MS,
+            UI_TEXT.modelApiPacingExpired,
+          )
+        } finally {
+          admission.abort()
+        }
         // Waiting yields: key, consent, Stop and budget fences still run
         // immediately before dispatch, never only before joining the bucket.
         if (kind !== 'foreground' && credentials.keyDigest !== (await this.currentKeyDigest())) {
@@ -443,9 +465,11 @@ export class ModelApiClient {
       confirmed?.onRequestStarted()
       admitAttempt?.onRequestStarted?.()
       if (init.paid !== undefined) init.paid.isSent = true
+      const sent = this.pacing.snapshot(account)
       let response: Response
       try {
-        response = await this.deps.fetch(url, requestInit)
+        const fetching = this.deps.fetch(url, requestInit)
+        response = await (providerDeadline === undefined ? fetching : providerDeadline(fetching))
       } catch (error: unknown) {
         if (error instanceof ModelApiError || signal?.aborted === true) {
           throw error instanceof ModelApiError
@@ -481,6 +505,7 @@ export class ModelApiClient {
           ? (suggestedDelayMs ??
               Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS))
           : undefined,
+        sent,
       )
       if (response.ok) {
         this.deps.log.trace(
@@ -597,16 +622,31 @@ export class ModelApiClient {
     if (this.pacingProvider(undefined).identity.provider !== 'meta') {
       throw new Error(UI_TEXT.modelApiStatusUnavailable)
     }
-    const response = await this.deps.fetch(`${MODEL_API_BASE_URL}/status`, {
-      method: 'GET',
-      headers: { Accept: JSON_MEDIA_TYPE },
-      signal: AbortSignal.any([
-        AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-        ...(signal === undefined ? [] : [signal]),
-      ]),
-    })
-    if (!response.ok) throw await describeFailure(response)
-    return modelApiStatusSchema.parse(await response.json())
+    let status = NETWORK_FAILURE_STATUS
+    let retryAfter: number | undefined
+    try {
+      const response = await this.deps.fetch(`${MODEL_API_BASE_URL}/status`, {
+        method: 'GET',
+        headers: { Accept: JSON_MEDIA_TYPE },
+        signal: AbortSignal.any([
+          AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+          ...(signal === undefined ? [] : [signal]),
+        ]),
+      })
+      status = response.status
+      retryAfter = retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now())
+      if (!response.ok) throw new Error(UI_TEXT.modelApiStatusUnavailable)
+      return modelApiStatusSchema.parse(await response.json())
+    } catch {
+      // Shared scrubber plus an allowlist: provider prose, identifiers, stack and causes never cross.
+      const failure = new ModelApiError(
+        redactSecrets(UI_TEXT.modelApiStatusUnavailable),
+        status,
+        'service_status',
+        undefined,
+      )
+      throw Object.assign(failure, { retryAfterMs: retryAfter })
+    }
   }
 
   /** Tokens the rendered input would occupy; not billed (dev.meta.ai/docs/token-counting). */
@@ -693,28 +733,26 @@ export class ModelApiClient {
           )
     const paid = claim === undefined ? undefined : { claim, isSent: false }
     try {
-      const response = await within(
-        this.request(
-          '/responses',
-          {
-            method: 'POST',
-            body,
-            accept: EVENT_STREAM_MEDIA_TYPE,
-            modelId: body.model,
-            pacingClass: admitAttempt?.pacingClass ?? fanOutPacingClass(feature),
-            estimatedTokens:
-              (admitAttempt?.paidEstimatedInputTokens ??
-                new TextEncoder().encode(
-                  JSON.stringify([body.input, body.instructions, body.tools]),
-                ).length) + body.max_output_tokens,
-            ...(paid !== undefined && { paid }),
-          },
-          AbortSignal.any([signal, stall.signal]),
-          onRetry,
-          budget,
-          admitAttempt,
-          confirmed,
-        ),
+      const response = await this.request(
+        '/responses',
+        {
+          method: 'POST',
+          body,
+          accept: EVENT_STREAM_MEDIA_TYPE,
+          modelId: body.model,
+          pacingClass: admitAttempt?.pacingClass ?? fanOutPacingClass(feature),
+          estimatedTokens:
+            (admitAttempt?.paidEstimatedInputTokens ??
+              new TextEncoder().encode(JSON.stringify([body.input, body.instructions, body.tools]))
+                .length) + body.max_output_tokens,
+          ...(paid !== undefined && { paid }),
+        },
+        AbortSignal.any([signal, stall.signal]),
+        onRetry,
+        budget,
+        admitAttempt,
+        confirmed,
+        within,
       )
       if (response.body === null) {
         throw new ModelApiError('The response had no body', response.status, undefined, undefined)

@@ -2356,5 +2356,8 @@
   "feedbackSending": "フィードバックを送信中…",
   "feedbackSubmitted": "フィードバックを送信しました。",
   "feedbackFailed": "フィードバックを送信できませんでした。",
-  "feedbackResult": "Muse Code からの結果: {result}"
+  "feedbackResult": "Muse Code からの結果: {result}",
+  "modelApiPacingTokenLimit": "並列リクエストがバックグラウンド処理用のトークン予算を超えています。",
+  "modelApiPacingWaiting": "レート制限の空き容量を待っています…",
+  "modelApiPacingExpired": "レート制限の空き容量を待つ時間が終了しました。再試行するにはメッセージをもう一度送信してください。"
 }

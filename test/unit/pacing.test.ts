@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
+import * as z from 'zod/mini'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readRateCaptures } from './helpers/modelApiRateCapture'
 import { fakeModelApiClientSettings } from './helpers/fakeModelApi'
@@ -29,9 +33,83 @@ function clockedPacer() {
   return { pacer, waits, signal: new AbortController().signal }
 }
 
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  setUiText(EN, 'en')
+})
 
 describe('M106 request and token pacing', () => {
+  it('retains concurrent debits when a stale ten-RPM response reports nine remaining', async () => {
+    const { pacer, waits, signal } = clockedPacer()
+    const limits = { requests: 10, remainingRequests: 10, tokens: 1000, remainingTokens: 1000 }
+    pacer.observe('key', limits)
+    await pacer.acquire('key', 'team', 25, signal)
+    const sentA = pacer.snapshot('key')
+    for (let index = 0; index < 7; index += 1) await pacer.acquire('key', 'team', 25, signal)
+    const sentH = pacer.snapshot('key')
+    pacer.observe(
+      'key',
+      { ...limits, remainingRequests: 9, remainingTokens: 975 },
+      undefined,
+      sentA,
+    )
+    expect(pacer.headroom('key')).toMatchObject({ remainingRequests: 2, remainingTokens: 800 })
+    await pacer.acquire('key', 'team', 25, signal)
+    // A later or out-of-order snapshot cannot refund the ninth local admission.
+    pacer.observe(
+      'key',
+      { ...limits, remainingRequests: 8, remainingTokens: 950 },
+      undefined,
+      sentH,
+    )
+    expect(pacer.headroom('key')).toMatchObject({ remainingRequests: 1, remainingTokens: 775 })
+    await pacer.acquire('key', 'team', 25, signal)
+    expect(waits).toEqual([6000])
+  })
+
+  it('retains post-dispatch debits even when provider headroom is lower than local headroom', async () => {
+    const { pacer, signal } = clockedPacer()
+    const limits = { requests: 10, remainingRequests: 10, tokens: 1000, remainingTokens: 1000 }
+    pacer.observe('key', limits)
+    await pacer.acquire('key', 'team', 100, signal)
+    const sent = pacer.snapshot('key')
+    await pacer.acquire('key', 'team', 100, signal)
+    pacer.observe('key', { ...limits, remainingRequests: 5, remainingTokens: 500 }, undefined, sent)
+    expect(pacer.headroom('key')).toMatchObject({ remainingRequests: 4, remainingTokens: 400 })
+  })
+
+  it('reserves half the observed token budget for foreground after a background burst', async () => {
+    const { pacer, waits, signal } = clockedPacer()
+    pacer.observe('key', { requests: 10, remainingRequests: 10, tokens: 300, remainingTokens: 300 })
+    await pacer.acquire('key', 'team', 75, signal)
+    await pacer.acquire('key', 'team', 75, signal)
+    expect(pacer.headroom('key').remainingTokens).toBe(150)
+    await pacer.acquire('key', 'foreground', 150, signal)
+    expect(waits).toEqual([])
+    await expect(pacer.acquire('key', 'team', 151, signal)).rejects.toThrow('token budget')
+  })
+
+  it('reads the Japanese fan-out refusal at call time', async () => {
+    const japanese = {
+      ...EN,
+      ...z
+        .object({ modelApiPacingTokenLimit: z.string() })
+        .parse(JSON.parse(readFileSync(new URL('../../l10n/ui.ja.json', import.meta.url), 'utf8'))),
+    }
+    setUiText(japanese, 'ja')
+    const { pacer, signal } = clockedPacer()
+    pacer.observe('key', {
+      requests: 10,
+      remainingRequests: 10,
+      tokens: 1000,
+      remainingTokens: 1000,
+    })
+    await expect(pacer.acquire('key', 'team', 1001, signal)).rejects.toThrow(
+      japanese.modelApiPacingTokenLimit,
+    )
+    expect(japanese.modelApiPacingTokenLimit).not.toBe(EN.modelApiPacingTokenLimit)
+  })
+
   it("uses a provider capability interpreter's captured window instead of imposing Meta's minute", async () => {
     const { pacer, waits, signal } = clockedPacer()
     const limits = {
@@ -43,7 +121,7 @@ describe('M106 request and token pacing', () => {
     }
     pacer.observe('captured-provider:key', limits)
     await pacer.acquire('captured-provider:key', 'team', 25, signal)
-    expect(waits).toEqual([30_000])
+    expect(waits).toEqual([90_000])
     expect(pacer.headroom('captured-provider:key').windowMs).toBe(120_000)
     expect(pacer.headroom('meta:key').windowMs).toBe(PACING_WINDOW_MS)
     expect(() => {
@@ -106,7 +184,11 @@ describe('M106 request and token pacing', () => {
       pacer.observe('meta:key', metaPacingLimits(new Headers(capture.headers)))
       expect(pacer.headroom('meta:key')).toMatchObject({
         requests: 150,
-        remainingRequests: Number(capture.headers['x-ratelimit-remaining-requests']),
+        remainingRequests: Math.min(
+          ...captures
+            .slice(0, captures.indexOf(capture) + 1)
+            .map((entry) => Number(entry.headers['x-ratelimit-remaining-requests'])),
+        ),
         tokens: 3_000_000,
         remainingTokens: Number(capture.headers['x-ratelimit-remaining-tokens']),
       })
@@ -157,9 +239,9 @@ describe('M106 request and token pacing', () => {
         remainingTokens: 0,
       })
       await pacer.acquire('key', kind, 100, signal)
-      expect(waits).toEqual([6000])
-      expect(pacer.headroom('key').remainingTokens).toBe(0)
-      expect(pacer.headroom('key').remainingRequests).toBe(15)
+      expect(waits).toEqual([36_000])
+      expect(pacer.headroom('key').remainingTokens).toBe(500)
+      expect(pacer.headroom('key').remainingRequests).toBe(90)
     },
   )
 
@@ -220,7 +302,7 @@ describe('M106 request and token pacing', () => {
       tokens: 1000,
       remainingTokens: 1000,
     })
-    await expect(pacer.acquire('key', 'team', 1001, signal)).rejects.toThrow('exceeds')
+    await expect(pacer.acquire('key', 'team', 1001, signal)).rejects.toThrow('token budget')
     await expect(pacer.acquire('key', 'team', -1, signal)).rejects.toThrow('estimate')
     const stop = new AbortController()
     stop.abort()

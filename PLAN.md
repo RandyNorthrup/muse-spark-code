@@ -238,6 +238,15 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**M106R pacing/status UI split (2026-10-06).** `ServiceStatusRow.tsx`
+loads dynamically from the already deferred usage dialog. Its exclusive
+JavaScript measures 1.1 KiB; +15%, rounded up to 25 KiB gives its independent
+25-KiB cap. Static dependencies shared with another optional surface stay
+in the original 50-KiB deferred group (49.9 KiB measured); startup remains
+bounded at 900 KiB. The production split gate requires the new surface to
+be deferred and reachable and `pacing.ts` to remain in `dist/modelApi.js`.
+The new budget and unchanged original cap have one-byte overflow red drills.
+
 **TRAIN14A integration size recovery (2026-10-05).** The initial M94 archive
 has insufficient universal-helper headroom, and the prepared M71 join exceeds
 activation and shared English by 7.1 KiB each; browser budgets still fit.
@@ -19425,6 +19434,18 @@ structured answer schema or fixed Markdown renderer: the new six-field
 answer contract and deterministic rendering specification are M106's,
 while C1's metadata and replay wrapper remain unchanged.
 
+**FIXM106R review repair (Kubuntu, 2026-10-06), authorized scope.** Fix all
+four RVM106R P2s and its P3 with regression tests and byte-exact red drills:
+retain local concurrent debits when reconciling headers; reserve half the
+observed token budget for foreground; start provider idle timing at dispatch
+and bound local admission separately with a localized rate-limit wait notice;
+scrub status failures and expose only HTTP status, Retry-After and a fixed
+category; translate the fan-out refusal in all 14 tables. Isolate the status
+UI in its own lazy chunk with an independently measured +15%, rounded-to-25-KiB
+budget, preserving the existing deferred group's 50-KiB cap, and add pacing
+to the Model API lazy inventory. No dependencies, provider wire guesses,
+live calls, merges or full quality run. No review residual is planned.
+
 **Lane R implementation (Kubuntu, 2026-10-06).** Captured Meta headers feed
 the request/token bucket; existing subagent, best-of-N and schedule paid
 tags select background pacing. A foreground request never waits for fan-out
@@ -19447,8 +19468,10 @@ factory region of `modelApiHost.test.ts`; no engine loop region changes.
 The normalized pacing port can carry a captured provider's own window
 duration; only Meta's U12 interpretation defaults to the documented minute.
 The usage row revalidates its two consumed status fields without importing
-the full transport schemas. R's build remains blocked by the deferred UI
-budget and the new module's bundle-map entry; see §7 and R-BUNDLE below.
+the full transport schemas. FIXM106R resolves the deferred UI budget and module-map blockers: the
+status row has its own checked lazy chunk and pacing is in the Model API
+inventory. Review findings, regression tests and red receipts are recorded
+in `docs/certification/m106-r.md`; no RVM106R residual remains.
 
 - **Goal.** Every guarantee Meta's wire offers the loop is used wherever the
   selected model has it: valid tool arguments, machine-readable side
@@ -20072,17 +20095,15 @@ Each joins when its dependency merges, and none blocks the others.
 
 ## 7. Gates
 
-**M106 R bundle integration deferral (Kubuntu, 2026-10-06).** The production
-build exits 1: deferred webview JavaScript is 50.7 KiB against the unchanged
-50 KiB budget. Removing the usage row's broad transport-schema import
-reduced it from 52.8 KiB. The independently run split gate also exits 1:
-`src/core/backends/modelapi/pacing.ts` needs its lazy-list entry. Scripts,
-bundle wiring and budgets belong to M106 lane W; R leaves those files
-untouched and records **R-BUNDLE** in `docs/certification/m106-r.md` for W
-to fit the UI and add the real module to the lazy map. Other scoped checks
-and 857 owning tests pass. This is a blocking integration deferral, not a
-passing build, gate waiver or merge recommendation. Full quality remains
-with W/lead as the lane brief requires; no gate or timeout is weakened.
+**FIXM106R review and bundle repair (Kubuntu, 2026-10-06).** All four
+RVM106R P2s and its P3 are fixed, with failing guard drills and byte-exact
+source restoration. `npm run build` exits 0: original deferred UI 49.9/50 KiB,
+exclusive pacing UI 1.1/25 KiB, eager webview 894.6/900 KiB, Model API
+452.3/475 KiB and activation 437.0/600 KiB. The split gate verifies pacing
+only in its lazy Model API inventory and the dynamically loaded status row.
+The prior R-BUNDLE deferral is closed. Full quality, coverage, accessibility,
+live and platform checks remain the lead's gates under the rig/common brief.
+No dependency, existing cap, timeout, hook or protocol guard is weakened.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -21256,6 +21277,12 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM106R (2026-10-06): no review residual.** RVM106R's four P2s and
+  P3 are resolved. Status error fields are allowlisted after the shared
+  scrubber; provider prose, identifiers, tokens and causes are discarded.
+  The original provider/team/health/help bindings remain named integration
+  handoffs in the M106 R certification, not newly accepted review findings.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

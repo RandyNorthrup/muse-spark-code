@@ -62,3 +62,75 @@ describe('bundled What’s New content budget', () => {
     expect(console.log).toHaveBeenCalledWith('MISS dist/whatsNew.json: not built (budget 40 KiB)')
   })
 })
+
+function pacingFixture(pacingBytes, deferredBytes = 0) {
+  readFileSync.mockReturnValue(
+    JSON.stringify({
+      outputs: {
+        'dist/webview/main.js': {
+          imports: [
+            { path: 'dist/webview/pacing.js', kind: 'dynamic-import' },
+            { path: 'dist/webview/deferred.js', kind: 'dynamic-import' },
+          ],
+        },
+        'dist/webview/pacing.js': {
+          entryPoint: String.raw`src\webview\components\ServiceStatusRow.tsx`,
+          imports: [],
+        },
+        'dist/webview/deferred.js': {
+          entryPoint: 'src/webview/components/UsageDialog.tsx',
+          imports: [],
+        },
+      },
+    }),
+  )
+  statSync.mockImplementation((file) => {
+    if (file.endsWith('pacing.js')) return { size: pacingBytes }
+    return { size: file.endsWith('deferred.js') ? deferredBytes : 0 }
+  })
+}
+
+describe('M106 pacing UI budget', () => {
+  it('admits exactly 25 KiB of exclusive pacing UI alongside the unchanged 50 KiB group', async () => {
+    pacingFixture(25 * 1024, 50 * 1024)
+    await import('../../scripts/check-bundle-size.mjs')
+    expect(console.log).toHaveBeenCalledWith(
+      'ok   dist/webview pacing JS: 25.0 KiB (budget 25 KiB)',
+    )
+    expect(process.exit).not.toHaveBeenCalled()
+  })
+
+  it('rejects one byte over the independent pacing UI budget', async () => {
+    pacingFixture(25 * 1024 + 1)
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith(
+      'OVER dist/webview pacing JS: 25.0 KiB (budget 25 KiB)',
+    )
+  })
+
+  it('keeps the original deferred group capped at 50 KiB', async () => {
+    pacingFixture(1, 50 * 1024 + 1)
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith(
+      'OVER dist/webview deferred JS: 50.0 KiB (budget 50 KiB)',
+    )
+  })
+
+  it('keeps static dependencies shared with another optional surface in the original group', async () => {
+    const { webviewPacingOutputs } = await import('../../scripts/lib/webviewBundles.mjs')
+    const shared = { path: 'shared.js', kind: 'import-statement' }
+    expect(
+      webviewPacingOutputs({
+        outputs: {
+          'dist/webview/main.js': { imports: [] },
+          'pacing.js': {
+            entryPoint: 'src/webview/components/ServiceStatusRow.tsx',
+            imports: [shared],
+          },
+          'usage.js': { entryPoint: 'src/webview/components/UsageDialog.tsx', imports: [shared] },
+          'shared.js': { imports: [] },
+        },
+      }),
+    ).toEqual(['pacing.js'])
+  })
+})

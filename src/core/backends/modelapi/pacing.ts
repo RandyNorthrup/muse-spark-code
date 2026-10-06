@@ -2,7 +2,12 @@
 // Meta headers are interpreted here; another provider supplies its own
 // captured interpreter through the client's capability port.
 import * as z from 'zod/mini'
-import { PACING_START_REQUESTS_PER_MINUTE, PACING_WINDOW_MS } from '../../../shared/constants'
+import {
+  PACING_START_REQUESTS_PER_MINUTE,
+  PACING_WINDOW_MS,
+  PACING_BACKGROUND_TOKEN_FRACTION,
+  UI_TEXT,
+} from '../../../shared/constants'
 
 export type PacingClass = 'foreground' | 'subagent' | 'bestOfN' | 'team' | 'judge' | 'schedule'
 
@@ -59,12 +64,33 @@ interface Bucket {
   remainingTokens: number | undefined
   updatedAt: number
   pausedUntil: number
+  observed: boolean
+  admittedRequests: number
+  admittedTokens: number
+}
+
+/** Cumulative local debits at dispatch, so late headers retain subsequent admissions. */
+export interface PacingSnapshot {
+  readonly requests: number
+  readonly tokens: number
 }
 
 /** A portable admission port for team pools, judges and scheduled dispatchers. */
 export interface RequestPacer {
-  acquire(account: string, kind: PacingClass, tokens: number, signal: AbortSignal): Promise<void>
-  observe(account: string, limits: PacingLimits | undefined, retryAfterMs?: number): void
+  acquire(
+    account: string,
+    kind: PacingClass,
+    tokens: number,
+    signal: AbortSignal,
+    onWait?: (delayMs: number) => void,
+  ): Promise<void>
+  snapshot(account: string): PacingSnapshot
+  observe(
+    account: string,
+    limits: PacingLimits | undefined,
+    retryAfterMs?: number,
+    sent?: PacingSnapshot,
+  ): void
 }
 
 export class ModelApiPacing implements RequestPacer {
@@ -83,6 +109,9 @@ export class ModelApiPacing implements RequestPacer {
         remainingTokens: undefined,
         updatedAt: this.deps.now(),
         pausedUntil: 0,
+        observed: false,
+        admittedRequests: 0,
+        admittedTokens: 0,
       }
       this.buckets.set(account, bucket)
     }
@@ -103,22 +132,49 @@ export class ModelApiPacing implements RequestPacer {
   }
 
   private charge(bucket: Bucket, tokens: number): void {
+    bucket.admittedRequests += 1
+    bucket.admittedTokens += tokens
     bucket.remainingRequests = Math.max(0, bucket.remainingRequests - 1)
     if (bucket.remainingTokens !== undefined) {
       bucket.remainingTokens = Math.max(0, bucket.remainingTokens - tokens)
     }
   }
 
-  /** Header snapshots replace both limits live. A 429 pauses even when its headers are absent. */
-  public observe(account: string, limits: PacingLimits | undefined, retryAfterMs = 0): void {
+  public snapshot(account: string): PacingSnapshot {
+    const bucket = this.bucket(account)
+    return { requests: bucket.admittedRequests, tokens: bucket.admittedTokens }
+  }
+
+  /** Local debits are authoritative; a stale response can only reduce headroom. */
+  public observe(
+    account: string,
+    limits: PacingLimits | undefined,
+    retryAfterMs = 0,
+    sent?: PacingSnapshot,
+  ): void {
     const bucket = this.bucket(account)
     if (limits !== undefined) {
       const checked = limitsSchema.parse(limits)
+      const laterRequests = sent === undefined ? 0 : bucket.admittedRequests - sent.requests
+      const laterTokens = sent === undefined ? 0 : bucket.admittedTokens - sent.tokens
+      // The first capture establishes the real capacity, retaining all startup debits.
+      const localRequests = bucket.observed
+        ? bucket.remainingRequests
+        : Math.max(0, checked.requests - bucket.admittedRequests)
+      const localTokens =
+        bucket.remainingTokens ?? Math.max(0, checked.tokens - bucket.admittedTokens)
       bucket.windowMs = checked.windowMs ?? PACING_WINDOW_MS
       bucket.requests = checked.requests
-      bucket.remainingRequests = Math.min(checked.remainingRequests, checked.requests)
+      bucket.remainingRequests = Math.max(
+        0,
+        Math.min(localRequests, checked.remainingRequests - laterRequests, checked.requests),
+      )
       bucket.tokens = checked.tokens
-      bucket.remainingTokens = Math.min(checked.remainingTokens, checked.tokens)
+      bucket.remainingTokens = Math.max(
+        0,
+        Math.min(localTokens, checked.remainingTokens - laterTokens, checked.tokens),
+      )
+      bucket.observed = true
     }
     if (Number.isFinite(retryAfterMs) && retryAfterMs > 0) {
       bucket.pausedUntil = Math.max(bucket.pausedUntil, this.deps.now() + retryAfterMs)
@@ -135,6 +191,7 @@ export class ModelApiPacing implements RequestPacer {
     kind: PacingClass,
     tokens: number,
     signal: AbortSignal,
+    onWait?: (delayMs: number) => void,
   ): Promise<void> {
     if (!Number.isSafeInteger(tokens) || tokens < 0) {
       throw new RangeError('Invalid pacing token estimate')
@@ -149,8 +206,11 @@ export class ModelApiPacing implements RequestPacer {
         this.charge(bucket, tokens)
         return
       }
-      if (bucket.tokens !== undefined && tokens > bucket.tokens) {
-        throw new RangeError('Fan-out request exceeds the observed token limit')
+      if (
+        bucket.tokens !== undefined &&
+        tokens > bucket.tokens * PACING_BACKGROUND_TOKEN_FRACTION
+      ) {
+        throw new RangeError(UI_TEXT.modelApiPacingTokenLimit)
       }
       // Keep one request for the foreground. A one-RPM key can still run
       // background work once full; foreground always bypasses this check.
@@ -161,12 +221,20 @@ export class ModelApiPacing implements RequestPacer {
       const tokenWait =
         bucket.tokens === undefined || bucket.remainingTokens === undefined
           ? 0
-          : (Math.max(0, tokens - bucket.remainingTokens) * bucket.windowMs) / bucket.tokens
+          : (Math.max(
+              0,
+              tokens +
+                bucket.tokens * (1 - PACING_BACKGROUND_TOKEN_FRACTION) -
+                bucket.remainingTokens,
+            ) *
+              bucket.windowMs) /
+            bucket.tokens
       const delay = Math.ceil(Math.max(pause, requestWait, tokenWait))
       if (delay === 0) {
         this.charge(bucket, tokens)
         return
       }
+      onWait?.(delay)
       await this.deps.wait(delay, signal)
     }
   }

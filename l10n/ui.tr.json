@@ -2450,5 +2450,8 @@
   "feedbackSending": "Geri bildirim gönderiliyor…",
   "feedbackSubmitted": "Geri bildirim gönderildi.",
   "feedbackFailed": "Geri bildirim gönderilemedi.",
-  "feedbackResult": "Muse Code şu yanıtı döndürdü: {result}"
+  "feedbackResult": "Muse Code şu yanıtı döndürdü: {result}",
+  "modelApiPacingTokenLimit": "Paralel istek, arka plan çalışması için ayrılan token bütçesini aşıyor.",
+  "modelApiPacingWaiting": "İstek sınırı içinde boş kapasite bekleniyor…",
+  "modelApiPacingExpired": "Boş kapasite bekleme süresi doldu. Yeniden denemek için mesajı tekrar gönderin."
 }

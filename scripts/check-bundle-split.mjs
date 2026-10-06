@@ -124,6 +124,7 @@ const ACTIVATION_ALLOWED = new Map([
 const LAZY_ONLY = [
   // TRAIN14A: stored-key image/Tab HTTP calls load the same client on first use.
   'client.ts',
+  'pacing.ts',
   'ModelApiHost.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',
@@ -890,7 +891,7 @@ visitWebview('dist/webview/main.js')
 for (const surface of DEFERRED_WEBVIEW_SURFACES) {
   const source = `src/webview/components/${surface}.tsx`
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
-    Object.hasOwn(output.inputs, source),
+    Object.keys(output.inputs).some((input) => input.replaceAll('\\', '/') === source),
   )
   if (outputs.length !== 1 || eagerWebview.has(outputs[0]?.[0])) {
     problems.push(`${source} must occur in exactly one deferred webview chunk`)
@@ -902,9 +903,9 @@ for (const [file, output] of Object.entries(webviewMeta.outputs)) {
     problems.push(`Unreachable or missing webview chunk ${file}`)
   if (
     output.entryPoint &&
-    output.entryPoint !== 'src/webview/main.tsx' &&
+    output.entryPoint.replaceAll('\\', '/') !== 'src/webview/main.tsx' &&
     DEFERRED_WEBVIEW_SURFACES.every(
-      (name) => output.entryPoint !== `src/webview/components/${name}.tsx`,
+      (name) => output.entryPoint.replaceAll('\\', '/') !== `src/webview/components/${name}.tsx`,
     )
   ) {
     problems.push(`Unlisted deferred webview surface ${output.entryPoint}`)

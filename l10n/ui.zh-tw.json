@@ -2356,5 +2356,8 @@
   "feedbackSending": "正在傳送意見回饋…",
   "feedbackSubmitted": "意見回饋已提交。",
   "feedbackFailed": "無法提交意見回饋。",
-  "feedbackResult": "Muse Code 傳回：{result}"
+  "feedbackResult": "Muse Code 傳回：{result}",
+  "modelApiPacingTokenLimit": "並行請求超出了為背景工作預留的權杖預算。",
+  "modelApiPacingWaiting": "正在等待速率限制內的可用容量…",
+  "modelApiPacingExpired": "等待可用容量的時間已到。請重新傳送訊息以重試。"
 }

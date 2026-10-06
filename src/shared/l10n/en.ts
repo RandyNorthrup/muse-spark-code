@@ -30,6 +30,11 @@ export const EN = {
   outputSchemaInvalid: 'The output schema is outside the supported strict subset: {detail}',
   outputSchemaMismatch: 'The final answer does not match the output schema: {detail}',
   outputSchemaReadFailed: 'Could not read the output schema: {detail}',
+  modelApiPacingTokenLimit:
+    'Fan-out request exceeds the token budget reserved for background work.',
+  modelApiPacingWaiting: 'Waiting for rate limit headroom…',
+  modelApiPacingExpired:
+    'The wait for rate limit headroom expired. Send the message again to retry.',
   modelApiStatusLabel: 'Meta API status',
   modelApiStatusUnavailable: 'Status unavailable',
   modelApiStatusOpen: 'Open service status',

@@ -2356,5 +2356,8 @@
   "feedbackSending": "피드백을 보내는 중…",
   "feedbackSubmitted": "피드백을 보냈습니다.",
   "feedbackFailed": "피드백을 보낼 수 없습니다.",
-  "feedbackResult": "Muse Code 반환 결과: {result}"
+  "feedbackResult": "Muse Code 반환 결과: {result}",
+  "modelApiPacingTokenLimit": "병렬 요청이 백그라운드 작업에 예약된 토큰 예산을 초과합니다.",
+  "modelApiPacingWaiting": "요청 제한 내 여유 용량을 기다리는 중…",
+  "modelApiPacingExpired": "여유 용량 대기 시간이 만료되었습니다. 다시 시도하려면 메시지를 다시 보내세요."
 }

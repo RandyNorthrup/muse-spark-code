@@ -17,7 +17,12 @@ import {
   type RequestPacer,
 } from '../../src/core/backends/modelapi/pacing'
 import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/modelapi/schemas'
-import { MODEL_API_MAX_RETRIES, UI_TEXT } from '../../src/shared/constants'
+import {
+  MODEL_API_MAX_RETRIES,
+  PACING_ADMISSION_TIMEOUT_MS,
+  PACING_WINDOW_MS,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
 import { readRateCaptures } from './helpers/modelApiRateCapture'
@@ -70,7 +75,11 @@ function setup(
 }
 
 function observedPacer(): RequestPacer {
-  return { acquire: vi.fn(() => Promise.resolve()), observe: vi.fn() }
+  return {
+    acquire: vi.fn(() => Promise.resolve()),
+    snapshot: vi.fn(() => ({ requests: 0, tokens: 0 })),
+    observe: vi.fn(),
+  }
 }
 
 async function expectResponseFailure(client: ModelApiClient, status: number): Promise<void> {
@@ -80,6 +89,225 @@ async function expectResponseFailure(client: ModelApiClient, status: number): Pr
 }
 
 describe('M106 client pacing and retry boundaries', () => {
+  it('dispatches six one-RPM background requests after admission without starting provider idle timing in the queue', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(0)
+    try {
+      const api = fakeModelApi()
+      let isInitial = true
+      const t = setup(undefined, undefined, undefined, {
+        now: Date.now,
+        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+        fetch: async (input, init) => {
+          const response = await api.fetch(input, init)
+          if (!isInitial) return response
+          isInitial = false
+          return new Response(response.body, {
+            headers: {
+              'x-ratelimit-limit-requests': '1',
+              'x-ratelimit-remaining-requests': '0',
+              'x-ratelimit-limit-tokens': '3000000',
+              'x-ratelimit-remaining-tokens': '3000000',
+            },
+          })
+        },
+      })
+      await collect(t.client.streamResponse(body, new AbortController().signal))
+      const notices: RetryNotice[] = []
+      const guard = Object.assign(() => undefined, { pacingClass: 'team' as const })
+      const pending = Promise.all(
+        Array.from({ length: 6 }, () =>
+          collect(
+            t.client.streamResponse(
+              body,
+              new AbortController().signal,
+              (notice) => {
+                notices.push(notice)
+              },
+              undefined,
+              guard,
+            ),
+          ),
+        ),
+      )
+      const outcome = (async () => {
+        try {
+          return { results: await pending, error: undefined }
+        } catch (error: unknown) {
+          return { results: undefined, error }
+        }
+      })()
+      await vi.advanceTimersByTimeAsync(6 * PACING_WINDOW_MS)
+      const settled = await outcome
+      expect(settled.error).toBeUndefined()
+      expect(settled.results).toHaveLength(6)
+      expect(api.responseBodies()).toHaveLength(7)
+      expect(notices.length).toBeGreaterThan(0)
+      expect(notices.every((notice) => notice.reason === UI_TEXT.modelApiPacingWaiting)).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('starts the provider idle deadline at dispatch when response headers never arrive', async () => {
+    vi.useFakeTimers()
+    try {
+      const dispatched = Promise.withResolvers<undefined>()
+      let requestSignal: AbortSignal | undefined
+      const t = setup(
+        undefined,
+        (_input, init) => {
+          requestSignal = init?.signal ?? undefined
+          dispatched.resolve(undefined)
+          return new Promise<Response>(() => undefined)
+        },
+        50,
+      )
+      const outcome = (async () => {
+        try {
+          await collect(t.client.streamResponse(body, new AbortController().signal))
+          return undefined
+        } catch (error: unknown) {
+          return error
+        }
+      })()
+      await dispatched.promise
+      await vi.advanceTimersByTimeAsync(50)
+      expect(await outcome).toMatchObject({
+        status: 0,
+        message: expect.stringContaining('sent nothing'),
+      })
+      expect(requestSignal?.aborted).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('bounds local admission with an honest rate-limit failure and cancels its queued work', async () => {
+    vi.useFakeTimers()
+    try {
+      let queuedSignal: AbortSignal | undefined
+      const pacing: RequestPacer = {
+        acquire: (_account, _kind, _tokens, signal) => {
+          queuedSignal = signal
+          return new Promise<void>(() => undefined)
+        },
+        snapshot: () => ({ requests: 0, tokens: 0 }),
+        observe: vi.fn(),
+      }
+      const t = setup(undefined, undefined, undefined, { pacing })
+      const pending = expect(
+        collect(t.client.streamResponse(body, new AbortController().signal)),
+      ).rejects.toThrow(UI_TEXT.modelApiPacingExpired)
+      await vi.advanceTimersByTimeAsync(PACING_ADMISSION_TIMEOUT_MS)
+      await pending
+      expect(queuedSignal?.aborted).toBe(true)
+      expect(t.api.responseBodies()).toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('allows a foreground request immediately after a background burst without exhausting provider tokens', async () => {
+    let remaining = 300
+    const api = fakeModelApi()
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input, init) => {
+      // This fake provider charges the same conservative estimate as the actual client.
+      const requestBody = init?.body
+      if (typeof requestBody !== 'string') throw new Error('Expected serialized request')
+      const request = z
+        .object({
+          input: z.unknown(),
+          instructions: z.unknown(),
+          tools: z.unknown(),
+          max_output_tokens: z.number(),
+        })
+        .parse(JSON.parse(requestBody))
+      const cost =
+        new TextEncoder().encode(
+          JSON.stringify([request.input, request.instructions, request.tools]),
+        ).length + request.max_output_tokens
+      if (cost > remaining)
+        return Response.json({ error: { message: 'token quota' } }, { status: 429 })
+      remaining -= cost
+      return await api.fetch(input, init)
+    })
+    const pacing = new ModelApiPacing({
+      now: () => NOW,
+      wait: () => {
+        throw new Error('Foreground waited')
+      },
+    })
+    const t = setup(undefined, fetch, undefined, { pacing })
+    pacing.observe(`meta:https://api.example.test/v1:${await t.client.currentKeyDigest()}`, {
+      requests: 10,
+      remainingRequests: 10,
+      tokens: 300,
+      remainingTokens: 300,
+    })
+    const small = { ...body, input: [], instructions: '', max_output_tokens: 60 }
+    const guard = Object.assign(() => undefined, { pacingClass: 'team' as const })
+    await collect(
+      t.client.streamResponse(small, new AbortController().signal, undefined, undefined, guard),
+    )
+    await collect(
+      t.client.streamResponse(small, new AbortController().signal, undefined, undefined, guard),
+    )
+    // Another background admission would invade the reserved half of the window.
+    await expect(
+      collect(
+        t.client.streamResponse(small, new AbortController().signal, undefined, undefined, guard),
+      ),
+    ).rejects.toThrow('Foreground waited')
+    await collect(
+      t.client.streamResponse({ ...small, max_output_tokens: 140 }, new AbortController().signal),
+    )
+    expect(fetch).toHaveBeenCalledTimes(3)
+    expect(t.sleeps).toEqual([])
+    expect(remaining).toBeGreaterThanOrEqual(0)
+  })
+
+  it('scrubs service-status failures to fixed fields without provider marker, account or token', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(() =>
+      Promise.resolve(
+        Response.json(
+          {
+            error: {
+              message: 'PRIVATE_STATUS_MARKER',
+              type: 'account-private-42',
+              code: 'synthetic-token-private',
+            },
+          },
+          { status: 504, headers: { 'retry-after': '8' } },
+        ),
+      ),
+    )
+    const t = setup(null, fetch)
+    let failure: unknown
+    try {
+      await t.client.readServiceStatus()
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toMatchObject({
+      message: UI_TEXT.modelApiStatusUnavailable,
+      status: 504,
+      kind: 'service_status',
+      code: undefined,
+      retryAfterMs: 8000,
+    })
+    const text =
+      failure instanceof Error
+        ? `${failure.message}${failure.stack ?? ''}${JSON.stringify(failure)}`
+        : JSON.stringify(failure)
+    for (const privateValue of [
+      'PRIVATE_STATUS_MARKER',
+      'account-private-42',
+      'synthetic-token-private',
+    ])
+      expect(text).not.toContain(privateValue)
+  })
+
   it('Stop promptly ends an actual bucket wait before any request is dispatched', async () => {
     const joined = Promise.withResolvers<undefined>()
     const sleep = vi.fn(() => {
@@ -203,6 +431,7 @@ describe('M106 client pacing and retry boundaries', () => {
       expect.stringContaining('custom:'),
       undefined,
       undefined,
+      { requests: 0, tokens: 0 },
     )
     expect(t.api.responseBodies()).toHaveLength(1)
   })
@@ -226,6 +455,7 @@ describe('M106 client pacing and retry boundaries', () => {
         kind,
         125,
         expect.any(AbortSignal),
+        expect.any(Function),
       )
       expect(guard).toHaveBeenCalledOnce()
     },
@@ -241,6 +471,7 @@ describe('M106 client pacing and retry boundaries', () => {
           joined.resolve(undefined)
           return waiting.promise
         },
+        snapshot: () => ({ requests: 0, tokens: 0 }),
         observe: vi.fn(),
       }
       let key = 'LLM|1|secret'
@@ -297,6 +528,7 @@ describe('M106 client pacing and retry boundaries', () => {
         joined.resolve(undefined)
         return waiting.promise
       },
+      snapshot: () => ({ requests: 0, tokens: 0 }),
       observe: vi.fn(),
     }
     const t = setup(undefined, undefined, undefined, { pacing })
@@ -323,7 +555,10 @@ describe('M106 client pacing and retry boundaries', () => {
         }),
       ),
     ).rejects.toMatchObject({ status: 429 })
-    expect(pacing.observe).toHaveBeenCalledWith(expect.any(String), undefined, 8000)
+    expect(pacing.observe).toHaveBeenCalledWith(expect.any(String), undefined, 8000, {
+      requests: 0,
+      tokens: 0,
+    })
   })
 
   it('retries 504 with jitter, fresh admission and budget re-reservation before the next fetch', async () => {

@@ -1612,6 +1612,10 @@ export const WEB_SEARCH_MAX_PER_REQUEST_LIMIT = 20
 // hard-coded account limit. Other providers require their own captures.
 export const PACING_WINDOW_MS = 60_000
 export const PACING_START_REQUESTS_PER_MINUTE = 10
+// Half the observed tokens remain available to the foreground after a background burst.
+export const PACING_BACKGROUND_TOKEN_FRACTION = 0.5
+// Six one-RPM admissions may wait six minutes; a stuck queue still has a finite deadline.
+export const PACING_ADMISSION_TIMEOUT_MS = 600_000
 // A turn that ran this long earns a notification when it ends while the
 // VS Code window is unfocused (M82): shorter turns answer before the user
 // looks away.

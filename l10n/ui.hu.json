@@ -2450,5 +2450,8 @@
   "feedbackSending": "Visszajelzés küldése folyamatban…",
   "feedbackSubmitted": "Visszajelzés elküldve.",
   "feedbackFailed": "A visszajelzést nem sikerült elküldeni.",
-  "feedbackResult": "A Muse Code válasza: {result}"
+  "feedbackResult": "A Muse Code válasza: {result}",
+  "modelApiPacingTokenLimit": "A párhuzamos kérés meghaladja a háttérmunkára fenntartott tokenkeretet.",
+  "modelApiPacingWaiting": "Várakozás a kérések korlátján belüli szabad kapacitásra…",
+  "modelApiPacingExpired": "Lejárt a szabad kapacitásra várakozás ideje. Az újrapróbálkozáshoz küldje el újra az üzenetet."
 }

@@ -4,7 +4,7 @@
 // its budget or is missing.
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { webviewStartupOutputs } from './lib/webviewBundles.mjs'
+import { webviewPacingOutputs, webviewStartupOutputs } from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
 // M99: bound the generated notes independently of their ZIP compression.
@@ -167,13 +167,22 @@ for (const { path, budgetKiB } of BUDGETS) {
 const WEBVIEW_DEFERRED_BUDGET_KIB = 50
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
 const eager = new Set(webviewStartupOutputs(webview))
+const pacing = new Set(webviewPacingOutputs(webview))
 const deferredKiB =
   Object.keys(webview.outputs)
-    .filter((file) => file.endsWith('.js') && !eager.has(file))
+    .filter((file) => file.endsWith('.js') && !eager.has(file) && !pacing.has(file))
     .reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
 if (deferredKiB > WEBVIEW_DEFERRED_BUDGET_KIB) hasFailure = true
 console.log(
   `${deferredKiB <= WEBVIEW_DEFERRED_BUDGET_KIB ? 'ok  ' : 'OVER'} dist/webview deferred JS: ${deferredKiB.toFixed(1)} KiB (budget ${WEBVIEW_DEFERRED_BUDGET_KIB} KiB)`,
+)
+
+// M106R: optional pacing/status UI, measured +15%, rounded up to 25 KiB (PLAN D6).
+const WEBVIEW_PACING_BUDGET_KIB = 25
+const pacingKiB = [...pacing].reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+if (pacingKiB > WEBVIEW_PACING_BUDGET_KIB) hasFailure = true
+console.log(
+  `${pacingKiB <= WEBVIEW_PACING_BUDGET_KIB ? 'ok  ' : 'OVER'} dist/webview pacing JS: ${pacingKiB.toFixed(1)} KiB (budget ${WEBVIEW_PACING_BUDGET_KIB} KiB)`,
 )
 
 if (hasFailure) {

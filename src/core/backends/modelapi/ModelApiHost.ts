@@ -4148,6 +4148,10 @@ export class ModelApiSession implements AgentSession {
     const goalCommandRevision = this.goalCommandRevision
     // A retried request is announced in the transcript, as Muse Code's are (D25).
     const onRetry = (notice: RetryNotice) => {
+      if (notice.phase === 'pacing') {
+        this.emit({ type: 'backendNotice', level: 'info', text: notice.reason })
+        return
+      }
       this.allowRateLimitedRetry(notice)
       this.emit({
         type: 'turnRetry',
@@ -10542,6 +10546,10 @@ export class ModelApiSession implements AgentSession {
       body,
       signal,
       (notice) => {
+        if (notice.phase === 'pacing') {
+          this.emit({ type: 'backendNotice', level: 'info', text: notice.reason })
+          return
+        }
         this.allowRateLimitedRetry(notice)
       },
       undefined,
