@@ -502,6 +502,149 @@ describe('resource governor levels', () => {
     expect(f.seen.at(-1)).toMatchObject({ reason: 'disabled' })
   })
 
+  it.each([
+    [false, RESOURCE_OVERRIDE_MS - 1000],
+    [true, RESOURCE_OVERRIDE_MS - 1000],
+    [false, RESOURCE_OVERRIDE_MS],
+    [true, RESOURCE_OVERRIDE_MS],
+  ] as const)(
+    'waits for a serial post-expiry sample when an older read is pending (fresh critical: %s, older time: %s)',
+    async (freshCritical, olderAt) => {
+      const older = Promise.withResolvers<ResourceSample>()
+      const fresh = Promise.withResolvers<ResourceSample>()
+      const sampler = {
+        sample: vi
+          .fn<() => Promise<ResourceSample>>()
+          .mockResolvedValueOnce(sample(0, { memoryAvailableBytes: 0 }))
+          .mockReturnValueOnce(older.promise)
+          .mockReturnValueOnce(fresh.promise),
+      }
+      const f = setup(undefined, sampler)
+      await f.governor.refresh()
+      f.governor.resumeNow()
+      f.clock.advance(RESOURCE_OVERRIDE_MS - 1000)
+      const pending = f.governor.refresh()
+      await Promise.resolve()
+      expect(sampler.sample).toHaveBeenCalledTimes(2)
+      f.clock.advance(1000)
+      expect(f.governor.status([]).overrideUntilMs).toBeNull()
+      expect(sampler.sample).toHaveBeenCalledTimes(2)
+      older.resolve(
+        sample(olderAt, {
+          memoryAvailableBytes: freshCritical ? 8 * RESOURCE_GIB_BYTES : 0,
+        }),
+      )
+      await Promise.resolve()
+      expect(sampler.sample).toHaveBeenCalledTimes(3)
+      expect(f.governor.refresh()).toBe(pending)
+      expect(f.governor.status([]).sample!.atMs).toBe(0)
+      expect(f.governor.level()).toBe('normal')
+      fresh.resolve(
+        sample(RESOURCE_OVERRIDE_MS, {
+          memoryAvailableBytes: freshCritical ? 0 : 8 * RESOURCE_GIB_BYTES,
+        }),
+      )
+      await pending
+      expect(f.governor.level()).toBe(freshCritical ? 'pause' : 'normal')
+      expect(f.governor.status([]).sample!.atMs).toBe(RESOURCE_OVERRIDE_MS)
+      expect(f.onError).not.toHaveBeenCalled()
+    },
+  )
+
+  it('requests the post-expiry sample even when the older read rejects', async () => {
+    const older = Promise.withResolvers<ResourceSample>()
+    const fresh = Promise.withResolvers<ResourceSample>()
+    const sampler = {
+      sample: vi
+        .fn<() => Promise<ResourceSample>>()
+        .mockReturnValueOnce(older.promise)
+        .mockReturnValueOnce(fresh.promise),
+    }
+    const f = setup(undefined, sampler)
+    f.governor.resumeNow()
+    f.clock.advance(RESOURCE_OVERRIDE_MS - 1000)
+    f.governor.start()
+    f.clock.advance(0)
+    const pending = f.governor.refresh()
+    await Promise.resolve()
+    f.clock.advance(1000)
+    older.reject(new Error('Pre-expiry read failed'))
+    await Promise.resolve()
+    expect(sampler.sample).toHaveBeenCalledTimes(2)
+    fresh.resolve(sample(RESOURCE_OVERRIDE_MS, { memoryAvailableBytes: 0 }))
+    await pending
+    expect(f.governor.level()).toBe('pause')
+    expect(f.onError).not.toHaveBeenCalled()
+  })
+
+  it('refuses a pre-expiry timestamp returned by the newly requested sample and can retry', async () => {
+    const sampler = {
+      sample: vi
+        .fn<() => Promise<ResourceSample>>()
+        .mockRejectedValueOnce(new Error('Fresh read failed'))
+        .mockResolvedValueOnce(sample(RESOURCE_OVERRIDE_MS - 1, { memoryAvailableBytes: 0 }))
+        .mockResolvedValueOnce(
+          sample(RESOURCE_OVERRIDE_MS + RESOURCE_SAMPLE_MS, { memoryAvailableBytes: 0 }),
+        ),
+    }
+    const f = setup(undefined, sampler)
+    f.governor.resumeNow()
+    f.clock.advance(RESOURCE_OVERRIDE_MS)
+    await f.governor.refresh()
+    expect(f.governor.level()).toBe('normal')
+    expect(f.governor.status([]).sample).toMatchObject({
+      atMs: RESOURCE_OVERRIDE_MS,
+      memoryAvailableBytes: null,
+    })
+    expect(f.onError).toHaveBeenCalledTimes(1)
+    f.clock.advance(RESOURCE_SAMPLE_MS)
+    await f.governor.refresh()
+    expect(f.governor.level()).toBe('normal')
+    expect(f.onError).toHaveBeenCalledTimes(2)
+    await f.governor.refresh()
+    expect(f.governor.level()).toBe('pause')
+  })
+
+  it.each(['renew', 'disable', 'dispose'] as const)(
+    'cancels pending expiry freshness on %s without starting another read',
+    async (action) => {
+      const older = Promise.withResolvers<ResourceSample>()
+      const sampler = {
+        sample: vi.fn<() => Promise<ResourceSample>>().mockReturnValue(older.promise),
+      }
+      const f = setup(undefined, sampler)
+      f.governor.resumeNow()
+      f.clock.advance(RESOURCE_OVERRIDE_MS - 1000)
+      const pending = f.governor.refresh()
+      await Promise.resolve()
+      f.clock.advance(1000)
+      if (action === 'renew') f.governor.resumeNow()
+      else if (action === 'disable')
+        f.governor.updateSettings(resourceSettingsSchema.parse({ enabled: false }))
+      else f.governor.dispose()
+      older.resolve(sample(RESOURCE_OVERRIDE_MS - 1000, { memoryAvailableBytes: 0 }))
+      await pending
+      expect(sampler.sample).toHaveBeenCalledTimes(1)
+      expect(f.governor.level()).toBe('normal')
+      expect(f.onError).not.toHaveBeenCalled()
+    },
+  )
+
+  it('starts sustained and critical CPU evidence again from the fresh expiry sample', async () => {
+    const f = setup()
+    f.governor.resumeNow()
+    await f.read(0, { cpuPercent: 97 })
+    await f.series(RESOURCE_OVERRIDE_MS - RESOURCE_SAMPLE_MS, { cpuPercent: 97 })
+    f.steps.push(sample(RESOURCE_OVERRIDE_MS, { cpuPercent: 97 }))
+    f.clock.advance(RESOURCE_SAMPLE_MS)
+    await f.governor.refresh()
+    expect(f.governor.level()).toBe('normal')
+    await f.series(RESOURCE_OVERRIDE_MS + 30_000, { cpuPercent: 97 })
+    expect(f.governor.level()).toBe('throttle')
+    await f.series(RESOURCE_OVERRIDE_MS + 60_000, { cpuPercent: 97 })
+    expect(f.governor.level()).toBe('pause')
+  })
+
   it('shares pending samples, starts one serial timer, and discards a sample after disposal', async () => {
     const first = Promise.withResolvers<ResourceSample>()
     const second = Promise.withResolvers<ResourceSample>()

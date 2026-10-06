@@ -58,6 +58,7 @@ export class ResourceGovernor {
   private criticalSince: number | undefined
   private recoveredSince: number | undefined
   private overrideUntil: number | null = null
+  private expiredOverrideAt: number | null = null
   private cancelOverride: (() => void) | undefined
   private cancelSample: (() => void) | undefined
   private pending: Promise<void> | undefined
@@ -80,21 +81,34 @@ export class ResourceGovernor {
     // Yield before a port that may throw synchronously, so pending is installed first.
     await Promise.resolve()
     try {
-      const sample = resourceSampleSchema.parse(await this.options.sampler.sample())
-      if (!this.disposed) this.evaluate(sample)
-    } catch (error) {
-      if (!this.disposed) {
-        this.options.onError(error)
-        this.evaluate({
-          atMs: this.options.clock.now(),
-          cpuPercent: null,
-          memoryUsedPercent: null,
-          memoryAvailableBytes: null,
-          memoryTotalBytes: null,
-          gpuPercent: null,
-          diskBusyPercent: null,
-          pressure: null,
-        })
+      for (;;) {
+        const requestedAt = this.options.clock.now()
+        try {
+          const sample = resourceSampleSchema.parse(await this.options.sampler.sample())
+          if (this.disposed) return
+          // Keep the shared promise pending while an older read drains, then sample serially.
+          if (this.expiredOverrideAt !== null && requestedAt < this.expiredOverrideAt) continue
+          if (this.expiredOverrideAt !== null && sample.atMs < this.expiredOverrideAt)
+            throw new Error('Resource sample predates override expiry')
+          this.expiredOverrideAt = null
+          this.evaluate(sample)
+        } catch (error) {
+          if (!this.disposed) {
+            if (this.expiredOverrideAt !== null && requestedAt < this.expiredOverrideAt) continue
+            this.options.onError(error)
+            this.evaluate({
+              atMs: this.options.clock.now(),
+              cpuPercent: null,
+              memoryUsedPercent: null,
+              memoryAvailableBytes: null,
+              memoryTotalBytes: null,
+              gpuPercent: null,
+              diskBusyPercent: null,
+              pressure: null,
+            })
+          }
+        }
+        return
       }
     } finally {
       this.pending = undefined
@@ -252,6 +266,7 @@ export class ResourceGovernor {
 
     this.cancelOverride?.()
     this.overrideUntil = null
+    this.expiredOverrideAt = null
     this.change('normal', 'disabled')
   }
 
@@ -260,11 +275,14 @@ export class ResourceGovernor {
     this.cancelOverride?.()
     const atMs = this.options.clock.now()
     this.overrideUntil = atMs + RESOURCE_OVERRIDE_MS
+    this.expiredOverrideAt = null
     this.resetWindows()
     this.change('normal', 'override')
     this.options.events.publish({ type: 'override', atMs, untilMs: this.overrideUntil })
     this.cancelOverride = this.options.clock.setTimeout(() => {
       this.overrideUntil = null
+      this.expiredOverrideAt = this.options.clock.now()
+      this.resetWindows()
       // A fresh reading, never the cached sample, decides when the override ends.
       void this.refresh()
     }, RESOURCE_OVERRIDE_MS)
@@ -284,6 +302,7 @@ export class ResourceGovernor {
     this.cancelSample?.()
     this.cancelOverride?.()
     this.overrideUntil = null
+    this.expiredOverrideAt = null
   }
 
   refresh(): Promise<void> {
