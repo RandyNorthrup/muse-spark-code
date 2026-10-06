@@ -20928,7 +20928,13 @@ provider composition also requires a lazy split before this tree can ship.
 The full 764-page accessibility run reports zero violations but 18 harness
 pages without results. The repaired 48 affected pages and three deliberate
 guard drills pass after exact restoration; a complete 764-page rerun remains
-open. Exact final gate receipts belong in docs/certification/m95-r3.md. No
+open. The single final three-worker quality run at `477fff4d` exits 1:
+format, whole-tree JavaScript lint and CSS lint pass, then the rig cannot
+load the pinned PSScriptAnalyzer 1.25.0 module. The wrapper never reaches
+typecheck, unit/coverage, build or its later security/accessibility steps;
+the separately recorded owning checks remain their own receipts. No
+second wrapper, network install, global write or analyzer-pin change is
+attempted. Exact final gate receipts belong in docs/certification/m95-r3.md. No
 assertion, coverage threshold, ignore, deadline or rule is relaxed.
 
 **DEFLAKE5 unit/coverage acceptance (2026-10-05, kubuntu).** On committed
