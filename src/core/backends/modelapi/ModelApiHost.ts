@@ -5697,10 +5697,11 @@ export class ModelApiSession implements AgentSession {
       this.deps.platform,
       this.deps.io,
     )
-    if (!resolved.ok) {
+    if (signal.aborted || !resolved.ok) {
       return
     }
     const isChanged = await this.context.touch(resolved.relative)
+    if (isAbortRequested(signal)) return
     if (isChanged) {
       await this.noteLoadedRules(turnId, 'touched-path', signal)
     }
@@ -9514,17 +9515,35 @@ export class ModelApiSession implements AgentSession {
     }
     const itemId = started.itemId
     const { result, slot } = executed.value
+    const checkStopped = () => {
+      if (!signal.aborted || !executed.value.isParallelExecution) return
+      if (prepared.seen !== undefined) this.seenFiles.delete(prepared.seen)
+      this.finishCall(
+        turnId,
+        started,
+        effectiveCall,
+        toolFailure(MODEL_API_MODEL_TEXT.toolCancelledByStop),
+        CANCELLED,
+      )
+      throw new AbortedError()
+    }
     // An MCP tool's `path` is its own business, not a workspace file it read.
     if (this.externalTool(effectiveCall.name) === undefined) {
       await this.touchPath(effectiveCall, turnId, signal)
+      checkStopped()
     }
     const { admission } = slot
     const { isRejected, running, hookEffects } = result
-    // The one point every outcome crosses: no await from here to the model's
-    // replay. A rejection brought nothing back and keeps its own words.
+    // A rejection brought nothing back and keeps its own words. Speculative
+    // reads publish only after all awaited settlement work passes Stop.
     let outcome = isRejected ? result.outcome : this.fencedOutcome(admission, result.outcome)
     let attemptReplay: ReplayItem | undefined
-    if (running === undefined) {
+    const commit = () => {
+      checkStopped()
+      if (running !== undefined) {
+        this.continueInBackground(turnId, started, effectiveCall, outcome, running, admission)
+        return
+      }
       if (!this.canQueueToolMedia(outcome)) {
         outcome = {
           output: `Error: ${MODEL_API_MODEL_TEXT.toolMediaBudgetExceeded}`,
@@ -9544,11 +9563,11 @@ export class ModelApiSession implements AgentSession {
       ) {
         throw new HookStoppedError(outcome.failureReason)
       }
-    } else {
-      this.continueInBackground(turnId, started, effectiveCall, outcome, running, admission)
     }
+    if (!executed.value.isParallelExecution) commit()
     if (selectionReason !== undefined) {
       await this.notePermissionDenied(call.name, selectionReason, signal)
+      checkStopped()
     }
     this.appendHookContexts(turnId, [...pre.contexts, ...(hookEffects?.contexts ?? [])])
     let repeatWitness: string | undefined
@@ -9581,6 +9600,8 @@ export class ModelApiSession implements AgentSession {
       true,
       { fileOperation: fileOperationOf(outcome) },
     )
+    checkStopped()
+    if (executed.value.isParallelExecution) commit()
     if (
       attemptReplay !== undefined &&
       outcome.failureReason === undefined &&
@@ -9633,6 +9654,7 @@ export class ModelApiSession implements AgentSession {
         correctionsUsed,
         signal,
       )
+      checkStopped()
       if (correction.ok) {
         this.supersedeReplayOutput(attemptReplay, outcome)
         return await this.runCall(
@@ -10340,7 +10362,19 @@ export class ModelApiSession implements AgentSession {
       try {
         const scheduled = await scheduleTools({
           calls,
-          parallel: this.parallelReads,
+          // A hook can change a later read's source (or an earlier read's
+          // source during preparation). Keep the entire batch serial then.
+          // Extension hooks reached by touched paths can mutate sources too.
+          parallel:
+            this.parallelReads &&
+            this.enabledExtensionHooks().length === 0 &&
+            calls.every((call) =>
+              (['PreToolUse', 'PostToolUse', 'PostToolUseFailure'] as const).every(
+                (event) =>
+                  matchingHooks(this.enabledHooks(), event, toolMatcherNames(call.name)).length ===
+                  0,
+              ),
+            ),
           isRead: (call) =>
             isParallelRead(call.name) &&
             this.externalTool(call.name)?.kind !== 'mcp' &&

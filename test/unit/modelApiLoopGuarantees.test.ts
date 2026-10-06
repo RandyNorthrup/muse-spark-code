@@ -2,6 +2,7 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
+import { parseSparkHooksConfig } from '../../src/core/backends/modelapi/extensionHooks'
 import { hookResult } from './helpers/fakeToolIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
@@ -401,11 +402,74 @@ describe('M106 loop guarantees', () => {
     expect(post.map((phase) => phase.replace('post:', ''))).toEqual(
       pre.map((phase) => phase.replace('pre:', '')),
     )
-    expect(phases.indexOf(pre[1] ?? '')).toBeLessThan(phases.indexOf('read:/ws/0.txt'))
+    expect(phases.indexOf(pre[1] ?? '')).toBeGreaterThan(phases.indexOf(post[0] ?? ''))
     expect(phases.indexOf(pre[2] ?? '')).toBeGreaterThan(phases.indexOf(post[1] ?? ''))
     expect(rig.io.files.get('/ws/new.txt')).toBe('created')
     expect(rig.io.shellCalls).toHaveLength(1)
     await rig.host.close()
+  })
+
+  it('keeps hook-mutated read sources byte-identical with concurrency on and off', async () => {
+    for (const event of ['PreToolUse', 'PostToolUse']) {
+      const hooks = parseHookConfig(
+        JSON.stringify({
+          hooks: {
+            [event]: [{ matcher: 'Read', hooks: [{ type: 'command', command: 'mutate' }] }],
+          },
+        }),
+        'project',
+        'linux',
+      ).hooks
+      expect(hooks).toHaveLength(1)
+      const capture = async (isParallel: boolean) => {
+        const rig = await setup({
+          parallelReads: () => isParallel,
+          loadHooks: () => Promise.resolve(hooks),
+          isHooksEnabled: () => true,
+        })
+        rig.io.files.set('/ws/0.txt', 'OLD')
+        rig.io.files.set('/ws/1.txt', 'OLD')
+        rig.io.runHook = (_command, payload) => {
+          if (event === 'PostToolUse' && payload.includes('0.txt'))
+            rig.io.files.set('/ws/1.txt', 'NEW')
+          if (event === 'PreToolUse' && payload.includes('1.txt'))
+            rig.io.files.set('/ws/0.txt', 'NEW')
+          return Promise.resolve(hookResult(''))
+        }
+        rig.api.script({ calls: [read(0), read(1)] }, { text: 'Done.' })
+        await send(rig)
+        const bodies = normalizeBodies(rig.rawBodies)
+        expect(bodies.at(-1)).toContain(event === 'PostToolUse' ? '1|NEW' : '1|OLD')
+        await rig.host.close()
+        return bodies
+      }
+      expect(await capture(true)).toEqual(await capture(false))
+    }
+  })
+
+  it('serializes enabled extension hooks and permits overlap when hooks are disabled', async () => {
+    const hooks = parseSparkHooksConfig(
+      '{"hooks":{"InstructionsLoaded":[{"hooks":[{"type":"command","command":"observe"}]}]}}',
+      'project',
+      'linux',
+    ).hooks
+    expect(hooks).toHaveLength(1)
+    for (const isEnabled of [true, false]) {
+      const rig = await setup({
+        loadExtensionHooks: () => Promise.resolve(hooks),
+        isHooksEnabled: () => isEnabled,
+      })
+      const { gates, entered } = holdTextReads(rig, 2)
+      rig.api.script({ calls: [read(0), read(1)] }, { text: 'Done.' })
+      const done = rig.turnDone()
+      await rig.session.sendTurn([{ type: 'text', text: 'Read.' }])
+      await vi.waitFor(() => {
+        expect(entered).toHaveLength(isEnabled ? 1 : 2)
+      })
+      for (const gate of gates) gate.resolve(undefined)
+      await done
+      await rig.host.close()
+    }
   })
 
   it('reserves the continuation afresh and refuses it when its budget is exhausted', async () => {
@@ -550,6 +614,97 @@ describe('M106 loop guarantees', () => {
     expect(JSON.stringify(rig.api.responseBodies().at(-1)?.['input'])).toContain(
       MODEL_API_MODEL_TEXT.fileChangedSinceRead,
     )
+    await rig.host.close()
+  })
+
+  it('discards reads stopped during held realPath settlement, including later recall_output', async () => {
+    for (const isPacking of [false, true]) {
+      const rig = await setup({ observationPacking: () => isPacking })
+      const marker = 'DISCARDED_SETTLEMENT_CONTENT'
+      rig.io.files.set('/ws/0.txt', `${marker}\n${'long output\n'.repeat(500)}`)
+      const held = Promise.withResolvers<undefined>()
+      const entered = Promise.withResolvers<undefined>()
+      let reads = 0
+      const originalRead = rig.io.readFile
+      rig.io.readFile = async (...args) => {
+        const value = await originalRead(...args)
+        reads += 1
+        return value
+      }
+      const originalPath = rig.io.realPath
+      rig.io.realPath = async (absolute) => {
+        if (reads === 2 && absolute.replaceAll('\\', '/') === '/ws/0.txt') {
+          entered.resolve(undefined)
+          await held.promise
+        }
+        return await originalPath(absolute)
+      }
+      rig.api.script({ calls: [read(0), read(1)] })
+      const done = rig.turnDone()
+      await rig.session.sendTurn([{ type: 'text', text: 'Read.' }])
+      await entered.promise
+      await rig.session.cancel()
+      held.resolve(undefined)
+      await done
+      const rows = rig.session.history().items.filter((item) => item.kind === 'toolCall')
+      expect(rows).toHaveLength(2)
+      expect(rows.every((item) => item.status === 'cancelled')).toBe(true)
+      expect(
+        rig.events.some(
+          (event) => event.type === 'itemCompleted' && event.item.visibleOutput?.includes(marker),
+        ),
+      ).toBe(false)
+      rig.api.script(
+        { calls: [{ name: 'recall_output', arguments: '{"id":"c0"}', callId: 'recall' }] },
+        { text: 'Recall refused.' },
+      )
+      await send(rig)
+      expect(JSON.stringify(rig.api.responseBodies())).not.toContain(marker)
+      rig.api.script(
+        {
+          calls: [
+            {
+              name: 'write_file',
+              arguments: '{"path":"0.txt","content":"changed"}',
+              callId: 'edit',
+            },
+          ],
+        },
+        { text: 'Edit refused.' },
+      )
+      await send(rig)
+      expect(rig.io.files.get('/ws/0.txt')).toContain(marker)
+      expect(JSON.stringify(rig.api.responseBodies().at(-1)?.['input'])).toContain(
+        MODEL_API_MODEL_TEXT.fileChangedSinceRead,
+      )
+      await rig.host.close()
+    }
+  })
+
+  it('discards speculative results when Stop arrives in the post-settlement await', async () => {
+    const rig = await setup({
+      repeatResultWitness: {
+        observed: () => {
+          queueMicrotask(() => {
+            void rig.session.cancel()
+          })
+          return 'witness'
+        },
+        current: () => Promise.resolve('witness'),
+      },
+    })
+    rig.api.script({ calls: [read(0), read(1)] })
+    await send(rig)
+    const rows = rig.session.history().items.filter((item) => item.kind === 'toolCall')
+    expect(rows.every((item) => item.status === 'cancelled')).toBe(true)
+    expect(
+      rig.events.some(
+        (event) =>
+          event.type === 'itemCompleted' &&
+          event.item.kind === 'toolCall' &&
+          event.item.status === 'completed',
+      ),
+    ).toBe(false)
     await rig.host.close()
   })
 
