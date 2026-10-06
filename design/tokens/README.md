@@ -65,6 +65,35 @@ and keeps the existing native-identity and bundle-error guards. Fixtures
 under `test/` remain test data. Generating a token file cannot exempt a
 component or another stylesheet.
 
+## Third-party archive captures
+
+`test/harness/themes/one-dark-pro.json` captures One Dark Pro 3.20.2;
+`dracula.json` captures Dracula 2.25.1. Each records the supplied Open VSX
+archive's full SHA-256, the selected theme JSON's path and digest, the exact
+MIT licence text, the explicit colours needed by the panel or the contrast
+comparisons, and their captured host defaults. Neither VSIX is installed. Archive bytes are not
+committed and no original extension code is executed.
+
+Only the selected JSON is loaded through a data-only development contribution
+in an isolated profile of the rig's installed VS Code 1.130.0, with an empty
+extensions directory. The existing CDP capture reads the settled workbench's
+registered defaults. The temporary JSON and profiles are deleted afterwards.
+`provenance.explicitVariables` names the archive's unchanged values;
+`absentInArchive` names the omissions; `variables` also includes their captured
+registered defaults, and `unset` names only truly unset host entries. Fonts
+stay the harness host's. No Default Dark Modern values are mixed in.
+
+`visual-matrix.json.themeCaptures` binds each fixture to its measured text/UI
+pairs, with alpha composited over a named canvas and unchanged AA thresholds
+(4.5:1 / 3:1). Its `passesAA` field records an observation, never an exemption
+from a gate. There are 43 comparisons; nine fail in the upstream colours and
+captured defaults. A/P1/P2 own the resulting component findings, and S owns
+the final resolved-host and polished-surface accessibility/visual certification. The
+owning test rejects altered colour bytes, provenance, licence text, absent
+entries, ratios, classifications and missing focus-neighbour/canvas coverage.
+`harness:shots --theme=one-dark-pro` and `--theme=dracula` read the same matrix's
+theme list. Screenshot smoke captures are not reviewed goldens.
+
 ## Named integration handoffs
 
 | Lane       | Binding                                                                                                                                                                                                                                         |

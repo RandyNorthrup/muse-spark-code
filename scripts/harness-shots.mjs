@@ -14,7 +14,7 @@
 //   CHROME_PATH=/path/to/chrome node scripts/harness-shots.mjs
 
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -35,7 +35,10 @@ const BUNDLE_PATH = 'dist/webview/main.js'
 const SHOT_WIDTH = 690
 const SHOT_HEIGHT = 760
 const repoRoot = process.cwd()
-const THEMES = new Set(['light', 'dark', 'hc-dark', 'hc-light'])
+const THEMES = new Set(
+  JSON.parse(await readFile(new URL('../test/harness/visual-matrix.json', import.meta.url), 'utf8'))
+    .themes,
+)
 
 async function shoot(chrome, port, scenario, lang, theme, outDir, profileDir) {
   const file = path.join(outDir, `${scenario}.png`)

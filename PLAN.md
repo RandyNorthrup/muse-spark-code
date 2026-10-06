@@ -27487,6 +27487,12 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   `test/harness/visual-matrix.json`; A owns the grades and S the final goldens.
   [The lane's certification](docs/certification/m114-0.md) records its red
   drills, scoped verification, sizes and named integration handoffs.
+  The supplied One Dark Pro 3.20.2 and Dracula 2.25.1 archives now have
+  captures with exact MIT texts and archive/member digests. Omitted colours
+  are resolved from VS Code 1.130.0 in isolated, data-only development themes;
+  neither VSIX is installed. Their matrix rows record 43 contrast comparisons,
+  including nine AA failures for A/P1/P2. These colour captures do not certify
+  polished components. S retains final accessibility and visual certification.
 
 - **Lane 0's contracts,** frozen before the other lanes start:
   - the token names and groups, with each role's VS Code variable and its

@@ -98,5 +98,321 @@
     "desktop": "D",
     "installer": "D",
     "tui": "N / TD"
+  },
+  "themeCaptures": {
+    "one-dark-pro": {
+      "fixture": "test/harness/themes/one-dark-pro.json",
+      "contrastScope": "archive colours and captured VS Code 1.130.0 registered defaults; AA failures retained for A/P1/P2",
+      "contrastPairs": [
+        {
+          "foreground": "--vscode-editor-foreground",
+          "background": "--vscode-editor-background",
+          "usage": "text",
+          "ratio": 6.568,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-descriptionForeground",
+          "background": "--vscode-sideBar-background",
+          "usage": "text",
+          "ratio": 7.222,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-foreground",
+          "background": "--vscode-sideBar-background",
+          "usage": "text",
+          "ratio": 9.586,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-foreground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 9.586,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-foreground",
+          "background": "--vscode-list-hoverBackground",
+          "usage": "text",
+          "ratio": 8.135,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-button-foreground",
+          "background": "--vscode-button-background",
+          "usage": "text",
+          "ratio": 9.344,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-button-foreground",
+          "background": "--vscode-button-hoverBackground",
+          "usage": "text",
+          "ratio": 7.492,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-badge-foreground",
+          "background": "--vscode-badge-background",
+          "usage": "text",
+          "ratio": 13.999,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-input-placeholderForeground",
+          "background": "--vscode-input-background",
+          "usage": "text",
+          "ratio": 3.604,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-errorForeground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 6.268,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-descriptionForeground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 7.222,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-descriptionForeground",
+          "background": "--vscode-list-hoverBackground",
+          "usage": "text",
+          "ratio": 6.129,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-input-foreground",
+          "background": "--vscode-input-background",
+          "usage": "text",
+          "ratio": 7.742,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-button-secondaryForeground",
+          "background": "--vscode-button-secondaryBackground",
+          "usage": "text",
+          "ratio": 6.753,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-list-activeSelectionForeground",
+          "background": "--vscode-list-activeSelectionBackground",
+          "usage": "text",
+          "ratio": 9.328,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-textLink-foreground",
+          "background": "--vscode-sideBar-background",
+          "usage": "text",
+          "ratio": 6.514,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-editorWarning-foreground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 6.249,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-sideBar-background",
+          "usage": "ui",
+          "ratio": 1.579,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-editorWidget-background",
+          "usage": "ui",
+          "ratio": 1.579,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-input-background",
+          "usage": "ui",
+          "ratio": 1.692,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-button-background",
+          "usage": "ui",
+          "ratio": 1.044,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-panel-border",
+          "background": "--vscode-sideBar-background",
+          "usage": "ui",
+          "ratio": 1.579,
+          "passesAA": false
+        }
+      ]
+    },
+    "dracula": {
+      "fixture": "test/harness/themes/dracula.json",
+      "contrastScope": "archive colours and captured VS Code 1.130.0 registered defaults; AA failures retained for A/P1/P2",
+      "contrastPairs": [
+        {
+          "foreground": "--vscode-descriptionForeground",
+          "background": "--vscode-sideBar-background",
+          "usage": "text",
+          "ratio": 7.93,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-descriptionForeground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 7.93,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-editor-foreground",
+          "background": "--vscode-editor-background",
+          "usage": "text",
+          "ratio": 13.359,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-foreground",
+          "background": "--vscode-sideBar-background",
+          "usage": "text",
+          "ratio": 14.814,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-foreground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 14.814,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-foreground",
+          "background": "--vscode-list-hoverBackground",
+          "canvas": "--vscode-sideBar-background",
+          "usage": "text",
+          "ratio": 11.722,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-input-foreground",
+          "background": "--vscode-input-background",
+          "usage": "text",
+          "ratio": 13.359,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-input-placeholderForeground",
+          "background": "--vscode-input-background",
+          "usage": "text",
+          "ratio": 3.026,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-button-foreground",
+          "background": "--vscode-button-background",
+          "usage": "text",
+          "ratio": 8.585,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-button-secondaryForeground",
+          "background": "--vscode-button-secondaryBackground",
+          "usage": "text",
+          "ratio": 13.359,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-button-secondaryForeground",
+          "background": "--vscode-button-secondaryHoverBackground",
+          "usage": "text",
+          "ratio": 11.062,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-badge-foreground",
+          "background": "--vscode-badge-background",
+          "usage": "text",
+          "ratio": 8.585,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-list-activeSelectionForeground",
+          "background": "--vscode-list-activeSelectionBackground",
+          "usage": "text",
+          "ratio": 8.585,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-editorWarning-foreground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 11.409,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-errorForeground",
+          "background": "--vscode-editorWidget-background",
+          "usage": "text",
+          "ratio": 5.025,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-sideBar-background",
+          "usage": "ui",
+          "ratio": 3.356,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-editorWidget-background",
+          "usage": "ui",
+          "ratio": 3.356,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-input-background",
+          "usage": "ui",
+          "ratio": 3.026,
+          "passesAA": true
+        },
+        {
+          "foreground": "--vscode-focusBorder",
+          "background": "--vscode-button-background",
+          "usage": "ui",
+          "ratio": 1.945,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-input-border",
+          "background": "--vscode-input-background",
+          "usage": "ui",
+          "ratio": 1.218,
+          "passesAA": false
+        },
+        {
+          "foreground": "--vscode-panel-border",
+          "background": "--vscode-sideBar-background",
+          "usage": "ui",
+          "ratio": 6.546,
+          "passesAA": true
+        }
+      ]
+    }
   }
 }
