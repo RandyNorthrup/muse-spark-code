@@ -2332,7 +2332,7 @@
   "judgeStatusSubscription": "サブスクリプション",
   "judgeStatusPaid": "有料",
   "nodeLabels": {
-    "title": "Muse Spark Code Node（非公式）",
+    "title": "ノード: Muse Spark Code Node (Unofficial)",
     "files": "ワークスペースのファイル",
     "editor": "ファイルエディター",
     "terminal": "ワークスペースのターミナル",

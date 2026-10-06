@@ -2332,7 +2332,7 @@
   "judgeStatusSubscription": "구독",
   "judgeStatusPaid": "유료",
   "nodeLabels": {
-    "title": "Muse Spark Code Node(비공식)",
+    "title": "노드: Muse Spark Code Node (Unofficial)",
     "files": "작업 공간 파일",
     "editor": "파일 편집기",
     "terminal": "작업 공간 터미널",

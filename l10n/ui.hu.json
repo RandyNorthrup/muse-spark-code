@@ -2426,7 +2426,7 @@
   "judgeStatusSubscription": "Előfizetés",
   "judgeStatusPaid": "Fizetős",
   "nodeLabels": {
-    "title": "Muse Spark Code Node (Nem hivatalos)",
+    "title": "Csomópont: Muse Spark Code Node (Unofficial)",
     "files": "Munkaterületi fájlok",
     "editor": "Fájlszerkesztő",
     "terminal": "Munkaterületi terminál",

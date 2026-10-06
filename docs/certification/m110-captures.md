@@ -30,6 +30,13 @@ Licensing/source re-checks and owner rulings in research §4.10 also remain
 release prerequisites; nothing in the authored node protocol is a guessed
 Muse Code or Model API wire capture.
 
+A0-BWRAP/A0-LOGIN must additionally prove Q-M110.9: a repository tool,
+terminal or check cannot read the CLI's sign-in home or attach to its
+process even when the planned tools UID is shared. Use synthetic canaries,
+never real sign-in files. Same-UID directory permissions are insufficient;
+the lead/N/A1 review must settle the actual process/sandbox boundary before
+Muse Code becomes available.
+
 ## Named integration bindings
 
 | Binding                    | Interface supplied / required follow-up                                                                                                                                                                                                                                                                                                                                               |

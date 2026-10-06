@@ -2614,7 +2614,7 @@
   "judgeStatusSubscription": "Подписка",
   "judgeStatusPaid": "Платно",
   "nodeLabels": {
-    "title": "Muse Spark Code Node (Неофициальный)",
+    "title": "Узел: Muse Spark Code Node (Unofficial)",
     "files": "Файлы рабочей области",
     "editor": "Редактор файлов",
     "terminal": "Терминал рабочей области",

@@ -2520,7 +2520,7 @@
   "judgeStatusSubscription": "Suscripción",
   "judgeStatusPaid": "De pago",
   "nodeLabels": {
-    "title": "Muse Spark Code Node (No oficial)",
+    "title": "Nodo: Muse Spark Code Node (Unofficial)",
     "files": "Archivos del espacio de trabajo",
     "editor": "Editor de archivos",
     "terminal": "Terminal del espacio de trabajo",

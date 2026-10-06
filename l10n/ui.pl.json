@@ -2614,7 +2614,7 @@
   "judgeStatusSubscription": "Subskrypcja",
   "judgeStatusPaid": "Płatne",
   "nodeLabels": {
-    "title": "Muse Spark Code Node (Nieoficjalny)",
+    "title": "Węzeł: Muse Spark Code Node (Unofficial)",
     "files": "Pliki obszaru roboczego",
     "editor": "Edytor plików",
     "terminal": "Terminal obszaru roboczego",

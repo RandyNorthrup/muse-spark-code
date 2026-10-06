@@ -53,6 +53,16 @@ verification belong to A1; a zod schema alone proves neither.
 
 ## Deliberate limits and phase exclusions
 
+**H18 — CLI sign-in versus the tools UID (Q-M110.9).** D90.23 puts agent
+CLIs, terminals and repository tools under `muse-tools`; D90.7 also calls
+for the CLI's owner-only sign-in home. Permissions alone cannot protect a
+CLI's own files or memory from another process with the same UID. N/A1 must
+qualify this boundary with synthetic auth-home and memory canaries under
+the actual sandbox/process arrangement, without reading real credentials,
+passing them to tools or using `--yolo`. Muse Code stays unavailable under
+the existing Q-M110.7 default until the boundary and its captures pass.
+This is an open design binding, not an implemented isolation claim.
+
 L0 defines validation and injected ports, with test-only fakes. Downstream
 lanes must implement the authentication, filesystem, OS, persistence and
 network controls named above and prove their red drills. Unknown properties

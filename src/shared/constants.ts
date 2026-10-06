@@ -8,6 +8,66 @@ import type { BrowserRuntimeMode } from './browserCheckConstants'
 
 export const PRODUCT_NAME = 'Muse Spark'
 
+// M110a0 lane 0: standalone home-node bounds. No node module is loaded by
+// the extension; the service/companion bindings are separate runtime entries.
+export const NODE_PROTOCOL_VERSION = 1
+export const NODE_DEFAULT_PORT = 7443
+export const NODE_MAX_PORT = 65_535
+export const NODE_SERVICE_USER = 'muse-node'
+export const NODE_TOOLS_USER = 'muse-tools'
+export const NODE_SETUP_TTL_MS = 15 * 60 * 1000
+export const NODE_CHALLENGE_TTL_MS = 5 * 60 * 1000
+export const NODE_SESSION_IDLE_MS = 30 * 60 * 1000
+export const NODE_SESSION_MAX_MS = 12 * 60 * 60 * 1000
+export const NODE_STEP_UP_TTL_MS = 5 * 60 * 1000
+export const NODE_WS_AUTH_MS = 5000
+export const NODE_SIGNIN_MAX_FAILURES = 100
+export const NODE_SIGNIN_BACKOFF_MS = 1000
+export const NODE_SIGNIN_BACKOFF_MAX_MS = 60 * 1000
+export const NODE_MAX_SESSIONS = 100
+export const NODE_MAX_CHALLENGES = 100
+export const NODE_MAX_WORKSPACES = 64
+export const NODE_MAX_PAGE_ITEMS = 1000
+export const NODE_MAX_NAMES = 16
+export const NODE_MAX_LABEL_CHARS = 64
+export const NODE_MAX_ID_CHARS = 128
+export const NODE_MAX_PATH_CHARS = 4096
+export const NODE_MAX_NAME_CHARS = 253
+export const NODE_DNS_LABEL_CHARS = 63
+export const NODE_MAX_ORIGIN_CHARS = 272
+export const NODE_MAX_PASSKEYS = 20
+export const NODE_MAX_AUTH_BYTES = 64 * 1024
+export const NODE_MIN_RANDOM_TOKEN_CHARS = 43
+export const NODE_MAX_RANDOM_TOKEN_CHARS = 128
+export const NODE_MAX_FILE_BYTES = 1024 * 1024
+export const NODE_BASE64_CHARS_PER_BLOCK = 4
+export const NODE_BASE64_BYTES_PER_BLOCK = 3
+export const NODE_MAX_FILE_BASE64_CHARS =
+  NODE_BASE64_CHARS_PER_BLOCK *
+  /* @__PURE__ */ Math.ceil(NODE_MAX_FILE_BYTES / NODE_BASE64_BYTES_PER_BLOCK)
+export const NODE_TERMINAL_INPUT_BYTES = 16 * 1024
+export const NODE_TERMINAL_OUTPUT_BYTES = 1024 * 1024
+export const NODE_TERMINAL_FRAMES_PER_S = 64
+export const NODE_MAX_TERMINAL_DIMENSION = 1000
+export const NODE_MAX_ARGV_ITEMS = 128
+export const NODE_MAX_ARG_CHARS = 4096
+export const NODE_MAX_COMMIT_CHARS = 4096
+export const NODE_AUDIT_MAX_BYTES = 10 * 1024 * 1024
+export const NODE_AUDIT_RETENTION_DAYS = 30
+// Declarative regexes are also carried into the versioned JSON Schemas.
+export const NODE_ID_PATTERN = '^[A-Za-z0-9_-]+$'
+export const NODE_DIGEST_PATTERN = '^[a-f0-9]{64}$'
+export const NODE_TOKEN_PATTERN = '^[A-Za-z0-9_-]+$'
+// esbuild honors purity on calls, not tagged templates. These pure built-ins
+// need an annotated call so unused node initialization stays out of other bundles.
+export const NODE_NAME_PATTERN = /* @__PURE__ */ (() =>
+  String.raw`^(?=.{1,253}$)(?![0-9.]+$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$`)()
+export const NODE_PATH_PATTERN = /* @__PURE__ */ (() =>
+  String.raw`^(?!/)(?!.*[\\\x00-\x1f\x7f])(?!(?:.*/)?\.\.?(?:/|$))[^/]+(?:/[^/]+)*$`)()
+export const NODE_REF_PATTERN = /* @__PURE__ */ (() =>
+  String.raw`^(?!-)(?!@$)(?!.*(?:\.\.|//|@\{|[\x00-\x20\x7f~^:?*\[\\]))(?!.*(?:^|/)\.)(?!.*\.lock(?:/|$))(?!.*[/.]$)[^/]+(?:/[^/]+)*$`)()
+export const NODE_REVISION_PATTERN = '^[a-f0-9]{40}(?:[a-f0-9]{24})?$'
+
 // Must match package.json `publisher` and `name`; test/unit/manifest.test.ts
 // fails if they drift.
 export const EXTENSION_PUBLISHER = 'RandyNorthrup'

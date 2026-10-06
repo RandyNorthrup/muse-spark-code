@@ -9382,6 +9382,15 @@ D38B 4796`, "Google, Inc. (Linux Package Signing Authority)"), and
   8. **The name.** **Default:** "Muse Spark Code Node (Unofficial)" in public,
      "Muse Node" as shorthand in the docs, and "Muse Node OS (Unofficial)" for
      the images.
+  9. **CLI sign-in isolation on the home node (L0 review).** D90.23 runs
+     agent CLIs and repository tools as `muse-tools`, while D90.7 requires
+     an owner-only CLI sign-in home. Directory permissions do not isolate
+     processes with the same UID. N/A1 must qualify how the trusted CLI
+     engine and its own sign-in are isolated from every terminal, check and
+     repository tool (including memory/ptrace), without passing credentials
+     to tools or disabling the CLI sandbox. **Default:** the Muse Code
+     backend remains unavailable under Q-M110.7 until this boundary and the
+     sandbox/sign-in captures pass; no subscription-use claim meanwhile.
 
 - **Q-M109 — A Mac for the Secure Enclave slot (2026-10-05).** D89.2's
   Secure Enclave slot needs a Mac where `SecureEnclave.isAvailable`: Apple
@@ -22468,7 +22477,7 @@ Each joins when its dependency merges, and none blocks the others.
 ### M110 — Muse Node: headless worker and orchestrator host (D90)
 
 **M110a0 lane 0, 2026-10-05 (`m110/l0`).** The home-node contracts,
-strings, test fakes and phase-scoped threat model are being implemented;
+strings, test fakes and phase-scoped threat model are implemented and locally verified;
 the service and listener remain other lanes' work. The threat-model review
 is recorded in `docs/certification/m110-threat-model.md` (Codex review;
 lead/Claude acceptance pending before listener code). Platform receipts and
@@ -22485,12 +22494,13 @@ absolute session 12 hours, step-up 5 minutes, WebSocket authentication 5
 seconds, lockout at 100 failures, 1 MiB file/terminal-output cap, 16 KiB
 terminal input, 64 frames/s, 1,000 results per page, 100 sessions/challenges,
 10 MiB audit cap and 30-day retention. These are rejection limits, never
-permission grants. Config/state/audit reject unknown fields and secrets;
-filesystem containment, cryptographic verification, expiry and hash-chain
+permission grants. Config/state/audit reject unknown fields and expose no
+credential-valued fields; filesystem containment, cryptographic verification, expiry and hash-chain
 verification still require their runtime bindings and acceptance drills.
 
-**Status 2026-10-05: planned, documentation only.** Nothing is implemented,
-and no lane is launched by this record. The research is
+**Status 2026-10-05: lane 0 contract groundwork.** The service, sign-in,
+listener, images and user surfaces remain unimplemented on this base.
+No downstream lane is launched by this record. The research is
 `docs/research/muse-node-2026-10-05.md`. Each phase's part of lane 0's threat
 model is reviewed and accepted before that phase's listener, relay or sign-in
 code is written. Listening on a network stays off until `node init` chooses

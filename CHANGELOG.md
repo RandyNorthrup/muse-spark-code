@@ -11,9 +11,12 @@ happened, not what was planned; superseded entries are kept.
 
 - Prepared home-node labels, messages and errors in all 14 display languages;
   this groundwork enables no node command or listener.
-- Home-node contract groundwork (M110a0 lane 0): the LAN threat model,
-  platform capture checklist and explicit integration bindings. The node
-  service and browser sign-in are not yet available.
+- Home-node contract groundwork (M110a0 lane 0): validated config, state,
+  session, audit and event records with versioned JSON Schemas; 28 scoped
+  file, terminal, git, dashboard and sign-in method contracts; injected
+  authentication, tool-host and clock ports; test-only fakes; the LAN threat
+  model, platform capture checklist and explicit integration bindings.
+  The node service and browser sign-in are not yet available.
 
 ### Fixed
 

@@ -2614,7 +2614,7 @@
   "judgeStatusSubscription": "Předplatné",
   "judgeStatusPaid": "Placené",
   "nodeLabels": {
-    "title": "Muse Spark Code Node (Neoficiální)",
+    "title": "Uzel: Muse Spark Code Node (Unofficial)",
     "files": "Soubory pracovního prostoru",
     "editor": "Editor souborů",
     "terminal": "Terminál pracovního prostoru",

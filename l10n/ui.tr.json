@@ -2426,7 +2426,7 @@
   "judgeStatusSubscription": "Abonelik",
   "judgeStatusPaid": "Ücretli",
   "nodeLabels": {
-    "title": "Muse Spark Code Node (Resmî değil)",
+    "title": "Düğüm: Muse Spark Code Node (Unofficial)",
     "files": "Çalışma alanı dosyaları",
     "editor": "Dosya düzenleyici",
     "terminal": "Çalışma alanı terminali",

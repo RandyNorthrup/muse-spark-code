@@ -2426,7 +2426,7 @@
   "judgeStatusSubscription": "Abonnement",
   "judgeStatusPaid": "Kostenpflichtig",
   "nodeLabels": {
-    "title": "Muse Spark Code Node (Inoffiziell)",
+    "title": "Knoten: Muse Spark Code Node (Unofficial)",
     "files": "Arbeitsbereichsdateien",
     "editor": "Dateieditor",
     "terminal": "Arbeitsbereichsterminal",
