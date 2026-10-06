@@ -5777,7 +5777,13 @@ the first delivery:
    it admits no new work; a receiver pauses at the next controlled boundary.
    An already admitted tool or request may finish and incur cost. On reconnect,
    reconcile durable records first, then ask **Resume queue**; paid work asks
-   locally again. Only the receiver's locally observed retirement can settle
+   locally again. The authenticated envelope names the current receiver;
+   reconciliation, terminal tombstones and settlement acknowledgements bind
+   the saved pair and original attempt tuple, including its historical receiver
+   incarnation. A restart may report a durably proved old outcome without
+   rewriting that owner or relaunching/adopting its work. Unknown or unresolved
+   old records remain blocked with their occupancy and liabilities; absence
+   never proves retirement. Only the receiver's locally observed retirement can settle
    its attempt, including all tool processes; an unproved descendant cannot
    be retired by its direct parent's exit. A timer, RPC failure, missing endpoint, PID/start-time check
    or user assertion never releases it. An unresolved launch stays blocked
@@ -17735,6 +17741,17 @@ Implementation starts after the dependency contracts and lane 0's security
 review are accepted. No pairing, listener, discovery or remote execution is
 implemented or certified by this record.
 
+**FIXM100L0 review repair (2026-10-06).** RVM100L0 identified three P2s:
+historical durable attempts must reconcile through a new authenticated
+channel incarnation without changing the attempt owner; the TLS probe must
+capture a post-handshake ticket and prove a resumption-enabled positive
+control before testing refusal; the pre-listener threat review must define
+another local user versus a same-user process. Lane 0 repairs these contracts,
+owning tests and `docs/certification/m100-0.md`, with a regression and a
+byte-exact red/restored drill per finding. No production listener/store,
+dependency or guard waiver is introduced; P/T/E own runtime isolation and
+journal proofs. PLAN §9 records the trusted-account residual.
+
 - **Goal.** The owner explicitly links his four LAN devices, offers a bounded
   pool from each open extension, delegates independent lanes and checks from
   one board, and receives reviewable Git branches without moving credentials
@@ -18585,6 +18602,16 @@ local merge of the already-fetched `origin/main`, keeping both sides and
 renumbering nothing. Only changed-document formatting/Markdown checks and
 normal commit hooks run here; full quality remains the lead's joined-tree
 gate. The research record separates these receipts from runtime certification.
+
+**FIXM100L0 contract/review repair (2026-10-06).** The rig brief forbids
+aggregate quality/full unit runs, merges and edits outside this lane. Run
+owning Vitest files (at most three files/workers), static checks and the
+production build directly on macmini; no unchanged gate is waived. The
+inherited `DEVICE_MODEL_TEXT` missing split-reader registration remains
+I-owned and must be fixed on the joined tree before full quality or release.
+Regressions and six red/restored receipts for all three RVM100L0 P2 repairs
+are in `docs/certification/m100-0.md`. The lead retains the full quality,
+coverage, packaged-host and security gates.
 
 **DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
 complete Windows unit inventory in batches of at most three files and
@@ -19577,6 +19604,24 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M100-LOCAL-ACCOUNT (FIXM100L0).** The OS, logged-in account, extension
+  host and installed extensions/helpers are trusted. Another local user can
+  reach loopback/LAN listeners but must not read/replace pairing or journal
+  state: P/E require per-user 0700 directories, 0600 files (owner-only Windows
+  ACLs), ownership/permission and symlink/junction/ancestor checks. T applies
+  exact mutual-TLS peer credential checks on loopback; any future local IPC
+  helper also requires OS peer identity/ACL checks. No pair/provider secrets
+  on argv/environment. A same-user process or administrator can replace a
+  syntactically valid journal outcome or obtain keys; zod, atomic writes and
+  permissions do not prove provenance against it. Safe only under that
+  explicit trusted-account assumption; lane 0 has no production listener.
+  Follow-up: P-local-store-isolation, E-local-journal-isolation and
+  T-local-peer-credentials runtime red drills before a listener ships, with
+  I carrying this boundary into SECURITY and the joined review. Untrusted
+  same-user support needs a separate isolation/authenticated-storage design.
+  Details and the documentation regression are in `docs/certification/m100-0.md`;
+  all three RVM100L0 P2 findings are repaired, no finding is silently deferred.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

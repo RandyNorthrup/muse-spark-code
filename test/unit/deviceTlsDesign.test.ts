@@ -107,104 +107,112 @@ describe('M100 certificate and TLS design probe', () => {
     const source = identity()
     const receiver = identity()
     const attacker = identity()
-    const sockets = new Set<TLSSocket>()
-    let admitted = 0
-    const server = createServer(
-      {
-        key: receiver.key,
-        cert: receiver.pem,
-        ca: [source.pem],
-        requestCert: true,
-        rejectUnauthorized: true,
-        minVersion: 'TLSv1.3',
-        maxVersion: 'TLSv1.3',
-        secureOptions: constants.SSL_OP_NO_TICKET,
-      },
-      (socket) => {
-        sockets.add(socket)
-        const raw = socket.getPeerCertificate().raw
-        if (
-          !socket.authorized ||
-          createHash('sha256').update(raw).digest('hex') !== source.fingerprint ||
-          socket.isSessionReused()
-        ) {
-          socket.destroy()
-          return
-        }
-        admitted += 1
-        socket.end('accepted')
-      },
-    )
-    server.on('resumeSession', (_sessionId, callback) => {
-      callback(null, null)
-    })
-    server.on('tlsClientError', () => undefined)
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject)
-      server.listen(0, '127.0.0.1', resolve)
-    })
-    const address = server.address()
-    if (address === null || typeof address === 'string') throw new Error('Missing test listener')
-    const exchange = (
-      client: ReturnType<typeof identity> | undefined,
-      pin: string,
-      session?: Buffer,
-    ) =>
-      new Promise<{ accepted: boolean; reused: boolean; session: Buffer | undefined }>(
-        (resolve) => {
-          const socket = connect({
-            host: '127.0.0.1',
-            port: address.port,
-            ca: [receiver.pem],
-            rejectUnauthorized: true,
-            minVersion: 'TLSv1.3',
-            maxVersion: 'TLSv1.3',
-            ...(client !== undefined && { key: client.key, cert: client.pem }),
-            ...(session !== undefined && { session }),
-            checkServerIdentity: (_hostname, certificate) =>
-              createHash('sha256').update(certificate.raw).digest('hex') === pin
-                ? undefined
-                : new Error('Test pin mismatch'),
-          })
+    // The same real-ticket probe must resume with controls off and refuse with them on.
+    for (const shouldRefuseResumption of [false, true]) {
+      const sockets = new Set<TLSSocket>()
+      let admitted = 0
+      const server = createServer(
+        {
+          key: receiver.key,
+          cert: receiver.pem,
+          ca: [source.pem],
+          requestCert: true,
+          rejectUnauthorized: true,
+          minVersion: 'TLSv1.3',
+          maxVersion: 'TLSv1.3',
+          secureOptions: shouldRefuseResumption ? constants.SSL_OP_NO_TICKET : 0,
+        },
+        (socket) => {
           sockets.add(socket)
-          let isAccepted = false
-          let isReused = false
-          let savedSession: Buffer | undefined
-          socket.on('secureConnect', () => {
-            savedSession = socket.getSession()
-            isReused = socket.isSessionReused()
-          })
-          socket.on('data', (data: Buffer) => {
-            isAccepted = data.toString() === 'accepted'
-          })
-          socket.on('error', () => undefined)
-          socket.on('close', () => {
-            resolve({ accepted: isAccepted, reused: isReused, session: savedSession })
-          })
-          socket.setTimeout(10_000, () => socket.destroy())
+          const raw = socket.getPeerCertificate().raw
+          if (
+            !socket.authorized ||
+            createHash('sha256').update(raw).digest('hex') !== source.fingerprint ||
+            (shouldRefuseResumption && socket.isSessionReused())
+          ) {
+            socket.destroy()
+            return
+          }
+          admitted += 1
+          socket.end('accepted')
         },
       )
-    try {
-      const first = await exchange(source, receiver.fingerprint)
-      expect(first.accepted).toBe(true)
-      expect(first.reused).toBe(false)
-      const anonymous = await exchange(undefined, receiver.fingerprint)
-      const wrongClient = await exchange(attacker, receiver.fingerprint)
-      const wrongServer = await exchange(source, attacker.fingerprint)
-      expect(anonymous.accepted).toBe(false)
-      expect(wrongClient.accepted).toBe(false)
-      expect(wrongServer.accepted).toBe(false)
-      const again = await exchange(source, receiver.fingerprint, first.session)
-      expect(again.accepted).toBe(true)
-      expect(again.reused).toBe(false)
-      expect(admitted).toBe(2)
-    } finally {
-      for (const socket of sockets) socket.destroy()
-      await new Promise<void>((resolve) =>
-        server.close(() => {
-          resolve()
-        }),
-      )
+      if (shouldRefuseResumption) {
+        server.on('resumeSession', (_sessionId, callback) => {
+          callback(null, null)
+        })
+      }
+      server.on('tlsClientError', () => undefined)
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject)
+        server.listen(0, '127.0.0.1', resolve)
+      })
+      const address = server.address()
+      if (address === null || typeof address === 'string') throw new Error('Missing test listener')
+      const exchange = (
+        client: ReturnType<typeof identity> | undefined,
+        pin: string,
+        session?: Buffer,
+      ) =>
+        new Promise<{ accepted: boolean; reused: boolean; session: Buffer | undefined }>(
+          (resolve) => {
+            const socket = connect({
+              host: '127.0.0.1',
+              port: address.port,
+              ca: [receiver.pem],
+              rejectUnauthorized: true,
+              minVersion: 'TLSv1.3',
+              maxVersion: 'TLSv1.3',
+              ...(client !== undefined && { key: client.key, cert: client.pem }),
+              ...(session !== undefined && { session }),
+              checkServerIdentity: (_hostname, certificate) =>
+                createHash('sha256').update(certificate.raw).digest('hex') === pin
+                  ? undefined
+                  : new Error('Test pin mismatch'),
+            })
+            sockets.add(socket)
+            let isAccepted = false
+            let isReused = false
+            let savedSession: Buffer | undefined
+            socket.on('secureConnect', () => {
+              isReused = socket.isSessionReused()
+            })
+            socket.on('session', (ticket: Buffer) => {
+              savedSession = ticket
+            })
+            socket.on('data', (data: Buffer) => {
+              isAccepted = data.toString() === 'accepted'
+            })
+            socket.on('error', () => undefined)
+            socket.on('close', () => {
+              resolve({ accepted: isAccepted, reused: isReused, session: savedSession })
+            })
+            socket.setTimeout(10_000, () => socket.destroy())
+          },
+        )
+      try {
+        const first = await exchange(source, receiver.fingerprint)
+        expect(first.accepted).toBe(true)
+        expect(first.reused).toBe(false)
+        const anonymous = await exchange(undefined, receiver.fingerprint)
+        const wrongClient = await exchange(attacker, receiver.fingerprint)
+        const wrongServer = await exchange(source, attacker.fingerprint)
+        expect(anonymous.accepted).toBe(false)
+        expect(wrongClient.accepted).toBe(false)
+        expect(wrongServer.accepted).toBe(false)
+        const again = await exchange(source, receiver.fingerprint, first.session)
+        expect(again.accepted).toBe(true)
+        expect(first.session).toBeDefined()
+        expect(again.reused).toBe(!shouldRefuseResumption)
+        expect(admitted).toBe(2)
+      } finally {
+        for (const socket of sockets) socket.destroy()
+        await new Promise<void>((resolve) =>
+          server.close(() => {
+            resolve()
+          }),
+        )
+      }
     }
   })
 })

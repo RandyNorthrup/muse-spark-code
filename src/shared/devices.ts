@@ -360,8 +360,10 @@ export const DEVICE_FAILURES = [
   'unsupported-host',
 ] as const
 
-// Each frame carries the saved pair and current receiver identity. T compares
-// them to the authenticated channel before E sees any application body.
+// Each envelope carries the saved pair and current authenticated receiver.
+// Reconciliation/acknowledgement preserves historical attempt owners; only
+// live execution/control must name this incarnation. T authenticates the
+// envelope; E looks up the original tuple + payload digest, never adopts it.
 export const deviceFrameSchema = z
   .strictObject({
     version: z.literal(DEVICE_LIMITS.protocolVersion),
@@ -417,9 +419,9 @@ export const deviceFrameSchema = z
   })
   .check(
     z.refine((frame) => {
+      const isPairedAttempt = (identity: DeviceAttemptIdentity) => identity.pairId === frame.pairId
       const isMatchingAttempt = (identity: DeviceAttemptIdentity) =>
-        identity.pairId === frame.pairId &&
-        identity.receiverIncarnationId === frame.receiverIncarnationId
+        isPairedAttempt(identity) && identity.receiverIncarnationId === frame.receiverIncarnationId
       const body = frame.body
       switch (body.kind) {
         case 'offers': {
@@ -434,16 +436,19 @@ export const deviceFrameSchema = z
           return isMatchingAttempt(body.outcome.identity)
         }
         case 'reconcile': {
-          return body.identities.every((item) => isMatchingAttempt(item))
+          return body.identities.every((item) => isPairedAttempt(item))
         }
         case 'reconciled': {
-          return body.outcomes.every((item) => isMatchingAttempt(item.identity))
+          return body.outcomes.every((item) => isPairedAttempt(item.identity))
         }
         case 'artifact': {
           return isMatchingAttempt(body.manifest.identity)
         }
         case 'tombstone': {
-          return isMatchingAttempt(body.record.identity)
+          return isPairedAttempt(body.record.identity)
+        }
+        case 'acknowledge': {
+          return isPairedAttempt(body.identity)
         }
         case 'failure': {
           return true

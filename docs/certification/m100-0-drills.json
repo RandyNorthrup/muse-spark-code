@@ -681,5 +681,87 @@
     ],
     "sha256": "6074b276eee539721a0ac99c4d8e3ab0d6335463dac0b753e368665b92d9213c",
     "restored": true
+  },
+  {
+    "guard": "FIXM100L0 historical owner reconciliation: reintroduce current-channel matching",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "M100 frame, artifact and durable-state boundaries reconciles a lost terminal reply after receiver restart without rewriting the durable owner",
+      "M100 frame, artifact and durable-state boundaries keeps unresolved historical attempts occupied and rejects their relaunch or live control"
+    ],
+    "sha256": "7431b809ac4e8827681c611c004dd5cba0920e1af02933a3aef2bdb5f22aacce",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 historical pair binding: remove stable-pair check",
+    "file": "src/shared/devices.ts",
+    "exit": 1,
+    "failed": [
+      "M100 frame, artifact and durable-state boundaries rejects stale or cross-pair identities in each nested frame",
+      "M100 frame, artifact and durable-state boundaries reconciles a lost terminal reply after receiver restart without rewriting the durable owner"
+    ],
+    "sha256": "7431b809ac4e8827681c611c004dd5cba0920e1af02933a3aef2bdb5f22aacce",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 local threat boundary: remove attacker review",
+    "file": "docs/certification/m100-0.md",
+    "exit": 1,
+    "failed": [
+      "M100 same-machine threat contract defines local reachability, trusted-account risk and required isolation drills before a listener"
+    ],
+    "sha256": "b1685a35090aa73d1af9e34cbea29b21e55604e36a8698e0c5014f88d71d9962",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 local risk register: remove named residual from PLAN section 9",
+    "file": "PLAN.md",
+    "exit": 1,
+    "failed": [
+      "M100 same-machine threat contract defines local reachability, trusted-account risk and required isolation drills before a listener"
+    ],
+    "sha256": "191c2125985aa46314042addcbae575ade0f8aa2f9ac529280f7ca68d62cb982",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 real TLS ticket: remove all resumption controls",
+    "file": "test/unit/deviceTlsDesign.test.ts",
+    "exit": 1,
+    "failed": [
+      "M100 certificate and TLS design probe keeps CA verification on, requires client possession, checks the exact server pin and refuses resumption"
+    ],
+    "sha256": "e800cbaf44c583003f93e918d5c13e683059c8d3069ada091d5797bb787ceb86",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 ticket positive control: restore pre-ticket getSession sampling",
+    "file": "test/unit/deviceTlsDesign.test.ts",
+    "exit": 1,
+    "failed": [
+      "M100 certificate and TLS design probe keeps CA verification on, requires client possession, checks the exact server pin and refuses resumption"
+    ],
+    "sha256": "e800cbaf44c583003f93e918d5c13e683059c8d3069ada091d5797bb787ceb86",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 real TLS ticket: remove all resumption controls",
+    "file": "test/unit/deviceTlsDesign.test.ts",
+    "exit": 1,
+    "failed": [
+      "M100 certificate and TLS design probe keeps CA verification on, requires client possession, checks the exact server pin and refuses resumption"
+    ],
+    "sha256": "44a4936ffe208c773517f7db6d5e5b59d3108740f72c43030814e7bd6038faf6",
+    "restored": true
+  },
+  {
+    "guard": "FIXM100L0 ticket positive control: restore pre-ticket getSession sampling",
+    "file": "test/unit/deviceTlsDesign.test.ts",
+    "exit": 1,
+    "failed": [
+      "M100 certificate and TLS design probe keeps CA verification on, requires client possession, checks the exact server pin and refuses resumption"
+    ],
+    "sha256": "44a4936ffe208c773517f7db6d5e5b59d3108740f72c43030814e7bd6038faf6",
+    "restored": true
   }
 ]

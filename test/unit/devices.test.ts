@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   DEVICE_LIMITS,
@@ -485,6 +486,85 @@ describe('M100 frame, artifact and durable-state boundaries', () => {
       }).success,
     ).toBe(false)
   })
+  it('reconciles a lost terminal reply after receiver restart without rewriting the durable owner', () => {
+    const original = deviceJournalRecordSchema.parse({
+      kind: 'receiver-record',
+      recordedAt: 1000,
+      outcome: {
+        identity,
+        payloadDigest: HASH,
+        revision: 2,
+        state: 'retired',
+        occupied: { ...caps, workers: 0, processes: 0, heavyChecks: 0 },
+        usage,
+        artifact,
+      },
+    })
+    if (original.kind !== 'receiver-record') throw new Error('Missing test outcome')
+    const terminal = {
+      identity,
+      payloadDigest: HASH,
+      revision: 2,
+      state: 'retired',
+      usage,
+      outcomeDigest: HASH,
+      recordedAt: 1000,
+    } as const
+    const bodies: DeviceFrame['body'][] = [
+      { kind: 'reconcile', identities: [identity] },
+      { kind: 'reconciled', outcomes: [original.outcome] },
+      { kind: 'tombstone', record: terminal },
+      { kind: 'acknowledge', identity, settlementId: usage.settlementId, payloadDigest: HASH },
+    ]
+    for (const body of bodies) {
+      const restarted = { ...frame(body), receiverIncarnationId: OTHER_ID }
+      expect(deviceFrameSchema.parse(restarted)).toEqual(restarted)
+      expect(deviceFrameSchema.safeParse({ ...restarted, pairId: OTHER_ID }).success).toBe(false)
+    }
+    expect(original.outcome.identity).toEqual(dispatch.identity)
+    expect(original.outcome.usage).toEqual(terminal.usage)
+    expect(deviceJournalRecordSchema.parse(original)).toEqual(original)
+  })
+  it('keeps unresolved historical attempts occupied and rejects their relaunch or live control', () => {
+    const unresolved = {
+      identity,
+      payloadDigest: HASH,
+      revision: 1,
+      state: 'uncertain',
+      occupied: caps,
+      usage,
+    } as const
+    const reconciled = {
+      ...frame({ kind: 'reconciled', outcomes: [unresolved] }),
+      receiverIncarnationId: OTHER_ID,
+    }
+    expect(deviceFrameSchema.parse(reconciled)).toEqual(reconciled)
+    const activeBodies: DeviceFrame['body'][] = [
+      { kind: 'dispatch', dispatch },
+      { kind: 'outcome', outcome: unresolved },
+      { kind: 'cancel', identity },
+      { kind: 'artifact', manifest: artifact },
+      { kind: 'artifactChunk', identity, artifactId: ID, offset: 0, base64: 'AAAA' },
+      {
+        kind: 'checkReport',
+        identity,
+        repositoryId: ID,
+        tree: GIT,
+        checkId: ID,
+        toolchainDigest: HASH,
+        status: 'passed',
+        report: 'Fixture report.',
+      },
+      { kind: 'offers', offers: [offer] },
+    ]
+    for (const body of activeBodies) {
+      expect(
+        deviceFrameSchema.safeParse({ ...frame(body), receiverIncarnationId: OTHER_ID }).success,
+      ).toBe(false)
+    }
+    expect(unresolved.occupied).toEqual(caps)
+    expect(unresolved.usage.retainedLiabilityUsd).toBe(1)
+  })
   it('bounds offer and reconciliation batches, report text and artifact chunks', () => {
     const oversized: DeviceFrame['body'][] = [
       {
@@ -660,5 +740,37 @@ describe('M100 frame, artifact and durable-state boundaries', () => {
     expect(await port.dispatch(dispatch)).toEqual(response)
     expect(await port.reconcile([identity])).toEqual([response])
     await port.cancel(identity)
+  })
+})
+
+describe('M100 same-machine threat contract', () => {
+  it('defines local reachability, trusted-account risk and required isolation drills before a listener', () => {
+    const review = readFileSync(
+      new URL('../../docs/certification/m100-0.md', import.meta.url),
+      'utf8',
+    )
+    const boundary = review.split('## Same-machine attacker boundary', 2)[1]?.split('\n## ', 1)[0]
+    expect(boundary).toBeDefined()
+    for (const obligation of [
+      'another local user',
+      'same-user process',
+      'loopback ports',
+      'pairing store',
+      'journal',
+      '0700',
+      '0600',
+      'peer credential checks',
+      'argv or environment',
+      'P-local-store-isolation',
+      'E-local-journal-isolation',
+      'T-local-peer-credentials',
+      'M100-LOCAL-ACCOUNT',
+      'syntactically valid terminal rewrite',
+    ])
+      expect(boundary).toContain(obligation)
+    const plan = readFileSync(new URL('../../PLAN.md', import.meta.url), 'utf8')
+    expect(plan.split('## 9. Security assumptions and accepted residual risk', 2)[1]).toContain(
+      'M100-LOCAL-ACCOUNT',
+    )
   })
 })
