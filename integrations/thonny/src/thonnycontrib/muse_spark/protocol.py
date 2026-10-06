@@ -140,7 +140,11 @@ def check_device_request(message: dict) -> dict:
         expiry = approval.get("expires_at")
         if not isinstance(target, str) or not target:
             raise ProtocolError(ERR_MISSING_APPROVAL, "write approval needs target")
-        if type(expiry) not in (int, float) or not math.isfinite(expiry):
+        try:
+            valid_expiry = type(expiry) in (int, float) and math.isfinite(expiry)
+        except OverflowError:
+            valid_expiry = False
+        if not valid_expiry:
             raise ProtocolError(ERR_MISSING_APPROVAL, "write approval needs expiry")
     return message
 

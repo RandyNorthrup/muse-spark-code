@@ -20,6 +20,11 @@ class FakeWorkbench:
         self.handlers: Dict[str, set] = {}
         self.after_calls: List[tuple] = []
         self.run_after_inline = True
+        self.language = "en_US"
+
+    def get_option(self, name):
+        assert name == "general.language"
+        return self.language
 
     def add_command(self, command_id, menu_name, command_label, handler=None, **kwargs):
         self.commands.append(
@@ -115,13 +120,15 @@ class FakeBackend:
     def target_identity(self):
         return "fake-target-" + str(id(self.runner.proxy))
 
-    def send_inline(self, name, fields, command_id, target=None):
+    def send_inline(self, name, fields, command_id, target=None, validate=None):
         from thonnycontrib.muse_spark.runner import BackendUnavailable
 
         if self.runner.get_backend_proxy() is None:
             raise BackendUnavailable("no backend connected")
         if target is not None and target != self.target_identity():
             raise BackendUnavailable("approved device changed")
+        if validate is not None:
+            validate()
         self.runner.send_command({"name": name, "id": command_id, **fields})
 
     def bind_response(self, handler):

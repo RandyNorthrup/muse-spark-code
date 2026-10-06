@@ -130,14 +130,14 @@ class ProviderClient:
             raise ConnectionFailed("connection lost: %s" % exc)
         finally:
             self.close()
-            self._engine.detach()
 
     def close(self) -> None:
         """Hang up. Idempotent; safe from any thread."""
         with self._lock:
             self._closed.set()
             sock, self._sock = self._sock, None
-            self._engine.detach()
+            if sock is not None:
+                self._engine.detach()
         if sock is not None:
             try:
                 sock.shutdown(socket.SHUT_RDWR)

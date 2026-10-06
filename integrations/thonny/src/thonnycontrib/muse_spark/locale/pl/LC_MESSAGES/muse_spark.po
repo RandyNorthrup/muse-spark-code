@@ -1,0 +1,36 @@
+# Muse Spark Code (Unofficial), MIT.
+msgid ""
+msgstr "Language: pl\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n"
+
+msgid "Open Muse Spark"
+msgstr "Otwórz Muse Spark"
+
+msgid "Stop machine"
+msgstr "Zatrzymaj maszynę"
+
+msgid "Stop"
+msgstr "Zatrzymaj"
+
+msgid "Cannot start Muse Spark"
+msgstr "Nie można uruchomić Muse Spark"
+
+msgid "Cannot reach Muse Spark"
+msgstr "Nie można połączyć się z Muse Spark"
+
+msgid "Cannot open Muse Spark"
+msgstr "Nie można otworzyć Muse Spark"
+
+msgid "Stop machine failed"
+msgstr "Nie udało się zatrzymać maszyny"
+
+msgid "The runtime could not start. Check its installation and try again."
+msgstr "Nie udało się uruchomić środowiska wykonawczego. Sprawdź jego instalację i spróbuj ponownie."
+
+msgid "The local provider connection failed. Close Muse Spark and try again."
+msgstr "Połączenie z lokalnym dostawcą nie powiodło się. Zamknij Muse Spark i spróbuj ponownie."
+
+msgid "The system browser could not open the companion page."
+msgstr "Przeglądarka systemowa nie mogła otworzyć strony towarzyszącej."
+
+msgid "The stop command failed. Use the machine's physical emergency stop if needed."
+msgstr "Polecenie zatrzymania nie powiodło się. W razie potrzeby użyj fizycznego wyłącznika awaryjnego maszyny."

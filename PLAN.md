@@ -5247,6 +5247,13 @@ have equivalent functionality even if we need to develop it ourselves".
 
 ## 3. Open questions (need the owner)
 
+**Q-M103T (R/P protocol freeze, 2026-10-05):** confirm lane T's proposed
+write approval fields `digest` (SHA-256 of exact bytes), `target` (opaque
+Thonny runner/proxy connection identity from `info`) and `expires_at` (UTC
+Unix seconds), captured when the user approves. Keep installed-runtime
+compatibility unclaimed until the runtime lanes agree and provide the fake
+editor-to-runtime receipts (M103T-WIRE-FREEZE, section 9).
+
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
   settled. F1 uses micro-USD and upward rounding; F2 preserves observed stream
@@ -15146,6 +15153,11 @@ own the runtime process tree with a Windows job/POSIX process group, drain
 stdout, and require all announcement kinds. Ship a standard-library gettext
 catalogue for all fourteen repository languages. Each finding gets a
 regression and a byte-exact red drill in `docs/certification/m103-t.md`.
+The existing no-device-stack gate also bans `ctypes`; preserve it. A small
+C# launcher, compiled by Windows' bundled .NET Framework compiler into a
+private temporary directory, assigns itself to a kill-on-close job before
+creating the suspended runtime, which inherits the job. The launcher owns
+the job handle; Python uses no native device API or new dependency.
 No dependency, paid call, real board, merge, push or gate relaxation; the
 rig brief delegates the full quality run to the lead.
 
@@ -15610,6 +15622,16 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**FIXM103T (2026-10-05, rig lane).** The rig/common briefs explicitly prohibit
+full `npm run quality` and the full JS test suite, assigning integration
+quality to the lead. Run owned Python regressions, static repository checks
+and the build directly on Windows, with all thresholds unchanged. The base
+has no `src/shared/featureCatalog.ts`, `scripts/gen-reference.mjs` or
+`check:reference` command; this correction adds no menu/CLI command and keeps
+its documentation within lane T. Reference generation remains the lead's
+integration check once that catalogue exists. Receipts and every red drill
+are in `docs/certification/m103-t.md`; no local gate is disabled.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
@@ -16188,6 +16210,22 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M103T-WIRE-FREEZE (existing interoperability limit, 2026-10-05):** all
+  twelve RVM103T findings are corrected locally, but the announcement/provider
+  protocol is still T's proposal awaiting R/P freeze. Writes require a bytes
+  digest, opaque runner/proxy connection identity and UTC approval expiry;
+  the runtime must capture those at approval time. Safe for now only within
+  that authenticated loopback proposal: missing fields, foreign endpoints or
+  changed identity fail closed. Follow-up: R/P freeze and fake editor-to-runtime
+  receipts before claiming installed-runtime compatibility.
+- **M103T-POSIX-RIG-RECEIPTS (verification limit, 2026-10-05):** Windows job
+  ownership and actual fake descendants are tested on win11; POSIX session
+  creation/group signals are exercised with injected OS calls here. Actual
+  macOS/Linux execution and Python 3.10 remain the hosted matrix's checks,
+  rather than an asserted safety certification from Windows. Follow-up: the
+  unchanged Thonny workflow and lead's POSIX rig receipts before all-platform
+  support claims. No P1/P2/P3 review finding is silently deferred.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

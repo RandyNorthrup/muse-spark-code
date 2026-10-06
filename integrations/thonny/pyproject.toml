@@ -31,6 +31,9 @@ Issues = "https://github.com/RandyNorthrup/muse-spark-code/issues"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"thonnycontrib.muse_spark" = ["locale/*/LC_MESSAGES/*.mo", "locale/*/LC_MESSAGES/*.po", "windows_job.cs"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]

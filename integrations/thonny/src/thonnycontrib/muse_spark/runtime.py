@@ -18,13 +18,16 @@ tests run the whole lifecycle against fakes without starting anything real.
 from __future__ import annotations
 
 import logging
+import queue
 import shutil
 import subprocess
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 from . import protocol
+from .process_tree import spawn_runtime
 
 RUNTIME_BINARY = "muse-spark-code-acp"
 PANEL_ARGV = ("panel",)
@@ -35,6 +38,8 @@ STOP_ARGV = ("stop-machine",)
 ANNOUNCE_TIMEOUT_S = 20.0
 #: Bound for a single out-of-band stop call.
 STOP_TIMEOUT_S = 15.0
+CHILD_WAIT_S = 5.0
+OUTPUT_QUEUE_WAIT_S = 0.05
 
 log = logging.getLogger("thonnycontrib.muse_spark")
 
@@ -65,18 +70,21 @@ class RuntimeInfo:
 
 @dataclass
 class RuntimeController:
-    """Owns at most one runtime child process. Thread-safe by the GIL for
-    the plugin's single start/stop discipline (``_process`` is only ever
-    replaced under one worker thread at a time)."""
+    """Serialize starts and cancel an in-flight start when stop is called."""
 
     which: Callable[[str], Optional[str]] = shutil.which
-    popen: Callable[..., object] = subprocess.Popen
+    popen: Callable[..., object] = spawn_runtime
     run: Callable[..., object] = subprocess.run
     monotonic: Callable[[], float] = time.monotonic
     announce_timeout: float = ANNOUNCE_TIMEOUT_S
     stop_timeout: float = STOP_TIMEOUT_S
     _process: object = field(default=None, repr=False, compare=False)
     _info: Optional[RuntimeInfo] = field(default=None, repr=False, compare=False)
+    _lock: object = field(default_factory=threading.RLock, init=False, repr=False)
+    _start_lock: object = field(default_factory=threading.Lock, init=False, repr=False)
+    _generation: int = field(default=0, init=False, repr=False)
+    _reader: object = field(default=None, init=False, repr=False)
+    _draining: object = field(default=None, init=False, repr=False)
 
     @property
     def is_running(self) -> bool:
@@ -93,44 +101,72 @@ class RuntimeController:
         """Start the runtime (or reuse the live one) and read its
         announcements. Raises :class:`RuntimeMissing` or
         :class:`AnnounceTimeout`; both leave no child behind."""
-        if self._info is not None and self.is_running:
-            return self._info
-        self._stop_child_quietly()
-        binary = self.which(RUNTIME_BINARY)
-        if not binary:
-            raise RuntimeMissing(
-                "%s is not installed" % RUNTIME_BINARY
-            )
-        proc = self.popen(
-            [binary, PANEL_ARGV[0]],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-            bufsize=1,
-        )
-        self._process = proc
-        try:
-            found = self._read_announcements(proc)
-        except Exception:
-            self._stop_child_quietly()
-            raise
-        self._info = RuntimeInfo(binary=binary, **found)
-        # Never log the launch code or the provider token: they are bearer
-        # credentials for the loopback server, not diagnostics.
-        log.info("runtime announced its companion endpoint")
-        return self._info
+        with self._lock:
+            generation = self._generation
+        with self._start_lock:
+            with self._lock:
+                if generation != self._generation:
+                    raise RuntimeError("runtime start was cancelled")
+                if self._info is not None and self.is_running:
+                    return self._info
+                self._stop_child_quietly()
+            binary = self.which(RUNTIME_BINARY)
+            if not binary:
+                raise RuntimeMissing("%s is not installed" % RUNTIME_BINARY)
+            proc = None
+            try:
+                proc = self.popen(
+                    [binary, PANEL_ARGV[0]], stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL, text=True, bufsize=1,
+                )
+                with self._lock:
+                    if generation != self._generation:
+                        raise RuntimeError("runtime start was cancelled")
+                    self._process = proc
+                    box, draining = queue.Queue(maxsize=1), threading.Event()
+                    reader = threading.Thread(target=_drain_output,
+                                              args=(proc.stdout, box, draining), daemon=True)
+                    self._reader, self._draining = reader, draining
+                    reader.start()
+                found = self._read_announcements(box, generation)
+                with self._lock:
+                    if generation != self._generation or self._process is not proc:
+                        raise RuntimeError("runtime start was cancelled")
+                    self._info = RuntimeInfo(binary=binary, **found)
+                    draining.set()
+                    # Bearers and child diagnostics are never logged.
+                    log.info("runtime announced its companion endpoint")
+                    return self._info
+            except Exception as exc:
+                with self._lock:
+                    if self._process is proc:
+                        self._stop_child_quietly()
+                    elif proc is not None:
+                        _stop_process(proc)
+                if isinstance(exc, RuntimeError):
+                    raise
+                raise RuntimeError("runtime could not start") from exc
 
-    def _read_announcements(self, proc: object) -> dict:
+    def _read_announcements(self, box: queue.Queue, generation: int) -> dict:
         found: dict = {}
+        kinds = set()
         deadline = self.monotonic() + self.announce_timeout
-        stream = proc.stdout  # type: ignore[union-attr]
-        while len(found) < 3:
+        while kinds != {protocol.KEY_COMPANION_URL, protocol.KEY_COMPANION_LAUNCH,
+                        protocol.KEY_PROVIDER}:
+            with self._lock:
+                if generation != self._generation:
+                    raise RuntimeError("runtime start was cancelled")
             remaining = deadline - self.monotonic()
             if remaining <= 0:
                 raise AnnounceTimeout(
                     "runtime did not announce its companion endpoint in time"
                 )
-            line = _readline_with_timeout(stream, remaining)
+            try:
+                line = box.get(timeout=min(remaining, OUTPUT_QUEUE_WAIT_S))
+            except queue.Empty:
+                continue
+            if isinstance(line, Exception):
+                raise RuntimeError("runtime output could not be read") from line
             if line is None:
                 raise AnnounceTimeout(
                     "runtime closed its output before announcing its endpoint"
@@ -139,6 +175,7 @@ class RuntimeController:
             if parsed is None:
                 continue
             key, value = parsed
+            kinds.add(key)
             if key == protocol.KEY_COMPANION_URL:
                 found["companion_url"] = value
             elif key == protocol.KEY_COMPANION_LAUNCH:
@@ -153,23 +190,21 @@ class RuntimeController:
     def stop(self) -> None:
         """Terminate the runtime this controller started. Idempotent; never
         raises for an already-dead or never-started child."""
-        self._stop_child_quietly()
-        self._info = None
+        with self._lock:
+            self._generation += 1
+            self._stop_child_quietly()
+            self._info = None
 
     def _stop_child_quietly(self) -> None:
-        proc = self._process
-        self._process = None
+        proc, self._process = self._process, None
+        self._info = None
+        reader, self._reader = self._reader, None
+        draining, self._draining = self._draining, None
+        if draining is not None:
+            draining.set()
         if proc is None:
             return
-        try:
-            if proc.poll() is None:  # type: ignore[union-attr]
-                proc.terminate()  # type: ignore[union-attr]
-                try:
-                    proc.wait(timeout=5)  # type: ignore[union-attr]
-                except Exception:
-                    proc.kill()  # type: ignore[union-attr]
-        except Exception:
-            log.debug("runtime child would not stop quietly", exc_info=True)
+        _stop_process(proc, reader)
 
     def stop_machine(self) -> None:
         """Send the machine's own stop sequence out of band.
@@ -202,32 +237,39 @@ class RuntimeController:
             )
 
 
-def _readline_with_timeout(stream: object, timeout: float) -> Optional[str]:
-    """Read one stdout line without blocking past ``timeout`` seconds.
-
-    ``select`` cannot wait on pipes on Windows, so the read runs in a daemon
-    thread and the leftover thread (if any) is abandoned: the process is
-    terminated right after, which releases its pipes.
-    """
-    import queue
-    import threading
-
-    box: queue.Queue = queue.Queue(maxsize=1)
-
-    def _reader() -> None:
+def _drain_output(stream, box, draining):
+    """One reader for startup and the whole lifetime; discard diagnostics."""
+    while True:
         try:
-            box.put(stream.readline())  # type: ignore[union-attr]
-        except Exception as exc:  # pragma: no cover - defensive
-            box.put(exc)
+            line = stream.readline()
+        except Exception as exc:
+            line = exc
+        ended = isinstance(line, Exception) or not line
+        if not draining.is_set() and (ended or protocol.parse_announcement(line.rstrip("\r\n"))):
+            while not draining.is_set():
+                try:
+                    box.put(line if line else None, timeout=OUTPUT_QUEUE_WAIT_S)
+                    break
+                except queue.Full:
+                    continue
+        if ended:
+            return
 
-    worker = threading.Thread(target=_reader, daemon=True)
-    worker.start()
-    worker.join(timeout)
-    if worker.is_alive():
-        return None
-    item = box.get_nowait()
-    if isinstance(item, Exception):
-        raise item
-    if item == "" or item is None:
-        return None
-    return item
+
+def _stop_process(proc, reader=None):
+    try:
+        # An exited parent may still own live descendants.
+        try:
+            proc.terminate()
+            proc.wait(timeout=CHILD_WAIT_S)
+        finally:
+            proc.kill()
+            proc.wait(timeout=CHILD_WAIT_S)
+    except Exception:
+        log.debug("runtime child would not stop quietly", exc_info=True)
+    finally:
+        if reader is not None and reader is not threading.current_thread():
+            reader.join(CHILD_WAIT_S)
+        close = getattr(proc, "close", None)
+        if callable(close):
+            close()

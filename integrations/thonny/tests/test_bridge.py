@@ -148,6 +148,31 @@ def test_approval_expiry_is_rechecked_at_dispatch():
     assert engine.wait(pending, 0)["error"]["code"] == protocol.ERR_EXPIRED_APPROVAL
 
 
+@pytest.mark.parametrize("expiration", ["approval", "request"])
+def test_admission_is_rechecked_after_command_construction(expiration):
+    from thonnycontrib.muse_spark.runner import ThonnyDeviceBackend
+    from .fakes import dict_command
+
+    clock = [10.0]
+    workbench = FakeWorkbench()
+    runner = FakeRunner(workbench)
+
+    def command(name, fields, command_id):
+        clock[0] = 11.0
+        return dict_command(name, fields, command_id)
+
+    backend = ThonnyDeviceBackend(get_workbench=lambda: workbench,
+                                 get_runner=lambda: runner, command_factory=command)
+    engine = BridgeEngine(backend, monotonic=lambda: clock[0], wall_time=lambda: clock[0],
+                          response_timeout=1 if expiration == "request" else 30)
+    engine.attach()
+    pending = engine.submit(_write_frame(backend, expiry=11 if expiration == "approval" else 100))
+    engine.progress()
+    assert not runner.sent
+    expected = protocol.ERR_TIMEOUT if expiration == "request" else protocol.ERR_EXPIRED_APPROVAL
+    assert engine.wait(pending, 0)["error"]["code"] == expected
+
+
 def test_changed_bytes_are_rechecked_at_dispatch():
     _, runner, backend, engine = _harness()
     pending = engine.submit(_write_frame(backend))
@@ -563,3 +588,19 @@ def test_malformed_handshake_is_connection_failure(error):
     assert not client.is_connected
     assert runner.sent == []
     peer.close()
+
+
+def test_repeated_close_from_old_client_cannot_detach_replacement():
+    old_peer, new_peer = Peer(), Peer()
+    _, runner, _, engine = _harness()
+    old = _connect_client(old_peer, engine)
+    old.close()
+    replacement = _connect_client(new_peer, engine)
+    try:
+        old.close()  # The old worker's finally may run after a fresh attach.
+        assert _round_trip(engine, _read_frame())["ok"] is True
+        assert len(runner.sent) == 1
+    finally:
+        replacement.close()
+        old_peer.close()
+        new_peer.close()

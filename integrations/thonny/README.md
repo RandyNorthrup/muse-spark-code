@@ -23,6 +23,9 @@ Part of M103 lane T. License: MIT (see `LICENSE`).
 - The installed `muse-spark-code-acp` runtime on `PATH`. The plugin never
   bundles or downloads it; without it, Open Muse Spark says so and stops.
 - Python 3.10 or newer (Thonny's own interpreter is fine).
+- On Windows, the bundled .NET Framework C# compiler. The plugin compiles
+  its process-job launcher in a private temporary directory; it downloads
+  nothing and reports a startup error if the compiler is unavailable.
 
 ## Install
 
@@ -81,6 +84,20 @@ freeze; fake tests do not certify interoperability with an installed runtime.
 If the system browser refuses to open the companion page, Open reports an
 error instead of claiming success.
 
+Open clicks are serialized. Closing Thonny cancels startup and pending
+handshakes, joins the workers, and terminates the runtime tree. On Windows
+the launcher owns a kill-on-close job before creating the runtime; on
+macOS/Linux the runtime owns a new process group. Startup accepts the three
+announcement kinds in any order. One reader drains stdout for the runtime's
+whole lifetime and discards its diagnostics without logging bearer values.
+
+Menu labels, toolbar captions and failure notices use Thonny's display
+language. The package ships gettext catalogues for Czech, German, Spanish,
+French, Hungarian, Italian, Japanese, Korean, Polish, Brazilian Portuguese,
+Russian, Turkish, Simplified Chinese and Traditional Chinese; unsupported
+languages use English. Notices use fixed translated messages rather than
+displaying a peer's unchecked technical text.
+
 ## Developing
 
 No third-party Python dependencies — only the standard library. Thonny
@@ -89,6 +106,7 @@ itself is not needed: the suite runs against fakes.
 ```sh
 cd integrations/thonny
 python -m pytest
+python scripts/compile_catalogs.py  # rebuild the shipped gettext .mo files
 python -m build   # needs the `build` package
 twine check dist/*
 ```

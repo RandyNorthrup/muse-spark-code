@@ -71,7 +71,8 @@ class DeviceBackend:
         raise NotImplementedError
 
     def send_inline(self, name: str, fields: Dict[str, Any], command_id: str,
-                    target: Optional[str] = None) -> None:
+                    target: Optional[str] = None,
+                    validate: Optional[Callable[[], None]] = None) -> None:
         """Send one inline command to the backend. Tk thread only."""
         raise NotImplementedError
 
@@ -248,12 +249,7 @@ class BridgeEngine:
             )
         elif pending.op == protocol.OP_WRITE:
             assert pending.path is not None and pending.content is not None
-            if pending.expires_at is None or pending.expires_at <= self._wall_time():
-                raise protocol.ProtocolError(protocol.ERR_EXPIRED_APPROVAL, "write approval expired")
-            if protocol.bytes_digest(pending.content) != pending.digest:
-                raise protocol.ProtocolError(protocol.ERR_MISSING_APPROVAL, "write bytes differ from approval")
-            if self._backend.target_identity() != pending.target:
-                raise protocol.ProtocolError(protocol.ERR_TARGET_CHANGED, "approved device changed")
+            self._check_write(pending)
             self._backend.send_inline(
                 "write_file",
                 {
@@ -263,10 +259,24 @@ class BridgeEngine:
                 },
                 pending.cmd_id,
                 target=pending.target,
+                validate=lambda: self._check_write(pending),
             )
         else:  # pragma: no cover - submit() only queues read/write
             raise BackendUnavailable("unknown op: %s" % pending.op)
         pending.sent = True
+
+    def _check_write(self, pending: PendingRequest) -> None:
+        """Called under the dispatch lock, including at the final runner call."""
+        if pending.done.is_set() or not self._attached:
+            raise protocol.ProtocolError(protocol.ERR_NOT_CONNECTED, "bridge is detached")
+        if pending.deadline <= self._monotonic():
+            raise protocol.ProtocolError(protocol.ERR_TIMEOUT, "backend did not answer in time")
+        if pending.expires_at is None or pending.expires_at <= self._wall_time():
+            raise protocol.ProtocolError(protocol.ERR_EXPIRED_APPROVAL, "write approval expired")
+        if pending.content is None or protocol.bytes_digest(pending.content) != pending.digest:
+            raise protocol.ProtocolError(protocol.ERR_MISSING_APPROVAL, "write bytes differ from approval")
+        if self._backend.target_identity() != pending.target:
+            raise protocol.ProtocolError(protocol.ERR_TARGET_CHANGED, "approved device changed")
 
     def _on_response(self, response: Any) -> None:
         """Tk thread: route one backend ``InlineResponse`` by command id."""
@@ -382,7 +392,8 @@ class ThonnyDeviceBackend(DeviceBackend):
             return self._target
 
     def send_inline(self, name: str, fields: Dict[str, Any], command_id: str,
-                    target: Optional[str] = None) -> None:
+                    target: Optional[str] = None,
+                    validate: Optional[Callable[[], None]] = None) -> None:
         runner = self._get_runner()
         if runner is None:
             raise BackendUnavailable("no backend connected")
@@ -390,6 +401,8 @@ class ThonnyDeviceBackend(DeviceBackend):
         if target is not None and (self.target_identity() != target
                                    or self._get_runner() is not runner):
             raise protocol.ProtocolError(protocol.ERR_TARGET_CHANGED, "approved device changed")
+        if validate is not None:
+            validate()
         # Async on purpose: the InlineResponse arrives on the workbench bus,
         # where BridgeEngine._on_response matches it. Never
         # send_command_and_wait here: it pops a modal Tk dialog per command.

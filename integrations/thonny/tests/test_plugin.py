@@ -256,3 +256,105 @@ def test_acceptance_open_to_device_read_without_opening_port():
     plugin.shutdown()
     peer.close()
     assert harness.spawned == [[harness.binary, "panel"]]
+
+
+def test_simultaneous_open_clicks_are_serialized():
+    entered, release = threading.Event(), threading.Event()
+    controller = FakeController()
+    start = controller.start
+
+    def blocked_start():
+        entered.set()
+        assert release.wait(2)
+        return start()
+
+    controller.start = blocked_start
+    plugin, _, opened, clients = _plugin(controller=controller)
+    plugin.on_open()
+    assert entered.wait(2)
+    plugin.on_open()
+    release.set()
+    _wait_for(lambda: opened)
+    plugin.shutdown()
+    assert controller.starts == len(clients) == 1
+    assert all(client.closes for client in clients)
+
+
+def test_shutdown_during_open_cancels_worker_and_stays_closed():
+    entered, release = threading.Event(), threading.Event()
+    controller = FakeController()
+    start = controller.start
+
+    def blocked_start():
+        entered.set()
+        assert release.wait(2)
+        return start()
+
+    controller.start = blocked_start
+    plugin, notices, opened, clients = _plugin(controller=controller)
+    plugin.on_open()
+    assert entered.wait(2)
+    closer = threading.Thread(target=plugin.shutdown)
+    closer.start()
+    _wait_for(lambda: controller.stops)
+    release.set()
+    closer.join(2)
+    plugin.on_open()
+    assert not closer.is_alive() and not plugin._open_thread.is_alive()
+    assert opened == clients == notices.errors == []
+    assert plugin._state == "stopped" and plugin._client is None
+
+
+def test_shutdown_cancels_blocked_provider_handshake():
+    entered = threading.Event()
+    client = FakeClient(connected=False)
+    closed = threading.Event()
+
+    def connect():
+        entered.set()
+        from thonnycontrib.muse_spark.bridge import ConnectionFailed
+        if not closed.wait(2):
+            raise ConnectionFailed("handshake timed out")
+        raise ConnectionFailed("closed")
+
+    close = client.close
+    client.connect = connect
+    client.close = lambda: (close(), closed.set())
+    plugin, notices, opened, _ = _plugin(client_factory=lambda *a: client)
+    plugin.on_open()
+    assert entered.wait(2)
+    plugin.shutdown()
+    assert closed.is_set() and client.closes
+    assert not plugin._open_thread.is_alive()
+    assert not client.threads
+    assert notices.errors == opened == []
+
+
+def test_open_reports_malformed_handshake():
+    peer = Peer()
+    workbench = FakeWorkbench()
+    engine = BridgeEngine(FakeBackend(workbench, FakeRunner(workbench)))
+    peer.send({"v": 1, "type": "error", "error": "malformed peer"})
+    plugin, notices, opened, _ = _plugin(
+        workbench=workbench, engine=engine,
+        client_factory=lambda *args: ProviderClient(*args, connect=lambda *a, **k: peer.plugin_side),
+    )
+    try:
+        plugin._open_worker()
+        assert notices.errors and "Cannot reach" in notices.errors[0][0]
+        assert not opened and plugin._state == "stopped"
+    finally:
+        plugin.shutdown()
+        peer.close()
+
+
+def test_open_reports_browser_refusal():
+    from thonnycontrib.muse_spark.companion import open_companion
+
+    plugin, notices, _, _ = _plugin(
+        opener=lambda url, code: open_companion(url, code, opener=lambda _: False),
+    )
+    plugin._open_worker()
+    assert notices.errors and "Cannot open" in notices.errors[0][0]
+    assert plugin._state == "stopped"
+    plugin.shutdown()

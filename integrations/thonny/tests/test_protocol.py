@@ -164,6 +164,7 @@ def test_announcement_refuses_non_ipv4_loopback(host):
 
 @pytest.mark.parametrize("field,value", [("target", None), ("expires_at", None),
                                          ("expires_at", True), ("expires_at", float("nan")),
+                                         pytest.param("expires_at", 10**400, id="expires_at-overflow"),
                                          ("digest", "sha256:wrong")])
 def test_write_requires_bytes_target_and_expiry(field, value):
     approval = {"request_id": "appr-1", "digest": protocol.bytes_digest(b""),

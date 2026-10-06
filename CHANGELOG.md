@@ -25,6 +25,12 @@ happened, not what was planned; superseded entries are kept.
   handshakes validate field types, and idle connections survive the handshake
   timeout. Empty files can be created or truncated, and browser-launch refusal
   is reported. Approval fields remain a proposal awaiting the runtime freeze.
+- **Thonny startup, shutdown and localization (RVM103T).** Open clicks are
+  serialized and shutdown cancels startup and handshakes. Runtime children
+  belong to a Windows job or POSIX process group, and stdout is drained
+  throughout their lifetime. Announcement order no longer affects startup.
+  Menus, toolbar captions and failure notices ship in all fourteen translated
+  languages through gettext catalogues.
 
 - **The README's "What's new" section matches the release again.** 0.12.1 and
   0.13.0 shipped with the README still headed "What's new in 0.12.0". It now
