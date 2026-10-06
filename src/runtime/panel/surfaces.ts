@@ -38,6 +38,7 @@ interface Surface {
 export class PanelSurfaces {
   private readonly surfaces = new Map<string, Surface>()
   private readonly retired = new Set<string>()
+  private readonly closing = new Map<string, MhpPanelBinding>()
   private isClosed = false
   private retainedBytes = 0
 
@@ -140,9 +141,10 @@ export class PanelSurfaces {
     if (!parsed.success) return this.error('MHP_PANEL_INVALID_LIFECYCLE', null)
     const frame = parseMhpSurfaceNotification(
       value,
-      this.surfaces.get(parsed.data.surface)?.binding,
+      this.surfaces.get(parsed.data.surface)?.binding ?? this.closing.get(parsed.data.surface),
     )
     if (this.isClosed) return this.error('MHP_PANEL_UNKNOWN_SURFACE', frame.surface)
+    if (frame.event === 'closed' && this.closing.delete(frame.surface)) return
     if (frame.event === 'opened') {
       if (this.retired.has(frame.surface))
         return this.error('MHP_PANEL_INVALID_LIFECYCLE', frame.surface)
@@ -220,6 +222,17 @@ export class PanelSurfaces {
 
   public detach(): void {
     for (const surface of this.surfaces.values()) this.remove(surface)
+  }
+  /** Old IDs remain tombstones; a session change always needs fresh IDs and sequences. */
+  public retireSession(sessionId: string): readonly MhpPanelBinding[] {
+    const retired: MhpPanelBinding[] = []
+    for (const surface of this.surfaces.values()) {
+      if (surface.binding.sessionId !== sessionId) continue
+      retired.push(surface.binding)
+      this.closing.set(surface.binding.surface, surface.binding)
+      this.remove(surface)
+    }
+    return retired
   }
   public close(): void {
     this.isClosed = true

@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Portable panels retire old surface bindings on new, fork and switch, and retain active turns, imported restrictions and rich history on reload. Browser launches keep an immutable session context.
+
 - MHP 1.2 replaces the unshipped 1.1 contract. Editors initiate initialization with host metadata, locale, theme and capabilities; incompatible versions are refused by name.
 
 - Standalone settings and session activity records coordinate independent writers with versioned atomic publication; older activity cannot replace the newest restore target.

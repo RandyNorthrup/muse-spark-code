@@ -235,3 +235,63 @@ describe('runtime panel native process', () => {
     expect(await agent.exited).toBe(1)
   })
 })
+
+for (const backend of ['museCode', 'modelApi'])
+  it(`${backend}: new conversation retires the old view before opening a fresh binding`, async () => {
+    const agent = await open(backend)
+    await agent.wait(
+      (value) =>
+        payload.safeParse(value).success && payload.parse(value).payload.type === 'historyLoaded',
+    )
+    agent.send({
+      mhp: '1.2',
+      kind: 'panel',
+      surface: 'native-view',
+      direction: 'toHost',
+      seq: 2,
+      payload: { type: 'clearConversation' },
+    })
+    const closeSchema = z.object({
+      id: z.string(),
+      method: z.literal('surfaces/close'),
+      params: z.object({ surfaceId: z.literal('native-view') }),
+    })
+    const close = closeSchema.parse(
+      await agent.wait((value) => closeSchema.safeParse(value).success),
+    )
+    agent.send({ ...agent.binding, event: 'closed', droppedMessages: 0 })
+    agent.send({ jsonrpc: '2.0', id: close.id, result: null })
+    const fresh = openSchema.parse(
+      await agent.wait(
+        (value) =>
+          openSchema.safeParse(value).success &&
+          openSchema.parse(value).params.sessionId !== agent.binding.sessionId,
+      ),
+    )
+    agent.send({ jsonrpc: '2.0', id: fresh.id, result: { surfaceId: 'fresh-view' } })
+    const binding = { ...agent.binding, surface: 'fresh-view', sessionId: fresh.params.sessionId }
+    agent.send({ ...binding, event: 'opened' })
+    agent.send({ ...binding, event: 'ready' })
+    agent.send({
+      mhp: '1.2',
+      kind: 'panel',
+      surface: 'fresh-view',
+      direction: 'toHost',
+      seq: 1,
+      payload: { type: 'ready' },
+    })
+    await agent.wait(
+      (value) =>
+        z
+          .object({
+            surface: z.literal('fresh-view'),
+            payload: z.object({
+              type: z.literal('historyLoaded'),
+              sessionId: z.literal(binding.sessionId),
+            }),
+          })
+          .safeParse(value).success,
+    )
+    agent.child.stdin.end()
+    expect(await agent.exited).toBe(0)
+  })

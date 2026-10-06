@@ -105,6 +105,25 @@ export class ControllerRegistry<C extends SessionController> {
     return this.sessions.values()
   }
 
+  /** Transfer ownership without mutating any existing carrier binding. */
+  public rebind(previousId: string, sessionId: string, controller: C): void {
+    if (
+      this.isClosed ||
+      this.exitedHosts.has(controller.host) ||
+      this.sessions.get(previousId) !== controller ||
+      controller.isReleased ||
+      controller.sessionId !== sessionId ||
+      this.sessions.has(sessionId) ||
+      this.adopting.has(sessionId) ||
+      this.releasing.has(sessionId)
+    )
+      throw this.missing(sessionId)
+    this.sessions.delete(previousId)
+    this.claims.delete(previousId)
+    this.claims.set(sessionId, { sessionId })
+    this.sessions.set(sessionId, controller)
+  }
+
   public async close(): Promise<void> {
     this.isClosed = true
     this.claims.clear()

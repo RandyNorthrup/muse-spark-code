@@ -179,3 +179,33 @@ describe('runtime MHP surface admission', () => {
     expect(f.log.error).toHaveBeenCalledExactlyOnceWith('MHP_PANEL_DISPATCH_FAILED')
   })
 })
+
+it('retires every old session binding and drops queued output before a replacement can subscribe', () => {
+  const f = fixture()
+  f.surfaces.lifecycle(f.lifecycle('opened'))
+  f.emit()
+  expect(f.surfaces.retireSession('session')).toMatchObject([
+    { surface: 'surface', sessionId: 'session' },
+  ])
+  expect(f.delivery.totals.messages).toBe(0)
+  expect(f.listeners.size).toBe(0)
+  expect(() => {
+    f.surfaces.message(f.message(1))
+  }).toThrow('MHP_PANEL_UNKNOWN_SURFACE')
+  expect(() => {
+    f.surfaces.lifecycle(f.lifecycle('opened'))
+  }).toThrow('MHP_PANEL_INVALID_LIFECYCLE')
+})
+
+it('accepts one correctly bound native close acknowledgement after runtime retirement', () => {
+  const f = fixture()
+  f.surfaces.lifecycle(f.lifecycle('opened'))
+  f.surfaces.retireSession('session')
+  expect(() => {
+    f.surfaces.lifecycle({ ...f.lifecycle('closed', { droppedMessages: 0 }), sessionId: 'wrong' })
+  }).toThrow('MHP_PANEL_BINDING_MISMATCH')
+  f.surfaces.lifecycle(f.lifecycle('closed', { droppedMessages: 0 }))
+  expect(() => {
+    f.surfaces.lifecycle(f.lifecycle('closed', { droppedMessages: 0 }))
+  }).toThrow('MHP_PANEL_UNKNOWN_SURFACE')
+})

@@ -224,5 +224,47 @@
       "\u00d7 refuses silent re-adoption of the frozen version and preserves all snapshot bytes 877ms"
     ],
     "restoredSha256": "7423eda3a9d56d81e6a788fae296a72c91744421fca675a79a9c1b3db78c0f15"
+  },
+  {
+    "name": "session-transfer-hook",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "f6f68588614a75a610155fbf3873f74d5feaa1b8d52736cfc8b8c136989c4c53",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: new, fork and switch transfer ownership before new-session output 121ms",
+      "\u00d7 modelApi: new, fork and switch transfer ownership before new-session output 106ms"
+    ],
+    "restoredSha256": "f6f68588614a75a610155fbf3873f74d5feaa1b8d52736cfc8b8c136989c4c53"
+  },
+  {
+    "name": "restored-controller-history",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "f6f68588614a75a610155fbf3873f74d5feaa1b8d52736cfc8b8c136989c4c53",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: replay retains rich history, the active turn and imported restrictions 60ms",
+      "\u00d7 modelApi: replay retains rich history, the active turn and imported restrictions 47ms"
+    ],
+    "restoredSha256": "f6f68588614a75a610155fbf3873f74d5feaa1b8d52736cfc8b8c136989c4c53"
+  },
+  {
+    "name": "retire-session-bindings",
+    "file": "src/runtime/panel/surfaces.ts",
+    "beforeSha256": "1c2114ddb985020e8b68620175be82d6aa2eb13f7aa06b6e6433ed96fd4af32c",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 retires every old session binding and drops queued output before a replacement can subscribe 7ms"
+    ],
+    "restoredSha256": "1c2114ddb985020e8b68620175be82d6aa2eb13f7aa06b6e6433ed96fd4af32c"
+  },
+  {
+    "name": "companion-launch-context",
+    "file": "src/runtime/companion/sessions.ts",
+    "beforeSha256": "6b9d92a7f912643ede1dabcc7a65d9cf520afb9cbb5d6140a5d053a7f6b41db8",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 binds each one-use launch to its immutable session context even when exchanged out of order 5ms"
+    ],
+    "restoredSha256": "6b9d92a7f912643ede1dabcc7a65d9cf520afb9cbb5d6140a5d053a7f6b41db8"
   }
 ]

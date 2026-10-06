@@ -50,7 +50,7 @@ export interface CompanionOptions<Input, Output> {
   /** Exact URL paths to packaged assets. No filesystem path is derived from a request. */
   readonly assets: ReadonlyMap<string, CompanionAsset>
   /** Trusted packaged UI, with nonce on every script. No credential or launch code is passed. */
-  readonly renderPage: (nonce: string) => string
+  readonly renderPage: (nonce: string, context?: string) => string
   readonly host?: string
   readonly signal?: AbortSignal
 }
@@ -199,7 +199,9 @@ export async function startCompanionServer<Input, Output>(
     if (request.method === 'GET') {
       if (request.url === '/') {
         response.writeHead(HTTP_STATUS.ok, { 'Content-Type': 'text/html; charset=utf-8' })
-        response.end(session === undefined ? launchPage(nonce) : options.renderPage(nonce))
+        response.end(
+          session === undefined ? launchPage(nonce) : options.renderPage(nonce, session.context),
+        )
         if (session !== undefined) activity()
       } else if (session !== undefined && request.url === '/panel/events') {
         openEvents(session, response)
@@ -264,7 +266,7 @@ export async function startCompanionServer<Input, Output>(
         }
         response.setHeader('Authorization', `Bearer ${created.id}`)
         response.writeHead(HTTP_STATUS.ok, { 'Content-Type': 'text/html; charset=utf-8' })
-        response.end(options.renderPage(nonce))
+        response.end(options.renderPage(nonce, created.context))
       } else if (session !== undefined) {
         if (sessions.get(session.id) === undefined) {
           reply(response, HTTP_STATUS.unauthorized, 'EPANEL_BEARER')
@@ -374,9 +376,9 @@ export async function startCompanionServer<Input, Output>(
     activity()
     return {
       url: `${origin}/`,
-      launchUrl: () => {
+      launchUrl: (context?: string) => {
         if (closing !== undefined) throw new Error('EPANEL_CLOSED')
-        return `${origin}/#k=${sessions.issue()}`
+        return `${origin}/#k=${sessions.issue(context)}`
       },
       close,
       closed,

@@ -360,6 +360,8 @@ export interface SessionMemory {
 }
 
 export interface ConversationDeps {
+  /** Portable carriers retire the previous immutable binding before any new-session output. */
+  readonly onSessionAttached?: (session: AgentSession) => Promise<void>
   /** ACP owns permission/questions; this controller still owns session state and submissions. */
   readonly arePermissionsExternal?: boolean
   readonly surface: ChatSurface
@@ -3426,6 +3428,11 @@ export class ConversationController {
       throw error
     }
     const generation = this.attachmentGeneration
+    if (this.deps.onSessionAttached !== undefined) await this.deps.onSessionAttached(session)
+    if (generation !== this.attachmentGeneration) {
+      session.dispose()
+      return
+    }
     if (origin === 'started' && this.deps.surface.isSideChat === true) {
       this.sideSessionIds.add(session.sessionId)
     }
@@ -4231,6 +4238,11 @@ export class ConversationController {
       this.importedSessionIds.add(loaded.session.sessionId)
       this.permissionMode = untrustedStartMode(this.permissionMode, this.deps.initialPermissionMode)
       this.postComposerState()
+    }
+    if (this.deps.onSessionAttached !== undefined) await this.deps.onSessionAttached(loaded.session)
+    if (generation !== this.sendInvalidationEpoch) {
+      loaded.session.dispose()
+      return false
     }
     this.postHistory(loaded.session.sessionId, loaded.history, loaded.activeTurnId)
     this.setTitle(loaded.history.name)
@@ -8860,6 +8872,18 @@ export class ConversationController {
 
   public checkpointAvailabilityChanged(): void {
     this.checkpoints.postState()
+  }
+
+  /** A new portable view uses the same restoration bookkeeping as a live gap reload. */
+  public replayHistory(history: SessionHistoryOutcome): void {
+    if (this.isDisposed || this.session === undefined) return
+    this.postHistory(this.session.sessionId, history, this.activeTurnId)
+  }
+
+  /** Clear opens a new opaque session before a replacement portable surface is published. */
+  public async startFreshSession(): Promise<void> {
+    if (this.isDisposed || this.deps.workspaceRoot === undefined) return
+    await this.ensureSession(this.deps.workspaceRoot)
   }
 
   public surfaceReady(attachmentEpoch?: number): void {

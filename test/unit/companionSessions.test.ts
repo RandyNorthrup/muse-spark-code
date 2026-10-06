@@ -54,3 +54,11 @@ describe('companion launch codes', () => {
     expect(sessions.get(session.id)).toBeUndefined()
   })
 })
+
+it('binds each one-use launch to its immutable session context even when exchanged out of order', () => {
+  const sessions = new CompanionSessions(1000, 2000, 2)
+  const old = sessions.issue('old-session')
+  const fresh = sessions.issue('fresh-session')
+  expect(sessions.exchange(fresh)?.context).toBe('fresh-session')
+  expect(sessions.exchange(old)?.context).toBe('old-session')
+})

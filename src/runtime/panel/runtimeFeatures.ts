@@ -125,6 +125,9 @@ function unavailableGit(
 const idsSchema = z.array(z.string())
 const lastSessionSchema = z.strictObject({ sessionId: z.string(), at: z.number() })
 export interface RuntimeConversationPorts {
+  /** Absent for ACP, whose editor owns its immutable session identity. */
+  readonly sessionChanged?: (previousId: string, sessionId: string) => Promise<void>
+  readonly openSideChat?: ConversationFeaturePorts['openSideChat']
   readonly ownsPaidConsent?: boolean
   readonly confirmContributor?: ConversationFeaturePorts['confirmContributor']
   readonly host: HostServices

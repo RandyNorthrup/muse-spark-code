@@ -195,6 +195,15 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
                   })
                   return snapshot
                 },
+                sessionChanged: async (previousId, sessionId) => {
+                  registry.rebind(previousId, sessionId, controller)
+                  const retired = peer.surfaces.retireSession(previousId)
+                  for (const owner of browsers.values()) owner.surfaces.retireSession(previousId)
+                  if (deps.transport === 'stdio')
+                    for (const binding of retired)
+                      await peer.request('surfaces/close', { surfaceId: binding.surface })
+                  await openSurface(sessionId)
+                },
                 log,
               },
               loaded,
@@ -362,12 +371,21 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
 
   async function openInitialSurface(): Promise<void> {
     if (conversation === undefined) return unsupported()
+    await openSurface(conversation.sessionId)
+  }
+
+  async function openSurface(sessionId: string): Promise<void> {
+    ending.signal.throwIfAborted()
     if (deps.transport === 'stdio') {
       await peer.request('surfaces/open', {
         kind: 'chat',
         placement: 'side',
-        sessionId: conversation.sessionId,
+        sessionId,
       })
+      return
+    }
+    if (companion !== undefined) {
+      await peer.request('ui/openExternal', { uri: companion.launchUrl(sessionId) })
       return
     }
     if (theme === undefined) return unsupported()
@@ -375,7 +393,6 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
       path.join(path.dirname(deps.conversationBundle), 'webview', 'portable'),
       theme,
     )
-    const sessionId = conversation.sessionId
     companion = await startCompanionServer({
       services: {
         inputSchema: fallbackUiReplySchema,
@@ -426,13 +443,19 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
         maxSessions: RUNTIME_PANEL.maximumWindows,
       },
       assets: page.assets,
-      renderPage: (nonce) =>
-        page.render({ surface: randomUUID(), sessionId, surfaceKind: 'chat' }, nonce),
+      renderPage: (nonce, context) => {
+        if (context === undefined || registry.held(context) === undefined)
+          throw new Error('MHP_SESSION_NOT_FOUND')
+        return page.render(
+          { surface: randomUUID(), sessionId: context, surfaceKind: 'chat' },
+          nonce,
+        )
+      },
     })
     void companion.closed.then(() => {
       peer.close()
     })
-    await peer.request('ui/openExternal', { uri: companion.launchUrl() })
+    await peer.request('ui/openExternal', { uri: companion.launchUrl(sessionId) })
   }
 
   let buffer = Buffer.alloc(0)

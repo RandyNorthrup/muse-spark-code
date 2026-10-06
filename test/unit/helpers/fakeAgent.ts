@@ -187,11 +187,11 @@ export class FakeAgentHost implements AgentHost {
     }
   }
 
-  public readSession(): Promise<never> {
+  public readSession(): ReturnType<AgentHost['readSession']> {
     return Promise.reject(new Error('not used'))
   }
 
-  public forkSession(): Promise<never> {
+  public forkSession(): ReturnType<AgentHost['forkSession']> {
     return Promise.reject(new Error('not used'))
   }
 

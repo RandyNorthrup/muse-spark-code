@@ -3,7 +3,9 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import type * as ConversationBundle from '../../src/host/conversation/conversationBundle'
+import type { SessionHistoryOutcome } from '../../src/core/agent/agentBackend'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import { ControllerRegistry } from '../../src/runtime/panel/controllerRegistry'
 import { RuntimeConversation } from '../../src/runtime/panel/runtimeController'
 import { runtimeConversationDeps, runtimeSettings } from '../../src/runtime/panel/runtimeFeatures'
 import { RuntimeSettingsStore } from '../../src/runtime/settingsStore'
@@ -59,9 +61,9 @@ function runGit(): Promise<never> {
   return Promise.reject(new Error('fake refuses git'))
 }
 
-async function setup() {
+async function setup(kind: 'museCode' | 'modelApi' = 'museCode') {
   const options: ServeOptions = {
-    backend: 'museCode',
+    backend: kind,
     trustWorkspace: false,
     museBinary: '',
     shellSandbox: 'off',
@@ -86,6 +88,7 @@ async function setup() {
     log,
   })
   const host = new FakeAgentHost()
+  host.info = { ...host.info, kind }
   const session = await host.startSession({
     workspaceRoot: rig.root,
     modelId: 'muse-spark-1.3',
@@ -103,7 +106,7 @@ async function setup() {
     runtime: {
       ...runtime,
       backend: {
-        kind: 'museCode' as const,
+        kind,
         readiness: () => Promise.resolve({ state: 'ready' as const }),
         hostFor: () => Promise.resolve(host),
       },
@@ -171,7 +174,9 @@ it('release waits for an admitted replay before the final storage drain', async 
   const t = await setup()
   await t.conversation.prepare(t.ports, t.loaded, t.bundle, runtimeConversationDeps)
   const reply = Promise.withResolvers<boolean>()
+  const entered = Promise.withResolvers<boolean>()
   vi.spyOn(t.host, 'readSession').mockImplementation(async () => {
+    entered.resolve(true)
     await reply.promise
     throw new Error('fake replay failed')
   })
@@ -181,6 +186,7 @@ it('release waits for an admitted replay before the final storage drain', async 
   const handling = expect(
     t.conversation.handle({ type: 'ready', attachmentEpoch: 1 }),
   ).rejects.toThrow('fake replay failed')
+  await entered.promise
   const releasing = t.conversation.release()
   await new Promise<void>((resolve) => {
     setImmediate(resolve)
@@ -213,3 +219,105 @@ it('disposes a controller created during a reentrant release', async () => {
     await t.runtime.close()
   }
 })
+
+for (const kind of ['museCode', 'modelApi'] as const) {
+  it(`${kind}: new, fork and switch transfer ownership before new-session output`, async () => {
+    const t = await setup(kind)
+    const registry = new ControllerRegistry<RuntimeConversation>(t.ports.log)
+    registry.watch(t.host)
+    const changes: string[] = []
+    const emitted: HostToWebviewMessage[] = []
+    const ports = {
+      ...t.ports,
+      sessionChanged: (previousId: string, sessionId: string) => {
+        registry.rebind(previousId, sessionId, t.conversation)
+        changes.push(sessionId)
+        return Promise.resolve()
+      },
+    }
+    try {
+      await registry.adopt(
+        t.host,
+        t.session,
+        registry.claimSession(t.session.sessionId),
+        () => t.conversation,
+        (controller) => controller.prepare(ports, t.loaded, t.bundle, runtimeConversationDeps),
+      )
+      t.conversation.subscribe((message) => {
+        if (message.type === 'historyLoaded')
+          expect(registry.held(message.sessionId)).toBe(t.conversation)
+        emitted.push(message)
+      })
+      await t.conversation.handle({ type: 'clearConversation' })
+      const fresh = t.conversation.sessionId
+      expect(fresh).not.toBe(t.session.sessionId)
+      expect(registry.held(t.session.sessionId)).toBeUndefined()
+      expect(registry.held(fresh)).toBe(t.conversation)
+      vi.spyOn(t.host, 'forkSession').mockImplementation(() =>
+        t.host.resumeSession('forked', 'muse-spark-1.3'),
+      )
+      await t.conversation.handle({ type: 'forkSession' })
+      expect(t.conversation.sessionId).toBe('forked')
+      expect(registry.held(fresh)).toBeUndefined()
+      await t.conversation.handle({ type: 'resumeSession', sessionId: 'switched' })
+      expect(t.conversation.sessionId).toBe('switched')
+      expect(changes).toEqual([fresh, 'forked', 'switched'])
+      expect(emitted.filter((message) => message.type === 'historyLoaded').length).toBe(2)
+      expect(t.session.sendTurn).not.toHaveBeenCalled()
+    } finally {
+      await registry.close()
+      await t.runtime.close()
+    }
+  })
+
+  it(`${kind}: replay retains rich history, the active turn and imported restrictions`, async () => {
+    const t = await setup(kind)
+    const rich: SessionHistoryOutcome = {
+      mode: 'inline' as const,
+      name: 'restored',
+      items: [
+        {
+          itemId: 'user',
+          kind: 'userMessage',
+          status: 'completed',
+          text: 'hello',
+          turnId: 'running',
+          attachments: [{ type: 'image', mediaType: 'image/png', width: 1, height: 1 }],
+        },
+      ],
+      todos: [],
+      sideChat: true,
+      goal: {
+        status: 'future-status',
+        objective: 'retain unknown goal status',
+        percentComplete: 100,
+      },
+    }
+    const loaded = {
+      ...t.loaded,
+      record: { ...t.loaded.record, imported: true },
+      history: rich,
+      activeTurnId: 'running',
+    }
+    const messages: HostToWebviewMessage[] = []
+    try {
+      await t.conversation.prepare(t.ports, loaded, t.bundle, runtimeConversationDeps)
+      vi.spyOn(t.host, 'readSession').mockResolvedValue(rich)
+      t.conversation.subscribe((message) => {
+        messages.push(message)
+      })
+      await t.conversation.handle({ type: 'ready', attachmentEpoch: 1 })
+      expect(messages.find((message) => message.type === 'historyLoaded')).toMatchObject({
+        sessionId: t.session.sessionId,
+        activeTurnId: 'running',
+        imported: true,
+        sideChat: true,
+        goal: rich.goal,
+        items: rich.items,
+      })
+    } finally {
+      await t.conversation.release()
+      await t.runtime.close()
+    }
+  })
+}
