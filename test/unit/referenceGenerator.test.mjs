@@ -789,5 +789,13 @@ describe('RVHELPREF2 runtime truth regressions', () => {
         ],
       )
     }
+    for (const ui of ['execFileUnreadable', 'execUnknownModel', 'execDeniedStop']) {
+      const catalogue = source
+        .featureCatalog()
+        .map((entry) => (entry.id === 'judge' ? { ...entry, description: { ui } } : entry))
+      expect(() => build(manifest, { featureCatalog: () => catalogue })).toThrow(
+        `Failure message used as catalogue description: ${ui}`,
+      )
+    }
   })
 })

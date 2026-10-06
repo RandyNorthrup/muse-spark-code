@@ -359,3 +359,58 @@ backed by the regression shown; it is not a proof of arbitrary future prose.
 | B14     | Tab choices           | Own translated Snooze/Menu fields list all durations and conditional Copilot choices | Generator B14/B15                   |
 | B15     | Board prose           | Own translated field describes filtering/state/changes/approvals/activation          | Generator B14/B15                   |
 | B16     | Exec option prose     | Exhaustive typed operation-description map; failure-key reuse rejected               | Generator B16                       |
+
+### REDHELPREF failure receipts
+
+[Executed mutations, commands, diagnostics and hashes](help-reference/redhelpref-drills.json)
+record **19 deliberate red runs**, with nonzero exits, the expected named failure
+and byte-exact SHA-256 restoration in every case. The first 17 ran against
+implementation commit `091a5ba8e`; the last two also prove that a schema-valid
+wrong billing fact fails the named whole-model equality test and that a failure
+key with a suffix such as `execDeniedStop` cannot bypass the description guard.
+
+Sources were changed one at a time in `finally`-protected runners. Direct
+`check:reference` drills changed a manifest enum default, raw/computed keyboard
+access, an actual parser option, paid identity, slash grammar, conditional prose,
+failure references, unlocalized facts and a reserved numeric token. Complete
+owning test files proved menu-condition loss, a wrong Modal action, shortcut
+search loss, dangling filtered links, a missing deferred metafile, corrupt pool
+indices and the schema-valid fact corruption. The localization gate proved a
+missing translated option description. No test-name filters, skipped tests,
+snapshot acceptance, threshold changes or timeout increases were used.
+
+### REDHELPREF validation
+
+All runs were local on Kubuntu. Vitest used at most three files per invocation,
+`--maxWorkers=3 --testTimeout=120000`. Commands and results are retained in
+[the validation receipt](help-reference/redhelpref-validation.json).
+
+| Owning files                                | Tests passed |
+| ------------------------------------------- | ------------ |
+| Keyboard truth, Composer, PopoverMenu       | 86           |
+| Palette, Modal, GooeyMenu                   | 32           |
+| HistoryDialog, SessionBoardDialog, AgentMap | 29           |
+| GoalPanel, elicitationCard, DeferredSurface | 19           |
+| BestOfNDialog, toolRows, backgroundRows     | 49           |
+| paidFeatures, paidConsent, paidHost         | 83           |
+| ACP runtime and agent                       | 132          |
+| deferredBundles and webviewBundle           | 36           |
+| Reference generator, entry and page         | 75           |
+| **Distinct total (25 files)**               | **541**      |
+
+Five-project typecheck, changed-file ESLint/Prettier, plain knip, zero-clone
+jscpd, localization, reference freshness, host API and production build passed.
+The commit hooks ran exactly as configured: lint-staged with concurrency one,
+ESLint/Prettier, then staged gitleaks with zero leaks. No dependencies were added,
+no tools installed and no gate changed. The rig brief explicitly forbids the
+aggregate quality run, merges and pushes; those were not run.
+
+Production sizes: extension **437.8 KiB / 600**, Model API **446.6 / 475**,
+Node reference **97.8 / 100**, reference page **33.8 / 50**, all deferred webview
+JavaScript **49.8 / 50**, ACP **820.0 / 850**. The build's size, split,
+model-text, host-global and third-party notice checks passed. Localization:
+14 tables, 165 manifest strings, zero problems. Host API: 332 APIs, zero problems.
+
+No live/paid call, credential read, device operation, native/phone integration,
+full aggregate suite, push or merge is certified. The pre-existing integration
+boundary stays explicit; none of the 39 audited repairs is deferred.

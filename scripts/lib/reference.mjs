@@ -33,7 +33,7 @@ export function lintReferenceFacts(value, identity = 'facts') {
 
 function lintDescriptionReference(ref) {
   return 'ui' in ref &&
-    /(?:Failed|Error|Unavailable|Unreadable|Denied|Blocked|Refused|NotLatest|SideChat)$/.test(
+    /(?:Failed|Error|Unavailable|Unreadable|Unknown|Denied|Blocked|Refused|NotLatest|SideChat)/.test(
       ref.ui,
     )
     ? [`Failure message used as catalogue description: ${ref.ui}`]

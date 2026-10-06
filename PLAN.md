@@ -18221,8 +18221,8 @@ visible relationship targets. No native/phone implementation is added; ACP and
 CLI consume the same lazy reference through their existing bridges.
 
 - [x] Runtime-owned typed sources and translated catalogue descriptions.
-- [ ] Complete action coverage, independent truth tests and red drills.
-- [ ] Search/navigation, fixtures and scoped static/build validation.
+- [x] Complete action coverage, independent truth tests and 19 red drills.
+- [x] Search/navigation, fixtures and scoped static/build validation.
 
 The rig brief forbids aggregate quality, merge, rebase and push. Hook-on local
 commits follow scoped green checks. Receipts: docs/certification/help-reference.md.
