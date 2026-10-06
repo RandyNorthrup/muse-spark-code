@@ -35,6 +35,8 @@ export interface ServeOptions {
 }
 
 export type RuntimeCommand =
+  | { readonly command: 'supervise'; readonly args: readonly string[] }
+  | { readonly command: 'stop' }
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'serve'; readonly options: ServeOptions }
@@ -74,6 +76,13 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  if (argv[0] === 'stop' && argv.length === 1) return { command: 'stop' }
+  if (argv[0] === 'supervise') {
+    const args = argv.slice(1)
+    return args[0] === 'supervise' || args[0] === 'stop'
+      ? invalid(args[0])
+      : { command: 'supervise', args }
+  }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {

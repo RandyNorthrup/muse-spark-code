@@ -4130,3 +4130,18 @@ export const MHP_PANEL = {
   maximumQueuedBytes: 33_554_432,
   maximumQueuedMessages: 128,
 } as const
+
+/** M104H2: independent runtime owners and their private Stop control channel. */
+export const RUNTIME_STOP = {
+  graceMs: 500,
+  exitMs: 10_000,
+  pollMs: 25,
+  tokenBytes: 32,
+  pathChars: 1024,
+  handshakeChars: 65,
+  recordBytes: 2048,
+  directoryMode: 0o700,
+  fileMode: 0o600,
+  connections: 8,
+  owners: 8,
+} as const

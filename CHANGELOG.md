@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Experimental standalone `supervise` and workspace `stop` commands:
+  authenticated private control outside the request queue, bounded TERM
+  escalation, process-group exit waiting and credential-free child launches.
+  Native shim wiring and Windows qualification remain pending; this does
+  not complete M104 editor parity.
+
 - MHP 1.1.0 panel carrier contract: validated shared payloads, ordered
   session-bound surface envelopes and lifecycle, the `window.museHost`
   API, and multiplexed NDJSON/companion HTTP/SSE framing. Native consumers

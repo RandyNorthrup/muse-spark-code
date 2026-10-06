@@ -406,6 +406,23 @@ Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
 the extension, and Zed, Emacs (agent-shell), Neovim (CodeCompanion) and
 JupyterLab (Jupyter AI) with the agent.
 
+The source checkout also has experimental independent runtime supervision
+for M104. `supervise` runs the installed ACP bundle as a child with private
+out-of-band Stop control; `stop` targets supervised owners in the current
+workspace. From a built checkout, these offline commands exercise the CLI:
+
+```sh
+node dist/acp.js supervise --version
+node dist/acp.js stop
+```
+
+Runtime Stop gives TERM 500 ms, escalates to a POSIX group kill or the
+existing Windows job helper, and waits for termination. This is a building
+block: native shim wiring, abrupt supervisor-death containment, POSIX
+descendants that detach into another group, and Windows receipts are still
+pending. It does not qualify universal editor Stop or
+add LSP/Tab capabilities. See [M104 H certification](docs/certification/m104-h.md).
+
 ## Permission modes
 
 | Mode                   | Model API backend                                                                                                                                                                                       | Muse Code backend                                                                                                                                                          |

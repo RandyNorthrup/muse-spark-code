@@ -5247,6 +5247,17 @@ have equivalent functionality even if we need to develop it ourselves".
 
 ## 3. Open questions (need the owner)
 
+- **Q-M104H2-BASE (2026-10-05):** H2's assigned `c38ef8a5` has no M94
+  Tab engine (also recorded in D78), B/C panel composition, or native rig
+  Neovim/Emacs toolchains. The research's M94 ref `654d77b77` is readable in local Git history;
+  its core engine, ledger, settings and guarded bundle are not composed into
+  this worktree. Which B/C composition ref and tool directory should H2
+  consume? The brief forbids merge/rebase and common.md permits
+  network only for `npm ci`; no substitute paid engine or unapproved tool
+  download is used. The roughly 300-line-per-finding stop rule also bounds
+  this lane: the independent supervision component is completed first;
+  full adapters/LSP/broker require a separately authorised implementation.
+
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
   settled. F1 uses micro-USD and upward rounding; F2 preserves observed stream
@@ -15625,6 +15636,12 @@ permitted. H2 checks these dependencies before claiming editor capabilities.
 
 ## 7. Gates
 
+M104H2's common lane rules reserve aggregate `npm run quality` for the lead.
+The lane runs the specified local static/build gates and owning fake-only
+suites; full coverage, a11y and native-editor qualification remain with
+integration. The disposition, unqualified parity table and byte-exact drills
+are in `docs/certification/m104-h.md`; no gate threshold or ignore changes.
+
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
 120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
@@ -16200,6 +16217,7 @@ before a repaired one loads (2026-09-30).
 | File                                                                                | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
+| `src/runtime/lsp/supervisor.ts`                                                     | `nosemgrep` on the POSIX spawn                                     | The CLI supervises its own installed Node/ACP argv without a shell and with credential variables removed; only fake-only unit tests inject another executable. Native Windows launch uses the existing suspended-process, kill-on-close MCP job helper.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
 

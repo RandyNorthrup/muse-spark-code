@@ -8,7 +8,7 @@ import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { open, readFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
@@ -33,6 +33,8 @@ import { parseCommandLine, type ServeOptions } from './cliArgs'
 import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore } from './keyStore'
 import { takeCredentials } from './credentialVariables'
+import { workspaceKey } from './dataFolder'
+import { stopWorkspace, superviseRuntime } from './lsp/supervisor'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
 import type { Logger } from '../host/logger'
@@ -238,6 +240,31 @@ function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
 
 async function main(): Promise<number> {
   const command = parseCommandLine(process.argv.slice(2))
+  if (command.command === 'supervise' || command.command === 'stop') {
+    const registry = path.join(tmpdir(), `muse-runtime-${workspaceKey(homedir())}`)
+    try {
+      if (command.command === 'stop') {
+        await stopWorkspace(registry, process.cwd())
+        return 0
+      }
+      const code = await superviseRuntime({
+        registry,
+        cwd: process.cwd(),
+        file: process.execPath,
+        args: [__filename, ...command.args],
+        env: process.env,
+        packageRoot,
+        stdin: process.stdin,
+        stdout: process.stdout,
+      })
+      if (code !== 0) writeLine(process.stderr, 'ESUPERVISE_EXIT')
+      return code
+    } catch {
+      // Never expose a private control token, profile path or raw child error.
+      writeLine(process.stderr, 'ESUPERVISE_STOP')
+      return EXIT_FAILED
+    }
+  }
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
     const stderr = createFdWriter(process.stderr.fd, () => {
       /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */
