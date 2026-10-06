@@ -60,6 +60,7 @@ class ProviderClient:
         self._sock: Optional[socket.socket] = None
         self._closed = threading.Event()
         self._leftover = b""
+        self._lock = threading.RLock()
 
     @property
     def is_connected(self) -> bool:
@@ -70,27 +71,43 @@ class ProviderClient:
         """Open the socket and say hello. Raises :class:`ConnectionFailed`
         (wrong token, no welcome, unreachable host) without touching the
         runner."""
+        if self._host != "127.0.0.1":
+            raise ConnectionFailed("provider host must be 127.0.0.1")
+        if self._closed.is_set():
+            raise ConnectionFailed("provider connection is closed")
         try:
             sock = self._connect(
                 (self._host, self._port), timeout=self._connect_timeout
             )
         except Exception as exc:
             raise ConnectionFailed("cannot reach provider endpoint: %s" % exc)
-        sock.settimeout(self._connect_timeout)
-        self._sock = sock
+        with self._lock:
+            if self._closed.is_set():
+                sock.close()
+                raise ConnectionFailed("provider connection is closed")
+            sock.settimeout(self._connect_timeout)
+            self._sock = sock
         try:
             self._send(protocol.hello_frame(self._token))
             answer = self._read_frame()
+            if answer.get("type") != "welcome":
+                error = answer.get("error")
+                if (answer.get("type") != "error" or not isinstance(error, dict)
+                        or not isinstance(error.get("code"), str)
+                        or not isinstance(error.get("message"), str)):
+                    raise ProtocolError(protocol.ERR_MALFORMED, "invalid handshake answer")
+                if error["code"] == protocol.ERR_AUTH_FAILED:
+                    raise ConnectionFailed("runtime refused the provider token")
+                raise ConnectionFailed("runtime refused the provider connection")
+            with self._lock:
+                if self._closed.is_set():
+                    raise ConnectionFailed("provider connection is closed")
+                # The timeout bounds only connection/handshake, not idle use.
+                sock.settimeout(None)
+                self._engine.attach()
         except Exception as exc:
             self.close()
             raise ConnectionFailed("provider handshake failed: %s" % exc)
-        if answer.get("type") != "welcome":
-            self.close()
-            code = (answer.get("error") or {}).get("code", "")
-            if code == protocol.ERR_AUTH_FAILED:
-                raise ConnectionFailed("runtime refused the provider token")
-            raise ConnectionFailed("runtime refused the provider connection")
-        self._engine.attach()
 
     def run(self) -> None:
         """Serve requests until the runtime hangs up or :meth:`close` is
@@ -117,8 +134,10 @@ class ProviderClient:
 
     def close(self) -> None:
         """Hang up. Idempotent; safe from any thread."""
-        self._closed.set()
-        sock, self._sock = self._sock, None
+        with self._lock:
+            self._closed.set()
+            sock, self._sock = self._sock, None
+            self._engine.detach()
         if sock is not None:
             try:
                 sock.shutdown(socket.SHUT_RDWR)

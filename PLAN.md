@@ -15131,6 +15131,24 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**Lane T review correction (FIXM103T, 2026-10-05).** Address all twelve
+RVM103T findings within `integrations/thonny/` and its existing certification
+record. Bind queued writes to the exact SHA-256 bytes, an opaque identity
+for Thonny's current runner/backend connection and an absolute approval
+expiry, and recheck under the dispatch lock immediately before sending.
+Advertise that identity in the provider's `info` reply; require `target`
+and `expires_at` on write approval echoes. This remains a lane-T protocol
+proposal awaiting R/P freeze, not certified installed-runtime compatibility.
+Cancel settled/expired queued work, confine the provider to literal
+`127.0.0.1`, validate handshakes, retain idle connections, accept empty
+files and report browser refusal. Serialize startup, cancel shutdown races,
+own the runtime process tree with a Windows job/POSIX process group, drain
+stdout, and require all announcement kinds. Ship a standard-library gettext
+catalogue for all fourteen repository languages. Each finding gets a
+regression and a byte-exact red drill in `docs/certification/m103-t.md`.
+No dependency, paid call, real board, merge, push or gate relaxation; the
+rig brief delegates the full quality run to the lead.
+
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
 (a) Plain HTTP on the LAN only for a machine the user registered by command,

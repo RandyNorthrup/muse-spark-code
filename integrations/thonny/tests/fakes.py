@@ -60,9 +60,10 @@ class FakeRunner:
         self.sent: List[dict] = []
         self.respond = True
         self.available = True
+        self.proxy = object()
 
     def get_backend_proxy(self):
-        return object() if self.available else None
+        return self.proxy if self.available else None
 
     def get_node_label(self):
         return "MicroPython device"
@@ -111,11 +112,16 @@ class FakeBackend:
     def node_label(self):
         return self.runner.get_node_label()
 
-    def send_inline(self, name, fields, command_id):
+    def target_identity(self):
+        return "fake-target-" + str(id(self.runner.proxy))
+
+    def send_inline(self, name, fields, command_id, target=None):
         from thonnycontrib.muse_spark.runner import BackendUnavailable
 
         if self.runner.get_backend_proxy() is None:
             raise BackendUnavailable("no backend connected")
+        if target is not None and target != self.target_identity():
+            raise BackendUnavailable("approved device changed")
         self.runner.send_command({"name": name, "id": command_id, **fields})
 
     def bind_response(self, handler):

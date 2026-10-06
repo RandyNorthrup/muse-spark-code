@@ -92,7 +92,9 @@ def test_write_needs_base64_content():
     with pytest.raises(ProtocolError) as caught:
         protocol.check_device_request(message)
     assert caught.value.code == protocol.ERR_BAD_FIELDS
-    good = _request(op="write", content_b64=protocol.b64encode_bytes(b"print(1)\n"))
+    good = _request(op="write", content_b64=protocol.b64encode_bytes(b"print(1)\n"),
+                    approval={"request_id": "appr-1", "digest": protocol.bytes_digest(b"print(1)\n"),
+                              "target": "fake-target", "expires_at": 2000000000})
     assert protocol.check_device_request(good)["op"] == "write"
 
 
@@ -145,3 +147,27 @@ def test_base64_helpers_round_trip_bytes():
     with pytest.raises(ProtocolError) as caught:
         protocol.b64decode_bytes("!!!")
     assert caught.value.code == protocol.ERR_BAD_FIELDS
+
+
+@pytest.mark.parametrize("version", [True, 1.0, "1", None])
+def test_version_requires_integer_type(version):
+    with pytest.raises(ProtocolError) as caught:
+        protocol.decode_frame(protocol.encode_frame({"v": version, "type": "welcome"}))
+    assert caught.value.code == protocol.ERR_BAD_VERSION
+
+
+@pytest.mark.parametrize("host", ["203.0.113.10", "192.168.1.3", "localhost", "::1"])
+def test_announcement_refuses_non_ipv4_loopback(host):
+    with pytest.raises(ProtocolError):
+        protocol.split_provider_value(host + " 4321 synthetic-token")
+
+
+@pytest.mark.parametrize("field,value", [("target", None), ("expires_at", None),
+                                         ("expires_at", True), ("expires_at", float("nan")),
+                                         ("digest", "sha256:wrong")])
+def test_write_requires_bytes_target_and_expiry(field, value):
+    approval = {"request_id": "appr-1", "digest": protocol.bytes_digest(b""),
+                "target": "fake-target", "expires_at": 2000000000}
+    approval[field] = value
+    with pytest.raises(ProtocolError):
+        protocol.check_device_request(_request(op="write", content_b64="", approval=approval))

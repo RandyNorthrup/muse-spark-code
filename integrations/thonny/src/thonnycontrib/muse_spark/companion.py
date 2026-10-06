@@ -63,5 +63,10 @@ def open_companion(
 ) -> str:
     """Build the companion URL and open it. Returns the opened URL."""
     url = build_companion_url(base_url, launch_code)
-    opener(url)
+    try:
+        opened = opener(url)
+    except Exception as exc:
+        raise CompanionError("browser could not open companion page") from exc
+    if not opened:
+        raise CompanionError("browser could not open companion page")
     return url

@@ -63,6 +63,24 @@ provider endpoint. The v1 frame schema lives in
 proposal for the runtime lanes (M103 R/P) to freeze; a peer speaking any
 other version is refused before a byte reaches the device.
 
+The provider address must be the literal IPv4 loopback address `127.0.0.1`.
+The token authenticates the handshake; its timeout ends after `welcome`,
+so an idle companion page keeps its provider connection. Stop and shutdown
+cancel queued requests before any later Tk pump can dispatch them.
+
+A provider `info` reply includes `target`, an opaque identity for the
+current Thonny runner/backend connection. A write approval echo must carry
+that `target`, `expires_at` (finite UTC Unix seconds), and `digest` (`sha256:`
+followed by the lowercase SHA-256 of the exact decoded bytes). The runtime
+must capture the identity and expiry when the user approves. A new runner
+or backend proxy needs another approval even if its label is the same.
+Immediately before each write the plugin checks the identity, digest,
+expiry and request deadline under its dispatch lock. Empty files are valid.
+These strengthened fields remain a proposal awaiting the R/P protocol
+freeze; fake tests do not certify interoperability with an installed runtime.
+If the system browser refuses to open the companion page, Open reports an
+error instead of claiming success.
+
 ## Developing
 
 No third-party Python dependencies — only the standard library. Thonny

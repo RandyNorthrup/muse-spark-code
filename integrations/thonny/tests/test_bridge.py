@@ -91,13 +91,15 @@ def test_read_routes_through_fake_runner_without_opening_port():
 
 
 def test_write_routes_content_bytes():
-    _, runner, _, engine = _harness()
+    _, runner, backend, engine = _harness()
+    content = b"import os\n"
     reply = _round_trip(
         engine,
         _read_frame(
             op="write",
             path="boot.py",
-            content_b64=protocol.b64encode_bytes(b"import os\n"),
+            content_b64=protocol.b64encode_bytes(content),
+            approval=_write_approval(backend, content),
         ),
     )
     assert reply["ok"] is True
@@ -106,6 +108,87 @@ def test_write_routes_content_bytes():
     assert sent["name"] == "write_file"
     assert sent["fields"]["content_bytes"] == b"import os\n"
     assert sent["fields"]["make_shebang_scripts_executable"] is False
+
+
+def _write_approval(backend, content=b"x", expiry=None):
+    return {"request_id": "approved-write", "digest": protocol.bytes_digest(content),
+            "target": backend.target_identity(), "expires_at": expiry or time.time() + 60}
+
+
+def _write_frame(backend, content=b"x", expiry=None):
+    return _read_frame(op="write", content_b64=protocol.b64encode_bytes(content),
+                       approval=_write_approval(backend, content, expiry))
+
+
+@pytest.mark.parametrize("settlement", ["detach", "deadline", "wait"])
+def test_settled_or_expired_queued_write_never_dispatches(settlement):
+    clock = [0.0]
+    _, runner, backend, engine = _harness(monotonic=lambda: clock[0])
+    pending = engine.submit(_write_frame(backend))
+    if settlement == "detach":
+        engine.detach()
+        engine.attach()
+    elif settlement == "deadline":
+        clock[0] = engine.response_timeout
+    else:
+        assert engine.wait(pending, 0)["error"]["code"] == protocol.ERR_TIMEOUT
+    engine.progress()
+    assert runner.sent == []
+    assert engine.wait(pending, 0)["ok"] is False
+    assert not engine._pending
+
+
+def test_approval_expiry_is_rechecked_at_dispatch():
+    clock = [10.0]
+    _, runner, backend, engine = _harness(wall_time=lambda: clock[0])
+    pending = engine.submit(_write_frame(backend, expiry=11.0))
+    clock[0] = 11.0
+    engine.progress()
+    assert runner.sent == []
+    assert engine.wait(pending, 0)["error"]["code"] == protocol.ERR_EXPIRED_APPROVAL
+
+
+def test_changed_bytes_are_rechecked_at_dispatch():
+    _, runner, backend, engine = _harness()
+    pending = engine.submit(_write_frame(backend))
+    pending.content = b"different"
+    engine.progress()
+    assert runner.sent == []
+    assert engine.wait(pending, 0)["error"]["code"] == protocol.ERR_MISSING_APPROVAL
+
+
+@pytest.mark.parametrize("switch", ["runner", "proxy", "before_submit"])
+def test_production_backend_refuses_changed_approved_target(switch):
+    from thonnycontrib.muse_spark.runner import ThonnyDeviceBackend
+    from .fakes import dict_command
+
+    workbench = FakeWorkbench()
+    board_a, board_b = FakeRunner(workbench), FakeRunner(workbench)
+    current = [board_a]
+    backend = ThonnyDeviceBackend(get_workbench=lambda: workbench,
+                                 get_runner=lambda: current[0], command_factory=dict_command)
+    engine = BridgeEngine(backend)
+    engine.attach()
+    message = _write_frame(backend)
+    if switch == "before_submit":
+        current[0] = board_b
+    pending = engine.submit(message)
+    if switch == "runner":
+        current[0] = board_b
+    elif switch == "proxy":
+        board_a.proxy = object()
+    engine.progress()
+    assert board_a.sent == board_b.sent == []
+    assert engine.wait(pending, 0)["error"]["code"] == protocol.ERR_TARGET_CHANGED
+
+
+def test_empty_write_creates_and_truncates_device_files():
+    _, runner, backend, engine = _harness()
+    for path in ("empty.py", "main.py"):
+        frame = _write_frame(backend, content=b"")
+        frame["path"] = path
+        assert _round_trip(engine, frame)["ok"] is True
+        assert runner.files[path] == b""
 
 
 def test_info_sends_nothing_to_device():
@@ -432,4 +515,51 @@ def test_read_frame_reports_oversize_precisely():
     with pytest.raises(ProtocolError) as caught:
         client._read_frame()
     assert caught.value.code == protocol.ERR_FRAME_TOO_LARGE
+    peer.close()
+
+
+@pytest.mark.parametrize("host", ["203.0.113.10", "192.168.1.3", "localhost", "::1", "127.0.0.2"])
+def test_foreign_provider_never_connects_or_sends_token(host):
+    _, runner, _, engine = _harness()
+    calls = []
+    client = ProviderClient(host, 1234, "synthetic-token", engine,
+                            connect=lambda *a, **k: calls.append(a))
+    with pytest.raises(ConnectionFailed, match="127.0.0.1"):
+        client.connect()
+    assert calls == runner.sent == []
+
+
+def test_idle_provider_survives_handshake_timeout_and_close_wakes_receive():
+    peer = Peer()
+    _, _, _, engine = _harness()
+    peer.send({"v": 1, "type": "welcome"})
+    client = ProviderClient("127.0.0.1", 1, "synthetic-token", engine,
+                            connect=lambda *a, **k: peer.plugin_side, connect_timeout=0.02)
+    client.connect()
+    peer.read_frame()
+    worker = client.start_thread()
+    try:
+        time.sleep(0.06)
+        assert client.is_connected and worker.is_alive()
+        with pumping(engine):
+            peer.send(_read_frame())
+            assert peer.read_frame()["ok"] is True
+    finally:
+        client.close()
+        worker.join(2)
+        peer.close()
+    assert not worker.is_alive()
+
+
+@pytest.mark.parametrize("error", ["malformed peer", [], None, {"code": 1}, {"code": "x", "message": []}])
+def test_malformed_handshake_is_connection_failure(error):
+    peer = Peer()
+    _, runner, _, engine = _harness()
+    peer.send({"v": 1, "type": "error", "error": error})
+    client = ProviderClient("127.0.0.1", 1, "synthetic-token", engine,
+                            connect=lambda *a, **k: peer.plugin_side)
+    with pytest.raises(ConnectionFailed, match="invalid handshake answer"):
+        client.connect()
+    assert not client.is_connected
+    assert runner.sent == []
     peer.close()

@@ -66,7 +66,12 @@ class DeviceBackend:
         """Human label of the connected backend (for ``info`` replies)."""
         raise NotImplementedError
 
-    def send_inline(self, name: str, fields: Dict[str, Any], command_id: str) -> None:
+    def target_identity(self) -> str:
+        """Opaque identity of this runner/backend connection, never its label."""
+        raise NotImplementedError
+
+    def send_inline(self, name: str, fields: Dict[str, Any], command_id: str,
+                    target: Optional[str] = None) -> None:
         """Send one inline command to the backend. Tk thread only."""
         raise NotImplementedError
 
@@ -89,6 +94,9 @@ class PendingRequest:
     content: Optional[bytes]
     cmd_id: str
     deadline: float
+    digest: Optional[str] = None
+    target: Optional[str] = None
+    expires_at: Optional[float] = None
     done: threading.Event = field(default_factory=threading.Event)
     sent: bool = False
     result: Optional[dict] = None
@@ -106,12 +114,15 @@ class BridgeEngine:
         new_command_id: Callable[[], str] = lambda: uuid.uuid4().hex,
         monotonic: Callable[[], float] = time.monotonic,
         response_timeout: float = RESPONSE_TIMEOUT_S,
+        wall_time: Callable[[], float] = time.time,
     ) -> None:
         self._backend = backend
         self._new_command_id = new_command_id
         self._monotonic = monotonic
         self._response_timeout = response_timeout
-        self._lock = threading.Lock()
+        self._wall_time = wall_time
+        # The fake runner can answer synchronously inside send_inline.
+        self._lock = threading.RLock()
         self._pending: Dict[str, PendingRequest] = {}
         self._outbound: queue.Queue = queue.Queue()
         self._attached = False
@@ -129,12 +140,13 @@ class BridgeEngine:
 
     def detach(self) -> None:
         """Unsubscribe. Fails pending requests with ``not_connected``."""
-        if self._attached:
-            try:
-                self._backend.unbind_response(self._on_response)
-            finally:
-                self._attached = False
-        self._fail_all(protocol.ERR_NOT_CONNECTED, "bridge is detached")
+        with self._lock:
+            if self._attached:
+                try:
+                    self._backend.unbind_response(self._on_response)
+                finally:
+                    self._attached = False
+            self._fail_all(protocol.ERR_NOT_CONNECTED, "bridge is detached")
 
     def submit(self, message: dict) -> PendingRequest:
         """Validate a frame and queue it. Raises :class:`ProtocolError`
@@ -151,6 +163,9 @@ class BridgeEngine:
             content=content,
             cmd_id=self._new_command_id(),
             deadline=self._monotonic() + self._response_timeout,
+            digest=request["approval"]["digest"] if op == protocol.OP_WRITE else None,
+            target=request["approval"].get("target") if op == protocol.OP_WRITE else None,
+            expires_at=request["approval"].get("expires_at") if op == protocol.OP_WRITE else None,
         )
         if op == protocol.OP_INFO:
             # Presence probe only: never sends a command to the device.
@@ -159,7 +174,8 @@ class BridgeEngine:
                     node = self._backend.node_label()
                 except Exception:
                     node = "device"
-                pending.result = {"connected": True, "node": node}
+                pending.result = {"connected": True, "node": node,
+                                  "target": self._backend.target_identity()}
             else:
                 pending.error = (protocol.ERR_NO_BACKEND, "no backend connected")
             pending.done.set()
@@ -169,8 +185,11 @@ class BridgeEngine:
             pending.done.set()
             return pending
         with self._lock:
+            if not self._attached:
+                self._complete(pending, error=(protocol.ERR_NOT_CONNECTED, "bridge is detached"))
+                return pending
             self._pending[pending.cmd_id] = pending
-        self._outbound.put(pending)
+            self._outbound.put(pending)
         return pending
 
     def progress(self) -> None:
@@ -180,13 +199,22 @@ class BridgeEngine:
                 pending: PendingRequest = self._outbound.get_nowait()
             except queue.Empty:
                 break
-            try:
-                self._send(pending)
-            except BackendUnavailable as exc:
-                self._complete(pending, error=(protocol.ERR_NO_BACKEND, str(exc)))
-            except Exception as exc:  # pragma: no cover - defensive
-                log.debug("backend send failed", exc_info=True)
-                self._complete(pending, error=(protocol.ERR_BACKEND_ERROR, str(exc)))
+            # Admission and the synchronous send are atomic with detach/wait.
+            with self._lock:
+                if pending.done.is_set():
+                    continue
+                if pending.deadline <= self._monotonic():
+                    self._complete(pending, error=(protocol.ERR_TIMEOUT, "backend did not answer in time"))
+                    continue
+                try:
+                    self._send(pending)
+                except protocol.ProtocolError as exc:
+                    self._complete(pending, error=(exc.code, str(exc)))
+                except BackendUnavailable as exc:
+                    self._complete(pending, error=(protocol.ERR_NO_BACKEND, str(exc)))
+                except Exception as exc:  # pragma: no cover - defensive
+                    log.debug("backend send failed", exc_info=True)
+                    self._complete(pending, error=(protocol.ERR_BACKEND_ERROR, str(exc)))
         now = self._monotonic()
         expired: List[PendingRequest] = []
         with self._lock:
@@ -202,7 +230,8 @@ class BridgeEngine:
         """Block the socket thread until the request completes. Returns the
         ``device_response`` frame (ok or error), never raises for backend
         outcomes."""
-        pending.done.wait(timeout)
+        if not pending.done.wait(timeout):
+            self._complete(pending, error=(protocol.ERR_TIMEOUT, "backend did not answer in time"))
         if pending.result is not None:
             return protocol.ok_response(pending.id, pending.result)
         code, message = pending.error or (
@@ -219,6 +248,12 @@ class BridgeEngine:
             )
         elif pending.op == protocol.OP_WRITE:
             assert pending.path is not None and pending.content is not None
+            if pending.expires_at is None or pending.expires_at <= self._wall_time():
+                raise protocol.ProtocolError(protocol.ERR_EXPIRED_APPROVAL, "write approval expired")
+            if protocol.bytes_digest(pending.content) != pending.digest:
+                raise protocol.ProtocolError(protocol.ERR_MISSING_APPROVAL, "write bytes differ from approval")
+            if self._backend.target_identity() != pending.target:
+                raise protocol.ProtocolError(protocol.ERR_TARGET_CHANGED, "approved device changed")
             self._backend.send_inline(
                 "write_file",
                 {
@@ -227,6 +262,7 @@ class BridgeEngine:
                     "make_shebang_scripts_executable": False,
                 },
                 pending.cmd_id,
+                target=pending.target,
             )
         else:  # pragma: no cover - submit() only queues read/write
             raise BackendUnavailable("unknown op: %s" % pending.op)
@@ -273,20 +309,20 @@ class BridgeEngine:
         error: Optional[tuple] = None,
     ) -> None:
         with self._lock:
+            if pending.done.is_set():
+                return
             self._pending.pop(pending.cmd_id, None)
-        if result is not None:
-            pending.result = result
-        else:
-            pending.error = error or (protocol.ERR_BACKEND_ERROR, "failed")
-        pending.done.set()
+            if result is not None:
+                pending.result = result
+            else:
+                pending.error = error or (protocol.ERR_BACKEND_ERROR, "failed")
+            pending.done.set()
 
     def _fail_all(self, code: str, message: str) -> None:
         with self._lock:
             pendings = list(self._pending.values())
-            self._pending.clear()
-        for pending in pendings:
-            pending.error = (code, message)
-            pending.done.set()
+            for pending in pendings:
+                self._complete(pending, error=(code, message))
 
 
 class ThonnyDeviceBackend(DeviceBackend):
@@ -307,6 +343,9 @@ class ThonnyDeviceBackend(DeviceBackend):
         self._get_workbench = get_workbench or _thonny_workbench
         self._get_runner = get_runner or _thonny_runner
         self._command_factory = command_factory or _thonny_command
+        self._identity_lock = threading.Lock()
+        self._connection = None
+        self._target = ""
 
     def is_available(self) -> bool:
         try:
@@ -328,11 +367,29 @@ class ThonnyDeviceBackend(DeviceBackend):
         except Exception:
             return "device"
 
-    def send_inline(self, name: str, fields: Dict[str, Any], command_id: str) -> None:
+    def target_identity(self) -> str:
+        runner = self._get_runner()
+        proxy = runner.get_backend_proxy() if runner is not None else None
+        with self._identity_lock:
+            if proxy is None:
+                self._connection = None
+                self._target = ""
+                raise BackendUnavailable("no backend connected")
+            if (self._connection is None or self._connection[0] is not runner
+                    or self._connection[1] is not proxy):
+                self._connection = (runner, proxy)
+                self._target = uuid.uuid4().hex
+            return self._target
+
+    def send_inline(self, name: str, fields: Dict[str, Any], command_id: str,
+                    target: Optional[str] = None) -> None:
         runner = self._get_runner()
         if runner is None:
             raise BackendUnavailable("no backend connected")
         cmd = self._command_factory(name, fields, command_id)
+        if target is not None and (self.target_identity() != target
+                                   or self._get_runner() is not runner):
+            raise protocol.ProtocolError(protocol.ERR_TARGET_CHANGED, "approved device changed")
         # Async on purpose: the InlineResponse arrives on the workbench bus,
         # where BridgeEngine._on_response matches it. Never
         # send_command_and_wait here: it pops a modal Tk dialog per command.

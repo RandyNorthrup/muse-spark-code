@@ -19,6 +19,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Thonny provider admission and connection (RVM103T).** Settled or timed-out
+  queued writes are cancelled; each write rechecks its approved bytes, target
+  connection and expiry. Provider endpoints are confined to `127.0.0.1`,
+  handshakes validate field types, and idle connections survive the handshake
+  timeout. Empty files can be created or truncated, and browser-launch refusal
+  is reported. Approval fields remain a proposal awaiting the runtime freeze.
+
 - **The README's "What's new" section matches the release again.** 0.12.1 and
   0.13.0 shipped with the README still headed "What's new in 0.12.0". It now
   describes 0.13.0, the Marketplace README carries the same section, and a

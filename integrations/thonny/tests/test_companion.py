@@ -15,9 +15,14 @@ def test_code_lands_in_fragment_never_query():
 
 def test_open_opens_exactly_that_url():
     opened = []
-    url = companion.open_companion("http://localhost:4311/", "code-1", opener=opened.append)
+    url = companion.open_companion("http://localhost:4311/", "code-1", opener=lambda url: opened.append(url) or True)
     assert opened == [url]
     assert "#launch=code-1" in url
+
+
+def test_browser_refusal_is_reported():
+    with pytest.raises(CompanionError, match="browser"):
+        companion.open_companion("http://127.0.0.1:4311/", "fake-code", opener=lambda url: False)
 
 
 @pytest.mark.parametrize(

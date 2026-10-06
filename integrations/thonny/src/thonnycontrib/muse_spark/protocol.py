@@ -28,7 +28,9 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
 import json
+import math
 from typing import Optional, Tuple
 
 PROTOCOL_VERSION = 1
@@ -56,6 +58,8 @@ ERR_BACKEND_ERROR = "backend_error"
 ERR_TIMEOUT = "timeout"
 ERR_NOT_CONNECTED = "not_connected"
 ERR_AUTH_FAILED = "auth_failed"
+ERR_TARGET_CHANGED = "target_changed"
+ERR_EXPIRED_APPROVAL = "expired_approval"
 
 ANNOUNCE_PREFIX = "MUSE_SPARK_"
 KEY_COMPANION_URL = "MUSE_SPARK_COMPANION_URL"
@@ -86,7 +90,7 @@ def decode_frame(line: bytes) -> dict:
         raise ProtocolError(ERR_MALFORMED, "frame is not JSON: %s" % exc)
     if not isinstance(message, dict):
         raise ProtocolError(ERR_MALFORMED, "frame is not an object")
-    if message.get("v") != PROTOCOL_VERSION:
+    if type(message.get("v")) is not int or message.get("v") != PROTOCOL_VERSION:
         raise ProtocolError(
             ERR_BAD_VERSION,
             "unsupported protocol version: %r" % (message.get("v"),),
@@ -124,12 +128,20 @@ def check_device_request(message: dict) -> dict:
             raise ProtocolError(ERR_BAD_FIELDS, "op needs a non-empty path")
     if op == OP_WRITE:
         payload = message.get("content_b64")
-        if not isinstance(payload, str) or not payload:
+        if not isinstance(payload, str):
             raise ProtocolError(ERR_BAD_FIELDS, "write needs content_b64")
         try:
             base64.b64decode(payload, validate=True)
         except (binascii.Error, ValueError):
             raise ProtocolError(ERR_BAD_FIELDS, "content_b64 is not base64")
+        if approval["digest"] != bytes_digest(b64decode_bytes(payload)):
+            raise ProtocolError(ERR_MISSING_APPROVAL, "write bytes differ from approval")
+        target = approval.get("target")
+        expiry = approval.get("expires_at")
+        if not isinstance(target, str) or not target:
+            raise ProtocolError(ERR_MISSING_APPROVAL, "write approval needs target")
+        if type(expiry) not in (int, float) or not math.isfinite(expiry):
+            raise ProtocolError(ERR_MISSING_APPROVAL, "write approval needs expiry")
     return message
 
 
@@ -192,7 +204,14 @@ def split_provider_value(value: str) -> Tuple[str, int, str]:
         raise ProtocolError(ERR_MALFORMED, "provider port out of range")
     if not host or not token:
         raise ProtocolError(ERR_MALFORMED, "provider host and token must be non-empty")
+    if host != "127.0.0.1":
+        raise ProtocolError(ERR_MALFORMED, "provider host must be 127.0.0.1")
     return (host, port, token)
+
+
+def bytes_digest(data: bytes) -> str:
+    """The write approval's digest of the exact decoded bytes."""
+    return "sha256:" + hashlib.sha256(data).hexdigest()
 
 
 def b64encode_bytes(data: bytes) -> str:
