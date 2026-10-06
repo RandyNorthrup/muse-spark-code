@@ -695,6 +695,7 @@ async function main(): Promise<number> {
     case 'invalid': {
       writeLine(process.stderr, command.reason)
       writeLine(process.stderr, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      writeLine(process.stderr, UI_TEXT.acpChatGpt.usage)
       return command.exitCode ?? EXIT_FAILED
     }
   }

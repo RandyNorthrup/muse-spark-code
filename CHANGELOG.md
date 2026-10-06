@@ -14,6 +14,8 @@ happened, not what was planned; superseded entries are kept.
   Serialize terminal configuration commits, detect stale snapshots and
   compensate secret changes on write failure. Retain private-network consent,
   custom formats/base paths and captured free-probe headers and model lists.
+  Keep translated terminal help complete and show the same help after invalid
+  arguments, including the existing ChatGPT commands.
 
 - Join the configured providers to the shared request transport: origin-bound
   credentials, redirect refusal, bounded framing, parser redaction and event
