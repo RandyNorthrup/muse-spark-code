@@ -48,7 +48,12 @@ three read the host widget shadow. High contrast removes shadows, makes the
 modal scrim opaque and sets surface alpha to 1 and blur to 0. Consumers use
 `--ms-contrast-border` for a contrast border in place of a shadow. Reduced
 transparency also removes alpha and blur. Component motion must remain inside
-`prefers-reduced-motion: no-preference`; these variables introduce no motion.
+`prefers-reduced-motion: no-preference`; standalone duration tokens become
+zero under reduced motion. Increased contrast and forced colours remove
+elevation and translucency. All standalone accessibility overrides follow the
+palette declarations and use their exact selector set, including `:root` and
+every `data-ms-theme` scope. A theme can be declared on html, body or a nested
+element; the unthemed root defaults to dark. These variables introduce no motion.
 Fast/base/slow are 120/180/240 ms. Spacing uses a 4 px scale. UI/code fonts
 read the editor's fonts; standalone surfaces use the documented installed
 font stacks, with system fallbacks. This lane ships no font files.
@@ -61,6 +66,7 @@ through aliases until P1/P2's component pass.
 Stylelint permits raw colour only in the three exact generated CSS files;
 it still applies all other rules to those files. ESLint applies the colour
 string/template guard to all production TypeScript, including SVG paint,
+checking both raw and cooked template values and any non-hex terminator,
 and keeps the existing native-identity and bundle-error guards. Fixtures
 under `test/` remain test data. Generating a token file cannot exempt a
 component or another stylesheet.
@@ -114,3 +120,9 @@ choices. The design note should link this contract. The changelog entry is:
 contrast/staleness checks and raw-colour guards; preserve current panel
 behaviour while exposing the roles for each surface's polish pass.” No new
 VS Code/ACP command, setting, feature-catalog row or localization key is introduced.
+
+S's review-repair changelog addition: “Standalone accessibility overrides now
+apply on html, body and nested theme scopes, with reduced-transparency,
+reduced-motion, increased-contrast and forced-colour effects following the
+palettes. The raw-colour guard catches closing-brace hex and escaped template
+paint, reporting each offending template once.” CHANGELOG remains S-owned.

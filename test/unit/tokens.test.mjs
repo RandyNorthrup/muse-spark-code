@@ -5,6 +5,7 @@ import { transform } from 'esbuild'
 import stylelint from 'stylelint'
 import prettier from 'prettier'
 import path from 'node:path'
+import { JSDOM } from 'jsdom'
 import {
   TOKEN_EXTENSION,
   TOKEN_SOURCE,
@@ -14,6 +15,18 @@ import {
 } from '../../scripts/build-tokens.mjs'
 
 const source = () => JSON.parse(readFileSync(TOKEN_SOURCE, 'utf8'))
+
+function activatePreference(style, preference) {
+  // jsdom does not evaluate preference media queries. Activate just the
+  // selected real media block; keep its selectors and source order.
+  style.textContent = [...style.sheet.cssRules]
+    .map((rule) =>
+      rule.conditionText?.split(', ').includes(preference)
+        ? [...rule.cssRules].map((child) => child.cssText).join('\n')
+        : rule.cssText,
+    )
+    .join('\n')
+}
 
 describe('D94 one token source', () => {
   it('generates deterministic web, native, TH and TD inputs with one name per token', async () => {
@@ -61,6 +74,111 @@ describe('D94 one token source', () => {
     expect(outputs['design/tokens/generated/muse.css']).toContain(
       'prefers-reduced-transparency: reduce',
     )
+  })
+
+  it('uses the palette selector set for every later standalone accessibility override', async () => {
+    const outputs = await renderTokens(source())
+    const dom = new JSDOM('<style></style>')
+    try {
+      const style = dom.window.document.querySelector('style')
+      style.textContent = outputs['design/tokens/generated/muse.css']
+      const rules = [...style.sheet.cssRules]
+      const palettes = rules.filter((rule) => rule.type === dom.window.CSSRule.STYLE_RULE)
+      const selectors = palettes.flatMap((rule) =>
+        rule.selectorText.split(',').map((s) => s.trim()),
+      )
+      expect(selectors).toContain(':root')
+      expect(selectors).toContain("[data-ms-theme='dark']")
+      const overrides = rules.filter((rule) => rule.type === dom.window.CSSRule.MEDIA_RULE)
+      expect(overrides.map((rule) => rule.conditionText)).toEqual([
+        '(prefers-reduced-transparency: reduce)',
+        '(prefers-reduced-motion: reduce)',
+        '(prefers-contrast: more), (forced-colors: active)',
+      ])
+      for (const override of overrides) {
+        expect(rules.indexOf(override)).toBeGreaterThan(rules.indexOf(palettes.at(-1)))
+        const overrideSelectors = [...override.cssRules].flatMap((rule) =>
+          rule.selectorText.split(',').map((s) => s.trim()),
+        )
+        expect(overrideSelectors).toEqual(selectors)
+      }
+    } finally {
+      dom.window.close()
+    }
+  })
+
+  it.each(['html', 'body', 'main'])(
+    'honours reduced transparency with a standalone theme declared on %s',
+    async (scope) => {
+      const outputs = await renderTokens(source())
+      const dom = new JSDOM('<style></style><section><main></main></section>')
+      try {
+        const { document } = dom.window
+        const style = document.querySelector('style')
+        style.textContent = outputs['design/tokens/generated/muse.css']
+        const element = document.querySelector(scope)
+        const consumers = JSON.parse(outputs['design/tokens/generated/consumers.json'])
+        for (const [mode, palette] of Object.entries(consumers.modes)) {
+          element.dataset.msTheme = mode
+          expect(dom.window.getComputedStyle(element).getPropertyValue('--ms-overlay-alpha')).toBe(
+            palette['translucency.overlay-alpha'].css,
+          )
+        }
+        activatePreference(style, '(prefers-reduced-transparency: reduce)')
+        for (const mode of ['light', 'dark', 'hc-light', 'hc-dark']) {
+          element.dataset.msTheme = mode
+          const computed = dom.window.getComputedStyle(element)
+          for (const name of ['overlay-alpha', 'popover-alpha', 'launcher-alpha']) {
+            expect(computed.getPropertyValue(`--ms-${name}`).trim(), mode).toBe('1')
+          }
+          expect(computed.getPropertyValue('--ms-backdrop-blur').trim(), mode).toBe('0')
+          expect(computed.getPropertyValue('--ms-modal-scrim').trim(), mode).toBe(
+            'var(--ms-surface)',
+          )
+        }
+      } finally {
+        dom.window.close()
+      }
+    },
+  )
+
+  it.each([
+    '(prefers-reduced-motion: reduce)',
+    '(prefers-contrast: more)',
+    '(forced-colors: active)',
+  ])('honours %s at every standalone theme scope', async (preference) => {
+    const outputs = await renderTokens(source())
+    const dom = new JSDOM('<style></style><section><main></main></section>')
+    try {
+      const { document } = dom.window
+      const style = document.querySelector('style')
+      style.textContent = outputs['design/tokens/generated/muse.css']
+      activatePreference(style, preference)
+      for (const scope of ['html', 'body', 'main']) {
+        const element = document.querySelector(scope)
+        element.dataset.msTheme = 'dark'
+        const computed = dom.window.getComputedStyle(element)
+        if (preference === '(prefers-reduced-motion: reduce)') {
+          for (const speed of ['fast', 'base', 'slow']) {
+            expect(computed.getPropertyValue(`--ms-motion-${speed}`).trim(), scope).toBe('0ms')
+          }
+        } else {
+          for (const level of ['flat', 'raised', 'popover', 'overlay']) {
+            expect(computed.getPropertyValue(`--ms-elevation-${level}`).trim(), scope).toBe('none')
+          }
+          for (const name of ['overlay-alpha', 'popover-alpha', 'launcher-alpha']) {
+            expect(computed.getPropertyValue(`--ms-${name}`).trim(), scope).toBe('1')
+          }
+          expect(computed.getPropertyValue('--ms-backdrop-blur').trim(), scope).toBe('0')
+          expect(computed.getPropertyValue('--ms-modal-scrim').trim(), scope).toBe(
+            'var(--ms-surface)',
+          )
+        }
+        delete element.dataset.msTheme
+      }
+    } finally {
+      dom.window.close()
+    }
   })
 
   it('rejects invalid source types, duplicate names, absent modes and dangling/cyclic references', async () => {

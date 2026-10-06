@@ -27494,6 +27494,18 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   including nine AA failures for A/P1/P2. These colour captures do not certify
   polished components. S retains final accessibility and visual certification.
 
+- **Lane 0 review repair completed (RVM114L0, 2026-10-06):** fixed the standalone
+  accessibility cascade by generating palette declarations and every
+  reduced-transparency, reduced-motion, high-contrast and forced-colour
+  override from the same selector list, with overrides after the palettes.
+  The real generated CSS is verified in jsdom with themes on html, body and
+  nested main. The colour guard's hex terminator accepts any non-hex character
+  or end, and one selector checks template raw/cooked values so each offending
+  template reports once. Both findings are fixed, with 76 passing scoped tests
+  and nine byte-exact red drills in `docs/certification/m114-0.md`. Scoped
+  static/build checks pass; the existing S-owned host-API record and changelog
+  handoffs remain, with full quality still assigned to the lead by §7.
+
 - **Lane 0's contracts,** frozen before the other lanes start:
   - the token names and groups, with each role's VS Code variable and its
     Muse palette values;

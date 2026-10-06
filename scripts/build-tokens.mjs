@@ -288,7 +288,27 @@ export async function renderTokens(input) {
   )
   const hostRoles = `${banner}:root {${declarations('dark', true, extended)}}\n`
   const web = `${banner}:root {${declarations('dark', true, core)}}\n.vscode-high-contrast, .vscode-high-contrast-light {${highContrast}}\n.vscode-high-contrast {${scrim('hc-dark')}}\n.vscode-high-contrast-light {${scrim('hc-light')}}\n@media (prefers-reduced-transparency: reduce) {:root {${noTransparency}}}\n`
-  const palettes = `${banner}${MODES.map((mode) => `[data-ms-theme="${mode}"] {${declarations(mode, false)}}`).join('\n')}\n@media (prefers-reduced-transparency: reduce) {:root {${noTransparency}}}\n`
+  // Palette scopes also own every accessibility override, at equal
+  // specificity and after the palettes, including themes on nested elements.
+  const paletteScopes = [
+    { mode: 'dark', selectors: [':root', '[data-ms-theme="dark"]'] },
+    ...MODES.filter((mode) => mode !== 'dark').map((mode) => ({
+      mode,
+      selectors: [`[data-ms-theme="${mode}"]`],
+    })),
+  ]
+  const paletteSelectors = paletteScopes.flatMap(({ selectors }) => selectors).join(', ')
+  const noMotion = entries
+    .filter(([, item]) => item.$type === 'duration')
+    .map(([, item]) => `${item.$extensions[TOKEN_EXTENSION].css}: 0ms;`)
+    .join('\n')
+  const standaloneContrast =
+    declarations(
+      'hc-dark',
+      false,
+      entries.filter(([name]) => name.startsWith('elevation.') || name.startsWith('translucency.')),
+    ) + '\n--ms-modal-scrim: var(--ms-surface);'
+  const palettes = `${banner}${paletteScopes.map(({ mode, selectors }) => `${selectors.join(', ')} {${declarations(mode, false)}}`).join('\n')}\n@media (prefers-reduced-transparency: reduce) {${paletteSelectors} {${noTransparency}}}\n@media (prefers-reduced-motion: reduce) {${paletteSelectors} {${noMotion}}}\n@media (prefers-contrast: more), (forced-colors: active) {${paletteSelectors} {${standaloneContrast}}}\n`
   const consumers = {
     version: meta.version,
     modes: Object.fromEntries(

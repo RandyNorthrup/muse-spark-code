@@ -8,6 +8,9 @@ const colourMessage = 'Raw colours belong in design/tokens/muse.tokens.json; rea
 
 async function colourErrors(code, file) {
   const results = await eslint.lintText(code, { filePath: path.resolve(file) })
+  expect(results.flatMap((result) => result.messages.filter((message) => message.fatal))).toEqual(
+    [],
+  )
   return results.flatMap((result) =>
     result.messages.filter((message) => message.message === colourMessage),
   )
@@ -48,6 +51,33 @@ describe('D94 raw colour guards', () => {
         'src/webview/components/icons.tsx',
       ),
     ).toHaveLength(1)
+  })
+
+  it.each([
+    ['CSS hex before a closing brace', 'export const stylesheet = ".new-component{color:#123456}"'],
+    ['escaped template paint', 'export const paint = `\\u0023fff`'],
+    ['raw tagged template paint', 'export const paint = String.raw`#fff\\u0061bcdef`'],
+    ['escaped JSX template paint', 'export const Paint = () => <path fill={`\\u0023fff`} />'],
+    ['plain JSX template paint', 'export const Paint = () => <path fill={`#fff`} />'],
+  ])('reports exactly one colour error for %s', async (_name, code) => {
+    expect(await colourErrors(code, 'src/webview/components/icons.tsx')).toHaveLength(1)
+  })
+
+  it.each(['}', ')', '"', "'", ' ', ''])('rejects hex followed by %j', async (terminator) => {
+    expect(
+      await colourErrors(
+        `export const paint = ${JSON.stringify(`#123456${terminator}`)}`,
+        'src/webview/components/icons.tsx',
+      ),
+    ).toHaveLength(1)
+  })
+
+  it.each([
+    'export const paint = `var(--ms-accent)`',
+    'export const id = `url(#meta-logo-a)`',
+    'export const paint = `\\u0076ar(--ms-accent)`',
+  ])('allows token references and SVG fragment references: %s', async (code) => {
+    expect(await colourErrors(code, 'src/webview/components/icons.tsx')).toHaveLength(0)
   })
 
   it('keeps the guard in both syntax-rule blocks and catches templates and JSX SVG paint', async () => {
