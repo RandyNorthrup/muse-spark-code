@@ -19619,6 +19619,34 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM115E-SharedStoreBinding.** All three RVM115E P2 findings are fixed;
+  none is deferred. E's open/join/consume logic uses an injected atomic shared
+  transaction, with a window-plus-lease takeover and separate imported legacy
+  receipts. S/W still own durable cross-process locking, persisted-state
+  validation, a clock comparable across hosts, awaited drain/discard and the
+  final schedule-authority check for every editor/runtime. Safe for now: E is
+  unregistered/unshipped. Follow-up: real multi-process and crash/reopen receipts
+  before shipping; `docs/certification/m115-e.md` records fake-only proofs.
+
+- **FIXM115E-PostConsumeDelivery.** A crash after atomic burst consumption and
+  before delivery may lose the fire. Permanent member receipts prevent replay
+  and duplicate actions/charges. S/W own the delivery/settlement handoff and
+  catch-up/missed-fire policy; no replay of a consumed member is permitted.
+
+- **FIXM115E-LegacyIdentityAmbiguity.** An old unprefixed digest receipt
+  cannot identify whether its raw input was an account key or that digest.
+  Migration conservatively rejects both candidates, as its regression proves;
+  new `evk1:` receipts do not overlap. Safe for now: legacy event receipts were
+  internal/unshipped, and refusal prevents duplicate actions/charges. S/W may
+  normalize imported receipts only with a proven historical raw-key mapping;
+  otherwise retain the replay fence. A format redesign cannot recover absent
+  raw identity information, so no replay guard is weakened to guess it.
+
+- **FIXM115E-HostApiRecord.** The inherited inventory omits E's Git `execFile`
+  entry; this repair adds no VS Code API or shipping binding; the engine's
+  owner UUID increases the existing Node crypto source count by one.
+  W regenerates it when registering E's bundle, as the original lane certification requires.
+
 - **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
   none is deferred. These are unshipped internal schedule contracts, not
   certification of the production scheduler, approvals, settlements or OS

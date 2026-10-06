@@ -28,7 +28,20 @@ export class ScheduleEventPrivacy {
   ) {}
 
   async scrub(input: ScheduleEvent): Promise<ScheduleEvent> {
+    const result = await this.admission(input)
+    return result.event
+  }
+
+  async admission(input: ScheduleEvent) {
     const event = scheduleEventSchema.parse(input)
+    // Hash raw input, including keys that already look normalized, before scrub.
+    const identity =
+      'evk1:' +
+      createHash('sha256')
+        .update('evk1:')
+        .update(`${String(Buffer.byteLength(event.eventKey, 'utf8'))}:`)
+        .update(event.eventKey, 'utf8')
+        .digest('base64url')
     const fields = Object.entries(event.fields)
     const strings = [event.eventKey, ...fields.flatMap(([key, value]) => [key, String(value)])]
     // Use M84's real scrub, including plain paths before any JSON escaping.
@@ -47,9 +60,9 @@ export class ScheduleEventPrivacy {
       { redact: true, localRoots: this.localRoots },
     )
     const clean = result.doc.transcript.map((item) => item.text ?? '')
-    return scheduleEventSchema.parse({
+    const safe = scheduleEventSchema.parse({
       ...event,
-      eventKey: opaque(event.eventKey, clean[0] ?? ''),
+      eventKey: identity,
       fields: Object.fromEntries(
         fields.map(([key, value], index) => [
           opaque(key, clean[1 + index * 2] ?? ''),
@@ -59,6 +72,8 @@ export class ScheduleEventPrivacy {
         ]),
       ),
     })
+    // Lookup only: never issue a new receipt in the old overlapping namespace.
+    return { event: safe, legacyEventKey: opaque(event.eventKey, clean[0] ?? '') }
   }
 
   block(event: ScheduleEvent): { readonly block: ScheduleEventBlock; readonly text: string } {

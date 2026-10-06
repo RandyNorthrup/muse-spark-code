@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { SCHEDULE_EVENT_DEBOUNCE_MS, UI_TEXT } from '../../src/shared/constants'
 import { scheduleEventSchema, SCHEDULE_EVENT_KINDS } from '../../src/shared/scheduleEvents'
@@ -24,6 +25,19 @@ const trigger = {
 const privacy = () => new ScheduleEventPrivacy(['/home/example'], { mark: vi.fn() }, LEAD)
 
 describe('schedule events: conditions, preview and privacy', () => {
+  it('separates a scrubbed account key from its raw digest and prefixed raw keys', async () => {
+    const raw = 'fixture@example.invalid'
+    const digest = createHash('sha256').update(raw).digest('base64url')
+    const sanitizer = privacy()
+    const account = await sanitizer.scrub(event({}, raw))
+    const opaque = await sanitizer.scrub(event({}, digest))
+    const prefixed = await sanitizer.scrub(event({}, account.eventKey))
+    expect(account.eventKey).toMatch(/^evk1:/)
+    expect(opaque.eventKey).toMatch(/^evk1:/)
+    expect(new Set([account.eventKey, opaque.eventKey, prefixed.eventKey]).size).toBe(3)
+    expect(JSON.stringify([account, opaque, prefixed])).not.toContain(raw)
+  })
+
   it('matches source, kind and every typed condition without coercion', () => {
     expect(isEventMatch(trigger, event({ label: 'ready' }))).toBe(true)
     expect(isEventMatch(trigger, event({ label: 'blocked' }))).toBe(false)
@@ -70,9 +84,11 @@ describe('schedule events: conditions, preview and privacy', () => {
     })
     expect(result.preview.available && result.preview.matchedCount).toBe(2)
     expect(JSON.stringify(result)).not.toContain('owner@example.com')
+    const cleanOne = await privacy().scrub(event({}, 'one'))
+    const cleanTwo = await privacy().scrub(event({}, 'two'))
     expect(result.preview.available && result.preview.events.map((item) => item.eventKey)).toEqual([
-      'one',
-      'two',
+      cleanOne.eventKey,
+      cleanTwo.eventKey,
     ])
     await expect(
       registry.preview({
@@ -215,6 +231,7 @@ describe('schedule events: conditions, preview and privacy', () => {
     const second = await sanitizer.scrub(event({}, 'other@example.com'))
     expect(first.eventKey).not.toContain('@')
     expect(first.eventKey).not.toEqual(second.eventKey)
-    expect(await sanitizer.scrub(first)).toEqual(first)
+    const normalizedAgain = await sanitizer.scrub(first)
+    expect(normalizedAgain.eventKey).not.toEqual(first.eventKey)
   })
 })

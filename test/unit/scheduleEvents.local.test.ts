@@ -1,3 +1,4 @@
+import { FakeScheduleEventClaims } from './helpers/schedules/events'
 import { describe, expect, it, vi } from 'vitest'
 import { mkdtemp, rm, stat } from 'node:fs/promises'
 import type * as FsPromises from 'node:fs/promises'
@@ -22,6 +23,23 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof FsPromises>()
   return { ...original, stat: vi.fn(original.stat) }
 })
+
+async function observeGitTransition(repository: string, previous: string) {
+  let objectId = previous
+  const source = new ScheduleGitSource(
+    {
+      capability: () => ({ available: true }),
+      read: () =>
+        Promise.resolve([{ repository, name: 'refs/heads/main', objectId, revision: 'one' }]),
+    },
+    () => 0,
+  )
+  await source.poll(0)
+  objectId = 'bbb'
+  const [changed] = await source.poll(0)
+  if (!changed) throw new Error('Missing branch update')
+  return changed.eventKey
+}
 
 describe('local git and workspace file event sources', () => {
   it('uses one content identity and fire for loose-then-packed observations across editors', async () => {
@@ -65,15 +83,12 @@ describe('local git and workspace file event sources', () => {
         changed.map((event) => event.eventKey),
       )
       expect(changed[0]?.fields).toEqual({ branch: 'main', commit: b })
-      const receipts = new Set<string>()
-      const claim = (id: string) => {
-        if (receipts.has(id)) return Promise.resolve(false)
-        receipts.add(id)
-        return Promise.resolve(true)
-      }
+      const disk = new FakeScheduleEventClaims()
+      const receipts = disk.receipts
+      const store = disk.client()
       const privacy = new ScheduleEventPrivacy([], { mark: vi.fn() }, 'Untrusted data')
-      const firstEngine = new ScheduleEventEngine(() => now, claim, privacy)
-      const secondEngine = new ScheduleEventEngine(() => now, claim, privacy)
+      const firstEngine = new ScheduleEventEngine(() => now, store, privacy)
+      const secondEngine = new ScheduleEventEngine(() => now, store, privacy)
       const [firstEvent] = changed
       const [secondEvent] = otherEditor
       if (!firstEvent || !secondEvent) throw new Error('Missing branch event')
@@ -81,7 +96,7 @@ describe('local git and workspace file event sources', () => {
       expect(await firstEngine.enqueue('schedule', trigger, firstEvent)).toBe(true)
       expect(await secondEngine.enqueue('schedule', trigger, secondEvent)).toBe(false)
       now += SCHEDULE_EVENT_DEBOUNCE_MS
-      expect([...firstEngine.drain(), ...secondEngine.drain()]).toHaveLength(1)
+      expect([...(await firstEngine.drain()), ...(await secondEngine.drain())]).toHaveLength(1)
       expect(receipts.size).toBe(1)
       expect(await first.poll(1)).toEqual(changed)
       now = 2
@@ -128,6 +143,13 @@ describe('local git and workspace file event sources', () => {
     }
   })
 
+  it('separates identical new OIDs by repository and previous OID', async () => {
+    const first = await observeGitTransition('/fixture/one', 'aaa')
+    expect(await observeGitTransition('/fixture/one', 'aaa')).toBe(first)
+    expect(await observeGitTransition('/fixture/two', 'aaa')).not.toBe(first)
+    expect(await observeGitTransition('/fixture/one', 'ccc')).not.toBe(first)
+  })
+
   it('lists a missing local repository as unavailable before any git command', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'm115-e-no-git-'))
     try {
@@ -147,7 +169,14 @@ describe('local git and workspace file event sources', () => {
       {
         capability: () => ({ available: true }),
         read: () =>
-          Promise.resolve([{ name: 'refs/heads/../../outside', objectId: 'abc', revision: 'one' }]),
+          Promise.resolve([
+            {
+              repository: '/fixture',
+              name: 'refs/heads/../../outside',
+              objectId: 'abc',
+              revision: 'one',
+            },
+          ]),
       },
       () => 0,
     )
@@ -186,7 +215,7 @@ describe('local git and workspace file event sources', () => {
     let now = 0
     const engine = new ScheduleEventEngine(
       () => now,
-      () => Promise.resolve(true),
+      new FakeScheduleEventClaims().client(),
       new ScheduleEventPrivacy([], { mark: vi.fn() }, 'Untrusted data'),
     )
     const pending: Promise<boolean>[] = []
@@ -215,9 +244,10 @@ describe('local git and workspace file event sources', () => {
     expect(watch).toHaveBeenCalledWith(['src/**/*.ts'], expect.any(Function))
     expect(rejected).toHaveBeenCalledTimes(4)
     expect(pending).toHaveLength(3)
-    expect(engine.drain()).toEqual([])
+    expect(await engine.drain()).toEqual([])
     now += SCHEDULE_EVENT_DEBOUNCE_MS
-    expect(engine.drain()[0]?.coalescedCount).toBe(3)
+    const fires = await engine.drain()
+    expect(fires[0]?.coalescedCount).toBe(3)
     capability = { available: false, reason: 'disabled watcher' }
     notify('src/three.ts', 'three')
     expect(pending).toHaveLength(3)

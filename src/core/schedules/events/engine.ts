@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { SCHEDULE_EVENT_DEBOUNCE_MS } from '../../../shared/constants'
 import {
   scheduleEventRunId,
@@ -20,15 +21,29 @@ interface PendingEvent {
   event: ScheduleEvent
   readyAt: number
   count: number
+  readonly owner: string
+  readonly runId: string
 }
-/** S supplies permanent cross-process claims; the clock is monotonic. */
+export interface ScheduleEventClaimState {
+  readonly receipts: Set<string>
+  readonly legacyReceipts: ReadonlySet<string>
+  open?: PendingEvent
+  ready: PendingEvent[]
+}
+/** S persists the entire mutation under one cross-process lock, before return.
+ * Receipts include migrated legacy ids and never expire; only safe data is stored.
+ */
+export interface ScheduleEventClaimStore {
+  schedules(): Promise<readonly string[]>
+  transact<T>(scheduleId: string, update: (state: ScheduleEventClaimState) => T): Promise<T>
+}
+/** S supplies durable shared transactions and a clock comparable across hosts. */
 export class ScheduleEventEngine {
-  private readonly pending = new Map<string, PendingEvent>()
-  private ready = new Map<string, PendingEvent[]>()
+  private readonly owner = randomUUID()
   private readonly generations = new Map<string, symbol>()
   constructor(
     private readonly now: () => number,
-    private readonly canClaim: (runId: string) => Promise<boolean>,
+    private readonly claims: ScheduleEventClaimStore,
     private readonly privacy: ScheduleEventPrivacy,
   ) {}
 
@@ -48,63 +63,91 @@ export class ScheduleEventEngine {
       return false
     const generation = this.generations.get(scheduleId) ?? Symbol()
     this.generations.set(scheduleId, generation)
-    const event = await this.privacy.scrub(input)
+    const { event, legacyEventKey } = await this.privacy.admission(input)
     if (this.generations.get(scheduleId) !== generation) return false
     const runId = scheduleEventRunId(scheduleId, event)
-    if (!(await this.canClaim(runId)) || this.generations.get(scheduleId) !== generation)
-      return false
-    let current = this.pending.get(scheduleId)
-    const now = this.now()
-    const readyAt = now + SCHEDULE_EVENT_DEBOUNCE_MS
-    if (current && now >= current.readyAt) {
-      const ready = this.ready.get(scheduleId) ?? []
-      ready.push(current)
-      this.ready.set(scheduleId, ready)
-      current = undefined
-    }
-    if (current) {
-      // All members are claimed, even those suppressed by the debounce. Keep
-      // the earliest identity as representative; never splice another's fields.
+    const legacyRunId = scheduleEventRunId(scheduleId, { ...event, eventKey: legacyEventKey })
+    const isAdmitted = await this.claims.transact(scheduleId, (state) => {
       if (
-        event.observedAt < current.event.observedAt ||
-        (event.observedAt === current.event.observedAt && event.eventKey < current.event.eventKey)
+        this.generations.get(scheduleId) !== generation ||
+        state.receipts.has(runId) ||
+        state.legacyReceipts.has(legacyRunId)
       )
-        current.event = event
-      current.readyAt = readyAt
-      current.count += 1
-    } else this.pending.set(scheduleId, { event, readyAt, count: 1 })
-    return true
+        return false
+      state.receipts.add(runId)
+      const now = this.now()
+      if (state.open && now >= state.open.readyAt) {
+        state.ready.push(state.open)
+        delete state.open
+      }
+      const current = state.open
+      if (current) {
+        // Joining never transfers ownership or combines different members' fields.
+        if (
+          event.observedAt < current.event.observedAt ||
+          (event.observedAt === current.event.observedAt && event.eventKey < current.event.eventKey)
+        )
+          current.event = event
+        current.readyAt = now + SCHEDULE_EVENT_DEBOUNCE_MS
+        current.count += 1
+      } else
+        state.open = {
+          event,
+          readyAt: now + SCHEDULE_EVENT_DEBOUNCE_MS,
+          count: 1,
+          owner: this.owner,
+          runId,
+        }
+      return true
+    })
+    return isAdmitted && this.generations.get(scheduleId) === generation
   }
 
-  drain(): ScheduleEventOccurrence[] {
+  async drain(): Promise<ScheduleEventOccurrence[]> {
     const occurrences: ScheduleEventOccurrence[] = []
-    const ready = this.ready
-    this.ready = new Map()
-    for (const [scheduleId, pending] of this.pending) {
-      if (this.now() < pending.readyAt) continue
-      this.pending.delete(scheduleId)
-      const batches = ready.get(scheduleId) ?? []
-      batches.push(pending)
-      ready.set(scheduleId, batches)
-    }
-    for (const [scheduleId, batches] of ready)
+    const scheduleIds = await this.claims.schedules()
+    for (const scheduleId of scheduleIds) {
+      const generation = this.generations.get(scheduleId) ?? Symbol()
+      this.generations.set(scheduleId, generation)
+      const batches = await this.claims.transact(scheduleId, (state) => {
+        if (this.generations.get(scheduleId) !== generation) return []
+        const now = this.now()
+        if (state.open && now >= state.open.readyAt) {
+          state.ready.push(state.open)
+          delete state.open
+        }
+        const taken: PendingEvent[] = []
+        state.ready = state.ready.filter((burst) => {
+          // A disappeared owner's lease lasts one debounce interval past its window.
+          if (burst.owner !== this.owner && now < burst.readyAt + SCHEDULE_EVENT_DEBOUNCE_MS)
+            return true
+          taken.push(burst)
+          return false
+        })
+        // Durable removal and permanent member receipts precede delivery/takeover.
+        return taken
+      })
+      if (this.generations.get(scheduleId) !== generation) continue
       for (const pending of batches) {
         const safe = this.privacy.block(pending.event)
         occurrences.push({
           scheduleId,
-          runId: scheduleEventRunId(scheduleId, pending.event),
+          runId: pending.runId,
           event: pending.event,
           ...safe,
           coalescedCount: pending.count,
         })
       }
+    }
     return occurrences
   }
 
-  /** S calls this on pause, removal, authority edits and trigger replacement. */
-  discard(scheduleId: string): void {
-    this.pending.delete(scheduleId)
-    this.ready.delete(scheduleId)
+  /** S awaits this on pause, removal, authority edits and trigger replacement. */
+  async discard(scheduleId: string): Promise<void> {
     this.generations.delete(scheduleId)
+    await this.claims.transact(scheduleId, (state) => {
+      delete state.open
+      state.ready = []
+    })
   }
 }

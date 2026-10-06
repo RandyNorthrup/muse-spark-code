@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M115's internal event engine now coalesces bursts in shared atomic claim
+  transactions, permits one survivor to take over an abandoned burst after
+  its lease, and uses one domain-separated event-key namespace while honoring
+  imported legacy replay receipts. These internal repairs add no shipping
+  schedule command or setting.
 - M115's internal Git event identities now use repository/ref content
   transitions, so packing refs cannot replay an observed branch update.
   This repair does not enable scheduled-prompts v2 in the shipped extension.

@@ -1,3 +1,7 @@
+import type {
+  ScheduleEventClaimState,
+  ScheduleEventClaimStore,
+} from '../../../../src/core/schedules/events/engine'
 import {
   scheduleEventSchema,
   type ScheduleEvent,
@@ -53,5 +57,28 @@ export class FakeScheduleEventSource implements SchedulePollingEventSource {
         .filter((event) => event.observedAt >= range.fromMs && event.observedAt < range.toMs)
         .map((event) => structuredClone(event)),
     })
+  }
+}
+
+/** Atomic fake persistence: fresh clients/objects share committed state only. */
+export class FakeScheduleEventClaims {
+  private readonly states = new Map<string, ScheduleEventClaimState>()
+  readonly receipts = new Set<string>()
+  readonly legacyReceipts = new Set<string>()
+  client(): ScheduleEventClaimStore {
+    return {
+      schedules: () => Promise.resolve(Array.from(this.states, ([id]) => id)),
+      transact: (scheduleId, update) => {
+        const state = {
+          ...structuredClone(this.states.get(scheduleId) ?? { ready: [] }),
+          receipts: new Set(this.receipts),
+          legacyReceipts: new Set(this.legacyReceipts),
+        }
+        const result = update(state)
+        for (const id of state.receipts) this.receipts.add(id)
+        this.states.set(scheduleId, structuredClone(state))
+        return Promise.resolve(structuredClone(result))
+      },
+    }
   }
 }
