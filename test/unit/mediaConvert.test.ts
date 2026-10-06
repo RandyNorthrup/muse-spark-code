@@ -54,6 +54,20 @@ function outputPath(args: readonly string[]): string {
   return output
 }
 
+async function fakeEncodingChild(pid = process.pid) {
+  const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
+  const child = new actual.ChildProcess()
+  Object.defineProperty(child, 'pid', { value: pid })
+  vi.spyOn(child, 'kill').mockReturnValue(true)
+  const encoding = { child, output: '' }
+  vi.mocked(spawn).mockImplementation((_command, args) => {
+    encoding.output = outputPath(args)
+    writeFileSync(encoding.output, videoFixture())
+    return child
+  })
+  return encoding
+}
+
 function alignedSymlinkTarget(): string {
   const padding = videoFixture().length - Buffer.byteLength(fixture.input)
   if (padding < 0) throw new Error('Fixture path exceeds its clip size')
@@ -388,17 +402,10 @@ describe('M105 private local conversion', () => {
   })
 
   it('waits for an in-flight RSS sample and a final sample after successful close', async () => {
-    const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
+    const { child } = await fakeEncodingChild()
     const pending = Promise.withResolvers<number>()
     const closed = Promise.withResolvers<undefined>()
     let hasSettled = false
-    let child: ChildProcess.ChildProcess
-    vi.mocked(spawn).mockImplementation((_command, args) => {
-      writeFileSync(outputPath(args), videoFixture())
-      child = new actual.ChildProcess()
-      Object.defineProperty(child, 'pid', { value: process.pid })
-      return child
-    })
     const readRssBytes = vi
       .fn(() => Promise.resolve(0))
       .mockImplementationOnce(() => {
@@ -426,15 +433,7 @@ describe('M105 private local conversion', () => {
   it.each(['excessive', 'invalid', 'unavailable', 'stalled'])(
     'refuses an in-flight %s RSS sample that settles after successful close',
     async (reading) => {
-      const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
-      let child: ChildProcess.ChildProcess
-      vi.mocked(spawn).mockImplementation((_command, args) => {
-        writeFileSync(outputPath(args), videoFixture())
-        child = new actual.ChildProcess()
-        Object.defineProperty(child, 'pid', { value: process.pid })
-        vi.spyOn(child, 'kill').mockReturnValue(true)
-        return child
-      })
+      const { child } = await fakeEncodingChild()
       const readRssBytes = vi.fn(() => {
         queueMicrotask(() => child.emit('close', 0))
         return new Promise<number>((resolve, reject) => {
@@ -449,7 +448,7 @@ describe('M105 private local conversion', () => {
         ok: false,
       })
       expect(readRssBytes).toHaveBeenCalledTimes(1)
-      expect(child!.kill).not.toHaveBeenCalled()
+      expect(child.kill).not.toHaveBeenCalled()
       await expect(lstat(directories.at(-1)!)).rejects.toMatchObject({ code: 'ENOENT' })
     },
   )
@@ -457,17 +456,8 @@ describe('M105 private local conversion', () => {
   it.each(['excessive', 'unavailable', 'stalled', 'output overflow'])(
     'refuses a final %s resource sample after successful close',
     async (reading) => {
-      const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
-      let child: ChildProcess.ChildProcess
-      let output = ''
-      vi.mocked(spawn).mockImplementation((_command, args) => {
-        output = outputPath(args)
-        writeFileSync(output, videoFixture())
-        child = new actual.ChildProcess()
-        Object.defineProperty(child, 'pid', { value: process.pid })
-        vi.spyOn(child, 'kill').mockReturnValue(true)
-        return child
-      })
+      const encoding = await fakeEncodingChild()
+      const { child } = encoding
       const readRssBytes = vi
         .fn(() => {
           if (reading === 'unavailable')
@@ -478,7 +468,7 @@ describe('M105 private local conversion', () => {
         })
         .mockImplementationOnce(() => {
           queueMicrotask(() => {
-            if (reading === 'output overflow') writeFileSync(output, Buffer.alloc(2048))
+            if (reading === 'output overflow') writeFileSync(encoding.output, Buffer.alloc(2048))
             child.emit('close', 0)
           })
           return Promise.resolve(0)
@@ -490,7 +480,7 @@ describe('M105 private local conversion', () => {
         }),
       ).toMatchObject({ ok: false })
       expect(readRssBytes).toHaveBeenCalledTimes(reading === 'output overflow' ? 1 : 2)
-      expect(child!.kill).not.toHaveBeenCalled()
+      expect(child.kill).not.toHaveBeenCalled()
       await expect(lstat(directories.at(-1)!)).rejects.toMatchObject({ code: 'ENOENT' })
     },
   )
@@ -556,13 +546,11 @@ describe('M105 private local conversion', () => {
 
   it('refuses unavailable Linux RSS after close instead of substituting zero', async () => {
     const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!
-    const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
     const readStatus = fs.readFile
     const reading = vi.spyOn(fs, 'readFile')
     Object.defineProperty(process, 'platform', { value: 'linux' })
     const sampled = Promise.withResolvers<undefined>()
     let hasClosed = false
-    let child: ChildProcess.ChildProcess
     try {
       reading.mockImplementation((file, options) => {
         const name = typeof file === 'string' ? file.replaceAll('\\', '/') : undefined
@@ -579,16 +567,11 @@ describe('M105 private local conversion', () => {
         }
         return readStatus(file, options)
       })
-      vi.mocked(spawn).mockImplementation((_command, args) => {
-        writeFileSync(outputPath(args), videoFixture())
-        child = new actual.ChildProcess()
-        Object.defineProperty(child, 'pid', { value: process.pid + 1 })
-        return child
-      })
+      const { child } = await fakeEncodingChild(process.pid + 1)
       const converting = convertToMp4(fixture.input, fake)
       await sampled.promise
       hasClosed = true
-      child!.emit('close', 0)
+      child.emit('close', 0)
       expect(await converting).toMatchObject({ ok: false })
       await expect(lstat(directories.at(-1)!)).rejects.toMatchObject({ code: 'ENOENT' })
     } finally {

@@ -49,7 +49,9 @@ below proves the corrected regression fails for the intended reason.
 Each mutation ran `npx vitest run test/unit/<file>.test.ts --maxWorkers=3`
 with no test-name filter or timeout override. All eight exited 1 at the named
 regression, then restored the source bytes and compared SHA-256 before
-continuing. Logs/scripts remain ignored under `temp/rvm105m12-*`.
+continuing. All eight were rerun against the final shared fake-child fixture;
+again every named regression failed and every restored SHA matched.
+Logs/scripts remain ignored under `temp/rvm105m12-*`.
 
 | Guard deliberately broken               | Named failing regression                                                             | Result               |
 | --------------------------------------- | ------------------------------------------------------------------------------------ | -------------------- |
@@ -81,6 +83,46 @@ five-second test timeout and at most three files per command:
 - `npm run typecheck`: all five projects passed.
 - Changed-source/test `npx eslint --max-warnings=0`: passed without
   suppressions; `git diff --check`: passed.
+- Changed-file `npx prettier --check`: all seven changed files passed.
+- `npm run deadcode`: passed, with the same two existing configuration hints;
+  rerun successfully after extracting the test helper.
+- `npx jscpd`: passed, zero clones. Its initial run found three copies of
+  fake-child setup in the new converter regressions; that setup is now one
+  test-only helper. The final test fixture also passes `npm run typecheck:unit`
+  and changed-file ESLint. Production hashes remain identical to the drills.
+- `npm run check:l10n`: 14 tables, 164 manifest strings, 600 source files,
+  **0 problems**. No localization keys were added or changed.
+- `npm run check:host-api`: exits 1 at the pre-existing W-owned generated
+  import table. Current counts differ from its stored values: buffer 39→44,
+  child_process 13→14, crypto 46→48, fs 33→34, fs/promises 47→48,
+  os 9→10, path 84→85. Still 332 VS Code APIs, 31 vscode-importing files,
+  25 Node built-ins and 61 theme variables. This fix adds no import or host API.
+- `npm run build`: production compilation passed, then exit 1 at the
+  unchanged deferred-browser cap, **51.1/50 KiB**. Direct
+  `node scripts/check-bundle-split.mjs` exits 1 because lane F's `files.ts`
+  is still on neither classification list. Both remain the named
+  **M105-F-integration-gates** handoff (PLAN §9); no gate/cap was changed.
+- The post-build checks that the cap failure prevents the aggregate script
+  from reaching were run directly: `node scripts/check-host-globals.mjs`
+  passed for every Node bundle; `node scripts/third-party-notices.mjs`
+  passed for 83 bundled packages.
+
+| Production artifact                | Measured KiB | Cap KiB |
+| ---------------------------------- | -----------: | ------: |
+| extension                          |        442.7 |     600 |
+| conversation                       |        201.7 |     250 |
+| Model API                          |        450.0 |     475 |
+| ACP                                |        822.8 |     850 |
+| shared English fallback            |         49.3 |     125 |
+| browser startup and static imports |        899.2 |     900 |
+| browser deferred JS                |         51.1 |      50 |
+
+The rig override reserves full quality/full unit/integration/cross-platform
+runs for the lead. No claim that those integrated gates pass is made.
+The first correction commit is `63fdd1b6d`, with ESLint/Prettier and gitleaks
+pre-commit hooks successful. Production hashes match the drill restoration
+hashes after that commit; the following commit removes only duplicated test
+setup and records final gate results.
 
 No review finding is deferred. Existing integration handoffs and enforced
 W-owned gate blockers remain as recorded below and in PLAN §9.
