@@ -5,14 +5,14 @@
     "passes": 32,
     "pending": 0,
     "failures": 2,
-    "start": "2026-10-06T01:20:25.295Z",
-    "end": "2026-10-06T01:21:09.860Z",
-    "duration": 44565
+    "start": "2026-10-06T01:50:11.899Z",
+    "end": "2026-10-06T01:50:56.140Z",
+    "duration": 44241
   },
   "failures": [
     {
       "test": "verify loop in VS Code (M68) shows edited files no editor showed, and reads what their servers report",
-      "message": "Timeout of 20000ms exceeded. For async tests and hooks, ensure \"done()\" is called; if returning a Promise, ensure it resolves. (<worktree>/temp/arduino-check-7/home/.arduinoIDE/plugins/muse-spark-code/dist/test/integration/verifyEditor.test.js)"
+      "message": "Timeout of 20000ms exceeded. For async tests and hooks, ensure \"done()\" is called; if returning a Promise, ensure it resolves. (<worktree>/temp/arduino-check-9/home/.arduinoIDE/plugins/muse-spark-code/dist/test/integration/verifyEditor.test.js)"
     },
     {
       "test": "verify loop in VS Code (M68) settles one file for the diagnostics tool, read before its tab closes",

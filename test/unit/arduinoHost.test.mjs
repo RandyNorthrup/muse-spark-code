@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { pack } from '@vscode/vsce/out/package.js'
@@ -28,25 +28,47 @@ beforeAll(async () => {
     dependencies: false,
     packagePath: path.join(fixture.root, 'normal.vsix'),
   })
+  const manifestPath = path.join(source, 'package.json')
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  manifest.engines = { vscode: '^1.96.0', node: '>=20.14.0' }
+  writeFileSync(manifestPath, JSON.stringify(manifest))
+  await pack({
+    cwd: source,
+    dependencies: false,
+    packagePath: path.join(fixture.root, 'arduino.vsix'),
+  })
 })
 afterAll(() => rmSync(fixture.root, { recursive: true, force: true }))
 
-function run(work) {
+function run(work, options = {}) {
   return execFileSync(
     process.execPath,
     [
       'test/hosts/arduino.mjs',
       path.join(fixture.root, 'absent-ide'),
-      path.join(fixture.root, 'normal.vsix'),
+      options.archive ?? path.join(fixture.root, 'normal.vsix'),
       work,
     ],
-    { encoding: 'utf8', stdio: 'pipe' },
+    { encoding: 'utf8', stdio: 'pipe', env: options.env ?? process.env },
   )
 }
 
 describe('Arduino host installation guards', () => {
   it('refuses a normal VSIX before launching an editor', () => {
     expect(() => run(path.join(fixture.root, 'wrong-build'))).toThrow('requires the Arduino VSIX')
+  })
+  it('refuses an incomplete public offline cache before creating a home or launching an editor', () => {
+    const work = path.join(fixture.root, 'missing-cache')
+    expect(() =>
+      run(work, {
+        archive: path.join(fixture.root, 'arduino.vsix'),
+        env: {
+          ...process.env,
+          MUSE_ARDUINO_OFFLINE_CACHE: path.join(fixture.root, 'absent-cache'),
+        },
+      }),
+    ).toThrow('Offline Arduino cache is missing package_index.json')
+    expect(existsSync(path.join(work, 'home'))).toBe(false)
   })
   it('refuses an existing test home and leaves it byte-exact', () => {
     const work = path.join(fixture.root, 'existing')

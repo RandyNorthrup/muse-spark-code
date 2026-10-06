@@ -5,7 +5,7 @@
 // and its diff read.
 
 import * as assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import type { CodeIntelDeps } from '../../src/core/codeIntel/codeIntelQuery'
@@ -89,6 +89,21 @@ suite('code intelligence over TypeScript (M67)', () => {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
     assert.ok(root, 'the fixture workspace is open')
     deps = depsFor(root)
+    const capturePath = process.env['MUSE_HOST_CAPTURE']
+    if (capturePath !== undefined) {
+      const availableCommands = await vscode.commands.getCommands(false)
+      await writeFile(
+        capturePath,
+        JSON.stringify(
+          {
+            vscode: vscode.version,
+            commands: availableCommands.filter((command) => /rename/i.test(command)),
+          },
+          null,
+          2,
+        ),
+      )
+    }
     const languages = await vscode.languages.getLanguages()
     hasTypeScript = languages.includes('typescript')
     // Arduino ships no TS provider. Its explicit host expectation is an

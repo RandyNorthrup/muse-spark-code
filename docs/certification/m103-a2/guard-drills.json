@@ -82,5 +82,61 @@
     "test": "propagates genuine failures even if the document is visible",
     "sha256": "3c0b6992c32f75dc403c1e0cc2479f74e38708027e431d3e057ec2f8815aa8ee",
     "red_exit": 1
+  },
+  {
+    "guard": "native-provider",
+    "file": "src/host/codeIntel/languageServices.ts",
+    "test": "uses the public API aliases when native VS Code lists captured internal provider commands",
+    "sha256": "1901169d3c469d56beef668dd6248a6d60f060db99537d0edac148af71ff039d",
+    "red_exit": 1
+  },
+  {
+    "guard": "native-prepare",
+    "file": "src/host/codeIntel/languageServices.ts",
+    "test": "uses the public API aliases when native VS Code lists captured internal provider commands",
+    "sha256": "1901169d3c469d56beef668dd6248a6d60f060db99537d0edac148af71ff039d",
+    "red_exit": 1
+  },
+  {
+    "guard": "native-command-list",
+    "file": "src/host/codeIntel/languageServices.ts",
+    "test": "uses the public API aliases when native VS Code lists captured internal provider commands",
+    "sha256": "1901169d3c469d56beef668dd6248a6d60f060db99537d0edac148af71ff039d",
+    "red_exit": 1
+  },
+  {
+    "guard": "offline-index",
+    "file": "test/hosts/arduino.mjs",
+    "test": "refuses an incomplete public offline cache",
+    "sha256": "0ecd6e2074a21509f72d26b9e3f5363d6facf3dadf60cd02bfde48718dbacb58",
+    "red_exit": 1
+  },
+  {
+    "guard": "missing-prepare-alias",
+    "file": "src/host/codeIntel/languageServices.ts",
+    "test": "uses a listed provider when Theia rejects the optional public prepare alias",
+    "sha256": "247b8b89b21d7130ce52454fa425cbe42fcc9db0fc6f92ea17c8355cf5c7422a",
+    "red_exit": 1
+  },
+  {
+    "guard": "missing-execute-alias",
+    "file": "src/host/codeIntel/languageServices.ts",
+    "test": "uses a listed provider when Theia rejects the optional public prepare alias",
+    "sha256": "247b8b89b21d7130ce52454fa425cbe42fcc9db0fc6f92ea17c8355cf5c7422a",
+    "red_exit": 1
+  },
+  {
+    "guard": "missing-alias-identity",
+    "file": "src/host/codeIntel/languageServices.ts",
+    "test": "uses a listed provider when Theia rejects the optional public prepare alias",
+    "sha256": "247b8b89b21d7130ce52454fa425cbe42fcc9db0fc6f92ea17c8355cf5c7422a",
+    "red_exit": 1
+  },
+  {
+    "guard": "missing-alias-format",
+    "file": "src/host/codeIntel/languageServices.ts",
+    "test": "uses a listed provider when Theia rejects the optional public prepare alias",
+    "sha256": "247b8b89b21d7130ce52454fa425cbe42fcc9db0fc6f92ea17c8355cf5c7422a",
+    "red_exit": 1
   }
 ]

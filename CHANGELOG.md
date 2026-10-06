@@ -23,7 +23,8 @@ happened, not what was planned; superseded entries are kept.
   race. Temporary clean documents close through their own editor handle when
   the host omits tab identities. Formatting validates the captured Monaco
   edit shape and converts its one-based ranges to native Positions.
-- Semantic rename detects missing provider/prepare commands, with translated
+- Semantic rename detects missing provider/prepare commands while retaining
+  VS Code providers listed by internal identifiers, with translated
   search/read_file guidance when no language service answers. The real Arduino
   follow-up passes 32/34 integration tests with explicit absent-TypeScript
   expectations; two JSON diagnostics cases remain failing, so qualification

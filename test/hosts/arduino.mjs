@@ -28,6 +28,19 @@ const { manifest } = await readVSIXPackage(path.resolve(archive))
 if (manifest.engines.vscode !== '^1.96.0' || manifest.engines.node !== '>=20.14.0') {
   throw new Error('The host check requires the Arduino VSIX')
 }
+const offlineCache = process.env.MUSE_ARDUINO_OFFLINE_CACHE
+const cacheIndexes = [
+  'package_index.json',
+  'package_index.json.sig',
+  'library_index.json',
+  'library_index.json.sig',
+]
+if (offlineCache !== undefined) {
+  for (const file of cacheIndexes) {
+    if (!existsSync(path.join(offlineCache, 'arduino-data', file)))
+      throw new Error(`Offline Arduino cache is missing ${file}`)
+  }
+}
 const config = path.join(testHome, '.arduinoIDE')
 const plugins = path.join(config, 'plugins')
 const extension = path.join(plugins, 'muse-spark-code')
@@ -84,18 +97,11 @@ const resultFile = path.join(work, 'integration-result.json')
 rmSync(resultFile, { force: true })
 // An explicit public CLI cache permits offline qualification. Copy only
 // board/tool/library assets and indexes, never account or credential files.
-const offlineCache = process.env.MUSE_ARDUINO_OFFLINE_CACHE
 let proxy
 let egress
 if (offlineCache !== undefined) {
-  for (const file of [
-    'package_index.json',
-    'package_index.json.sig',
-    'library_index.json',
-    'library_index.json.sig',
-  ]) {
+  for (const file of cacheIndexes) {
     const source = path.join(offlineCache, 'arduino-data', file)
-    if (!existsSync(source)) throw new Error(`Offline Arduino cache is missing ${file}`)
     mkdirSync(path.join(work, 'arduino-data'), { recursive: true })
     cpSync(source, path.join(work, 'arduino-data', file))
   }
@@ -147,6 +153,7 @@ const app = await electron.launch({
     }),
     XDG_CONFIG_HOME: path.join(work, 'fake-muse/config'),
     MUSE_ARDUINO_RESULT: resultFile,
+    MUSE_HOST_CAPTURE: path.join(work, 'rename-commands.json'),
     MUSE_ARDUINO_TEST_CLI_RUNNER: testCliRunner,
   },
   timeout: 120_000,

@@ -1,0 +1,14 @@
+{
+  "vscode": "1.96.0",
+  "commands": [
+    "file.rename",
+    "editor.action.rename",
+    "acceptRenameInput",
+    "acceptRenameInputWithPreview",
+    "cancelRenameInput",
+    "_executeDocumentRenameProvider",
+    "_executePrepareRename",
+    "arduino-rename-cloud-sketch"
+  ],
+  "missingPrepareMessage": "Command with id 'vscode.prepareRename' is not registered."
+}

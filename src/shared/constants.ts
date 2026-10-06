@@ -132,6 +132,8 @@ export const CONTEXT_KEYS = {
 export const EDITOR_REVEAL_MAX_MS = 2000
 export const EDITOR_REVEAL_POLL_MS = 50
 export const THEIA_SHOW_DOCUMENT_FAILURE = 'Failed to show text document '
+// Captured framework failure: M103A2 arduino-commands.json.
+export const UNREGISTERED_HOST_COMMAND = /^Command with id '([^']+)' is not registered\.$/
 
 export const VSCODE_COMMANDS = {
   focusActiveEditorGroup: 'workbench.action.focusActiveEditorGroup',
@@ -154,7 +156,9 @@ export const VSCODE_COMMANDS = {
   provideIncomingCalls: 'vscode.provideIncomingCalls',
   provideOutgoingCalls: 'vscode.provideOutgoingCalls',
   prepareRename: 'vscode.prepareRename',
+  prepareRenameInternal: '_executePrepareRename',
   executeDocumentRenameProvider: 'vscode.executeDocumentRenameProvider',
+  executeDocumentRenameProviderInternal: '_executeDocumentRenameProvider',
 } as const
 
 // Settings (package.json `contributes.configuration`). Keys are relative to

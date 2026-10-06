@@ -15627,7 +15627,15 @@ complete quality/coverage gate to the lead; focused owning tests, all typechecks
 including the isolated 1.96 floor, lint, localization, host inventory, builds
 and both unchanged VSIX budgets run here. Arduino's missing TypeScript provider
 has explicit host expectations and translated search/read_file guidance, not
-invented semantic results. JSON diagnostics still fail after document reveal
+invented semantic results. Native VS Code's live getCommands capture lists internal
+`_executeDocumentRenameProvider` / `_executePrepareRename` identifiers instead
+of the public API aliases. Availability checks include internal commands and
+recognize both forms, while actual dispatch stays on the public API aliases.
+Arduino's capture lists the same internal identifiers but rejects the public
+prepare alias. Skip only that captured exact missing-command error for the
+optional prepare; an absent execute alias becomes explicit no-service, and
+all genuine provider refusals/errors still propagate.
+JSON diagnostics still fail after document reveal
 and installed-provider activation attempts; stop that path under the brief's
 two-failed-fixes rule. Remove the ineffective activation attempt and retain
 both failing assertions. No timeout, skip or diagnostics expectation is
