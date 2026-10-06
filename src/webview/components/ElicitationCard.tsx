@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // A server's primitive MCP form. Draft values live here until settlement
 // unmounts the card; nothing is written to webview persistence or history.
 import { useId, useState } from 'react'
@@ -147,7 +148,7 @@ export function ElicitationCard({ form, onAccept, onDecline, onCancel }: Elicita
         submit()
       }}
       onKeyDown={(event) => {
-        if (isLocked || event.key !== 'Escape') {
+        if (isLocked || webviewKey('elicitation', event) !== 'close') {
           return
         }
 

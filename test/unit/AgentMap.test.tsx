@@ -6,12 +6,12 @@ import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import { agentStatusLabel, formatDurationMs } from '../../src/webview/agentFormat'
 import type { WorkflowEntry } from '../../src/webview/state/uiState'
 import {
-  AgentMap,
+  AgentMapContent as AgentMap,
   type AgentMapProps,
   controlsFor,
   type SubagentEntry,
   type ToolEntry,
-} from '../../src/webview/components/AgentMap'
+} from '../../src/webview/components/AgentMapContent'
 
 const explorer: SubagentEntry = {
   kind: 'subagent',

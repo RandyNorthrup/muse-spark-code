@@ -56,6 +56,10 @@ them, the milestone plan, and the certification checklist.
      their inline fallback.
    - **Adding or changing a key** means every table in `l10n/` gets it too,
      or `npm run check:l10n` fails.
+   - **New UI surfaces ship lazily**, on first use, with accessible loading,
+     an honest chunk-load failure and retry, and a measured budget of their own.
+     Startup and the original deferred aggregate retain their existing caps;
+     reserve first-paint bytes for chat and its first turn.
 6. **No dead code, no placeholders.** No commented-out code, unused exports,
    unused dependencies, TODO stubs, fake implementations, or mock data outside
    `test/**`. A function that cannot do its job throws or returns an explicit
@@ -148,7 +152,13 @@ them, the milestone plan, and the certification checklist.
   theorem, price, returned/uncertain tally and retained liability are visible;
   the subscription pays none of it.
 
-13. **Wire shapes come from a live capture.** A row, parser or schema for
+13. **Keep the reference current.** Every new command, setting or feature
+    updates `src/shared/featureCatalog.ts` in the same PR. Update the CLI table
+    for a new runtime command; regenerate with `npm run reference:generate`.
+    `npm run check:reference` validates coverage, descriptions, relationships
+    and generated-file freshness. Keep help's data and UI lazy.
+
+14. **Wire shapes come from a live capture.** A row, parser or schema for
     something Muse Code or the Model API sends is written from a captured
     frame (the certification record names the capture, its workspace and its
     counted model attempts), never from a guess; the tests use that shape.
@@ -297,6 +307,7 @@ media/                icons, banner, social preview, README screenshots
 | All gates (local)              | `npm run quality`                         |
 | The gates CI runs everywhere   | `npm run quality:gates`                   |
 | Accessibility gate             | `npm run test:a11y`                       |
+| Reference gate                 | `npm run check:reference`                 |
 | Localization gate              | `npm run check:l10n`                      |
 | Host API record (D60)          | `npm run check:host-api` (`-- --write`)   |
 | Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo`  |

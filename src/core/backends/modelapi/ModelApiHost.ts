@@ -5821,6 +5821,7 @@ export class ModelApiSession implements AgentSession {
     turnSignal: AbortSignal,
     isAllowed: CallAdmission,
     admission: Admission,
+    isInteractiveShell: boolean,
   ): Promise<Performed> {
     this.noteProcessRan()
     const stop = new AbortController()
@@ -5840,6 +5841,7 @@ export class ModelApiSession implements AgentSession {
         platform: this.deps.platform,
         io: this.deps.io,
         shellCwd: tracking.cwd,
+        isInteractiveShell,
         signal: stop.signal,
         limit,
         seen: this.seenFiles,
@@ -7164,6 +7166,7 @@ export class ModelApiSession implements AgentSession {
     isAllowed: CallAdmission,
     admission: Admission,
     turnId: string,
+    isInteractiveShell: boolean,
     childGrant?: ChildTaskGrant,
     approvedTarget?: { readonly absolute: string; readonly checkedAbsolute: string },
     approvedImagePlan?: ImagePlan,
@@ -7215,7 +7218,14 @@ export class ModelApiSession implements AgentSession {
         return { outcome: this.runGoal(call) }
       }
       case shellToolFor(this.deps.platform).name: {
-        return await this.runShellCall(itemId, call, signal, isAllowed, admission)
+        return await this.runShellCall(
+          itemId,
+          call,
+          signal,
+          isAllowed,
+          admission,
+          isInteractiveShell,
+        )
       }
       case VERIFY_TOOLS.runChecks: {
         return await this.runChecksCall(itemId, call, signal, isAllowed)
@@ -8645,6 +8655,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     goalCommandRevision: number,
     slot: AdmissionSlot,
+    isInteractiveShell: boolean,
     shouldForceApproval = false,
   ): Promise<CallResult> {
     // The Reviewer only reads (M70): a tool it names that is not one of its
@@ -8878,6 +8889,7 @@ export class ModelApiSession implements AgentSession {
         isAllowed,
         admission,
         turnId,
+        isInteractiveShell,
         childGrant,
         target?.ok === true ? target : undefined,
         approvedImagePlan,
@@ -9236,6 +9248,15 @@ export class ModelApiSession implements AgentSession {
     goalCommandRevision: number,
     correctionsUsed = 0,
   ): Promise<HookToolResult> {
+    // D89.5: capture the command's origin before any hook, approval or directory
+    // wait. Native entry rechecks the captured owner's isAllowed admission;
+    // a later turn or an idle session cannot grant this command pass-through.
+    const origin = this.active
+    const isInteractiveShell =
+      !this.isSubagent &&
+      !this.isSideChat &&
+      origin?.turnId === turnId &&
+      origin.confirmedRequest === undefined
     const itemId = this.deps.newId()
     const startedAt = this.deps.now()
     // A BeforeToolSelection hook took this tool away for the turn: the call is
@@ -9306,6 +9327,7 @@ export class ModelApiSession implements AgentSession {
               signal,
               goalCommandRevision,
               slot,
+              isInteractiveShell,
               pre.forceApproval,
             )
           : { outcome: toolFailure(pre.blockedReason), isRejected: true }
@@ -9589,6 +9611,7 @@ export class ModelApiSession implements AgentSession {
         stop.signal,
         undefined,
         this.userShellAdmission(stop),
+        !this.isSubagent && !this.isSideChat,
       )
     } catch (error: unknown) {
       result = {

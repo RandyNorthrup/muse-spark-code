@@ -26,6 +26,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import { renderPackageReadme } from './check-badges.mjs'
 
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
@@ -35,6 +36,7 @@ const BUNDLES = [
   'foreignHooks.js',
   'hookRuntime.js',
   'recorder.js',
+  'reference.js',
   'uiText.js',
   'uiTextRuntime.js',
   'uiTextHooks.js',
@@ -110,7 +112,10 @@ cpSync('l10n', path.join(STAGE, 'l10n'), {
   filter: (source) => !source.endsWith('untranslated.json'),
 })
 copyFileSync('LICENSE', path.join(STAGE, 'LICENSE'))
-copyFileSync(README, path.join(STAGE, 'README.md'))
+writeFileSync(
+  path.join(STAGE, 'README.md'),
+  renderPackageReadme(readFileSync(README, 'utf8'), manifest.version),
+)
 execFileSync(
   process.execPath,
   ['scripts/third-party-notices.mjs', '--acp', path.join(STAGE, NOTICES)],
@@ -152,6 +157,9 @@ const agentManifest = {
   dependencies: { [NATIVE_DEPENDENCY]: keyringVersion },
 }
 writeFileSync(path.join(STAGE, 'package.json'), `${JSON.stringify(agentManifest, null, 2)}\n`)
+execFileSync(process.execPath, ['scripts/check-badges.mjs', '--packaged-acp', STAGE], {
+  stdio: 'inherit',
+})
 
 const packed = execFileSync('npm', ['pack', '--pack-destination', '..'], {
   cwd: path.resolve(STAGE),

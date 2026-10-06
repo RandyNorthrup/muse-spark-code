@@ -234,6 +234,8 @@ export interface ToolIo {
     signal?: AbortSignal,
     limit?: ShellTimeLimit,
     assertCanRun?: () => void,
+    /** D89.5: only an interactive top-level shell may use named credential pass-through. */
+    isInteractive?: boolean,
   ): Promise<ShellResult>
   /** An explicitly enabled M51 hook, with JSON stdin and a cleared environment. */
   runHook?(
@@ -325,6 +327,7 @@ export interface TurnEnd {
 }
 
 export interface ToolContext {
+  readonly isInteractiveShell?: boolean
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   /**
@@ -1520,6 +1523,7 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
     context.signal,
     context.limit,
     context.assertCanRun,
+    context.isInteractiveShell === true,
   )
   return shellOutcome(result, timeoutMs)
 }

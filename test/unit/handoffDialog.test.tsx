@@ -80,9 +80,9 @@ function modalRoots() {
 }
 
 /** Opens a modal through the palette, as a user does. */
-function openFromPalette(command: string) {
+async function openFromPalette(command: string) {
   fireEvent.click(screen.getByLabelText('Commands'))
-  const filter = screen.getByRole('combobox')
+  const filter = await screen.findByRole('combobox')
   fireEvent.change(filter, { target: { value: command } })
   fireEvent.keyDown(filter, { key: 'Enter' })
 }
@@ -139,13 +139,13 @@ describe('/handoff (M74)', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'requestHandoff', requestId: REQUEST_ID })
   })
 
-  it('shows the brief and the open items it seeds before anything starts; Start sends the edited brief back', () => {
+  it('shows the brief and the open items it seeds before anything starts; Start sends the edited brief back', async () => {
     const postMessage = renderPanel()
     submit('/handoff Ship it')
     admit()
     expect(screen.queryByRole('dialog')).toBeNull()
     deliver({ ...READY, goal: 'Ship it', todos: ['Ship it', 'Tell the team'] })
-    const dialog = screen.getByRole('dialog')
+    const dialog = await screen.findByRole('dialog', { name: UI_TEXT.handoffDialogTitle })
     expect(dialog).toHaveTextContent(UI_TEXT.handoffDialogBody)
     expect(dialog).toHaveTextContent(fill(UI_TEXT.handoffRequestCardWithGoal, { goal: 'Ship it' }))
     expect(dialogText().value).toBe(BRIEF)
@@ -223,7 +223,7 @@ describe('/handoff (M74)', () => {
       const postMessage = renderPanel()
       submitCommand('/handoff')
       admit()
-      openFromPalette(command)
+      await openFromPalette(command)
       const open = await screen.findByRole('dialog', { name: title })
       deliver(READY)
       // The open dialog keeps the screen and the focus; the brief's dialog,
@@ -277,7 +277,7 @@ describe('/handoff (M74)', () => {
 
   it.each(['before', 'after'])(
     'keeps the handoff waiting when a share opens %s its brief, restoring focus on close (M84)',
-    (when) => {
+    async (when) => {
       const postMessage = renderPanel()
       submitCommand('/handoff')
       admit()
@@ -297,7 +297,7 @@ describe('/handoff (M74)', () => {
       if (when === 'before') {
         deliver(READY)
       }
-      const share = screen.getByRole('dialog', { name: 'Shared conversation' })
+      const share = await screen.findByRole('dialog', { name: 'Shared conversation' })
       expect(modalRoots()).toEqual([share])
       expect(share.contains(document.activeElement)).toBe(true)
       expect(screen.queryByRole('button', { name: UI_TEXT.handoffConfirm })).toBeNull()

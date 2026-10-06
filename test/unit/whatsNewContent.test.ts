@@ -333,7 +333,31 @@ describe('bounded lossless What’s New artifact', () => {
     const plain = JSON.stringify({ schema: 1, releases })
     const encoded = encodeWhatsNewContent(plain)
     expect(Buffer.byteLength(encoded)).toBeLessThanOrEqual(40 * 1024)
+    // Small notes ship as written; only notes over the cap are packed.
+    if (Buffer.byteLength(plain) > 40 * 1024) {
+      expect(JSON.parse(encoded)).toHaveProperty('encoding', 'br')
+    } else {
+      expect(encoded).toBe(plain)
+    }
+    expect(parseWhatsNewContent(encoded)).toEqual(JSON.parse(plain))
+  })
+
+  it('packs real release notes that exceed the cap and decodes them losslessly', () => {
+    const changelog = readFileSync(path.resolve(import.meta.dirname, '../../CHANGELOG.md'), 'utf8')
+    const all = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
+    // The smallest leading run of real releases whose JSON exceeds the 40 KiB cap.
+    let count = 1
+    while (
+      count < all.length &&
+      Buffer.byteLength(JSON.stringify({ schema: 1, releases: all.slice(0, count) })) <= 40 * 1024
+    ) {
+      count += 1
+    }
+    const plain = JSON.stringify({ schema: 1, releases: all.slice(0, count) })
+    expect(Buffer.byteLength(plain)).toBeGreaterThan(40 * 1024)
+    const encoded = encodeWhatsNewContent(plain)
     expect(JSON.parse(encoded)).toHaveProperty('encoding', 'br')
+    expect(Buffer.byteLength(encoded)).toBeLessThanOrEqual(40 * 1024)
     expect(parseWhatsNewContent(encoded)).toEqual(JSON.parse(plain))
   })
 

@@ -83,7 +83,11 @@ import {
   PLUGIN_HOOKS_ONLY,
   checkDeferredBundles,
 } from './lib/deferredBundles.mjs'
-import { DEFERRED_WEBVIEW_SURFACES, webviewStartupOutputs } from './lib/webviewBundles.mjs'
+import {
+  ADDITIONAL_WEBVIEW_BUDGETS,
+  DEFERRED_WEBVIEW_SURFACES,
+  webviewStartupOutputs,
+} from './lib/webviewBundles.mjs'
 import { UI_TEXT_REGIONS } from './lib/uiTextRegions.mjs'
 
 const MODEL_API_DIR = 'src/core/backends/modelapi'
@@ -875,6 +879,13 @@ for (const key of modelTextKeys) {
 // emitted JS chunk must be reachable and packaged; stale output is refused.
 const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
 const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
+for (const file of eagerWebview) {
+  const sources = Object.keys(webviewMeta.outputs[file].inputs)
+  for (const source of sources) {
+    if (source.startsWith('node_modules/highlight.js/'))
+      problems.push(`highlight.js must stay deferred: ${source}`)
+  }
+}
 const reachableWebview = new Set()
 const visitWebview = (file) => {
   if (reachableWebview.has(file)) return
@@ -887,8 +898,12 @@ const visitWebview = (file) => {
   for (const imported of output.imports) if (!imported.external) visitWebview(imported.path)
 }
 visitWebview('dist/webview/main.js')
-for (const surface of DEFERRED_WEBVIEW_SURFACES) {
-  const source = `src/webview/components/${surface}.tsx`
+const deferredWebviewSources = [
+  ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
+  ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
+  'src/webview/highlightRuntime.ts',
+]
+for (const source of deferredWebviewSources) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
     Object.hasOwn(output.inputs, source),
   )
@@ -903,9 +918,7 @@ for (const [file, output] of Object.entries(webviewMeta.outputs)) {
   if (
     output.entryPoint &&
     output.entryPoint !== 'src/webview/main.tsx' &&
-    DEFERRED_WEBVIEW_SURFACES.every(
-      (name) => output.entryPoint !== `src/webview/components/${name}.tsx`,
-    )
+    !deferredWebviewSources.includes(output.entryPoint)
   ) {
     problems.push(`Unlisted deferred webview surface ${output.entryPoint}`)
   }
@@ -916,13 +929,37 @@ for (const file of builtChunks) {
   if (!reachableWebview.has(`${chunks}/${file}`)) problems.push(`Stale webview chunk ${file}`)
 }
 
+// HELPREF: the page/data stay lazy and share the caller's React and language.
+const referencePage = JSON.parse(readFileSync('dist/meta/referencePage.json', 'utf8'))
+if (!referencePage.inputs['src/webview/components/ReferencePage.tsx'])
+  problems.push('Reference page is missing from its own entry')
+for (const source of Object.keys(referencePage.inputs)) {
+  if (source === 'src/shared/l10n/en.ts' || source.includes('node_modules/react/'))
+    problems.push(`Reference page duplicates runtime: ${source}`)
+}
+for (const file of webviewStartupOutputs(webviewMeta)) {
+  if (
+    Object.keys(webviewMeta.outputs[file].inputs).some(
+      (source) =>
+        source === 'src/webview/components/ReferencePage.tsx' ||
+        source === 'src/shared/reference/reference.generated.ts',
+    )
+  )
+    problems.push('Reference page or data entered chat startup')
+}
+
 // TRAIN13B: Node consumers share exactly the mini-parser API they read.
 const validationMeta = JSON.parse(readFileSync('dist/meta/validation.json', 'utf8'))
 const validationExports = new Set(
   Object.keys(createRequire(import.meta.url)(path.resolve('dist/validation.js'))),
 )
 const nodeMetafiles = readdirSync('dist/meta')
-  .filter((name) => !['validation.json', 'webview.json', 'whatsNewPage.json'].includes(name))
+  .filter(
+    (name) =>
+      !['validation.json', 'webview.json', 'whatsNewPage.json', 'referencePage.json'].includes(
+        name,
+      ),
+  )
   .map((name) => `dist/meta/${name}`)
 nodeMetafiles.push('dist/meta-acp/acp.json')
 const validationReaders = new Set()
@@ -1035,7 +1072,7 @@ console.log(
   `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
-console.log('ok   webview: Git and Account & usage each load only in their deferred chunk')
+console.log('ok   webview: optional surfaces and highlighting load only in guarded deferred chunks')
 console.log(
   `ok   ${CONVERSATION_GIT.output}: carries the Git adapter and the window's ${String(GIT_ONLY.length - 2)} git and pull request files; activation keeps its checked loader`,
 )

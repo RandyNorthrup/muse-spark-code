@@ -5,6 +5,7 @@
 // take the same steps with their own names and compiler options.
 
 import { execFile } from 'node:child_process'
+import { withoutCredentials } from '../../core/credentialEnvironment'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -91,7 +92,7 @@ export async function compileJob(
         `/out:${output}`,
         source,
       ],
-      process.env,
+      withoutCredentials(process.env),
     )
     try {
       await rename(output, target)

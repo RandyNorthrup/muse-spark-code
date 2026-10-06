@@ -80,6 +80,7 @@ export type PaletteAction =
   | { readonly type: 'openReport' }
   /** "What's New" (M99): the release notes of this version in an editor tab. */
   | { readonly type: 'showWhatsNew' }
+  | { readonly type: 'openHelp' }
   | { readonly type: 'openExternal'; readonly url: string }
   | { readonly type: 'setPaidFeature'; readonly feature: PaidFeature; readonly isOn: boolean }
   /** `/review ` in the prompt, for what to review (M70). */
@@ -417,16 +418,18 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
       },
     ]
   }
-  return skills.map((skill) => ({
-    id: `skill:${skill.selector}`,
-    label: `/${skill.selector}`,
-    tip: skill.description.trim() || fill(UI_TEXT.paletteSkillTip, { name: skill.displayName }),
-    detail:
-      skill.argumentHint === undefined
-        ? skill.description
-        : `${skill.description} — ${skill.argumentHint}`,
-    action: { type: 'insertSkill', selector: skill.selector },
-  }))
+  return skills
+    .filter((skill) => skill.selector !== SLASH_COMMAND_NAMES.help)
+    .map((skill) => ({
+      id: `skill:${skill.selector}`,
+      label: `/${skill.selector}`,
+      tip: skill.description.trim() || fill(UI_TEXT.paletteSkillTip, { name: skill.displayName }),
+      detail:
+        skill.argumentHint === undefined
+          ? skill.description
+          : `${skill.description} — ${skill.argumentHint}`,
+      action: { type: 'insertSkill', selector: skill.selector },
+    }))
 }
 
 export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
@@ -690,6 +693,14 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       id: 'support',
       title: UI_TEXT.groupSupport,
       items: [
+        {
+          id: 'help',
+          label: UI_TEXT.helpReferenceTitle,
+          slashName: SLASH_COMMAND_NAMES.help,
+          detail: UI_TEXT.referenceIntro,
+          tip: UI_TEXT.referenceIntro,
+          action: { type: 'openHelp' },
+        },
         { id: 'log', label: UI_TEXT.openLog, action: { type: 'openLog' } },
         { id: 'whatsNew', label: UI_TEXT.whatsNewOpen, action: { type: 'showWhatsNew' } },
         { id: 'issue', label: UI_TEXT.reportIssue, action: { type: 'openReport' } },

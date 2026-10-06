@@ -588,7 +588,10 @@ describe('the ACP agent (M63)', () => {
     })
     expect(response).toEqual({ stopReason: 'end_turn' })
     expect(h.updates).toEqual([
-      { sessionUpdate: 'available_commands_update', availableCommands: [] },
+      {
+        sessionUpdate: 'available_commands_update',
+        availableCommands: [{ name: 'help', description: UI_TEXT.referenceIntro, input: null }],
+      },
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Hel' } },
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'lo' } },
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: '!' } },
@@ -597,6 +600,62 @@ describe('the ACP agent (M63)', () => {
         entries: [{ content: 'Write tests', priority: 'medium', status: 'in_progress' }],
       },
     ])
+  })
+
+  it('answers /help locally with the companion reference and no model turn', async () => {
+    const h = harness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(
+        await client.request('session/prompt', {
+          sessionId,
+          prompt: [{ type: 'text', text: '/help' }],
+        }),
+      ).toEqual({ stopReason: 'end_turn' })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+    expect(h.updates).toContainEqual({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: expect.stringContaining('docs/reference.md') },
+    })
+    expect(h.permissions).toHaveLength(0)
+  })
+
+  it('R17 refreshes installed skills before the first local help reply', async () => {
+    const h = harness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const session = h.host.sessions[0]
+      if (session === undefined) throw new Error('missing fake session')
+      session.skills = [
+        {
+          selector: 'audit-skill',
+          displayName: 'Audit',
+          description: 'Audit the project',
+          argumentHint: undefined,
+        },
+      ]
+      await client.request('session/prompt', {
+        sessionId,
+        prompt: [{ type: 'text', text: '/help' }],
+      })
+      expect(session.listSkills).toHaveBeenCalledTimes(1)
+      expect(session.sendTurn).not.toHaveBeenCalled()
+    })
+    expect(h.updates).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: expect.stringContaining('/audit-skill') },
+      }),
+    )
+    expect(h.updates).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: 'available_commands_update',
+        availableCommands: expect.arrayContaining([
+          expect.objectContaining({ name: 'audit-skill' }),
+        ]),
+      }),
+    )
   })
 
   it('announces skills as commands and runs /selector as the skill', async () => {
@@ -619,7 +678,10 @@ describe('the ACP agent (M63)', () => {
     })
     expect(h.updates[0]).toEqual({
       sessionUpdate: 'available_commands_update',
-      availableCommands: [{ name: 'review', description: 'Review', input: { hint: '<path>' } }],
+      availableCommands: [
+        { name: 'help', description: UI_TEXT.referenceIntro, input: null },
+        { name: 'review', description: 'Review', input: { hint: '<path>' } },
+      ],
     })
     expect(h.host.sessions[0]?.sendTurn).toHaveBeenCalledWith(
       [{ type: 'skill', selector: 'review', arguments: 'src/app.ts' }],

@@ -12,6 +12,11 @@ const held = vi.hoisted(() => ({
   usage: Promise.withResolvers<undefined>(),
   gitLoads: 0,
   usageLoads: 0,
+  share: Promise.withResolvers<undefined>(),
+  shareLoads: 0,
+  handoffLoads: 0,
+  secretLoads: 0,
+  boardLoads: 0,
 }))
 
 vi.mock('../../src/webview/components/GitPanel', async (original) => {
@@ -22,6 +27,24 @@ vi.mock('../../src/webview/components/GitPanel', async (original) => {
 vi.mock('../../src/webview/components/UsageDialog', async (original) => {
   held.usageLoads += 1
   await held.usage.promise
+  return await original()
+})
+
+vi.mock('../../src/webview/components/ShareView', async (original) => {
+  held.shareLoads += 1
+  await held.share.promise
+  return await original()
+})
+vi.mock('../../src/webview/components/HandoffDialog', async (original) => {
+  held.handoffLoads += 1
+  return await original()
+})
+vi.mock('../../src/webview/components/SecretPromptDialog', async (original) => {
+  held.secretLoads += 1
+  return await original()
+})
+vi.mock('../../src/webview/components/SessionBoardDialog', async (original) => {
+  held.boardLoads += 1
   return await original()
 })
 
@@ -44,6 +67,10 @@ describe('App while its deferred panels load', () => {
     expect(screen.getByLabelText('Message Muse')).toBeInTheDocument()
     expect(held.gitLoads).toBe(0)
     expect(held.usageLoads).toBe(0)
+    expect(held.shareLoads).toBe(0)
+    expect(held.handoffLoads).toBe(0)
+    expect(held.secretLoads).toBe(0)
+    expect(held.boardLoads).toBe(0)
 
     deliver({
       type: 'gitCommitForm',
@@ -70,7 +97,7 @@ describe('App while its deferred panels load', () => {
     })
 
     fireEvent.click(screen.getByLabelText('Commands'))
-    const filter = screen.getByRole('combobox')
+    const filter = await screen.findByRole('combobox')
     fireEvent.change(filter, { target: { value: '/usage' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     const loading = screen.getByRole('dialog', { name: EN.loadingOutput })
@@ -88,5 +115,42 @@ describe('App while its deferred panels load', () => {
       await held.usage.promise
     })
     expect(screen.queryByRole('dialog')).toBeNull()
+
+    const share: Extract<HostToWebviewMessage, { type: 'sharePreview' }> = {
+      type: 'sharePreview',
+      title: 'Old share',
+      exportedAt: '2026-09-28T12:00:00.000Z',
+      sourceBackend: 'modelApi',
+      modelId: 'muse-spark-1.3',
+      redacted: false,
+      items: [{ itemId: 'u', kind: 'userMessage', status: 'completed', text: 'Old text' }],
+    }
+    deliver(share)
+    await waitFor(() => {
+      expect(held.shareLoads).toBe(1)
+    })
+    expect(screen.getByRole('main')).toHaveAttribute('inert')
+    const latest: typeof share = {
+      ...share,
+      title: 'Latest share',
+      items: [{ itemId: 'u', kind: 'userMessage', status: 'completed', text: 'Latest text' }],
+    }
+    deliver(latest)
+    const loadingShare = screen.getByRole('dialog', { name: EN.loadingOutput })
+    fireEvent.keyDown(within(loadingShare).getByLabelText('Close'), { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByLabelText('Message Muse'))
+    setUiText({ ...EN, shareReadOnly: 'Installed read-only label' }, 'en')
+    await act(async () => {
+      held.share.resolve(undefined)
+      await held.share.promise
+    })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    deliver(latest)
+    const loaded = await screen.findByRole('dialog', { name: 'Latest share' })
+    expect(loaded).toHaveTextContent('Latest text')
+    expect(loaded).toHaveTextContent('Installed read-only label')
+    expect(loaded).not.toHaveTextContent('Old text')
+    expect(held.shareLoads).toBe(1)
   })
 })

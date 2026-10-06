@@ -4,10 +4,12 @@
 // Loads the actual Node bundles; no editor, credential read or model call.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { runInNewContext } from 'node:vm'
+import { z } from 'zod'
+import { loadL10n } from './lib/l10nSource.mjs'
 
 const packageRoot = process.argv[2]
 assert.ok(packageRoot, 'pass the ACP package installed from its tarball')
@@ -55,13 +57,28 @@ loadBundle(path.resolve('dist/review.js'), 'createReviewFeatures')
 loadBundle(path.resolve(packageRoot, 'dist/modelApi.js'), 'createModelApiHost')
 const agent = path.resolve(packageRoot, 'dist/acp.js')
 const table = createRequire(agent)('./uiText.js').EN
+const { ACP_AGENT_NAME, formatAcpUsage } = await loadL10n(process.cwd())
+const usageTable = z.object({ acpUsage: z.string(), helpReferenceTitle: z.string() })
 // --help takes no backend or credential-store action. An English locale
 // variable, because with none the agent takes the runtime's own locale.
-const help = execFileSync(process.execPath, [agent, '--help'], {
-  encoding: 'utf8',
-  env: { LC_ALL: 'en_US.UTF-8' },
-})
-assert.equal(help.trim(), table.acpUsage.replaceAll('{command}', 'muse-spark-code-acp').trim())
+function checkUsage(table, locale) {
+  const help = execFileSync(process.execPath, [agent, '--help'], {
+    encoding: 'utf8',
+    env: { LC_ALL: locale },
+  })
+  assert.equal(help.trim(), formatAcpUsage(usageTable.parse(table), ACP_AGENT_NAME).trim(), locale)
+}
+checkUsage(table, 'en_US.UTF-8')
+const tables = readdirSync(path.join(packageRoot, 'l10n'))
+  .filter((file) => /^ui\.[\w-]+\.json$/.test(file))
+  .toSorted((a, b) => a.localeCompare(b))
+assert.ok(tables.length > 0, 'the installed ACP package has no translated tables')
+for (const file of tables) {
+  checkUsage(
+    JSON.parse(readFileSync(path.join(packageRoot, 'l10n', file), 'utf8')),
+    file.slice('ui.'.length, -'.json'.length),
+  )
+}
 console.log(
-  'ok   extension, Model API, review and installed ACP tarball load the shared English fallback',
+  `ok   extension, Model API, review and installed ACP tarball load the shared English fallback; complete ACP help matches English and ${tables.length} installed languages`,
 )

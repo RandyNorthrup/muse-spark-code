@@ -17,6 +17,9 @@
     "src/extension.ts",
     "src/host/conversation/conversationEntry.ts",
     "src/shared/validationEntry.ts",
+    // Help data: separate lazy runtime and generator build entries.
+    "src/shared/reference/referenceEntry.ts",
+    "src/shared/reference/referenceSource.ts",
     "src/shared/wireEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
@@ -66,6 +69,8 @@
     "src/runtime/main.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     "test/e2e/**/*.test.ts",
+    // DIET1 production browser smoke, invoked directly as documented in README.
+    "test/e2e/webviewDiet.mjs",
     "test/e2e/fake-muse/serve.mjs",
     // The fake stdio MCP server the M50 tests start as a child process.
     "test/unit/helpers/fakeMcpServer.mjs",

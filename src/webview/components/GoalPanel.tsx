@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // The session goal (M45, PLAN.md D38), pinned above the composer while the
 // conversation has one: the objective, its status in words, a progress bar,
 // what the agent is doing now and next, and Muse Code's verbs as buttons
@@ -76,7 +77,7 @@ function ObjectiveForm({
     }
   }
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== 'Escape') {
+    if (webviewKey('goal.edit', event) !== 'close') {
       return
     }
     // Escape closes the field, not the panel's menus behind it.
