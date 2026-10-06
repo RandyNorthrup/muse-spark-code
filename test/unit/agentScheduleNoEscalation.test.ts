@@ -70,7 +70,9 @@ describe('agent schedule grant intersection', () => {
         expect(intersection.bounded(grant([], requested), grant([], held)).paidCapUsd).toBe(
           Math.min(requested, held),
         )
-    for (const paidCapUsd of [-1, NaN, Infinity])
+    for (const paidCapUsd of [-1, NaN, Infinity]) {
       expect(() => intersection.bounded(grant([], paidCapUsd), grant([]))).toThrow()
+      expect(() => intersection.bounded(grant([]), grant([], paidCapUsd))).toThrow()
+    }
   })
 })

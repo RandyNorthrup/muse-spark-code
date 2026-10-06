@@ -9,9 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- Add M115's internal agent-grant intersection: schedules retain only the
-  creator's matching tools, commands, paths and report destinations, with
-  the smaller paid cap. Agent scheduling registration awaits the M115 lanes.
+- Add M115's internal agent scheduling tools and function/MCP adapters,
+  with creator attribution, conservative grant intersection, revisioned
+  orchestrator consent, active/frequency/paid caps, depth limits and owner
+  expiry with user pinning. Production registration and the shared admission,
+  grant, time and paid-ledger bindings await their M115 integration lanes.
 
 ### Fixed
 

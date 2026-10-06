@@ -546,6 +546,9 @@ const PATH_PROPERTY = { type: 'string', description: 'Workspace-relative path' }
 const SHELL_STOPPED_BY_USER = 'stopped by the user'
 
 export interface ToolDefinitionOptions {
+  /** M115 G: validated lazy schedule declarations, supplied only when the
+   * host's charter/capability admission offers them. No engine import here. */
+  readonly scheduleTools?: readonly FunctionToolDefinition[]
   /** False in Restricted Mode: no shell tool is offered (PLAN.md D13). */
   readonly hasShell: boolean
   /**
@@ -793,6 +796,7 @@ export function toolDefinitions(
           define(CODE_INTEL_TOOLS[tool.tool], tool.description, tool.properties, tool.required),
         )
       : []),
+    ...(options.scheduleTools ?? []),
   ]
 }
 

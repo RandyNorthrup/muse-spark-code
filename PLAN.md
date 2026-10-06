@@ -6863,6 +6863,11 @@ Expose validated function-tool and MCP adapters; the Model API declarations
 accept injected schedule tools without importing the lazy engine. X/W bind
 the runtime MCP registration and backend dispatcher after their engines land.
 M96/M110 supply trusted charters, target authorization and owner lifetimes.
+Remembered orchestrator policies carry a revision; an older open consent
+cannot overwrite a newer revocation or cap edit. Host-owned depth permission
+names the creating schedule: a depth-2 child's required schema flag is not
+a transferable permission for its own descendants. Ended jobs release active
+slots but retain paid allocations/liability for U's daily ledger.
 Model descriptions are injected for W's guarded lazy English text block;
 no new block is shipped without its declared readers. HELPREF is absent;
 W must register the three agent tools and their restrictions.
@@ -19008,6 +19013,14 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**M115-G bounded-lane gate delegation (2026-10-06).** The rig brief and
+`common.md` prohibit aggregate quality/full-suite runs in this worktree.
+G runs its owned suites, red drills, all five compiler projects, scoped
+lint/format, cycles, dead-code, duplication, localization, host API and
+production build here, with hooks enabled. W/lead retains full quality,
+coverage, accessibility and installed-editor/live certification on the
+integrated tree. No threshold, rule or ignore is changed.
 
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor
