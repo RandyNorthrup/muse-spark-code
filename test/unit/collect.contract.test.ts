@@ -28,6 +28,7 @@ function dependencies(): ReportCollectorDependencies {
     nextStepLimit: 3,
     selections: {
       changes: () => unavailableSource('changesRange'),
+      changeBranches: () => unavailableSource('changeBranches'),
       risksSinceRelease: () => unavailableSource('risksSinceRelease'),
     },
   }

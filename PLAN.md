@@ -30099,6 +30099,21 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M113-K-review-RVM113K (2026-10-06).** All seven P2 collector findings
+  are fixed, with no review residuals. Facts retain provenance; missing or
+  partial evidence cannot prove absence. Regression tests and twelve
+  byte-exact deliberate-break receipts are recorded in
+  `docs/certification/m113-k-kinds.md`. K's new required `changeBranches`
+  selector receives bounded, merge-base-aware lane membership before the
+  pure collector runs; it never guesses from tips or dates. S/W binds it
+  with historical fork evidence for merged lanes (M113-K-branch-membership).
+  This is safe until integration because current shipped entries do not
+  import the collectors and their factory requires this evidence port.
+  Existing M113-K-localization-manifest (seven unused report keys) and
+  M113-K-host-api-record (node:crypto 46 → 47) remain W's gate handoffs;
+  W wires the manifest and regenerates the inventory before full quality.
+  No threshold, ignore, dependency, wire shape or startup budget is changed.
+
 - **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
   finding is fixed with no review residuals. Capacity is derived from the
   actual document section schemas, including Needs you and both inputs'

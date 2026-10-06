@@ -6,6 +6,7 @@ describe('session collector', () => {
   it('reports observed zero files for a complete session with no edits', () => {
     const snapshot = fullSnapshot()
     const session = snapshot.sources.session.data!
+    const transcript = session.export.transcript.filter((item) => item.kind === 'user')
     const report = collectFixture(
       'session',
       {},
@@ -15,10 +16,7 @@ describe('session collector', () => {
           ...snapshot.sources,
           session: availableSource('session', {
             ...session,
-            export: {
-              ...session.export,
-              transcript: session.export.transcript.filter((item) => item.kind === 'user'),
-            },
+            export: { ...session.export, transcript },
           }),
         },
       },
@@ -37,18 +35,14 @@ describe('session collector', () => {
   it('keeps missing edit summaries and partial or unavailable sessions unknown', () => {
     const snapshot = fullSnapshot()
     const session = snapshot.sources.session.data!
-    for (const transcript of [
-      [],
-      [
-        {
-          itemId: 'edit-missing',
-          kind: 'toolCall' as const,
-          status: 'completed' as const,
-          tool: 'edit_file',
-          args: '{"path":"src/app.ts"}',
-        },
-      ],
-    ]) {
+    const missingEdit = {
+      itemId: 'edit-missing',
+      kind: 'toolCall' as const,
+      status: 'completed' as const,
+      tool: 'edit_file',
+      args: '{"path":"src/app.ts"}',
+    }
+    for (const transcript of [[], [missingEdit], [...session.export.transcript, missingEdit]]) {
       const source = availableSource('session', {
         ...session,
         export: { ...session.export, transcript },

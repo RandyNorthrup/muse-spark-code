@@ -159,6 +159,7 @@ describe('project report collector', () => {
       nextStepLimit: 3,
       selections: {
         changes: () => unavailableSource('changesRange', 'No ancestry evidence'),
+        changeBranches: () => unavailableSource('changeBranches', 'No branch ancestry evidence'),
         risksSinceRelease: () => unavailableSource('risksSinceRelease', 'No revision evidence'),
       },
     })(

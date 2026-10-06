@@ -24,6 +24,17 @@ import { usageSections } from './usage'
 // a bounded ancestry range and plan revision evidence, never timestamp guesses.
 export interface ReportSelectionPorts {
   changes(snapshot: SourceSnapshot, options: ReportOptions): SourceResult<GitFacts['commits']>
+  // S/W supplies bounded lane reachability, excluding shared pre-fork history.
+  // A tip equality or a commit timestamp cannot establish this membership.
+  changeBranches(
+    snapshot: SourceSnapshot,
+    options: ReportOptions,
+  ): SourceResult<
+    readonly {
+      readonly commit: string
+      readonly branches: readonly string[]
+    }[]
+  >
   risksSinceRelease(snapshot: SourceSnapshot): SourceResult<Pick<PlanFacts, 'risks' | 'residuals'>>
 }
 
@@ -469,6 +480,7 @@ export function collectChanges(
   selections: ReportSelectionPorts,
 ): { sections: ReportSection[]; sources: ReportSourceRecord[] } {
   const selected = selections.changes(snapshot, options)
+  const membership = selections.changeBranches(snapshot, options)
   const changelog = snapshot.sources.changelog
   const files = new Map<string, Set<string>>()
   const commits = selected.data ?? []
@@ -489,14 +501,13 @@ export function collectChanges(
         'commits',
         ['milestones', 'commit', 'date', 'name'],
         selected.data?.map((commit) => {
-          const branches =
-            snapshot.sources.git.data?.branches
-              .filter((branch) => branch.commit === commit.sha)
-              .map((branch) => branch.name) ?? []
+          const branches = membership.data?.find((entry) => entry.commit === commit.sha)?.branches
+          const hasUnresolvedMembership =
+            branches === undefined || (branches.length === 0 && membership.record.status !== 'ok')
           const milestones = [
             ...commit.subject.matchAll(/\bM\d+[a-z]*\d*\b/gi),
-            ...branches.join(' ').matchAll(/(?:feature\/|\b)m\d+[a-z]*\d*/gi),
-          ].map((match) => match[0].replace(/^feature\//, '').toUpperCase())
+            ...(branches ?? []).join(' ').matchAll(/(?:feature\/|\b)m\d+[a-z]*\d*/gi),
+          ].map((match) => match[0].replace(/^feature\//i, '').toUpperCase())
           return row(
             key('commit-group', milestones.toSorted(compare)[0] ?? 'unknown'),
             [commit.sha],
@@ -505,12 +516,18 @@ export function collectChanges(
               commit: text(commit.sha),
               date: { type: 'timestamp', value: commit.at },
               name: text(commit.subject),
+              status: label(hasUnresolvedMembership ? 'unknown' : 'ok'),
+              reason: text(
+                hasUnresolvedMembership
+                  ? (membership.record.reason ?? 'branchMembership=undefined')
+                  : '',
+              ),
             },
-            [selected.record.id],
+            [selected.record.id, membership.record.id],
           )
         }) ?? [],
         [],
-        [selected.record],
+        [selected.record, membership.record],
       ),
       sourcedSection(
         snapshot,
@@ -546,6 +563,6 @@ export function collectChanges(
       ),
       pullRequests(snapshot, options, true),
     ],
-    sources: [selected.record],
+    sources: [selected.record, membership.record],
   }
 }

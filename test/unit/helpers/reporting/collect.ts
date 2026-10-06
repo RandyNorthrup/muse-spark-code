@@ -36,6 +36,17 @@ export const fixtureCollector = createReportCollector({
       snapshot.sources.git.data === null
         ? unavailableSource('changesRange', 'No range evidence')
         : availableSource('changesRange', snapshot.sources.git.data.commits),
+    changeBranches: (snapshot) =>
+      snapshot.sources.git.data === null
+        ? unavailableSource('changeBranches', 'No branch ancestry evidence')
+        : availableSource(
+            'changeBranches',
+            snapshot.sources.git.data.commits.map((commit) => ({
+              commit: commit.sha,
+              // Synthetic fixture membership, not an ancestry inference from tips.
+              branches: commit.sha === 'head' ? ['m12/k'] : [],
+            })),
+          ),
     risksSinceRelease: (snapshot) =>
       snapshot.sources.plan.data === null
         ? unavailableSource('risksSinceRelease', 'No revision evidence')

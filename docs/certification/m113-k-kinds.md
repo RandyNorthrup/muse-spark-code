@@ -17,7 +17,8 @@ The collector factory returns lane 0's `(snapshot, options) => ReportDocument`
 signature. Its injected finalizer owns output scrubbing and content hashing
 (R); K never manufactures a content hash. Its next-step limit is supplied
 by W from constants.ts (D93's three). Pure selection ports carry ancestry
-filtered commits (S) and risks/residuals added since the last release (P/S).
+filtered commits and per-commit lane-branch membership (S), and risks/residuals
+added since the last release (P/S).
 The frozen GitFacts has no ancestry graph, and PlanFacts has no revision
 dates for risks; absent selectors produce explicit unavailable records.
 Existing source ports carry M102/M112 and later milestone facts. No
@@ -65,7 +66,8 @@ limit. Unmerged or unknown needs never count as complete. Keys carry the plan's
 declared priority, rather than the filtered display position, so completing an
 earlier entry does not rename the surviving facts. Changing the plan's declared
 priority intentionally changes that key; the frozen schema permits only `key`
-as a sort field. All other keys encode the fact's identity, never its row index.
+as a sort field. Other keys encode the fact's identity. Repeated checklist text
+uses a canonical per-text occurrence ordinal because the plan supplies no item id.
 
 Session turns and approvals use the actual captured activity facts, independently
 of transcript message/tool counts. Legacy unavailable activity stays unknown
@@ -254,3 +256,108 @@ ESLint passes with zero warnings; no suppressions or casts are added.
 Changed-file lint, final typecheck/static/build results and ancestry receipts
 follow with the completed review record. Documentation/manifest/catalogue
 registration remains W's existing ownership: K adds no command or setting.
+
+## RVM113K corrections — completion
+
+All seven P2s are fixed within the owned collectors. **No review finding is
+left as a residual.** F7 replaces branch-tip equality with required,
+source-backed `ReportSelectionPorts.changeBranches(snapshot, options)` facts:
+per selected commit, the lane branches whose bounded ancestry includes it
+after the fork. The frozen GitFacts is unchanged. S/W builds this evidence
+before collection, including historical fork boundaries for merged lanes;
+the collector performs no Git/FS/network reads and has no tip fallback.
+
+`collect.changes.test.ts` builds one real private Git fixture in beforeAll.
+Its two no-milestone-subject M113 commits, sibling M114 branch and common
+base establish membership through `merge-base` and `rev-list`. Both M113
+commits are grouped correctly; shared pre-fork history and the sibling do
+not become M113. Provenance names both the commit-range and membership
+sources; reversing commits/membership rows is byte-identical. A missing
+source or missing entry is unknown. An empty entry from a partial scan is
+also unknown; only complete observed emptiness establishes absence.
+Partial/unavailable source reasons appear inside the commits section.
+
+| Finding                                        | Status | Regression                                                                                           | Red drill                                                                                                   |
+| ---------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| F7 earlier lane commits ungrouped              | Fixed  | `groups earlier lane commits by merge-base reachability without assigning shared or sibling history` | F7-reachability restores the old tip-only match.                                                            |
+| F7 missing/partial membership as empty success | Fixed  | `distinguishes missing branch membership from an observed empty membership`                          | F7-unknown forces ok; F7-partial trusts a partial empty scan; F7-source removes the unavailable-source row. |
+
+The before-fix whole changes file fails both named regressions (four old
+tests pass). F7's four deliberate-break runs use the whole file and restore
+SHA-256-exact bytes; logs and receipts are under ignored
+`temp/m113-k-fix/`, alongside the first piece's eight successful drills.
+The session regression additionally covers an observed edit followed by a
+missing summary, refusing a falsely complete nonzero count. The duplication
+gate caught repeated fixture setup in this test; extracting the transcript
+input removed the clone without an ignore or threshold change.
+
+**M113-K-branch-membership handoff (S/W).** Bind the new required selection
+port to bounded ancestry evidence, never to tips or dates. Missing evidence
+must be partial/unavailable with its failures; a complete entry may contain
+an observed empty branch list. Safe until integration: collectors do not
+ship in current entries, and runtime dependencies cannot instantiate the
+collector without this port. This extends M113-K-changes-range, rather than
+silently claiming that frozen branch-tip facts contain ancestry.
+
+README/CHANGELOG/catalogue and all editor wiring remain the existing
+M113-K-reference-docs / M113-K-lazy-engine handoffs. Suggested Unreleased
+line for W: deterministic report collectors preserve partial-source reasons,
+GitHub-only release evidence, repeated checklist rows, complete zero-edit
+session counts, canonical milestone ids and ancestry-based commit groups.
+
+Final verification receipts follow below; all commands run directly on Kubuntu.
+
+F7's four restored-source hashes agree:
+`src/core/reporting/collect/repository.ts` SHA-256
+`8b36b4353a8197af648f34337fc603688763ce602c0a9b19bd19d9fe77a0bce3`.
+Each run exits 1 at its named regression; machine-readable proof is
+`temp/m113-k-fix/drill-receipts-2.json`. The eight first-piece guard receipts
+and this four-guard proof total **twelve distinct successful red drills**.
+
+### Review's final test matrix
+
+Every run uses `npx --no-install vitest run <files> --maxWorkers=3`, entire
+files, no timeout override, no skip/filter. Four sequential batches:
+
+| Owned/affected files under `test/unit/`                                             | Result    |
+| ----------------------------------------------------------------------------------- | --------- |
+| `collect.contract.test.ts`, `collect.determinism.test.ts`, `collect.facets.test.ts` | 69 passed |
+| `collect.project.test.ts`, `collect.milestone.test.ts`, `collect.release.test.ts`   | 28 passed |
+| `collect.changes.test.ts`, `collect.session.test.ts`, `collect.usage.test.ts`       | 13 passed |
+| `collect.quality.test.ts`, `DiffTallyRow.test.tsx`, `diffTally.test.ts`             | 24 passed |
+
+**134 tests passed**, no skips. Logs: ignored
+`temp/m113-k-fix/final-tests-{1,2,3,4}.log` (2026-10-06 14:39 Pacific).
+The real ancestry fixture and the determinism subprocess bundle each build
+once in beforeAll and fit the repository's default hook/test deadlines.
+
+### Review's final gates
+
+| Check                                                     | Result                                                                                                                                      |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                       | Exit 0, all five projects.                                                                                                                  |
+| Changed-file `npx --no-install eslint … --max-warnings=0` | Exit 0, zero warnings; all changed collectors/tests/helper.                                                                                 |
+| `npm run deadcode`                                        | Exit 0, plain knip; two pre-existing configuration hints.                                                                                   |
+| `npx --no-install jscpd`                                  | Exit 0, 1,211 files, zero clones after correcting repeated session-test setup.                                                              |
+| `npm run check:reference`                                 | Exit 0; 53 features, 44 commands, 59 settings, 26 slash, 116 CLI; current.                                                                  |
+| `node scripts/check-l10n.mjs`                             | Exit 1: exactly the seven frozen-base unused report manifest keys; all 14 UI tables pass. M113-K-localization-manifest remains W's handoff. |
+| `npm run check:host-api`                                  | Exit 1: solely node:crypto count 46 → 47; M113-K-host-api-record remains W's handoff.                                                       |
+
+No full quality, network, live/paid model call, installation, dependency,
+push, merge, rebase or gate modification occurs in this correction lane.
+The rig note forbids merging the common brief's old integration branch.
+Normal hooks ran on first-piece commit `b115e13fa`; they ran lint-staged
+and gitleaks successfully. The final correction commit is recorded in the
+lane's Git history and uses the same normal hooks.
+
+Changed-file Prettier check and `git diff --check` both exit 0. Scoped dpdm
+over the collector entry and affected webview App exits 0 with no cycles.
+`npm run build` exits 0: production size/split, host-global and notice gates
+all pass. Sizes remain extension **439.5 / 600 KiB**, Model API
+**446.9 / 475 KiB**, checkpoint store **76.9 / 225 KiB**, ACP
+**821.5 / 850 KiB**, uiText **53.3 / 125 KiB**, webview startup
+**797.8 / 900 KiB**, deferred JS **50.0 / 50 KiB** (the displayed size is
+rounded; the unmodified byte gate passes). The collectors remain outside
+startup entries pending W's lazy engine wiring. Static/build logs:
+`temp/m113-k-fix/{typecheck,lint,deadcode,reference,host-api,l10n,cycles,prettier,build}-final.log`;
+duplication's green receipt is `duplication-2.log` in the same folder.
