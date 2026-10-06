@@ -509,6 +509,37 @@ describe('hardware lease', () => {
     await replacement.release()
   })
 
+  it('accepts concurrent release when retirement already removed the other call source', async () => {
+    const deps = await fixture()
+    const active = await claim(deps)
+    const fs = await vi.importActual<typeof FsPromises>('node:fs/promises')
+    const entered = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    vi.mocked(link).mockImplementationOnce(async (source, target) => {
+      entered.resolve(undefined)
+      await resume.promise
+      await fs.link(source, target)
+    })
+    const first = active.release()
+    try {
+      await Promise.race([
+        entered.promise,
+        (async () => {
+          await first
+          throw new Error('test-retirement-published-without-barrier')
+        })(),
+      ])
+      await active.release()
+      resume.resolve(undefined)
+      await first
+      const retry = await claim(deps)
+      await retry.release()
+    } finally {
+      resume.resolve(undefined)
+      await Promise.allSettled([first, active.release()])
+    }
+  })
+
   it('holds an unknown retirement receipt instead of skipping its active holder', async () => {
     const deps = await fixture()
     const active = await claim(deps)
@@ -643,7 +674,8 @@ describe('hardware lease', () => {
         break
       }
       case 'foreign-resource': {
-        await writeFile(slot, JSON.stringify({ ...active.record, resource: 'port:foreign' }))
+        const foreign = await claim(deps, 'port:foreign')
+        await writeFile(slot, JSON.stringify(foreign.record))
         break
       }
       case 'foreign-endpoint': {

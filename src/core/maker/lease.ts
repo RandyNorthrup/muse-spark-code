@@ -207,9 +207,11 @@ async function retireGeneration(
   try {
     await link(source, receipt)
   } catch (error: unknown) {
+    // A concurrent release may have removed source after publishing this receipt.
+    if (JSON.stringify(await readRecord(receipt, deps.maxRecordBytes)) === JSON.stringify(record))
+      return
     if (!hasCode(error, 'EEXIST')) throw error
-    if (JSON.stringify(await readRecord(receipt, deps.maxRecordBytes)) !== JSON.stringify(record))
-      throw new Error('lease-retirement-changed', { cause: error })
+    throw new Error('lease-retirement-changed', { cause: error })
   }
 }
 
