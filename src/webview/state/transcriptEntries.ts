@@ -23,6 +23,7 @@ import {
   verifySummarySchema,
   workflowRunFields,
 } from '../../shared/agentEvents'
+import { QUESTION_STATES } from '../../shared/questions'
 import { PAID_FEATURES, TASK_REQUESTS } from '../../shared/constants'
 import { NOTICE_ACTIONS, NOTICE_LEVELS, reportEventRefSchema } from '../../shared/protocol'
 
@@ -55,6 +56,10 @@ export type PendingApproval = z.infer<typeof pendingApprovalSchema>
 const pendingQuestionSchema = z.object({
   userInputId: z.string(),
   questions: z.readonly(z.array(questionSchema)),
+  state: z.optional(z.enum(QUESTION_STATES)),
+  askedAt: z.optional(z.number()),
+  deadlineAt: z.optional(z.number()),
+  reminders: z.optional(z.number()),
   /** Answered or cancelled from the card (M25): locked until the host settles it. */
   isSubmitted: z.optional(z.boolean()),
 })
@@ -242,6 +247,9 @@ const toolEntrySchema = z.object({
   ),
   question: z.optional(pendingQuestionSchema),
   elicitation: z.optional(pendingElicitationSchema),
+  elicitationOutcome: z.optional(
+    z.object({ server: z.string(), action: z.enum(['accept', 'decline', 'cancel']) }),
+  ),
   questionOutcome: z.optional(
     z.object({
       outcome: z.string(),
