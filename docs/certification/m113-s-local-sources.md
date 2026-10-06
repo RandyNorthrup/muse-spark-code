@@ -251,7 +251,7 @@ filter or skip and at most three files per run:
 - `npx.cmd vitest run test/unit/agentUsageSource.test.ts test/unit/reportStrings.test.ts --maxWorkers=3`: **28 passed**, 3.96 seconds.
 - Total: **64 passed** (47 owned source tests plus 17 existing string tests).
 
-Review checks so far: all five `npm.cmd run typecheck` projects, scoped
+Final review checks: all five `npm.cmd run typecheck` projects, scoped
 ESLint with zero warnings, Prettier over all twelve changed files,
 `git diff --check` and `npm.cmd run check:reference` passed. Localization
 still exits 1 for exactly the same seven unused lane-0 manifest keys;
@@ -259,8 +259,20 @@ fourteen UI tables have no translation problems. Host API freshness still
 exits 1 for the same five Node import-count changes (13→14, 46→47, 33→34,
 47→48, 84→85). These are the existing named W handoffs above. No baseline,
 ignore, threshold or generated file was changed to hide either failure.
-The Git file also receives a final default-timeout rerun after its lint-only
-`codePointAt` fixture cleanup; it does not change the 64 unique-test count.
+A final default-timeout Git-file rerun after its lint-only `codePointAt`
+fixture cleanup passed **11 tests**, 10.21 seconds; it does not change the
+64 unique-test count.
+
+- `npm.cmd run deadcode`: exit 0, plain Knip, only its two existing configuration hints.
+- `npx.cmd jscpd`: exit 0, **zero clones across 1,206 files**.
+- `npm.cmd run build`: exit 0, production build plus bundle-size, split, host-global and third-party-notices gates. Extension **439.5/600 KiB**, Model API **446.9/475**, ACP **821.5/850**, checkpoint store **76.9/225**, webview startup **797.9/900**, deferred JavaScript **50.0/50**, existing M93 report **21.7/75**, shared English **53.3/125**. No cap changed. These are the frozen shipping graphs; W retains M113 source assembly and its integrated reporting bundle checks.
+- Fix commit `20854be3693796008158e42a05a6e1f2b638aab4` used the existing `.husky/_/pre-commit`: lint-staged's scoped ESLint/Prettier and staged gitleaks scan passed. The worktree was clean after the commit and after the build. All six production-file SHA-256 values still match the drill restorations, including after the hooks.
+
+No new review residual or owner decision was defaulted. The previously
+named W integration handoffs remain open; localization and host-API
+freshness are explicitly **not green** on this frozen lane base. Full
+`quality`, live receipts and cross-editor/report-pipeline speed checks
+remain integration work, as authorized by the lane brief.
 
 ### Review guard-fire receipts
 
