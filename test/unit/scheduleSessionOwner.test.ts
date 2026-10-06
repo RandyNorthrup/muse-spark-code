@@ -128,12 +128,10 @@ describe('native session serialized authority', () => {
         let hasStopped = false
         let isReleased = false
         for (const action of order) {
-          const effect =
-            action === 'failure'
-              ? owner.admissionFailed(token)
-              : action === 'idle'
-                ? owner.stopped()
-                : owner.terminal('unrelated')
+          let effect: SessionEffect | undefined
+          if (action === 'failure') effect = owner.admissionFailed(token)
+          else if (action === 'idle') effect = owner.stopped()
+          else effect = owner.terminal('unrelated')
           hasFailed ||= action === 'failure'
           hasStopped ||= action === 'idle'
           const shouldRelease = hasFailed && (!didDispatch || hasStopped)

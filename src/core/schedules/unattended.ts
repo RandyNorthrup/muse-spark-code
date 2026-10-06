@@ -10,7 +10,7 @@ import {
   type ScheduleGrantMatcher,
   type ScheduleRunContext,
 } from '../../shared/scheduleV2'
-import { confineWorkspacePath, type RealPathIo } from '../workspacePath'
+import { confineWorkspacePath, isBelow, type RealPathIo } from '../workspacePath'
 import { isProtectedPath } from '../protectedPaths'
 import type { ScheduleGrantAudit } from './grantAudit'
 import type { SessionBudgetClaim } from '../backends/modelapi/sessionBudget'
@@ -63,6 +63,7 @@ export interface ScheduleRunDeps {
 
 /** The run object never crosses a wire, persists a credential or opens a modal. */
 export class UnattendedRun {
+  private canonicalRoot: Promise<string> | undefined
   public readonly context: ScheduleRunContext
   public readonly refusedActions: {
     actionClass: ScheduleApprovalAction['class']
@@ -118,26 +119,31 @@ export class UnattendedRun {
     if (reason === undefined) {
       for (const path of action.paths) {
         const p = this.deps.platform === 'win32' ? nodePath.win32 : nodePath.posix
+        let root: string
+        try {
+          root = await (this.canonicalRoot ??= this.deps.io.realPath(this.deps.workspaceRoot))
+        } catch {
+          reason = this.modelText.protectedRefused
+          break
+        }
         const relative =
           capturedPath === undefined
             ? undefined
-            : p.relative(this.deps.workspaceRoot, capturedPath).replaceAll('\\', '/')
+            : p.relative(root, capturedPath).replaceAll('\\', '/')
+        const given =
+          p.isAbsolute(path) && isBelow(p.relative(root, path), p) ? p.relative(root, path) : path
         const confined =
           capturedPath === undefined
-            ? await confineWorkspacePath(
-                this.deps.workspaceRoot,
-                path,
-                this.deps.platform,
-                this.deps.io,
-              )
+            ? await confineWorkspacePath(this.deps.workspaceRoot, given, this.deps.platform, {
+                realPath: async (absolute) =>
+                  absolute === this.deps.workspaceRoot
+                    ? root
+                    : await this.deps.io.realPath(absolute),
+              })
             : {
-                ok:
-                  relative !== undefined &&
-                  !relative.startsWith('../') &&
-                  relative !== '..' &&
-                  !p.isAbsolute(relative),
+                ok: relative !== undefined && isBelow(relative.split('/').join(p.sep), p),
                 relative: relative ?? '',
-                canonical: capturedPath,
+                canonical: relative ?? '',
               }
         if (
           !confined.ok ||

@@ -12,6 +12,17 @@ const SOURCE: ContentSource = {
 }
 
 describe('scheduled byte provenance ledger', () => {
+  it('RVM115U4 P1: a derived entry without an explicit complete input inventory refuses', () => {
+    const ledger = new ProvenanceLedger()
+    const allowed = ledger.preFire('allowed leaf', SOURCE)
+    ledger.derive('forgotten inventory', [allowed], 'incomplete-summary')
+    ledger.derive('explicitly incomplete inventory', [allowed], 'incomplete-summary', false)
+    ledger.derive('complete inventory', [allowed], 'complete-summary', true)
+    expect(ledger.allows('forgotten inventory')).toBe(false)
+    expect(ledger.allows('explicitly incomplete inventory')).toBe(false)
+    expect(ledger.allows('complete inventory')).toBe(true)
+  })
+
   it('RVM115U3 P2-7: equal bytes in different buffers and replay objects retain proof by SHA-256', () => {
     const ledger = new ProvenanceLedger()
     const bytes = Buffer.from('source bytes')
@@ -30,7 +41,7 @@ describe('scheduled byte provenance ledger', () => {
   it('RVM115U3 P1-2: opaque content cannot claim a decision or authorize a transformation', () => {
     const ledger = new ProvenanceLedger()
     const hash = ledger.opaque('opaque protected output', 'opaque-tool')
-    ledger.derive('compacted opaque output', [hash], 'compaction')
+    ledger.derive('compacted opaque output', [hash], 'compaction', true)
     expect(ledger.allows('opaque protected output')).toBe(false)
     expect(ledger.allows('compacted opaque output')).toBe(false)
     expect(ledger.entry('opaque protected output')).toMatchObject({ class: 'opaque' })
@@ -51,18 +62,23 @@ describe('scheduled byte provenance ledger', () => {
       { kind: 'tool', callId: 'write' },
       'edit-decision',
     )
-    const fitted = ledger.derive('smaller media', [edit], 'media-fit')
-    const note = ledger.derive('clean verification', [edit], 'verification-note')
-    const refreshed = ledger.derive('new date, same rules', [rules], 'instruction-refresh')
-    ledger.derive('summary', [fitted, note, refreshed], 'compaction')
+    const fitted = ledger.derive('smaller media', [edit], 'media-fit', true)
+    const note = ledger.derive('clean verification', [edit], 'verification-note', true)
+    const refreshed = ledger.derive('new date, same rules', [rules], 'instruction-refresh', true)
+    ledger.derive('summary', [fitted, note, refreshed], 'compaction', true)
     expect(ledger.allows('summary')).toBe(true)
     expect(ledger.entry('summary')).toMatchObject({
       class: 'derived',
       derivedFrom: [fitted, note, refreshed],
     })
-    ledger.derive('unknown source summary', [fitted, contentHash('unseen bytes')], 'compaction')
+    ledger.derive(
+      'unknown source summary',
+      [fitted, contentHash('unseen bytes')],
+      'compaction',
+      true,
+    )
     expect(ledger.allows('unknown source summary')).toBe(false)
-    ledger.derive('empty source summary', [], 'compaction')
+    ledger.derive('empty source summary', [], 'compaction', true)
     expect(ledger.allows('empty source summary')).toBe(false)
   })
 
@@ -71,7 +87,7 @@ describe('scheduled byte provenance ledger', () => {
     const allowedHash = ledger.preFire('delivered', SOURCE)
     ledger.opaque('delivered')
     expect(ledger.allows('delivered')).toBe(true)
-    ledger.derive('cycle', [contentHash('cycle')], 'cycle')
+    ledger.derive('cycle', [contentHash('cycle')], 'cycle', true)
     expect(ledger.allows('cycle')).toBe(false)
     ledger.decideTool('call')
     ledger.opaque('allowed opaque', 'call')
@@ -98,12 +114,14 @@ describe('scheduled byte provenance ledger', () => {
       for (let step = 0; step < 100; step += 1) {
         const count = 1 + (random() % 4)
         const inputs = Array.from({ length: count }, () => nodes[random() % nodes.length]!)
-        const isAllowed = inputs.every((input) => input.isAllowed)
+        const isInputsComplete = random() % 2 === 0
+        const isAllowed = isInputsComplete && inputs.every((input) => input.isAllowed)
         const bytes = `transformation ${String(chain)} ${String(step)}`
         const hash = ledger.derive(
           bytes,
           inputs.map((input) => input.hash),
           'random-transform',
+          isInputsComplete,
         )
         expect(ledger.allows(bytes)).toBe(isAllowed)
         nodes.push({ hash, isAllowed })

@@ -73,6 +73,8 @@ export interface ContextSections {
 }
 
 const ROOT_DIRECTORY = ''
+// Missing source evidence stays explicit and cannot authorize a new fire.
+const UNKNOWN_CONTEXT_SOURCE: ContentSource = { kind: 'tool', callId: 'unproved-context' }
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -289,34 +291,29 @@ export class WorkspaceContext {
   public instructionMaterial(
     shouldIncludeAgents = true,
     shouldIncludeMemory = true,
+    shouldIncludeSkills = true,
   ): readonly {
     bytes: string
     source: ContentSource
+    isFullyShown?: boolean
   }[] {
     return [
-      ...this.rules.flatMap((rule) =>
-        rule.contentSource === undefined ? [] : [{ bytes: rule.text, source: rule.contentSource }],
-      ),
-      ...this.skills.flatMap((skill) =>
-        skill.contentSource === undefined
-          ? []
-          : [
-              {
-                bytes: JSON.stringify({ id: skill.id, description: skill.description }),
-                source: skill.contentSource,
-              },
-            ],
-      ),
-      ...(shouldIncludeAgents ? this.agents.agents : []).flatMap((agent) =>
-        agent.contentSource === undefined
-          ? []
-          : [
-              {
-                bytes: JSON.stringify({ id: agent.id, description: agent.description }),
-                source: agent.contentSource,
-              },
-            ],
-      ),
+      ...this.rules.map((rule) => ({
+        bytes: rule.text.trim(),
+        isFullyShown: this.rulesText?.includes(rule.text.trim()) === true,
+        source: rule.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
+      })),
+      ...(shouldIncludeSkills ? this.skills : []).map((skill) => ({
+        bytes: JSON.stringify({ id: skill.id, description: skill.description }),
+        source: skill.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
+      })),
+      // Built-in roles are fixed harness scaffolding, not cached workspace files.
+      ...(shouldIncludeAgents ? this.agents.agents : [])
+        .filter((agent) => agent.source !== 'builtin')
+        .map((agent) => ({
+          bytes: JSON.stringify({ id: agent.id, description: agent.description }),
+          source: agent.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
+        })),
       ...(shouldIncludeMemory ? this.memory : []).map((snapshot) => ({
         bytes: JSON.stringify(snapshot),
         source: { kind: 'tool', callId: `context-memory:${snapshot.scope}` } as const,

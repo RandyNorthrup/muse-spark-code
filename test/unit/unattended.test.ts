@@ -1,3 +1,4 @@
+import { contentHash, type ContentSource } from '../../src/core/schedules/provenance'
 import { describe, expect, it, vi } from 'vitest'
 import type { ScheduleRunDeps } from '../../src/core/schedules/unattended'
 import { unattendedRun } from './helpers/schedules/unattended'
@@ -207,5 +208,58 @@ describe.each(['modelApi', 'museCode'] as const)('unattended %s', (backend) => {
     }).run
     const decision = await revoked.decide(action)
     expect(decision.allowed).toBe(false)
+  })
+})
+
+describe.each(['linux', 'win32'] as const)('canonical unattended root %s', (platform) => {
+  it('RVM115U4 P2-5: cached sources and live paths share one canonical root without resolving the source alias', async () => {
+    const workspaceRoot = platform === 'win32' ? String.raw`C:\workspace` : '/workspace'
+    const realRoot = platform === 'win32' ? String.raw`C:\real\workspace` : '/real/workspace'
+    const io = {
+      realPath: vi.fn((path: string) =>
+        Promise.resolve(path.replace(workspaceRoot, () => realRoot)),
+      ),
+    }
+    const safety = vi.fn<ScheduleRunDeps['safety']>().mockReturnValue(undefined)
+    const { run } = unattendedRun({ workspaceRoot, platform, io, safety })
+    const source: ContentSource = {
+      kind: 'skill',
+      id: 'safe',
+      version: '1',
+      contentHash: contentHash('safe skill'),
+      file: {
+        path: `${realRoot.replaceAll('\\', '/')}/personal/safe/SKILL.md`,
+        dev: '1',
+        ino: '2',
+        size: 10,
+        mtime: '0',
+      },
+    }
+    const action = {
+      id: 'live',
+      class: 'mcp' as const,
+      tool: 'cached-context',
+      paths: ['personal/safe/SKILL.md'],
+      requiresAsking: false,
+      protectedPath: false,
+    }
+    expect(await run.decide(action, false)).toEqual({ allowed: true })
+    expect(await run.decideSource(source, 'cached')).toEqual({ allowed: true })
+    expect(safety.mock.calls.map(([checked]) => checked.paths)).toEqual([
+      ['personal/safe/SKILL.md'],
+      ['personal/safe/SKILL.md'],
+    ])
+    expect(await run.decide(action, false)).toEqual({ allowed: true })
+    expect(io.realPath.mock.calls.filter(([path]) => path === workspaceRoot)).toHaveLength(1)
+    expect(
+      io.realPath.mock.calls.filter(([path]) => path.replaceAll('\\', '/') === source.file.path),
+    ).toHaveLength(0)
+    for (const path of [`${realRoot}/.muse/private.ts`, `${realRoot}-outside/private.ts`]) {
+      const denied = await run.decideSource(
+        { ...source, file: { ...source.file, path } },
+        'refused',
+      )
+      expect(denied.allowed).toBe(false)
+    }
   })
 })

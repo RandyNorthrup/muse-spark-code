@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Keep complete source inventories for cached scheduled context, refuse
+  incomplete derivations, and use one canonical workspace boundary for live
+  and cached reads. Reviewer omissions and truncated context no longer gain
+  delivery evidence.
+
 - Release stale scheduled mode effects and stopped or withdrawn admissions,
   settle refused queued fires, and validate steer media before claiming the
   session so later work can proceed.

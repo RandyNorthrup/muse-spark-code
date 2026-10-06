@@ -6896,6 +6896,12 @@ push or rebase. Bounded default-timeout suites and static/build gates run on
 Kubuntu; W/lead owns aggregate quality. Shared core ports serve all editors.
 Time box: 90 minutes. Record every residual explicitly in §9.
 
+Implemented all six findings and the related cache-inventory audit checks.
+The existing 720-order owner model adds 18 lifecycle orders; the 10,000-node
+ledger property varies completeness independently. Eighteen restored red
+drills and the final bounded/static/build receipts are in
+`docs/certification/m115-u.md`. No review residual is accepted.
+
 ### REDM115U — Replace scheduled authority and provenance (2026-10-06, implemented)
 
 Replace the native session's scattered mode/admission/start fields with one
@@ -18508,6 +18514,11 @@ joined with M57, M58 and PR #49's sign-in
 aggregate quality in lane U; W/lead owns `npm run quality`. This lane runs
 complete bounded owning suites with default timeouts and the required
 static/build checks. No threshold, ignore, timeout or rule changes.
+The common brief's `check:reference` cannot run on this branch: there is no
+script, generator or feature catalogue. The attempted command reports a
+missing script; no pass is claimed and no gate is introduced or weakened.
+The repair adds no feature, command or setting; W/lead owns any later
+reference tooling adoption.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
@@ -19715,6 +19726,21 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM115U5 review repair.** RVM115U4's P1 and all five P2 findings
+  are fixed; no review residual is accepted. Derived recipes explicitly
+  certify every input hash, including cached maps and compaction instructions.
+  Missing sources stay opaque; omitted reviewer material and truncated
+  rule/index bytes cannot acquire full delivery evidence. Mode effects clear
+  only their own tagged record. Undispatched/idle native admissions and local
+  withdrawn, stopped or failed steers release; ambiguous native dispatch still
+  quarantines until terminal/idle proof. Refused queued fires settle with their
+  admission reason and advance. Each run pins its canonical root and never
+  resolves a captured source alias again. The shared core ports retain all
+  editor/runtime handoffs. Eighteen default-timeout, byte-exact restored drills
+  are recorded in `docs/certification/fixm115-u5-drills.json`; bounded final
+  verification is recorded in `docs/certification/m115-u.md`. W/lead owns
+  aggregate quality; no guard, budget, dependency or external wire changes.
 
 - **FIXM115U2 review repair.** All four RVM115U2 P1s and its P2 are repaired;
   none is accepted as residual. Child tasks inside a fire are refused at the

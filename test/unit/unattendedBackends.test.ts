@@ -1,11 +1,15 @@
-import { ProvenanceLedger } from '../../src/core/schedules/provenance'
+import { ProvenanceLedger, contentHash } from '../../src/core/schedules/provenance'
 import { diagnosticsTool } from '../../src/core/diagnostics'
 import { pdfFixture } from './helpers/pdfFixture'
 import { describe, expect, it, vi } from 'vitest'
 import { MuseCodeHost, MuseSession } from '../../src/core/backends/musecode/MuseCodeHost'
 import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient, type ModelApiClientDeps } from '../../src/core/backends/modelapi/client'
-import { MODEL_API_TOOLS, SUBAGENT_CAPACITY } from '../../src/shared/constants'
+import {
+  MODEL_API_TOOLS,
+  RULES_FILE_MAX_BYTES,
+  SUBAGENT_CAPACITY,
+} from '../../src/shared/constants'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { fakeMspHost, settle } from './helpers/fakeMsp'
 import { raceRequested, RACE_APPROVAL_ID } from './helpers/stageRaceCapture'
@@ -16,7 +20,7 @@ import {
   TINY_PNG_BASE64,
 } from './helpers/fakeModelApi'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
-import { fakeLanguageService, renamed } from './helpers/fakeLanguageService'
+import { fakeLanguageService, renamed, sym, KIND } from './helpers/fakeLanguageService'
 import { memoryStoreOver } from './helpers/fakeMemoryIo'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { memoryToolIo } from './helpers/fakeToolIo'
@@ -223,6 +227,19 @@ async function completeMuseTurn(fixture: Awaited<ReturnType<typeof museBackend>>
   await settle()
 }
 
+async function cancelBeforeDispatch(
+  fixture: Awaited<ReturnType<typeof modelBackend>>,
+  entered: Promise<undefined>,
+  held: PromiseWithResolvers<undefined>,
+) {
+  const done = fixture.turnDone()
+  await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
+  await entered
+  await fixture.session.cancel()
+  held.resolve(undefined)
+  await done
+}
+
 function readCall(file: string) {
   return { name: MODEL_API_TOOLS.readFile, arguments: JSON.stringify({ path: file }) }
 }
@@ -305,6 +322,235 @@ async function heldOrdinaryStart(fixture: Awaited<ReturnType<typeof museBackend>
 }
 
 describe('scheduled Model API dispatch', () => {
+  it.each([true, false])(
+    'RVM115U4 P1: an unsent cached repo map registers every input (protected=%s)',
+    async (isProtected) => {
+      const definition = isProtected ? '.muse/private.ts' : 'src/definition.ts'
+      const marker = 'ProtectedRepoMapMarker'
+      const io = memoryToolIo(
+        {
+          [definition]: `export function ${marker}() {}`,
+          'src/use.ts': `${marker}()`,
+        },
+        '/workspace',
+      )
+      const codeIntel = fakeLanguageService({
+        files: io.files,
+        workspace: (query) =>
+          Promise.resolve(
+            query === marker ? [sym(marker, KIND.function, `/workspace/${definition}`, 0, 16)] : [],
+          ),
+      })
+      const entered = Promise.withResolvers<undefined>()
+      const held = Promise.withResolvers<undefined>()
+      const beforeTurnRuns = vi
+        .fn()
+        .mockResolvedValue(undefined)
+        .mockImplementationOnce(async () => {
+          entered.resolve(undefined)
+          await held.promise
+        })
+      const fixture = await modelBackend({
+        io,
+        codeIntel,
+        isRepoMapInPrompt: () => true,
+        now: () => 0,
+        beforeTurnRuns,
+      })
+      await cancelBeforeDispatch(fixture, entered.promise, held)
+      expect(fixture.api.responseBodies()).toHaveLength(0)
+      fixture.api.script({ text: 'fire' })
+      const { run } = fixture.run(undefined, { io })
+      const sources = vi.spyOn(run, 'decideSource')
+      const derivations = vi.spyOn(ProvenanceLedger.prototype, 'derive')
+      try {
+        await completeModelPrompt(fixture, run, 'Fire')
+        expect(fixture.api.responseBodies()).toHaveLength(isProtected ? 0 : 1)
+        expect(sources.mock.calls).toContainEqual([
+          expect.objectContaining({
+            kind: 'file',
+            file: expect.objectContaining({ path: `/workspace/${definition}` }),
+          }),
+          expect.any(String),
+        ])
+        if (!isProtected) {
+          const map = derivations.mock.calls.find((recipe) => recipe[2] === 'cached-repo-map')
+          expect(map?.[1]).toHaveLength(3)
+          expect(fixture.api.responseBodies()[0]?.['instructions']).toContain(marker)
+        }
+        expect(fixture.session.getScheduledRun()).toBeUndefined()
+      } finally {
+        sources.mockRestore()
+        derivations.mockRestore()
+        await fixture.host.close()
+      }
+    },
+  )
+
+  it('RVM115U4 P1: an ordinary request cannot mark truncated rule bytes as fully delivered', async () => {
+    const files = new Map([['/workspace/AGENTS.md', 'root rule']])
+    for (const directory of ['a', 'a/b', 'a/b/c', 'a/b/c/d', 'a/b/c/d/e']) {
+      files.set(
+        `/workspace/${directory}/AGENTS.md`,
+        directory.repeat(Math.floor(RULES_FILE_MAX_BYTES / directory.length)),
+      )
+    }
+    const io = memoryToolIo({ 'a/b/c/d/e/read.txt': 'readable' }, '/workspace')
+    const fixture = await modelBackend({ io, contextIo: memoryContextIo(files) })
+    fixture.api.script(
+      { calls: [readCall('a/b/c/d/e/read.txt')] },
+      { text: 'ordinary' },
+      { text: 'fire' },
+    )
+    const ordinary = fixture.turnDone()
+    await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
+    await ordinary
+    expect(fixture.api.responseBodies()).toHaveLength(2)
+    const { run } = fixture.run(undefined, { io })
+    await completeModelPrompt(fixture, run, 'Fire')
+    expect(fixture.api.responseBodies()).toHaveLength(2)
+    expect(run.refusedActions).toContainEqual(expect.objectContaining({ tool: 'cached-context' }))
+    await fixture.host.close()
+  })
+
+  it('RVM115U4 P1: a reviewer request cannot mark its omitted skill catalogue as delivered', async () => {
+    const files = new Map([
+      [
+        '/workspace/.muse/private.md',
+        '---\nname: private\ndescription: hidden catalogue marker\n---\nprivate body',
+      ],
+      ['/workspace/personal/private/SKILL.md', 'alias'],
+    ])
+    const fixture = await modelBackend({
+      contextIo: memoryContextIo(files, {
+        '/workspace/personal/private/SKILL.md': '/workspace/.muse/private.md',
+      }),
+      personalSkillsRoot: '/workspace/personal',
+    })
+    fixture.api.script({ text: 'reviewed' }, { text: 'fire' })
+    const reviewed = fixture.turnDone()
+    await fixture.session.review([{ type: 'text', text: 'Review' }], 'Review')
+    await reviewed
+    expect(JSON.stringify(fixture.api.responseBodies()[0]?.['instructions'])).not.toContain(
+      'hidden catalogue marker',
+    )
+    const { run } = fixture.run()
+    await completeModelPrompt(fixture, run, 'Fire')
+    expect(fixture.api.responseBodies()).toHaveLength(1)
+    expect(run.refusedActions).toContainEqual(expect.objectContaining({ tool: 'cached-context' }))
+    await fixture.host.close()
+  })
+
+  it('RVM115U4 P1: a repo map whose symbol source is absent from its read inventory refuses', async () => {
+    const marker = 'UncapturedRepoMapMarker'
+    const io = memoryToolIo(
+      { 'src/one.ts': `${marker}()`, 'src/two.ts': `${marker}()` },
+      '/workspace',
+    )
+    const codeIntel = fakeLanguageService({
+      files: io.files,
+      workspace: (query) =>
+        Promise.resolve(
+          query === marker ? [sym(marker, KIND.function, '/workspace/src/unread.ts', 0, 0)] : [],
+        ),
+    })
+    const entered = Promise.withResolvers<undefined>()
+    const held = Promise.withResolvers<undefined>()
+    const fixture = await modelBackend({
+      io,
+      codeIntel,
+      isRepoMapInPrompt: () => true,
+      now: () => 0,
+      beforeTurnRuns: vi
+        .fn()
+        .mockResolvedValue(undefined)
+        .mockImplementationOnce(async () => {
+          entered.resolve(undefined)
+          await held.promise
+        }),
+    })
+    await cancelBeforeDispatch(fixture, entered.promise, held)
+    const { run } = fixture.run(undefined, { io })
+    await completeModelPrompt(fixture, run, 'Fire')
+    expect(fixture.api.responseBodies()).toHaveLength(0)
+    expect(run.refusedActions).toContainEqual(expect.objectContaining({ tool: 'replay' }))
+    await fixture.host.close()
+  })
+
+  it('RVM115U4 P2-5: a fire can use cached skill metadata and body through an aliased workspace root', async () => {
+    const io = memoryToolIo(
+      {
+        'personal/safe/SKILL.md':
+          '---\nname: safe\ndescription: safe catalogue\n---\nsafe cached body',
+      },
+      '/real/workspace',
+    )
+    const contextIo = memoryContextIo(io.files, { '/workspace': '/real/workspace' })
+    io.realPath = contextIo.realPath
+    const fixture = await modelBackend({ io, contextIo, personalSkillsRoot: '/workspace/personal' })
+    fixture.api.script(
+      { calls: [{ name: MODEL_API_TOOLS.readSkill, arguments: '{"id":"safe"}' }] },
+      { text: 'done' },
+    )
+    const { run } = fixture.run(undefined, { io })
+    await completeModelPrompt(fixture, run, 'Use safe skill')
+    expect(fixture.api.responseBodies()).toHaveLength(2)
+    expect(JSON.stringify(fixture.api.responseBodies()[0]?.['instructions'])).toContain(
+      'safe catalogue',
+    )
+    expect(JSON.stringify(fixture.api.responseBodies()[1]?.['input'])).toContain('safe cached body')
+    expect(run.refusedActions).toEqual([])
+    await fixture.host.close()
+  })
+
+  it('RVM115U4 P2-4: later steer validation failure releases its claim before checkpoint finalization', async () => {
+    const finalizing = Promise.withResolvers<undefined>()
+    const finish = Promise.withResolvers<undefined>()
+    const io = memoryToolIo({}, '/workspace')
+    let isRetargeted = false
+    io.realPath = (path) =>
+      Promise.resolve(
+        isRetargeted && path.endsWith('/src/steer.txt') ? '/outside/private.txt' : path,
+      )
+    const fixture = await modelBackend({
+      io,
+      afterTurnRuns: async () => {
+        finalizing.resolve(undefined)
+        await finish.promise
+      },
+    })
+    const held = heldReply()
+    fixture.api.script(held.reply)
+    const done = fixture.turnDone()
+    const ordinary = await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
+    await held.entered.promise
+    const { run } = fixture.run(undefined, { io })
+    await fixture.session.steerScheduledTurn(
+      ordinary.turnId,
+      [
+        {
+          type: 'textFile',
+          name: 'src/steer.txt',
+          text: 'accepted bytes',
+          mediaType: 'text/plain',
+          sizeBytes: 14,
+        },
+      ],
+      run,
+    )
+    isRetargeted = true
+    held.held.resolve(undefined)
+    try {
+      await finalizing.promise
+      expect(fixture.session.getScheduledRun()).toBeUndefined()
+      expect(fixture.api.responseBodies()).toHaveLength(1)
+    } finally {
+      finish.resolve(undefined)
+      await done
+      await fixture.host.close()
+    }
+  })
+
   it('RVM115U4 P2-3: an inactive queued fire settles refused and advances the ordinary queue', async () => {
     const fixture = await modelBackend()
     const held = heldReply()
@@ -376,10 +622,12 @@ describe('scheduled Model API dispatch', () => {
             await fixture.session.withdrawQueued({ ...steer, userMessageId: steer.userMessageId }),
           ).toMatchObject({ status: 'withdrawn' })
         } else {
-          await fixture.session.cancel()
+          const cancelled = fixture.session.cancel()
+          expect(fixture.session.getScheduledRun()).toBeUndefined()
+          await cancelled
         }
       }
-      if (scenario !== 'stopped') expect(fixture.session.getScheduledRun()).toBeUndefined()
+      expect(fixture.session.getScheduledRun()).toBeUndefined()
       held.held.resolve(undefined)
       await ordinaryDone
       await settle()
@@ -652,6 +900,7 @@ describe('scheduled Model API dispatch', () => {
   })
 
   it('REDM115U: a cached compaction summary derives from the exact delivered input bytes', async () => {
+    const recipes = vi.spyOn(ProvenanceLedger.prototype, 'derive')
     const fixture = await modelBackend()
     fixture.api.script({ text: 'ordinary' }, { text: 'trusted summary' }, { text: 'fire' })
     const ordinary = fixture.turnDone()
@@ -664,6 +913,11 @@ describe('scheduled Model API dispatch', () => {
     await done
     expect(fixture.api.responseBodies()).toHaveLength(3)
     expect(JSON.stringify(fixture.api.responseBodies()[2]?.['input'])).toContain('trusted summary')
+    const recipe = recipes.mock.calls.find((recipe) => recipe[2] === 'cached-compaction')
+    expect(recipe?.[1]).toContain(
+      contentHash(String(fixture.api.responseBodies()[1]?.['instructions'])),
+    )
+    recipes.mockRestore()
     expect(run.refusedActions.filter((action) => action.tool === 'replay')).toEqual([])
     await fixture.host.close()
   })

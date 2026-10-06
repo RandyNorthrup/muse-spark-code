@@ -26,7 +26,11 @@ export type ProvenanceEntry = {
 } & (
   | { readonly class: 'pre-fire' }
   | { readonly class: 'decided'; readonly decisionId: string }
-  | { readonly class: 'derived'; readonly derivedFrom: readonly string[] }
+  | {
+      readonly class: 'derived'
+      readonly derivedFrom: readonly string[]
+      readonly hasCompleteInputs: boolean
+    }
   | { readonly class: 'opaque'; readonly toolCallId: string | undefined }
 )
 
@@ -55,7 +59,7 @@ export class ProvenanceLedger {
         return entry.toolCallId !== undefined && this.toolDecisions.has(entry.toolCallId)
       }
       case 'derived': {
-        if (entry.derivedFrom.length === 0) return false
+        if (!entry.hasCompleteInputs || entry.derivedFrom.length === 0) return false
         visiting.add(hash)
         const isAllowed = entry.derivedFrom.every((input) => this.allowsHash(input, visiting))
         visiting.delete(hash)
@@ -82,6 +86,14 @@ export class ProvenanceLedger {
     return this.put({ hash: contentHash(bytes), source, class: 'decided', decisionId })
   }
 
+  /** Authorizes the raw hash retained by a decided read-time source inventory. */
+  public decidedSource(
+    source: Extract<ContentSource, { kind: 'file' | 'skill' }>,
+    decisionId: string,
+  ): string {
+    return this.put({ hash: source.contentHash, source, class: 'decided', decisionId })
+  }
+
   public decideTool(callId: string): void {
     this.toolDecisions.add(callId)
   }
@@ -95,14 +107,20 @@ export class ProvenanceLedger {
     })
   }
 
-  public derive(bytes: string | Uint8Array, inputs: readonly string[], operation: string): string {
-    // A derivation always records all inputs, including unknown/opaque ones.
-    // An empty list is not evidence that content came from an allowed source.
+  public derive(
+    bytes: string | Uint8Array,
+    inputs: readonly string[],
+    operation: string,
+    hasCompleteInputs = false,
+  ): string {
+    // Callers certify the complete recipe, including unknown/opaque inputs.
+    // A missing certificate or empty list confers no source authority.
     return this.put({
       hash: contentHash(bytes),
       source: { kind: 'harness', operation },
       class: 'derived',
       derivedFrom: [...inputs],
+      hasCompleteInputs,
     })
   }
 
