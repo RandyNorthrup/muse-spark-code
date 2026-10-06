@@ -65,6 +65,12 @@ this repair introduces no command, setting, wire shape or new visible text.
 
 ## FIXM108P final rig verification
 
+Local repair commit `2e6aa20d` contains all five fixes and their tests.
+Normal hooks passed ESLint/Prettier on seven TypeScript and two Markdown
+files; staged gitleaks scanned **31.44 KB** and reported no leaks. All three
+source hashes below were unchanged after the hooks. This final receipt
+update is documentation only. No hook or gate was bypassed.
+
 Final restored commands ran directly on macmini, serially, with at most three
 complete test files/workers and repository-default timeouts. No paid/live
 calls or new wire shapes were needed. Six files pass **106 tests**:
