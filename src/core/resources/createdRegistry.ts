@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
-import { mkdir, open, readdir, readFile, realpath, rename, rmdir, unlink } from 'node:fs/promises'
+import { mkdir, open, readdir, readFile, realpath, rmdir, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
@@ -35,6 +35,8 @@ export interface CreatedPathProof {
   freeBytes(file: string): Promise<number | null>
   /** Trusted native helper; args are the create/remove protocol, stdout is strict JSON. */
   directories?: ((args: readonly string[]) => Promise<string>) | undefined
+  /** Trusted native no-replace rename, mkdir identity and manifest publication protocol. */
+  files?: ((args: readonly string[]) => Promise<string>) | undefined
 }
 export interface CreatedCleanup {
   removed: number
@@ -102,6 +104,7 @@ export class CreatedRegistry {
   private readonly made = new Set<string>()
   private pending: Promise<unknown> = Promise.resolve()
   private baseIdentity: string | undefined
+  private manifestIdentity: string | undefined
 
   private constructor(
     private readonly file: string,
@@ -148,7 +151,10 @@ export class CreatedRegistry {
       this.checkPrivate(current, false)
       if (fileIdentityKey(current) !== fileIdentityKey(sample))
         throw new Error('Creation manifest identity changed')
-      return await handle.readFile('utf8')
+      const contents = await handle.readFile('utf8')
+      this.manifestIdentity = fileIdentityKey(current)
+      if (this.manifestIdentity === undefined) throw new Error('Unsafe manifest identity')
+      return contents
     } finally {
       await handle.close()
     }
@@ -201,8 +207,10 @@ export class CreatedRegistry {
   private async save(): Promise<void> {
     await this.verifyBase()
     await mkdir(path.dirname(this.file), { recursive: true, mode: RESOURCE_PRIVATE_DIR_MODE })
+    let previous = ''
     try {
       await this.checkManifest()
+      previous = this.manifestIdentity ?? ''
     } catch (error: unknown) {
       if (!isMissing(error)) throw error
     }
@@ -211,17 +219,61 @@ export class CreatedRegistry {
     try {
       await handle.writeFile(JSON.stringify(Array.from(this.entries.values(), (entry) => entry)))
       await handle.sync()
-      await handle.close()
-      await rename(stage, this.file)
+      const identity = fileIdentityKey(await handle.stat({ bigint: true }))
+      if (identity === undefined) throw new Error('Unsafe manifest stage identity')
+      const parent = await realpath(path.dirname(this.file))
+      const parentSample = await lstatIdentity(parent)
+      this.checkPrivate(parentSample, true)
+      z.strictObject({ published: z.literal(true) }).parse(
+        JSON.parse(
+          await this.nativeFiles([
+            'publish',
+            parent,
+            fileIdentityKey(parentSample) ?? '',
+            path.basename(stage),
+            path.basename(this.file),
+            previous,
+            identity,
+          ]),
+        ),
+      )
     } finally {
       await handle.close()
-      // Retain a failed stage: its name can be exchanged after this handle was opened.
+      // Retain stages/displaced manifests: an external name can be exchanged before unlink.
     }
+  }
+
+  private async nativeFiles(args: readonly string[]): Promise<string> {
+    const helper = this.proof.files ?? this.proof.directories
+    if (helper === undefined) throw new Error('Native creation file helper is required')
+    return await helper(args)
+  }
+
+  private async renameEntry(source: string, target: string, identity: string): Promise<void> {
+    z.strictObject({ renamed: z.literal(true) }).parse(
+      JSON.parse(
+        await this.nativeFiles([
+          'rename',
+          this.base,
+          this.baseIdentity ?? '',
+          path.basename(source),
+          path.basename(target),
+          '',
+          identity,
+        ]),
+      ),
+    )
+  }
+
+  private async removeDirectory(file: string, identity: string): Promise<void> {
+    if (fileIdentityKey(await lstatIdentity(file)) !== identity)
+      throw new Error('Created directory identity changed before removal')
+    await rmdir(file)
   }
 
   private async directory<T>(
     file: string,
-    identity: string | undefined,
+    identity: string,
     action: (directory: string, identity: string, mountId: string) => Promise<T>,
   ): Promise<T> {
     const handle = await open(
@@ -231,7 +283,7 @@ export class CreatedRegistry {
     try {
       const sample = await handle.stat({ bigint: true })
       const current = fileIdentityKey(sample)
-      if (current === undefined || (identity !== undefined && current !== identity))
+      if (current === undefined || current !== identity)
         throw new Error('Created path identity changed during quarantine')
       this.checkPrivate(sample, true)
       const info = await readFile(`/proc/self/fdinfo/${String(handle.fd)}`, 'utf8')
@@ -283,9 +335,8 @@ export class CreatedRegistry {
         await this.directory(child, identity, async (pinned, _identity, mountId) => {
           if (mountId !== rootMountId) throw new Error('Creation cleanup refuses a mount boundary')
           await this.emptyDirectory(pinned, rootIdentity, rootMountId)
+          await this.removeDirectory(child, identity)
         })
-        // Empty-only: replacing the name with another populated directory preserves it.
-        await rmdir(child)
       } else {
         await unlink(child)
       }
@@ -297,6 +348,7 @@ export class CreatedRegistry {
     await this.checkManifest()
     if (entry.identity == null || entry.tokenHash == null)
       throw new Error('Created path has no stored identity or marker hash: report only')
+    const storedIdentity = entry.identity
     // Loaded timestamps are retention hints, never evidence that a previous tree exited.
     if (!this.finished.has(entry.owner) && !(await this.proof.exited(entry.owner))) return false
     if (entry.endedAtMs === null && entry.state !== 'pending') return false
@@ -335,14 +387,14 @@ export class CreatedRegistry {
             if (!isMissing(error)) throw error
           }
           // Rename captures the entry atomically. No earlier checked pathname is recursively removed.
-          await rename(source, trash)
+          await this.renameEntry(source, trash, storedIdentity)
           isQuarantined = true
-          await this.directory(trash, entry.identity, async (pinned, identity, mountId) => {
+          await this.directory(trash, storedIdentity, async (pinned, identity, mountId) => {
             if (!(await this.markerMatches(pinned, entry)))
               throw new Error('Created path identity changed during quarantine')
             await this.verifyBase()
             await this.emptyDirectory(pinned, identity, mountId)
-            await rmdir(trash)
+            await this.removeDirectory(trash, identity)
           })
         } catch (error: unknown) {
           if (isQuarantined) {
@@ -350,7 +402,13 @@ export class CreatedRegistry {
             try {
               await lstatIdentity(source)
             } catch (error_: unknown) {
-              if (isMissing(error_)) await rename(trash, source)
+              if (isMissing(error_)) {
+                try {
+                  await this.renameEntry(trash, source, storedIdentity)
+                } catch {
+                  /* A raced or replaced restore name remains quarantined and reported. */
+                }
+              }
             }
           }
           if (isQuarantined || !isMissing(error)) {
@@ -369,7 +427,7 @@ export class CreatedRegistry {
             path.basename(entry.path),
             entry.id,
             entry.tokenHash,
-            entry.identity,
+            storedIdentity,
           ]),
         ),
       )
@@ -405,8 +463,22 @@ export class CreatedRegistry {
       if (this.proof.directories === undefined) {
         await this.withBase(async (base) => {
           const root = path.join(base, path.basename(entry.path))
-          await mkdir(root, { mode: RESOURCE_PRIVATE_DIR_MODE })
-          await this.directory(root, undefined, async (pinned, identity) => {
+          const made = z
+            .strictObject({ identity: z.string().check(z.regex(/^[\d]+:[1-9][\d]*$/u)) })
+            .parse(
+              JSON.parse(
+                await this.nativeFiles([
+                  'mkdir',
+                  this.base,
+                  this.baseIdentity ?? '',
+                  path.basename(root),
+                  entry.id,
+                  token,
+                  '',
+                ]),
+              ),
+            )
+          await this.directory(root, made.identity, async (pinned, identity) => {
             const children = await readdir(pinned)
             if (children.length > 0) throw new Error('Created directory is not empty at open')
             const marker = await open(

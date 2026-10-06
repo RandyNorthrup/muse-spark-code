@@ -4,6 +4,7 @@ import * as sdk from '@muse-code/sdk'
 import * as fs from 'node:fs/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resourceWindowsJob, admitResource } from '../../src/core/resources/admission'
+import { nativeCreated, useCreatedNative } from './helpers/createdNative'
 import { CreatedRegistry } from '../../src/core/resources/createdRegistry'
 import { TreeTempRoots } from '../../src/host/resources/tempRoots'
 import type { ResourceLease } from '../../src/core/resources/launch'
@@ -13,6 +14,8 @@ import { fakeMuseCodeManager } from './helpers/museCodeManager'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeInitializeResult } from './helpers/fakeMsp'
 import { RESOURCE_TEMP_KEEP_MS } from '../../src/shared/constants'
+
+useCreatedNative()
 
 vi.mock('@muse-code/sdk', { spy: true })
 vi.mock('node:fs/promises', { spy: true })
@@ -32,6 +35,7 @@ async function fixture() {
   let hasExited = false
   let isFailed = false
   const registry = await CreatedRegistry.open(path.join(root, 'registry.json'), () => now, {
+    files: nativeCreated,
     exited: () => Promise.resolve(hasExited),
     archivedAndClean: () => Promise.resolve(false),
     freeBytes: () => Promise.resolve(null),

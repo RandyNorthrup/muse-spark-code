@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Temp quarantine and restore use native no-replace renames. Manifest
+  publication links without replacement and verifies/rolls back POSIX exchanges;
+  stages and displaced manifests are retained to protect exchanged names.
+  Cleanup rechecks each directory name against its held identity immediately
+  before empty-only removal. Creation rejects an older directory swapped into
+  mkdir/open and binds the marker writer to the native creation identity.
+  The final same-user empty-trash-name window and native delivery/artifact
+  qualifications are recorded in PLAN §9 and the M107 DK certification.
+
 - Temp cleanup now walks identity-checked directory handles on Linux and in
   the native macOS/Windows helpers, refuses filesystem and Linux mount boundaries
   (including same-device bind mounts), and removes

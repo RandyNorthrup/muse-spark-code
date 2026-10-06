@@ -1,5 +1,6 @@
 import { mkdir, mkdtemp, rm, readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
+import { nativeCreated, useCreatedNative } from './helpers/createdNative'
 import { CreatedRegistry } from '../../src/core/resources/createdRegistry'
 import { TreeTempRoots } from '../../src/host/resources/tempRoots'
 import type { ResourceTempRoot, ResourceLease } from '../../src/core/resources/launch'
@@ -21,6 +22,8 @@ import {
 } from '../../src/shared/constants'
 import { resourceSettingsSchema, type ResourceSample } from '../../src/shared/resources'
 import { FakeResourceClock } from './helpers/resources/fakes'
+
+useCreatedNative()
 
 function setup(extra: Partial<ResourceLaunchHostOptions> = {}, clock = new FakeResourceClock()) {
   let current: ResourceSample = {
@@ -316,6 +319,7 @@ describe('DK admission, safe points and spawn environment', () => {
       path.join(root, 'registry.json'),
       () => clock.now(),
       {
+        files: nativeCreated,
         exited: (owner) => Promise.resolve(host.hasRetired(owner)),
         archivedAndClean: () => Promise.resolve(false),
         freeBytes: () => Promise.resolve(null),
@@ -395,6 +399,7 @@ describe('DK admission, safe points and spawn environment', () => {
       read,
     })
     const registry = await CreatedRegistry.open(path.join(root, 'registry.json'), () => 0, {
+      files: nativeCreated,
       exited: () => Promise.resolve(true),
       archivedAndClean: () => Promise.resolve(false),
       freeBytes: () => Promise.resolve(null),
