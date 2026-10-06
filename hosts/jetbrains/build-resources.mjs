@@ -2,6 +2,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import * as esbuild from 'esbuild'
+import { checkNativeBundleSize } from './check-bundle-size.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const output = path.join(import.meta.dirname, 'build/generated/pages')
@@ -34,6 +35,7 @@ for (const entry of ['main', 'whatsNew']) {
     outfile: path.join(output, `${entry}.inline.js`),
   })
 }
+checkNativeBundleSize(output)
 const renderer = await import(pathToFileURL(helper).href)
 const content = renderer.parseWhatsNewContent(
   await readFile(path.join(root, 'dist/whatsNew.json'), 'utf8'),

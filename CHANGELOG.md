@@ -24,6 +24,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- JetBrains development plugin: isolate cancelled Tab responses, bound the
+  metadata handshake without blocking shutdown, and dispose the native session
+  and runtime process tree on transport failure. Workspace globs include root
+  files and apply exclusions at every depth. Add settled diagnostics regressions
+  and size accounting for the actual shipped inline startup scripts.
+
 - **The README's "What's new" section matches the release again.** 0.12.1 and
   0.13.0 shipped with the README still headed "What's new in 0.12.0". It now
   describes 0.13.0, the Marketplace README carries the same section, and a

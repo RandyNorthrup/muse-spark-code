@@ -67,6 +67,7 @@ val renderPages by tasks.registering(Exec::class) {
   inputs.dir(repositoryRoot.resolve("dist/webview"))
   inputs.files(
     file("build-resources.mjs"),
+    file("check-bundle-size.mjs"),
     repositoryRoot.resolve("src/host/html.ts"),
     repositoryRoot.resolve("src/host/whatsNew/whatsNewHtml.ts"),
   )

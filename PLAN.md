@@ -5258,6 +5258,27 @@ have equivalent functionality even if we need to develop it ourselves".
   failure or a readiness deadline selects the existing companion CLI mode;
   frozen `ui/openExternal` opens its fresh runtime URL. The certification
   records the stopped approaches; no new companion carrier method is invented.
+- **Native JCEF startup budget (FIXM104E).** `renderPages` checks the actual
+  shipped `main.inline.js` against 950 KiB, the sum of D6's existing shared
+  startup 900 KiB and deferred 50 KiB caps. JCEF eagerly folds both; the
+  shared 900 KiB gate remains unchanged. `whatsNew.inline.js` keeps 25 KiB.
+  The new native checks run before localized pages or the ZIP can be built,
+  and are Gradle inputs. No existing budget is raised.
+- **FIXM104E review closure (2026-10-05).** Fix RVM104E's six findings
+  inside the JetBrains lane: retain bounded cancelled-request correlation;
+  resolve opt-in metadata outside the connection monitor with a deadline and
+  shutdown precedence; dispose the native session, Tab binding and process
+  tree together on transport failure; use the IDE's VS Code-compatible glob
+  matcher for root/nested inclusions and exclusions; add real daemon
+  diagnostics/get and diagnostics/didChange tests; count the shipped inline
+  startup script in a native build gate. Keep existing caps and frozen wire
+  bytes. Each finding gets a regression and byte-exact red drill in
+  `docs/certification/m104-e3.md`. Regression qualification also exposed
+  nullable JSON Schema `type` arrays in the frozen contract: validate those
+  exact declared unions and reject every undeclared type; no wire change.
+  The platform's minimatch brace expansion is a stub, so expand alternatives
+  locally with the shared glob limits (256 characters/alternatives) before
+  invoking that existing matcher. No new dependencies or live calls.
 - **MHP 1.2 proposal (E3; other hosts unchanged).** The frozen 1.1
   `initialize` direction is runtime-to-host, but its result cannot carry the
   host's actual metadata. Add capability `hostMetadata` and protocol version
@@ -16226,6 +16247,20 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM104E / RVM104E (2026-10-05):** all six numbered review findings
+  are fixed in the JetBrains lane; no P1/P2/P3 finding is retained as a
+  residual. Cancelled outbound requests retain only their existing bounded
+  pending slots until a validated reply or connection close; an unresponsive
+  peer gets ordinary backpressure, never unbounded tombstones or a widened
+  correlation guard. Metadata has a two-second deadline; the IDE-thread
+  handoff may finish later on a daemon worker, but shutdown never waits for it
+  and closed connections discard completion. Native startup counts the actual
+  folded entry under the existing shared eager/deferred allowance; the shared
+  startup cap is unchanged. Test names, restoration hashes and scoped receipts
+  are in `docs/certification/m104-e3.md`. The existing standalone IDE agreement
+  and runtime/controller assembly qualification remain deferred to the owner
+  and integration lanes; no supported-product claim is added.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

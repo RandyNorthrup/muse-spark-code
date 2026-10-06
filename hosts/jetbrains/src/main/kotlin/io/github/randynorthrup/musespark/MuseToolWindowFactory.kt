@@ -106,7 +106,7 @@ class JetBrainsPanelHost(
         connection?.close()
         runtime?.close()
         diagnostic("MHP_RUNTIME_START_FAILED")
-        SwingUtilities.invokeLater { failed("MHP_RUNTIME_START_FAILED") }
+        SwingUtilities.invokeLater { stopSession("MHP_RUNTIME_START_FAILED") }
       }
     }
   }
@@ -114,18 +114,7 @@ class JetBrainsPanelHost(
   private fun useCompanion() {
     if (disposed || companion) return
     companion = true
-    locations.values.toList().forEach { Disposer.dispose(it) }
-    panels.values.toList().forEach(Disposer::dispose)
-    locations.clear()
-    panels.clear()
-    bindings.clear()
-    nativeLifetime?.let(Disposer::dispose)
-    nativeLifetime = null
-    tab.bind(null)
-    connection?.close()
-    pipe?.close()
-    val previous = runtime
-    runtime = null
+    stopSession()
     status.text = localizedText(locale, "connecting")
     if (toolWindow.contentManager.contents.none { it.component == loading }) {
       toolWindow.contentManager.addContent(ContentFactory.getInstance().createContent(loading, PRODUCT_NAME, false))
@@ -133,15 +122,15 @@ class JetBrainsPanelHost(
     loading.revalidate()
     loading.repaint()
     AppExecutorUtil.getAppExecutorService().execute {
-      previous?.close()
       SwingUtilities.invokeLater { if (!disposed) start(false) }
     }
   }
 
-  private fun attach(
+  internal fun attach(
     process: RuntimeProcess,
     embedded: Boolean,
   ) {
+    runtime = process
     val lifetime = Disposer.newDisposable("Muse native session")
     Disposer.register(this, lifetime)
     nativeLifetime = lifetime
@@ -186,7 +175,13 @@ class JetBrainsPanelHost(
       MhpPipe(process.process.inputStream, process.process.outputStream, boundary, mhp::receive, { code ->
         diagnostic(code)
         mhp.close()
-        SwingUtilities.invokeLater { if (!disposed) failed(code) }
+        SwingUtilities.invokeLater {
+          synchronized(lifetimeMonitor) {
+            if (!disposed && runtime === process) {
+              stopSession(code)
+            }
+          }
+        }
       }, budget).also(MhpPipe::start)
     process.drainStderr(diagnostic)
   }
@@ -211,15 +206,6 @@ class JetBrainsPanelHost(
           services.request(method, params, cancellation)
         }
     }
-
-  private fun failed(code: String) {
-    if (toolWindow.contentManager.contents.none { it.component == loading }) {
-      toolWindow.contentManager.addContent(ContentFactory.getInstance().createContent(loading, PRODUCT_NAME, false))
-    }
-    status.text = localizedText(locale, "crashTitle") + ": " + code
-    loading.revalidate()
-    loading.repaint()
-  }
 
   private fun surfaceRequest(
     method: String,
@@ -317,21 +303,38 @@ class JetBrainsPanelHost(
     "MHP_TRANSPORT_CLOSED"
   }.send(frame, surface)
 
+  private fun stopSession(code: String? = null) {
+    locations.values.toList().forEach { location -> runCatching { Disposer.dispose(location) } }
+    locations.clear()
+    panels.values.toList().forEach(Disposer::dispose)
+    panels.clear()
+    bindings.clear()
+    tab.bind(null)
+    connection?.close()
+    connection = null
+    pipe?.close()
+    pipe = null
+    nativeLifetime?.let(Disposer::dispose)
+    nativeLifetime = null
+    val previous = runtime
+    runtime = null
+    previous?.let { process -> AppExecutorUtil.getAppExecutorService().execute { process.close() } }
+    if (code != null && !disposed) {
+      if (toolWindow.contentManager.contents.none { it.component == loading }) {
+        toolWindow.contentManager.addContent(ContentFactory.getInstance().createContent(loading, PRODUCT_NAME, false))
+      }
+      status.text = localizedText(locale, "crashTitle") + ": " + code
+      loading.revalidate()
+      loading.repaint()
+    }
+  }
+
   override fun dispose() {
     synchronized(lifetimeMonitor) {
       if (disposed) return
       disposed = true
-      locations.values.toList().forEach { location -> runCatching { Disposer.dispose(location) } }
-      locations.clear()
-      panels.values.toList().forEach(Disposer::dispose)
-      panels.clear()
-      bindings.clear()
-      tab.bind(null)
-      connection?.close()
-      pipe?.close()
+      stopSession()
       executor.shutdownNow()
-      runtime?.let { process -> AppExecutorUtil.getAppExecutorService().execute { process.close() } }
-      runtime = null
     }
   }
 

@@ -45,6 +45,18 @@ class MhpBoundaryTest {
   }
 
   @Test
+  fun validatesFrozenNullableTypeArraysWithoutAcceptingUndeclaredTypes() {
+    for (value in listOf(null, "fixture input")) {
+      boundary.result("ui/input", json("jsonrpc" to "2.0", "id" to "input", "result" to value))
+    }
+    for (value in listOf(true, 1, emptyList<String>(), json())) {
+      assertThrows(Exception::class.java) {
+        boundary.result("ui/input", json("jsonrpc" to "2.0", "id" to "input", "result" to value))
+      }
+    }
+  }
+
+  @Test
   fun validatesSurfaceSpecificPayloadsAndSafeSequences() {
     boundary.payload("chat", "toHost", json("type" to "ready"))
     boundary.payload("tasks", "toHost", json("type" to "tasksReady"))

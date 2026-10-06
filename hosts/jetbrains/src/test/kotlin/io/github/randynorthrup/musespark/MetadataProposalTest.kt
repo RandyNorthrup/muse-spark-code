@@ -4,7 +4,10 @@ import com.google.gson.JsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
 
 class MetadataProposalTest {
   private val boundary = JsonBoundary()
@@ -20,7 +23,8 @@ class MetadataProposalTest {
   @Test
   fun supportsTheExactNewMinorOnlyWhenMetadataIsAvailableAndValid() {
     for (available in listOf(true, false)) {
-      val sent = mutableListOf<JsonObject>()
+      val sent = CopyOnWriteArrayList<JsonObject>()
+      val replied = CountDownLatch(1)
       val peer =
         MhpConnection(
           boundary,
@@ -35,7 +39,10 @@ class MetadataProposalTest {
             ) = jsonValue(null)
           },
           Executor(Runnable::run),
-          { frame, _ -> sent.add(frame) },
+          { frame, _ ->
+            sent.add(frame)
+            replied.countDown()
+          },
           {},
           ConnectionEvents({}, {}),
         )
@@ -55,12 +62,12 @@ class MetadataProposalTest {
               "trusted" to true,
             ),
         )
+      peer.receive(request)
+      org.junit.Assert.assertTrue(replied.await(5, TimeUnit.SECONDS))
       if (available) {
-        peer.receive(request)
         assertEquals(metadata, sent.single().getAsJsonObject("result")["hostMetadata"])
       } else {
-        assertThrows(Exception::class.java) { peer.receive(request) }
-        assertEquals(emptyList<JsonObject>(), sent)
+        assertEquals(boundary.errorCode("internalError"), sent.single().getAsJsonObject("error")["code"].asInt)
       }
       peer.close()
     }

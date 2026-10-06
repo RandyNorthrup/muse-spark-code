@@ -1,0 +1,143 @@
+package io.github.randynorthrup.musespark
+
+import com.google.gson.JsonObject
+import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
+import com.intellij.openapi.util.Disposer
+import com.intellij.testFramework.PsiTestUtil
+import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import java.util.concurrent.Executor
+
+class NativeHostServicesTest : BasePlatformTestCase() {
+  override fun createTempDirTestFixture(): com.intellij.testFramework.fixtures.TempDirTestFixture =
+    com.intellij.testFramework.fixtures.impl
+      .TempDirTestFixtureImpl()
+
+  private fun services(): NativeHostServices {
+    val widgets = NativeWidgets(project, JsonBoundary()) {}
+    Disposer.register(testRootDisposable, widgets)
+    return NativeHostServices(project, { _, _ -> error("fixture-unused") }, widgets)
+  }
+
+  fun testWorkspaceGlobsIncludeRootNestedAndHiddenFilesAndApplyExclusionsAtEveryDepth() {
+    val paths = listOf("main.ts", "src/main.ts", "src/deep/more.kt", ".hidden.ts", "secret.txt", "src/secret.txt")
+    val files = paths.associateWith { myFixture.addFileToProject(it, "fixture").virtualFile }
+    PsiTestUtil.addContentRoot(module, requireNotNull(files["main.ts"]).parent)
+    val services = services()
+
+    fun find(
+      include: String,
+      exclude: String? = null,
+      limit: Int = 100,
+    ): Set<String> {
+      val params = json("include" to include, "limit" to limit)
+      exclude?.let { params.addProperty("exclude", it) }
+      return services
+        .request(
+          "workspace/findFiles",
+          params,
+          RequestCancellation(),
+        ).asJsonArray
+        .map { it.asString }
+        .toSet()
+    }
+
+    fun uris(vararg names: String) = names.map { DocumentServices.uri(requireNotNull(files[it])) }.toSet()
+    assertEquals(uris("main.ts", "src/main.ts", ".hidden.ts"), find("**/*.ts"))
+    assertEquals(uris(*paths.toTypedArray()), find("**/*"))
+    assertEquals(uris("main.ts", "src/main.ts", "src/deep/more.kt", ".hidden.ts"), find("**/*", "**/secret.txt"))
+    assertEquals(uris("main.ts", ".hidden.ts"), find("**/*.ts", "src/**"))
+    assertEquals(uris("main.ts", "src/main.ts", "src/deep/more.kt", ".hidden.ts"), find("**/*.{ts,kt}"))
+    assertEquals(uris("main.ts", "src/main.ts"), find("**/[m]*.ts"))
+    assertEquals(uris("main.ts", ".hidden.ts"), find("*.ts"))
+    assertEquals(emptySet<String>(), find("**/*", limit = 0))
+    assertEquals(1, find("**/*", limit = 1).size)
+  }
+
+  fun testWorkspaceGlobLimitsRejectOversizedOrExplosivePatterns() {
+    val services = services()
+    for (pattern in listOf("x".repeat(257), "{a,b}".repeat(9))) {
+      assertEquals(
+        "MHP_INVALID_PARAMS",
+        org.junit.Assert
+          .assertThrows(Exception::class.java) {
+            services.request("workspace/findFiles", json("include" to pattern, "limit" to 1), RequestCancellation())
+          }.message,
+      )
+    }
+  }
+
+  private fun brokenXml(): NativeHostServices {
+    val file = myFixture.addFileToProject("diagnostics.xml", "<root><child></root>").virtualFile
+    PsiTestUtil.addContentRoot(module, file.parent)
+    myFixture.configureFromExistingVirtualFile(file)
+    assertTrue(myFixture.doHighlighting().any { it.severity >= com.intellij.lang.annotation.HighlightSeverity.ERROR })
+    return services()
+  }
+
+  fun testDiagnosticsGetReportsSettledDaemonErrorsWithExactUriAndUtf16Range() {
+    val services = brokenXml()
+    val uri = DocumentServices.uri(myFixture.file.virtualFile)
+    val diagnostics = services.request("diagnostics/get", json("uri" to uri), RequestCancellation()).asJsonArray
+    val errors = diagnostics.map { it.asJsonObject }.filter { it["severity"].asString == "error" }
+    assertFalse(errors.isEmpty())
+    val highlights =
+      myFixture.doHighlighting().filter {
+        it.severity >= com.intellij.lang.annotation.HighlightSeverity.ERROR && it.description != null
+      }
+    assertEquals(highlights.map { it.description }.toSet(), errors.map { it["message"].asString }.toSet())
+    highlights.forEach { info ->
+      val diagnostic = errors.first { it["message"].asString == info.description }
+      assertEquals(uri, diagnostic["uri"].asString)
+      assertEquals(
+        DocumentServices.range(myFixture.editor.document, info.startOffset, info.endOffset),
+        diagnostic["range"],
+      )
+    }
+    assertEquals(diagnostics, services.request("diagnostics/get", json(), RequestCancellation()))
+    JsonBoundary().result("diagnostics/get", json("jsonrpc" to "2.0", "id" to "get", "result" to diagnostics))
+  }
+
+  fun testDiagnosticsDidChangePublishesSettledErrorsAndClearsAfterCorrection() {
+    val services = brokenXml()
+    val sent = mutableListOf<JsonObject>()
+    val peer =
+      MhpConnection(JsonBoundary(), services, Executor(Runnable::run), { frame, _ -> sent.add(frame) }, {
+      }, ConnectionEvents({}, {}))
+    Disposer.register(testRootDisposable) { peer.close() }
+    peer.receive(
+      json(
+        "jsonrpc" to "2.0",
+        "id" to "initialize",
+        "method" to "initialize",
+        "params" to
+          json(
+            "host" to json("id" to "runtime", "version" to "1"),
+            "locale" to "en",
+            "theme" to json("kind" to "dark", "tokens" to json()),
+            "folders" to emptyList<String>(),
+            "trusted" to true,
+          ).apply {
+            add("protocolRange", json("minimum" to "mhp/1.1.0", "maximumExclusive" to "mhp/1.2.0"))
+            add("capabilities", jsonValue(services.capabilities))
+          },
+      ),
+    )
+    installEditorEvents(project, services, peer, testRootDisposable)
+
+    fun publish(): JsonObject {
+      sent.clear()
+      project.messageBus.syncPublisher(DaemonCodeAnalyzer.DAEMON_EVENT_TOPIC).daemonFinished()
+      return sent.single { it["method"]?.asString == "diagnostics/didChange" }.getAsJsonObject("params")
+    }
+    val broken = publish()
+    assertEquals(DocumentServices.uri(myFixture.file.virtualFile), broken["uri"].asString)
+    assertTrue(broken.getAsJsonArray("diagnostics").any { it.asJsonObject["severity"].asString == "error" })
+    com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction(project) {
+      myFixture.editor.document.setText("<root/>")
+    }
+    myFixture.doHighlighting()
+    val fixed = publish()
+    assertEquals(broken["uri"], fixed["uri"])
+    assertEquals(jsonValue(emptyList<String>()), fixed["diagnostics"])
+  }
+}

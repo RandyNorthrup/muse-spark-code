@@ -7,7 +7,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
 
 class MhpConnectionTest {
   private val boundary = JsonBoundary()
@@ -78,7 +82,8 @@ class MhpConnectionTest {
       Triple("mhp/1.2.0", true, false),
       Triple("mhp/1.3.0", true, true),
     )) {
-      val replies = mutableListOf<JsonObject>()
+      val replies = CopyOnWriteArrayList<JsonObject>()
+      val replied = CountDownLatch(1)
       val peer =
         MhpConnection(
           boundary,
@@ -94,7 +99,10 @@ class MhpConnectionTest {
             ) = jsonValue(null)
           },
           Executor(Runnable::run),
-          { frame, _ -> replies.add(frame) },
+          { frame, _ ->
+            replies.add(frame)
+            replied.countDown()
+          },
           {},
           ConnectionEvents({}, {}),
         )
@@ -112,14 +120,12 @@ class MhpConnectionTest {
           ),
         ),
       )
+      assertTrue(replied.await(5, TimeUnit.SECONDS))
       val result = replies.single().getAsJsonObject("result")
       if (expected) {
         assertEquals("mhp/1.2.0", result["protocolVersion"].asString)
         assertEquals(metadata, result["hostMetadata"])
-        assertEquals(
-          setOf("lifecycle", "hostMetadata"),
-          result.getAsJsonArray("capabilities").map { it.asString }.toSet(),
-        )
+        assertEquals(jsonValue(listOf("lifecycle", "hostMetadata")), result["capabilities"])
       } else {
         assertEquals(json("protocolVersion" to "mhp/1.1.0", "capabilities" to listOf("lifecycle")), result)
       }
@@ -196,6 +202,152 @@ class MhpConnectionTest {
     connection.close()
     assertTrue(second.isCompletedExceptionally)
   }
+
+  @Test
+  fun cancelledTabLateSuccessAndFailureLeaveOtherRequestsAndPanelsAlive() {
+    initialize()
+    val params =
+      json(
+        "uri" to "file:///workspace/a.kt",
+        "position" to json("line" to 0, "character" to 0),
+        "version" to 1,
+        "context" to json("prefix" to "", "suffix" to "", "trigger" to "invoke"),
+      )
+    for (failed in listOf(false, true)) {
+      val cancelled = connection.request("tab/complete", params)
+      val id = sent.last()["id"]
+      val other = connection.request("tab/complete", params)
+      val otherId = sent.last()["id"]
+      assertTrue(cancelled.cancel(true))
+      assertEquals("$/cancelRequest", sent.last()["method"].asString)
+      assertEquals(id, sent.last().getAsJsonObject("params")["id"])
+      val late =
+        if (failed) {
+          json(
+            "jsonrpc" to "2.0",
+            "id" to id,
+            "error" to json("code" to boundary.errorCode("cancelled"), "message" to "MHP_CANCELLED"),
+          )
+        } else {
+          json("jsonrpc" to "2.0", "id" to id, "result" to emptyList<String>())
+        }
+      assertThrows(Exception::class.java) {
+        connection.receive(json("jsonrpc" to "2.0", "id" to id, "result" to "invalid"))
+      }
+      connection.receive(late)
+      assertTrue(cancelled.isCancelled)
+      assertFalse(other.isDone)
+      connection.receive(json("jsonrpc" to "2.0", "id" to otherId, "result" to emptyList<String>()))
+      assertTrue(other.isDone)
+      choice = jsonValue("Still connected")
+      connection.receive(call("ui/input", json("title" to "Other panel", "prompt" to "Still connected")))
+      tasks.removeAt(0).run()
+      assertTrue(sent.last().toString(), sent.last().has("result"))
+      assertThrows(Exception::class.java) { connection.receive(late) }
+    }
+    val retained = mutableListOf<JsonElement>()
+    repeat(boundary.maximumQueuedMessages) {
+      val pending = connection.request("tab/complete", params)
+      retained.add(sent.last()["id"])
+      pending.cancel(true)
+    }
+    assertThrows(Exception::class.java) { connection.request("tab/complete", params) }
+    retained.forEach { connection.receive(json("jsonrpc" to "2.0", "id" to it, "result" to emptyList<String>())) }
+    assertFalse(connection.request("tab/complete", params).isDone)
+    connection.close()
+  }
+
+  @Test
+  fun metadataHandoffDoesNotHoldTheMonitorAndShutdownWins() = stalledMetadata(true)
+
+  @Test
+  fun metadataHandoffHasADeadlineAndRejectsLateInitialization() = stalledMetadata(false)
+
+  private fun stalledMetadata(shutdown: Boolean) {
+    val entered = CountDownLatch(1)
+    val release = CountDownLatch(1)
+    val finished = CountDownLatch(1)
+    val sent = CopyOnWriteArrayList<JsonObject>()
+    val initialized = CountDownLatch(1)
+    val replied = CountDownLatch(1)
+    val peer =
+      MhpConnection(
+        boundary,
+        stalledServices(entered, release, finished),
+        Executor(Runnable::run),
+        { frame, _ ->
+          sent.add(frame)
+          replied.countDown()
+        },
+        {},
+        ConnectionEvents({ initialized.countDown() }, {}),
+      )
+    try {
+      val receive =
+        CompletableFuture.runAsync {
+          peer.receive(
+            call(
+              "initialize",
+              json(
+                "host" to json("id" to "runtime", "version" to "1"),
+                "protocolRange" to json("minimum" to "mhp/1.1.0", "maximumExclusive" to "mhp/1.3.0"),
+                "capabilities" to listOf("lifecycle", "hostMetadata"),
+                "locale" to "en",
+                "theme" to json("kind" to "dark", "tokens" to json()),
+                "folders" to emptyList<String>(),
+                "trusted" to true,
+              ),
+              "initialize",
+            ),
+          )
+        }
+      assertTrue(entered.await(5, TimeUnit.SECONDS))
+      receive.get(1, TimeUnit.SECONDS)
+      if (shutdown) {
+        CompletableFuture.runAsync { peer.receive(call("shutdown", json(), "shutdown")) }.get(1, TimeUnit.SECONDS)
+        assertEquals("shutdown", sent.single()["id"].asString)
+      } else {
+        assertTrue(replied.await(5, TimeUnit.SECONDS))
+        assertTrue(sent.single().has("error"))
+      }
+      assertThrows(IllegalStateException::class.java) { peer.receive(call("shutdown", json(), "late-shutdown")) }
+      release.countDown()
+      assertTrue(finished.await(5, TimeUnit.SECONDS))
+      assertEquals(1, sent.size)
+      assertEquals(1L, initialized.count)
+    } finally {
+      release.countDown()
+      peer.close()
+    }
+  }
+
+  private fun stalledServices(
+    entered: CountDownLatch,
+    release: CountDownLatch,
+    finished: CountDownLatch,
+  ): EditorServices =
+    object : EditorServices {
+      override val capabilities = listOf("lifecycle")
+      override val metadata: JsonObject
+        get() {
+          entered.countDown()
+          release.await(10, TimeUnit.SECONDS)
+          finished.countDown()
+          return json(
+            "host" to json("id" to "jetbrains", "version" to "253"),
+            "locale" to "en",
+            "theme" to json("kind" to "dark", "tokens" to json()),
+            "folders" to emptyList<String>(),
+            "trusted" to true,
+          )
+        }
+
+      override fun request(
+        method: String,
+        params: JsonObject,
+        cancellation: RequestCancellation,
+      ) = jsonValue(null)
+    }
 
   @Test
   fun refusesUnsupportedGroupsAndRequestsInTheWrongDirectionBeforeDispatch() {

@@ -11,7 +11,7 @@ Build from the repository root:
 ```sh
 npm run build
 ./hosts/jetbrains/gradlew -p hosts/jetbrains test detekt ktlintCheck buildPlugin --no-daemon
-node --test hosts/jetbrains/test/embedded.test.mjs
+node --test hosts/jetbrains/test/embedded.test.mjs hosts/jetbrains/test/bundle-size.test.mjs
 ```
 
 The ZIP in `hosts/jetbrains/build/distributions/` contains the shared panel,
@@ -52,6 +52,12 @@ against a fake stdio runtime. Native Tab uses the platform inline completion
 provider: Tab accepts, Escape rejects, and the runtime's empty budget/capability
 result creates no suggestion. The runtime owns M94's separate USD 1/day ledger
 and model/token/output caps; the plugin makes no provider call or retry.
+Cancelling one Tab request sends only its cancellation notification. Its bounded
+pending slot stays until the peer's validated result or failure arrives, so a late
+reply leaves the shared chat transport alive. A peer that never replies can fill
+the existing request bound and receives backpressure until it settles or closes.
+A transport failure disposes native commands, widgets, panels and Tab bindings
+and terminates the runtime process tree.
 Only insertion ranges at the unchanged caret are offered. Other replacements
 are rejected rather than applied to the wrong buffer.
 
@@ -64,7 +70,12 @@ branch's base, so its assembled qualification remains an integration item.
 A runtime offering `hostMetadata` and a range containing `mhp/1.2.0` receives
 IDE identity/version, locale, theme tokens, workspace folders and trust in
 `initialize.result.hostMetadata`. Other peers receive the exact legacy 1.1
-result. This local proposal is specified in PLAN D84; the frozen shipped 1.1
+result. Metadata collection runs outside the connection lock with a two-second
+deadline; shutdown cancels initialization and late metadata cannot reopen it.
+The native resource build measures the shipped inline main script against
+950 KiB (the unchanged shared startup 900 KiB plus deferred 50 KiB), and
+What's New against its existing 25 KiB. The shared startup gate still applies.
+This local proposal is specified in PLAN D84; the frozen shipped 1.1
 schema and other hosts are unchanged.
 
 This is a development artifact, not a usable or supported Marketplace release. The

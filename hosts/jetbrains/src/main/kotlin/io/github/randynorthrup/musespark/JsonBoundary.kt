@@ -227,7 +227,10 @@ private fun schemaStructure(
   val union = rule["anyOf"]?.let { it.asJsonArray.any { child -> schemaMatches(child, value, root) } } ?: true
   val exclusive =
     rule["oneOf"]?.let { it.asJsonArray.count { child -> schemaMatches(child, value, root) } == 1 } ?: true
-  val type = rule["type"]?.let { hasType(it.asString, value) } ?: true
+  val type =
+    rule["type"]?.let { types ->
+      if (types.isJsonArray) types.asJsonArray.any { hasType(it.asString, value) } else hasType(types.asString, value)
+    } ?: true
   return listOf(refMatches, constant, enumeration, union, exclusive, type).all { it }
 }
 

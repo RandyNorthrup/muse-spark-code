@@ -15,10 +15,11 @@ import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.wm.WindowManager
+import com.intellij.util.text.minimatch.Minimatch
+import com.intellij.util.text.minimatch.MinimatchOptions
 import java.awt.KeyboardFocusManager
 import java.awt.datatransfer.StringSelection
 import java.net.URI
-import java.nio.file.FileSystems
 import java.nio.file.Path
 import javax.swing.JList
 import javax.swing.JOptionPane
@@ -127,8 +128,8 @@ class NativeHostServices(
       "workspace/folders" -> folders()
       "workspace/trust" -> json("trusted" to TrustedProjects.isProjectTrusted(project))
       "workspace/findFiles" -> {
-        val include = FileSystems.getDefault().getPathMatcher("glob:${params["include"].asString}")
-        val exclude = params["exclude"]?.asString?.let { FileSystems.getDefault().getPathMatcher("glob:$it") }
+        val include = compileWorkspaceGlob(params["include"].asString)
+        val exclude = params["exclude"]?.asString?.let(::compileWorkspaceGlob)
         val limit = params["limit"].asLong.coerceAtMost(MAXIMUM_FIND_FILES).toInt()
         val found = mutableListOf<String>()
         if (limit != 0) {
@@ -138,8 +139,8 @@ class NativeHostServices(
                 file.path.startsWith(it.path + "/")
               }
             if (!file.isDirectory && root != null && documents.inWorkspace(file)) {
-              val path = root.toNioPath().relativize(file.toNioPath())
-              if (include.matches(path) && exclude?.matches(path) != true) found.add(DocumentServices.uri(file))
+              val path = root.toNioPath().relativize(file.toNioPath()).joinToString("/")
+              if (include(path) && exclude?.invoke(path) != true) found.add(DocumentServices.uri(file))
             }
             found.size < limit
           }
@@ -347,3 +348,49 @@ private fun plainMessage(text: String): JScrollPane =
 
 private const val MODAL_COLUMNS = 64
 private const val MODAL_ROWS = 12
+
+// Reuse the platform matcher; its brace expander is a stub in SDK 253.
+// These bounds mirror GLOB_MAX_LENGTH / GLOB_MAX_ALTERNATIVES in shared constants.
+private const val WORKSPACE_GLOB_LIMIT = 256
+
+private fun compileWorkspaceGlob(pattern: String): (String) -> Boolean {
+  require(pattern.length <= WORKSPACE_GLOB_LIMIT) { "MHP_INVALID_PARAMS" }
+  val remaining = java.util.ArrayDeque<String>()
+  remaining.add(pattern)
+  val alternatives = mutableListOf<String>()
+  while (remaining.isNotEmpty()) {
+    val current = remaining.removeFirst()
+    val expanded = expandWorkspaceBrace(current)
+    if (expanded == null) alternatives.add(current) else remaining.addAll(expanded)
+    require(remaining.size + alternatives.size <= WORKSPACE_GLOB_LIMIT) { "MHP_INVALID_PARAMS" }
+  }
+  val options = MinimatchOptions(dot = true, nonegate = true, nocomment = true, noext = true, nobrace = true)
+  val matchers = alternatives.map { Minimatch(it, options) }
+  return { path -> matchers.any { it.match(path) } }
+}
+
+private fun expandWorkspaceBrace(pattern: String): List<String>? {
+  var open = -1
+  var depth = 0
+  var inClass = false
+  val commas = mutableListOf<Int>()
+  for ((index, char) in pattern.withIndex()) {
+    if (char in "[]") inClass = char == '['
+    if (inClass) continue
+    when (char) {
+      '{' -> {
+        if (depth == 0) open = index
+        depth++
+      }
+      ',' -> if (depth == 1) commas.add(index)
+      '}' -> if (depth > 0) depth--
+    }
+    if (char == '}' && depth == 0 && commas.isNotEmpty()) {
+      val edges = listOf(open) + commas + index
+      return edges.zipWithNext { start, end ->
+        pattern.substring(0, open) + pattern.substring(start + 1, end) + pattern.substring(index + 1)
+      }
+    }
+  }
+  return null
+}
