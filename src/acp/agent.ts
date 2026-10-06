@@ -92,6 +92,7 @@ import {
   promptParts,
   UpdateTranslator,
 } from './translate'
+import type { AcpEstimatePort } from './estimate'
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -151,6 +152,8 @@ export interface AcpAgentDeps {
    * session. Absent, the agent behaves exactly as before.
    */
   readonly reportError?: (fact: AcpErrorFact) => void
+  /** M117: supplied by the lazy estimator loader; absence is reported locally. */
+  readonly estimate?: AcpEstimatePort
 }
 
 /** One observed failure as facts: a fixed kind and a fixed short code, nothing else. */
@@ -189,6 +192,7 @@ type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown
 interface PreparingPrompt {
   isCancelled: boolean
   error?: unknown
+  estimateAbort?: AbortController
 }
 
 /** Identity of the latest load or resume; kept while earlier releases finish. */
@@ -260,6 +264,11 @@ class AcpSession {
     })
   }
 
+  /** Cancellation/release callbacks can change the prompt across await. */
+  private wasEstimateCancelled(preparing: PreparingPrompt): boolean {
+    return preparing.isCancelled || this.isDisposed
+  }
+
   /** Queues an update behind the ones before it: the client sees them in order. */
   private send(update: SessionUpdate): void {
     this.outbox = this.deliver(this.outbox, update)
@@ -321,8 +330,21 @@ class AcpSession {
       sessionUpdate: 'available_commands_update',
       availableCommands: [
         { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+        ...(this.deps.estimate === undefined
+          ? []
+          : [
+              {
+                name: SLASH_COMMAND_NAMES.estimate,
+                description: UI_TEXT.estimateCliHelp,
+                input: { hint: UI_TEXT.estimateUsage },
+              },
+            ]),
         ...this.skills
-          .filter((skill) => skill.selector !== SLASH_COMMAND_NAMES.help)
+          .filter(
+            (skill) =>
+              skill.selector !== SLASH_COMMAND_NAMES.help &&
+              skill.selector !== SLASH_COMMAND_NAMES.estimate,
+          )
           .map((skill) => ({
             name: skill.selector,
             description: skill.description === '' ? skill.displayName : skill.description,
@@ -835,6 +857,43 @@ class AcpSession {
     if (
       parsed.parts.length === 1 &&
       parsed.parts[0]?.type === 'text' &&
+      /^\/estimate(?:\s|$)/.test(parsed.parts[0].text.trim())
+    ) {
+      const controller = new AbortController()
+      const preparing: PreparingPrompt = { isCancelled: false, estimateAbort: controller }
+      this.preparing = preparing
+      try {
+        await this.announceCommands()
+        if ('error' in preparing) throw preparing.error
+        if (this.wasEstimateCancelled(preparing)) return 'cancelled'
+        const text =
+          this.deps.estimate === undefined
+            ? fill(UI_TEXT.estimateWaiting, { dependency: 'M117-W-estimator-binding' })
+            : await this.deps.estimate.run(parsed.parts[0].text, this.cwd, controller.signal)
+        if ('error' in preparing) throw preparing.error
+        if (this.wasEstimateCancelled(preparing)) return 'cancelled'
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        await this.outbox
+        return 'end_turn'
+      } catch {
+        if (this.wasEstimateCancelled(preparing)) return 'cancelled'
+        if ('error' in preparing) throw preparing.error
+        this.send({
+          sessionUpdate: 'agent_message_chunk',
+          content: {
+            type: 'text',
+            text: fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }),
+          },
+        })
+        await this.outbox
+        return 'end_turn'
+      } finally {
+        this.preparing = undefined
+      }
+    }
+    if (
+      parsed.parts.length === 1 &&
+      parsed.parts[0]?.type === 'text' &&
       parsed.parts[0].text.trim() === `/${SLASH_COMMAND_NAMES.help}`
     ) {
       const preparing: PreparingPrompt = { isCancelled: false }
@@ -917,6 +976,7 @@ class AcpSession {
   public async cancel(): Promise<void> {
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.estimateAbort?.abort()
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
       return
     }
@@ -940,6 +1000,7 @@ class AcpSession {
     const error = RequestError.internalError(undefined, description)
     if (this.preparing !== undefined) {
       this.preparing.error = error
+      this.preparing.estimateAbort?.abort()
     }
     this.pending?.reject(error)
     this.pending = undefined
@@ -965,6 +1026,7 @@ class AcpSession {
     this.isDisposed = true
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.estimateAbort?.abort()
     }
     const wasRunning = this.pending !== undefined
     this.pending?.resolve('cancelled')
