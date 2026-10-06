@@ -1,4 +1,4 @@
-import * as vscode from 'vscode'
+import type * as VSCode from 'vscode'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, formatBytes, formatNumber, formatPercent } from '../../shared/l10n/text'
 import {
@@ -25,11 +25,14 @@ export interface ResourceStatusDeps {
   readonly conversationId: () => string | undefined
   readonly notice: (text: string, actions: readonly ResourceStatusAction[]) => void
   readonly invalidStatus: () => void
-  readonly createItem?: () => ResourceStatusItem
+  readonly createItem: () => ResourceStatusItem
   readonly registerShow: (run: () => void) => { dispose(): void }
 }
 
-function vscodeItem(): ResourceStatusItem {
+/** Inject VS Code only in its window; native MHP hosts use their own item factory. */
+export function createVsCodeResourceStatusItem(
+  vscode: Pick<typeof VSCode, 'window' | 'StatusBarAlignment' | 'ThemeColor'>,
+): ResourceStatusItem {
   const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left)
   item.name = UI_TEXT.resourceTitle
   // W registers this command with the manifest/NLS entries at first governor load.
@@ -104,12 +107,15 @@ function pauseText(status: ResourceStatus): string {
     threshold = formatPercent(settings.diskBusyMaxPercent)
   }
   const count = status.queued.reduce((total, row) => total + row.count, 0)
-  return `${fill(UI_TEXT.resourcePauseNotice, { metric, reading, threshold })} ${UI_TEXT.resourceWaiting}: ${formatNumber(count)}`
+  const waiting = status.queued
+    .map((row) => `${row.kind} / ${row.class}: ${formatNumber(row.count)}`)
+    .join(', ')
+  return `${fill(UI_TEXT.resourcePauseNotice, { metric, reading, threshold })} ${UI_TEXT.resourceWaiting}: ${formatNumber(count)} ${waiting}`
 }
 
 /** Called only after the first governed spawn. MHP supplies createItem for its native widget. */
 export function createResourceStatus(deps: ResourceStatusDeps): { dispose(): void } {
-  const item = deps.createItem?.() ?? vscodeItem()
+  const item = deps.createItem()
   const command = deps.registerShow(() => {
     deps.port.show()
   })

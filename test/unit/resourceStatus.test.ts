@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { window } from 'vscode'
+import { window, StatusBarAlignment, ThemeColor } from 'vscode'
 import {
   createResourceStatus,
+  createVsCodeResourceStatusItem,
   type ResourceStatusAction,
   type ResourceStatusItem,
 } from '../../src/host/resources/resourceStatus'
@@ -145,6 +146,7 @@ describe('resource status surfaces', () => {
       expect.any(Array),
     )
     expect(h.notice.mock.calls[0]?.[0]).toContain(`${UI_TEXT.resourceWaiting}: 2`)
+    expect(h.notice.mock.calls[0]?.[0]).toContain('check / background: 2')
     h.publish(status('pause'))
     h.publish(status())
     h.publish(status('pause'))
@@ -238,9 +240,12 @@ describe('resource status surfaces', () => {
   it('uses the real VS Code item behind the same injected source without recursive command dispatch', () => {
     const h = harness(status('pause'))
     const item = new FakeStatusBarItem()
+    const disposed = vi.spyOn(item, 'dispose')
     vi.mocked(window.createStatusBarItem).mockReturnValue(item)
-    const { createItem: _createItem, ...deps } = h.deps
-    const handle = createResourceStatus(deps)
+    const handle = createResourceStatus({
+      ...h.deps,
+      createItem: () => createVsCodeResourceStatusItem({ window, StatusBarAlignment, ThemeColor }),
+    })
     expect(item.command).toBe('museSpark.showResources')
     expect(item.name).toBe(UI_TEXT.resourceTitle)
     expect(item.text).toContain(UI_TEXT.resourcePause)
@@ -248,8 +253,11 @@ describe('resource status surfaces', () => {
     expect(item.backgroundColor?.id).toBe('statusBarItem.warningBackground')
     h.publish(status('throttle'))
     expect(item.backgroundColor).toBeUndefined()
+    h.publish(status())
+    expect(item.visible).toBe(false)
     handle.dispose()
     expect(item.visible).toBe(false)
+    expect(disposed).toHaveBeenCalledOnce()
   })
 
   it.each(['JCEF', 'WebView2', 'SWT'])(

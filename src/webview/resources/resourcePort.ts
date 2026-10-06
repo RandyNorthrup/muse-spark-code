@@ -1,7 +1,8 @@
-import type { ComponentType } from 'react'
+import { lazy, type ComponentType } from 'react'
 
 /** W/M104 bind the checked status channel and host actions; no sampler is started here. */
 export interface ResourceSurfacePort {
+  /** Cache a snapshot between notifications (React's external-store contract). */
   getSnapshot(): unknown
   subscribe(changed: () => void): () => void
   resume(): void
@@ -17,5 +18,13 @@ export interface ResourceSurfaceProps {
 /** A separately delivered lazy surface, sharing the panel's React and language state. */
 export interface ResourceSurfaceLoader {
   readonly port: ResourceSurfacePort
-  load(): Promise<{ default: ComponentType<ResourceSurfaceProps> }>
+  readonly View: ComponentType<ResourceSurfaceProps>
+}
+
+/** Create at the first governed spawn, outside React render; importing waits for mount. */
+export function createResourceSurfaceLoader(
+  port: ResourceSurfacePort,
+  load: () => Promise<{ default: ComponentType<ResourceSurfaceProps> }>,
+): ResourceSurfaceLoader {
+  return { port, View: lazy(load) }
 }
