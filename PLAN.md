@@ -21651,6 +21651,15 @@ before a repaired one loads (2026-09-30).
   The integrator must unify lane I's tokenizer and lane W's shared Git
   classifier in round 3b, and honour TeamGit's explicit isolated environment
   argument. Proof and remaining checks are in `docs/certification/m96-i.md`.
+  REDWINI96 (2026-10-05) replaces the third-round patch approach with a
+  measured redesign. Profile all 214 cases, separating fixture setup from
+  product calls and counting their Git requests and children. Prepare each
+  fixture once per owning file and copy it cheaply. Reduce measured product
+  spawn cost without caching mutable refs, configuration or path checks.
+  Acceptance is four consecutive complete Windows runs at three workers,
+  default deadlines, and a byte-exact restored slow-path timeout drill.
+  The M96 integration lane re-runs Mac/Linux; full quality remains the
+  lead's gate under common.md. No retries, deadline increases or skips.
 
 - **FIXM96I / RVM96B (2026-10-05):** findings 1–12 and 24 are repaired,
   with no scoped finding deferred. Named validation residual **I-Windows**

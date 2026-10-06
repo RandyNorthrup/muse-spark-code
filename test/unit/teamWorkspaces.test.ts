@@ -3,12 +3,11 @@
 // refs, scratch copies for read-only workers, the end-of-task commit and
 // fetch, and cleanup. Real temporary repositories; no model calls.
 
-import { lstat, mkdir, readFile, rename, symlink, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, readFile, rename, symlink, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
 import type * as ChildProcess from 'node:child_process'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { cpSync } from 'node:fs'
 import { workerEnvironment } from '../../src/core/team/refFence'
 import {
   commitTaskBranch,
@@ -27,6 +26,7 @@ import {
 } from '../../src/core/team/teamWorkspaces'
 import {
   cleanupTeamRoots,
+  copyTeamFixture,
   fixtureBlobs,
   teamFixtureCommit,
   teamFixtureRepo,
@@ -109,7 +109,7 @@ async function copiedTaskWorkspace(
     process.platform,
   )
   await mkdir(path.dirname(folder), { recursive: true })
-  cpSync(template.workspace.folder, folder, { recursive: true })
+  copyTeamFixture(template.workspace.folder, folder)
   await writeFile(
     path.join(folder, '.git', 'objects', 'info', 'alternates'),
     `${path.join(root, '.git', 'objects')}\n`,
@@ -119,8 +119,14 @@ async function copiedTaskWorkspace(
   }
   const branch = `agents/${role}/${taskId}`
   const agentsRef = `refs/heads/${branch}`
-  await runGit(['branch', '-m', branch], folder)
-  await runGit(['update-ref', agentsRef, head, '0'.repeat(head.length)], root)
+  const ref = path.join(folder, '.git', agentsRef)
+  await mkdir(path.dirname(ref), { recursive: true })
+  await writeFile(ref, head + '\n')
+  await writeFile(path.join(folder, '.git', 'HEAD'), `ref: ${agentsRef}\n`)
+  await unlink(path.join(folder, '.git', 'refs', 'heads', 'agents', 'engineering', 'fixture'))
+  const userRef = path.join(root, '.git', agentsRef)
+  await mkdir(path.dirname(userRef), { recursive: true })
+  await writeFile(userRef, head + '\n')
   return { root, head, workspace: { folder, branch, agentsRef } }
 }
 
@@ -166,7 +172,15 @@ describe('resolveBaseCommit', () => {
   it('captures uncommitted work with HEAD as parent, without touching the branch', async () => {
     const { root, head } = await teamFixtureRepo(runGit)
     await writeFile(path.join(root, 'shared.txt'), 'one\nWORK\nthree\n')
-    const base = await resolveBaseCommit(runGit, root)
+    const metadataReads: (readonly string[])[] = []
+    const measuredGit: typeof runGit = async (args, cwd, input, env) => {
+      if (args[0] === 'rev-parse') {
+        metadataReads.push([...args])
+      }
+      return await runGit(args, cwd, input, env)
+    }
+    const base = await resolveBaseCommit(measuredGit, root)
+    expect(metadataReads).toHaveLength(1)
     expect(base).not.toBe(head)
     expect(await revOf(root, `${base}^`)).toBe(head)
     // The user's branch and tree are untouched.
@@ -543,6 +557,9 @@ describe('round 2: extension-owned Git isolation', () => {
       process.platform === 'win32' ? 'NUL' : '/dev/null',
     )
     expect(calls[1]?.env?.['GIT_TERMINAL_PROMPT']).toBe('0')
+    await teamProgramFreeGit(fakeGit)(['rev-parse', '--verify', 'HEAD^{commit}'], process.cwd())
+    expect(calls).toHaveLength(3)
+    expect(calls[2]?.env).toEqual(calls[1]?.env)
   })
 })
 
@@ -739,12 +756,21 @@ describe('fixture batch and ownership', () => {
   })
 
   it('keeps copied workspace bytes, refs and object sources independent', async () => {
+    const templateAlternates = path.join(
+      templates.own!.workspace.folder,
+      '.git',
+      'objects',
+      'info',
+      'alternates',
+    )
+    const originalAlternates = await readFile(templateAlternates, 'utf8')
     const { root, head, workspace } = await copiedTaskWorkspace('independent')
     const alternates = await readFile(
       path.join(workspace.folder, '.git', 'objects', 'info', 'alternates'),
       'utf8',
     )
     expect(path.resolve(alternates.trim())).toBe(path.join(root, '.git', 'objects'))
+    expect(await readFile(templateAlternates, 'utf8')).toBe(originalAlternates)
     expect(await revOf(root, 'agents/engineering/independent')).toBe(head)
     expect(await revOf(workspace.folder, 'HEAD')).toBe(head)
     await writeWorkerFile(workspace.folder, 'shared.txt', 'only this copy\n')

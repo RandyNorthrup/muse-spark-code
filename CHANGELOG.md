@@ -20,6 +20,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Windows team Git operation cost (REDWINI96).** Merge reads exact blob
+  IDs and modes from its raw diff, retrieves all required bytes through one
+  binary-safe Git batch, and reuses them within that operation. Dirty base
+  capture combines its metadata reads; isolated revision lookup avoids a
+  driver scan. Mutable refs, configuration and paths retain their checks.
+  Tests prepare real repository/task fixtures once per file and hard-link
+  only immutable objects into independent copies, without a test-only blob
+  cache. Measurements, restored drills and native repeats are recorded in
+  M96 lane I's certification.
+
 - **Windows overlap-refusal fixture cost (WINI96C).** The overlap regression
   imports its real task commit with Git fast-import, avoiding a separate
   task-tree copy and checkout that its parent-directory destination never

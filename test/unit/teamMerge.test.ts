@@ -17,7 +17,6 @@ import {
 } from 'node:fs/promises'
 import type * as FsPromises from 'node:fs/promises'
 import path from 'node:path'
-import { cpSync } from 'node:fs'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   applyTeamMerge,
@@ -33,6 +32,9 @@ import {
   cleanupTeamRoots,
   teamFixtureRepo,
   teamFixtureCommit,
+  prepareTeamFixtureCommits,
+  copyPreparedTeamTask,
+  copyTeamFixture,
   teamGitRunner,
   teamRealPath,
   teamShortRoot,
@@ -41,6 +43,59 @@ import {
 
 const runGit = teamGitRunner()
 cleanupTeamRoots()
+const MULTI_CONFLICT_BASE = 'one\n' + 'stable\n'.repeat(20) + 'two\n'
+prepareTeamFixtureCommits([
+  ...[
+    { 'shared.txt': 'one\nTWO\nthree\n' },
+    { 'shared.txt': 'ONE\ntwo\nthree\n' },
+    { 'shared.txt': 'one\nTHEIRS\nthree\n' },
+    { 'shared.txt': 'theirs\n' },
+    { 'new.txt': 'added\n', 'tracked.txt': undefined },
+    { 'new.txt': 'theirs\n' },
+    { 'tracked.txt': undefined },
+    { 'a.txt': 'A\n', 'b.txt': 'B\n' },
+    { 'shared.txt': 'branch\n' },
+    { 'shared.txt': undefined },
+    { 'new.txt': 'branch\n' },
+    { 'tracked.txt': 'merged\n' },
+    { 'tracked.txt': 'changed\n' },
+    { 'src/a.ts': 'code\n', 'docs/ok.md': 'fine\n' },
+    { 'docs/ok.md': 'fine\n' },
+    { 'DOCS/ok.md': 'fine\n' },
+    { 'shared.txt': 'one\nTWO\nthree\n', '.vscode/settings.json': '{}\n' },
+    { '.vscode/settings.json': '{}\n' },
+    { 'shared.txt': 'changed\n' },
+    { 'shared.txt': 'one\nTWO\nthree\n', 'new.txt': 'added\n', 'tracked.txt': undefined },
+    { 'shared.txt': 'one\nTWO\nthree\n', 'new.txt': 'added\n' },
+    { 'tracked.txt': 'changed\n', 'docs/ok.md': 'nested\n' },
+    { 'docs/ok.md': 'before\n' },
+    { 'docs/ok.md': 'merged\n' },
+    { 'docs/ok.md': 'changed\n' },
+  ].map((files) => ({ files })),
+  { files: { 'tracked.txt': 'before\n', 'shared.txt': MULTI_CONFLICT_BASE } },
+  {
+    parentFiles: { 'tracked.txt': 'before\n', 'shared.txt': MULTI_CONFLICT_BASE },
+    files: {
+      'shared.txt': MULTI_CONFLICT_BASE.replace('one', 'theirs-one').replace('two', 'theirs-two'),
+      'aaa-clean.txt': 'clean addition\n',
+    },
+  },
+  { files: { 'blob.bin': '\0\u{1}\u{2}' } },
+  { files: { 'blob.bin': '\0\u{7}\u{7}' } },
+  { files: { link: 'tracked.txt' }, modes: { link: '120000' } },
+  {
+    files: { 'tracked.txt': 'before\n', 'private.txt': 'private\n' },
+    modes: { 'tracked.txt': '100755' },
+  },
+  { files: { 'run.sh': '#!/bin/sh\necho hi\n' }, modes: { 'run.sh': '100755' } },
+  ...['before\n', 'changed\n'].map((content) => ({
+    files: { 'tracked.txt': content },
+    modes: { 'tracked.txt': '100755' },
+  })),
+  ...[{ 'docs/ok.md': 'merged\n' }, { 'docs/ok.md': 'changed\n' }, { 'docs/ok.md': undefined }].map(
+    (files) => ({ files, parentFiles: { 'docs/ok.md': 'before\n' } }),
+  ),
+])
 const TEXT = new TextDecoder()
 
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -97,7 +152,8 @@ async function taskBranch(
 
 async function makeTaskCopy(root: string, head: string): Promise<void> {
   const folder = path.join(root, '..', 'task-copy')
-  cpSync(root, folder, { recursive: true })
+  if (copyPreparedTeamTask(head, folder) !== undefined) return
+  copyTeamFixture(root, folder)
   // Most callers already have the task checked out. Binary fixtures call
   // after returning to main, so update just their copy when needed.
   const headText = await readFile(path.join(folder, '.git', 'HEAD'), 'utf8')
@@ -173,7 +229,17 @@ describe('applyTeamMerge', () => {
   it('merges the branch change cleanly', async () => {
     const { root, head: base } = await teamFixtureRepo(runGit)
     const head = await taskBranch(root, base, { 'shared.txt': 'one\nTWO\nthree\n' })
-    const result = await applyTeamMerge(io(), spec(root, base, head))
+    const reads: (readonly string[])[] = []
+    const measuredGit: typeof runGit = async (args, cwd, input, env) => {
+      reads.push(args)
+      return await runGit(args, cwd, input, env)
+    }
+    const result = await applyTeamMerge(
+      { runGit: measuredGit, realPath: teamRealPath },
+      spec(root, base, head),
+    )
+    expect(reads.filter((args) => args[0] === 'ls-tree')).toHaveLength(0)
+    expect(reads.filter((args) => args[0] === 'cat-file')).toEqual([['cat-file', '--batch']])
     expect(result.conflicts).toEqual([])
     expect(result.written).toEqual(['shared.txt'])
     expect(await readFile(path.join(root, 'shared.txt'), 'utf8')).toBe('one\nTWO\nthree\n')
@@ -387,14 +453,9 @@ describe('round 2: transactional landing', () => {
 
   it('refuses a symlink blob instead of silently changing its file type', async () => {
     const { root, head: base } = await teamFixtureRepo(runGit)
-    const blob = TEXT.decode(
-      await runGit(['hash-object', '-w', '--stdin'], root, 'tracked.txt'),
-    ).trim()
-    await runGit(['checkout', '-qb', 'agents/engineering/t1', base], root)
-    await runGit(['update-index', '--add', '--cacheinfo', `120000,${blob},link`], root)
-    await runGit(['commit', '-qm', 'symlink fixture'], root)
-    const head = await revOf(root, 'HEAD')
-    await runGit(['checkout', '-q', 'main'], root)
+    const head = await teamFixtureCommit(runGit, root, base, { link: 'tracked.txt' }, undefined, {
+      link: '120000',
+    })
     await expect(applyTeamMerge(io(), spec(root, base, head))).rejects.toMatchObject({
       code: 'unsafePath',
       files: ['link'],
@@ -407,14 +468,14 @@ describe('round 2: transactional landing', () => {
       return
     }
     const { root, head: base } = await teamFixtureRepo(runGit)
-    await runGit(['checkout', '-qb', 'agents/engineering/t1', base], root)
-    await chmod(path.join(root, 'tracked.txt'), 0o755)
-    await writeFile(path.join(root, 'private.txt'), 'private\n')
-    await runGit(['add', '--', 'private.txt'], root)
-    await runGit(['update-index', '--chmod=+x', 'tracked.txt'], root)
-    await runGit(['commit', '-qm', 'executable fixture'], root)
-    const head = await revOf(root, 'HEAD')
-    await runGit(['checkout', '-q', 'main'], root)
+    const head = await teamFixtureCommit(
+      runGit,
+      root,
+      base,
+      { 'tracked.txt': 'before\n', 'private.txt': 'private\n' },
+      undefined,
+      { 'tracked.txt': '100755' },
+    )
     await chmod(path.join(root, 'tracked.txt'), 0o600)
     const originalUmask = process.umask(0o077)
     try {
@@ -587,18 +648,26 @@ describe('planTeamMerge', () => {
       { path: 'shared.txt', change: 'modified', isBinary: false, isProtected: false },
     ])
     expect(await readFile(path.join(root, 'shared.txt'), 'utf8')).toBe('one\ntwo\nthree\n')
+    for (const corrupt of [
+      (bytes: Uint8Array) => bytes.subarray(0, -1),
+      (bytes: Uint8Array) => Buffer.concat([bytes, Buffer.from('extra')]),
+      (bytes: Uint8Array) => Buffer.from(TEXT.decode(bytes).replace(' blob ', ' tree ')),
+    ]) {
+      const malformedGit: typeof runGit = async (args, cwd, input, env) => {
+        const result = await runGit(args, cwd, input, env)
+        return args[0] === 'cat-file' ? corrupt(result) : result
+      }
+      await expect(
+        planTeamMerge({ runGit: malformedGit, realPath: teamRealPath }, spec(root, base, head)),
+      ).rejects.toMatchObject({ code: 'mergeFailed' })
+    }
   })
 })
 
 describe('binary files', () => {
   it('conflicts when both sides changed one, keeping the tree’s bytes', async () => {
     const { root, head: base } = await teamFixtureRepo(runGit)
-    await runGit(['checkout', '-qb', 'agents/engineering/t1', base], root)
-    await writeFile(path.join(root, 'blob.bin'), Buffer.from([0x00, 0x01, 0x02]))
-    await runGit(['add', '--all'], root)
-    await runGit(['commit', '-qm', 'binary theirs'], root)
-    const head = await revOf(root, 'agents/engineering/t1')
-    await runGit(['checkout', '-q', 'main'], root)
+    const head = await teamFixtureCommit(runGit, root, base, { 'blob.bin': '\0\u{1}\u{2}' })
     await makeTaskCopy(root, head)
     await writeFile(path.join(root, 'blob.bin'), Buffer.from([0x00, 0x09, 0x09]))
     const result = await applyTeamMerge(io(), spec(root, base, head))
@@ -611,13 +680,8 @@ describe('binary files', () => {
 
   it('takes theirs when only the branch changed one', async () => {
     const { root, head: base } = await teamFixtureRepo(runGit)
-    await runGit(['checkout', '-qb', 'agents/engineering/t1', base], root)
     const theirs = Buffer.from([0x00, 0x07, 0x07])
-    await writeFile(path.join(root, 'blob.bin'), theirs)
-    await runGit(['add', '--all'], root)
-    await runGit(['commit', '-qm', 'binary theirs'], root)
-    const head = await revOf(root, 'agents/engineering/t1')
-    await runGit(['checkout', '-q', 'main'], root)
+    const head = await teamFixtureCommit(runGit, root, base, { 'blob.bin': '\0\u{7}\u{7}' })
     const result = await applyTeamMerge(io(), spec(root, base, head))
     expect(result.conflicts).toEqual([])
     expect(await readFile(path.join(root, 'blob.bin'))).toEqual(Buffer.from(theirs))
@@ -693,15 +757,14 @@ describe('executable bit', () => {
       return
     }
     const { root, head: base } = await teamFixtureRepo(runGit)
-    await runGit(['checkout', '-qb', 'agents/engineering/t1', base], root)
-    await writeFile(path.join(root, 'run.sh'), '#!/bin/sh\necho hi\n')
-    await runGit(['add', '--all'], root)
-    const { chmod } = await import('node:fs/promises')
-    await chmod(path.join(root, 'run.sh'), 0o755)
-    await runGit(['add', '--all'], root)
-    await runGit(['commit', '-qm', 'script'], root)
-    const head = await revOf(root, 'agents/engineering/t1')
-    await runGit(['checkout', '-q', 'main'], root)
+    const head = await teamFixtureCommit(
+      runGit,
+      root,
+      base,
+      { 'run.sh': '#!/bin/sh\necho hi\n' },
+      undefined,
+      { 'run.sh': '100755' },
+    )
     const result = await applyTeamMerge(io(), spec(root, base, head))
     expect(result.written).toContain('run.sh')
     const { mode } = await stat(path.join(root, 'run.sh'))
@@ -711,7 +774,7 @@ describe('executable bit', () => {
 
 describe('repair regressions: conflicts and modes', () => {
   it('returns two conflict hunks for rework and lands none of the clean files', async () => {
-    const baseText = 'one\n' + 'stable\n'.repeat(20) + 'two\n'
+    const baseText = MULTI_CONFLICT_BASE
     const { root, head: base } = await teamFixtureRepo(runGit, 'before\n', baseText)
     const head = await taskBranch(root, base, {
       'shared.txt': baseText.replace('one', 'theirs-one').replace('two', 'theirs-two'),
@@ -735,15 +798,14 @@ describe('repair regressions: conflicts and modes', () => {
         return
       }
       const { root, head: base } = await teamFixtureRepo(runGit)
-      await runGit(['checkout', '-qb', 'agents/engineering/t1', base], root)
-      if (contentChanged) {
-        await writeFile(path.join(root, 'tracked.txt'), 'changed\n')
-      }
-      await chmod(path.join(root, 'tracked.txt'), 0o755)
-      await runGit(['add', '--all'], root)
-      await runGit(['commit', '-qm', 'mode change'], root)
-      const head = await revOf(root, 'HEAD')
-      await runGit(['checkout', '-q', 'main'], root)
+      const head = await teamFixtureCommit(
+        runGit,
+        root,
+        base,
+        { 'tracked.txt': contentChanged ? 'changed\n' : 'before\n' },
+        undefined,
+        { 'tracked.txt': '100755' },
+      )
       const result = await applyTeamMerge(io(), spec(root, base, head))
       expect(result.modeChanged).toContain('tracked.txt')
       const mergedStat = await stat(path.join(root, 'tracked.txt'))

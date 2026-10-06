@@ -4,8 +4,8 @@
 // here, never inherited from a developer's global git configuration.
 
 import { execFile } from 'node:child_process'
-import { appendFile, mkdir, mkdtemp, realpath, rm } from 'node:fs/promises'
-import { cpSync, realpathSync } from 'node:fs'
+import { appendFile, mkdir, mkdtemp, realpath, rm, unlink, writeFile } from 'node:fs/promises'
+import { copyFileSync, cpSync, linkSync, mkdirSync, readdirSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest'
@@ -24,6 +24,24 @@ export const teamGitEnv = {
 
 export function trackTeamRoot(root: string): void {
   roots.push(root)
+}
+
+/** Hard-link immutable Git objects; copy all mutable repository and worktree files. */
+export function copyTeamFixture(source: string, target: string, objectSource = source): void {
+  const objects = path.join(source, '.git', 'objects')
+  cpSync(source, target, { recursive: true, filter: (file) => file !== objects })
+  const copyObjects = (from: string, to: string): void => {
+    mkdirSync(to, { recursive: true })
+    const entries = readdirSync(from, { withFileTypes: true })
+    for (const entry of entries) {
+      const input = path.join(from, entry.name)
+      const output = path.join(to, entry.name)
+      if (entry.isDirectory()) copyObjects(input, output)
+      else if (path.basename(from) === 'info') copyFileSync(input, output)
+      else linkSync(input, output)
+    }
+  }
+  copyObjects(path.join(objectSource, '.git', 'objects'), path.join(target, '.git', 'objects'))
 }
 
 export function cleanupTeamRoots(): void {
@@ -93,43 +111,7 @@ export function fixtureBlobs(bytes: Uint8Array): Map<string, Uint8Array> {
 
 /** Binary-safe `git`: stdout as bytes, non-zero exits as `TeamGitError`. */
 export function teamGitRunner(env: NodeJS.ProcessEnv = teamGitEnv): TeamGit {
-  // Repeated reads of immutable object IDs still come from real Git. Keep
-  // their bytes so preview + derivation do not respawn identical Git reads.
-  const objects = new Map<string, Promise<Uint8Array>>()
-  const batches = new Map<string, Promise<Map<string, Uint8Array>>>()
   const runGit: TeamGit = async (args, cwd, input, isolatedEnv) => {
-    const isImmutable =
-      (args[0] === 'ls-tree' && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(args[2] ?? '')) ||
-      (args[0] === 'cat-file' &&
-        args[1] === 'blob' &&
-        /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(args[2] ?? ''))
-    const key = JSON.stringify([cwd, args])
-    const cached = isImmutable ? objects.get(key) : undefined
-    if (cached !== undefined) {
-      return new Uint8Array(await cached)
-    }
-    if (isImmutable && args[0] === 'cat-file' && args[1] === 'blob') {
-      let batch = batches.get(cwd)
-      if (batch === undefined) {
-        batch = (async () =>
-          fixtureBlobs(
-            await runGit(
-              ['cat-file', '--batch-all-objects', '--batch'],
-              cwd,
-              undefined,
-              isolatedEnv,
-            ),
-          ))()
-        batches.set(cwd, batch)
-        void batch.catch(() => batches.delete(cwd))
-      }
-      const collected = await batch
-      const blob = collected.get(args[2] ?? '')
-      if (blob !== undefined) {
-        return new Uint8Array(blob)
-      }
-      // Objects written after this fixture snapshot still come from live Git.
-    }
     const result = new Promise<Uint8Array>((resolve, reject) => {
       const child = execFile(
         'git',
@@ -160,10 +142,6 @@ export function teamGitRunner(env: NodeJS.ProcessEnv = teamGitEnv): TeamGit {
       }
       child.stdin?.end()
     })
-    if (isImmutable) {
-      objects.set(key, result)
-      void result.catch(() => objects.delete(key))
-    }
     return await result
   }
   return runGit
@@ -181,7 +159,15 @@ export async function teamFixtureCommit(
   parent: string | undefined,
   files: Readonly<Record<string, string | undefined>>,
   ref = 'refs/heads/agents/engineering/t1',
+  modes: Readonly<Record<string, string>> = {},
 ): Promise<string> {
+  const cached = preparedCommits.get(fixtureCommitKey(parent, files, modes))
+  if (cached !== undefined) {
+    const target = path.join(root, '.git', ref)
+    await mkdir(path.dirname(target), { recursive: true })
+    await writeFile(target, cached + '\n')
+    return cached
+  }
   const commands = [
     `commit ${ref}`,
     'mark :1',
@@ -195,7 +181,7 @@ export async function teamFixtureCommit(
       ...(content === undefined
         ? [`D ${JSON.stringify(name)}`]
         : [
-            `M 100644 inline ${JSON.stringify(name)}`,
+            `M ${modes[name] ?? '100644'} inline ${JSON.stringify(name)}`,
             `data ${String(Buffer.byteLength(content))}`,
             content,
           ]),
@@ -205,6 +191,69 @@ export async function teamFixtureCommit(
   return Buffer.from(await runGit(['fast-import', '--quiet'], root, commands.join('\n')))
     .toString('utf8')
     .trim()
+}
+
+const preparedCommits = new Map<string, string>()
+const preparedCopies = new Map<string, string>()
+
+/** Mutable files are copied; each test gets its own index, config and refs. */
+export function copyPreparedTeamTask(head: string, folder: string): string | undefined {
+  const template = preparedCopies.get(head)
+  if (template === undefined) return undefined
+  copyTeamFixture(template, folder)
+  return folder
+}
+
+function fixtureCommitKey(
+  parent: string | undefined,
+  files: Readonly<Record<string, string | undefined>>,
+  modes: Readonly<Record<string, string>> = {},
+): string {
+  return JSON.stringify([
+    parent,
+    Object.entries(files).toSorted(([left], [right]) => left.localeCompare(right)),
+    Object.entries(modes).toSorted(([left], [right]) => left.localeCompare(right)),
+  ])
+}
+
+/** Build real immutable task objects once; tests only copy them and write their own refs. */
+export function prepareTeamFixtureCommits(
+  changes: readonly {
+    readonly files: Readonly<Record<string, string | undefined>>
+    readonly parentFiles?: Readonly<Record<string, string | undefined>>
+    readonly modes?: Readonly<Record<string, string>>
+  }[],
+): void {
+  for (const { files, parentFiles, modes } of changes) {
+    beforeAll(async () => {
+      seed.value ??= createSeedRepo()
+      const template = await seed.value
+      const parent =
+        parentFiles === undefined
+          ? template.head
+          : preparedCommits.get(fixtureCommitKey(template.head, parentFiles))
+      if (parent === undefined) throw new Error('Fixture parent was not prepared')
+      const key = fixtureCommitKey(parent, files, modes)
+      if (preparedCommits.has(key)) return
+      const head = await teamFixtureCommit(
+        teamGitRunner(),
+        template.root,
+        parent,
+        files,
+        'refs/heads/prepared',
+        modes,
+      )
+      preparedCommits.set(key, head)
+      await unlink(path.join(template.root, '.git', 'refs', 'heads', 'prepared'))
+      if (Object.values(modes ?? {}).includes('120000')) return
+      const folder = await mkdtemp(path.join(tmpdir(), 'muse-team-task-seed-'))
+      trackTeamRoot(folder)
+      copyTeamFixture(template.root, folder)
+      await writeFile(path.join(folder, '.git', 'HEAD'), head + '\n')
+      await teamGitRunner()(['read-tree', '--reset', '-u', head], folder)
+      preparedCopies.set(head, folder)
+    })
+  }
 }
 
 /** A repository with one commit (`tracked.txt`, `shared.txt`), branch `main`. */
@@ -245,10 +294,21 @@ export async function teamFixtureRepo(
   const root = path.join(temp, 'app')
   seed.value ??= createSeedRepo()
   const template = await seed.value
-  cpSync(template.root, root, { recursive: true })
   if (tracked === 'before\n' && shared === 'one\ntwo\nthree\n') {
+    copyTeamFixture(template.root, root)
     return { root, head: template.head }
   }
+  const cached = preparedCommits.get(
+    fixtureCommitKey(template.head, { 'tracked.txt': tracked, 'shared.txt': shared }),
+  )
+  const copy = cached === undefined ? undefined : preparedCopies.get(cached)
+  if (cached !== undefined && copy !== undefined) {
+    copyTeamFixture(copy, root, template.root)
+    await writeFile(path.join(root, '.git', 'HEAD'), 'ref: refs/heads/main\n')
+    await writeFile(path.join(root, '.git', 'refs', 'heads', 'main'), cached + '\n')
+    return { root, head: cached }
+  }
+  copyTeamFixture(template.root, root)
   const head = await teamFixtureCommit(
     runGit,
     root,
