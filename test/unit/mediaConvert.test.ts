@@ -387,6 +387,114 @@ describe('M105 private local conversion', () => {
     }
   })
 
+  it('waits for an in-flight RSS sample and a final sample after successful close', async () => {
+    const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
+    const pending = Promise.withResolvers<number>()
+    const closed = Promise.withResolvers<undefined>()
+    let hasSettled = false
+    let child: ChildProcess.ChildProcess
+    vi.mocked(spawn).mockImplementation((_command, args) => {
+      writeFileSync(outputPath(args), videoFixture())
+      child = new actual.ChildProcess()
+      Object.defineProperty(child, 'pid', { value: process.pid })
+      return child
+    })
+    const readRssBytes = vi
+      .fn(() => Promise.resolve(0))
+      .mockImplementationOnce(() => {
+        queueMicrotask(() => {
+          child.emit('close', 0)
+          closed.resolve(undefined)
+        })
+        return pending.promise
+      })
+    const converting = (async () => {
+      const result = await convertToMp4(fixture.input, fake, { readRssBytes })
+      hasSettled = true
+      return result
+    })()
+    await closed.promise
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(hasSettled).toBe(false)
+    pending.resolve(0)
+    const result = await converting
+    expect(result.ok).toBe(true)
+    expect(readRssBytes).toHaveBeenCalledTimes(2)
+    if (result.ok) await result.dispose()
+  })
+
+  it.each(['excessive', 'invalid', 'unavailable', 'stalled'])(
+    'refuses an in-flight %s RSS sample that settles after successful close',
+    async (reading) => {
+      const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
+      let child: ChildProcess.ChildProcess
+      vi.mocked(spawn).mockImplementation((_command, args) => {
+        writeFileSync(outputPath(args), videoFixture())
+        child = new actual.ChildProcess()
+        Object.defineProperty(child, 'pid', { value: process.pid })
+        vi.spyOn(child, 'kill').mockReturnValue(true)
+        return child
+      })
+      const readRssBytes = vi.fn(() => {
+        queueMicrotask(() => child.emit('close', 0))
+        return new Promise<number>((resolve, reject) => {
+          if (reading === 'stalled') return
+          setTimeout(() => {
+            if (reading === 'unavailable') reject(new Error('private resource failure'))
+            else resolve(reading === 'excessive' ? MEDIA_CONVERSION_MAX_RSS_BYTES + 1 : NaN)
+          }, 20)
+        })
+      })
+      expect(await convertToMp4(fixture.input, fake, { readRssBytes })).toMatchObject({
+        ok: false,
+      })
+      expect(readRssBytes).toHaveBeenCalledTimes(1)
+      expect(child!.kill).not.toHaveBeenCalled()
+      await expect(lstat(directories.at(-1)!)).rejects.toMatchObject({ code: 'ENOENT' })
+    },
+  )
+
+  it.each(['excessive', 'unavailable', 'stalled', 'output overflow'])(
+    'refuses a final %s resource sample after successful close',
+    async (reading) => {
+      const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
+      let child: ChildProcess.ChildProcess
+      let output = ''
+      vi.mocked(spawn).mockImplementation((_command, args) => {
+        output = outputPath(args)
+        writeFileSync(output, videoFixture())
+        child = new actual.ChildProcess()
+        Object.defineProperty(child, 'pid', { value: process.pid })
+        vi.spyOn(child, 'kill').mockReturnValue(true)
+        return child
+      })
+      const readRssBytes = vi
+        .fn(() => {
+          if (reading === 'unavailable')
+            return Promise.reject(new Error('resource reading unavailable'))
+          return reading === 'stalled'
+            ? new Promise<number>(() => undefined)
+            : Promise.resolve(MEDIA_CONVERSION_MAX_RSS_BYTES + 1)
+        })
+        .mockImplementationOnce(() => {
+          queueMicrotask(() => {
+            if (reading === 'output overflow') writeFileSync(output, Buffer.alloc(2048))
+            child.emit('close', 0)
+          })
+          return Promise.resolve(0)
+        })
+      expect(
+        await convertToMp4(fixture.input, fake, {
+          readRssBytes,
+          limits: { maxUploadBytes: 1024 },
+        }),
+      ).toMatchObject({ ok: false })
+      expect(readRssBytes).toHaveBeenCalledTimes(reading === 'output overflow' ? 1 : 2)
+      expect(child!.kill).not.toHaveBeenCalled()
+      await expect(lstat(directories.at(-1)!)).rejects.toMatchObject({ code: 'ENOENT' })
+    },
+  )
+
   it('refuses encoding when the platform has no RSS monitor binding', async () => {
     const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!
     const run = vi.fn(writeConverted)
@@ -440,6 +548,49 @@ describe('M105 private local conversion', () => {
       vi.mocked(spawn).mockClear()
       expect(await convertToMp4(fixture.input, fake)).toMatchObject({ ok: false })
       expect(spawn).not.toHaveBeenCalled()
+    } finally {
+      reading.mockRestore()
+      Object.defineProperty(process, 'platform', descriptor)
+    }
+  })
+
+  it('refuses unavailable Linux RSS after close instead of substituting zero', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!
+    const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
+    const readStatus = fs.readFile
+    const reading = vi.spyOn(fs, 'readFile')
+    Object.defineProperty(process, 'platform', { value: 'linux' })
+    const sampled = Promise.withResolvers<undefined>()
+    let hasClosed = false
+    let child: ChildProcess.ChildProcess
+    try {
+      reading.mockImplementation((file, options) => {
+        const name = typeof file === 'string' ? file.replaceAll('\\', '/') : undefined
+        if (name?.startsWith('/proc/') === true) {
+          if (name === `/proc/${String(process.pid)}/status`)
+            return Promise.resolve('VmRSS: 123 kB\n')
+          if (!hasClosed) {
+            sampled.resolve(undefined)
+            return Promise.resolve('VmRSS: 123 kB\n')
+          }
+          return Promise.reject(
+            Object.assign(new Error('resource reading unavailable'), { code: 'ENOENT' }),
+          )
+        }
+        return readStatus(file, options)
+      })
+      vi.mocked(spawn).mockImplementation((_command, args) => {
+        writeFileSync(outputPath(args), videoFixture())
+        child = new actual.ChildProcess()
+        Object.defineProperty(child, 'pid', { value: process.pid + 1 })
+        return child
+      })
+      const converting = convertToMp4(fixture.input, fake)
+      await sampled.promise
+      hasClosed = true
+      child!.emit('close', 0)
+      expect(await converting).toMatchObject({ ok: false })
+      await expect(lstat(directories.at(-1)!)).rejects.toMatchObject({ code: 'ENOENT' })
     } finally {
       reading.mockRestore()
       Object.defineProperty(process, 'platform', descriptor)
@@ -632,7 +783,9 @@ describe('M105 private local conversion', () => {
         options,
       )
     })
-    const result = await convertToMp4(fixture.input, fake)
+    const result = await convertToMp4(fixture.input, fake, {
+      readRssBytes: () => Promise.resolve(0),
+    })
     expect(result.ok).toBe(true)
     if (result.ok) await result.dispose()
   })

@@ -19,6 +19,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M105 conversion waits for pending and final resource samples after encoder
+  close and refuses unavailable RSS instead of treating it as zero. Media
+  sniffing rejects duplicate unique ISO-BMFF boxes and unreadable top-level
+  boundaries, so a conflicting movie cannot bypass audio/video admission.
 - M105 session saves share a writer and check generations before releasing
   upload ownership. Saves and removals hold the account lock through session
   publication; delete and purge release ownership durably before removing the

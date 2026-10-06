@@ -1,5 +1,90 @@
 # M105 M1 — Media core (a)
 
+## RVM105M12 corrections (2026-10-06, Kubuntu)
+
+Read the rig brief, all shared lane rules and the full RVM105M12 report.
+Both P2 findings are fixed; there are no remaining P1/P2/P3 review findings.
+Changes stay in the media core, its owned tests and the plan/certification/
+changelog records. No dependency, install, model/network call, merge, push,
+new command/setting, wider guard or gate change. Existing localized refusal
+messages are retained; raw sampler errors, private paths and process output
+are never displayed.
+
+**P2-1 — encoder close and resource sampling.** Close stops new watcher/
+watchdog checks, awaits the bounded in-flight check and performs a final
+output/RSS check before success. Failure accounting remains effective after
+close; a closed child is never killed. Every sample retains its 100 ms
+deadline, including a stalled sample after close. Stop and the encoding
+deadline remain effective through final sampling. Excessive/invalid/failed/
+unavailable or stalled readings refuse and remove the private output.
+
+Linux no longer maps a missing `/proc/<pid>/status` to zero. An explicitly
+reported zombie/exited kernel state still proves zero resident memory;
+an unavailable reading proves nothing and refuses. A reaped process will
+normally have no readable status, so default Linux conversion can now safely
+refuse at the final sample. The existing **M105-M1-resource-monitor-binding**
+handoff (PLAN §9, M107/W/E1/E2) must supply a retained, verifiable final reading
+through the governor/native monitor. The real-process positive control injects
+a known final sampler; it does not claim Linux can read a reaped process.
+Every editor uses the same portable conversion contract.
+
+**P2-2 — conflicting ISO-BMFF structure.** Reject repeated top-level `ftyp`,
+`moov`, `meta`, `pdin` and `mfra`, and repeated metadata fields the parser
+consumes as singletons (`mvhd`, `tkhd`, `mdia`, `hdlr`). Audio/video kind,
+soundtrack, duration and dimensions therefore come from one readable movie
+and its unambiguous metadata. If another top-level header cannot be checked
+within the head/tail windows, refuse instead of accepting an earlier movie.
+Repeated `mdat`/`moof` remain valid. The two-order duplicate-movie regression
+also separates the movies with a large `mdat` to exercise both windows;
+single audio and video movies remain positive controls.
+
+New tests were run against unchanged production code first: the close-race,
+final-reading and duplicate-structure regressions failed. The first Linux
+regression used a polling call-count assertion that could miss its sample;
+it now awaits an explicit sampling promise. Its fallback-to-zero red drill
+below proves the corrected regression fails for the intended reason.
+
+### Red drills (full files, default timeouts)
+
+Each mutation ran `npx vitest run test/unit/<file>.test.ts --maxWorkers=3`
+with no test-name filter or timeout override. All eight exited 1 at the named
+regression, then restored the source bytes and compared SHA-256 before
+continuing. Logs/scripts remain ignored under `temp/rvm105m12-*`.
+
+| Guard deliberately broken               | Named failing regression                                                             | Result               |
+| --------------------------------------- | ------------------------------------------------------------------------------------ | -------------------- |
+| failure accounting after close          | refuses an in-flight excessive RSS sample that settles after successful close        | exit 1; SHA restored |
+| await in-flight sample                  | waits for an in-flight RSS sample and a final sample after successful close          | exit 1; SHA restored |
+| sample deadline refusal                 | refuses an in-flight stalled RSS sample that settles after successful close          | exit 1; SHA restored |
+| final resource sample                   | refuses a final excessive resource sample after successful close                     | exit 1; SHA restored |
+| unavailable Linux RSS (substitute zero) | refuses unavailable Linux RSS after close instead of substituting zero               | exit 1; SHA restored |
+| unique top-level boxes                  | refuses duplicate audio/video moov boxes with video first=false and video first=true | exit 1; SHA restored |
+| unique nested metadata                  | refuses duplicate unique structural boxes while allowing repeated media/fragments    | exit 1; SHA restored |
+| complete top-level window traversal     | refuses unscanned top-level headers that could hide a conflicting movie              | exit 1; SHA restored |
+
+Restoration hashes for every drill:
+
+- `src/core/media/convert.ts`:
+  `acd8ddc90a9752d913c74fe5d9faa323e72cd260f7d3f03932a2422700e95f0f`.
+- `src/core/media/sniff/isoBmff.ts`:
+  `4fd6e5f6a31d648180d86de582dbdc41d0eed459cd8ad1c5482e8670ac6b66cf`.
+
+### Verification for this correction
+
+All runs are direct on Kubuntu. Final Vitest runs use the repository's default
+five-second test timeout and at most three files per command:
+
+- `npx vitest run test/unit/mediaConvert.test.ts test/unit/attachments.test.ts --maxWorkers=3`:
+  **55/55 passed**.
+- `npx vitest run test/unit/mediaSniff.test.ts test/unit/mediaSniffMalformed.test.ts test/unit/mediaLimits.test.ts --maxWorkers=3`:
+  **39/39 passed**. The two final batches cover **94 distinct tests**.
+- `npm run typecheck`: all five projects passed.
+- Changed-source/test `npx eslint --max-warnings=0`: passed without
+  suppressions; `git diff --check`: passed.
+
+No review finding is deferred. Existing integration handoffs and enforced
+W-owned gate blockers remain as recorded below and in PLAN §9.
+
 ## RVM105M1 corrections (2026-10-06)
 
 The follow-up rig brief and shared rules were read in full. No merge is

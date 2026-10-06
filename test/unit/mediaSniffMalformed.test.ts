@@ -30,6 +30,89 @@ describe('M105 hostile and partial metadata', () => {
       expect(sniffMediaBytes(bytes)).toBeUndefined()
   })
 
+  it.each([false, true])(
+    'refuses duplicate audio/video moov boxes with video first=%s',
+    async (videoFirst) => {
+      const audio = Buffer.from(videoFixture({ brand: 'M4A ' }))
+      audio.write('free', audio.indexOf('trak'))
+      const video = Buffer.from(videoFixture({ soundtrack: false }))
+      const movie = (bytes: Buffer) => {
+        const start = bytes.indexOf('moov') - 4
+        return bytes.subarray(start, start + bytes.readUInt32BE(start))
+      }
+      const ftyp = audio.subarray(0, audio.readUInt32BE(0))
+      const movies = videoFirst ? [movie(video), movie(audio)] : [movie(audio), movie(video)]
+      for (const padding of [Buffer.alloc(0), Buffer.alloc(MEDIA_SNIFF_MAX_BYTES * 2)]) {
+        if (padding.length > 0) {
+          padding.writeUInt32BE(padding.length)
+          padding.write('mdat', 4)
+        }
+        const bytes = Buffer.concat([ftyp, movies[0]!, padding, movies[1]!])
+        expect(sniffMediaBytes(bytes)).toBeUndefined()
+        expect(
+          await sniffMedia({
+            sizeBytes: bytes.length,
+            read: (offset, length) => Promise.resolve(bytes.subarray(offset, offset + length)),
+          }),
+        ).toMatchObject({ ok: false, reason: expect.any(String) })
+      }
+      expect(sniffMediaBytes(audio)).toMatchObject({ kind: 'audio', mediaType: 'audio/mp4' })
+      expect(sniffMediaBytes(video)).toMatchObject({
+        kind: 'video',
+        mediaType: 'video/mp4',
+        hasSoundtrack: false,
+      })
+    },
+  )
+
+  it('refuses duplicate unique structural boxes while allowing repeated media/fragments', () => {
+    for (const type of ['ftyp', 'moov', 'mvhd', 'tkhd', 'mdia', 'hdlr', 'meta', 'pdin', 'mfra']) {
+      let bytes = Buffer.from(videoFixture({ fragmented: true }))
+      if (['meta', 'pdin', 'mfra'].includes(type)) {
+        const header = Buffer.alloc(8)
+        header.writeUInt32BE(header.length)
+        header.write(type, 4)
+        bytes = Buffer.concat([bytes, header])
+      }
+      const start = bytes.indexOf(type) - 4
+      const end = start + bytes.readUInt32BE(start)
+      const duplicate = bytes.subarray(start, end)
+      const ancestors =
+        new Map([
+          ['mvhd', ['moov']],
+          ['tkhd', ['moov', 'trak']],
+          ['mdia', ['moov', 'trak']],
+          ['hdlr', ['moov', 'trak', 'mdia']],
+        ]).get(type) ?? []
+      for (const ancestor of ancestors) {
+        const offset = bytes.indexOf(ancestor) - 4
+        bytes.writeUInt32BE(bytes.readUInt32BE(offset) + duplicate.length, offset)
+      }
+      expect(
+        sniffMediaBytes(Buffer.concat([bytes.subarray(0, end), duplicate, bytes.subarray(end)])),
+      ).toBeUndefined()
+    }
+    const bytes = Buffer.from(videoFixture({ fragmented: true }))
+    const fragment = bytes.indexOf('moof') - 4
+    expect(sniffMediaBytes(Buffer.concat([bytes, bytes.subarray(fragment)]))).toMatchObject({
+      kind: 'video',
+      mediaType: 'video/mp4',
+      hasSoundtrack: true,
+    })
+  })
+
+  it('refuses unscanned top-level headers that could hide a conflicting movie', () => {
+    const clip = Buffer.from(videoFixture())
+    const padding = Buffer.alloc(MEDIA_SNIFF_MAX_BYTES)
+    padding.writeUInt32BE(padding.length)
+    padding.write('free', 4)
+    const hidden = Buffer.from(videoFixture({ brand: 'M4A ' }))
+    hidden.write('free', hidden.indexOf('trak'))
+    expect(
+      sniffMediaBytes(Buffer.concat([clip, padding, hidden.subarray(20), padding])),
+    ).toBeUndefined()
+  })
+
   it('does not invent sound or dimensions from missing/unreadable track fields', () => {
     for (const type of ['hdlr', 'tkhd']) {
       const bytes = Buffer.from(videoFixture({ soundtrack: false }))

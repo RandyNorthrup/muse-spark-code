@@ -264,17 +264,12 @@ function runConverter(
     })
     let hasFailed = false
     let hasClosed = false
-    let isChecking = false
-    let sampleDeadline: ReturnType<typeof setTimeout> | undefined
+    let resourceCheck: Promise<void> | undefined
     const stop = () => {
-      if (hasClosed) return
       hasFailed = true
-      child.kill('SIGKILL')
+      if (!hasClosed) child.kill('SIGKILL')
     }
-    const checkResources = async () => {
-      if (isChecking || hasClosed || hasFailed) return
-      isChecking = true
-      sampleDeadline = setTimeout(stop, MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS)
+    const sampleResources = async () => {
       try {
         const output = await lstat(options.outputPath)
         if (!output.isFile() || output.size > options.maxOutputBytes) {
@@ -289,48 +284,57 @@ function runConverter(
         if (!Number.isSafeInteger(rss) || rss < 0 || rss > options.maxRssBytes) stop()
       } catch {
         stop()
+      }
+    }
+    const checkResources = async () => {
+      let sampleDeadline: ReturnType<typeof setTimeout> | undefined
+      const expired = new Promise<void>((settle) => {
+        sampleDeadline = setTimeout(() => {
+          stop()
+          settle()
+        }, MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS)
+      })
+      try {
+        await Promise.race([sampleResources(), expired])
       } finally {
         clearTimeout(sampleDeadline)
-        isChecking = false
+        resourceCheck = undefined
       }
+    }
+    const requestCheck = () => {
+      if (resourceCheck !== undefined || hasClosed || hasFailed) return
+      resourceCheck = checkResources()
     }
     let watcher: FSWatcher | undefined
     try {
-      watcher = watch(options.cwd, () => {
-        void checkResources()
-      })
+      watcher = watch(options.cwd, requestCheck)
       watcher.on('error', stop)
     } catch {
       stop()
     }
-    const watchdog = setInterval(() => {
-      void checkResources()
-    }, MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS)
-    void checkResources()
+    const watchdog = setInterval(requestCheck, MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS)
+    requestCheck()
     const release = observeConverter(child, options, stop)
     child.once('close', (code) => {
       hasClosed = true
       watcher?.close()
       clearInterval(watchdog)
-      clearTimeout(sampleDeadline)
-      release()
-      if (hasFailed || code !== 0) reject(new Error('Converter failed'))
-      else resolve()
+      const finish = async () => {
+        // A successful exit cannot outrun its outstanding or final sample.
+        await resourceCheck
+        if (!hasFailed && code === 0) await checkResources()
+        release()
+        if (hasFailed || code !== 0) reject(new Error('Converter failed'))
+        else resolve()
+      }
+      void finish()
     })
   })
 }
 
 async function readLinuxRssBytes(pid: number): Promise<number> {
-  let status: string
-  try {
-    status = await fs.readFile(`/proc/${String(pid)}/status`, 'utf8')
-  } catch (error) {
-    // The process may have exited between the file check and this sample.
-    // Preflight checks /proc on our live PID, so absence cannot disable monitoring.
-    if (pid !== process.pid && error instanceof Error && 'code' in error && error.code === 'ENOENT')
-      return 0
-    throw error
-  }
+  // A reaped PID is an unavailable reading, not evidence of zero RSS.
+  const status = await fs.readFile(`/proc/${String(pid)}/status`, 'utf8')
   const value = MEDIA_PROC_RSS_PATTERN.exec(status)?.[1]
   if (value === undefined && pid !== process.pid && MEDIA_PROC_EXITED_PATTERN.test(status)) return 0
   if (value === undefined) throw new Error('RSS unavailable')

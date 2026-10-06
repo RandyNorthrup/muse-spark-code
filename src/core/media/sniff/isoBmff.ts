@@ -28,6 +28,8 @@ const MVHD_V1_TIMESCALE = 20
 const TKHD_V0_WIDTH = 76
 const TKHD_V1_WIDTH = 88
 const HDLR_TYPE_OFFSET = 8
+const UNIQUE_TOP_LEVEL_BOXES = new Set(['ftyp', 'moov', 'meta', 'pdin', 'mfra'])
+const UNIQUE_METADATA_BOXES = new Set(['mvhd', 'tkhd', 'mdia', 'hdlr'])
 
 interface Box {
   readonly type: string
@@ -54,10 +56,13 @@ function boxAt(bytes: Buffer, start: number, end: number): Box | undefined {
 
 function children(bytes: Buffer, start: number, end: number): readonly Box[] | undefined {
   const boxes: Box[] = []
+  const seen = new Set<string>()
   let cursor = start
   while (cursor < end) {
     const box = boxAt(bytes, cursor, end)
     if (box === undefined) return undefined
+    if (UNIQUE_METADATA_BOXES.has(box.type) && seen.has(box.type)) return undefined
+    seen.add(box.type)
     boxes.push(box)
     cursor = box.end
   }
@@ -162,6 +167,7 @@ export function sniffIsoBmff(
   else if (brands.includes('qt  ')) mediaType = 'video/quicktime'
   else if (brands.some((brand) => MP4_BRANDS.has(brand))) mediaType = 'video/mp4'
   if (mediaType === undefined) return undefined
+  const seen = new Set([first.type])
   let metadata: ReturnType<typeof movieInfo>
   let cursor = first.end
   const tailStart = sizeBytes - tail.length
@@ -169,9 +175,11 @@ export function sniffIsoBmff(
     if (cursor + BOX_HEADER_BYTES > sizeBytes) return undefined
     const window = cursor < head.length ? head : tail
     const origin = cursor < head.length ? 0 : tailStart
-    if (cursor < origin || cursor + BOX_HEADER_BYTES > origin + window.length) break
+    if (cursor < origin || cursor + BOX_HEADER_BYTES > origin + window.length) return undefined
     const box = boxAt(window, cursor - origin, sizeBytes - origin)
     if (box === undefined) return undefined
+    if (UNIQUE_TOP_LEVEL_BOXES.has(box.type) && seen.has(box.type)) return undefined
+    seen.add(box.type)
     if (box.type === 'moov' && box.end <= window.length) {
       metadata = movieInfo(window.subarray(box.body, box.end))
       if (metadata === undefined) return undefined

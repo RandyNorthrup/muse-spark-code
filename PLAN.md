@@ -19101,6 +19101,19 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**M1 second review corrections (RVM105M12, 2026-10-06).** Resolve both P2
+findings inside the media core. Encoding close waits for a bounded in-flight
+resource check, then a final output/RSS sample; failures still count after
+close, and unavailable RSS cannot become zero or successful conversion.
+ISO-BMFF rejects duplicate unique structural boxes before classifying from
+one movie, and refuses a top-level header outside the bounded windows rather
+than assuming the rest contains no conflicting movie. Regression tests cover
+close races, unavailable/stalled/final readings, duplicate movies in both
+orders, other unique boxes and valid single-movie controls. Each guard gets
+a byte-exact red drill in `docs/certification/m105-m1-media-core-(a).md`.
+Existing localized refusal templates are retained. No new dependency, editor
+binding, gate change, branch merge or live/paid call is in scope.
+
 **M1 review corrections (RVM105M1, 2026-10-06).** Resolve all three findings:
 discover converters only at explicit configured paths or documented installation
 locations, require the shared StrictModes/safe_path verifier before each version
@@ -20061,6 +20074,13 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**M105-M1 second follow-up gate scope (RVM105M12, 2026-10-06).** The
+same rig override applies to these two P2 corrections: direct focused suites
+at default timeouts, no full quality/full unit run or branch merge. The eight
+resource/structure red drills restore source byte-exact. W's existing host
+record, browser-size and split-classification failures remain enforced and
+are reported in the lane certification; the lead owns the integrated gates.
 
 **M105-M1 follow-up gate scope (RVM105M1, 2026-10-06).** The rig brief
 requires direct focused suites and forbids full quality/full unit runs and
@@ -21258,7 +21278,13 @@ before a repaired one loads (2026-09-30).
   Linux uses its kernel RSS sampler and other platforms require the native
   sampler port. Without it encoding refuses. Integration binds the governor
   ticket where available and provides equivalent monitoring in every editor.
-  The alternate process port must enforce the same limits and await close.
+  The alternate process port must enforce the same limits and await close,
+  settle any in-flight sample and supply a final output/RSS sample before
+  success (RVM105M12). A reaped Linux PID whose `/proc` reading is unavailable
+  refuses; it is never substituted with zero. Integration must retain a
+  verifiable final reading through the governor/native sampler to enable
+  successful conversion after reaping. This safe refusal is part of the
+  existing monitor binding handoff, not a deferred review finding.
   Certification: `docs/certification/m105-m1-media-core-(a).md`. No review
   finding is deferred.
 - **M105-M1-trusted-converter-binding (REDM104L3/W/E1/E2).** All RVM105M1
