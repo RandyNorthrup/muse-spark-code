@@ -5,7 +5,18 @@ import type {
   ReportSourceRecord,
 } from '../../../shared/reportSchema'
 import type { GitFacts, PlanFacts, SourceResult, SourceSnapshot } from '../sources/types'
-import { compare, count, key, label, list, row, sourcedSection, text, version } from './common'
+import {
+  compare,
+  count,
+  isSameMilestone,
+  key,
+  label,
+  list,
+  row,
+  sourcedSection,
+  text,
+  version,
+} from './common'
 import { ReportScopeNotFound, deliveryRows, laneRows, LANE_COLUMNS, nextSteps } from './plan'
 import { usageSections } from './usage'
 
@@ -41,6 +52,11 @@ function releaseCandidates(
       version: version(entry.version),
       at: entry.date,
       sourceId: snapshot.sources.plan.record.id,
+    })) ?? []),
+    ...(snapshot.sources.github.data?.releases.map((entry) => ({
+      version: version(entry.version),
+      at: entry.at,
+      sourceId: snapshot.sources.github.record.id,
     })) ?? []),
   ].toSorted(
     (left, right) =>
@@ -203,7 +219,7 @@ export function collectProject(
     facts?.milestones.filter(
       (milestone) =>
         ['building', 'built', 'certified', 'waiting'].includes(milestone.status) ||
-        upcoming.some((entry) => entry.id === milestone.id),
+        upcoming.some((entry) => isSameMilestone(entry.id, milestone.id)),
     ) ?? []
   const release = latestVersion(snapshot)
   const risks = selections.risksSinceRelease(snapshot)
@@ -215,7 +231,7 @@ export function collectProject(
       'releases',
       ['version', 'date'],
       projectReleaseRows(snapshot),
-      ['changelog', 'git', 'plan'],
+      ['changelog', 'git', 'plan', 'github'],
     ),
     sourcedSection(
       snapshot,
@@ -299,17 +315,14 @@ export function collectRelease(snapshot: SourceSnapshot, options: ReportOptions)
   const git = snapshot.sources.git
   const plan = snapshot.sources.plan
   const github = snapshot.sources.github
+  const requiredSources = [changelog, git, plan, github]
+  const unresolvedSources = requiredSources.filter((source) => source.record.status !== 'ok')
+  const observed = releaseCandidates(snapshot).filter((entry) => entry.version === target)
   const entries =
     changelog.data?.sections.filter((entry) => version(entry.version) === target) ?? []
   const tags = git.data?.tags.filter((entry) => version(entry.name) === target) ?? []
   const records = plan.data?.releases.filter((entry) => version(entry.version) === target) ?? []
-  if (
-    [changelog, git, plan, github].some((source) => source.data !== null) &&
-    entries.length === 0 &&
-    tags.length === 0 &&
-    records.length === 0 &&
-    !github.data?.releases.some((entry) => version(entry.version) === target)
-  ) {
+  if (unresolvedSources.length === 0 && observed.length === 0) {
     throw new ReportScopeNotFound(
       options.scope,
       [
@@ -317,11 +330,34 @@ export function collectRelease(snapshot: SourceSnapshot, options: ReportOptions)
           ...(changelog.data?.sections.map((entry) => entry.version) ?? []),
           ...(git.data?.tags.map((entry) => entry.name) ?? []),
           ...(plan.data?.releases.map((entry) => entry.version) ?? []),
+          ...(github.data?.releases.map((entry) => entry.version) ?? []),
         ]),
       ].toSorted(compare),
     )
   }
   return [
+    sourcedSection(
+      snapshot,
+      options,
+      'releaseEvidence',
+      'releases',
+      ['version', 'sources'],
+      [
+        row(
+          'release-evidence',
+          [options.scope],
+          {
+            version: target === null ? label('unknown') : text(target),
+            status: label(observed.length === 0 ? 'unknown' : 'ok'),
+            sources: list(unresolvedSources.map((source) => source.record.id)),
+          },
+          observed.length === 0
+            ? requiredSources.map((source) => source.record.id)
+            : observed.map((entry) => entry.sourceId),
+        ),
+      ],
+      ['changelog', 'git', 'plan', 'github'],
+    ),
     sourcedSection(
       snapshot,
       options,

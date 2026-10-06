@@ -213,3 +213,44 @@ guards after scrub compatibility changed their implementation. Hooks remain
 on; the first shared-tally commit is `9d5cb8097` and its normal lint-staged and
 gitleaks checks passed. Final collector/receipt commit recorded in the lane's
 git history. Nothing is pushed, merged or rebased.
+
+## RVM113K corrections — first piece (2026-10-06, Kubuntu)
+
+The review found no P1 and seven P2s. Findings 1–6 are corrected in this
+piece; finding 7 follows in the next local commit. No dependencies, gate
+thresholds, wire shapes, startup entries or editor surfaces change.
+
+| Finding                                   | Correction                                                                                                                                                                                        | Regression / deliberate break                                                                                                                                                                                             |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1 repeated checklist keys                | Canonical equal-text ordering plus a per-text occurrence ordinal retains completed/open and identical-state duplicates.                                                                           | `collect.milestone.test.ts`: `retains repeated checklist lines with unique keys` (short/full, reordered input). F1-checklist removes the ordinal.                                                                         |
+| F2 premature release absence              | Only four complete, agreeing release sources can cause not-found; partial/unavailable/notApplicable evidence yields an unknown scope row listing unresolved source ids, with each failure reason. | `collect.release.test.ts`: `keeps release absence unknown…` (each source partial/unavailable; only empty plan readable). F2-absence replaces all-complete with any-readable.                                              |
+| F3 GitHub-only release lost               | GitHub joins release candidates, retaining provenance and supplying latest/project/channel evidence.                                                                                              | `collect.release.test.ts`: `selects the latest release from GitHub alone with source-labelled project evidence`. F3-github removes those candidates.                                                                      |
+| F4 zero files unavailable                 | A complete no-edit export records observed zeros. Missing edit summaries and incomplete sources remain unknown. Panel tally visibility is unchanged.                                              | `collect.session.test.ts`: `reports observed zero files…` and `keeps missing edit summaries…`. F4-zero removes zero counts; F4-summary removes the missing-summary guard; F4-complete treats partial exports as complete. |
+| F5 forwarded partial facets silent        | Every supplied facet uses `sourcedSection`, preserving arbitrary typed columns, upstream omissions and full-source guard while adding the affected source row before capping.                     | `collect.facets.test.ts`: `%s retains partial-source rows in every supplied empty facet` for all eight kinds, short/full. F5-facets removes the source from the shared builder.                                           |
+| F6 delivery aliases lose milestones/lanes | Project selection uses the same `isSameMilestone`/`normalizeMilestone` identity as readiness and lookup.                                                                                          | `collect.project.test.ts`: `selects the ready milestone and its lanes for delivery alias` (`14`, `m14`, dependency `1`). F6-aliases restores literal equality.                                                            |
+
+All eight deliberate-break runs use whole owning test files, maxWorkers=3
+and the repository default timeout. Each exits 1 at the named regression,
+then restores the exact source bytes and verifies SHA-256. Receipts:
+ignored `temp/m113-k-fix/drill-receipts-1.json` and `drill-F*.log`.
+Before-fix runs reproduced ten failures in milestone/release/project and
+nine in session/facets. Restored milestone/release/project pass 28 tests;
+session/facets/determinism pass 48 tests (76 total). The initial typecheck
+exposed Vitest's tuple-callback typing in the facet test table; single-arg
+cases now use the table's kind projection.
+
+The first-piece guards were re-fired after lint's naming fixes. Restored hashes:
+
+| Guard file                             | SHA-256                                                            |
+| -------------------------------------- | ------------------------------------------------------------------ |
+| `collect/plan.ts` (F1)                 | `5c90f64e218ec351c39bd33da80aa37c6f3c27bf8fe12a796606b2a259cc539c` |
+| `collect/repository.ts` (F2, F3, F6)   | `0d199a57b2a46a8583b9c8d302e5823b870241d930e3ba2ba74e09eb8d555a51` |
+| `collect/session.ts` (three F4 guards) | `2eb71ca3002a84bbc4127330c24c2e96baa35ab8e5a71c3316382ab0265c4ae4` |
+| `collect/index.ts` (F5)                | `f9d6baedc3165e6c339ff657483f6086b7c1c9c6ef2624f3a99b482d19d382b7` |
+
+Host/webview typecheck and corrected unit typecheck pass. Changed-file
+ESLint passes with zero warnings; no suppressions or casts are added.
+
+Changed-file lint, final typecheck/static/build results and ancestry receipts
+follow with the completed review record. Documentation/manifest/catalogue
+registration remains W's existing ownership: K adds no command or setting.

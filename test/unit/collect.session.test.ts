@@ -1,8 +1,95 @@
 import { describe, expect, it } from 'vitest'
 import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/collect'
-import { availableSource } from './helpers/reporting/snapshot'
+import { availableSource, unavailableSource } from './helpers/reporting/snapshot'
 
 describe('session collector', () => {
+  it('reports observed zero files for a complete session with no edits', () => {
+    const snapshot = fullSnapshot()
+    const session = snapshot.sources.session.data!
+    const report = collectFixture(
+      'session',
+      {},
+      {
+        ...snapshot,
+        sources: {
+          ...snapshot.sources,
+          session: availableSource('session', {
+            ...session,
+            export: {
+              ...session.export,
+              transcript: session.export.transcript.filter((item) => item.kind === 'user'),
+            },
+          }),
+        },
+      },
+    )
+    const files = getSection(report, 'files').rows[0]!
+    expect(files.cells).toMatchObject({
+      files: { type: 'count', value: 0 },
+      added: { type: 'count', value: 0 },
+      removed: { type: 'count', value: 0 },
+      status: { type: 'label', value: 'ok' },
+    })
+    expect(files.sourceIds).toEqual(['session'])
+    expect(getSection(report, 'tools').rows).toHaveLength(0)
+  })
+
+  it('keeps missing edit summaries and partial or unavailable sessions unknown', () => {
+    const snapshot = fullSnapshot()
+    const session = snapshot.sources.session.data!
+    for (const transcript of [
+      [],
+      [
+        {
+          itemId: 'edit-missing',
+          kind: 'toolCall' as const,
+          status: 'completed' as const,
+          tool: 'edit_file',
+          args: '{"path":"src/app.ts"}',
+        },
+      ],
+    ]) {
+      const source = availableSource('session', {
+        ...session,
+        export: { ...session.export, transcript },
+      })
+      const input = { ...snapshot, sources: { ...snapshot.sources, session: source } }
+      if (transcript.length > 0) {
+        expect(
+          getSection(collectFixture('session', {}, input), 'files').rows[0]!.cells['files'],
+        ).toEqual({ type: 'label', value: 'unavailable' })
+      }
+      const partial = collectFixture(
+        'session',
+        {},
+        {
+          ...input,
+          sources: {
+            ...input.sources,
+            session: {
+              data: source.data!,
+              record: { ...source.record, status: 'partial', reason: 'Export truncated' },
+            },
+          },
+        },
+      )
+      expect(
+        getSection(partial, 'files').rows.some((row) => row.cells['files']?.type === 'count'),
+      ).toBe(false)
+    }
+    const missing = collectFixture(
+      'session',
+      {},
+      {
+        ...snapshot,
+        sources: { ...snapshot.sources, session: unavailableSource('session') },
+      },
+    )
+    expect(getSection(missing, 'files').rows[0]!.cells['status']).toEqual({
+      type: 'label',
+      value: 'unavailable',
+    })
+  })
   it('retains actual turns and approval decisions independently of message count', () => {
     const report = collectFixture('session')
     expect(getSection(report, 'turns').rows[0]!.cells['count']).toEqual({ type: 'count', value: 1 })

@@ -8,6 +8,7 @@ import {
   list,
   row,
   isSameMilestone,
+  normalizeMilestone,
   sourcedSection,
   text,
 } from './common'
@@ -46,12 +47,12 @@ function distance(left: string, right: string): number {
 export function findMilestone(facts: PlanFacts, scope: string): PlanMilestone {
   const found = facts.milestones.find((milestone) => isSameMilestone(milestone.id, scope))
   if (found !== undefined) return found
-  const normalized = scope.replace(/^m(?=\d)/i, '').toUpperCase()
+  const normalized = normalizeMilestone(scope)
   const nearest = facts.milestones
     .map((milestone) => milestone.id)
     .toSorted((left, right) => {
-      const leftId = left.replace(/^m(?=\d)/i, '').toUpperCase()
-      const rightId = right.replace(/^m(?=\d)/i, '').toUpperCase()
+      const leftId = normalizeMilestone(left)
+      const rightId = normalizeMilestone(right)
       return distance(normalized, leftId) - distance(normalized, rightId) || compare(left, right)
     })
   throw new ReportScopeNotFound(scope, nearest)
@@ -186,6 +187,23 @@ export function collectMilestone(
     columns: Parameters<typeof sourcedSection>[4],
     rows: readonly ReportRow[],
   ) => sourcedSection(snapshot, options, id, headings[id] ?? 'lanes', columns, rows, ['plan'])
+  const occurrences = new Map<string, number>()
+  const checklist =
+    milestone?.checklist
+      .toSorted(
+        (left, right) => compare(left.text, right.text) || Number(left.done) - Number(right.done),
+      )
+      .map((item) => {
+        // An ordinal within equal text keeps duplicates unique and reordering deterministic.
+        const ordinal = occurrences.get(item.text) ?? 0
+        occurrences.set(item.text, ordinal + 1)
+        return row(
+          'item',
+          ordinal === 0 ? [item.text] : [item.text, String(ordinal)],
+          { name: text(item.text), outcome: label(item.done ? 'complete' : 'open') },
+          ids,
+        )
+      }) ?? []
   const sections = [
     make(
       'milestoneStatus',
@@ -250,21 +268,7 @@ export function collectMilestone(
             ),
           ],
     ),
-    make(
-      'checklist',
-      ['name', 'outcome'],
-      milestone?.checklist.map((item) =>
-        row(
-          'item',
-          [item.text],
-          {
-            name: text(item.text),
-            outcome: label(item.done ? 'complete' : 'open'),
-          },
-          ids,
-        ),
-      ) ?? [],
-    ),
+    make('checklist', ['name', 'outcome'], checklist),
     make(
       'gateDeclarations',
       ['name'],

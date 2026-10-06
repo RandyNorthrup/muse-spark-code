@@ -27,7 +27,7 @@ export function compare(left: string, right: string): number {
   return Number(left > right) - Number(left < right)
 }
 
-// Digest identities, never positions or prose truncated to fit the id cap.
+// Digest identities, never display positions or prose truncated to fit the id cap.
 // Prefixes express the declared priority (Needs you and delivery order).
 function digestIdentity(value: string): string {
   const digest = createHash('sha256').update(value).digest('hex')
@@ -68,7 +68,7 @@ export function row(
 export function section(
   id: string,
   heading: ReportLabelKey,
-  columns: readonly ReportLabelKey[],
+  columns: readonly (ReportLabelKey | ReportSection['columns'][number])[],
   rows: readonly ReportRow[],
   options: ReportOptions,
 ): ReportSection {
@@ -77,7 +77,9 @@ export function section(
     id,
     label: heading,
     sortKey: 'key',
-    columns: columns.map((column) => ({ key: column, label: column })),
+    columns: columns.map((column) =>
+      typeof column === 'string' ? { key: column, label: column } : column,
+    ),
     rows: options.full ? ordered : ordered.slice(0, REPORT_SECTION_ROWS),
     omittedRows: options.full ? 0 : Math.max(0, ordered.length - REPORT_SECTION_ROWS),
   }
@@ -89,12 +91,19 @@ export function sourcedSection(
   options: ReportOptions,
   id: string,
   heading: ReportLabelKey,
-  columns: readonly ReportLabelKey[],
+  columns: readonly (ReportLabelKey | ReportSection['columns'][number])[],
   rows: readonly ReportRow[],
   kinds: readonly ReportSourceKind[],
   extraSources: readonly ReportSourceRecord[] = [],
 ): ReportSection {
-  const fields = [...new Set([...columns, 'status', 'reason'] satisfies ReportLabelKey[])]
+  const definitions = columns.map((column) =>
+    typeof column === 'string' ? { key: column, label: column } : column,
+  )
+  for (const field of ['status', 'reason'] as const) {
+    if (definitions.every((column) => column.key !== field))
+      definitions.push({ key: field, label: field })
+  }
+  const fields = definitions.map((column) => column.key)
   const completeRows: ReportRow[] = rows.map((entry) => ({
     ...entry,
     cells: { status: label('ok'), reason: text(''), ...entry.cells },
@@ -108,7 +117,7 @@ export function sourcedSection(
     cells['reason'] = text(source.reason)
     completeRows.push(row('0-source', [source.id], cells, [source.id]))
   }
-  return section(id, heading, fields, completeRows, options)
+  return section(id, heading, definitions, completeRows, options)
 }
 
 export function unavailableRecord(id: string, reason: string): ReportSourceRecord {

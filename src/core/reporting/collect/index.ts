@@ -1,4 +1,4 @@
-import { REPORT_FORMAT_VERSION, REPORT_SECTION_ROWS } from '../../../shared/constants'
+import { REPORT_FORMAT_VERSION } from '../../../shared/constants'
 import {
   reportDocumentSchema,
   reportSectionSchema,
@@ -59,16 +59,21 @@ function forward(
   const sections =
     source.data?.map((value) => {
       const parsed = reportSectionSchema.parse(value)
-      const sorted = parsed.rows.toSorted((left, right) => compare(left.key, right.key))
       // Already omitted rows cannot be recovered; --full requires complete facts.
       if (options.full && parsed.omittedRows !== 0) throw new Error('report/incompleteFullSource')
-      // Keep arbitrary column keys from the typed facet contract intact.
+      const collected = sourcedSection(
+        snapshot,
+        options,
+        parsed.id,
+        parsed.label,
+        parsed.columns,
+        parsed.rows,
+        [kind],
+      )
+      // Keep arbitrary column keys and any upstream omissions intact.
       return {
-        ...parsed,
-        rows: options.full ? sorted : sorted.slice(0, REPORT_SECTION_ROWS),
-        omittedRows:
-          parsed.omittedRows +
-          (options.full ? 0 : Math.max(0, sorted.length - REPORT_SECTION_ROWS)),
+        ...collected,
+        omittedRows: parsed.omittedRows + collected.omittedRows,
       }
     }) ?? []
   const headings = forwardedKinds[kind]

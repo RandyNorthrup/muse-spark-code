@@ -4,6 +4,47 @@ import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/co
 import { availableSource } from './helpers/reporting/snapshot'
 
 describe('milestone collector', () => {
+  it.each([false, true])('retains repeated checklist lines with unique keys (full=%s)', (full) => {
+    const snapshot = fullSnapshot()
+    const plan = snapshot.sources.plan.data!
+    const checklist = [
+      { text: 'All gates green', done: true },
+      { text: 'All gates green', done: false },
+      { text: 'All gates green', done: true },
+    ]
+    const collect = (items: typeof checklist) =>
+      collectFixture(
+        'milestone',
+        { full },
+        {
+          ...snapshot,
+          sources: {
+            ...snapshot.sources,
+            plan: availableSource('plan', {
+              ...plan,
+              milestones: plan.milestones.map((milestone) =>
+                milestone.id === 'M12' ? { ...milestone, checklist: items } : milestone,
+              ),
+            }),
+          },
+        },
+      )
+    const report = collect(checklist)
+    const rows = getSection(report, 'checklist').rows
+    expect(rows).toHaveLength(3)
+    expect(new Set(rows.map((row) => row.key)).size).toBe(3)
+    expect(rows.map((row) => row.cells['name'])).toEqual(
+      checklist.map(() => ({ type: 'text', value: 'All gates green' })),
+    )
+    expect(rows.filter((row) => row.cells['outcome']?.value === 'complete')).toHaveLength(2)
+    expect(rows.filter((row) => row.cells['outcome']?.value === 'open')).toHaveLength(1)
+    expect(getSection(report, 'certificationSummary').rows[0]!.cells).toMatchObject({
+      count: { type: 'count', value: 2 },
+      totals: { type: 'count', value: 3 },
+    })
+    expect(collect(checklist.toReversed())).toEqual(report)
+  })
+
   it.each(['12', 'M12', 'm12'])(
     'matches %s exactly and retains declarations before gates run',
     (scope) => {

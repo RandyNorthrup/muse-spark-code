@@ -27628,6 +27628,16 @@ paid ask-once; 18 h, Win11 VM), with the lead's 2 h; it needs M109 and
 M110, and fake providers for every adapter.
 
 - **Lane 0's contracts,** frozen before the other lanes start:
+  - **K review RVM113K corrections (2026-10-06).** Fix all seven P2
+    findings within K's collectors and tests: unique repeated checklist keys;
+    release absence only after every required source is complete; GitHub
+    release evidence for latest/project; observed zero edits in complete
+    sessions; partial-source rows in forwarded facets; canonical milestone
+    selection; and ancestry-based commit grouping. K's injected selection
+    ports carry explicit, merge-base-aware branch membership from S/W without
+    changing the frozen snapshot or reading Git inside a collector. Unknown
+    membership stays unknown. Regressions and byte-exact red drills belong in
+    `docs/certification/m113-k-kinds.md`; no guard, dependency or budget changes.
   - **Review RVM113L02 correction (2026-10-06).** Derive comparison capacity
     from the document's section schemas, with an exhaustive type-checked map
     that requires an entry for every section field. Include the separate
@@ -29466,6 +29476,15 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**M113-K bounded review gates (2026-10-06).** The rig brief and shared lane
+rules require scoped tests/static/build checks and prohibit full quality in
+this lane; W/lead owns the integrated `npm run quality` gate. Existing lane
+0 handoffs remain: seven unused report manifest localization keys and the
+node:crypto host-API inventory count (46 → 47). Neither gate is weakened or
+rewritten by K. Review regressions and deliberate-break receipts are in
+`docs/certification/m113-k-kinds.md`; these local commits do not certify a
+shipped reporting surface.
 
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor

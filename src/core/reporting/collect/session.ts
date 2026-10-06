@@ -1,4 +1,5 @@
 import { diffTally } from '../../../shared/diffTally'
+import { FILE_EDIT_TOOLS } from '../../../shared/constants'
 import type { ReportOptions, ReportRow, ReportSection } from '../../../shared/reportSchema'
 import type { SourceSnapshot } from '../sources/types'
 import { CHECK_COLUMNS, checkRows, count, label, row, sourcedSection, text } from './common'
@@ -28,7 +29,18 @@ export function collectSession(snapshot: SourceSnapshot, options: ReportOptions)
     }
     if (item.paid !== undefined) paid.set(item.paid, (paid.get(item.paid) ?? 0) + 1)
   }
-  const tally = facts === null ? undefined : diffTally(facts.export.transcript)
+  const isMissingEditSummary = transcript.some(
+    (item) =>
+      item.kind === 'toolCall' &&
+      item.tool !== undefined &&
+      FILE_EDIT_TOOLS.has(item.tool) &&
+      item.patchSummary === undefined,
+  )
+  const tally =
+    facts === null || isMissingEditSummary
+      ? undefined
+      : (diffTally(transcript) ??
+        (source.record.status === 'ok' ? { files: 0, added: 0, removed: 0 } : undefined))
   const questions = snapshot.sources.questions
   let approvalRows: ReportRow[] = []
   if (activity?.approvals.status === 'unavailable') {

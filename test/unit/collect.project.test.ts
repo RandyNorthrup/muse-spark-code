@@ -41,6 +41,48 @@ describe('project report collector', () => {
       value: '7d',
     })
   })
+  it.each(['14', 'm14'])(
+    'selects the ready milestone and its lanes for delivery alias %s',
+    (id) => {
+      const snapshot = fullSnapshot()
+      const plan = snapshot.sources.plan.data!
+      const report = collectFixture(
+        'project',
+        {},
+        {
+          ...snapshot,
+          sources: {
+            ...snapshot.sources,
+            plan: availableSource('plan', {
+              ...plan,
+              deliveryOrder: plan.deliveryOrder.map((entry) =>
+                entry.id === 'M14' ? { ...entry, id, needs: ['1'] } : entry,
+              ),
+              milestones: plan.milestones.map((milestone) =>
+                milestone.id === 'M14'
+                  ? { ...milestone, lanes: [{ ...plan.milestones[0]!.lanes[0]!, id: 'V' }] }
+                  : milestone,
+              ),
+            }),
+          },
+        },
+      )
+      expect(getSection(report, 'nextSteps').rows.map((row) => row.cells['name'])).toContainEqual({
+        type: 'text',
+        value: id,
+      })
+      expect(getSection(report, 'milestones').rows.map((row) => row.cells['name'])).toContainEqual({
+        type: 'text',
+        value: 'M14',
+      })
+      expect(getSection(report, 'lanes').rows.map((row) => row.cells['milestones'])).toContainEqual(
+        {
+          type: 'text',
+          value: 'M14',
+        },
+      )
+    },
+  )
 
   it('keeps every missing source and affected section with its reason', () => {
     const report = collectFixture('project', {}, noSources())
