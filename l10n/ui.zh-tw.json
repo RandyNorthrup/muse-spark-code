@@ -2356,5 +2356,9 @@
   "feedbackSending": "正在傳送意見回饋…",
   "feedbackSubmitted": "意見回饋已提交。",
   "feedbackFailed": "無法提交意見回饋。",
+  "sessionDeleteConnectionClosed": "刪除確認前連線已關閉。工作階段仍保留在歷程記錄中。",
+  "sessionDeleteHostExited": "刪除確認前 Muse Code 已結束。工作階段仍保留在歷程記錄中。",
+  "sessionDeleteHostClosed": "刪除確認前主程式已關閉。工作階段仍保留在歷程記錄中。",
+  "sessionDeleteTimedOut": "等待刪除確認逾時。工作階段仍保留在歷程記錄中。",
   "feedbackResult": "Muse Code 傳回：{result}"
 }

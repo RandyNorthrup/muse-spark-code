@@ -2450,5 +2450,9 @@
   "feedbackSending": "Visszajelzés küldése folyamatban…",
   "feedbackSubmitted": "Visszajelzés elküldve.",
   "feedbackFailed": "A visszajelzést nem sikerült elküldeni.",
+  "sessionDeleteConnectionClosed": "A kapcsolat a törlés megerősítése előtt lezárult. A munkamenet megmarad az előzményekben.",
+  "sessionDeleteHostExited": "A Muse Code a törlés megerősítése előtt leállt. A munkamenet megmarad az előzményekben.",
+  "sessionDeleteHostClosed": "A gazdagép a törlés megerősítése előtt bezárult. A munkamenet megmarad az előzményekben.",
+  "sessionDeleteTimedOut": "A törlés megerősítésére rendelkezésre álló idő lejárt. A munkamenet megmarad az előzményekben.",
   "feedbackResult": "A Muse Code válasza: {result}"
 }

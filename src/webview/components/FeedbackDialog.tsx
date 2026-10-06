@@ -40,7 +40,7 @@ function FeedbackForm({ sessionId, classifications, port, onClose }: FeedbackDia
   let statusText = result === undefined ? '' : fill(UI_TEXT.feedbackResult, { result })
   if (failed) statusText = UI_TEXT.feedbackFailed
   let submitText = previewed ? UI_TEXT.feedbackSend : UI_TEXT.reportPreviewLabel
-  if (isSending) submitText = UI_TEXT.feedbackSending
+  if (isSending) submitText = previewed ? UI_TEXT.feedbackSending : UI_TEXT.reportUpdating
 
   const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()

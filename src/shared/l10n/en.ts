@@ -46,6 +46,13 @@ export const EN = {
   feedbackSubmitted: 'Feedback submitted.',
   feedbackFailed: 'Could not submit feedback.',
   feedbackResult: 'Muse Code returned: {result}',
+  sessionDeleteConnectionClosed:
+    'The connection closed before deletion was confirmed. The session remains in History.',
+  sessionDeleteHostExited:
+    'Muse Code exited before deletion was confirmed. The session remains in History.',
+  sessionDeleteHostClosed:
+    'The host closed before deletion was confirmed. The session remains in History.',
+  sessionDeleteTimedOut: 'Deletion confirmation timed out. The session remains in History.',
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:

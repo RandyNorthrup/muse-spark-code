@@ -379,6 +379,8 @@ const FRAME_ENVELOPE = { jsonrpc: '2.0', id: Number.MAX_SAFE_INTEGER }
 export interface CommandTimeouts {
   readonly normalMs: number
   readonly longMs: number
+  /** Deletion's admission and terminal notification; defaults to the long command deadline. */
+  readonly deleteTerminalMs?: number
   /** The watchdog's silence (`MSP_UNRESPONSIVE_SILENCE_MS` unless a test shortens it). */
   readonly unresponsiveSilenceMs?: number
 }
@@ -1292,6 +1294,8 @@ export class MuseCodeHost implements AgentHost {
   private readonly exitListeners = new Set<(exit: HostExit) => void>()
   private readonly listListeners = new Set<(event: SessionListEvent) => void>()
   private readonly lifecycleListeners = new Set<(event: MuseCodeLifecycleEvent) => void>()
+  private readonly deletionTerminalListeners = new Set<(event: MuseCodeLifecycleEvent) => void>()
+  private readonly deletionStopped = new AbortController()
   private readonly usageListeners = new Set<(usage: SubscriptionUsage) => void>()
   /** Set by `close()`: the exit that follows is the extension's, not a crash (D25). */
   private isClosing = false
@@ -1326,9 +1330,7 @@ export class MuseCodeHost implements AgentHost {
         timeouts.unresponsiveSilenceMs ?? MSP_UNRESPONSIVE_SILENCE_MS,
         log,
         () => {
-          for (const listener of this.unresponsiveListeners) {
-            listener()
-          }
+          this.notifyObservers(this.unresponsiveListeners, undefined)
         },
       ),
     }
@@ -1376,6 +1378,7 @@ export class MuseCodeHost implements AgentHost {
     // A connection that ends while the process lives (a framing violation)
     // is as good as dead: the process is closed so the exit is reported.
     void host.connection.closed.then(() => {
+      this.deletionStopped.abort(new Error(UI_TEXT.sessionDeleteConnectionClosed))
       if (this.isClosing) {
         return
       }
@@ -1383,16 +1386,26 @@ export class MuseCodeHost implements AgentHost {
       void this.host.close()
     })
     void host.exited.then((exit) => {
+      this.deletionStopped.abort(new Error(UI_TEXT.sessionDeleteHostExited))
       const described = describeExit(exit, this.isClosing)
       if (described.isExpected) {
         this.log.info(`muse serve exited as asked (${described.description})`)
       } else {
         this.log.warn(`muse serve exited (${described.description})`)
       }
-      for (const listener of this.exitListeners) {
-        listener(described)
-      }
+      this.notifyObservers(this.exitListeners, described)
     })
+  }
+
+  /** Public surfaces cannot interrupt private lifecycle bookkeeping or one another. */
+  private notifyObservers<T>(listeners: ReadonlySet<(event: T) => void>, event: T): void {
+    for (const listener of listeners) {
+      try {
+        listener(event)
+      } catch {
+        this.log.error('MSP observer failed')
+      }
+    }
   }
 
   /** One notification: a host-level event, or a session's. */
@@ -1504,24 +1517,21 @@ export class MuseCodeHost implements AgentHost {
     ) {
       const event = this.features.lifecycle.parseNotification({ method, params })
       if (event.type === 'started') {
-        for (const listener of this.listListeners) {
-          listener({ type: 'changed', record: event.record })
-        }
-      }
-      for (const listener of this.lifecycleListeners) {
-        listener(event)
+        this.notifyObservers(this.listListeners, { type: 'changed', record: event.record })
       }
       if (event.type === 'deleteCompleted' && event.outcome === 'completed') {
         this.sessions.get(event.sessionId)?.disposeAll()
       }
+      for (const listener of this.deletionTerminalListeners) {
+        listener(event)
+      }
+      this.notifyObservers(this.lifecycleListeners, event)
       return true
     }
     if (method === USAGE_CHANGED) {
       const parsed = subscriptionUsageSchema.safeParse(params)
       if (parsed.success) {
-        for (const listener of this.usageListeners) {
-          listener(parsed.data)
-        }
+        this.notifyObservers(this.usageListeners, parsed.data)
       } else {
         this.warnShape(method)
       }
@@ -1535,9 +1545,7 @@ export class MuseCodeHost implements AgentHost {
       this.warnShape(method)
       return true
     }
-    for (const listener of this.listListeners) {
-      listener(event)
-    }
+    this.notifyObservers(this.listListeners, event)
     return true
   }
 
@@ -1738,11 +1746,13 @@ export class MuseCodeHost implements AgentHost {
   public async deleteSession(sessionId: string): Promise<MuseCodeLifecycleEvent> {
     const reader = this.features.lifecycle
     if (reader === undefined) throw new Error(UI_TEXT.memoryDeleteAction)
+    const signal = this.deletionStopped.signal
+    signal.throwIfAborted()
     const commandId = this.channel.connection.mintCommandId()
-    let stop: (() => void) | undefined
     // Arm before dispatch: the notification can be in the same read as admission.
+    let onTerminal: ((event: MuseCodeLifecycleEvent) => void) | undefined
     const terminal = new Promise<MuseCodeLifecycleEvent>((resolve) => {
-      stop = this.onMuseCodeLifecycleEvent((event) => {
+      onTerminal = (event) => {
         if (
           event.type === 'deleteCompleted' &&
           event.sessionId === sessionId &&
@@ -1751,22 +1761,35 @@ export class MuseCodeHost implements AgentHost {
         ) {
           resolve(event)
         }
-      })
+      }
+      this.deletionTerminalListeners.add(onTerminal)
+    })
+    let onAbort: (() => void) | undefined
+    const stopped = new Promise<never>((_resolve, reject) => {
+      onAbort = () => {
+        const reason: unknown = signal.reason
+        reject(reason instanceof Error ? reason : new Error(UI_TEXT.sessionDeleteHostClosed))
+      }
+      signal.addEventListener('abort', onAbort, { once: true })
     })
     try {
       return await withDeadline(
-        (async () => {
-          reader.parseDeleteAdmission(
-            await commandWithin(this.channel, 'session/delete', { sessionId }, commandId),
-            commandId,
-          )
-          return await terminal
-        })(),
-        this.timeouts.longMs,
-        UI_TEXT.memoryDeleteAction,
+        Promise.race([
+          (async () => {
+            reader.parseDeleteAdmission(
+              await commandWithin(this.channel, 'session/delete', { sessionId }, commandId),
+              commandId,
+            )
+            return await terminal
+          })(),
+          stopped,
+        ]),
+        this.timeouts.deleteTerminalMs ?? this.timeouts.longMs,
+        UI_TEXT.sessionDeleteTimedOut,
       )
     } finally {
-      stop?.()
+      if (onTerminal !== undefined) this.deletionTerminalListeners.delete(onTerminal)
+      if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
     }
   }
 
@@ -1875,11 +1898,12 @@ export class MuseCodeHost implements AgentHost {
     }))
   }
 
-  /** The user's confirmed disclosure choices; send once, never replay an upload. */
+  /** Registered literal secrets remain in the host; only the scrubbed note is previewed. */
   public previewFeedbackNote(note: string): string {
     return redactSecrets(note, this.features.feedback?.secretLiterals?.() ?? [])
   }
 
+  /** The user's confirmed disclosure choices; send once, never replay an upload. */
   public async submitFeedback(input: FeedbackRequest): Promise<string> {
     const reader = this.features.feedback
     if (reader === undefined || !this.info.grantedCapabilities.includes('feedback')) {
@@ -1925,6 +1949,7 @@ export class MuseCodeHost implements AgentHost {
   public async close(): Promise<void> {
     // The exit that follows is the extension's own (D25).
     this.isClosing = true
+    this.deletionStopped.abort(new Error(UI_TEXT.sessionDeleteHostClosed))
     // Close the process first: the host emits session/statusChanged for every
     // loaded session on the way down, and those must still find their session.
     await this.host.close()

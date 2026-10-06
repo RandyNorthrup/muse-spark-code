@@ -2638,5 +2638,9 @@
   "feedbackSending": "Odesílání zpětné vazby…",
   "feedbackSubmitted": "Zpětná vazba byla odeslána.",
   "feedbackFailed": "Zpětnou vazbu se nepodařilo odeslat.",
+  "sessionDeleteConnectionClosed": "Spojení se zavřelo před potvrzením smazání. Relace zůstává v historii.",
+  "sessionDeleteHostExited": "Muse Code skončil před potvrzením smazání. Relace zůstává v historii.",
+  "sessionDeleteHostClosed": "Hostitel se zavřel před potvrzením smazání. Relace zůstává v historii.",
+  "sessionDeleteTimedOut": "Časový limit pro potvrzení smazání vypršel. Relace zůstává v historii.",
   "feedbackResult": "Muse Code vrátil: {result}"
 }

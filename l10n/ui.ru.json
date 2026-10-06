@@ -2638,5 +2638,9 @@
   "feedbackSending": "Отправка отзыва…",
   "feedbackSubmitted": "Отзыв отправлен.",
   "feedbackFailed": "Не удалось отправить отзыв.",
+  "sessionDeleteConnectionClosed": "Соединение закрылось до подтверждения удаления. Сеанс остаётся в истории.",
+  "sessionDeleteHostExited": "Muse Code завершился до подтверждения удаления. Сеанс остаётся в истории.",
+  "sessionDeleteHostClosed": "Хост закрылся до подтверждения удаления. Сеанс остаётся в истории.",
+  "sessionDeleteTimedOut": "Время ожидания подтверждения удаления истекло. Сеанс остаётся в истории.",
   "feedbackResult": "Muse Code вернул: {result}"
 }

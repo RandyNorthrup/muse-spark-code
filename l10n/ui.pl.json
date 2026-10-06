@@ -2638,5 +2638,9 @@
   "feedbackSending": "Wysyłanie opinii…",
   "feedbackSubmitted": "Opinia została wysłana.",
   "feedbackFailed": "Nie udało się wysłać opinii.",
+  "sessionDeleteConnectionClosed": "Połączenie zamknięto przed potwierdzeniem usunięcia. Sesja pozostaje w historii.",
+  "sessionDeleteHostExited": "Muse Code zakończył działanie przed potwierdzeniem usunięcia. Sesja pozostaje w historii.",
+  "sessionDeleteHostClosed": "Host zamknięto przed potwierdzeniem usunięcia. Sesja pozostaje w historii.",
+  "sessionDeleteTimedOut": "Upłynął czas oczekiwania na potwierdzenie usunięcia. Sesja pozostaje w historii.",
   "feedbackResult": "Muse Code zwrócił: {result}"
 }

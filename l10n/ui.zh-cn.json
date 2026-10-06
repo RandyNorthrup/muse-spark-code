@@ -2356,5 +2356,9 @@
   "feedbackSending": "正在发送反馈…",
   "feedbackSubmitted": "反馈已提交。",
   "feedbackFailed": "无法提交反馈。",
+  "sessionDeleteConnectionClosed": "删除确认前连接已关闭。会话仍保留在历史记录中。",
+  "sessionDeleteHostExited": "删除确认前 Muse Code 已退出。会话仍保留在历史记录中。",
+  "sessionDeleteHostClosed": "删除确认前宿主已关闭。会话仍保留在历史记录中。",
+  "sessionDeleteTimedOut": "等待删除确认超时。会话仍保留在历史记录中。",
   "feedbackResult": "Muse Code 返回：{result}"
 }

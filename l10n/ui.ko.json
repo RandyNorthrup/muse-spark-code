@@ -2356,5 +2356,9 @@
   "feedbackSending": "피드백을 보내는 중…",
   "feedbackSubmitted": "피드백을 보냈습니다.",
   "feedbackFailed": "피드백을 보낼 수 없습니다.",
+  "sessionDeleteConnectionClosed": "삭제가 확인되기 전에 연결이 닫혔습니다. 세션은 기록에 남아 있습니다.",
+  "sessionDeleteHostExited": "삭제가 확인되기 전에 Muse Code가 종료되었습니다. 세션은 기록에 남아 있습니다.",
+  "sessionDeleteHostClosed": "삭제가 확인되기 전에 호스트가 닫혔습니다. 세션은 기록에 남아 있습니다.",
+  "sessionDeleteTimedOut": "삭제 확인 대기 시간이 초과되었습니다. 세션은 기록에 남아 있습니다.",
   "feedbackResult": "Muse Code 반환 결과: {result}"
 }

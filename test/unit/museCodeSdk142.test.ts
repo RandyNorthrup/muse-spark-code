@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
 import echoCapture from '../fixtures/m106/msp-echo-1.4.2.json'
 import {
@@ -20,7 +20,7 @@ function setup(features: MuseCodeFeaturePorts = {}, grants: readonly string[] = 
   const fixture = fakeMspHost({ ...fakeInitializeResult, grantedCapabilities: [...grants] })
   const log = new FakeLogOutputChannel()
   const host = new MuseCodeHost(fixture.host, log, { normalMs: 100, longMs: 100 }, features)
-  return { ...fixture, log, host }
+  return { ...fixture, log, host, processHost: fixture.host }
 }
 
 const report = {
@@ -66,6 +66,27 @@ function deletion(
   return { type: 'deleteCompleted', sessionId: 's', commandId, outcome: 'completed', ...overrides }
 }
 
+function observeRejection(work: Promise<unknown>) {
+  const rejected = vi.fn()
+  const waiting = (async () => {
+    try {
+      await work
+    } catch (error: unknown) {
+      rejected(error)
+    }
+  })()
+  return { rejected, waiting }
+}
+
+async function admittedDeletion(host: MuseCodeHost, reader: MuseCodeLifecycleReader) {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  const observed = observeRejection(host.deleteSession('s'))
+  await settle()
+  expect(reader.parseDeleteAdmission).toHaveBeenCalledTimes(1)
+  expect(observed.rejected).not.toHaveBeenCalled()
+  return observed
+}
+
 async function trackedDeletion(
   result: Partial<Extract<MuseCodeLifecycleEvent, { type: 'deleteCompleted' }>> = {},
 ) {
@@ -81,10 +102,14 @@ async function trackedDeletion(
     events.push(deletion(String(params['commandId']), result))
     return [{ jsonrpc: '2.0', method: 'session/deleteCompleted', params: {} }]
   })
-  return { ...fixture, reader }
+  return { ...fixture, reader, events }
 }
 
 describe('Muse Code 1.4.2 feature ports', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
   it('recognizes the locally served echo handshake and empty catalogue with zero model attempts', async () => {
     const fixture = fakeMspHost({ ...fakeInitializeResult, ...echoCapture.initialize })
     const host = new MuseCodeHost(fixture.host, new FakeLogOutputChannel())
@@ -162,6 +187,23 @@ describe('Muse Code 1.4.2 feature ports', () => {
     expect(server.requestsFor('feedback/submit')[0]?.params?.['note']).toBe(note)
   })
 
+  it('refuses a preview that became secret after approval instead of silently changing the payload', async () => {
+    const literals: string[] = []
+    const { host, server } = setup(
+      {
+        feedback: {
+          parseOutcome: () => 'uploaded',
+          secretLiterals: () => literals,
+        },
+      },
+      ['feedback'],
+    )
+    const note = host.previewFeedbackNote('later-registered-feedback-literal')
+    literals.push(note)
+    await expect(host.submitFeedback({ ...report, note })).rejects.toThrow(UI_TEXT.feedbackFailed)
+    expect(server.requestsFor('feedback/submit')).toHaveLength(0)
+  })
+
   it('propagates a rejected receipt without retrying or logging its content', async () => {
     const parseOutcome = vi.fn((): string => {
       throw new Error('reader refusal')
@@ -206,6 +248,150 @@ describe('Muse Code 1.4.2 feature ports', () => {
       terminal.type === 'deleteCompleted' ? terminal.commandId : '',
     )
     expect(host.sessionCount).toBe(0)
+  })
+
+  it('isolates a throwing public observer from private deletion completion and session disposal', async () => {
+    const { host, log } = await trackedDeletion()
+    host.onMuseCodeLifecycleEvent(() => {
+      throw new Error('disposed surface / private-observer-detail')
+    })
+    const after = vi.fn(() => host.sessionCount)
+    host.onMuseCodeLifecycleEvent(after)
+    const publicSubscribe = vi.spyOn(host, 'onMuseCodeLifecycleEvent')
+    await expect(host.deleteSession('s')).resolves.toMatchObject({ outcome: 'completed' })
+    expect(publicSubscribe).not.toHaveBeenCalled()
+    expect(host.sessionCount).toBe(0)
+    expect(after).toHaveBeenCalledTimes(1)
+    expect(after.mock.results[0]?.value).toBe(0)
+    expect(log.error).toHaveBeenCalledExactlyOnceWith('MSP observer failed')
+  })
+
+  it('isolates throwing History observers and continues delivering started lifecycle events', async () => {
+    const { reader, events } = lifecycle()
+    const { host, server, log } = setup({ lifecycle: reader })
+    host.onSessionListEvent(() => {
+      throw new Error('disposed history')
+    })
+    const list = vi.fn()
+    const visible = vi.fn()
+    host.onSessionListEvent(list)
+    host.onMuseCodeLifecycleEvent(visible)
+    events.push({ type: 'started', record })
+    server.notify('session/started', {})
+    await settle()
+    expect(list).toHaveBeenCalledExactlyOnceWith({ type: 'changed', record })
+    expect(visible).toHaveBeenCalledExactlyOnceWith({ type: 'started', record })
+    expect(log.error).toHaveBeenCalledExactlyOnceWith('MSP observer failed')
+  })
+
+  it.each(['connection close', 'host exit', 'host close'] as const)(
+    'rejects admitted deletion promptly on %s without reporting the session deleted',
+    async (ending) => {
+      const fixture = await trackedDeletion()
+      const { host, server, reader } = fixture
+      server.followWith('session/delete', () => [])
+      const visible = vi.fn()
+      host.onMuseCodeLifecycleEvent(visible)
+      const history = new Set([record.sessionId])
+      host.onMuseCodeLifecycleEvent((event) => {
+        if (event.type === 'deleteCompleted' && event.outcome === 'completed') {
+          history.delete(event.sessionId)
+        }
+      })
+      const { rejected, waiting } = await admittedDeletion(host, reader)
+      let message = UI_TEXT.sessionDeleteConnectionClosed
+      if (ending === 'connection close') {
+        server.close()
+      } else if (ending === 'host exit') {
+        message = UI_TEXT.sessionDeleteHostExited
+        host.onExit(() => {
+          throw new Error('disposed exit observer')
+        })
+        fixture.exit(1)
+      } else {
+        message = UI_TEXT.sessionDeleteHostClosed
+        await host.close()
+      }
+      await settle()
+      // No timers advanced: shutdown must beat the terminal deadline.
+      expect(rejected).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ message }))
+      await waiting
+      expect(vi.getTimerCount()).toBe(0)
+      expect(visible).not.toHaveBeenCalled()
+      expect(history.has('s')).toBe(true)
+      // Explicit host shutdown releases all handles; that is not stored deletion.
+      expect(host.sessionCount).toBe(ending === 'host close' ? 0 : 1)
+      const requests = server.requestsFor('session/delete').length
+      await expect(host.deleteSession('s')).rejects.toThrow(message)
+      expect(server.requestsFor('session/delete')).toHaveLength(requests)
+    },
+  )
+
+  it('uses the named deletion terminal timeout, cleans up and leaves the session in History', async () => {
+    const { reader } = lifecycle()
+    const fixture = fakeMspHost()
+    const host = new MuseCodeHost(
+      fixture.host,
+      new FakeLogOutputChannel(),
+      {
+        normalMs: 100,
+        longMs: 100,
+        deleteTerminalMs: 2,
+      },
+      { lifecycle: reader },
+    )
+    fixture.server.handle('session/start', () => ({
+      session: { sessionId: 's', modelId: model.modelId },
+      viewCursor: '',
+    }))
+    await host.startSession(options)
+    fixture.server.handle('session/delete', () => ({ opaque: 'admission' }))
+    const visible = vi.fn()
+    host.onMuseCodeLifecycleEvent(visible)
+    const adding = vi.spyOn(AbortSignal.prototype, 'addEventListener')
+    const removing = vi.spyOn(AbortSignal.prototype, 'removeEventListener')
+    const { rejected, waiting } = await admittedDeletion(host, reader)
+    await vi.advanceTimersByTimeAsync(2)
+    await waiting
+    expect(rejected).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        name: 'DeadlineError',
+        message: UI_TEXT.sessionDeleteTimedOut,
+      }),
+    )
+    expect(vi.getTimerCount()).toBe(0)
+    expect(host.sessionCount).toBe(1)
+    expect(visible).not.toHaveBeenCalled()
+    const abortListener = adding.mock.calls.find(([name]) => name === 'abort')?.[1]
+    expect(abortListener).toEqual(expect.any(Function))
+    expect(removing).toHaveBeenCalledExactlyOnceWith('abort', abortListener)
+    await host.close()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('rejects deletion as soon as host close starts even while process cleanup is pending', async () => {
+    const fixture = await trackedDeletion()
+    fixture.server.followWith('session/delete', () => [])
+    const cleanup = Promise.withResolvers<undefined>()
+    const closeProcess = fixture.processHost.close
+    fixture.processHost.close = async () => {
+      await cleanup.promise
+      return await closeProcess()
+    }
+    const { rejected, waiting } = await admittedDeletion(fixture.host, fixture.reader)
+    const closing = fixture.host.close()
+    await settle()
+    expect(rejected).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message: UI_TEXT.sessionDeleteHostClosed,
+      }),
+    )
+    await waiting
+    expect(vi.getTimerCount()).toBe(0)
+    expect(fixture.host.sessionCount).toBe(1)
+    cleanup.resolve(undefined)
+    await closing
+    expect(fixture.host.sessionCount).toBe(0)
   })
 
   it('matches both session and command, keeps unknown outcomes visible, and waits for a known terminal', async () => {

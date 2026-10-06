@@ -19,6 +19,9 @@ happened, not what was planned; superseded entries are kept.
 
 - Muse Code feedback now previews the scrubbed note before sending and
   refuses to dispatch a note that differs from the approved preview.
+- Muse Code deletion completion and handle cleanup survive throwing surface
+  observers. Unconfirmed deletion now rejects on connection close, process
+  exit, host close or its terminal deadline without reporting success.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

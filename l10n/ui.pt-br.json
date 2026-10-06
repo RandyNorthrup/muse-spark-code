@@ -2544,5 +2544,9 @@
   "feedbackSending": "Enviando comentários…",
   "feedbackSubmitted": "Comentários enviados.",
   "feedbackFailed": "Não foi possível enviar os comentários.",
+  "sessionDeleteConnectionClosed": "A conexão foi fechada antes da confirmação da exclusão. A sessão permanece no histórico.",
+  "sessionDeleteHostExited": "O Muse Code foi encerrado antes da confirmação da exclusão. A sessão permanece no histórico.",
+  "sessionDeleteHostClosed": "O host foi fechado antes da confirmação da exclusão. A sessão permanece no histórico.",
+  "sessionDeleteTimedOut": "O tempo de espera pela confirmação da exclusão expirou. A sessão permanece no histórico.",
   "feedbackResult": "O Muse Code retornou: {result}"
 }

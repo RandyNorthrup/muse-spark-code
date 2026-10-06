@@ -9,6 +9,11 @@ import { redactSecrets } from '../../src/shared/redact'
 const report = { sessionId: 's', classification: 'badResult', note: 'A wrong answer' } as const
 
 describe('Muse Code feedback: user choices before an injected receipt reader', () => {
+  it('scrubs M84 patterns even without a host literal scrubber', async () => {
+    const submit = vi.fn().mockResolvedValue('uploaded')
+    await submitMuseFeedback({ ...report, note: `ghp_${'x'.repeat(36)}` }, { submit })
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ note: REDACTED_MARK }))
+  })
   it('scrubs a registered literal and an M84 credential pattern before dispatch', async () => {
     const literal = 'feedback-test-literal'
     const pattern = `ghp_${'x'.repeat(36)}`

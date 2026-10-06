@@ -42,14 +42,18 @@ async function send() {
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.feedbackSend }))
 }
 
-async function requestWithoutRecord(submit: ReturnType<typeof setup>['submit']): Promise<unknown> {
-  expect(record()).not.toBeChecked()
-  expect(record()).toBeDisabled()
+async function sentRequest(submit: ReturnType<typeof setup>['submit']): Promise<unknown> {
   await send()
   await waitFor(() => {
     expect(submit).toHaveBeenCalledTimes(1)
   })
   return submit.mock.calls[0]?.[0]
+}
+
+async function requestWithoutRecord(submit: ReturnType<typeof setup>['submit']): Promise<unknown> {
+  expect(record()).not.toBeChecked()
+  expect(record()).toBeDisabled()
+  return await sentRequest(submit)
 }
 
 describe('FeedbackDialog: disclosure consent', () => {
@@ -67,11 +71,7 @@ describe('FeedbackDialog: disclosure consent', () => {
     expect(screen.getByLabelText(UI_TEXT.feedbackNote)).toHaveValue(approved)
     expect(screen.getByLabelText(UI_TEXT.feedbackNote)).toHaveAttribute('readonly')
     expect(submit).not.toHaveBeenCalled()
-    await send()
-    await waitFor(() => {
-      expect(submit).toHaveBeenCalledTimes(1)
-    })
-    expect(submit.mock.calls[0]?.[0]).toMatchObject({ note: approved })
+    expect(await sentRequest(submit)).toMatchObject({ note: approved })
   })
 
   it('requires a new scrubbed preview after editing the approved note', async () => {
@@ -81,11 +81,7 @@ describe('FeedbackDialog: disclosure consent', () => {
     fireEvent.change(screen.getByLabelText(UI_TEXT.feedbackNote), { target: { value: 'Changed' } })
     await preview()
     expect(submit).not.toHaveBeenCalled()
-    await send()
-    await waitFor(() => {
-      expect(submit).toHaveBeenCalledTimes(1)
-    })
-    expect(submit.mock.calls[0]?.[0]).toMatchObject({ note: 'Changed' })
+    expect(await sentRequest(submit)).toMatchObject({ note: 'Changed' })
   })
   it('starts with both disclosures off, sends once, and displays the exact returned outcome', async () => {
     const { submit } = setup()

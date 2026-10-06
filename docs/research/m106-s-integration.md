@@ -108,7 +108,13 @@ refreshing after partial erasure. The operation listens before admission,
 matches both session and command, waits for a known terminal, stops its
 temporary listener in `finally`, and disposes tracked handles only on
 `completed`. Unknown outcomes remain visible and pending until a known
-terminal or deadline. Add localized deadline/unavailable text at wiring.
+terminal or deadline. Use the host's localized failure text at wiring.
+The host now supplies localized errors for connection close, process exit,
+explicit host close and the named terminal deadline. Public observers run
+through a guarded dispatcher with fixed-label failure logging; deletion's
+terminal subscription and session disposal are private bookkeeping. An
+uncertain outcome emits no deletion success and leaves stored History
+listed. Explicit host close still releases its in-memory handles normally.
 The existing `session/closed` and `session/listChanged` streams stay intact;
 parsed `started` records feed the existing changed-record stream.
 

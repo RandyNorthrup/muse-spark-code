@@ -19407,14 +19407,14 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
-**Lane S review repair (RVM106S, 2026-10-06).** Fix all three P2 findings:
+**Lane S review repair (RVM106S, 2026-10-06).** All three P2 findings are fixed:
 scrub feedback with the shared credential detector and host-held literal
 secrets before preview/dispatch, send exactly the approved note, isolate
 public lifecycle observers from private deletion bookkeeping, and reject
 deletion waits on connection close, process exit, explicit host close or
 the named terminal deadline. Failed/uncertain deletion never emits success
 or removes stored History. Regression tests and byte-exact red drills are
-recorded in `docs/certification/m106-s.md`; no review residual is planned.
+recorded in `docs/certification/m106-s.md`; no review residual remains.
 The rig brief prohibits aggregate quality and merging; scoped local checks
 and hook-on commits precede the lead's integrated quality gate.
 
@@ -20057,6 +20057,15 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM106S scoped review certification (2026-10-06).** The rig repair
+brief requires all three RVM106S P2 findings fixed, no residuals, default
+test timeouts, and three-file/three-worker batches. The shared rules
+explicitly prohibit aggregate `npm run quality`; the lead retains that
+integrated gate. Local scoped regressions, byte-exact red drills, static
+checks and a production build precede hook-on commits. No timeout,
+threshold, rule, ignore, cap or hook is changed. Evidence is recorded in
+`docs/certification/m106-s.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct

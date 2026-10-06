@@ -2450,5 +2450,9 @@
   "feedbackSending": "Feedback wird gesendet…",
   "feedbackSubmitted": "Feedback gesendet.",
   "feedbackFailed": "Feedback konnte nicht gesendet werden.",
+  "sessionDeleteConnectionClosed": "Die Verbindung wurde geschlossen, bevor das Löschen bestätigt wurde. Die Sitzung bleibt im Verlauf.",
+  "sessionDeleteHostExited": "Muse Code wurde beendet, bevor das Löschen bestätigt wurde. Die Sitzung bleibt im Verlauf.",
+  "sessionDeleteHostClosed": "Der Host wurde geschlossen, bevor das Löschen bestätigt wurde. Die Sitzung bleibt im Verlauf.",
+  "sessionDeleteTimedOut": "Die Wartezeit auf die Löschbestätigung ist abgelaufen. Die Sitzung bleibt im Verlauf.",
   "feedbackResult": "Muse Code hat zurückgegeben: {result}"
 }
