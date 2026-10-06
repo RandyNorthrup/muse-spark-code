@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- M100's pairing/storage test fixtures create and clean their own OS temporary
+  directories, so a clean worktree does not need an ignored `temp/` directory.
+
 ## [0.14.1] - 2026-10-05
 
 ### Security

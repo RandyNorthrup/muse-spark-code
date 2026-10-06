@@ -17752,6 +17752,18 @@ byte-exact red/restored drill per finding. No production listener/store,
 dependency or guard waiver is introduced; P/T/E own runtime isolation and
 journal proofs. PLAN §9 records the trusted-account residual.
 
+**FIXM100P review repair (2026-10-06).** Repair both RVM100P P2 findings
+and its P3 fixture setup failure within P's owned files. Grants share the
+UI mutation queue; a later Pause blocks them immediately, and they recheck
+pause/block/revocation and grant revisions after the secret read before
+persisting. Expected revoked, unpaired and grant policy refusals retain their
+named reason and leave unrelated pairs usable; genuine storage failures
+still latch fail-closed. Both filesystem suites own and clean their temporary
+parents under the OS temporary directory. Each repair gets a regression and
+byte-exact red/restored receipt in `docs/certification/m100-p.md`. No new
+dependency, listener, installed-host claim or paid/live call. The rig brief
+forbids merges and aggregate quality; the lead retains those joined-tree gates.
+
 - **Goal.** The owner explicitly links his four LAN devices, offers a bounded
   pool from each open extension, delegates independent lanes and checks from
   one board, and receives reviewable Git branches without moving credentials

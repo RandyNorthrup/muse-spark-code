@@ -1,5 +1,6 @@
 import { mkdtemp, readFile, writeFile, open, rename } from 'node:fs/promises'
 import path from 'node:path'
+import { tmpdir } from 'node:os'
 import type * as FileSystem from 'node:fs/promises'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DevicePairing } from '../../src/host/devices/devicePairing'
@@ -29,7 +30,7 @@ const localHost: DeviceExecutionHost = {
 const fixture = { parent: '' }
 const stores: DeviceStore[] = []
 beforeEach(async () => {
-  fixture.parent = await mkdtemp(path.join(process.cwd(), 'temp/m100-p-adapter-'))
+  fixture.parent = await mkdtemp(path.join(tmpdir(), 'm100-p-adapter-'))
 })
 afterEach(async () => {
   await removeDeviceFixture(stores, fixture.parent)
