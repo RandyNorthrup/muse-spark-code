@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
 import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import { devicePairingConfirmationSchema, type DeviceInvitation } from '../../../../shared/devices'
 import { type DeviceHostMessage, type DeviceWebviewRequest } from '../../../../shared/modelsPanel'
@@ -22,6 +22,7 @@ export function DevicePairing({
   const [text, setText] = useState('')
   const [isCompared, setCompared] = useState(false)
   const [error, setError] = useState(false)
+  const invitationInputId = useId()
   const peerHeading = useRef<HTMLHeadingElement>(null)
   const request = (action: DeviceAction) => {
     setError(false)
@@ -76,17 +77,16 @@ export function DevicePairing({
           request({ kind: 'importInvitation', text })
         }}
       >
-        <label>
-          {UI_TEXT.devices.scan}
-          <textarea
-            maxLength={DEVICE_LIMITS.invitationTextChars}
-            value={text}
-            onChange={(event) => {
-              setText(event.currentTarget.value)
-            }}
-            required
-          />
-        </label>
+        <label htmlFor={invitationInputId}>{UI_TEXT.devices.scan}</label>
+        <textarea
+          id={invitationInputId}
+          maxLength={DEVICE_LIMITS.invitationTextChars}
+          value={text}
+          onChange={(event) => {
+            setText(event.currentTarget.value)
+          }}
+          required
+        />
         <button type="submit" disabled={busy || text.trim().length === 0}>
           {UI_TEXT.devices.importInvitation}
         </button>
@@ -165,20 +165,20 @@ function PublicText({
   readonly renderQr: ((publicText: string) => ReactNode) | undefined
 }) {
   const field = useRef<HTMLTextAreaElement>(null)
+  const fieldId = useId()
   return (
     <div className="device-public-text">
       {renderQr?.(text)}
-      <label>
-        {label}
-        <textarea
-          ref={field}
-          readOnly
-          value={text}
-          onFocus={(event) => {
-            event.currentTarget.select()
-          }}
-        />
-      </label>
+      <label htmlFor={fieldId}>{label}</label>
+      <textarea
+        id={fieldId}
+        ref={field}
+        readOnly
+        value={text}
+        onFocus={(event) => {
+          event.currentTarget.select()
+        }}
+      />
       <button
         type="button"
         onClick={() => {

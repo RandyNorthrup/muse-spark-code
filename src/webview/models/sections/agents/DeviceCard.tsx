@@ -26,12 +26,14 @@ export interface DeviceBoardBinding {
 export function DeviceCard({
   device,
   setup,
+  isUnsupportedHost = false,
   boards,
   busy,
   send,
 }: {
   readonly device: DeviceRow
   readonly setup: DeviceHostMessage['setup']
+  readonly isUnsupportedHost?: boolean
   readonly boards: readonly DeviceBoardBinding[]
   readonly busy: boolean
   readonly send: (action: DeviceAction) => Promise<DeviceHostMessage | undefined>
@@ -122,7 +124,12 @@ export function DeviceCard({
         key={JSON.stringify(device.offers.map((offer) => offer.caps))}
         pairId={device.pairId}
         caps={device.offers[0]?.caps}
-        busy={busy || setup?.failure === 'unsupported-host' || device.status === 'incompatible'}
+        busy={
+          busy ||
+          isUnsupportedHost ||
+          setup?.failure === 'unsupported-host' ||
+          device.status === 'incompatible'
+        }
         act={act}
       />
       <div className="device-actions">

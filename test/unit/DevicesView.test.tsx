@@ -78,6 +78,10 @@ function offerForm(): HTMLFormElement {
   if (form === null) throw new Error('missing offer form')
   return form
 }
+function importConfirmationText(text: string): void {
+  fireEvent.change(screen.getByLabelText(EN.devices.scan), { target: { value: text } })
+  fireEvent.click(screen.getByRole('button', { name: EN.devices.importConfirmation }))
+}
 afterEach(() => {
   setUiText(EN, 'en')
 })
@@ -134,6 +138,8 @@ describe('M100 U shared Devices view', () => {
     render(<LiveView port={port} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
     const field = await screen.findByLabelText<HTMLTextAreaElement>(EN.devices.copyInvitation)
+    expect(field).toHaveAccessibleName(EN.devices.copyInvitation)
+    expect(field.labels[0]?.textContent).toBe(EN.devices.copyInvitation)
     fireEvent.focus(field)
     expect(deviceInvitationSchema.parse(JSON.parse(field.value))).toEqual(uiInvitation)
     fireEvent.change(screen.getByLabelText(EN.devices.scan), {
@@ -168,6 +174,13 @@ describe('M100 U shared Devices view', () => {
     await screen.findByText(EN.devices.storageUnavailable)
     expect(screen.queryByLabelText(EN.devices.copyInvitation)).toBeNull()
   })
+  it('keeps the invitation input label independent of pasted public bytes', () => {
+    render(<LiveView />)
+    const input = screen.getByLabelText<HTMLTextAreaElement>(EN.devices.scan)
+    fireEvent.change(input, { target: { value: JSON.stringify(uiInvitation) } })
+    expect(input).toHaveAccessibleName(EN.devices.scan)
+    expect(input.labels[0]?.textContent).toBe(EN.devices.scan)
+  })
   it('selects public text when copying is unavailable and sends validated confirmation only', async () => {
     const port = uiPort({
       ...uiMessage(),
@@ -180,16 +193,10 @@ describe('M100 U shared Devices view', () => {
     expect(document.activeElement).toBe(text)
     expect(text.selectionStart).toBe(0)
     expect(text.selectionEnd).toBe(text.value.length)
-    fireEvent.change(screen.getByLabelText(EN.devices.scan), {
-      target: { value: JSON.stringify({ ...uiConfirmation, paidConsent: true }) },
-    })
-    fireEvent.click(screen.getByRole('button', { name: EN.devices.importConfirmation }))
+    importConfirmationText(JSON.stringify({ ...uiConfirmation, paidConsent: true }))
     expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
     expect(port.request).toHaveBeenCalledOnce()
-    fireEvent.change(screen.getByLabelText(EN.devices.scan), {
-      target: { value: JSON.stringify(uiConfirmation) },
-    })
-    fireEvent.click(screen.getByRole('button', { name: EN.devices.importConfirmation }))
+    importConfirmationText(JSON.stringify(uiConfirmation))
     await waitFor(() => {
       expect(port.request).toHaveBeenCalledTimes(2)
     })
@@ -220,30 +227,94 @@ describe('M100 U shared Devices view', () => {
     render(<LiveView initial={{ ...uiMessage(), setup: { requestId: UI_PAIR_ID, failure } }} />)
     expect(screen.getByRole('alert')).toHaveTextContent(expectedFailures[failure])
   })
-  it('shows the actual listener, interface and endpoint with usable OS/admin recovery', () => {
+  it('shows the actual listener, interface and endpoint from the correlated setup reply with usable OS/admin recovery', async () => {
     const message = uiMessage({
       status: 'blocked-or-unreachable',
       unresolvedAttempts: 1,
       retainedLiabilityUsd: 2,
     })
-    render(
-      <LiveView
-        initial={{
-          ...message,
-          setup: {
-            requestId: UI_PAIR_ID,
-            listenerApplication: 'Editor host',
-            interfaceLabel: 'LAN en0',
-          },
-        }}
-      />,
-    )
-    expect(screen.getByText(/Check Editor host on LAN en0 at 10.2.3.4:32,123/)).toHaveTextContent(
-      'Ask an administrator for scoped access',
-    )
+    const port = uiPort({
+      ...message,
+      setup: {
+        requestId: UI_PAIR_ID,
+        listenerApplication: 'Editor host',
+        interfaceLabel: 'LAN en0',
+      },
+    })
+    render(<LiveView initial={message} port={port} />)
+    fireEvent.submit(screen.getByRole('button', { name: EN.devices.retryAddress }).closest('form')!)
+    expect(
+      await screen.findByText(/Check Editor host on LAN en0 at 10.2.3.4:32,123/),
+    ).toHaveTextContent('Ask an administrator for scoped access')
     expect(screen.getByText(/A timeout does not prove/)).toBeVisible()
     expect(screen.getByText('Retained spending liability: $2.00')).toBeVisible()
     expect(screen.getByText(EN.devices.unresolvedHelp)).toBeVisible()
+  })
+  it('never attributes one pair’s listener or interface facts to another pair', async () => {
+    const message: DeviceHostMessage = {
+      type: 'deviceState',
+      state: {
+        enabled: true,
+        discoveryEnabled: false,
+        devices: [
+          { ...uiDevice, status: 'blocked-or-unreachable' },
+          {
+            ...uiDevice,
+            pairId: '7'.repeat(32),
+            deviceId: '8'.repeat(32),
+            label: 'Linux receiver',
+            status: 'blocked-or-unreachable',
+            offers: [],
+          },
+        ],
+      },
+    }
+    const port = uiPort({
+      ...message,
+      setup: {
+        requestId: UI_PAIR_ID,
+        listenerApplication: 'Editor host',
+        interfaceLabel: 'LAN en0',
+      },
+    })
+    render(<LiveView initial={message} port={port} />)
+    const target = screen.getByRole('article', { name: 'Mac receiver' })
+    const other = screen.getByRole('article', { name: 'Linux receiver' })
+    fireEvent.submit(
+      within(target).getByRole('button', { name: EN.devices.retryAddress }).closest('form')!,
+    )
+    await within(target).findByText(/Check Editor host on LAN en0/)
+    expect(within(other).queryByText(/Editor host|LAN en0/)).toBeNull()
+    expect(within(other).getByText(/Check Unknown on Unknown/)).toBeVisible()
+  })
+  it('does not reuse a prior action’s binding for a foreign setup request id', async () => {
+    const initial = uiMessage({ status: 'blocked-or-unreachable' })
+    const port = uiPort({
+      ...initial,
+      setup: { requestId: UI_PAIR_ID, listenerApplication: 'Verified listener' },
+    })
+    const onState = vi.fn<(message: DeviceHostMessage) => void>()
+    const props = { port, onState, explicitSetup: true }
+    const { rerender } = render(<DevicesView {...props} message={initial} />)
+    fireEvent.submit(screen.getByRole('button', { name: EN.devices.retryAddress }).closest('form')!)
+    await waitFor(() => {
+      expect(onState).toHaveBeenCalledOnce()
+    })
+    const response = onState.mock.calls[0]?.[0]
+    if (response === undefined) throw new Error('missing correlated response')
+    rerender(<DevicesView {...props} message={response} />)
+    expect(screen.getByText(/Check Verified listener on Unknown/)).toBeVisible()
+    rerender(
+      <DevicesView
+        {...props}
+        message={{
+          ...response,
+          setup: { requestId: '8'.repeat(32), listenerApplication: 'Foreign listener' },
+        }}
+      />,
+    )
+    expect(screen.queryByText(/Foreign listener/)).toBeNull()
+    expect(screen.getByText(/Check Unknown on Unknown/)).toBeVisible()
   })
   it('refuses public/manual address mutations and retains debt through an unsuccessful paired retry', async () => {
     const message = uiMessage({
@@ -474,10 +545,7 @@ describe('M100 U shared Devices view', () => {
   it('validates a pasted confirmation before calling the local action boundary', () => {
     const send = vi.fn(() => Promise.resolve(undefined))
     render(<DevicePairing setup={undefined} busy={false} send={send} />)
-    fireEvent.change(screen.getByLabelText(EN.devices.scan), {
-      target: { value: JSON.stringify({ ...uiConfirmation, paidConsent: true }) },
-    })
-    fireEvent.click(screen.getByRole('button', { name: EN.devices.importConfirmation }))
+    importConfirmationText(JSON.stringify({ ...uiConfirmation, paidConsent: true }))
     expect(send).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
   })
@@ -492,8 +560,7 @@ describe('M100 U shared Devices view', () => {
   it('handles malformed pasted JSON as a local error without a request', () => {
     const send = vi.fn(() => Promise.resolve(undefined))
     render(<DevicePairing setup={undefined} busy={false} send={send} />)
-    fireEvent.change(screen.getByLabelText(EN.devices.scan), { target: { value: '{' } })
-    fireEvent.click(screen.getByRole('button', { name: EN.devices.importConfirmation }))
+    importConfirmationText('{')
     expect(send).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
   })

@@ -35,6 +35,7 @@ export function DevicesView({
   readonly paid?: { readonly price: string; readonly budgetUsd: number }
 }) {
   const activeRequest = useRef<string | undefined>(undefined)
+  const [setupTarget, setSetupTarget] = useState<{ requestId: string; pairId: string }>()
   const [busy, setBusy] = useState(false)
   const [isInvalid, setInvalid] = useState(false)
   const parsed = parseDeviceHostMessage(message)
@@ -69,6 +70,7 @@ export function DevicesView({
         setInvalid(true)
         return undefined
       }
+      setSetupTarget('pairId' in action ? { requestId, pairId: action.pairId } : undefined)
       onState(response.message)
       return response.message
     } catch {
@@ -114,7 +116,12 @@ export function DevicesView({
             <DeviceCard
               key={device.pairId}
               device={device}
-              setup={setup}
+              setup={
+                setup?.requestId === setupTarget?.requestId && device.pairId === setupTarget?.pairId
+                  ? setup
+                  : undefined
+              }
+              isUnsupportedHost={setup?.failure === 'unsupported-host'}
               boards={boards}
               busy={busy}
               send={send}

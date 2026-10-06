@@ -21,8 +21,12 @@ import { createUiStore, listenToHost, persistStore, type UiStore } from './state
 import './styles.css'
 
 const DevicesApp = lazy(async () => {
-  const { DevicesApp } = await import('./models/sections/agents/DevicesApp')
-  return { default: DevicesApp }
+  try {
+    const { DevicesApp } = await import('./models/sections/agents/DevicesApp')
+    return { default: DevicesApp }
+  } catch {
+    return { default: DevicesUnavailable }
+  }
 })
 
 const TasksApp = lazy(async () => {
@@ -75,6 +79,28 @@ if (document.body.dataset['surface'] === 'devices') {
   mountTasks(rootElement)
 } else {
   mountChat(rootElement)
+}
+
+function DevicesUnavailable() {
+  return (
+    <main className="body">
+      <section className="gate" role="alert" aria-labelledby="devices-load-title">
+        <h1 id="devices-load-title" className="gate-title">
+          {UI_TEXT.devices.title}
+        </h1>
+        <p className="gate-detail">{UI_TEXT.devices.bundleUnavailable}</p>
+        <button
+          type="button"
+          className="button-primary"
+          onClick={() => {
+            window.location.reload()
+          }}
+        >
+          {UI_TEXT.crashReload}
+        </button>
+      </section>
+    </main>
+  )
 }
 
 function mountDevices(element: Element): void {

@@ -550,5 +550,90 @@
     "beforeSha256": "f9ab26df36f26fe0e18598bc03313ebe9e09a458299e440f2edf20c1b4bad445",
     "restoredSha256": "f9ab26df36f26fe0e18598bc03313ebe9e09a458299e440f2edf20c1b4bad445",
     "byteExact": true
+  },
+  {
+    "index": 41,
+    "guard": "setup facts bound to their pair",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > never attributes one pair’s listener or interface facts to another pair"
+    ],
+    "beforeSha256": "92a24dc655d735530adf30f70b9884217cf7d69512cee94c38f924a3ac46e06e",
+    "restoredSha256": "92a24dc655d735530adf30f70b9884217cf7d69512cee94c38f924a3ac46e06e",
+    "byteExact": true
+  },
+  {
+    "index": 42,
+    "guard": "global unsupported host refuses every offer",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > refuses Offer lanes on an unsupported host"
+    ],
+    "beforeSha256": "92a24dc655d735530adf30f70b9884217cf7d69512cee94c38f924a3ac46e06e",
+    "restoredSha256": "92a24dc655d735530adf30f70b9884217cf7d69512cee94c38f924a3ac46e06e",
+    "byteExact": true
+  },
+  {
+    "index": 43,
+    "guard": "public text label association",
+    "source": "src/webview/models/sections/agents/DevicePairing.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > pairs by keyboard text, focuses comparison and requires the full explicit fingerprint check",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > selects public text when copying is unavailable and sends validated confirmation only",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > passes only public invitation text to the optional qualified QR renderer"
+    ],
+    "beforeSha256": "162fea86b2ea081647344e1957df196283920322922fb8c78f1a31efb5fb06f0",
+    "restoredSha256": "162fea86b2ea081647344e1957df196283920322922fb8c78f1a31efb5fb06f0",
+    "byteExact": true
+  },
+  {
+    "index": 44,
+    "guard": "pasted text label association",
+    "source": "src/webview/models/sections/agents/DevicePairing.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > pairs by keyboard text, focuses comparison and requires the full explicit fingerprint check",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > keeps the invitation input label independent of pasted public bytes",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > selects public text when copying is unavailable and sends validated confirmation only",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > prevents a pending action from being superseded by a submitted pairing form",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > validates a pasted confirmation before calling the local action boundary",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > handles malformed pasted JSON as a local error without a request"
+    ],
+    "beforeSha256": "162fea86b2ea081647344e1957df196283920322922fb8c78f1a31efb5fb06f0",
+    "restoredSha256": "162fea86b2ea081647344e1957df196283920322922fb8c78f1a31efb5fb06f0",
+    "byteExact": true
+  },
+  {
+    "index": 45,
+    "guard": "missing lazy Devices asset recovery",
+    "source": "src/webview/main.tsx",
+    "owningTest": "test/unit/DevicesApp.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > keeps the Devices import lazy and confines its mount to the explicit surface"
+    ],
+    "beforeSha256": "4e5d8d76795beec345f14f2402c0be2cbe6b62d8aed166fa286c5c9a033972a0",
+    "restoredSha256": "4e5d8d76795beec345f14f2402c0be2cbe6b62d8aed166fa286c5c9a033972a0",
+    "byteExact": true
+  },
+  {
+    "index": 46,
+    "guard": "setup facts bound to their request id",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > does not reuse a prior action’s binding for a foreign setup request id"
+    ],
+    "beforeSha256": "92a24dc655d735530adf30f70b9884217cf7d69512cee94c38f924a3ac46e06e",
+    "restoredSha256": "92a24dc655d735530adf30f70b9884217cf7d69512cee94c38f924a3ac46e06e",
+    "byteExact": true
   }
 ]

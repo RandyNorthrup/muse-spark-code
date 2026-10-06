@@ -80,6 +80,8 @@ describe('M100 U explicit webview bridge', () => {
     expect(entry).toMatch(/const DevicesApp = lazy\(async \(\) =>/)
     expect(entry).not.toMatch(/^import .*DevicesApp.*from/gm)
     expect(entry).toContain("await import('./models/sections/agents/DevicesApp')")
+    expect(entry).toMatch(/catch \{\s+return \{ default: DevicesUnavailable \}/)
+    expect(entry).toContain('{UI_TEXT.devices.bundleUnavailable}')
     expect(entry).toMatch(
       /if \(document\.body\.dataset\['surface'\] === 'devices'\) \{\s+mountDevices\(rootElement\)/,
     )

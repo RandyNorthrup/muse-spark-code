@@ -361,6 +361,17 @@
         issuedAt: 1000,
         expiresAt: 2000,
       }
+      const deviceConfirmation = {
+        version: 1,
+        pairId: devicePair,
+        localInvitationId: deviceInvitation.invitationId,
+        peerInvitationId: '6'.repeat(32),
+        localFingerprint: deviceHash,
+        peerFingerprint: '7'.repeat(64),
+        transcriptDigest: '8'.repeat(64),
+        confirmedAt: 1500,
+        signatureBase64: 'AAAA',
+      }
       const devicePeerInvitation = {
         ...deviceInvitation,
         invitationId: '6'.repeat(32),
@@ -454,6 +465,8 @@
         if (message.action.kind === 'pair') response.setup.invitation = deviceInvitation
         if (message.action.kind === 'importInvitation')
           response.setup.invitation = devicePeerInvitation
+        if (message.action.kind === 'confirmFingerprint')
+          response.setup.confirmation = deviceConfirmation
         send(response)
       }
       // M25: the conversation a panel saved in VS Code's webview state before
