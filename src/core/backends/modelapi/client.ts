@@ -25,7 +25,7 @@ import {
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../../shared/constants'
-import { fill, formatUsd } from '../../../shared/l10n/text'
+import { fill } from '../../../shared/l10n/text'
 import { DeadlineError, withDeadline } from '../../timeouts'
 import type { CoreLogger } from '../../logging'
 import {
@@ -47,7 +47,7 @@ import {
   streamEventSchema,
 } from './schemas'
 import { parseSse } from './sse'
-import { estimateCostUsd, type BillableUsage } from '../../usage/insights'
+import { estimateCostUsd, formatUsd, type BillableUsage } from '../../usage/insights'
 import { webSearchPriceUsd } from '../../paid/paidFeatures'
 import { modelApiPaidTier } from '../../../shared/paid'
 
@@ -500,7 +500,7 @@ export class ModelApiClient {
       throw new Error(
         unknownChargeUsd === undefined
           ? fill(UI_TEXT.sessionBudgetUnpriced, { model: modelId })
-          : fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(unknownChargeUsd, 2) }),
+          : fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(unknownChargeUsd) }),
       )
     }
     return cost

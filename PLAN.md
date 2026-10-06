@@ -19407,6 +19407,19 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**H review fixes (FIXM106H, 2026-10-06).** Resolve all RVM106H findings:
+preserve sub-cent retained charges with the existing usage formatter; release
+unused hosted allowance only on an authoritative terminal count; settle
+search and token costs on the original durable request claim; carry the
+verified per-call tariff through consent and paid tally contracts; use
+integer fixed-point currency for allowances, settlements, journal sums and
+cap comparisons, including legacy journal migration. The shared consent,
+tally and journal files are required contract/accounting changes for H;
+no unrelated lane regions, dependencies, wire shapes or guards change.
+Each finding gets a default-timeout regression and byte-exact red drill in
+`docs/certification/m106-h.md`. Product wiring remains the existing W/M95
+handoffs, including equivalent interactive-editor ports and headless refusal.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
 FIXM101P2; everything else starts against lane 0's contracts.

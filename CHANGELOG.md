@@ -17,6 +17,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Bounded hosted search preserves sub-cent retained liabilities in its
+  settlement-pricing warning instead of displaying a positive charge as zero.
+
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

@@ -8,12 +8,12 @@ import { ModelApiClient, type ModelApiClientDeps } from '../../src/core/backends
 import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
 import { responseSchema, type CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { estimateInput, requestParts } from '../../src/core/backends/modelapi/sessionBudget'
-import { estimateCostUsd } from '../../src/core/usage/insights'
+import { estimateCostUsd, formatUsd } from '../../src/core/usage/insights'
 import { webSearchPriceUsd } from '../../src/core/paid/paidFeatures'
 import { parseExec } from '../../src/runtime/exec/execArgs'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
 import { UI_TEXT } from '../../src/shared/constants'
-import { fill, formatUsd } from '../../src/shared/l10n/text'
+import { fill } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClientSettings } from './helpers/fakeModelApi'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
@@ -470,9 +470,25 @@ describe('M106 hosted-search bounds', () => {
     await expect(
       Array.fromAsync(instance.streamResponse(BODY, new AbortController().signal)),
     ).rejects.toThrow(
-      fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(0.02 + 3 * PRICE, 2) }),
+      fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(0.02 + 3 * PRICE) }),
     )
     expect(c.settled).toEqual([(c.amounts[0] ?? 0) + 2 * PRICE])
+  })
+
+  it('shows the retained sub-cent liability of USD 0.0026 when settlement pricing fails', async () => {
+    const c = claims()
+    const api = fakeModelApi()
+    api.script({ searches: [{}], usage: { input: 100, output: 20 } })
+    const instance = new ModelApiClient({
+      fetch: api.fetch,
+      ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
+      reservePaidRequest: c.reserve,
+      searchTokenCostUsd: (usage) => (usage.inputTokens === 100 ? undefined : 0.0001),
+    })
+    await expect(
+      Array.fromAsync(instance.streamResponse(BODY, new AbortController().signal)),
+    ).rejects.toThrow(fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: '$0.0026' }))
+    expect(c.settled).toEqual([0.0026])
   })
 
   it('keeps hosted search refused in headless runs even with an explicit flag and hard budget', () => {
