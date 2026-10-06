@@ -214,8 +214,9 @@ a deliberate mutation. Browser budget mutation tightens the fixture's cap to zer
   real CLI home/sign-in/serve capture and adapter are certified. Both U guards
   currently refuse those operations; U invents no credential file or wire.
 - **M108-U-W-BUNDLE:** register the real installed lazy loader, dedicated
-  25 KiB accounts UI size/split checks and ordinary harness/a11y entry. Existing
-  startup/deferred caps stay unchanged. The local browser suite independently
+  25 KiB accounts UI JS size/split checks and ordinary harness/a11y entry. Load
+  its JS and stylesheet on first account use, keeping accounts.css outside
+  startup main.css. Existing startup/deferred caps stay unchanged. The local browser suite independently
   proves the shared entry's lazy graph and size before that binding exists.
 - **M108-U-W-HOST-API:** regenerate `docs/ide-compatibility/host-api.md`:
   existing P `node:crypto` import count **46 → 47**, and append
@@ -237,3 +238,9 @@ paths and normal hooks. `.husky/_/pre-commit` existed before the checkpoint
 commit `6db887168ffa03da4a1fb6182af10c4d9d73ece8`; lint-staged's ESLint/Prettier
 and staged gitleaks ran successfully. All remaining live Q-M108 receipts,
 installed editor adapters and cross-lane bindings stay with their named owners.
+
+The UI/harness commit `0dfa1bd4ebaa4872012d3905e5149f1c8f097060` also used normal hooks:
+ESLint, Prettier and Stylelint passed; staged gitleaks scanned 95.24 KB and
+found no leaks. After the hooks, all 38 original/restored guard hashes still
+matched the committed bytes. The final certification-only commit records
+that evidence and the explicit first-use stylesheet binding.
