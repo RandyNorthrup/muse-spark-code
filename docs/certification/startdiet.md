@@ -279,7 +279,8 @@ suite or quality command was run, as the lane rules explicitly forbid them.
   its existing bounded whenFound helper; exact two checkboxes and 24 px geometry
   remain mandatory. An 800 ms delayed ReportDialog import passes; removing a
   checkbox still produces the same harness error. No timeout/threshold/exemption
-  was changed. The complete rerun is pending below.
+  was changed. The final complete rerun passes all 620 pages, with zero
+  violated/undecided rules, zero exemptions and zero missing results.
 
 ### Screenshot comparison
 
@@ -298,8 +299,16 @@ verified against the original captures, not inferred from visual similarity.
 
 ### Remaining certification
 
-- [ ] Final complete accessibility rerun (620 pages).
-- [ ] Final formatting/hooks receipts; no push, merge or rebase.
+- [x] Final `npm run test:a11y`: exit 0, 620 pages (155 scenarios × four
+      themes), 0 rules violated, 0 rules undecided, 0 exempt, 0 pages without
+      a result. Existing unmeasurable covered/offscreen contrast and glyph
+      accounting stays unchanged.
+- [x] Final changed-file Prettier and ESLint: exit 0; both implementation
+      commits run the existing lint-staged/Prettier/ESLint and gitleaks hooks,
+      with no leaks found. The certification-only commit uses those same hooks.
+- [x] Code commits: `a86da80f` (highlighting) and `48355c88` (dialogs/Tasks,
+      shared palette markup, hash-only generated paths and report readiness).
+- [x] No push, merge, rebase, dependency/global install, live or paid call.
 
 The lead owns the full multi-rig quality/integration gate and release packaging.
 No claim is made about a measured wall-clock acceleration from the byte savings.

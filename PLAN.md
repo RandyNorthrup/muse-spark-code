@@ -6850,6 +6850,12 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 - **Editors.** All changes are in the shared browser UI/build guards; every editor
   using that webview receives the same behavior. ACP/headless have no browser
   surface and their bundles/behavior are unchanged. No live or paid calls.
+- **Certified.** Startup 893.221 → 792.149 KiB (107.851 KiB headroom), original
+  deferred surfaces 49.697/50 KiB; new highlighting 93.131/125, action dialogs
+  9.141/25, Tasks 1.343/25. All existing caps unchanged. 302 owning unit tests,
+  production build, static checks, four identical screenshot pairs and all 620
+  accessibility pages pass. Red fallback/static-import/close/checkbox drills
+  fire and restored bytes/receipts are in `docs/certification/startdiet.md`.
 - **Lane gates.** The rig brief explicitly forbids full quality/full unit runs
   and merges; use its direct targeted checks and hooks-on local commits. The
   lead owns the full cross-rig gate and integration.
