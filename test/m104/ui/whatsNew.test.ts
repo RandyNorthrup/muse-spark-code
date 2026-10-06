@@ -3,13 +3,19 @@ import {
   PortableWhatsNew,
   type PortableWhatsNewDeps,
 } from '../../../src/host/whatsNew/portableWhatsNew'
-import { MHP_METHODS } from '../../../src/shared/hostApi/methods'
 import { COMMAND_IDS } from '../../../src/shared/constants'
 import { whatsNewFixtureContent } from './whatsNewContent'
 import type { MhpPanelBinding } from '../../../src/shared/hostApi/panel'
 import { EN } from '../../../src/shared/l10n/en'
 import { setUiText } from '../../../src/shared/l10n/text'
-import { fakeServices } from './services'
+import {
+  fakeServices,
+  expectPendingRelease,
+  expectSurfaceCloses,
+  finishSurfaceOpens,
+  holdSurfaceOpen,
+  liveSurfaceClose,
+} from './services'
 
 afterEach(() => {
   setUiText(EN, 'en')
@@ -127,18 +133,16 @@ describe('portable release-note ownership', () => {
   })
 
   it.each(['older-first', 'newer-first'])(
-    'preserves a newer session open when acquisitions finish %s',
+    'preserves a newer release-note session open when acquisitions finish %s',
     async (order) => {
       const f = fixture()
-      const older = Promise.withResolvers<unknown>()
-      const newer = Promise.withResolvers<unknown>()
-      f.responses.set('surfaces/open', () => older.promise)
+      const older = holdSurfaceOpen(f.responses)
       const first = f.pages.show()
       await vi.waitFor(() => {
         expect(f.requests).toHaveLength(1)
       })
       f.setSession('next')
-      f.responses.set('surfaces/open', () => newer.promise)
+      const newer = holdSurfaceOpen(f.responses)
       const second = f.pages.show()
       await vi.waitFor(() => {
         expect(f.requests.filter((request) => request.method === 'surfaces/open')).toEqual([
@@ -152,29 +156,18 @@ describe('portable release-note ownership', () => {
           },
         ])
       })
-      if (order === 'older-first') {
-        older.resolve({ surfaceId: 'older' })
-        await first
+      await finishSurfaceOpens(order, older, newer, first, second, () => {
         expect(f.present).not.toHaveBeenCalled()
         const coalesced = f.pages.show()
         expect(f.requests.filter((request) => request.method === 'surfaces/open')).toHaveLength(2)
-        newer.resolve({ surfaceId: 'newer' })
-        await coalesced
-      } else {
-        newer.resolve({ surfaceId: 'newer' })
-        await second
-        older.resolve({ surfaceId: 'older' })
-      }
-      await Promise.all([first, second])
+        return coalesced
+      })
       expect(f.requests.filter((request) => request.method === 'surfaces/open')).toHaveLength(2)
       expect(f.present).toHaveBeenCalledOnce()
       expect(f.present.mock.calls[0]?.[0]).toEqual(f.binding('newer'))
       expect(f.pages.view(f.binding('newer'))).toBeDefined()
       await f.pages.dispose()
-      expect(f.requests.filter((request) => request.method === 'surfaces/close')).toEqual([
-        { method: 'surfaces/close', params: { surfaceId: 'older' } },
-        { method: 'surfaces/close', params: { surfaceId: 'newer' } },
-      ])
+      expectSurfaceCloses(f.requests, 'older', 'newer')
     },
   )
 
@@ -192,23 +185,21 @@ describe('portable release-note ownership', () => {
     publication.resolve(undefined)
     await first
     await f.pages.dispose()
-    expect(f.requests.filter((request) => request.method === 'surfaces/close')).toEqual([
-      { method: 'surfaces/close', params: { surfaceId: 'surface-1' } },
-      { method: 'surfaces/close', params: { surfaceId: 'surface-2' } },
-    ])
+    expectSurfaceCloses(f.requests, 'surface-1', 'surface-2')
   })
 
   it('discards superseded opens after returning to the original session and drains them', async () => {
     const f = fixture()
-    const older = Promise.withResolvers<unknown>()
-    const middle = Promise.withResolvers<unknown>()
-    f.responses.set('surfaces/open', () => older.promise)
+    const older = holdSurfaceOpen(f.responses)
     const first = f.pages.show()
     await vi.waitFor(() => {
-      expect(f.requests).toHaveLength(1)
+      expect(f.requests).toContainEqual({
+        method: 'surfaces/open',
+        params: { kind: 'whatsNew', placement: 'tab', sessionId: 'session' },
+      })
     })
     f.setSession('middle')
-    f.responses.set('surfaces/open', () => middle.promise)
+    const middle = holdSurfaceOpen(f.responses)
     const second = f.pages.show()
     await vi.waitFor(() => {
       expect(f.requests).toHaveLength(2)
@@ -220,29 +211,16 @@ describe('portable release-note ownership', () => {
     await first
     expect(f.present).toHaveBeenCalledOnce()
     expect(f.pages.view(f.binding())).toBeDefined()
-    let hasDisposed = false
-    const closing = (async () => {
-      await f.pages.dispose()
-      hasDisposed = true
-    })()
-    await new Promise<void>((resolve) => {
-      setImmediate(resolve)
-    })
-    expect(hasDisposed).toBe(false)
+    const { closing } = await expectPendingRelease(() => f.pages.dispose())
     middle.resolve({ surfaceId: 'middle' })
     await Promise.all([second, closing])
-    expect(f.requests.filter((request) => request.method === 'surfaces/close')).toHaveLength(3)
+    expectSurfaceCloses(f.requests, 'superseded', 'middle', 'surface-1')
   })
 
   it('retires a real user close before reopening against a host with only live IDs', async () => {
     const f = fixture()
     const live = new Set(['surface-1'])
-    const close = vi.fn((params: unknown) => {
-      const { surfaceId } = MHP_METHODS['surfaces/close'].params.parse(params)
-      return live.delete(String(surfaceId))
-        ? Promise.resolve(null)
-        : Promise.reject(new Error('ALREADY_CLOSED'))
-    })
+    const close = liveSurfaceClose(live)
     f.responses.set('surfaces/close', close)
     await f.pages.show()
     const old = f.pages.view(f.binding())!

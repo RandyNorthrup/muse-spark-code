@@ -217,8 +217,12 @@ export class PortableTasks implements TasksTabPort {
 
   /** Carrier close notifications must reach this hook to permit reopening. */
   public closed(surfaceId: string): void {
-    const owned = [...this.acquired].find((id) => String(id) === surfaceId)
-    if (owned !== undefined) this.acquired.delete(owned)
+    for (const owned of this.acquired) {
+      if (String(owned) === surfaceId) {
+        this.acquired.delete(owned)
+        break
+      }
+    }
     if (String(this.surface?.id) !== surfaceId) return
     this.surface = undefined
     this.listeners.clear()

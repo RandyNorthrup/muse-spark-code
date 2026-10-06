@@ -1,4 +1,4 @@
-import { vi } from 'vitest'
+import { expect, vi } from 'vitest'
 import {
   MHP_METHODS,
   type HostServices,
@@ -36,4 +36,66 @@ export function fakeServices(prefix = 'surface-') {
   }
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   return { host, requests, responses, log }
+}
+
+/** Hold the next host acquisition without guessing a wire or timing deadline. */
+export function holdSurfaceOpen(responses: ReturnType<typeof fakeServices>['responses']) {
+  const held = Promise.withResolvers<unknown>()
+  responses.set('surfaces/open', () => held.promise)
+  return held
+}
+
+/** A real host only accepts closes for IDs it still owns. */
+export function liveSurfaceClose(live: Set<string>) {
+  return vi.fn((params: unknown) => {
+    const { surfaceId } = MHP_METHODS['surfaces/close'].params.parse(params)
+    return live.delete(String(surfaceId))
+      ? Promise.resolve(null)
+      : Promise.reject(new Error('ALREADY_CLOSED'))
+  })
+}
+
+export function expectSurfaceCloses(
+  requests: readonly { readonly method: string; readonly params: unknown }[],
+  ...surfaceIds: string[]
+): void {
+  expect(requests.filter((request) => request.method === 'surfaces/close')).toEqual(
+    surfaceIds.map((surfaceId) => ({ method: 'surfaces/close', params: { surfaceId } })),
+  )
+}
+
+/** Exercise both completion orders while retaining view-specific stale-state assertions. */
+export async function finishSurfaceOpens(
+  order: string,
+  older: PromiseWithResolvers<unknown>,
+  newer: PromiseWithResolvers<unknown>,
+  first: Promise<void>,
+  second: Promise<void>,
+  onOlderClosed: () => Promise<void>,
+): Promise<void> {
+  if (order === 'older-first') {
+    older.resolve({ surfaceId: 'older' })
+    await first
+    const coalesced = onOlderClosed()
+    newer.resolve({ surfaceId: 'newer' })
+    await coalesced
+  } else {
+    newer.resolve({ surfaceId: 'newer' })
+    await second
+    older.resolve({ surfaceId: 'older' })
+  }
+  await Promise.all([first, second])
+}
+
+export async function expectPendingRelease(release: () => Promise<void>) {
+  let hasDisposed = false
+  const closing = (async () => {
+    await release()
+    hasDisposed = true
+  })()
+  await new Promise<void>((resolve) => {
+    setImmediate(resolve)
+  })
+  expect(hasDisposed).toBe(false)
+  return { closing }
 }

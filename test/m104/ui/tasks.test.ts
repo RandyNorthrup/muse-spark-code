@@ -1,7 +1,18 @@
+import {
+  expectPendingRelease,
+  expectSurfaceCloses,
+  finishSurfaceOpens,
+  holdSurfaceOpen,
+  liveSurfaceClose,
+} from './services'
 import { describe, expect, it, vi } from 'vitest'
 import { PortableTasks } from '../../../src/host/views/portableTasks'
 import { parseMhpResult } from '../../../src/shared/hostApi/protocol'
-import { MHP_METHODS, type HostServices } from '../../../src/shared/hostApi/methods'
+import {
+  MHP_METHODS,
+  type HostServices,
+  type MhpRequestMethod,
+} from '../../../src/shared/hostApi/methods'
 import type { MhpPanelBinding } from '../../../src/shared/hostApi/panel'
 import type { TasksHostMessage } from '../../../src/shared/tasksProtocol'
 
@@ -9,7 +20,7 @@ function fixture() {
   let currentSession = 'session'
   let serial = 0
   const requests: { method: string; params: unknown }[] = []
-  const responses = new Map<string, (params: unknown) => Promise<unknown>>()
+  const responses = new Map<MhpRequestMethod, (params: unknown) => Promise<unknown>>()
   const host: HostServices = {
     request: async (method, params) => {
       requests.push({ method, params })
@@ -110,12 +121,7 @@ describe('portable Tasks ownership', () => {
   it('retires a real user close before reopening against a host with only live IDs', async () => {
     const f = fixture()
     const live = new Set(['tasks-1'])
-    const close = vi.fn((params: unknown) => {
-      const { surfaceId } = MHP_METHODS['surfaces/close'].params.parse(params)
-      return live.delete(String(surfaceId))
-        ? Promise.resolve(null)
-        : Promise.reject(new Error('ALREADY_CLOSED'))
-    })
+    const close = liveSurfaceClose(live)
     f.responses.set('surfaces/close', close)
     await f.tasks.show(f.initial)
     const old = f.bind().view
@@ -168,15 +174,13 @@ describe('portable Tasks ownership', () => {
   })
 
   it.each(['older-first', 'newer-first'])(
-    'preserves a newer session open when acquisitions finish %s',
+    'preserves a newer Tasks session open when acquisitions finish %s',
     async (order) => {
       const f = fixture()
-      const older = Promise.withResolvers<unknown>()
-      const newer = Promise.withResolvers<unknown>()
-      f.responses.set('surfaces/open', () => older.promise)
+      const older = holdSurfaceOpen(f.responses)
       const first = f.tasks.show(f.initial)
       f.setSession('next')
-      f.responses.set('surfaces/open', () => newer.promise)
+      const newer = holdSurfaceOpen(f.responses)
       const second = f.tasks.show({ ...f.initial, conversation: 'Next session' })
       expect(f.requests.filter((request) => request.method === 'surfaces/open')).toEqual([
         {
@@ -185,41 +189,28 @@ describe('portable Tasks ownership', () => {
         },
         { method: 'surfaces/open', params: { kind: 'tasks', placement: 'tab', sessionId: 'next' } },
       ])
-      if (order === 'older-first') {
-        older.resolve({ surfaceId: 'older' })
-        await first
+      await finishSurfaceOpens(order, older, newer, first, second, () => {
         expect(
           f.tasks.view({ surface: 'older', surfaceKind: 'tasks', sessionId: 'session' }),
         ).toBeUndefined()
         const coalesced = f.tasks.show({ ...f.initial, conversation: 'Next session' })
         expect(f.requests.filter((request) => request.method === 'surfaces/open')).toHaveLength(2)
-        newer.resolve({ surfaceId: 'newer' })
-        await coalesced
-      } else {
-        newer.resolve({ surfaceId: 'newer' })
-        await second
-        older.resolve({ surfaceId: 'older' })
-      }
-      await Promise.all([first, second])
+        return coalesced
+      })
       const { view, messages } = f.bind('newer', 'next')
       await view.handle({ type: 'tasksReady' })
       expect(messages.at(-1)?.conversation).toBe('Next session')
       await f.tasks.dispose()
-      expect(f.requests.filter((request) => request.method === 'surfaces/close')).toEqual([
-        { method: 'surfaces/close', params: { surfaceId: 'older' } },
-        { method: 'surfaces/close', params: { surfaceId: 'newer' } },
-      ])
+      expectSurfaceCloses(f.requests, 'older', 'newer')
     },
   )
 
   it('discards superseded opens after returning to the original session and drains them', async () => {
     const f = fixture()
-    const older = Promise.withResolvers<unknown>()
-    const middle = Promise.withResolvers<unknown>()
-    f.responses.set('surfaces/open', () => older.promise)
+    const older = holdSurfaceOpen(f.responses)
     const first = f.tasks.show(f.initial)
     f.setSession('middle')
-    f.responses.set('surfaces/open', () => middle.promise)
+    const middle = holdSurfaceOpen(f.responses)
     const second = f.tasks.show(f.initial)
     f.setSession('session')
     f.responses.delete('surfaces/open')
@@ -231,18 +222,10 @@ describe('portable Tasks ownership', () => {
     await first
     await view.handle({ type: 'tasksReady' })
     expect(messages.at(-1)?.conversation).toBe('Returned')
-    let hasDisposed = false
-    const closing = (async () => {
-      await f.tasks.dispose()
-      hasDisposed = true
-    })()
-    await new Promise<void>((resolve) => {
-      setImmediate(resolve)
-    })
-    expect(hasDisposed).toBe(false)
+    const { closing } = await expectPendingRelease(() => f.tasks.dispose())
     middle.resolve({ surfaceId: 'middle' })
     await Promise.all([second, closing])
-    expect(f.requests.filter((request) => request.method === 'surfaces/close')).toHaveLength(3)
+    expectSurfaceCloses(f.requests, 'superseded', 'middle', 'tasks-1')
   })
 
   it('does not dispatch a superseded open after an older surface close resumes', async () => {

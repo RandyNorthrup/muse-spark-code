@@ -244,7 +244,7 @@ global cache or runtime/product dependency. The test executable override
     the latest session request and drain superseded acquisitions; authoritative
     Tasks closes retire ownership before reopening; browser clipboard requests
     reject on abort/disposal and drop late completions. The three RVM104PC P2
-    findings are being fixed, with no accepted review residual. Preserve all
+    findings are fixed, with no accepted review residual. Preserve all
     existing qualification/discovery/build prerequisites and support statuses.
     An already initiated browser clipboard write cannot be undone by this
     adapter; cancellation promises immediate refusal of the request's result,
