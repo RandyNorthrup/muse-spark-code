@@ -1117,6 +1117,49 @@
         report(`warn: ${args.map(String).join(' ')}`)
         originalWarn(...args)
       }
+      function questionScene(state, isRowless = false) {
+        const sessionId = 'm112-harness'
+        send({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId })
+        const questions = [
+          {
+            id: 'colour',
+            header: 'Colour',
+            question: 'Which colour do you prefer?',
+            selection: { mode: 'single' },
+            options: [{ label: 'Blue' }, { label: 'Green' }],
+          },
+        ]
+        const askedAt = Date.now()
+        const record = {
+          sessionId,
+          userInputId: 'm112-question',
+          itemId: 'm112-question-row',
+          turnId: 'm112-turn',
+          questions,
+          key: 'which colour?|blue|green',
+          state,
+          askedAt,
+          deadlineAt: askedAt + 60_000,
+          reminders: 0,
+          backend: 'modelApi',
+          ...(['open', 'answeredLater', 'answeredOnReask', 'dismissed', 'expired'].includes(
+            state,
+          ) && { deferredAt: askedAt }),
+        }
+        if (!isRowless)
+          event({
+            type: 'questionRequested',
+            userInputId: record.userInputId,
+            itemId: record.itemId,
+            questions,
+          })
+        if (!isRowless && state !== 'waiting')
+          event({
+            type: 'itemCompleted',
+            item: { itemId: record.itemId, kind: 'toolCall', status: 'completed' },
+          })
+        send({ type: 'openQuestions', snapshot: { sessionId, questions: [record] } })
+      }
       // `?scenario=<name>` drives the UI without a human, for headless shots.
       const scenario = new URLSearchParams(location.search).get('scenario')
       const textarea = () => document.querySelector('textarea')
@@ -1987,6 +2030,21 @@
           })
           send({ type: 'approvalMovedOn', approvalId: 'a1' })
         },
+        // M112: internal snapshot fixtures, not invented service/MSP fields.
+        'questions-waiting': () => questionScene('waiting'),
+        'questions-open': () => questionScene('open'),
+        'questions-chip': () => questionScene('open', true),
+        'questions-approval': () => {
+          steps.approval()
+          questionScene('waiting')
+        },
+        'questions-answered': () => questionScene('answered'),
+        'questions-answered-later': () => questionScene('answeredLater'),
+        'questions-reasked': () => questionScene('answeredOnReask'),
+        'questions-explained': () => questionScene('clarified'),
+        'questions-declined': () => questionScene('cancelled'),
+        'questions-dismissed': () => questionScene('dismissed'),
+        'questions-expired': () => questionScene('expired'),
         question: () => {
           transcriptFixture()
           event({
@@ -2067,12 +2125,8 @@
               { name: 'updates', title: 'Receive updates', type: 'boolean', required: true },
             ],
           })
-          later(300, () => {
-            setValue(
-              document.querySelector('.elicitation-input'),
-              HTMLInputElement.prototype,
-              'invalid-address',
-            )
+          whenFound('.elicitation-input', (input) => {
+            setValue(input, HTMLInputElement.prototype, 'invalid-address')
           })
         },
         'elicitation-narrow': () => {
@@ -3048,13 +3102,15 @@
         // --- M16: the question card filled in, on its second tab ---
         'question-filled': () => {
           steps.question()
-          later(300, () => {
-            document.querySelectorAll('input[type="radio"]')[1].click()
-            document.querySelectorAll('[role="tab"]')[1].click()
-            later(100, () => {
-              document.querySelectorAll('input[type="checkbox"]')[0].click()
-              const other = document.querySelector('.question input[type="text"]')
-              setValue(other, HTMLInputElement.prototype, 'Pineapple')
+          // The question controls load in their own chunk: wait for them, never a fixed delay.
+          whenFound('.question input[type="radio"]', () => {
+            document.querySelectorAll('.question input[type="radio"]')[1].click()
+            document.querySelectorAll('.question [role="tab"]')[1].click()
+            whenFound('.question input[type="checkbox"]', (checkbox) => {
+              checkbox.click()
+              whenFound('.question input[type="text"]', (other) =>
+                setValue(other, HTMLInputElement.prototype, 'Pineapple'),
+              )
             })
           })
         },
@@ -3831,13 +3887,13 @@
             answers: [],
             clarification: 'Neither yet: show me the failing cases first.',
           })
-          later(300, () => {
-            // Explain instead: the first secondary action, whatever the language.
-            document.querySelector('.question-actions .button-secondary')?.click()
-            later(100, () => {
-              const box = document.querySelector('.question-explain-input')
-              setValue(box, HTMLTextAreaElement.prototype, 'Green, and no toppings at all.')
-            })
+          // Explain instead: the first secondary action, whatever the language. The
+          // question controls load in their own chunk, so wait for them to render.
+          whenFound('.question-actions .button-secondary', (explain) => {
+            explain.click()
+            whenFound('.question-explain-input', (box) =>
+              setValue(box, HTMLTextAreaElement.prototype, 'Green, and no toppings at all.'),
+            )
           })
         },
         // --- M47: workflow runs: the captured one finished, a second running read-only ---
@@ -4512,6 +4568,26 @@
             whenFound('.palette-header .button-secondary', (control) => control.click())
           })
         },
+      }
+      for (const name of [
+        'questions-waiting',
+        'questions-open',
+        'questions-chip',
+        'questions-approval',
+        'questions-answered',
+        'questions-answered-later',
+        'questions-reasked',
+        'questions-explained',
+        'questions-declined',
+        'questions-dismissed',
+        'questions-expired',
+      ]) {
+        steps[`${name}-narrow`] = () => {
+          if (innerWidth !== 320) throw new Error('M112 questions require a 320 px viewport')
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps[name]()
+        }
       }
       // A scenario starts once the panel has drawn its surface: the composer,
       // a sign-in or install gate, or the crash screen; never sooner than the

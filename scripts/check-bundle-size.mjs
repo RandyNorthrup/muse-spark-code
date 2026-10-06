@@ -9,11 +9,17 @@ import { webviewDeferredBudgetGroups, webviewStartupOutputs } from './lib/webvie
 const BYTES_PER_KIB = 1024
 // M99: bound the generated notes independently of their ZIP compression.
 const WHATS_NEW_CONTENT_BUDGET_KIB = 40
+// FIXM112U: independently measured question closure +15%, rounded to 25 KiB.
+const QUESTION_UI_BUDGET_KIB = 25
 
 /**
  * @type {ReadonlyArray<{ path: string; budgetKiB: number }>}
  */
 const BUDGETS = [
+  // M112 A: question forms, commands and late-answer admission, loaded on first use.
+  { path: 'dist/acpQuestions.js', budgetKiB: 25 },
+  { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
+  { path: 'dist/questionNotes.js', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },
   // ACTDIET: first chat surface; 216.0 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/conversation.js', budgetKiB: 250 },
@@ -200,7 +206,10 @@ for (const { entry, budgetKiB } of WEBVIEW_SURFACE_BUDGETS) {
     )
   }
 }
-for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(webview)) {
+for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(
+  webview,
+  QUESTION_UI_BUDGET_KIB,
+)) {
   const sizeKiB = outputs.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   if (sizeKiB > budgetKiB) hasFailure = true
   console.log(

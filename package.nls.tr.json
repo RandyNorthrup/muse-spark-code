@@ -164,5 +164,8 @@
   "config.judge.engine.enumDescriptions.same": "Yalnızca kendi sohbet modeliniz değerlendirir; modeli asla değiştirmez.",
   "config.judge.engine.enumDescriptions.off": "Değerlendirici yok: onaylar tam olarak değerlendiricisiz olduğu gibi davranır.",
   "command.openHelp.title": "Yardım ve başvuru",
-  "config.shell.passEnvironmentVariables.description": "Ana oturumdaki etkileşimli kabuk komutlarına aktarılacak ortam değişkenlerinin adları; normalde dışarıda tutulan kimlik bilgileri de dahil. Yalnızca adlar, asla değerler. Varsayılan: hiçbiri. Bir komut bu değerleri konuşmada ve model sağlayıcısına açığa çıkarabilir. Doğrulama/then_run, zamanlanmış işler, alt/ekip çalışanları ve kancalar, burada adları yazılsa bile kimlik bilgisi değişkenlerini asla almaz. Arka plana taşınan etkileşimli bir komut başlangıç ortamını korur. Muse Code veya açıkça yapılandırılmış MCP sunucusu ortamlarını değiştirmez."
+  "config.shell.passEnvironmentVariables.description": "Ana oturumdaki etkileşimli kabuk komutlarına aktarılacak ortam değişkenlerinin adları; normalde dışarıda tutulan kimlik bilgileri de dahil. Yalnızca adlar, asla değerler. Varsayılan: hiçbiri. Bir komut bu değerleri konuşmada ve model sağlayıcısına açığa çıkarabilir. Doğrulama/then_run, zamanlanmış işler, alt/ekip çalışanları ve kancalar, burada adları yazılsa bile kimlik bilgisi değişkenlerini asla almaz. Arka plana taşınan etkileşimli bir komut başlangıç ortamını korur. Muse Code veya açıkça yapılandırılmış MCP sunucusu ortamlarını değiştirmez.",
+  "command.nextOpenQuestion.title": "Sonraki açık soru",
+  "command.previousOpenQuestion.title": "Önceki açık soru",
+  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Varsayılan 60; 0 hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır."
 }

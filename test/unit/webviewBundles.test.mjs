@@ -36,12 +36,37 @@ function metafile() {
 }
 
 describe('webview import budgets', () => {
+  it('charges lazy question closures to their measured cap and counts eager imports at startup', () => {
+    const meta = metafile()
+    const question = 'dist/webview/chunks/question.js'
+    meta.outputs[question] = output([edge(SHARED)], 'src/webview/components/QuestionCard.tsx')
+    meta.outputs[MAIN].imports.push(edge(question, 'dynamic-import'))
+    expect(
+      webviewDeferredBudgetGroups(meta, 25).find(({ name }) => name === 'question UI'),
+    ).toEqual({
+      name: 'question UI',
+      budgetKiB: 25,
+      entries: [
+        'src/webview/components/QuestionUi.tsx',
+        'src/webview/components/QuestionCard.tsx',
+        'src/webview/components/OpenQuestionsChip.tsx',
+        'src/webview/components/ElicitationCard.tsx',
+      ],
+      outputs: [question, SHARED],
+    })
+    expect(webviewStartupOutputs(meta)).not.toContain(question)
+    meta.outputs[MAIN].imports.push(edge(question))
+    expect(webviewStartupOutputs(meta)).toContain(question)
+    expect(
+      webviewDeferredBudgetGroups(meta, 25).find(({ name }) => name === 'question UI')?.outputs,
+    ).toEqual([])
+  })
   it('counts the whole static closure exactly once, excluding dynamic and external imports', () => {
     expect(webviewStartupOutputs(metafile())).toEqual([MAIN, CORE])
   })
 
   it('keeps legacy shared/unclassified bytes charged to their original cap', () => {
-    const groups = webviewDeferredBudgetGroups(metafile())
+    const groups = webviewDeferredBudgetGroups(metafile(), 25)
     expect(groups.find(({ name }) => name === 'deferred JS')).toEqual({
       name: 'deferred JS',
       budgetKiB: 50,
@@ -53,12 +78,42 @@ describe('webview import budgets', () => {
     })
   })
 
+  it('assigns question-only bytes their own cap without moving legacy shared bytes', () => {
+    const meta = metafile()
+    const question = 'dist/webview/chunks/questions.js'
+    const helper = 'dist/webview/chunks/question-helper.js'
+    meta.outputs[MAIN].imports.push(edge(question, 'dynamic-import'))
+    meta.outputs[question] = output(
+      [edge(CORE), edge(helper), edge(SHARED)],
+      'src/webview/components/QuestionUi.tsx',
+    )
+    meta.outputs[helper] = output()
+    const groups = webviewDeferredBudgetGroups(meta, 25)
+    expect(groups.find(({ name }) => name === 'question UI')).toEqual({
+      name: 'question UI',
+      entries: [
+        'src/webview/components/QuestionUi.tsx',
+        'src/webview/components/QuestionCard.tsx',
+        'src/webview/components/OpenQuestionsChip.tsx',
+        'src/webview/components/ElicitationCard.tsx',
+      ],
+      budgetKiB: 25,
+      outputs: [question, helper, SHARED],
+    })
+    expect(groups.find(({ name }) => name === 'deferred JS')?.outputs).toEqual([
+      HISTORY,
+      SHARED,
+      UNKNOWN,
+    ])
+  })
+
   it('charges a statically re-imported lazy module and its dependencies to startup', () => {
     const meta = metafile()
     meta.outputs[MAIN].imports.push(edge(HIGHLIGHT))
     expect(webviewStartupOutputs(meta)).toEqual([MAIN, CORE, HIGHLIGHT, GRAMMARS, SHARED])
     expect(
-      webviewDeferredBudgetGroups(meta).find(({ name }) => name === 'code highlighting')?.outputs,
+      webviewDeferredBudgetGroups(meta, 25).find(({ name }) => name === 'code highlighting')
+        ?.outputs,
     ).toEqual([])
   })
 

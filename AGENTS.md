@@ -219,6 +219,8 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       on first use, the adapters for hooks imported from
                       other agents (M91),
                       context (rules, skills, custom agents), Muse Code's
+                      questions' portable registry (questions/: states, clock,
+                      owner-only store port and exactly-once late delivery; M112),
                       memory, export, worktrees, git and GitHub (push plans,
                       REST client, draft prompts), usage,
                       dictation, Muse Voice, the paid gate, network failures,
@@ -233,7 +235,11 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       filters, typing-through cache, scheduler and spend, the flight recorder policy
                       and problem report builder and second scrub)
 src/acp/**            the ACP agent (D62): the ACP side of a session and the
-                      translation of the engine's events; must not import
+                      translation of the engine's events, questionDeferral.ts
+                      (dist/acpQuestions.js, loaded on the first question,
+                      elicitation or question command; M112: cooperative form withdrawal,
+                      local answer/list commands and the registry binding);
+                      must not import
                       `vscode`
 src/runtime/exec/**   headless arguments/protocol/egress, stdin key/scanner,
                       bounded lifecycle, ACP client/tap and per-attempt ledger

@@ -14,10 +14,12 @@ import process from 'node:process'
 import { Writable } from 'node:stream'
 import { ndJsonStream } from '@agentclientprotocol/sdk'
 import { createAcpAgent, type SignInMethod } from '../acp/agent'
+import { runtimeQuestionsLoader } from './questions/questionRegistryBundle'
 import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
+  RUNTIME_QUESTIONS_BUNDLE_FILE,
   ACP_AUTH_METHODS,
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
@@ -220,7 +222,11 @@ function signInMethod(options: ServeOptions): SignInMethod {
   }
 }
 
-function runtimeFor(options: ServeOptions, log: Logger) {
+function runtimeFor(
+  options: ServeOptions,
+  log: Logger,
+  questions?: { remove(sessionId: string): Promise<void> },
+) {
   return createRuntimeBackend({
     options,
     version: packageVersion(),
@@ -234,6 +240,7 @@ function runtimeFor(options: ServeOptions, log: Logger) {
     fetch: globalThis.fetch.bind(globalThis),
     sleep,
     log,
+    ...(questions !== undefined && { questions }),
   })
 }
 
@@ -310,7 +317,18 @@ async function setupHooks(
 }
 
 async function serve(options: ServeOptions, log: Logger): Promise<number> {
-  const runtime = runtimeFor(options, log)
+  const directory = path.join(
+    agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+    'questions',
+  )
+  const loadQuestions = runtimeQuestionsLoader(
+    path.join(distDir, RUNTIME_QUESTIONS_BUNDLE_FILE),
+    log,
+  )
+  const registries: { flush(): Promise<void>; dispose(): void }[] = []
+  const runtime = runtimeFor(options, log, {
+    remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
+  })
   // A proxy the Model API backend's requests will not use is said at once (Q66).
   const proxyWarning = envProxyWarning({
     backend: options.backend,
@@ -336,10 +354,27 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       canBypass: options.canBypass,
       allowsContributorModels: options.allowsContributorModels,
       initialMode: SETTING_DEFAULTS.initialPermissionMode,
+      ...(options.questionsDeferAfterSeconds !== undefined && {
+        questionsDeferAfterSeconds: options.questionsDeferAfterSeconds,
+      }),
     },
     signIn: signInMethod(options),
     defaultCwd: process.cwd(),
     paid: runtime.paid,
+    questions: (input) => {
+      const registry = loadQuestions().createRuntimeQuestionRegistry(
+        input,
+        directory,
+        options.backend,
+        () => {
+          log.warn('Question operation failed')
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+      registries.push(registry)
+      return registry
+    },
     log,
     reportError: (fact) => {
       // Facts only (a fixed kind and code): it never touches ACP stdout, and
@@ -352,6 +387,13 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   )
   log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
   await connection.closed
+  // A failed private store was already reported; still close every backend and journal.
+  await Promise.allSettled(
+    registries.map((registry) => {
+      registry.dispose()
+      return registry.flush()
+    }),
+  )
   await runtime.close()
   await journal.shutdown()
   return 0

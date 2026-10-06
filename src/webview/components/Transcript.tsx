@@ -51,10 +51,16 @@ import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
 import { ToolRow, type ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
-import { WorkflowRunView } from './WorkflowRun'
+import { deferred } from './DeferredSurface'
+
 import { PaidBadge } from './PaidBadge'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
 import type { MenuPoint } from '../gooeyLayout'
+
+const WorkflowRunView = deferred(async () => {
+  const module = await import('./WorkflowRun')
+  return { default: module.WorkflowRunView }
+})
 
 export interface TranscriptProps {
   readonly entries: readonly TranscriptEntry[]

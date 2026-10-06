@@ -31,6 +31,9 @@ import { renderPackageReadme } from './check-badges.mjs'
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
+  'acpQuestions.js',
+  'runtimeQuestions.js',
+  'questionNotes.js',
   'modelApi.js',
   'reviewer.js',
   'foreignHooks.js',

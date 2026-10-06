@@ -869,6 +869,22 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       errors.push('CLI timeout limit mismatch')
   for (const flag of ['--trust-workspace', '--allow-dangerously-skip-permissions', '--web-search'])
     if (exec([flag]).command !== 'invalid') errors.push(`CLI refusal mismatch: ${flag}`)
+  // referenceCliOptions['questions-defer-after'] states the parser's own normalization.
+  const deferAfter = (value) =>
+    source.parseCommandLine(['--questions-defer-after', String(value)]).options
+      ?.questionsDeferAfterSeconds
+  if (
+    source.parseCommandLine([]).options?.questionsDeferAfterSeconds !==
+      source.QUESTION_DEFER_DEFAULT_SECONDS ||
+    deferAfter(0) !== 0 ||
+    deferAfter(1) !== source.QUESTION_DEFER_MIN_SECONDS ||
+    deferAfter(source.QUESTION_DEFER_MAX_SECONDS) !== source.QUESTION_DEFER_MAX_SECONDS ||
+    source.parseCommandLine([
+      '--questions-defer-after',
+      String(source.QUESTION_DEFER_MAX_SECONDS + 1),
+    ]).command !== 'invalid'
+  )
+    errors.push('CLI question deadline mismatch')
   for (const value of source.EXEC_MODES)
     if (exec(['--permission-mode', value]).options?.mode !== value) errors.push('CLI mode mismatch')
   for (const value of source.EXEC_OUTPUTS)
@@ -1220,13 +1236,17 @@ export async function generateReference(root, isCheck = false) {
     'museSpark.',
     'config.',
     'https://github.com/RandyNorthrup/muse-spark-code#',
+    // Every CLI row name repeats its route before the option (REL0143).
+    ...Object.keys(source.CLI_OPTION_REGISTRY).map((route) => `${route}: --`),
   ]
   const serialize = (value) =>
     JSON.stringify(value, (_key, entry) => {
       if (typeof entry === 'number') return `${numericPrefix}${entry}`
       if (typeof entry !== 'string') return entry
       const index = stringPrefixes.findIndex((prefix) => entry.startsWith(prefix))
-      return index === -1 ? entry : `~s${index}:${entry.slice(stringPrefixes[index].length)}`
+      return index === -1
+        ? entry
+        : `~s${index.toString(source.REFERENCE_POOL_RADIX)}:${entry.slice(stringPrefixes[index].length)}`
     })
   const modelJson = serialize(model)
   const tokens = /"(?:[^"\\]|\\.)*"/g

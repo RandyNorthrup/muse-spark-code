@@ -29,6 +29,7 @@ const COMMON_OPTIONS = {
   [ACP_PAID_FLAGS.webSearch]: { type: 'boolean' },
   [ACP_PAID_FLAGS.imageGeneration]: { type: 'boolean' },
   verbose: { type: 'boolean' },
+  'questions-defer-after': { type: 'string' },
   help: { type: 'boolean', short: 'h' },
   version: { type: 'boolean', short: 'v' },
 } as const satisfies CliParserOptions
@@ -97,6 +98,7 @@ export const CLI_OPTION_TEXT = {
   'web-search': 'web-search',
   'image-generation': 'image-generation',
   verbose: 'verbose',
+  'questions-defer-after': 'questions-defer-after',
   help: 'help',
   version: 'version',
   cwd: 'cwd',

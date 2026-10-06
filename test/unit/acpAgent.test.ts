@@ -3,6 +3,7 @@ import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { type AcpAgentDeps, type BackendReadiness, createAcpAgent } from '../../src/acp/agent'
+import * as questionFactories from '../../src/acp/questionDeferralEntry'
 import { AcpPaidUse } from '../../src/acp/paid'
 import type { AgentHost, AgentSession, ModelSummary } from '../../src/core/agent/agentBackend'
 import type {
@@ -18,6 +19,8 @@ import { FAKE_MODELS, FakeAgentHost, type FakeAgentSession } from './helpers/fak
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { commandApproval, until } from './helpers/acpWaits'
 import { acpMspHost, acpResumeEnvelope, answerMsp } from './helpers/acpMsp'
+import { fakeAcpQuestions } from './helpers/questions/acpRegistry'
+import { expectedQuestionCommandsUpdate } from './helpers/questions/fixtures'
 
 // M63 (PLAN.md D62): the agent driven by the ACP SDK's own client, in
 // process, against a scripted backend.
@@ -69,6 +72,7 @@ interface HarnessOptions {
   readonly paid?: readonly AcpPaidFeature[]
   /** `--trust-workspace`: "Allow always" is offered and kept (M58). */
   readonly isTrusted?: boolean
+  readonly questionPolicy?: 'decline'
 }
 
 function harness(options: HarnessOptions = {}): Harness {
@@ -97,6 +101,7 @@ function harness(options: HarnessOptions = {}): Harness {
       hostFor: () => Promise.resolve(options.backendHost ?? host),
     },
     version: '0.0.0-test',
+    questionBundle: () => questionFactories,
     options: {
       canBypass: options.canBypass ?? false,
       allowsContributorModels: options.allowsContributorModels ?? false,
@@ -112,6 +117,7 @@ function harness(options: HarnessOptions = {}): Harness {
     defaultCwd: CWD,
     paid,
     log,
+    questions: options.questionPolicy ?? fakeAcpQuestions,
   }
   const agent = createAcpAgent(deps)
   const client = acp
@@ -588,10 +594,7 @@ describe('the ACP agent (M63)', () => {
     })
     expect(response).toEqual({ stopReason: 'end_turn' })
     expect(h.updates).toEqual([
-      {
-        sessionUpdate: 'available_commands_update',
-        availableCommands: [{ name: 'help', description: UI_TEXT.referenceIntro, input: null }],
-      },
+      expectedQuestionCommandsUpdate(),
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Hel' } },
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'lo' } },
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: '!' } },
@@ -617,6 +620,14 @@ describe('the ACP agent (M63)', () => {
     expect(h.updates).toContainEqual({
       sessionUpdate: 'agent_message_chunk',
       content: { type: 'text', text: expect.stringContaining('docs/reference.md') },
+    })
+    // M112's local question commands are listed with /help (REL0143).
+    expect(h.updates).toContainEqual({
+      sessionUpdate: 'agent_message_chunk',
+      content: {
+        type: 'text',
+        text: expect.stringContaining(`${UI_TEXT.groupSlashCommands}: /help, /questions, /answer`),
+      },
     })
     expect(h.permissions).toHaveLength(0)
   })
@@ -681,6 +692,8 @@ describe('the ACP agent (M63)', () => {
       availableCommands: [
         { name: 'help', description: UI_TEXT.referenceIntro, input: null },
         { name: 'review', description: 'Review', input: { hint: '<path>' } },
+        { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
+        { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
       ],
     })
     expect(h.host.sessions[0]?.sendTurn).toHaveBeenCalledWith(
@@ -924,7 +937,7 @@ describe('the ACP agent (M63)', () => {
     ])
   })
 
-  it('declines a question the form was cancelled on, and shows it as text where there are no forms', async () => {
+  it('declines a cancelled or broken form, and defers text where there are no forms', async () => {
     const withForms = harness({ elicitation: { action: 'decline' } })
     const withoutForms = harness()
     // A form request that fails is declined too, so the turn goes on.
@@ -952,13 +965,22 @@ describe('the ACP agent (M63)', () => {
         const { sessionId } = await start(client, capabilities)
         await turn(h, client, sessionId, async (session) => {
           session.emit(question)
-          await until(() => session.cancelQuestions.mock.calls.length === 1)
+          await until(() =>
+            h === withoutForms
+              ? h.updates.some(
+                  (update) =>
+                    update.sessionUpdate === 'agent_message_chunk' &&
+                    update.content.type === 'text' &&
+                    update.content.text.includes('/answer 1'),
+                )
+              : session.cancelQuestions.mock.calls.length === 1,
+          )
         })
       })
     }
     expect(withoutForms.updates).toContainEqual({
       sessionUpdate: 'agent_message_chunk',
-      content: { type: 'text', text: `${UI_TEXT.acpQuestionAsked}\nProceed?\n- Yes` },
+      content: { type: 'text', text: `${UI_TEXT.acpOpenQuestionAsked}\nProceed?\n- Yes` },
     })
   })
 
@@ -974,9 +996,7 @@ describe('the ACP agent (M63)', () => {
       options: [{ label: 'A' }, { label: 'B' }],
     })
     expect(h.host.sessions[0]?.answerQuestions).not.toHaveBeenCalled()
-    expect(h.log.info).toHaveBeenCalledWith(
-      expect.stringContaining('question input-1 declined: the form came back without an answer'),
-    )
+    expect(h.host.sessions[0]?.cancelQuestions).toHaveBeenCalledExactlyOnceWith('input-1')
   })
 
   it('forwards an MCP elicitation through the client form and settles the answer', async () => {
@@ -1038,7 +1058,7 @@ describe('the ACP agent (M63)', () => {
       message: personal,
       data: { kind: 'commandRejected' },
     })
-    const h = harness()
+    const h = harness({ questionPolicy: 'decline' })
     await h.run(async (client) => {
       const { sessionId } = await start(client)
       await turn(h, client, sessionId, async (session) => {
@@ -1051,12 +1071,18 @@ describe('the ACP agent (M63)', () => {
           itemId: 'q1',
           questions: [],
         })
-        await until(() => session.cancelQuestions.mock.calls.length === 2)
+        await until(
+          () =>
+            session.cancelQuestions.mock.calls.length === 1 &&
+            h.log.warn.mock.calls.some((call) =>
+              String(call[0]).includes('approval approval-1: commandRejected'),
+            ),
+        )
       })
     })
     const logged = JSON.stringify([h.log.info.mock.calls, h.log.warn.mock.calls])
     expect(logged).toContain('approval approval-1: commandRejected (MSP error -32000)')
-    expect(logged).toContain('question input-1 not declined: commandRejected (MSP error -32000)')
+    expect(logged).toContain('question operation failed')
     expect(logged).not.toContain('/home/someone')
     expect(logged).not.toContain('someone@example.com')
   })

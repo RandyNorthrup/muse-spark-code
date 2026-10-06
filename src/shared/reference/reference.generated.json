@@ -261,15 +261,15 @@
       "name": { "ui": "questionSubmit" },
       "summary": { "ui": "referenceQuestions" },
       "description": { "ui": "referenceQuestions" },
-      "commands": [],
-      "settings": [],
-      "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-panel",
+      "commands": ["museSpark.nextOpenQuestion", "museSpark.previousOpenQuestion"],
+      "settings": ["museSpark.questions.deferAfterSeconds"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#questions",
       "backends": ["museCode", "modelApi"],
       "paid": false,
-      "surfaces": ["vscode:museCode", "vscode:modelApi"],
-      "details": [],
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [{ "ui": "referenceQuestionsDeferral" }],
       "facts": { "actions": ["submit", "explain", "cancel"] },
-      "editors": ["vscode"]
+      "editors": ["vscode", "acp"]
     },
     {
       "id": "mcp-elicitation",
@@ -1803,6 +1803,26 @@
       "description": "Commands, settings and features, with descriptions and documentation.",
       "text": { "ui": "referenceIntro" },
       "canRun": true
+    },
+    {
+      "id": "museSpark.nextOpenQuestion",
+      "name": "Next open question",
+      "nameKey": "command.nextOpenQuestion.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Next open question",
+      "text": { "ui": "questionNextOpen" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.previousOpenQuestion",
+      "name": "Previous open question",
+      "nameKey": "command.previousOpenQuestion.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Previous open question",
+      "text": { "ui": "questionPreviousOpen" },
+      "canRun": false
     }
   ],
   "settings": [
@@ -2893,6 +2913,17 @@
         "default": [],
         "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" }
       }
+    },
+    {
+      "id": "museSpark.questions.deferAfterSeconds",
+      "name": "museSpark.questions.deferAfterSeconds",
+      "description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.",
+      "descriptionKey": "config.questions.deferAfterSeconds.description",
+      "type": "integer",
+      "default": 60,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "default": 60, "minimum": 0, "maximum": 3600 }
     }
   ],
   "slash": [
@@ -3329,6 +3360,13 @@
     },
     {
       "route": "serve",
+      "name": "serve: --questions-defer-after <value>",
+      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
+      "text": { "cli": "questions-defer-after" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "serve",
       "name": "serve: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
@@ -3456,6 +3494,13 @@
     },
     {
       "route": "login",
+      "name": "login: --questions-defer-after <value>",
+      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
+      "text": { "cli": "questions-defer-after" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "login",
       "name": "login: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
@@ -3574,6 +3619,13 @@
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "setup",
+      "name": "setup: --questions-defer-after <value>",
+      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
+      "text": { "cli": "questions-defer-after" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "setup",
@@ -3709,6 +3761,13 @@
     },
     {
       "route": "authSet",
+      "name": "authSet: --questions-defer-after <value>",
+      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
+      "text": { "cli": "questions-defer-after" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "authSet",
       "name": "authSet: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
@@ -3841,6 +3900,13 @@
     },
     {
       "route": "authStatus",
+      "name": "authStatus: --questions-defer-after <value>",
+      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
+      "text": { "cli": "questions-defer-after" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "authStatus",
       "name": "authStatus: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
@@ -3970,6 +4036,13 @@
         "default": false,
         "purpose": "acceptedUnused"
       }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --questions-defer-after <value>",
+      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
+      "text": { "cli": "questions-defer-after" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authClear",
@@ -4367,6 +4440,18 @@
       "command": "editor.action.inlineSuggest.trigger",
       "key": "alt+\\",
       "when": "editorTextFocus && museSpark.tabOn"
+    },
+    {
+      "command": "museSpark.nextOpenQuestion",
+      "key": "ctrl+alt+j",
+      "mac": "cmd+alt+j",
+      "when": "activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'"
+    },
+    {
+      "command": "museSpark.previousOpenQuestion",
+      "key": "ctrl+alt+shift+j",
+      "mac": "cmd+alt+shift+j",
+      "when": "activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'"
     },
     {
       "command": "composer.send",

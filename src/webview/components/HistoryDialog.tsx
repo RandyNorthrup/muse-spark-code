@@ -33,6 +33,7 @@ const ARCHIVE_KEY = WEBVIEW_KEYBINDINGS['history.archive'].archive.keys[0].key
 export interface HistoryDialogProps {
   /** undefined while the host has not answered `listSessions`. */
   readonly sessions: readonly SessionRow[] | undefined
+  readonly openQuestionCounts?: Readonly<Record<string, number>>
   readonly archivedIds: readonly string[]
   readonly currentSessionId: string | undefined
   readonly archiveAfterDays: number
@@ -51,33 +52,28 @@ export type HistoryEntry =
   | { readonly kind: 'row'; readonly key: string; readonly index: number; readonly row: SessionRow }
 
 export function layoutHistory(groups: readonly SessionGroup[]): readonly HistoryEntry[] {
-  const entries: HistoryEntry[] = []
-  for (const group of groups) {
-    entries.push({ kind: 'title', key: `title:${group.id}`, title: group.title })
-    for (const row of group.rows) {
-      entries.push({
-        kind: 'row',
-        key: row.sessionId,
-        index: entries.filter((entry) => entry.kind === 'row').length,
-        row,
-      })
-    }
-  }
-  return entries
+  let index = 0
+  return groups.flatMap((group): HistoryEntry[] => [
+    { kind: 'title', key: `title:${group.id}`, title: group.title },
+    ...group.rows.map((row): HistoryEntry => ({
+      kind: 'row',
+      key: row.sessionId,
+      index: index++,
+      row,
+    })),
+  ])
 }
 
-function metaOf(row: SessionRow, nowMs: number): string {
-  const parts = [
+function metaOf(row: SessionRow, nowMs: number, openCount = 0): string {
+  return [
     relativeTime(row.lastActivityAt ?? row.updatedAt, nowMs),
     plural(UI_TEXT.historyTurns, row.turnCount),
+    row.branch,
+    row.isFork ? UI_TEXT.historyForkMark : undefined,
+    openCount > 0 ? plural(UI_TEXT.openQuestionsCount, openCount) : undefined,
   ]
-  if (row.branch !== undefined) {
-    parts.push(row.branch)
-  }
-  if (row.isFork) {
-    parts.push(UI_TEXT.historyForkMark)
-  }
-  return parts.join(' · ')
+    .filter((part) => part !== undefined)
+    .join(' · ')
 }
 
 function RowView({
@@ -160,10 +156,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
   )
   // Titles and rows in display order; rows also numbered for the keyboard.
   const entries = useMemo(() => layoutHistory(groups), [groups])
-  const rows = useMemo(
-    () => entries.flatMap((entry) => (entry.kind === 'row' ? [entry.row] : [])),
-    [entries],
-  )
+  const rows = groups.flatMap((group) => group.rows)
   const {
     activeIndex,
     setActiveIndex,
@@ -223,7 +216,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
               isActive={entry.index === activeIndex}
               isCurrent={entry.row.sessionId === currentSessionId}
               isRowArchived={archivedIds.includes(entry.row.sessionId)}
-              meta={metaOf(entry.row, nowMs)}
+              meta={metaOf(entry.row, nowMs, props.openQuestionCounts?.[entry.row.sessionId])}
               onHover={() => {
                 setActiveIndex(entry.index)
               }}
