@@ -35,7 +35,7 @@ export function MirroredColumns({ state }: { readonly state: UsagePageState }) {
       points={points}
       format={count}
     >
-      {(active) => (
+      {(active, pattern) => (
         <>
           <line className="usage-chart-axis" x1={0} x2={100} y1={100 / 2} y2={100 / 2} />
           {points.map((point, index) => (
@@ -52,6 +52,7 @@ export function MirroredColumns({ state }: { readonly state: UsagePageState }) {
                     <rect
                       key={direction}
                       className={`usage-series-${direction === 0 ? 'blue' : 'purple'}`}
+                      fill={pattern(direction === 0 ? 'blue' : 'purple')}
                       x={index * width + width / (2 * 2)}
                       y={direction === 0 ? 100 / 2 - ((value / max) * 100) / 2 : 100 / 2}
                       width={width / 2}
@@ -67,6 +68,7 @@ export function MirroredColumns({ state }: { readonly state: UsagePageState }) {
                   <rect
                     key={`subset-${String(subsetIndex)}`}
                     className={`usage-series-${subsetIndex === 0 ? 'green' : 'orange'}`}
+                    fill={pattern(subsetIndex === 0 ? 'green' : 'orange')}
                     x={index * width + width / (2 * 2)}
                     y={subsetIndex === 0 ? 100 / 2 - height : 100 / 2}
                     width={width / 2}

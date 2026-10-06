@@ -36,7 +36,7 @@ export function ShareBar({ state }: { readonly state: UsagePageState }) {
       points={points}
       format={(value) => metricText(value, state.query.metric)}
     >
-      {(active) =>
+      {(active, pattern) =>
         points.map((point, index) => {
           const value = point.values[0]
           if (value === undefined) return null
@@ -48,6 +48,7 @@ export function ShareBar({ state }: { readonly state: UsagePageState }) {
             <g key={point.id}>
               <rect
                 className={`usage-series-${groups[index]?.colour ?? 'other'}`}
+                fill={pattern(groups[index]?.colour ?? 'other')}
                 x={x}
                 y={0}
                 width={width}

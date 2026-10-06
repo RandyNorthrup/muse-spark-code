@@ -249,7 +249,7 @@ body {
 .usage-series-purple {
   --ms-series-color: var(--ms-purple);
 
-  stroke-dasharray: none;
+  stroke-dasharray: 6 4;
   background: var(--ms-purple);
 }
 
@@ -305,11 +305,21 @@ body {
   stroke: none;
 }
 
+.usage-pattern-halo,
 .usage-pattern-cue {
   fill: none;
+  stroke-dasharray: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.usage-pattern-halo {
+  stroke: var(--ms-background);
+  stroke-width: 2px;
+}
+
+.usage-pattern-cue {
   stroke: var(--ms-foreground);
   stroke-width: 1px;
-  vector-effect: non-scaling-stroke;
 }
 
 .usage-line {
@@ -333,57 +343,49 @@ body {
 }
 
 .usage-swatch {
+  --ms-pattern-stops:
+    transparent 0 2px, var(--ms-background) 2px 3px, var(--ms-foreground) 3px 4px,
+    var(--ms-background) 4px 5px, transparent 5px 6px;
+
   display: inline-block;
   width: 12px;
   height: 12px;
   flex-shrink: 0;
   border: 1px solid var(--ms-foreground);
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent 0 3px,
-    var(--ms-foreground) 3px 4px
-  );
+  background-image: repeating-linear-gradient(0deg, var(--ms-pattern-stops));
 }
 
 .usage-swatch.usage-series-purple {
-  background-image: repeating-linear-gradient(
-    90deg,
-    transparent 0 3px,
-    var(--ms-foreground) 3px 4px
-  );
+  background-image: repeating-linear-gradient(90deg, var(--ms-pattern-stops));
 }
 
 .usage-swatch.usage-series-orange {
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent 0 3px,
-    var(--ms-foreground) 3px 4px
-  );
+  background-image: repeating-linear-gradient(45deg, var(--ms-pattern-stops));
 }
 
 .usage-swatch.usage-series-green {
-  background-image: repeating-linear-gradient(
-    -45deg,
-    transparent 0 3px,
-    var(--ms-foreground) 3px 4px
-  );
+  background-image: repeating-linear-gradient(-45deg, var(--ms-pattern-stops));
 }
 
 .usage-swatch.usage-series-yellow {
   background-image:
-    repeating-linear-gradient(45deg, transparent 0 3px, var(--ms-foreground) 3px 4px),
-    repeating-linear-gradient(-45deg, transparent 0 3px, var(--ms-foreground) 3px 4px);
+    repeating-linear-gradient(45deg, var(--ms-pattern-stops)),
+    repeating-linear-gradient(-45deg, var(--ms-pattern-stops));
 }
 
 .usage-swatch.usage-series-red {
-  background-image: radial-gradient(var(--ms-foreground) 1px, transparent 1px);
-  background-size: 4px 4px;
+  background-image: radial-gradient(
+    var(--ms-foreground) 1px,
+    var(--ms-background) 1px 2px,
+    transparent 2px
+  );
+  background-size: 6px 6px;
 }
 
 .usage-swatch.usage-series-other {
   background-image:
-    repeating-linear-gradient(0deg, transparent 0 3px, var(--ms-foreground) 3px 4px),
-    repeating-linear-gradient(90deg, transparent 0 3px, var(--ms-foreground) 3px 4px);
+    repeating-linear-gradient(0deg, var(--ms-pattern-stops)),
+    repeating-linear-gradient(90deg, var(--ms-pattern-stops));
 }
 
 .usage-page summary {

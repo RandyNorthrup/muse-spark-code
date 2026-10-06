@@ -37,10 +37,11 @@ export function BurnLine({
       points={points}
       format={money}
     >
-      {() => (
+      {(_active, pattern) => (
         <>
           <circle
             className="usage-series-blue"
+            fill={pattern('blue')}
             cx={0}
             cy={100 - (budget.spentUsd / max) * 100}
             r={2}

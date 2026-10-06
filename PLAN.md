@@ -16708,6 +16708,16 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM102U / RVM102U (2026-10-05).** All four assigned P2 findings are
+  repaired in the shared page with regressions and byte-exact failure drills
+  (`docs/certification/m102-u.md`); no review finding is deferred.
+  **M102-U-INTEGRATION** remains the existing lane dependency: L supplies
+  fourteen usage translations, E/W wires the dialog and manifest, and W
+  registers the new entry/harness roots and regenerates the host API record.
+  Safe scope for now is the isolated, fake-transport page verification;
+  M102INT must pass the unchanged combined gates and installed-editor checks
+  before claiming the complete feature certified. No paid/live calls,
+  network operation or portable-boundary exception is introduced here.
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate
   failure drills in `docs/certification/m95-p.md`; no assigned finding is

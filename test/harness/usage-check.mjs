@@ -66,6 +66,47 @@ try {
               for (const metric of ['tokens', 'requests', 'time', 'cost'])
                 await page.getByLabel('Metric').selectOption(metric)
               await page.locator('.usage-page[aria-busy="false"]').waitFor()
+              await page.getByRole('radio', { name: 'Custom range' }).check()
+              await page.getByLabel('From', { exact: true }).fill('2026-10-01')
+              await page.getByLabel('To', { exact: true }).fill('2026-10-05')
+              for (const [label, dates] of [
+                ['From', ['2026-10-02', '2026-10-03']],
+                ['To', ['2026-10-06', '2026-10-07']],
+              ]) {
+                const input = await page.getByLabel(label, { exact: true }).elementHandle()
+                if (input === null) throw new Error('Missing custom date input')
+                await input.focus()
+                for (const date of dates) {
+                  await input.fill(date)
+                  await page.locator('.usage-page[aria-busy="false"]').waitFor()
+                  if (
+                    !(await input.evaluate(
+                      (element) => globalThis.document.activeElement === element,
+                    ))
+                  )
+                    throw new Error('Custom date edit lost input identity or keyboard focus')
+                }
+                await input.dispose()
+              }
+              await page.getByRole('radio', { name: 'Today' }).check()
+              await page.locator('.usage-page[aria-busy="false"]').waitFor()
+              if (['jcef', 'webView2', 'swt'].includes(bridge)) {
+                await page.evaluate(() => {
+                  globalThis.usageHarness.failNextSend()
+                })
+                await page.getByRole('button', { name: 'Refresh', exact: true }).click()
+                await page.getByRole('alert').waitFor()
+                const alert = await page.getByRole('alert').textContent()
+                if (alert?.includes('Private native'))
+                  throw new Error('Native transport detail leaked')
+                if (!alert?.includes('Usage history could not be read.'))
+                  throw new Error('Native transport failure has no localized error')
+                if (!(await page.getByRole('button', { name: 'Refresh', exact: true }).isEnabled()))
+                  throw new Error('Native transport failure left Refresh disabled')
+                await page.locator('.usage-page[aria-busy="false"]').waitFor()
+                await page.getByRole('button', { name: 'Try again', exact: true }).click()
+                await page.getByRole('alert').waitFor({ state: 'detached' })
+              }
               await page.getByRole('button', { name: 'Refresh', exact: true }).click()
               await page.locator('.usage-page[aria-busy="false"]').waitFor()
               for (const format of [

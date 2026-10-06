@@ -70,7 +70,7 @@ export function StackedColumns({ state }: { readonly state: UsagePageState }) {
       points={points}
       format={(value) => metricText(value, state.query.metric)}
     >
-      {(active) =>
+      {(active, pattern) =>
         points.map((point, index) => {
           let bottom = 100
           return (
@@ -88,6 +88,7 @@ export function StackedColumns({ state }: { readonly state: UsagePageState }) {
                   <rect
                     key={series[seriesIndex]?.id}
                     className={`usage-series-${series[seriesIndex]?.colour ?? 'other'}`}
+                    fill={pattern(series[seriesIndex]?.colour ?? 'other')}
                     x={index * width + width / (2 * 2)}
                     y={bottom}
                     width={width / 2}
