@@ -73,16 +73,18 @@ function holdTextReads(rig: Awaited<ReturnType<typeof setup>>, count: number) {
   const paths = Array.from({ length: count }, (_, id) => `/ws/${String(id)}.txt`)
   const gates = paths.map(() => Promise.withResolvers<undefined>())
   const entered: string[] = []
+  const signals: (AbortSignal | undefined)[] = []
   const original = rig.io.readFile
-  rig.io.readFile = async (absolute, expected) => {
-    const index = paths.indexOf(absolute)
+  rig.io.readFile = async (absolute, expected, signal) => {
+    const index = paths.indexOf(absolute.replaceAll('\\', '/'))
     if (index !== -1) {
       entered.push(absolute)
+      signals.push(signal)
       await gates[index]?.promise
     }
-    return await original(absolute, expected)
+    return await original(absolute, expected, signal)
   }
-  return { gates, entered }
+  return { gates, entered, signals }
 }
 
 const notices = (rig: Awaited<ReturnType<typeof setup>>) =>
@@ -619,7 +621,10 @@ describe('M106 loop guarantees', () => {
 
   it('discards reads stopped during held realPath settlement, including later recall_output', async () => {
     for (const isPacking of [false, true]) {
-      const rig = await setup({ observationPacking: () => isPacking })
+      const rig = await setup({
+        observationPacking: () => isPacking,
+        parallelReads: () => isPacking,
+      })
       const marker = 'DISCARDED_SETTLEMENT_CONTENT'
       rig.io.files.set('/ws/0.txt', `${marker}\n${'long output\n'.repeat(500)}`)
       const held = Promise.withResolvers<undefined>()
@@ -633,7 +638,7 @@ describe('M106 loop guarantees', () => {
       }
       const originalPath = rig.io.realPath
       rig.io.realPath = async (absolute) => {
-        if (reads === 2 && absolute.replaceAll('\\', '/') === '/ws/0.txt') {
+        if (reads === (isPacking ? 2 : 1) && absolute.replaceAll('\\', '/') === '/ws/0.txt') {
           entered.resolve(undefined)
           await held.promise
         }
@@ -644,10 +649,16 @@ describe('M106 loop guarantees', () => {
       await rig.session.sendTurn([{ type: 'text', text: 'Read.' }])
       await entered.promise
       await rig.session.cancel()
-      held.resolve(undefined)
+      try {
+        await vi.waitFor(() => {
+          expect(rig.events.at(-1)).toEqual({ type: 'sessionStatus', status: 'idle' })
+        })
+      } finally {
+        held.resolve(undefined)
+      }
       await done
       const rows = rig.session.history().items.filter((item) => item.kind === 'toolCall')
-      expect(rows).toHaveLength(2)
+      expect(rows).toHaveLength(isPacking ? 2 : 1)
       expect(rows.every((item) => item.status === 'cancelled')).toBe(true)
       expect(
         rig.events.some(
@@ -706,6 +717,101 @@ describe('M106 loop guarantees', () => {
       ),
     ).toBe(false)
     await rig.host.close()
+  })
+
+  it('rechecks live permission revocation after speculative settlement awaits', async () => {
+    let isDenied = false
+    const rig = await setup({
+      permissionSettings: () => ({
+        commandRules: [],
+        profiles: {},
+        profile: '',
+        repositoryRules: isDenied ? { denyRead: ['0.txt'] } : undefined,
+      }),
+      repeatResultWitness: {
+        observed: () => {
+          queueMicrotask(() => {
+            isDenied = true
+          })
+          return 'witness'
+        },
+        current: () => Promise.resolve('witness'),
+      },
+    })
+    rig.api.script({ calls: [read(0), read(1)] }, { text: 'Done.' })
+    await send(rig)
+    expect(JSON.stringify(rig.api.responseBodies()[1]?.['input'])).not.toContain('1|first')
+    expect(rig.session.history().items).toContainEqual(
+      expect.objectContaining({
+        kind: 'toolCall',
+        tool: 'read_file',
+        status: 'failed',
+      }),
+    )
+    await rig.host.close()
+  })
+
+  it('becomes idle on Stop with diagnostics before a stalled read that remains held', async () => {
+    for (const isParallel of [false, true]) {
+      const diagnosticsEntered = Promise.withResolvers<undefined>()
+      const rig = await setup({
+        parallelReads: () => isParallel,
+        ideTools: [
+          {
+            name: 'getDiagnostics',
+            description: 'Read diagnostics',
+            inputSchema: { type: 'object' },
+            annotations: { readOnlyHint: true },
+            call: (_args, signal) => {
+              diagnosticsEntered.resolve(undefined)
+              return new Promise<string>((_resolve, reject) => {
+                signal.addEventListener(
+                  'abort',
+                  () => {
+                    reject(new Error('stopped'))
+                  },
+                  { once: true },
+                )
+              })
+            },
+          },
+        ],
+      })
+      const { gates, entered, signals } = holdTextReads(rig, 1)
+      rig.api.script({
+        calls: [
+          { name: 'mcp__ide__getDiagnostics', arguments: '{}', callId: 'diagnostics' },
+          read(0),
+        ],
+      })
+      await rig.session.sendTurn([{ type: 'text', text: 'Read.' }])
+      await diagnosticsEntered.promise
+      if (isParallel)
+        await vi.waitFor(() => {
+          expect(entered).toHaveLength(1)
+        })
+      try {
+        await rig.session.cancel()
+        await vi.waitFor(() => {
+          expect(rig.events).toContainEqual(
+            expect.objectContaining({ type: 'turnCompleted', terminal: 'cancelled' }),
+          )
+          expect(rig.events.at(-1)).toEqual({ type: 'sessionStatus', status: 'idle' })
+        })
+        await rig.session.settled()
+        if (isParallel) expect(signals[0]?.aborted).toBe(true)
+        else expect(entered).toEqual([])
+      } finally {
+        for (const gate of gates) gate.resolve(undefined)
+        await rig.host.close()
+      }
+      expect(
+        rig.session
+          .history()
+          .items.filter((item) => item.kind === 'toolCall')
+          .every((item) => item.status === 'cancelled'),
+      ).toBe(true)
+    }
   })
 
   it('overlaps real read execution and returns identical raw requests with packing on', async () => {

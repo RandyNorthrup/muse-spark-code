@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { buildSync } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { GLOB_LIMITS } from '../../src/core/backends/modelapi/globLimits'
 import { searchOnWorker } from '../../src/host/backend/toolIo'
 import { SEARCH_MAX_FILE_BYTES, SEARCH_MAX_HITS } from '../../src/shared/constants'
@@ -153,4 +153,19 @@ describe('searchOnWorker', () => {
     const outcome = await searchOnWorker(path.join(paths.root, 'nope.js'), job('x'), 10_000)
     expect(outcome).toMatchObject({ ok: false })
   }, 30_000)
+
+  it('terminates an in-flight worker on Stop without waiting for its search deadline', async () => {
+    const abort = new AbortController()
+    const workerPath = path.join(paths.root, 'heldWorker.cjs')
+    await writeFile(workerPath, "require('node:worker_threads').parentPort.on('message', () => {})")
+    const terminate = vi.spyOn(Worker.prototype, 'terminate')
+    try {
+      const searching = searchOnWorker(workerPath, job('x'), 10_000, abort.signal)
+      abort.abort()
+      await expect(searching).rejects.toMatchObject({ name: 'AbortError' })
+      expect(terminate).toHaveBeenCalledOnce()
+    } finally {
+      terminate.mockRestore()
+    }
+  })
 })

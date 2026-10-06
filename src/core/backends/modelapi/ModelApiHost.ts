@@ -1885,6 +1885,9 @@ function subjectFor(
 /** `work`'s value, or an `AbortedError` as soon as the turn is stopped; `work` runs on. */
 async function unlessStopped<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   if (signal.aborted) {
+    // A read can already be in flight when Stop wins admission. Observe its
+    // eventual rejection even though nobody will wait for it.
+    void work.catch(NO_UNSUBSCRIBE)
     throw new AbortedError()
   }
   let onAbort: () => void = NO_UNSUBSCRIBE
@@ -9411,7 +9414,8 @@ export class ModelApiSession implements AgentSession {
     const io = this.toolWrites()?.io ?? this.deps.io
     const file = await confineWorkspacePath(this.deps.workspaceRoot, given, this.deps.platform, io)
     if (!file.ok || this.policy().files.isDenied([file.relative, file.canonical])) return undefined
-    const raw = await io.readFile(file.checkedAbsolute, file.checkedAbsolute)
+    signal.throwIfAborted()
+    const raw = await io.readFile(file.checkedAbsolute, file.checkedAbsolute, signal)
     signal.throwIfAborted()
     return raw === undefined || this.policy().files.isDenied([file.relative, file.canonical])
       ? undefined
@@ -9488,6 +9492,8 @@ export class ModelApiSession implements AgentSession {
       // about, not the end of the turn.
       result = { outcome: toolFailure(describe(error)), isRejected: false }
     }
+    if (isParallelRead(effectiveCall.name) && this.externalTool(effectiveCall.name)?.kind !== 'mcp')
+      signal.throwIfAborted()
     prepared.seen = result.outcome.touched?.seen
     return { result, slot, isParallelExecution, isRepeatSuppressed: false, isRepeatStopped: false }
   }
@@ -9502,7 +9508,12 @@ export class ModelApiSession implements AgentSession {
     correctionsUsed = 0,
   ): Promise<HookToolResult> {
     const { call, effectiveCall, pre, started, startedAt, selectionReason } = prepared
-    if (executed.status === 'rejected' || (signal.aborted && executed.value.isParallelExecution)) {
+    const isNativeRead =
+      isParallelRead(effectiveCall.name) && this.externalTool(effectiveCall.name)?.kind !== 'mcp'
+    if (
+      executed.status === 'rejected' ||
+      (signal.aborted && (isNativeRead || executed.value.isParallelExecution))
+    ) {
       if (prepared.seen !== undefined) this.seenFiles.delete(prepared.seen)
       this.finishCall(
         turnId,
@@ -9515,8 +9526,10 @@ export class ModelApiSession implements AgentSession {
     }
     const itemId = started.itemId
     const { result, slot } = executed.value
+    let isCommitted = false
     const checkStopped = () => {
-      if (!signal.aborted || !executed.value.isParallelExecution) return
+      if (isCommitted || !signal.aborted || (!isNativeRead && !executed.value.isParallelExecution))
+        return
       if (prepared.seen !== undefined) this.seenFiles.delete(prepared.seen)
       this.finishCall(
         turnId,
@@ -9529,7 +9542,15 @@ export class ModelApiSession implements AgentSession {
     }
     // An MCP tool's `path` is its own business, not a workspace file it read.
     if (this.externalTool(effectiveCall.name) === undefined) {
-      await this.touchPath(effectiveCall, turnId, signal)
+      const touched = this.touchPath(effectiveCall, turnId, signal)
+      if (isNativeRead || executed.value.isParallelExecution) {
+        try {
+          await unlessStopped(touched, signal)
+        } catch (error: unknown) {
+          checkStopped()
+          throw error
+        }
+      } else await touched
       checkStopped()
     }
     const { admission } = slot
@@ -9540,6 +9561,8 @@ export class ModelApiSession implements AgentSession {
     let attemptReplay: ReplayItem | undefined
     const commit = () => {
       checkStopped()
+      if (!isRejected && executed.value.isParallelExecution)
+        outcome = this.fencedOutcome(admission, outcome)
       if (running !== undefined) {
         this.continueInBackground(turnId, started, effectiveCall, outcome, running, admission)
         return
@@ -9556,6 +9579,7 @@ export class ModelApiSession implements AgentSession {
         status = isRejected ? REJECTED : FAILED
       }
       attemptReplay = this.finishCall(turnId, started, effectiveCall, outcome, status)
+      isCommitted = true
       if (
         effectiveCall.name === MODEL_API_TOOLS.todoWrite &&
         outcome.failureReason !== undefined &&
@@ -10389,14 +10413,19 @@ export class ModelApiSession implements AgentSession {
             return await this.prepareCall(turn.turnId, call, signal)
           },
           canParallel: (prepared) => this.canParallelCall(prepared),
-          run: (prepared, isParallelExecution) =>
-            this.executeCall(
+          run: async (prepared, isParallelExecution) => {
+            const execution = this.executeCall(
               turn.turnId,
               prepared,
               signal,
               goalCommandRevision,
               isParallelExecution,
-            ),
+            )
+            return isParallelRead(prepared.effectiveCall.name) &&
+              this.externalTool(prepared.effectiveCall.name)?.kind !== 'mcp'
+              ? await unlessStopped(execution, signal)
+              : await execution
+          },
           settle: async (prepared, result) => {
             const finished = await this.settleCall(
               turn.turnId,

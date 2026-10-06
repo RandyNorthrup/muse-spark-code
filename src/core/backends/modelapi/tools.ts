@@ -157,7 +157,11 @@ export interface ToolIo {
    * decoding it lossily and writing it back would corrupt it (PLAN.md D27).
    */
   /** A canonical proof comes only from trusted workspace confinement, not tool arguments. */
-  readFile(absolutePath: string, expectedCanonicalPath?: string): Promise<string | undefined>
+  readFile(
+    absolutePath: string,
+    expectedCanonicalPath?: string,
+    signal?: AbortSignal,
+  ): Promise<string | undefined>
   /**
    * The file's bytes (M44: an image to edit); undefined when it does not
    * exist. Rejects, before reading, a file larger than `maxBytes`.
@@ -166,6 +170,7 @@ export interface ToolIo {
     absolutePath: string,
     maxBytes: number,
     expectedCanonicalPath?: string,
+    signal?: AbortSignal,
   ): Promise<Uint8Array | undefined>
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(
@@ -217,9 +222,9 @@ export interface ToolIo {
   /** Absolute paths of the files open in an editor with unsaved changes, as the editor names them. */
   unsavedFiles(): readonly string[]
   /** Workspace-relative, forward-slash paths of every listed file. */
-  listFiles(): Promise<readonly string[]>
+  listFiles(signal?: AbortSignal): Promise<readonly string[]>
   /** Evaluates the pattern off the host thread with a time budget (ReDoS containment). */
-  searchFiles(job: SearchJob): Promise<SearchOutcome>
+  searchFiles(job: SearchJob, signal?: AbortSignal): Promise<SearchOutcome>
   /**
    * A timeout or the signal kills the whole process tree (PLAN.md D25);
    * `limit` lets the caller lift the timeout while it runs (M46).
@@ -1103,6 +1108,7 @@ async function readVisual(
       file.checkedAbsolute,
       kind === 'pdf' ? MAX_DOCUMENT_BYTES : MAX_IMAGE_BYTES,
       file.checkedAbsolute,
+      context.signal,
     )
   } catch (error: unknown) {
     // Stop still belongs to the host's cancellation path, not a file error row.
@@ -1112,6 +1118,7 @@ async function readVisual(
     const modelReason = error instanceof Error ? error.message : String(error)
     return failure(modelReason, fill(UI_TEXT.toolVisualReadFailed, { path: file.relative }))
   }
+  context.signal?.throwIfAborted()
   if (bytes === undefined) {
     return failure(
       `file not found: ${file.relative}`,
@@ -1164,6 +1171,7 @@ async function readFile(
   context: ToolContext,
 ): Promise<ToolOutcome> {
   const resolved = await readablePath(args.path, context)
+  context.signal?.throwIfAborted()
   if (!resolved.ok) {
     return failure(resolved.reason)
   }
@@ -1180,7 +1188,12 @@ async function readFile(
   if (visual !== undefined) {
     return { ...(await readVisual(resolved, visual, context)), touched }
   }
-  const raw = await context.io.readFile(resolved.checkedAbsolute, resolved.checkedAbsolute)
+  const raw = await context.io.readFile(
+    resolved.checkedAbsolute,
+    resolved.checkedAbsolute,
+    context.signal,
+  )
+  context.signal?.throwIfAborted()
   if (raw === undefined) {
     return { ...failure(`file not found: ${resolved.relative}`), touched }
   }
@@ -1406,7 +1419,8 @@ async function listMatching(
 ): Promise<readonly string[]> {
   // Compiled before the listing, so a refused glob costs no file walk.
   const matches = glob === undefined ? undefined : compileGlob(glob)
-  const files = await context.io.listFiles()
+  const files = await context.io.listFiles(context.signal)
+  context.signal?.throwIfAborted()
   // What the permission settings deny is neither listed nor searched (M78).
   return files.filter(
     (file) => (matches === undefined || matches(file)) && context.files?.isDenied([file]) !== true,
@@ -1445,23 +1459,28 @@ async function search(
   try {
     candidates = await listMatching(context, args.glob)
   } catch (error: unknown) {
+    context.signal?.throwIfAborted()
     return failure(error instanceof Error ? error.message : String(error))
   }
   // A workspace too large to search in the budget is searched in part, and
   // the model is told so rather than handed a silent subset (D27).
   const searched = candidates.slice(0, SEARCH_MAX_CANDIDATES)
-  const outcome = await context.io.searchFiles({
-    pattern: args.pattern,
-    root: context.workspaceRoot,
-    maxFileBytes: SEARCH_MAX_FILE_BYTES,
-    maxHits: SEARCH_MAX_HITS,
-    denyRead: context.files?.denyGlobs ?? [],
-    globLimits: GLOB_LIMITS,
-    files: searched.map((relative) => ({
-      relative,
-      absolute: p.join(context.workspaceRoot, ...relative.split('/')),
-    })),
-  })
+  const outcome = await context.io.searchFiles(
+    {
+      pattern: args.pattern,
+      root: context.workspaceRoot,
+      maxFileBytes: SEARCH_MAX_FILE_BYTES,
+      maxHits: SEARCH_MAX_HITS,
+      denyRead: context.files?.denyGlobs ?? [],
+      globLimits: GLOB_LIMITS,
+      files: searched.map((relative) => ({
+        relative,
+        absolute: p.join(context.workspaceRoot, ...relative.split('/')),
+      })),
+    },
+    context.signal,
+  )
+  context.signal?.throwIfAborted()
   // Every candidate, searched or not: its name may be in a hit or a count.
   const touched: TouchedFiles = { names: candidates, complete: true }
   if (!outcome.ok) {
@@ -1494,6 +1513,7 @@ async function listFiles(
   try {
     files = await listMatching(context, args.glob)
   } catch (error: unknown) {
+    context.signal?.throwIfAborted()
     return failure(error instanceof Error ? error.message : String(error))
   }
   const shown = files.slice(0, limit)

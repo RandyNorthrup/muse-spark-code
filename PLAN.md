@@ -19414,8 +19414,11 @@ Stop arrives during settlement; serialize any batch with applicable enabled
 PreToolUse/PostToolUse hooks; pass the turn signal through native reads,
 listings and searches and detach stuck read work on Stop. Keep serial replay
 bytes identical, use fake-only regressions and byte-exact red drills, and
-retain the existing gates. Native I/O signal plumbing is limited to the
+retain the existing gates and a fresh live permission fence when speculative
+publication is deferred across an await. Native I/O signal plumbing is limited to the
 existing tool adapters and listing paths required by the fourth finding.
+The existing host regression that discarded steering on buffered-response
+Stop is updated to the lead's explicit every-exit preservation policy.
 Certification: `docs/certification/m106-l2.md`. No live/paid calls, dependency,
 merge, rebase or push; aggregate quality and wiring remain lane W's work.
 
@@ -20058,6 +20061,17 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM106L2 bounded review repairs (2026-10-06).** The rig/shared brief
+prohibits aggregate `npm run quality` and requires scoped tests, at most
+three files/three workers per run, with the repository timeout. Run the
+focused regressions, typecheck, changed-file lint/format, localization,
+deadcode, duplication, host API and production build directly on Kubuntu.
+No gate is weakened. Lane W retains aggregate quality, integration and the
+existing split-gate registration of `toolScheduler.ts`/`repeatGuard.ts`;
+its classification omission is a justified integration deferral, not a
+permission to package or publish. Receipts and red drills:
+`docs/certification/m106-l2.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -21231,6 +21245,17 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM106L2-W-integration (lane L2, 2026-10-06).** All four RVM106L2 P2
+  findings are repaired, with fake-only regressions and byte-exact red
+  drills. No review finding is left. The original W handoffs remain:
+  capability/settings bindings across hosts, the trusted-witness policy
+  decision, integrated CHANGELOG/README/feature-reference updates, and
+  split-gate classifications for `toolScheduler.ts`/`repeatGuard.ts`.
+  Safe for now: this lane neither packages nor publishes, and no guard,
+  size cap, paid gate or dependency is widened. Follow-up: W integrates
+  these bindings/docs and classifications and runs aggregate quality and
+  the authorized release checks. See `docs/certification/m106-l2.md`.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

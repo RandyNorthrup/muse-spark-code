@@ -324,7 +324,45 @@ describe('read_file: localized visual summaries (M54)', () => {
     io.readBytes = () => Promise.reject(new Error('stopped read'))
     await expect(
       executeTool('read_file', '{"path":"img/stopped.png"}', { ...ctx, signal: abort.signal }),
-    ).rejects.toThrow('stopped read')
+    ).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('passes the turn signal to native text, image, listing and search and discards late results', async () => {
+    const calls = [
+      { name: 'read_file', args: { path: 'a.txt' } },
+      { name: 'read_file', args: { path: 'a.png' } },
+      { name: 'list_files', args: {} },
+      { name: 'search', args: { pattern: 'late' } },
+    ]
+    for (const call of calls) {
+      const { io, ctx } = context({ 'a.txt': 'late bytes' })
+      const abort = new AbortController()
+      const stop = (signal: AbortSignal | undefined) => {
+        expect(signal).toBe(abort.signal)
+        abort.abort()
+      }
+      io.readFile = (_absolute, _expected, signal) => {
+        stop(signal)
+        return Promise.resolve('late bytes')
+      }
+      io.readBytes = (_absolute, _max, _expected, signal) => {
+        stop(signal)
+        return Promise.resolve(new Uint8Array())
+      }
+      if (call.name === 'list_files')
+        io.listFiles = (signal) => {
+          stop(signal)
+          return Promise.resolve(['late.txt'])
+        }
+      io.searchFiles = (_job, signal) => {
+        stop(signal)
+        return Promise.resolve({ ok: true, hits: [] })
+      }
+      await expect(
+        executeTool(call.name, JSON.stringify(call.args), { ...ctx, signal: abort.signal }),
+      ).rejects.toMatchObject({ name: 'AbortError' })
+      expect(ctx.seen.size).toBe(0)
+    }
   })
 })
 

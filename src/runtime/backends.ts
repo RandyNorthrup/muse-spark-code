@@ -170,7 +170,7 @@ function modelApiManager(
       respectGitIgnore: () => SETTING_DEFAULTS.respectGitIgnore,
       isWorkspaceTrusted,
       runGit: deps.runGit,
-      findFiles: () => walkFiles(root, MENTION_INDEX_LIMIT, log),
+      findFiles: (signal) => walkFiles(root, MENTION_INDEX_LIMIT, log, signal),
       log,
     })
   const listFiles = filesIn(workspaceRoot)
@@ -248,7 +248,7 @@ function modelApiManager(
     assertWorkspaceCurrent,
     workspaceEdits,
     io,
-    listAttemptFiles: (attemptRoot) => filesIn(attemptRoot)(),
+    listAttemptFiles: (attemptRoot, signal) => filesIn(attemptRoot)(signal),
     contextIo: fileContextIo,
     webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
     fetch: deps.fetch,
