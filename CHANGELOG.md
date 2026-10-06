@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Bundled-skill updates reconcile owned links when an id moves between the
+  vendor and first-party roots. Failed upgrades restore the previous copy,
+  links and marker, keeping Update available. Maker topic checks now reject
+  unsafe stop paths, model-set approvals, bypass/Auto actuation suggestions
+  and irreversible provisioning instructions.
+
+
 ## [0.14.1] - 2026-10-05
 
 ### Security
