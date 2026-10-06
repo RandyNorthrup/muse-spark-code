@@ -102,7 +102,7 @@ export function paidUseQuestion(request: PaidUseRequest): {
       }
     }
     case 'autoReviewer': {
-      const price = autoReviewPrice(request.modelId)
+      const price = autoReviewPrice(request.modelId, request.pricing)
       if (price === undefined) throw new Error(UI_TEXT.autoReviewerFailed)
       return {
         title: fill(UI_TEXT.paidUseAutoReviewerTitle, { tool: request.tool }),

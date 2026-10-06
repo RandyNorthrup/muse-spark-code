@@ -2719,5 +2719,8 @@
   "judgeStatusDeclined": "Kikapcsolva: a fizetős használat elutasítva",
   "judgeStatusSlow": "Alapértelmezetten kikapcsolva: túl kevés eredmény kész az ellenőr döntésekor",
   "judgeStatusSubscription": "Előfizetés",
-  "judgeStatusPaid": "Fizetős"
+  "judgeStatusPaid": "Fizetős",
+  "paidProviderPrice": "Millió tokenenként: bemenet {input}, gyorsítótár-olvasás {cached}, gyorsítótár-írás {write}, egyórás írás {write1h}, kimenet {output}. Kérésenként {request}; képenként {image}.",
+  "paidProviderPriceTier": "{threshold} bemeneti tokentől: bemenet {input}, kimenet {output} milliónként.",
+  "modelToolCallingUnavailable": "Az eszközhívás nincs ellenőrizve ennél a modellnél."
 }

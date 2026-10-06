@@ -2616,5 +2616,8 @@
   "judgeStatusDeclined": "オフ：有料利用が拒否されました",
   "judgeStatusSlow": "既定でオフ：レビュー担当の判定時に準備できる結果が少なすぎます",
   "judgeStatusSubscription": "サブスクリプション",
-  "judgeStatusPaid": "有料"
+  "judgeStatusPaid": "有料",
+  "paidProviderPrice": "100万トークンあたり：入力 {input}、キャッシュ読み取り {cached}、キャッシュ書き込み {write}、1時間の書き込み {write1h}、出力 {output}。リクエストあたり {request}、画像あたり {image}。",
+  "paidProviderPriceTier": "入力が {threshold} トークン以上の場合：100万トークンあたり入力 {input}、出力 {output}。",
+  "modelToolCallingUnavailable": "このモデルではツール呼び出しが検証されていません。"
 }

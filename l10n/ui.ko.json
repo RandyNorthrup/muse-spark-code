@@ -2616,5 +2616,8 @@
   "judgeStatusDeclined": "꺼짐: 유료 사용 거부됨",
   "judgeStatusSlow": "기본으로 꺼짐: 검토자 판정 시 준비된 결과가 너무 적음",
   "judgeStatusSubscription": "구독",
-  "judgeStatusPaid": "유료"
+  "judgeStatusPaid": "유료",
+  "paidProviderPrice": "100만 토큰당: 입력 {input}, 캐시 읽기 {cached}, 캐시 쓰기 {write}, 1시간 쓰기 {write1h}, 출력 {output}. 요청당 {request}, 이미지당 {image}.",
+  "paidProviderPriceTier": "입력 토큰 {threshold}개부터: 100만 토큰당 입력 {input}, 출력 {output}.",
+  "modelToolCallingUnavailable": "이 모델의 도구 호출은 검증되지 않았습니다."
 }

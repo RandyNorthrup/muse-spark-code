@@ -10,6 +10,7 @@
 // other failure: the caller hears a sentence, the log gets the cause, and the
 // next call tries again.
 
+import type { ModelResolver } from '../../core/backends/modelapi/modelPolicy'
 import { createHash } from 'node:crypto'
 import type { EnvironmentFacts } from '../../core/backends/modelapi/instructions'
 import type { NetworkAdvice } from '../../core/networkFailure'
@@ -60,6 +61,9 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly judge?: ModelApiHostDeps['judge']
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
+  readonly getAccountId?: (() => Promise<string | undefined>) | undefined
+  readonly createProviders?: (() => Promise<ModelResolver>) | undefined
+  readonly hasMetaCredential?: (() => boolean) | undefined
   readonly workspaceRoot: string | undefined
   readonly io: ToolIo
   /** Existing file-listing adapter rooted in each actual attempt worktree. */
@@ -255,6 +259,9 @@ export class ModelApiBackendManager {
   private async createHost(variant: HostVariant): Promise<ModelApiHost> {
     const bundle = this.loadBundle()
     const host = await bundle.createModelApiHost({
+      ...(this.deps.createProviders !== undefined && {
+        createProviders: this.deps.createProviders,
+      }),
       uiText: UI_TEXT,
       uiLocale: uiLocale(),
       client: {
@@ -289,11 +296,13 @@ export class ModelApiBackendManager {
         store: variant.store,
         scheduleStore: variant.scheduleStore,
         getAccountId: async () => {
+          if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
           const key = await this.deps.getApiKey()
           return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
         },
         admitResponseAttempt: variant.admitResponseAttempt,
         noteResponseUsage: variant.noteResponseUsage,
+        hasMetaCredential: this.deps.hasMetaCredential,
         ...(variant.budgetScope !== undefined && { budgetScope: variant.budgetScope }),
         describeEnvironment: variant.describeEnvironment,
         isPaidFeatureOn: variant.isPaidFeatureOn,

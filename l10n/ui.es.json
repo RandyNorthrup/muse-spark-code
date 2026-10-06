@@ -2822,5 +2822,8 @@
   "judgeStatusDeclined": "Desactivado: uso de pago rechazado",
   "judgeStatusSlow": "Desactivado por defecto: pocos resultados listos al decidir el revisor",
   "judgeStatusSubscription": "Suscripción",
-  "judgeStatusPaid": "De pago"
+  "judgeStatusPaid": "De pago",
+  "paidProviderPrice": "Por millón de tokens: entrada {input}, lectura de caché {cached}, escritura de caché {write}, escritura de una hora {write1h}, salida {output}. Por solicitud {request}; por imagen {image}.",
+  "paidProviderPriceTier": "A partir de {threshold} tokens de entrada: entrada {input}, salida {output} por millón.",
+  "modelToolCallingUnavailable": "No se ha verificado la llamada a herramientas para este modelo."
 }

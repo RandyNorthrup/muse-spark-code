@@ -2925,5 +2925,8 @@
   "judgeStatusDeclined": "Выключен: платное использование отклонено",
   "judgeStatusSlow": "По умолчанию выключен: слишком мало результатов готово к решению проверяющего",
   "judgeStatusSubscription": "Подписка",
-  "judgeStatusPaid": "Платно"
+  "judgeStatusPaid": "Платно",
+  "paidProviderPrice": "За миллион токенов: ввод {input}, чтение кеша {cached}, запись кеша {write}, запись на час {write1h}, вывод {output}. За запрос {request}; за изображение {image}.",
+  "paidProviderPriceTier": "От {threshold} входных токенов: ввод {input}, вывод {output} за миллион.",
+  "modelToolCallingUnavailable": "Вызов инструментов для этой модели не проверен."
 }

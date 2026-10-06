@@ -2822,5 +2822,8 @@
   "judgeStatusDeclined": "Disattivato: uso a pagamento rifiutato",
   "judgeStatusSlow": "Disattivato per impostazione predefinita: pochi risultati pronti al verdetto del revisore",
   "judgeStatusSubscription": "Abbonamento",
-  "judgeStatusPaid": "A pagamento"
+  "judgeStatusPaid": "A pagamento",
+  "paidProviderPrice": "Per milione di token: input {input}, lettura cache {cached}, scrittura cache {write}, scrittura di un’ora {write1h}, output {output}. Per richiesta {request}; per immagine {image}.",
+  "paidProviderPriceTier": "Da {threshold} token di input: input {input}, output {output} per milione.",
+  "modelToolCallingUnavailable": "La chiamata agli strumenti non è stata verificata per questo modello."
 }

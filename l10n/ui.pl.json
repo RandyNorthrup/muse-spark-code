@@ -2925,5 +2925,8 @@
   "judgeStatusDeclined": "Wyłączony: odmówiono płatnego użycia",
   "judgeStatusSlow": "Domyślnie wyłączony: zbyt mało wyników gotowych w chwili decyzji recenzenta",
   "judgeStatusSubscription": "Subskrypcja",
-  "judgeStatusPaid": "Płatne"
+  "judgeStatusPaid": "Płatne",
+  "paidProviderPrice": "Za milion tokenów: wejście {input}, odczyt pamięci podręcznej {cached}, zapis pamięci podręcznej {write}, zapis na godzinę {write1h}, wyjście {output}. Za żądanie {request}; za obraz {image}.",
+  "paidProviderPriceTier": "Od {threshold} tokenów wejściowych: wejście {input}, wyjście {output} za milion.",
+  "modelToolCallingUnavailable": "Wywoływanie narzędzi nie zostało zweryfikowane dla tego modelu."
 }

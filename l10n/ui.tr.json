@@ -2719,5 +2719,8 @@
   "judgeStatusDeclined": "Kapalı: ücretli kullanım reddedildi",
   "judgeStatusSlow": "Varsayılan olarak kapalı: inceleyici kararında çok az sonuç hazır",
   "judgeStatusSubscription": "Abonelik",
-  "judgeStatusPaid": "Ücretli"
+  "judgeStatusPaid": "Ücretli",
+  "paidProviderPrice": "Milyon token başına: girdi {input}, önbellek okuma {cached}, önbellek yazma {write}, bir saatlik yazma {write1h}, çıktı {output}. İstek başına {request}; görsel başına {image}.",
+  "paidProviderPriceTier": "{threshold} girdi tokenından itibaren: milyon başına girdi {input}, çıktı {output}.",
+  "modelToolCallingUnavailable": "Bu model için araç çağırma doğrulanmadı."
 }

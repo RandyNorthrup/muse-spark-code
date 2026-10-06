@@ -2719,5 +2719,8 @@
   "judgeStatusDeclined": "Aus: kostenpflichtige Nutzung abgelehnt",
   "judgeStatusSlow": "Standardmäßig aus: zu wenige Ergebnisse beim Urteil des Prüfers bereit",
   "judgeStatusSubscription": "Abonnement",
-  "judgeStatusPaid": "Kostenpflichtig"
+  "judgeStatusPaid": "Kostenpflichtig",
+  "paidProviderPrice": "Pro Million Tokens: Eingabe {input}, Cache-Lesen {cached}, Cache-Schreiben {write}, einstündiges Schreiben {write1h}, Ausgabe {output}. Pro Anfrage {request}; pro Bild {image}.",
+  "paidProviderPriceTier": "Ab {threshold} Eingabe-Tokens: Eingabe {input}, Ausgabe {output} pro Million.",
+  "modelToolCallingUnavailable": "Werkzeugaufrufe wurden für dieses Modell nicht verifiziert."
 }

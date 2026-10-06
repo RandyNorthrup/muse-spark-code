@@ -162,6 +162,8 @@ export function messageText(item: MessageItem): string {
 }
 
 export const usageSchema = z.object({
+  // Internal normalized receipt from the codecs' captured provider cost fields.
+  provider_cost_usd: z.optional(z.number().check(z.nonnegative())),
   input_tokens: z.number(),
   output_tokens: z.number(),
   total_tokens: z.optional(z.number()),

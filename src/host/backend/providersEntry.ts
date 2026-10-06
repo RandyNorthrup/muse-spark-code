@@ -20,3 +20,5 @@ export * as scanDiff from '../../core/providers/scanDiff'
 export * as suggest from '../../core/providers/suggest'
 export * as wizardFlow from '../../core/providers/wizardFlow'
 export { setUiText } from '../../shared/l10n/text'
+
+export { createProviderRegistry } from '../../core/providers/providerRegistry'
