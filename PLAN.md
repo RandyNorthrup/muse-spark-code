@@ -6844,6 +6844,37 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### REDM115S — Bounded schedule storage and reconciled delivery (2026-10-06)
+
+Implement the lead's replacement for the reviewed S lane, against D95/M115
+on `plan/m105-m107`. No storage deferral: an immutable generation plus an
+operation/byte-bounded delta journal replaces full snapshots per revision.
+Readers and writers share a recoverable heartbeat lease; activation retries
+Windows locking errors and retirement is deferred and retried without holding
+up committed work. Separate segmented identity fences remain while the
+schedule exists plus eight days; fire audit retains at most 100 per schedule
+and 30 days. Identifier tombstones contain hashes, never historical prompts.
+
+Persist ordered pending intents before delivery. Admission is idempotent by
+run id at the target, which exposes an absent/admitted/settled/uncertain ledger
+lookup. Every poll reconciles bounded outbox work, including living owners'
+failed persistence. Definitely unsent work is delivered; ambiguous dispatched
+paid work is settled with uncertainty and retained liability, never replayed.
+Cursor CAS refuses a superseded time candidate before dispatch. Durable
+source-fingerprint/target-revision migration receipts reconcile raced v1
+receipts and preserve legitimate v2 authority edits; source removal still
+requires verification. Creation-time/id ordering is shared across pending
+batches; parallel remains an explicit fresh-conversation opt-in.
+
+Record changed internal ports, native Windows fault/handle evidence, the
+10,000-fire storage measurements and guard drills in
+`docs/certification/m115-s.md`. The redesign necessarily replaces the store
+model rather than observing common.md's per-finding patch-size heuristic.
+Run owning suites (at most three files/workers), typechecks and static/build
+gates directly on this rig; the explicit brief reserves aggregate quality
+for the lead and prohibits merges, pushes and rebases. No paid/live calls,
+dependencies, new commands or settings.
+
 ### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
 
 Repair all six RVM115L0 P2 findings before M115's wave lanes bind the

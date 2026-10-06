@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { readFile, stat, utimes, writeFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { createScheduleStore } from '../../src/core/schedules/store'
 import { migrateSchedules } from '../../src/core/schedules/migrate'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
@@ -37,6 +37,98 @@ async function fixture(name: string) {
 }
 
 describe('M115 verified M52 migration', () => {
+  it('reconciles a raced v1 receipt after copy while preserving a later v2 authority edit', async () => {
+    const { job, directory, store, source } = await fixture('raced-copy')
+    const remove = vi.spyOn(source, 'removeVerified').mockImplementationOnce(async (entry) => {
+      await writeFile(
+        path.join(directory, `${job.id}.${String(job.nextFireAtMs)}.claim`),
+        JSON.stringify({ admittedAtMs: job.createdAtMs + SCHEDULE_MIN_INTERVAL_MS }),
+      )
+      // The real verification refuses this changed source, retaining its bytes.
+      const actual = createFileScheduleMigrationSource(directory)
+      await actual.removeVerified(entry)
+    })
+    await expect(migrateSchedules(source, store, 'workspace-1', 'UTC')).rejects.toThrow(
+      'SourceChanged',
+    )
+    remove.mockRestore()
+    const [copied] = await store.list('workspace-1')
+    await store.update({
+      ...copied!,
+      name: 'Renamed after copy',
+      grant: {
+        rules: [{ id: 'read', kind: 'tool', name: 'read_file' }],
+        destinationIds: [],
+        paidCapUsd: 0,
+      },
+    })
+    expect(await migrateSchedules(source, store, 'workspace-1', 'UTC')).toBe(1)
+    const [reconciled] = await store.list('workspace-1')
+    expect(reconciled).toMatchObject({
+      name: 'Renamed after copy',
+      fireCount: 1,
+      lastFireAtMs: job.nextFireAtMs,
+      nextFireAtMs: job.createdAtMs + 2 * SCHEDULE_MIN_INTERVAL_MS,
+    })
+    expect(reconciled?.grant.rules).toHaveLength(1)
+    expect(await store.claim(`${job.id}:${String(job.nextFireAtMs)}`)).toBe(false)
+    await expect(stat(path.join(directory, `${job.id}.json`))).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+  })
+  it('verifies a post-copy v2 edit using its receipt and migrates later jobs despite one interrupted source', async () => {
+    const { job, old, directory, store, source } = await fixture('later-jobs')
+    const second = { ...job, id: 'z-second', prompt: 'Second job' }
+    await old.create(second)
+    const remove = source.removeVerified.bind(source)
+    vi.spyOn(source, 'removeVerified').mockImplementation(async (entry) => {
+      if (entry.job.id === job.id) throw new Error('interrupted removal')
+      await remove(entry)
+    })
+    await expect(migrateSchedules(source, store, 'workspace-1', 'UTC')).rejects.toThrow(
+      'interrupted removal',
+    )
+    await expect(stat(path.join(directory, `${second.id}.json`))).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+    const beforeEdit = await store.list('workspace-1')
+    const copied = beforeEdit.find((entry) => entry.id === job.id)!
+    await store.update({
+      ...copied,
+      name: 'Legitimate edit',
+      paidCapUsd: 1,
+      grant: { ...copied.grant, paidCapUsd: 1 },
+    })
+    vi.restoreAllMocks()
+    expect(await migrateSchedules(source, store, 'workspace-1', 'UTC')).toBe(1)
+    const afterEdit = await store.list('workspace-1')
+    expect(afterEdit.find((entry) => entry.id === job.id)).toMatchObject({
+      name: 'Legitimate edit',
+      paidCapUsd: 1,
+    })
+  })
+  it('commits reconciliation and its migration receipt atomically across a failed journal publication', async () => {
+    const { job, directory, store, source } = await fixture('atomic-receipt')
+    vi.spyOn(source, 'removeVerified').mockRejectedValueOnce(new Error('interrupted removal'))
+    await expect(migrateSchedules(source, store, 'workspace-1', 'UTC')).rejects.toThrow(
+      'interrupted removal',
+    )
+    await writeFile(
+      path.join(directory, `${job.id}.${String(job.nextFireAtMs)}.claim`),
+      JSON.stringify({ admittedAtMs: job.createdAtMs + SCHEDULE_MIN_INTERVAL_MS }),
+    )
+    const reconcile = store.reconcileMigration.bind(store)
+    vi.spyOn(store, 'reconcileMigration').mockImplementationOnce(async (...args) => {
+      await reconcile(...args)
+      throw new Error('crash after atomic reconciliation')
+    })
+    await expect(migrateSchedules(source, store, 'workspace-1', 'UTC')).rejects.toThrow(
+      'crash after atomic reconciliation',
+    )
+    expect(await migrateSchedules(source, store, 'workspace-1', 'UTC')).toBe(1)
+    const [counted] = await store.list('workspace-1')
+    expect(counted?.fireCount).toBe(1)
+  })
   it('refuses inconsistent source identifiers and unsafe receipt times without removing bytes', async () => {
     const wrong = await fixture('wrong-id')
     const file = path.join(wrong.directory, `${wrong.job.id}.json`)

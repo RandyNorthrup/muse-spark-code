@@ -1,28 +1,66 @@
 // Shared by editor hosts and the runtime; no vscode or credential dependency.
 import { randomUUID } from 'node:crypto'
-import { mkdir, open, readFile, readdir, link, unlink, lstat } from 'node:fs/promises'
-import { watch } from 'node:fs'
+import {
+  mkdir,
+  open,
+  readFile,
+  readdir,
+  link,
+  unlink,
+  lstat,
+  rename,
+  rmdir,
+} from 'node:fs/promises'
+import { setTimeout as delay } from 'node:timers/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
 import {
   CHECKPOINT_STORAGE_MODE,
   REPORT_STORAGE_FILE_MODE,
-  SCHEDULE_POLL_INTERVAL_MS,
+  SCHEDULE_FS_RETRY_ATTEMPTS,
+  SCHEDULE_FS_RETRY_BACKOFF_MS,
+  SCHEDULE_LEASE_HEARTBEAT_MS,
+  SCHEDULE_LEASE_EXPIRES_MS,
+  SCHEDULE_LEASE_POLL_MS,
+  SCHEDULE_QUEUE_COALESCE_MS,
+  MILLISECONDS_PER_SECOND,
 } from '../../shared/constants'
+import { parseScheduleStoredJson, type ScheduleFsPort } from '../../core/schedules/journal'
 import {
-  createScheduleJournal,
   scheduleStorageHash,
   isScheduleProcessAlive,
-  type ScheduleFsPort,
   type ScheduleQueuePort,
 } from '../../core/schedules/store'
 
 function hasCode(error: unknown, code: string): boolean {
   return error instanceof Error && 'code' in error && error.code === code
 }
+async function retry<T>(work: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await work()
+    } catch (error: unknown) {
+      if (
+        attempt + 1 >= SCHEDULE_FS_RETRY_ATTEMPTS ||
+        ['EPERM', 'EBUSY', 'EACCES'].every((code) => !hasCode(error, code))
+      )
+        throw error
+      await delay(SCHEDULE_FS_RETRY_BACKOFF_MS * (attempt + 1))
+    }
+  }
+}
+const leaseSchema = z.strictObject({
+  pid: z.int().check(z.gte(1)),
+  start: z.number().check(z.gte(0)),
+  token: z.uuid(),
+  heartbeat: z.number().check(z.gte(0)),
+})
+const processStart = Date.now() - process.uptime() * MILLISECONDS_PER_SECOND
 
 export function createNodeScheduleFs(directory: string): ScheduleFsPort {
   const root = path.resolve(directory)
+  const cleanup = new Set<string>()
   const resolve = (relative: string) => {
     const file = path.resolve(root, relative)
     const suffix = path.relative(root, file)
@@ -56,7 +94,76 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
         throw new Error('scheduleStorageLinkRefused')
     }
   }
-  return {
+  const retireTemporary = async (file: string) => {
+    try {
+      await retry(async () => {
+        await unlink(file)
+      })
+      cleanup.delete(file)
+    } catch (error: unknown) {
+      if (hasCode(error, 'ENOENT')) cleanup.delete(file)
+      else cleanup.add(file)
+    }
+  }
+  const write = async (
+    relative: string,
+    content: string,
+    isExclusive: boolean,
+    guard?: () => Promise<void>,
+  ) => {
+    const file = resolve(relative)
+    await prepare(file)
+    await checkParents(file)
+    try {
+      const info = await lstat(file)
+      if (info.isSymbolicLink()) throw new Error('scheduleStorageLinkRefused')
+    } catch (error: unknown) {
+      if (!hasCode(error, 'ENOENT')) throw error
+    }
+    for (const owed of cleanup) await retireTemporary(owed)
+    const temporary = `${file}.${randomUUID()}.tmp`
+    const handle = await open(temporary, 'wx', REPORT_STORAGE_FILE_MODE)
+    try {
+      await handle.writeFile(content, 'utf8')
+      await handle.sync()
+    } finally {
+      await handle.close()
+    }
+    try {
+      const isPublished = await retry(async () => {
+        await guard?.()
+        try {
+          if (isExclusive) await link(temporary, file)
+          else await rename(temporary, file)
+        } catch (error: unknown) {
+          // Our unique temporary bytes identify a publication already committed.
+          if (isExclusive && hasCode(error, 'EEXIST')) {
+            const [destination, staged] = await Promise.all([
+              lstatIdentity(file),
+              lstatIdentity(temporary),
+            ])
+            return sameFile(destination, staged)
+          }
+          if ((await fs.read(relative)) === content) return true
+          throw error
+        }
+        if (process.platform !== 'win32') {
+          const folder = await open(path.dirname(file), 'r')
+          try {
+            await folder.sync()
+          } finally {
+            await folder.close()
+          }
+        }
+        return true
+      })
+      return { isPublished }
+    } finally {
+      // Cleanup cannot turn a successful hard-link publication into failure.
+      await retireTemporary(temporary)
+    }
+  }
+  const fs: ScheduleFsPort = {
     async read(relative) {
       const file = resolve(relative)
       try {
@@ -79,99 +186,132 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
         throw error
       }
     },
-    async publish(relative, content) {
+    async publish(relative, content, guard) {
+      const result = await write(relative, content, true, guard)
+      return result.isPublished
+    },
+    async replace(relative, content, guard) {
+      await write(relative, content, false, guard)
+    },
+    async remove(relative, canRetryTransient = true) {
       const file = resolve(relative)
-      await prepare(file)
-      await checkParents(file)
-      const temporary = `${file}.${randomUUID()}.tmp`
-      const handle = await open(temporary, 'wx', REPORT_STORAGE_FILE_MODE)
       try {
-        await handle.writeFile(content, 'utf8')
-        await handle.sync()
-      } finally {
-        await handle.close()
-      }
-      try {
-        // NTFS and POSIX hard-link publication is exclusive and atomic: readers
-        // see the flushed whole file, or ENOENT, never an empty wx placeholder.
-        await link(temporary, file)
-        if (process.platform !== 'win32') {
-          const folder = await open(path.dirname(file), 'r')
-          try {
-            await folder.sync()
-          } finally {
-            await folder.close()
-          }
+        await checkParents(file)
+        const info = await lstat(file)
+        if (info.isSymbolicLink()) throw new Error('scheduleStorageLinkRefused')
+        const remove = async () => {
+          if (info.isDirectory()) await rmdir(file)
+          else await unlink(file)
         }
-        return true
+        if (canRetryTransient) await retry(remove)
+        else await remove()
       } catch (error: unknown) {
-        if (hasCode(error, 'EEXIST')) return false
-        throw error
+        if (!hasCode(error, 'ENOENT')) throw error
+      }
+    },
+    async lock(key, work) {
+      const file = `leases/${scheduleStorageHash(key)}.json`
+      const owner = {
+        pid: process.pid,
+        start: processStart,
+        token: randomUUID(),
+        heartbeat: Date.now(),
+      }
+      for (;;) {
+        owner.heartbeat = Date.now()
+        if (await fs.publish(file, JSON.stringify(owner))) break
+        const content = await fs.read(file)
+        if (content === undefined) continue
+        const previous = leaseSchema.parse(parseScheduleStoredJson(content))
+        if (
+          previous.token === owner.token &&
+          previous.pid === owner.pid &&
+          previous.start === owner.start
+        )
+          break
+        if (
+          !isScheduleProcessAlive(previous.pid) ||
+          Date.now() - previous.heartbeat > SCHEDULE_LEASE_EXPIRES_MS
+        ) {
+          // One taker handles an exact owner token. It never removes a renewed
+          // or replacement owner; the old owner's guarded writes then fail.
+          const takeover = `${file}.${previous.token}.takeover`
+          const debt = await fs.read(takeover)
+          if (debt !== undefined) {
+            const taker = leaseSchema.parse(parseScheduleStoredJson(debt))
+            if (
+              !isScheduleProcessAlive(taker.pid) ||
+              Date.now() - taker.heartbeat > SCHEDULE_LEASE_EXPIRES_MS
+            )
+              await fs.remove(takeover)
+          }
+          if (await fs.publish(takeover, JSON.stringify(owner))) {
+            try {
+              if ((await fs.read(file)) === content) await fs.remove(file)
+            } finally {
+              await fs.remove(takeover)
+            }
+          }
+        } else await delay(SCHEDULE_LEASE_POLL_MS)
+      }
+      const guard = async () => {
+        const bytes = await fs.read(file)
+        if (
+          bytes === undefined ||
+          leaseSchema.parse(parseScheduleStoredJson(bytes)).token !== owner.token
+        )
+          throw new Error('scheduleQueueOwnershipLost')
+      }
+      let heartbeat = Promise.resolve()
+      let heartbeatError: Error | undefined
+      const refresh = async () => {
+        const previous = heartbeat
+        try {
+          await previous
+          await guard()
+          owner.heartbeat = Date.now()
+          await fs.replace(file, JSON.stringify(owner), guard)
+        } catch (error: unknown) {
+          heartbeatError =
+            error instanceof Error ? error : new Error('scheduleLeaseHeartbeatFailed')
+        }
+      }
+      const timer = setInterval(() => {
+        heartbeat = refresh()
+      }, SCHEDULE_LEASE_HEARTBEAT_MS).unref()
+      try {
+        const result = await work(async () => {
+          if (heartbeatError !== undefined) throw heartbeatError
+          await guard()
+        })
+        await guard()
+        return result
       } finally {
-        await unlink(temporary)
+        clearInterval(timer)
+        await heartbeat
+        // Stop heartbeating even on persistent release failure: another caller
+        // repairs the expired lease while this PID remains alive.
+        try {
+          await guard()
+          await fs.remove(file)
+        } catch {
+          /* Expiry owns release recovery. */
+        }
       }
     },
   }
+  return fs
 }
-
-const queueSchema = z.strictObject({
-  owner: z.optional(z.strictObject({ pid: z.int().check(z.gte(1)), token: z.string() })),
-})
 
 export function createNodeScheduleQueue(directory: string): ScheduleQueuePort {
   const fs = createNodeScheduleFs(directory)
-  const token = randomUUID()
   return {
     async serialize(targetKey, work) {
-      const folder = `queues/${scheduleStorageHash(targetKey)}`
-      await fs.publish(`${folder}/ready`, '')
-      const journal = createScheduleJournal(fs, folder, (raw) => queueSchema.parse(raw), {})
-      let isAcquired = false
-      while (!isAcquired) {
-        // Subscribe before reading; a release during our CAS cannot be missed.
-        const wake = new AbortController()
-        const changed = new Promise<void>((resolve) => {
-          // Promise.withResolvers is unavailable in VS Code's Node 20 host.
-          wake.signal.addEventListener(
-            'abort',
-            () => {
-              resolve()
-            },
-            { once: true },
-          )
-        })
-        const watcher = watch(path.join(directory, folder), () => {
-          wake.abort()
-        })
-        const timer = setTimeout(() => {
-          wake.abort()
-        }, SCHEDULE_POLL_INTERVAL_MS)
-        try {
-          const current = await journal.read()
-          if (
-            current.value.owner === undefined ||
-            !isScheduleProcessAlive(current.value.owner.pid)
-          ) {
-            isAcquired = await journal.replace(current.revision, {
-              owner: { pid: process.pid, token },
-            })
-            if (!isAcquired) continue
-          } else await changed
-        } finally {
-          watcher.close()
-          clearTimeout(timer)
-        }
-      }
-      const release = async () => {
-        const current = await journal.read()
-        if (current.value.owner?.token !== token || !(await journal.replace(current.revision, {})))
-          throw new Error('scheduleQueueOwnershipLost')
-      }
-      try {
+      // Let concurrent singleton batches publish before the ordered queue pop.
+      await delay(SCHEDULE_QUEUE_COALESCE_MS)
+      await fs.lock(`target:${targetKey}`, async () => {
         await work()
-      } finally {
-        await release()
-      }
+      })
     },
   }
 }

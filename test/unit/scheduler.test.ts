@@ -132,7 +132,7 @@ describe('M115 host-neutral scheduler', () => {
   })
   it('serializes colliding fires in actual creation order through final settlement', async () => {
     const first = fakeSchedule({ id: 'z-first' })
-    const second = fakeSchedule({ id: 'a-second' })
+    const second = fakeSchedule({ id: 'a-second', createdAtMs: first.createdAtMs + 1 })
     const { host, scheduler, store } = await fixture('serial', [first, second])
     host.deferSettlements = true
     let hasSettled = false
@@ -178,7 +178,7 @@ describe('M115 host-neutral scheduler', () => {
     await vi.waitFor(() => {
       expect(host.deliveries).toHaveLength(3)
     })
-    expect(spy).toHaveBeenCalledTimes(1)
+    expect(spy).toHaveBeenCalledTimes(3)
     expect(
       host.deliveries
         .filter((item) => item.schedule.parallel)
@@ -396,6 +396,7 @@ describe('M115 host-neutral scheduler', () => {
       fakeSchedule({ trigger }),
     ])
     vi.spyOn(host, 'deliver').mockImplementation((job, context, occurrenceMs) => {
+      host.ledger.set(context.runId, { status: 'admitted' })
       const fire = fireOf(
         { schedule: job, runId: context.runId, occurrenceMs, advancesTime: false },
         host.now(),
@@ -420,9 +421,12 @@ describe('M115 host-neutral scheduler', () => {
   })
   it('keeps a known settlement when persistence throws and never replaces its accounting', async () => {
     const { scheduler, store, deps } = await fixture('persist')
-    vi.spyOn(store, 'record').mockRejectedValue(new Error('disk unavailable'))
+    vi.spyOn(store, 'record').mockRejectedValueOnce(new Error('disk unavailable'))
     await expect(scheduler.poll('workspace-1')).rejects.toThrow('disk unavailable')
     expect(deps.failureSettlement).not.toHaveBeenCalled()
+    await scheduler.poll('workspace-1')
+    expect(await store.fires('workspace-1')).toHaveLength(1)
+    expect(await store.pending('workspace-1')).toEqual([])
   })
   it('deduplicates event instances across restart and keeps event data separate from authority', async () => {
     const job = fakeSchedule({
@@ -619,7 +623,7 @@ describe('M115 host-neutral scheduler', () => {
       })
     }
   })
-  it('recovers a crashed admitted run without replay, without recounting and without losing liability', async () => {
+  it('delivers a definitely unsent crashed intent once without recounting', async () => {
     const { store, deps, scheduler, host } = await fixture('recover')
     const [job] = await store.list('workspace-1')
     const intent = {
@@ -635,14 +639,14 @@ describe('M115 host-neutral scheduler', () => {
     await scheduler.recover('workspace-1')
     await scheduler.recover('workspace-1')
     await scheduler.poll('workspace-1')
-    expect(host.deliveries).toEqual([])
-    expect(deps.failureSettlement).toHaveBeenCalledTimes(1)
+    expect(host.deliveries).toHaveLength(1)
+    expect(deps.failureSettlement).not.toHaveBeenCalled()
     const [current] = await store.list('workspace-1')
-    expect(current).toMatchObject({ fireCount: 1, consecutiveFailures: 1 })
+    expect(current).toMatchObject({ fireCount: 1, consecutiveFailures: 0 })
     const [fire] = await store.fires('workspace-1')
     expect(fire).toMatchObject({
-      outcome: 'failed',
-      cost: { usd: 0.2, certainty: 'unknown', retainedLiabilityUsd: 0.8 },
+      outcome: 'ran',
+      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
     })
     expect(await store.admit(intent)).toBe(false)
   })

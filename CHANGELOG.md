@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Redesign M115's internal schedule storage with bounded generation journals,
+  retained identity fences, recoverable leases and a durable delivery outbox.
+  Reconciliation preserves unsent work and uncertain paid settlements, orders
+  target queues across batches, rejects superseded time candidates and
+  preserves legitimate edits during retryable migration. Scheduled-prompts v2
+  still requires its editor and delivery bindings before shipping.
+
 - Correct M115's internal schedule contracts before implementation: stale
   whole-record updates cannot restore revoked grants, crash-receipt migration
   accepts fractional filesystem times, repeated fake approval requests remain

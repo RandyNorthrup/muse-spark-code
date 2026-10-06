@@ -1,7 +1,7 @@
 // Shared scheduler: hosts supply clocks, ownership and fully settled delivery.
 // T computes time occurrences; E filters/debounces and persists delayed events;
 // U/D own unattended admission and run-scoped refusal/paid settlement facts.
-import { SCHEDULE_POLL_INTERVAL_MS } from '../../shared/constants'
+import { SCHEDULE_POLL_INTERVAL_MS, SCHEDULE_RECONCILE_MAX_RUNS } from '../../shared/constants'
 import { UI_TEXT } from '../../shared/l10n/text'
 import {
   scheduleEventRunId,
@@ -11,6 +11,7 @@ import {
 import {
   scheduleRequestSchema,
   scheduleTimeRunId,
+  scheduleDeliveryStateSchema,
   type ScheduleHostPort,
   type ScheduleStoreV2,
   type ScheduleV2,
@@ -85,6 +86,7 @@ function unspent(
 export function createScheduler(deps: SchedulerDeps) {
   const readings = new Map<string, ScheduleClockReading>()
   const pending = new Set<string>()
+  const knownSettlements = new Map<string, ScheduleFireRecord>()
   const clock = (workspaceKey: string): ScheduleClockReading => {
     const nowMs = deps.host.now()
     const monotonicMs = deps.host.monotonicNow()
@@ -121,29 +123,49 @@ export function createScheduler(deps: SchedulerDeps) {
       input,
       intent.event,
     )
+    knownSettlements.set(intent.runId, fire)
+    await deps.runs.acknowledge(fire)
     await deps.store.record(fire)
+    knownSettlements.delete(intent.runId)
   }
-  const execute = async (intent: ScheduleRunIntent, isMissed: boolean): Promise<void> => {
-    const job = await load(intent.schedule.workspaceKey, intent.schedule.id)
-    if (job === undefined || !deps.host.holds(job.workspaceKey) || !canRun(job, deps.host.now()))
+  const execute = async (intent: ScheduleRunIntent): Promise<void> => {
+    const known =
+      knownSettlements.get(intent.runId) ??
+      (await deps.runs.acknowledged(intent.schedule.workspaceKey, intent.runId))
+    if (known !== undefined) {
+      await settle(intent, known)
       return
+    }
+    const ledger = scheduleDeliveryStateSchema.parse(await deps.host.lookupRun(intent.runId))
+    if (ledger.status === 'settled' || ledger.status === 'uncertain') {
+      await deps.runs.advance(intent)
+      await settle(intent, ledger.fire)
+      return
+    }
+    if (ledger.status === 'admitted') return
+    const job = await load(intent.schedule.workspaceKey, intent.schedule.id)
+    const isAdmitted = await deps.runs.advance(intent)
+    if (!isAdmitted) {
+      await settle(intent, unspent(intent, deps.host.now(), 'skipped'))
+      return
+    }
     // A queued candidate never restores an earlier grant, mode or consent.
     // A changed trigger or target invalidates its old occurrence altogether.
     if (
+      job === undefined ||
+      job.paused ||
+      !deps.host.holds(job.workspaceKey) ||
+      (job.end?.atMs !== undefined && deps.host.now() >= job.end.atMs) ||
       JSON.stringify(job.trigger) !== JSON.stringify(intent.schedule.trigger) ||
       job.zone !== intent.schedule.zone ||
       JSON.stringify(job.target) !== JSON.stringify(intent.schedule.target) ||
       job.delivery !== intent.schedule.delivery
-    )
-      return
-    const current = { ...intent, schedule: job }
-    if (!(await deps.runs.admit(current))) return
-    if (!(await deps.runs.advance(current))) {
-      await settle(current, unspent(current, deps.host.now(), 'skipped'))
+    ) {
+      await settle(intent, unspent(intent, deps.host.now(), 'skipped'))
       return
     }
-    if (isMissed && job.catchUp === 'skip') {
-      await settle(current, unspent(current, deps.host.now(), 'missed'))
+    if (intent.missed === true && job.catchUp === 'skip') {
+      await settle(intent, unspent(intent, deps.host.now(), 'missed'))
       return
     }
     const fresh = await load(job.workspaceKey, job.id)
@@ -157,10 +179,10 @@ export function createScheduler(deps: SchedulerDeps) {
       JSON.stringify(fresh.target) !== JSON.stringify(job.target) ||
       fresh.delivery !== job.delivery
     ) {
-      await settle(current, unspent(current, deps.host.now(), 'skipped'))
+      await settle(intent, unspent(intent, deps.host.now(), 'skipped'))
       return
     }
-    const delivery = { ...current, schedule: fresh }
+    const delivery = { ...intent, schedule: fresh }
     let result: unknown
     try {
       result = await deps.host.deliver(
@@ -179,46 +201,86 @@ export function createScheduler(deps: SchedulerDeps) {
     } catch (error: unknown) {
       // A bad settlement is a contract failure: its accounting is not discarded
       // into a free success. The delivery owner provides conservative facts.
-      result = await deps.failureSettlement(delivery, error)
+      const after = scheduleDeliveryStateSchema.parse(await deps.host.lookupRun(intent.runId))
+      // Absence is a proof of no admission/send: leave the retained intent for
+      // the next poll instead of burning this occurrence or guessing a bill.
+      if (after.status === 'absent') throw error
+      if (after.status === 'settled' || after.status === 'uncertain') {
+        try {
+          result = validateScheduleSettlement(
+            delivery.schedule,
+            delivery.runId,
+            delivery.occurrenceMs,
+            after.fire,
+            delivery.event,
+          )
+        } catch (error_: unknown) {
+          result = await deps.failureSettlement(delivery, error_)
+        }
+      } else result = await deps.failureSettlement(delivery, error)
     }
-    await settle(delivery, result)
+    await settle(intent, result)
   }
   const dispatch = async (entries: readonly { intent: ScheduleRunIntent; missed: boolean }[]) => {
-    const groups = new Map<string, { intent: ScheduleRunIntent; missed: boolean }[]>()
-    const parallel: Promise<unknown>[] = []
+    const workspaces = new Set<string>()
     for (const entry of entries) {
-      if (pending.has(entry.intent.runId)) continue
-      pending.add(entry.intent.runId)
-      if (entry.intent.schedule.parallel) {
-        const run = async () => {
-          try {
-            await execute(entry.intent, entry.missed)
-          } finally {
-            pending.delete(entry.intent.runId)
-          }
-        }
-        parallel.push(run())
-      } else {
-        const key = targetKey(entry.intent.schedule)
-        const group = groups.get(key) ?? []
-        group.push(entry)
-        groups.set(key, group)
-      }
+      workspaces.add(entry.intent.schedule.workspaceKey)
+      await deps.runs.admit({ ...entry.intent, missed: entry.missed })
     }
-    const serial = Array.from(groups, async ([key, group]) => {
+    await drain([...workspaces])
+  }
+  const drain = async (workspaces: readonly string[]) => {
+    const queues = await Promise.all(
+      workspaces.map(async (workspace) => await deps.runs.pending(workspace)),
+    )
+    const outstanding = queues.flat()
+    for (const [runId, fire] of knownSettlements) {
+      if (
+        workspaces.includes(fire.workspaceKey) &&
+        outstanding.every((intent) => intent.runId !== runId)
+      )
+        knownSettlements.delete(runId)
+    }
+    const candidates = outstanding
+      .filter((intent) => !pending.has(intent.runId))
+      .slice(0, SCHEDULE_RECONCILE_MAX_RUNS)
+    const groups = new Map<string, ScheduleRunIntent[]>()
+    for (const intent of candidates) {
+      if (pending.has(intent.runId)) continue
+      pending.add(intent.runId)
+      const key = intent.schedule.parallel ? `run:${intent.runId}` : targetKey(intent.schedule)
+      const group = groups.get(key) ?? []
+      group.push(intent)
+      groups.set(key, group)
+    }
+    const work = Array.from(groups, async ([key, group]) => {
       try {
         await deps.queue.serialize(key, async () => {
-          const ordered = group.toSorted(
-            (a, b) => a.intent.schedule.createdAtMs - b.intent.schedule.createdAtMs,
-          )
-          for (const entry of ordered) await execute(entry.intent, entry.missed)
+          // Pop from the shared queue, not the caller's original singleton or
+          // batch. Entries from other sources/windows participate in ordering.
+          const first = group[0]
+          if (first === undefined) return
+          for (const _entry of group) {
+            const queue = await deps.runs.pending(first.schedule.workspaceKey)
+            const intent = queue.find(
+              (intent) =>
+                (intent.schedule.parallel ? `run:${intent.runId}` : targetKey(intent.schedule)) ===
+                key,
+            )
+            if (intent === undefined) break
+            await execute(intent)
+            // An admitted but unfinished target entry keeps the head of this
+            // serial queue. Do not let the next batch overtake its settlement.
+            const retained = await deps.runs.pending(intent.schedule.workspaceKey)
+            if (retained.some((entry) => entry.runId === intent.runId)) break
+          }
         })
       } finally {
-        for (const entry of group) pending.delete(entry.intent.runId)
+        for (const intent of group) pending.delete(intent.runId)
       }
     })
     // Always drain independent targets, even if one disk/settlement fails.
-    const results = await Promise.allSettled([...serial, ...parallel])
+    const results = await Promise.allSettled(work)
     const failure = results.find((result) => result.status === 'rejected')
     if (failure?.status === 'rejected') throw failure.reason
   }
@@ -262,6 +324,7 @@ export function createScheduler(deps: SchedulerDeps) {
     async poll(workspaceKey: string): Promise<void> {
       if (!deps.host.holds(workspaceKey)) return
       const reading = clock(workspaceKey)
+      await deps.runs.maintain(workspaceKey, reading.nowMs)
       const jobs = await deps.store.list(workspaceKey)
       const entries = []
       for (const job of jobs) {
@@ -297,7 +360,8 @@ export function createScheduler(deps: SchedulerDeps) {
           missed: plan.missed,
         })
       }
-      await dispatch(entries)
+      for (const entry of entries) await deps.runs.admit({ ...entry.intent, missed: entry.missed })
+      await drain([workspaceKey])
     },
     async fireEvent(
       workspaceKey: string,
@@ -347,40 +411,20 @@ export function createScheduler(deps: SchedulerDeps) {
     },
     async recover(workspaceKey: string): Promise<void> {
       if (!deps.host.holds(workspaceKey)) return
-      const abandoned = await deps.runs.abandoned(workspaceKey)
-      for (const intent of abandoned) {
-        await deps.queue.serialize(targetKey(intent.schedule), async () => {
-          const records = await deps.store.fires(workspaceKey)
-          const existing = records.find((fire) => fire.runId === intent.runId)
-          const isAdmitted = await deps.runs.advance(intent)
-          await settle(
-            intent,
-            existing ??
-              (isAdmitted
-                ? await deps.failureSettlement(intent, new Error('scheduleOwnerExited'))
-                : unspent(intent, deps.host.now(), 'skipped')),
-          )
-        })
-      }
+      await drain([workspaceKey])
     },
     start(workspaces: () => readonly string[], onError: (error: unknown) => void) {
       let isDisposed = false
-      const ready = new Map<string, Promise<void>>()
       const tick = () => {
         if (isDisposed) return
         for (const workspace of workspaces()) {
           if (!deps.host.holds(workspace)) continue
-          let initial = ready.get(workspace)
-          if (initial === undefined) {
-            initial = scheduler.recover(workspace)
-            ready.set(workspace, initial)
-          }
-          void initial
+          void scheduler
+            .recover(workspace)
             .then(async () => {
               if (!isDisposed) await scheduler.poll(workspace)
             })
             .catch((error: unknown) => {
-              ready.delete(workspace)
               onError(error)
             })
         }

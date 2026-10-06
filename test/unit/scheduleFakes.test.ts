@@ -205,10 +205,17 @@ describe('M115 deterministic fakes', () => {
     })
     host.result = {
       ...free,
+      runId: `${context.runId}:second`,
       refusedActions: [{ actionClass: 'shell', tool: 'shell', reason: 'outsideGrant' }],
       cost: { usd: 0.1, certainty: 'estimated', retainedLiabilityUsd: 0.2 },
     }
-    const paid = await host.deliver(schedule, context, clock.now(), event)
+    const paid = await host.deliver(
+      schedule,
+      { ...context, runId: host.result.runId },
+      clock.now(),
+      event,
+    )
+    expect(await host.deliver(schedule, context, clock.now(), event)).toEqual(free)
     const disk = new FakeScheduleDisk()
     await disk.client().record(paid)
     expect(await disk.client().fires(schedule.workspaceKey)).toEqual([host.result])

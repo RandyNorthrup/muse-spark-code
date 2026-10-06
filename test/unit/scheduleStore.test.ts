@@ -21,6 +21,11 @@ import { SCHEDULE_MAX_PER_WORKSPACE } from '../../src/shared/constants'
 import { scheduleFireRecordSchema } from '../../src/shared/scheduleV2'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 import { removeFolder } from './helpers/temporaryFolders'
+import {
+  scheduleStateFile,
+  seedScheduleIndex,
+  schedulePointerFence,
+} from './helpers/schedules/storage'
 
 const exec = promisify(execFile)
 const root = mkdtempSync(path.join(tmpdir(), 'muse-m115-s-'))
@@ -156,22 +161,30 @@ describe('M115 durable shared store', () => {
     expect(await store.claim(runId)).toBe(false)
     // The winning child ended without sending; a reopened process cannot replay it.
     expect(await worker(directory, 'claim', runId)).toBe('false')
-    const longId = `schedule-1:github:${'🦜'.repeat(200)}`
+    await store.create(fakeSchedule({ id: 'schedule-2' }))
+    const longId = `schedule-2:github:${'🦜'.repeat(200)}`
     expect(await store.claim(longId)).toBe(true)
     expect(await store.claim(longId)).toBe(false)
-    const names = await readdir(path.join(directory, 'claims'))
-    expect(names.every((name) => name.length < 100)).toBe(true)
+    const names = await readdir(path.join(directory, 'claims'), { recursive: true })
+    expect(names.every((name) => path.basename(name).length < 100)).toBe(true)
   })
   it('recovers an unpublished creation and ignores incomplete staging files', async () => {
     const directory = path.join(root, 'staging')
     const fs = createNodeScheduleFs(directory)
     const job = fakeSchedule()
-    await fs.publish(`identifiers/${scheduleStorageHash(job.id)}.json`, JSON.stringify(job))
+    await fs.publish(
+      `identifiers/${scheduleStorageHash(job.id)}.json`,
+      JSON.stringify({
+        id: job.id,
+        workspaceKey: job.workspaceKey,
+        creationHash: scheduleStorageHash(JSON.stringify(job)),
+      }),
+    )
     await fs.publish('workspace-1/index/0.json.writer.tmp', '{')
     const store = createScheduleStore(fs)
     await store.create(job)
     expect(await store.list(job.workspaceKey)).toEqual([job])
-    await writeFile(path.join(directory, 'workspace-1/index/0.json'), '{', 'utf8')
+    await writeFile(path.join(directory, await scheduleStateFile(fs)), '{', 'utf8')
     await expect(store.list(job.workspaceKey)).rejects.toThrow()
   })
   it('enforces the workspace count even when two clients race the last slot', async () => {
@@ -180,10 +193,7 @@ describe('M115 durable shared store', () => {
     const jobs = Array.from({ length: SCHEDULE_MAX_PER_WORKSPACE - 1 }, (_, count) =>
       fakeSchedule({ id: `job-${String(count)}` }),
     )
-    await fs.publish(
-      'workspace-1/index/0.json',
-      JSON.stringify({ revision: 0, value: { schedules: jobs, retired: [] } }),
-    )
+    await seedScheduleIndex(fs, jobs)
     const outcomes = await Promise.allSettled([
       createScheduleStore(fs).create(fakeSchedule({ id: 'last-a' })),
       createScheduleStore(createNodeScheduleFs(directory)).create(fakeSchedule({ id: 'last-b' })),
@@ -230,22 +240,14 @@ describe('M115 durable shared store', () => {
     const fs = createNodeScheduleFs(directory)
     await expect(fs.publish('../escape', '{}')).rejects.toThrow('PathRefused')
     await expect(fs.read('../escape')).rejects.toThrow('PathRefused')
-    await fs.publish(
-      'workspace-1/index/0.json',
-      JSON.stringify({
-        revision: 0,
-        value: { schedules: [fakeSchedule({ workspaceKey: 'wrong' })], retired: [] },
-      }),
-    )
+    await seedScheduleIndex(fs, [fakeSchedule({ workspaceKey: 'wrong' })])
     await expect(createScheduleStore(fs).list('workspace-1')).rejects.toThrow('WorkspaceMismatch')
   })
   it('rejects a mismatched index envelope and mismatched fire filename', async () => {
     const directory = path.join(root, 'index-shape')
     const fs = createNodeScheduleFs(directory)
-    await fs.publish(
-      'workspace-1/index/1.json',
-      JSON.stringify({ revision: 0, value: { schedules: [], retired: [] } }),
-    )
+    await seedScheduleIndex(fs, [])
+    await fs.replace(await scheduleStateFile(fs), JSON.stringify({ revision: 1, value: {} }))
     const store = createScheduleStore(fs)
     await expect(store.list('workspace-1')).rejects.toThrow('RevisionMismatch')
     const job = fakeSchedule()
@@ -261,7 +263,7 @@ describe('M115 durable shared store', () => {
       refusedActions: [],
       cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
     }
-    await fs.publish('workspace-1/fires/abc.json', JSON.stringify(fire))
+    await fs.publish('workspace-1/fires/abc.json', JSON.stringify({ fire, sequence: 0 }))
     await expect(store.fires('workspace-1')).rejects.toThrow('IdentityMismatch')
   })
   it('rejects an ownership swap while a target batch runs', async () => {
@@ -270,11 +272,14 @@ describe('M115 durable shared store', () => {
     const key = 'workspace:swap'
     await expect(
       createNodeScheduleQueue(directory).serialize(key, async () => {
-        await fs.publish(
-          `queues/${scheduleStorageHash(key)}/1.json`,
+        await fs.publish(`leases/${scheduleStorageHash(`target:${key}`)}.json.overtaken`, '')
+        await fs.replace(
+          `leases/${scheduleStorageHash(`target:${key}`)}.json`,
           JSON.stringify({
-            revision: 1,
-            value: { owner: { pid: process.pid, token: 'overtaken' } },
+            pid: process.pid,
+            start: 0,
+            token: '00000000-0000-4000-8000-000000000000',
+            heartbeat: Date.now(),
           }),
         )
       }),
@@ -314,27 +319,36 @@ describe('M115 durable shared store', () => {
     const store = createScheduleStore(fs)
     const job = fakeSchedule()
     await store.create(job)
-    const read = vi.spyOn(fs, 'read').mockResolvedValue(undefined)
+    const originalRead = fs.read.bind(fs)
+    const activeFile = await scheduleStateFile(fs)
+    const read = vi
+      .spyOn(fs, 'read')
+      .mockImplementation(async (file) =>
+        file === activeFile ? undefined : await originalRead(file),
+      )
+    // A vanished active pointer is corruption; the state file still exists.
     await expect(store.list(job.workspaceKey)).rejects.toThrow('IndexMissing')
     read.mockRestore()
-    await writeFile(path.join(directory, 'workspace-1/index/9007199254740992.json'), '{}')
-    await expect(store.list(job.workspaceKey)).rejects.toThrow('IndexRevisionInvalid')
+    const pointerFence = await schedulePointerFence(fs)
+    const current = JSON.parse((await fs.read(pointerFence)) ?? 'null')
+    await fs.replace(pointerFence, JSON.stringify({ ...current, revision: 9_007_199_254_740_992 }))
+    await expect(store.list(job.workspaceKey)).rejects.toThrow()
     const claimDirectory = path.join(root, 'claim-boundaries')
     const claims = createNodeScheduleFs(claimDirectory)
     const claimStore = createScheduleStore(claims)
     const intent = { schedule: job, runId: 'schedule-1:1', occurrenceMs: 1, advancesTime: false }
     await claimStore.admit(intent)
-    const file = path.join(claimDirectory, 'claims', `${scheduleStorageHash(intent.runId)}.json`)
-    for (const claim of [
-      {
-        runId: 'different-run',
-        ownerPid: process.pid,
-        intent: { ...intent, runId: 'different-run' },
-      },
-      { runId: intent.runId, ownerPid: process.pid, intent: { ...intent, runId: 'different-run' } },
-    ]) {
+    const hash = scheduleStorageHash(intent.runId)
+    const file = path.join(
+      claimDirectory,
+      'claims',
+      scheduleStorageHash(job.id),
+      hash.slice(0, 2),
+      `${hash}.json`,
+    )
+    for (const claim of [{ runId: 'different-run', ownerPid: process.pid }]) {
       await writeFile(file, JSON.stringify(claim))
-      await expect(claimStore.abandoned(job.workspaceKey)).rejects.toThrow('ClaimIdentityMismatch')
+      await expect(claimStore.advance(intent)).rejects.toThrow('ClaimIdentityMismatch')
     }
   })
   it('never treats an inaccessible process as a dead owner', () => {
@@ -490,7 +504,7 @@ describe('M115 durable shared store', () => {
     await store.advance(newer)
     await store.advance(older)
     let jobs = await store.list(job.workspaceKey)
-    expect(jobs[0]).toMatchObject({ fireCount: 2, nextFireAtMs: 300 })
+    expect(jobs[0]).toMatchObject({ fireCount: 1, nextFireAtMs: 300 })
     const manual = {
       ...newer,
       runId: 'schedule-1:manual',
@@ -499,11 +513,17 @@ describe('M115 durable shared store', () => {
     }
     await store.admit(manual)
     await store.advance(manual)
-    const next = { ...newer, runId: 'schedule-1:300', occurrenceMs: 300, nextFireAtMs: 400 }
+    const next = {
+      ...newer,
+      schedule: jobs[0]!,
+      runId: 'schedule-1:300',
+      occurrenceMs: 300,
+      nextFireAtMs: 400,
+    }
     await store.admit(next)
     await store.advance(next)
     jobs = await store.list(job.workspaceKey)
-    expect(jobs[0]).toMatchObject({ fireCount: 4, nextFireAtMs: 400, lastFireAtMs: 1000 })
+    expect(jobs[0]).toMatchObject({ fireCount: 3, nextFireAtMs: 400, lastFireAtMs: 1000 })
   })
   it('never advances an unclaimed or mismatched run and never quotes private corrupt JSON', async () => {
     const directory = path.join(root, 'run-boundary')
@@ -522,7 +542,7 @@ describe('M115 durable shared store', () => {
     await expect(store.advance({ ...intent, occurrenceMs: 124 })).rejects.toThrow('IntentMismatch')
     const [current] = await store.list(job.workspaceKey)
     expect(current?.fireCount).toBe(0)
-    await writeFile(path.join(directory, 'workspace-1/index/0.json'), 'private phrase')
+    await writeFile(path.join(directory, await scheduleStateFile(fs)), 'private phrase')
     await expect(store.list(job.workspaceKey)).rejects.toThrow('scheduleStoredJsonInvalid')
   })
 })

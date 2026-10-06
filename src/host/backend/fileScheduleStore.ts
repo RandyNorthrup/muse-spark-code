@@ -322,9 +322,11 @@ export function createFileScheduleMigrationSource(directory: string): ScheduleMi
       fingerprint: createHash('sha256')
         .update(JSON.stringify({ original, receipts }))
         .digest('hex'),
+      jobFingerprint: createHash('sha256').update(original).digest('hex'),
     }
   }
   return {
+    id: createHash('sha256').update(path.resolve(directory)).digest('hex'),
     async freeze() {
       let names: string[]
       try {
