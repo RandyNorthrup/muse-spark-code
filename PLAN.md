@@ -6868,6 +6868,16 @@ cannot overwrite a newer revocation or cap edit. Host-owned depth permission
 names the creating schedule: a depth-2 child's required schema flag is not
 a transferable permission for its own descendants. Ended jobs release active
 slots but retain paid allocations/liability for U's daily ledger.
+FIXM115G/RVM115G's daily-allowance repair reads that ledger under the same
+admission transaction: the current host-local day's settled spend and
+uncertain liability, plus full caps only for active or paused schedules,
+plus the proposed cap must fit Always's allowance. Ended schedules retain
+history but no configured-cap reservation; prior-day exact spend does not
+consume today's allowance. S/U supply a required orchestrator/workspace
+daily-usage read, including removed schedules' spend/liability, and recheck
+the current day atomically at commit. Certify daily recovery, same-day spend,
+active/paused reservations and uncertain liability at the repository's
+default test timeout; reject invalid totals and propagate ledger failures.
 Model descriptions are injected for W's guarded lazy English text block;
 no new block is shipped without its declared readers. HELPREF is absent;
 W must register the three agent tools and their restrictions.
@@ -19634,6 +19644,19 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM115G review scope and G-ADMISSION-LEDGER binding.** RVM115G's sole
+  P2 (historical ended caps permanently consuming Always's daily allowance)
+  is repaired; no review finding is deferred. The required `dailyUsage`
+  admission port supplies workspace/orchestrator-scoped current local-day
+  settled spend and uncertain liability, including removed schedules, under
+  the same transaction as admission. Invalid money refuses and a failed
+  read propagates before commit. Safe for now: these tools remain internal
+  and unregistered, and the required port has no production fallback.
+  Follow-up: S/U bind the durable ledger and recheck current-day totals at
+  commit; W certifies that cross-process binding and every editor on the
+  integrated tree. Fake-backed lane tests certify the admission arithmetic,
+  not deployed ledger durability. Receipts: `docs/certification/m115-g.md`.
 
 - **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
   none is deferred. These are unshipped internal schedule contracts, not

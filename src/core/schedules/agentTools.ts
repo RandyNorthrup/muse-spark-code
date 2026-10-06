@@ -80,6 +80,14 @@ export interface AgentScheduleAdmission {
   readonly store: ScheduleStoreV2
   exclusive<T>(workspaceKey: string, operation: () => Promise<T>): Promise<T>
   policy(authority: AgentScheduleAuthority): Promise<AgentSchedulePolicy>
+  /** Read the durable ledger for this workspace/orchestrator and the host-local
+   * day containing atMs, under exclusive. Include removed schedules' settled
+   * spend and uncertain liability; exclude unspent configured-cap allocations.
+   * commit rechecks the current day and totals atomically before allocating. */
+  dailyUsage(
+    authority: AgentScheduleAuthority,
+    atMs: number,
+  ): Promise<{ readonly settledUsd: number; readonly uncertainUsd: number }>
   /** CAS against policy.revision; increment only on a match. Never replace a
    * newer revocation or cap edit with an older open consent's decision. */
   remember(authority: AgentScheduleAuthority, policy: AgentSchedulePolicy): Promise<boolean>
@@ -284,12 +292,10 @@ export class AgentScheduleTools {
           job.creator.orchestratorId === authority.creator.orchestratorId,
       )
       if (limits.choice === 'always') {
+        const now = this.deps.now()
         // Paused jobs retain authority and can resume; count them too.
-        if (
-          siblings.filter((job) => !hasEnded(job, this.deps.now())).length >=
-          AGENT_SCHEDULES_MAX_ACTIVE
-        )
-          return this.refuse(authority, 'count')
+        const active = siblings.filter((job) => !hasEnded(job, now))
+        if (active.length >= AGENT_SCHEDULES_MAX_ACTIVE) return this.refuse(authority, 'count')
         const spacing = await this.deps.minimumSpacing(draft)
         if (
           spacing === undefined ||
@@ -297,10 +303,18 @@ export class AgentScheduleTools {
           spacing < AGENT_SCHEDULE_MIN_INTERVAL_MS
         )
           return this.refuse(authority, 'interval')
+        const usage = await this.deps.admission.dailyUsage(authority, now)
         if (
           !Number.isFinite(limits.paidCapUsd) ||
           limits.paidCapUsd < 0 ||
-          siblings.reduce((sum, job) => sum + job.paidCapUsd, draft.paidCapUsd) > limits.paidCapUsd
+          !Number.isFinite(usage.settledUsd) ||
+          usage.settledUsd < 0 ||
+          !Number.isFinite(usage.uncertainUsd) ||
+          usage.uncertainUsd < 0 ||
+          active.reduce(
+            (sum, job) => sum + job.paidCapUsd,
+            draft.paidCapUsd + usage.settledUsd + usage.uncertainUsd,
+          ) > limits.paidCapUsd
         )
           return this.refuse(authority, 'budget')
       }

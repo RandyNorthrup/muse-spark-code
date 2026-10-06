@@ -17,6 +17,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Correct M115's internal Always daily allowance: read today's settled spend
+  and uncertain liability from the admission ledger, reserving full caps only
+  for schedules that remain active or paused. Ended historical schedules no
+  longer reserve their configured cap indefinitely; same-day spend and
+  liability still count even after a schedule is removed.
 - Correct M115's internal schedule contracts before implementation: stale
   whole-record updates cannot restore revoked grants, crash-receipt migration
   accepts fractional filesystem times, repeated fake approval requests remain

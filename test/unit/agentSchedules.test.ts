@@ -16,6 +16,7 @@ import {
 import {
   scheduleDraftSchema,
   type ScheduleDraft,
+  type ScheduleFireRecord,
   type ScheduleV2,
 } from '../../src/shared/scheduleV2'
 import { fakeSchedule } from './helpers/schedules/fixtures'
@@ -70,6 +71,11 @@ function consentFor(dailyCapUsd: number): NonNullable<ScheduleV2['paidConsent']>
 function harness() {
   const disk = new FakeScheduleDisk()
   const store = disk.client()
+  let clock = now
+  const dailyLedger = new Map<
+    string,
+    { readonly settledUsd: number; readonly uncertainUsd: number }
+  >()
   let authority: AgentScheduleAuthority = {
     creator: {
       kind: 'agent',
@@ -104,6 +110,11 @@ function harness() {
       }
     },
     policy: () => Promise.resolve(policy),
+    dailyUsage: vi.fn<AgentScheduleAdmission['dailyUsage']>((_authority, atMs) =>
+      Promise.resolve(
+        dailyLedger.get(new Date(atMs).toDateString()) ?? { settledUsd: 0, uncertainUsd: 0 },
+      ),
+    ),
     remember: (_authority, decision) => {
       if (policy.revision !== decision.revision) return Promise.resolve(false)
       policy = { ...decision, revision: policy.revision + 1 }
@@ -143,7 +154,7 @@ function harness() {
     ),
     ownerActive: vi.fn(() => Promise.resolve(false)),
     transcript: vi.fn(),
-    now: () => now,
+    now: () => clock,
     descriptions: {
       prompt:
         'Create an unattended prompt schedule with a draft: name, prompt action, trigger, target, delivery, whenClosed, catchUp, mode, grant, paidCapUsd, parallel, zone, optional end and pinned:false. Host permission mode and grant intersection apply.',
@@ -156,6 +167,15 @@ function harness() {
     deps,
     tools,
     store,
+    setNow: (atMs: number) => {
+      clock = atMs
+    },
+    setDailyUsage: (
+      atMs: number,
+      usage: { readonly settledUsd: number; readonly uncertainUsd: number },
+    ) => {
+      dailyLedger.set(new Date(atMs).toDateString(), usage)
+    },
     setAuthority: (change: Partial<AgentScheduleAuthority>) => {
       authority = { ...authority, ...change }
     },
@@ -439,12 +459,145 @@ describe('agent scheduling admission', () => {
           grant,
         }),
       )
+      h.setDailyUsage(now, { settledUsd: 0, uncertainUsd: 1 })
       expect(await h.create(draft({ paidCapUsd: 1 }))).toEqual({
         outcome: 'refused',
         reason: 'budget',
       })
     },
   )
+
+  it('recovers Always allowance two local days after an exact ended settlement', async () => {
+    const h = harness()
+    h.setPolicy({ choice: 'always', paidCapUsd: 1 })
+    const authority = await h.deps.authority()
+    const ended = fakeSchedule({
+      id: 'paid-ended',
+      creator: authority.creator,
+      end: { afterRuns: 1 },
+      fireCount: 1,
+      trigger: draft().trigger,
+      paidCapUsd: 1,
+      grant,
+    })
+    await h.store.create(ended)
+    const fire = {
+      runId: `${ended.id}:${String(now)}`,
+      scheduleId: ended.id,
+      workspaceKey: ended.workspaceKey,
+      occurrenceMs: now,
+      observedAtMs: now,
+      target: ended.target,
+      delivery: ended.delivery,
+      outcome: 'ran',
+      refusedActions: [],
+      cost: { usd: 0.1, certainty: 'exact', retainedLiabilityUsd: 0 },
+    } satisfies ScheduleFireRecord
+    await h.store.record(fire)
+    h.setDailyUsage(now, {
+      settledUsd: fire.cost.usd,
+      uncertainUsd: fire.cost.retainedLiabilityUsd,
+    })
+    const later = new Date(now)
+    later.setDate(later.getDate() + 2)
+    h.setNow(later.getTime())
+    const commit = vi.spyOn(h.deps.admission, 'commit')
+    expect(await h.create(draft({ paidCapUsd: 1 }))).toMatchObject({ outcome: 'created' })
+    expect(h.deps.admission.dailyUsage).toHaveBeenCalledWith(authority, later.getTime())
+    expect(commit).toHaveBeenCalledOnce()
+    expect(await h.store.fires(authority.workspaceKey)).toEqual([fire])
+    expect(await h.store.list(authority.workspaceKey)).toContainEqual(ended)
+  })
+
+  it("counts only an ended schedule's same-day settled spend in Always allowance", async () => {
+    const h = harness()
+    h.setPolicy({ choice: 'always', paidCapUsd: 1 })
+    const authority = await h.deps.authority()
+    await h.store.create(
+      fakeSchedule({
+        creator: authority.creator,
+        end: { atMs: now },
+        paidCapUsd: 1,
+        grant,
+      }),
+    )
+    h.setDailyUsage(now, { settledUsd: 0.1, uncertainUsd: 0 })
+    const commit = vi.spyOn(h.deps.admission, 'commit')
+    expect(await h.create(draft({ paidCapUsd: 1 }))).toEqual({
+      outcome: 'refused',
+      reason: 'budget',
+    })
+    expect(commit).not.toHaveBeenCalled()
+    expect(await h.create(draft({ paidCapUsd: 0.9 }))).toMatchObject({ outcome: 'created' })
+    expect(h.deps.admission.dailyUsage).toHaveBeenCalledWith(authority, now)
+  })
+
+  it.each([false, true])('reserves the full active cap with paused=%s', async (paused) => {
+    const h = harness()
+    h.setPolicy({ choice: 'always', paidCapUsd: 1 })
+    const { creator } = await h.deps.authority()
+    await h.store.create(
+      fakeSchedule({
+        creator,
+        paused,
+        paidCapUsd: 0.75,
+        grant,
+      }),
+    )
+    const commit = vi.spyOn(h.deps.admission, 'commit')
+    expect(await h.create(draft({ paidCapUsd: 0.5 }))).toEqual({
+      outcome: 'refused',
+      reason: 'budget',
+    })
+    expect(commit).not.toHaveBeenCalled()
+    expect(await h.create(draft({ paidCapUsd: 0.25 }))).toMatchObject({ outcome: 'created' })
+  })
+
+  it('counts ledger spend and uncertain liability after a schedule is removed', async () => {
+    const h = harness()
+    h.setPolicy({ choice: 'always', paidCapUsd: 1 })
+    const authority = await h.deps.authority()
+    const ended = fakeSchedule({
+      creator: authority.creator,
+      end: { atMs: now },
+      paidCapUsd: 1,
+      grant,
+    })
+    await h.store.create(ended)
+    h.setDailyUsage(now, { settledUsd: 0.25, uncertainUsd: 0.25 })
+    expect(await h.store.remove(authority.workspaceKey, ended.id)).toBe(true)
+    const commit = vi.spyOn(h.deps.admission, 'commit')
+    expect(await h.store.list('workspace-1')).toEqual([])
+    expect(await h.create(draft({ paidCapUsd: 0.75 }))).toEqual({
+      outcome: 'refused',
+      reason: 'budget',
+    })
+    expect(commit).not.toHaveBeenCalled()
+    expect(await h.create(draft({ paidCapUsd: 0.5 }))).toMatchObject({ outcome: 'created' })
+  })
+
+  it('refuses invalid daily ledger amounts before commit', async () => {
+    for (const field of ['settledUsd', 'uncertainUsd'] as const) {
+      for (const amount of [-1, NaN, Infinity]) {
+        const h = harness()
+        h.setPolicy({ choice: 'always', paidCapUsd: 1 })
+        h.setDailyUsage(now, { settledUsd: 0, uncertainUsd: 0, [field]: amount })
+        const commit = vi.spyOn(h.deps.admission, 'commit')
+        expect(await h.create()).toEqual({ outcome: 'refused', reason: 'budget' })
+        expect(commit).not.toHaveBeenCalled()
+      }
+    }
+  })
+
+  it('propagates an unavailable daily ledger without committing a schedule', async () => {
+    const h = harness()
+    h.setPolicy({ choice: 'always', paidCapUsd: 1 })
+    vi.mocked(h.deps.admission.dailyUsage).mockRejectedValue(new Error('Ledger unavailable'))
+    const commit = vi.spyOn(h.deps.admission, 'commit')
+    await expect(h.create()).rejects.toThrow('Ledger unavailable')
+    expect(commit).not.toHaveBeenCalled()
+    expect(await h.store.list('workspace-1')).toEqual([])
+  })
 
   it('bounds Always total paid cap across siblings before commit', async () => {
     const h = harness()
