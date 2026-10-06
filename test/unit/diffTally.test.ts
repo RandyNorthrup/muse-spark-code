@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diffTally } from '../../src/webview/diffTally'
+import { diffTally } from '../../src/shared/diffTally'
 import type { TranscriptEntry } from '../../src/webview/state/transcriptEntries'
 
 type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
@@ -117,5 +117,28 @@ describe('diffTally', () => {
       added: 0,
       removed: 0,
     })
+  })
+
+  it('shares portable history counts and normalizes Windows separators', () => {
+    expect(
+      diffTally([
+        {
+          kind: 'toolCall',
+          tool: 'edit_file',
+          args: String.raw`{"path":"src\\app.ts"}`,
+          patchSummary: { files: 1, added: 2, removed: 1 },
+        },
+        tool({ args: '{"path":"src/app.ts"}' }),
+        {
+          kind: 'assistantMessage',
+          tool: 'edit_file',
+          patchSummary: { files: 9, added: 99, removed: 99 },
+        },
+      ]),
+    ).toEqual({ files: 1, added: 5, removed: 3 })
+  })
+
+  it.each(['bad-json', 'null', '[]', '{"path":1}'])('retains pathless counts for %s', (args) => {
+    expect(diffTally([tool({ args })])).toEqual({ files: 1, added: 3, removed: 2 })
   })
 })
