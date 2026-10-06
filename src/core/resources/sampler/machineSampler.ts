@@ -11,6 +11,7 @@ import { counterReading, CpuDelta, percentReading, pressureReading } from './rea
 export interface ResourceOptionalProbes {
   gpu(): Promise<number | null>
   disk(): Promise<number | null>
+  reset(kind: 'gpu' | 'disk'): void
 }
 
 /** Ports keep OS failures and optional probe loading deterministic in tests. */
@@ -56,7 +57,13 @@ export class MachineResourceSampler implements ResourceSampler {
     atMs: number,
   ): Promise<number | null> {
     if (!isEnabled) {
+      const cached = this[kind]
+      const probes = this.probes
       this[kind] = undefined
+      if (cached !== undefined && probes !== undefined) {
+        const loaded = await unknownOnFailure(() => probes)
+        loaded?.reset(kind)
+      }
       return null
     }
     const cached = this[kind]

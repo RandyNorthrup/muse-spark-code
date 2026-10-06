@@ -24,6 +24,7 @@ function rig(platform: NodeJS.Platform = 'win32') {
   const probes: ResourceOptionalProbes = {
     gpu: vi.fn(() => Promise.resolve(80)),
     disk: vi.fn(() => Promise.resolve(30)),
+    reset: vi.fn(),
   }
   const port: MachineSamplerPort = {
     platform,
@@ -298,6 +299,8 @@ describe('machine resource sampler', () => {
     expect(r.port.loadOptionalProbes).toHaveBeenCalledTimes(1)
     r.settings({ gpuMaxPercent: null, diskBusyMaxPercent: null })
     expect(await r.sampler.sample()).toMatchObject({ gpuPercent: null, diskBusyPercent: null })
+    expect(r.probes.reset).toHaveBeenCalledWith('gpu')
+    expect(r.probes.reset).toHaveBeenCalledWith('disk')
     r.settings({ gpuMaxPercent: 90, diskBusyMaxPercent: 70, enabled: false })
     await r.sampler.sample()
     expect(r.probes.gpu).toHaveBeenCalledTimes(1)
