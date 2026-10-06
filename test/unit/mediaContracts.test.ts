@@ -93,6 +93,7 @@ describe('M105 media metadata', () => {
       { ...file, sha256: 'invalid' },
       { ...file, sha256: 'a'.repeat(65) },
       { ...file, fileId: '' },
+      { ...file, fileId: 'x'.repeat(257) },
       { ...file, bytes: -1 },
       { ...file, name: 'x'.repeat(257) },
       { ...file, file_data: 'MEDIA_BYTE_CANARY' },
@@ -125,6 +126,9 @@ describe('M105 media metadata', () => {
       false,
     )
     expect(mediaEstimateSchema.safeParse({ ...estimate, standardCostUsd: -1 }).success).toBe(false)
+    expect(mediaEstimateSchema.safeParse({ ...estimate, contributorCostUsd: -1 }).success).toBe(
+      false,
+    )
   })
 
   it('accepts companion tokens and refuses paths and file contents in the reply', () => {
