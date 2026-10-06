@@ -184,11 +184,21 @@ def test_detach_fails_pending_with_not_connected():
 
 
 def test_stray_responses_are_ignored():
-    workbench, _, _, engine = _harness()
+    workbench, runner, _, engine = _harness()
+    runner.respond = False
     pending = engine.submit(_read_frame())
     engine.progress()
     workbench.event_generate(
         "InlineResponse", event={"command_id": "never-sent", "content_bytes": b"x"}
+    )
+    assert not pending.done.is_set(), "a stray response completed a request"
+    workbench.event_generate(
+        "InlineResponse",
+        event={
+            "command_id": runner.sent[0]["id"],
+            "path": "main.py",
+            "content_bytes": b"print('hi')\n",
+        },
     )
     reply = engine.wait(pending, timeout=5.0)
     assert reply["ok"] is True

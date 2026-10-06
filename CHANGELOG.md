@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Thonny companion plugin (M103 lane T).** New `integrations/thonny/`
+  Python package `thonnycontrib.muse_spark`: Tools menu items Open Muse
+  Spark and Stop machine (also a toolbar button), runtime start/stop,
+  companion-page opening, and the serial-provider bridge through Thonny's
+  own connection. pytest suite against fakes, CI test workflow, and a
+  PyPI release job that publishes only with the owner's token (nothing
+  published by this lane).
+
 ### Fixed
 
 - **The README's "What's new" section matches the release again.** 0.12.1 and
