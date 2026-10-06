@@ -254,3 +254,12 @@ tests and the completed drill/verification record are committed with hooks
 on; the final hooked commit receipt is recorded separately below. No push,
 merge or rebase was performed. Lane scratch scripts, JSON receipts and logs
 are removed after the certificate records their evidence.
+
+Implementation commit: `aa2459f2c03a563cb1ff736b045bc6606bcd84ce`.
+The worktree's existing `.husky/_/pre-commit` ran unchanged: lint-staged
+checked/formatted all seven TypeScript files and this certificate, then
+gitleaks scanned approximately 103.08 KB of staged text and reported no leaks.
+All three source SHA-256 values above match after the hooks; runtime code is
+byte-identical to final verification. The final worktree is clean after the
+certificate-receipt commit. No source change or further test rewrite followed
+that verified implementation.
