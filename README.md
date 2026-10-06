@@ -29,6 +29,11 @@ key to the CLI.
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and "Muse
 > Code" are Meta trademarks. You bring your own credentials.
 
+The [Xcode native-host prototype](hosts/xcode/README.md) pairs a macOS app
+with Xcode Source Editor commands. Its authenticated container and approved
+buffer-edit path are tested with fakes; the shared runtime panel and Tab
+integration are still required before it can be offered as a supported host.
+
 **Contents:** [What's new](#whats-new-in-0130) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·

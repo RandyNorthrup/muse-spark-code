@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Xcode native-host prototype (M104X, awaiting integration).** A macOS 14+
+  SwiftUI/WKWebView app and XcodeKit extension, authenticated ephemeral
+  selection callbacks, explicit buffer-edit approval with stale-buffer and
+  selection checks, credential-free runtime launch, and out-of-band Stop.
+  Shared runtime panel/Tab endpoints and installation qualification remain
+  required; the packaged local build does not claim full feature parity.
+
 ### Fixed
 
 - **Companion transport authentication (M104 lane C, awaiting integration).**

@@ -755,7 +755,25 @@ for (const { block, sentinels, readers, others } of TEXT_BLOCKS) {
 }
 // Every model text block beside MODEL_TEXT is guarded: a new one needs an
 // entry above (or is FILE_REFUSAL_MODEL_TEXT, pinned below).
-const guarded = new Set([...TEXT_BLOCKS.map(({ block }) => block), FILE_REFUSAL.block])
+// The Xcode host is packaged independently. Its generator carries the whole native
+// block; it must never ride into any JavaScript bundle shipped by this build.
+const nativeModelBlock = 'XCODE_MODEL_TEXT'
+const nativeReader = 'hosts/xcode/Scripts/nativeTables.ts'
+if (!readFileSync(nativeReader, 'utf8').includes(nativeModelBlock)) {
+  problems.push(`${nativeReader} no longer reads ${nativeModelBlock}`)
+}
+for (const key of blockKeys(nativeModelBlock)) {
+  for (const { output } of SHIPPED) {
+    if (new RegExp(`[{,]${key}:`).test(textOf(output))) {
+      problems.push(`${output} carries ${nativeModelBlock}, which only ${nativeReader} reads`)
+    }
+  }
+}
+const guarded = new Set([
+  ...TEXT_BLOCKS.map(({ block }) => block),
+  FILE_REFUSAL.block,
+  nativeModelBlock,
+])
 for (const [, block] of constantsSource.matchAll(/^export const (\w+_MODEL_TEXT) = \{/gm)) {
   if (!guarded.has(block)) {
     problems.push(

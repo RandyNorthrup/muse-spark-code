@@ -5247,6 +5247,15 @@ have equivalent functionality even if we need to develop it ourselves".
 
 ## 3. Open questions (need the owner)
 
+- **M104X integration dependencies:** this lane's base (`da79fd51`) lacks
+  `panel --companion`, MHP runtime/UI composition and the shared Tab endpoint.
+  Lane B/D must confirm the launch-line convention and whether `/post` admits
+  existing UI payloads or requires the MHP envelope before Xcode qualifies.
+  The help-reference files named by common.md (`src/shared/featureCatalog.ts`
+  and `scripts/gen-reference.mjs`) are absent here; the lead/help-reference
+  lane must incorporate the five native commands from `hosts/xcode/README.md`.
+  No replacement global catalog is invented by this native-only lane.
+
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
   settled. F1 uses micro-USD and upward rounding; F2 preserves observed stream
@@ -15414,6 +15423,20 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104X native host (2026-10-05).** Lane X owns `hosts/xcode/**` and
+`test/hosts/xcode/**`: a macOS 14 SwiftUI/WKWebView companion container,
+XcodeKit commands, authenticated in-memory loopback callbacks, a bounded
+credential-scrubbed runtime process group, approved snapshot-checked buffer
+edits, XCTest and a locally signed app archive. Native copy and tunables are
+generated from the shared tables/constants, rather than duplicated in Swift.
+The brief permits ad-hoc signing until an Xcode-selected personal team exists.
+The base has lane C but no `panel` CLI, MHP implementation or Tab endpoint;
+qualification must identify these integration dependencies, never substitute
+a production fake or claim complete editor parity. The panel launcher uses
+the lane H `panel --companion` launch-link convention, with no invented Muse
+Code or Model API frame. Native command traffic is a private app/extension
+contract, not a replacement MHP vocabulary. Evidence: `docs/certification/m104-h.md`.
+
 Lane C review remediation (FIXM104C, 2026-10-05): replace host-wide cookies
 with one-use fragment launch codes exchanged for independent per-window
 bearers held only in page memory. Every privileged request, including the
@@ -15602,6 +15625,25 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**M104X (2026-10-05).** The rig brief and shared lane resource rule prohibit
+aggregate quality/coverage runs and integration merges in this worktree.
+Local commits therefore carry scoped XCTest, UI, JS/static/type/build receipts;
+the lead must run `npm run quality` before integration. SwiftLint is absent on
+this rig; Xcode's Swift compiler treats warnings as errors and the installed
+`swift-format` checks native source. No existing gate is lowered or ignored.
+Its strict naming lint reports the required `UI_TEXT` identifier as a camel-case
+violation. Keep AGENTS rule 5's name and record that single justified style
+deferral; add no ignore or configuration relaxation. Other reported Swift
+format/style issues are fixed. The formatter and warning-as-error compiler
+still run.
+`check:host-api` reports inherited lane-C Node import-count drift in the
+generated inventory (buffer, crypto, fs, fs/promises, http and path). Lane J
+owns that record; this lane neither regenerates it nor suppresses the gate.
+Its otherwise unchanged VS Code API/theme counts are recorded in certification.
+Native installation and full feature-matrix qualification remain open until
+the missing runtime/UI/Tab foundation and the owner's extension enablement
+are available. Certification: `docs/certification/m104-h.md`.
 
 **FIXM104C (2026-10-05).** The lane brief/common resource rule reserves full
 `npm run quality` and aggregate coverage/editor certification for the lead.
@@ -16095,6 +16137,13 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 ## 8. Escape hatches register
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
+
+| M104X location                                                            | Escape hatch                            | Reason                                                                                                                                                                | Date       |
+| ------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `hosts/xcode/Extension/SourceEditorExtension.swift`, `commandDefinitions` | Swift `Any` dictionary                  | Required XcodeKit Objective-C interface; values are fixed string identifiers and runtime-localized labels.                                                            | 2026-10-05 |
+| `hosts/xcode/Shared/NativeChannel.swift`, `NativeFrame.decode`            | Foundation `Any` JSON objects           | Needed to reject unknown keys before strict Codable value/type validation. Every conditional cast is compiler-verified narrowing; no opaque object reaches an action. | 2026-10-05 |
+| `hosts/xcode/Shared/NativeText.swift`                                     | `try?` table reads                      | A missing selected-language resource tries the packaged English fallback; missing fallback returns an explicit diagnostic code, never empty success.                  | 2026-10-05 |
+| `hosts/xcode/Shared/RuntimeLauncher.swift`, `stop`/reader cleanup         | `try?` closing an already-closed handle | Stop/reaping still owns group TERM/KILL; cleanup failure cannot permit another operation or expose output.                                                            | 2026-10-05 |
 
 | M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
 | ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
