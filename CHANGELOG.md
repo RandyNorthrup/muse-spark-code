@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **M95 standalone provider commands:** credential variables are never
+  restored to Muse Code; commits serialize, re-read current configuration,
+  detect stale file snapshots and compensate secret changes on write
+  failure. Private-network consent, custom formats and API base paths are
+  preserved. Free probes accept Together's captured array, send Anthropic's
+  version and custom Messages key headers, recheck DNS before every request,
+  and use translated failures and plural model counts. The provider runner
+  and full integrated certification remain pending with lanes T/I and W.
+
 - **The README's "What's new" section matches the release again.** 0.12.1 and
   0.13.0 shipped with the README still headed "What's new in 0.12.0". It now
   describes 0.13.0, the Marketplace README carries the same section, and a

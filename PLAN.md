@@ -4704,6 +4704,593 @@ Decisions (the owner chose the reviewer on 2026-10-03):
   report; when it lands, the extension prefers it and keeps this reviewer as
   the fallback.
 
+### D74 — Bring-your-own model providers and subscription sign-in (M95, M95b, M95c, 2026-10-04)
+
+The owner (2026-10-04): "i want to make sure we have the harness properly
+built to handle byo agents via the config file, so users can plug in an api
+key and model and provider info and the harness will use the proper hooks and
+everything, and it would be really cool if we could make this as easy and
+secure as possible", "maybe a wizard or something super easy", then "where
+we can i would like to build in connecting your account subscription and use
+your inference. i know openai just released this as a capability", "and
+supporting models and api keys from open router?", and "i would like for the
+ui for all of the byo and role stuff to be easy to use and configure with drop
+downs and filters and search and prefills adaptive autofill fresh model scans
+etc to make it as simple and easy for our users". The research, every fact
+with its official source and the date it was read, is
+`docs/certification/m95-research.md`.
+
+What the research settled:
+
+- **The harness already has one canonical wire.** `ModelApiHost` builds and
+  reads only Meta's Responses shapes (`CreateResponseBody`, the
+  `StreamEvent` union, `ResponseObject`) and reaches the network only
+  through its `client`: `streamResponse`, `countInputTokens`, `listModels`,
+  `currentKeyDigest`, `retryDelayMs` and `waitBeforeRetry`, plus Meta's
+  image calls. The tools, permissions, checkpoints, hooks, `then_run`,
+  ObservationPack, `recall_output`, the verify loop and the budgets work on
+  that shape and name no host (research §3.1).
+- **Five wire formats cover the requested providers.** OpenAI Responses
+  (OpenAI, Azure OpenAI's v1 API, xAI; OpenAI's current reasoning models
+  call tools only there), Chat Completions (OpenRouter, Groq, DeepSeek,
+  Mistral, Together, Fireworks, Hugging Face's router, Z.ai, LM Studio,
+  vLLM, llama.cpp, any compatible server), Anthropic Messages (Anthropic;
+  Claude on Bedrock), Gemini
+  `generateContent`, and Ollama's native API, which alone lets a request
+  set `num_ctx`: its default under 24 GiB of VRAM is 4k, which our prompt
+  and tools overflow silently through its `/v1` (research §1).
+- **Caching and reasoning differ per provider, and both bind the cached
+  prefix.** Explicit breakpoints on Anthropic (at most four, reads looking
+  back 20 blocks, the TTL counted from the request's start); automatic
+  caching with a routing key on OpenAI, xAI, Mistral, Fireworks and
+  DeepSeek; implicit caching and paid stored caches on Gemini; nothing
+  priced locally. Cache prices are per model (Anthropic reads 0.1×, 0.05×
+  on Opus 5.5, 0.025× on Fable and Mythos 5.1; writes 1.25× or 2× on
+  Anthropic, 1.25× on OpenAI's GPT-5.6 and later). Reasoning goes back only
+  to its own provider, in its own form: encrypted items, signed thinking
+  blocks, Gemini's thought signatures in their exact part, DeepSeek's
+  `reasoning_content` on every earlier turn when tools are sent.
+- **Two findings change our harness.** Anthropic's preserved thinking (Fable
+  5.1, Opus 5.5, Sonnet 5.5) makes a replayed thinking block invalid once
+  anything before it changes, and ObservationPack's sticky swap and the
+  media budget's omission are such changes. And vLLM refuses an empty tool
+  list, OpenRouter wants tools on every request, and Anthropic's cache
+  breaks when tools change, where our compaction sends `tools: []`
+  (research §5).
+- **The leaders.** Zed and Copilot BYOK keep keys in the keychain or secret
+  storage; Cline (since its move off SecretStorage), OpenCode, Kilo and
+  Continue keep them in plain-text files; Continue, OpenCode and Roo let a
+  workspace file redirect a stored key. Continue is read-only and Roo
+  archived this year. Most require the window of an unknown model; Aider
+  then assumes the model "is free", which we must not (research §2).
+- **Subscriptions.** Sign in with ChatGPT with plan usage shipped on
+  2026-09-29 for open-source apps that run locally, with no registration;
+  Copilot's models reach another extension through `vscode.lm`, reduced;
+  OpenRouter connects an account by OAuth and returns a key; Anthropic and
+  Google forbid using their consumer plans from a third-party loop
+  (research §6).
+
+Decisions:
+
+- **One canonical format; adapters only at the wire.** A `ProviderClient`
+  interface (`src/core/backends/modelapi/providerClient.ts`) has exactly the
+  client calls the host makes today, plus the provider's identity and the
+  model's capabilities. Meta's `ModelApiClient` is its first
+  implementation, unchanged on the wire. Every other provider is the shared
+  transport plus a codec for its format: the codec turns a
+  `CreateResponseBody` into the provider's request and the provider's stream
+  back into canonical `StreamEvent`s ending in a canonical `ResponseObject`.
+  `ModelApiHost` keeps building one body and reading one stream; at each of
+  its nine call sites (and the Auto reviewer's one) it asks a `ProviderRegistry` for the client of the
+  conversation's model.
+- **The shared transport** is `client.ts`'s request loop moved to
+  `transport.ts` with no change in behaviour (the retry budget,
+  `Retry-After`, the idle stall, the admission guard, the scheduled-run
+  confirmation, the credential read per attempt). It adds the origin check,
+  `redirect: 'error'` on every request (Meta's too: today a redirect would
+  carry the Bearer header), and a per-format error parser that maps each
+  envelope to `ModelApiError` and to the `HTTP 429:` reason the host's
+  rate-limit retry reads. Credentials come from an `AuthSource` per auth
+  mode, so nothing above the transport knows how a header was obtained.
+- **Auth modes.** A provider's `auth` is `apiKey` (pasted, or obtained by
+  OpenRouter's OAuth), `none` (a local server) or `subscription` (M95b: a
+  ChatGPT plan's tokens, or Copilot's models through VS Code). Roles in
+  M96 pick models through the same registry whatever the mode.
+- **Presets, not free-form.** Each provider the panel lists is a preset in
+  `src/core/providers/presets.ts`: its format, fixed origin (or the fields
+  the user gives: Azure's resource and deployment, a local port, a custom
+  server's address), auth header, key page and key shape, the free key
+  test, the models-list parser, and the format's quirks as data (the
+  output-cap parameter, `parallel_tool_calls`, `tool_choice`, the reasoning
+  field and replay rule, usage in the stream, the cached-token field, the
+  empty-tools rule). **Custom server** (Chat Completions, Responses or
+  Anthropic Messages) and the local servers are presets too, with Zed's conservative defaults (no parallel
+  calls, no images, the window required).
+- **Model references.** A BYO model is `<providerId>/<modelId>`
+  (`anthropic/claude-sonnet-5-5`, `openrouter/deepseek/deepseek-v4-pro`,
+  `ollama/qwen3:8b`), the convention OpenCode, LiteLLM and Aider use. Meta's
+  models stay bare (`muse-spark-1.3`), so every Meta request, stored session
+  and hook payload keeps its bytes. Provider ids match
+  `^[a-z][a-z0-9-]{0,31}$`; `meta` is reserved. Price cards, capabilities,
+  usage tallies and budget admission are all addressed by the reference, so
+  M96 can cap a role's model without anything here changing.
+- **Where providers live.** One user-level file,
+  `<config home>/muse-spark-code/providers.json` (`$XDG_CONFIG_HOME` or
+  `~/.config`, as the extension already finds Muse Code's config home),
+  read by the extension and the ACP agent and written only by the Models &
+  Agents panel, the quick pick and `muse-spark-code-acp providers`. Not Muse
+  Code's `<config home>/muse/`: Muse Code 1.4.2 owns that folder and already
+  has providers of its own (`--provider echo|meta|local`, research §3.4).
+  The file holds ids, presets, addresses, chosen models, user-entered
+  prices, OpenRouter's routing choices and the default model; never a
+  credential: a provider's secret is named after its id. No VS Code setting
+  names an endpoint. A workspace may only suggest a preset by id
+  (`museSpark.suggestedProvider`, never a URL), which offers the panel
+  with that preset chosen; nothing is configured until the user finishes
+  it.
+- **Credentials.** In VS Code, the SecretStorage entry
+  `museSpark.provider.<id>`; in the ACP agent, the same account name in the
+  OS store (D61). The value is a record parsed with zod
+  (`{v, auth, origin, …}`): **every credential is bound to the exact origin
+  it was obtained for** (and a subscription's refresh token to its issuer). Before every
+  request the transport compares the origin it is about to call with the
+  record's; a mismatch (the file edited, by hand or by anything else)
+  refuses the request and asks for the credential again, naming both
+  origins. Keys are entered only in VS Code's password box
+  (`showInputBox({password: true})`, never the webview) or, outside VS
+  Code, from standard input; never an environment variable, a setting, a
+  file or an argument (AGENTS.md rule 8). Removing a provider deletes its
+  secret and, for a subscription, revokes its tokens. Meta's key keeps its
+  own secret and flow.
+- **Transport rules.** HTTPS only, with VS Code's certificate handling and
+  verification always on; plain HTTP only to a loopback address
+  (`127.0.0.0/8`, `::1`, or `localhost` when every answer is loopback),
+  shown as "local". No user information, query or fragment in an address.
+  An HTTPS address on a private network (RFC 1918, `100.64.0.0/10`,
+  `fc00::/7`) asks once when it is saved and is recorded as private;
+  link-local addresses and the cloud metadata addresses are refused. Each
+  request checks the name's answers again, so a public provider whose name
+  later resolves to a private or loopback address is refused (M69's ranges,
+  with a classifier that tells loopback, private, link-local and metadata
+  apart). Proxies follow VS Code's `http.*` settings through its patched
+  `fetch`, as Meta's requests do (D43); a loopback provider never goes
+  through a proxy (M95 step 1 captures whether VS Code's fetch would, and if
+  so loopback requests use `node:http` directly).
+- **Prices drive budgets, and are never guessed.** A model's price card has
+  input, cached input, cache write (and the 1 h write where it differs),
+  output, per-request and per-image prices where they exist, an optional
+  long-context tier, and its source and date. Sources, in order: the
+  provider's own models list where it prices (OpenRouter, xAI, Together,
+  Groq, and Hugging Face's router per upstream; captured 2026-10-04, when
+  Fireworks' lists carried no prices), the vendored models.dev snapshot
+  (MIT, filtered and checksummed as D68's vendor is, refreshed by a script
+  in a PR), what the
+  user entered in the panel. A local model is free; a plan's model is
+  "plan" (M95b). Anything else is **unpriced**: it runs, its tokens are
+  counted and shown, the UI says "unpriced", and a session with a dollar
+  cap refuses it before sending (M82's `sessionBudgetUnpriced`).
+  `estimateCostUsd`'s Standard-rate fallback goes: an unknown id is
+  unpriced. Reservations take the worst case (full input price, the
+  long-context tier when the estimate reaches it, the highest upstream
+  price OpenRouter or Hugging Face's router may route to); settlement takes
+  the provider's actual cost where it reports one (OpenRouter's `cost`,
+  xAI's `cost_in_usd_ticks` in 1e-10 USD). DeepSeek's off-peak half price
+  is ignored (the peak price bounds it).
+- **Windows and output caps** come from the provider's models list where it
+  gives one (Anthropic, Gemini, xAI, DeepSeek, Mistral, Groq, OpenRouter,
+  Together, Fireworks, Hugging Face's router, LM Studio, vLLM, llama.cpp),
+  the catalogue otherwise (OpenAI, Azure, Z.ai), and the user for a custom
+  server (required). Ollama's is the
+  `num_ctx` the panel sets (32k, 64k or 128k, with the memory it takes
+  said), never the trained maximum.
+- **OpenRouter is first-class** (the owner, 2026-10-04):
+  - **Connect or paste.** **Connect OpenRouter account** runs its OAuth
+    PKCE flow (S256, a loopback callback on `127.0.0.1` with a random port
+    and `state`, the code exchanged for a key the user controls); in a
+    remote window or the ACP agent, the flow without a callback, whose code
+    the user pastes into the password box. The key is stored like a pasted
+    one, bound to `https://openrouter.ai`.
+  - **Models and prices** from `/api/v1/models` filtered to tool-capable
+    models, with context, prices (prompt, completion, cache read, cache
+    write, the 1 h write, request, image, tiers) and supported parameters,
+    cached with the time they were fetched and refreshed on **Refresh** and
+    when stale; per-upstream prices from the model's endpoints list bound
+    the reservation.
+  - **Credits and usage.** Account & usage shows the key's usage (day,
+    week, month), its limit and what remains, from `/api/v1/key` (free).
+    A key's own spend limit can only be set on OpenRouter's site, so the
+    panel and Account & usage link to that key's page; the session budget
+    (M82) is the extension's own cap.
+  - **Privacy routing, private by default.** The panel's privacy choice:
+    **No data retention** (`provider.zdr: true`; the default), **No
+    training** (`provider.data_collection: "deny"`), or **Any provider**,
+    each explained in one plain sentence, plus an optional provider order
+    and whether to fall back. The model list follows the choice
+    (`?zdr=true`), and a 503 for "no provider meets your routing" says the
+    privacy choice ruled every provider out. The routing object is fixed
+    per provider, so it never moves the prefix.
+  - **Caching and reasoning pass through.** For Anthropic upstreams the chat
+    codec places Anthropic's breakpoints (the same rule as the `anthropic`
+    codec) on text parts; for Gemini upstreams only the last; others cache
+    automatically. Reasoning goes as `reasoning {effort}` and comes back as
+    `reasoning_details`, replayed unmodified and in order to the same
+    model only.
+  - **Attribution.** `HTTP-Referer: https://github.com/RandyNorthrup/muse-spark-code`,
+    `X-OpenRouter-Title: Muse Spark Code (Unofficial)` and
+    `X-OpenRouter-Categories: ide-extension`: the public name and the
+    repository, nothing about the user, the same bytes on every request.
+- **What stays Meta's.** Web search (`web_search` runs inside Meta's
+  Responses API; offered only while the conversation's model is Meta's),
+  Muse Voice (a composer feature billed to the Meta key, whatever the
+  model), image generation and edits (Meta's endpoints and key: offered in a
+  BYO conversation only while a Meta key is stored and through D48, as on
+  the Muse Code backend), the contributor tier and its dialog, `max`
+  effort's rules, and the M75 evaluation (the contributor model, so its
+  baseline stays comparable). Providers' own hosted tools (search on
+  OpenAI, Anthropic, Gemini, OpenRouter) are billed per use and come in M95c,
+  each behind D48 with that provider's price.
+- **Every harness feature works per provider.** Tools and approvals,
+  checkpoints, hooks, MCP servers, skills, memory, goals, the verify loop
+  and `then_run` run in the extension and do not change. Subagents, the
+  Auto reviewer, best-of-N and scheduled prompts keep their D48 consent,
+  stating the BYO model's price card; an unpriced cloud model refuses them
+  (`PaidUsage` already throws), a local model runs them free. A custom
+  agent may name a BYO model (`agentImport.ts` stops requiring
+  `muse-spark-`). For a BYO model the system prompt's identity line names
+  the model and provider; Meta's text is unchanged.
+- **SoL-Pi invariants, per provider** (the owner's rule of 2026-10-04):
+  1. A codec is a pure function of the canonical body: no clock, no random
+     id, keys in a fixed order, tool schemas rewritten the same way every
+     time; earlier native bytes never change. Breakpoints follow one
+     documented rule per format (Anthropic: the system block, which caches
+     tools and system, and the last block of the request, rolling).
+  2. ObservationPack projects before encoding, so codecs see what the model
+     sees; the swap stays sticky. On Anthropic models with preserved
+     thinking, the swap waits for a user-turn boundary, and thinking blocks
+     that follow a changed position are left out before the next user turn
+     (or dropped by the API where the model offers the beta); M95 step 13
+     captures both behaviours on Anthropic before this is built.
+  3. Extra model calls on a BYO model share D48's gate and the budget.
+  4. `then_run` is unchanged.
+  5. The hard-limit compaction uses the model's own window and cannot be
+     blocked. Where a provider refuses an empty tool list or needs tools
+     alongside tool history (vLLM, OpenRouter; Anthropic and Bedrock to be
+     captured), the compaction request keeps the turn's tools and
+     `tool_choice: auto`, which also keeps the cached prefix; Meta's
+     compaction is unchanged.
+  6. The M75 evaluation runs Meta's contributor model only; no provider is
+     configured in it.
+  7. A golden request test per codec, and Meta's: with no provider
+     configured, Meta's request bytes equal those recorded at `1e93c67c`.
+
+  M74's cache economics, when built, read the model's window and price card
+  (cache read, cache write, input, output) from the registry; unpriced,
+  local and plan models get the window rule only.
+
+- **Hooks fire the same on every provider.** Every M51 and M91 event runs
+  from the host, whatever codec answers. `model_provider` and the model-call
+  payloads' `provider` carry the provider id (`meta` for Meta, unchanged);
+  `model` carries the qualified reference; the provider option keys use the
+  id (`anthropic.reasoning.effort`). A matcher on `meta` matches what it
+  matched before.
+- **Accounts.** The Model API backend is available when a Meta key or any
+  provider is configured. Its account stays the Meta key's SHA-256 while a
+  Meta key is stored (stored sessions, budgets and schedules keep their
+  owner); with no Meta key, a random local profile id kept in SecretStorage
+  owns them. History lists both when both exist. A scheduled run's
+  confirmation binds the provider id, its origin and that credential's
+  digest.
+- **One "Models & Agents" panel** (the lead's decision on the owner's UI
+  request): a webview tab of its own, with sections. M95 builds the panel's
+  framework and its **Providers** and **Models** sections; M96 adds
+  **Roles** and **Agent map** to the same panel through the same section
+  registry, state and components. It opens from the sign-in page, the
+  model picker's **Add a model provider…** and **Manage models…** rows,
+  **Muse Spark: Models & Agents**, and a provider's notice.
+  - **Providers.** A searchable provider dropdown (type-ahead, a one-line
+    description per provider) with filter chips: Cloud, On this computer,
+    Subscription sign-in (M95b), Aggregator. Choosing one prefills all the
+    preset knows: address, wire format, auth mode (key, connect, sign-in),
+    the key's shape as a hint, the docs and data-use links, the privacy
+    note, and **Get a key** (the provider's key page). **Scan this
+    computer** probes the local servers' default loopback ports and
+    prefills what answered. The key goes in through **Enter key…**, which
+    opens VS Code's password box with the preset's shape checked as it is
+    typed: the key never enters the webview. **Test** makes the free check,
+    or states the one-token request's cost and asks before sending it.
+    Nothing is saved until the form is valid; errors are inline, in plain
+    words.
+  - **Models.** A fresh scan of each provider's models on add, on
+    **Refresh**, and when its cached scan is stale (older than
+    `PROVIDER_SCAN_STALE_MS`, or a newer catalogue snapshot): cached with
+    its time, cancellable, one at a time per provider, and diffed against
+    the last scan ("3 new models since the last scan", removed models and
+    changed prices named). A searchable, sortable table with filters (tool
+    calling, vision, reasoning, a context range, input, output and cached
+    price ranges, free or local, provider, family), badges (Recommended,
+    Cheapest capable, Largest context, New), pinned favourites (first in
+    the composer's picker), and the models the picker offers ticked.
+  - **Adaptive prefill.** A local suggestion engine
+    (`src/core/providers/suggest.ts`) proposes values, each with its reason
+    and **Accept** or **Change**: the default model (the cheapest model
+    that calls tools and fits the context the harness needs, or the
+    recommended one), a session budget from the model's price card and the
+    median of the user's own recent sessions (M82's local tallies; a stated
+    assumption when there is no history), and the last choices made.
+    M96 adds its role suggestions (the cheapest capable model for research,
+    a different vendor for review than for engineering, role caps) to the
+    same engine. No telemetry: only local data and the vendored or fetched
+    catalogues.
+  - **Undo, import and export.** A removal waits ten seconds behind
+    **Undo** before its secret is deleted (or completes at the next start if
+    the window closes first). The non-secret configuration exports and
+    imports as JSON for a team; credentials are never in it, an imported
+    file is untrusted (validated, previewed as a diff, each address shown
+    and confirmed, every provider marked "needs a key").
+  - **Accessible, translated, narrow.** Every control labelled; the
+    dropdowns follow the combobox pattern with type-ahead; the table is a
+    grid with arrow keys and Enter; at 320 px the table becomes a list of
+    cards; all 14 languages; the accessibility gate with a harness scenario
+    for every state.
+  - **The quick-pick fast path.** **Muse Spark: Add Model Provider…** and
+    `muse-spark-code-acp providers add` in a terminal run the same flow
+    (`wizardFlow.ts`, one pure state machine) without the panel: pick a
+    provider, enter or connect the credential, test, pick models, confirm.
+  - **Start with your own model** (the owner, 2026-10-04: "as part of this
+    whole push i would like to add a button to the first run screen to begin
+    with a byo model and this should kick off a wizard").
+    - **The first-run screen.** This is the panel's sign-in gate
+      (`SignIn.tsx`, shown while no credential exists, in its sign-in state
+      and its no-CLI install state). It gains a third primary choice,
+      **Start with your own model**, beside **Sign in with Muse** (the
+      subscription) and the Meta Model API key.
+    - **No backend at all.** When no backend is set up, the three choices
+      rank equally: the same button style, in a row or a stack, and Muse is
+      not presumed.
+    - **What it opens.** The Models & Agents panel's wizard, straight at
+      "Pick a provider", through the command `museSpark.startWithOwnModel`.
+      The getting-started walkthrough (`contributes.walkthroughs`) gains a
+      matching step whose command link runs it.
+    - **When the wizard finishes:**
+      - the chosen model becomes the composer's model and the default model
+        (`providers.json`'s `defaultModel`, which M96's orchestrating role
+        reads as its default);
+      - the panel leaves the first-run state, and the composer accepts a
+        message at once;
+      - a short confirmation, "You're set up with `<provider>` ·
+        `<model>`", links to **Manage providers**.
+    - **Cancel**, at any step, returns to the first-run screen with nothing
+      saved: no provider in `providers.json`, no secret in SecretStorage.
+      The wizard keeps a draft only in memory and writes the file and the
+      secret together at **Save**.
+- **The picker.** The composer's list shows Meta's models (with a Meta key)
+  and the chosen BYO models, grouped by provider, each with its window and
+  price, "unpriced", "local" or "plan". A conversation can switch between
+  any of them; the previous provider's reasoning items are dropped when the
+  next request goes elsewhere. On the Muse Code backend the list offers the
+  panel and, for a BYO model, the existing backend switch (which ends open
+  conversations, as its confirmation says). A confidential workspace
+  (`museSpark.confidentialWorkspace`) hides models whose provider or route
+  may train on the content (OpenRouter's "Any provider" routing, Copilot on
+  individual plans), as it hides Meta's contributor tier.
+- **Headless and the ACP agent.** The same `providers.json`;
+  `muse-spark-code-acp auth set --provider <id>` (standard input, the OS
+  store); `providers list|add|test|remove`; the agent's model options list
+  the BYO models; `exec --provider <id> --model <model> --key-stdin` for CI,
+  with exec's origin pin and path allowlist per codec, and only a provider
+  from the runner's user file or a built-in preset's fixed origin, never a
+  repository file. The credential variables the agent strips gain
+  `AWS_BEARER_TOKEN_BEDROCK`, `ANTHROPIC_AUTH_TOKEN`, `HF_TOKEN` and the
+  presets' key variables.
+- **Redaction** gains the presets' key shapes (Groq `gsk_`, xAI `xai-`,
+  Fireworks `fw_`, Hugging Face `hf_`, Bedrock `ABSK`), each in the
+  `MAY_HOLD_SECRET` prefilter; a key with no prefix is caught by the header
+  and field rules and by the exact value the transport registers for the
+  life of each request. Account ids are redacted too, as the 2026-10-04
+  captures found them: xAI's error text names the team id, OpenRouter's
+  error and `/key` bodies carry `user_id`, `creator_user_id` and
+  `workspace_id`, and Anthropic's and OpenAI's headers carry organization,
+  workspace and project ids. So the id fields, those headers, and a UUID
+  after "team", "account", "organization" or "project" in prose never reach
+  a log, a notice or a hook.
+- **Lazy, within budget.** The codecs, registry, transport additions and
+  catalogue reader build to `dist/providers.js`, required the first time a
+  BYO model is listed or used; the panel's host side and the quick pick to
+  `dist/modelsPanel.js`; the panel's React app to `dist/webview/models.js`,
+  a second webview entry beside `main.js`; the catalogue snapshot ships as
+  data (`dist/providerCatalog.json`), not code. Activation gains only
+  command registrations and loaders; a Meta-only user who never opens the
+  panel loads none of it (D6).
+- **Subscriptions (M95b).** Official, provider-sanctioned flows only; another
+  application's client or stored tokens are never read or reused.
+  - **ChatGPT plan** (`chatgpt`, Responses codec): **Continue with
+    ChatGPT** runs OpenAI's documented flow (PKCE S256, the dynamic client
+    `dynamic_agent_client` with `agent_name_hint` "Muse Spark Code
+    (Unofficial)" and a persistent opaque host id, the issued client kept;
+    the scopes including `chatgpt.tokens.use.direct` and the resource
+    `https://api.openai.com/v1`; the callback on `http://127.0.0.1:<port>/auth/callback`
+    from a one-shot loopback server; the system browser through
+    `vscode.env.openExternal`; the ID token checked against OpenAI's JWKS
+    with `node:crypto`, no dependency). Tokens live in SecretStorage, the
+    refresh token bound to `https://auth.openai.com` and the access token
+    to `https://api.openai.com`; refreshes are serialised across windows by
+    a lock in the extension's global storage; sign-out revokes the refresh
+    token. The codec follows OpenAI's preview rules: full history every
+    turn, `store: false`, `stream: true`, no `max_output_tokens` (the host
+    ends a reply that passes the output cap itself), no
+    `prompt_cache_retention`, tools as the documented namespaces where
+    plain function tools are refused. The UI follows OpenAI's rules: the
+    one-time "You're using your ChatGPT plan" notice, a "Using ChatGPT plan"
+    mark beside the model pill with **Manage usage**
+    (`https://chatgpt.com/settings/usage`), and a usage-limit screen on
+    `subscription_sharing_usage_limit_exceeded`; Plus and Pro only, said
+    before sign-in. Our own code from the docs, never OpenAI's
+    Noncommercial DevKit.
+  - **Copilot's models** (`copilot`, VS Code only): **Use my Copilot
+    models** calls `vscode.lm.selectChatModels({vendor: 'copilot'})` from
+    that click, so VS Code shows its consent dialog with our justification.
+    A host-side `ProviderClient` maps the canonical body onto
+    `sendRequest` with tools (stable since 1.95; images feature-detected
+    from 1.106), the instructions in the first user message (no system role
+    in the stable API). It is labelled **reduced**: Copilot prepends its own
+    rules, so the prefix is not ours; there is no cache control or usage,
+    so budgets count estimated tokens (`countTokens`), M74's economics get
+    the window rule only, and reasoning is not replayed; quota and rate
+    errors (`Blocked`, `ChatQuotaExceeded`, `ChatRateLimited`) are said in
+    plain words. GitHub's acceptable-use policy is met in the UI (an
+    AI-content note, a report link) and README; its
+    competitive-benchmarking clause and individual-plan training terms are
+    stated in README and PRIVACY.
+  - **Plan keys.** MiniMax's M Plan, Alibaba's Coding Plan and Mistral's
+    plans issue keys meant for tools like ours: they are API-key presets
+    whose models are marked "plan", with the plan's limits linked.
+    Hugging Face's OAuth (the `inference-api` scope, PRO's monthly
+    credits) comes once the owner has registered the app; its token
+    preset serves meanwhile.
+  - **Not offered.** Anthropic plans in our loop ("Anthropic does not permit
+    third-party developers to offer Claude.ai login … or to route requests
+    through Free, Pro, or Max plan credentials"); Google's consumer tiers
+    (forbidden for third parties, and no longer served since 2026-06-18;
+    the panel says AI Pro and Ultra's monthly Cloud credits can pay for a
+    Gemini API key); xAI's, Z.ai's and Kimi Code's plan sign-ins (settled
+    below).
+  - **Billing honesty.** Plan use is not paid in D48's sense (the user's
+    plan pays, not a key the extension spends), so it asks no paid-use
+    popup; it is tallied (tokens where reported, requests always) per
+    provider in Account & usage, the picker and pill say which plan pays,
+    and where the provider can spend credits beyond the plan (ChatGPT's
+    credit setting, Copilot's AI credits) the one-time notice says so.
+- **Not taken.** Provider SDKs (`openai`, `@anthropic-ai/sdk`,
+  `@google/genai`, the AWS SDK: D2's reasons and their size); LiteLLM (a
+  Python proxy); fetching the catalogue at run time; environment-variable
+  keys (Zed's and Aider's way; rule 8); provider settings in a workspace;
+  plain HTTP off loopback; OpenAI's DevKit code (Noncommercial licence).
+- **Settled on the owner's delegation.** The owner (2026-10-04): "use your
+  best discretion for all of the unanswered questions but i want the app to
+  be robust and feature rich". Each question is settled the fuller way the
+  security rules and SoL-Pi invariants allow:
+  - **Which presets ship.** All are built; each is listed once its own
+    capture is recorded (rule 13). The three generic formats are captured
+    first from local servers, which serve Chat Completions, Responses and
+    Messages alike. _Reason:_ the widest list rule 13 permits, with no
+    preset waiting on a format.
+  - **Custom servers in every format.** The custom preset speaks Chat
+    Completions, Responses or Anthropic Messages, as Copilot's and Kilo's
+    custom endpoints do. _Reason:_ gateways (LiteLLM, vLLM, OpenRouter's
+    Messages API) speak more than one.
+  - **Without Meta.** The sign-in page offers BYO providers to a user with
+    no Meta key and no Muse Code; the README and the listing keep Muse Spark
+    first and name other providers as a feature. _Reason:_ nothing in the
+    harness needs Meta, and a user can add a Meta key later.
+  - **Exposing models to VS Code's chat.** Built in M95c: off by default,
+    per model, machine-scoped, only for priced or local models, under a
+    daily dollar cap the user sets, every call tallied under "VS Code chat"
+    in Account & usage. _Reason:_ one key serves Copilot Chat and other
+    extensions too, and the opt-in, the cap and the tally bound the risk of
+    callers the stable API cannot name.
+  - **Bedrock.** M95c takes both long-term Bedrock API keys and AWS access
+    keys signed in-process with SigV4 (`node:crypto`, no SDK), each entered
+    in a password box and bound to its regional origin; no `~/.aws` file or
+    profile is read (rule 8). _Reason:_ AWS calls long-term keys
+    exploration-only, and SigV4 is small enough to keep the SDK out.
+  - **Sign out.** Keeps its meaning; its confirmation offers "Also remove
+    model providers and subscriptions", off by default. _Reason:_ no
+    surprise loss of keys, and one place to clear everything.
+  - **The local network.** Plain HTTP stays loopback-only (the transport
+    rule above). A server elsewhere on the network is reached over HTTPS
+    (the private-network question, a certificate the system trusts) or an
+    SSH tunnel to loopback, both documented in the README. _Reason:_ the
+    security rule forbids plain HTTP off loopback; these keep such servers
+    usable.
+  - **Sign in with ChatGPT.** Treated as eligible with no form: the
+    extension is MIT, free and runs on the user's machine with no hosted
+    backend, the docs' "open-source projects … that run locally". Built to
+    OpenAI's UI and brand rules beside the "(Unofficial)" naming. _Reason:_
+    what OpenAI's documentation says; the interest form stays the fallback
+    if OpenAI rules otherwise.
+  - **Copilot's models.** Built in M95b, opt-in from the panel's click,
+    labelled reduced, with GitHub's acceptable-use items in the UI and
+    README, and the competitive-benchmarking clause and individual-plan
+    training terms stated in README and PRIVACY. _Reason:_ the sanctioned
+    way to use a Copilot plan, and the clause asks nothing of the user.
+  - **Claude plans.** A separate milestone after M95b runs the user's own
+    unmodified Claude Code as a third backend beside Muse Code, with its own
+    sign-in and never its tokens, as Anthropic's terms allow. _Reason:_ the
+    only sanctioned way to use a Claude plan; it is a backend, not a
+    provider. The publisher's acceptance of Anthropic's Commercial Terms is
+    an owner step.
+  - **Hugging Face.** A token preset in M95 (its router speaks Chat
+    Completions); its OAuth sign-in in M95b once the owner has registered
+    the app. _Reason:_ nothing is registered on his behalf.
+  - **Partner and allowlisted plans.** xAI's SuperGrok sign-in, Z.ai's
+    coding plan and Kimi Code's plan keys are not offered (partner-only,
+    allowlisted, or terms too unclear to risk a user's account); their
+    pay-as-you-go APIs are presets (xAI and Z.ai in M95; Moonshot in M95c).
+    Z.ai moved into M95 on the owner's word of 2026-10-04 ("i want to also
+    be able to use glm models from z ai").
+    Asking them to list the extension is an owner step. _Reason:_ a user's
+    account is never put at risk on unclear terms.
+  - **Gemini's stored caches.** Not used: implicit caching only. _Reason:_
+    a stored cache is immutable and billed by the hour while idle, so a
+    growing conversation gains nothing from it.
+  - **Gemini's Interactions API.** Not adopted while `generateContent` is
+    supported. _Reason:_ explicit caching exists only on `generateContent`,
+    and one stable codec beats two.
+  - **Custom request headers.** M95c, user scope only: the names in
+    `providers.json`, the values in SecretStorage bound to the origin as
+    keys are, never overriding the auth or content headers. _Reason:_
+    gateways need tenant headers, and their values can be secrets.
+  - **Remote windows and the ChatGPT callback.** M95b's step 1 checks two
+    routes, and the first that works is built: `vscode.env.asExternalUri`
+    giving the remote callback a `127.0.0.1` address on the user's machine,
+    or a sign-in made once in a local window being readable from remote
+    windows (if VS Code keeps extension secrets on the local side). Only if
+    neither works does a remote window say to sign in from a local one.
+    _Reason:_ OpenAI allows only a `127.0.0.1` redirect, and both routes
+    keep to it.
+- **Settled from the live captures** (2026-10-04,
+  `docs/certification/m95-captures.md`). The twelve cloud presets' wires
+  were captured with the owner's keys: 46 model-call attempts, 44 billed,
+  about $0.07. Where a capture differed from the research, the fuller and
+  more robust option was taken:
+  - **Z.ai** is a `chat` preset at `https://api.z.ai/api/paas/v4`, with
+    `tool_stream: true` and `reasoning_content` replayed, not the Anthropic
+    route. _Reason:_ the general API is the documented pay-as-you-go
+    endpoint; its Anthropic route is documented for the Coding Plan, signs
+    with a non-Anthropic signature and reports no cache writes. Business
+    codes 1113 and 1308 arrive as 429 and are not retried.
+  - **Anthropic's header** is `Authorization: Bearer` on the Anthropic
+    preset, accepted live; the Anthropic-format Custom server defaults to
+    `x-api-key`. _Reason:_ each origin gets the header it documents (Bedrock,
+    Z.ai's route and gateways take `x-api-key`).
+  - **Anthropic thinking can be absent**, even on Opus 5.5 at adaptive `low`,
+    and on 5.x its text is omitted with the signature carrying it. The codec
+    assumes no thinking block, replays an empty-text block with its
+    signature byte for byte, and keeps new fields (`tool_use.caller`,
+    `container`, `stop_details`). _Reason:_ all of this was seen on the wire.
+  - **The compaction rule keeps tools** on every non-Meta codec, although
+    Anthropic and OpenRouter accepted tool history without `tools`.
+    _Reason:_ the cached prefix and vLLM's empty-list refusal still need it.
+  - **xAI** sends its own single `function_call_arguments.delta`; the
+    Responses codec accepts that and never synthesises one. Its
+    `cost_in_usd_ticks` settles like OpenRouter's `cost`.
+  - **Together's list is not proof a model runs.** A listed model can be
+    non-serverless (a free 400 `model_not_available`). Badges and default
+    suggestions draw only on catalogue-marked serverless models, and the
+    refusal is said in plain words with Together's link.
+  - **DeepSeek** did not refuse a missing `reasoning_content` in the current
+    turn; the codec replays it on every earlier turn anyway, as documented.
+  - **Gemini.** Tool calls are detected by `functionCall` parts, since the
+    finish reason is `STOP`. Error bodies are read by content, since a JSON
+    error arrives under `text/event-stream`. Implicit caching was not seen in
+    two calls, so its cached count is unknown.
+  - **Chat usage can share a chunk with deltas** (Mistral sends the tool call,
+    the finish reason and the usage in one chunk). The codec reads both from
+    every chunk.
+  - **Prices and windows from lists.** Groq and Hugging Face's router join
+    the list-priced sources; Fireworks moves to the catalogue. Fireworks' and
+    Hugging Face's lists give windows.
+
 ### D79 — What's New after an update (M99, 2026-10-04)
 
 The owner asked (2026-10-04): "after the app updates it opens a whats new/
@@ -14281,6 +14868,694 @@ live) and the controller filters its id as well.
   - [x] Live check recorded with its call count.
   - [x] README, PRIVACY, CHANGELOG, PLAN D7 and this record updated.
 
+### M95 — Bring-your-own model providers (D74)
+
+**FIXM95X (2026-10-05):** repair all nine RVM95X findings in lane X.
+The ACP runtime gives Muse Code only an explicit allowlist of noncredential
+environment variables; stripped credentials are never restored. Provider
+commands serialize commits, re-read the user file after asynchronous checks,
+detect concurrent file edits, and compensate secret-store/file failures.
+Carry private-network consent and custom formats through resolution, preserve
+custom base paths, parse Together's captured array, send Anthropic's captured
+version header and custom Messages authentication, recheck DNS on every
+request, and localize probe reasons and model plurals. Each fix requires a
+failing regression and a byte-exact red drill in `docs/certification/m95-x.md`.
+Diagnose the three neighboring exec failures on rigs; T/I runner integration
+and full quality remain the lead's gates. No dependency or gate changes.
+
+**Status 2026-10-04: planned on `feature/m95-byo-providers` from main
+`1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
+wire captures were recorded 2026-10-04 for the twelve cloud presets the
+owner gave keys for (`docs/certification/m95-captures.md`: 46 model-call
+attempts, 44 billed, about $0.07). No code yet; implementation starts after
+the lead's review.**
+
+- **Goal.** A user adds any listed provider, or a compatible server of their
+  own, in the Models & Agents panel in under a minute, and every harness
+  feature then works on its models: tools and approvals, hooks, checkpoints, `then_run`,
+  ObservationPack, compaction, budgets, usage, the paid-feature gates and
+  the ACP and headless agent. Keys stay in the OS keychain, bound to the
+  origin they were entered for.
+- **Depends on.** M91's request and `setModel` regions of `ModelApiHost.ts`
+  (its lane E) and M94's `client.ts` additions (its lane C): lanes I and T
+  start on main after those merge, or take those regions by the lead's
+  agreement. M95b builds on this milestone's seam. M96 (agent roles, planned
+  in parallel) uses the `ProviderRegistry`, model references and
+  per-reference price cards and tallies defined here.
+- **Scope.**
+  - The seam: `ProviderClient`, `AuthSource`, the shared transport, five
+    codecs (`responses`, `chat`, `anthropic`, `gemini`, `ollama`), the
+    registry, presets, model references, capabilities, price cards.
+  - `providers.json`, the credential records and their origin binding, the
+    endpoint policy and address classifier.
+  - The vendored models.dev snapshot and its sync script.
+  - The **Models & Agents** panel's framework (section registry, shared
+    state, shared components) with its **Providers** and **Models**
+    sections, the quick-pick fast path, the workspace suggestion, the
+    composer picker's rows and Account & usage's rows per provider. M96
+    adds the panel's **Roles** and **Agent map** sections.
+  - **Start with your own model** on the first-run screen and in the
+    getting-started walkthrough (D74). It opens the wizard at "Pick a
+    provider". On finish it sets the composer's model and the default
+    model, leaves first run and confirms. Cancel leaves nothing saved.
+  - OpenRouter as a first-class provider (D74): account connection over
+    OAuth PKCE with a shared loopback helper (M95b reuses it), privacy
+    routing, its key's usage and limit, prices fetched with their time,
+    caching and reasoning pass-through, attribution headers.
+  - The ACP agent's `auth set --provider`, `providers` commands, model
+    options and `exec --provider`.
+  - Redaction and credential-variable additions; strings in all 14 tables;
+    README, PRIVACY, SECURITY, CHANGELOG, AGENTS.md, `docs/acp.md`,
+    `docs/ci.md`, this plan and `docs/certification/m95.md`.
+- **Providers in the first release.** The panel lists a preset only once
+  its own capture is recorded (AGENTS.md rule 13). The captured frames are
+  in `docs/certification/m95-captures/<provider>/`:
+
+  | Codec       | Preset                                     | Wire capture                                                                                             |
+  | ----------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+  | `responses` | OpenAI                                     | captured 2026-10-04 (`gpt-5.6-luna`)                                                                     |
+  | `responses` | Azure OpenAI (v1 API)                      | not yet: needs the owner's resource and deployment                                                       |
+  | `responses` | xAI                                        | captured 2026-10-04 (`grok-4.3`)                                                                         |
+  | `chat`      | OpenRouter                                 | captured 2026-10-04 (`openai/gpt-oss-20b` with ZDR; cache pass-through on `anthropic/claude-sonnet-5.5`) |
+  | `chat`      | Groq                                       | captured 2026-10-04 (`openai/gpt-oss-20b`)                                                               |
+  | `chat`      | DeepSeek                                   | captured 2026-10-04 (`deepseek-flash`)                                                                   |
+  | `chat`      | Mistral                                    | captured 2026-10-04 (`ministral-3b-latest`)                                                              |
+  | `chat`      | Together                                   | captured 2026-10-04 (`openai/gpt-oss-120b`)                                                              |
+  | `chat`      | Fireworks                                  | captured 2026-10-04 (`gpt-oss-120b`)                                                                     |
+  | `chat`      | Hugging Face (token, router)               | captured 2026-10-04 (`openai/gpt-oss-20b`, routed to Groq)                                               |
+  | `chat`      | Z.ai (pay-as-you-go; moved from M95c)      | captured 2026-10-04 (`glm-5.3-flash`, `tool_stream`; Anthropic route compared, not used)                 |
+  | `chat`      | LM Studio, vLLM, llama.cpp server          | not yet: step 1 on the rigs                                                                              |
+  | `anthropic` | Anthropic                                  | captured 2026-10-04 (Haiku 4.5, Sonnet 5.5 with thinking and a breakpoint, Opus 5.5)                     |
+  | `gemini`    | Google Gemini (API key, `generateContent`) | captured 2026-10-04 (`gemini-3.5-flash-lite`)                                                            |
+  | `ollama`    | Ollama (local)                             | not yet: step 1 on the rigs                                                                              |
+
+  The **Custom server** preset speaks any of the `chat`, `responses` and
+  `anthropic` formats. M95b adds the subscription sign-ins and plan keys;
+  M95c adds Bedrock, exposure to VS Code's chat, OpenAI's explicit
+  breakpoints, providers' hosted search, more presets, custom headers and
+  Tab on BYO providers.
+
+- **Lanes and file ownership.** One integration branch
+  (`feature/m95-byo-providers`). Lanes 0 and P first, with lane M's
+  `src/shared/modelsPanel.ts` schemas (M96 builds on them); then T; then C,
+  R, H, A, G, O, K, M, U, X and S in parallel; I after T and after M91
+  merges; W last. Region-owned files follow M87's lane rules.
+
+| Lane                             | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Strings                        | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json`, `package.nls*.json` (commands, settings)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| P Providers core                 | new `src/core/providers/**`: `providersFile.ts` (the zod schema of `providers.json`, read and atomic write), `presets.ts` (formats, origins, auth headers, key pages and shapes, key tests, quirks as data, OpenRouter's routing and attribution), `modelRef.ts`, `capabilities.ts`, `priceCard.ts`, `endpointPolicy.ts` (URL rules and the address classifier over M69's ranges), `credentialRecord.ts`, `pkce.ts` (verifier, challenge, state), `wizardFlow.ts` (adding a provider as a pure state machine the panel and the quick pick both drive), `suggest.ts` (the local suggestion engine, each value with its reason), `scanDiff.ts` (a scan against the last one), `modelFilters.ts` (search, filters, sorting and badges as pure functions); tests `providers*.test.ts`                                                                                                                                                                                                                                                                                                               |
+| C Catalogue                      | `scripts/sync-provider-catalog.mjs`, `vendor/models-dev/**` (the filtered snapshot and `VENDOR.json`), the copy to `dist/providerCatalog.json` in the build, `.vscodeignore`, `scripts/third-party-notices.mjs` and `THIRD_PARTY_NOTICES.txt`; tests `providerCatalog.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| T Transport                      | `src/core/backends/modelapi/client.ts` (its request loop out to `transport.ts`), new `providerClient.ts` and `authSource.ts`, `sse.ts`, new `ndjson.ts`; the Meta golden fixtures and tests; `redirect: 'error'`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| R Responses codec                | new `modelapi/codecs/responses.ts` (OpenAI, Azure, xAI); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| H Chat codec                     | new `modelapi/codecs/chat.ts` (the family's quirks read from the presets; OpenRouter's breakpoints, `reasoning_details` and routing object); tests and goldens per preset                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| A Anthropic codec                | new `modelapi/codecs/anthropic.ts` (breakpoints, thinking replay and the edit rule); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| G Gemini codec                   | new `modelapi/codecs/gemini.ts` (thought signatures, the schema subset); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| O Ollama codec                   | new `modelapi/codecs/ollama.ts` (NDJSON, `num_ctx`, `think`); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| I Integration                    | `ModelApiHost.ts` (client resolution at its nine call sites and the reviewer's, tool and hosted-tool gating, window, output cap, effort tiers, price lookup, compaction's tools, the identity line, hook fields), `reviewerEntry.ts`, `modelCallHooks.ts`, `instructions.ts`, `sessionStore.ts` (each replay entry's provider), `sessionBudget.ts`, `src/core/usage/insights.ts`, `src/shared/paid.ts`, `src/shared/effort.ts`, `src/core/import/agentImport.ts`, `src/core/backendSelection.ts`, `modelApiBackendManager.ts`, `modelApiEntry.ts`, `modelApiBundle.ts`, new `src/host/backend/providersEntry.ts` (→ `dist/providers.js`)                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| K Keys and panel host            | new `src/host/providers/**` (SecretStorage records, the password box with the preset's live shape check, the local-server probe, `oauthLoopback.ts` (a one-shot `127.0.0.1` callback server), OpenRouter's connect and key usage, the model scans' cache and diff, removal with undo, import and export, the workspace suggestion), new `src/host/models/modelsPanel.ts` (the `WebviewPanel`, its CSP, its zod-validated bridge) and the quick-pick fast path; entry → `dist/modelsPanel.js`; `src/host/auth/credentialStore.ts`, `src/host/auth/authService.ts` (a provider counts as a Model API credential), the command region of `src/extension.ts` (with `museSpark.startWithOwnModel`: the wizard opened at "Pick a provider"; its draft held in memory only; **Save** writes `providers.json` and the secret together, sets the default model and asks the conversation to set the composer's model; **Cancel** discards the draft, so nothing is written)                                                                                                                              |
+| M Models panel UI                | new `src/webview/models/**`: the entry (→ `dist/webview/models.js`, a second entry in `scripts/build.mjs`), the section registry, the Providers and Models sections, the shared components (below), the panel's reducer; new `src/shared/modelsPanel.ts` (the panel's message and state schemas); the harness scenarios and accessibility cases for every state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| U Picker, first-run and usage UI | `src/shared/protocol.ts` (`modelOptionSchema` gains provider fields; `SIGN_IN_METHODS` gains `byo`), the `listModels`, `setModel` and `signIn` regions of `src/host/conversation/conversationController.ts` (`byo` runs `museSpark.startWithOwnModel`), `src/webview/components/SignIn.tsx` (the first-run screen's **Start with your own model**, ranked equally with the other two when no backend is set up), the "You're set up with `<provider>` · `<model>`" confirmation with **Manage providers**, `src/webview/components/Palette.tsx` (groups, pinned favourites first, **Add a model provider…** and **Manage models…**), the composer pill, `UsageDialog.tsx` (rows per provider, "unpriced", "local", OpenRouter's key usage; its setup rows offer the BYO choice too), `src/webview/state/uiState.ts`, the walkthrough region of `package.json` (`contributes.walkthroughs`: a step with a `command:museSpark.startWithOwnModel` link) and its `resources/` media, their harness scenarios and accessibility cases (the first-run screen with the new button, in both its states) |
+| X ACP and headless               | `src/runtime/authCommands.ts`, `keyStore.ts`, `credentialVariables.ts`, `cliArgs.ts`, new `src/runtime/providersCommands.ts`, `src/runtime/backends.ts`, `src/runtime/exec/**` (`--provider`, per-codec origin pins and path allowlists), `src/acp/agent.ts` (model options)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| S Security                       | `src/core/redact.ts` (the presets' key shapes), the credential-variable names in `constants.ts`, the threat-model tests (`providersThreats.test.ts`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| W Wiring                         | `package.json` (commands, `museSpark.suggestedProvider`; the walkthrough region is lane U's), README (with **Get started** naming the three ways in), `docs/PRIVACY.md`, `SECURITY.md`, CHANGELOG, AGENTS.md (rule 8's provider credentials), `docs/acp.md`, `docs/ci.md`, PLAN, `scripts/check-bundle-size.mjs`, `scripts/check-bundle-split.mjs`, `scripts/check-vsix-size.mjs`, knip and dpdm entries, CI's VSIX member list, `docs/certification/m95.md`, the full gate                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+
+- **The panel's components and state, for M95 and M96.**
+  - **Sections.** `src/webview/models/sections.ts` registers each
+    section as `{id, title, icon, Component, reducer}`; M95 registers
+    `providers` and `models`, M96 `roles` and `agents`. The panel's
+    navigation, deep links (`museSpark.modelsAndAgents` with a section
+    and an item) and narrow layout come from the registry.
+  - **State.** One host-owned state, schemas in `src/shared/modelsPanel.ts`,
+    in slices: `providers` (each provider's preset, address, auth
+    mode, credential state, test state, routing), `models` (scanned rows
+    with capabilities, price card, badges, ticked and pinned flags),
+    `scans` (per provider: time, status, diff, cancellable), `suggestions`
+    (value, reason, source, accepted), `lastChoices`, `drafts` (unsaved
+    forms with their errors) and `pendingRemovals` (undo). M96 adds
+    `roles` and `agents` slices. The webview only renders and asks; the
+    host validates, saves and owns every credential.
+  - **Messages.** Namespaced by section and zod-validated both ways:
+    `providers/*` (`select`, `prefill`, `enterKey`, `connect`, `test`,
+    `save`, `remove`, `undo`, `export`, `import`), `models/*` (`scan`,
+    `cancelScan`, `tick`, `pin`, `filter`), `suggestions/*` (`accept`,
+    `change`); M96 adds `roles/*` and `agents/*`.
+  - **Shared components** (`src/webview/models/components/`), each with
+    its own tests and harness cases: `SearchableSelect` (the combobox
+    pattern, type-ahead, descriptions, filter chips), `DataTable`
+    (sortable, filterable, a keyboard grid that becomes cards at narrow
+    widths), `FilterBar` (chips and range inputs), `Badge`,
+    `SuggestionCard` (value, reason, **Accept**, **Change**),
+    `InlineError`, `UndoBar`, `ScanStatus`, `KeyState` (never a key's
+    characters), `CostNotice` (a call's cost, asked before it is made).
+    They reuse the panel webview's theme tokens (M61) and `UI_TEXT`.
+  - **Suggestion engine.** `suggest(kind, context)` returns
+    `{value, reason}` from local facts only; M95 implements `defaultModel`
+    and `sessionBudget`; M96 adds `roleModel` and `roleBudget` beside them.
+
+- **Steps.**
+  1. **Capture first** (free; no key; nothing billed). On the Kubuntu rig and
+     the Mac mini: Ollama with a small tool-capable model (native
+     `/api/chat`, and `/v1/chat/completions`, `/v1/responses` and
+     `/v1/messages`: the three generic formats), llama.cpp server with a small GGUF, LM Studio
+     and vLLM where they run. For each: a reply, one and parallel tool calls,
+     reasoning, usage, a context overflow and an error frame, saved as
+     fixtures with the server's version. Also: with a recording proxy in
+     `http.proxy`, whether VS Code's patched `fetch` sends a loopback
+     request through it; OpenRouter's key-less `/models` and
+     `/models/{author}/{slug}/endpoints` frames.
+  2. **Meta goldens.** Before any change, record the request bytes Meta's
+     client sends at `1e93c67c` for a first turn, a three-step tool loop
+     with reasoning, an image, a packed output and a compaction.
+  3. **Interfaces** (lanes P, T): `ProviderClient`, `AuthSource`,
+     `WireCodec`, the capabilities and price card types, `ModelRef`, the
+     `providers.json` and credential-record schemas.
+  4. **Transport and the Meta adapter** (lane T): the request loop moved,
+     the origin check, `redirect: 'error'`; Meta's goldens unchanged.
+  5. **Codecs** (lanes R, H, A, G, O), each from its format's documentation
+     and the captures, each with goldens and the prefix test.
+  6. **Registry, catalogue, prices and windows** (lanes P, C), with
+     OpenRouter's live prices cached with their fetch time.
+  7. **Host integration** (lane I), with the compaction-tools rule,
+     Anthropic's thinking edit rule and the hook fields.
+  8. **The Models & Agents panel** (lanes K and M), the flow `wizardFlow.ts`
+     defines and the quick pick also runs:
+     1. **Provider.** The searchable dropdown with filter chips (Cloud, On
+        this computer, Subscription sign-in, Aggregator), each row naming
+        where the code goes and who bills it; **Scan this computer** for
+        local servers; or **Custom server** (Chat Completions, Responses
+        or Anthropic Messages).
+     2. **Prefilled form.** The preset's address, format, auth mode, key
+        hint, docs, data-use and privacy notes, and **Get a key**; editable
+        only where the preset allows (Azure's resource and deployment, a
+        custom server's address and format, a local port), checked as typed
+        against the endpoint policy, with the private-network question.
+     3. **Credential.** **Enter key…** (VS Code's password box, the shape
+        checked as typed; "Stored in your system keychain; sent only to
+        `<origin>`"); for OpenRouter also **Connect OpenRouter account**
+        (the browser opens, the user approves, the key arrives; in a remote
+        window, the code to paste). Skipped for a local server without auth.
+     4. **Test.** The free check: "Key works · N models"; where none exists,
+        the one-token request's cost is stated and asked before sending.
+     5. **Models.** The scan fills the Models table for this provider; the
+        recommended model is ticked with its reason; the user ticks others,
+        pins favourites, and for Ollama picks the context to run each model
+        with (32k, 64k, 128k, with the memory it takes). An unpriced cloud
+        model asks for prices or stays "unpriced" (budgets count tokens; a
+        dollar cap refuses it).
+     6. **OpenRouter's privacy.** **No data retention** (the default), **No
+        training** or **Any provider**, each in one plain sentence; an
+        optional provider order and fallback; a link to set the key's own
+        spend limit on openrouter.ai.
+     7. **Suggestions.** The default model and a session budget, each with
+        its reason, **Accept** or **Change**.
+     8. **Save**, enabled only when everything is valid, with a summary that
+        names who receives the code; **Save and use now** sets the
+        conversation's model.
+
+     The Providers section then lists each provider with its test state,
+     key state ("stored, bound to `<origin>`", never any of the key), last
+     scan, usage (OpenRouter's key), and **Test**, **Change key** or
+     **Reconnect**, **Refresh models**, **Edit**, **Remove** (with
+     **Undo**), **Export** and **Import**.
+
+  9. **Picker, first run and usage** (lane U). The first-run screen's
+     **Start with your own model** (equal rank when no backend is set up),
+     the walkthrough step, and the post-wizard confirmation. The wizard is
+     step 8's, opened at "Pick a provider".
+  10. **ACP and headless** (lane X).
+  11. **Security** (lane S).
+  12. **Docs** (lane W).
+  13. **Captures with keys**, as the owner supplies them (Owner steps): for
+      each cloud preset, one short turn with a tool call on its cheapest
+      tool-capable model in an empty workspace, its calls counted from the
+      request log, the frames saved as that preset's fixtures; for
+      Anthropic also a tool-use turn after a packing swap, with and without
+      the stale-block rule, and a compaction with tools.
+      - **Recorded 2026-10-04** for OpenAI, xAI, Anthropic, Gemini,
+        OpenRouter, Groq, Mistral, Together, Fireworks, DeepSeek, Hugging
+        Face and Z.ai (`docs/certification/m95-captures.md`). Each has its
+        model list, a streamed tool call and its follow-up, usage, an
+        invalid-model error, and the cache pair where the provider caches.
+        The calls were made directly from scratchpad scripts, with no
+        workspace, and counted per request.
+      - **Still to capture:**
+        - Azure (needs a deployment);
+        - Anthropic's packing-swap turn with and without the stale-block
+          rule, and its compaction with tools (these need the codec);
+        - one live turn per preset through the built codec (acceptance 2),
+          which also rechecks Together's leaked `final` word.
+- **Acceptance.**
+  1. The panel adds a provider in under a minute from its first screen
+     (timed on Ollama and on OpenRouter with **Connect**), from every
+     entry point, and the quick pick does too.
+  2. A turn on each listed preset runs tools with approvals, streams text
+     and reasoning, records usage and cost (or tokens and "unpriced"), and
+     resumes after a window reload.
+  3. With no provider configured, Meta's request bytes equal the step 2
+     goldens, and the M75 evaluation's wire is unchanged.
+  4. Each codec's request for a growing session keeps its earlier native
+     bytes; Anthropic's breakpoints sit where the rule says; nothing in a
+     request depends on the clock or a random value.
+  5. Editing `providers.json` to another origin makes the next request
+     refuse and ask for the credential again; a 3xx answer fails the
+     request; a key never reaches a log, the webview, a hook, a tool, a
+     child process, an exported session or an error shown to the user.
+  6. A workspace's `museSpark.suggestedProvider` only offers the panel; no
+     workspace file can set an address.
+  7. HTTP to a non-loopback address, a link-local or metadata address, and a
+     public name resolving to a private address are refused; a private
+     HTTPS address asks once.
+  8. Every M51 and M91 hook event fires on a BYO turn with the provider id
+     and the qualified model; a matcher on `meta` still matches Meta's turns.
+  9. ObservationPack, `recall_output`, `then_run`, checkpoints, the verify
+     loop, compaction and `/handoff` work on a BYO model; compaction keeps
+     the tools where the preset says; an Anthropic tool-use turn after a
+     packing swap is not refused.
+  10. An unpriced model shows tokens and "unpriced", and a session with a
+      dollar cap refuses it before sending; a local model shows cost 0; the
+      reviewer, subagents, best-of-N and scheduled runs ask with the BYO
+      price or refuse an unpriced model.
+  11. Web search is never declared to a BYO model; images in a BYO
+      conversation work only with a stored Meta key and its D48 popup.
+  12. Switching models between providers in one conversation drops the
+      previous provider's reasoning items and keeps everything else.
+  13. OpenRouter: **Connect** stores a key without copy-paste; the privacy
+      default sends `provider.zdr: true` on every request and lists only
+      ZDR models; Account & usage shows the key's usage, limit and remainder
+      from `/api/v1/key`; prices show the time they were fetched and
+      **Refresh** updates them; settlement takes the reported `cost`; the
+      attribution headers are exactly the three in D74.
+  14. The ACP agent lists, uses and tests the same providers;
+      `auth set --provider` reads standard input only; `exec --provider` runs in the
+      fake CI harness with the key from standard input.
+  15. Removing a provider deletes its secret after its undo; **Sign out**
+      keeps provider keys unless its confirmation's "Also remove model
+      providers and subscriptions" is ticked.
+  16. Every bundle within D6; a Meta-only session loads neither
+      `dist/providers.js`, `dist/modelsPanel.js` nor
+      `dist/webview/models.js`.
+  17. **The panel.** Choosing each preset prefills exactly its known
+      fields; the provider dropdown searches by name and description
+      with type-ahead and filters by chip; the Models table searches,
+      sorts and filters by every listed facet and shows the four badges
+      by their rules; a scan reports new, removed and repriced models
+      against the last one, can be cancelled, and is reused while fresh;
+      every suggestion shows its reason and can be accepted or changed;
+      **Save** stays disabled until the form is valid, with each error
+      inline in plain words; **Undo** restores a removed provider with
+      its key; an export holds no credential, and an import is validated,
+      previewed and confirmed address by address.
+  18. **Accessible and narrow.** Every control has a label; the
+      dropdowns and the table work from the keyboard alone (type-ahead,
+      arrows, Enter, Escape); at 320 px nothing scrolls sideways; all 14
+      languages; the accessibility gate passes in all four themes for
+      every state.
+  19. **Start with your own model.** The first-run screen shows the choice
+      in both its states, ranked equally with the other two when no backend
+      is set up.
+      - It opens the wizard at "Pick a provider", and so does the
+        walkthrough step's command link.
+      - Finishing sets the composer's model and the default model, leaves
+        first run, accepts a message at once and shows "You're set up with
+        `<provider>` · `<model>`" with **Manage providers**.
+      - Cancelling at any step returns to the first-run screen with no
+        provider in `providers.json` and no secret in SecretStorage.
+- **Tests** (each guard broken once on purpose, seen red, restored; the
+  drills in `docs/certification/m95.md`):
+  - **First run**, each able to fail:
+    - the button opens the wizard at "Pick a provider";
+    - a completed wizard sets the composer's model and the default model
+      and leaves first run;
+    - cancel at each step leaves `providers.json` and SecretStorage
+      unchanged;
+    - the walkthrough's command opens the wizard;
+    - with no backend, the three choices render with equal rank.
+
+    Drill: let cancel keep the draft's secret.
+
+  - **Golden requests**: one per codec per scenario (first turn, tool loop
+    with reasoning, image, packed output, compaction), checked-in bytes;
+    Meta's against step 2. Drill: reorder a key; add a timestamp.
+  - **Prefix stability**: requests n and n+1 of a fixture session share
+    every earlier native byte (cache markers moved by the rule excepted).
+    Drill: re-sort the tool list per request.
+  - **Stream decoding** from the captures: text, tool calls (fragments,
+    whole, parallel, a float index), reasoning in each field and `<think>`,
+    usage in each place, keep-alives, mid-stream errors under HTTP 200.
+    Drill: drop the `index` fallback.
+  - **Reasoning replay**: the same provider and model replay, another drops;
+    DeepSeek's every-turn rule; Anthropic's stale-block rule; Gemini's
+    exact-part signatures; OpenRouter's `reasoning_details` order. Drill:
+    replay across providers.
+  - **Origin binding and redirects**: an edited origin refused; 301 and 307
+    refused with nothing sent on. Drill: compare hosts instead of origins.
+  - **Endpoint policy**: the URL and address table (loopback, private,
+    link-local, metadata, IPv4-mapped IPv6, NAT64, `localhost` resolving
+    elsewhere, rebinding between saving and a request). Drill: let
+    `0.0.0.0` through.
+  - **OAuth loopback**: bound to `127.0.0.1` only, one use, a ten-minute
+    end, `state` checked, the code exchanged once, the server closed in
+    every path. Drill: accept a wrong `state`.
+  - **Keys never leak**: a key planted in every error envelope, header echo
+    and stream error ends redacted in the log, the notice and the hook
+    payload; the webview protocol has no credential field (a schema test).
+    Drill: remove the transport's exact-value registration.
+  - **Prices**: the card's source order, the long-context tier, the
+    worst-case reservation (OpenRouter's highest upstream), settlement from
+    `cost`, the unpriced refusal under a cap, local free, the
+    `estimateCostUsd` fix. Drill: restore the Standard fallback.
+  - **Catalogue**: the sync refuses a checksum mismatch and partial data;
+    the filter; the data file's size cap. Drill: accept a truncated
+    download.
+  - **Hooks**: payload fields per provider; matcher compatibility. Drill:
+    send the literal `meta`.
+  - **Wizard flow** (the pure state machine): every step, back, cancel,
+    skip, failures, the cost statement before a paid test, OpenRouter's
+    privacy default. Drill: skip the cost statement.
+  - **Workspace suggestion**: a URL-shaped value is ignored. Drill: accept a
+    URL.
+  - **Prefill per preset**: a table test that each preset fills exactly its
+    fields and leaves the rest empty. Drill: drop one preset's key hint.
+  - **Search and filters**: provider search by name and description;
+    each Models facet alone and combined; range bounds inclusive; sorting
+    stable. Drill: make the context range exclusive.
+  - **Badges**: Recommended, Cheapest capable (tool calling and the
+    harness's minimum context), Largest context, New, over a fixture
+    catalogue. Drill: let a model without tool calls be cheapest capable.
+  - **Scan diffs** against a fake catalogue: new, removed and repriced
+    models; staleness; cancellation leaves the last scan; one scan per
+    provider at a time. Drill: compare ids case-insensitively.
+  - **Suggestions**: each value's reason text, from history and without
+    it; the last choice remembered. Drill: drop the reason.
+  - **Validation, undo, import and export**: Save disabled until valid;
+    undo inside and after its window; an export with no credential
+    field (a schema test); an import refusing a bad address and
+    previewing each change. Drill: let an import skip the address check.
+  - **Panel accessibility**: harness scenarios for every state (empty,
+    scanning, scan failed, form errors, test results, the table filtered,
+    badges, suggestions, undo, import preview, 320 px), axe in four
+    themes, and keyboard paths through the dropdown and the table.
+    Drill: remove a control's label.
+  - **ACP and exec**: the stdin-only key, per-codec pins, the CI fake run.
+- **Live plan** (no money spent). Ollama on the Kubuntu rig and the Mac mini
+  with a small tool-capable model: one turn with a tool call, a packing swap
+  and a compaction; llama.cpp server on CPU; LM Studio on the host if
+  installed; model calls counted from the servers' own logs. OpenRouter's
+  connect flow and a `:free` model if the owner opens a free account (no
+  credits needed for `:free`). Cloud presets otherwise only through step 13,
+  with the owner's keys; free tiers (Gemini, Groq, Mistral) cost nothing if
+  he opens them.
+- **Gates.** The full quality gate; D6: activation grows by command
+  registrations and loaders only (at most 3 KiB; about 20 KiB is left),
+  `dist/modelApi.js` by the seam only (at most 8 KiB of its 54 KiB margin),
+  new caps for `dist/providers.js`, `dist/modelsPanel.js` and
+  `dist/webview/models.js` (the panel's React app, its own entry, so
+  `dist/webview/main.js` keeps its 900 KiB budget) at measured
+  plus 15%, rounded up to 25 KiB, and a size cap on
+  `dist/providerCatalog.json` in `check-vsix-size.mjs`'s allowlist;
+  `check-bundle-split.mjs` keeps the codecs out of activation and
+  `dist/modelApi.js`; check-l10n; host-API (the new VS Code calls); the
+  accessibility gate on the picker's and Account & usage's new rows.
+- **Security.** D74's rules: credentials only in SecretStorage or the OS
+  store, each bound to its origin; HTTPS except loopback; no redirects;
+  private networks asked, link-local and metadata refused, rebinding
+  checked; providers only in the user's own file; a workspace suggests a
+  preset id at most; no credential in the webview, a log, a hook, a tool, a
+  child or an export; OAuth with PKCE, `state` and a loopback bound to
+  `127.0.0.1` for one use.
+- **Threat model.**
+  - **A malicious workspace.** It cannot set an address: no setting names
+    one, `providers.json` is user-level, and `museSpark.suggestedProvider`
+    takes a preset id whose origin is ours. Its rules, skills or files can
+    still prompt-inject the model, as today, and the approval modes stand. A
+    workspace hook or MCP server never sees a credential (variables
+    stripped, none in any environment). Residual: a user who completes the
+    form with an attacker's address because a README told them to; the
+    confirm step names the origin that will receive their code, and the key
+    is bound to that origin only.
+  - **A malicious or compromised provider.** It controls what the model
+    says, so it can propose any tool call: no worse than a jailbroken model
+    today, since every call goes through the permission engine, protected
+    paths and the shell guards; the confirm step for a custom server says
+    so. Its frames are zod-validated and size-capped (frame, arguments,
+    items, total stream), and its usage validated as M75 does (finite,
+    non-negative, cached at most input); invalid usage leaves the cost
+    unknown and closes the session budget (M82). It can under-report usage;
+    the reservation still caps output. Model ids and labels it lists are
+    untrusted text: control and format characters stripped, length capped,
+    and the provider's label always shown beside them, so a custom server
+    cannot pass itself off as Meta's `muse-spark-1.3`.
+  - **Key exfiltration.** A config edit pointing a provider elsewhere: the
+    origin binding. An HTTP redirect: refused. DNS rebinding: TLS binds the
+    name, and each request re-checks the answers. Logs and errors: the
+    redactor's shapes, the header and field rules and the exact value for
+    the request's life; error bodies that echo part of a key are redacted
+    before display. The webview: no credential crosses postMessage. Hooks,
+    tools, MCP servers, git and checks: no credential in any environment,
+    argument or file. Exports and shares (M84): no credential in a session.
+    Settings Sync: neither the file nor the secrets sync. An OAuth code:
+    PKCE makes a stolen code useless, `state` refuses a forged callback, and
+    the loopback listens once, on `127.0.0.1` only. Residual, as with Meta's
+    key today (§9): a process running as the same user can read the OS
+    credential store.
+  - **Local network (SSRF-like).** A custom address lets the extension POST
+    JSON with a key to a host of the user's choosing. Plain HTTP only to
+    loopback; private ranges asked; link-local and the metadata addresses
+    (169.254.169.254, 168.63.129.16, `fd00:ec2::254`) refused; a public name
+    resolving to a private address refused at each request. Residuals:
+    behind a proxy, the proxy resolves the name, so the check sees only the
+    local answer; on a shared machine another local user can listen on a
+    free loopback port first (the panel's scan shows what answered, and a
+    local server gets no key unless the user gave one).
+- **Cost controls.** Free key tests (models lists, OpenRouter's `/key`,
+  Ollama's tags); a one-token test only where nothing free exists, its cost
+  stated first; prices dated and sourced, unknown models unpriced and
+  refused under a dollar cap; reservations at the worst case, the
+  long-context tier and OpenRouter's highest upstream included; settlement
+  from the provider's reported cost where there is one; no hidden or
+  background call on any provider (M74's automatic work, when built,
+  follows Q-M74 per provider); paid features unchanged (D48), Meta-hosted
+  ones billed to the Meta key only; the M75 evaluation unchanged; live tests
+  local or free only, captures with the owner's keys counted and reported.
+- **Docs.** README: **Get started** names the three ways in (Muse sign-in,
+  a Meta Model API key, **Start with your own model**); **Model providers**
+  (the panel and the quick pick, each preset's notes,
+  local servers and Ollama's context, OpenRouter's connect, privacy routing
+  and usage, prices and "unpriced", what stays Meta's, the ACP and CI
+  commands); PRIVACY: which hosts receive code and keys for each provider,
+  OpenRouter's routing, the local case, no telemetry; SECURITY: the threat
+  model's summary and residuals; AGENTS.md rule 8: provider credentials join
+  the Model API key's rules; `docs/acp.md` and `docs/ci.md`; CHANGELOG
+  `[Unreleased] ### Added`; `docs/certification/m95.md` with every capture
+  (workspace, server version, counted calls) and drill.
+- **Owner steps** (credentials and new spending only; every design question
+  is settled in D74).
+  - For each cloud preset, create a key (paid, a few cents per capture, or
+    the free tiers of Gemini, Groq, OpenRouter and Mistral) and hand it
+    to step 13 by the existing in-memory route (standard input from a DPAPI
+    file, `auth clear` after; M73's handling). Nothing is minted on his
+    behalf; a preset without a capture stays out of the panel.
+    - Done 2026-10-04 for twelve presets: OpenRouter, Groq, Mistral, Gemini,
+      Together, xAI, OpenAI, DeepSeek, Fireworks, Hugging Face, Z.ai and
+      Anthropic.
+    - Azure needs a resource and a deployment.
+- **Certification checklist.**
+  - [ ] Step 1 captures recorded, with server versions and counted calls.
+  - [ ] Meta goldens recorded at `1e93c67c` and unchanged at the end.
+  - [ ] Acceptance 1–19 with tests and drills (`docs/certification/m95.md`).
+  - [x] Step 13's wire captures for the twelve keyed cloud presets
+        (2026-10-04, `docs/certification/m95-captures.md`).
+  - [ ] Each listed preset's capture (step 13): Azure and the local servers,
+        and one live turn per preset through the built codec.
+  - [ ] Bundles within D6, measured.
+  - [ ] README, PRIVACY, SECURITY, AGENTS.md, CHANGELOG, `docs/acp.md`,
+        `docs/ci.md` and this record updated.
+
+### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
+
+**Status 2026-10-04: planned with M95; research in
+`docs/certification/m95-research.md` §6. Starts when M95's seam (lanes P, T
+and I) has merged.**
+
+- **Goal.** A user with a ChatGPT Plus or Pro plan, or a Copilot plan, runs
+  the harness on that plan's inference with one click in the same panel,
+  through flows the provider sanctions; the UI says which plan pays.
+- **Scope.**
+  - **ChatGPT plan** (`chatgpt`): OpenAI's Sign in with ChatGPT with plan
+    usage, the dynamic client, the token store, refresh and revocation, the
+    preview rules in a `responses` codec profile, OpenAI's required UI.
+  - **Copilot's models** (`copilot`, VS Code only): a host-side
+    `ProviderClient` over `vscode.lm`, opt-in and labelled reduced.
+  - **Plan-key presets**: MiniMax M Plan, Alibaba Model Studio Coding Plan
+    and Mistral's plans as API-key presets whose models are marked "plan".
+  - **Hugging Face sign-in** (OAuth with PKCE and the `inference-api` scope)
+    once the owner has registered the app; the token preset is M95's.
+  - Plan tallies in Account & usage; the picker's and pill's plan marks;
+    strings in all 14 tables; README, PRIVACY, CHANGELOG, this plan,
+    `docs/certification/m95b.md`.
+  - **Not here**: Anthropic and Google plans (prohibited; D74); xAI's,
+    Z.ai's and Kimi Code's plan sign-ins (D74, settled); the Claude Code
+    backend (its own milestone after this one, D74).
+- **Lanes and file ownership.**
+
+| Lane           | Owns                                                                                                                                                                                                                                                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Strings      | `en.ts`, the 14 tables, `package.nls*.json`                                                                                                                                                                                                                                                                                           |
+| S Sign-in core | new `src/core/providers/subscriptions/chatgpt.ts` (authorize URL, token exchange, refresh, revoke, the ID-token check against the JWKS with `node:crypto`, the record schema), `huggingface.ts` (its OAuth with PKCE, once the app is registered), `planUsage.ts` (plan tallies), the plan-key presets' region of `presets.ts`; tests |
+| C Codec        | the `chatgpt` profile of `modelapi/codecs/responses.ts` (preview rules, tool namespaces, the client-side output cap); goldens                                                                                                                                                                                                         |
+| V VS Code side | `src/host/providers/chatgptSignIn.ts` (the loopback helper from M95, `openExternal`, the cross-window refresh lock in global storage, SecretStorage), `src/host/providers/copilotClient.ts` (the `vscode.lm` client, consent, feature detection), their rows in the Providers section; the command region of `src/extension.ts`       |
+| U UI           | the pill's plan mark and **Manage usage**, the one-time plan notice, the usage-limit screen, Account & usage's plan rows, the Copilot AI-content note and report link; harness scenarios                                                                                                                                              |
+| X ACP          | `muse-spark-code-acp providers add chatgpt` (a loopback server in the agent, the URL printed for the user's browser), the OS store record; no Copilot (no VS Code)                                                                                                                                                                    |
+| W Wiring       | `package.json`, README (**Subscriptions**: who may use which plan, Plus and Pro only, what is reduced on Copilot), PRIVACY (what OpenAI and GitHub receive), CHANGELOG, PLAN, `docs/certification/m95b.md`                                                                                                                            |
+
+- **Steps.**
+  1. **Capture first, with the owner's own Plus or Pro sign-in** (Owner
+     step; it spends his plan, not money): one short turn in an empty
+     workspace with a tool call, to settle what the docs leave open: plain
+     top-level function tools or namespaces; whether `reasoning` with
+     encrypted content, `prompt_cache_key` and usage with cached tokens
+     come back; the `models[]` list; a usage-limit error if one can be had.
+     Counted from the request log. Also whether `vscode.env.asExternalUri`
+     can give a remote window a `127.0.0.1` callback (else remote windows
+     say to sign in from a local one).
+  2. The sign-in core and record (lane S), then the codec profile (lane C),
+     then the VS Code side and UI (lanes V, U), the ACP agent (X), docs
+     (W).
+  3. Copilot: consent from the panel's click,
+     the canonical-to-`vscode.lm` mapping, feature detection for images,
+     usage from the reported data part where present and `countTokens`
+     otherwise.
+- **Acceptance.**
+  1. **Continue with ChatGPT** signs a Plus or Pro user in through the
+     system browser and a `127.0.0.1` callback, stores the issued client
+     and tokens in SecretStorage, and a turn with tools runs on the plan.
+  2. A Free or ineligible account gets OpenAI's refusal in plain words
+     before any conversation starts.
+  3. The access token refreshes before it expires, once across two open
+     windows; a revoked or disconnected grant asks to sign in again.
+  4. **Remove** revokes the refresh token and deletes the record; nothing
+     of Codex CLI's, Claude Code's, Gemini CLI's or Copilot's own storage is
+     ever read (a test that the code names none of their paths).
+  5. The request follows the preview rules (no `max_output_tokens`, no
+     `prompt_cache_retention`, `store: false`, `stream: true`, full
+     history), and a reply that passes the output cap is ended by the host.
+  6. The one-time plan notice, the "Using ChatGPT plan" mark with **Manage
+     usage**, and the usage-limit screen on
+     `subscription_sharing_usage_limit_exceeded` appear as OpenAI's UI rules
+     ask.
+  7. Plan use asks no paid-use popup, is tallied per provider in Account &
+     usage (tokens where reported, requests always), and is never counted
+     against a dollar cap; the notice says when the provider can spend
+     credits beyond the plan.
+  8. Copilot: consent comes from the click; the tool loop runs;
+     the model is marked reduced; budgets show estimated tokens; quota
+     errors are said plainly; a confidential workspace hides it; the
+     AI-content note and report link are shown.
+  9. A plan-key preset shows "plan" instead of a price and links the plan's
+     limits.
+  10. Every hook event fires with the provider id and qualified model.
+- **Tests.** The authorize URL's parameters; `state` and nonce refusals; the
+  ID token's signature, issuer, audience, expiry and nonce checks (each
+  drilled); the scope check (`chatgpt.tokens.use.direct` missing refuses);
+  refresh rotation and the lock; revocation on remove; the preview-rule
+  golden; the client-side output cap; the Copilot mapping against a fake
+  `vscode.lm` (tools, tool results, consent refused, quota errors); the
+  guard that no other application's credential path is read. Each with a
+  red drill in `docs/certification/m95b.md`.
+- **Gates.** As M95's; the sign-in code in `dist/modelsPanel.js` and the
+  codec profile in `dist/providers.js`, both within their caps.
+- **Security.** PKCE `S256`, `state` and nonce; the callback server on
+  `127.0.0.1` only, one use, ten minutes; the ID token verified before a
+  scope is trusted; the refresh token bound to `https://auth.openai.com`
+  and sent nowhere else, the access token to `https://api.openai.com`;
+  tokens never in the webview, logs, hooks, tools or children; the
+  persistent host id opaque (never an e-mail or a user id); revocation on
+  remove; Copilot's grant held by VS Code, never by us. Threat additions:
+  a local process racing for the callback port gains nothing (PKCE); a
+  phishing page cannot complete the flow without the verifier; a stolen
+  token is bounded by its hour and by revocation.
+- **Cost controls.** Plan use spends the user's plan, said before sign-in
+  and in the one-time notice, with the credit caveat where it applies; the
+  capture is one counted turn on the owner's plan; no background calls;
+  Copilot's AI credits named in its consent step.
+- **Docs.** README **Subscriptions**; PRIVACY (OpenAI receives the
+  conversation as with an OpenAI key; Copilot's requests carry Copilot's
+  own rules and GitHub's training terms for individual plans); CHANGELOG;
+  `docs/certification/m95b.md`.
+- **Owner steps** (credentials and registrations only): sign in once with
+  his Plus or Pro account for step 1's capture, and allow Copilot once for
+  step 3's live check (both spend his plans, not money); register the Hugging Face
+  OAuth app on huggingface.co; optionally ask xAI, Z.ai and Moonshot to
+  list the extension for their plan sign-ins.
+- **Certification checklist.**
+  - [ ] Step 1 capture recorded with its counted calls.
+  - [ ] Acceptance 1–10 with tests and drills (`docs/certification/m95b.md`).
+  - [ ] README, PRIVACY, CHANGELOG and this record updated.
+
+### M95c — More providers and integrations after the first release (D74)
+
+**Status 2026-10-04: planned with M95; each part starts when M95 has merged
+and is its own pull request, with its own capture and certification
+(`docs/certification/m95c.md`).**
+
+- **Goal.** The provider list and its integrations grow past the first
+  release without changing M95's seam: every part is a preset, a codec
+  profile or a host feature over the same `ProviderClient`.
+- **Parts.**
+  1. **Amazon Bedrock.** Claude through the `anthropic` codec at
+     `https://bedrock-runtime.{region}.amazonaws.com/anthropic/v1/messages`
+     (`x-api-key` with a Bedrock API key), GPT models through `responses`
+     at `/openai/v1` (`store: false` always); AWS access keys signed with
+     SigV4 in-process; region chosen in the panel; a static model table
+     from the catalogue (Bedrock has no models list); the quota note that
+     input plus `max_tokens` is reserved at the start.
+  2. **Exposing models to VS Code's chat.** `contributes.languageModelChatProviders`
+     and `vscode.lm.registerLanguageModelChatProvider` (stable since 1.104;
+     registered only where the API exists): a model is exposed only when
+     the user turns it on in the Models section, it is priced or local, and
+     a daily dollar cap is set; each call runs through our transport and
+     budget, is tallied under "VS Code chat", and stops at the cap.
+  3. **OpenAI's explicit breakpoints** (GPT-5.6 and later):
+     `prompt_cache_breakpoint` and `prompt_cache_options` placed by the same
+     rule as Anthropic's (the stable prefix and the rolling end), gated by
+     model family (a 400 on older models), with a golden test; on only if an
+     M75-style paired run on OpenAI shows it lowers cost at equal capability.
+  4. **Providers' hosted search** (OpenAI's web search tool, Anthropic's
+     server-side search, Gemini's Google Search grounding, OpenRouter's web
+     plugin): each a paid feature under D48, priced from the provider's own
+     page, asked before each use, tallied, off by default; Meta's web
+     search rules (no budget cap while on) apply to each.
+  5. **More presets**: Ollama Cloud (`https://ollama.com`, an API key),
+     Moonshot's pay-as-you-go API (Z.ai's moved into M95 on 2026-10-04), and
+     each further provider the
+     catalogue lists with a Chat, Responses or Messages endpoint, each after
+     its research note and capture.
+  6. **Custom request headers** (user scope; values in SecretStorage bound
+     to the origin; auth and content headers refused).
+  7. **Tab on BYO providers** (after M94 merges): fill-in-the-middle where
+     the provider has it (Mistral's Codestral FIM, DeepSeek's FIM, Ollama's
+     `/api/generate` with `suffix`), else M94's chat-shaped hole, with M94's
+     daily budget and the provider's price card.
+- **Lanes.** One per part, each owning its preset or codec profile, its
+  panel rows, its strings and its tests; part 2 owns
+  `src/host/models/lmProvider.ts` and its `package.json` contribution;
+  part 4 owns its paid-feature id beside `PAID_FEATURES`.
+- **Acceptance.** Each part's turn runs every harness feature as M95's
+  acceptance 2 to 12 describe; part 2 never serves an unpriced model or
+  passes its cap; part 3 keeps the golden and prefix tests and ships only
+  with its paired run; part 4's search asks before every use and is tallied
+  as paid.
+- **Tests.** As M95's (goldens, prefix, decoding, origin binding, endpoint
+  policy, keys never leak), per part, each with a red drill; SigV4 against
+  AWS's published test vectors; the exposure cap and tally against a fake
+  `vscode.lm` caller.
+- **Gates.** As M95's; part 2's code loads only once a model is exposed, so
+  activation carries its registration call and loader alone.
+- **Owner steps.** Keys for each part's capture: an AWS account with
+  Bedrock access, an Ollama Cloud key, a Moonshot key (a few cents each); part 4's capture spends search fees, a new kind of spend, so it
+  waits for his go.
+
 ### M99 — What's New after an update (D79)
 
 **Status 2026-10-04: built on `feature/m99-whats-new`; record in
@@ -14759,6 +16034,12 @@ joined with M57, M58 and PR #49's sign-in
         commit-writing path exists
 
 ## 7. Gates
+
+**FIXM95X gate deferral (2026-10-05):** merged production build is blocked
+by the missing `safeParse` export in the shared validation entry (outside
+lane X). The split gate fired; no weakening or production-support claim.
+Lead/lane S must add the shared export and rerun build. See §9
+FIXM95X-BUILD-SAFEPARSE and `docs/certification/m95-x.md` for the exact receipt.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
@@ -15244,6 +16525,12 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
+| M95 lane X location                                    | Escape hatch                                    | Reason                                                                                                                | Date       |
+| ------------------------------------------------------ | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/keyStore.ts`, `parseStoredProviderSecret` | `value as { readonly key?: unknown }`           | The credential record is already parsed; the additional key is checked as a nonempty string immediately after access. | 2026-10-05 |
+| `src/runtime/cliArgs.ts`, option membership            | `allowed as readonly string[]`                  | Widen a closed literal list for membership testing; the predicate performs the narrowing.                             | 2026-10-05 |
+| `test/unit/providersX.test.ts`, refused downgrade URL  | `eslint-disable-next-line unicorn/prefer-https` | The HTTP URL is an intentional downgrade attack used to prove refusal.                                                | 2026-10-05 |
+
 | M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
 | ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `scripts/exec-schema.mjs`, `conditional` | `eslint-disable-next-line unicorn/no-thenable` | JSON Schema requires the literal `then` keyword for conditional validation. This object is serialized as data, never consumed as a Promise. Computed keys and `Object.fromEntries` also trigger the rule; the exception is limited to this property. | 2026-10-02 |
@@ -15337,6 +16624,42 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM95X-BUILD-SAFEPARSE — release integration gate blocked.** After
+  merging `origin/main` 0.13.0, the bundle-split gate correctly refuses four
+  `zod/mini.safeParse` reads: credentialRecord, two providersFile calls, and
+  the runtime probe parser. `src/shared/validationEntry.ts` does not export
+  `safeParse`. This shared entry is outside lane X's allowed files. No gate
+  or export check was weakened, and production packaging remains blocked.
+  Follow-up: lead/lane S adds the required shared runtime export, then runs
+  build and integrated gates. The 226 passing rig tests use inline Zod and
+  do not certify the production shared-validator seam.
+
+- **FIXM95X-N1 — review-machine timing evidence.** Both D29 standalone
+  stderr variants and D9's held-response liability test pass on the Mac mini
+  at the review baseline, the corrected lane, and the exact pre-X parent.
+  Their failures on the review machine remain unreproduced; no deadline,
+  expectation or gate was changed. Follow-up: lead reruns these named cases
+  on that machine before attributing failure or certifying the full matrix.
+
+- **FIXM95X-R1 — two stores and process death (M95 lane X).** The providers
+  file and OS credential store do not share a transaction. Normal reported
+  write failures restore the previous secret; a second store failure is
+  reported as recovery required, never as success. A crash between secret
+  mutation and file rename may require checking/re-entering/clearing that
+  provider key. A crashed writer can leave a lock directory; subsequent
+  commits refuse rather than overwrite it. No key is written to disk or a
+  journal; origin binding still refuses a moved endpoint. Follow-up: the
+  lead must reconcile crash recovery with the shared panel writer before
+  making an atomic-save claim.
+- **FIXM95X-R2 — noncooperating file writers (M95 lane X).** CLI commits hold
+  an exclusive file lock and compare the current parsed file with the
+  snapshot immediately before atomic writing. Panel/manual writers that do
+  not honor that lock can still race between comparison and rename. This
+  lane remains unmerged and does not certify integrated provider saves;
+  the file holds no secrets, and requests still enforce credential binding.
+  Follow-up: lane K/lead must use the same lock in the shared provider writer
+  and bind panel-plus-CLI concurrency evidence to the integrated tree.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

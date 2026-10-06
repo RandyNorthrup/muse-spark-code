@@ -16,7 +16,11 @@ import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
-import { environmentValue } from '../core/backends/musecode/launch'
+import {
+  buildChildEnvironment,
+  environmentValue,
+  withLoopbackBypass,
+} from '../core/backends/musecode/launch'
 import { personalSkillsRoot } from '../core/context/skills'
 import { personalAgentsRoot } from '../core/context/customAgents'
 import { memoryDataRoot } from '../core/memory/memoryLocation'
@@ -41,7 +45,6 @@ import { pageConverter } from '../host/web/pageConverter'
 import { createWebFetcher } from '../host/web/webFetcher'
 import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
-  type EnvironmentVariable,
   FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
   MODEL_API_BUNDLE_FILE,
@@ -52,14 +55,21 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
+import { readProvidersFile } from '../core/providers/providersFile'
 import type { ServeOptions } from './cliArgs'
+import { providerSecretAccount } from './keyStore'
+import { providersFilePath } from './providersCommands'
 import {
   agentDataFolder,
   type DataFolderInput,
   paidGrantsFile,
   workspaceSessionsFolder,
 } from './dataFolder'
-import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
+import {
+  museCodeEnvironment,
+  withoutCredentials,
+  withoutKeyringRoutes,
+} from './credentialVariables'
 import { walkFiles } from './fileWalk'
 import { paidGrantFile } from './paidGrants'
 
@@ -80,12 +90,6 @@ export interface RuntimeBackendDeps {
   readonly homeDir: string
   readonly secrets: SecretStore
   readonly runGit: (args: readonly string[], cwd: string) => Promise<string>
-  /**
-   * The credential variables taken out of the agent's own environment at
-   * start (credentialVariables.ts): handed back to Muse Code's processes
-   * only, as the extension's `muse serve` inherits them (D1).
-   */
-  readonly museCodeCredentials: readonly EnvironmentVariable[]
   /** The Model API's transport. */
   readonly fetch: typeof fetch
   /** Waits between retries and rename attempts; injectable so tests do not sleep. */
@@ -124,13 +128,30 @@ function independentEditorStartupPolicy(log: Logger): Promise<void> {
 
 function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undefined) {
   const { options, log } = deps
-  return new MuseCodeBackendManager({
+  // VS Code inherits its host environment (D1); the standalone runtime has
+  // a stricter boundary, shared by serve, account hosts and login.
+  const Manager = class extends MuseCodeBackendManager {
+    public override childEnvironment(): NodeJS.ProcessEnv {
+      const env = museCodeEnvironment(deps.env)
+      return withLoopbackBypass(
+        buildChildEnvironment({
+          platform: deps.platform,
+          baseEnv: env,
+          extraVariables: [],
+          systemRoot: environmentValue(env, deps.platform, 'SystemRoot'),
+          programFiles: environmentValue(env, deps.platform, 'ProgramFiles'),
+        }),
+        deps.platform,
+      )
+    }
+  }
+  return new Manager({
     // This records the actual scope boundary; it does not certify a VS Code fence.
     beforeWorkspaceHostStart: () => independentEditorStartupPolicy(log),
     log,
     extensionVersion: deps.version,
     getConfiguredBinaryPath: () => options.museBinary,
-    getEnvironmentVariables: () => deps.museCodeCredentials,
+    getEnvironmentVariables: () => [],
     workspaceRoot,
     getShellSandbox: () => options.shellSandbox,
     // No `--sandbox-network` (M56): Muse Code's default, or a managed policy's.
@@ -414,9 +435,39 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
       }
     }
-    return key === undefined || key === ''
-      ? { state: 'signedOut', message: UI_TEXT.acpNoStoredKey }
-      : { state: 'ready' }
+    if (key !== undefined && key !== '') {
+      return { state: 'ready' }
+    }
+    // M95 (PLAN.md D74): the Model API backend is available when a Meta key
+    // or any provider is configured — a keyed provider with its secret
+    // stored, or a keyless local server. The per-request origin binding is
+    // the transport's (lane T), not readiness's.
+    const providersPath = providersFilePath({
+      platform: deps.platform,
+      homeDir: deps.homeDir,
+      xdgConfigHome: homes.xdgConfigHome,
+    })
+    const read = await readProvidersFile(providersPath)
+    if (read.ok) {
+      for (const entry of read.file.providers) {
+        if (entry.auth === 'none') {
+          return { state: 'ready' }
+        }
+        const account = providerSecretAccount(entry.id)
+        if (account === undefined) {
+          continue
+        }
+        try {
+          const stored = await deps.secrets.get(account)
+          if (stored !== undefined && stored !== '') {
+            return { state: 'ready' }
+          }
+        } catch {
+          continue
+        }
+      }
+    }
+    return { state: 'signedOut', message: UI_TEXT.acpNoStoredKey }
   }
 
   const modelApiHostFor = async (cwd: string): Promise<AgentHost> => {

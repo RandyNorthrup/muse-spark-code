@@ -26,6 +26,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
+import { isProviderId, parseModelRef } from '../../core/providers/modelRef'
 import type { ServeOptions } from '../cliArgs'
 
 export type ExecMode = 'plan' | 'acceptEdits'
@@ -41,6 +42,12 @@ export interface ExecOptions {
   readonly prompt: PromptSource
   readonly untrustedFiles: readonly string[]
   readonly mode: ExecMode
+  /**
+   * The BYO provider to run on (M95, PLAN.md D74): resolved only from the
+   * runner's own user file or a built-in preset's fixed origin, never a
+   * repository file. `model` is then the qualified `<provider>/<model>` ref.
+   */
+  readonly provider: string | undefined
   readonly model: string | undefined
   readonly effort: EffortLevel | undefined
   readonly allowsContributorModels: boolean
@@ -83,6 +90,7 @@ const STRING_OPTIONS = new Set([
   'timeout',
   'muse-binary',
   'shell-sandbox',
+  'provider',
 ])
 const DECIMAL_BUDGET = /^[0-9]+(?:\.[0-9]{1,6})?$/
 const INTEGER = /^[0-9]+$/
@@ -112,6 +120,33 @@ function budgetUnits(value: unknown): number | undefined {
 
 function invalid(reason: string): { readonly ok: false; readonly reason: string } {
   return { ok: false, reason }
+}
+
+/**
+ * The model for a provider run: a bare id (no slash) qualifies to
+ * `<provider>/<model>`; a ref must name this provider in full
+ * (`openrouter/deepseek/…`, since a model id may itself hold a slash).
+ * Without a provider the model passes through untouched. Undefined for a
+ * ref aimed elsewhere.
+ */
+export function qualifyProviderModel(
+  provider: string | undefined,
+  model: string | undefined,
+): string | undefined {
+  if (provider === undefined) {
+    return model
+  }
+  if (model === undefined || model === '') {
+    return model
+  }
+  const parsed = parseModelRef(model)
+  if (parsed === undefined) {
+    return undefined
+  }
+  if (parsed.providerId === 'meta') {
+    return `${provider}/${model}`
+  }
+  return parsed.providerId === provider ? model : undefined
 }
 
 export function parseExec(
@@ -208,6 +243,18 @@ export function parseExec(
   if (prompt.kind === 'text' && Buffer.byteLength(prompt.text) > EXEC_PROMPT_MAX_BYTES)
     return invalid(UI_TEXT.execFileTooLarge)
   const stringValue = (key: string) => (typeof values[key] === 'string' ? values[key] : undefined)
+  const provider = stringValue('provider')
+  if (provider !== undefined && !isProviderId(provider)) {
+    return invalid(fill(UI_TEXT.providerUnknown, { provider }))
+  }
+  if (provider !== undefined && backend !== 'modelApi') {
+    return invalid(UI_TEXT.execProviderNeedsModelApi)
+  }
+  const rawModel = stringValue('model')
+  const model = qualifyProviderModel(provider, rawModel)
+  if (rawModel !== undefined && model === undefined) {
+    return invalid(UI_TEXT.execUnknownModel)
+  }
   return {
     ok: true,
     options: {
@@ -216,7 +263,8 @@ export function parseExec(
       prompt,
       untrustedFiles,
       mode,
-      model: stringValue('model'),
+      provider,
+      model,
       effort,
       allowsContributorModels: values['allow-contributor-models'] === true,
       output,

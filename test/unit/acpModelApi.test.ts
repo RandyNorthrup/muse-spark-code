@@ -95,7 +95,6 @@ function setup(
     homeDir: data,
     secrets,
     runGit: () => Promise.reject(new Error('no git')),
-    museCodeCredentials: [],
     fetch: api.fetch,
     sleep: () => Promise.resolve(),
     log,

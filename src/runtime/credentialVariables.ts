@@ -1,22 +1,68 @@
 // Credential variables and the processes the agent starts (AGENTS.md rule 8,
 // PLAN.md D1, D61). The agent never reads the Model API key from its
-// environment. What a user sets there for Muse Code itself (`META_API_KEY`,
-// which the CLI prefers over its sign-in, as Meta documents) reaches Muse
-// Code as it does from the extension, whose `muse serve` inherits the user's
-// environment (D1's amendment), and counts as its credential. Nothing else
-// the agent starts (a shell command, a hook, git, the Windows job helpers)
-// sees it or any other credential variable: at start the agent takes them
-// out of its own environment and hands them back only to Muse Code's
-// processes (`muse serve`, its account hosts, `muse login`), the way the
-// extension adds `museSpark.environmentVariables` to them.
+// environment. The standalone runtime strips credentials at start and never
+// restores them to Muse Code or its descendants (FIXM95X). Muse Code signs
+// in through its own credential store; provider keys are read at use time.
 
 import { isCredentialVariable } from '../host/backend/toolIo'
-import { EXEC_CHILD_ENV_DROP, type EnvironmentVariable } from '../shared/constants'
+import {
+  EXEC_CHILD_ENV_DROP,
+  MCP_STDIO_ENV_ALLOWLIST,
+  PROXY_VARIABLE_SPELLINGS,
+  NO_PROXY_SPELLINGS,
+  type EnvironmentVariable,
+} from '../shared/constants'
+
+const MUSE_CODE_ENV_ALLOWLIST: ReadonlySet<string> = new Set(
+  [
+    ...MCP_STDIO_ENV_ALLOWLIST,
+    ...PROXY_VARIABLE_SPELLINGS,
+    ...NO_PROXY_SPELLINGS,
+    'ALL_PROXY',
+    'XDG_CONFIG_HOME',
+    'XDG_DATA_HOME',
+    'XDG_CACHE_HOME',
+    'ProgramFiles',
+    'ProgramFiles(x86)',
+    'LC_CTYPE',
+    'SSL_CERT_FILE',
+    'SSL_CERT_DIR',
+  ].map((name) => name.toUpperCase()),
+)
+
+/** Muse Code gets only named process/configuration routes, never credentials. */
+export function museCodeEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(withoutCredentials(env)).filter(([name]) =>
+      MUSE_CODE_ENV_ALLOWLIST.has(name.toUpperCase()),
+    ),
+  )
+}
+
+/**
+ * Provider credential variables no `*_API_KEY` rule catches (M95, PLAN.md
+ * D74 headless; research §3.3 names all four as not stripped today). Lane S
+ * owns the names in `constants.ts` at integration; this set is lane X's
+ * seam so the agent strips them meanwhile.
+ */
+export const PROVIDER_CREDENTIAL_ENV_NAMES: ReadonlySet<string> = new Set([
+  'AWS_BEARER_TOKEN_BEDROCK',
+  'ANTHROPIC_AUTH_TOKEN',
+  'HF_TOKEN',
+  'GOOGLE_APPLICATION_CREDENTIALS',
+])
+
+/** A provider credential variable by its exact name (compared uppercased). */
+export function isProviderCredentialVariable(name: string): boolean {
+  return PROVIDER_CREDENTIAL_ENV_NAMES.has(name.toUpperCase())
+}
 
 /** The credential variables in `env`, by name and value. */
 function credentialsIn(env: NodeJS.ProcessEnv): EnvironmentVariable[] {
   return Object.entries(env).flatMap(([name, value]) =>
-    value !== undefined && isCredentialVariable(name) ? [{ name, value }] : [],
+    value !== undefined && (isCredentialVariable(name) || isProviderCredentialVariable(name))
+      ? [{ name, value }]
+      : [],
   )
 }
 

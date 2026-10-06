@@ -4079,6 +4079,73 @@ export const EVAL_REPORT_VERSION = 2
 // ten-thousandths of a dollar on the contributor tier.
 export const EVAL_COST_DECIMALS = 4
 
+// --- Bring-your-own model providers (M95, PLAN.md D74) ---
+//
+// The user's own providers file, beside (never inside) Muse Code's config
+// folder: `<config home>/muse-spark-code/providers.json`. It holds ids,
+// presets, addresses, chosen models, user-entered prices, OpenRouter's
+// routing choices and the default model; never a credential.
+export const PROVIDERS_CONFIG_DIR_NAME = 'muse-spark-code'
+export const PROVIDERS_FILE_NAME = 'providers.json'
+export const PROVIDERS_FILE_VERSION = 1
+// A credential record's version (`{v, auth, origin, …}`, bound to the exact
+// origin it was obtained for).
+export const CREDENTIAL_RECORD_VERSION = 1
+// A cached model scan is reused while fresh, and redone past this age (D74:
+// "older than PROVIDER_SCAN_STALE_MS, or a newer catalogue snapshot").
+// Stated assumption until use sets it: one day.
+export const PROVIDER_SCAN_STALE_MS = 24 * 60 * 60 * 1000
+// The smallest context the harness runs in (D74: the default suggestion is
+// the cheapest tool-capable model that "fits the context the harness
+// needs"). Stated assumption until a measured prompt-plus-tools size sets
+// it: 32k, the smallest context the panel offers for Ollama.
+export const HARNESS_MIN_CONTEXT_TOKENS = 32_000
+// The context sizes the panel offers per Ollama model, with the memory each
+// takes said beside it (D74 step 8.5).
+export const OLLAMA_NUM_CTX_OPTIONS: readonly number[] = [32_768, 65_536, 131_072]
+// A model id or label a provider lists is untrusted text: control and
+// format characters are stripped and the rest is cut to this.
+export const PROVIDER_MODEL_LABEL_MAX_CHARS = 120
+// The suggestion engine's fallback session (D74: "a stated assumption when
+// there is no history"): the default model's price for a reference session
+// of this size.
+export const SUGGEST_REFERENCE_SESSION_INPUT_TOKENS = 100_000
+export const SUGGEST_REFERENCE_SESSION_OUTPUT_TOKENS = 10_000
+// PKCE (OpenRouter's connect flow, M95b's ChatGPT flow reuses the shape):
+// the verifier's random bytes, and the `state` secret's.
+export const PKCE_VERIFIER_BYTES = 32
+export const PKCE_STATE_BYTES = 16
+// How long the ACP agent's free provider test waits for one answer (M95
+// lane X: `providers add|test`).
+export const PROVIDER_PROBE_TIMEOUT_MS = 30_000
+// The OAuth loopback callback (lane K's one-shot `127.0.0.1` server, reused
+// by M95b): bound to loopback only, one use, codes last this long
+// (OpenRouter's codes are single-use and last ten minutes).
+export const OAUTH_LOOPBACK_HOST = '127.0.0.1'
+export const OAUTH_CODE_TTL_MS = 10 * 60 * 1000
+// The endpoint policy's address classes over M69's ranges (IPv4 and IPv6
+// together; the policy filters by family). Loopback allows plain HTTP;
+// private HTTPS asks once; link-local, metadata and unspecified are refused.
+export const ENDPOINT_LOOPBACK_RANGES: readonly (readonly [string, number])[] = [
+  ['127.0.0.0', 8],
+  ['::1', 128],
+]
+export const ENDPOINT_LINK_LOCAL_RANGES: readonly (readonly [string, number])[] = [
+  ['169.254.0.0', 16],
+  ['fe80::', 10],
+]
+export const ENDPOINT_PRIVATE_RANGES: readonly (readonly [string, number])[] = [
+  ['10.0.0.0', 8],
+  ['172.16.0.0', 12],
+  ['192.168.0.0', 16],
+  ['100.64.0.0', 10],
+  ['fc00::', 7],
+]
+export const ENDPOINT_UNSPECIFIED_RANGES: readonly (readonly [string, number])[] = [
+  ['0.0.0.0', 8],
+  ['::', 128],
+]
+
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
 // Inclusive integer range used to check whether a locale's `one` needs a count.

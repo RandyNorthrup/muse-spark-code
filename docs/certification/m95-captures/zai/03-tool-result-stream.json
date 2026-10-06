@@ -1,0 +1,598 @@
+{
+  "provider": "zai",
+  "step": "tool-result-stream",
+  "capturedAt": "2026-10-04",
+  "billed": true,
+  "request": {
+    "method": "POST",
+    "url": "https://api.z.ai/api/paas/v4/chat/completions",
+    "headers": {
+      "authorization": "<redacted>",
+      "content-type": "application/json"
+    },
+    "body": {
+      "model": "glm-5.3-flash",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a capture assistant for an API wire-format test. When the user asks for the time, call the get_time tool, then answer in one short sentence.\n\nHouse rule 1: when a request mentions item 1, answer briefly, name the source of each fact, and never invent a value for field 1 or option 7.\nHouse rule 2: when a request mentions item 2, answer briefly, name the source of each fact, and never invent a value for field 2 or option 14.\nHouse rule 3: when a request mentions item 3, answer briefly, name the source of each fact, and never invent a value for field 3 or option 21.\nHouse rule 4: when a request mentions item 4, answer briefly, name the source of each fact, and never invent a value for field 4 or option 5.\nHouse rule 5: when a request mentions item 5, answer briefly, name the source of each fact, and never invent a value for field 5 or option 12.\nHouse rule 6: when a request mentions item 6, answer briefly, name the source of each fact, and never invent a value for field 6 or option 19.\nHouse rule 7: when a request mentions item 7, answer briefly, name the source of each fact, and never invent a value for field 7 or option 3.\nHouse rule 8: when a request mentions item 8, answer briefly, name the source of each fact, and never invent a value for field 8 or option 10.\nHouse rule 9: when a request mentions item 9, answer briefly, name the source of each fact, and never invent a value for field 9 or option 17.\nHouse rule 10: when a request mentions item 10, answer briefly, name the source of each fact, and never invent a value for field 10 or option 1.\nHouse rule 11: when a request mentions item 11, answer briefly, name the source of each fact, and never invent a value for field 11 or option 8.\nHouse rule 12: when a request mentions item 12, answer briefly, name the source of each fact, and never invent a value for field 12 or option 15.\nHouse rule 13: when a request mentions item 13, answer briefly, name the source of each fact, and never invent a value for field 13 or option 22.\nHouse rule 14: when a request mentions item 14, answer briefly, name the source of each fact, and never invent a value for field 14 or option 6.\nHouse rule 15: when a request mentions item 15, answer briefly, name the source of each fact, and never invent a value for field 15 or option 13.\nHouse rule 16: when a request mentions item 16, answer briefly, name the source of each fact, and never invent a value for field 16 or option 20.\nHouse rule 17: when a request mentions item 17, answer briefly, name the source of each fact, and never invent a value for field 0 or option 4.\nHouse rule 18: when a request mentions item 18, answer briefly, name the source of each fact, and never invent a value for field 1 or option 11.\nHouse rule 19: when a request mentions item 19, answer briefly, name the source of each fact, and never invent a value for field 2 or option 18.\nHouse rule 20: when a request mentions item 20, answer briefly, name the source of each fact, and never invent a value for field 3 or option 2.\nHouse rule 21: when a request mentions item 21, answer briefly, name the source of each fact, and never invent a value for field 4 or option 9.\nHouse rule 22: when a request mentions item 22, answer briefly, name the source of each fact, and never invent a value for field 5 or option 16.\nHouse rule 23: when a request mentions item 23, answer briefly, name the source of each fact, and never invent a value for field 6 or option 0.\nHouse rule 24: when a request mentions item 24, answer briefly, name the source of each fact, and never invent a value for field 7 or option 7.\nHouse rule 25: when a request mentions item 25, answer briefly, name the source of each fact, and never invent a value for field 8 or option 14.\nHouse rule 26: when a request mentions item 26, answer briefly, name the source of each fact, and never invent a value for field 9 or option 21.\nHouse rule 27: when a request mentions item 27, answer briefly, name the source of each fact, and never invent a value for field 10 or option 5.\nHouse rule 28: when a request mentions item 28, answer briefly, name the source of each fact, and never invent a value for field 11 or option 12.\nHouse rule 29: when a request mentions item 29, answer briefly, name the source of each fact, and never invent a value for field 12 or option 19.\nHouse rule 30: when a request mentions item 30, answer briefly, name the source of each fact, and never invent a value for field 13 or option 3.\nHouse rule 31: when a request mentions item 31, answer briefly, name the source of each fact, and never invent a value for field 14 or option 10.\nHouse rule 32: when a request mentions item 32, answer briefly, name the source of each fact, and never invent a value for field 15 or option 17.\nHouse rule 33: when a request mentions item 33, answer briefly, name the source of each fact, and never invent a value for field 16 or option 1.\nHouse rule 34: when a request mentions item 34, answer briefly, name the source of each fact, and never invent a value for field 0 or option 8.\nHouse rule 35: when a request mentions item 35, answer briefly, name the source of each fact, and never invent a value for field 1 or option 15.\nHouse rule 36: when a request mentions item 36, answer briefly, name the source of each fact, and never invent a value for field 2 or option 22."
+        },
+        {
+          "role": "user",
+          "content": "What time is it in UTC right now? Call get_time, then answer in one short sentence."
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "tool_calls": [
+            {
+              "id": "call_867ea76495624d79853ac66b",
+              "type": "function",
+              "function": {
+                "name": "get_time",
+                "arguments": "{\"timezone\":\"UTC\"}"
+              }
+            }
+          ],
+          "reasoning_content": "The user asks for the time in UTC. I should call get_time with timezone \"UTC\". No house rules are triggered since no item numbers are mentioned. Then answer in one short sentence."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_867ea76495624d79853ac66b",
+          "content": "{\"timezone\":\"UTC\",\"time\":\"2026-10-04T12:00:00Z\"}"
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "description": "Returns the current time in the given IANA time zone.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string",
+                  "description": "An IANA time zone such as UTC."
+                }
+              },
+              "required": ["timezone"]
+            }
+          }
+        }
+      ],
+      "tool_choice": "auto",
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 1024,
+      "tool_stream": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=3600",
+      "connection": "keep-alive",
+      "content-type": "text/event-stream;charset=UTF-8",
+      "date": "Sun, 04 Oct 2026 22:40:16 GMT",
+      "ga-traceid": "49eae5ce6191ccec840baebfe4b34f98",
+      "set-cookie": "<redacted>",
+      "transfer-encoding": "chunked",
+      "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Origin",
+      "x-log-id": "20261005064012ff11832fd1ca40ef",
+      "x-request-id": "bfdb88ef-9bc1-495f-80e8-1f68c1fe2a32"
+    },
+    "events": [
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": "According"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " to"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " the"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " get"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": "_time"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " tool"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": ","
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " it"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " is"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " currently"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " "
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": "12"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": ":"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": "00"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": ":"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": "00"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " ("
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": "noon"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": ")"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " on"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " October"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " "
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": "4"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": ","
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " "
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": "202"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": "6"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "delta": {
+                "role": "assistant",
+                "content": " in UTC."
+              }
+            }
+          ]
+        }
+      },
+      {
+        "data": {
+          "id": "20261005064012ff11832fd1ca40ef",
+          "created": 1791153612,
+          "object": "chat.completion.chunk",
+          "model": "glm-5.3-flash",
+          "choices": [
+            {
+              "index": 0,
+              "finish_reason": "stop",
+              "delta": {
+                "role": "assistant",
+                "content": ""
+              }
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 1634,
+            "completion_tokens": 32,
+            "total_tokens": 1666,
+            "prompt_tokens_details": {
+              "cached_tokens": 1536
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0
+            }
+          }
+        }
+      },
+      {
+        "data": "[DONE]"
+      }
+    ]
+  }
+}
