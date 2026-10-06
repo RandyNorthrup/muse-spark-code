@@ -729,3 +729,25 @@ pass all 50, deadcode/cycles pass, and jscpd reports zero clones across 1,365
 files. Production build, every size/split/host-global gate and notices pass.
 The copied vendor documentation fixture remains byte-exact despite its
 inherited whitespace; no citation source or formatting ignore changes.
+
+The completed diet merge is `bd7a08be` with parents `9dcd95cc` and
+`be00b172`. All eight committed worker source hashes bind the refreshed
+W record, and the plan/startup/hash batch passes eight. The integrated
+production bundles measure extension 437.9/600 KiB, Model API 454.3/475,
+team 47.7/75, scheduler 58.2/75, runners 45.0/75 and checkpoints 76.7/225.
+
+Own-history gitleaks passes both forms with redaction and no ignores:
+`gitleaks git --redact --no-banner .` on an isolated, verified HEAD-only
+bundle import in OS temporary storage (1,091 commits, zero findings), and
+`gitleaks git --redact --no-banner --log-opts=HEAD .` in the worktree
+(1,091 commits, zero findings). The imported HEAD equals `bd7a08be`; the
+isolated repository excludes unrelated shared rig refs without modifying
+any shared metadata. The ordinary command in the shared rig repository
+still reaches seven historical findings, all contained only by fourteen
+`refs/archive/2026-10-05/rt-*` refs, never this integration's HEAD. Archive
+refs remain in `--all` even after leaving `refs/heads`. Their exact names
+are in round3c-results. Shared rules restrict changes to this worktree;
+the request to export/remove those shared refs remains pending. No history,
+ignore, gate or shared ref is changed. The mandatory full-quality command
+runs unchanged and its result follows; own-history green does not imply
+that shared-repository gate is green.

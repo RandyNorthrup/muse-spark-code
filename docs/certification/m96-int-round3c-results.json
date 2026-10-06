@@ -86,6 +86,16 @@
         "test/unit/paidHookModels.test.ts",
         "test/unit/judgeConsent.test.ts"
       ]
+    },
+    {
+      "name": "committed-proof",
+      "passed": 8,
+      "failed": 0,
+      "files": [
+        "test/unit/teamWorkerCertification.test.ts",
+        "test/unit/teamPlanRecord.test.ts",
+        "test/unit/teamStartup.test.mjs"
+      ]
     }
   ],
   "drills": [
@@ -189,6 +199,42 @@
     "acp": {
       "passed": 18,
       "failed": 0
+    }
+  },
+  "sourceCommit": "bd7a08be5677cca5787cc92df8dfde20bfac183d",
+  "historySecrets": {
+    "head": {
+      "exit": 0
+    },
+    "bundle": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-history-w205phyp/integration.bundle",
+    "isolatedOwnHistory": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-history-w205phyp/integration.git",
+    "sharedRefsChanged": false,
+    "default-own": {
+      "exit": 0
+    },
+    "commitsScanned": 1091,
+    "findingsOwnHistory": 0,
+    "sharedDefault": {
+      "exit": 1,
+      "findings": 7,
+      "outsideHead": true,
+      "archivedRefs": [
+        "refs/archive/2026-10-05/rt-fixm95x-baseline",
+        "refs/archive/2026-10-05/rt-fixm95x-drills",
+        "refs/archive/2026-10-05/rt-fixm95x-dup",
+        "refs/archive/2026-10-05/rt-fixm95x-final-gates",
+        "refs/archive/2026-10-05/rt-fixm95x-gates",
+        "refs/archive/2026-10-05/rt-fixm95x-green",
+        "refs/archive/2026-10-05/rt-fixm95x-merged",
+        "refs/archive/2026-10-05/rt-fixm95x-red-before",
+        "refs/archive/2026-10-05/rt-m95t",
+        "refs/archive/2026-10-05/rt-m95t-check",
+        "refs/archive/2026-10-05/rt-m95t-lint",
+        "refs/archive/2026-10-05/rt-m95t-record",
+        "refs/archive/2026-10-05/rt-m95t-type",
+        "refs/archive/2026-10-05/rt-star"
+      ],
+      "permission": "shared-ref removal request pending; no refs removed"
     }
   }
 }
