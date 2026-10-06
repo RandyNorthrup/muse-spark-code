@@ -18418,6 +18418,15 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM118C bounded repair certification (2026-10-06).** All four RVM118C P2s
+are fixed with 140 passing tests in 12 owning files and eight deliberately red,
+byte-exact restored mutations. All five typecheck projects, scoped lint/format,
+plain Knip, zero-clone duplication, localization, host API, schema consistency,
+cycles and production build pass on Kubuntu under unchanged caps and gates.
+The authoritative lane brief reserves aggregate quality and integration for
+the lead and prohibits merge/push/rebase. Receipts and existing W/X handoffs:
+`docs/certification/m118-c.md`. No reviewed finding is deferred.
+
 **M118 lane 0 bounded certification.** The rig brief and shared rules prohibit
 aggregate quality, merges and pushes. Run the owning contracts, typecheck,
 scoped lint/format, localization, deadcode, duplication, host API and build
@@ -19632,6 +19641,13 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM118C / RVM118C.** All four reviewed P2 findings are fixed: colon-path
+  privacy, non-path text preservation, displayed outcome/citation completeness
+  and late confirmation lifecycle. No P1/P2/P3 from that review is deferred.
+  Existing C/W/X wiring and editor certification handoffs remain as named in
+  `docs/certification/m118-c.md`; the unknown-secret-shape preview limitation
+  and explicitly selected scrubbed attachment policy are unchanged.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

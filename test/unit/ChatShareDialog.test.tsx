@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   ChatShareDialog,
@@ -29,7 +30,7 @@ function dialog(portOverrides: Partial<ChatShareDialogPort> = {}) {
     remember,
     ...portOverrides,
   }
-  render(
+  const view = render(
     <ChatShareDialog
       sessionId="s1"
       messages={[
@@ -43,7 +44,45 @@ function dialog(portOverrides: Partial<ChatShareDialogPort> = {}) {
       onClose={onClose}
     />,
   )
-  return { port, confirm, invalidate, remember, onClose }
+  return { ...view, port, confirm, invalidate, remember, onClose }
+}
+
+function ReplacementHost({
+  port,
+  onClose,
+  keyed,
+}: {
+  readonly port: ChatShareDialogPort
+  readonly onClose: () => void
+  readonly keyed: boolean
+}) {
+  const [sessionId, setSessionId] = useState<string | undefined>('s1')
+  return (
+    <>
+      <button
+        onClick={() => {
+          setSessionId('s2')
+        }}
+      >
+        Replace session
+      </button>
+      {sessionId === undefined ? null : (
+        <ChatShareDialog
+          key={keyed ? sessionId : 'same-instance'}
+          sessionId={sessionId}
+          messages={[]}
+          attachments={[]}
+          initialMode="conversation"
+          initialFormat="md"
+          port={port}
+          onClose={() => {
+            onClose()
+            setSessionId(undefined)
+          }}
+        />
+      )}
+    </>
+  )
 }
 async function preview() {
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.sharePreview }))
@@ -53,6 +92,42 @@ async function preview() {
 }
 
 describe('M118 preview dialog and header', () => {
+  it.each([true, false])(
+    'keeps the replacement session dialog open when an old confirmation completes (keyed=%s)',
+    async (keyed) => {
+      const { promise: pending, resolve: finish } = Promise.withResolvers<'shared'>()
+      const t = dialog({ confirm: () => pending })
+      t.unmount()
+      render(<ReplacementHost port={t.port} onClose={t.onClose} keyed={keyed} />)
+      await preview()
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.shareConfirm }))
+      fireEvent.click(screen.getByRole('button', { name: 'Replace session' }))
+      // The host invalidates its token, but an already committed sink can still settle.
+      t.port.invalidate()
+      await act(async () => {
+        finish('shared')
+        await pending
+      })
+      expect(t.onClose).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: UI_TEXT.shareConfirm })).toBeDisabled()
+      await preview()
+      expect(t.port.preview).toHaveBeenLastCalledWith(expect.objectContaining({ sessionId: 's2' }))
+    },
+  )
+  it('invalidates on unmount and ignores a late committed confirmation', async () => {
+    const { promise: pending, resolve: finish } = Promise.withResolvers<'shared'>()
+    const t = dialog({ confirm: () => pending })
+    await preview()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.shareConfirm }))
+    t.invalidate.mockClear()
+    t.unmount()
+    await act(async () => {
+      finish('shared')
+      await pending
+    })
+    expect(t.invalidate).toHaveBeenCalledOnce()
+    expect(t.onClose).not.toHaveBeenCalled()
+  })
   it('opens from the header only when supplied by the host', () => {
     const onShare = vi.fn()
     const { rerender } = render(

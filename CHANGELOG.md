@@ -10,6 +10,10 @@ happened, not what was planned; superseded entries are kept.
 - Correct M118 chat sharing's path scrub to redact colon-prefixed absolute
   paths while preserving division, slash commands, closing tags, URLs and
   regex literals; unknown paths stop at whitespace.
+- Preserve displayed command outcomes, verification failures, status, exit
+  codes and citations in full chat shares through the existing transcript
+  projection; prevent late share confirmations from closing a replacement
+  session's dialog.
 
 ### Added
 

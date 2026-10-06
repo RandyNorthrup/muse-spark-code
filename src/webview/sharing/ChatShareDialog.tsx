@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { ChatShareRequest } from '../../core/sharing/chatShare'
 import { parseChatSharePreview, type ChatSharePreview } from '../../core/sharing/shareRelease'
 import { UI_TEXT } from '../../shared/constants'
@@ -64,7 +64,11 @@ function failureText(error: unknown): string {
 }
 
 /** Loaded on first Share action by the integration host; no destination side effects on mount. */
-export function ChatShareDialog({
+export function ChatShareDialog(props: ChatShareDialogProps) {
+  return <SessionChatShareDialog key={props.sessionId} {...props} />
+}
+
+function SessionChatShareDialog({
   sessionId,
   messages,
   attachments,
@@ -85,6 +89,13 @@ export function ChatShareDialog({
   const [error, setError] = useState<string | undefined>(undefined)
   const [busy, setBusy] = useState(false)
   const generation = useRef(0)
+  useLayoutEffect(
+    () => () => {
+      generation.current += 1
+      port.invalidate()
+    },
+    [port],
+  )
   const change = (next: ChatShareRequest) => {
     generation.current += 1
     port.invalidate()

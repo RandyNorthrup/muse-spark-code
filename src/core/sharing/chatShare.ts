@@ -6,6 +6,7 @@ import {
   SHARE_SCHEMA_VERSION,
   UI_TEXT,
 } from '../../shared/constants'
+import { fill, formatNumber } from '../../shared/l10n/text'
 import {
   shareJsonSchema,
   shareRequestSchema,
@@ -14,7 +15,7 @@ import {
   type SharePrivacyPort,
   type ShareRequest,
 } from '../../shared/share'
-import { renderTranscriptMarkdown } from '../export/transcriptMarkdown'
+import { renderTranscriptMarkdown, transcriptItemMarkdown } from '../export/transcriptMarkdown'
 import { renderChatShareHtml } from './html'
 
 export type ChatShareRequest = Extract<ShareRequest, { target: 'chat' }>
@@ -81,17 +82,60 @@ function withoutCodeBlocks(text: string): string {
   return clean
 }
 
-function fullText(item: ItemSnapshot, shouldIncludeDiffs: boolean): string | undefined {
+function fullText(
+  item: ItemSnapshot,
+  shouldIncludeDiffs: boolean,
+  shouldIncludeCodeBlocks: boolean,
+): string | undefined {
   if (!shouldIncludeDiffs && item.kind === 'diff') return undefined
-  const parts = [
-    item.text,
-    item.fallbackText,
-    item.objective,
-    item.result?.text ?? item.result?.summary,
-    item.message,
-    item.failureReason,
-  ].filter((text) => text !== undefined)
-  return parts.length === 0 ? undefined : parts.join('\n\n')
+  const sourceText = (text: string | undefined) =>
+    text === undefined || shouldIncludeCodeBlocks ? text : withoutCodeBlocks(text)
+  // Use the existing displayed-item projection, so new displayed material
+  // reaches every share format. Remove source code blocks before rendering:
+  // the renderer's command/output fences are displayed outcomes, not prose code.
+  const material: ItemSnapshot = {
+    ...item,
+    text: sourceText(item.text),
+    fallbackText: sourceText(item.fallbackText),
+    objective: sourceText(item.objective),
+    message: sourceText(item.message),
+    failureReason: sourceText(item.failureReason),
+    summary: item.summary?.map((part) =>
+      shouldIncludeCodeBlocks ? part : withoutCodeBlocks(part),
+    ),
+    result:
+      item.result === undefined
+        ? undefined
+        : {
+            ...item.result,
+            text: sourceText(item.result.text),
+            summary: shouldIncludeCodeBlocks
+              ? item.result.summary
+              : withoutCodeBlocks(item.result.summary),
+          },
+    attachments: undefined,
+    outputRef: undefined,
+    patchRef: undefined,
+  }
+  const displayed = transcriptItemMarkdown(material)
+  const remaining = [
+    material.text,
+    material.fallbackText,
+    material.objective,
+    material.result?.text ?? material.result?.summary,
+    material.message,
+    material.failureReason,
+  ].filter((text) => text !== undefined && !displayed?.includes(text))
+  return [
+    displayed,
+    ...remaining,
+    item.status,
+    item.exitCode === undefined
+      ? undefined
+      : fill(UI_TEXT.userShellExitCode, { code: formatNumber(item.exitCode) }),
+  ]
+    .filter((text) => text !== undefined)
+    .join('\n\n')
 }
 
 /** One projection for every format; full mode has exactly the same privacy policy. */
@@ -127,9 +171,16 @@ export function buildChatShare(
   for (const item of selected) {
     if (request.mode === 'conversation' && !isConversationShareItem(item)) continue
     const shared: ShareItem = { id: portableId(item.itemId), kind: scrub(item.kind) }
-    const text = request.mode === 'conversation' ? item.text : fullText(item, request.options.diffs)
+    const text =
+      request.mode === 'conversation'
+        ? item.text
+        : fullText(item, request.options.diffs, request.options.codeBlocks)
     if (text !== undefined)
-      shared.text = scrub(request.options.codeBlocks ? text : withoutCodeBlocks(text))
+      shared.text = scrub(
+        request.mode === 'conversation' && !request.options.codeBlocks
+          ? withoutCodeBlocks(text)
+          : text,
+      )
     const stored = source.attachments?.filter((attachment) => attachment.messageId === item.itemId)
     const attachments: readonly { id: string; name?: string; content?: string }[] =
       stored !== undefined && stored.length > 0
