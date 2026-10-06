@@ -3127,6 +3127,27 @@ export const ACP_TOOL_OUTPUT_MAX_CHARS = 20_000
 export const ACP_SESSION_LIST_LIMIT = 50
 // Model API sessions of the agent, per folder, under the user's data folder:
 // the folder named per platform, and the length of the folder's hash.
+// M114 F: optional WOFF2 pack; never an activation or VSIX asset.
+export const FONT_UI_CHOICES = ['Inter', 'system'] as const
+export const FONT_CODE_CHOICES = ['JetBrains Mono', 'Fira Code', 'Cascadia Code', 'system'] as const
+export const FONT_PACK_ALIASES = {
+  Inter: 'Muse UI',
+  'JetBrains Mono': 'Muse Code JB',
+  'Fira Code': 'Muse Code FC',
+  'Cascadia Code': 'Muse Code CC',
+} as const
+export const FONT_PACK_SUBFOLDER = 'fonts'
+export const FONT_INSTALL_BUNDLE_FILE = 'fontsInstall.js'
+export const FONT_INSTALL_TIMEOUT_MS = 30_000
+export const FONT_PACK_FAMILY_COUNT = 4
+export const FONT_PACK_BUDGET_BYTES = 675 * 1024
+export const FONT_MAX_ASSET_BYTES = 2 * 1024 * 1024
+export const FONT_DIRECTORY_MODE = 0o700
+export const FONT_FILE_MODE = 0o600
+export const FONT_WOFF2_MAGIC = 'wOF2'
+export const FONT_WOFF2_HEADER_BYTES = 48
+export const FONT_WOFF2_LENGTH_OFFSET = 8
+
 export const ACP_DATA_FOLDER = {
   win32: 'Muse Spark Code',
   darwin: 'Muse Spark Code',

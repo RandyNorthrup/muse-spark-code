@@ -27552,6 +27552,19 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   finding is deferred. Static/build checks pass except the inherited S-owned
   host-API inventory mismatch recorded in §7/§9; startup CSS growth is 3,831
   bytes, below 4 KiB, with unchanged caps.
+- **Lane F implementation contract (2026-10-06):** the pack lives only in
+  `design/fonts/pack/`; its manifest pins each WOFF2 and OFL text by SHA-256
+  and byte size. Runtime installation writes a verified version directory
+  below the application data folder, never OS/editor font settings. The
+  explicit `fonts install [--from <pack-directory>]` command supports local
+  image/package seeds as well as the pinned repository source; no automatic
+  download occurs. Portable appearance preferences and an injected token
+  writer support standalone surfaces; editor hosts retain their own fonts.
+  M104/C, M110/N and M111/D bind those ports when their surfaces merge.
+  Minimal runtime dispatch/package plumbing is needed outside `cliArgs.ts`;
+  no P1/P2/S surface, style or documentation region is changed. README,
+  CHANGELOG and help-reference additions are supplied in F's contract for S
+  and the integration lead (featureCatalog is absent on this base).
 
 - **Lane 0's contracts,** frozen before the other lanes start:
   - the token names and groups, with each role's VS Code variable and its
@@ -28380,6 +28393,28 @@ anywhere joined it).
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**M114 F scoped certification (2026-10-06).** The rig/shared brief prohibits
+aggregate quality and assigns it to the lead; F runs owning files, default
+Vitest timeouts, deliberate failures and static/build/package checks directly
+on Kubuntu. Existing startup/deferred/VSIX caps are unchanged. The runtime-only
+font installer has a measured-plus-15%, rounded-to-25-KiB budget of 25 KiB;
+the font pack's own 675 KiB budget uses the same rule. README/CHANGELOG remain
+S-owned; complete additions and the absent featureCatalog rows are supplied in
+`design/fonts/README.md`. M104/C, M110/N and M111/D bind F's explicit appearance
+and asset ports; no production fake stands in for them. The lead must publish
+asset commit `52af8cef9` before advertising pinned online installation and add
+`src/runtime/fonts/fontsEntry.ts` to the package.json cycle entry list (lane 0's
+script region). F runs that entry's cycle check directly. The S-owned host-API
+record needs F's Node use counts (crypto 46→47, fs/promises 47→48, path 84→85)
+alongside lane 0's existing theme-source inventory repair. ACP startup grows
+1,162 bytes from this base, within its 2 KiB target; the separately budgeted
+installer and manifest add package bytes beyond that target. All hard caps hold.
+The asset-range `git diff --check` flags two original OFL trailing spaces
+(Cascadia line 22, JetBrains line 21); exact upstream licence bytes are retained,
+and no whitespace rule or gate is weakened.
+All receipts and guard restore hashes are in
+`docs/certification/m114-f-fonts-and-licences.md`.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
@@ -29503,6 +29538,12 @@ remain available.
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
 ## 8. Escape hatches register
+
+M114 F: `src/runtime/fonts/bundle.ts` checks the lazy module's `installFonts`
+export at runtime; its function signature is trusted across the entry and
+caller produced by the same build and package, as with existing lazy loaders.
+The inline reason documents this narrowing. No cast, `any` or lint suppression
+is introduced.
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

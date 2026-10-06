@@ -2320,6 +2320,14 @@ export const EN = {
   // {argument}: the paid feature's flag as typed.
   acpPaidNeedsModelApi: '{argument} needs --backend modelApi: paid features bill a Model API key.',
   // {command}: the executable's name. The options and values stay as typed.
+  acpFontUi: 'UI font',
+  acpFontCode: 'Code font',
+  acpFontLigatures: 'Code ligatures',
+  acpFontSystem: 'System font',
+  acpFontInstalled: 'Font pack installed: {directory}',
+  acpFontIntegrity: 'Font asset failed verification: {file}',
+  acpFontInstallFailed: 'The font pack could not be installed.',
+  acpFontsUsage: 'Usage: {command} fonts install [--from <directory>]',
   acpUsage: [
     'Usage:',
     '  {command} [options]              Serve the Agent Client Protocol on stdin and stdout',
@@ -2328,6 +2336,7 @@ export const EN = {
     '  {command} exec [options] <prompt>  Run one headless turn',
     '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
     '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
+    '  {command} fonts install [--from <directory>]  Install the optional fonts for standalone surfaces',
     'Options:',
     '  --backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     '  --trust-workspace                Load the folder’s rules, skills and memory',
