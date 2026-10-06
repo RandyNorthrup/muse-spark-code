@@ -1,0 +1,2557 @@
+{
+  "baseCommit": "6a0207c1a",
+  "inputs": {
+    "diet": "be00b172998659a1d372a1ff0f9f7c6d3f68158d",
+    "m101": "a2ac739f2f491d25fe3a8e672b34be1b007bfe54"
+  },
+  "capBytes": 2252800,
+  "artifacts": {
+    "base": {
+      "bytes": 2246558,
+      "sha256": "fd18d8dbe3cae48939050b8f36342e2894b6172ee8ea1bd88c3604e3ddbcafec",
+      "entries": 164,
+      "compressedPayloadBytes": 2216986
+    },
+    "diet": {
+      "bytes": 2027388,
+      "sha256": "980122e1c4518e3c74e092163a80909a4b7d16452ca706fac03fad5b26cf1ded",
+      "entries": 165,
+      "compressedPayloadBytes": 1997648
+    },
+    "m101": {
+      "bytes": 2368747,
+      "sha256": "6270161477f67abf29ae228724b92ba37c3dfebc941bb82f01efdf4b2ebb9cb3",
+      "entries": 174,
+      "compressedPayloadBytes": 2337561
+    }
+  },
+  "sizes": {
+    "base": {
+      "stage": "base",
+      "extension": 448871,
+      "modelApi": 457597,
+      "startup": 811197,
+      "acp": 837807,
+      "vsix": 2246558,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 50890,
+          "cap": 51200
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 95366,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9360,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1375,
+          "cap": 25600
+        }
+      ]
+    },
+    "merge1": {
+      "stage": "merge1",
+      "extension": 448871,
+      "modelApi": 457597,
+      "startup": 811197,
+      "acp": 837807,
+      "vsix": 2027388,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 50890,
+          "cap": 51200
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 95366,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9360,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1375,
+          "cap": 25600
+        }
+      ]
+    },
+    "merge2": {
+      "stage": "merge2",
+      "extension": 456846,
+      "modelApi": 486338,
+      "startup": 797553,
+      "acp": 843696,
+      "vsix": 2368747,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 51114,
+          "cap": 51200
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 95366,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9360,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1375,
+          "cap": 25600
+        }
+      ]
+    }
+  },
+  "largest20M101Entries": [
+    {
+      "file": "extension/dist/runtime.bundles.json.br",
+      "baseRaw": 0,
+      "m101Raw": 493298,
+      "baseCompressed": 0,
+      "m101Compressed": 493453,
+      "compressedDelta": 493453
+    },
+    {
+      "file": "extension/l10n/ui.tables.json.br",
+      "baseRaw": 434815,
+      "m101Raw": 480143,
+      "baseCompressed": 434950,
+      "m101Compressed": 480293,
+      "compressedDelta": 45343
+    },
+    {
+      "file": "extension/dist/webview/models.js",
+      "baseRaw": 0,
+      "m101Raw": 391260,
+      "baseCompressed": 0,
+      "m101Compressed": 158279,
+      "compressedDelta": 158279
+    },
+    {
+      "file": "extension/dist/extension.js",
+      "baseRaw": 448871,
+      "m101Raw": 456846,
+      "baseCompressed": 143562,
+      "m101Compressed": 145920,
+      "compressedDelta": 2358
+    },
+    {
+      "file": "extension/dist/webview/main.js",
+      "baseRaw": 363383,
+      "m101Raw": 366363,
+      "baseCompressed": 111600,
+      "m101Compressed": 112534,
+      "compressedDelta": 934
+    },
+    {
+      "file": "extension/native/darwin/muse-dictate",
+      "baseRaw": 289568,
+      "m101Raw": 289568,
+      "baseCompressed": 81327,
+      "m101Compressed": 81327,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/dist/webview/chunks/DBBHZL53.js",
+      "baseRaw": 0,
+      "m101Raw": 106761,
+      "baseCompressed": 0,
+      "m101Compressed": 74235,
+      "compressedDelta": 74235
+    },
+    {
+      "file": "extension/dist/webview/chunks/JSHTFNK4.js",
+      "baseRaw": 0,
+      "m101Raw": 163336,
+      "baseCompressed": 0,
+      "m101Compressed": 50324,
+      "compressedDelta": 50324
+    },
+    {
+      "file": "extension/resources/walkthrough/open.png",
+      "baseRaw": 63012,
+      "m101Raw": 44833,
+      "baseCompressed": 59085,
+      "m101Compressed": 41302,
+      "compressedDelta": -17783
+    },
+    {
+      "file": "extension/dist/uiText.js",
+      "baseRaw": 49138,
+      "m101Raw": 51144,
+      "baseCompressed": 34191,
+      "m101Compressed": 38024,
+      "compressedDelta": 3833
+    },
+    {
+      "file": "extension/resources/walkthrough/chat.png",
+      "baseRaw": 49242,
+      "m101Raw": 39823,
+      "baseCompressed": 46165,
+      "m101Compressed": 36961,
+      "compressedDelta": -9204
+    },
+    {
+      "file": "extension/dist/webview/chunks/BFLAA6JG.js",
+      "baseRaw": 95366,
+      "m101Raw": 95366,
+      "baseCompressed": 30649,
+      "m101Compressed": 30649,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/dist/providerCatalog.json",
+      "baseRaw": 0,
+      "m101Raw": 463091,
+      "baseCompressed": 0,
+      "m101Compressed": 25930,
+      "compressedDelta": 25930
+    },
+    {
+      "file": "extension/dist/webview/chunks/V5SDXEBW.js",
+      "baseRaw": 0,
+      "m101Raw": 78420,
+      "baseCompressed": 0,
+      "m101Compressed": 23017,
+      "compressedDelta": 23017
+    },
+    {
+      "file": "extension/docs/PRIVACY.md",
+      "baseRaw": 57704,
+      "m101Raw": 57704,
+      "baseCompressed": 21242,
+      "m101Compressed": 21242,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/resources/walkthrough/sign-in.png",
+      "baseRaw": 30392,
+      "m101Raw": 22112,
+      "baseCompressed": 27799,
+      "m101Compressed": 19418,
+      "compressedDelta": -8381
+    },
+    {
+      "file": "extension/resources/walkthrough/welcome.png",
+      "baseRaw": 27779,
+      "m101Raw": 20306,
+      "baseCompressed": 25286,
+      "m101Compressed": 17744,
+      "compressedDelta": -7542
+    },
+    {
+      "file": "extension/changelog.md",
+      "baseRaw": 23184,
+      "m101Raw": 42250,
+      "baseCompressed": 9863,
+      "m101Compressed": 16991,
+      "compressedDelta": 7128
+    },
+    {
+      "file": "extension/package.nls.ru.json",
+      "baseRaw": 50972,
+      "m101Raw": 52528,
+      "baseCompressed": 12762,
+      "m101Compressed": 13172,
+      "compressedDelta": 410
+    },
+    {
+      "file": "extension/dist/validation.js",
+      "baseRaw": 40795,
+      "m101Raw": 40823,
+      "baseCompressed": 11978,
+      "m101Compressed": 11993,
+      "compressedDelta": 15
+    }
+  ],
+  "largest20PositiveCompressedDeltas": [
+    {
+      "file": "extension/dist/runtime.bundles.json.br",
+      "baseRaw": 0,
+      "m101Raw": 493298,
+      "baseCompressed": 0,
+      "m101Compressed": 493453,
+      "compressedDelta": 493453
+    },
+    {
+      "file": "extension/dist/webview/models.js",
+      "baseRaw": 0,
+      "m101Raw": 391260,
+      "baseCompressed": 0,
+      "m101Compressed": 158279,
+      "compressedDelta": 158279
+    },
+    {
+      "file": "extension/dist/webview/chunks/DBBHZL53.js",
+      "baseRaw": 0,
+      "m101Raw": 106761,
+      "baseCompressed": 0,
+      "m101Compressed": 74235,
+      "compressedDelta": 74235
+    },
+    {
+      "file": "extension/dist/webview/chunks/JSHTFNK4.js",
+      "baseRaw": 0,
+      "m101Raw": 163336,
+      "baseCompressed": 0,
+      "m101Compressed": 50324,
+      "compressedDelta": 50324
+    },
+    {
+      "file": "extension/l10n/ui.tables.json.br",
+      "baseRaw": 434815,
+      "m101Raw": 480143,
+      "baseCompressed": 434950,
+      "m101Compressed": 480293,
+      "compressedDelta": 45343
+    },
+    {
+      "file": "extension/dist/providerCatalog.json",
+      "baseRaw": 0,
+      "m101Raw": 463091,
+      "baseCompressed": 0,
+      "m101Compressed": 25930,
+      "compressedDelta": 25930
+    },
+    {
+      "file": "extension/dist/webview/chunks/V5SDXEBW.js",
+      "baseRaw": 0,
+      "m101Raw": 78420,
+      "baseCompressed": 0,
+      "m101Compressed": 23017,
+      "compressedDelta": 23017
+    },
+    {
+      "file": "extension/changelog.md",
+      "baseRaw": 23184,
+      "m101Raw": 42250,
+      "baseCompressed": 9863,
+      "m101Compressed": 16991,
+      "compressedDelta": 7128
+    },
+    {
+      "file": "extension/dist/webview/chunks/JS34FEKH.js",
+      "baseRaw": 0,
+      "m101Raw": 13149,
+      "baseCompressed": 0,
+      "m101Compressed": 3886,
+      "compressedDelta": 3886
+    },
+    {
+      "file": "extension/dist/uiText.js",
+      "baseRaw": 49138,
+      "m101Raw": 51144,
+      "baseCompressed": 34191,
+      "m101Compressed": 38024,
+      "compressedDelta": 3833
+    },
+    {
+      "file": "extension/dist/webview/chunks/MEJSF4S5.js",
+      "baseRaw": 0,
+      "m101Raw": 8872,
+      "baseCompressed": 0,
+      "m101Compressed": 2619,
+      "compressedDelta": 2619
+    },
+    {
+      "file": "extension/dist/webview/chunks/3ISGFOFS.js",
+      "baseRaw": 0,
+      "m101Raw": 8085,
+      "baseCompressed": 0,
+      "m101Compressed": 2560,
+      "compressedDelta": 2560
+    },
+    {
+      "file": "extension/dist/extension.js",
+      "baseRaw": 448871,
+      "m101Raw": 456846,
+      "baseCompressed": 143562,
+      "m101Compressed": 145920,
+      "compressedDelta": 2358
+    },
+    {
+      "file": "extension/dist/webview/chunks/YJHHO45K.js",
+      "baseRaw": 0,
+      "m101Raw": 8973,
+      "baseCompressed": 0,
+      "m101Compressed": 2300,
+      "compressedDelta": 2300
+    },
+    {
+      "file": "extension/dist/webview/chunks/4P575ONR.js",
+      "baseRaw": 0,
+      "m101Raw": 4934,
+      "baseCompressed": 0,
+      "m101Compressed": 2121,
+      "compressedDelta": 2121
+    },
+    {
+      "file": "extension/dist/webview/chunks/7TWZ7Q6J.js",
+      "baseRaw": 0,
+      "m101Raw": 7062,
+      "baseCompressed": 0,
+      "m101Compressed": 2085,
+      "compressedDelta": 2085
+    },
+    {
+      "file": "extension/dist/webview/chunks/MIEBORI7.js",
+      "baseRaw": 0,
+      "m101Raw": 5645,
+      "baseCompressed": 0,
+      "m101Compressed": 2014,
+      "compressedDelta": 2014
+    },
+    {
+      "file": "extension/dist/webview/chunks/NSJF4TMN.js",
+      "baseRaw": 0,
+      "m101Raw": 5279,
+      "baseCompressed": 0,
+      "m101Compressed": 1982,
+      "compressedDelta": 1982
+    },
+    {
+      "file": "extension/dist/webview/models.css",
+      "baseRaw": 0,
+      "m101Raw": 8007,
+      "baseCompressed": 0,
+      "m101Compressed": 1749,
+      "compressedDelta": 1749
+    },
+    {
+      "file": "extension/dist/webview/chunks/XHITGSTT.js",
+      "baseRaw": 0,
+      "m101Raw": 4785,
+      "baseCompressed": 0,
+      "m101Compressed": 1658,
+      "compressedDelta": 1658
+    }
+  ],
+  "allLiteralPathDeltas": [
+    {
+      "file": "[Content_Types].xml",
+      "baseRaw": 1323,
+      "m101Raw": 1323,
+      "baseCompressed": 292,
+      "m101Compressed": 292,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension.vsixmanifest",
+      "baseRaw": 3447,
+      "m101Raw": 3447,
+      "baseCompressed": 1060,
+      "m101Compressed": 1060,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/LICENSE.txt",
+      "baseRaw": 1071,
+      "m101Raw": 1071,
+      "baseCompressed": 638,
+      "m101Compressed": 638,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/THIRD_PARTY_NOTICES.txt",
+      "baseRaw": 45141,
+      "m101Raw": 50699,
+      "baseCompressed": 4358,
+      "m101Compressed": 4660,
+      "compressedDelta": 302
+    },
+    {
+      "file": "extension/changelog.md",
+      "baseRaw": 23184,
+      "m101Raw": 42250,
+      "baseCompressed": 9863,
+      "m101Compressed": 16991,
+      "compressedDelta": 7128
+    },
+    {
+      "file": "extension/dist/agentImport.js",
+      "baseRaw": 118326,
+      "m101Raw": 268,
+      "baseCompressed": 37364,
+      "m101Compressed": 203,
+      "compressedDelta": -37161
+    },
+    {
+      "file": "extension/dist/browserCheck.js",
+      "baseRaw": 43448,
+      "m101Raw": 253,
+      "baseCompressed": 16692,
+      "m101Compressed": 195,
+      "compressedDelta": -16497
+    },
+    {
+      "file": "extension/dist/browserRuntime.js",
+      "baseRaw": 19762,
+      "m101Raw": 254,
+      "baseCompressed": 7477,
+      "m101Compressed": 191,
+      "compressedDelta": -7286
+    },
+    {
+      "file": "extension/dist/bundledSkills.js",
+      "baseRaw": 15083,
+      "m101Raw": 299,
+      "baseCompressed": 6066,
+      "m101Compressed": 209,
+      "compressedDelta": -5857
+    },
+    {
+      "file": "extension/dist/checkpointStore.js",
+      "baseRaw": 78764,
+      "m101Raw": 304,
+      "baseCompressed": 25649,
+      "m101Compressed": 221,
+      "compressedDelta": -25428
+    },
+    {
+      "file": "extension/dist/codeIntel.js",
+      "baseRaw": 40005,
+      "m101Raw": 248,
+      "baseCompressed": 14215,
+      "m101Compressed": 191,
+      "compressedDelta": -14024
+    },
+    {
+      "file": "extension/dist/conversation.js",
+      "baseRaw": 197746,
+      "m101Raw": 256,
+      "baseCompressed": 56602,
+      "m101Compressed": 194,
+      "compressedDelta": -56408
+    },
+    {
+      "file": "extension/dist/conversationGit.js",
+      "baseRaw": 73951,
+      "m101Raw": 280,
+      "baseCompressed": 25268,
+      "m101Compressed": 209,
+      "compressedDelta": -25059
+    },
+    {
+      "file": "extension/dist/extension.js",
+      "baseRaw": 448871,
+      "m101Raw": 456846,
+      "baseCompressed": 143562,
+      "m101Compressed": 145920,
+      "compressedDelta": 2358
+    },
+    {
+      "file": "extension/dist/extensionHooks.js",
+      "baseRaw": 36663,
+      "m101Raw": 265,
+      "baseCompressed": 12141,
+      "m101Compressed": 200,
+      "compressedDelta": -11941
+    },
+    {
+      "file": "extension/dist/foreignHooks.js",
+      "baseRaw": 70894,
+      "m101Raw": 289,
+      "baseCompressed": 20949,
+      "m101Compressed": 216,
+      "compressedDelta": -20733
+    },
+    {
+      "file": "extension/dist/hookRuntime.js",
+      "baseRaw": 44006,
+      "m101Raw": 399,
+      "baseCompressed": 14210,
+      "m101Compressed": 274,
+      "compressedDelta": -13936
+    },
+    {
+      "file": "extension/dist/imageResizeWorker.js",
+      "baseRaw": 0,
+      "m101Raw": 220,
+      "baseCompressed": 0,
+      "m101Compressed": 174,
+      "compressedDelta": 174
+    },
+    {
+      "file": "extension/dist/judge.js",
+      "baseRaw": 48144,
+      "m101Raw": 248,
+      "baseCompressed": 16105,
+      "m101Compressed": 196,
+      "compressedDelta": -15909
+    },
+    {
+      "file": "extension/dist/modelApi.js",
+      "baseRaw": 457597,
+      "m101Raw": 273,
+      "baseCompressed": 142813,
+      "m101Compressed": 205,
+      "compressedDelta": -142608
+    },
+    {
+      "file": "extension/dist/modelsPanel.js",
+      "baseRaw": 0,
+      "m101Raw": 309,
+      "baseCompressed": 0,
+      "m101Compressed": 231,
+      "compressedDelta": 231
+    },
+    {
+      "file": "extension/dist/museCodeReviewer.js",
+      "baseRaw": 23592,
+      "m101Raw": 289,
+      "baseCompressed": 8525,
+      "m101Compressed": 210,
+      "compressedDelta": -8315
+    },
+    {
+      "file": "extension/dist/pageWorker.js",
+      "baseRaw": 193171,
+      "m101Raw": 213,
+      "baseCompressed": 58398,
+      "m101Compressed": 167,
+      "compressedDelta": -58231
+    },
+    {
+      "file": "extension/dist/planMarkdown.js",
+      "baseRaw": 147608,
+      "m101Raw": 250,
+      "baseCompressed": 44986,
+      "m101Compressed": 192,
+      "compressedDelta": -44794
+    },
+    {
+      "file": "extension/dist/pluginHooks.js",
+      "baseRaw": 35445,
+      "m101Raw": 291,
+      "baseCompressed": 11602,
+      "m101Compressed": 220,
+      "compressedDelta": -11382
+    },
+    {
+      "file": "extension/dist/providerCatalog.json",
+      "baseRaw": 0,
+      "m101Raw": 463091,
+      "baseCompressed": 0,
+      "m101Compressed": 25930,
+      "compressedDelta": 25930
+    },
+    {
+      "file": "extension/dist/providers.js",
+      "baseRaw": 0,
+      "m101Raw": 415,
+      "baseCompressed": 0,
+      "m101Compressed": 300,
+      "compressedDelta": 300
+    },
+    {
+      "file": "extension/dist/recorder.js",
+      "baseRaw": 24749,
+      "m101Raw": 26857,
+      "baseCompressed": 9429,
+      "m101Compressed": 9988,
+      "compressedDelta": 559
+    },
+    {
+      "file": "extension/dist/report.js",
+      "baseRaw": 22104,
+      "m101Raw": 258,
+      "baseCompressed": 8853,
+      "m101Compressed": 198,
+      "compressedDelta": -8655
+    },
+    {
+      "file": "extension/dist/review.js",
+      "baseRaw": 29690,
+      "m101Raw": 252,
+      "baseCompressed": 11540,
+      "m101Compressed": 194,
+      "compressedDelta": -11346
+    },
+    {
+      "file": "extension/dist/reviewer.js",
+      "baseRaw": 23081,
+      "m101Raw": 265,
+      "baseCompressed": 8007,
+      "m101Compressed": 208,
+      "compressedDelta": -7799
+    },
+    {
+      "file": "extension/dist/runtime.bundles.json.br",
+      "baseRaw": 0,
+      "m101Raw": 493298,
+      "baseCompressed": 0,
+      "m101Compressed": 493453,
+      "compressedDelta": 493453
+    },
+    {
+      "file": "extension/dist/searchWorker.js",
+      "baseRaw": 4969,
+      "m101Raw": 215,
+      "baseCompressed": 2125,
+      "m101Compressed": 168,
+      "compressedDelta": -1957
+    },
+    {
+      "file": "extension/dist/sessionBoard.js",
+      "baseRaw": 46128,
+      "m101Raw": 275,
+      "baseCompressed": 14861,
+      "m101Compressed": 210,
+      "compressedDelta": -14651
+    },
+    {
+      "file": "extension/dist/tab.js",
+      "baseRaw": 50630,
+      "m101Raw": 313,
+      "baseCompressed": 18132,
+      "m101Compressed": 232,
+      "compressedDelta": -17900
+    },
+    {
+      "file": "extension/dist/uiText.js",
+      "baseRaw": 49138,
+      "m101Raw": 51144,
+      "baseCompressed": 34191,
+      "m101Compressed": 38024,
+      "compressedDelta": 3833
+    },
+    {
+      "file": "extension/dist/uiTextHooks.js",
+      "baseRaw": 4746,
+      "m101Raw": 4959,
+      "baseCompressed": 3613,
+      "m101Compressed": 3769,
+      "compressedDelta": 156
+    },
+    {
+      "file": "extension/dist/uiTextRuntime.js",
+      "baseRaw": 3542,
+      "m101Raw": 3853,
+      "baseCompressed": 2708,
+      "m101Compressed": 2931,
+      "compressedDelta": 223
+    },
+    {
+      "file": "extension/dist/uiTextSurfaces.js",
+      "baseRaw": 2510,
+      "m101Raw": 2726,
+      "baseCompressed": 1936,
+      "m101Compressed": 2089,
+      "compressedDelta": 153
+    },
+    {
+      "file": "extension/dist/validation.js",
+      "baseRaw": 40795,
+      "m101Raw": 40823,
+      "baseCompressed": 11978,
+      "m101Compressed": 11993,
+      "compressedDelta": 15
+    },
+    {
+      "file": "extension/dist/voice.js",
+      "baseRaw": 20182,
+      "m101Raw": 262,
+      "baseCompressed": 7801,
+      "m101Compressed": 204,
+      "compressedDelta": -7597
+    },
+    {
+      "file": "extension/dist/webFetch.js",
+      "baseRaw": 38258,
+      "m101Raw": 282,
+      "baseCompressed": 14634,
+      "m101Compressed": 219,
+      "compressedDelta": -14415
+    },
+    {
+      "file": "extension/dist/webview/chunks/2B4YJBJW.js",
+      "baseRaw": 0,
+      "m101Raw": 772,
+      "baseCompressed": 0,
+      "m101Compressed": 379,
+      "compressedDelta": 379
+    },
+    {
+      "file": "extension/dist/webview/chunks/2HVEACRS.js",
+      "baseRaw": 203,
+      "m101Raw": 203,
+      "baseCompressed": 167,
+      "m101Compressed": 167,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/dist/webview/chunks/2TEO5AI5.js",
+      "baseRaw": 549,
+      "m101Raw": 549,
+      "baseCompressed": 283,
+      "m101Compressed": 283,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/dist/webview/chunks/32J4AKC7.js",
+      "baseRaw": 5645,
+      "m101Raw": 0,
+      "baseCompressed": 2015,
+      "m101Compressed": 0,
+      "compressedDelta": -2015
+    },
+    {
+      "file": "extension/dist/webview/chunks/3DPUWYIL.js",
+      "baseRaw": 0,
+      "m101Raw": 1271,
+      "baseCompressed": 0,
+      "m101Compressed": 697,
+      "compressedDelta": 697
+    },
+    {
+      "file": "extension/dist/webview/chunks/3ISGFOFS.js",
+      "baseRaw": 0,
+      "m101Raw": 8085,
+      "baseCompressed": 0,
+      "m101Compressed": 2560,
+      "compressedDelta": 2560
+    },
+    {
+      "file": "extension/dist/webview/chunks/3ULIAMXS.js",
+      "baseRaw": 2040,
+      "m101Raw": 0,
+      "baseCompressed": 969,
+      "m101Compressed": 0,
+      "compressedDelta": -969
+    },
+    {
+      "file": "extension/dist/webview/chunks/43VA6AAO.js",
+      "baseRaw": 1374,
+      "m101Raw": 0,
+      "baseCompressed": 638,
+      "m101Compressed": 0,
+      "compressedDelta": -638
+    },
+    {
+      "file": "extension/dist/webview/chunks/47PUMWLG.js",
+      "baseRaw": 0,
+      "m101Raw": 3415,
+      "baseCompressed": 0,
+      "m101Compressed": 1572,
+      "compressedDelta": 1572
+    },
+    {
+      "file": "extension/dist/webview/chunks/4P575ONR.js",
+      "baseRaw": 0,
+      "m101Raw": 4934,
+      "baseCompressed": 0,
+      "m101Compressed": 2121,
+      "compressedDelta": 2121
+    },
+    {
+      "file": "extension/dist/webview/chunks/5YARCIKS.js",
+      "baseRaw": 12925,
+      "m101Raw": 0,
+      "baseCompressed": 3521,
+      "m101Compressed": 0,
+      "compressedDelta": -3521
+    },
+    {
+      "file": "extension/dist/webview/chunks/6H6HIFU7.js",
+      "baseRaw": 8242,
+      "m101Raw": 8242,
+      "baseCompressed": 3187,
+      "m101Compressed": 3187,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/dist/webview/chunks/6U72XITC.js",
+      "baseRaw": 0,
+      "m101Raw": 1542,
+      "baseCompressed": 0,
+      "m101Compressed": 822,
+      "compressedDelta": 822
+    },
+    {
+      "file": "extension/dist/webview/chunks/7TWZ7Q6J.js",
+      "baseRaw": 0,
+      "m101Raw": 7062,
+      "baseCompressed": 0,
+      "m101Compressed": 2085,
+      "compressedDelta": 2085
+    },
+    {
+      "file": "extension/dist/webview/chunks/7V7BPLCG.js",
+      "baseRaw": 8085,
+      "m101Raw": 0,
+      "baseCompressed": 2561,
+      "m101Compressed": 0,
+      "compressedDelta": -2561
+    },
+    {
+      "file": "extension/dist/webview/chunks/AKPHRRA7.js",
+      "baseRaw": 0,
+      "m101Raw": 2280,
+      "baseCompressed": 0,
+      "m101Compressed": 1087,
+      "compressedDelta": 1087
+    },
+    {
+      "file": "extension/dist/webview/chunks/BCT67YTC.js",
+      "baseRaw": 0,
+      "m101Raw": 270,
+      "baseCompressed": 0,
+      "m101Compressed": 215,
+      "compressedDelta": 215
+    },
+    {
+      "file": "extension/dist/webview/chunks/BEEGOKWQ.js",
+      "baseRaw": 163336,
+      "m101Raw": 0,
+      "baseCompressed": 50324,
+      "m101Compressed": 0,
+      "compressedDelta": -50324
+    },
+    {
+      "file": "extension/dist/webview/chunks/BFLAA6JG.js",
+      "baseRaw": 95366,
+      "m101Raw": 95366,
+      "baseCompressed": 30649,
+      "m101Compressed": 30649,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/dist/webview/chunks/CCFR6M2O.js",
+      "baseRaw": 126014,
+      "m101Raw": 0,
+      "baseCompressed": 52421,
+      "m101Compressed": 0,
+      "compressedDelta": -52421
+    },
+    {
+      "file": "extension/dist/webview/chunks/CP4FXNZR.js",
+      "baseRaw": 1522,
+      "m101Raw": 0,
+      "baseCompressed": 710,
+      "m101Compressed": 0,
+      "compressedDelta": -710
+    },
+    {
+      "file": "extension/dist/webview/chunks/CXPMWAOI.js",
+      "baseRaw": 0,
+      "m101Raw": 1522,
+      "baseCompressed": 0,
+      "m101Compressed": 710,
+      "compressedDelta": 710
+    },
+    {
+      "file": "extension/dist/webview/chunks/CZ3LO5LZ.js",
+      "baseRaw": 4079,
+      "m101Raw": 0,
+      "baseCompressed": 1322,
+      "m101Compressed": 0,
+      "compressedDelta": -1322
+    },
+    {
+      "file": "extension/dist/webview/chunks/DBBHZL53.js",
+      "baseRaw": 0,
+      "m101Raw": 106761,
+      "baseCompressed": 0,
+      "m101Compressed": 74235,
+      "compressedDelta": 74235
+    },
+    {
+      "file": "extension/dist/webview/chunks/DRXTYJGI.js",
+      "baseRaw": 0,
+      "m101Raw": 945,
+      "baseCompressed": 0,
+      "m101Compressed": 526,
+      "compressedDelta": 526
+    },
+    {
+      "file": "extension/dist/webview/chunks/EH3AAIPC.js",
+      "baseRaw": 5279,
+      "m101Raw": 0,
+      "baseCompressed": 1982,
+      "m101Compressed": 0,
+      "compressedDelta": -1982
+    },
+    {
+      "file": "extension/dist/webview/chunks/FNIHOB2T.js",
+      "baseRaw": 366,
+      "m101Raw": 0,
+      "baseCompressed": 245,
+      "m101Compressed": 0,
+      "compressedDelta": -245
+    },
+    {
+      "file": "extension/dist/webview/chunks/FYHN4BFX.js",
+      "baseRaw": 270,
+      "m101Raw": 0,
+      "baseCompressed": 214,
+      "m101Compressed": 0,
+      "compressedDelta": -214
+    },
+    {
+      "file": "extension/dist/webview/chunks/FYVC63ST.js",
+      "baseRaw": 0,
+      "m101Raw": 4061,
+      "baseCompressed": 0,
+      "m101Compressed": 1595,
+      "compressedDelta": 1595
+    },
+    {
+      "file": "extension/dist/webview/chunks/HXML4HYM.js",
+      "baseRaw": 4785,
+      "m101Raw": 0,
+      "baseCompressed": 1655,
+      "m101Compressed": 0,
+      "compressedDelta": -1655
+    },
+    {
+      "file": "extension/dist/webview/chunks/JIITPASX.js",
+      "baseRaw": 0,
+      "m101Raw": 4079,
+      "baseCompressed": 0,
+      "m101Compressed": 1322,
+      "compressedDelta": 1322
+    },
+    {
+      "file": "extension/dist/webview/chunks/JS34FEKH.js",
+      "baseRaw": 0,
+      "m101Raw": 13149,
+      "baseCompressed": 0,
+      "m101Compressed": 3886,
+      "compressedDelta": 3886
+    },
+    {
+      "file": "extension/dist/webview/chunks/JSHTFNK4.js",
+      "baseRaw": 0,
+      "m101Raw": 163336,
+      "baseCompressed": 0,
+      "m101Compressed": 50324,
+      "compressedDelta": 50324
+    },
+    {
+      "file": "extension/dist/webview/chunks/JVC4NDKT.js",
+      "baseRaw": 8973,
+      "m101Raw": 0,
+      "baseCompressed": 2300,
+      "m101Compressed": 0,
+      "compressedDelta": -2300
+    },
+    {
+      "file": "extension/dist/webview/chunks/JXRKBALS.js",
+      "baseRaw": 4061,
+      "m101Raw": 0,
+      "baseCompressed": 1593,
+      "m101Compressed": 0,
+      "compressedDelta": -1593
+    },
+    {
+      "file": "extension/dist/webview/chunks/K3WEVZGF.js",
+      "baseRaw": 0,
+      "m101Raw": 2040,
+      "baseCompressed": 0,
+      "m101Compressed": 969,
+      "compressedDelta": 969
+    },
+    {
+      "file": "extension/dist/webview/chunks/L77MKSZX.js",
+      "baseRaw": 7062,
+      "m101Raw": 0,
+      "baseCompressed": 2085,
+      "m101Compressed": 0,
+      "compressedDelta": -2085
+    },
+    {
+      "file": "extension/dist/webview/chunks/L7QOG3AD.js",
+      "baseRaw": 0,
+      "m101Raw": 1410,
+      "baseCompressed": 0,
+      "m101Compressed": 706,
+      "compressedDelta": 706
+    },
+    {
+      "file": "extension/dist/webview/chunks/MEJSF4S5.js",
+      "baseRaw": 0,
+      "m101Raw": 8872,
+      "baseCompressed": 0,
+      "m101Compressed": 2619,
+      "compressedDelta": 2619
+    },
+    {
+      "file": "extension/dist/webview/chunks/MIEBORI7.js",
+      "baseRaw": 0,
+      "m101Raw": 5645,
+      "baseCompressed": 0,
+      "m101Compressed": 2014,
+      "compressedDelta": 2014
+    },
+    {
+      "file": "extension/dist/webview/chunks/MQEIEY3K.js",
+      "baseRaw": 0,
+      "m101Raw": 0,
+      "baseCompressed": 2,
+      "m101Compressed": 2,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/dist/webview/chunks/MTWWKSXI.js",
+      "baseRaw": 3415,
+      "m101Raw": 0,
+      "baseCompressed": 1570,
+      "m101Compressed": 0,
+      "compressedDelta": -1570
+    },
+    {
+      "file": "extension/dist/webview/chunks/MXQ7TXKC.js",
+      "baseRaw": 945,
+      "m101Raw": 0,
+      "baseCompressed": 526,
+      "m101Compressed": 0,
+      "compressedDelta": -526
+    },
+    {
+      "file": "extension/dist/webview/chunks/NBZOOLGX.js",
+      "baseRaw": 1375,
+      "m101Raw": 0,
+      "baseCompressed": 676,
+      "m101Compressed": 0,
+      "compressedDelta": -676
+    },
+    {
+      "file": "extension/dist/webview/chunks/NSJF4TMN.js",
+      "baseRaw": 0,
+      "m101Raw": 5279,
+      "baseCompressed": 0,
+      "m101Compressed": 1982,
+      "compressedDelta": 1982
+    },
+    {
+      "file": "extension/dist/webview/chunks/QTU32CWV.js",
+      "baseRaw": 1077,
+      "m101Raw": 0,
+      "baseCompressed": 606,
+      "m101Compressed": 0,
+      "compressedDelta": -606
+    },
+    {
+      "file": "extension/dist/webview/chunks/R4SLIWUW.js",
+      "baseRaw": 7044,
+      "m101Raw": 7044,
+      "baseCompressed": 2195,
+      "m101Compressed": 2195,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/dist/webview/chunks/ROVNYWZ2.js",
+      "baseRaw": 75985,
+      "m101Raw": 0,
+      "baseCompressed": 22366,
+      "m101Compressed": 0,
+      "compressedDelta": -22366
+    },
+    {
+      "file": "extension/dist/webview/chunks/SWQNIWLN.js",
+      "baseRaw": 772,
+      "m101Raw": 0,
+      "baseCompressed": 379,
+      "m101Compressed": 0,
+      "compressedDelta": -379
+    },
+    {
+      "file": "extension/dist/webview/chunks/U3TPU5X5.js",
+      "baseRaw": 1542,
+      "m101Raw": 0,
+      "baseCompressed": 821,
+      "m101Compressed": 0,
+      "compressedDelta": -821
+    },
+    {
+      "file": "extension/dist/webview/chunks/ULEUR77O.js",
+      "baseRaw": 8872,
+      "m101Raw": 0,
+      "baseCompressed": 2618,
+      "m101Compressed": 0,
+      "compressedDelta": -2618
+    },
+    {
+      "file": "extension/dist/webview/chunks/UOJ6TTI4.js",
+      "baseRaw": 32461,
+      "m101Raw": 32461,
+      "baseCompressed": 9831,
+      "m101Compressed": 9831,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/dist/webview/chunks/UQHHBBOK.js",
+      "baseRaw": 0,
+      "m101Raw": 1374,
+      "baseCompressed": 0,
+      "m101Compressed": 638,
+      "compressedDelta": 638
+    },
+    {
+      "file": "extension/dist/webview/chunks/UXP3ONSW.js",
+      "baseRaw": 0,
+      "m101Raw": 1131,
+      "baseCompressed": 0,
+      "m101Compressed": 551,
+      "compressedDelta": 551
+    },
+    {
+      "file": "extension/dist/webview/chunks/V5SDXEBW.js",
+      "baseRaw": 0,
+      "m101Raw": 78420,
+      "baseCompressed": 0,
+      "m101Compressed": 23017,
+      "compressedDelta": 23017
+    },
+    {
+      "file": "extension/dist/webview/chunks/WGY2CJVX.js",
+      "baseRaw": 0,
+      "m101Raw": 366,
+      "baseCompressed": 0,
+      "m101Compressed": 246,
+      "compressedDelta": 246
+    },
+    {
+      "file": "extension/dist/webview/chunks/XHITGSTT.js",
+      "baseRaw": 0,
+      "m101Raw": 4785,
+      "baseCompressed": 0,
+      "m101Compressed": 1658,
+      "compressedDelta": 1658
+    },
+    {
+      "file": "extension/dist/webview/chunks/XPOQQD4Y.js",
+      "baseRaw": 1410,
+      "m101Raw": 0,
+      "baseCompressed": 702,
+      "m101Compressed": 0,
+      "compressedDelta": -702
+    },
+    {
+      "file": "extension/dist/webview/chunks/YAU5JFBT.js",
+      "baseRaw": 0,
+      "m101Raw": 1375,
+      "baseCompressed": 0,
+      "m101Compressed": 677,
+      "compressedDelta": 677
+    },
+    {
+      "file": "extension/dist/webview/chunks/YDCW7AWE.js",
+      "baseRaw": 1131,
+      "m101Raw": 0,
+      "baseCompressed": 550,
+      "m101Compressed": 0,
+      "compressedDelta": -550
+    },
+    {
+      "file": "extension/dist/webview/chunks/YJHHO45K.js",
+      "baseRaw": 0,
+      "m101Raw": 8973,
+      "baseCompressed": 0,
+      "m101Compressed": 2300,
+      "compressedDelta": 2300
+    },
+    {
+      "file": "extension/dist/webview/chunks/YKLWHRFT.js",
+      "baseRaw": 2280,
+      "m101Raw": 0,
+      "baseCompressed": 1084,
+      "m101Compressed": 0,
+      "compressedDelta": -1084
+    },
+    {
+      "file": "extension/dist/webview/chunks/ZKP52SFP.js",
+      "baseRaw": 4934,
+      "m101Raw": 0,
+      "baseCompressed": 2120,
+      "m101Compressed": 0,
+      "compressedDelta": -2120
+    },
+    {
+      "file": "extension/dist/webview/chunks/ZXQBZBPZ.js",
+      "baseRaw": 1386,
+      "m101Raw": 1386,
+      "baseCompressed": 757,
+      "m101Compressed": 757,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/dist/webview/main.css",
+      "baseRaw": 54913,
+      "m101Raw": 54913,
+      "baseCompressed": 9575,
+      "m101Compressed": 9576,
+      "compressedDelta": 1
+    },
+    {
+      "file": "extension/dist/webview/main.js",
+      "baseRaw": 363383,
+      "m101Raw": 366363,
+      "baseCompressed": 111600,
+      "m101Compressed": 112534,
+      "compressedDelta": 934
+    },
+    {
+      "file": "extension/dist/webview/models.css",
+      "baseRaw": 0,
+      "m101Raw": 8007,
+      "baseCompressed": 0,
+      "m101Compressed": 1749,
+      "compressedDelta": 1749
+    },
+    {
+      "file": "extension/dist/webview/models.js",
+      "baseRaw": 0,
+      "m101Raw": 391260,
+      "baseCompressed": 0,
+      "m101Compressed": 158279,
+      "compressedDelta": 158279
+    },
+    {
+      "file": "extension/dist/webview/whatsNew.css",
+      "baseRaw": 2534,
+      "m101Raw": 2534,
+      "baseCompressed": 757,
+      "m101Compressed": 757,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/dist/webview/whatsNew.js",
+      "baseRaw": 708,
+      "m101Raw": 708,
+      "baseCompressed": 431,
+      "m101Compressed": 431,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/dist/whatsNew.js",
+      "baseRaw": 19037,
+      "m101Raw": 253,
+      "baseCompressed": 7593,
+      "m101Compressed": 196,
+      "compressedDelta": -7397
+    },
+    {
+      "file": "extension/dist/whatsNew.json",
+      "baseRaw": 28899,
+      "m101Raw": 28899,
+      "baseCompressed": 10092,
+      "m101Compressed": 10092,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/dist/wire.js",
+      "baseRaw": 41396,
+      "m101Raw": 42401,
+      "baseCompressed": 11044,
+      "m101Compressed": 11333,
+      "compressedDelta": 289
+    },
+    {
+      "file": "extension/docs/PRIVACY.md",
+      "baseRaw": 57704,
+      "m101Raw": 57704,
+      "baseCompressed": 21242,
+      "m101Compressed": 21242,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/docs/judge.md",
+      "baseRaw": 6136,
+      "m101Raw": 6136,
+      "baseCompressed": 2931,
+      "m101Compressed": 2931,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/first-party-skills/muse_gadgets/SKILL.md",
+      "baseRaw": 2879,
+      "m101Raw": 2879,
+      "baseCompressed": 1485,
+      "m101Compressed": 1485,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/l10n/ui.tables.json.br",
+      "baseRaw": 434815,
+      "m101Raw": 480143,
+      "baseCompressed": 434950,
+      "m101Compressed": 480293,
+      "compressedDelta": 45343
+    },
+    {
+      "file": "extension/media/icon.png",
+      "baseRaw": 4136,
+      "m101Raw": 4136,
+      "baseCompressed": 4141,
+      "m101Compressed": 4141,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/media/icon.svg",
+      "baseRaw": 1847,
+      "m101Raw": 1847,
+      "baseCompressed": 923,
+      "m101Compressed": 923,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/native/darwin/muse-dictate",
+      "baseRaw": 289568,
+      "m101Raw": 289568,
+      "baseCompressed": 81327,
+      "m101Compressed": 81327,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/native/windows/MuseSparkJob.cs",
+      "baseRaw": 2388,
+      "m101Raw": 2388,
+      "baseCompressed": 938,
+      "m101Compressed": 938,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/native/windows/MuseSparkMcpJob.cs",
+      "baseRaw": 13182,
+      "m101Raw": 13182,
+      "baseCompressed": 3652,
+      "m101Compressed": 3652,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/native/windows/MuseSparkMcpLauncher.cs",
+      "baseRaw": 3502,
+      "m101Raw": 3502,
+      "baseCompressed": 1234,
+      "m101Compressed": 1234,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/native/windows/capture.ps1",
+      "baseRaw": 10902,
+      "m101Raw": 10902,
+      "baseCompressed": 3709,
+      "m101Compressed": 3709,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/native/windows/dictate.ps1",
+      "baseRaw": 6909,
+      "m101Raw": 6909,
+      "baseCompressed": 2420,
+      "m101Compressed": 2420,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/package.json",
+      "baseRaw": 28677,
+      "m101Raw": 29787,
+      "baseCompressed": 5542,
+      "m101Compressed": 5725,
+      "compressedDelta": 183
+    },
+    {
+      "file": "extension/package.nls.cs.json",
+      "baseRaw": 33080,
+      "m101Raw": 34192,
+      "baseCompressed": 10966,
+      "m101Compressed": 11312,
+      "compressedDelta": 346
+    },
+    {
+      "file": "extension/package.nls.de.json",
+      "baseRaw": 34242,
+      "m101Raw": 35386,
+      "baseCompressed": 11033,
+      "m101Compressed": 11355,
+      "compressedDelta": 322
+    },
+    {
+      "file": "extension/package.nls.es.json",
+      "baseRaw": 34346,
+      "m101Raw": 35485,
+      "baseCompressed": 10442,
+      "m101Compressed": 10760,
+      "compressedDelta": 318
+    },
+    {
+      "file": "extension/package.nls.fr.json",
+      "baseRaw": 35886,
+      "m101Raw": 37059,
+      "baseCompressed": 10945,
+      "m101Compressed": 11267,
+      "compressedDelta": 322
+    },
+    {
+      "file": "extension/package.nls.hu.json",
+      "baseRaw": 35958,
+      "m101Raw": 37121,
+      "baseCompressed": 11308,
+      "m101Compressed": 11650,
+      "compressedDelta": 342
+    },
+    {
+      "file": "extension/package.nls.it.json",
+      "baseRaw": 34068,
+      "m101Raw": 35199,
+      "baseCompressed": 10461,
+      "m101Compressed": 10779,
+      "compressedDelta": 318
+    },
+    {
+      "file": "extension/package.nls.ja.json",
+      "baseRaw": 39330,
+      "m101Raw": 40639,
+      "baseCompressed": 11457,
+      "m101Compressed": 11786,
+      "compressedDelta": 329
+    },
+    {
+      "file": "extension/package.nls.json",
+      "baseRaw": 28507,
+      "m101Raw": 29490,
+      "baseCompressed": 9272,
+      "m101Compressed": 9562,
+      "compressedDelta": 290
+    },
+    {
+      "file": "extension/package.nls.ko.json",
+      "baseRaw": 35142,
+      "m101Raw": 36321,
+      "baseCompressed": 10871,
+      "m101Compressed": 11186,
+      "compressedDelta": 315
+    },
+    {
+      "file": "extension/package.nls.pl.json",
+      "baseRaw": 33102,
+      "m101Raw": 34139,
+      "baseCompressed": 11052,
+      "m101Compressed": 11374,
+      "compressedDelta": 322
+    },
+    {
+      "file": "extension/package.nls.pt-br.json",
+      "baseRaw": 33448,
+      "m101Raw": 34531,
+      "baseCompressed": 10431,
+      "m101Compressed": 10731,
+      "compressedDelta": 300
+    },
+    {
+      "file": "extension/package.nls.ru.json",
+      "baseRaw": 50972,
+      "m101Raw": 52528,
+      "baseCompressed": 12762,
+      "m101Compressed": 13172,
+      "compressedDelta": 410
+    },
+    {
+      "file": "extension/package.nls.tr.json",
+      "baseRaw": 34185,
+      "m101Raw": 35295,
+      "baseCompressed": 10651,
+      "m101Compressed": 10963,
+      "compressedDelta": 312
+    },
+    {
+      "file": "extension/package.nls.zh-cn.json",
+      "baseRaw": 29083,
+      "m101Raw": 30046,
+      "baseCompressed": 10902,
+      "m101Compressed": 11218,
+      "compressedDelta": 316
+    },
+    {
+      "file": "extension/package.nls.zh-tw.json",
+      "baseRaw": 29478,
+      "m101Raw": 30435,
+      "baseCompressed": 11004,
+      "m101Compressed": 11319,
+      "compressedDelta": 315
+    },
+    {
+      "file": "extension/readme.md",
+      "baseRaw": 12078,
+      "m101Raw": 12078,
+      "baseCompressed": 4458,
+      "m101Compressed": 4458,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/resources/walkthrough/chat.md",
+      "baseRaw": 767,
+      "m101Raw": 767,
+      "baseCompressed": 442,
+      "m101Compressed": 442,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/resources/walkthrough/chat.png",
+      "baseRaw": 49242,
+      "m101Raw": 39823,
+      "baseCompressed": 46165,
+      "m101Compressed": 36961,
+      "compressedDelta": -9204
+    },
+    {
+      "file": "extension/resources/walkthrough/open.md",
+      "baseRaw": 587,
+      "m101Raw": 587,
+      "baseCompressed": 324,
+      "m101Compressed": 324,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/resources/walkthrough/open.png",
+      "baseRaw": 63012,
+      "m101Raw": 44833,
+      "baseCompressed": 59085,
+      "m101Compressed": 41302,
+      "compressedDelta": -17783
+    },
+    {
+      "file": "extension/resources/walkthrough/own-model.md",
+      "baseRaw": 0,
+      "m101Raw": 527,
+      "baseCompressed": 0,
+      "m101Compressed": 318,
+      "compressedDelta": 318
+    },
+    {
+      "file": "extension/resources/walkthrough/sign-in.md",
+      "baseRaw": 723,
+      "m101Raw": 723,
+      "baseCompressed": 397,
+      "m101Compressed": 397,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/resources/walkthrough/sign-in.png",
+      "baseRaw": 30392,
+      "m101Raw": 22112,
+      "baseCompressed": 27799,
+      "m101Compressed": 19418,
+      "compressedDelta": -8381
+    },
+    {
+      "file": "extension/resources/walkthrough/welcome.md",
+      "baseRaw": 694,
+      "m101Raw": 694,
+      "baseCompressed": 403,
+      "m101Compressed": 403,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/resources/walkthrough/welcome.png",
+      "baseRaw": 27779,
+      "m101Raw": 20306,
+      "baseCompressed": 25286,
+      "m101Compressed": 17744,
+      "compressedDelta": -7542
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/AGENTS.md",
+      "baseRaw": 7279,
+      "m101Raw": 7279,
+      "baseCompressed": 3268,
+      "m101Compressed": 3268,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/LICENSE",
+      "baseRaw": 1071,
+      "m101Raw": 1071,
+      "baseCompressed": 638,
+      "m101Compressed": 638,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/README.md",
+      "baseRaw": 10928,
+      "m101Raw": 10928,
+      "baseCompressed": 4627,
+      "m101Compressed": 4627,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/VENDOR.json",
+      "baseRaw": 6650,
+      "m101Raw": 6650,
+      "baseCompressed": 2591,
+      "m101Compressed": 2591,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/docs/CODE-QUALITY.md",
+      "baseRaw": 20500,
+      "m101Raw": 20500,
+      "baseCompressed": 8646,
+      "m101Compressed": 8646,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/docs/DELIVERY.md",
+      "baseRaw": 15068,
+      "m101Raw": 15068,
+      "baseCompressed": 6002,
+      "m101Compressed": 6002,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/docs/INSTALLATION.md",
+      "baseRaw": 6244,
+      "m101Raw": 6244,
+      "baseCompressed": 2360,
+      "m101Compressed": 2360,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/docs/PHILOSOPHY.md",
+      "baseRaw": 7203,
+      "m101Raw": 7203,
+      "baseCompressed": 3519,
+      "m101Compressed": 3519,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/docs/QUALITY-REVIEW.md",
+      "baseRaw": 22561,
+      "m101Raw": 22561,
+      "baseCompressed": 9474,
+      "m101Compressed": 9474,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/docs/RED-DRILLS.md",
+      "baseRaw": 6293,
+      "m101Raw": 6293,
+      "baseCompressed": 2790,
+      "m101Compressed": 2790,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/docs/REPO-META.md",
+      "baseRaw": 3252,
+      "m101Raw": 3252,
+      "baseCompressed": 1423,
+      "m101Compressed": 1423,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/__init__.py",
+      "baseRaw": 80,
+      "m101Raw": 80,
+      "baseCompressed": 72,
+      "m101Compressed": 72,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/checks.py",
+      "baseRaw": 19075,
+      "m101Raw": 19075,
+      "baseCompressed": 4610,
+      "m101Compressed": 4610,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/cli.py",
+      "baseRaw": 7358,
+      "m101Raw": 7358,
+      "baseCompressed": 2638,
+      "m101Compressed": 2638,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/graph.py",
+      "baseRaw": 12051,
+      "m101Raw": 12051,
+      "baseCompressed": 3018,
+      "m101Compressed": 3018,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/model.py",
+      "baseRaw": 4665,
+      "m101Raw": 4665,
+      "baseCompressed": 1557,
+      "m101Compressed": 1557,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/reader.py",
+      "baseRaw": 15941,
+      "m101Raw": 15941,
+      "baseCompressed": 4398,
+      "m101Compressed": 4398,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/snapshot.py",
+      "baseRaw": 7163,
+      "m101Raw": 7163,
+      "baseCompressed": 2386,
+      "m101Compressed": 2386,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/writer.py",
+      "baseRaw": 6158,
+      "m101Raw": 6158,
+      "baseCompressed": 2250,
+      "m101Compressed": 2250,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/detect-stack.ps1",
+      "baseRaw": 17895,
+      "m101Raw": 17895,
+      "baseCompressed": 3888,
+      "m101Compressed": 3888,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/detect-stack.sh",
+      "baseRaw": 13257,
+      "m101Raw": 13257,
+      "baseCompressed": 4578,
+      "m101Compressed": 4578,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/skill-root.ps1",
+      "baseRaw": 2122,
+      "m101Raw": 2122,
+      "baseCompressed": 839,
+      "m101Compressed": 839,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/skill-root.sh",
+      "baseRaw": 1505,
+      "m101Raw": 1505,
+      "baseCompressed": 753,
+      "m101Compressed": 753,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/update-delivery.py",
+      "baseRaw": 364,
+      "m101Raw": 364,
+      "baseCompressed": 238,
+      "m101Compressed": 238,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/verify-delivery.py",
+      "baseRaw": 580,
+      "m101Raw": 580,
+      "baseCompressed": 357,
+      "m101Compressed": 357,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/scripts/verify-format-safe.py",
+      "baseRaw": 2866,
+      "m101Raw": 2866,
+      "baseCompressed": 1421,
+      "m101Compressed": 1421,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/skills/feature_delivery/SKILL.md",
+      "baseRaw": 7546,
+      "m101Raw": 7546,
+      "baseCompressed": 3288,
+      "m101Compressed": 3288,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/skills/project_setup/SKILL.md",
+      "baseRaw": 28728,
+      "m101Raw": 28728,
+      "baseCompressed": 11971,
+      "m101Compressed": 11971,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/skills/project_setup/assets/PROJECT_BRIEF.md",
+      "baseRaw": 7113,
+      "m101Raw": 7113,
+      "baseCompressed": 2957,
+      "m101Compressed": 2957,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/skills/project_setup/references/grill-me.md",
+      "baseRaw": 15961,
+      "m101Raw": 15961,
+      "baseCompressed": 6347,
+      "m101Compressed": 6347,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/skills/quality_retrofit/SKILL.md",
+      "baseRaw": 23448,
+      "m101Raw": 23448,
+      "baseCompressed": 10236,
+      "m101Compressed": 10236,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/.pre-commit-config.yaml",
+      "baseRaw": 8268,
+      "m101Raw": 8268,
+      "baseCompressed": 2817,
+      "m101Compressed": 2817,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/README.md",
+      "baseRaw": 13334,
+      "m101Raw": 13334,
+      "baseCompressed": 5999,
+      "m101Compressed": 5999,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/cpp/.clang-tidy",
+      "baseRaw": 2653,
+      "m101Raw": 2653,
+      "baseCompressed": 1138,
+      "m101Compressed": 1138,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/cpp/sanitizers.md",
+      "baseRaw": 4456,
+      "m101Raw": 4456,
+      "baseCompressed": 2117,
+      "m101Compressed": 2117,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/csharp/.editorconfig",
+      "baseRaw": 1153,
+      "m101Raw": 1153,
+      "baseCompressed": 570,
+      "m101Compressed": 570,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/csharp/Directory.Build.props",
+      "baseRaw": 3284,
+      "m101Raw": 3284,
+      "baseCompressed": 1468,
+      "m101Compressed": 1468,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/powershell/PSScriptAnalyzerSettings.psd1",
+      "baseRaw": 3129,
+      "m101Raw": 3129,
+      "baseCompressed": 1247,
+      "m101Compressed": 1247,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/python/mypy.ini",
+      "baseRaw": 2318,
+      "m101Raw": 2318,
+      "baseCompressed": 1137,
+      "m101Compressed": 1137,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/python/ruff.toml",
+      "baseRaw": 2003,
+      "m101Raw": 2003,
+      "baseCompressed": 1092,
+      "m101Compressed": 1092,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/rust/clippy-strict.toml",
+      "baseRaw": 3628,
+      "m101Raw": 3628,
+      "baseCompressed": 1241,
+      "m101Compressed": 1241,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/rust/deny.toml",
+      "baseRaw": 2046,
+      "m101Raw": 2046,
+      "baseCompressed": 1053,
+      "m101Compressed": 1053,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/typescript/eslint.config.mjs",
+      "baseRaw": 6400,
+      "m101Raw": 6400,
+      "baseCompressed": 2584,
+      "m101Compressed": 2584,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/typescript/tsconfig.strict.json",
+      "baseRaw": 2104,
+      "m101Raw": 2104,
+      "baseCompressed": 1027,
+      "m101Compressed": 1027,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/web/.stylelintrc.json",
+      "baseRaw": 1147,
+      "m101Raw": 1147,
+      "baseCompressed": 502,
+      "m101Compressed": 502,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/web/knip.jsonc",
+      "baseRaw": 2398,
+      "m101Raw": 2398,
+      "baseCompressed": 1177,
+      "m101Compressed": 1177,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/high-quality-projects-skill/templates/workflow/PLAN.md",
+      "baseRaw": 2018,
+      "m101Raw": 2018,
+      "baseCompressed": 888,
+      "m101Compressed": 888,
+      "compressedDelta": 0
+    },
+    {
+      "file": "extension/vendor/models-dev/LICENSE",
+      "baseRaw": 0,
+      "m101Raw": 1067,
+      "baseCompressed": 0,
+      "m101Compressed": 635,
+      "compressedDelta": 635
+    },
+    {
+      "file": "extension/vendor/models-dev/VENDOR.json",
+      "baseRaw": 0,
+      "m101Raw": 704,
+      "baseCompressed": 0,
+      "m101Compressed": 408,
+      "compressedDelta": 408
+    }
+  ],
+  "scopedM101Validation": {
+    "machine": "kubuntu",
+    "typecheckProjects": 5,
+    "changedFileLintAndFormat": "pass",
+    "l10nProblems": 0,
+    "hostApi": "pass",
+    "execSchemas": "pass",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "<at most three files>",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "tests": {
+      "files": [
+        "test/e2e/execStdio.e2e.test.ts",
+        "test/unit/App.test.tsx",
+        "test/unit/Palette.test.tsx",
+        "test/unit/SetupBanner.test.tsx",
+        "test/unit/SignIn.test.tsx",
+        "test/unit/UsageDialog.test.tsx",
+        "test/unit/acpAgent.test.ts",
+        "test/unit/acpModelApi.test.ts",
+        "test/unit/acpRuntime.test.ts",
+        "test/unit/acpTranslate.test.ts",
+        "test/unit/anthropicCodec.test.ts",
+        "test/unit/autoCompact.test.ts",
+        "test/unit/byoProtocol.test.ts",
+        "test/unit/chatColumn.test.mjs",
+        "test/unit/codecShared.test.ts",
+        "test/unit/conversationController.test.ts",
+        "test/unit/deferredBundles.test.ts",
+        "test/unit/eval/evalPacking.test.ts",
+        "test/unit/execArgs.test.ts",
+        "test/unit/execRun.test.ts",
+        "test/unit/fileSessionStore.test.ts",
+        "test/unit/geminiCodec.test.ts",
+        "test/unit/goals.test.ts",
+        "test/unit/imageResize.test.ts",
+        "test/unit/m101Certification.test.ts",
+        "test/unit/m101P2Documentation.test.ts",
+        "test/unit/m95Strings.test.ts",
+        "test/unit/manifest.test.ts",
+        "test/unit/metaRequestGoldens.test.ts",
+        "test/unit/modelApiAutoCompact.test.ts",
+        "test/unit/modelApiClient.test.ts",
+        "test/unit/modelApiCutShort.test.ts",
+        "test/unit/modelApiExtensionHooks.test.ts",
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/modelApiHost.test.ts",
+        "test/unit/modelApiImageIngress.test.ts",
+        "test/unit/modelApiOverflow.test.ts",
+        "test/unit/modelApiPacking.test.ts",
+        "test/unit/modelApiPrefix.test.ts",
+        "test/unit/modelApiSaveRejection.test.ts",
+        "test/unit/modelApiTools.test.ts",
+        "test/unit/modelCapabilitiesBinding.test.ts",
+        "test/unit/modelTextCompression.test.mjs",
+        "test/unit/modelapiChatCodec.test.ts",
+        "test/unit/modelsActivationBudget.test.ts",
+        "test/unit/modelsApp.test.tsx",
+        "test/unit/modelsComponents.test.tsx",
+        "test/unit/modelsPanel.test.ts",
+        "test/unit/modelsPanelBundle.test.ts",
+        "test/unit/modelsPanelEntry.test.ts",
+        "test/unit/modelsPanelReducer.test.ts",
+        "test/unit/modelsPanelSchemas.test.ts",
+        "test/unit/modelsPanelSections.test.tsx",
+        "test/unit/modelsQuickPick.test.ts",
+        "test/unit/modelsSections.test.ts",
+        "test/unit/observationPack.test.ts",
+        "test/unit/ollamaCodec.test.ts",
+        "test/unit/paidDailyBudget.test.ts",
+        "test/unit/providerAuthService.test.ts",
+        "test/unit/providerCatalog.test.ts",
+        "test/unit/providerCredentialRecords.test.ts",
+        "test/unit/providerCredentialStore.test.ts",
+        "test/unit/providerImportExport.test.ts",
+        "test/unit/providerKeyPrompt.test.ts",
+        "test/unit/providerLocalProbe.test.ts",
+        "test/unit/providerModelScans.test.ts",
+        "test/unit/providerOAuthLoopback.test.ts",
+        "test/unit/providerOpenRouter.test.ts",
+        "test/unit/providerProvidersHost.test.ts",
+        "test/unit/providerRemoval.test.ts",
+        "test/unit/providerRetry.test.ts",
+        "test/unit/providerWizardSave.test.ts",
+        "test/unit/providerWorkspaceSuggestion.test.ts",
+        "test/unit/providersFlow.test.ts",
+        "test/unit/providersL10n.test.ts",
+        "test/unit/providersModel.test.ts",
+        "test/unit/providersOverflow.test.ts",
+        "test/unit/providersPolicy.test.ts",
+        "test/unit/providersPresets.test.ts",
+        "test/unit/providersThreats.test.ts",
+        "test/unit/readFileBudget.test.ts",
+        "test/unit/redact.test.ts",
+        "test/unit/responsesCodec.test.ts",
+        "test/unit/searchWorker.test.ts",
+        "test/unit/settings.test.ts",
+        "test/unit/uiState.test.ts",
+        "test/unit/uiTextRegions.test.mjs",
+        "test/unit/verifyLoop.test.ts",
+        "test/unit/walkthrough.test.ts",
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/credentialEnvironment.test.ts"
+      ],
+      "batches": [
+        {
+          "batch": 1,
+          "files": [
+            "test/e2e/execStdio.e2e.test.ts",
+            "test/unit/App.test.tsx",
+            "test/unit/Palette.test.tsx"
+          ],
+          "passed": 212,
+          "skipped": 0,
+          "total": 212,
+          "log": "temp/train15a/merge2-tests1.log"
+        },
+        {
+          "batch": 2,
+          "files": [
+            "test/unit/SetupBanner.test.tsx",
+            "test/unit/SignIn.test.tsx",
+            "test/unit/UsageDialog.test.tsx"
+          ],
+          "passed": 57,
+          "skipped": 0,
+          "total": 57,
+          "log": "temp/train15a/merge2-tests2.log"
+        },
+        {
+          "batch": 3,
+          "files": [
+            "test/unit/acpAgent.test.ts",
+            "test/unit/acpModelApi.test.ts",
+            "test/unit/acpRuntime.test.ts"
+          ],
+          "passed": 145,
+          "skipped": 0,
+          "total": 145,
+          "log": "temp/train15a/merge2-tests3.log"
+        },
+        {
+          "batch": 4,
+          "files": [
+            "test/unit/acpTranslate.test.ts",
+            "test/unit/anthropicCodec.test.ts",
+            "test/unit/autoCompact.test.ts"
+          ],
+          "passed": 153,
+          "skipped": 0,
+          "total": 153,
+          "log": "temp/train15a/merge2-tests4.log"
+        },
+        {
+          "batch": 5,
+          "files": [
+            "test/unit/byoProtocol.test.ts",
+            "test/unit/chatColumn.test.mjs",
+            "test/unit/codecShared.test.ts"
+          ],
+          "passed": 27,
+          "skipped": 0,
+          "total": 27,
+          "log": "temp/train15a/merge2-tests5.log"
+        },
+        {
+          "batch": 6,
+          "files": [
+            "test/unit/conversationController.test.ts",
+            "test/unit/deferredBundles.test.ts",
+            "test/unit/eval/evalPacking.test.ts"
+          ],
+          "passed": 633,
+          "skipped": 0,
+          "total": 633,
+          "log": "temp/train15a/merge2-tests6.log"
+        },
+        {
+          "batch": 7,
+          "files": [
+            "test/unit/execArgs.test.ts",
+            "test/unit/execRun.test.ts",
+            "test/unit/fileSessionStore.test.ts"
+          ],
+          "passed": 116,
+          "skipped": 0,
+          "total": 116,
+          "log": "temp/train15a/merge2-tests7.log"
+        },
+        {
+          "batch": 8,
+          "files": [
+            "test/unit/geminiCodec.test.ts",
+            "test/unit/goals.test.ts",
+            "test/unit/imageResize.test.ts"
+          ],
+          "passed": 92,
+          "skipped": 0,
+          "total": 92,
+          "log": "temp/train15a/merge2-tests8.log"
+        },
+        {
+          "batch": 9,
+          "files": [
+            "test/unit/m101Certification.test.ts",
+            "test/unit/m101P2Documentation.test.ts",
+            "test/unit/m95Strings.test.ts"
+          ],
+          "passed": 10,
+          "skipped": 0,
+          "total": 10,
+          "log": "temp/train15a/merge2-tests9.log"
+        },
+        {
+          "batch": 10,
+          "files": [
+            "test/unit/manifest.test.ts",
+            "test/unit/metaRequestGoldens.test.ts",
+            "test/unit/modelApiAutoCompact.test.ts"
+          ],
+          "passed": 80,
+          "skipped": 0,
+          "total": 80,
+          "log": "temp/train15a/merge2-tests10.log"
+        },
+        {
+          "batch": 11,
+          "files": [
+            "test/unit/modelApiClient.test.ts",
+            "test/unit/modelApiCutShort.test.ts",
+            "test/unit/modelApiExtensionHooks.test.ts"
+          ],
+          "passed": 58,
+          "skipped": 0,
+          "total": 58,
+          "log": "temp/train15a/merge2-tests11.log"
+        },
+        {
+          "batch": 12,
+          "files": [
+            "test/unit/modelApiGoldenRequests.test.ts",
+            "test/unit/modelApiHost.test.ts",
+            "test/unit/modelApiImageIngress.test.ts"
+          ],
+          "passed": 681,
+          "skipped": 0,
+          "total": 681,
+          "log": "temp/train15a/merge2-tests12.log"
+        },
+        {
+          "batch": 13,
+          "files": [
+            "test/unit/modelApiOverflow.test.ts",
+            "test/unit/modelApiPacking.test.ts",
+            "test/unit/modelApiPrefix.test.ts"
+          ],
+          "passed": 78,
+          "skipped": 0,
+          "total": 78,
+          "log": "temp/train15a/merge2-tests13.log"
+        },
+        {
+          "batch": 14,
+          "files": [
+            "test/unit/modelApiSaveRejection.test.ts",
+            "test/unit/modelApiTools.test.ts",
+            "test/unit/modelCapabilitiesBinding.test.ts"
+          ],
+          "passed": 85,
+          "skipped": 0,
+          "total": 85,
+          "log": "temp/train15a/merge2-tests14.log"
+        },
+        {
+          "batch": 15,
+          "files": [
+            "test/unit/modelTextCompression.test.mjs",
+            "test/unit/modelapiChatCodec.test.ts",
+            "test/unit/modelsActivationBudget.test.ts"
+          ],
+          "passed": 88,
+          "skipped": 0,
+          "total": 88,
+          "log": "temp/train15a/merge2-tests15.log"
+        },
+        {
+          "batch": 16,
+          "files": [
+            "test/unit/modelsApp.test.tsx",
+            "test/unit/modelsComponents.test.tsx",
+            "test/unit/modelsPanel.test.ts"
+          ],
+          "passed": 31,
+          "skipped": 0,
+          "total": 31,
+          "log": "temp/train15a/merge2-tests16.log"
+        },
+        {
+          "batch": 17,
+          "files": [
+            "test/unit/modelsPanelBundle.test.ts",
+            "test/unit/modelsPanelEntry.test.ts",
+            "test/unit/modelsPanelReducer.test.ts"
+          ],
+          "passed": 18,
+          "skipped": 0,
+          "total": 18,
+          "log": "temp/train15a/merge2-tests17.log"
+        },
+        {
+          "batch": 18,
+          "files": [
+            "test/unit/modelsPanelSchemas.test.ts",
+            "test/unit/modelsPanelSections.test.tsx",
+            "test/unit/modelsQuickPick.test.ts"
+          ],
+          "passed": 35,
+          "skipped": 0,
+          "total": 35,
+          "log": "temp/train15a/merge2-tests18.log"
+        },
+        {
+          "batch": 19,
+          "files": [
+            "test/unit/modelsSections.test.ts",
+            "test/unit/observationPack.test.ts",
+            "test/unit/ollamaCodec.test.ts"
+          ],
+          "passed": 89,
+          "skipped": 0,
+          "total": 89,
+          "log": "temp/train15a/merge2-tests19.log"
+        },
+        {
+          "batch": 20,
+          "files": [
+            "test/unit/paidDailyBudget.test.ts",
+            "test/unit/providerAuthService.test.ts",
+            "test/unit/providerCatalog.test.ts"
+          ],
+          "passed": 101,
+          "skipped": 0,
+          "total": 101,
+          "log": "temp/train15a/merge2-tests20.log"
+        },
+        {
+          "batch": 21,
+          "files": [
+            "test/unit/providerCredentialRecords.test.ts",
+            "test/unit/providerCredentialStore.test.ts",
+            "test/unit/providerImportExport.test.ts"
+          ],
+          "passed": 28,
+          "skipped": 0,
+          "total": 28,
+          "log": "temp/train15a/merge2-tests21.log"
+        },
+        {
+          "batch": 22,
+          "files": [
+            "test/unit/providerKeyPrompt.test.ts",
+            "test/unit/providerLocalProbe.test.ts",
+            "test/unit/providerModelScans.test.ts"
+          ],
+          "passed": 15,
+          "skipped": 0,
+          "total": 15,
+          "log": "temp/train15a/merge2-tests22.log"
+        },
+        {
+          "batch": 23,
+          "files": [
+            "test/unit/providerOAuthLoopback.test.ts",
+            "test/unit/providerOpenRouter.test.ts",
+            "test/unit/providerProvidersHost.test.ts"
+          ],
+          "passed": 28,
+          "skipped": 0,
+          "total": 28,
+          "log": "temp/train15a/merge2-tests23.log"
+        },
+        {
+          "batch": 24,
+          "files": [
+            "test/unit/providerRemoval.test.ts",
+            "test/unit/providerRetry.test.ts",
+            "test/unit/providerWizardSave.test.ts"
+          ],
+          "passed": 22,
+          "skipped": 0,
+          "total": 22,
+          "log": "temp/train15a/merge2-tests24.log"
+        },
+        {
+          "batch": 25,
+          "files": [
+            "test/unit/providerWorkspaceSuggestion.test.ts",
+            "test/unit/providersFlow.test.ts",
+            "test/unit/providersL10n.test.ts"
+          ],
+          "passed": 33,
+          "skipped": 0,
+          "total": 33,
+          "log": "temp/train15a/merge2-tests25.log"
+        },
+        {
+          "batch": 26,
+          "files": [
+            "test/unit/providersModel.test.ts",
+            "test/unit/providersOverflow.test.ts",
+            "test/unit/providersPolicy.test.ts"
+          ],
+          "passed": 78,
+          "skipped": 0,
+          "total": 78,
+          "log": "temp/train15a/merge2-tests26.log"
+        },
+        {
+          "batch": 27,
+          "files": [
+            "test/unit/providersPresets.test.ts",
+            "test/unit/providersThreats.test.ts",
+            "test/unit/readFileBudget.test.ts"
+          ],
+          "passed": 96,
+          "skipped": 0,
+          "total": 96,
+          "log": "temp/train15a/merge2-tests27-restored.log"
+        },
+        {
+          "batch": 28,
+          "files": [
+            "test/unit/redact.test.ts",
+            "test/unit/responsesCodec.test.ts",
+            "test/unit/searchWorker.test.ts"
+          ],
+          "passed": 211,
+          "skipped": 0,
+          "total": 211,
+          "log": "temp/train15a/merge2-tests28.log"
+        },
+        {
+          "batch": 29,
+          "files": [
+            "test/unit/settings.test.ts",
+            "test/unit/uiState.test.ts",
+            "test/unit/uiTextRegions.test.mjs"
+          ],
+          "passed": 199,
+          "skipped": 0,
+          "total": 199,
+          "log": "temp/train15a/merge2-tests29.log"
+        },
+        {
+          "batch": 30,
+          "files": [
+            "test/unit/verifyLoop.test.ts",
+            "test/unit/walkthrough.test.ts",
+            "test/unit/webviewBundle.test.mjs"
+          ],
+          "passed": 86,
+          "skipped": 0,
+          "total": 86,
+          "log": "temp/train15a/merge2-tests30-restored.log"
+        },
+        {
+          "batch": 31,
+          "files": ["test/unit/bundleSize.test.mjs", "test/unit/credentialEnvironment.test.ts"],
+          "passed": 76,
+          "skipped": 0,
+          "total": 76,
+          "log": "temp/train15a/merge2-tests31-restored.log"
+        }
+      ],
+      "passed": 3661,
+      "skipped": 0
+    }
+  },
+  "acpArtifact": {
+    "bytes": 1027738,
+    "sha256": "368873b0969512a849c3fe8f2f80743d6f6ad666488a039a5393286621923ab9",
+    "nativeModuleChecks": 16,
+    "installedCliEnglishCheck": "pass"
+  },
+  "integrationParents": {
+    "dietMerge": "583e67a87",
+    "m101FirstParent": "583e67a879fc373afb2136f0d644d8632c4a6d3e",
+    "m101SecondParent": "a2ac739f2f491d25fe3a8e672b34be1b007bfe54"
+  }
+}

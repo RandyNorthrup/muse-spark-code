@@ -15,8 +15,8 @@ function staticOutputs(meta, roots) {
   return [...eager]
 }
 
-export function webviewStartupOutputs(meta) {
-  return staticOutputs(meta, ['dist/webview/main.js'])
+export function webviewStartupOutputs(meta, entry = 'dist/webview/main.js') {
+  return staticOutputs(meta, [entry])
 }
 
 // Additional lazy closures have measured caps. The original optional surfaces

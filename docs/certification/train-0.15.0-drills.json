@@ -10,5 +10,29 @@
     "exit": 1,
     "before": "e430e27cf3f4e14f4db49a29cf00d7eaf3dcc6b95ffba68b368345987b62fb25",
     "restored": "e430e27cf3f4e14f4db49a29cf00d7eaf3dcc6b95ffba68b368345987b62fb25"
+  },
+  {
+    "drill": "shared-model-text-decoder",
+    "file": "scripts/lib/compressedModelText.mjs",
+    "test": "test/unit/modelTextCompression.test.mjs",
+    "exit": 1,
+    "before": "06adc66d1d8a08663d8d354af9e0b2bcbeb2cb245eeaa9534dc1b9b64951b7eb",
+    "restored": "06adc66d1d8a08663d8d354af9e0b2bcbeb2cb245eeaa9534dc1b9b64951b7eb"
+  },
+  {
+    "drill": "models-static-import-cap",
+    "file": "scripts/check-bundle-size.mjs",
+    "test": "test/unit/bundleSize.test.mjs",
+    "exit": 1,
+    "before": "61aca6fcea16f3d8bb0dad8e02d0da6bd6e1d727f51ff786349dcfd4766f2d93",
+    "restored": "61aca6fcea16f3d8bb0dad8e02d0da6bd6e1d727f51ff786349dcfd4766f2d93"
+  },
+  {
+    "drill": "shared-ci-token-fence",
+    "file": "src/core/credentialEnvironment.ts",
+    "test": "test/unit/providersThreats.test.ts",
+    "exit": 1,
+    "before": "05a5b24ece8c36f35e7eef9aa873c774b0200bd3615d61b18932e2e7654bf0d3",
+    "restored": "05a5b24ece8c36f35e7eef9aa873c774b0200bd3615d61b18932e2e7654bf0d3"
   }
 ]

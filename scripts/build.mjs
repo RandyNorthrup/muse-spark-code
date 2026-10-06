@@ -58,8 +58,10 @@ import {
   compressedEnglish,
   compactBrowserEnglish,
 } from './lib/uiTextRegions.mjs'
+import { compressedModelText } from './lib/compressedModelText.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
+import { copyCatalogToDist } from './sync-provider-catalog.mjs'
 import {
   sharedUiText,
   sharedValidation,
@@ -89,6 +91,8 @@ const VALIDATION_ENTRY = 'src/shared/validationEntry.ts'
 const VALIDATION_OUTFILE = 'dist/validation.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
+const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
+const PROVIDERS_OUTFILE = 'dist/providers.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
@@ -132,12 +136,16 @@ const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
+const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
+const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
 const JUDGE_OUTFILE = 'dist/judge.js'
+const IMAGE_RESIZE_WORKER_ENTRY = 'src/core/imageResizeWorker.ts'
+const IMAGE_RESIZE_WORKER_OUTFILE = 'dist/imageResizeWorker.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
@@ -147,6 +155,8 @@ const RECORDER_OUTFILE = 'dist/recorder.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
+// The Models & Agents panel's own app (M95 lane M), beside the chat.
+const MODELS_WEBVIEW_ENTRY = 'src/webview/models/models.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
@@ -155,6 +165,8 @@ const ACP_OUTFILE = 'dist/acp.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
+// M95 (PLAN.md D74): the vendored provider catalogue ships as data, not code.
+const PROVIDER_CATALOG_OUTFILE = 'dist/providerCatalog.json'
 // The extension host of the oldest VS Code the manifest accepts: 1.99 runs
 // Node 20.18 (PLAN.md M62). The ACP agent runs on the user's own Node 22.
 const HOST_NODE_TARGET = 'node20.18'
@@ -197,12 +209,25 @@ const conversationOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    compressedModelText(isProduction),
+  ],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const providersOptions = {
+  ...modelApiOptions,
+  entryPoints: [PROVIDERS_ENTRY],
+  outfile: PROVIDERS_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -348,6 +373,18 @@ const judgeOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const modelsPanelOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [MODELS_PANEL_ENTRY],
+  outfile: MODELS_PANEL_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
   plugins: [sharedUiText, sharedValidation, sharedWire],
@@ -386,6 +423,14 @@ const searchWorkerOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const imageResizeWorkerOptions = {
+  ...searchWorkerOptions,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [IMAGE_RESIZE_WORKER_ENTRY],
+  outfile: IMAGE_RESIZE_WORKER_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -513,6 +558,14 @@ const webviewOptions = {
   jsx: 'automatic',
 }
 
+const modelsWebviewOptions = {
+  ...webviewOptions,
+  entryPoints: { models: MODELS_WEBVIEW_ENTRY },
+  format: 'iife',
+  splitting: false,
+  outdir: WEBVIEW_OUTDIR,
+}
+
 // What's New's page script and stylesheet (M99): dist/webview/whatsNew.js
 // and whatsNew.css, beside the panel's, loaded by that page alone.
 /** @type {import('esbuild').BuildOptions} */
@@ -546,6 +599,7 @@ function reportSize(path) {
   console.log(`  ${path}  ${kib} KiB`)
 }
 
+copyCatalogToDist()
 // Content-hashed chunks from an earlier build must never enter a package.
 rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
 const whatsNewContent = writeWhatsNewContent()
@@ -559,6 +613,7 @@ if (isWatch) {
     esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
     esbuild.context(modelApiOptions),
+    esbuild.context(providersOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(reviewerOptions),
@@ -587,8 +642,11 @@ if (isWatch) {
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
+    esbuild.context(imageResizeWorkerOptions),
     esbuild.context(webviewOptions),
     esbuild.context(whatsNewPageOptions),
+    esbuild.context(modelsPanelOptions),
+    esbuild.context(modelsWebviewOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -598,6 +656,7 @@ if (isWatch) {
     conversation: esbuild.build(conversationOptions),
     tab: esbuild.build(tabOptions),
     modelApi: esbuild.build(modelApiOptions),
+    providers: esbuild.build(providersOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
     reviewer: esbuild.build(reviewerOptions),
@@ -631,8 +690,11 @@ if (isWatch) {
     browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
+    imageResizeWorker: esbuild.build(imageResizeWorkerOptions),
     webview: esbuild.build(webviewOptions),
     whatsNewPage: esbuild.build(whatsNewPageOptions),
+    modelsPanel: esbuild.build(modelsPanelOptions),
+    modelsWebview: esbuild.build(modelsWebviewOptions),
   }
   const acp = esbuild.build(acpOptions)
   const builds = [...Object.values(shipped), acp]
@@ -655,6 +717,7 @@ if (isWatch) {
   reportSize(CONVERSATION_OUTFILE)
   reportSize(TAB_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
+  reportSize(PROVIDERS_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
   reportSize(REVIEWER_OUTFILE)
@@ -680,10 +743,15 @@ if (isWatch) {
   reportSize(VALIDATION_OUTFILE)
   reportSize(BROWSER_CHECK_OUTFILE)
   reportSize(BROWSER_RUNTIME_OUTFILE)
+  reportSize(MODELS_PANEL_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
+  reportSize(IMAGE_RESIZE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.css'))
+  reportSize(path.join(WEBVIEW_OUTDIR, 'models.js'))
+  reportSize(path.join(WEBVIEW_OUTDIR, 'models.css'))
+  reportSize(PROVIDER_CATALOG_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)

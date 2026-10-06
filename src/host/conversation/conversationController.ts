@@ -1020,6 +1020,12 @@ export class ConversationController {
   private session: AgentSession | undefined
   private unsubscribe: (() => void) | undefined
   private models: readonly ModelOption[] | undefined
+  /**
+   * Models the host flagged as training on the content, from the unfiltered
+   * listing (M95): the picker never sees them where confidential, and neither
+   * does a stale `setModel`. Refreshed with every listing, forgotten with it.
+   */
+  private readonly trainingModelIds = new Set<string>()
   private modelListing: Promise<void> | undefined
   /** The backend the model catalogue was listed from; a new backend or sign-in starts a new one. */
   private modelGeneration = 0
@@ -3260,6 +3266,7 @@ export class ConversationController {
     const didHaveModels = this.models !== undefined
     this.modelGeneration += 1
     this.models = undefined
+    this.trainingModelIds.clear()
     this.modelListing = undefined
     if (didHaveModels && !this.isDisposed) {
       this.post({ type: 'modelList', models: [] })
@@ -3287,14 +3294,36 @@ export class ConversationController {
     if (this.isDisposed || this.modelGeneration !== generation) {
       return
     }
+    // A confidential workspace hides the contributor tier and any BYO model
+    // whose provider or route may train on the content (M95, PLAN.md D74).
+    // The refused ids stay known for a stale `setModel` naming one.
+    this.trainingModelIds.clear()
+    for (const model of listed) {
+      if (model.trainsOnContent === true) {
+        this.trainingModelIds.add(model.modelId)
+      }
+    }
     const models = this.deps.isConfidentialWorkspace()
-      ? listed.filter((model) => !isContributorModel(model.modelId))
+      ? listed.filter(
+          (model) => !isContributorModel(model.modelId) && model.trainsOnContent !== true,
+        )
       : listed
     this.models = models.map((model) => ({
       modelId: model.modelId,
       displayLabel: model.displayLabel,
       ...(model.contextLimit !== undefined && { contextLimit: model.contextLimit }),
       isDefault: model.isDefault,
+      ...(model.providerId !== undefined && { providerId: model.providerId }),
+      ...(model.providerLabel !== undefined && { providerLabel: model.providerLabel }),
+      ...(model.pricing !== undefined && { pricing: model.pricing }),
+      ...(model.inputUsdPerMTokens !== undefined && {
+        inputUsdPerMTokens: model.inputUsdPerMTokens,
+      }),
+      ...(model.outputUsdPerMTokens !== undefined && {
+        outputUsdPerMTokens: model.outputUsdPerMTokens,
+      }),
+      ...(model.isPinned === true && { isPinned: model.isPinned }),
+      ...(model.trainsOnContent === true && { trainsOnContent: model.trainsOnContent }),
     }))
     this.post({ type: 'modelList', models: [...this.models] })
   }
@@ -7104,13 +7133,47 @@ export class ConversationController {
     }
   }
 
-  /** Whether a contributor-tier model may be used here: blocked, or confirmed once. */
+  /**
+   * Whether the model may be used here: a contributor-tier model is blocked
+   * or confirmed once, and a BYO model the listing flagged as training on
+   * the content is refused in a confidential workspace (M95, PLAN.md D74).
+   * Confidential BYO selection resolves current host privacy facts, even
+   * before the wizard's first save or after a saved route changes.
+   */
   private async allowsModel(modelId: string): Promise<boolean> {
-    // The confidential check runs before the confirmation shortcut: a
-    // workspace turned confidential after an earlier yes still never sends
-    // to a contributor (training) model.
     if (this.deps.isConfidentialWorkspace() && isContributorModel(modelId)) {
       this.notice('warning', UI_TEXT.contributorBlocked)
+      return false
+    }
+    if (this.deps.isConfidentialWorkspace() && modelId.includes('/')) {
+      const generation = this.modelGeneration
+      const actionGeneration = this.sendInvalidationEpoch
+      try {
+        const host = await this.deps.ensureHost()
+        const listed = await host.listModels()
+        if (
+          this.isDisposed ||
+          this.modelGeneration !== generation ||
+          this.sendInvalidationEpoch !== actionGeneration
+        ) {
+          return false
+        }
+        const model = listed.find((entry) => entry.modelId === modelId)
+        if (model === undefined || model.trainsOnContent === true) {
+          this.notice('warning', UI_TEXT.trainingBlocked)
+          return false
+        }
+      } catch {
+        this.notice('warning', UI_TEXT.trainingBlocked)
+        return false
+      }
+      return true
+    }
+    const isTraining =
+      this.models?.find((model) => model.modelId === modelId)?.trainsOnContent === true ||
+      this.trainingModelIds.has(modelId)
+    if (isTraining && this.deps.isConfidentialWorkspace()) {
+      this.notice('warning', UI_TEXT.trainingBlocked)
       return false
     }
     if (!isContributorModel(modelId) || this.confirmedContributor === modelId) {
@@ -8403,6 +8466,13 @@ export class ConversationController {
         break
       }
       case 'signIn': {
+        // The first-run screen's third choice (M95): not a credential but
+        // the Models & Agents wizard at "Pick a provider" (lane K's
+        // `museSpark.startWithOwnModel`; an explicit error until it lands).
+        if (message.method === 'byo') {
+          await this.runHostAction('startWithOwnModel')
+          break
+        }
         await this.deps.auth.signIn(message.method)
         this.readWaitingBrief()
         void this.warmModels()

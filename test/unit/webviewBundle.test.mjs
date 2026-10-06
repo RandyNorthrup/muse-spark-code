@@ -36,6 +36,7 @@ beforeAll(() => {
   // Exercise the real allowlist over all real emitted browser files in an
   // owned tree, without traversing other tests’ concurrently growing temp trees.
   cpSync('dist/webview', path.join(built.fixture, 'dist/webview'), { recursive: true })
+  cpSync('dist/meta/modelsWebview.json', path.join(built.fixture, 'dist/meta/modelsWebview.json'))
   cpSync('.vscodeignore', path.join(built.fixture, '.vscodeignore'))
   cpSync('package.json', path.join(built.fixture, 'package.json'))
 })
@@ -123,6 +124,7 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(listed).toEqual(
       [
         ...Object.keys(built.outputs),
+        ...Object.keys(JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8')).outputs),
         ...Object.keys(JSON.parse(readFileSync('dist/meta/whatsNewPage.json', 'utf8')).outputs),
       ]
         .filter((file) => file.endsWith('.js'))

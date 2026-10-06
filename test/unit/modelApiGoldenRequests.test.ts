@@ -22,7 +22,7 @@
 // - Scripted call ids (`c1`, `spawn1`, …) stay: the test chose them, and a
 //   lane that renamed or dropped a call must fail loudly.
 // - Dates: the instructions carry `today` from the host's `now()` dep, and
-//   the harness clock counts up from a fixed start, so `today` is always
+//   the harness clock counts up from local midnight on 1970-01-01, so `today` is always
 //   1970-01-01. No wall clock, no temporary path and no random marker
 //   reaches these request bodies (observation-pack markers are per recall
 //   response, and this tree has no checkpoint shadow repository without the
@@ -105,6 +105,8 @@ async function setup(
   const base = fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log })
   const deps: ModelApiHostDeps = {
     ...base,
+    // A's date is local; preserve the same captured day on every test rig.
+    now: () => new Date(1970, 0, 1).getTime() + base.now(),
     judge: options.judge,
     // Hooks OFF: the golden baseline every later M91 lane must not move.
     isHooksEnabled: () => false,

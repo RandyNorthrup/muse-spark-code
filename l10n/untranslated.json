@@ -56,7 +56,11 @@
       "agentImportSourceAmp",
       "agentImportSourceOpenCode",
       "contextMeterUnderOne",
-      "diffTallyLines"
+      "diffTallyLines",
+      "wireFormats.responses",
+      "wireFormats.chat",
+      "wireFormats.anthropic",
+      "pickerMetaGroup"
     ],
     "cs": [
       "groupModel",
@@ -72,7 +76,10 @@
       "workflowChildUntitled",
       "gitChangeCounts",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "providerFilters.cloud",
+      "modelColumns.name",
+      "usageLimit"
     ],
     "tr": [
       "groupModel",
@@ -80,7 +87,9 @@
       "modelPillLabel",
       "exportModelLine",
       "usagePlan",
-      "gitChangeCounts"
+      "gitChangeCounts",
+      "modelColumns.name",
+      "usageLimit"
     ],
     "pl": [
       "groupModel",
@@ -98,7 +107,9 @@
       "workflowChildUntitled",
       "gitChangeCounts",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "modelColumns.name",
+      "usageLimit"
     ],
     "de": [
       "groupSkills",
@@ -129,7 +140,10 @@
       "gitCommitAction",
       "agentImportKindHook",
       "agentImportKindAgent",
-      "shellDirectory"
+      "shellDirectory",
+      "providerFilters.cloud",
+      "providerFilters.aggregator",
+      "usageLimit"
     ],
     "es": [
       "hooksItem",
@@ -140,7 +154,8 @@
       "goalTokens",
       "verifyErrors.one",
       "gitChangeCounts",
-      "agentImportKindHook"
+      "agentImportKindHook",
+      "modelLocal"
     ],
     "pt-br": [
       "agentTokens",
@@ -150,7 +165,8 @@
       "imageBuyPrompt",
       "gitPushBranchLine",
       "gitChangeCounts",
-      "agentImportKindHook"
+      "agentImportKindHook",
+      "modelLocal"
     ],
     "fr": [
       "modesTitle",
@@ -171,7 +187,9 @@
       "gitChangeCounts",
       "gitPrBodyLabel",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "providerFilters.cloud",
+      "modelLocal"
     ],
     "it": [
       "usageAccount",
@@ -179,11 +197,22 @@
       "toolLabels.shell",
       "imageBuyPrompt",
       "gitChangeCounts",
-      "agentImportKindHook"
+      "agentImportKindHook",
+      "providerFilters.cloud",
+      "providerFields.provider",
+      "providerFields.privacy",
+      "modelColumns.inputPrice",
+      "modelColumns.outputPrice"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
-    "hu": ["toolLabels.shell", "imageBuyPrompt", "gitChangeCounts", "agentImportKindHook"],
+    "hu": [
+      "toolLabels.shell",
+      "imageBuyPrompt",
+      "gitChangeCounts",
+      "agentImportKindHook",
+      "usageLimit"
+    ],
     "ko": ["gitChangeCounts"],
     "ru": ["gitChangeCounts"]
   },

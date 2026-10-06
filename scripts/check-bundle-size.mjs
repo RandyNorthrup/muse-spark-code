@@ -4,7 +4,11 @@
 // its budget or is missing.
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { webviewDeferredBudgetGroups, webviewStartupOutputs } from './lib/webviewBundles.mjs'
+import {
+  DEFERRED_WEBVIEW_SURFACES,
+  webviewDeferredBudgetGroups,
+  webviewStartupOutputs,
+} from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
 // M99: bound the generated notes independently of their ZIP compression.
@@ -23,6 +27,11 @@ const BUDGETS = [
   // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
   // rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/modelApi.js', budgetKiB: 475 },
+  // M95 integration: measured 93.0, 50.1 and 404.7 KiB respectively.
+  // New bundles use measured + 15%, rounded up to 25 KiB (D6/D74).
+  { path: 'dist/providers.js', budgetKiB: 125 },
+  { path: 'dist/modelsPanel.js', budgetKiB: 75 },
+  { path: 'dist/webview/models.js', budgetKiB: 475 },
   // The review (M70): git's material, the review turn's text, the Plan-mode
   // hold and edit review, loaded the first time one is used: 40.6 KiB when
   // split out, plus room (PLAN.md D6).
@@ -128,6 +137,8 @@ const BUDGETS = [
   // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25 KiB.
   { path: 'dist/wire.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
+  // M101: pure raster worker, 58.7 KiB + 15%, rounded to 25 KiB.
+  { path: 'dist/imageResizeWorker.js', budgetKiB: 75 },
   // Web fetch's page converter (M69), on a worker started for each page:
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.
   { path: 'dist/pageWorker.js', budgetKiB: 300 },
@@ -143,23 +154,47 @@ const BUDGETS = [
   { path: 'dist/acp.js', budgetKiB: 850 },
 ]
 
+// Optional surfaces have their own measured + 15%, rounded-up budget.
+const DEFERRED_SURFACE_BUDGET_KIB = 25
+const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+const deferredBudgets = Object.entries(webviewMeta.outputs)
+  .filter(([, output]) =>
+    DEFERRED_WEBVIEW_SURFACES.some(
+      (name) => output.entryPoint === `src/webview/components/${name}.tsx`,
+    ),
+  )
+  .map(([path]) => ({ path, budgetKiB: DEFERRED_SURFACE_BUDGET_KIB }))
+
 let hasFailure = false
-for (const { path, budgetKiB } of BUDGETS) {
+for (const { path, budgetKiB } of [...BUDGETS, ...deferredBudgets]) {
   if (!existsSync(path)) {
     hasFailure = true
     console.log(`MISS ${path}: not built (budget ${budgetKiB} KiB)`)
     continue
   }
   const files =
-    path === 'dist/webview/main.js'
-      ? webviewStartupOutputs(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')))
+    path === 'dist/webview/main.js' || path === 'dist/webview/models.js'
+      ? webviewStartupOutputs(
+          JSON.parse(
+            readFileSync(
+              path === 'dist/webview/main.js'
+                ? 'dist/meta/webview.json'
+                : 'dist/meta/modelsWebview.json',
+              'utf8',
+            ),
+          ),
+          path,
+        )
       : [path]
   const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   const status = sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'
   if (sizeKiB > budgetKiB) {
     hasFailure = true
   }
-  const label = path === 'dist/webview/main.js' ? `${path} + static imports` : path
+  const label =
+    path === 'dist/webview/main.js' || path === 'dist/webview/models.js'
+      ? `${path} + static imports`
+      : path
   console.log(`${status} ${label}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
 }
 

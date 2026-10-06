@@ -1,0 +1,31 @@
+{
+  "source": "https://models.dev/api.json",
+  "upstream": "https://github.com/anomalyco/models.dev",
+  "fetchedAt": "2026-10-05",
+  "downloadSha256": "e47bd31afb882a62655a5783b4b37fb47bbd7652ab71b1ab0a85cfecfd33aacd",
+  "providers": [
+    "anthropic",
+    "azure",
+    "deepseek",
+    "fireworks-ai",
+    "google",
+    "groq",
+    "huggingface",
+    "mistral",
+    "openai",
+    "openrouter",
+    "togetherai",
+    "xai",
+    "zai"
+  ],
+  "files": [
+    {
+      "path": "LICENSE",
+      "sha256": "dc2dc41c9fea2fd3c41c21c6f484844cab367800b88ff24781f980ad3a9d160a"
+    },
+    {
+      "path": "snapshot.json",
+      "sha256": "d34f7e148edd16bdf9332f64401a67368716b828f5e909eb501f4460b17ea630"
+    }
+  ]
+}

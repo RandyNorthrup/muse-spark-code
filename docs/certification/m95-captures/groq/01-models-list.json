@@ -1,0 +1,128 @@
+{
+  "provider": "groq",
+  "step": "models-list",
+  "capturedAt": "2026-10-04",
+  "billed": false,
+  "request": {
+    "method": "GET",
+    "url": "https://api.groq.com/openai/v1/models",
+    "headers": {
+      "authorization": "<redacted>"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a457a953fb905708-LAX",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json",
+      "date": "Sun, 04 Oct 2026 22:35:44 GMT",
+      "server": "cloudflare",
+      "set-cookie": "<redacted>",
+      "strict-transport-security": "max-age=15552000",
+      "transfer-encoding": "chunked",
+      "vary": "Origin",
+      "via": "1.1 google",
+      "x-groq-region": "dls",
+      "x-request-id": "req_01m44gy44be5j99rhdwcjw31e2"
+    },
+    "bodySummary": {
+      "note": "trimmed: count, keys and sample entries",
+      "count": 11,
+      "topLevelKeys": ["object", "data"],
+      "entryKeys": [
+        "active",
+        "context_length",
+        "context_window",
+        "created",
+        "hugging_face_id",
+        "id",
+        "input_modalities",
+        "max_completion_tokens",
+        "max_output_length",
+        "name",
+        "object",
+        "output_modalities",
+        "owned_by",
+        "pricing",
+        "public_apps",
+        "supported_features",
+        "supported_sampling_parameters"
+      ],
+      "sample": [
+        {
+          "id": "openai/gpt-oss-120b",
+          "object": "model",
+          "created": 1754408224,
+          "owned_by": "OpenAI",
+          "active": true,
+          "context_window": 131072,
+          "public_apps": null,
+          "max_completion_tokens": 65536,
+          "hugging_face_id": "openai/gpt-oss-120b",
+          "name": "GPT OSS 120B",
+          "input_modalities": ["text"],
+          "output_modalities": ["text"],
+          "context_length": 131072,
+          "max_output_length": 65536,
+          "pricing": {
+            "prompt": "0.00000015",
+            "completion": "0.0000006",
+            "image": "0",
+            "request": "0",
+            "input_cache_read": "0.000000075"
+          },
+          "supported_sampling_parameters": ["temperature", "top_p", "stop", "seed", "max_tokens"],
+          "supported_features": ["tools", "json_mode", "structured_outputs", "reasoning"]
+        },
+        {
+          "id": "allam-2-7b",
+          "object": "model",
+          "created": 1737672203,
+          "owned_by": "SDAIA",
+          "active": true,
+          "context_window": 4096,
+          "public_apps": null,
+          "max_completion_tokens": 4096,
+          "hugging_face_id": "ALLaM-AI/ALLaM-2.0-7B-Instruct",
+          "name": "ALLaM-2-7b",
+          "input_modalities": ["text"],
+          "output_modalities": ["text"],
+          "context_length": 4096,
+          "max_output_length": 4096,
+          "supported_sampling_parameters": ["temperature", "top_p", "stop", "seed", "max_tokens"],
+          "supported_features": ["json_mode"]
+        },
+        {
+          "id": "openai/gpt-oss-20b",
+          "object": "model",
+          "created": 1754407957,
+          "owned_by": "OpenAI",
+          "active": true,
+          "context_window": 131072,
+          "public_apps": null,
+          "max_completion_tokens": 65536,
+          "hugging_face_id": "openai/gpt-oss-20b",
+          "name": "GPT OSS 20B",
+          "input_modalities": ["text"],
+          "output_modalities": ["text"],
+          "context_length": 131072,
+          "max_output_length": 65536,
+          "pricing": {
+            "prompt": "0.000000075",
+            "completion": "0.0000003",
+            "image": "0",
+            "request": "0",
+            "input_cache_read": "0.0000000375"
+          },
+          "supported_sampling_parameters": ["temperature", "top_p", "stop", "seed", "max_tokens"],
+          "supported_features": ["tools", "json_mode", "structured_outputs", "reasoning"]
+        }
+      ]
+    }
+  }
+}

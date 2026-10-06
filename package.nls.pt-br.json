@@ -163,5 +163,12 @@
   "config.judge.engine.enumDescriptions.auto": "Seu próprio modelo de conversa avalia (`same` na fase 1); um avaliador separado se junta quando um for configurado.",
   "config.judge.engine.enumDescriptions.same": "Somente seu próprio modelo de conversa avalia; ele nunca troca de modelo.",
   "config.judge.engine.enumDescriptions.off": "Sem avaliador: as aprovações se comportam exatamente como sem ele.",
-  "config.shell.passEnvironmentVariables.description": "Nomes de variáveis de ambiente a passar para comandos de shell interativos da sessão principal, incluindo credenciais normalmente excluídas. Apenas nomes, nunca valores. Padrão: nenhuma. Um comando pode expor esses valores na conversa e ao provedor do modelo. Verificações/then_run, agendamentos, trabalhadores secundários/de equipe e hooks nunca recebem variáveis de credenciais, mesmo quando nomeadas aqui. Um comando interativo movido para segundo plano mantém seu ambiente inicial. Não altera os ambientes do Muse Code nem de servidores MCP configurados explicitamente."
+  "config.shell.passEnvironmentVariables.description": "Nomes de variáveis de ambiente a passar para comandos de shell interativos da sessão principal, incluindo credenciais normalmente excluídas. Apenas nomes, nunca valores. Padrão: nenhuma. Um comando pode expor esses valores na conversa e ao provedor do modelo. Verificações/then_run, agendamentos, trabalhadores secundários/de equipe e hooks nunca recebem variáveis de credenciais, mesmo quando nomeadas aqui. Um comando interativo movido para segundo plano mantém seu ambiente inicial. Não altera os ambientes do Muse Code nem de servidores MCP configurados explicitamente.",
+  "command.startWithOwnModel.title": "Começar com seu próprio modelo",
+  "command.modelsAndAgents.title": "Modelos e agentes",
+  "command.addModelProvider.title": "Adicionar um provedor de modelos…",
+  "config.suggestedProvider.description": "Um workspace pode sugerir um preset de provedor de modelos pelo id; o painel oferece abrir Modelos e agentes com esse preset. Vazio não sugere nada. Um workspace não pode definir um endereço nem uma credencial.",
+  "walkthrough.gettingStarted.step.ownModel.title": "Comece com seu próprio modelo",
+  "walkthrough.gettingStarted.step.ownModel.description": "Sem assinatura Muse nem chave API da Meta? Adicione seu próprio provedor de modelos — OpenRouter, Anthropic, OpenAI ou um servidor local — e escolha um modelo.\n[Começar com seu próprio modelo](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Compactar automaticamente conversas longas do Model API. Ativado por padrão, mas inativo até passar na avaliação pareada. Cada chamada paga adicional exige consentimento sobre o preço e o orçamento diário."
 }

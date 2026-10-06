@@ -7,6 +7,7 @@ import vm from 'node:vm'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
+import LZString from 'lz-string'
 import { compactEnglishSource } from '../../src/shared/l10n/compactEnglish'
 import {
   UI_TEXT_REGIONS,
@@ -174,4 +175,13 @@ it('round-trips every browser English key, value and plural form inline', () => 
 
 it('refuses an English value that collides with reserved dictionary tokens', () => {
   expect(() => compactEnglishSource({ label: '\u{E000}' })).toThrow('reserved dictionary token')
+})
+
+it('refuses a compressor that changes canonical English bytes', () => {
+  const compressor = vi.spyOn(LZString, 'compressToBase64').mockReturnValue('invalid')
+  try {
+    expect(() => compactEnglishSource({ label: 'hello' })).toThrow('compression changed the table')
+  } finally {
+    compressor.mockRestore()
+  }
 })

@@ -23,6 +23,7 @@ import type {
   ToolKind,
 } from '@agentclientprotocol/sdk'
 import type { SessionMcpServer, TurnPart } from '../core/agent/agentBackend'
+import { resolveWorkspacePath } from '../core/workspacePath'
 import { readImageInfo } from '../core/imageDimensions'
 import type {
   AgentEvent,
@@ -171,7 +172,9 @@ export function toolKind(tool: string): ToolKind {
 /** The file a call names, as the absolute path ACP asks for. */
 function toolLocations(args: Arguments | undefined, cwd: string): ToolCallLocation[] {
   const file = stringField(args, 'path')
-  return file === undefined ? [] : [{ path: path.resolve(cwd, file) }]
+  if (file === undefined) return []
+  const resolved = resolveWorkspacePath(cwd, file, process.platform)
+  return resolved.ok ? [{ path: resolved.absolute }] : []
 }
 
 function clippedOutput(text: string): string {
@@ -188,7 +191,9 @@ function editDiff(tool: string, args: Arguments | undefined, cwd: string): ToolC
   if (file === undefined || args === undefined || !FILE_EDIT_TOOLS.has(tool)) {
     return []
   }
-  const absolute = path.resolve(cwd, file)
+  const resolved = resolveWorkspacePath(cwd, file, process.platform)
+  if (!resolved.ok) return []
+  const absolute = resolved.absolute
   const oldText = args['old_str'] ?? args['old_string']
   const newText = args['new_str'] ?? args['new_string'] ?? args['content']
   if (typeof newText !== 'string') {

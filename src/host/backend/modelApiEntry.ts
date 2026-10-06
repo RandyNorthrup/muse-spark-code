@@ -16,6 +16,7 @@ import {
   sparkHooksFiles,
 } from '../../core/backends/modelapi/hooks'
 import { McpServerPool } from '../../core/backends/modelapi/mcp/pool'
+import { metaModelFacts } from '../../core/backends/modelapi/modelCapabilities'
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
@@ -86,6 +87,7 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
         }
   const host = new ModelApiHost({
     ...hostDeps,
+    modelFacts: hostDeps.modelFacts ?? metaModelFacts,
     client: new ModelApiClient(deps.client),
     mcpServers: await deps.createMcpServers?.((poolDeps) => new McpServerPool(poolDeps)),
     loadHooks: async () => {

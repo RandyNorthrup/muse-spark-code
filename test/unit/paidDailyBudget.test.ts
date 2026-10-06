@@ -155,10 +155,13 @@ async function raiseAtCap() {
 }
 
 describe('D78 interactive paid daily budget', () => {
-  it('keeps the unused packing default flip byte-exact, including tools and cache key', async () => {
-    const plain = await ordinaryRequest(false, false, false)
-    expect(await ordinaryRequest(true, false, false)).toBe(plain)
-  })
+  it.each([false, true])(
+    'keeps packing=%s ordinary requests byte-exact under daily admission, including tools and cache key',
+    async (isPacking) => {
+      const plain = await ordinaryRequest(isPacking, false, false)
+      expect(await ordinaryRequest(isPacking, true, false)).toBe(plain)
+    },
+  )
 
   it('keeps a later committed Stop in force when another window publishes a held raise', async () => {
     const daily = budget(0.5)

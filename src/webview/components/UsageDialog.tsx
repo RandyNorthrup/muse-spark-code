@@ -8,11 +8,12 @@
 // usage row, `/usage` and `/cost`; centred over the transcript with the
 // chat dimmed behind it.
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import {
   META_DASHBOARD_URL,
   MILLISECONDS_PER_SECOND,
   MODEL_API_PRICES_VERIFIED_ON,
+  type ModelPricing,
   PAID_PRICES_VERIFIED_ON,
   TAB_DAILY_BUDGET_DEFAULT_USD,
   type PaidFeature,
@@ -38,6 +39,7 @@ import {
   formatWindowLength,
   planLabel,
   type AccountFacts,
+  type ProviderUsageRow,
   type SubscriptionUsage,
   type UsageInsights,
 } from '../../shared/usage'
@@ -54,6 +56,8 @@ export interface UsageDialogProps {
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   readonly modelId: string | undefined
+  /** The current model's price kind (M95): unpriced counts tokens only. */
+  readonly modelPricing: ModelPricing | undefined
   /** The paid features that are on and this window's tally (M33, PLAN.md D30). */
   readonly paid: PaidState
   readonly auth: UiState['auth']
@@ -66,7 +70,21 @@ export interface UsageDialogProps {
   readonly onClose: () => void
 }
 
+const ROW_META_CLASS = 'usage-row-meta'
+
 type InsightWindow = 'day' | 'week'
+
+/** Repeated definition-list markup shares one renderer within the deferred surface. */
+function FactRows({ rows }: { readonly rows: readonly (readonly [string, string | undefined])[] }) {
+  return rows.map(([label, value], index) =>
+    value === undefined ? null : (
+      <Fragment key={index}>
+        <dt>{label}</dt>
+        <dd>{value}</dd>
+      </Fragment>
+    ),
+  )
+}
 
 function percentLabel(usedPercent: number): string {
   return fill(UI_TEXT.usagePercentUsed, { percent: formatPercent(usedPercent) })
@@ -91,7 +109,7 @@ function UsageBar({
         <div className="usage-row-head">
           <span>{label}</span>
         </div>
-        <div className="usage-row-meta">{UI_TEXT.usageAwaitingFreshReport}</div>
+        <div className={ROW_META_CLASS}>{UI_TEXT.usageAwaitingFreshReport}</div>
       </div>
     )
   }
@@ -113,7 +131,7 @@ function UsageBar({
         max={FULL_PERCENT}
         aria-label={`${label}: ${percentLabel(usedPercent)}`}
       />
-      <div className="usage-row-meta">{meta}</div>
+      <div className={ROW_META_CLASS}>{meta}</div>
     </div>
   )
 }
@@ -141,7 +159,7 @@ function SubscriptionSection({
         detail={undefined}
         nowMs={nowMs}
       />
-      <p className="usage-row-meta">
+      <p className={ROW_META_CLASS}>
         {fill(UI_TEXT.usageAsOf, {
           time: relativeTime(new Date(subscription.observedAtMs).toISOString(), nowMs),
         })}
@@ -185,122 +203,106 @@ function TokensSection({
   context,
   costUsd,
   modelId,
+  pricing,
 }: {
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   readonly costUsd: number | undefined
   readonly modelId: string | undefined
+  /** The current model lost its price card (M95): tokens only, said so. */
+  readonly pricing: ModelPricing | undefined
 }) {
   if (usage === undefined && context === undefined) {
-    return <p className="usage-row-meta">{UI_TEXT.usageNoSession}</p>
+    return <p className={ROW_META_CLASS}>{UI_TEXT.usageNoSession}</p>
   }
+  // A local model shows cost 0; an unpriced one counts tokens only (M95).
+  const cost = costUsd ?? (pricing === 'local' ? 0 : undefined)
   const contextValue = contextValueOf(context)
   const savings =
-    usage !== undefined && costUsd !== undefined && modelId !== undefined
-      ? cacheSavings(usage, costUsd, modelId)
+    usage !== undefined && cost !== undefined && modelId !== undefined && costUsd !== undefined
+      ? cacheSavings(usage, cost, modelId)
       : undefined
   return (
     <>
       <dl className="usage-facts">
-        {usage !== undefined && (
-          <>
-            <dt>{UI_TEXT.usageInput}</dt>
-            <dd>{formatTokenWindow(usage.inputTokens)}</dd>
-            <dt>{UI_TEXT.usageOutput}</dt>
-            <dd>{formatTokenWindow(usage.outputTokens)}</dd>
-            {usage.cachedTokens === undefined ? null : (
-              <>
-                <dt>{UI_TEXT.usageCached}</dt>
-                <dd>{formatTokenWindow(usage.cachedTokens)}</dd>
-                <dt>{UI_TEXT.usageCacheHits}</dt>
-                <dd>{formatPercent(percentOf(usage.cachedTokens, usage.inputTokens))}</dd>
-              </>
-            )}
-          </>
-        )}
-        {contextValue !== undefined && (
-          <>
-            <dt>{UI_TEXT.usageContext}</dt>
-            <dd>{contextValue}</dd>
-          </>
-        )}
-        {usage?.packedTokensAvoided === undefined ? null : (
-          <>
-            <dt>{UI_TEXT.usagePackedAvoided}</dt>
-            <dd>{formatTokenWindow(usage.packedTokensAvoided)}</dd>
-          </>
-        )}
-        {usage?.hookTokensAdded === undefined ? null : (
-          <>
-            <dt>{UI_TEXT.usageAddedByHooks}</dt>
-            <dd>{formatTokenWindow(usage.hookTokensAdded)}</dd>
-          </>
-        )}
-        {costUsd !== undefined && (
-          <>
-            <dt>{UI_TEXT.usageCost}</dt>
-            <dd>{formatUsd(costUsd)}</dd>
-          </>
-        )}
-        {savings !== undefined && (
-          <>
-            <dt>{UI_TEXT.usageCacheSavings}</dt>
-            <dd>
-              {fill(UI_TEXT.usageCacheSavingsValue, {
-                amount: formatUsd(savings.amount),
-                percent: formatPercent(savings.percent),
-              })}
-            </dd>
-          </>
-        )}
+        <FactRows
+          rows={[
+            [
+              UI_TEXT.usageInput,
+              usage === undefined ? undefined : formatTokenWindow(usage.inputTokens),
+            ],
+            [
+              UI_TEXT.usageOutput,
+              usage === undefined ? undefined : formatTokenWindow(usage.outputTokens),
+            ],
+            [
+              UI_TEXT.usageCached,
+              usage?.cachedTokens === undefined ? undefined : formatTokenWindow(usage.cachedTokens),
+            ],
+            [
+              UI_TEXT.usageCacheHits,
+              usage?.cachedTokens === undefined
+                ? undefined
+                : formatPercent(percentOf(usage.cachedTokens, usage.inputTokens)),
+            ],
+            [UI_TEXT.usageContext, contextValue],
+            [
+              UI_TEXT.usagePackedAvoided,
+              usage?.packedTokensAvoided === undefined
+                ? undefined
+                : formatTokenWindow(usage.packedTokensAvoided),
+            ],
+            [
+              UI_TEXT.usageAddedByHooks,
+              usage?.hookTokensAdded === undefined
+                ? undefined
+                : formatTokenWindow(usage.hookTokensAdded),
+            ],
+            [UI_TEXT.usageCost, cost === undefined ? undefined : formatUsd(cost)],
+            [
+              UI_TEXT.usageCacheSavings,
+              savings === undefined
+                ? undefined
+                : fill(UI_TEXT.usageCacheSavingsValue, {
+                    amount: formatUsd(savings.amount),
+                    percent: formatPercent(savings.percent),
+                  }),
+            ],
+          ]}
+        />
       </dl>
       {costUsd === undefined ? null : (
-        <p className="usage-row-meta">
+        <p className={ROW_META_CLASS}>
           {fill(UI_TEXT.usageCostNote, { date: MODEL_API_PRICES_VERIFIED_ON })}
         </p>
       )}
+      {cost === undefined && pricing === 'unpriced' ? (
+        <p className={ROW_META_CLASS}>{UI_TEXT.usageUnpricedDetail}</p>
+      ) : null}
     </>
   )
 }
 
 /** What this window used of one paid feature: "3 searches", "2 images", "1m 30s of audio". */
 function paidUseText(feature: PaidFeature, tally: PaidTally): string {
-  switch (feature) {
-    case 'webSearch': {
-      return plural(UI_TEXT.usagePaidSearches, tally.webSearches)
-    }
-    case 'imageGeneration': {
-      return plural(UI_TEXT.usagePaidImages, tally.images)
-    }
-    case 'voice': {
-      return fill(UI_TEXT.usagePaidAudio, {
-        duration: formatDurationMs(tally.voiceSeconds * MILLISECONDS_PER_SECOND),
-      })
-    }
-    case 'scheduledPrompts': {
-      return plural(UI_TEXT.usagePaidScheduled, tally.scheduledRuns)
-    }
-    case 'subagents': {
-      return plural(UI_TEXT.usagePaidSubagentRequests, tally.subagentRequests ?? 0)
-    }
-    case 'autoReviewer': {
-      return plural(UI_TEXT.usagePaidAutoReviews, tally.autoReviews ?? 0)
-    }
-    case 'bestOfN': {
-      return plural(UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts ?? 0)
-    }
-    // M94 lane 0: the row's request count, keeping this total while lane U
-    // writes the Tab row (tokens, cached tokens, costs, budget).
-    case 'tab': {
-      return plural(UI_TEXT.usagePaidTabRequests, tally.tabRequests ?? 0)
-    }
-    case 'hookModels': {
-      return plural(UI_TEXT.usagePaidHookModelRuns, tally.hookModelRuns ?? 0)
-    }
-    case 'judge': {
-      return plural(UI_TEXT.usagePaidJudgeCalls, tally.judgeCalls ?? 0)
-    }
+  if (feature === 'voice') {
+    return fill(UI_TEXT.usagePaidAudio, {
+      duration: formatDurationMs(tally.voiceSeconds * MILLISECONDS_PER_SECOND),
+    })
   }
+  const values = {
+    webSearch: [UI_TEXT.usagePaidSearches, tally.webSearches],
+    imageGeneration: [UI_TEXT.usagePaidImages, tally.images],
+    scheduledPrompts: [UI_TEXT.usagePaidScheduled, tally.scheduledRuns],
+    subagents: [UI_TEXT.usagePaidSubagentRequests, tally.subagentRequests],
+    autoReviewer: [UI_TEXT.usagePaidAutoReviews, tally.autoReviews],
+    bestOfN: [UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts],
+    tab: [UI_TEXT.usagePaidTabRequests, tally.tabRequests],
+    hookModels: [UI_TEXT.usagePaidHookModelRuns, tally.hookModelRuns],
+    judge: [UI_TEXT.usagePaidJudgeCalls, tally.judgeCalls],
+  } as const
+  const [forms, count] = values[feature]
+  return plural(forms, count ?? 0)
 }
 
 /**
@@ -329,15 +331,15 @@ function PaidSection({
         </dt>
         <dd>{formatUsd(paidTotalUsd(paid.tally))}</dd>
       </dl>
-      <p className="usage-row-meta">
+      <p className={ROW_META_CLASS}>
         {fill(UI_TEXT.usagePaidNote, { date: PAID_PRICES_VERIFIED_ON })}
       </p>
       {features.includes('subagents') ? (
-        <p className="usage-row-meta">{UI_TEXT.usagePaidSubagentSubset}</p>
+        <p className={ROW_META_CLASS}>{UI_TEXT.usagePaidSubagentSubset}</p>
       ) : null}
       {always.length === 0 ? null : (
         <div className="usage-paid-always">
-          <p className="usage-row-meta">
+          <p className={ROW_META_CLASS}>
             {fill(UI_TEXT.usagePaidAlwaysNote, {
               features: always.map((feature) => paidFeatureName(feature)).join(', '),
             })}
@@ -415,17 +417,17 @@ function TabRow({ paid }: { readonly paid: PaidState }) {
               cached: formatNumber(paid.tally.tabCachedTokens ?? 0),
             })} · ${fill(UI_TEXT.usagePaidTabReported, { cost })}`}
             {unknown > 0 ? (
-              <p className="usage-row-meta">{plural(UI_TEXT.usagePaidSubagentUnknown, unknown)}</p>
+              <p className={ROW_META_CLASS}>{plural(UI_TEXT.usagePaidSubagentUnknown, unknown)}</p>
             ) : null}
-            <p className="usage-row-meta">
+            <p className={ROW_META_CLASS}>
               {todayUsd === undefined
                 ? windowText
                 : `${fill(UI_TEXT.usagePaidTabCostToday, { cost: formatUsd(todayUsd) })} · ${windowText}`}
             </p>
-            <p className="usage-row-meta">{fill(UI_TEXT.usagePaidTabBudget, { budget })}</p>
+            <p className={ROW_META_CLASS}>{fill(UI_TEXT.usagePaidTabBudget, { budget })}</p>
           </>
         ) : (
-          <span className="usage-row-meta">{fill(UI_TEXT.usagePaidTabBudget, { budget })}</span>
+          <span className={ROW_META_CLASS}>{fill(UI_TEXT.usagePaidTabBudget, { budget })}</span>
         )}
       </dd>
     </>
@@ -469,7 +471,7 @@ function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly pa
               ? null
               : ` · ${fill(UI_TEXT.agentTokens, { tokens: formatNumber(tokens) })}`}
             {unknown > 0 ? (
-              <p className="usage-row-meta">{plural(UI_TEXT.usagePaidSubagentUnknown, unknown)}</p>
+              <p className={ROW_META_CLASS}>{plural(UI_TEXT.usagePaidSubagentUnknown, unknown)}</p>
             ) : null}
           </>
         ) : null}
@@ -492,6 +494,87 @@ function planFor(report: UsageReport): string {
   return report.backend === 'modelApi' ? UI_TEXT.usagePlanPayAsYouGo : UI_TEXT.usagePlanUnknown
 }
 
+/**
+ * How a provider row's cost reads: settled dollars, `unpriced`, `local`,
+ * `plan`, or nothing yet for a priced model the host has not settled (M95).
+ */
+function providerCost(row: ProviderUsageRow): string | undefined {
+  if (row.costUsd !== undefined) {
+    return formatUsd(row.costUsd)
+  }
+  switch (row.pricing) {
+    case 'priced': {
+      return undefined
+    }
+    case 'unpriced': {
+      return UI_TEXT.modelUnpriced
+    }
+    case 'local': {
+      // A local model shows cost 0 (M95 acceptance 10).
+      return formatUsd(0)
+    }
+    case 'plan': {
+      return UI_TEXT.modelPlan
+    }
+  }
+}
+
+/**
+ * This window's tallies per BYO provider (M95): tokens with their settled
+ * cost, and an account-connected key's own usage, limit and remainder where
+ * the provider reports them (today only OpenRouter's `/key`, in USD). Each
+ * metric is its own row, so no language's word order is assumed.
+ */
+function ProvidersSection({ providers }: { readonly providers: readonly ProviderUsageRow[] }) {
+  return (
+    <>
+      <h3 className="usage-heading">{UI_TEXT.providersSectionTitle}</h3>
+      <dl className="usage-facts">
+        {providers.map((row) => {
+          const cost = providerCost(row)
+          return (
+            <div key={row.providerId}>
+              <dt>{row.providerLabel}</dt>
+              <dd>
+                {cost === undefined
+                  ? `${formatTokenWindow(row.inputTokens)} / ${formatTokenWindow(row.outputTokens)}`
+                  : `${formatTokenWindow(row.inputTokens)} / ${formatTokenWindow(row.outputTokens)} · ${cost}`}
+              </dd>
+              {row.keyUsage === undefined ? null : (
+                <>
+                  <dt>{UI_TEXT.usageKeyUsage}</dt>
+                  <dd>
+                    <dl className="usage-facts">
+                      <FactRows
+                        rows={[
+                          [UI_TEXT.usageToday, formatUsd(row.keyUsage.todayUsd)],
+                          [UI_TEXT.usageThisMonth, formatUsd(row.keyUsage.monthUsd)],
+                          [
+                            UI_TEXT.usageLimit,
+                            row.keyUsage.limitUsd === undefined
+                              ? undefined
+                              : formatUsd(row.keyUsage.limitUsd),
+                          ],
+                          [
+                            UI_TEXT.usageRemaining,
+                            row.keyUsage.remainingUsd === undefined
+                              ? undefined
+                              : formatUsd(row.keyUsage.remainingUsd),
+                          ],
+                        ]}
+                      />
+                    </dl>
+                  </dd>
+                </>
+              )}
+            </div>
+          )
+        })}
+      </dl>
+    </>
+  )
+}
+
 function AccountSection({
   report,
   modelId,
@@ -504,24 +587,15 @@ function AccountSection({
   const plan = planFor(report)
   return (
     <dl className="usage-facts">
-      <dt>{UI_TEXT.usageAuthMethod}</dt>
-      <dd>{signIn}</dd>
-      <dt>{UI_TEXT.usagePlan}</dt>
-      <dd>{plan}</dd>
-      <dt>{UI_TEXT.usageBackend}</dt>
-      <dd>{backendLabel(report.backend)}</dd>
-      {account?.cliVersion === undefined ? null : (
-        <>
-          <dt>{UI_TEXT.usageCliVersion}</dt>
-          <dd>{account.cliVersion}</dd>
-        </>
-      )}
-      {modelId === undefined ? null : (
-        <>
-          <dt>{UI_TEXT.usageModel}</dt>
-          <dd>{modelId}</dd>
-        </>
-      )}
+      <FactRows
+        rows={[
+          [UI_TEXT.usageAuthMethod, signIn],
+          [UI_TEXT.usagePlan, plan],
+          [UI_TEXT.usageBackend, backendLabel(report.backend)],
+          [UI_TEXT.usageCliVersion, account?.cliVersion],
+          [UI_TEXT.usageModel, modelId],
+        ]}
+      />
     </dl>
   )
 }
@@ -572,26 +646,27 @@ function InsightsSection({
           </button>
         ))}
       </div>
-      <p className="usage-row-meta">{UI_TEXT.usageContributingNote}</p>
+      <p className={ROW_META_CLASS}>{UI_TEXT.usageContributingNote}</p>
       {chosen.attempts === 0 ? (
-        <p className="usage-row-meta">{UI_TEXT.usageInsightNone}</p>
+        <p className={ROW_META_CLASS}>{UI_TEXT.usageInsightNone}</p>
       ) : (
         <>
           <ul className="usage-insights">
-            <InsightLine
-              share={percentOf(chosen.reminderAttempts, chosen.attempts)}
-              template={UI_TEXT.usageInsightReminders}
-            />
-            <InsightLine
-              share={percentOf(chosen.subagentAttempts, chosen.attempts)}
-              template={UI_TEXT.usageInsightSubagents}
-            />
-            <InsightLine
-              share={percentOf(chosen.longSessionAttempts, chosen.attempts)}
-              template={UI_TEXT.usageInsightLong}
-            />
+            {(
+              [
+                [chosen.reminderAttempts, UI_TEXT.usageInsightReminders],
+                [chosen.subagentAttempts, UI_TEXT.usageInsightSubagents],
+                [chosen.longSessionAttempts, UI_TEXT.usageInsightLong],
+              ] as const
+            ).map(([count, template], index) => (
+              <InsightLine
+                key={index}
+                share={percentOf(count, chosen.attempts)}
+                template={template}
+              />
+            ))}
           </ul>
-          <p className="usage-row-meta">
+          <p className={ROW_META_CLASS}>
             {fill(UI_TEXT.usageInsightTotals, {
               attempts: plural(UI_TEXT.modelAttemptsCount, chosen.attempts),
               sessions: plural(UI_TEXT.sessionsCount, chosen.sessions),
@@ -608,6 +683,7 @@ export function UsageDialog({
   usage,
   context,
   modelId,
+  modelPricing,
   paid,
   auth,
   onInstallMuseCode,
@@ -646,7 +722,7 @@ export function UsageDialog({
   )
   let body
   if (report === undefined) {
-    body = <p className="usage-row-meta">{UI_TEXT.usageLoading}</p>
+    body = <p className={ROW_META_CLASS}>{UI_TEXT.usageLoading}</p>
   } else {
     body = (
       <>
@@ -654,7 +730,7 @@ export function UsageDialog({
         <AccountSection report={report} modelId={modelId} />
         <h3 className="usage-heading">{UI_TEXT.usageHeading}</h3>
         {report.subscription === undefined ? (
-          <p className="usage-row-meta">
+          <p className={ROW_META_CLASS}>
             {report.backend === 'modelApi'
               ? UI_TEXT.usageModelApiNote
               : UI_TEXT.usageNoSubscription}
@@ -663,7 +739,16 @@ export function UsageDialog({
           <SubscriptionSection subscription={report.subscription} nowMs={nowMs} />
         )}
         <h3 className="usage-heading">{UI_TEXT.usageSessionTokens}</h3>
-        <TokensSection usage={usage} context={context} costUsd={costUsd} modelId={modelId} />
+        <TokensSection
+          usage={usage}
+          context={context}
+          costUsd={costUsd}
+          modelId={modelId}
+          pricing={modelPricing}
+        />
+        {report.providers !== undefined && report.providers.length > 0 ? (
+          <ProvidersSection providers={report.providers} />
+        ) : null}
         {paidFeatures.length > 0 ? (
           <>
             <h3 className="usage-heading">{UI_TEXT.usagePaidHeading}</h3>
@@ -672,7 +757,7 @@ export function UsageDialog({
         ) : null}
         <h3 className="usage-heading">{UI_TEXT.usageContributing}</h3>
         {report.insights === undefined ? (
-          <p className="usage-row-meta">
+          <p className={ROW_META_CLASS}>
             {report.backend === 'modelApi'
               ? UI_TEXT.usageInsightUnavailable
               : UI_TEXT.usageInsightNoLogs}
@@ -765,7 +850,17 @@ export function UsageDialog({
           >
             {paid.isKeyStored ? UI_TEXT.usageReplaceModelApiKey : UI_TEXT.usageAddModelApiKey}
           </button>
-          <p className="usage-row-meta">{UI_TEXT.signInApiKeyDetail}</p>
+          <p className={ROW_META_CLASS}>{UI_TEXT.signInApiKeyDetail}</p>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => {
+              onSetupSignIn('byo')
+            }}
+          >
+            {UI_TEXT.startWithOwnModel}
+          </button>
+          <p className={ROW_META_CLASS}>{UI_TEXT.startWithOwnModelDetail}</p>
         </div>
       ) : null}
     </Modal>

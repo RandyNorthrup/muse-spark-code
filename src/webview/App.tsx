@@ -66,6 +66,7 @@ import { EmptyState } from './components/EmptyState'
 import { GoalPanel } from './components/GoalPanel'
 import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
+import { SetupBanner } from './components/SetupBanner'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
@@ -252,7 +253,19 @@ export function modelLabelFor(state: UiState): string {
     return UI_TEXT.hostStarting
   }
   const effort = state.isThinkingEnabled ? effortLabel(state.effort) : UI_TEXT.thinkingOff
-  return `${state.model.modelId} ${effort}`
+  // A BYO model names its provider beside its model (M95): the listing's
+  // label, else the reference's provider, so a bare id reads as it did.
+  const option = state.models.find((model) => model.modelId === state.model?.modelId)
+  const provider = option?.providerLabel ?? providerOf(state.model.modelId)
+  return provider === undefined
+    ? `${state.model.modelId} ${effort}`
+    : `${provider} · ${option?.displayLabel ?? state.model.modelId} ${effort}`
+}
+
+/** The reference's provider (`openrouter` of `openrouter/…`); undefined for Meta's bare ids. */
+function providerOf(modelId: string): string | undefined {
+  const slash = modelId.indexOf('/')
+  return slash === -1 ? undefined : modelId.slice(0, slash)
 }
 
 /**
@@ -1662,6 +1675,8 @@ export function App({
           closeOverlay()
           break
         }
+        // Panel-opening actions, including the models view's footer rows
+        // (M95): the host runs lane K's commands through host actions.
         case 'manageSkills':
         case 'importSkills':
         case 'importFromAgents':
@@ -1670,6 +1685,12 @@ export function App({
         case 'showMemory':
         case 'newWorktree':
         case 'removeWorktree':
+        case 'addModelProvider':
+        case 'manageModels': {
+          postMessage({ type: 'hostAction', action: action.type })
+          closeOverlay()
+          break
+        }
         case 'openPullRequestInConversation': {
           postMessage({ type: 'hostAction', action: action.type })
           closeOverlay()
@@ -2210,6 +2231,7 @@ export function App({
         usage={state.usage}
         context={state.context}
         modelId={state.model?.modelId}
+        modelPricing={state.models.find((model) => model.modelId === state.model?.modelId)?.pricing}
         paid={state.paid}
         now={now}
         onOpenExternal={onOpenExternal}
@@ -2396,6 +2418,18 @@ export function App({
       )}
       <div className="composer-area" inert={isModalOpen}>
         {floating}
+        {isBodyGated || state.setupComplete === undefined ? null : (
+          <SetupBanner
+            provider={state.setupComplete.provider}
+            model={state.setupComplete.model}
+            onManageProviders={() => {
+              postMessage({ type: 'hostAction', action: 'manageModels' })
+            }}
+            onDismiss={() => {
+              dispatch({ type: 'setupCompleteDismissed' })
+            }}
+          />
+        )}
         <JudgeStatusLine status={state.judge} />
         <Composer
           draft={state.draft}

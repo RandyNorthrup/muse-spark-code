@@ -13,9 +13,10 @@
 
 import { readdir, readFile, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
+import * as z from 'zod/mini'
 import {
-  headerOf,
   parseStoredSession,
+  storedSessionSchema,
   type SessionStore,
   type StoredSession,
   type StoredSessionHeader,
@@ -49,6 +50,39 @@ const ENOENT = 'ENOENT'
 // A session id names a file; only the UUID alphabet is allowed into a path.
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]+$/
 
+/**
+ * The header fields a listing validates (M101 BYO 16): the scalars the
+ * history row needs, with the full schema's own field schemas (one source
+ * for the constraints), plus the turn ids, whose items are never validated
+ * here — only their count becomes the turn count. The replay and transcript
+ * items themselves are never read.
+ */
+const {
+  version,
+  sessionId,
+  accountId,
+  sideChat,
+  workspaceRoot,
+  name,
+  createdAt,
+  lastActivityAt,
+  forkedFrom,
+  firstPrompt,
+} = storedSessionSchema.shape
+const storedSessionHeaderShape = z.object({
+  version,
+  sessionId,
+  accountId,
+  sideChat,
+  workspaceRoot,
+  name,
+  createdAt,
+  lastActivityAt,
+  forkedFrom,
+  firstPrompt,
+  turnIds: z.array(z.unknown()),
+})
+
 function assertSessionId(sessionId: string): void {
   if (!SESSION_ID_PATTERN.test(sessionId)) {
     throw new Error(`session id ${sessionId} cannot name a file`)
@@ -70,15 +104,22 @@ async function hasSessionFile(file: string): Promise<boolean> {
 export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore {
   const fileFor = (sessionId: string) => path.join(deps.directory, `${sessionId}${FILE_EXTENSION}`)
 
-  const readOne = async (name: string): Promise<StoredSession | undefined> => {
+  /** A session file's parsed JSON, or undefined with a log line when it does not read. */
+  const readRaw = async (name: string): Promise<unknown> => {
     const file = path.join(deps.directory, name)
-    let raw: unknown
     try {
-      raw = JSON.parse(await readFile(file, 'utf8'))
+      return JSON.parse(await readFile(file, 'utf8'))
     } catch (error: unknown) {
       if (storeErrorCode(error) !== ENOENT) {
         deps.log.warn(`Session file ${name} skipped: ${describeStoreError(error)}`)
       }
+      return undefined
+    }
+  }
+
+  const readOne = async (name: string): Promise<StoredSession | undefined> => {
+    const raw = await readRaw(name)
+    if (raw === undefined) {
       return undefined
     }
     const parsed = parseStoredSession(raw)
@@ -87,6 +128,38 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       return undefined
     }
     return parsed.session
+  }
+
+  /**
+   * A session's header without its conversation (M101 BYO 16): listing
+   * parses the file's JSON once but validates only the header fields, so
+   * a history of large sessions lists without paying for every replay and
+   * transcript. A file whose header does not read is skipped with a log
+   * line, as before; the session itself is read whole when it is opened.
+   */
+  const readHeader = async (name: string): Promise<StoredSessionHeader | undefined> => {
+    const raw = await readRaw(name)
+    if (raw === undefined) {
+      return undefined
+    }
+    const parsed = storedSessionHeaderShape.safeParse(raw)
+    if (!parsed.success) {
+      deps.log.warn(`Session file ${name} skipped: its header does not read`)
+      return undefined
+    }
+    const header = parsed.data
+    return {
+      sessionId: header.sessionId,
+      ...(header.accountId !== undefined && { accountId: header.accountId }),
+      ...(header.sideChat === true && { sideChat: true }),
+      workspaceRoot: header.workspaceRoot,
+      ...(header.name !== undefined && { name: header.name }),
+      createdAt: header.createdAt,
+      lastActivityAt: header.lastActivityAt,
+      ...(header.forkedFrom !== undefined && { forkedFrom: header.forkedFrom }),
+      ...(header.firstPrompt !== undefined && { firstPrompt: header.firstPrompt }),
+      turnCount: header.turnIds.length,
+    }
   }
 
   const journalDeps: SessionBudgetJournalDeps = {
@@ -114,20 +187,18 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
   }
 
   /** True when the session has sat idle past the retention period (and was deleted). */
-  const isExpired = async (session: StoredSession): Promise<boolean> => {
+  const isExpired = async (header: StoredSessionHeader): Promise<boolean> => {
     const days = deps.retentionDays()
-    const idleMs = deps.now() - Date.parse(session.lastActivityAt)
+    const idleMs = deps.now() - Date.parse(header.lastActivityAt)
     // An unreadable date is kept: only a known age deletes anything.
     if (days <= 0 || Number.isNaN(idleMs) || idleMs <= days * MILLISECONDS_PER_DAY) {
       return false
     }
     try {
-      await rm(fileFor(session.sessionId), { force: true })
-      deps.log.info(`Session ${session.sessionId} idle for more than ${String(days)} days deleted`)
+      await rm(fileFor(header.sessionId), { force: true })
+      deps.log.info(`Session ${header.sessionId} idle for more than ${String(days)} days deleted`)
     } catch (error: unknown) {
-      deps.log.warn(
-        `Expired session ${session.sessionId} not deleted: ${describeStoreError(error)}`,
-      )
+      deps.log.warn(`Expired session ${header.sessionId} not deleted: ${describeStoreError(error)}`)
     }
     return true
   }
@@ -154,9 +225,9 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
         if (!name.endsWith(FILE_EXTENSION)) {
           continue
         }
-        const session = await readOne(name)
-        if (session !== undefined && !(await isExpired(session))) {
-          headers.push(headerOf(session))
+        const header = await readHeader(name)
+        if (header !== undefined && !(await isExpired(header))) {
+          headers.push(header)
         }
       }
       return headers

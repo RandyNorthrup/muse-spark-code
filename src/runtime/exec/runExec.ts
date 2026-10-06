@@ -8,6 +8,7 @@ import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
 import {
   ACP_AGENT_NAME,
+  ACP_COMPACT_COMMAND,
   ACP_CONFIG_IDS,
   EXEC_EXIT,
   EXEC_ENDPOINTS,
@@ -22,6 +23,7 @@ import {
   HTTP_UNAUTHORIZED,
   MILLISECONDS_PER_SECOND,
   MODEL_API_MAX_OUTPUT_TOKENS,
+  NO_COMPACTABLE_HISTORY,
   MODEL_API_PRICES_PER_MILLION,
   PAID_PRICES_USD,
   SECRET_KEYS,
@@ -182,6 +184,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let model: string | null = null
   let effort: string | null = null
   let stopReason: string | null = null
+  let isCompactionPrompt = false
   let terminal: string | null = null
   let incompleteReason: string | null = null
   let backendErrorKind: string | undefined
@@ -328,6 +331,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       inputs = [...attachments.records]
       // A resource travels via ACP's existing resource conversion, with its
       // entire instruction envelope fitting before that converter's cap.
+      isCompactionPrompt =
+        attachments.resources.length === 0 && prompt.trim() === `/${ACP_COMPACT_COMMAND}`
       const blocks: acp.ContentBlock[] = [
         { type: 'text', text: prompt },
         ...attachments.resources.map((resource): acp.ContentBlock => ({
@@ -584,6 +589,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               limits,
             })
             try {
+              // ACP dispatches an exact /compact through AgentSession.compact,
+              // sharing editor guards and the same bounded exec transport ledger.
               const answer = await lifecycle.race(
                 connection.request('session/prompt', {
                   sessionId: created.sessionId,
@@ -634,6 +641,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       terminal = last.terminal
       incompleteReason = last.incompleteReason
     }
+    // A successful command NOOP has no model response or turn terminal to
+    // verify. Keep those fields null and account for exactly zero requests.
+    const isEmptyCompaction =
+      isCompactionPrompt &&
+      stopReason === 'end_turn' &&
+      terminal === null &&
+      (last === null || last === undefined) &&
+      totals?.requests === 0
     if (lifecycle.cause !== null) {
       status = statusForStop(lifecycle.cause)
       if (lifecycle.cause.kind !== 'budget' || error === UI_TEXT.execIncomplete)
@@ -653,7 +668,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         status = 'failed'
       else if (terminal !== 'completed' || last?.endedWithoutTerminal === true) {
         status = 'incomplete'
-        incompleteReason ??= terminal === null ? 'no_completion' : null
+        const reason = terminal === null ? 'no_completion' : null
+        incompleteReason ??= isEmptyCompaction ? NO_COMPACTABLE_HISTORY : reason
+        if (isEmptyCompaction) error = UI_TEXT.nothingToCompact
       } else if (
         options.backend === 'modelApi' &&
         (last?.usage !== 'valid' || last.settlement !== 'priced')

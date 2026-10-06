@@ -25,6 +25,7 @@ function modelApiCostCase(): Partial<UsageDialogProps> {
       subscription: undefined,
       account: { signInMethod: 'apiKey' },
       insights: undefined,
+      providers: undefined,
     },
     usage: { inputTokens: 1_000_000, outputTokens: 100_000, cachedTokens: 200_000 },
     modelId: 'muse-spark-1.3',
@@ -37,6 +38,7 @@ function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
       backend: 'museCode',
       subscription,
       account: { signInMethod: 'cli', cliVersion: '1.3.0', delegationMode: 'off' },
+      providers: undefined,
       insights: {
         day: {
           attempts: 40,
@@ -57,6 +59,7 @@ function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
     usage: { inputTokens: 12_345, outputTokens: 678, cachedTokens: 10_000 },
     context: { usedTokens: 21_014, windowTokens: 1_007_997, pressure: 'normal' },
     modelId: 'muse-spark-1.3',
+    modelPricing: undefined,
     paid: { features: [], tally: EMPTY_PAID_TALLY, isKeyStored: false, alwaysAllowed: [] },
     auth: {
       status: 'signedIn',
@@ -76,6 +79,42 @@ function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
   }
   const view = render(<UsageDialog {...props} />)
   return { ...props, unmount: view.unmount }
+}
+
+function providersReport(): Partial<UsageDialogProps> {
+  return {
+    report: {
+      backend: 'modelApi',
+      subscription: undefined,
+      account: { signInMethod: 'apiKey' },
+      insights: undefined,
+      providers: [
+        {
+          providerId: 'openrouter',
+          providerLabel: 'OpenRouter',
+          pricing: 'priced',
+          inputTokens: 1200,
+          outputTokens: 300,
+          costUsd: 0.001,
+          keyUsage: { todayUsd: 0.4, monthUsd: 2.1, limitUsd: 10, remainingUsd: 7.9 },
+        },
+        {
+          providerId: 'ollama',
+          providerLabel: 'Ollama',
+          pricing: 'local',
+          inputTokens: 800,
+          outputTokens: 100,
+        },
+        {
+          providerId: 'mystery',
+          providerLabel: 'Mystery',
+          pricing: 'unpriced',
+          inputTokens: 50,
+          outputTokens: 5,
+        },
+      ],
+    },
+  }
 }
 
 describe('UsageDialog', () => {
@@ -138,6 +177,7 @@ describe('UsageDialog', () => {
           backend: 'museCode',
           account: undefined,
           insights: undefined,
+          providers: undefined,
           subscription: {
             ...subscription,
             weekly: { ...subscription.weekly, resetsAtMs: NOW + HOUR + 60_000 },
@@ -165,6 +205,7 @@ describe('UsageDialog', () => {
         backend: 'museCode',
         account: undefined,
         insights: undefined,
+        providers: undefined,
         subscription: {
           ...subscription,
           window: { ...subscription.window, resetsAtMs: NOW - 1 },
@@ -185,6 +226,7 @@ describe('UsageDialog', () => {
         backend: 'museCode',
         account: undefined,
         insights: undefined,
+        providers: undefined,
         subscription: {
           ...subscription,
           weekly: { ...subscription.weekly, resetsAtMs: NOW - 1 },
@@ -203,6 +245,7 @@ describe('UsageDialog', () => {
         backend: 'museCode',
         account: undefined,
         insights: undefined,
+        providers: undefined,
         subscription: {
           ...subscription,
           tier: '27681393394859588',
@@ -271,6 +314,7 @@ describe('UsageDialog', () => {
         subscription: undefined,
         account: { signInMethod: 'apiKey' },
         insights: undefined,
+        providers: undefined,
       },
       usage: undefined,
       context: undefined,
@@ -290,6 +334,7 @@ describe('UsageDialog', () => {
         subscription: undefined,
         account: { signInMethod: 'cli' },
         insights: undefined,
+        providers: undefined,
       },
       usage: undefined,
       context: { usedTokens: 500, windowTokens: undefined, pressure: 'normal' },
@@ -369,6 +414,7 @@ describe('UsageDialog in another display language (M40)', () => {
         backend: 'museCode',
         subscription: undefined,
         account: { signInMethod: 'cli' },
+        providers: undefined,
         insights: {
           day: {
             attempts: 1000,
@@ -401,6 +447,7 @@ describe('UsageDialog insights fallback (M18)', () => {
         backend: 'museCode',
         subscription,
         account: { signInMethod: 'cli', cliVersion: '1.3.0', delegationMode: 'off' },
+        providers: undefined,
         insights: undefined,
       },
     })
@@ -415,6 +462,7 @@ describe('UsageDialog insights fallback (M18)', () => {
         backend: 'modelApi',
         subscription: undefined,
         account: { signInMethod: 'apiKey' },
+        providers: undefined,
         insights: undefined,
       },
     })
@@ -429,6 +477,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
         backend: 'modelApi',
         subscription: undefined,
         account: undefined,
+        providers: undefined,
         insights: undefined,
       },
       paid: {
@@ -451,6 +500,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     subscription: undefined,
     account: { signInMethod: 'apiKey' as const },
     insights: undefined,
+    providers: undefined,
   }
 
   it('tallies this window’s paid use with each feature’s state and estimated cost', () => {
@@ -583,11 +633,51 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('Web search (off)4 searches · $0.0100')
     expect(dialog).toHaveTextContent('Estimated paid total$0.0400')
   })
+
+  it('lists this window’s tallies per provider with settled costs (M95)', () => {
+    renderDialog(providersReport())
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Providers')
+    expect(dialog).toHaveTextContent('OpenRouter1.2K / 300 · $0.0010')
+    expect(dialog).toHaveTextContent('Ollama800 / 100 · $0.00')
+    expect(dialog).toHaveTextContent('Mystery50 / 5 · unpriced')
+  })
+
+  it('shows an account-connected key’s usage, limit and remainder (M95)', () => {
+    renderDialog(providersReport())
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('API key usage')
+    expect(dialog).toHaveTextContent('Today$0.40')
+    expect(dialog).toHaveTextContent('This month$2.10')
+    expect(dialog).toHaveTextContent('Limit$10.00')
+    expect(dialog).toHaveTextContent('Remaining$7.90')
+  })
+
+  it('counts only tokens for the unpriced current model (M95)', () => {
+    renderDialog({
+      ...modelApiCostCase(),
+      usage: { inputTokens: 500, outputTokens: 50 },
+      modelId: 'openrouter/mystery/model',
+      modelPricing: 'unpriced',
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent(
+      'This model has no price card, so only its tokens are counted.',
+    )
+    expect(screen.queryByText('Estimated cost')).toBeNull()
+  })
+
+  it('offers the own-model choice in its setup rows (M95)', () => {
+    const props = renderDialog()
+    fireEvent.click(screen.getByRole('button', { name: 'Start with your own model' }))
+    expect(props.onSetupSignIn).toHaveBeenCalledWith('byo')
+  })
 })
 
 describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
   const tabReport = {
     backend: 'modelApi' as const,
+    providers: undefined,
     subscription: undefined,
     account: { signInMethod: 'apiKey' as const },
     insights: undefined,

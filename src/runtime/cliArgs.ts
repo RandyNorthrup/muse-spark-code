@@ -33,6 +33,7 @@ export interface ServeOptions {
   readonly paidFeatures: readonly AcpPaidFeature[]
   /** The finest log detail on stderr. */
   readonly isVerbose: boolean
+  readonly autoCompaction?: boolean | undefined
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
@@ -128,6 +129,7 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     allowsContributorModels: values['allow-contributor-models'] === true,
     paidFeatures,
     isVerbose: values.verbose === true,
+    autoCompaction: values['no-auto-compaction'] !== true,
   }
   const [first, second, ...rest] = positionals
   if (first === 'setup' && second === undefined) {
@@ -174,6 +176,7 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
             'shell-sandbox': { type: 'string' },
             'allow-contributor-models': { type: 'boolean' },
             'image-generation': { type: 'boolean' },
+            'no-auto-compaction': { type: 'boolean' },
             'fail-on-denial': { type: 'boolean' },
             ephemeral: { type: 'boolean' },
             'key-stdin': { type: 'boolean' },
@@ -252,6 +255,7 @@ function parseCommandLineStrictly(argv: readonly string[]) {
     options: {
       backend: { type: 'string' },
       'trust-workspace': { type: 'boolean' },
+      'no-auto-compaction': { type: 'boolean' },
       maintenance: { type: 'boolean' },
       'muse-binary': { type: 'string' },
       'shell-sandbox': { type: 'string' },

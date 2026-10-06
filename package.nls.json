@@ -163,5 +163,12 @@
   "config.judge.engine.enumDescriptions.auto": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.",
   "config.judge.engine.enumDescriptions.same": "Only your own chat model judges; it never switches models.",
   "config.judge.engine.enumDescriptions.off": "No judge: approvals behave exactly as without one.",
-  "config.shell.passEnvironmentVariables.description": "Names of environment variables to pass to interactive top-level shell commands, including credential variables normally withheld. Names only, never values. Default: none. A command can expose these values in the conversation and to the model provider. Verification/then_run, schedules, child/team workers and hooks never receive credential variables, even when named here. An interactive command moved to the background retains its starting environment. Does not change Muse Code or explicitly configured MCP server environments."
+  "config.shell.passEnvironmentVariables.description": "Names of environment variables to pass to interactive top-level shell commands, including credential variables normally withheld. Names only, never values. Default: none. A command can expose these values in the conversation and to the model provider. Verification/then_run, schedules, child/team workers and hooks never receive credential variables, even when named here. An interactive command moved to the background retains its starting environment. Does not change Muse Code or explicitly configured MCP server environments.",
+  "command.startWithOwnModel.title": "Start with Your Own Model",
+  "command.modelsAndAgents.title": "Models & Agents",
+  "command.addModelProvider.title": "Add Model Provider…",
+  "config.suggestedProvider.description": "A workspace may suggest one model-provider preset by id; the panel offers to open Models & Agents with that preset chosen. Empty suggests nothing. A workspace cannot set an address or a credential.",
+  "walkthrough.gettingStarted.step.ownModel.title": "Start with your own model",
+  "walkthrough.gettingStarted.step.ownModel.description": "No Muse subscription or Meta API key? Add your own model provider — OpenRouter, Anthropic, OpenAI or a local server — and pick a model.\n[Start with your own model](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Automatically compact long Model API conversations. Defaults on, but remains inactive until a paired evaluation passes. Additional paid calls require consent to the price and daily budget."
 }

@@ -51,6 +51,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly shellSandbox: ShellSandboxMode
   /** Which backend hosts conversations (PLAN.md D1, M7). */
   readonly backend: BackendMode
+  /** Workspace preset suggestion, held by the host (M95, PLAN.md D74). */
+  readonly suggestedProvider: string
   /** Ctrl+N for a new conversation (read by the keybinding, kept here for the schema). */
   readonly enableNewConversationShortcut: boolean
   /** Days an idle Model API conversation is kept; 0 keeps it (PLAN.md D26). */
@@ -110,6 +112,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiRepoMap: boolean
   /** Observation packing on the Model API backend (M73): a conversation reads it when it starts. */
   readonly modelApiObservationPacking: boolean
+  readonly modelApiAutoCompaction: boolean
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
   /** The hosts beyond loopback the browser check may open and reach (M81, PLAN.md D49). */
@@ -148,6 +151,7 @@ const settingSchemas = {
   'shell.passEnvironmentVariables': z.array(z.string().check(z.regex(/^[A-Za-z_][A-Za-z0-9_]*$/))),
   shellSandbox: z.enum(SHELL_SANDBOX_MODES),
   backend: z.enum(BACKEND_MODES),
+  suggestedProvider: z.string(),
   enableNewConversationShortcut: z.boolean(),
   cleanupPeriodDays: z.int().check(z.nonnegative()),
   modelApiWebSearch: z.boolean(),
@@ -183,6 +187,7 @@ const settingSchemas = {
 
   modelApiRepoMap: z.boolean(),
   modelApiObservationPacking: z.boolean(),
+  modelApiAutoCompaction: z.boolean(),
   turnCheckpoints: z.boolean(),
   // Each entry a plain host name or IP address (no port, path or wildcard):
   // one that is not refuses the whole list, so a typo warns rather than
@@ -258,6 +263,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     'shell.passEnvironmentVariables': readSetting(config, 'shell.passEnvironmentVariables', log),
     shellSandbox: readSetting(config, 'shellSandbox', log),
     backend: readSetting(config, 'backend', log),
+    suggestedProvider: readSetting(config, 'suggestedProvider', log),
     enableNewConversationShortcut: readSetting(config, 'enableNewConversationShortcut', log),
     cleanupPeriodDays: readSetting(config, 'cleanupPeriodDays', log),
     modelApiWebSearch: readSetting(config, 'modelApiWebSearch', log),
@@ -277,6 +283,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     formatOnEdit: readSetting(config, 'formatOnEdit', log),
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     modelApiObservationPacking: readSetting(config, 'modelApiObservationPacking', log),
+    modelApiAutoCompaction: readSetting(config, 'modelApiAutoCompaction', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
     browserCheckExtraHosts: readSetting(config, 'browserCheckExtraHosts', log),
     browserCheckRuntime: readSetting(config, 'browserCheckRuntime', log),

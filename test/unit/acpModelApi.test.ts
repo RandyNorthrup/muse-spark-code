@@ -215,7 +215,9 @@ describe('the ACP agent on the Model API backend (M63)', () => {
       (update) => update.sessionUpdate === 'tool_call_update' && update.status === 'completed',
     )
     expect(done).toBeDefined()
-    expect(textOf(t.updates, 'agent_message_chunk')).toBe('Wrote it.')
+    expect(textOf(t.updates, 'agent_message_chunk')).toBe(
+      `${UI_TEXT.autoCompactionAwaitingEvaluation}\n\nWrote it.`,
+    )
     // The key went to the Model API as the bearer token, and nowhere near the client.
     expect(t.api.requests.at(-1)?.headers['Authorization']).toBe(`Bearer ${KEY}`)
     expect(JSON.stringify([t.updates, t.permissions])).not.toContain(KEY)
@@ -409,7 +411,8 @@ describe('the ACP agent on the Model API backend (M63)', () => {
       await t.run((client) => promptOnce(client, t.workspace))
       const sent = JSON.stringify(t.api.responseBodies()[1])
       expect(sent).toContain('keys-none')
-      expect(sent).not.toContain('placeholder')
+      expect(sent).not.toContain('LLM|1|placeholder')
+      expect(sent).not.toContain('placeholder-too')
       await t.runtime.close()
     },
   )

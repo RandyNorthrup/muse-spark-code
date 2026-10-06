@@ -22,6 +22,9 @@ const HOST_BUNDLES = [
   'dist/conversation.js',
   'dist/tab.js',
   'dist/modelApi.js',
+  'dist/providers.js',
+  'dist/validation.js',
+  'dist/modelsPanel.js',
   'dist/review.js',
   'dist/sessionBoard.js',
   'dist/reviewer.js',
@@ -48,6 +51,7 @@ const HOST_BUNDLES = [
   'dist/judge.js',
   'dist/searchWorker.js',
   'dist/pageWorker.js',
+  'dist/imageResizeWorker.js',
 ]
 const NAVIGATOR = /\bnavigator\b/g
 

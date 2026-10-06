@@ -41,6 +41,9 @@ export type PaletteAction =
   | { readonly type: 'openUsage' }
   | { readonly type: 'openAgents' }
   | { readonly type: 'openModelPicker' }
+  /** The models view's footer rows (M95): the provider quick-pick, the Models & Agents panel. */
+  | { readonly type: 'addModelProvider' }
+  | { readonly type: 'manageModels' }
   | { readonly type: 'setEffort'; readonly effort: EffortLevel }
   | { readonly type: 'toggleThinking' }
   | { readonly type: 'openPermissionModes' }

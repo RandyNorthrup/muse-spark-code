@@ -5,6 +5,7 @@
 // Shared by both TypeScript projects (host and webview), so this file must not
 // import from `vscode`, Node, or the DOM.
 
+import { providerSetupSchema } from './providerSetup'
 import * as z from 'zod/mini'
 import {
   agentEventSchema,
@@ -26,6 +27,7 @@ import {
   EXPORT_FORMATS,
   GOAL_COMMANDS,
   MAX_ATTACHMENT_BASE64_CHARS,
+  MODEL_PRICINGS,
   PAID_FEATURES,
   PERMISSION_MODES,
   PREFERRED_LOCATIONS,
@@ -58,7 +60,12 @@ import { scheduleCadenceSchema } from './schedule'
 import { bestOfNRunSchema } from './bestOfN'
 import { boardRowSchema } from './sessionBoard'
 import { sessionRowSchema } from './sessions'
-import { accountFactsSchema, subscriptionUsageSchema, usageInsightsSchema } from './usage'
+import {
+  accountFactsSchema,
+  providerUsageRowSchema,
+  subscriptionUsageSchema,
+  usageInsightsSchema,
+} from './usage'
 
 // Settings the webview needs to render. Host-only settings (binary path,
 // environment variables) are deliberately absent. The shape is exported so the
@@ -146,7 +153,7 @@ export const AUTH_STATUSES = [
 ] as const
 export type AuthStatus = (typeof AUTH_STATUSES)[number]
 
-export const SIGN_IN_METHODS = ['browser', 'apiKey'] as const
+export const SIGN_IN_METHODS = ['browser', 'apiKey', 'byo'] as const
 export type SignInMethod = (typeof SIGN_IN_METHODS)[number]
 
 export const BACKEND_KINDS = ['museCode', 'modelApi'] as const
@@ -211,6 +218,11 @@ export const HOST_ACTIONS = [
   'installBundledSkills',
   'updateBundledSkills',
   'declineBundledSkills',
+  /** The first-run screen's third choice (M95): the wizard at "Pick a provider". */
+  'startWithOwnModel',
+  /** The model picker's footer rows (M95): the provider quick-pick, the Models & Agents panel. */
+  'addModelProvider',
+  'manageModels',
   /** The palette's "What's New" (M99, PLAN.md D79): this version's release notes in an editor tab. */
   'showWhatsNew',
 ] as const
@@ -231,11 +243,24 @@ export const NOTICE_ACTIONS = [
 ] as const
 export type NoticeAction = (typeof NOTICE_ACTIONS)[number]
 
+// A BYO provider's fields (M95, PLAN.md D74): absent on Meta's own models.
+// `providerId` is the reference's provider (`meta` is never sent: bare ids
+// are Meta's); `pricing` tells the picker and usage how the price reads;
+// per-M-token prices only where the provider prices the model.
 const modelOptionSchema = z.object({
   modelId: z.string(),
   displayLabel: z.string(),
   contextLimit: z.optional(z.number()),
   isDefault: z.boolean(),
+  providerId: z.optional(z.string()),
+  providerLabel: z.optional(z.string()),
+  pricing: z.optional(z.enum(MODEL_PRICINGS)),
+  inputUsdPerMTokens: z.optional(z.number()),
+  outputUsdPerMTokens: z.optional(z.number()),
+  /** Pinned in the Models section: first in the composer's picker (M95). */
+  isPinned: z.optional(z.boolean()),
+  /** The provider or route may train on the content (hidden when confidential). */
+  trainsOnContent: z.optional(z.boolean()),
 })
 export type ModelOption = z.infer<typeof modelOptionSchema>
 
@@ -879,7 +904,12 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     account: z.optional(accountFactsSchema),
     /** From the CLI's trace logs on this machine (M14); absent on the Model API. */
     insights: z.optional(z.object({ day: usageInsightsSchema, week: usageInsightsSchema })),
+    /** This window's tallies per BYO provider (M95); absent until one is used. */
+    providers: z.optional(z.array(providerUsageRowSchema)),
   }),
+  // A finished provider setup (M95): the wizard saved a provider and set the
+  // composer's model. The panel confirms once, then leaves first run.
+  providerSetupSchema,
   // A subagent's own transcript for the Agent map (M14).
   z.object({
     type: z.literal('childTranscript'),

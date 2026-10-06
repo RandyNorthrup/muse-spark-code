@@ -6,12 +6,17 @@ vi.mock('node:fs', () => ({ existsSync: vi.fn(), readFileSync: vi.fn(), statSync
 const CONTENT_FILE = 'dist/whatsNew.json'
 const CONTENT_BUDGET_BYTES = 40 * 1024
 
+function mockWebviewMeta(meta, models) {
+  const modelsMeta = models ?? { outputs: { 'dist/webview/models.js': { imports: [] } } }
+  readFileSync.mockImplementation((file) =>
+    JSON.stringify(file === 'dist/meta/modelsWebview.json' ? modelsMeta : meta),
+  )
+}
+
 beforeEach(() => {
   vi.resetModules()
   existsSync.mockReturnValue(true)
-  readFileSync.mockReturnValue(
-    JSON.stringify({ outputs: { 'dist/webview/main.js': { imports: [] } } }),
-  )
+  mockWebviewMeta({ outputs: { 'dist/webview/main.js': { imports: [] } } })
   statSync.mockImplementation((file) => ({
     size: file === CONTENT_FILE ? CONTENT_BUDGET_BYTES : 0,
   }))
@@ -26,24 +31,44 @@ afterEach(() => vi.restoreAllMocks())
 
 describe('bundled What’s New content budget', () => {
   it('counts eager chunks against the unchanged startup cap', async () => {
-    readFileSync.mockReturnValue(
-      JSON.stringify({
-        outputs: {
-          'dist/webview/main.js': {
-            imports: [{ path: 'dist/webview/chunks/eager.js', kind: 'import-statement' }],
-          },
-          'dist/webview/chunks/eager.js': { imports: [] },
+    mockWebviewMeta({
+      outputs: {
+        'dist/webview/main.js': {
+          imports: [{ path: 'dist/webview/chunks/eager.js', kind: 'import-statement' }],
         },
-      }),
-    )
+        'dist/webview/chunks/eager.js': { imports: [] },
+      },
+    })
     statSync.mockImplementation((file) => ({
       size: file.endsWith('eager.js') ? 900 * 1024 + 1 : 0,
     }))
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
   })
 
+  it('counts shared static chunks against the unchanged Models startup cap', async () => {
+    const chunk = 'dist/webview/chunks/models-shared.js'
+    mockWebviewMeta(
+      { outputs: { 'dist/webview/main.js': { imports: [] } } },
+      {
+        outputs: {
+          'dist/webview/models.js': { imports: [{ path: chunk, kind: 'import-statement' }] },
+          [chunk]: { imports: [] },
+        },
+      },
+    )
+    statSync.mockImplementation((file) => ({ size: file === chunk ? 475 * 1024 : 0 }))
+    await import('../../scripts/check-bundle-size.mjs')
+    expect(process.exit).not.toHaveBeenCalled()
+    vi.resetModules()
+    statSync.mockImplementation((file) => ({ size: file === chunk ? 475 * 1024 + 1 : 0 }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith(
+      'OVER dist/webview/models.js + static imports: 475.0 KiB (budget 475 KiB)',
+    )
+  })
+
   it.each([
-    ['deferred JS', 50, 'src/webview/components/HistoryDialog.tsx'],
+    ['deferred JS', 50, undefined],
     ['code highlighting', 125, 'src/webview/components/HighlightedCode.tsx'],
     ['action dialogs', 25, 'src/webview/components/ShareView.tsx'],
     ['tasks tab', 25, 'src/webview/TasksApp.tsx'],
@@ -51,14 +76,12 @@ describe('bundled What’s New content budget', () => {
     'enforces the %s cap without widening the original deferred allowance',
     async (name, cap, entryPoint) => {
       const chunk = 'dist/webview/chunks/optional.js'
-      readFileSync.mockReturnValue(
-        JSON.stringify({
-          outputs: {
-            'dist/webview/main.js': { imports: [{ path: chunk, kind: 'dynamic-import' }] },
-            [chunk]: { imports: [], entryPoint },
-          },
-        }),
-      )
+      mockWebviewMeta({
+        outputs: {
+          'dist/webview/main.js': { imports: [{ path: chunk, kind: 'dynamic-import' }] },
+          [chunk]: { imports: [], entryPoint },
+        },
+      })
       statSync.mockImplementation((file) => ({ size: file === chunk ? cap * 1024 : 0 }))
       await import('../../scripts/check-bundle-size.mjs')
       expect(console.log).toHaveBeenCalledWith(

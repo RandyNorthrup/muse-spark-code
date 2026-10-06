@@ -1,0 +1,59 @@
+{
+  "provider": "xai",
+  "capturedAt": "2026-10-04",
+  "totalRequests": 5,
+  "billedRequests": 2,
+  "freeRequests": 3,
+  "expected": {
+    "billed": 2,
+    "free": 3
+  },
+  "models": ["grok-4.3"],
+  "calls": [
+    {
+      "seq": 1,
+      "name": "models-list",
+      "method": "GET",
+      "url": "https://api.x.ai/v1/models",
+      "status": 200,
+      "billed": false,
+      "ms": 820
+    },
+    {
+      "seq": 2,
+      "name": "language-models-list",
+      "method": "GET",
+      "url": "https://api.x.ai/v1/language-models",
+      "status": 200,
+      "billed": false,
+      "ms": 79
+    },
+    {
+      "seq": 3,
+      "name": "tool-call-stream",
+      "method": "POST",
+      "url": "https://api.x.ai/v1/responses",
+      "status": 200,
+      "billed": true,
+      "ms": 1829
+    },
+    {
+      "seq": 4,
+      "name": "tool-result-stream",
+      "method": "POST",
+      "url": "https://api.x.ai/v1/responses",
+      "status": 200,
+      "billed": true,
+      "ms": 1565
+    },
+    {
+      "seq": 5,
+      "name": "error-invalid-model",
+      "method": "POST",
+      "url": "https://api.x.ai/v1/responses",
+      "status": 404,
+      "billed": false,
+      "ms": 61
+    }
+  ]
+}

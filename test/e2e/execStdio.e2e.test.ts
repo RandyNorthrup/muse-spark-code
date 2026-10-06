@@ -165,6 +165,7 @@ for (const file of ['acp.js', 'modelApi.js', 'runtime.bundles.json.br'])
     'wire',
     'validation',
     'searchWorker',
+    'imageResizeWorker',
     'pageWorker',
   ]) {
     writeFileSync(

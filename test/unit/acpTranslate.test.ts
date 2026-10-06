@@ -679,3 +679,37 @@ describe('questions', () => {
     )
   })
 })
+
+describe('FIXM101T ACP path parity', () => {
+  it.each(['@safe.txt', pathToFileURL(path.join(CWD, 'safe.txt')).href])(
+    'shows the tool target in permissions and write previews (%s)',
+    (given) => {
+      const translator = new UpdateTranslator(CWD, false)
+      const write = tool({
+        tool: 'write_file',
+        args: JSON.stringify({ path: given, content: 'new' }),
+        status: 'completed',
+      })
+      const updates = translator.updates({ type: 'itemCompleted', item: write })
+      expect(updates[0]).toMatchObject({ locations: [{ path: path.join(CWD, 'safe.txt') }] })
+      expect(updates[1]).toMatchObject({
+        content: [
+          { type: 'diff', path: path.join(CWD, 'safe.txt'), oldText: null, newText: 'new' },
+        ],
+      })
+    },
+  )
+  it('omits locations and previews for an escaping normalized path', () => {
+    const translator = new UpdateTranslator(CWD, false)
+    const updates = translator.updates({
+      type: 'itemCompleted',
+      item: tool({
+        tool: 'write_file',
+        args: '{"path":"@../outside.txt","content":"new"}',
+        status: 'completed',
+      }),
+    })
+    expect(updates[0]).toMatchObject({ locations: [] })
+    expect(updates[1]).toMatchObject({ content: [] })
+  })
+})

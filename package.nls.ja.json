@@ -163,5 +163,12 @@
   "config.judge.engine.enumDescriptions.auto": "自分のチャットモデルが判定します（フェーズ1では`same`）。別のジャッジを設定すると加わります。",
   "config.judge.engine.enumDescriptions.same": "自分のチャットモデルのみが判定します。モデルを切り替えません。",
   "config.judge.engine.enumDescriptions.off": "ジャッジなし。承認はジャッジがない場合とまったく同じ動作です。",
-  "config.shell.passEnvironmentVariables.description": "メインセッションの対話型シェルコマンドに渡す環境変数の名前。通常は除外される認証情報の変数も含みます。値ではなく名前のみを指定します。既定では何も渡しません。コマンドはこれらの値を会話やモデルプロバイダーに公開する可能性があります。検証/then_run、スケジュール、子エージェント/チームワーカー、フックには、ここに名前を指定しても認証情報の変数を渡しません。バックグラウンドに移動した対話型コマンドは起動時の環境を保持します。Muse Codeや明示的に設定したMCPサーバーの環境は変更しません。"
+  "config.shell.passEnvironmentVariables.description": "メインセッションの対話型シェルコマンドに渡す環境変数の名前。通常は除外される認証情報の変数も含みます。値ではなく名前のみを指定します。既定では何も渡しません。コマンドはこれらの値を会話やモデルプロバイダーに公開する可能性があります。検証/then_run、スケジュール、子エージェント/チームワーカー、フックには、ここに名前を指定しても認証情報の変数を渡しません。バックグラウンドに移動した対話型コマンドは起動時の環境を保持します。Muse Codeや明示的に設定したMCPサーバーの環境は変更しません。",
+  "command.startWithOwnModel.title": "自分のモデルで始める",
+  "command.modelsAndAgents.title": "モデルとエージェント",
+  "command.addModelProvider.title": "モデルプロバイダーを追加…",
+  "config.suggestedProvider.description": "ワークスペースはモデルプロバイダーのプリセットを ID で 1 件だけ提案できます。パネルはそのプリセットで「モデルとエージェント」を開くことを提案します。空の場合は何も提案しません。ワークスペースはアドレスや資格情報を設定できません。",
+  "walkthrough.gettingStarted.step.ownModel.title": "自分のモデルで始める",
+  "walkthrough.gettingStarted.step.ownModel.description": "Muse サブスクリプションも Meta API キーもありませんか？自分のモデルプロバイダー (OpenRouter、Anthropic、OpenAI、ローカルサーバー) を追加してモデルを選んでください。\n[自分のモデルで始める](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Model API の長い会話を自動でコンパクションします。既定ではオンですが、対照評価に合格するまでは無効です。追加の有料呼び出しには、価格と日次予算への同意が必要です。"
 }
