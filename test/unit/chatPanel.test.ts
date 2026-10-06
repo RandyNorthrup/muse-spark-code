@@ -25,7 +25,7 @@ function restore(state: unknown, title = 'Untitled') {
 describe('restoreChatPanel (M12)', () => {
   it('wires the rebuilt panel and keeps the stored session id until it is resumed (M12, M25)', () => {
     const { registry, panel } = restore({ sessionId: 'old' })
-    expect(panel.webview.html).toContain('<script nonce=')
+    expect(panel.webview.html).toContain('<script type="module" nonce=')
     expect(registry.active?.id).toMatch(/^panel:[0-9a-f-]{36}$/)
     expect(registry.active?.takeRestoredSessionId()).toBe('old')
     // A later ready (the crash screen's Reload) may try the resume again.
@@ -93,7 +93,7 @@ describe('openChatPanel', () => {
 
   it('wires the panel webview and answers ready', () => {
     const { panel } = openFakePanel()
-    expect(panel.webview.html).toContain('<script nonce=')
+    expect(panel.webview.html).toContain('<script type="module" nonce=')
     panel.webview.messages.fire({ type: 'ready' })
     expect(panel.webview.postMessage).toHaveBeenCalledOnce()
   })

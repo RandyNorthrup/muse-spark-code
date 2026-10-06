@@ -80,6 +80,15 @@ async function packageTree(): Promise<void> {
   mkdirSync(dist, { recursive: true })
   await buildModelApiBundle(dist)
   await build({
+    entryPoints: [path.join(ROOT, 'src', 'shared', 'validationEntry.ts')],
+    outfile: path.join(dist, 'validation.js'),
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node22',
+    logLevel: 'silent',
+  })
+  await build({
     entryPoints: [UI_TEXT_ENTRY],
     outfile: path.join(dist, 'uiText.js'),
     bundle: true,
