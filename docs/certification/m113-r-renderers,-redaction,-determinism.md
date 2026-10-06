@@ -172,3 +172,13 @@ redaction residual, not a claim that arbitrary source prose is secret-free.
   the explicitly named W integration work. No product README, CHANGELOG,
   catalogue, manifest setting registration or host-inventory file was edited
   outside this lane's ownership.
+
+## Local commit receipt
+
+Implementation commit: `a9e467e61d2c46ccdcb03be4ae32ea3bb15b09ad`.
+The repository's normal pre-commit hook ran ESLint and Prettier on all 17
+staged code files, Prettier on the five staged document/JSON files, and
+gitleaks on 312,823 staged bytes. All exited 0; the scan found no leaks.
+The worktree was clean after that commit. This receipt is a separate
+documentation commit with hooks enabled; history is not rewritten.
+The branch remains local and unmerged for lead integration.
