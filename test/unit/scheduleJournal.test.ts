@@ -70,6 +70,27 @@ function pauseActivation<T>(fs: MemoryScheduleFs, work: () => Promise<T>) {
 }
 
 describe('bounded schedule generations', () => {
+  it('retries a locked orphan after its generation headers were already retired', async () => {
+    const fs = new MemoryScheduleFs()
+    const journal = counter(fs)
+    for (let index = 0; index < SCHEDULE_JOURNAL_MAX_OPS; index += 1) await journal.increment()
+    const old = `counter/${generationOf(fs, 'counter')}`
+    const temporary = `${old}/.pending-old.tmp`
+    await fs.publish(temporary, 'old private prompt')
+    const remove = fs.remove.bind(fs)
+    let isLocked = true
+    vi.spyOn(fs, 'remove').mockImplementation(async (file) => {
+      if (isLocked && file === temporary) throw new Error('temporary locked')
+      await remove(file)
+    })
+    await journal.increment()
+    expect(await fs.read(`${old}/state.json`)).toBeUndefined()
+    expect(await fs.read(temporary)).toBe('old private prompt')
+    isLocked = false
+    await journal.increment()
+    expect(await fs.read(temporary)).toBeUndefined()
+    expect(await countOf(journal)).toBe(SCHEDULE_JOURNAL_MAX_OPS + 2)
+  })
   it('leaves the old committed generation current after interrupted activation and retires the orphan on retry', async () => {
     const fs = new MemoryScheduleFs()
     const journal = counter(fs)

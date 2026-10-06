@@ -1,15 +1,23 @@
 import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it, vi } from 'vitest'
+import * as z from 'zod/mini'
 import { createScheduler } from '../../src/core/schedules/scheduler'
-import { createScheduleStore, type ScheduleRunIntent } from '../../src/core/schedules/store'
+import {
+  createScheduleStore,
+  scheduleStorageHash,
+  type ScheduleRunIntent,
+} from '../../src/core/schedules/store'
 import {
   SCHEDULE_MIN_INTERVAL_MS,
   SCHEDULE_RECONCILE_MAX_RUNS,
   SCHEDULE_AUDIT_MAX_AGE_MS,
   SCHEDULE_POLL_INTERVAL_MS,
+  SCHEDULE_PAUSE_AFTER_FAILURES,
+  SCHEDULE_OUTBOX_MAX_PENDING,
+  SCHEDULE_FENCE_GRACE_MS,
 } from '../../src/shared/constants'
 import type { ScheduleFireRecord, ScheduleV2 } from '../../src/shared/scheduleV2'
-import { MemoryScheduleFs } from './helpers/schedules/storage'
+import { MemoryScheduleFs, scheduleStateFile } from './helpers/schedules/storage'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 import { FakeScheduleClock } from './helpers/schedules/clock'
 import { FakeScheduleHost } from './helpers/schedules/host'
@@ -81,6 +89,13 @@ async function failedPoll(
   message: string,
 ) {
   await expect(scheduler.poll(workspaceKey)).rejects.toThrow(message)
+}
+async function seedInitialState(fs: MemoryScheduleFs, fields: Record<string, unknown>) {
+  const file = await scheduleStateFile(fs)
+  const state = z
+    .object({ revision: z.int(), value: z.record(z.string(), z.unknown()) })
+    .parse(JSON.parse((await fs.read(file)) ?? 'null'))
+  await fs.replace(file, JSON.stringify({ ...state, value: { ...state.value, ...fields } }))
 }
 function failNextDelta(fs: MemoryScheduleFs, workspaceKey: string, message: string) {
   const publish = fs.publish.bind(fs)
@@ -495,5 +510,186 @@ describe('schedule outbox reconciliation', () => {
     expect(await store.fires(job.workspaceKey)).toEqual([])
     await store.record(fire)
     expect(await store.fires(job.workspaceKey)).toEqual([])
+  })
+  it('retains failure chronology across audit expiry and a later out-of-order success', async () => {
+    const { store, intent, job, host } = await fixture()
+    const run = async (id: string, ordinal: number) => {
+      const candidate = {
+        ...intent,
+        runId: `${job.id}:${id}`,
+        occurrenceMs: intent.occurrenceMs + ordinal,
+        advancesTime: false,
+      }
+      await store.admit(candidate)
+      await store.advance(candidate)
+      return candidate
+    }
+    const first = await run('first-failure', 0)
+    await store.record(fireOf(first, host.now(), 'failed'))
+    const middle = await run('middle-success', 1)
+    const second = await run('second-failure', 2)
+    await store.record(fireOf(second, host.now(), 'failed'))
+    const later = host.now() + SCHEDULE_AUDIT_MAX_AGE_MS + 1
+    await store.maintain(job.workspaceKey, later)
+    expect(await store.fires(job.workspaceKey)).toEqual([])
+    const third = await run('third-failure', 3)
+    await store.record(fireOf(third, later, 'failed'))
+    const [paused] = await store.list(job.workspaceKey)
+    expect(paused).toMatchObject({ consecutiveFailures: 3, paused: true })
+    await store.record(fireOf(middle, later + 1))
+    const [reordered] = await store.list(job.workspaceKey)
+    expect(reordered).toMatchObject({ consecutiveFailures: 2, paused: true })
+  })
+  it('preserves an existing scalar failure baseline and bounds it at the pause threshold', async () => {
+    const fs = new MemoryScheduleFs()
+    const store = createScheduleStore(fs)
+    const job = fakeSchedule({ consecutiveFailures: 2 })
+    await store.create(job)
+    const intent = {
+      schedule: job,
+      runId: `${job.id}:baseline`,
+      occurrenceMs: job.createdAtMs,
+      advancesTime: false,
+    }
+    await store.admit(intent)
+    await store.advance(intent)
+    await store.record(fireOf(intent, job.createdAtMs, 'failed'))
+    const [paused] = await store.list(job.workspaceKey)
+    expect(paused).toMatchObject({ consecutiveFailures: 3, paused: true })
+    for (const ordinal of [2, 3, 4]) {
+      const next = {
+        ...intent,
+        runId: `${job.id}:baseline-${String(ordinal)}`,
+        occurrenceMs: ordinal,
+      }
+      await store.admit(next)
+      await store.advance(next)
+      await store.record(fireOf(next, job.createdAtMs, 'failed'))
+      const counted = await store.list(job.workspaceKey)
+      expect(counted[0]?.consecutiveFailures).toBe(3)
+    }
+    const [current] = await store.list(job.workspaceKey)
+    await store.update({ ...current!, consecutiveFailures: 0, paused: false })
+    const reset = { ...intent, runId: `${job.id}:reset`, occurrenceMs: 5 }
+    await store.admit(reset)
+    await store.advance(reset)
+    await store.record(fireOf(reset, job.createdAtMs, 'failed'))
+    const restarted = await store.list(job.workspaceKey)
+    expect(restarted[0]?.consecutiveFailures).toBe(1)
+    await store.remove(job.workspaceKey, job.id)
+    expect(await store.list(job.workspaceKey)).toEqual([])
+  })
+  it('refuses an outcome summary without its live schedule', async () => {
+    const { fs, store, job } = await fixture()
+    await seedInitialState(fs, { outcomes: { missing: { baselineFailures: 0, heads: [] } } })
+    await expect(store.list(job.workspaceKey)).rejects.toThrow('scheduleOutcomeIdentityMissing')
+  })
+  it('preserves admission chronology after applied-marker failure and subsequent audit expiry', async () => {
+    const { fs, store, job, host } = await fixture()
+    const intents = []
+    for (const ordinal of [1, 2, 3]) {
+      const intent = {
+        schedule: job,
+        runId: `${job.id}:applied-${String(ordinal)}`,
+        occurrenceMs: ordinal,
+        advancesTime: false,
+      }
+      await store.admit(intent)
+      await store.advance(intent)
+      intents.push(intent)
+    }
+    for (const intent of intents.slice(0, 2))
+      await store.record(fireOf(intent, host.now(), 'failed'))
+    const final = fireOf(intents[2]!, host.now())
+    const publish = fs.publish.bind(fs)
+    let isLocked = true
+    vi.spyOn(fs, 'publish').mockImplementation(async (file, content, guard) => {
+      if (isLocked && file.endsWith('.applied')) {
+        throw new Error('applied marker locked')
+      }
+      return await publish(file, content, guard)
+    })
+    await expect(store.record(final)).rejects.toThrow('applied marker locked')
+    expect(await store.pending(job.workspaceKey)).toEqual([])
+    await store.maintain(job.workspaceKey, host.now() + SCHEDULE_AUDIT_MAX_AGE_MS + 1)
+    expect(await store.fires(job.workspaceKey)).toEqual([])
+    isLocked = false
+    await store.record(final)
+    const [current] = await store.list(job.workspaceKey)
+    expect(current).toMatchObject({ consecutiveFailures: 0, fireCount: 3, paused: false })
+    expect(await store.fires(job.workspaceKey)).toEqual([])
+  })
+  it.each(['baseline', 'markers'] as const)(
+    'refuses a corrupt outcome %s beyond its bound',
+    async (boundary) => {
+      const { fs, store, job } = await fixture()
+      await seedInitialState(fs, {
+        outcomes: {
+          [job.id]: {
+            baselineFailures: boundary === 'baseline' ? SCHEDULE_PAUSE_AFTER_FAILURES + 1 : 0,
+            heads:
+              boundary === 'markers'
+                ? Array.from({ length: SCHEDULE_PAUSE_AFTER_FAILURES + 1 }, () => ({
+                    runHash: 'a'.repeat(64),
+                    sequence: 0,
+                    occurrenceMs: 0,
+                    outcome: 'failed',
+                  }))
+                : [],
+          },
+        },
+      })
+      await expect(store.list(job.workspaceKey)).rejects.toThrow()
+    },
+  )
+  it('bounds completion work and retries only one bounded batch per maintenance pass', async () => {
+    const { fs, store, job, intent, host } = await fixture()
+    const finalizations = Object.fromEntries(
+      Array.from({ length: SCHEDULE_OUTBOX_MAX_PENDING }, (_, index) => [
+        `${job.id}:completion-${String(index)}`,
+        'retained completion digest',
+      ]),
+    )
+    await seedInitialState(fs, { finalizations })
+    await expect(store.record(fireOf(intent, host.now()))).rejects.toThrow(
+      'scheduleFinalizationLimit',
+    )
+    expect(fs.bytes(`${job.workspaceKey}/fires`)).toBe(0)
+    const publish = vi.spyOn(fs, 'publish')
+    await store.maintain(job.workspaceKey, host.now())
+    const markers = publish.mock.calls.filter(([file]) => file.endsWith('.applied'))
+    expect(markers).toHaveLength(SCHEDULE_RECONCILE_MAX_RUNS)
+    expect(fs.bytes('claims/')).toBe(0)
+    expect(
+      Array.from(fs.files, ([file]) => file).filter((file) => file.endsWith('.applied')),
+    ).toHaveLength(SCHEDULE_RECONCILE_MAX_RUNS)
+    publish.mockClear()
+    await store.maintain(job.workspaceKey, host.now())
+    expect(publish.mock.calls.filter(([file]) => file.endsWith('.applied'))).toHaveLength(
+      SCHEDULE_RECONCILE_MAX_RUNS,
+    )
+    expect(
+      Array.from(fs.files, ([file]) => file).filter((file) => file.endsWith('.applied')),
+    ).toHaveLength(SCHEDULE_RECONCILE_MAX_RUNS * 2)
+  })
+  it('retains removed-run fences until failed completion work is finalized', async () => {
+    const { fs, store, job, intent, host } = await fixture()
+    await store.admit(intent)
+    await store.advance(intent)
+    const publish = fs.publish.bind(fs)
+    let isLocked = true
+    vi.spyOn(fs, 'publish').mockImplementation(async (file, content, guard) => {
+      if (isLocked && file.endsWith('.applied')) throw new Error('completion locked')
+      return await publish(file, content, guard)
+    })
+    await expect(store.record(fireOf(intent, host.now()))).rejects.toThrow('completion locked')
+    await store.remove(job.workspaceKey, job.id)
+    const afterGrace = Date.now() + SCHEDULE_FENCE_GRACE_MS + 1
+    await store.maintain(job.workspaceKey, afterGrace)
+    const folder = `claims/${scheduleStorageHash(job.id)}`
+    expect(fs.bytes(folder)).toBeGreaterThan(0)
+    isLocked = false
+    await store.maintain(job.workspaceKey, afterGrace)
+    expect(fs.bytes(folder)).toBe(0)
   })
 })

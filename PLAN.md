@@ -6853,11 +6853,26 @@ Readers and writers share a recoverable heartbeat lease; activation retries
 Windows locking errors and retirement is deferred and retried without holding
 up committed work. Sealed revision slots and segmented generation activation
 fences prevent an expired writer's in-flight rename from becoming current.
+Retirement also retries orphan UUID directories whose headers were deleted
+before a remaining child failed; the held writer lease excludes live staging.
 Token-scoped heartbeats cannot overwrite a replacement owner; unchanged
 heartbeats also expire by monotonic observation during wall-clock rollback.
 Separate segmented identity fences remain while the
 schedule exists plus eight days; fire audit retains at most 100 per schedule
 and 30 days. Identifier tombstones contain hashes, never historical prompts.
+Failure pausing keeps a separate bounded summary: the last three outcome
+markers and the existing counter's baseline, with the streak saturating at
+the pause threshold. Audit expiry cannot lose consecutive failures or make
+a late settlement rewrite newer chronology. These markers carry no prompts
+or paid payload and disappear with the schedule. An explicit counter edit
+replaces that baseline and clears its older outcome markers.
+Applied-marker publication has a bounded finalization queue in the current
+index (the outbox's 1024-work ceiling). A completion stays there until its
+marker is published; every poll retries at most 32. This committed evidence
+prevents replay from changing chronology or recreating expired audit when
+marker publication fails after the index commit. Retirement waits for it.
+Published completion work is removed with the next record or maintenance
+mutation, avoiding another journal transaction for every successful fire.
 Only the current trigger/zone cursor remains for each live schedule; edits
 retire the old lane without reopening its occurrence fences. Reserved object
 map identifiers are refused before any write rather than dropped by parsing.

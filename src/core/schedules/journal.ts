@@ -173,10 +173,12 @@ export function createScheduleJournal<T extends Collections>(
           (await fs.read(`${directory}/${name}/state.json`)) ??
           (await fs.read(`${directory}/${name}/staging.json`))
         if (
-          content === undefined ||
+          content !== undefined &&
           envelopeSchema.parse(parseScheduleStoredJson(content)).revision > revision
         )
           continue
+        // A partial retirement may already have removed both headers. The
+        // writer lease excludes live staging; only the kept generation is current.
         const children = await fs.names(`${directory}/${name}`)
         for (const child of children) {
           await guard()

@@ -13,7 +13,11 @@ happened, not what was planned; superseded entries are kept.
   retained identity fences, recoverable leases and a durable delivery outbox.
   Reconciliation preserves unsent work and uncertain paid settlements, orders
   target queues across batches, rejects superseded time candidates and
-  preserves legitimate edits during retryable migration. Scheduled-prompts v2
+  preserves legitimate edits during retryable migration. A bounded outcome
+  summary preserves failure pausing after audit expiry and late settlement.
+  Bounded completion work survives failed marker publication, and retirement
+  retries partially deleted generations after locked children release.
+  Scheduled-prompts v2
   still requires its editor and delivery bindings before shipping.
 
 - Correct M115's internal schedule contracts before implementation: stale

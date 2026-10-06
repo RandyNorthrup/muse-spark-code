@@ -53,12 +53,27 @@ const pendingSchema = z.strictObject({
   sequence: z.optional(z.int().check(z.gte(0))),
   ack: z.optional(scheduleFireRecordSchema),
 })
+const outcomeSummarySchema = z.strictObject({
+  baselineFailures: z.int().check(z.gte(0), z.lte(SCHEDULE_PAUSE_AFTER_FAILURES)),
+  heads: z
+    .array(
+      z.strictObject({
+        runHash: z.string().check(z.regex(/^[\da-f]{64}$/)),
+        sequence: z.int().check(z.gte(0)),
+        occurrenceMs: scheduleFireRecordSchema.shape.occurrenceMs,
+        outcome: scheduleFireRecordSchema.shape.outcome,
+      }),
+    )
+    .check(z.maxLength(SCHEDULE_PAUSE_AFTER_FAILURES)),
+})
 const indexSchema = z.strictObject({
   schedules: z.record(identifier, scheduleV2Schema),
   pending: z.record(z.string(), pendingSchema),
   timeCursors: z.record(z.string(), z.int().check(z.gte(0))),
   migrations: z.record(z.string(), scheduleMigrationReceiptSchema),
   retirements: z.record(identifier, z.int().check(z.gte(0))),
+  outcomes: z.optional(z.record(identifier, outcomeSummarySchema)),
+  finalizations: z.optional(z.record(z.string(), z.string())),
 })
 const fenceSchema = z.strictObject({
   runId: scheduleFireRecordSchema.shape.runId,
@@ -138,9 +153,23 @@ export function createScheduleStore(
           )
         )
           throw new Error('scheduleWorkspaceMismatch')
-        return value
+        if (Object.keys(value.outcomes ?? {}).some((id) => value.schedules[id] === undefined))
+          throw new Error('scheduleOutcomeIdentityMissing')
+        return {
+          ...value,
+          outcomes: value.outcomes ?? {},
+          finalizations: value.finalizations ?? {},
+        }
       },
-      { schedules: {}, pending: {}, timeCursors: {}, migrations: {}, retirements: {} },
+      {
+        schedules: {},
+        pending: {},
+        timeCursors: {},
+        migrations: {},
+        retirements: {},
+        outcomes: {},
+        finalizations: {},
+      },
     )
   }
   const read = async <T>(file: string, parse: (raw: unknown) => T): Promise<T | undefined> => {
@@ -231,6 +260,8 @@ export function createScheduleStore(
       return await index(job.workspaceKey).transact((value) => {
         const current = value.schedules[job.id]
         if (current?.revision !== job.revision) return { value, result: false }
+        if (current.consecutiveFailures !== job.consecutiveFailures)
+          Reflect.deleteProperty(value.outcomes, job.id)
         if (
           JSON.stringify(current.trigger) !== JSON.stringify(job.trigger) ||
           current.zone !== job.zone
@@ -253,6 +284,7 @@ export function createScheduleStore(
         await fs.replace(file, JSON.stringify({ ...reservation, removedAtMs: Date.now() }))
         await fs.publish(`${file}.committed`, '')
         Reflect.deleteProperty(value.schedules, id)
+        Reflect.deleteProperty(value.outcomes, id)
         value.retirements[id] = Date.now()
         for (const key of Object.keys(value.timeCursors)) {
           if (key.startsWith(`${id}:`)) Reflect.deleteProperty(value.timeCursors, key)
@@ -411,7 +443,16 @@ export function createScheduleStore(
     },
     async record(input) {
       const fire = scheduleFireRecordSchema.parse(input)
-      await index(fire.workspaceKey).transact(async (value) => {
+      const isMustFinalize = await index(fire.workspaceKey).transact(async (value) => {
+        // Published completion work retires with the next ordinary mutation,
+        // avoiding a second journal transaction for every successful fire.
+        for (const runId of Object.keys(value.finalizations).slice(
+          0,
+          SCHEDULE_RECONCILE_MAX_RUNS,
+        )) {
+          if ((await fs.read(`${fenceFolder(runId)}.applied`)) !== undefined)
+            Reflect.deleteProperty(value.finalizations, runId)
+        }
         const folder = fenceFolder(fire.runId)
         const hash = scheduleStorageHash(JSON.stringify(fire))
         const previous = await fs.read(`${folder}.settled`)
@@ -429,9 +470,12 @@ export function createScheduleStore(
         if (
           previous !== undefined &&
           pending === undefined &&
-          (await fs.read(`${folder}.applied`)) !== undefined
+          ((await fs.read(`${folder}.applied`)) !== undefined ||
+            value.finalizations[fire.runId] === hash)
         )
-          return { value, result: undefined }
+          return { value, result: value.finalizations[fire.runId] !== undefined }
+        if (Object.keys(value.finalizations).length >= SCHEDULE_OUTBOX_MAX_PENDING)
+          throw new Error('scheduleFinalizationLimit')
         const file = `${fire.workspaceKey}/fires/${scheduleStorageHash(fire.runId)}.json`
         const saved =
           pending === undefined
@@ -442,17 +486,32 @@ export function createScheduleStore(
         await immutable(file, JSON.stringify(envelope), 'scheduleSettlementConflict')
         await immutable(`${folder}.settled`, hash, 'scheduleSettlementConflict')
         const retained = await fires(fire.workspaceKey)
-        const history = retained
-          .filter((entry) => entry.fire.scheduleId === fire.scheduleId)
+        const job = value.schedules[fire.scheduleId]
+        const summary = value.outcomes[fire.scheduleId] ?? {
+          baselineFailures: Math.min(job?.consecutiveFailures ?? 0, SCHEDULE_PAUSE_AFTER_FAILURES),
+          heads: [],
+        }
+        const runHash = scheduleStorageHash(fire.runId)
+        summary.heads = [
+          ...summary.heads.filter((head) => head.runHash !== runHash),
+          { runHash, sequence, occurrenceMs: fire.occurrenceMs, outcome: fire.outcome },
+        ]
           .toSorted(
             (a, b) =>
               b.sequence - a.sequence ||
-              b.fire.occurrenceMs - a.fire.occurrenceMs ||
-              b.fire.runId.localeCompare(a.fire.runId),
+              b.occurrenceMs - a.occurrenceMs ||
+              compareId(b.runHash, a.runHash),
           )
-        const firstNonFailure = history.findIndex((entry) => entry.fire.outcome !== 'failed')
-        const consecutiveFailures = firstNonFailure === -1 ? history.length : firstNonFailure
-        const job = value.schedules[fire.scheduleId]
+          .slice(0, SCHEDULE_PAUSE_AFTER_FAILURES)
+        if (job !== undefined) value.outcomes[job.id] = summary
+        const firstNonFailure = summary.heads.findIndex((head) => head.outcome !== 'failed')
+        const consecutiveFailures =
+          firstNonFailure === -1
+            ? Math.min(
+                SCHEDULE_PAUSE_AFTER_FAILURES,
+                summary.heads.length + summary.baselineFailures,
+              )
+            : firstNonFailure
         const isMustPause = consecutiveFailures >= SCHEDULE_PAUSE_AFTER_FAILURES
         if (
           job !== undefined &&
@@ -468,10 +527,11 @@ export function createScheduleStore(
             }),
           })
         Reflect.deleteProperty(value.pending, fire.runId)
+        value.finalizations[fire.runId] = hash
         await trimAudit(fire.workspaceKey, fire.observedAtMs, retained)
-        return { value, result: undefined }
+        return { value, result: true }
       })
-      await fs.publish(`${fenceFolder(fire.runId)}.applied`, '')
+      if (isMustFinalize) await fs.publish(`${fenceFolder(fire.runId)}.applied`, '')
     },
     async fires(workspaceKey) {
       const history = await fs.lock(`${workspaceKey}/index`, async () => await fires(workspaceKey))
@@ -529,11 +589,23 @@ export function createScheduleStore(
     },
     async maintain(workspaceKey, now) {
       await index(workspaceKey).transact(async (value) => {
+        for (const runId of Object.keys(value.finalizations).slice(
+          0,
+          SCHEDULE_RECONCILE_MAX_RUNS,
+        )) {
+          try {
+            await fs.publish(`${fenceFolder(runId)}.applied`, '')
+            Reflect.deleteProperty(value.finalizations, runId)
+          } catch {
+            continue
+          }
+        }
         await trimAudit(workspaceKey, now)
         let remaining = SCHEDULE_RECONCILE_MAX_RUNS
         for (const [id, atMs] of Object.entries(value.retirements)) {
           if (
             now - atMs < SCHEDULE_FENCE_GRACE_MS ||
+            Object.keys(value.finalizations).some((runId) => runId.startsWith(`${id}:`)) ||
             Object.values(value.pending).some((entry) => entry.intent.schedule.id === id)
           )
             continue
