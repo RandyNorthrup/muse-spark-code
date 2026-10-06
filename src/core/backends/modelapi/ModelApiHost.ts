@@ -319,6 +319,8 @@ import {
   reviewerToolRefusal,
 } from './reviewer'
 import { MediaBudget } from './mediaBudget'
+import type { MediaReplayPort } from '../../media/replayMedia'
+import type { UploadedMediaRef } from '../../../shared/media'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
 import {
   ALLOW_ELICITATION_SEAM,
@@ -532,6 +534,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly shellSidecarDir?: string | undefined
   /** A smaller replay cap for focused media-budget verification. */
   readonly mediaBudgetMaxEncodedChars?: number
+  /** W installs the portable lazy media implementation; absent preserves existing request bytes. */
+  readonly createMediaReplay?: (sessionId: string) => MediaReplayPort
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
   readonly scheduleStore?: ScheduleStore | undefined
   /** SHA-256 digest of the current SecretStorage key, never its plaintext. */
@@ -2046,6 +2050,8 @@ export class ModelApiSession implements AgentSession {
   private hookTokensAdded = 0
   /** Keeps each request within the page and encoded-media budgets (M54, PLAN.md D47). */
   private readonly budget: MediaBudget
+  private readonly media: MediaReplayPort | undefined
+  private restoredFileRefs: readonly UploadedMediaRef[] = []
   /** Packed tool outputs and the savings ledger (M73): undefined unless packing is on. */
   private readonly packing: ObservationPack | undefined
   /**
@@ -2165,6 +2171,7 @@ export class ModelApiSession implements AgentSession {
       deps.platform,
     )
     this.budget = new MediaBudget(deps.mediaBudgetMaxEncodedChars)
+    this.media = deps.createMediaReplay?.(sessionId)
     if (agent !== undefined) {
       this.effort = agent.effort
     }
@@ -3137,7 +3144,8 @@ export class ModelApiSession implements AgentSession {
 
   private body(): CreateResponseBody {
     this.drainChildResults()
-    const fitted = this.budget.fit(this.replay.map((entry) => entry.item))
+    const replay = this.replay.map((entry) => entry.item)
+    const fitted = this.budget.fit(this.media?.project(replay, this.modelId, this.budget) ?? replay)
     // Packing projects per request only: the replay keeps the originals, so
     // a later request (or a restore) packs from the full outputs again.
     // Reviewer tools cannot recall packed output: retain the full observations.
@@ -3191,7 +3199,10 @@ export class ModelApiSession implements AgentSession {
       if (currentIndex === -1) {
         continue
       }
-      this.replay[currentIndex] = { ...entry, item: fitted }
+      this.replay[currentIndex] = {
+        ...entry,
+        item: this.media?.retain(entry.item, fitted) ?? fitted,
+      }
       // Any tracked media not sent was replaced by budget text, so it has no
       // bytes left for a later Stop to scrub from this replay entry.
       this.readFileMessages.delete(entry)
@@ -3569,7 +3580,9 @@ export class ModelApiSession implements AgentSession {
       userMessageId: itemId,
       item: { type: 'message', role: 'user', content: this.contentParts(parts) },
     })
-    const text = displayText ?? typedText(parts)
+    const text = [displayText ?? typedText(parts), ...(this.media?.transcriptMetadata(parts) ?? [])]
+      .filter((line) => line.length > 0)
+      .join('\n')
     this.firstPrompt ??= text
     const attachments = attachmentsOf(parts)
     this.recordTranscript(turnId, {
@@ -4086,6 +4099,8 @@ export class ModelApiSession implements AgentSession {
     confirmedRequest?: ConfirmedModelRequest,
   ): Promise<StreamedCall> {
     const budget: RetryBudget = { retriesUsed: 0 }
+    let hasRecoveredMedia = false
+    this.media?.beginRequest()
     for (;;) {
       const open = new Map<string, OpenItem>()
       try {
@@ -4095,6 +4110,22 @@ export class ModelApiSession implements AgentSession {
         // too (the review of PR #28); a Stop is the turn's own business.
         if (!signal.aborted) {
           this.settleCutShort(open, turnId)
+        }
+        if (
+          !hasRecoveredMedia &&
+          !signal.aborted &&
+          this.media !== undefined &&
+          budget.retriesUsed < MODEL_API_MAX_RETRIES &&
+          (await this.media.recover(
+            error,
+            this.replay.map((entry) => entry.item),
+            this.modelId,
+            signal,
+          ))
+        ) {
+          hasRecoveredMedia = true
+          budget.retriesUsed += 1
+          continue
         }
         if (
           !(error instanceof RetryableStreamError) ||
@@ -4137,6 +4168,11 @@ export class ModelApiSession implements AgentSession {
     // nor shown to the hooks; the body sent is reserved afresh below, since
     // what it carries can change while the hooks run.
     await this.refreshBudgetSpend()
+    await this.media?.prepare(
+      this.replay.map((entry) => entry.item),
+      this.modelId,
+      signal,
+    )
     await this.beforeModelCall(turnId, this.budgeted(this.body()), requestId, attempt, step, signal)
     const requiredAfterPreHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
     if (requiredAfterPreHook !== undefined) {
@@ -4159,6 +4195,11 @@ export class ModelApiSession implements AgentSession {
       })
     }
     await this.refreshBudgetSpend()
+    await this.media?.prepare(
+      this.replay.map((entry) => entry.item),
+      this.modelId,
+      signal,
+    )
     const body = this.budgeted(this.body())
     this.lastJudgeBody = body
     const reservation = this.sending(body)
@@ -4192,6 +4233,7 @@ export class ModelApiSession implements AgentSession {
         )
       }
       this.markReadFileMediaDelivered(turnId, body.input)
+      this.media?.delivered(body.input)
       wasFitted = this.commitFittedReplay(requestReplay, body.input)
       this.markOutputMediaDelivered(requestReplay, body.input)
       calls = this.adoptOutput(turnId, final, open, chargedGoalId)
@@ -5183,7 +5225,14 @@ export class ModelApiSession implements AgentSession {
   }
 
   private contentParts(parts: readonly TurnPart[]): InputContentPart[] {
-    const content = contentPartsFor(parts, (selector) => this.context.skill(selector))
+    const content = contentPartsFor(parts, (selector) => this.context.skill(selector)).map(
+      (inline, index) => {
+        const part = parts[index]
+        return part === undefined
+          ? inline
+          : (this.media?.content(part, inline, this.modelId, this.budget) ?? inline)
+      },
+    )
     // The budget learns each PDF's pages from its attachment, not its bytes (M54).
     for (const [index, part] of parts.entries()) {
       const sent = content[index]
@@ -5191,6 +5240,7 @@ export class ModelApiSession implements AgentSession {
         this.budget.note(sent, part.pageCount)
       }
     }
+    if (this.media !== undefined) this.budget.assertMessageFits(content)
     return content
   }
 
@@ -9658,7 +9708,9 @@ export class ModelApiSession implements AgentSession {
       if (!this.isSubagent) {
         this.ledger.resetForSteer()
       }
-      const text = typedText(parts)
+      const text = [typedText(parts), ...(this.media?.transcriptMetadata(parts) ?? [])]
+        .filter((line) => line.length > 0)
+        .join('\n')
       const replayStart = this.replay.length
       this.replay.push({
         turnId: turn.turnId,
@@ -10578,6 +10630,7 @@ export class ModelApiSession implements AgentSession {
   /** The summary call of `compact`, and the replay it leaves behind. */
   private async runCompaction(signal: AbortSignal): Promise<CompactOutcome> {
     await this.refreshBudgetSpend()
+    const mediaTail = this.media?.tail(this.replay) ?? []
     // The compaction is a request like any other: the session budget
     // reserves it too, and refuses it when it cannot fit (M82).
     const compactionBody = (): CreateResponseBody =>
@@ -10586,7 +10639,8 @@ export class ModelApiSession implements AgentSession {
           ...this.body(),
           // Within Meta's image budget too (M54): a conversation past it can still be compacted.
           input: this.budget.fit([
-            ...this.replay.map((entry) => entry.item),
+            ...(this.media?.summaryInput(this.replay.map((entry) => entry.item)) ??
+              this.replay.map((entry) => entry.item)),
             {
               type: 'message',
               role: 'user',
@@ -10615,16 +10669,21 @@ export class ModelApiSession implements AgentSession {
     if (post.blockedReason !== undefined) {
       throw new HookStoppedError(post.blockedReason)
     }
-    this.replay.splice(0, this.replay.length, {
-      turnId: COMPACTION_TURN_ID,
-      item: {
-        type: 'message',
-        role: 'user',
-        content: [
-          { type: 'input_text', text: `${MODEL_API_MODEL_TEXT.compactionPrefix}\n\n${summary}` },
-        ],
+    this.replay.splice(
+      0,
+      this.replay.length,
+      {
+        turnId: COMPACTION_TURN_ID,
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [
+            { type: 'input_text', text: `${MODEL_API_MODEL_TEXT.compactionPrefix}\n\n${summary}` },
+          ],
+        },
       },
-    })
+      ...mediaTail,
+    )
     // The packed originals left with the replay; the ledger stays, a
     // session total like the token counts.
     this.packing?.reset()
@@ -11691,6 +11750,7 @@ export class ModelApiSession implements AgentSession {
       return undefined
     }
     return entry.item.content.flatMap((part) => {
+      if (this.media?.isUploaded(part) === true) return []
       const parsed = part.type === 'input_image' ? DATA_URL.exec(part.image_url) : null
       const [, mediaType, base64Data] = parsed ?? []
       return mediaType === undefined || base64Data === undefined ? [] : [{ mediaType, base64Data }]
@@ -11803,6 +11863,13 @@ export class ModelApiSession implements AgentSession {
 
   /** Everything a window needs to bring this session back (D14). */
   public snapshot(): StoredSession {
+    const replay = this.media?.snapshot(this.replay) ?? [...this.replay]
+    const mediaRefs = this.media?.references(this.replay) ?? []
+    const mapped = new Set(mediaRefs.map((file) => `${file.provider}:${file.sha256}`))
+    this.restoredFileRefs = this.restoredFileRefs.filter(
+      (file) => !mapped.has(`${file.provider}:${file.sha256}`),
+    )
+    const fileRefs = [...this.restoredFileRefs, ...mediaRefs]
     const budgetSpentUsd =
       this.budgetSpentUsd +
       (this.openReservation?.isReserved === true ? this.openReservation.costUsd : 0)
@@ -11850,7 +11917,8 @@ export class ModelApiSession implements AgentSession {
       ...(this.firstPrompt !== undefined && { firstPrompt: this.firstPrompt }),
       todos: [...this.todos],
       ...(this.goal !== undefined && { goal: this.goal }),
-      replay: [...this.replay],
+      replay,
+      ...(fileRefs.length > 0 && { fileRefs }),
       transcript: [...this.transcript],
       outputs: Object.fromEntries(this.outputs),
       usage: { ...this.usage },
@@ -11886,6 +11954,21 @@ export class ModelApiSession implements AgentSession {
 
   /** Fills a fresh session from its stored form; the session is idle afterwards. */
   public adopt(stored: StoredSession): void {
+    if (this.media === undefined && stored.replay.some((entry) => (entry.media?.length ?? 0) > 0))
+      throw new Error(fill(UI_TEXT.media.attachmentUnknownType, { type: 'media replay' }))
+    this.media?.restore(stored.replay)
+    const mapped = new Set(
+      stored.replay.flatMap((entry) =>
+        (entry.media ?? []).flatMap(({ media }) =>
+          [...(media.files ?? []), ...(media.file === undefined ? [] : [media.file])].map(
+            (file) => `${file.provider}:${file.sha256}`,
+          ),
+        ),
+      ),
+    )
+    this.restoredFileRefs = (stored.fileRefs ?? []).filter(
+      (file) => !mapped.has(`${file.provider}:${file.sha256}`),
+    )
     this.replay.push(...stored.replay)
     this.transcript.push(...withoutRunning(stored.transcript))
     this.turnIds.push(...stored.turnIds)
@@ -12009,7 +12092,11 @@ export class ModelApiSession implements AgentSession {
     }
     const kept = new Set(completed.slice(0, cut + 1))
     kept.add(COMPACTION_TURN_ID)
-    target.replay.push(...this.replay.filter((entry) => kept.has(entry.turnId)))
+    const replay = this.replay.filter((entry) => kept.has(entry.turnId))
+    const copied = this.media?.snapshot(replay) ?? replay
+    target.media?.restore(copied)
+    target.restoredFileRefs = [...this.restoredFileRefs]
+    target.replay.push(...copied)
     const retained = this.transcript.filter((entry) => kept.has(entry.turnId))
     target.transcript.push(...withoutRunning(retained))
     target.turnIds.push(...completed.slice(0, cut + 1))

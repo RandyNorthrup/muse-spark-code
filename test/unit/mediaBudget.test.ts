@@ -5,6 +5,70 @@ import { MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
 import { pdfFixture } from './helpers/pdfFixture'
 
 describe('Model API replay media budget', () => {
+  it('counts uploaded video in the shared 50-media budget while its bytes consume no inline budget', () => {
+    const part = { type: 'input_text', text: 'test-upload:file-clip' } as const
+    const budget = new MediaBudget(0)
+    budget.noteMedia(
+      part,
+      {
+        kind: 'video',
+        mediaType: 'video/mp4',
+        sizeBytes: 1_000_000,
+        durationSeconds: 10,
+        hasSoundtrack: false,
+      },
+      0,
+      'clip.mp4 metadata',
+    )
+    const input: readonly InputItem[] = [
+      { type: 'message', role: 'user', content: Array.from({ length: 51 }, () => part) },
+    ]
+    const fitted = budget.fit(input)
+    expect(fitted).toMatchObject([
+      {
+        content: [
+          { type: 'input_text', text: 'clip.mp4 metadata' },
+          ...Array.from({ length: 50 }, () => part),
+        ],
+      },
+    ])
+    expect(() => {
+      budget.assertMessageFits(Array.from({ length: 51 }, () => part))
+    }).toThrow()
+    expect(() => {
+      budget.assertMessageFits(Array.from({ length: 50 }, () => part))
+    }).not.toThrow()
+  })
+
+  it('weighs uploaded PDFs by known pages and reserves 50 slots when pages are unknown', () => {
+    const known = { type: 'input_text', text: 'test-upload:file-pdf' } as const
+    const unknown = { type: 'input_text', text: 'test-upload:file-opaque' } as const
+    const video = { type: 'input_text', text: 'test-upload:file-video' } as const
+    const budget = new MediaBudget()
+    budget.noteMedia(
+      known,
+      { kind: 'document', mediaType: 'application/pdf', sizeBytes: 1, pageCount: 49 },
+      0,
+    )
+    budget.noteMedia(unknown, { kind: 'document', mediaType: 'application/pdf', sizeBytes: 1 }, 0)
+    budget.noteMedia(
+      video,
+      {
+        kind: 'video',
+        mediaType: 'video/mp4',
+        sizeBytes: 1,
+        durationSeconds: 1,
+        hasSoundtrack: false,
+      },
+      0,
+    )
+    expect(() => {
+      budget.assertMessageFits([known, video])
+    }).not.toThrow()
+    expect(() => {
+      budget.assertMessageFits([unknown, video])
+    }).toThrow()
+  })
   it('keeps newer PDF pages and images, naming older media it leaves out', () => {
     const pdf = {
       type: 'input_file',
