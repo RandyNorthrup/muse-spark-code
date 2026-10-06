@@ -13,6 +13,8 @@ happened, not what was planned; superseded entries are kept.
   final offer callback, preventing dispatch after synchronous revocation.
 - Its headroom probes run concurrently with a five-second bound, and Keep
   here cancels discovery without waiting for an unresponsive peer.
+- Automatic relocation rotates among equal-headroom peers across attempts,
+  preserving ample-before-some priority and explicit Move to choices.
 
 - Governed shell, MCP, browser, Git, voice and plugin cleanup uses registered
   member stops, including descendants after root exit. Refused stops retain

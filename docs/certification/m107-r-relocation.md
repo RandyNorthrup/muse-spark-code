@@ -388,3 +388,109 @@ The second repair's all-five-project typecheck, explicit source/constants/test
 ESLint (zero warnings), six-file Prettier check and whitespace check all exit 0. Its restored complete suite passes 98/98 before the normal hook-on commit.
 The first commit `d961dc9c4` passed normal serial lint-staged and staged
 redacted gitleaks (6.16 KB, no leaks); the source hash was unchanged by hooks.
+
+### Finding 3 — stable equal-headroom order starves later peers
+
+Retain the last automatically selected target id on the one-per-conversation
+relocator. After concurrent discovery, filter to the best known headroom
+class (ample before some) and choose the next peer in that class, wrapping
+deterministically. Update the cursor synchronously at selection, so
+concurrent distinct attempts rotate too. A denied/refused selection does
+not monopolize the next automatic choice; no dispatched attempt retries.
+Explicit Move to and an unavailable pool leave automatic history unchanged.
+If the prior peer is no longer eligible, start at the first eligible peer.
+This is retained conversation state, not a new on-disk store or permission.
+
+Before repair, the complete file exits 1 with five failures and 99 passes:
+six distinct queued attempts all select alpha in both ample/some classes,
+both sequentially and concurrently; the explicit-choice sequence also fails
+to serve beta on the next automatic turn. After repair, 104/104 pass. Add
+the unavailable-pool cursor regression; the final file contains 105 tests.
+The mixed-headroom/revoked-offer case proves rotation still prefers ample
+and skips unavailable peers. No extra transport/receiver wire fields.
+
+All three RVM107R P2s are fixed, with no reviewed P2/P3 residual. The only
+open qualification is the inherited named M100/C2/U/J/W integration binding,
+paired-rig receipts, joined bundle measurements and aggregate quality in
+PLAN §9. No delivery or product support is implied by fake-port tests.
+
+Final joined-source drills each run the complete 105-test file with the
+default timeout and exit 1:
+
+| Mutation                                          | Named failing test                                                                 | Result               |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------- |
+| Choose index 0 instead of the retained cursor     | fairly routes six queued attempts with ample/some headroom (concurrent false/true) | 6 failed, 99 passed  |
+| Let explicit choices advance automatic history    | an explicit Move to does not advance the automatic routing cursor                  | 1 failed, 104 passed |
+| Reset history on an empty eligible pool           | an unavailable pool does not reset the retained routing cursor                     | 1 failed, 104 passed |
+| Probe again after cancellation                    | aborts target iteration after Keep here instead of probing another device          | 1 failed, 104 passed |
+| Replace offer authority with true                 | has no device activity for noOffer                                                 | 12 failed, 93 passed |
+| Omit the required row                             | routes an offered queued worker with a row before dispatch and all move records    | 26 failed, 79 passed |
+| Take policy before the final offer callback again | rechecks off after the final synchronous offer callback                            | 6 failed, 99 passed  |
+
+All seven restores compare source SHA-256 byte-exact in finally:
+`4cdd80c3ca291ce284a488d0100e4e545f8bbaf21fd8d2d463a323da946aef54`.
+Logs are `temp/m107r/routing-cursor.log`, `manual-cursor.log`,
+`unavailable-cursor.log`, `cancelled-discovery.log`, `offer-authority.log`,
+`required-row.log` and `final-policy-joined.log`. With the first final-policy
+drill and four probe drills, the repair has twelve drill runs covering eleven
+distinct mutations (the final-policy drill repeats on the joined source).
+None survives. The
+earlier 65 implementation drills are not recounted.
+
+### Final FIXM107R verification receipts
+
+All checks run directly on Kubuntu, serially for heavy tools. No installs,
+new dependencies, cast/suppression escapes, skips, raised test timeouts,
+gate/cap changes or hook bypasses. Only six files differ from the review
+base: `relocate.ts`, its owning test, one `RESOURCE_*` constant and the
+required PLAN/CHANGELOG/certification records. All owner decisions in the
+rig brief are implemented; no new owner question or reviewed residual.
+
+| Check                                                 | Result                                                                                                   |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Final `npm run typecheck`                             | Exit 0, all five projects                                                                                |
+| Explicit coordinator/constants/test ESLint            | Exit 0, zero warnings                                                                                    |
+| Six-file Prettier; whitespace checks                  | Exit 0                                                                                                   |
+| Final complete relocation suite with focused coverage | Exit 0, 105/105, default test timeout, `--maxWorkers=3`                                                  |
+| Focused R coverage, unchanged thresholds              | 100% statements (131/131), functions (19/19), lines (105/105); 99.24% branches (132/133)                 |
+| `JITI_FS_CACHE=0 npm run deadcode`                    | Exit 0, only existing vendor/axe-core configuration hints; no writes to shared Jiti cache                |
+| `npx jscpd`                                           | Exit 0, 1,236 files, zero clones                                                                         |
+| `node scripts/check-l10n.mjs`                         | Exit 0, 14 tables, 164 manifest strings, 635 source files, zero problems                                 |
+| `npm run check:host-api`                              | Exit 0, 336 APIs, 32 vscode importers, 26 Node built-ins, 61 theme variables; generated record unchanged |
+| `npm run cycles`; explicit R dpdm graph               | Exit 0, 593-module joined graph and 8-module R graph, no cycles                                          |
+| `npm run build`                                       | Exit 0, every unchanged cap, bundle/model-text split, host-global checks and 83-package notices          |
+
+Final test command:
+`npx vitest run test/unit/relocate.test.ts --maxWorkers=3 --coverage --coverage.include=src/core/resources/relocate.ts`.
+It finishes in 1.38 seconds; no `--testTimeout` is used. Focused coverage
+is only the owning coordinator, not a whole-unit or aggregate coverage run.
+The original remaining consent/headroom branch is still named by a red
+drill; no unreachable allowance or threshold is changed.
+Static/build logs and their zero exit statuses are in
+`temp/m107r/final-checks.json` and `temp/m107r/*-final.log`.
+
+Fresh measured production artifacts:
+
+| Artifact                                 | Size / unchanged cap |
+| ---------------------------------------- | -------------------- |
+| Activation                               | 446.2 / 600 KiB      |
+| Model API                                | 449.4 / 475 KiB      |
+| ACP                                      | 837.9 / 850 KiB      |
+| Checkpoint store                         | 77.3 / 225 KiB       |
+| Shared English fallback, compressed      | 48.7 / 125 KiB       |
+| Webview startup including static imports | 894.8 / 900 KiB      |
+| Deferred webview JavaScript              | 49.7 / 50 KiB        |
+
+The governor artifact stays 61.0 KiB. Inspect all 39 fresh generated build
+metafiles with separators normalized to `/`: zero include `relocate.ts`.
+The repairs add no shipped/startup bytes on this unbound base. These
+measurements qualify the existing tree; W still owns R's future joined
+graph, receiver/paid/permission bindings, paired-rig and editor receipts,
+delivery/help and full quality. The named PLAN §9 handoff remains explicit.
+
+Commit `dbaba208c` also passed ordinary serial lint-staged and staged
+redacted gitleaks (9.93 KB, no leaks), with source bytes unchanged.
+The last repair is staged with explicit paths and the same normal hooks;
+compare its source hash after the hook to the final joined-drill hash above.
+No merge, rebase or push. The final commit ids and hook outcome accompany
+the lane delivery report.

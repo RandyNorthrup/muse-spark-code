@@ -90,6 +90,7 @@ export interface ResourceRelocationAttempt {
 /** One per conversation; does not load devices, start work, or replace M100 consent. */
 export class ResourceRelocator {
   private noticed = false
+  private lastAutomaticTargetId: string | undefined
 
   constructor(private readonly options: ResourceRelocationOptions) {}
 
@@ -160,7 +161,13 @@ export class ResourceRelocator {
     )
     if (signal.aborted) return undefined
     const room = rooms.includes('ample') ? 'ample' : 'some'
-    return targets.find((_target, index) => rooms[index] === room)
+    const available = targets.filter((_target, index) => rooms[index] === room)
+    if (available.length === 0) return undefined
+    if (targetId !== undefined) return available[0]
+    const previous = available.findIndex((target) => target.id === this.lastAutomaticTargetId)
+    const selected = available[(previous + 1) % available.length]
+    this.lastAutomaticTargetId = selected?.id
+    return selected
   }
 
   private report(

@@ -19634,6 +19634,14 @@ No new dependency, permission, receiver frame or production binding. The
 rig/common brief prohibits aggregate quality and merges; the lead retains
 the existing M100/C2/W integration and full-gate handoffs.
 
+All three RVM107R P2 findings are fixed; none is an accepted review
+residual. The portable relocator retains its last automatic target across
+attempts (including concurrent selections), rotates within the best known
+headroom class, and leaves that cursor unchanged for an explicit choice or
+an unavailable pool. Certification records default-timeout regressions,
+deliberate guard failures and scoped/static/build results. Existing unbound
+production delivery and aggregate qualification remain named in §9.
+
 **M107INT round 3 (2026-10-06, Win11).** Join T2, U and H with the three
 listed no-fast-forward merges. Resolve shared records additively, preserve
 C1's native launch/retirement and Linux path repairs, and adopt T2's exact

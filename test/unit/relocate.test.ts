@@ -142,6 +142,30 @@ async function stallProbe(f: ReturnType<typeof setup>, stage: 'selection' | 'rec
   return { reply, moving }
 }
 
+function fairPool(headroom: 'ample' | 'some') {
+  const f = setup()
+  const chosen: string[] = []
+  const peers = ['alpha', 'beta', 'gamma'].map((id) => ({
+    ...f.target,
+    id,
+    resource: vi.fn<ResourceRelocationTarget['resource']>(() =>
+      Promise.resolve({ level: 'normal', headroom }),
+    ),
+    dispatch: vi.fn<ResourceRelocationTarget['dispatch']>(() => Promise.resolve('admitted')),
+  }))
+  f.options.devices = () => peers
+  f.options.row = (_work, target) => {
+    chosen.push(target.id)
+  }
+  return {
+    ...f,
+    peers,
+    chosen,
+    next: (targetId?: string) =>
+      f.relocator.create({ ...f.work, claim: () => true, settle: vi.fn() }).run(targetId),
+  }
+}
+
 describe('resource relocation', () => {
   it('routes an offered queued worker with a row before dispatch and all move records', async () => {
     const f = setup()
@@ -290,6 +314,61 @@ describe('resource relocation', () => {
     g.options.devices = () => [g.target, { ...g.target, id: 'second' }]
     expect(await g.attempt.run()).toBe('admitted')
     expect(g.options.row).toHaveBeenCalledWith(g.work, g.target, expect.anything())
+  })
+
+  it.each([
+    ['ample', false],
+    ['some', false],
+    ['ample', true],
+    ['some', true],
+  ] as const)(
+    'fairly routes six queued attempts with %s headroom (concurrent %s)',
+    async (headroom, isConcurrent) => {
+      const f = fairPool(headroom)
+      if (isConcurrent) {
+        expect(await Promise.all(Array.from({ length: 6 }, () => f.next()))).toEqual(
+          Array.from({ length: 6 }, () => 'admitted'),
+        )
+      } else {
+        for (let task = 0; task < 6; task++) expect(await f.next()).toBe('admitted')
+      }
+      expect(f.chosen).toEqual(['alpha', 'beta', 'gamma', 'alpha', 'beta', 'gamma'])
+      for (const peer of f.peers) expect(peer.dispatch).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  it('an explicit Move to does not advance the automatic routing cursor', async () => {
+    const f = fairPool('ample')
+    expect(await f.next('beta')).toBe('admitted')
+    expect(await f.next()).toBe('admitted')
+    expect(await f.next()).toBe('admitted')
+    expect(f.chosen).toEqual(['beta', 'alpha', 'beta'])
+  })
+
+  it('an unavailable pool does not reset the retained routing cursor', async () => {
+    const f = fairPool('ample')
+    expect(await f.next()).toBe('admitted')
+    for (const peer of f.peers) peer.resource.mockResolvedValue(null)
+    expect(await f.next()).toBe('kept')
+    for (const peer of f.peers) {
+      peer.resource.mockResolvedValue({ level: 'normal', headroom: 'ample' })
+    }
+    expect(await f.next()).toBe('admitted')
+    expect(f.chosen).toEqual(['alpha', 'beta'])
+  })
+
+  it('preserves ample priority and skips unavailable peers while rotating', async () => {
+    const f = fairPool('some')
+    const [alpha, beta] = f.peers
+    if (alpha === undefined || beta === undefined) throw new Error('Missing fair-pool peers')
+    beta.resource.mockResolvedValue({ level: 'normal', headroom: 'ample' })
+    expect(await f.next()).toBe('admitted')
+    expect(await f.next()).toBe('admitted')
+    beta.resource.mockResolvedValue({ level: 'normal', headroom: 'none' })
+    expect(await f.next()).toBe('admitted')
+    alpha.hasOffer = () => false
+    expect(await f.next()).toBe('admitted')
+    expect(f.chosen).toEqual(['beta', 'beta', 'alpha', 'gamma'])
   })
 
   it.each([true, false])('asks in ask mode and honors the answer %s', async (allowed) => {
