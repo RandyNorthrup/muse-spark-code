@@ -5,6 +5,7 @@ import {
   type NativePromptPorts,
 } from '../../src/runtime/sharing/bridge'
 import { PROMPT_COMMAND_IDS, UI_TEXT } from '../../src/shared/constants'
+import { until } from './helpers/acpWaits'
 
 const MESSAGE = {
   contextId: 'row-1',
@@ -27,9 +28,11 @@ const LOAD = { promptId: 'p1', scope: 'user', chat: 'active', action: 'insert', 
 function bridgeHarness(context: unknown = COMPOSER) {
   let current = context
   let isActive = true
+  const abort = new AbortController()
   const ports: NativePromptPorts = {
     snapshot: () => current,
     isActive: () => isActive,
+    signal: abort.signal,
     savePrompt: vi.fn(() => Promise.resolve()),
     choosePrompt: vi.fn(() => Promise.resolve(LOAD)),
     loadPrompt: vi.fn(() => Promise.resolve()),
@@ -42,10 +45,50 @@ function bridgeHarness(context: unknown = COMPOSER) {
     setActive: (isCurrent: boolean) => {
       isActive = isCurrent
     },
+    abort: () => {
+      abort.abort()
+    },
   }
 }
 
 describe('M118 native/companion menu adapter handoff', () => {
+  it.each(['save', 'choose', 'load'] as const)(
+    'aborts a pending native %s UI without resolving its promise',
+    async (stage) => {
+      const h = bridgeHarness()
+      const pending = Promise.withResolvers<undefined>()
+      const operation = {
+        save: h.ports.savePrompt,
+        choose: h.ports.choosePrompt,
+        load: h.ports.loadPrompt,
+      }[stage]
+      const waiting = vi.fn(() => pending.promise)
+      const ports = {
+        ...h.ports,
+        ...(stage === 'save' && { savePrompt: waiting }),
+        ...(stage === 'choose' && { choosePrompt: waiting }),
+        ...(stage === 'load' && { loadPrompt: waiting }),
+      }
+      let isSettled = false
+      const response = (async () => {
+        await invokeNativePromptMenu(
+          {
+            menuId: stage === 'save' ? 'prompt.save.composer' : 'prompt.use.composer',
+            contextId: COMPOSER.contextId,
+          },
+          ports,
+        )
+        isSettled = true
+      })()
+      await until(() => waiting.mock.calls.length === 1)
+      h.abort()
+      await until(() => isSettled)
+      await response
+      expect(h.ports.signal.aborted).toBe(true)
+      expect(operation).not.toHaveBeenCalled()
+      if (stage === 'choose') expect(h.ports.loadPrompt).not.toHaveBeenCalled()
+    },
+  )
   it.each([
     { ...MESSAGE, sessionId: '' },
     { ...MESSAGE, messageId: '' },
@@ -102,7 +145,7 @@ describe('M118 native/companion menu adapter handoff', () => {
   ])('saves the current exact snapshot for %s', async (menuId, context) => {
     const h = bridgeHarness(context)
     await invokeNativePromptMenu({ menuId, contextId: context.contextId }, h.ports)
-    expect(h.ports.savePrompt).toHaveBeenCalledWith(context)
+    expect(h.ports.savePrompt).toHaveBeenCalledWith(context, h.ports.signal)
     expect(h.ports.loadPrompt).not.toHaveBeenCalled()
   })
   it('loads through the shared insert-only native/companion adapter port', async () => {
@@ -111,10 +154,10 @@ describe('M118 native/companion menu adapter handoff', () => {
       { menuId: 'prompt.use.composer', contextId: COMPOSER.contextId },
       h.ports,
     )
-    expect(h.ports.loadPrompt).toHaveBeenCalledWith(LOAD)
+    expect(h.ports.loadPrompt).toHaveBeenCalledWith(LOAD, h.ports.signal)
     expect(h.ports.savePrompt).not.toHaveBeenCalled()
   })
-  it.each(['role', 'owner', 'source', 'identity', 'inactive', 'unknown'])(
+  it.each(['role', 'owner', 'source', 'identity', 'inactive', 'aborted', 'unknown'])(
     'refuses a forged/stale save: %s',
     async (fault) => {
       const contexts: Record<string, unknown> = {
@@ -124,6 +167,7 @@ describe('M118 native/companion menu adapter handoff', () => {
       }
       const h = bridgeHarness(contexts[fault] ?? MESSAGE)
       if (fault === 'inactive') h.setActive(false)
+      else if (fault === 'aborted') h.abort()
       await expect(
         invokeNativePromptMenu(
           {

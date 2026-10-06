@@ -41,6 +41,7 @@ function acpHarness(sharing?: AcpSharingPort) {
   return {
     host,
     updates,
+    log,
     run: async (op: (client: acp.ClientContext, sessionId: string) => Promise<void>) => {
       await client.connectWith(agent, async (connection) => {
         await connection.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
@@ -59,6 +60,13 @@ function localPrompt(client: acp.ClientContext, sessionId: string, text: string)
   return client.request('session/prompt', { sessionId, prompt: [{ type: 'text', text }] })
 }
 
+function confirmationHarness() {
+  const local = sharingHarness()
+  const answer = Promise.withResolvers<unknown>()
+  local.ui.confirmShare.mockImplementation(() => answer.promise)
+  return { local, answer, h: acpHarness(createAcpSharing(local.commands, () => local.ui)) }
+}
+
 async function observedReason(request: Promise<acp.PromptResponse>): Promise<string> {
   try {
     const response = await request
@@ -69,6 +77,30 @@ async function observedReason(request: Promise<acp.PromptResponse>): Promise<str
 }
 
 describe('M118 ACP local commands over the SDK prompt path', () => {
+  it('cancels an uncooperative sharing port and immediately accepts another prompt', async () => {
+    const pending = Promise.withResolvers<string>()
+    const sharing = {
+      commands: () => [],
+      execute: vi.fn<AcpSharingPort['execute']>(() => pending.promise),
+    }
+    const h = acpHarness(sharing)
+    await h.run(async (client, sessionId) => {
+      let reason: string | undefined
+      const response = (async () => {
+        reason = await observedReason(localPrompt(client, sessionId, '/share chat'))
+      })()
+      await until(() => sharing.execute.mock.calls.length === 1)
+      await client.notify('session/cancel', { sessionId })
+      await until(() => reason !== undefined)
+      expect(reason).toBe('cancelled')
+      expect(sharing.execute.mock.calls[0]?.[1].signal.aborted).toBe(true)
+      await response
+      sharing.execute.mockResolvedValueOnce(UI_TEXT.promptLibrary)
+      expect(await localPrompt(client, sessionId, '/prompt list')).toEqual({
+        stopReason: 'end_turn',
+      })
+    })
+  })
   it('announces local commands and saves/lists/inserts/shares without a model turn, in Bypass too', async () => {
     const local = sharingHarness()
     const h = acpHarness(createAcpSharing(local.commands, () => local.ui))
@@ -97,6 +129,7 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
     expect(local.ui.insertPrompt).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'insert', send: false }),
       'Prepared text',
+      expect.any(AbortSignal),
     )
     expect(local.release).toHaveBeenCalledTimes(2)
   })
@@ -231,6 +264,10 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
       )
       await h.run(async (client, sessionId) => {
         const response = observedReason(localPrompt(client, sessionId, '/share chat'))
+        let reason: string | undefined
+        void response.then((value) => {
+          reason = value
+        })
         await until(() => local.ui.confirmShare.mock.calls.length === 1)
         switch (ending) {
           case 'cancel': {
@@ -252,6 +289,8 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
         }
         // notify() acknowledges sending, not the remote cancellation handler.
         await until(() => isActive?.() === false)
+        await until(() => reason !== undefined)
+        expect(reason).toBe(ending === 'exit' ? 'error' : 'cancelled')
         const preview = local.ui.confirmShare.mock.calls[0]![0]
         answer.resolve({
           step: 'confirmed',
@@ -264,10 +303,7 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
     },
   )
   it('holds the session busy through the final confirmation', async () => {
-    const local = sharingHarness()
-    const answer = Promise.withResolvers<unknown>()
-    local.ui.confirmShare.mockImplementation(() => answer.promise)
-    const h = acpHarness(createAcpSharing(local.commands, () => local.ui))
+    const { local, answer, h } = confirmationHarness()
     await h.run(async (client, sessionId) => {
       const response = localPrompt(client, sessionId, '/share chat')
       await until(() => local.ui.confirmShare.mock.calls.length === 1)
@@ -279,4 +315,76 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
     })
     expect(local.release).not.toHaveBeenCalled()
   })
+  it('keeps a newer local prompt busy when an older cancelled preparation finishes', async () => {
+    const { local, answer, h } = confirmationHarness()
+    const skills = Promise.withResolvers<[]>()
+    await h.run(async (client, sessionId) => {
+      h.host.sessions[0]!.listSkills.mockImplementationOnce(() => skills.promise)
+      const old = localPrompt(client, sessionId, '/prompt list')
+      await until(() => h.host.sessions[0]!.listSkills.mock.calls.length === 1)
+      await client.notify('session/cancel', { sessionId })
+      await until(() =>
+        h.log.info.mock.calls.some(
+          ([text]) => typeof text === 'string' && text.includes('cancelled before'),
+        ),
+      )
+      const current = observedReason(localPrompt(client, sessionId, '/share chat'))
+      await until(() => local.ui.confirmShare.mock.calls.length === 1)
+      skills.resolve([])
+      expect(await old).toEqual({ stopReason: 'cancelled' })
+      await expect(localPrompt(client, sessionId, '/prompt list')).rejects.toThrow(
+        UI_TEXT.acpPromptBusy,
+      )
+      answer.resolve(undefined)
+      expect(await current).toBe('end_turn')
+    })
+  })
+  it.each(['preview', 'confirm', 'prepare', 'insert'] as const)(
+    'cancels pending %s UI and frees the session without resolving the UI',
+    async (stage) => {
+      const local = sharingHarness()
+      const pending = Promise.withResolvers<undefined>()
+      const ui = {
+        preview: local.ui.showPreview,
+        confirm: local.ui.confirmShare,
+        prepare: local.ui.preparePrompt,
+        insert: local.ui.insertPrompt,
+      }[stage]
+      ui.mockImplementation(() => pending.promise)
+      let isActive: (() => boolean) | undefined
+      let signal: AbortSignal | undefined
+      const h = acpHarness(
+        createAcpSharing(local.commands, (context) => {
+          isActive = context.isActive
+          signal = context.signal
+          return local.ui
+        }),
+      )
+      await h.run(async (client, sessionId) => {
+        let reason: string | undefined
+        const response = (async () => {
+          reason = await observedReason(
+            localPrompt(
+              client,
+              sessionId,
+              stage === 'preview' || stage === 'confirm'
+                ? '/share chat'
+                : `/prompt use ${savedPromptFixture.id}`,
+            ),
+          )
+        })()
+        await until(() => ui.mock.calls.length === 1)
+        await client.notify('session/cancel', { sessionId })
+        await until(() => isActive?.() === false)
+        await until(() => reason !== undefined)
+        expect(reason).toBe('cancelled')
+        expect(signal?.aborted).toBe(true)
+        await response
+        expect(await localPrompt(client, sessionId, '/prompt list')).toEqual({
+          stopReason: 'end_turn',
+        })
+      })
+      expect(local.release).not.toHaveBeenCalled()
+    },
+  )
 })

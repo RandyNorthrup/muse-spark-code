@@ -9,6 +9,7 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { savedPromptFixture, shareChatFixture } from './helpers/sharingFixtures'
 import { SHARING_CWD, SHARING_TIME, sharingHarness } from './helpers/sharingCommands'
+import { until } from './helpers/acpWaits'
 
 async function expectRejectedPreview(h: ReturnType<typeof sharingHarness>): Promise<void> {
   await expect(
@@ -179,6 +180,63 @@ describe('M118 CLI/slash syntax', () => {
 })
 
 describe('M118 local share admission', () => {
+  it.each(['cancel', 'confidential'])(
+    'rechecks %s after asynchronous output confinement',
+    async (ending) => {
+      const h = sharingHarness()
+      const commands = new SharingCommands({
+        ...h.deps,
+        io: {
+          realPath: (absolute) => {
+            if (ending === 'cancel') h.setActive(false)
+            else h.setConfidential(true)
+            return Promise.resolve(absolute)
+          },
+        },
+      })
+      const result = commands.execute(
+        parseSharingArgs(['share', 'chat', 's1', '--out', 'chat.md']),
+        h.context,
+      )
+      if (ending === 'cancel') expect(await result).toMatchObject({ kind: 'cancelled' })
+      else await expect(result).rejects.toThrow(UI_TEXT.shareConfidential)
+      expect(h.release).not.toHaveBeenCalled()
+    },
+  )
+  it.each(['preview', 'confirm', 'prepare', 'insert'] as const)(
+    'aborts pending command %s UI without a cooperative UI promise',
+    async (stage) => {
+      const h = sharingHarness()
+      const pending = Promise.withResolvers<undefined>()
+      const ui = {
+        preview: h.ui.showPreview,
+        confirm: h.ui.confirmShare,
+        prepare: h.ui.preparePrompt,
+        insert: h.ui.insertPrompt,
+      }[stage]
+      ui.mockImplementation(() => pending.promise)
+      let kind: string | undefined
+      const response = (async () => {
+        const result = await h.commands.execute(
+          parseSharingArgs(
+            stage === 'preview' || stage === 'confirm'
+              ? ['share', 'chat', 's1']
+              : ['prompts', 'use', savedPromptFixture.id],
+          ),
+          h.context,
+        )
+        kind = result.kind
+      })()
+      await until(() => ui.mock.calls.length === 1)
+      expect(ui.mock.calls[0]?.at(-1)).toBe(h.context.signal)
+      h.abort()
+      await until(() => kind !== undefined)
+      expect(kind).toBe('cancelled')
+      await response
+      expect(h.release).not.toHaveBeenCalled()
+      if (stage === 'preview') expect(h.ui.confirmShare).not.toHaveBeenCalled()
+    },
+  )
   it.each(['copy', 'save', 'open'])(
     'releases only the explicitly confirmed headless %s destination',
     async (destination) => {
@@ -299,16 +357,20 @@ describe('M118 local share admission', () => {
       expect(h.release).not.toHaveBeenCalled()
     },
   )
-  it('refuses an inactive operation before any read or UI action', async () => {
-    const h = sharingHarness()
-    h.setActive(false)
-    expect(
-      await h.commands.execute(parseSharingArgs(['share', 'chat', 's1']), h.context),
-    ).toMatchObject({ kind: 'cancelled' })
-    expect(h.renderPreview).not.toHaveBeenCalled()
-    expect(h.ui.showPreview).not.toHaveBeenCalled()
-    expect(h.release).not.toHaveBeenCalled()
-  })
+  it.each(['inactive', 'aborted'])(
+    'refuses an %s operation before any read or UI action',
+    async (ending) => {
+      const h = sharingHarness()
+      if (ending === 'aborted') h.abort()
+      else h.setActive(false)
+      expect(
+        await h.commands.execute(parseSharingArgs(['share', 'chat', 's1']), h.context),
+      ).toMatchObject({ kind: 'cancelled' })
+      expect(h.renderPreview).not.toHaveBeenCalled()
+      expect(h.ui.showPreview).not.toHaveBeenCalled()
+      expect(h.release).not.toHaveBeenCalled()
+    },
+  )
   it('checks confidentiality again before displaying a newly rendered preview', async () => {
     const h = sharingHarness()
     const render = h.renderPreview.getMockImplementation()!
@@ -328,7 +390,7 @@ describe('M118 local share admission', () => {
       const h = sharingHarness()
       h.ui.confirmShare.mockImplementation((preview) => {
         expect(h.release).not.toHaveBeenCalled()
-        expect(h.ui.showPreview).toHaveBeenCalledWith(preview)
+        expect(h.ui.showPreview).toHaveBeenCalledWith(preview, h.context.signal)
         return Promise.resolve({
           step: 'confirmed',
           previewId: preview.previewId,
@@ -745,7 +807,7 @@ describe('M118 portable prompts', () => {
       h.context,
     )
     expect(result.kind).toBe('inserted')
-    expect(h.ui.preparePrompt).toHaveBeenCalledWith(savedPromptFixture)
+    expect(h.ui.preparePrompt).toHaveBeenCalledWith(savedPromptFixture, h.context.signal)
     expect(h.ui.insertPrompt).toHaveBeenCalledWith(
       {
         promptId: savedPromptFixture.id,
@@ -755,6 +817,7 @@ describe('M118 portable prompts', () => {
         send: false,
       },
       'Prepared text',
+      h.context.signal,
     )
     const prepared = await h.commands.execute(
       parseSharingArgs(['prompts', 'use', savedPromptFixture.id]),

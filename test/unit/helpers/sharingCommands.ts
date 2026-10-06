@@ -16,6 +16,7 @@ export const SHARING_TIME = '2026-10-06T10:00:00Z'
 export function sharingHarness() {
   const files = new Map<string, SavedPrompt[]>()
   let isActive = true
+  const abort = new AbortController()
   let confidential: boolean | undefined = false
   const write = vi.fn<PromptStoragePort['write']>(() => Promise.resolve())
   const storageFor = vi.fn<SharingDeps['storageFor']>((folders) => ({
@@ -77,6 +78,7 @@ export function sharingHarness() {
   const context: SharingContext = {
     cwd: SHARING_CWD,
     isActive: () => isActive,
+    signal: abort.signal,
     ui,
     readBody: () => Promise.resolve('Review {{selection}} for {{audience}}.\r\n'),
   }
@@ -96,6 +98,9 @@ export function sharingHarness() {
     storageFor,
     setActive: (isCurrent: boolean) => {
       isActive = isCurrent
+    },
+    abort: () => {
+      abort.abort()
     },
     setConfidential: (value: boolean | undefined) => {
       confidential = value

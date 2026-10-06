@@ -1,6 +1,7 @@
 // M118-X-MHP: native/companion adapters snapshot their current menu context.
 // These are local bridge DTOs; transport owners keep their existing zod envelope.
 import * as z from 'zod/mini'
+import { unlessAborted } from '../../core/timeouts'
 import { UI_TEXT } from '../../shared/constants'
 import { promptLoadSchema, promptMenuEntries } from '../../shared/prompts'
 
@@ -57,13 +58,17 @@ export function nativePromptMenus(input: unknown) {
 export interface NativePromptPorts {
   /** Trusted adapter-owned current text and row/selection identity, never a webview claim. */
   readonly snapshot: () => unknown
-  readonly savePrompt: (source: PromptContext) => Promise<void>
+  readonly savePrompt: (source: PromptContext, signal: AbortSignal) => Promise<void>
   /** The shared personal/current-workspace picker; cancellation returns undefined. */
-  readonly choosePrompt: () => Promise<unknown>
+  readonly choosePrompt: (signal: AbortSignal) => Promise<unknown>
   /** Must insert/create a chat in this workspace, never send. */
-  readonly loadPrompt: (request: z.infer<typeof promptLoadSchema>) => Promise<void>
+  readonly loadPrompt: (
+    request: z.infer<typeof promptLoadSchema>,
+    signal: AbortSignal,
+  ) => Promise<void>
   /** False when the originating view has closed or changed while its picker is pending. */
   readonly isActive: () => boolean
+  readonly signal: AbortSignal
 }
 
 export async function invokeNativePromptMenu(
@@ -72,28 +77,29 @@ export async function invokeNativePromptMenu(
 ): Promise<void> {
   const invocation = invocationSchema.parse(input)
   const context = contextSchema.parse(ports.snapshot())
+  const isActive = () => !ports.signal.aborted && ports.isActive()
   if (
-    !ports.isActive() ||
+    !isActive() ||
     invocation.contextId !== context.contextId ||
     menuEntries(context).every((entry) => entry.id !== invocation.menuId)
   ) {
     throw new Error(UI_TEXT.promptFileInvalid)
   }
   if (invocation.menuId !== 'prompt.use.composer') {
-    await ports.savePrompt(context)
+    await unlessAborted(ports.savePrompt(context, ports.signal), ports.signal)
     return
   }
-  const selected = await ports.choosePrompt()
+  const selected = await unlessAborted(ports.choosePrompt(ports.signal), ports.signal)
   if (selected === undefined) return
   const load = promptLoadSchema.parse(selected)
   const current = contextSchema.parse(ports.snapshot())
   if (
-    !ports.isActive() ||
+    !isActive() ||
     current.source !== 'composer' ||
     current.contextId !== context.contextId ||
     !current.chatAvailable
   ) {
     throw new Error(UI_TEXT.promptFileInvalid)
   }
-  await ports.loadPrompt(load)
+  await unlessAborted(ports.loadPrompt(load, ports.signal), ports.signal)
 }

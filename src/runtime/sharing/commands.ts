@@ -4,6 +4,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { confineWorkspacePath, type RealPathIo } from '../../core/workspacePath'
+import { unlessAborted } from '../../core/timeouts'
 import {
   UI_TEXT,
   EXEC_EXIT,
@@ -53,13 +54,17 @@ export interface SharePreview {
 }
 
 export interface SharingUi {
-  readonly showPreview: (preview: SharePreview) => Promise<void>
+  readonly showPreview: (preview: SharePreview, signal: AbortSignal) => Promise<void>
   /** The host's final button only; absent means a noninteractive preview cannot release. */
-  readonly confirmShare?: (preview: SharePreview) => Promise<unknown>
+  readonly confirmShare?: (preview: SharePreview, signal: AbortSignal) => Promise<unknown>
   /** Review untrusted text/declared variables before resolving built-ins or named inputs. */
-  readonly preparePrompt?: (prompt: SavedPrompt) => Promise<unknown>
+  readonly preparePrompt?: (prompt: SavedPrompt, signal: AbortSignal) => Promise<unknown>
   /** Active/new chat in this workspace; no model submission method belongs on this port. */
-  readonly insertPrompt?: (request: z.infer<typeof promptLoadSchema>, text: string) => Promise<void>
+  readonly insertPrompt?: (
+    request: z.infer<typeof promptLoadSchema>,
+    text: string,
+    signal: AbortSignal,
+  ) => Promise<void>
 }
 
 export interface SharingDeps {
@@ -89,9 +94,14 @@ export interface SharingDeps {
 export interface SharingContext {
   readonly cwd: string
   readonly isActive: () => boolean
+  readonly signal: AbortSignal
   readonly ui: SharingUi
   /** CLI save reads stdin; ACP save reads the command's exact text after ` -- `. */
   readonly readBody: () => Promise<string>
+}
+
+function isSharingActive(context: SharingContext): boolean {
+  return !context.signal.aborted && context.isActive()
 }
 
 export type SharingResult =
@@ -170,7 +180,7 @@ export class SharingCommands {
     ) {
       throw new Error(UI_TEXT.shareCancelled)
     }
-    if (!context.isActive()) return { kind: 'cancelled' }
+    if (!isSharingActive(context)) return { kind: 'cancelled' }
     if (policy() !== false) throw new Error(UI_TEXT.shareConfidential)
     const preview: SharePreview = {
       ...rendered,
@@ -190,13 +200,20 @@ export class SharingCommands {
     }
     // Keep the trusted association private even if a bridge mutates the object it receives.
     const trusted = structuredClone(preview)
-    await context.ui.showPreview(structuredClone(trusted))
-    if (!context.isActive()) return { kind: 'cancelled', preview: trusted }
+    await unlessAborted(
+      context.ui.showPreview(structuredClone(trusted), context.signal),
+      context.signal,
+    )
+    if (!isSharingActive(context)) return { kind: 'cancelled', preview: trusted }
     const answer: unknown =
       confirmationId === undefined
-        ? await context.ui.confirmShare?.(structuredClone(trusted))
+        ? await unlessAborted(
+            context.ui.confirmShare?.(structuredClone(trusted), context.signal) ??
+              Promise.resolve(undefined),
+            context.signal,
+          )
         : { step: 'confirmed', previewId: confirmationId, request: trusted.request }
-    if (!context.isActive()) return { kind: 'cancelled', preview: trusted }
+    if (!isSharingActive(context)) return { kind: 'cancelled', preview: trusted }
     const confirmation = confirmedShareSchema.safeParse(answer)
     if (
       !confirmation.success ||
@@ -222,18 +239,18 @@ export class SharingCommands {
       }
       resolvedOut = confined.absolute
     }
-    if (!context.isActive()) return { kind: 'cancelled', preview: trusted }
+    if (!isSharingActive(context)) return { kind: 'cancelled', preview: trusted }
     admitShareRelease(confirmation.data, policy)
     await this.deps.release(trusted, resolvedOut, allowedRoot)
     return { kind: 'shared', preview: trusted }
   }
 
   public async execute(command: SharingCommand, context: SharingContext): Promise<SharingResult> {
-    if (!context.isActive()) return { kind: 'cancelled' }
+    if (!isSharingActive(context)) return { kind: 'cancelled' }
     if (command.command === 'share') return await this.share(command, context)
     if (command.action === 'save') {
       const body = await context.readBody()
-      if (!context.isActive()) return { kind: 'cancelled' }
+      if (!isSharingActive(context)) return { kind: 'cancelled' }
       const now = this.deps.now()
       const prompt = savedPromptSchema.parse({
         schemaVersion: PROMPT_SCHEMA_VERSION,
@@ -255,7 +272,7 @@ export class SharingCommands {
       return { kind: 'saved', prompt }
     }
     const prompts = await this.list(context.cwd)
-    if (!context.isActive()) return { kind: 'cancelled' }
+    if (!isSharingActive(context)) return { kind: 'cancelled' }
     if (command.action === 'list') {
       const search = command.search.toLocaleLowerCase()
       return {
@@ -285,12 +302,16 @@ export class SharingCommands {
             : `${UI_TEXT.promptVariables}: ${prompt.variables.map((variable) => variable.name).join(', ')}`,
         )
       }
-      text = z.optional(z.string()).parse(await context.ui.preparePrompt(prompt))
+      text = z
+        .optional(z.string())
+        .parse(
+          await unlessAborted(context.ui.preparePrompt(prompt, context.signal), context.signal),
+        )
     }
-    if (text === undefined || !context.isActive()) return { kind: 'cancelled' }
+    if (text === undefined || !isSharingActive(context)) return { kind: 'cancelled' }
     if (context.ui.insertPrompt === undefined) return { kind: 'prepared', prompt, text }
-    await context.ui.insertPrompt(load, text)
-    return { kind: 'inserted', prompt, text }
+    await unlessAborted(context.ui.insertPrompt(load, text, context.signal), context.signal)
+    return isSharingActive(context) ? { kind: 'inserted', prompt, text } : { kind: 'cancelled' }
   }
 }
 

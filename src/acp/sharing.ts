@@ -13,6 +13,7 @@ export interface AcpSharingContext {
   readonly sessionId: string
   /** False after cancel, close, reload, backend exit, or replacement of this prompt. */
   readonly isActive: () => boolean
+  readonly signal: AbortSignal
 }
 
 /** Runtime binding M118-X-ACP; ordinary execution/paid approvals cannot settle this UI. */

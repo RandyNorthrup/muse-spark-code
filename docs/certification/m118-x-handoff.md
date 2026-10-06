@@ -51,6 +51,11 @@ Construct `SharingCommands` from `src/runtime/sharing/commands.ts` with:
   path/parent can change during asynchronous sink preparation.
 
 `SharingUi` is an injected real UI, never a default success implementation.
+Every UI method receives the invocation's `AbortSignal` as its final argument:
+preview, confirmation, variable/untrusted review and insert/create-chat.
+Close outstanding UI on abort, remove listeners when finished, and check the
+signal again before any late side effect. The adapter uses the existing
+`unlessAborted` helper to end its wait even if a UI promise never settles.
 `showPreview` displays exact content/redaction offsets/options.
 `confirmShare` returns `{ step: 'confirmed', previewId, request }` only from the
 final button, or returns undefined on cancellation. Approval rules, permission
@@ -68,8 +73,11 @@ Without a composer, use returns an explicit prepared-text result.
 `src/runtime/main.ts` is not X-owned and is deliberately unchanged. It must
 install its locale first, supply P/C ports and the real preview/composer bridge,
 then bind `AcpAgentDeps.sharing = createAcpSharing(commands, uiFor)` from
-`src/acp/sharing.ts`. `uiFor` receives `{ cwd, sessionId, isActive }`; close or
-settle pending UI promises on cancel/close/reload/backend exit. Late actions
+`src/acp/sharing.ts`. `uiFor` receives `{ cwd, sessionId, isActive, signal }`;
+cancel/close/reload/backend exit abort that signal. ACP ends a local prompt
+waiting on sharing UI immediately (`cancelled`, or the backend error on exit) and clears its
+busy state without requiring UI resolution; older preparations cannot clear
+a newer prompt's state. Close or settle pending UI promises on abort. Late actions
 cannot release or insert. ACP uses existing `session/prompt` and
 `available_commands_update`; no guessed extension method, elicitation or
 ordinary permission prompt was added. Reserved slash commands fail explicitly
@@ -82,7 +90,8 @@ For standalone commands, call `parseCommandLine(argv, parseSharingArgs)` and
 route its `share`/`prompts` results to `runSharingCommand(command, commands,
 context)`. Its result includes `exitCode` (0 on completion; 7 on cancellation
 or absent sharing confirmation). Provide bounded stdin reading for save,
-the default cwd, signal/session lifetime, output formatting, terminal preview
+the default cwd, `SharingContext.signal` from the command/session lifetime,
+output formatting, terminal preview
 and the actual local sinks. Handle parse/errors as failures and install the
 language before parsing. Do not start a backend or read a key for prompt save,
 list or use. Existing one-argument parsing remains compatible and fails these
@@ -150,6 +159,10 @@ shared user/current-workspace picker and returns a `promptLoadSchema` request
 or undefined; stale/replaced/unavailable composers and send/run requests refuse.
 The host's load handler resolves/reviews variables, then inserts into the
 active/new chat; no model send method belongs on these ports.
+Supply `NativePromptPorts.signal`, abort it on view closure/cancel/replacement,
+and observe the final signal parameter on `savePrompt`, `choosePrompt` and
+`loadPrompt`. Their pending adapter waits end on abort without manually
+resolving a picker. The actual handlers must stop late saves/inserts too.
 
 M104 must mount this on JetBrains, Visual Studio, Eclipse, Zed, Xcode,
 Neovim/Emacs/Sublime and the companion page. M110a0 lane T must mount the same

@@ -6919,7 +6919,7 @@ Record regression failures, byte-exact red drills and bounded checks in
 
 - [x] P2-1 output confinement and resolved path/root release contract.
 - [x] P2-2 explicit headless destination and file output admission.
-- [ ] P2-3 abortable sharing UI and immediate ACP prompt/session cleanup.
+- [x] P2-3 abortable sharing UI and immediate ACP prompt/session cleanup.
 - [x] P2-4 shared leading-whitespace local-command interception.
 
 ### BADGEFIX — Exact package versions on store pages (2026-10-05)
@@ -19675,6 +19675,20 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM118X / RVM118X (2026-10-06).** All four reviewed P2 adapter
+  findings are fixed; no P1/P2/P3 finding is deferred. Regression failures,
+  byte-exact red drills and bounded Kubuntu checks are recorded in
+  `docs/certification/m118-x.md`.
+  **M118-X-production-bindings (inherited integration follow-up):** P/C stores
+  and renderers, runtime/main, TUI, native/companion editor mounting,
+  README/changelog/ACP guide and the absent feature catalog remain W's work.
+  Safe for this lane because its unbound installed commands refuse explicitly;
+  these tests do not claim installed-editor parity or authorize release.
+  Follow-up: W must bind the updated signal and output-root ports described in
+  `docs/certification/m118-x-handoff.md`, propagate nonzero refusal messages,
+  update the help/docs in that same integration, and run integrated quality,
+  unchanged bundle budgets and installed-host tests before claiming support.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
