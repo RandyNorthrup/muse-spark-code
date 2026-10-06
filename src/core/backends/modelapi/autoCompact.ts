@@ -64,21 +64,19 @@ export interface AutoCompactDecision {
   readonly writeReadRatio: number | undefined
 }
 
-function rates(input: AutoCompactInput) {
+function rates(input: AutoCompactInput, inputTokens: number) {
   if (input.pricing.kind === 'local') return input.localTime
   if (input.pricing.kind !== 'priced') return
   const { card } = input.pricing
   const tier = card.longContextTier
-  const inputRate =
-    tier !== undefined && input.contextTokens >= tier.fromTokens ? tier.input : card.input
+  const inputRate = tier !== undefined && inputTokens >= tier.fromTokens ? tier.input : card.input
   return {
     prefill:
       (input.cacheDuration === '1h' ? card.cacheWrite1h : undefined) ??
       card.cacheWrite ??
       inputRate,
     read: card.cachedInput ?? inputRate,
-    output:
-      tier !== undefined && input.contextTokens >= tier.fromTokens ? tier.output : card.output,
+    output: tier !== undefined && inputTokens >= tier.fromTokens ? tier.output : card.output,
   }
 }
 
@@ -168,20 +166,24 @@ export class AutoCompact {
     const savingTokens = Math.max(0, input.removableTokens - input.summaryTokens)
     // The write premium applies to the context AFTER archive replacement.
     const writtenTokens = Math.max(0, input.contextTokens - savingTokens)
-    const price = rates(input)
+    const price = rates(input, writtenTokens)
+    const summaryPrice = rates(input, input.summaryInputTokens)
     const flat = input.pricing.kind === 'priced' ? (input.pricing.card.request ?? 0) : 0
     const hasValidRates =
       price !== undefined &&
+      summaryPrice !== undefined &&
       Number.isFinite(flat) &&
       flat >= 0 &&
-      Object.values(price).every((rate) => Number.isFinite(rate) && rate >= 0)
+      [...Object.values(price), ...Object.values(summaryPrice)].every(
+        (rate) => Number.isFinite(rate) && rate >= 0,
+      )
     const read = hasValidRates ? price.read : 0
     const write = hasValidRates ? price.prefill : 0
     const cached = Math.min(input.cachedTokens, input.summaryInputTokens)
     const summaryCost = hasValidRates
-      ? ((input.summaryInputTokens - cached) * write +
-          cached * read +
-          input.summaryOutputTokens * price.output +
+      ? ((input.summaryInputTokens - cached) * summaryPrice.prefill +
+          cached * summaryPrice.read +
+          input.summaryOutputTokens * summaryPrice.output +
           flat) *
         input.summaryRequests
       : 0

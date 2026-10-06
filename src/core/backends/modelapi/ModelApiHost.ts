@@ -1753,6 +1753,8 @@ function subjectFor(
 /** `work`'s value, or an `AbortedError` as soon as the turn is stopped; `work` runs on. */
 async function unlessStopped<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   if (signal.aborted) {
+    // The dependency already started; a later rejection must still be observed.
+    void work.catch(NO_UNSUBSCRIBE)
     throw new AbortedError()
   }
   let onAbort: () => void = NO_UNSUBSCRIBE
@@ -2442,6 +2444,11 @@ export class ModelApiSession implements AgentSession {
         hasUnknownCost: reservation.hasUnknownCost,
       },
     )
+    if (this.openReservation !== reservation) {
+      // Stop ended this unsent request while its durable claim was pending.
+      await reservation.claim.settle(0, false)
+      return
+    }
     reservation.isReserved = true
     if (this.deps.budgetScope === undefined) {
       await this.onPersisted('budget')
@@ -8372,7 +8379,9 @@ export class ModelApiSession implements AgentSession {
           !isAbortRequested(signal)
         ) {
           turn.didRecoverOverflow = true
-          if (await this.maybeAutoCompact(turn, true)) {
+          const compacted = await this.maybeAutoCompact(turn, true)
+          if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return
+          if (compacted) {
             this.deps.onContextOverflow?.({
               sessionId: this.sessionId,
               turnId: turn.turnId,
@@ -8537,7 +8546,8 @@ export class ModelApiSession implements AgentSession {
         return
       }
       this.autoCompact.noteToolWork()
-      await this.maybeAutoCompact(turn)
+      const compacted = await this.maybeAutoCompact(turn)
+      if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return
     }
     // Input accepted during the last permitted round still needs a request
     // that sees it. Steered messages belonged to this turn, so run them
@@ -8942,13 +8952,17 @@ export class ModelApiSession implements AgentSession {
   }> {
     const budget: RetryBudget = { retriesUsed: 0 }
     const turnId = this.turnIds.at(-1) ?? COMPACTION_TURN_ID
+    const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
     for (;;) {
       const requestId = this.deps.newId()
       const attempt = budget.retriesUsed + 1
       try {
-        await this.refreshBudgetSpend()
-        await this.beforeModelCall(turnId, makeBody(), requestId, attempt, 0, signal)
-        await this.refreshBudgetSpend()
+        await unlessStopped(this.refreshBudgetSpend(), signal)
+        await unlessStopped(
+          this.beforeModelCall(turnId, makeBody(), requestId, attempt, 0, signal),
+          signal,
+        )
+        await unlessStopped(this.refreshBudgetSpend(), signal)
         const body = makeBody()
         const revision = this.modelRevision
         const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
@@ -8980,19 +8994,18 @@ export class ModelApiSession implements AgentSession {
           body,
           signal,
           (notice) => {
-            if (attemptState.didSend) {
-              const usage = attemptState.usage
-              // Consume first: failed accounting must not settle this attempt again in cleanup.
-              attemptState.didSend = false
-              attemptState.usage = undefined
-              settleExtra?.(
-                body.model,
-                usage,
-                notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)
-                  ? 'rate-limited'
-                  : 'uncertain',
-              )
-            }
+            if (!attemptState.didSend || isAbortRequested(signal)) return
+            const usage = attemptState.usage
+            // Consume first: failed accounting must not settle this attempt again in cleanup.
+            attemptState.didSend = false
+            attemptState.usage = undefined
+            settleExtra?.(
+              body.model,
+              usage,
+              notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)
+                ? 'rate-limited'
+                : 'uncertain',
+            )
             this.allowRateLimitedRetry(notice)
             this.emit({
               type: 'turnRetry',
@@ -9007,8 +9020,13 @@ export class ModelApiSession implements AgentSession {
           guarded,
         )
         try {
-          await this.persistReservation(reservation)
-          for await (const event of responseStream) {
+          await unlessStopped(this.persistReservation(reservation), signal)
+          for (
+            let next = await unlessStopped(responseStream.next(), signal);
+            !next.done;
+            next = await unlessStopped(responseStream.next(), signal)
+          ) {
+            const event = next.value
             if (reservation !== undefined) reservation.hasStarted = true
             if (event.type === 'response.completed') response = event.response
             attemptState.usage = this.collectedUsage(event) ?? attemptState.usage
@@ -9020,9 +9038,12 @@ export class ModelApiSession implements AgentSession {
           this.noteRequestRefusal(reservation, error)
           throw error
         } finally {
+          // Closing may wait on the same stalled dependency; observe it without delaying Stop.
+          void responseStream.return(undefined).catch(NO_UNSUBSCRIBE)
           try {
             if (attemptState.didSend) {
               const outcome = attemptState.usage === undefined ? 'uncertain' : 'returned'
+              attemptState.didSend = false
               settleExtra?.(
                 body.model,
                 attemptState.usage,
@@ -9030,7 +9051,7 @@ export class ModelApiSession implements AgentSession {
               )
             }
           } finally {
-            await this.endRequest()
+            await unlessStopped(this.endRequest(), signal)
           }
         }
         if (response === undefined) {
@@ -9041,13 +9062,16 @@ export class ModelApiSession implements AgentSession {
             undefined,
           )
         }
-        const post = await this.runHooks(
-          'PostLLMCall',
-          turnId,
-          postModelCallFields(body, response, requestId, attempt, 0, this.sessionId),
-          MODEL_API_HOOK_PROVIDER,
+        const post = await unlessStopped(
+          this.runHooks(
+            'PostLLMCall',
+            turnId,
+            postModelCallFields(body, response, requestId, attempt, 0, this.sessionId),
+            MODEL_API_HOOK_PROVIDER,
+            signal,
+            false,
+          ),
           signal,
-          false,
         )
         if (post.blockedReason !== undefined) throw new HookStoppedError(post.blockedReason)
         return {
@@ -9065,6 +9089,7 @@ export class ModelApiSession implements AgentSession {
         if (
           !(error instanceof RetryableStreamError) ||
           signal.aborted ||
+          (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) ||
           budget.retriesUsed >= MODEL_API_MAX_RETRIES
         ) {
           throw error
@@ -9080,7 +9105,7 @@ export class ModelApiSession implements AgentSession {
           retryDelayMs: delayMs,
           reason: `${error.code}: ${error.message}`,
         })
-        await this.deps.client.waitBeforeRetry(delayMs, signal)
+        await unlessStopped(this.deps.client.waitBeforeRetry(delayMs, signal), signal)
       }
     }
   }
@@ -9181,8 +9206,25 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /** Both compaction boundaries preserve goal exhaustion and hook stops. */
+  private stopAfterAutoCompaction(
+    turn: ActiveTurn,
+    compacted: boolean | 'stopped',
+    wasBudgetLimited: boolean,
+  ): boolean {
+    if (compacted === 'stopped') {
+      this.dropUndeliveredMedia(turn.turnId)
+      return true
+    }
+    if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) {
+      this.queuedTurns.unshift(...this.queuedSteered(turn))
+      return true
+    }
+    return false
+  }
+
   /** An automatic flush is host data through the ordinary memory tool policy. */
-  private async flushCompactionMemory(turn: ActiveTurn): Promise<void> {
+  private async flushCompactionMemory(turn: ActiveTurn): Promise<string | undefined> {
     if (this.deps.memory === undefined) return
     const call: FunctionCallItem = {
       type: 'function_call',
@@ -9200,11 +9242,18 @@ export class ModelApiSession implements AgentSession {
       }),
     }
     this.replay.push({ turnId: turn.turnId, item: call })
-    await this.runCall(turn.turnId, call, turn.abort.signal, this.goalCommandRevision)
+    const result = await unlessStopped(
+      this.runCall(turn.turnId, call, turn.abort.signal, this.goalCommandRevision),
+      turn.abort.signal,
+    )
+    return result.stopReason
   }
 
   /** Inside the active turn only; economics never prevent near-window protection. */
-  private async maybeAutoCompact(turn: ActiveTurn, isOverflow = false): Promise<boolean> {
+  private async maybeAutoCompact(
+    turn: ActiveTurn,
+    isOverflow = false,
+  ): Promise<boolean | 'stopped'> {
     if (
       !(this.deps.autoCompaction?.() ?? SETTING_DEFAULTS.modelApiAutoCompaction) ||
       !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) ||
@@ -9271,14 +9320,17 @@ export class ModelApiSession implements AgentSession {
     const todos = this.todos.map((todo) => ({ ...todo }))
     const ledger = { hasFailed: false }
     try {
-      const admission = await this.deps.admitAutoCompaction?.({
-        sessionId: this.askingSessionId,
-        turnId: turn.turnId,
-        modelId: this.modelId,
-        model,
-        decision,
-        signal: turn.abort.signal,
-      })
+      const admission = await unlessStopped(
+        this.deps.admitAutoCompaction?.({
+          sessionId: this.askingSessionId,
+          turnId: turn.turnId,
+          modelId: this.modelId,
+          model,
+          decision,
+          signal: turn.abort.signal,
+        }) ?? Promise.resolve(undefined),
+        turn.abort.signal,
+      )
       const assertCurrent = () => {
         turn.abort.signal.throwIfAborted()
         if (
@@ -9302,8 +9354,12 @@ export class ModelApiSession implements AgentSession {
         },
         { onRequestStarted: () => admission.guard.onRequestStarted?.() },
       )
-      await this.flushCompactionMemory(turn)
+      const memoryStop = await this.flushCompactionMemory(turn)
       assertCurrent()
+      if (memoryStop !== undefined) {
+        this.autoCompact.failed()
+        return 'stopped'
+      }
       const settle: typeof admission.settle = (...args) => {
         try {
           admission.settle(...args)
@@ -9357,7 +9413,8 @@ export class ModelApiSession implements AgentSession {
     if (!this.hasCompactableHistory(isSummaryFork)) {
       return { status: NOOP, reason: NO_COMPACTABLE_HISTORY }
     }
-    await this.context.load()
+    await unlessStopped(this.context.load(), signal)
+    const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
     let tail: readonly ReplayItem[] = []
     let snapshot = ''
     const makeBody = (canUseTools: boolean): CreateResponseBody => {
@@ -9435,6 +9492,8 @@ export class ModelApiSession implements AgentSession {
       collected.body.tools.length > 0 &&
       collected.response.output.some((item) => isFunctionCallItem(item))
     ) {
+      if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited)
+        return { status: NOOP, reason: MODEL_API_MODEL_TEXT.goalBudgetReached }
       collected = await this.collectText(() => makeBody(false), signal, extraAdmission, settleExtra)
     }
     if (collected.response.output.some((item) => isFunctionCallItem(item)))
@@ -9481,11 +9540,20 @@ export class ModelApiSession implements AgentSession {
     // request is no base for the next estimate; Meta's count of the new
     // context is, when it comes (M82).
     this.budgetBase = undefined
+    if (
+      isAbortRequested(signal) ||
+      (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited)
+    )
+      return { status: ACCEPTED, reason: undefined }
     // The new context size is a courtesy: the compaction stands if it cannot be counted.
     const { stream: _stream, ...countable } = this.body()
     const countRevision = this.modelRevision
     try {
-      const counted = await this.deps.client.countInputTokens(countable)
+      const counted = await unlessStopped(
+        this.deps.client.countInputTokens(countable, signal),
+        signal,
+      )
+      signal.throwIfAborted()
       if (countRevision === this.modelRevision) {
         this.noteContext(counted)
       }
@@ -9496,6 +9564,9 @@ export class ModelApiSession implements AgentSession {
         }
       }
     } catch (error: unknown) {
+      // The summary is committed. Its owning automatic turn checks Stop on return.
+      if (isAbortRequested(signal) || error instanceof AbortedError)
+        return { status: ACCEPTED, reason: undefined }
       const status =
         error instanceof ModelApiError ? `HTTP ${String(error.status)}` : 'request failed'
       this.deps.log.warn(`The compacted context could not be counted: ${status}`)

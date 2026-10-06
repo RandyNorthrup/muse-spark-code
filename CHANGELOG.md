@@ -9,6 +9,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Automatic compaction stops during pending dependencies, honours a memory
+  hook's request to stop, and ends goal work when a summary spends its token
+  budget while preserving separate user input. Stopped unsent reservations are
+  refunded when they arrive; late failures are observed and summary streams close.
+  A committed manual summary remains accepted when Stop cancels its recount.
+  Retained context and summaries use the pricing tier selected by their
+  respective input sizes. The plan
+  distinguishes this candidate's packing default from released main's default.
+
+- Carry the existing release repairs into the candidate's five test fixtures:
+  include the required validation bundle, check module script tags, and await
+  the deferred Account & usage dialog.
+
 - The Model API engine now has automatic compaction economics, settled-tool
   boundary decisions, and one classified overflow recovery attempt per turn.
   Memory snapshots use existing permission checks and retain untrusted labels;

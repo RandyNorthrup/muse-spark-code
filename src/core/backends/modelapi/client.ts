@@ -421,11 +421,15 @@ export class ModelApiClient {
   }
 
   /** Tokens the rendered input would occupy; not billed (dev.meta.ai/docs/token-counting). */
-  public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
+  public async countInputTokens(
+    body: Omit<CreateResponseBody, 'stream'>,
+    signal?: AbortSignal,
+  ): Promise<number> {
+    const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
     const response = await this.request(
       '/responses/input_tokens',
       { method: 'POST', body, accept: JSON_MEDIA_TYPE },
-      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      signal === undefined ? deadline : AbortSignal.any([signal, deadline]),
     )
     return inputTokensSchema.parse(await response.json()).input_tokens
   }

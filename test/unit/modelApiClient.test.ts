@@ -490,6 +490,38 @@ describe('ModelApiClient', () => {
     expect(api.requests[0]?.body).not.toHaveProperty('stream')
   })
 
+  it('aborts a token recount with its owning turn signal', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const held = Promise.withResolvers<Response>()
+    let requestSignal: AbortSignal | null | undefined
+    const { client } = setup('LLM|1|secret', (_url, init) => {
+      requestSignal = init?.signal
+      entered.resolve(undefined)
+      requestSignal?.addEventListener(
+        'abort',
+        () => {
+          held.reject(new Error('cancelled'))
+        },
+        {
+          once: true,
+        },
+      )
+      return held.promise
+    })
+    const stop = new AbortController()
+    const { stream: _stream, ...countable } = body
+    const counted = client.countInputTokens(countable, stop.signal)
+    const result = expect(counted).rejects.toMatchObject({ message: 'cancelled' })
+    try {
+      await entered.promise
+      stop.abort()
+      expect(requestSignal?.aborted).toBe(true)
+    } finally {
+      held.reject(new Error('cancelled'))
+      await result
+    }
+  })
+
   it('streams the documented events in order, skipping unknown types', async () => {
     const { api, client } = setup()
     api.script({

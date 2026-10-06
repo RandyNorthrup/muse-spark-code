@@ -1,17 +1,23 @@
 import { Buffer } from 'node:buffer'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
-import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
-import type { ResponseAttemptGuard } from '../../src/core/backends/modelapi/client'
+import {
+  ModelApiHost,
+  ModelApiSession,
+  type ModelApiHostDeps,
+} from '../../src/core/backends/modelapi/ModelApiHost'
+import type { ResponseAttemptGuard, RetryNotice } from '../../src/core/backends/modelapi/client'
 import type { Usage } from '../../src/core/backends/modelapi/schemas'
 import { MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { memoryStoreOver } from './helpers/fakeMemoryIo'
+import { memorySessionStore } from './helpers/fakeSessionStore'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
+import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 
 const TODOS = [
   { text: 'already completed history', status: 'completed' },
@@ -48,6 +54,7 @@ async function setup(
       }
     : api
   const log = new FakeLogOutputChannel()
+  const client = fakeModelApiClient(clientApi, log)
   const io = memoryToolIo({}, '/ws')
   const model = { window: 100_000 }
   const settled: (Usage | undefined)[] = []
@@ -61,7 +68,7 @@ async function setup(
   })
   const host = new ModelApiHost({
     ...fakeModelApiHostDeps({
-      client: fakeModelApiClient(clientApi, log),
+      client,
       workspaceRoot: '/ws',
       io,
       log,
@@ -81,11 +88,14 @@ async function setup(
     },
     ...changes,
   })
-  const session = await host.startSession({
+  const started = await host.startSession({
     workspaceRoot: '/ws',
     modelId: 'muse-spark-1.3',
     approvalMode: mode,
   })
+  if (!(started instanceof ModelApiSession))
+    throw new Error('expected the shared Model API session')
+  const session = started
   const watched = watchSessionTurns(session)
   async function send(text = 'continue') {
     const done = watched.turnDone()
@@ -95,6 +105,22 @@ async function setup(
   async function seed() {
     api.script({ text: 'earlier response' })
     await send('earlier history '.repeat(8000))
+  }
+  async function stop() {
+    await session.cancel()
+    await vi.waitFor(() => {
+      expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'cancelled',
+      })
+    })
+  }
+  async function budgetGoal() {
+    api.script(
+      { calls: [{ name: 'create_goal', arguments: '{"objective":"Ship it","token_budget":100}' }] },
+      { text: 'working', usage: { input: 10, output: 10 } },
+    )
+    await send()
+    expect(session.snapshot().goal).toMatchObject({ status: 'active', tokens_used: 20 })
   }
   function nearWindow() {
     const body = api.responseBodies()[0]
@@ -108,6 +134,7 @@ async function setup(
   }
   return {
     api,
+    client,
     io,
     host,
     session,
@@ -116,6 +143,8 @@ async function setup(
     settlements,
     send,
     seed,
+    stop,
+    budgetGoal,
     nearWindow,
     ...watched,
     admissions: () => admissions,
@@ -318,13 +347,345 @@ describe('automatic compaction in the shared Model API loop', () => {
     t.api.script(OVERFLOW)
     const done = t.send()
     await entered.promise
-    await t.session.cancel()
-    consent.resolve(undefined)
-    await done
-    expect(t.api.responseBodies()).toHaveLength(2)
+    try {
+      await t.stop()
+      expect(t.api.responseBodies()).toHaveLength(2)
+    } finally {
+      consent.resolve(undefined)
+      await done
+      await t.host.close()
+    }
+  })
+
+  it('finishes Stop before an uncooperative post-summary recount resolves', async () => {
+    const t = await setup()
+    await t.seed()
+    const count = Promise.withResolvers<number>()
+    const entered = Promise.withResolvers<undefined>()
+    let countSignal: AbortSignal | undefined
+    vi.spyOn(t.client, 'countInputTokens').mockImplementation((_body, signal) => {
+      countSignal = signal
+      entered.resolve(undefined)
+      return count.promise
+    })
+    t.api.script(OVERFLOW, { text: 'summary' }, { text: 'must not continue' })
+    const done = t.send()
+    await entered.promise
+    try {
+      await t.stop()
+      expect(countSignal?.aborted).toBe(true)
+      expect(t.api.responseBodies()).toHaveLength(3)
+    } finally {
+      count.resolve(42)
+      await done
+      await t.host.close()
+    }
+  })
+
+  it('observes an admission rejection when Stop wins before the dependency is raced', async () => {
+    const running: { cancel?: () => Promise<void> } = {}
+    const t = await setup({
+      admitAutoCompaction: () => {
+        void running.cancel?.()
+        return Promise.reject(new Error('admission ended after Stop'))
+      },
+    })
+    running.cancel = () => t.session.cancel()
+    await t.seed()
+    t.api.script(OVERFLOW)
+    await t.send()
     expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
       terminal: 'cancelled',
     })
+    expect(t.api.responseBodies()).toHaveLength(2)
+    await t.host.close()
+  })
+
+  it('keeps a committed manual summary accepted when Stop cancels its recount', async () => {
+    const t = await setup()
+    await t.seed()
+    const count = Promise.withResolvers<number>()
+    const entered = Promise.withResolvers<undefined>()
+    vi.spyOn(t.client, 'countInputTokens').mockImplementation(() => {
+      entered.resolve(undefined)
+      return count.promise
+    })
+    t.api.script({ text: 'manual summary' })
+    const finished = vi.fn()
+    const compacting = (async () => {
+      finished(await t.session.compact())
+    })()
+    await entered.promise
+    try {
+      await t.session.cancel()
+      await vi.waitFor(() => {
+        expect(finished).toHaveBeenCalledWith({ status: 'accepted', reason: undefined })
+      })
+    } finally {
+      count.resolve(42)
+      await compacting
+      await t.host.close()
+    }
+  })
+
+  it('finishes Stop before an uncooperative memory flush resolves', async () => {
+    const held = Promise.withResolvers<undefined>()
+    const entered = Promise.withResolvers<undefined>()
+    const { store } = memoryStoreOver(new Map(), {
+      afterWrite: () => {
+        entered.resolve(undefined)
+        return held.promise
+      },
+    })
+    const t = await setup({ memory: store })
+    await t.seed()
+    t.api.script(OVERFLOW, { text: 'must not summarize' })
+    const done = t.send()
+    await entered.promise
+    try {
+      await t.stop()
+      expect(t.starts()).toBe(0)
+    } finally {
+      held.resolve(undefined)
+      await done
+      await t.host.close()
+    }
+  })
+
+  it('finishes Stop during reservation persistence and refunds a late unsent claim', async () => {
+    const store = memorySessionStore()
+    const journal = store.budget
+    if (journal === undefined) throw new Error('test budget journal missing')
+    const held = Promise.withResolvers<undefined>()
+    const entered = Promise.withResolvers<undefined>()
+    let isCompacting = false
+    const originalReserve = journal.reserve.bind(journal)
+    vi.spyOn(journal, 'reserve').mockImplementation(async (...args) => {
+      const claim = await originalReserve(...args)
+      if (isCompacting) {
+        entered.resolve(undefined)
+        await held.promise
+      }
+      return claim
+    })
+    const t = await setup({
+      store,
+      sessionBudgetUsd: () => 1,
+      admitAutoCompaction: () => {
+        isCompacting = true
+        return Promise.resolve({ guard: () => undefined, settle: () => undefined })
+      },
+    })
+    await t.seed()
+    const before = await journal.read(t.session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
+    t.api.script(OVERFLOW, { text: 'must not summarize' })
+    const done = t.send()
+    await entered.promise
+    try {
+      await t.stop()
+      expect(t.api.responseBodies()).toHaveLength(2)
+      held.resolve(undefined)
+      await vi.waitFor(async () => {
+        expect(await journal.read(t.session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)).toEqual(before)
+      })
+    } finally {
+      held.resolve(undefined)
+      await done
+      await t.host.close()
+    }
+  })
+
+  it.each(['account', 'summary EOF', 'PreLLMCall', 'PostLLMCall'])(
+    'finishes Stop while the automatic summary waits on %s',
+    async (dependency) => {
+      const held = Promise.withResolvers<undefined>()
+      const entered = Promise.withResolvers<undefined>()
+      let isCompacting = false
+      const hold = () => {
+        entered.resolve(undefined)
+        return held.promise
+      }
+      const t = await setup({
+        admitAutoCompaction: () => {
+          isCompacting = true
+          return Promise.resolve({ guard: () => undefined, settle: () => undefined })
+        },
+        getAccountId: async () => {
+          if (isCompacting && dependency === 'account') await hold()
+          return FAKE_MODEL_API_ACCOUNT_ID
+        },
+        loadHooks: () =>
+          Promise.resolve(
+            parseHookConfig(
+              JSON.stringify({
+                hooks: { [dependency]: [{ hooks: [{ type: 'command', command: 'hold' }] }] },
+              }),
+              'project',
+              'linux',
+            ).hooks,
+          ),
+      })
+      t.io.runHook = async () => {
+        if (isCompacting) await hold()
+        return { stdout: '{}', stderr: '', exitCode: 0, isCancelled: false, isTimedOut: false }
+      }
+      const originalStream = t.client.streamResponse.bind(t.client)
+      if (dependency === 'summary EOF') {
+        vi.spyOn(t.client, 'streamResponse').mockImplementation(async function* (...args) {
+          yield* originalStream(...args)
+          if (isCompacting) await hold()
+        })
+      }
+      await t.seed()
+      t.api.script(OVERFLOW, { text: 'summary' }, { text: 'must not continue' })
+      const done = t.send()
+      await entered.promise
+      try {
+        await t.stop()
+        expect(t.api.responseBodies().length).toBeLessThanOrEqual(3)
+      } finally {
+        held.resolve(undefined)
+        await done
+        await t.host.close()
+      }
+    },
+  )
+
+  it.each(['overflow', 'boundary'])(
+    'honours a stopping memory hook on %s before buying a summary or continuation',
+    async (boundary) => {
+      const files = new Map<string, string>()
+      const { store } = memoryStoreOver(files)
+      const t = await setup({
+        memory: store,
+        loadHooks: () =>
+          Promise.resolve(
+            parseHookConfig(
+              JSON.stringify({
+                hooks: {
+                  PostToolUse: [
+                    { matcher: 'add_memory', hooks: [{ type: 'command', command: 'stop' }] },
+                  ],
+                },
+              }),
+              'project',
+              'linux',
+            ).hooks,
+          ),
+      })
+      t.io.runHook = () =>
+        Promise.resolve({
+          exitCode: 0,
+          stdout: JSON.stringify({ continue: false, stopReason: 'stop memory flush' }),
+          stderr: '',
+          isTimedOut: false,
+          isCancelled: false,
+        })
+      await t.seed()
+      if (boundary === 'boundary') t.nearWindow()
+      t.api.script(
+        boundary === 'boundary' ? { calls: [TOOL] } : OVERFLOW,
+        { text: 'must not summarize' },
+        { text: 'must not continue' },
+      )
+      await t.send()
+      expect(files.size).toBeGreaterThan(0)
+      expect(t.starts()).toBe(0)
+      expect(t.api.responseBodies()).toHaveLength(2)
+      expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+      await t.host.close()
+    },
+  )
+
+  it.each(['overflow', 'boundary', 'fallback', 'incomplete'] as const)(
+    'stops goal work when the %s summary spends its remaining budget',
+    async (boundary) => {
+      const t = await setup()
+      await t.seed()
+      await t.budgetGoal()
+      if (boundary === 'boundary') t.nearWindow()
+      t.api.script(
+        boundary === 'boundary' ? { calls: [TOOL], usage: { input: 0, output: 0 } } : OVERFLOW,
+        boundary === 'fallback'
+          ? { calls: [TOOL], usage: { input: 90, output: 10 } }
+          : {
+              text: 'summary',
+              usage: { input: 90, output: 10 },
+              ...(boundary === 'incomplete' && { incomplete: { reason: 'max_output_tokens' } }),
+            },
+        { text: 'must not dispatch' },
+      )
+      await t.send()
+      expect(t.session.snapshot().goal).toMatchObject({
+        status: 'budget_limited',
+        tokens_used: 120,
+      })
+      expect(t.api.responseBodies()).toHaveLength(5)
+      expect(
+        t.api.requests.filter((request) => request.path === '/responses/input_tokens'),
+      ).toHaveLength(0)
+      expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+      await t.host.close()
+    },
+  )
+
+  it('queues a separate steer when summary usage exhausts the goal budget', async () => {
+    const t = await setup()
+    await t.seed()
+    await t.budgetGoal()
+    const held = Promise.withResolvers<undefined>()
+    const entered = Promise.withResolvers<undefined>()
+    t.api.script(
+      OVERFLOW,
+      {
+        text: 'summary',
+        usage: { input: 90, output: 10 },
+        hold: held.promise,
+        onRequest: () => {
+          entered.resolve(undefined)
+        },
+      },
+      { text: 'Separate answer' },
+    )
+    const done = t.turnDone()
+    const running = await t.session.sendTurn([{ type: 'text', text: 'continue goal' }])
+    await entered.promise
+    await t.session.steer(running.turnId, [{ type: 'text', text: 'Separate question' }])
+    held.resolve(undefined)
+    await done
+    await vi.waitFor(() => {
+      expect(t.events.filter((event) => event.type === 'turnCompleted')).toHaveLength(4)
+    })
+    expect(t.session.snapshot().goal).toMatchObject({ status: 'budget_limited', tokens_used: 120 })
+    expect(t.api.responseBodies()).toHaveLength(6)
+    expect(JSON.stringify(t.api.responseBodies()[5]?.['input'])).toContain('Separate question')
+    expect(t.events.filter((event) => event.type === 'turnStarted')).toHaveLength(4)
+    await t.host.close()
+  })
+
+  it('does not retry a summary after its returned usage spends the goal budget', async () => {
+    const t = await setup()
+    await t.seed()
+    await t.budgetGoal()
+    const originalStream = t.client.streamResponse.bind(t.client)
+    vi.spyOn(t.client, 'streamResponse').mockImplementation(async function* (...args) {
+      yield* originalStream(...args)
+      // Synthetic late transport fault after canonical usage, never a new wire contract.
+      yield { type: 'error', code: 'server_shutting_down', message: 'late stream failure' }
+    })
+    t.api.script(
+      OVERFLOW,
+      { text: 'summary', usage: { input: 90, output: 10 } },
+      { text: 'must not retry' },
+    )
+    await t.send()
+    expect(t.session.snapshot().goal).toMatchObject({ status: 'budget_limited', tokens_used: 120 })
+    expect(t.api.responseBodies()).toHaveLength(5)
+    expect(t.starts()).toBe(1)
     await t.host.close()
   })
 
@@ -353,6 +714,15 @@ describe('automatic compaction in the shared Model API loop', () => {
   it('keeps original context after an incomplete summary and settles the paid attempt', async () => {
     const t = await setup()
     await t.seed()
+    const originalStream = t.client.streamResponse.bind(t.client)
+    let closed = 0
+    vi.spyOn(t.client, 'streamResponse').mockImplementation(async function* (...args) {
+      try {
+        yield* originalStream(...args)
+      } finally {
+        closed += 1
+      }
+    })
     t.nearWindow()
     t.api.script(
       { calls: [TOOL] },
@@ -361,6 +731,7 @@ describe('automatic compaction in the shared Model API loop', () => {
     )
     await t.send()
     expect(t.settled).toHaveLength(1)
+    expect(closed).toBe(3)
     expect(JSON.stringify(t.api.responseBodies().at(-1)?.['input'])).toContain('earlier history')
     expect(t.events).toContainEqual(
       expect.objectContaining({ type: 'backendNotice', text: EN.autoCompactionFailed }),
@@ -392,6 +763,43 @@ describe('automatic compaction in the shared Model API loop', () => {
     expect(t.api.responseBodies()).toHaveLength(3)
     await t.host.close()
   })
+
+  it.each([false, true])(
+    'retires summary retry callbacks after cleanup, stopped=%s',
+    async (isStopped) => {
+      const t = await setup()
+      await t.seed()
+      const held = Promise.withResolvers<undefined>()
+      const entered = Promise.withResolvers<undefined>()
+      const originalStream = t.client.streamResponse.bind(t.client)
+      let responses = 0
+      let retry: ((notice: RetryNotice) => void) | undefined
+      vi.spyOn(t.client, 'streamResponse').mockImplementation(async function* (...args) {
+        responses += 1
+        const isSummary = responses === 2
+        if (isSummary) retry = args[2]
+        yield* originalStream(...args)
+        if (!isSummary) return
+        entered.resolve(undefined)
+        if (isStopped) await held.promise
+      })
+      t.api.script(OVERFLOW, { text: 'summary' }, { text: 'done' })
+      const done = t.send()
+      await entered.promise
+      try {
+        if (isStopped) await t.stop()
+        await done
+        if (retry === undefined) throw new Error('summary retry callback missing')
+        retry({ attempt: 1, maxAttempts: 4, delayMs: 0, reason: 'HTTP 429: late retry notice' })
+        expect(t.settlements).toEqual(['returned'])
+        expect(t.events.filter((event) => event.type === 'turnRetry')).toHaveLength(0)
+      } finally {
+        held.resolve(undefined)
+        await done
+        await t.host.close()
+      }
+    },
+  )
 
   it.each([
     { mode: 'denyUnmatched', trusted: true },

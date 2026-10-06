@@ -5127,10 +5127,12 @@ every line of ours it cites, is `docs/research/pi-solpi-2026-10-05.md`.
    milestone strengthens it), golden request bytes identical when a feature
    is off, one shared paid gate, a guarded `then_run`, compaction that cannot
    be blocked, and an M75 eval that stays comparable.
-6. **Observation packing is on by default.** `museSpark.modelApiObservationPacking`
-   has defaulted to on since D78; M73's record still said "off by default" and
-   is corrected. So the packing items (2, 4, 7, 18, 22) reach every Model API
-   user.
+6. **Observation packing defaults on in released main under D78.** The owner
+   intends the packing items (2, 4, 7, 18, 22) to reach every Model API user.
+   **Candidate packing default: off.** This older C2 tree's manifest and
+   `SETTING_DEFAULTS` still disable `museSpark.modelApiObservationPacking` by
+   default, as its README records. That released-main change must be integrated
+   before claiming packing reaches fresh sessions in this candidate.
 
 ## 3. Open questions (need the owner)
 
@@ -11135,10 +11137,11 @@ evaluation is authorized by these repairs.
   happens once per output; the ledger matches the tokens left out.
 - **Tests.** The fake Model API with long outputs, and its M75 run.
 - **Size.** S.
-- **Default since D78 (2026-10-04): on.** `museSpark.modelApiObservationPacking`
-  is available by default; the status line below records the 2026-10-02
-  release, which shipped it off. M101 (D81.6) fixes the packing items for
-  every Model API user.
+- **D78 released-main default (2026-10-04): on.** The owner's target makes
+  `museSpark.modelApiObservationPacking` available by default.
+  **Candidate packing default: off.** This older C2 candidate's manifest and
+  runtime still default it off; the README agrees. Integrate released main's
+  default change before claiming M101's packing fixes reach every fresh session.
 - **Status 2026-10-02: shipped off by default after its M75 run passed.**
   Built 2026-10-01 on
   `feature/m73-packing`, from M75's merged head. What is in it:
@@ -15741,6 +15744,28 @@ receipts remain the lead's checks under the rig brief.
   bytes. Final static gates, every unchanged production cap and the corrected
   installed-editor bundle's 11 tests pass. Production remains inactive.
 
+  **FIXM101C2 / RVM101C2 repair scope (2026-10-05, kubuntu).** Repair all four
+  P2s: race automatic-compaction dependencies against the owned turn signal,
+  including admission, memory, summary work and recount (which also receives
+  that signal); keep a committed manual summary accepted when its courtesy
+  recount is stopped while the owning automatic turn remains cancelled;
+  observe dependency rejections even when Stop wins before the
+  wait; preserve iterator cleanup without waiting on an uncooperative stream;
+  retire settled attempt callbacks so a late notice cannot tally it twice;
+  release a reservation that arrives after Stop before dispatch;
+  honour the memory tool runner's stopping-hook result; recheck
+  goal spending after each summary before retry/fallback/recount/continuation while
+  preserving separately steered user input; and select summary and retained
+  context tariffs from their respective new input sizes. Correct P3's packing
+  default claims against this candidate's actual manifest/runtime defaults.
+  Each repair requires a failing owning regression and a deliberate guard
+  break restored byte-exact in `docs/certification/m101-c2.md`. Keep production
+  inactive, existing gates unchanged and introduce no dependency. The required
+  release-base merge awaits clarification of the overriding rig merge ban.
+  Meanwhile, carry only the five named test repairs already present in
+  `3e04f6f5` and prove those complete files pass; no release-base integration
+  or default change is implied by fixture/expectation repairs.
+
 - **Lane O — context overflow** (item 6, item 13's budget scaling).
   A pure `providers/overflow.ts` with Pi's per-format patterns (429 and rate
   limits and quota/billing failures never count) and the two silent-overflow signals; the model's
@@ -15844,6 +15869,15 @@ receipts remain the lead's checks under the rig brief.
   - [ ] Provider × item table complete; full gate green
 
 ## 7. Gates
+
+**FIXM101C2 current check scope (2026-10-05, kubuntu).** The five inherited
+test repairs from `3e04f6f5` are carried unchanged after their failures are
+reproduced here. Their old C2 baseline deferral below is historical, superseded
+by this repair lane's complete-file receipts in `docs/certification/m101-c2.md`.
+The shared rig common rules expressly prohibit `npm run quality` and the full
+test wrapper here; run the required scoped static/build gates and complete
+owning suites, with the integrator responsible for full quality and the
+platform matrix before release. No threshold, ignore or timeout is weakened.
 
 **M101 C2 imported-suite baseline deferral (2026-10-05, kubuntu).**
 The 373-file importing inventory (plus two related document/build suites)
@@ -16511,6 +16545,22 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM101C2 / RVM101C2 (2026-10-05, kubuntu):** all four assigned P2
+  findings and P3's documentation mismatch are repaired with owning
+  regressions and byte-exact restored guard drills. No assigned finding is
+  deferred. The five inherited fixture/expectation repairs are carried from
+  `3e04f6f5` without changing product guards. Receipts are in
+  `docs/certification/m101-c2.md`.
+- **FIXM101C2-RELEASE-BASE:** the required local merge of released main
+  `2d4d72bd` awaits clarification: the overriding rig note says “NEVER … merge
+  main” while the lane body says to merge it first. That local commit exists;
+  no remote/configuration change, push, merge or rebase is performed. Carrying
+  its five existing test repairs does not integrate its other changes or
+  certify this older candidate as release 0.14.0. Safe for this review repair:
+  production automatic compaction stays inactive behind the false evaluation
+  latch and missing admission still refuses extra dispatch. Follow-up: the
+  lead authorizes/performs the base merge keeping both sides, updates actual
+  packing/default/integration claims, and runs full quality/platform checks.
 - **M101C2 integration prerequisites (2026-10-05, kubuntu):** the automatic
   mechanism, settled boundary, once-per-turn overflow recovery, memory policy,
   full exact todo continuation and all-editor options are built and tested.
