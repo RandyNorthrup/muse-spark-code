@@ -296,10 +296,29 @@ describe('OCI release gates', () => {
       ),
     ).toThrow('Exact release')
     expect(() => verifyReleaseIdentity(reference, 'main', execute)).toThrow('Exact release')
+    expect(() =>
+      verifyReleaseIdentity(reference.replace('ghcr.io', 'ghcrXio'), 'v0.14.0', execute),
+    ).toThrow('Exact release')
+    expect(() => verifyReleaseIdentity(reference.slice(0, -1), 'v0.14.0', execute)).toThrow(
+      'Exact release',
+    )
     const refuse = vi.fn(() => {
       throw new Error('signature rejected')
     })
     expect(() => verifyReleaseIdentity(reference, 'v0.14.0', refuse)).toThrow('signature rejected')
+  })
+  it('withholds malformed OCI JSON contents from CLI diagnostics', () => {
+    fixture.config = Buffer.from('M110PRIVATE')
+    writeIndex()
+    const archive = path.join(fixture.root, 'malformed.tar')
+    execFileSync('tar', ['-cf', archive, '-C', fixture.oci, '.'])
+    const result = spawnSync(
+      process.execPath,
+      ['scripts/check-node-image.mjs', archive, path.join(fixture.root, 'receipt.json')],
+      { encoding: 'utf8' },
+    )
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).not.toContain('M110PRIVATE')
   })
   it('extracts no archive symlink and refuses traversal', () => {
     const outside = path.join(fixture.root, 'outside')

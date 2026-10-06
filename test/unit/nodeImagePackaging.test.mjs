@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { spawnSync } from 'node:child_process'
 import {
   cpSync,
   mkdirSync,
@@ -99,4 +100,25 @@ describe('node image package boundary', () => {
     writeFileSync(path.join(fixture.runtime, 'dist/nodeToolHost.js'), '')
     expect(() => stageNodeImage(fixture.runtime, fixture.stage)).toThrow('Empty runtime artifact')
   })
+  it('withholds malformed package JSON contents from CLI diagnostics', () => {
+    writeFileSync(path.join(fixture.runtime, 'package.json'), 'M110PRIVATE')
+    const result = spawnSync(
+      process.execPath,
+      ['scripts/package-node-image.mjs', fixture.runtime, fixture.stage],
+      { encoding: 'utf8' },
+    )
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).not.toContain('M110PRIVATE')
+  })
+  it.each(['node-pty', '@napi-rs/keyring'])(
+    'refuses a lock missing native dependency %s',
+    (name) => {
+      const lock = JSON.parse(readFileSync(path.join(fixture.runtime, 'package-lock.json'), 'utf8'))
+      Reflect.deleteProperty(lock.packages, `node_modules/${name}`)
+      writeFileSync(path.join(fixture.runtime, 'package-lock.json'), JSON.stringify(lock))
+      expect(() => stageNodeImage(fixture.runtime, fixture.stage)).toThrow(
+        'Native dependencies missing',
+      )
+    },
+  )
 })

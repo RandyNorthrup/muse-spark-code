@@ -129,7 +129,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   } catch (error) {
     // Scanner output can contain user material, even with redaction enabled.
     let message = 'Node context secret scan failed'
-    if (error instanceof z.ZodError) message = 'Invalid node package manifest or lock'
+    if (error instanceof z.ZodError || error instanceof SyntaxError)
+      message = 'Invalid node package manifest or lock'
     else if (error.status === undefined) message = error.message
     console.error(message)
     process.exitCode = 1

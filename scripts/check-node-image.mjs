@@ -200,8 +200,10 @@ export function inspectNodeArchive(directory, { scanLayer, extractLayer }) {
 }
 
 export function verifyReleaseIdentity(reference, tag, execute = execFileSync) {
+  const prefix = `${POLICY.image}@sha256:`
   if (
-    !new RegExp(String.raw`^${POLICY.image}@sha256:[a-f\d]{64}$`).test(reference) ||
+    !reference.startsWith(prefix) ||
+    !/^[a-f\d]{64}$/.test(reference.slice(prefix.length)) ||
     !/^v\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(tag)
   )
     throw new Error('Exact release image digest and version tag required')
@@ -266,7 +268,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     console.log('Node image archive checks passed')
   } catch (error) {
     console.error(
-      error.status === undefined && !(error instanceof z.ZodError)
+      error.status === undefined &&
+        !(error instanceof z.ZodError) &&
+        !(error instanceof SyntaxError)
         ? error.message
         : 'Node image check failed (untrusted tool output withheld)',
     )
