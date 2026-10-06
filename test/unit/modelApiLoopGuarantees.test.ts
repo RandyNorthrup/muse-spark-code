@@ -205,6 +205,54 @@ describe('M106 loop guarantees', () => {
     await rig.host.close()
   })
 
+  it('queues accepted steering after exhausted, disabled and other incomplete responses', async () => {
+    for (const scenario of ['exhausted', 'disabled', 'other']) {
+      const rig = await setup({ outputContinuation: () => scenario !== 'disabled' })
+      const held = Promise.withResolvers<undefined>()
+      const requested = Promise.withResolvers<undefined>()
+      const reason = scenario === 'other' ? 'content_filter' : 'max_output_tokens'
+      rig.api.script(
+        ...(scenario === 'exhausted' ? [{ text: 'Partial.', incomplete: { reason } }] : []),
+        {
+          text: 'Last partial.',
+          incomplete: { reason },
+          hold: held.promise,
+          onRequest: () => {
+            requested.resolve(undefined)
+          },
+        },
+        { text: 'Steering answered.' },
+      )
+      const submitted = await rig.session.sendTurn([{ type: 'text', text: 'Work.' }])
+      await requested.promise
+      const steering = await rig.session.steer(submitted.turnId, [
+        { type: 'text', text: 'Keep this accepted steering.' },
+      ])
+      expect(steering.disposition).toBe('steered')
+      held.resolve(undefined)
+      await rig.session.settled()
+      expect(rig.api.responseBodies()).toHaveLength(scenario === 'exhausted' ? 3 : 2)
+      expect(JSON.stringify(rig.api.responseBodies().at(-1)?.['input'])).toContain(
+        'Keep this accepted steering.',
+      )
+      const reassigned = rig.events.find(
+        (event) =>
+          event.type === 'userMessageTurnChanged' && event.userMessageId === steering.userMessageId,
+      )
+      if (reassigned?.type !== 'userMessageTurnChanged') throw new Error('missing reassignment')
+      expect(reassigned.turnId).not.toBe(submitted.turnId)
+      expect(rig.events).toContainEqual({ type: 'turnStarted', turnId: reassigned.turnId })
+      expect(rig.session.history().items).toContainEqual(
+        expect.objectContaining({
+          itemId: steering.userMessageId,
+          kind: 'userMessage',
+          text: 'Keep this accepted steering.',
+        }),
+      )
+      await rig.host.close()
+    }
+  })
+
   it('suppresses the third unchanged text read, stops the fourth and resets for a new turn', async () => {
     const rig = await setup()
     rig.api.script(...repeatReplies(), { text: 'Never requested.' })

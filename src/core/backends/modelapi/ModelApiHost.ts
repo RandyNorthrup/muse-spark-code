@@ -10695,8 +10695,6 @@ export class ModelApiSession implements AgentSession {
     if (terminal !== COMPLETED) {
       this.dropUndeliveredMedia(turn.turnId)
     }
-    // `loop` returns only with nothing steered left (D26), and `steer` is
-    // refused once `active` is cleared, so no input is lost between the two.
     // A note that arrived during the last reply is kept for the next request (M46).
     this.settleNotes(turn.turnId)
     try {
@@ -10710,6 +10708,9 @@ export class ModelApiSession implements AgentSession {
       )
     }
     this.deps.judge?.discardTurn(this.sessionId, turn.turnId)
+    // Every exit preserves input the last request did not admit, including
+    // incomplete replies and steering accepted while finalization awaited.
+    this.queuedTurns.unshift(...this.queuedSteered(turn))
     this.active = undefined
     this.status = IDLE
     this.turnCount += 1

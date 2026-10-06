@@ -19407,6 +19407,18 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**L2 review repair (FIXM106L2, 2026-10-06).** Repair all four RVM106L2
+P2 findings: preserve accepted steering on every turn exit with normal
+next-turn admission; discard speculative results and seen-file proofs when
+Stop arrives during settlement; serialize any batch with applicable enabled
+PreToolUse/PostToolUse hooks; pass the turn signal through native reads,
+listings and searches and detach stuck read work on Stop. Keep serial replay
+bytes identical, use fake-only regressions and byte-exact red drills, and
+retain the existing gates. Native I/O signal plumbing is limited to the
+existing tool adapters and listing paths required by the fourth finding.
+Certification: `docs/certification/m106-l2.md`. No live/paid calls, dependency,
+merge, rebase or push; aggregate quality and wiring remain lane W's work.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
 FIXM101P2; everything else starts against lane 0's contracts.
