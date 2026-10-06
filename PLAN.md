@@ -18950,6 +18950,11 @@ pass unchanged. The browser's inline English fallback and tiny loader grow
 about 4.2 KiB against I/0; D83's final zero-growth qualification remains with
 W/E/lead, as already recorded by the integration lane. UI certification:
 docs/certification/m103-u.md.
+Final U receipts: 192 owning unit cases, 30 source/bundle failure drills with
+SHA-256 restoration, a browser sticky-Stop negative control, and 64 passing
+Maker axe pages (English/German, four themes). Twenty reviewed/captured images
+and browser probe facts accompany the editor equivalence matrix. The port
+remains unchanged and every installed/physical qualifier remains explicit.
 Owning fake suites, intentional guard failures with byte-exact restoration,
 localized harness scenes/axe, static gates and unchanged build caps supply
 the lane evidence. V/R own actual adapters and W owns final command/tool and

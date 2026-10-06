@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-06",
+  "machine": "win11",
+  "browser": "153.0.8010.53",
+  "results": [
+    {
+      "scenario": "maker-approval-narrow",
+      "width": {
+        "client": 302,
+        "scroll": 302
+      },
+      "inert": true,
+      "stopAfterScroll": {
+        "visible": true,
+        "top": 101,
+        "bottom": 177,
+        "bodyTop": 93,
+        "bodyBottom": 710,
+        "scroll": 367
+      },
+      "stickyFailureControl": {
+        "visible": false,
+        "top": -266,
+        "bottom": -190,
+        "bodyTop": 93,
+        "bodyBottom": 710,
+        "scroll": 367
+      },
+      "keyboardWrap": true,
+      "escape": "reject_once",
+      "stop": {
+        "v": 1,
+        "type": "makerStop"
+      }
+    },
+    {
+      "scenario": "maker-hardware-off",
+      "writeDisabled": true,
+      "stopUngated": true
+    },
+    {
+      "scenario": "maker-wizard",
+      "locale": "de",
+      "title": "Maschine hinzufügen",
+      "stopAfterScroll": true
+    },
+    {
+      "scenario": "maker-preview",
+      "separatePage": true,
+      "realWebGL": true,
+      "keyboardRotationChangesPixels": true,
+      "resetRestoresUniforms": true,
+      "originalView": {
+        "angle": 0,
+        "scale": 1
+      },
+      "stopUngated": true,
+      "canvasSha256": "8428480d08a989936a0453c31b610d45119ee4ddd13be26b771a75e7fdf9bda1",
+      "fullPngEquality": "Inconclusive on two attempts (including waiting for theme); keyboard focus outlines from controls overlap canvas screenshot edge. That approach stopped; actual uniform reset and reviewed mesh confirm the view."
+    },
+    {
+      "stickyFailureControl": "DOM CSS override only; removed before normal assertion",
+      "sourceSha256": "73b375e4b37d1989479dd1d8179278eb679f119eda958dfb8a2e33f9df055574",
+      "sourceUnchanged": true
+    }
+  ]
+}

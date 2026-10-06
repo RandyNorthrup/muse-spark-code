@@ -1035,7 +1035,11 @@
         document.body.style.width = '100%'
       }
     </script>
-    <script type="module" src="../../dist/webview/main.js"></script>
+    <script>
+      // The independent preview page must not also mount the chat surface.
+      if (new URLSearchParams(location.search).get('scenario') !== 'maker-preview')
+        document.write('<script type="module" src="../../dist/webview/main.js"><\/script>')
+    </script>
     <script>
       // Scripting errors and dropped host messages are written into the page
       // so a screenshot shows them instead of a silent empty state.
@@ -1560,7 +1564,11 @@
       }
       const steps = {
         'maker-approval': () => makerFixture('approval'),
-        'maker-approval-narrow': () => makerFixture('approval'),
+        'maker-approval-narrow': () => {
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          makerFixture('approval')
+        },
         'maker-serial-approval': () => makerFixture('serial'),
         'maker-devices': () => makerFixture('devices'),
         'maker-hardware-off': () => makerFixture('off'),
@@ -4618,7 +4626,10 @@
       // a sign-in or install gate, or the crash screen; never sooner than the
       // 400 ms it always waited. A fixed delay alone raced the first render
       // on a loaded machine (M40: `agents` and `dictation` found no composer).
-      if (scenario !== null && scenario in steps) {
+      if (scenario === 'maker-preview') {
+        // This page has its own entry and no chat composer to wait for.
+        later(100, steps[scenario])
+      } else if (scenario !== null && scenario in steps) {
         later(100, () =>
           whenFound('textarea, .gate, .todo-surface, [role="alert"]', () => steps[scenario]()),
         )
