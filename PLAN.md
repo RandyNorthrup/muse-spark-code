@@ -20619,6 +20619,22 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**FIXM109C review repair (2026-10-05, Mac mini).** Before code, the lane
+accepts all five RVM109C findings: bind the independent anchor to a keyed
+committed-state digest chained to the previous digest; authenticate a
+write-ahead intent with its exact prior anchor for deterministic recovery of
+confirmed restore jumps; sign validated canonical JSON (sorted object keys,
+JSON-normalized numbers); erase owned keys when RNG throws; and give native
+tests their own temporary parent. Restore requires explicit caller confirmation
+and a fresh generation. An existing anchor admits only its exact current
+snapshot, even for a newer backup, so a fork or revoked policy/material cannot
+return through restore. A new device without history may import a confirmed
+backup. All logic remains shared core for every editor; B/W must bind confirmation
+only to the user's trusted surface. Regression tests and byte-exact red drills
+belong in `docs/certification/m109-c.md`; the lane introduces no dependency,
+command or surface. The rig brief reserves aggregate quality for the lead and
+prohibits merges, pushes and live/paid calls.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/credential-vault-2026-10-05.md`.
 

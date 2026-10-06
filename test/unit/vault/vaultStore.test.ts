@@ -1,6 +1,7 @@
 import { chmod, lstat, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import * as filesystem from 'node:fs/promises'
 import path from 'node:path'
+import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NodeVaultFiles, VaultStore } from '../../../src/core/vault/store'
 import {
@@ -23,7 +24,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   return { ...original, rename: vi.fn(original.rename), lstat: vi.fn(original.lstat) }
 })
 async function directory(): Promise<string> {
-  const root = await mkdtemp(path.join(process.cwd(), 'temp', 'm109-c-'))
+  const root = await mkdtemp(path.join(await filesystem.realpath(tmpdir()), 'm109-c-'))
   directories.push(root)
   return root
 }
@@ -418,6 +419,13 @@ describe('encrypted vault store', () => {
 })
 
 describe('native files and platform ports', () => {
+  it('creates its native fixture under an existing OS temporary parent', async () => {
+    const root = await directory()
+    const parent = await filesystem.realpath(tmpdir())
+    expect(path.dirname(root)).toBe(parent)
+    const sample = await lstat(root)
+    expect(sample.isDirectory()).toBe(true)
+  })
   it('refuses a foreign POSIX owner reported by the filesystem before running a writer', async () => {
     const root = await directory()
     const original = await vi.importActual<typeof filesystem>('node:fs/promises')

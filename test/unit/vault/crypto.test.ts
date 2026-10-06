@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import * as crypto from 'node:crypto'
+import { describe, expect, it, vi } from 'vitest'
 import {
   aesGcmOpen,
   aesGcmSeal,
@@ -17,7 +18,47 @@ import {
 import { item } from '../helpers/vault/fixtures'
 import { type VaultItem } from '../../../src/shared/vault'
 
+vi.mock('node:crypto', async (importOriginal) => {
+  const original = await importOriginal<typeof crypto>()
+  return { ...original, randomFillSync: vi.fn(original.randomFillSync) }
+})
+
 describe('vault crypto', () => {
+  it('erases derived and partially filled random buffers when nonce RNG throws', () => {
+    const key = randomVaultBytes()
+    const allocations: Buffer[] = []
+    const allocate = Buffer.alloc
+    const allocation = vi.spyOn(Buffer, 'alloc').mockImplementation((length) => {
+      const bytes = allocate(length)
+      allocations.push(bytes)
+      return bytes
+    })
+    const rng = vi.spyOn(crypto, 'randomFillSync').mockImplementation((bytes) => {
+      new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength).fill(100)
+      throw new Error('generated RNG failure')
+    })
+    try {
+      expect(() =>
+        sealVaultBlock(
+          key,
+          { vaultId: 'a'.repeat(32), id: 'index', kind: 'index', generation: 1 },
+          key,
+        ),
+      ).toThrow('generated RNG failure')
+      const derived = allocations.filter((bytes) => bytes.length === key.length)
+      expect(derived.length).toBe(1)
+      expect(derived.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true)
+      const random = allocations.filter((bytes) => bytes.length === 12)
+      expect(random.length).toBe(1)
+      expect(random.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true)
+      expect(key.some((byte) => byte !== 0)).toBe(true)
+    } finally {
+      rng.mockRestore()
+      allocation.mockRestore()
+      for (const bytes of allocations) bytes.fill(0)
+      key.fill(0)
+    }
+  })
   it('roundtrips every private material kind with owned bytes and no prototype-shaped field', () => {
     const materials: VaultItem['material'][] = [
       { kind: 'apiKey', value: randomVaultBytes(), auth: 'bearer', origin: 'https://example.com' },

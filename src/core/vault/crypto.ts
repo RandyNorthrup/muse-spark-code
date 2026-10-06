@@ -39,7 +39,13 @@ export function encodeVaultJson(value: object): Buffer {
 }
 
 export function randomVaultBytes(length: number = VAULT_KEY_BYTES): Buffer<ArrayBuffer> {
-  return randomFillSync(Buffer.alloc(length))
+  const bytes = Buffer.alloc(length)
+  try {
+    return randomFillSync(bytes)
+  } catch (error) {
+    bytes.fill(0)
+    throw error
+  }
 }
 
 export function areVaultBytesEqual(left: Uint8Array, right: Uint8Array): boolean {
@@ -167,8 +173,9 @@ export function sealVaultBlock(
 ): VaultBlock {
   const aad = contextBytes(context)
   const derived = hkdfSha256(key, Buffer.from(context.vaultId), aad)
-  const nonce = randomVaultBytes(VAULT_NONCE_BYTES)
+  let nonce: Buffer | undefined
   try {
+    nonce = randomVaultBytes(VAULT_NONCE_BYTES)
     const sealed = aesGcmSeal(derived, nonce, plaintext, aad)
     return {
       generation: context.generation,
@@ -178,7 +185,7 @@ export function sealVaultBlock(
     }
   } finally {
     derived.fill(0)
-    nonce.fill(0)
+    nonce?.fill(0)
   }
 }
 

@@ -117,8 +117,8 @@ export class PassphraseVaultSlot implements VaultSlotPort {
   }
   async wrap(key: Uint8Array): Promise<VaultSlotRecord> {
     const ownedKey = ownedBytes(key)
-    const kdf = newVaultKdf(this.argon2)
     try {
+      const kdf = newVaultKdf(this.argon2)
       return await this.withKey(kdf, '', (wrappingKey) =>
         wrapSlot(ownedKey, wrappingKey, emptySlot(this.vaultId, this.clock, this.tier, kdf)),
       )

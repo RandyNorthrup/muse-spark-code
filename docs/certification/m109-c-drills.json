@@ -606,5 +606,45 @@
       "test/unit/vault/crypto.test.ts > vault crypto > generates fresh 96-bit nonces on repeated encryption and separates generations"
     ],
     "restoredSha256": "dc12cb4a2014826e5b768fb44165fc87080449d117b7297a08df8036c7f3794d"
+  },
+  {
+    "guard": "RVM109C-4 nonce RNG cleanup",
+    "source": "src/core/vault/crypto.ts",
+    "suite": ["test/unit/vault/crypto.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "vault crypto erases derived and partially filled random buffers when nonce RNG throws"
+    ],
+    "restoredSha256": "bbb14677e49e01c27a024d3eaf87c4fa7834a5a769f46128449ec36f55ed88b4"
+  },
+  {
+    "guard": "RVM109C-4 partial RNG cleanup",
+    "source": "src/core/vault/crypto.ts",
+    "suite": ["test/unit/vault/crypto.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "vault crypto erases derived and partially filled random buffers when nonce RNG throws"
+    ],
+    "restoredSha256": "bbb14677e49e01c27a024d3eaf87c4fa7834a5a769f46128449ec36f55ed88b4"
+  },
+  {
+    "guard": "RVM109C-4 salt RNG cleanup",
+    "source": "src/core/vault/keyslots.ts",
+    "suite": ["test/unit/vault/keyslots.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "vault software slots erases its root-key copy when salt RNG throws before asking for a passphrase"
+    ],
+    "restoredSha256": "d881ec40292d914e1176d887e1f88e4d1335b90a5da0bf8e0932809216d405a5"
+  },
+  {
+    "guard": "RVM109C-5 native fixture parent",
+    "source": "test/unit/vault/vaultStore.test.ts",
+    "suite": ["test/unit/vault/vaultStore.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "native files and platform ports creates its native fixture under an existing OS temporary parent"
+    ],
+    "restoredSha256": "3c3d50dd7f2e7c1736d1b9ae04f4c563ddc8243ee413d0abb1458ca775345ab0"
   }
 ]

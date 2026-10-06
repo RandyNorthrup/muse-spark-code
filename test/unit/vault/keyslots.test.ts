@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import * as crypto from 'node:crypto'
+import { describe, expect, it, vi } from 'vitest'
 import {
   createRecoverySlot,
   PassphraseVaultSlot,
@@ -9,7 +10,44 @@ import { FakeVaultClock } from '../helpers/vault/core'
 
 const vaultId = 'a'.repeat(32)
 
+vi.mock('node:crypto', async (importOriginal) => {
+  const original = await importOriginal<typeof crypto>()
+  return { ...original, randomFillSync: vi.fn(original.randomFillSync) }
+})
+
 describe('vault software slots', () => {
+  it('erases its root-key copy when salt RNG throws before asking for a passphrase', async () => {
+    const key = randomVaultBytes()
+    const secret = vi.fn(() => Promise.resolve(randomVaultBytes()))
+    const slot = new PassphraseVaultSlot(vaultId, new FakeVaultClock(), secret)
+    const allocations: Buffer[] = []
+    const allocate = Buffer.alloc
+    const allocation = vi.spyOn(Buffer, 'alloc').mockImplementation((length) => {
+      const bytes = allocate(length)
+      allocations.push(bytes)
+      return bytes
+    })
+    const rng = vi.spyOn(crypto, 'randomFillSync').mockImplementation((bytes) => {
+      new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength).fill(100)
+      throw new Error('generated RNG failure')
+    })
+    try {
+      await expect(slot.wrap(key)).rejects.toThrow('generated RNG failure')
+      const owned = allocations.filter((bytes) => bytes.length === key.length)
+      expect(owned.length).toBe(1)
+      expect(owned.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true)
+      expect(secret).not.toHaveBeenCalled()
+      const random = allocations.filter((bytes) => bytes.length === 16)
+      expect(random.length).toBe(1)
+      expect(random.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true)
+      expect(key.some((byte) => byte !== 0)).toBe(true)
+    } finally {
+      rng.mockRestore()
+      allocation.mockRestore()
+      for (const bytes of allocations) bytes.fill(0)
+      key.fill(0)
+    }
+  })
   it('any independent recovery code unwraps only its own vault key', () => {
     const key = randomVaultBytes()
     const first = createRecoverySlot(key, vaultId, new FakeVaultClock())
