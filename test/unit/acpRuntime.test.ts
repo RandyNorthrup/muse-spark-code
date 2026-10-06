@@ -18,6 +18,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { LaunchResolution } from '../../src/core/backends/musecode/launch'
 import { authClear, authSet, authStatus, login } from '../../src/runtime/authCommands'
 import { createRuntimeBackend } from '../../src/runtime/backends'
+import type { UsageRecording } from '../../src/core/usage/recording'
+import { watchSessionTurns } from './helpers/sessionTurns'
 import { WorkspaceEdits } from '../../src/core/verify/workspaceEdits'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
 import { isSamePath } from '../../src/core/paths'
@@ -50,7 +52,7 @@ import {
   UI_TEXT,
   PAID_FEATURES,
 } from '../../src/shared/constants'
-import { watchSessionTurns } from './helpers/sessionTurns'
+
 import { memorySecrets } from './helpers/fakes'
 import { FAKE_MODEL_API_KEY, fakeModelApi } from './helpers/fakeModelApi'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
@@ -539,9 +541,11 @@ describe('createRuntimeBackend', () => {
     env: NodeJS.ProcessEnv = {},
     distDir = dist.folder,
     fetch: typeof globalThis.fetch = fakeModelApi().fetch,
+    usageRecording?: UsageRecording,
   ) {
     return createRuntimeBackend({
       options: { ...DEFAULTS, ...options },
+      usageRecording,
       version: '0.0.0-test',
       distDir,
       platform: process.platform,
@@ -556,6 +560,70 @@ describe('createRuntimeBackend', () => {
     })
   }
 
+  it.each(['imageGeneration', 'webSearch'] as const)(
+    'records ordinary ACP %s through the shared paid producer',
+    async (feature) => {
+      const api = fakeModelApi()
+      const tap: UsageRecording = {
+        note: vi.fn(),
+        limit: vi.fn(),
+        today: () => Promise.resolve([]),
+        flush: () => Promise.resolve(),
+      }
+      const secrets = memorySecrets()
+      secrets.values.set(SECRET_KEYS.modelApiKey, FAKE_MODEL_API_KEY)
+      const runtime = backend(
+        { backend: 'modelApi', paidFeatures: [feature], trustWorkspace: true },
+        secrets,
+        {},
+        dist.folder,
+        api.fetch,
+        tap,
+      )
+      const ask = vi.fn().mockResolvedValue('once')
+      runtime.paid.attach(ask)
+      const root = folder()
+      const host = await runtime.backend.hostFor(root)
+      const session = await host.startSession({
+        workspaceRoot: root,
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'allowAll',
+      })
+      const turns = watchSessionTurns(session)
+      api.script(
+        feature === 'imageGeneration'
+          ? {
+              calls: [
+                {
+                  name: 'generate_image',
+                  arguments: '{"prompt":"draw","path":"picture.png"}',
+                  callId: 'image-call',
+                },
+              ],
+            }
+          : { searches: [{ queries: ['public facts'] }], text: 'answer' },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'use the paid feature' }])
+      await turns.turnDone()
+      expect(ask).toHaveBeenCalledOnce()
+      const paidNotes = vi
+        .mocked(tap.note)
+        .mock.calls.filter(
+          ([, context]) => context.kind === (feature === 'imageGeneration' ? 'image' : 'search'),
+        )
+      expect(paidNotes).toEqual([
+        [
+          undefined,
+          expect.objectContaining({
+            outcome: 'completed',
+            units: feature === 'imageGeneration' ? { images: 1 } : { searches: 1 },
+          }),
+        ],
+      ])
+      await runtime.close()
+    },
+  )
   it('asks for a key the Model API backend does not have, and reports a store it cannot read', async () => {
     const secrets = memorySecrets()
     const runtime = backend({ backend: 'modelApi' }, secrets)

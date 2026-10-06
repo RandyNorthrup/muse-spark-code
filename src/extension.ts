@@ -1267,10 +1267,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // (awaited, so its host is closed too), then the backends (the review of
   // PR #49).
   lifecycle.shutdown = async () => {
-    nativeStarts.abort()
-    accountHosts.close()
-    await auth.stopSignIn()
-    await restartBackend('the window is closing', true)
+    try {
+      nativeStarts.abort()
+      accountHosts.close()
+      await auth.stopSignIn()
+      await restartBackend('the window is closing', true)
+    } finally {
+      await usageRecording.flush()
+    }
   }
 
   const editorContext = new EditorContextTracker({

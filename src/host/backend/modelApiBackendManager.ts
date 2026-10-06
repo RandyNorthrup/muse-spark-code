@@ -297,6 +297,7 @@ export class ModelApiBackendManager {
         admitResponseAttempt: variant.admitResponseAttempt,
         noteResponseUsage: variant.noteResponseUsage,
         usageRecording: this.deps.usageRecording ?? ModelApiBackendManager.usageRecording,
+        hasExternalPaidRecording: this.deps.hasExternalPaidRecording,
         usageKind: variant.usageKind,
         hasMetaCredential: this.deps.hasMetaCredential,
         ...(variant.budgetScope !== undefined && { budgetScope: variant.budgetScope }),

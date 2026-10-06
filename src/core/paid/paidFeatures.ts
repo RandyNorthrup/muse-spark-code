@@ -1,4 +1,4 @@
-import type { UsageRecording } from '../usage/recording'
+import type { RecordedCall, UsageRecording } from '../usage/recording'
 import type { UsageRecord } from '../../shared/usageJournal'
 // The paid Model API features (M33–M35, PLAN.md D30), "opt in and loud":
 // which are on, and what this window has used of them.
@@ -184,6 +184,34 @@ export class PaidFeatureGate {
   }
 }
 
+/** Shared paid-unit producer for VS Code, ACP and sent calls with lost responses. */
+export function recordPaidUse(
+  recording: UsageRecording | undefined,
+  feature: PaidFeature,
+  units: number,
+  context: Partial<
+    Pick<
+      RecordedCall,
+      'session' | 'startedAt' | 'durationMs' | 'outcome' | 'uncertain' | 'retainedLiabilityUsd'
+    >
+  > = {},
+): void {
+  if (units <= 0 || !['webSearch', 'imageGeneration', 'voice'].includes(feature)) return
+  const otherModel = feature === 'voice' ? MUSE_VOICE_MODEL : 'web_search'
+  const otherKind = feature === 'imageGeneration' ? 'image' : 'voice'
+  const otherUnits = feature === 'imageGeneration' ? { images: units } : { audioSeconds: units }
+  recording?.note(undefined, {
+    backend: 'modelApi',
+    provider: 'meta',
+    model: feature === 'imageGeneration' ? MODEL_API_IMAGE_MODEL : otherModel,
+    kind: feature === 'webSearch' ? 'search' : otherKind,
+    startedAt: Date.now(),
+    outcome: 'completed',
+    units: feature === 'webSearch' ? { searches: units } : otherUnits,
+    ...context,
+  })
+}
+
 /** What this window used of each paid feature since it opened (the usage dialog's tally). */
 export class PaidUsage {
   private tally: PaidTally = EMPTY_PAID_TALLY
@@ -203,7 +231,7 @@ export class PaidUsage {
     const attempts = new Set<string>()
     for (const record of records) {
       restored.webSearches += record.units?.searches ?? 0
-      restored.images += record.units?.images ?? 0
+      if (record.cost.certainty !== 'uncertain') restored.images += record.units?.images ?? 0
       restored.voiceSeconds += record.units?.audioSeconds ?? 0
       if (record.kind === 'schedule') restored.scheduledRuns += 1
       const tokens = (record.tokens.input ?? 0) + (record.tokens.output ?? 0)
@@ -285,20 +313,8 @@ export class PaidUsage {
     if (units <= 0) {
       return
     }
-    if (['webSearch', 'imageGeneration', 'voice'].includes(feature)) {
-      const otherModel = feature === 'voice' ? MUSE_VOICE_MODEL : 'web_search'
-      const otherKind = feature === 'imageGeneration' ? 'image' : 'voice'
-      const otherUnits = feature === 'imageGeneration' ? { images: units } : { audioSeconds: units }
-      this.recording?.note(undefined, {
-        backend: 'modelApi',
-        provider: 'meta',
-        model: feature === 'imageGeneration' ? MODEL_API_IMAGE_MODEL : otherModel,
-        kind: feature === 'webSearch' ? 'search' : otherKind,
-        startedAt: Date.now(),
-        outcome: 'completed',
-        units: feature === 'webSearch' ? { searches: units } : otherUnits,
-      })
-    }
+    recordPaidUse(this.recording, feature, units)
+
     const { tally } = this
     switch (feature) {
       case 'webSearch': {

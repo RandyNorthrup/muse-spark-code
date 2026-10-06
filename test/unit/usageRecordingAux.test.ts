@@ -72,6 +72,27 @@ describe('auxiliary recording', () => {
     usage.add('voice', 0)
     expect(tap.note).toHaveBeenCalledTimes(3)
   })
+  it('restores returned images without treating unknown sent outcomes as returned', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.restore([
+      {
+        ...record,
+        id: 'sent-unknown',
+        kind: 'image',
+        units: { images: 1 },
+        outcome: 'failed',
+        cost: { certainty: 'uncertain', usd: 0.01 },
+      },
+      {
+        ...record,
+        id: 'returned',
+        kind: 'image',
+        units: { images: 1 },
+        cost: { certainty: 'computed', usd: 0.01 },
+      },
+    ])
+    expect(usage.current.images).toBe(1)
+  })
   it('rebuilds today once, retains live additions and preserves uncertain liabilities', () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
     usage.add('imageGeneration', 1)

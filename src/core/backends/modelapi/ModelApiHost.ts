@@ -1,3 +1,4 @@
+import { recordPaidUse } from '../../paid/paidFeatures'
 import type { RecordedCall, UsageRecording } from '../../usage/recording'
 import { redactDiagnosticEvent } from '../../redact'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
@@ -392,6 +393,8 @@ import {
 export interface ModelApiPaidHooks {
   readonly usageRecording?: UsageRecording | undefined
   readonly usageKind?: RecordedCall['kind'] | undefined
+  /** Headless records paid attempts through its transport settlement tap. */
+  readonly hasExternalPaidRecording?: boolean | undefined
   /** Whether a paid feature is on: its machine setting and accepted price. */
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts attempts and extra-feature uses for the window. */
@@ -1886,6 +1889,7 @@ export class ModelApiSession implements AgentSession {
   private sendingModelId: string | undefined
   private recordedCall: RecordedCall | undefined
   private wasCallSent = false
+  private hasAmbiguousCallAttempt = false
   private hasRecordedCall = false
   private packedBaseline = 0
   private sendingModel: ResolvedModel | undefined
@@ -2385,6 +2389,7 @@ export class ModelApiSession implements AgentSession {
     this.sendingModelId = body.model
     this.hasRecordedCall = false
     this.wasCallSent = false
+    this.hasAmbiguousCallAttempt = false
     this.packedBaseline = this.packing?.savings() ?? 0
     const parentKind = this.isSideChat ? 'sideChat' : (this.deps.usageKind ?? 'turn')
     const kind = this.isSubagent ? 'subagent' : parentKind
@@ -2544,9 +2549,10 @@ export class ModelApiSession implements AgentSession {
           packedAvoided: Math.max(0, this.packing.savings() - this.packedBaseline),
         }),
         uncertain:
-          this.wasCallSent &&
-          reservation?.isRefused !== true &&
-          this.recordedCall.outcome !== 'refused',
+          this.hasAmbiguousCallAttempt ||
+          (this.wasCallSent &&
+            reservation?.isRefused !== true &&
+            this.recordedCall.outcome !== 'refused'),
         retainedLiabilityUsd: reservation?.costUsd,
         outcome,
       })
@@ -3154,6 +3160,9 @@ export class ModelApiSession implements AgentSession {
   /** A client-generated 429 refusal admitted no work, so this claim can retry. */
   private allowRateLimitedRetry(notice: RetryNotice): void {
     const reservation = this.openReservation
+    if (this.wasCallSent && !notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)) {
+      this.hasAmbiguousCallAttempt = true
+    }
     if (reservation !== undefined) {
       if (notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)) {
         reservation.isSent = false
@@ -3376,6 +3385,10 @@ export class ModelApiSession implements AgentSession {
         outcome,
         durationMs: Math.max(0, this.deps.now() - this.recordedCall.startedAt),
         providerCostUsd: usage.provider_cost_usd,
+        uncertain: this.hasAmbiguousCallAttempt,
+        retainedLiabilityUsd: this.hasAmbiguousCallAttempt
+          ? this.openReservation?.costUsd
+          : undefined,
         ...(this.packing !== undefined && {
           packedAvoided: Math.max(0, this.packing.savings() - this.packedBaseline),
         }),
@@ -4801,6 +4814,7 @@ export class ModelApiSession implements AgentSession {
     const goalRevision = this.goalCommandRevision
     const isTrusted = this.deps.isWorkspaceTrusted()
     const imageState = { isSent: false, isBilled: false }
+    let startedAt: number | undefined
     let isRefused = false
     let hasReturned = false
     let egressRefusal: ToolOutcome | undefined
@@ -4846,6 +4860,7 @@ export class ModelApiSession implements AgentSession {
           {
             onRequestStarted: () => {
               imageState.isSent = true
+              startedAt ??= this.deps.now()
             },
           },
         ),
@@ -4867,6 +4882,21 @@ export class ModelApiSession implements AgentSession {
     } finally {
       const charged =
         imageState.isBilled || (!hasReturned && !isRefused && imageState.isSent) ? price : 0
+      if (
+        startedAt !== undefined &&
+        this.deps.hasExternalPaidRecording !== true &&
+        !imageState.isBilled &&
+        charged > 0
+      ) {
+        recordPaidUse(this.deps.usageRecording, 'imageGeneration', 1, {
+          session: this.sessionId,
+          startedAt,
+          durationMs: Math.max(0, this.deps.now() - startedAt),
+          outcome: signal.aborted ? 'cancelled' : 'failed',
+          uncertain: true,
+          retainedLiabilityUsd: charged,
+        })
+      }
       this.budgetSpentUsd += charged
       if (imageState.isBilled) {
         this.turnCostUsd += charged

@@ -16949,6 +16949,17 @@ Acceptance and the exact composed gate receipts live in
   `docs/certification/m102-s.md`. No model calls or dependencies. The shared
   totals contract needs a minimal validated paired-observation addition;
   clarification of that frozen-contract ownership is pending.
+  **FIXM102R review repair (2026-10-05).** Address RVM102R's six P2 findings
+  within R's recording files, plus the explicitly authorized runtime backend
+  paid wiring. Preserve ambiguity across retries, record sent images with
+  unknown outcomes and their reserved liability, use the core paid producer for
+  ACP, await a bounded deactivate flush, and journal Muse Code deltas on each
+  usage event. Scheduled-run restoration needs a journal contract redesign and
+  is the named §9 residual `M102R-scheduled-run-restoration`. Add regressions
+  and byte-exact red drills in `docs/certification/m102-r.md`. No dependency,
+  request body, paid admission rule or gate changes; integrated quality stays
+  with the lead.
+
 - **Goal.** One local history of every model call, whichever editor or backend
   made it, and one page that shows cost, tokens in and out, time, rate and plan
   limits, and budgets. The page has charts, a table behind every chart, export
@@ -17974,6 +17985,16 @@ recorded in `docs/certification/m95-int.md`. No gate is weakened.
 **M95INT round-one whole-chain receipt — historical 120-minute rig brief.**
 The browser and SAST failures below are historical and repaired in round two.
 
+**FIXM102R lane gate deferral (2026-10-05).** The rig brief reserves full
+`npm run quality` for the lead and prohibits running it in this lane. Scoped
+unit tests, all five typechecks, scoped lint/format, knip, cycles, duplication,
+bundle sizes, host-globals and notices pass. Three existing L/W integration
+failures remain: fourteen missing usage translations and three unregistered
+manifest keys (17 localization problems), the generated host API record's
+`env.appName`/crypto drift, and `partialRecord` absent from the shared
+validation bundle. Keep every gate intact; L/W must finish these and run
+integrated quality before release. Evidence: `docs/certification/m102-r.md`.
+
 **M95-I dependency and acceptance limits (2026-10-05).** The rig brief
 requires scoped gates, not full quality or a dependency merge. The lead owns
 full quality and integrated live acceptance. The five wire-format tests use
@@ -18677,6 +18698,19 @@ before a repaired one loads (2026-09-30).
   preserve it in journal rollups/exports and display localized observed/total
   call coverage for each rate and latency in both page and text. This is a
   remaining acceptance blocker, not permission to release incomplete usage.
+  **M102R-scheduled-run-restoration (RVM102R finding 4, P2, 2026-10-05).** The
+  frozen journal records scheduled model requests but has no wake/turn identity
+  or run counter. A wake with tool continuations or separate stream retries
+  therefore inflates `PaidUsage.restore`'s historical run count. Relabeling
+  continuations as ordinary turns would distort cost grouping; merging or
+  omitting their records would lose requests/tokens/cost. This requires a
+  journal contract change owned by J/W, outside R's file scope. Safe for this
+  sprint: the live wake count, admission and all recorded spend remain intact;
+  only the restored run tally is inflated. Follow-up J/W: add a versioned wake
+  identity or explicit run count, count it once per sent wake, and disclose
+  legacy records whose wakes cannot be reconstructed. Never infer or rewrite
+  historical spend.
+
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate
   failure drills in `docs/certification/m95-p.md`; no assigned finding is
