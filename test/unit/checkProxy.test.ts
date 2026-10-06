@@ -18,6 +18,7 @@ import {
   startCheckProxy,
 } from '../../src/core/browser/checkProxy'
 import { rawExchange } from './helpers/proxyExchange'
+import { registerMakerCompanion } from '../../src/core/maker/companionRegistry'
 
 const servers: (Server | TcpServer)[] = []
 const proxies: CheckProxy[] = []
@@ -108,6 +109,36 @@ async function upstream(): Promise<{ port: number; heads: IncomingMessage[] }> {
 }
 
 describe('the browser check’s proxy (M81 A1)', () => {
+  it('blocks companion ports before connections, including aliases, tunnels and panels started after the check', async () => {
+    const target = await upstream()
+    const { port, lookup } = await proxyFor(['allowed.example', 'localhost'])
+    const unregister = await registerMakerCompanion([target.port])
+    try {
+      for (const host of ['127.0.0.1', 'localhost', 'allowed.example']) {
+        const authority = `${host}:${String(target.port)}`
+        const answer = await raw(
+          port,
+          `GET http://${authority}/launch HTTP/1.1\r\nHost: ${authority}\r\n\r\n`,
+        )
+        expect(answer).toMatch(/^HTTP\/1\.1 (403|502) /)
+        const tunnel = await raw(
+          port,
+          `CONNECT ${authority} HTTP/1.1\r\nHost: ${authority}\r\n\r\n`,
+        )
+        expect(tunnel).toMatch(/^HTTP\/1\.1 (403|502) /)
+      }
+      expect(target.heads).toEqual([])
+      expect(lookup).not.toHaveBeenCalled()
+    } finally {
+      await unregister()
+    }
+    expect(
+      await raw(
+        port,
+        `GET http://localhost:${String(target.port)}/ HTTP/1.1\r\nHost: localhost:${String(target.port)}\r\n\r\n`,
+      ),
+    ).toMatch(/^HTTP\/1\.1 401 /)
+  })
   it('listens on 127.0.0.1 only, at a port the OS picked, with the loopback subtraction as its bypass list', async () => {
     const { proxy } = await proxyFor()
     expect(proxy.endpoint).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)

@@ -4,8 +4,12 @@ import type { MakerCommand } from './commandArgs'
 import { createRuntimeMakerService, runtimeMakerLan } from './service'
 import { stopRuntimeMachines, stopResultText } from './stop'
 import { runMakerCommand, openMakerBrowser } from './commands'
-import { UI_TEXT } from '../../shared/constants'
-import { setUiText } from '../../shared/l10n/text'
+import {
+  RUNTIME_MAKER_LAUNCH_CODE_MS,
+  MILLISECONDS_PER_SECOND,
+  UI_TEXT,
+} from '../../shared/constants'
+import { fill, formatUnit, setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { createAcpMakerRuntime } from './acpRuntime'
 import type { AcpMakerRuntime } from '../../acp/maker'
@@ -65,12 +69,16 @@ export async function runRuntimeMaker(
       return 1
     }
   }
+  const terminal = { requiresPanelConfirmation: false }
   const isAttended = await isMakerTerminalAttended({
     stdinTty: process.stdin.isTTY,
     stdoutTty: process.stdout.isTTY,
     parentPid: process.ppid,
     platform: deps.platform,
     env: deps.env,
+    onMultiplexer: () => {
+      terminal.requiresPanelConfirmation = true
+    },
   })
   if (
     !isAttended &&
@@ -79,6 +87,13 @@ export async function runRuntimeMaker(
       (command.action === 'machines' && command.operation === 'add'))
   )
     throw new Error(UI_TEXT.makerUnattendedDenied)
+  if (
+    terminal.requiresPanelConfirmation &&
+    (command.action === 'panel' ||
+      (command.action === 'hardware' && command.operation === 'enable') ||
+      (command.action === 'machines' && command.operation === 'add'))
+  )
+    throw new Error(UI_TEXT.makerMultiplexerDenied)
   const service = await createRuntimeMakerService({
     stopOnlyFallback: command.action === 'panel',
     dataDirectory: deps.dataDirectory,
@@ -97,6 +112,17 @@ export async function runRuntimeMaker(
     return await runMakerCommand(command, {
       ...deps,
       service,
+      requiresPanelConfirmation: terminal.requiresPanelConfirmation,
+      printLaunchCode: (code) => {
+        if (!isAttended || !process.stdin.isTTY || !process.stdout.isTTY)
+          throw new Error(UI_TEXT.makerUnattendedDenied)
+        process.stdout.write(
+          `${fill(UI_TEXT.makerLaunchCode, {
+            code,
+            duration: formatUnit(RUNTIME_MAKER_LAUNCH_CODE_MS / MILLISECONDS_PER_SECOND, 'second'),
+          })}\n`,
+        )
+      },
       openBrowser: (url) => openMakerBrowser(url, deps.platform, deps.env),
     })
   } finally {

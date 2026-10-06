@@ -2479,5 +2479,10 @@
   "judgeStatusSubscription": "Abonnement",
   "judgeStatusPaid": "Kostenpflichtig",
   "makerStopFailed": "Stopp fehlgeschlagen — betätigen Sie jetzt den physischen Not-Aus der Maschine {machine}.",
-  "makerStopPhysicalRequired": "Maschine {machine} erfordert den physischen Not-Aus; ein Softwarestopp ist nicht verfügbar."
+  "makerStopPhysicalRequired": "Maschine {machine} erfordert den physischen Not-Aus; ein Softwarestopp ist nicht verfügbar.",
+  "makerLaunchCode": "Panelcode: {code}. Geben Sie ihn innerhalb von {duration} im Browser ein.",
+  "makerLaunchPrompt": "Geben Sie den einmaligen Code aus Ihrem Terminal ein.",
+  "makerLaunchConnect": "Panel öffnen",
+  "makerLaunchDenied": "Code abgelehnt oder abgelaufen. Führen Sie maker panel erneut aus.",
+  "makerMultiplexerDenied": "Führen Sie diesen privilegierten Befehl außerhalb von Terminal-Multiplexern aus oder verwenden Sie ein Panel aus einem separaten Terminal."
 }

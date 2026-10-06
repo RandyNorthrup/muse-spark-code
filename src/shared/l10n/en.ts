@@ -29,6 +29,12 @@ export const EN = {
     'Machine configuration detected. Review heater and travel limits before deploying changes.',
   makerDetectBoardRequired: 'Choose a board target before adding an Arduino or Zephyr build check.',
   makerTitle: 'Makers',
+  makerLaunchCode: 'Panel code: {code}. Enter it in the browser within {duration}.',
+  makerLaunchPrompt: 'Enter the one-time code shown in your terminal.',
+  makerLaunchConnect: 'Open panel',
+  makerLaunchDenied: 'Code refused or expired. Run maker panel again.',
+  makerMultiplexerDenied:
+    'Run this privileged command outside terminal multiplexers, or use a panel opened from a separate terminal.',
   makerApprovalTitle: 'Approve hardware action',
   makerSendOnce: 'Send once',
   makerReject: 'Reject',

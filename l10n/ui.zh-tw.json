@@ -2384,5 +2384,10 @@
   "judgeStatusSubscription": "訂閱",
   "judgeStatusPaid": "付費",
   "makerStopFailed": "停止失敗 — 請立即使用機器 {machine} 的實體緊急停止裝置。",
-  "makerStopPhysicalRequired": "機器 {machine} 需要實體緊急停止；軟體停止無法使用。"
+  "makerStopPhysicalRequired": "機器 {machine} 需要實體緊急停止；軟體停止無法使用。",
+  "makerLaunchCode": "面板代碼：{code}。請在 {duration} 內於瀏覽器輸入。",
+  "makerLaunchPrompt": "請輸入終端機中顯示的一次性代碼。",
+  "makerLaunchConnect": "開啟面板",
+  "makerLaunchDenied": "代碼遭拒或已過期。請重新執行 maker panel。",
+  "makerMultiplexerDenied": "請在終端機多工器之外執行此特權命令，或使用從獨立終端機開啟的面板。"
 }

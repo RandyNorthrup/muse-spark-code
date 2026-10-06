@@ -53,6 +53,7 @@ import {
 } from '../../shared/browserCheckConstants'
 import { isLoopbackHost } from './browserPolicy'
 import { listen } from './canaries'
+import { makerCompanionPorts } from '../maker/companionRegistry'
 
 /** What a check may reach, frozen when the user approved it. */
 export interface FrozenScope {
@@ -276,6 +277,9 @@ export async function startCheckProxy(
     return [await lookupName(host)]
   }
   const connectFirst = async ({ host, port }: Destination): Promise<Socket> => {
+    // Re-read before every upstream connection, including redirects and newly started panels.
+    const deniedPorts = await makerCompanionPorts()
+    if (deniedPorts.has(port)) throw new Error('maker-companion-navigation-denied')
     let last: unknown = new Error('no address')
     const addresses = await addressesOf(host)
     for (const address of addresses) {

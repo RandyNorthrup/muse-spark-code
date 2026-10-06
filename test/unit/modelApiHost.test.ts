@@ -1995,7 +1995,7 @@ describe('Model API scheduled prompts (M52)', () => {
     await restored.host.close()
   })
 
-  it('refuses a due run while its paid gate is off, then admits one explicit run and marks it paid', async () => {
+  it('refuses a due run while its paid gate is off, then admits one explicit run and withholds static physical tools', async () => {
     let now = 1_000_000
     const paid: PaidFeature[] = []
     const sessionStore = memorySessionStore()
@@ -2009,6 +2009,14 @@ describe('Model API scheduled prompts (M52)', () => {
       scheduleStore: store,
       getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
       paid,
+      ideTools: [
+        {
+          name: 'machine_send',
+          description: 'Physical tool fixture',
+          inputSchema: { type: 'object' },
+          call: () => Promise.resolve('must not run'),
+        },
+      ],
     })
     // `allowAll` is Bypass permissions; paid admission still refuses.
     const { session, turnDone } = await startSession(t, 'allowAll')
@@ -2026,6 +2034,7 @@ describe('Model API scheduled prompts (M52)', () => {
     await schedules.run(job.id, job.nextFireAtMs, confirmedRun(job, session))
     await completed
     expect(t.api.responseBodies()).toHaveLength(1)
+    expect(toolNames(t.api.responseBodies()[0])).not.toContain('mcp__ide__machine_send')
     const requestJson = JSON.stringify(t.api.responseBodies())
     expect(requestJson).not.toContain(FAKE_MODEL_API_ACCOUNT_ID)
     expect(requestJson).not.toContain('confirmedRequest')
@@ -14072,17 +14081,73 @@ describe('ModelApiHost: MCP servers and the IDE tool (M50)', () => {
     expect(call).not.toHaveBeenCalled()
   })
 
-  it('does not offer runtime hardware tools in Plan', async () => {
-    const t = setup({ getIdeTools: () => [DIAGNOSTICS] })
-    const { session, turnDone } = await startSession(t, 'denyUnmatched')
-    t.api.script({ text: 'done' })
-    await session.sendTurn([{ type: 'text', text: 'go' }])
-    await turnDone()
-    const tools = z
-      .array(z.looseObject({ name: z.optional(z.string()) }))
-      .parse(t.api.responseBodies()[0]?.['tools'])
-    expect(tools.map((tool) => tool.name)).not.toContain('mcp__ide__getDiagnostics')
-  })
+  it.each([false, true])(
+    'does not offer hardware tools in Plan with dynamic callback %s',
+    async (dynamic) => {
+      const t = setup({
+        ideTools: [DIAGNOSTICS],
+        ...(dynamic && { getIdeTools: () => [DIAGNOSTICS] }),
+      })
+      const { session, turnDone } = await startSession(t, 'denyUnmatched')
+      t.api.script({ text: 'done' })
+      await session.sendTurn([{ type: 'text', text: 'go' }])
+      await turnDone()
+      const tools = z
+        .array(z.looseObject({ name: z.optional(z.string()) }))
+        .parse(t.api.responseBodies()[0]?.['tools'])
+      expect(tools.map((tool) => tool.name)).not.toContain('mcp__ide__getDiagnostics')
+    },
+  )
+
+  it.each(['plan', 'review', 'side chat', 'subagent'] as const)(
+    'static physical IDE tools fail closed for a %s turn without getIdeTools',
+    async (context) => {
+      const call = vi.fn<McpTool['call']>().mockResolvedValue('must not run')
+      const tool = { ...DIAGNOSTICS, name: 'machine_send', call }
+      const t = setupSubagents({ ideTools: [tool], store: memorySessionStore() })
+      const { session, turnDone } = await startSession(
+        t,
+        context === 'plan' ? 'denyUnmatched' : 'allowAll',
+      )
+      const physical = { calls: [{ name: 'mcp__ide__machine_send', arguments: '{}' }] }
+      try {
+        if (context === 'subagent') {
+          await completePaidChild(t, session, 'static-physical-guard')
+          const child = t.api.responseBodies().find((body) => isChildRequest(body))
+          expect(child).toBeDefined()
+          expect(toolNames(child)).not.toContain('mcp__ide__machine_send')
+        } else {
+          if (context === 'side chat') await answerFirst(t, session, turnDone)
+          const prior = t.api.responseBodies().length
+          t.api.script(physical, { text: 'done' })
+          switch (context) {
+            case 'review': {
+              await session.review([{ type: 'text', text: 'review' }], '/review')
+              await turnDone()
+              break
+            }
+            case 'side chat': {
+              const side = await openSideFork(t, session)
+              const sideTurns = watchSessionTurns(side.session)
+              await side.session.sendTurn([{ type: 'text', text: 'question' }])
+              await sideTurns.turnDone()
+              break
+            }
+            case 'plan': {
+              await session.sendTurn([{ type: 'text', text: 'plan' }])
+              await turnDone()
+              break
+            }
+          }
+          for (const body of t.api.responseBodies().slice(prior))
+            expect(toolNames(body)).not.toContain('mcp__ide__machine_send')
+        }
+        expect(call).not.toHaveBeenCalled()
+      } finally {
+        await t.host.close()
+      }
+    },
+  )
 
   it('asks before an MCP tool in Manual, as a tool, and remembers "always allow"', async () => {
     const { session, events, turnDone, t, mcp } = await mcpTurn({
@@ -14160,12 +14225,12 @@ describe('ModelApiHost: MCP servers and the IDE tool (M50)', () => {
     expect(rows.map((row) => [row.tool, row.status])).toEqual([
       ['mcp__docs__search', 'rejected'],
       ['mcp__docs__lookup', 'completed'],
-      ['mcp__ide__getDiagnostics', 'completed'],
+      ['mcp__ide__getDiagnostics', 'failed'],
     ])
     expect(rows[0]?.failureReason).toBe(
       `mcp__docs__search ${MODEL_API_MODEL_TEXT.toolRefusedByMode}`,
     )
-    expect(rows[2]?.visibleOutput).toBe('No diagnostics.')
+    expect(rows[2]?.visibleOutput).not.toBe('No diagnostics.')
     expect(mcp.calls.map((call) => call.name)).toEqual(['mcp__docs__lookup'])
   })
 
@@ -14528,7 +14593,7 @@ describe('ModelApiSession Reviewer (M70)', () => {
     inputSchema: { type: 'object', properties: {} },
     call: () => Promise.resolve('No diagnostics.'),
   }
-  const READ_ONLY = ['read_file', 'search', 'list_files', 'mcp__ide__getDiagnostics']
+  const READ_ONLY = ['read_file', 'search', 'list_files']
 
   it('offers only the tools that read, with its own prompt, and gives the next turn everything back', async () => {
     const t = setup({

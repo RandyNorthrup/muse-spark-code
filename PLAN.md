@@ -18754,6 +18754,14 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM103R2 bounded verification (2026-10-06, Kubuntu).** The explicit rig
+brief prohibits aggregate quality/full tests here and delegates them to the
+lead. Complete owning suites run at the unchanged repository default timeout,
+at most three files per run, with typecheck, changed-file ESLint/Prettier,
+Knip, duplication, localization, host API and production build gates. Every
+new guard is deliberately broken and restored byte-exact in m103-r.md and its
+machine-readable receipts. No threshold, cap, hook or timeout is weakened.
+
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
 test files, deliberate failures, typecheck, scoped lint/format, deadcode,
@@ -18909,6 +18917,31 @@ ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
+
+**FIXM103R2 (2026-10-06, Kubuntu, RVM103R2).** Repair all six reviewed
+channels under D83, with the explicitly named integration residuals in §9:
+SSH attendance requires another machine's client address
+in the SSH environment and a matching sshd-ancestor socket peer (Linux /proc,
+macOS system lsof);
+loopback, own-interface and unknown peers refuse. Verify each Windows
+ancestor's executable location. Open the companion's public URL without a
+capability; exchange an eight-character, 60-second, single-use, rate-limited
+code printed only to the attended CLI's own TTY. Mint the approval key only
+after that exchange and keep it in page memory. Multiplexer ancestry requires
+independent person authority: privileged CLI commands refuse before storage
+or code output; a separately opened person panel remains available. Direct
+multiplexer-to-panel confirmation is the named §9 functionality residual,
+because capture-pane can steal an in-terminal bootstrap code. Publish live
+companion ports in the runtime registry and deny browser-check navigation and
+requests to them, including redirects and aliases. Worker IDE-tool admission
+fails closed even without a dynamic callback. Keep every round-one guard.
+The public-port registry is writable by the same OS user; G4 protection or
+trusted discovery remains a named residual, and the registry never conveys
+person authority. Its erasure cannot supply the new own-TTY launch code.
+Each finding gets a failing regression and byte-exact red drill in
+docs/certification/m103-r.md. No new dependency, guard widening, merge, push,
+live/paid/physical call or aggregate quality run; the lead owns aggregate and
+cross-platform qualification under the explicit rig brief.
 
 **FIXM103R review repair (2026-10-06, Kubuntu).** Repair RVM103R's
 P1/P2 findings with computed terminal attendance (TTYs, agent marker and
@@ -20868,6 +20901,32 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM103R2-REGISTRY-INTEGRITY (P2-2 integration residual,
+  2026-10-06).** Published companion ports are denied before browser preparation
+  and every proxy connection. Records reject links, replacement, oversize and
+  malformed content, but same-user filesystem permissions cannot prevent an
+  agent from deleting them. An erased/missing record can remove this destination
+  denial; it cannot supply the own-TTY launch code, cookie or page approval key.
+  The fresh browser-check profile remains unable to approve under the repaired
+  P1 guards, and multiplexed code output is refused. No tamper-proof discovery
+  claim is made. G4/W must protect registry mutation/deletion through the shell
+  guard, or design separately trusted live discovery, and drill erasure before
+  qualifying that stronger navigation contract. G4 is not present on this base;
+  an OS same-user file mode is not substituted for that authority boundary.
+
+- **FIXM103R2-MULTIPLEXER-CONFIRMATION (P2-1 functionality residual,
+  2026-10-06).** tmux/screen ancestry or their session markers refuse CLI
+  hardware enable, machine add and panel before storage/key input or code
+  delivery. Other unknown multiplexers already fail attendance. Stop, observe
+  and revocation remain available. The proposed same-terminal code plus page
+  confirmation would let a same-user agent capture the code with capture-pane
+  and exchange it over HTTP, so it is not delivered. A person can use a panel
+  launched from a separate non-multiplexed terminal. Direct requests from
+  multiplexers need a separately authenticated person panel/native-modal IPC
+  with no readable terminal bootstrap or forgeable registry acknowledgement;
+  M104/W must design and drill that binding before admitting this workflow.
+  This lane supplies the safe refusal and does not claim that integration.
 
 - **FIXM103R-MCP-PROVENANCE (P2-3 functionality residual, 2026-10-06).**
   The captured MCP HTTP transport has no authenticated caller turn id on

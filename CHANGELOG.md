@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- FIXM103R2: reject local/unknown SSH attendance and verify Windows ancestor
+  executable paths. Browser launchers receive only a public panel URL; a typed
+  eight-character code expires after 60 seconds, is single use and rate-limited,
+  and is printed only to the attended CLI's own TTY. Privileged commands refuse
+  inside terminal multiplexers because capture-pane can expose their code;
+  a separately opened person panel remains available, while direct multiplexer
+  confirmation is a named integration residual. Browser checks refuse published
+  companion ports, including aliases, redirects and tunnels; same-user registry
+  integrity remains a named G4 integration residual. Worker IDE-tool
+  admission now fails closed even when only static tools were registered.
+
 - FIXM103R: refuse unattended maker privileges using terminal and ancestry
   evidence; open the companion via the OS browser without printing launch or
   Thonny tokens. Panel cookies bind their instance and port; only a separate

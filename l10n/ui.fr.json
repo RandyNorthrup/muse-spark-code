@@ -2574,5 +2574,10 @@
   "judgeStatusSubscription": "Abonnement",
   "judgeStatusPaid": "Payant",
   "makerStopFailed": "Échec de l’arrêt — utilisez immédiatement l’arrêt d’urgence physique de la machine {machine}.",
-  "makerStopPhysicalRequired": "La machine {machine} nécessite un arrêt d’urgence physique ; l’arrêt logiciel n’est pas disponible."
+  "makerStopPhysicalRequired": "La machine {machine} nécessite un arrêt d’urgence physique ; l’arrêt logiciel n’est pas disponible.",
+  "makerLaunchCode": "Code du panneau : {code}. Saisissez-le dans le navigateur sous {duration}.",
+  "makerLaunchPrompt": "Saisissez le code à usage unique affiché dans votre terminal.",
+  "makerLaunchConnect": "Ouvrir le panneau",
+  "makerLaunchDenied": "Code refusé ou expiré. Relancez maker panel.",
+  "makerMultiplexerDenied": "Exécutez cette commande privilégiée hors des multiplexeurs de terminal ou utilisez un panneau ouvert depuis un terminal séparé."
 }

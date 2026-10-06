@@ -2479,5 +2479,10 @@
   "judgeStatusSubscription": "Abonelik",
   "judgeStatusPaid": "Ücretli",
   "makerStopFailed": "Durdurma başarısız — {machine} makinesinin fiziksel acil durdurmasını hemen kullanın.",
-  "makerStopPhysicalRequired": "{machine} makinesi fiziksel acil durdurma gerektirir; yazılımla durdurma kullanılamıyor."
+  "makerStopPhysicalRequired": "{machine} makinesi fiziksel acil durdurma gerektirir; yazılımla durdurma kullanılamıyor.",
+  "makerLaunchCode": "Panel kodu: {code}. {duration} içinde tarayıcıya girin.",
+  "makerLaunchPrompt": "Terminalinizde gösterilen tek kullanımlık kodu girin.",
+  "makerLaunchConnect": "Paneli aç",
+  "makerLaunchDenied": "Kod reddedildi veya süresi doldu. maker panel komutunu yeniden çalıştırın.",
+  "makerMultiplexerDenied": "Bu ayrıcalıklı komutu terminal çoklayıcılarının dışında çalıştırın veya ayrı bir terminalden açılan paneli kullanın."
 }

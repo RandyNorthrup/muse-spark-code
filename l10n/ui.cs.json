@@ -2669,5 +2669,10 @@
   "judgeStatusSubscription": "Předplatné",
   "judgeStatusPaid": "Placené",
   "makerStopFailed": "Zastavení selhalo — ihned použijte fyzické nouzové zastavení stroje {machine}.",
-  "makerStopPhysicalRequired": "Stroj {machine} vyžaduje fyzické nouzové zastavení; softwarové zastavení není dostupné."
+  "makerStopPhysicalRequired": "Stroj {machine} vyžaduje fyzické nouzové zastavení; softwarové zastavení není dostupné.",
+  "makerLaunchCode": "Kód panelu: {code}. Zadejte jej v prohlížeči do {duration}.",
+  "makerLaunchPrompt": "Zadejte jednorázový kód zobrazený v terminálu.",
+  "makerLaunchConnect": "Otevřít panel",
+  "makerLaunchDenied": "Kód byl odmítnut nebo vypršel. Spusťte maker panel znovu.",
+  "makerMultiplexerDenied": "Spusťte tento privilegovaný příkaz mimo terminálové multiplexery nebo použijte panel otevřený ze samostatného terminálu."
 }

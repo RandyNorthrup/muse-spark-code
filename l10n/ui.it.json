@@ -2574,5 +2574,10 @@
   "judgeStatusSubscription": "Abbonamento",
   "judgeStatusPaid": "A pagamento",
   "makerStopFailed": "Arresto non riuscito — usare subito l’arresto di emergenza fisico della macchina {machine}.",
-  "makerStopPhysicalRequired": "La macchina {machine} richiede l’arresto di emergenza fisico; l’arresto software non è disponibile."
+  "makerStopPhysicalRequired": "La macchina {machine} richiede l’arresto di emergenza fisico; l’arresto software non è disponibile.",
+  "makerLaunchCode": "Codice del pannello: {code}. Inseriscilo nel browser entro {duration}.",
+  "makerLaunchPrompt": "Inserisci il codice monouso mostrato nel terminale.",
+  "makerLaunchConnect": "Apri pannello",
+  "makerLaunchDenied": "Codice rifiutato o scaduto. Esegui di nuovo maker panel.",
+  "makerMultiplexerDenied": "Esegui questo comando privilegiato fuori dai multiplexer di terminale oppure usa un pannello aperto da un terminale separato."
 }

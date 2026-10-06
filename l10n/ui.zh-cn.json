@@ -2384,5 +2384,10 @@
   "judgeStatusSubscription": "订阅",
   "judgeStatusPaid": "付费",
   "makerStopFailed": "停止失败 — 请立即使用机器 {machine} 的物理紧急停止装置。",
-  "makerStopPhysicalRequired": "机器 {machine} 需要物理紧急停止；软件停止不可用。"
+  "makerStopPhysicalRequired": "机器 {machine} 需要物理紧急停止；软件停止不可用。",
+  "makerLaunchCode": "面板代码：{code}。请在 {duration} 内在浏览器中输入。",
+  "makerLaunchPrompt": "请输入终端中显示的一次性代码。",
+  "makerLaunchConnect": "打开面板",
+  "makerLaunchDenied": "代码被拒绝或已过期。请重新运行 maker panel。",
+  "makerMultiplexerDenied": "请在终端复用器之外运行此特权命令，或使用从独立终端打开的面板。"
 }

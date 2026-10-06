@@ -2384,5 +2384,10 @@
   "judgeStatusSubscription": "구독",
   "judgeStatusPaid": "유료",
   "makerStopFailed": "정지 실패 — 지금 즉시 {machine} 기계의 물리적 비상 정지 장치를 사용하세요.",
-  "makerStopPhysicalRequired": "{machine} 기계는 물리적 비상 정지가 필요합니다. 소프트웨어 정지는 사용할 수 없습니다."
+  "makerStopPhysicalRequired": "{machine} 기계는 물리적 비상 정지가 필요합니다. 소프트웨어 정지는 사용할 수 없습니다.",
+  "makerLaunchCode": "패널 코드: {code}. {duration} 이내에 브라우저에 입력하세요.",
+  "makerLaunchPrompt": "터미널에 표시된 일회용 코드를 입력하세요.",
+  "makerLaunchConnect": "패널 열기",
+  "makerLaunchDenied": "코드가 거부되었거나 만료되었습니다. maker panel을 다시 실행하세요.",
+  "makerMultiplexerDenied": "이 권한 명령은 터미널 멀티플렉서 밖에서 실행하거나 별도 터미널에서 연 패널을 사용하세요."
 }

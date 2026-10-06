@@ -2574,5 +2574,10 @@
   "judgeStatusSubscription": "Assinatura",
   "judgeStatusPaid": "Pago",
   "makerStopFailed": "Falha ao parar — use agora a parada de emergência física da máquina {machine}.",
-  "makerStopPhysicalRequired": "A máquina {machine} exige uma parada de emergência física; a parada por software não está disponível."
+  "makerStopPhysicalRequired": "A máquina {machine} exige uma parada de emergência física; a parada por software não está disponível.",
+  "makerLaunchCode": "Código do painel: {code}. Digite-o no navegador em até {duration}.",
+  "makerLaunchPrompt": "Digite o código de uso único exibido no terminal.",
+  "makerLaunchConnect": "Abrir painel",
+  "makerLaunchDenied": "Código recusado ou expirado. Execute maker panel novamente.",
+  "makerMultiplexerDenied": "Execute este comando privilegiado fora de multiplexadores de terminal ou use um painel aberto em um terminal separado."
 }

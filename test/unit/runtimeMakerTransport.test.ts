@@ -12,6 +12,10 @@ import { startThonnyServer, type ThonnyPortOwner } from '../../src/runtime/maker
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { spawn } from 'node:child_process'
 import { withoutCredentials, withoutKeyringRoutes } from '../../src/runtime/credentialVariables'
+import {
+  RUNTIME_MAKER_LAUNCH_CODE_MS,
+  RUNTIME_MAKER_LAUNCH_MAX_ATTEMPTS,
+} from '../../src/shared/constants'
 
 vi.mock('node:crypto', async (importOriginal) => {
   const actual = await importOriginal<typeof crypto>()
@@ -116,6 +120,7 @@ describe('companion boundary', () => {
   })
   it('launch codes are single use, same-origin, and exchanged into an HttpOnly cookie', async () => {
     const server = await companion()
+    expect(server.launch).toMatch(/^[A-HJ-NP-Z2-9]{8}$/)
     const payload = JSON.stringify({ launch: server.launch })
     expect(await status(server.url, '/launch', {}, payload)).toBe(403)
     expect(
@@ -126,6 +131,39 @@ describe('companion boundary', () => {
     expect(reply.headers['set-cookie']?.[0]).toContain('HttpOnly; SameSite=Strict')
     expect(reply.headers['set-cookie']?.[0]).not.toContain('Domain=')
     expect(await status(server.url, '/launch', { Origin: server.url }, payload)).toBe(401)
+  })
+  it('launch refuses a code at its 60-second expiry', async () => {
+    const started = Date.now()
+    const server = await companion()
+    const now = vi.spyOn(Date, 'now').mockReturnValue(started + RUNTIME_MAKER_LAUNCH_CODE_MS + 100)
+    try {
+      expect(
+        await status(
+          server.url,
+          '/launch',
+          { Origin: server.url },
+          JSON.stringify({ launch: server.launch }),
+        ),
+      ).toBe(401)
+    } finally {
+      now.mockRestore()
+    }
+  })
+  it('launch rate-limits guesses and cannot mint a key after exhausting its attempt allowance', async () => {
+    const server = await companion()
+    for (let count = 0; count < RUNTIME_MAKER_LAUNCH_MAX_ATTEMPTS; count += 1)
+      expect(
+        await status(server.url, '/launch', { Origin: server.url }, '{"launch":"wrong"}'),
+      ).toBe(401)
+    const reply = await http(
+      server.url,
+      '/launch',
+      { Origin: server.url },
+      JSON.stringify({ launch: server.launch }),
+    )
+    expect(reply.status).toBe(429)
+    expect(reply.headers['set-cookie']).toBeUndefined()
+    expect(reply.text).not.toContain('approvalKey')
   })
   it('MCP credentials cannot answer the surface or launch a browser session', async () => {
     const server = await companion()
@@ -190,6 +228,7 @@ describe('companion boundary', () => {
       typeof key.approvalKey !== 'string'
     )
       throw new Error('bootstrap')
+    expect(key.approvalKey).toMatch(/^[\da-f]{64}$/)
     const request = {
       id: randomUUID(),
       digest: 'a'.repeat(64),

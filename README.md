@@ -1702,7 +1702,7 @@ Review what the agent did before it lands, on both backends.
   operations keep their own filter configuration.
 - **On the Model API** the review is the Reviewer's turn in your
   conversation: its own prompt, and tools that only read (read, search,
-  list files, VS Code's Problems). It cannot edit, run commands or reach
+  list files). IDE tools are withheld from review turns. It cannot edit, run commands or reach
   the network, in any permission mode. It is part of your own turn, so it
   asks nothing extra; the model can also start the Reviewer as a subagent
   (role `reviewer`, with no custom agent named), which is a paid child task
@@ -3008,7 +3008,9 @@ started when a session first needs it; the same server also carries the
 code-intelligence tools, web fetch (in a trusted workspace) and, while paid
 images are on, the image tools. On the
 Model API backend it runs inside the extension under the same name
-(`mcp__ide__getDiagnostics`), as a read in every mode. It reports the workspace's files only (the
+(`mcp__ide__getDiagnostics`), as a read in attended ordinary turns. IDE tools
+are withheld from Plan, review, side chats, subagents and scheduled turns,
+including when only static IDE tools were registered. It reports the workspace's files only (the
 first folder), by relative path, each message cut at 1,000 characters, and
 past 200 problems a count instead of the rest. VS Code's language servers
 report only on files an editor shows, so when the agent asks about one file
@@ -4153,7 +4155,22 @@ muse-spark-code-acp panel [--trust-workspace]
 to be TTYs and a proven terminal parent chain, with no agent or CI ancestry.
 Run these commands yourself in a terminal; an agent-created TTY does not qualify.
 Unknown ancestry refuses hardware authority. The runtime opens the panel through
-the OS browser launcher and prints no launch capability or provider token.
+the OS browser launcher with a public URL. The page asks for an eight-character
+code printed only to the command's attended TTY, never to piped output or logs.
+It expires after 60 seconds, works once, and locks after five exchange attempts.
+The launcher receives no code, approval key or provider token in its arguments,
+URL or environment. An SSH terminal qualifies only when its client is another
+machine: loopback and this machine's own addresses refuse; Linux and macOS also
+verify the sshd session's socket peer. Unknown SSH peers refuse. Windows ancestors
+must have their executables in the expected system locations.
+
+Privileged CLI commands inside tmux/screen (or carrying their session markers)
+refuse before authority storage, key input or code output. A multiplexer can
+expose a printed code through capture-pane, so its terminal cannot authenticate
+the person. Run the command outside the multiplexer or use a panel opened from
+a separate terminal. Direct multiplexer-to-panel confirmation awaits independent
+person-authorized IPC (FIXM103R2-MULTIPLEXER-CONFIRMATION); Stop, status and
+hardware disable remain available.
 
 `--cwd <path>` selects the workspace. Registration JSON contains `machine`
 (`id`, `name`, `kind`, `category`, `endpoint`, `limits`) and `allowPlainHttp`;
@@ -4189,8 +4206,18 @@ no captured, authenticated caller-turn identity, so `machine_send` and
 Restoring them requires the provenance capture and worker-denial test owned
 by G4/W; observe and Stop remain available during the eligible parent session.
 
-The panel binds only a loopback literal. Its private launch code is consumed
-once. The host-only HttpOnly cookie is bound to its random instance and port,
+Browser checks refuse published maker companion ports before browser preparation
+and before every connection, including aliases, redirects and tunnels. The
+companion announces its public ports in a shared runtime registry; no credential
+is stored there. An unreadable registry refuses the check. Crash records keep
+their ports blocked conservatively. Same-user registry deletion can remove that
+navigation block; G4 protection or trusted discovery remains unqualified
+(FIXM103R2-REGISTRY-INTEGRITY). A fresh check still needs the attended terminal's
+code and cannot inherit the person's page session.
+
+The panel binds only a loopback literal. Its typed launch code is consumed
+once; only a successful exchange mints the approval key. The host-only HttpOnly
+cookie is bound to its random instance and port,
 so two panels can coexist. Request credentials cannot answer approvals:
 answers require a separate per-approval capability held only in the person's
 page, absent from event streams and tool channels, and consumed once.

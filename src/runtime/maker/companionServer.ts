@@ -10,9 +10,15 @@ import {
   RUNTIME_MAKER_MAX_BYTES,
   RUNTIME_MAKER_TIMEOUT_MS,
   RUNTIME_MAKER_TOKEN_BYTES,
+  RUNTIME_MAKER_LAUNCH_CODE_LENGTH,
+  RUNTIME_MAKER_LAUNCH_CODE_ALPHABET,
+  RUNTIME_MAKER_LAUNCH_CODE_MS,
+  RUNTIME_MAKER_LAUNCH_MAX_ATTEMPTS,
+  RUNTIME_MAKER_HTTP_RATE_LIMIT,
 } from '../../shared/constants'
 import { makerSurfaceMessageSchema, type MakerSurfaceMessage } from '../../shared/makerProtocol'
 import type { RuntimeMakerHost } from './runtimeMakerHost'
+import { registerMakerCompanion } from '../../core/maker/companionRegistry'
 
 const bootstrapSchema = z.strictObject({
   approvalKey: z.string(),
@@ -57,9 +63,16 @@ async function body(request: IncomingMessage): Promise<unknown> {
 export async function startCompanion(deps: CompanionDeps) {
   const bind = deps.bind ?? RUNTIME_MAKER_HOST
   if (bind !== RUNTIME_MAKER_HOST && bind !== '::1') throw new Error('maker-loopback-required')
-  let launch = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
+  let launch = [...randomBytes(RUNTIME_MAKER_LAUNCH_CODE_LENGTH)]
+    .map(
+      (byte) =>
+        RUNTIME_MAKER_LAUNCH_CODE_ALPHABET[byte % RUNTIME_MAKER_LAUNCH_CODE_ALPHABET.length],
+    )
+    .join('')
+  const launchExpires = Date.now() + RUNTIME_MAKER_LAUNCH_CODE_MS
+  let launchAttempts = 0
   const instance = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
-  const approvalKey = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
+  let approvalKey = ''
   const session = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
   const mcp = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
   const streams = new Set<ServerResponse>()
@@ -104,12 +117,18 @@ export async function startCompanion(deps: CompanionDeps) {
         response.writeHead(HTTP_STATUS.forbidden).end()
         return
       }
+      if (launchAttempts >= RUNTIME_MAKER_LAUNCH_MAX_ATTEMPTS) {
+        response.writeHead(RUNTIME_MAKER_HTTP_RATE_LIMIT).end()
+        return
+      }
+      launchAttempts += 1
       const input = z.strictObject({ launch: z.string() }).parse(await body(request))
-      if (launch === '' || !isSame(input.launch, launch)) {
+      if (launch === '' || Date.now() >= launchExpires || !isSame(input.launch, launch)) {
         response.writeHead(HTTP_STATUS.unauthorized).end()
         return
       }
       launch = ''
+      approvalKey = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
       // HTTP loopback cannot use Secure/__Host-. Name and value bind this host-only cookie to this instance and port.
       response.setHeader(
         'Set-Cookie',
@@ -253,6 +272,21 @@ export async function startCompanion(deps: CompanionDeps) {
   if (address === null || typeof address === 'string') throw new Error('maker-listen-address')
   const port = address.port
   origin = `http://${bind === '::1' ? '[::1]' : bind}:${String(port)}`
+  let unregister
+  try {
+    unregister = await registerMakerCompanion([
+      port,
+      ...(deps.provider === undefined ? [] : [deps.provider.port]),
+    ])
+  } catch (error) {
+    server.closeAllConnections()
+    await new Promise<void>((resolve) => {
+      server.close(() => {
+        resolve()
+      })
+    })
+    throw error
+  }
   function cookieName() {
     return `maker_${instance}_${String(port)}`
   }
@@ -277,6 +311,7 @@ export async function startCompanion(deps: CompanionDeps) {
           else reject(error)
         })
       })
+      await unregister()
     },
   }
 }

@@ -2669,5 +2669,10 @@
   "judgeStatusSubscription": "Subskrypcja",
   "judgeStatusPaid": "Płatne",
   "makerStopFailed": "Zatrzymanie nie powiodło się — natychmiast użyj fizycznego wyłącznika awaryjnego maszyny {machine}.",
-  "makerStopPhysicalRequired": "Maszyna {machine} wymaga fizycznego zatrzymania awaryjnego; zatrzymanie programowe jest niedostępne."
+  "makerStopPhysicalRequired": "Maszyna {machine} wymaga fizycznego zatrzymania awaryjnego; zatrzymanie programowe jest niedostępne.",
+  "makerLaunchCode": "Kod panelu: {code}. Wpisz go w przeglądarce w ciągu {duration}.",
+  "makerLaunchPrompt": "Wpisz jednorazowy kod wyświetlony w terminalu.",
+  "makerLaunchConnect": "Otwórz panel",
+  "makerLaunchDenied": "Kod odrzucony lub wygasł. Uruchom maker panel ponownie.",
+  "makerMultiplexerDenied": "Uruchom to uprzywilejowane polecenie poza multiplekserem terminala lub użyj panelu otwartego z osobnego terminala."
 }

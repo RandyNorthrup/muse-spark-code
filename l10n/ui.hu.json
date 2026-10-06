@@ -2479,5 +2479,10 @@
   "judgeStatusSubscription": "Előfizetés",
   "judgeStatusPaid": "Fizetős",
   "makerStopFailed": "A leállítás sikertelen — azonnal használja a(z) {machine} gép fizikai vészleállítóját.",
-  "makerStopPhysicalRequired": "A(z) {machine} gép fizikai vészleállítást igényel; szoftveres leállítás nem érhető el."
+  "makerStopPhysicalRequired": "A(z) {machine} gép fizikai vészleállítást igényel; szoftveres leállítás nem érhető el.",
+  "makerLaunchCode": "Panelkód: {code}. Adja meg a böngészőben {duration} időn belül.",
+  "makerLaunchPrompt": "Adja meg a terminálban látható egyszer használatos kódot.",
+  "makerLaunchConnect": "Panel megnyitása",
+  "makerLaunchDenied": "A kód elutasítva vagy lejárt. Futtassa újra a maker panel parancsot.",
+  "makerMultiplexerDenied": "Futtassa ezt a kiemelt jogosultságú parancsot terminálmultiplexeren kívül, vagy használjon külön terminálból megnyitott panelt."
 }

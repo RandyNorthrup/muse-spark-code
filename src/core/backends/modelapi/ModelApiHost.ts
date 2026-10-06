@@ -3294,11 +3294,7 @@ export class ModelApiSession implements AgentSession {
       this.isReviewing() ||
       this.permissions.currentMode === 'denyUnmatched' ||
       this.active?.confirmedRequest !== undefined
-    return (
-      (isRuntimeDenied && this.deps.getIdeTools !== undefined ? [] : this.deps.getIdeTools?.()) ??
-      this.deps.ideTools ??
-      []
-    )
+    return isRuntimeDenied ? [] : (this.deps.getIdeTools?.() ?? this.deps.ideTools ?? [])
   }
   private ideDefinitions(): readonly FunctionToolDefinition[] {
     return this.liveIdeTools().map(
