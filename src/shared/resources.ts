@@ -3,6 +3,7 @@ import * as z from 'zod/mini'
 import {
   RESOURCE_CPU_DEFAULT_PERCENT,
   RESOURCE_CPU_MIN_PERCENT,
+  RESOURCE_DISK_MIN_FREE_GIB,
   RESOURCE_EXEC_EVENT_VERSION,
   RESOURCE_GIB_BYTES,
   RESOURCE_ID_MAX_LENGTH,
@@ -56,6 +57,8 @@ export const resourceSettingsSchema = z.strictObject({
   memoryMinFreeGiB: z._default(memoryFloor, RESOURCE_MEMORY_DEFAULT_FREE_GIB),
   gpuMaxPercent: z._default(optionalLimit, null),
   diskBusyMaxPercent: z._default(optionalLimit, null),
+  // null selects the volume-scaled default floor; explicit values are machine-only.
+  diskMinFreeGiB: z._default(z.nullable(z.number().check(z.gte(RESOURCE_DISK_MIN_FREE_GIB))), null),
   relocate: z._default(z.enum(['paired', 'ask', 'off']), 'paired'),
 })
 export type ResourceSettings = z.infer<typeof resourceSettingsSchema>
@@ -76,6 +79,7 @@ export function readResourceSettings(inspect: ResourceSettingsReader): ResourceS
     memoryMinFreeGiB: 'resourceMemoryMinFreeGiB',
     gpuMaxPercent: 'resourceGpuMaxPercent',
     diskBusyMaxPercent: 'resourceDiskBusyMaxPercent',
+    diskMinFreeGiB: 'resourceDiskMinFreeGiB',
     relocate: 'resourceRelocate',
   }
   const entries = Object.entries(keys).map(([field, key]) => {
@@ -92,6 +96,34 @@ export function resourceMemoryFloorBytes(settings: ResourceSettings, totalBytes:
   )
 }
 
+// Local surfaces use logical volume roles, never workspace paths in egress.
+export const resourceDiskRoleSchema = z.enum([
+  'workspace',
+  'worktrees',
+  'temp',
+  'data',
+  'logs',
+  'nodeState',
+])
+export type ResourceDiskRole = z.infer<typeof resourceDiskRoleSchema>
+export const resourceDiskVolumeSchema = z
+  .strictObject({
+    role: resourceDiskRoleSchema,
+    atMs: counter,
+    freeBytes: z.nullable(counter),
+    totalBytes: z.nullable(counter.check(z.gt(0))),
+    etaMs: z.nullable(z.number().check(z.gte(0))),
+  })
+  .check(
+    z.refine(
+      (volume) =>
+        volume.freeBytes === null ||
+        volume.totalBytes === null ||
+        volume.freeBytes <= volume.totalBytes,
+    ),
+  )
+export type ResourceDiskVolume = z.infer<typeof resourceDiskVolumeSchema>
+
 // Each failed or unavailable reading is null, including a first CPU delta.
 export const resourceSampleSchema = z
   .strictObject({
@@ -102,6 +134,7 @@ export const resourceSampleSchema = z
     memoryTotalBytes: z.nullable(counter.check(z.gt(0))),
     gpuPercent: reading,
     diskBusyPercent: reading,
+    diskVolumes: z.optional(z.array(resourceDiskVolumeSchema)),
     pressure: z.nullable(
       z.strictObject({
         cpuSomePercent: reading,
@@ -208,6 +241,9 @@ export type ResourceStatus = z.infer<typeof resourceStatusSchema>
 export const deviceResourceSchema = z.strictObject({
   level: resourceLevelSchema,
   headroom: z.enum(['ample', 'some', 'none']),
+  diskFree: z.optional(
+    z.strictObject({ freeBytes: z.nullable(counter), floorBytes: z.nullable(counter) }),
+  ),
 })
 export type DeviceResource = z.infer<typeof deviceResourceSchema>
 export interface ResourceLinkedDevice {

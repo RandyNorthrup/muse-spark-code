@@ -2508,5 +2508,8 @@
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\"이면 Muse Code가 에이전트에 위임할 수 있습니다. \"off\"이면 위임 도구를 사용할 수 없습니다. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
   "resourceHarnessInTree": "중지가 보류되었습니다. 제어 프로세스가 아직 이 트리 안에 있습니다. 관리 권한은 유지됩니다. 중지를 다시 시도하세요.",
-  "resourceCgroupChanged": "중지가 거부되었습니다. 이 트리의 cgroup이 삭제되거나 교체되었습니다. 관리 권한은 유지됩니다."
+  "resourceCgroupChanged": "중지가 거부되었습니다. 이 트리의 cgroup이 삭제되거나 교체되었습니다. 관리 권한은 유지됩니다.",
+  "resourceDiskFree": "디스크 여유 공간",
+  "resourceDiskWriteRefused": "{volume}에 쓸 수 없습니다. 디스크 여유 공간이 매우 부족합니다.",
+  "resourceDiskMinFreeGiBDescription": "디스크 여유 공간 하한(GiB)입니다. 기본값은 10 GiB와 볼륨의 10% 중 작은 값이며, 최소 2 GiB입니다."
 }

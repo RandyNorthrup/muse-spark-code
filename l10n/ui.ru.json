@@ -2790,5 +2790,8 @@
   "referenceNativeAgentsConditions": "При run.subagent_delegation_mode=\"auto\" Muse Code может делегировать агентам. При \"off\" инструменты делегирования недоступны. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Ищет секреты в файле патча UTF-8 и завершается с ошибкой при обнаружении. --key-stdin также проверяет точное значение ключа Model API в памяти; ключ не сохраняется.",
   "resourceHarnessInTree": "Остановка приостановлена: управляющий процесс всё ещё находится в этом дереве. Контроль сохраняется; повторите остановку.",
-  "resourceCgroupChanged": "Остановка отклонена: cgroup этого дерева удалена или заменена. Контроль сохраняется."
+  "resourceCgroupChanged": "Остановка отклонена: cgroup этого дерева удалена или заменена. Контроль сохраняется.",
+  "resourceDiskFree": "Свободное место на диске",
+  "resourceDiskWriteRefused": "Невозможно записать в {volume}: критически мало свободного места на диске.",
+  "resourceDiskMinFreeGiBDescription": "Нижний порог свободного места в GiB. По умолчанию — 10 GiB или 10% тома, меньшая из величин, но не менее 2 GiB."
 }

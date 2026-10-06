@@ -2602,5 +2602,8 @@
   "referenceNativeAgentsConditions": "Bei run.subagent_delegation_mode=\"auto\" kann Muse Code an Agenten delegieren. Bei \"off\" sind Delegationswerkzeuge nicht verfügbar. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
   "resourceHarnessInTree": "Stopp pausiert: Der Steuerprozess befindet sich noch in diesem Prozessbaum. Die Zuständigkeit bleibt erhalten; versuchen Sie Stopp erneut.",
-  "resourceCgroupChanged": "Stopp verweigert: Die cgroup dieses Prozessbaums wurde entfernt oder ersetzt. Die Zuständigkeit bleibt erhalten."
+  "resourceCgroupChanged": "Stopp verweigert: Die cgroup dieses Prozessbaums wurde entfernt oder ersetzt. Die Zuständigkeit bleibt erhalten.",
+  "resourceDiskFree": "Freier Speicherplatz",
+  "resourceDiskWriteRefused": "Schreiben auf {volume} nicht möglich: kritisch wenig freier Speicherplatz.",
+  "resourceDiskMinFreeGiBDescription": "Untergrenze für freien Speicherplatz in GiB. Standardmäßig 10 GiB oder 10% des Volumes, je nachdem, was kleiner ist, jedoch mindestens 2 GiB."
 }

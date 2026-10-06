@@ -3984,6 +3984,21 @@ surfaces in Chrome against a fake host: no startup requests, first-use loading
 under the shared CSP, and recovery from actual failed entry/static-dependency
 fetches. Retry reloads the panel with its saved conversation and draft. Cold
 menus remain dismissible and cannot take focus after dismissal.
+unknown. Per-tree temp roots use private-base confinement, ownership markers
+and quarantine cleanup. Linux walks held directory fds; macOS and Windows
+use their native helpers with relative directory handles. Cleanup refuses
+missing stored identity or marker hash, different-device directories and Linux
+mount boundaries (including same-device bind mounts), never
+follows symlinks, and removes the final trash entry empty-only. Creation must
+open an empty directory owned by the user; registration cannot adopt an existing
+folder. Content moved into an already harness-created root counts as that
+root's content. Public manifests are refused, and cleanup requires fresh exit
+proof after reload. Missing native helpers refuse allocation and cleanup. Checkpoint
+Git checks its storage volume and bypasses temp pressure without allocating a
+temp root. Admission cancellation does not wait for sampling, stalled statfs
+is reported unknown, and failed Muse exits retain roots for 24 hours.
+The remaining milestone lanes supply actions, routing, UI, runtime
+wiring and final delivery; see [C1 certification](docs/certification/m107-c1.md).
 
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's

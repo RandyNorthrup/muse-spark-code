@@ -67,7 +67,7 @@ import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAto
 import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
 import { spawnMcpJob } from './mcpJobLaunch'
 import { joinStatement, newShellJob } from './shellJob'
-import type { ResourceLease } from '../../core/resources/launch'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
 import { observeResourceProcess } from '../resources/resourceAdmission'
 import { holdResourceJob } from '../resources/resourceJobHolder'
@@ -923,7 +923,7 @@ function startProcess(run: CommandRun) {
       run.nativeJob === undefined
         ? spawn(run.file, [...run.args], {
             cwd: run.cwd,
-            env: run.env,
+            env: resourceEnvironment(run.env, run.resource),
             windowsHide: true,
             stdio: ['pipe', 'pipe', 'pipe'],
             ...treeSpawnOptions(run.tree.platform),
@@ -934,7 +934,7 @@ function startProcess(run: CommandRun) {
             file: run.file,
             args: run.args,
             cwd: run.cwd,
-            env: run.env,
+            env: resourceEnvironment(run.env, run.resource),
             isVerbatim: false,
             resource: run.resource,
             log: run.tree.log,

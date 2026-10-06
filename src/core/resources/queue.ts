@@ -24,6 +24,10 @@ export interface ResourceLaunchRequest {
   class: ResourceClass
   /** M96c's scheduling priority: lower first, FIFO within each priority/kind. */
   priority: number
+  /** Tests/builds/installs/worktrees/downloads never use the foreground deadline. */
+  diskHeavy?: boolean | undefined
+  /** Only the checkpoint saving a pause; its own destination is checked by the host. */
+  checkpoint?: boolean | undefined
   parent?: ResourcePermit
 }
 export interface ResourceAdmission {
@@ -37,6 +41,7 @@ export interface ResourceQueueOptions {
   events: ResourceEvents
   capacity: (kind: ResourceKind) => number | null
   running: ResourceRunningWork
+  diskBlocked?: (() => boolean) | undefined
 }
 interface Entry {
   id: symbol
@@ -115,7 +120,7 @@ export class ResourceQueue {
       const cancelTimer =
         copy.class === 'foreground'
           ? this.options.clock.setTimeout(() => {
-              this.grant(pending)
+              if (!copy.diskHeavy || this.options.diskBlocked?.() !== true) this.grant(pending)
             }, RESOURCE_FOREGROUND_WAIT_MS)
           : undefined
       pending.cleanup = () => {
@@ -135,7 +140,12 @@ export class ResourceQueue {
       ready,
       runNow: () => {
         const pending = this.waiting.get(id)
-        if (pending === undefined || copy.class !== 'foreground') return false
+        if (
+          pending === undefined ||
+          copy.class !== 'foreground' ||
+          (copy.diskHeavy === true && this.options.diskBlocked?.() === true)
+        )
+          return false
         this.grant(pending)
         return true
       },
@@ -166,12 +176,17 @@ export class ResourceQueue {
     for (const entry of ordered) {
       if (!this.waiting.has(entry.id)) continue
       try {
+        if (entry.request.checkpoint === true) {
+          this.grant(entry)
+          continue
+        }
         const limit = this.options.capacity(entry.request.kind)
         if (limit !== null && limit !== 0 && limit !== 1)
           throw new RangeError('Invalid resource capacity')
         const { parent } = entry.request
         if (parent !== undefined && !this.held.has(parent))
           throw new Error('Resource parent permit is not active')
+        if (entry.request.diskHeavy === true && this.options.diskBlocked?.() === true) continue
         if (limit === null || (entry.request.class === 'foreground' && limit > 0)) {
           this.grant(entry)
           continue

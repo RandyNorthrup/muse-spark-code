@@ -2602,5 +2602,8 @@
   "referenceNativeAgentsConditions": "Ha run.subagent_delegation_mode=\"auto\", a Muse Code ügynökökre delegálhat. \"off\" esetén a delegálási eszközök nem érhetők el. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
   "resourceHarnessInTree": "A leállítás szünetel: a vezérlőfolyamat még ebben a fában van. A felügyelet megmarad; próbálja újra a leállítást.",
-  "resourceCgroupChanged": "A leállítás megtagadva: a fa cgroup csoportját eltávolították vagy lecserélték. A felügyelet megmarad."
+  "resourceCgroupChanged": "A leállítás megtagadva: a fa cgroup csoportját eltávolították vagy lecserélték. A felügyelet megmarad.",
+  "resourceDiskFree": "Szabad lemezterület",
+  "resourceDiskWriteRefused": "Nem lehet írni ide: {volume}. Kritikusan kevés a szabad lemezterület.",
+  "resourceDiskMinFreeGiBDescription": "A szabad lemezterület alsó határa GiB-ban. Alapértéke 10 GiB vagy a kötet 10%-a, amelyik kisebb, de legalább 2 GiB."
 }

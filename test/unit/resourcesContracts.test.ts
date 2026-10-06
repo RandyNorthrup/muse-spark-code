@@ -63,6 +63,7 @@ describe('M107 resource contracts', () => {
       memoryMinFreeGiB: 2,
       gpuMaxPercent: null,
       diskBusyMaxPercent: null,
+      diskMinFreeGiB: null,
       relocate: 'paired',
     })
     expect(constants).toMatchObject({

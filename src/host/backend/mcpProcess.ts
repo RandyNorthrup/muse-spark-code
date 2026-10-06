@@ -29,7 +29,7 @@ import { redactSecrets } from '../../core/redact'
 import { MCP_STDIO_ENV_ALLOWLIST, TREE_EXIT_WAIT_MS } from '../../shared/constants'
 import { killTree, sweepExitedTree, type TreeRoot, treeSpawnOptions } from '../processTree'
 import { spawnMcpJob } from './mcpJobLaunch'
-import type { ResourceLease } from '../../core/resources/launch'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 import { observeResourceProcess } from '../resources/resourceAdmission'
 
 export interface McpSpawnDeps {
@@ -371,7 +371,10 @@ export function mcpServerSpawner(
     if (!deps.isExistingDirectory(cwd)) {
       throw new Error(`its working directory ${cwd} does not exist`)
     }
-    const env = mcpServerEnvironment(deps.env(), launch.env, deps.platform)
+    const env = resourceEnvironment(
+      mcpServerEnvironment(deps.env(), launch.env, deps.platform),
+      resource,
+    )
     const file = resolveServerCommand(launch.command, cwd, env, deps)
     const line = spawnLine(file, launch.args, deps)
     const startedAt = Date.now()

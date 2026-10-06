@@ -2602,5 +2602,8 @@
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" olduğunda Muse Code aracılara devredebilir. \"off\" olduğunda devir araçları kullanılamaz. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
   "resourceHarnessInTree": "Durdurma bekletildi: denetim süreci hâlâ bu ağaçta. Denetim korunuyor; durdurmayı yeniden deneyin.",
-  "resourceCgroupChanged": "Durdurma reddedildi: bu ağacın cgroup grubu kaldırılmış veya değiştirilmiş. Denetim korunuyor."
+  "resourceCgroupChanged": "Durdurma reddedildi: bu ağacın cgroup grubu kaldırılmış veya değiştirilmiş. Denetim korunuyor.",
+  "resourceDiskFree": "Boş disk alanı",
+  "resourceDiskWriteRefused": "{volume} üzerine yazılamıyor: boş disk alanı kritik derecede az.",
+  "resourceDiskMinFreeGiBDescription": "GiB cinsinden boş disk alanı alt sınırı. Varsayılan, 10 GiB veya birimin %10 değerinden küçük olanıdır; en az 2 GiB olur."
 }

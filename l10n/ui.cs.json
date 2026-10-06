@@ -2790,5 +2790,8 @@
   "referenceNativeAgentsConditions": "Když je run.subagent_delegation_mode=\"auto\", Muse Code může delegovat agentům. Při \"off\" nejsou nástroje delegování dostupné. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
   "resourceHarnessInTree": "Zastavení pozastaveno: řídicí proces je stále v tomto stromu. Vlastnictví je zachováno; zkuste zastavení znovu.",
-  "resourceCgroupChanged": "Zastavení odmítnuto: cgroup tohoto stromu byla odstraněna nebo nahrazena. Vlastnictví je zachováno."
+  "resourceCgroupChanged": "Zastavení odmítnuto: cgroup tohoto stromu byla odstraněna nebo nahrazena. Vlastnictví je zachováno.",
+  "resourceDiskFree": "Volné místo na disku",
+  "resourceDiskWriteRefused": "Nelze zapisovat do {volume}: kriticky málo volného místa na disku.",
+  "resourceDiskMinFreeGiBDescription": "Dolní mez volného místa v GiB. Výchozí hodnota je 10 GiB nebo 10% svazku, podle toho, co je menší, nejméně však 2 GiB."
 }

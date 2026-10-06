@@ -1,4 +1,14 @@
+import type { UiText } from '../../shared/l10n/en'
+import { setUiText } from '../../shared/l10n/text'
 import process from 'node:process'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { statfs } from 'node:fs/promises'
+import { TreeTempRoots } from '../../host/resources/tempRoots'
+import type { ResourceTempRoots } from './launch'
+import { ResourceDiskSampler, type ResourceDiskTarget } from './disk'
+import { CreatedRegistry, type CreatedCleanup, type CreatedPathProof } from './createdRegistry'
 import { BOUNDED_FILE_READ_CHUNK_BYTES, RESOURCE_SAMPLE_MS } from '../../shared/constants'
 import {
   readResourceSettings,
@@ -13,11 +23,28 @@ import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
 import { WindowsResourceTreeReader } from './trees/windows'
 export { createResources } from '../../runtime/resources/entry'
+import { runTreeProgram } from './trees/run'
+import { powerShellQuoted } from '../shellQuote'
+import {
+  WINDOWS_POWERSHELL_COMMAND_ARGS,
+  WINDOWS_POWERSHELL_RELATIVE_PATH,
+} from '../../shared/constants'
 
 export interface ResourceHostSettings {
   /** W/H supply T's remaining native identity ports; absence is explicitly unknown. */
   readonly bindNativeTree?:
     ((launch: ResourceProcessLaunch) => Promise<ResourceTreeBinding | null>) | undefined
+  /** W/U/H supply workspace/worktree, data/log and optional node-state roots. */
+  readonly diskTargets?: (() => readonly ResourceDiskTarget[]) | undefined
+  /** Portable TreeTempRoots adapter, shared by every editor/runtime. */
+  readonly tempRoots?: ResourceTempRoots | undefined
+  readonly created?: CreatedRegistry | undefined
+  /** Foreign-platform directory helper; absence refuses temp allocation and deletion. */
+  readonly createdDirectories?: CreatedPathProof['directories']
+  /** W supplies a per-harness persisted manifest in app data for recovery. */
+  readonly registryFile?: string | undefined
+  readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
+  readonly localization?: { readonly table: UiText; readonly locale: string } | undefined
   readonly inspect: ResourceSettingsReader
   readonly onError: () => void
   readonly windowsJob?:
@@ -30,6 +57,8 @@ const state: { host?: ResourceLaunchHost } = {}
 
 /** Loaded by the first governed launch; a CommonJS module is shared by all bundles. */
 export function resourceGovernorHost(options: ResourceHostSettings): ResourceLaunchHost {
+  if (options.localization !== undefined)
+    setUiText(options.localization.table, options.localization.locale)
   if (state.host !== undefined) return state.host
   const settings = () => readResourceSettings(options.inspect)
   const clock: ResourceClock = {
@@ -42,15 +71,89 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
       }
     },
   }
+  const directories =
+    options.createdDirectories ??
+    (process.platform === 'linux'
+      ? undefined
+      : async (args: readonly string[]) => {
+          if (process.platform === 'darwin')
+            return await runTreeProgram(
+              path.join(__dirname, '..', 'native', 'darwin', 'muse-dictate'),
+              ['--created-directory', ...args],
+            )
+          const systemRoot = process.env['SystemRoot']
+          const job = await options.windowsJob?.()
+          if (systemRoot === undefined || job === undefined || process.platform !== 'win32')
+            throw new Error('Native creation directory helper is required')
+          return await runTreeProgram(
+            path.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
+            [
+              ...WINDOWS_POWERSHELL_COMMAND_ARGS,
+              `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(job.assemblyPath)}); [MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')})) } catch { exit 1 }`,
+            ],
+            { SystemRoot: systemRoot },
+          )
+        })
+  let registryPending: Promise<CreatedRegistry> | undefined
+  const registry = (): Promise<CreatedRegistry> => {
+    registryPending ??=
+      options.created === undefined
+        ? CreatedRegistry.open(
+            options.registryFile ??
+              path.join(tmpdir(), 'muse-spark-code-resources', `${randomUUID()}.json`),
+            () => clock.now(),
+            {
+              directories,
+              exited: (owner) => Promise.resolve(state.host?.hasRetired(owner) ?? false),
+              archivedAndClean: () =>
+                Promise.reject(new Error('Archive/clean proof is not installed')),
+              freeBytes: async (file) => {
+                try {
+                  const stats = await statfs(path.dirname(file), { bigint: true })
+                  const bytes = Number(stats.bsize * stats.bavail)
+                  return Number.isSafeInteger(bytes) && bytes >= 0 ? bytes : null
+                } catch {
+                  return null
+                }
+              },
+            },
+          )
+        : Promise.resolve(options.created)
+    return registryPending
+  }
+  const created = options.created ?? {
+    finish: async (owner: string, isFailed: boolean) => {
+      const store = await registry()
+      await store.finish(owner, isFailed)
+    },
+    clean: async () => {
+      const store = await registry()
+      return await store.clean()
+    },
+  }
+  const disks = new ResourceDiskSampler(
+    options.diskTargets?.() ?? [{ role: 'temp', path: tmpdir() }],
+    settings,
+  )
+  const tempRoots = options.tempRoots ?? {
+    create: async (owner: string) => {
+      const store = await registry()
+      return await new TreeTempRoots(store.base, store, disks).create(owner)
+    },
+  }
   const events = new ResourceEvents(options.onError)
   const governor = new ResourceGovernor({
     clock,
     events,
     settings: settings(),
-    sampler: createMachineResourceSampler(settings, {
-      timeoutMs: RESOURCE_SAMPLE_MS,
-      maxOutputBytes: BOUNDED_FILE_READ_CHUNK_BYTES,
-    }),
+    sampler: createMachineResourceSampler(
+      settings,
+      {
+        timeoutMs: RESOURCE_SAMPLE_MS,
+        maxOutputBytes: BOUNDED_FILE_READ_CHUNK_BYTES,
+      },
+      disks,
+    ),
     hasRelocationTarget: () => false,
     onError: options.onError,
   })
@@ -116,6 +219,10 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
     clock,
     settings,
     bindTree,
+    disks,
+    tempRoots,
+    created,
+    onCleanup: options.onCleanup,
     onError: options.onError,
   })
   return state.host

@@ -2696,5 +2696,8 @@
   "referenceNativeAgentsConditions": "Quando run.subagent_delegation_mode=\"auto\", Muse Code può delegare agli agenti. Con \"off\", gli strumenti di delega non sono disponibili. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
   "resourceHarnessInTree": "Arresto in pausa: il processo di controllo è ancora in questo albero. Il controllo viene mantenuto; riprova l’arresto.",
-  "resourceCgroupChanged": "Arresto rifiutato: il cgroup di questo albero è stato rimosso o sostituito. Il controllo viene mantenuto."
+  "resourceCgroupChanged": "Arresto rifiutato: il cgroup di questo albero è stato rimosso o sostituito. Il controllo viene mantenuto.",
+  "resourceDiskFree": "Spazio libero su disco",
+  "resourceDiskWriteRefused": "Impossibile scrivere su {volume}: lo spazio libero su disco è a un livello critico.",
+  "resourceDiskMinFreeGiBDescription": "Soglia di spazio libero in GiB. Il valore predefinito è 10 GiB o il 10% del volume, il minore dei due, con un minimo di 2 GiB."
 }

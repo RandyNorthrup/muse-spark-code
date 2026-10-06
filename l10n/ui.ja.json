@@ -2508,5 +2508,8 @@
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" の場合、Muse Codeはエージェントに委任できます。\"off\" の場合、委任ツールは使用できません。 run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
   "resourceHarnessInTree": "停止を保留しました。制御プロセスがまだこのツリー内にあります。管理は保持されます。停止を再試行してください。",
-  "resourceCgroupChanged": "停止を拒否しました。このツリーの cgroup が削除または置換されました。管理は保持されます。"
+  "resourceCgroupChanged": "停止を拒否しました。このツリーの cgroup が削除または置換されました。管理は保持されます。",
+  "resourceDiskFree": "ディスクの空き容量",
+  "resourceDiskWriteRefused": "{volume} に書き込めません。ディスクの空き容量が危険な水準です。",
+  "resourceDiskMinFreeGiBDescription": "空き容量の下限（GiB）。既定は10 GiBとボリュームの10%の小さい方ですが、最低2 GiBです。"
 }

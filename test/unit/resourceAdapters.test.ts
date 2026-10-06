@@ -1,3 +1,6 @@
+import path from 'node:path'
+import { PassThrough } from 'node:stream'
+import { holdResourceJob } from '../../src/host/resources/resourceJobHolder'
 import * as childProcess from 'node:child_process'
 import * as museSdk from '@muse-code/sdk'
 import { spawnResourceMuseConnection } from '../../src/host/resources/museResourceLaunch'
@@ -64,6 +67,70 @@ describe('C1 final process admission', () => {
     expect(lease.complete).toHaveBeenCalledWith(false)
   })
 
+  it('injects the owned temp root into a real CLI child and marks a failed exit for retention', async () => {
+    const failed = vi.fn()
+    const environment = {
+      TMPDIR: 'owned-tree-temp',
+      TEMP: 'owned-tree-temp',
+      TMP: 'owned-tree-temp',
+    }
+    const owned: ResourceLease = {
+      ...lease,
+      failed,
+      temp: {
+        root: 'owned-tree-temp',
+        profile: 'owned-tree-temp/profile',
+        cache: 'owned-tree-temp/cache',
+        environment,
+        finish: () => Promise.resolve(),
+      },
+    }
+    vi.mocked(admitResource).mockResolvedValue(owned)
+    const result = await runResourceCommand(
+      {
+        command: process.execPath,
+        args: [
+          '-e',
+          'process.stdout.write(JSON.stringify([process.env.TMPDIR,process.env.TEMP,process.env.TMP]));process.exitCode=2',
+        ],
+      },
+      1000,
+      process.cwd(),
+      {},
+    )
+    expect(result.exitCode).toBe(2)
+    expect(result.stdout).toBe(
+      JSON.stringify(['owned-tree-temp', 'owned-tree-temp', 'owned-tree-temp']),
+    )
+    expect(failed).toHaveBeenCalledOnce()
+    expect(owned.complete).toHaveBeenCalledWith(false)
+  })
+  it('preserves temp ownership and failure marking through the Windows job-holder wrapper', async () => {
+    const child = new childProcess.ChildProcess()
+    child.stdin = new PassThrough()
+    child.stdout = new PassThrough()
+    child.stderr = new PassThrough()
+    vi.mocked(childProcess.spawn).mockReturnValueOnce(child)
+    const failed = vi.fn()
+    const temp = {
+      root: 'owned',
+      profile: 'owned/profile',
+      cache: 'owned/cache',
+      environment: { TMPDIR: 'owned', TEMP: 'owned', TMP: 'owned' },
+      finish: () => Promise.resolve(),
+    }
+    const pending = holdResourceJob(
+      { ...lease, failed, temp },
+      { name: 'owned-job', assemblyPath: 'owned.dll' },
+      String.raw`C:\Windows`,
+    )
+    child.stdout.emit('data', Buffer.from('held\n'))
+    const wrapped = await pending
+    expect(wrapped.temp).toBe(temp)
+    wrapped.failed?.()
+    expect(failed).toHaveBeenCalledOnce()
+    wrapped.complete(true)
+  })
   it('rechecks short CLI ownership after admission and never starts a cancelled command', async () => {
     const held = Promise.withResolvers<ResourceLease>()
     vi.mocked(admitResource).mockReturnValue(held.promise)
@@ -205,6 +272,37 @@ describe('C1 final process admission', () => {
     await expect(pending).rejects.toThrow('owner changed')
     expect(childProcess.spawn).not.toHaveBeenCalled()
     expect(lease.complete).toHaveBeenCalledWith(true)
+  })
+
+  it('routes checkpoint Git through its destination admission class before spawning', async () => {
+    const stop = new AbortController()
+    const run = createGitProcess({
+      platform: 'linux',
+      env: { PATH: '/usr/bin' },
+      fileExists: () => true,
+      spawn: childProcess.spawn,
+    })
+    const destination = path.join(process.cwd(), 'checkpoint-storage')
+    await expect(
+      run(['status'], {
+        cwd: process.cwd(),
+        env: {},
+        timeoutMs: 1000,
+        checkpointDestination: destination,
+        signal: stop.signal,
+        beforeRun: () => {
+          throw new Error('fixture stops before spawn')
+        },
+      }),
+    ).rejects.toThrow('fixture stops before spawn')
+    expect(admitResource).toHaveBeenCalledWith(
+      'other',
+      stop.signal,
+      'checkpoint',
+      false,
+      destination,
+    )
+    expect(childProcess.spawn).not.toHaveBeenCalled()
   })
 
   it('rechecks MCP workspace admission after the governor wait', async () => {

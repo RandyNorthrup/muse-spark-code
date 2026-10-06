@@ -22,6 +22,34 @@ happened, not what was planned; superseded entries are kept.
 
 - Runtime resource settings preserve injected class stores' methods. ACP
   shows one full pause warning per conversation while continuing level updates.
+- Temp cleanup now walks identity-checked directory handles on Linux and in
+  the native macOS/Windows helpers, refuses filesystem and Linux mount boundaries
+  (including same-device bind mounts), and removes
+  trash entries empty-only. Interrupted or legacy records without stored
+  identity/marker hash are report-only. Creation requires an empty owned handle;
+  registration cannot adopt existing folders. Manifest stage replacements are
+  retained instead of being unlinked by name.
+
+- Disk cleanup rejects forged or public manifests, requires private-base
+  confinement and an ownership marker, and quarantines roots before removal.
+  Linux pins the base directory during cleanup. Creation intent is saved before
+  mkdir, and a refused root no longer blocks cleanup of other eligible roots.
+  Initial OS temp ancestor aliases resolve to the verified canonical base,
+  supporting macOS temp paths without following those aliases during cleanup.
+- Checkpoint Git checks its storage volume and stays available at critical temp
+  pressure without allocating a temp root. Admission abort/disposal no longer
+  waits for sampling; stalled statfs publishes unknown readings within a bound.
+- Account/sign-in Muse children receive the same owned temp environment as chat
+  children. Nonzero/signal exits and SDK initialization/spawn failures retain
+  their temp roots for 24 hours after proved tree exit.
+
+- Staged disk-space protection samples harness write volumes with `fs.statfs`,
+  uses the existing governor's levels and recovery, and blocks disk-heavy
+  admission before the foreground deadline can bypass it. Owned-tree temp
+  environments and a persisted creation registry provide guarded cleanup
+  after proved exit, with 24-hour retention for failed runs and idempotent
+  cleanup when tree exit and disk pressure coincide. Remaining host/device/platform bindings are
+  tracked in the M107 DK certification.
 
 - Windows Muse Code shutdown stops the verified registered job, bounds all
   SDK close surfaces, reports forced or unproved shutdown honestly, and

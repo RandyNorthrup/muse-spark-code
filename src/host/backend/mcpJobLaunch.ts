@@ -10,7 +10,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:net'
 import { setEnvironmentVariable } from '../../core/backends/musecode/launch'
 import { redactSecrets } from '../../core/redact'
-import type { ResourceLease } from '../../core/resources/launch'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 import { stopResourceTree } from '../../core/resources/admission'
 import {
   MCP_JOB_CONFIG_VARIABLE,
@@ -86,7 +86,7 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
       file: launch.file,
       args: [...launch.args],
       cwd: launch.cwd,
-      env: launch.env,
+      env: resourceEnvironment(launch.env, launch.resource),
       parentPid: process.pid,
       isVerbatim: launch.isVerbatim,
       controlPipe,
@@ -96,7 +96,7 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
     }),
     'utf8',
   ).toString('base64')
-  const helperEnv = { ...launch.env }
+  const helperEnv = resourceEnvironment(launch.env, launch.resource)
   setEnvironmentVariable(helperEnv, 'win32', MCP_JOB_CONFIG_VARIABLE, payload)
   return {
     env: helperEnv,
@@ -146,14 +146,17 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
     child.once('exit', prepared.closeControl)
     child.once('error', prepared.closeControl)
     prepared.register()
-    child.once('exit', () => {
+    child.once('exit', (code) => {
+      if (code !== 0) launch.resource?.failed?.()
       launch.resource?.complete(false)
     })
     child.once('error', () => {
+      launch.resource?.failed?.()
       launch.resource?.complete(child.pid === undefined)
     })
     return child
   } catch (error: unknown) {
+    launch.resource?.failed?.()
     launch.resource?.complete(true)
     prepared.closeControl()
     throw error

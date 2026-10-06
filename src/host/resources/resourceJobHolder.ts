@@ -64,6 +64,8 @@ export async function holdResourceJob(
     wasRetired = hasEnded && code === 0 && signal === null
   })
   return {
+    temp: lease.temp,
+    failed: lease.failed,
     kill: lease.kill,
     isTreeGone: lease.isTreeGone,
     register: (launch) => {

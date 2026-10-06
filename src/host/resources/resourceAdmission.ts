@@ -9,10 +9,12 @@ export function observeResourceProcess(
 ): void {
   if (lease === undefined) return
   lease.register({ pid: child.pid, job, group: process.platform !== 'win32' })
-  child.once('exit', () => {
+  child.once('exit', (code) => {
+    if (code !== 0) lease.failed?.()
     lease.complete(false)
   })
   child.once('error', () => {
+    lease.failed?.()
     lease.complete(child.pid === undefined)
   })
 }

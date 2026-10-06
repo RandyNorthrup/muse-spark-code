@@ -8,6 +8,26 @@ import type { BrowserRuntimeMode } from './browserCheckConstants'
 
 // M107 / D87: portable resource contracts. Nothing is sampled at module load.
 export const RESOURCE_SAMPLE_MS = 5000
+// D87.14: free-space policy and owned-tree retention.
+export const RESOURCE_DISK_SAMPLE_MS = 30_000
+export const RESOURCE_DISK_FAST_SAMPLE_MS = 5000
+export const RESOURCE_DISK_DEFAULT_FREE_GIB = 10
+export const RESOURCE_DISK_MIN_FREE_GIB = 2
+export const RESOURCE_DISK_FLOOR_FRACTION = 0.1
+export const RESOURCE_DISK_CRITICAL_GIB = 1
+export const RESOURCE_DISK_CRITICAL_FRACTION = 0.01
+export const RESOURCE_DISK_HYSTERESIS_GIB = 2
+export const RESOURCE_DISK_TREND_MS = 5 * 60_000
+export const RESOURCE_DISK_ETA_MS = 10 * 60_000
+export const RESOURCE_TEMP_KEEP_MS = 24 * 60 * 60_000
+export const RESOURCE_TEMP_PREFIX = 'muse-tree-'
+export const RESOURCE_PRIVATE_DIR_MODE = 0o700
+export const RESOURCE_PRIVATE_FILE_MODE = 0o600
+export const RESOURCE_UNSAFE_WRITE_MODE = 0o022
+export const RESOURCE_TEMP_MARKER = '.muse-owner.json'
+export const RESOURCE_TEMP_TOKEN_BYTES = 16
+export const RESOURCE_DISK_READ_TIMEOUT_MS = 1000
+export const RESOURCE_BIGINT_ZERO = 0n
 export const RESOURCE_TREE_SAMPLE_MS = 15_000
 export const RESOURCE_CPU_WINDOW_MS = 30_000
 export const RESOURCE_MEMORY_ENTER_SAMPLES = 2

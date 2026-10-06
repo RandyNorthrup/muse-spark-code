@@ -1,3 +1,4 @@
+import { resourceEnvironment } from '../../core/resources/launch'
 // The processes and the socket behind voice (M9, M35): Node's child process
 // adapted to the driver's `HelperChild`, Linux's recorder, and the platform's
 // WebSocket to Meta. Part of dist/voice.js (PLAN.md D6), loaded on the first
@@ -66,7 +67,7 @@ function admittedVoiceProcess(
       child =
         job === undefined
           ? spawn(command, [...args], {
-              env: withoutCredentials(env),
+              env: resourceEnvironment(withoutCredentials(env), resource),
               stdio: ['pipe', 'pipe', 'pipe'],
               windowsHide: true,
               ...treeSpawnOptions(process.platform),
@@ -77,7 +78,7 @@ function admittedVoiceProcess(
               file: command,
               args,
               cwd: process.cwd(),
-              env: withoutCredentials(env),
+              env: resourceEnvironment(withoutCredentials(env), resource),
               isVerbatim: false,
               resource,
               log: () => {

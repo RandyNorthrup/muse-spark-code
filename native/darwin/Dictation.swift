@@ -85,6 +85,14 @@ func runProcIdentityIfRequested() {
 // Dispatch before responsibility/audio setup: process probes must never ask TCC.
 runProcIdentityIfRequested()
 
+// M107 DK's directory mode exits before voice setup or privacy requests.
+@_silgen_name("muse_created_main")
+func createdDirectoryMain(_ argc: Int32, _ argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) -> Int32
+
+if CommandLine.arguments.dropFirst().first == "--created-directory" {
+    exit(createdDirectoryMain(CommandLine.argc - 1, CommandLine.unsafeArgv.advanced(by: 1)))
+}
+
 let exitCodeUnavailable: Int32 = 2
 
 // MARK: - Responsibility

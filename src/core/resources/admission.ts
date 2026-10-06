@@ -44,10 +44,12 @@ async function load(): Promise<ResourceLaunchHost | undefined> {
 export async function admitResource(
   kind: ResourceKind,
   signal?: AbortSignal,
-  workClass?: ResourceClass,
+  workClass?: ResourceClass | 'checkpoint',
+  isDiskHeavy?: boolean,
+  checkpointDestination?: string,
 ): Promise<ResourceLease | undefined> {
   const host = await load()
-  return await host?.admit(kind, signal, workClass)
+  return await host?.admit(kind, signal, workClass, isDiskHeavy, checkpointDestination)
 }
 
 export async function inResourceClass<T>(
@@ -68,4 +70,17 @@ export async function resourceWindowsJob(): Promise<
 export async function stopResourceTree(resource: ResourceLease): Promise<void> {
   if ((await resource.kill?.()) || (await resource.isTreeGone?.())) return
   throw new Error('Registered resource tree could not be stopped')
+}
+
+/** Agent write adapters call this after permission/identity validation and before mutation. */
+export async function assertResourceWrite(file: string): Promise<void> {
+  const host = await load()
+  if (host === undefined) throw new Error('Resource write guard unavailable')
+  await host.assertWrite(file)
+}
+
+/** Runtime/team lanes bind this between operations; cancel never queues. */
+export async function resourceSafePoint(kind: ResourceKind, signal?: AbortSignal): Promise<void> {
+  const host = await load()
+  await host?.safePoint(kind, signal)
 }
