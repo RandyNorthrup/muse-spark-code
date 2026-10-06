@@ -75,8 +75,9 @@ describe('node MHP method extension', () => {
       'node/git/pull',
       'node/git/push',
       'node/wipe',
+      'node/maker/action',
     ])
-    expect(Object.keys(nodeMethods)).toHaveLength(28)
+    expect(Object.keys(nodeMethods)).toHaveLength(32)
     for (const [name, entry] of Object.entries(nodeMethods)) {
       const expected = publicMethods.has(name) ? 'public' : 'session'
       expect(entry.access, name).toBe(stepUpMethods.has(name) ? 'stepUp' : expected)

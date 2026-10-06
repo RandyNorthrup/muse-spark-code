@@ -65,6 +65,7 @@ export const nodeStepUpActionSchema = z.enum([
   'key.disclose',
   'git.network',
   'node.wipe',
+  'maker.action',
 ])
 const challengeFields = {
   v: z.literal(NODE_PROTOCOL_VERSION),

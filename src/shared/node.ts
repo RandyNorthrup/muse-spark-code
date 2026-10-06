@@ -52,12 +52,16 @@ export const nodeLanAddressSchema = z.union([z.ipv4(), z.ipv6()]).check(z.refine
 
 function isHomeAddress(ip: string): boolean {
   if (!ip.includes(':')) {
-    return /^(?:127\.|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/u.test(ip)
+    return (
+      /^(?:127\.|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|169\.254\.)/u.test(ip) &&
+      !/^169\.254\.(?:169|170)\./u.test(ip)
+    )
   }
   try {
     const canonical = new URL(`https://[${ip}]`).hostname
     return (
       canonical !== '[fd00:ec2::254]' &&
+      canonical !== '[fd20:ce::254]' &&
       (canonical === '[::1]' || /^\[(?:f[cd][a-f0-9]{2}:|fe[89ab][a-f0-9]:)/iu.test(canonical))
     )
   } catch {
@@ -221,6 +225,10 @@ export const nodeTerminalSizeSchema = z.strictObject({
   cols: z.int().check(z.positive(), z.maximum(NODE_MAX_TERMINAL_DIMENSION)),
   rows: z.int().check(z.positive(), z.maximum(NODE_MAX_TERMINAL_DIMENSION)),
 })
+export const nodeTerminalInputSchema = z.string().check(
+  z.maxLength(NODE_TERMINAL_INPUT_BYTES),
+  z.refine((data) => new TextEncoder().encode(data).byteLength <= NODE_TERMINAL_INPUT_BYTES),
+)
 export const nodeTerminalClientFrameSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('auth'),
@@ -229,10 +237,7 @@ export const nodeTerminalClientFrameSchema = z.discriminatedUnion('type', [
   }),
   z.strictObject({
     type: z.literal('input'),
-    data: z.string().check(
-      z.maxLength(NODE_TERMINAL_INPUT_BYTES),
-      z.refine((data) => new TextEncoder().encode(data).byteLength <= NODE_TERMINAL_INPUT_BYTES),
-    ),
+    data: nodeTerminalInputSchema,
   }),
   z.strictObject({ type: z.literal('resize'), size: nodeTerminalSizeSchema }),
   z.strictObject({ type: z.literal('close') }),

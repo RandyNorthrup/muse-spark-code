@@ -20,6 +20,7 @@ import {
   nodeGitDestinationSchema,
   nodeRelativePathSchema,
   nodeTerminalSizeSchema,
+  nodeTerminalInputSchema,
 } from '../node'
 import {
   nodeAssertionSchema,
@@ -153,6 +154,27 @@ export const nodeMethods = {
     result: terminal,
   },
   'node/terminal/close': { access: 'session', params: terminal, result: done },
+  'node/terminal/attach': { access: 'session', params: terminal, result: done },
+  'node/terminal/write': {
+    access: 'session',
+    params: z.strictObject({ terminalId: nodeIdentifierSchema, data: nodeTerminalInputSchema }),
+    result: done,
+  },
+  'node/terminal/resize': {
+    access: 'session',
+    params: z.strictObject({ terminalId: nodeIdentifierSchema, size: nodeTerminalSizeSchema }),
+    result: done,
+  },
+  'node/maker/action': {
+    access: 'stepUp',
+    params: z.strictObject({
+      ...stepUp,
+      deviceId: nodeIdentifierSchema,
+      operation: nodeIdentifierSchema,
+      payload: nodeFileTextSchema.shape.text,
+    }),
+    result: done,
+  },
   'node/git/status': {
     access: 'session',
     params: z.strictObject({ ...workspace, cursor }),

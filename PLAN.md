@@ -22524,6 +22524,17 @@ and issuance receipts. Tests cover binding, origin/metadata, header-only
 auth, first-frame deadline, size/admission limits, payload binding and Stop;
 every guard is deliberately broken and restored. No paid/live calls.
 
+**M110N listener receipt (2026-10-06).** N implements the accepted-table
+transport in the lazy node bundle: explicit private/loopback bind, pinned TLS
+and full console fingerprint, browser guards, memory-bearer verifier port,
+bounded HTTP/WebSocket handling and shared method dispatch, with an exact
+per-action UV-proof binding for physical/maker actions and ungated authenticated
+Stop. See `docs/certification/m110-n-node-service.md` for tests, byte-exact red
+drills and the named `N-A1-VERIFIER`, `N-A1-S0-TLS`, `N-C-LISTENER`,
+`N-M104-METHODS`, `N-U2-TERMINAL` and `N-M103-ACTION` handoffs. Production
+sign-in (including H20 console recovery), issuance, OS deployment and user
+surfaces remain their owners' integration work; unbound serve still refuses.
+
 **RVM110L0 corrections (FIXM110L0).** Before freezing these contracts,
 close all three review findings: require a closed, service-owned Git
 configuration with fixed overrides/environment and immutable SSH destination
@@ -23552,6 +23563,15 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**M110N lane verification delegation (2026-10-06).** The rig brief and
+shared lane rules explicitly prohibit full quality/full-suite runs here.
+N runs its owned tests at the default timeout, scoped ESLint/Prettier,
+all-project typecheck, deadcode, duplication, localization, host-API and
+production build, with unchanged hooks and budgets. The lead runs full
+quality/coverage/a11y/integration on the integrated tree before acceptance.
+J owns the generated host-API snapshot; N records the exact stale import-count
+changes for integration rather than changing that lane's file.
 
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in

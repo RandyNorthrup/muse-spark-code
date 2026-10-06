@@ -29,6 +29,8 @@ export { superviseNode } from './supervisor'
 export { NodeProcessToolHost } from './toolHost'
 export { nodeHealth } from './health'
 export { NodeClosedGitRunner } from './gitRunner'
+export { NodeListener } from './listener'
+export { nodeActionDigest } from './listenerMethods'
 
 /** Authenticated local transport, TLS/web sign-in, slot codec and tool-peer binding. */
 export interface NodeServiceBinding {

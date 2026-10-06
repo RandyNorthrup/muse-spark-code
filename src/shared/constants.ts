@@ -55,6 +55,36 @@ export const NODE_SESSION_IDLE_MS = 30 * 60 * 1000
 export const NODE_SESSION_MAX_MS = 12 * 60 * 60 * 1000
 export const NODE_STEP_UP_TTL_MS = 5 * 60 * 1000
 export const NODE_WS_AUTH_MS = 5000
+export const NODE_HTTP_BODY_BYTES = 2 * 1024 * 1024
+export const NODE_HTTP_HEADER_BYTES = 8 * 1024
+export const NODE_HTTP_MAX_HEADERS = 32
+export const NODE_HTTP_TIMEOUT_MS = 5000
+export const NODE_LISTENER_MAX_CONNECTIONS = 100
+export const NODE_LISTENER_SOURCE_CONNECTIONS = 16
+export const NODE_LISTENER_MAX_REQUESTS = 100
+export const NODE_LISTENER_MAX_SOURCES = 1000
+export const NODE_WS_FRAME_BYTES = 64 * 1024
+export const NODE_WS_QUEUE_BYTES = 2 * 1024 * 1024
+export const NODE_WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+export const NODE_WS_MASK_BYTES = 4
+export const NODE_WS_MASK_FLAG = 0x80
+export const NODE_WS_SHORT_MAX = 125
+export const NODE_WS_LENGTH_16 = 126
+export const NODE_WS_LENGTH_64 = 127
+export const NODE_WS_TEXT = 0x81
+export const NODE_WS_CLOSE = 0x88
+export const NODE_WS_PING = 0x89
+export const NODE_WS_PONG = 0x8a
+export const NODE_HTTP_STATUS = {
+  ok: 200,
+  invalidRequest: 400,
+  unauthenticated: 401,
+  forbidden: 403,
+  notFound: 404,
+  tooLarge: 413,
+  rateLimited: 429,
+  unavailable: 503,
+} as const
 export const NODE_SIGNIN_MAX_FAILURES = 100
 export const NODE_SIGNIN_BACKOFF_MS = 1000
 export const NODE_SIGNIN_BACKOFF_MAX_MS = 60 * 1000

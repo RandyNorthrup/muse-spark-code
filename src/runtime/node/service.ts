@@ -1,6 +1,6 @@
 import { NodeTransactions } from './transactions'
-// Shared core for A1/M104's listener and T's local control socket. No editor
-// adapter, listener, automatic approval or paid call is implemented here.
+// Shared core for the listener and T's local control socket. The A1/M104/C
+// ports own integration; this core introduces no automatic approval or paid call.
 import { UI_TEXT } from '../../shared/constants'
 import type { NodeClock, NodeToolHostPort } from '../../shared/node'
 import type { NodeSession } from '../../shared/nodeAuth'

@@ -3,7 +3,7 @@
 2026-10-06, Kubuntu rig, `/home/randy/lanes/M110N`, branch `m110/n`.
 Scope: PLAN D90.1, .3, .18, .23 and M110a0's N lane, including the
 RVM110L0 closed Git and ordered terminal corrections. Model attempts: **0**.
-No credential read, network/model call, dependency install, machine setting,
+No real credential read, external network/model call, dependency install, machine setting,
 push, merge or rebase. Local commits use the unchanged hooks.
 
 ## Implemented core
@@ -65,12 +65,11 @@ push, merge or rebase. Local commits use the unchanged hooks.
 | C/N/U1 captures                                | A0-PTY, A0-GIT, A0-PUBLISH, actual state-read/ptrace denial and amd64/arm64/Desktop/container matrix remain required. Native Git/process tests here run as the rig user with synthetic ports; they do not prove the two-UID image. Muse Code stays unavailable pending A0-BWRAP/A0-LOGIN and Q-M110.9's sign-in isolation.                                                                      |
 | J documentation                                | README, CHANGELOG, AGENTS, operator and editor docs are J-owned. Add these commands and behaviors after bindings are integrated. No featureCatalog/reference generator exists on this base; integration must list all seven commands, selected LAN listener, health, lock/stop/wipe, sealed store, attendance and tools/Git behavior. Regenerate the J-owned host-API record after integration. |
 
-**Listener gate:** [the accepted-review requirement](m110-threat-model.md)
-explicitly says Lead/Claude acceptance is pending and forbids listener code
-before acceptance. Clarification was requested through the user-input tool;
-no answer/accepted review was supplied. No LAN, HTTP, TLS or local socket
-listener was implemented or bound. This lane is **core implementation,
-not runnable home-node certification** until that gate and the bindings close.
+**Listener acceptance:** the lead accepted the M110a0 table on 2026-10-06,
+verbatim in [Lead acceptance](m110-threat-model.md#lead-acceptance), including
+H19 and H20. The continuation implements N's listener within that table.
+The earlier pending-acceptance refusal is resolved; production sign-in,
+service composition, web assets and platform receipts remain named handoffs.
 
 Native Windows private files/tools require a qualified DACL/job adapter; the
 A0 service runs in Linux/WSL/container. Paths normalize separators. Native
@@ -156,3 +155,112 @@ reserved to the lead by the supplied rig/common rules; no gate was weakened.
 The host-API gate currently reports only its stale generated Node import
 counts, in a J-owned file. Its exact diff is handed off rather than editing
 another lane's file. This is a named integration check, not a green result.
+
+## Listener continuation (2026-10-06)
+
+Implemented in `listener.ts`, `listenerGuard.ts`, `listenerMethods.ts` and
+`listenerSocket.ts`, exported only from the lazy `dist/node.js` service bundle.
+No dependency, key, production verifier fake, Meta/MSP shape or editor-specific
+route was added. Local HTTPS tests use generated synthetic certificates and
+fake shared ports; model attempts remain **0**.
+
+- **H01:** config remains null before explicit selection. The canonical address
+  parser permits loopback, RFC1918, ULA and explicitly chosen link-local;
+  refuses wildcard, public, multicast, mapped IPv6 and metadata addresses,
+  including expanded `fd00:ec2::254` and `fd20:ce::254`. Bind uses the numeric
+  selected address and port only, with one start per listener and exclusive
+  port ownership. There is no plain HTTP server or redirect.
+- **H02:** load the leaf/key through owner-only, bounded `NodePrivateFiles`;
+  require the configured SHA-256 pin, a non-CA leaf, exact SANs and current
+  validity before bind. TLS 1.3 and the key/certificate match are enforced by
+  Node. `print` receives the complete colon-separated SHA-256 fingerprint
+  under the installed-language label for console/TUI display.
+- **H06/H07/H08:** exact configured Host and matching HTTPS Origin, mandatory
+  same-origin Fetch Metadata, duplicate critical header rejection, no cookies,
+  CORS, URL credentials or cache of API replies. HTTP verifies the memory
+  Authorization bearer before reading/parsing params. Every privileged route
+  refuses without A1; no public auth operation can grant a session without its
+  binding either. Params AND results use the shared catalog. Session abort
+  signals cancel requests/streams on lock, sign-out, expiry and revocation.
+- **WebSocket:** same-origin TLS handshake on `/node/terminal/stream`, with
+  no header/query/subprotocol bearer; first frame must be the shared auth
+  shape, with real verifier completion inside five seconds. Attach checks
+  terminal ownership through the session's shared method port before U2's
+  subscription opens. Input/resize/close also use that port. Every data frame
+  and outbound event rechecks authentication; output is parsed and scoped to
+  the attached terminal. Disconnect aborts U2's PTY subscription.
+- **H09:** 2 MiB HTTP body, 8 KiB headers, 32 parsed headers, five-second
+  request/handshake bound; 100 total connections/requests, 16 per source,
+  1,000 source-admission records with expiry; source AND account failed-proof
+  backoff with a 60-second ceiling before verifier/method work. Challenge
+  issuance cannot clear failed-proof backoff. Existing sessions, including
+  Stop, are independent of sign-in backoff. WebSocket input uses masked final
+  text/control frames only, no compression or fragmentation, at most 64 KiB
+  inbound frames, 2 MiB queued bytes and 64 frames/second. Shared terminal
+  input stays at 16 KiB UTF8; output write queues stay bounded.
+- **H19:** `node/maker/action` is an authored shared method with device,
+  operation and exact payload; no hardware implementation is invented.
+  `nodeActionDigest` hashes the method plus catalog-parsed payload, excluding
+  only proof metadata. Caller digest and consumed A1 proof must match the
+  exact payload, action, session, proof id and fresh lifetime. Terminal-open,
+  network Git and wipe use the same binding. Stop has session access and
+  needs no proof; the existing service/console Stop remains ungated.
+- **H20:** N's transport backoff expires, with no permanent transport lockout
+  and no remote recovery route. A1's actual 100-failure authenticator lockout,
+  console display and new H04 setup-code recovery remain A1/T/C's binding.
+
+### Named listener handoffs
+
+| Handoff          | Owner         | Required binding                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `N-A1-VERIFIER`  | A1            | `NodeListenerOptions.verifier`: real in-memory bearer lookup returning public `NodeSession`, revocation/expiry `sessionSignal`, and atomic UV `consumeStepUp`. Monotonic idle/absolute and proof expiry; no token persistence/logging; H05 real WebAuthn qualification. H20 console lockout state and fresh-code recovery under H04.                              |
+| `N-A1-S0-TLS`    | A1/S0         | Issue the exact non-CA leaf/key and approved full SHA-256 pin into the private service root; set configured SANs. Browser trust and `.local` captures remain required. Changed pins require pairing again. Bind the full fingerprint line to the console/TUI.                                                                                                     |
+| `N-C-LISTENER`   | C/S0          | Compose `NodeServiceBinding.serve` after boot and the exclusive service lease, with the selected address, tools UID and firewall/publication boundary; off-LAN and image receipts. The ordinary runtime still explicitly refuses unbound serve.                                                                                                                   |
+| `N-M104-METHODS` | M104/A1/U1/U2 | Bind a `NodeMethodPort` scoped to the verified session (null only for public auth). HTTP POST `/<catalog method>` has direct params JSON and direct validated result, not an invented MHP envelope; register all 32 catalog methods in the actual MHP adapter. Browser assets/controller are a separate named integration, not an unauthenticated fallback route. |
+| `N-U2-TERMINAL`  | U2/C/T        | Bind ownership-checked attach/write/resize/close methods and the ordered, parsed event subscription. Honor abort by disposing PTY/descendants; native A0-PTY remains required. Clients send bounded final frames.                                                                                                                                                 |
+| `N-M103-ACTION`  | M103/A1       | Register each physical effect through the shared action method or enforce the same step-up binding at the engine's physical-action gate; do not let a generic engine/tool route bypass H19. Keep Stop callable from any authenticated session and console.                                                                                                        |
+| `N-J-LISTENER`   | J             | Integrate this implementation status into the operator/editor documentation and regenerate the host-API import counts. No `featureCatalog.ts` or reference generator exists on this base; register the commands/listener/actions when those integration files arrive.                                                                                             |
+
+### Listener verification and drills
+
+The real HTTPS fixture is generated once in `beforeAll`; pure WebSocket
+five-second drills use fake timers while retaining the actual production
+constant. Final tests use the repository's default timeout, with no test
+filter, skip, increased timeout, gate ignore or threshold change. At most
+three test files run at once, directly on Kubuntu.
+
+The first TLS pin mutant stayed green because a second bind's port conflict
+masked a missing certificate check. Each invalid-certificate fixture now
+uses a different vacant port, and pin/CA/SAN/expiry removals fail independently.
+A coherent forged Host+Origin case similarly proves the name allowlist beyond
+the independent Origin check. Accepted source-restoration receipts are in
+[m110-n-listener-drills.json](m110-n-listener-drills.json).
+
+Final continuation verification on Kubuntu (Node v24.18.0): **334 tests in nine
+files pass**, default timeout, three files/workers per invocation. Listener
+88; canonical node/auth/method contracts 218; shipped bundle/service/commands 28. No tests were skipped or filtered in the passing final runs. `TMPDIR`
+was scoped to `temp/verification` for the final commands after external
+removal of `/tmp` fixtures/Vitest cache caused ENOENT suite failures; this
+changes temporary-file placement only, not test behavior, gates or hooks.
+
+All five typecheck projects, changed-file ESLint and Prettier, plain knip
+(two existing configuration hints), zero-clone jscpd and localization (14
+tables, 164 manifest strings, zero problems) pass. Production build passes:
+node **64.7/75 KiB**, shared validation **41.2/50 KiB**, ACP **817.9/850 KiB**,
+extension **437.0/600 KiB**, browser startup **896.2/900 KiB**, deferred JS
+**49.7/50 KiB**. No budgets or gates changed. The continuation adds **43**
+accepted named red drills (106 with the earlier 63); hashes restore byte-exact
+and match the final production sources. The redundant first-frame type/token
+checks use a documented combined removal; the slow-consumer queue test uses
+valid frames across rate windows so a malformed-frame or rate guard cannot
+mask a missing queue bound.
+
+`node scripts/check-host-api.mjs` still exits **1**, solely for J's generated
+import-count snapshot. The actual VS Code APIs (332), importers (31), built-ins
+(25) and theme variables (61) remain unchanged. Final counts to regenerate:
+`node:child_process` 13→15, `node:crypto` 46→55, `node:fs` 33→35,
+`node:fs/promises` 47→51, `node:http` 4→7, `node:https` 1→2, `node:module`
+1→2, `node:net` 7→8, `node:path` 84→89, `node:stream` 12→13, `node:util`
+5→6. This deferral and the lead's full-quality responsibility are recorded
+in PLAN §7; the snapshot is not reported green. No merge, push, rebase,
+installation, paid/live attempt, production fake or machine setting change.

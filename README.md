@@ -3914,6 +3914,17 @@ its own installed-language state. The webview is React 19 bundled to one IIFE wi
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
 
+The home-node service groundwork stays in the lazy `dist/node.js` (75 KiB
+cap). Its HTTPS listener requires an explicitly selected private/loopback
+address, a pinned non-CA certificate and A1's real memory-session verifier;
+unbound privileged routes refuse. HTTP and terminal WebSocket operations use
+the shared method port in every editor, with strict same-origin guards,
+request limits and an action-bound step-up for each physical/maker action.
+Authenticated Stop requires no step-up. This is an internal integration
+library; the runnable home node still awaits the sign-in, certificate,
+controller and deployment bindings and platform receipts listed in
+[the node certification](docs/certification/m110-n-node-service.md#named-listener-handoffs).
+
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
 consent from `dist/reviewer.js`, also shipped with the ACP agent. Ordinary
