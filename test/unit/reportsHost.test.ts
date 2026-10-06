@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createReportsHost } from '../../src/runtime/reporting/reportsHost'
+import { createReportsHost } from '../../src/runtime/reporting/reportsEntry'
 import { reportsMethods } from '../../src/shared/hostApi/reports'
 import { REPORT_AS_OF, reportsHarness } from './helpers/reporting/runtime'
 import { REPORT_FORMATS, UI_TEXT } from '../../src/shared/constants'
@@ -180,5 +180,55 @@ describe('MHP 1.2 reports through native and companion bridges', () => {
       }),
     ).toMatchObject({ status: 'failed' })
     expect(h.open).toHaveBeenCalledTimes(4)
+  })
+
+  it('rejects unredacted history headers before returning bridge replies', async () => {
+    const fixture = reportsHarness()
+    const h = bridge({
+      ...fixture.deps.services,
+      history: {
+        ...fixture.history,
+        list: () =>
+          Promise.resolve([
+            {
+              id: 'saved-1',
+              header: { ...fixture.document.header, scope: '/home/CANARY/workspace' },
+            },
+          ]),
+      },
+    })
+    expect(await h.port.history({ workspaceKey, kind: 'project' })).toMatchObject({
+      status: 'failed',
+    })
+  })
+
+  it('rejects unredacted comparison text before returning bridge replies', async () => {
+    const fixture = reportsHarness()
+    const h = bridge({
+      ...fixture.deps.services,
+      compare: (from, to) => ({
+        from: from.header,
+        to: to.header,
+        sections: [
+          {
+            id: 'project',
+            label: 'status',
+            added: [
+              {
+                key: 'row',
+                cells: { status: { type: 'text', value: '/home/CANARY/workspace' } },
+                sourceIds: [],
+              },
+            ],
+            removed: [],
+            changed: [],
+            unchangedRows: 0,
+          },
+        ],
+      }),
+    })
+    expect(
+      await h.port.compare({ workspaceKey, kind: 'project', fromId: 'saved-1', toId: 'saved-2' }),
+    ).toMatchObject({ status: 'failed' })
   })
 })

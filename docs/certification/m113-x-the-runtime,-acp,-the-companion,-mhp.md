@@ -31,7 +31,7 @@ payloads; M104's envelope and capability negotiation remain its owner's work.
   symbolic-link file. UTF-8 decoding is strict; the held-file reader is
   bounded at M84's existing 16 MiB import limit. Save locations are only
   the explicit `--out`, or the injected history store.
-- `reportsEntry.ts` exposes `createRuntimeReports` for the lazy
+- `reportsEntry.ts` exposes `createRuntimeReports` and `createReportsHost` for the lazy
   `dist/reporting.js` entry. A requested display table is validated without
   installing global language state. Source/history factories are scoped to
   the calling workspace and session. Missing bindings return an explicit
@@ -45,7 +45,8 @@ payloads; M104's envelope and capability negotiation remain its owner's work.
   model turn or backend cancellation.
 - `reportsHost.ts` implements all five `ReportsHostPort` calls for the
   companion and native, TUI and desktop hosts. Every payload/result is
-  validated. Workspace authorization precedes storage access, is checked
+  validated. History headers and comparison text must already be scrubbed;
+  the facade rejects unsafe store/diff replies before the bridge receives them. Workspace authorization precedes storage access, is checked
   again after awaits, and cannot authorize a different bound workspace.
   Saved ids are looked up by kind; get/compare verify saved hashes and
   kind/scope/header identity instead of regenerating inputs. Open renders
@@ -63,7 +64,7 @@ payloads; M104's envelope and capability negotiation remain its owner's work.
 | M113-X-condition-facts  | K                | Supply `ReportsServices.conditions(document)` from semantic facts for drift/blocked/channelLag/ciFailing. Unavailable source status is evaluated directly. Missing semantic evaluation fails instead of falsely passing a requested gate.                                                                                                                                                              |
 | M113-X-history-diff     | H/R/W            | Bind scoped list/get/save and pure compare/renderDiff ports. CLI selects the newest earlier entry of the same kind/scope before saving the new report; explicit-file comparisons also verify both inputs. Diff output follows R's redaction/hash-metadata contract.                                                                                                                                    |
 | M113-X-runtime-settings | M104 B/W         | Read network and keepHistory from the runtime settings store when composing services. Default keepHistory is true; terminal network remains off unless flagged.                                                                                                                                                                                                                                        |
-| M113-X-lazy-build       | W                | Build `src/runtime/reporting/reportsEntry.ts` as `dist/reporting.js`; include `createReportsHost` for host composition; register its separate cap, split rule, notices and package exclusion/entries. No build/split/cap file owned by W was changed here.                                                                                                                                             |
+| M113-X-lazy-build       | W                | Build `src/runtime/reporting/reportsEntry.ts` as `dist/reporting.js`; the entry already exports `createReportsHost` for host composition; register its separate cap, split rule, notices and package exclusion/entries. No build/split/cap file owned by W was changed here.                                                                                                                           |
 | M113-X-companion        | M104 C/V         | Bind the companion server's report route/view to the scoped host facade and V's shared lazy report view. That server/page is absent from this base.                                                                                                                                                                                                                                                    |
 | M113-X-native-hosts     | M104 0/b–d       | Bind host-initiated MHP 1.2 methods after capability negotiation; construct a facade with the transport's authorized workspace and host save/open dialog. Real JCEF/WebView2/SWT receipts wait for these hosts.                                                                                                                                                                                        |
 | M113-X-TUI-desktop      | M110a0 T / M111b | Bind Reports view and `:report` to text; desktop Reports tab/launcher to HTML, through the same port. Those host implementations are absent and are explicitly waiting.                                                                                                                                                                                                                                |
@@ -85,9 +86,9 @@ and lazy loader against a test-only S/K binding, without any backend start.
 The repository timeout is unchanged; no `--testTimeout` was used.
 
 Final default-timeout runs passed on Kubuntu: runtime command/entry/host
-25/25; ACP report/new and existing agent/M93 regressions 119/119; real
+27/27; ACP report/new and existing agent/M93 regressions 119/119; real
 subprocess CLI, entry and lazy reference regressions 26/26. Across the eight
-files these are 163 distinct cases (the entry suite appears in two runs).
+files these are 165 distinct cases (the entry suite appears in two runs).
 Logs: `temp/m113-x/final-runtime.log`, `final-acp.log`, `final-cli.log`.
 Aggregate `npm run quality` is delegated to the lead by the rig/common
 rules; it was not run or weakened here.
@@ -133,10 +134,10 @@ ESLint and changed-file Prettier passed. Plain `npm run deadcode` passed
 after the test-only collector was exercised through its exported factory;
 `npx jscpd` found zero clones. `schema:report -- --check` and `check:reference` passed
 with the regenerated runtime rows. The default-timeout three-file runtime
-coverage run passed 24/24 tests and the repository thresholds unchanged:
-90.58% statements, 88.4% branches, 93.47% functions, 95.20% lines.
-Logs are `temp/m113-x/typecheck.log`, `coverage-runtime.log` and
-`duplication.log`.
+coverage run passed 27/27 tests and the repository thresholds unchanged:
+90.96% statements, 88.81% branches, 93.61% functions, 95.59% lines.
+Logs are `temp/m113-x/typecheck-final.log`, `final-runtime.log` and
+`duplication-final.log`.
 
 Two integration gates explicitly remain red, without an ignore or lowered
 threshold:
@@ -169,3 +170,46 @@ a missing reporting chunk. Registering that chunk, its dedicated cap and
 notices is the explicit M113-X-lazy-build handoff above. No existing cap
 was raised, and no unfinished report UI was inserted in the full deferred
 webview budget.
+
+## Final host-output guards and package probe
+
+The added history-header and comparison-text regression cases both failed
+against the first committed facade (`unredacted-before.log`); its successful
+schema parsing was not sufficient to establish output redaction. After the
+fix, both pass. Removing each guard individually fired its named test,
+exit 1, then restored `reportsHost.ts` byte-exact at SHA-256
+`a4ea74bb56067ab9bde878d9d3977ca010669a671a0d77b5ac04e15732528d22`.
+Receipts: `temp/m113-x/drills-host-output.json`,
+`history-output-redaction.log`, `comparison-output-redaction.log`.
+Total successful guard drills: **18**. Verified document-header hashes are
+excluded only at their structural paths, rather than exempting arbitrary
+hash-looking source text. The same lazy entry now exports the host facade.
+
+A separate production-style Node 20.18/minified build of that entry,
+using shared English and shared wire and keeping report validation inline,
+is **96,194 bytes (93.9 KiB)**. Both exported factories load successfully;
+its metafile has zero backend, paid-engine or host-adapter inputs. This is
+X/R's component measurement, not a budget for the joined S/K/H engine.
+Logs: `temp/m113-x/reporting-size.log` and `reporting.meta.json`.
+
+An initial probe with the existing `sharedValidation` plugin failed to load
+because its exports lack the report schema's `globalRegistry`. R already
+records that integration limitation. W must retain inline report validation
+or deliberately extend the shared validator and its split guard; blindly
+externalizing it is not a shipping configuration. No shared entry or gate
+was changed in this lane.
+
+After placing that isolated build in ignored `dist/reporting.js`,
+`node scripts/package-acp.mjs` passed locally. The tarball contains the
+reporting bundle and report-v1 schema. A sanitized-environment smoke run of
+the staged real ACP package matched all four saved-report golden files
+byte for byte and loaded the real German table. No keyring, backend or
+source/history binding was used; there was no publish or install. Logs:
+`temp/m113-x/package-acp.log`, `package-smoke.log`. This manual supplement
+proves the package layout; the standard W-owned build still needs the entry
+registration and notices/metafile coverage before packaging is integrated.
+
+Local implementation commit: `df3afec80`, with lint-staged and gitleaks
+passing under the existing hooks. Final host-output/export and certification
+changes are a follow-up commit, also with hooks enabled. All source and
+test changes remain confined to the lane's assigned worktree and files.

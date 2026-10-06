@@ -7,6 +7,8 @@ import type { AcpReportsPort } from '../../acp/reports'
 import { parseReportsArguments, reportArguments, reportsUsage } from './reportsArgs'
 import { runReportsCommand, type ReportsCommandDeps, type ReportsServices } from './reportsCommand'
 
+export { createReportsHost } from './reportsHost'
+
 export interface RuntimeReportsInput {
   readonly cwd: string
   readonly locale: string

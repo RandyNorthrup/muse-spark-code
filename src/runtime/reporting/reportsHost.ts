@@ -1,6 +1,7 @@
 import { reportsMethods, type ReportsHostPort } from '../../shared/hostApi/reports'
 import { verifyReport } from '../../core/reporting/render/canonical'
 import { createReportRenderers } from '../../core/reporting/render'
+import { reportScrubber } from '../../core/reporting/render/redaction'
 import type { ReportsCommandDeps } from './reportsCommand'
 
 /** MHP/companion/TUI/desktop call this same scoped facade after their transport negotiation. */
@@ -12,6 +13,10 @@ export function createReportsHost(
   },
 ): ReportsHostPort {
   const failed = () => ({ status: 'failed' as const, reason: deps.text.reportUi.generationFailed })
+  const redacted = (value: object) => {
+    const text = JSON.stringify(value)
+    return reportScrubber(deps.redaction)(text) === text
+  }
   const authorized = async (key: string) => {
     if (key !== deps.workspaceKey || !(await deps.authorize(key)))
       throw new Error(deps.text.reportUi.generationFailed)
@@ -63,7 +68,10 @@ export function createReportsHost(
         })
         if (
           result.status === 'listed' &&
-          result.entries.some((entry) => entry.header.kind !== kind)
+          result.entries.some(
+            ({ id, header: { contentHash: _contentHash, ...header } }) =>
+              header.kind !== kind || !redacted({ id, header }),
+          )
         )
           return failed()
         await authorized(workspaceKey)
@@ -101,7 +109,8 @@ export function createReportsHost(
         })
         return result.status === 'compared' &&
           (JSON.stringify(result.diff.from) !== JSON.stringify(before.header) ||
-            JSON.stringify(result.diff.to) !== JSON.stringify(after.header))
+            JSON.stringify(result.diff.to) !== JSON.stringify(after.header) ||
+            !redacted(result.diff.sections))
           ? failed()
           : result
       } catch {
