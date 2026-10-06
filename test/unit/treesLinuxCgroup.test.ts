@@ -65,6 +65,12 @@ function world() {
     Promise.resolve([]),
   )
   const reader = new LinuxResourceTreeReader({
+    pinDirectory: (directory) =>
+      Promise.resolve({
+        path: directory,
+        matches: () => Promise.resolve(true),
+        close: () => Promise.resolve(),
+      }),
     ownedCgroupRoot: root,
     read,
     write,

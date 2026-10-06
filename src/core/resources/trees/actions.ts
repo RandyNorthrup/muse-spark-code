@@ -28,7 +28,7 @@ export interface ResourceTreeActionReader extends ResourceTreeReader {
 }
 
 export interface ResourceTreeKillResult {
-  readonly status: ResourceActionResult
+  readonly status: ResourceActionResult | 'cgroup_changed'
   readonly members: readonly {
     readonly identity: ResourceProcessIdentity
     readonly result: ResourceActionResult

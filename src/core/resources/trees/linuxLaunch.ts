@@ -155,6 +155,7 @@ export async function launchLinuxResourceTree(
       await mkdir(directory)
       scope = { type: 'cgroup', path: directory }
       ticket = { id, root: boundRoot, scope, ...metadata }
+      await reader.pin(ticket)
       stdin.write(`${directory}\n`)
       const joinedDeadline = Date.now() + RESOURCE_TREE_STOP_TIMEOUT_MS
       let membership = await readFile(`/proc/${String(pid)}/cgroup`, 'utf8')
@@ -178,6 +179,28 @@ export async function launchLinuxResourceTree(
     ticket = await registry.register(ticket)
     stdin.write('GO\n')
     const launch = ticket
+    // A managed keeper remains alive after root exit; poll the pinned completion receipt.
+    let isStopping = false
+    let checking: Promise<boolean> | undefined
+    const completion = setInterval(() => {
+      if (isStopping || checking !== undefined || launch.scope.type !== 'cgroup') return
+      checking = reader.completed(launch, () =>
+        registry.tickets().some((entry) => entry.id === launch.id),
+      )
+      void checking.then((done) => {
+        if (done) {
+          registry.unregister(launch)
+          release()
+          stdin.end()
+          clearInterval(completion)
+        }
+        checking = undefined
+      })
+    }, RESOURCE_TREE_STOP_POLL_MS)
+    completion.unref()
+    child.once('exit', () => {
+      clearInterval(completion)
+    })
     return {
       child,
       stdin,
@@ -186,8 +209,12 @@ export async function launchLinuxResourceTree(
       ticket: launch,
       registry,
       async stop() {
+        isStopping = true
+        await checking
         const result = await registry.kill(launch)
+        isStopping = false
         if (result.status === 'done' || result.status === 'gone') {
+          clearInterval(completion)
           if (launch.scope.type === 'cgroup') registry.unregister(launch)
           release()
           stdin.end()

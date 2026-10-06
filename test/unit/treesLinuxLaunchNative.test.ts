@@ -22,6 +22,23 @@ function noUserManager() {
 }
 
 describe.runIf(process.platform === 'linux')('native cgroup launch and completion', () => {
+  it('retires and removes an empty cgroup after normal root exit without Stop', async () => {
+    const launch = await launchLinuxResourceTree('/bin/sh', ['-c', 'read input'], metadata)
+    const exited = once(launch.child, 'exit')
+    try {
+      expect(launch.ticket.scope.type).toBe('cgroup')
+      launch.stdin.end()
+      await vi.waitFor(() => {
+        expect(launch.registry.tickets()).toEqual([])
+      })
+      await exited
+      if (launch.ticket.scope.type !== 'cgroup') throw new Error('Missing scope')
+      await expect(access(launch.ticket.scope.path)).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await launch.stop()
+    }
+  })
+
   it('keeps fallback group authority until the caller observes completion', async () => {
     const probe = noUserManager()
     let launch: Awaited<ReturnType<typeof launchLinuxResourceTree>> | undefined

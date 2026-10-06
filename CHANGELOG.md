@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Linux resource trees pin their cgroup directory before the workload runs.
+  Stop and accounting refuse a removed or replaced directory, and an empty
+  tree retires automatically after its root exits.
+
 - Linux resource trees launch behind a gate in their own delegated cgroup.
   Stop waits for the kernel's empty-cgroup receipt before cleanup, preventing
   an outside same-tick PID replacement from inheriting tree authority.

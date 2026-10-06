@@ -1,9 +1,11 @@
-import { readFile, readdir, realpath, rmdir, writeFile } from 'node:fs/promises'
+import { constants, open, readFile, readdir, realpath, rmdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { handleIdentity, lstatIdentity, sameFile } from '../../fs/fileIdentity'
 import process from 'node:process'
 import { setTimeout } from 'node:timers/promises'
 import {
   LINUX_PID_IDENTITY_MIN_PID_MAX,
+  WORKSPACE_IDENTITY_ZERO,
   RESOURCE_TREE_STOP_POLL_MS,
   RESOURCE_TREE_STOP_TIMEOUT_MS,
 } from '../../../shared/constants'
@@ -22,9 +24,42 @@ import {
   type ResourceTreeKillResult,
 } from './actions'
 
+interface LinuxCgroupHandle {
+  readonly path: string
+  matches(): Promise<boolean>
+  close(): Promise<void>
+}
+
+export async function pinLinuxCgroupDirectory(directory: string): Promise<LinuxCgroupHandle> {
+  const handle = await open(
+    directory,
+    constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+  )
+  try {
+    const identity = await handleIdentity(handle)
+    return {
+      path: `/proc/self/fd/${String(handle.fd)}`,
+      async matches() {
+        const observed = await lstatIdentity(directory)
+        const pinned = await handleIdentity(handle)
+        return (
+          observed.isDirectory() &&
+          pinned.nlink > WORKSPACE_IDENTITY_ZERO &&
+          sameFile(observed, identity)
+        )
+      },
+      close: () => handle.close(),
+    }
+  } catch (error: unknown) {
+    await handle.close()
+    throw error
+  }
+}
+
 export interface LinuxTreeDeps {
   /** Trusted delegated harness scope, supplied by M96 K; never a workspace setting. */
   readonly ownedCgroupRoot?: string
+  readonly pinDirectory?: (directory: string) => Promise<LinuxCgroupHandle>
   readonly read?: (file: string) => Promise<string>
   readonly list?: (directory: string) => Promise<readonly string[]>
   readonly canonical?: (file: string) => Promise<string>
@@ -47,6 +82,16 @@ export class LinuxResourceTreeReader extends PosixResourceTreeReader {
   identity(pid: number): Promise<ResourceProcessIdentity | null> {
     return this.linux.identity(pid)
   }
+  pin(ticket: ResourceTicket): Promise<void> {
+    return this.linux.pin(ticket)
+  }
+  override forget(ticket: ResourceTicket): void {
+    super.forget(ticket)
+    this.linux.forget(ticket)
+  }
+  completed(ticket: ResourceTicket, isRegistered: () => boolean): Promise<boolean> {
+    return this.linux.completed(ticket, isRegistered)
+  }
   killCgroup(
     ticket: ResourceTicket,
     signal: ResourceSignal,
@@ -57,6 +102,10 @@ export class LinuxResourceTreeReader extends PosixResourceTreeReader {
 }
 
 class LinuxTreeSource implements PosixTreeSource {
+  private readonly handles = new Map<
+    string,
+    { signature: string; directory: string; handle: Promise<LinuxCgroupHandle> }
+  >()
   private units: Promise<{ hz: number; page: number }> | undefined
   private readonly table: () => Promise<readonly ProcessSample[]>
   private readonly read: (file: string) => Promise<string>
@@ -110,23 +159,31 @@ class LinuxTreeSource implements PosixTreeSource {
   }
 
   private async cgroup(ticket: ResourceTicket): Promise<string | null> {
-    if (ticket.scope.type !== 'cgroup' || this.deps.ownedCgroupRoot === undefined) return null
-    const root = await this.canonical(this.deps.ownedCgroupRoot)
-    const scope = await this.canonical(ticket.scope.path)
-    // Both the delegated root and scope must be under this user's slice; no path aliases.
-    const userSlice = `/sys/fs/cgroup/user.slice/user-${String(process.getuid?.())}.slice/`
-    return root !== path.resolve(this.deps.ownedCgroupRoot) ||
-      !root.startsWith(userSlice) ||
-      !scope.startsWith(`${root}/`) ||
-      scope !== path.resolve(ticket.scope.path)
-      ? null
-      : scope
+    if (ticket.scope.type !== 'cgroup') return null
+    await this.pin(ticket)
+    const pinned = this.handles.get(ticket.id)
+    if (pinned?.signature !== JSON.stringify(ticket)) return null
+    const handle = await pinned.handle
+    if (!(await this.matches(handle))) throw new Error('Cgroup directory changed')
+    return this.handles.get(ticket.id) === pinned ? handle.path : null
+  }
+
+  private async directory(scope: string): Promise<string> {
+    for (const pinned of this.handles.values()) {
+      const handle = await pinned.handle
+      if (scope === handle.path || scope.startsWith(`${handle.path}/`)) {
+        if (!(await this.matches(handle))) throw new Error('Cgroup directory changed')
+        return `${pinned.directory}${scope.slice(handle.path.length)}`
+      }
+    }
+    throw new Error('Unpinned cgroup')
   }
 
   private async inCgroup(pid: number, scope: string): Promise<boolean> {
     try {
       const member = /^0::(\/[^\r\n]*)$/m.exec(await this.read(`/proc/${String(pid)}/cgroup`))?.[1]
       if (member === undefined) return false
+      scope = await this.directory(scope)
       const current = path.resolve('/sys/fs/cgroup', `.${member}`)
       return current === scope || current.startsWith(`${scope}/`)
     } catch (error: unknown) {
@@ -201,7 +258,71 @@ class LinuxTreeSource implements PosixTreeSource {
     const children = await this.directories(scope)
     for (const child of children) await this.removeCgroup(path.join(scope, child), isRegistered)
     if (!isRegistered()) throw new Error('Cgroup removal retired')
-    await (this.deps.remove ?? rmdir)(scope)
+    await (this.deps.remove ?? rmdir)(await this.directory(scope))
+  }
+
+  private async matches(handle: LinuxCgroupHandle): Promise<boolean> {
+    try {
+      return await handle.matches()
+    } catch {
+      return false
+    }
+  }
+
+  private async close(pending: Promise<LinuxCgroupHandle>): Promise<void> {
+    try {
+      const handle = await pending
+      await handle.close()
+    } catch {
+      return
+    }
+  }
+
+  async pin(ticket: ResourceTicket): Promise<void> {
+    if (ticket.scope.type !== 'cgroup' || this.handles.has(ticket.id)) return
+    const directory = ticket.scope.path
+    const root = this.deps.ownedCgroupRoot
+    if (root === undefined) throw new Error('Unowned cgroup')
+    const canonicalRoot = await this.canonical(root)
+    const canonicalScope = await this.canonical(directory)
+    const userSlice = `/sys/fs/cgroup/user.slice/user-${String(process.getuid?.())}.slice/`
+    if (
+      canonicalRoot !== path.resolve(root) ||
+      !canonicalRoot.startsWith(userSlice) ||
+      !canonicalScope.startsWith(`${canonicalRoot}/`) ||
+      canonicalScope !== path.resolve(directory)
+    )
+      throw new Error('Unowned cgroup')
+    if (!this.handles.has(ticket.id)) {
+      this.handles.set(ticket.id, {
+        signature: JSON.stringify(ticket),
+        directory,
+        handle: (this.deps.pinDirectory ?? pinLinuxCgroupDirectory)(directory),
+      })
+    }
+    await this.handles.get(ticket.id)?.handle
+  }
+
+  forget(ticket: ResourceTicket): void {
+    const pinned = this.handles.get(ticket.id)
+    if (pinned?.signature !== JSON.stringify(ticket)) return
+    this.handles.delete(ticket.id)
+    void this.close(pinned.handle)
+  }
+
+  async completed(ticket: ResourceTicket, isRegistered: () => boolean): Promise<boolean> {
+    try {
+      const scope = await this.cgroup(ticket)
+      if (scope === null) return false
+      const root = await this.stat(ticket.root.pid)
+      if (root !== null && !root.exited && root.startTime === ticket.root.startTime) return false
+      const events = await this.read(`${scope}/cgroup.events`)
+      if (!/^populated 0$/m.test(events) || !/^frozen [01]$/m.test(events)) return false
+      await this.removeCgroup(scope, isRegistered)
+      return isRegistered()
+    } catch {
+      return false
+    }
   }
 
   async identity(pid: number): Promise<ResourceProcessIdentity | null> {
@@ -331,8 +452,14 @@ class LinuxTreeSource implements PosixTreeSource {
       await this.waitEvent(scope, 'populated', 0, isRegistered)
       await this.removeCgroup(scope, isRegistered)
       return { status: 'done', members: [] }
-    } catch {
-      return { status: 'refused', members: [] }
+    } catch (error: unknown) {
+      return {
+        status:
+          error instanceof Error && error.message === 'Cgroup directory changed'
+            ? 'cgroup_changed'
+            : 'refused',
+        members: [],
+      }
     }
   }
 

@@ -19617,6 +19617,18 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**Lane T3 review repair (FIXM107T3, 2026-10-06).** Fix both RVM107T3G
+P2s, with no reviewed residual: pin each private cgroup's open directory and
+(dev, ino) before GO, use its /proc/self/fd path for all later file accesses,
+refuse replacement/removal, and retire empty trees after root exit. Pin the
+harness home too; reassert its placement before scans and immediately before
+kill/freeze, retry a named bounded count, and retain ownership with an explicit
+localized harness_in_tree status on exhaustion. Keep Linux handles behind the
+existing tree port; Darwin/Windows/fake ports stay unchanged. Regression tests
+and byte-exact guard-break receipts belong in docs/certification/m107-t3.md.
+The sub-millisecond final reassert/write window and same-user kill(2) authority
+are recorded honestly in §9. No dependency or aggregate quality/merge.
+
 **Lane T3 Linux containment (2026-10-06).** Close RVM104L3 finding 2's
 same-tick PID alias with a private cgroup per governed Linux launch. No M96 K
 scope implementation exists on this base. Detect cgroup v2/user delegation
