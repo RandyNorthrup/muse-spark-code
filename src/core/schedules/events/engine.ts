@@ -24,6 +24,7 @@ interface PendingEvent {
 /** S supplies permanent cross-process claims; the clock is monotonic. */
 export class ScheduleEventEngine {
   private readonly pending = new Map<string, PendingEvent>()
+  private ready = new Map<string, PendingEvent[]>()
   private readonly generations = new Map<string, symbol>()
   constructor(
     private readonly now: () => number,
@@ -52,8 +53,15 @@ export class ScheduleEventEngine {
     const runId = scheduleEventRunId(scheduleId, event)
     if (!(await this.canClaim(runId)) || this.generations.get(scheduleId) !== generation)
       return false
-    const current = this.pending.get(scheduleId)
-    const readyAt = this.now() + SCHEDULE_EVENT_DEBOUNCE_MS
+    let current = this.pending.get(scheduleId)
+    const now = this.now()
+    const readyAt = now + SCHEDULE_EVENT_DEBOUNCE_MS
+    if (current && now >= current.readyAt) {
+      const ready = this.ready.get(scheduleId) ?? []
+      ready.push(current)
+      this.ready.set(scheduleId, ready)
+      current = undefined
+    }
     if (current) {
       // All members are claimed, even those suppressed by the debounce. Keep
       // the earliest identity as representative; never splice another's fields.
@@ -70,24 +78,33 @@ export class ScheduleEventEngine {
 
   drain(): ScheduleEventOccurrence[] {
     const occurrences: ScheduleEventOccurrence[] = []
+    const ready = this.ready
+    this.ready = new Map()
     for (const [scheduleId, pending] of this.pending) {
       if (this.now() < pending.readyAt) continue
       this.pending.delete(scheduleId)
-      const safe = this.privacy.block(pending.event)
-      occurrences.push({
-        scheduleId,
-        runId: scheduleEventRunId(scheduleId, pending.event),
-        event: pending.event,
-        ...safe,
-        coalescedCount: pending.count,
-      })
+      const batches = ready.get(scheduleId) ?? []
+      batches.push(pending)
+      ready.set(scheduleId, batches)
     }
+    for (const [scheduleId, batches] of ready)
+      for (const pending of batches) {
+        const safe = this.privacy.block(pending.event)
+        occurrences.push({
+          scheduleId,
+          runId: scheduleEventRunId(scheduleId, pending.event),
+          event: pending.event,
+          ...safe,
+          coalescedCount: pending.count,
+        })
+      }
     return occurrences
   }
 
   /** S calls this on pause, removal, authority edits and trigger replacement. */
   discard(scheduleId: string): void {
     this.pending.delete(scheduleId)
+    this.ready.delete(scheduleId)
     this.generations.delete(scheduleId)
   }
 }

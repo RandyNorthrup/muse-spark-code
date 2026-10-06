@@ -3,6 +3,7 @@ import {
   scheduleEventTriggerSchema,
   type ScheduleEvent,
 } from '../../../shared/scheduleEvents'
+import { SCHEDULE_EVENT_DEBOUNCE_MS } from '../../../shared/constants'
 
 export function isEventMatch(trigger: unknown, input: unknown): boolean {
   const rule = scheduleEventTriggerSchema.parse(trigger)
@@ -23,4 +24,25 @@ export function uniqueEvents(events: readonly ScheduleEvent[]): ScheduleEvent[] 
     seen.add(identity)
     return true
   })
+}
+
+/** Historical matches use the same trailing debounce window as live admission. */
+export function coalescedEventCount(events: readonly ScheduleEvent[]): number {
+  let count = 0
+  let previous: number | undefined
+  const ordered = events.toSorted((a, b) => a.observedAt - b.observedAt)
+  for (const event of ordered) {
+    if (previous === undefined || event.observedAt - previous >= SCHEDULE_EVENT_DEBOUNCE_MS)
+      count += 1
+    previous = event.observedAt
+  }
+  return count
+}
+
+export function retainedPollEvents(
+  previous: readonly ScheduleEvent[],
+  incoming: readonly ScheduleEvent[],
+  since: number,
+): ScheduleEvent[] {
+  return [...previous, ...incoming].filter((event) => event.observedAt >= since)
 }

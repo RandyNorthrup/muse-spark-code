@@ -53,8 +53,8 @@ describe('schedule events: conditions, preview and privacy', () => {
     source.emit('one', 1, { label: 'ready', title: 'mail owner@example.com' })
     source.emit('one', 1, { label: 'ready' })
     source.emit('blocked', 2, { label: 'blocked' })
-    source.emit('two', SCHEDULE_EVENT_DEBOUNCE_MS, { label: 'ready' })
-    source.emit('after', SCHEDULE_EVENT_DEBOUNCE_MS + 1, { label: 'ready' })
+    source.emit('two', SCHEDULE_EVENT_DEBOUNCE_MS + 1, { label: 'ready' })
+    source.emit('after', SCHEDULE_EVENT_DEBOUNCE_MS + 2, { label: 'ready' })
     source.history = vi.fn(() =>
       Promise.resolve({ available: true as const, events: source.events }),
     )
@@ -66,7 +66,7 @@ describe('schedule events: conditions, preview and privacy', () => {
       method: 'schedules/historyPreview',
       workspaceKey: 'workspace',
       trigger,
-      range: { fromMs: 1, toMs: SCHEDULE_EVENT_DEBOUNCE_MS + 1 },
+      range: { fromMs: 1, toMs: SCHEDULE_EVENT_DEBOUNCE_MS + 2 },
     })
     expect(result.preview.available && result.preview.matchedCount).toBe(2)
     expect(JSON.stringify(result)).not.toContain('owner@example.com')
@@ -123,6 +123,23 @@ describe('schedule events: conditions, preview and privacy', () => {
     expect(() => new ScheduleEventRegistry('workspace', [source, source], privacy())).toThrow(
       'duplicateSource',
     )
+  })
+
+  it('counts coalesced historical fires after filtering rather than raw burst members', async () => {
+    const source = new FakeScheduleEventSource('github', 'pullRequestMerged')
+    source.emit('a', 1, { label: 'ready' })
+    source.emit('b', 2, { label: 'ready' })
+    source.emit('ignored', SCHEDULE_EVENT_DEBOUNCE_MS, { label: 'blocked' })
+    source.emit('c', SCHEDULE_EVENT_DEBOUNCE_MS + 2, { label: 'ready' })
+    const registry = new ScheduleEventRegistry('workspace', [source], privacy())
+    const result = await registry.preview({
+      method: 'schedules/historyPreview',
+      workspaceKey: 'workspace',
+      trigger,
+      range: { fromMs: 0, toMs: SCHEDULE_EVENT_DEBOUNCE_MS * 2 },
+    })
+    expect(result.preview.available && result.preview.matchedCount).toBe(2)
+    expect(result.preview.available && result.preview.events).toHaveLength(3)
   })
 
   it('rejects foreign kinds, sources and malformed internal boundary events', () => {

@@ -9,6 +9,13 @@ import { ScheduleEventEngine } from '../../src/core/schedules/events/engine'
 import { ScheduleEventPrivacy } from '../../src/core/schedules/events/privacy'
 import { FakeScheduleDisk } from './helpers/schedules/store'
 
+const BRANCH_TRIGGER = {
+  kind: 'event',
+  source: 'git',
+  event: 'branchUpdated',
+  conditions: [],
+} as const
+
 const branchEvent = (eventKey: string) =>
   scheduleEventSchema.parse({
     source: 'git',
@@ -62,12 +69,7 @@ describe('event debounce and permanent occurrence claims', () => {
   it('coalesces every claimed member, resets the debounce and survives a restart', async () => {
     const test = setup()
     const engine = test.make()
-    const trigger = {
-      kind: 'event',
-      source: 'git',
-      event: 'branchUpdated',
-      conditions: [],
-    } as const
+    const trigger = BRANCH_TRIGGER
     await engine.enqueue('schedule', trigger, branchEvent('a'))
     test.advance(1)
     await engine.enqueue('schedule', trigger, branchEvent('b'))
@@ -115,12 +117,7 @@ describe('event debounce and permanent occurrence claims', () => {
       claim,
       new ScheduleEventPrivacy([], { mark: vi.fn() }, 'Untrusted data'),
     )
-    const trigger = {
-      kind: 'event',
-      source: 'git',
-      event: 'branchUpdated',
-      conditions: [],
-    } as const
+    const trigger = BRANCH_TRIGGER
     const pending = engine.enqueue(
       'schedule',
       trigger,
@@ -144,12 +141,7 @@ describe('event debounce and permanent occurrence claims', () => {
   it('keeps the earliest complete event when a burst arrives out of order', async () => {
     const test = setup()
     const engine = test.make()
-    const trigger = {
-      kind: 'event',
-      source: 'git',
-      event: 'branchUpdated',
-      conditions: [],
-    } as const
+    const trigger = BRANCH_TRIGGER
     await engine.enqueue('schedule', trigger, branchEvent('b'))
     await engine.enqueue('schedule', trigger, branchEvent('a'))
     test.advance(SCHEDULE_EVENT_DEBOUNCE_MS)
@@ -157,6 +149,30 @@ describe('event debounce and permanent occurrence claims', () => {
       event: { eventKey: 'a', fields: { title: 'a' } },
       coalescedCount: 2,
     })
+  })
+
+  it('keeps separate bursts when the scheduler drains after a debounce deadline', async () => {
+    const test = setup()
+    const engine = test.make()
+    const trigger = BRANCH_TRIGGER
+    await engine.enqueue('schedule', trigger, branchEvent('a'))
+    test.advance(SCHEDULE_EVENT_DEBOUNCE_MS + 1)
+    await engine.enqueue('schedule', trigger, branchEvent('b'))
+    expect(engine.drain().map((fire) => fire.event.eventKey)).toEqual(['a'])
+    test.advance(SCHEDULE_EVENT_DEBOUNCE_MS)
+    expect(engine.drain().map((fire) => fire.event.eventKey)).toEqual(['b'])
+  })
+
+  it('discard removes both matured and pending bursts after revocation', async () => {
+    const test = setup()
+    const engine = test.make()
+    const trigger = BRANCH_TRIGGER
+    await engine.enqueue('schedule', trigger, branchEvent('a'))
+    test.advance(SCHEDULE_EVENT_DEBOUNCE_MS)
+    await engine.enqueue('schedule', trigger, branchEvent('b'))
+    engine.discard('schedule')
+    test.advance(SCHEDULE_EVENT_DEBOUNCE_MS)
+    expect(engine.drain()).toEqual([])
   })
 
   it('cancels admission during scrubbing before any permanent claim', async () => {
@@ -179,12 +195,7 @@ describe('event debounce and permanent occurrence claims', () => {
 
   it('has one winner across two host engines and a restarted client', async () => {
     const test = setup()
-    const trigger = {
-      kind: 'event',
-      source: 'git',
-      event: 'branchUpdated',
-      conditions: [],
-    } as const
+    const trigger = BRANCH_TRIGGER
     const first = test.make()
     const second = test.make()
     expect(

@@ -5,7 +5,7 @@ import {
   type ScheduleEventSource,
 } from '../../../shared/scheduleEvents'
 import { scheduleRequestSchema, scheduleResponseSchema } from '../../../shared/scheduleV2'
-import { isEventMatch, uniqueEvents } from './conditions'
+import { coalescedEventCount, isEventMatch, uniqueEvents } from './conditions'
 import type { ScheduleEventPrivacy } from './privacy'
 
 type ScheduleResponse = ReturnType<typeof scheduleResponseSchema.parse>
@@ -77,7 +77,7 @@ export class ScheduleEventRegistry {
         )
         preview = {
           available: true,
-          matchedCount: matches.length,
+          matchedCount: coalescedEventCount(matches),
           events: await Promise.all(matches.map((event) => this.privacy.scrub(event))),
         }
       } else preview = current.available ? history : current
