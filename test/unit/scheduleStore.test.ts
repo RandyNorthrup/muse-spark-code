@@ -279,14 +279,19 @@ describe('M115 durable shared store', () => {
     await expect(
       createNodeScheduleQueue(directory).serialize(key, async () => {
         await fs.publish(`leases/${scheduleStorageHash(`target:${key}`)}.json.overtaken`, '')
-        await fs.replace(
-          `leases/${scheduleStorageHash(`target:${key}`)}.json`,
-          JSON.stringify({
-            pid: process.pid,
-            start: 0,
-            token: '00000000-0000-4000-8000-000000000000',
-            heartbeat: Date.now(),
-          }),
+        await vi.waitFor(
+          async () => {
+            await fs.replace(
+              `leases/${scheduleStorageHash(`target:${key}`)}.json`,
+              JSON.stringify({
+                pid: process.pid,
+                start: 0,
+                token: '00000000-0000-4000-8000-000000000000',
+                heartbeat: Date.now(),
+              }),
+            )
+          },
+          { timeout: 120_000 },
         )
       }),
     ).rejects.toThrow('OwnershipLost')

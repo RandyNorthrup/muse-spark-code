@@ -17,6 +17,7 @@ happened, not what was planned; superseded entries are kept.
   summary preserves failure pausing after audit expiry and late settlement.
   Bounded completion work survives failed marker publication, and retirement
   retries partially deleted generations after locked children release.
+  Lease reads retry transient Windows access errors within the existing bound.
   Scheduled-prompts v2
   still requires its editor and delivery bindings before shipping.
 

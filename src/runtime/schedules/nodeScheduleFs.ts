@@ -175,10 +175,12 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
     async read(relative) {
       const file = resolve(relative)
       try {
-        await checkParents(file)
-        const info = await lstat(file)
-        if (info.isSymbolicLink()) throw new Error('scheduleStorageLinkRefused')
-        return await readFile(file, 'utf8')
+        return await retry(async () => {
+          await checkParents(file)
+          const info = await lstat(file)
+          if (info.isSymbolicLink()) throw new Error('scheduleStorageLinkRefused')
+          return await readFile(file, 'utf8')
+        })
       } catch (error: unknown) {
         if (hasCode(error, 'ENOENT')) return
         throw error

@@ -6857,6 +6857,8 @@ Retirement also retries orphan UUID directories whose headers were deleted
 before a remaining child failed; the held writer lease excludes live staging.
 Token-scoped heartbeats cannot overwrite a replacement owner; unchanged
 heartbeats also expire by monotonic observation during wall-clock rollback.
+Lease-file reads retry bounded transient Windows access errors too; the final
+real two-host regression observed EPERM during a concurrent lease removal.
 Separate segmented identity fences remain while the
 schedule exists plus eight days; fire audit retains at most 100 per schedule
 and 30 days. Identifier tombstones contain hashes, never historical prompts.

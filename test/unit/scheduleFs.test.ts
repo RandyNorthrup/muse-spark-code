@@ -24,6 +24,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
     link: vi.fn(actual.link),
     unlink: vi.fn(actual.unlink),
     rename: vi.fn(actual.rename),
+    readFile: vi.fn(actual.readFile),
   }
 })
 const root = mkdtempSync(path.join(tmpdir(), 'muse-m115-locks-'))
@@ -35,6 +36,7 @@ afterEach(() => {
   vi.mocked(disk.link).mockReset().mockImplementation(actualDisk.link)
   vi.mocked(disk.unlink).mockReset().mockImplementation(actualDisk.unlink)
   vi.mocked(disk.rename).mockReset().mockImplementation(actualDisk.rename)
+  vi.mocked(disk.readFile).mockReset().mockImplementation(actualDisk.readFile)
 })
 function locked() {
   return Object.assign(new Error('injected lock'), { code: 'EPERM' })
@@ -92,6 +94,16 @@ try {
 }
 
 describe('native schedule publication and leases', () => {
+  it('retries transient lease reads and bounds persistent read failures', async () => {
+    const fs = createNodeScheduleFs(path.join(root, 'read-retry'))
+    await fs.publish('leases/read.json', 'committed lease')
+    vi.mocked(disk.readFile).mockRejectedValueOnce(locked())
+    expect(await fs.read('leases/read.json')).toBe('committed lease')
+    expect(disk.readFile).toHaveBeenCalledTimes(2)
+    vi.mocked(disk.readFile).mockReset().mockRejectedValue(locked())
+    await expect(fs.read('leases/read.json')).rejects.toThrow('injected lock')
+    expect(disk.readFile).toHaveBeenCalledTimes(SCHEDULE_FS_RETRY_ATTEMPTS)
+  })
   it('retries transient publication errors and recognizes a committed destination after an error', async () => {
     const fs = createNodeScheduleFs(path.join(root, 'publication'))
     const original = actualDisk.link
