@@ -1,0 +1,313 @@
+[
+  {
+    "exit": 0,
+    "log": "temp/m118-owning-1.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/promptStore.test.ts",
+      "test/unit/promptImport.test.ts",
+      "test/unit/promptNative.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 26
+  },
+  {
+    "exit": 0,
+    "log": "temp/m118-owning-2.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/promptEntry.test.ts",
+      "test/unit/promptPrivacy.test.ts",
+      "test/unit/prompts.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 30
+  },
+  {
+    "exit": 0,
+    "log": "temp/m118-owning-3.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/promptMenus.test.ts",
+      "test/unit/sharingArtifacts.test.ts",
+      "test/unit/shareContracts.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 55
+  },
+  {
+    "exit": 0,
+    "log": "temp/m118-owning-4.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/chatShareFilter.test.ts",
+      "test/unit/chatShareScrub.test.ts",
+      "test/unit/chatShareRange.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 22
+  },
+  {
+    "exit": 0,
+    "log": "temp/m118-owning-5.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/chatShareFormats.test.ts",
+      "test/unit/chatShareRelease.test.ts",
+      "test/unit/chatShareDestinations.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 20
+  },
+  {
+    "exit": 0,
+    "log": "temp/m118-owning-6.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/ChatShareDialog.test.tsx",
+      "test/unit/promptLibrary.test.tsx",
+      "test/unit/promptWorkspaceIntegration.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 19
+  },
+  {
+    "exit": 0,
+    "log": "temp/m118-verify-normal-acp-commands.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/acpSharing.test.ts",
+      "test/unit/shareCommand.test.ts",
+      "test/unit/promptBridge.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 163
+  },
+  {
+    "exit": 0,
+    "log": "temp/m118-owning-8.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/acpAgent.test.ts",
+      "test/unit/acpRuntime.test.ts",
+      "test/unit/acpReportObserver.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 133
+  },
+  {
+    "exit": 0,
+    "log": "temp/m118-owning-9.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/exportConversation.test.ts",
+      "test/unit/sessionTransfer.test.ts",
+      "test/unit/transcriptMarkdown.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 43
+  },
+  {
+    "exit": 0,
+    "log": "temp/m118-owning-10.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/Transcript.test.tsx",
+      "test/unit/Composer.test.tsx",
+      "test/unit/Palette.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 156
+  },
+  {
+    "exit": 0,
+    "log": "temp/m118-verify-normal-app-history.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/paletteRegistry.test.ts",
+      "test/unit/App.test.tsx",
+      "test/unit/HistoryDialog.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 200
+  },
+  {
+    "exit": 0,
+    "log": "temp/m118-owning-12.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/webFetch.test.ts",
+      "test/unit/webFetcher.test.ts",
+      "test/unit/webFetchBundle.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 51
+  },
+  {
+    "exit": 0,
+    "log": "temp/m118-owning-13.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/bundleSize.test.mjs",
+      "test/unit/webviewBundles.test.mjs",
+      "test/unit/protocol.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 153
+  },
+  {
+    "exit": 0,
+    "log": "temp/m118-owning-14.log",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/modelApiGoldenRequests.test.ts",
+      "test/unit/fsAtomic.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "passed": 44
+  },
+  {
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/webFetch.test.ts",
+      "test/unit/runtimeSharing.test.ts",
+      "test/unit/chatSharingHost.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0,
+    "log": "temp/m118-verify-normal-raw-runtime-host.log",
+    "passed": 41
+  },
+  {
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/acpSharing.test.ts",
+      "test/unit/shareCommand.test.ts",
+      "test/unit/promptBridge.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0,
+    "log": "temp/m118-verify-normal-acp-commands.log",
+    "passed": 163
+  },
+  {
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/paletteRegistry.test.ts",
+      "test/unit/App.test.tsx",
+      "test/unit/HistoryDialog.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0,
+    "log": "temp/m118-verify-normal-app-history.log",
+    "passed": 200
+  },
+  {
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/conversationController.test.ts",
+      "test/unit/sharingBridge.test.tsx",
+      "test/unit/promptMenus.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0,
+    "log": "temp/m118-verify-normal-controller-bridge-menus.log",
+    "passed": 588
+  },
+  {
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/runtimeSharing.test.ts",
+      "test/unit/acpRuntime.test.ts",
+      "test/unit/acpSharing.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0,
+    "log": "temp/m118-privacy-restored.log",
+    "passed": 69
+  },
+  {
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/e2e/acpStdio.e2e.test.ts",
+      "test/e2e/execStdio.e2e.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0,
+    "log": "temp/m118-final-installed-e2e.log",
+    "passed": 49
+  },
+  {
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/e2e/acpStdio.e2e.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 0,
+    "log": "temp/m118-final-source-acp.log",
+    "passed": 11
+  }
+]

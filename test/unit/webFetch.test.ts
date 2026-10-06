@@ -216,21 +216,32 @@ describe('fetchWebPage (M69)', () => {
     })
     expect(await w.fetch(DOCS)).toMatchObject({ kind: 'page', text: body })
   })
-  it('refuses HTML and enforces the smaller raw cap on decoded compressed bytes', async () => {
-    for (const reply of [
-      { body: '<p>not a prompt</p>', headers: { 'content-type': 'text/html' } },
-      {
-        body: gzipSync('x'.repeat(100)),
-        headers: { 'content-type': 'text/plain', 'content-encoding': 'gzip' },
+  it('refuses raw HTML even when it is below the ingress byte cap', async () => {
+    const w = world({
+      answers: { 'docs.example.com': [[PUBLIC]] },
+      replies: {
+        [DOCS]: { body: '<p>not a prompt</p>', headers: { 'content-type': 'text/html' } },
       },
-    ]) {
+      rawTextLimit: 100,
+    })
+    expect(failureKind(await w.fetch(DOCS))).toBe('contentType')
+  })
+  it('enforces the smaller raw cap on compressed and decoded bytes independently', async () => {
+    for (const body of [Buffer.alloc(101), gzipSync('x'.repeat(1000))]) {
       const w = world({
         answers: { 'docs.example.com': [[PUBLIC]] },
-        replies: { [DOCS]: reply },
-        rawTextLimit: 10,
+        replies: {
+          [DOCS]: {
+            body,
+            headers: {
+              'content-type': 'text/plain',
+              ...(body[0] !== 0 && { 'content-encoding': 'gzip' }),
+            },
+          },
+        },
+        rawTextLimit: 100,
       })
-      const result = await w.fetch(DOCS)
-      expect(result.kind).toBe('failed')
+      expect(failureKind(await w.fetch(DOCS))).toBe('tooLarge')
     }
   })
   it('reads an HTML page pinned to the checked address, as marked Markdown', async () => {

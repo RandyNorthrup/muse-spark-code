@@ -28458,7 +28458,7 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
 
 ### M118 — Prompt and chat sharing (D98)
 
-**Status 2026-10-06: phase 1 integrated on M118INT; bounded certification in progress.**
+**Status 2026-10-06: phase 1 integrated on M118INT; bounded rig certification complete.**
 The shared React/VS Code and CLI/ACP bindings are implemented. Native/companion
 MHP mounting waits for M104; the TUI waits for M110a0 lane T. Installed-editor
 parity and the hosted full gate remain unclaimed. About 34 lane-hours. No model call is needed.
@@ -28546,15 +28546,16 @@ anywhere joined it).
   the user's click under a size cap. PLAN §9 records the residual: a secret
   in a shape the scrub does not know can reach a share; the preview is the
   user's last check.
-- **Performance and bundles.** The library and the share dialog are lazy
-  chunks (each well inside the 50 KiB optional total); `dist/extension.js`
-  gains at most 1 KiB for the commands; no cap rises.
+- **Performance and bundles.** The library joins the existing 25 KiB
+  action-dialog group; the chat dialog has its own measured 25 KiB cap.
+  The original deferred UI total remains capped at 50 KiB. `dist/extension.js`
+  gains at most 1 KiB for the commands; no existing cap rises.
 - **Size.** S: about 34 lane-hours.
 - **Certification checklist** (§6.0, plus):
-  - [ ] The allow-list goldens and the new-kind drill
-  - [ ] The scrub, range, round-trip and untrusted-import drills
+  - [x] The allow-list goldens and the new-kind drill
+  - [x] The scrub, range, round-trip and untrusted-import drills
   - [ ] The menus on each surface; prompts in every workspace
-  - [ ] Phase 2's gists and phase 3's destinations named as planned
+  - [x] Phase 2's gists and phase 3's destinations named as planned
   - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
         budgets measured; the full gate green
 
@@ -28581,6 +28582,11 @@ Vitest files with three workers per run. This override permits local integration
 commits after scoped checks; hosted CI remains the required full release gate.
 W binds the P/C/X production consumers and records actual checks, cap measurements,
 byte-exact gate-fire drills and editor waits in `docs/certification/m118.md`.
+`check:reference` is included in the hosted `quality:gates` sequence.
+Runtime sharing scrubs the agent's already-known credential-variable values and,
+only on an active Model API ACP backend, its current stored key. Preview and
+release refresh those values; a newly sensitive document refuses release.
+Local save/list/use never load a key. This closes D98's registered-value contract.
 No threshold, ignore, rule level or existing budget is weakened.
 
 **FIXM118C bounded repair certification (2026-10-06).** All four RVM118C P2s
@@ -29836,6 +29842,15 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M118INT remaining dependency/CI work.** Shared React/VS Code and installed
+  CLI/ACP bindings are certified with bounded fake-only checks and unchanged
+  existing caps. Native/companion validated MHP mounting waits for M104 and the
+  TUI's prepare/insert/final-click ports wait for M110a0 lane T. ACP shares preview
+  only and cancels without a final-click port; Use returns prepared text. Exact
+  envelopes/actions and per-editor waits are in `docs/certification/m118.md` and
+  `docs/ide-compatibility/hosts.md`. Hosted full quality and online badge-image
+  verification remain release requirements. No installed-editor parity is implied.
 
 - **FIXM118C / RVM118C.** All four reviewed P2 findings are fixed: colon-path
   privacy, non-path text preservation, displayed outcome/citation completeness

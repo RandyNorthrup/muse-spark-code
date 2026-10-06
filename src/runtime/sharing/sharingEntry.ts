@@ -31,6 +31,7 @@ import type { UiText } from '../../shared/l10n/en'
 
 export interface RuntimeSharingPorts {
   readonly folders: DataFolderInput
+  readonly registeredSecrets?: () => Promise<readonly string[]>
   readonly read: (cwd: string, sessionId: string, exportedAt: string) => Promise<ChatShareSource>
 }
 const policySchema = z.object({ 'museSpark.confidentialWorkspace': z.optional(z.boolean()) })
@@ -70,16 +71,15 @@ async function localProgram(
       signal,
       stdio: ['pipe', 'ignore', 'ignore'],
     })
-    child.on('error', () => {
+    const failed = () => {
       reject(new Error(UI_TEXT.shareCancelled))
-    })
+    }
+    child.on('error', failed)
     child.on('exit', (code) => {
       if (code === 0) resolve()
-      else reject(new Error(UI_TEXT.shareCancelled))
+      else failed()
     })
-    child.stdin.on('error', () => {
-      reject(new Error(UI_TEXT.shareCancelled))
-    })
+    child.stdin.on('error', failed)
     child.stdin.end(text ?? '')
   })
 }
@@ -94,12 +94,12 @@ function commandsFor(ports: RuntimeSharingPorts): SharingCommands {
     io: { realPath: (file) => canonicalPath(file, { followsBrokenLinks: true }) },
     isConfidentialWorkspace: runtimeSharingConfidential,
     renderPreview: async (cwd, request, exportedAt) => {
-      // No key has been loaded in a local prompt command. Known credential shapes still scrub.
+      const registered = (await ports.registeredSecrets?.()) ?? []
       const privacy = createChatSharePrivacy({
         workspaceRoots: [cwd],
         home: ports.folders.homeDir,
         userName: userInfo().username,
-        redactRegisteredSecrets: redactSecrets,
+        redactRegisteredSecrets: (text) => redactSecrets(text, registered),
       })
       if (request.target === 'chat') {
         const doc = buildChatShare(
@@ -119,8 +119,13 @@ function commandsFor(ports: RuntimeSharingPorts): SharingCommands {
       return { ...rendered, redactions: markers(rendered.content) }
     },
     release: async (preview, out, root, signal) => {
+      const registered = (await ports.registeredSecrets?.()) ?? []
       const admit = () => {
         signal.throwIfAborted()
+        const clean = JSON.stringify(preview.document, (_key, value: unknown) =>
+          typeof value === 'string' ? redactSecrets(value, registered) : value,
+        )
+        if (clean !== JSON.stringify(preview.document)) throw new Error(UI_TEXT.sharePreviewExpired)
         if (runtimeSharingConfidential(root) !== false) throw new Error(UI_TEXT.shareConfidential)
       }
       if (preview.request.destination === 'copy') {
@@ -258,7 +263,12 @@ export async function runRuntimeSharing(
     process.stdout.write(`${JSON.stringify(result)}\n`)
     return result.exitCode
   } catch (error: unknown) {
-    const known = [UI_TEXT.shareConfidential, UI_TEXT.shareCancelled, UI_TEXT.promptLimits]
+    const known = [
+      UI_TEXT.shareConfidential,
+      UI_TEXT.shareCancelled,
+      UI_TEXT.sharePreviewExpired,
+      UI_TEXT.promptLimits,
+    ]
     const message =
       error instanceof Error && known.includes(error.message)
         ? error.message

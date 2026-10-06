@@ -368,6 +368,17 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
 function sharingPorts(log: Logger, current?: ReturnType<typeof runtimeFor>): RuntimeSharingPorts {
   return {
     folders: { platform: process.platform, env: process.env, homeDir: homedir() },
+    registeredSecrets: async () => {
+      const values = museCodeCredentials.map(({ value }) => value)
+      if (current?.backend.kind !== 'modelApi') return values
+      try {
+        const key = await secrets.get(SECRET_KEYS.modelApiKey)
+        return key === undefined || key === '' ? values : [...values, key]
+      } catch {
+        // A key refresh that cannot complete grants no share and discloses no store failure.
+        throw new Error(UI_TEXT.sharePreviewExpired)
+      }
+    },
     read: async (cwd, sessionId, exportedAt) => {
       const parsed = parseCommandLine(['serve'])
       if (parsed.command !== 'serve') throw new Error(UI_TEXT.exportHistoryUnavailable)

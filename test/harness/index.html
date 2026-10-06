@@ -1512,11 +1512,11 @@
         },
         'chat-sharing': () => {
           send({ type: 'openSharing', surface: 'chat' })
-          whenFound('.chat-share-controls', () => click('Preview'))
+          whenFound('[role="dialog"] button.button-secondary', (button) => button.click())
         },
         'chat-sharing-narrow': () => {
           send({ type: 'openSharing', surface: 'chat' })
-          whenFound('.chat-share-controls', () => click('Preview'))
+          whenFound('[role="dialog"] button.button-secondary', (button) => button.click())
         },
         empty: () => {},
         // --- The pre-sign-in gate (M1/M7): what the panel shows before a

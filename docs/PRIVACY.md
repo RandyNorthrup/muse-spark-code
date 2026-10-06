@@ -896,3 +896,8 @@ global opt-in. Raw HTTPS import uses the existing pinned public-address
 transport under a 128 KiB decoded-byte cap and refuses confidential policy.
 Imported text is untrusted, reviewed before acceptance, and never executed
 by import or loading.
+
+In the ACP runtime, sharing refreshes its already-known credential-variable
+values and the stored key of an active Model API backend. A key that becomes
+known after preview invalidates release if it appears anywhere in the portable
+document, including JSON strings. Standalone save/list/use never read a key.

@@ -1282,7 +1282,7 @@
     "test:integration:run": "vscode-test",
     "security:audit": "node scripts/audit.mjs",
     "security:secrets": "gitleaks git --redact --no-banner .",
-    "quality:gates": "run-s format:check lint typecheck check:badges check:l10n check:host-api deadcode cycles duplication test:unit build security:audit",
+    "quality:gates": "run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication test:unit build security:audit",
     "quality": "run-s quality:gates test:a11y security:secrets security:sast",
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",

@@ -510,7 +510,10 @@ explicit `--destination`, the same `--exported-at`, `--out`, and
 `--confirm PREVIEW_ID`. The digest binds cwd, path/root, options, time and
 bytes. Any change needs a new preview; there is no blanket `--yes`. Interactive
 sharing asks for a final confirmation. No file/clipboard/browser operation
-occurs during preview. Private atomic writes recheck live policy and abort.
+occurs during preview. Private atomic writes recheck live policy and abort. Sharing also scrubs the
+agent's already-known credential values; active Model API ACP sessions refresh
+their stored key for preview and release. A newly sensitive document refuses
+release and needs a new preview.
 
 ACP currently returns exact previews through its existing text response and
 cancels release: it has no final sharing button or composer insertion on this

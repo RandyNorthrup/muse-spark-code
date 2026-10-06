@@ -91,6 +91,15 @@ beforeAll(async () => {
     external: ['@napi-rs/keyring'],
     logLevel: 'silent',
   })
+  await build({
+    entryPoints: [path.join(ROOT, 'src', 'runtime', 'sharing', 'sharingEntry.ts')],
+    outfile: path.join(path.dirname(AGENT), 'sharingRuntime.js'),
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node22',
+    logLevel: 'silent',
+  })
   await buildModelApiBundle(path.dirname(AGENT))
   writeFileSync(path.join(PACKAGE, 'package.json'), JSON.stringify({ version: LAID_OUT_VERSION }))
   cpSync(path.join(ROOT, 'l10n'), path.join(PACKAGE, 'l10n'), { recursive: true })
@@ -209,14 +218,14 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
     expect(help.stdout.trim()).toBe(
-      `${fill(UI_TEXT.acpUsage, { command: 'muse-spark-code-acp' })}\n\n${sharingHelp()}`,
+      `${fill(UI_TEXT.acpUsage, { command: 'muse-spark-code-acp' })}\n${sharingHelp()}`,
     )
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
     expect(wrong.status).toBe(1)
     expect(wrong.stderr).toContain('--colour')
-    expect(wrong.stderr).toContain(help.stdout)
+    expect(wrong.stderr).toContain(fill(UI_TEXT.acpUsage, { command: 'muse-spark-code-acp' }))
   })
 
   it('prints the complete translated usage from one table entry', () => {
