@@ -17,7 +17,11 @@ import {
 import { MachineError, machineRecordSchema, type MachineRecord } from '../registry'
 
 export type MachineWarning =
-  'physicalStopRequired' | 'startupMotion' | 'limitsUnavailable' | 'auditUnrecorded'
+  | 'physicalStopRequired'
+  | 'startupMotion'
+  | 'limitsUnavailable'
+  | 'auditUnrecorded'
+  | 'sentOutcomeUnknown'
 export interface MachineStatus {
   readonly identity: string
   readonly state: string
@@ -70,13 +74,15 @@ export interface MachineDeps {
   readonly log: DeviceLogPort
 }
 export interface MachineSendResult {
-  readonly outcome: 'sent' | 'sentWithUnrecordedAudit'
+  readonly outcome: 'sent' | 'sentWithUnrecordedAudit' | 'sentOutcomeUnknown'
   readonly logRecorded: boolean
   /** Retries accounting only; never actuates or asks for another send. */
   retryAudit(): Promise<boolean>
 }
 export interface Machine {
   readonly record: MachineRecord
+  /** A lost acknowledgement blocks sends until an explicit status read succeeds. */
+  readonly requiresStatusRead: boolean
   status(): Promise<MachineStatus>
   send(payload: string): Promise<MachineSendResult>
   stop(): Promise<{ readonly warnings: readonly MachineWarning[]; readonly logRecorded: boolean }>
@@ -108,6 +114,7 @@ export function protectMachine(
   // Copy once from the registry. Model tools accept only a machine id and bytes.
   let isSending = false
   let generation = 0
+  let requiresStatusRead = false
   const active = new Set<AbortController>()
   const access = (): void => {
     if (!deps.host.isTrusted() || !deps.host.hardwareEnabled())
@@ -129,7 +136,7 @@ export function protectMachine(
   }
   const audit = async (
     payload: string,
-    outcome: 'attempt' | 'sent' | 'failed',
+    outcome: 'attempt' | 'sent' | 'failed' | 'sentOutcomeUnknown',
     approval: string | null,
   ): Promise<void> => {
     await withMakerDeadline(async () => {
@@ -157,12 +164,18 @@ export function protectMachine(
     get record() {
       return machineRecordSchema.parse(record)
     },
+    get requiresStatusRead() {
+      return requiresStatusRead
+    },
     async status() {
       access()
       if (record.credentialPendingRemoval) throw new MachineError('credentialPendingRemoval')
       if (!deps.host.isInteractive() && ['grbl', 'fluidnc', 'marlin'].includes(record.kind))
         throw new MachineError('unattendedHardware')
-      return await read()
+      const started = generation
+      const status = await read()
+      if (!isSending && generation === started) requiresStatusRead = false
+      return status
     },
     async send(input) {
       access()
@@ -170,6 +183,7 @@ export function protectMachine(
       if (!deps.host.isInteractive()) throw new MachineError('unattendedHardware')
       if (record.category !== 'printer' || ['grbl', 'fluidnc', 'prusalink'].includes(record.kind))
         throw new MachineError('readOnlyMachine')
+      if (requiresStatusRead) throw new MachineError('machineStatusRequired')
       if (isSending || !deps.isLeaseHeld()) throw new MachineError('machineBusy')
       const blocks = tokenizeGcode(input, deps.policy.gcode)
       const canonical = serializeGcode(blocks)
@@ -253,6 +267,8 @@ export function protectMachine(
           if (hasExpired()) throw new MachineError('approvalRejected')
           const controller = new AbortController()
           active.add(controller)
+          const dispatch = { didBeginWrite: false }
+          let dispatchOutcome: 'sent' | 'sentOutcomeUnknown' = 'sent'
           try {
             await withMakerDeadline(
               (signal) =>
@@ -267,21 +283,30 @@ export function protectMachine(
                     if (hasExpired()) throw new MachineError('approvalRejected')
                     if (fingerprint(latest) !== fingerprint(status))
                       throw new MachineError('machineStateChanged')
+                    // This guard runs synchronously at the transport write. Once
+                    // reached, no transport/deadline/parse error proves nonexecution.
+                    dispatch.didBeginWrite = true
                   }
                 }),
               deps.policy.requestDeadlineMs,
             )
           } catch (error) {
-            if (!(error instanceof MachineError) || error.code !== 'machineStateChanged')
-              throw error
-            await audit(payload, 'failed', approval)
-            approval = null
-            continue
+            if (dispatch.didBeginWrite) {
+              dispatchOutcome = 'sentOutcomeUnknown'
+              requiresStatusRead = true
+              generation += 1
+            } else {
+              if (!(error instanceof MachineError) || error.code !== 'machineStateChanged')
+                throw error
+              await audit(payload, 'failed', approval)
+              approval = null
+              continue
+            }
           } finally {
             active.delete(controller)
           }
-          // Acknowledged dispatch is irreversible. Accounting failure must
-          // never reach the failed-send catch or invite replay of relative motion.
+          // Dispatch may be irreversible even without acknowledgement. Accounting
+          // and notification failures must never invite replay of relative motion.
           const sentApproval = approval
           const auditState: { isRecorded: boolean; pending: Promise<boolean> | undefined } = {
             isRecorded: false,
@@ -292,7 +317,7 @@ export function protectMachine(
             if (auditState.pending !== undefined) return await auditState.pending
             auditState.pending = (async () => {
               try {
-                await audit(payload, 'sent', sentApproval)
+                await audit(payload, dispatchOutcome, sentApproval)
                 auditState.isRecorded = true
                 return true
               } catch {
@@ -316,8 +341,21 @@ export function protectMachine(
               /* The caller still receives the successful dispatch and missing audit. */
             }
           }
+          if (dispatchOutcome === 'sentOutcomeUnknown') {
+            try {
+              await withMakerDeadline(
+                () => deps.host.notify('sentOutcomeUnknown'),
+                deps.policy.requestDeadlineMs,
+              )
+            } catch {
+              /* The result still carries uncertainty when the surface is unavailable. */
+            }
+          }
           return {
-            outcome: isLogRecorded ? 'sent' : 'sentWithUnrecordedAudit',
+            outcome:
+              dispatchOutcome === 'sent' && !isLogRecorded
+                ? 'sentWithUnrecordedAudit'
+                : dispatchOutcome,
             logRecorded: isLogRecorded,
             retryAudit: isAuditRecorded,
           }

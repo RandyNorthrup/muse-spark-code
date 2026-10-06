@@ -395,6 +395,13 @@ describe('maker device log', () => {
     const captured4 = await stat(path.join(storage, 'device-log.jsonl'))
     expect(captured4.mode & 0o777).toBe(0o600)
   })
+  it('persists uncertain dispatch without changing it to success or failure', async () => {
+    const { log } = await logFixture()
+    await log.append({ ...entry, outcome: 'sentOutcomeUnknown' })
+    expect(await log.read()).toMatchObject([
+      { outcome: 'sentOutcomeUnknown', digest: payloadDigest(entry.payload) },
+    ])
+  })
   it('logs nonprintable Stop bytes as hex with a digest of the actual bytes', async () => {
     const { log } = await logFixture()
     const bytes = Buffer.from([0x21, 0x85, 0x18])

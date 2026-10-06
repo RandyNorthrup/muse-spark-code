@@ -15171,6 +15171,17 @@ handle and stages those exact bytes privately for both tools. Each finding
 gets regressions and byte-exact red drills in the lane M certification.
 No live/paid call, hardware use, dependency or shipped surface is added.
 
+Round-three follow-up (FIXM103M3): preserve post-write response loss as
+`sentOutcomeUnknown`, in both the result and device log, and require a
+successful explicit status read before another send. Notification and
+accounting retries must never resend. Bound arcs conservatively across all
+possible active planes when telemetry does not certify one; do not admit
+previously refused commands or guess a new wire field. Replay G17/G18/G19,
+G2/G3, absolute/relative and both units against the available Klipper/GRBL
+simulators; record evidence and any qualification limit. Each guard gets a
+regression and a byte-exact red drill in `docs/certification/m103-m.md`.
+No physical hardware, external network, paid/live call or dependency change.
+
 - **Goal.** Makers get skills, detection, simulation and offline tools that
   work out of the box, and device and machine access that never moves,
   heats, powers or flashes anything without a person approving exactly what
@@ -16204,6 +16215,22 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **RVM103M3-RESPONSE-LOSS (portable core fixed by FIXM103M3, 2026-10-05):**
+  an error after the synchronous final write guard returns `sentOutcomeUnknown`
+  in the send result and device log. It requires a successful explicit status
+  read before another send; accounting retry never resends. Prewrite errors
+  remain failures. The local fake consumes a relative move, changes reported
+  X 10 → 11 and loses the reply; the immediate retry cannot dispatch. Stop
+  remains available. Receipts and byte-exact drills: `docs/certification/m103-m.md`.
+- **FIXM103M3-SURFACE-OUTCOME (integration qualification, 2026-10-05):**
+  Maker hosts/UI are absent and unshipped at this base and owned by V/R/U/W.
+  The portable core notifies `sentOutcomeUnknown` and returns/logs it even
+  when notification or accounting fails. Every host/shared surface must show
+  “sent — outcome unknown”, the required status read, and audit-only retry;
+  never a failure/success or resend suggestion. Safe for now because Maker
+  is unshipped. Follow-up: localized outcome mapping, shared-surface tests,
+  README/CHANGELOG/reference accuracy and editor acceptance in lane W.
 
 - **RVM103M-REGISTRY-WRITERS (closed by FIXM103M2, 2026-10-05):** the
   round-two P1 credential cross-pairing supersedes the prior lost-write P2.

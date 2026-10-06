@@ -181,6 +181,137 @@ describe('maker printer status and guarded send', () => {
       server.requests.filter((request) => request.path === '/printer/gcode/script'),
     ).toHaveLength(1)
   })
+  it('reports a consumed relative move with a lost reply as sent outcome unknown and blocks replay', async () => {
+    const { machine, server, append, confirm, notify } = await moonrakerTest()
+    const payload = 'G91\nG1 X1 F600\nG90'
+    server.loseSendReply()
+    const result = await machine.send(payload)
+    expect(result).toMatchObject({ outcome: 'sentOutcomeUnknown', logRecorded: true })
+    expect(machine.requiresStatusRead).toBe(true)
+    expect(notify).toHaveBeenCalledWith('sentOutcomeUnknown')
+    expect(server.moonraker.result.status.toolhead.position[0]).toBe(11)
+    expect(
+      append.mock.calls
+        .filter(([entry]) => entry.action === 'actuate')
+        .map(([entry]) => entry.outcome),
+    ).toEqual(['attempt', 'sentOutcomeUnknown'])
+    await expect(machine.send(payload)).rejects.toThrow('machineStatusRequired')
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(
+      server.requests.filter((request) => request.path === '/printer/gcode/script'),
+    ).toHaveLength(1)
+    server.reply({ status: 500, body: '{}' })
+    await expect(machine.status()).rejects.toThrow('machineHttpStatus')
+    expect(machine.requiresStatusRead).toBe(true)
+    server.reply(undefined)
+    const status = await machine.status()
+    expect(status.gcode?.position.x).toBe(11)
+    expect(machine.requiresStatusRead).toBe(false)
+    server.loseSendReply(false)
+    await expect(machine.send(payload)).resolves.toMatchObject({
+      outcome: 'sent',
+      logRecorded: true,
+    })
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(confirm.mock.calls[1]?.[0].analysis.bounds?.min.x).toBe(11)
+  })
+  it('does not clear uncertainty with a status read started before response loss', async () => {
+    const { target, deps, server } = await moonrakerTest()
+    const transport = http(target)
+    const json = transport.json.bind(transport)
+    const snapshotReady = Promise.withResolvers<undefined>()
+    const released = Promise.withResolvers<undefined>()
+    let queries = 0
+    vi.spyOn(transport, 'json').mockImplementation(
+      async (method, path, body, signal, beforeWrite) => {
+        const reply = await json(method, path, body, signal, beforeWrite)
+        if (path === '/printer/objects/query') {
+          queries += 1
+          if (queries === 3) {
+            snapshotReady.resolve(undefined)
+            await released.promise
+          }
+        }
+        return reply
+      },
+    )
+    const machine = createMoonrakerMachine(target, transport, deps)
+    server.holdSend()
+    const sending = machine.send('G1 X20')
+    await vi.waitFor(() => {
+      expect(server.requests.some((request) => request.path === '/printer/gcode/script')).toBe(true)
+    })
+    const staleRead = machine.status()
+    await snapshotReady.promise
+    server.dropHeldReply()
+    await expect(sending).resolves.toMatchObject({ outcome: 'sentOutcomeUnknown' })
+    released.resolve(undefined)
+    await staleRead
+    expect(machine.requiresStatusRead).toBe(true)
+    await expect(machine.send('G1 X20')).rejects.toThrow('machineStatusRequired')
+    await machine.status()
+    expect(machine.requiresStatusRead).toBe(false)
+  })
+  it('preserves unknown dispatch through missing audit and notification and retries accounting only', async () => {
+    const { machine, server, append, notify, confirm } = await moonrakerTest()
+    server.loseSendReply()
+    let isWritable = false
+    append.mockImplementation((entry) => {
+      return !isWritable && entry.outcome === 'sentOutcomeUnknown'
+        ? Promise.reject(new Error('diskFull'))
+        : Promise.resolve()
+    })
+    notify.mockRejectedValue(new Error('surfaceClosed'))
+    const result = await machine.send('G91\nG1 X1 F600\nG90')
+    expect(result).toMatchObject({ outcome: 'sentOutcomeUnknown', logRecorded: false })
+    expect(notify).toHaveBeenCalledWith('auditUnrecorded')
+    expect(notify).toHaveBeenCalledWith('sentOutcomeUnknown')
+    expect(
+      append.mock.calls.some(([entry]) => entry.outcome === 'failed' || entry.outcome === 'sent'),
+    ).toBe(false)
+    expect(await result.retryAudit()).toBe(false)
+    isWritable = true
+    expect(await Promise.all([result.retryAudit(), result.retryAudit()])).toEqual([true, true])
+    expect(machine.requiresStatusRead).toBe(true)
+    expect(server.moonraker.result.status.toolhead.position[0]).toBe(11)
+    expect(
+      server.requests.filter((request) => request.path === '/printer/gcode/script'),
+    ).toHaveLength(1)
+    expect(confirm).toHaveBeenCalledTimes(1)
+  })
+  it('marks a timed-out dispatched send unknown and keeps Stop available', async () => {
+    const { target, deps, server, append, notify } = await moonrakerTest()
+    const machine = createMoonrakerMachine(target, http(target), {
+      ...deps,
+      policy: { ...deps.policy, requestDeadlineMs: 50 },
+    })
+    server.holdSend()
+    await expect(machine.send('G1 X20')).resolves.toMatchObject({
+      outcome: 'sentOutcomeUnknown',
+      logRecorded: true,
+    })
+    expect(machine.requiresStatusRead).toBe(true)
+    expect(notify).toHaveBeenCalledWith('sentOutcomeUnknown')
+    expect(append.mock.calls.some(([entry]) => entry.outcome === 'failed')).toBe(false)
+    await machine.stop()
+    expect(machine.requiresStatusRead).toBe(true)
+    expect(server.requests.at(-1)?.path).toBe('/printer/emergency_stop')
+  })
+  it('keeps a prewrite preparation failure failed without marking dispatch unknown', async () => {
+    const { target, deps, append, server, notify } = await moonrakerTest()
+    const transport = http(target)
+    watchRequests(transport, (path) => {
+      if (path === '/printer/gcode/script') throw new Error('preparationFailed')
+    })
+    const machine = createMoonrakerMachine(target, transport, deps)
+    await expect(machine.send('G1 X20')).rejects.toThrow('preparationFailed')
+    expect(machine.requiresStatusRead).toBe(false)
+    expect(server.requests.some((request) => request.path === '/printer/gcode/script')).toBe(false)
+    expect(append).toHaveBeenLastCalledWith(
+      expect.objectContaining({ action: 'actuate', outcome: 'failed' }),
+    )
+    expect(notify).not.toHaveBeenCalled()
+  })
   it('reads status without confirmation and sends exact approved bytes once', async () => {
     const { machine, confirm, server, append } = await moonrakerTest()
 
@@ -668,7 +799,7 @@ describe('maker fixed Stop paths', () => {
     const host = { ...deps.host, hardwareEnabled: vi.fn(() => true) }
     const machine = createMoonrakerMachine(target, http(target), { ...deps, host })
     server.holdSend()
-    const sending = captureFailure(machine.send('G1 X20'))
+    const sending = machine.send('G1 X20')
     await vi.waitFor(() => {
       expect(server.requests.some((request) => request.path === '/printer/gcode/script')).toBe(true)
     })
@@ -685,7 +816,8 @@ describe('maker fixed Stop paths', () => {
 
     expect(confirm).toHaveBeenCalledTimes(1)
     const captured1 = await sending
-    expect(captured1).toBeInstanceOf(Error)
+    expect(captured1).toMatchObject({ outcome: 'sentOutcomeUnknown', logRecorded: true })
+    expect(machine.requiresStatusRead).toBe(true)
   })
   it('records a failed Stop and bounds hung post-dispatch logging', async () => {
     const { target, deps, server, append } = await moonrakerTest()
@@ -772,6 +904,29 @@ describe('maker other firmware adapters', () => {
         gcode: { position: { x: 10, y: 10, z: 10 }, absolute: true, unit: 'mm', feedMmMin: 600 },
       }),
   }
+  it('preserves serial dispatch uncertainty after a write loses its acknowledgement', async () => {
+    const { port, request, send } = grblPort()
+    const { deps, append, notify } = dependencies()
+    request.mockImplementation((command) =>
+      Promise.resolve(command === 'M115' ? 'FIRMWARE_NAME:Marlin' : 'echo: M203 X100 Y100 Z10'),
+    )
+    send.mockImplementation(async (_bytes, _signal, beforeWrite) => {
+      const check = await beforeWrite()
+      check()
+      throw new Error('ackLost')
+    })
+    const machine = createMarlinMachine(record('/dev/test', 'marlin'), port, deps, telemetry)
+    await expect(machine.send('G91\nG1 X1 F600\nG90')).resolves.toMatchObject({
+      outcome: 'sentOutcomeUnknown',
+    })
+    expect(machine.requiresStatusRead).toBe(true)
+    await expect(machine.send('G1 X20')).rejects.toThrow('machineStatusRequired')
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(notify).toHaveBeenCalledWith('sentOutcomeUnknown')
+    expect(append).toHaveBeenLastCalledWith(
+      expect.objectContaining({ outcome: 'sentOutcomeUnknown' }),
+    )
+  })
   it('prevents a timed-out Marlin queue from writing later even when the port ignores abort', async () => {
     const { port, request, send } = grblPort(),
       { deps } = dependencies()

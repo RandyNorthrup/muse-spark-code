@@ -85,6 +85,7 @@ export async function fakeMachineServer() {
   let hostname = 'virtual-klipper'
   let held: ServerResponse | undefined
   let shouldHoldSend = false
+  let shouldLoseReply = false
   let override: { status: number; body: string; headers?: Record<string, string> } | undefined
   const server = createServer((request, response) => {
     void requestBody(request)
@@ -99,6 +100,18 @@ export async function fakeMachineServer() {
         if (override !== undefined) {
           response.writeHead(override.status, override.headers)
           response.end(override.body)
+          return
+        }
+        if (path === '/printer/gcode/script' && shouldLoseReply) {
+          const script = z.object({ script: z.string() }).parse(body).script
+          if (script !== 'G91\nG1 X1 F600\nG90') throw new Error('unexpectedScript')
+          for (const position of [
+            moonraker.result.status.toolhead.position,
+            moonraker.result.status.gcode_move.position,
+            moonraker.result.status.gcode_move.gcode_position,
+          ])
+            position[0] = (position[0] ?? 0) + 1
+          response.destroy()
           return
         }
         if (path === '/printer/gcode/script' && shouldHoldSend) {
@@ -141,6 +154,12 @@ export async function fakeMachineServer() {
     },
     holdSend() {
       shouldHoldSend = true
+    },
+    loseSendReply(shouldLose = true) {
+      shouldLoseReply = shouldLose
+    },
+    dropHeldReply() {
+      held?.destroy()
     },
     releaseSend() {
       held?.end(JSON.stringify({ result: 'ok' }))

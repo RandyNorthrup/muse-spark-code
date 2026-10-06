@@ -14,7 +14,7 @@ export const deviceLogEntrySchema = z.strictObject({
   payload: z.string(),
   digest: z.string().check(z.regex(/^[a-f0-9]{64}$/)),
   approval: z.nullable(z.string()),
-  outcome: z.enum(['attempt', 'sent', 'refused', 'failed', 'stopped']),
+  outcome: z.enum(['attempt', 'sent', 'sentOutcomeUnknown', 'refused', 'failed', 'stopped']),
 })
 export type DeviceLogEntry = z.infer<typeof deviceLogEntrySchema>
 export interface DeviceLogPolicy {
