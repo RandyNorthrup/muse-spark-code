@@ -54,6 +54,7 @@ function failure(
 /** Correlation and lifecycle surround the frozen stateless schema boundary. */
 export class PanelConnection implements HostServices {
   private readonly pending = new Map<RequestId, PendingRequest>()
+  private readonly retired = new Map<RequestId, MhpRequestMethod>()
   private readonly incoming = new Map<RequestId, AbortController>()
   private offered: readonly MhpCapability[] = []
   private version: typeof MHP.version | typeof MHP_PANEL.version = MHP.version
@@ -113,6 +114,8 @@ export class PanelConnection implements HostServices {
       throw new MhpServiceError(
         failure(null, MHP_ERROR_CODES.invalidRequest, 'MHP_WRONG_DIRECTION'),
       )
+    if (this.pending.size + this.retired.size >= MHP_PANEL.maximumQueuedMessages)
+      throw new MhpServiceError(failure(null, MHP_ERROR_CODES.internalError, 'MHP_BACKPRESSURE'))
     const release = this.delivery.reserve(
       new TextEncoder().encode(JSON.stringify(params)).byteLength,
     )
@@ -121,10 +124,11 @@ export class PanelConnection implements HostServices {
       this.pending.set(id, { method, resolve, reject })
     })
     const abort = () => {
-      this.pending
-        .get(id)
-        ?.reject(new MhpServiceError(failure(id, MHP_ERROR_CODES.cancelled, 'MHP_CANCELLED')))
+      const waiting = this.pending.get(id)
+      if (waiting === undefined) return
+      waiting.reject(new MhpServiceError(failure(id, MHP_ERROR_CODES.cancelled, 'MHP_CANCELLED')))
       this.pending.delete(id)
+      this.retired.set(id, method)
       try {
         this.delivery.post({
           jsonrpc: MHP.jsonRpcVersion,
@@ -167,6 +171,7 @@ export class PanelConnection implements HostServices {
     if (this.isClosed) return
     let frame: ReturnType<typeof parseMhpStdioLine>
     let pending: PendingRequest | undefined
+    let retired: MhpRequestMethod | undefined
     let id: RequestId | null = null
     try {
       // Size preflight precedes the cheap correlation header and all JSON parsing.
@@ -182,9 +187,11 @@ export class PanelConnection implements HostServices {
       const header = z.object({ id: idSchema }).safeParse(raw)
       id = header.success ? header.data.id : null
       pending = id === null ? undefined : this.pending.get(id)
+      retired = id === null ? undefined : this.retired.get(id)
       const resultHeader = z.object({ jsonrpc: z.literal(MHP.jsonRpcVersion) }).safeParse(raw)
       if (
         pending === undefined &&
+        retired === undefined &&
         raw !== null &&
         typeof raw === 'object' &&
         resultHeader.success &&
@@ -207,13 +214,14 @@ export class PanelConnection implements HostServices {
         }
         return
       }
+      const pendingMethod = pending?.method ?? retired
       frame = parseMhpStdioLine(line, {
         protocolVersion: this.version,
-        ...(pending !== undefined && { pendingMethod: pending.method }),
+        ...(pendingMethod !== undefined && { pendingMethod }),
       })
     } catch {
-      if (pending !== undefined) {
-        pending.reject(
+      if (pending !== undefined || retired !== undefined) {
+        pending?.reject(
           new MhpServiceError(failure(id, MHP_ERROR_CODES.invalidRequest, 'MHP_INVALID_RESULT')),
         )
         this.close(true)
@@ -239,6 +247,10 @@ export class PanelConnection implements HostServices {
       return
     }
     if ('result' in frame || 'error' in frame) {
+      if (retired !== undefined && id !== null) {
+        this.retired.delete(id)
+        return
+      }
       if (pending === undefined || id === null) {
         this.log.warn('MHP_UNCORRELATED_RESULT')
         this.close(true)
@@ -399,6 +411,7 @@ export class PanelConnection implements HostServices {
         new MhpServiceError(failure(null, MHP_ERROR_CODES.cancelled, 'MHP_CONNECTION_CLOSED')),
       )
     this.pending.clear()
+    this.retired.clear()
     for (const controller of this.incoming.values()) controller.abort()
     this.incoming.clear()
     this.ports.closed(isFatal)

@@ -110,5 +110,37 @@
       "\u00d7 release waits for an admitted replay before the final storage drain 61ms"
     ],
     "restoredSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6"
+  },
+  {
+    "name": "late-reply-retention",
+    "file": "src/runtime/panel/connection.ts",
+    "beforeSha256": "5ca3efeb15559d3635420b7896ca6dfb4de46222547a25aebdee7018176949c5",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 consumes a valid late success reply after abort without disturbing another request 18ms",
+      "\u00d7 consumes a valid late cancelled reply after abort without disturbing another request 3ms",
+      "\u00d7 consumes a valid late reply after a timeout 3ms",
+      "\u00d7 bounds retired ids by refusing new requests until a retained reply is consumed 30037ms"
+    ],
+    "restoredSha256": "5ca3efeb15559d3635420b7896ca6dfb4de46222547a25aebdee7018176949c5"
+  },
+  {
+    "name": "late-reply-once",
+    "file": "src/runtime/panel/connection.ts",
+    "beforeSha256": "5ca3efeb15559d3635420b7896ca6dfb4de46222547a25aebdee7018176949c5",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 still rejects a duplicate reply 7ms",
+      "\u00d7 bounds retired ids by refusing new requests until a retained reply is consumed 58ms"
+    ],
+    "restoredSha256": "5ca3efeb15559d3635420b7896ca6dfb4de46222547a25aebdee7018176949c5"
+  },
+  {
+    "name": "late-reply-method-validation",
+    "file": "src/runtime/panel/connection.ts",
+    "beforeSha256": "5ca3efeb15559d3635420b7896ca6dfb4de46222547a25aebdee7018176949c5",
+    "exitCode": 1,
+    "failedAssertions": ["\u00d7 still rejects a malformed reply 8ms"],
+    "restoredSha256": "5ca3efeb15559d3635420b7896ca6dfb4de46222547a25aebdee7018176949c5"
   }
 ]
