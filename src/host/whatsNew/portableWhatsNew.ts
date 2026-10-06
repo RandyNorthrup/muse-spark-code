@@ -45,17 +45,20 @@ export class PortableWhatsNew {
   private readonly pages = new Map<string, ShownPage>()
   private readonly acquired = new Set<SurfaceId>()
   private readonly inFlight = new Set<Promise<void>>()
-  private opening: Promise<void> | undefined
+  private opening: { readonly sessionId: string; readonly work: Promise<void> } | undefined
+  private generation = 0
   private disposal: Promise<void> | undefined
   private isDisposed = false
 
   public constructor(private readonly deps: PortableWhatsNewDeps) {}
 
-  private isCurrent(sessionId: string): boolean {
-    return !this.isDisposed && sessionId === this.deps.sessionId()
+  private isCurrent(sessionId: string, generation: number): boolean {
+    return !this.isDisposed && sessionId === this.deps.sessionId() && generation === this.generation
   }
 
   private async close(id: SurfaceId): Promise<void> {
+    // An authoritative close may already have retired this generation's surface.
+    if (!this.acquired.has(id)) return
     // Retire input before awaiting the carrier; failed cleanup remains acquired.
     this.pages.delete(String(id))
     await this.deps.host.request('surfaces/close', { surfaceId: id })
@@ -107,17 +110,20 @@ export class PortableWhatsNew {
     }
   }
 
-  private async open(from: string | undefined): Promise<void> {
-    const sessionId = this.deps.sessionId()
+  private async open(
+    from: string | undefined,
+    sessionId: string,
+    generation: number,
+  ): Promise<void> {
     const content = parseWhatsNewContent(await this.deps.readContent())
-    if (!this.isCurrent(sessionId)) return
+    if (!this.isCurrent(sessionId, generation)) return
     const result = await this.deps.host.request('surfaces/open', {
       kind: 'whatsNew',
       placement: 'tab',
       sessionId,
     })
     this.acquired.add(result.surfaceId)
-    if (!this.isCurrent(sessionId)) {
+    if (!this.isCurrent(sessionId, generation)) {
       await this.close(result.surfaceId)
       return
     }
@@ -139,7 +145,7 @@ export class PortableWhatsNew {
       const previous = Array.from(this.pages, ([, old]) => old)
       this.pages.set(binding.surface, { id: result.surfaceId, binding, page, render })
       await this.deps.present(binding, page.html)
-      if (!this.isCurrent(sessionId)) {
+      if (!this.isCurrent(sessionId, generation)) {
         await this.close(result.surfaceId)
         return
       }
@@ -156,7 +162,7 @@ export class PortableWhatsNew {
 
   private async release(): Promise<void> {
     this.isDisposed = true
-    await Promise.allSettled([this.opening, ...this.inFlight])
+    await Promise.allSettled(this.inFlight)
     let hasFailure = false
     for (const id of this.acquired) {
       try {
@@ -171,15 +177,20 @@ export class PortableWhatsNew {
 
   public async show(from?: string): Promise<void> {
     if (this.isDisposed) throw new Error('MHP_PRESENTATION_DISPOSED')
-    if (this.opening !== undefined) {
-      await this.opening
+    const sessionId = this.deps.sessionId()
+    if (this.opening?.sessionId === sessionId) {
+      await this.opening.work
       return
     }
-    this.opening = this.open(from)
+    const generation = ++this.generation
+    const work = this.open(from, sessionId, generation)
+    this.opening = { sessionId, work }
+    this.inFlight.add(work)
     try {
-      await this.opening
+      await work
     } finally {
-      this.opening = undefined
+      this.inFlight.delete(work)
+      if (generation === this.generation) this.opening = undefined
     }
   }
 

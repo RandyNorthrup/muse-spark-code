@@ -125,6 +125,100 @@ describe('portable Tasks ownership', () => {
     await expect(f.tasks.show(f.initial)).rejects.toThrow('MHP_PRESENTATION_DISPOSED')
   })
 
+  it.each(['older-first', 'newer-first'])(
+    'preserves a newer session open when acquisitions finish %s',
+    async (order) => {
+      const f = fixture()
+      const older = Promise.withResolvers<unknown>()
+      const newer = Promise.withResolvers<unknown>()
+      f.responses.set('surfaces/open', () => older.promise)
+      const first = f.tasks.show(f.initial)
+      f.setSession('next')
+      f.responses.set('surfaces/open', () => newer.promise)
+      const second = f.tasks.show({ ...f.initial, conversation: 'Next session' })
+      expect(f.requests.filter((request) => request.method === 'surfaces/open')).toEqual([
+        {
+          method: 'surfaces/open',
+          params: { kind: 'tasks', placement: 'tab', sessionId: 'session' },
+        },
+        { method: 'surfaces/open', params: { kind: 'tasks', placement: 'tab', sessionId: 'next' } },
+      ])
+      if (order === 'older-first') {
+        older.resolve({ surfaceId: 'older' })
+        await first
+        expect(
+          f.tasks.view({ surface: 'older', surfaceKind: 'tasks', sessionId: 'session' }),
+        ).toBeUndefined()
+        const coalesced = f.tasks.show({ ...f.initial, conversation: 'Next session' })
+        expect(f.requests.filter((request) => request.method === 'surfaces/open')).toHaveLength(2)
+        newer.resolve({ surfaceId: 'newer' })
+        await coalesced
+      } else {
+        newer.resolve({ surfaceId: 'newer' })
+        await second
+        older.resolve({ surfaceId: 'older' })
+      }
+      await Promise.all([first, second])
+      const { view, messages } = f.bind('newer', 'next')
+      await view.handle({ type: 'tasksReady' })
+      expect(messages.at(-1)?.conversation).toBe('Next session')
+      await f.tasks.dispose()
+      expect(f.requests.filter((request) => request.method === 'surfaces/close')).toEqual([
+        { method: 'surfaces/close', params: { surfaceId: 'older' } },
+        { method: 'surfaces/close', params: { surfaceId: 'newer' } },
+      ])
+    },
+  )
+
+  it('discards superseded opens after returning to the original session and drains them', async () => {
+    const f = fixture()
+    const older = Promise.withResolvers<unknown>()
+    const middle = Promise.withResolvers<unknown>()
+    f.responses.set('surfaces/open', () => older.promise)
+    const first = f.tasks.show(f.initial)
+    f.setSession('middle')
+    f.responses.set('surfaces/open', () => middle.promise)
+    const second = f.tasks.show(f.initial)
+    f.setSession('session')
+    f.responses.delete('surfaces/open')
+    const returning = f.tasks.show({ ...f.initial, conversation: 'Returned' })
+    expect(f.requests.filter((request) => request.method === 'surfaces/open')).toHaveLength(3)
+    await returning
+    const { view, messages } = f.bind()
+    older.resolve({ surfaceId: 'superseded' })
+    await first
+    await view.handle({ type: 'tasksReady' })
+    expect(messages.at(-1)?.conversation).toBe('Returned')
+    let hasDisposed = false
+    const closing = (async () => {
+      await f.tasks.dispose()
+      hasDisposed = true
+    })()
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+    expect(hasDisposed).toBe(false)
+    middle.resolve({ surfaceId: 'middle' })
+    await Promise.all([second, closing])
+    expect(f.requests.filter((request) => request.method === 'surfaces/close')).toHaveLength(3)
+  })
+
+  it('does not dispatch a superseded open after an older surface close resumes', async () => {
+    const f = fixture()
+    await f.tasks.show(f.initial)
+    const closed = Promise.withResolvers<unknown>()
+    f.responses.set('surfaces/close', () => closed.promise)
+    f.setSession('middle')
+    const first = f.tasks.show(f.initial)
+    f.setSession('next')
+    await f.tasks.show(f.initial)
+    f.bind('tasks-2', 'next')
+    closed.resolve(null)
+    await first
+    expect(f.requests.filter((request) => request.method === 'surfaces/open')).toHaveLength(2)
+    await f.tasks.dispose()
+  })
+
   it('retires old session bindings and never adopts a stale acquisition', async () => {
     const f = fixture()
     await f.tasks.show(f.initial)

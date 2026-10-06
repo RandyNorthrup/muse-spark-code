@@ -237,3 +237,15 @@ global cache or runtime/product dependency. The test executable override
     be unlisted. Run full required gates after integrating these requests.
     F records these deferrals in PLAN §7 and the implementation in CHANGELOG,
     README and the applicable help reference before an assembled support claim.
+
+17. **FIXM104PC documentation integration (2026-10-06).** F should record
+    the remediation plan under PLAN M104 and the final verified behavior in
+    CHANGELOG `[Unreleased]`: generation-tagged Tasks/What's New opens preserve
+    the latest session request and drain superseded acquisitions; authoritative
+    Tasks closes retire ownership before reopening; browser clipboard requests
+    reject on abort/disposal and drop late completions. The three RVM104PC P2
+    findings are being fixed, with no accepted review residual. Preserve all
+    existing qualification/discovery/build prerequisites and support statuses.
+    An already initiated browser clipboard write cannot be undone by this
+    adapter; cancellation promises immediate refusal of the request's result,
+    no late successful acknowledgement and no additional write after disposal.

@@ -17,7 +17,9 @@ export class PortableTasks implements TasksTabPort {
   private isDisposed = false
   private surface:
     { readonly id: MhpResult<'surfaces/open'>['surfaceId']; readonly sessionId: string } | undefined
-  private opening: Promise<void> | undefined
+  private opening: { readonly sessionId: string; readonly work: Promise<void> } | undefined
+  private generation = 0
+  private readonly openings = new Set<Promise<void>>()
   private moving: Promise<void> | undefined
   private disposal: Promise<void> | undefined
   private readonly acquired = new Set<MhpResult<'surfaces/open'>['surfaceId']>()
@@ -48,15 +50,23 @@ export class PortableTasks implements TasksTabPort {
     this.acquired.delete(id)
   }
 
-  private async acquire(placement: 'tab' | 'window'): Promise<void> {
-    const sessionId = this.sessionId()
+  private isCurrent(sessionId: string, generation: number): boolean {
+    return !this.isDisposed && sessionId === this.sessionId() && generation === this.generation
+  }
+
+  private async acquire(
+    placement: 'tab' | 'window',
+    sessionId: string,
+    generation: number,
+  ): Promise<void> {
+    if (!this.isCurrent(sessionId, generation)) return
     const result = await this.host.request('surfaces/open', {
       kind: 'tasks',
       placement,
       sessionId,
     })
     this.acquired.add(result.surfaceId)
-    if (this.isDisposed || sessionId !== this.sessionId()) {
+    if (!this.isCurrent(sessionId, generation)) {
       await this.close(result.surfaceId)
       return
     }
@@ -72,8 +82,9 @@ export class PortableTasks implements TasksTabPort {
     }
     if (this.isEnded || this.surface === undefined || this.isDisposed) return
     const previous = this.surface
+    const generation = this.generation
     this.moving = (async () => {
-      await this.acquire('window')
+      await this.acquire('window', previous.sessionId, generation)
       if (this.surface?.id !== previous.id) {
         await this.close(previous.id)
       }
@@ -88,7 +99,7 @@ export class PortableTasks implements TasksTabPort {
   private async release(): Promise<void> {
     this.isDisposed = true
     this.listeners.clear()
-    await Promise.allSettled([this.opening, this.moving])
+    await Promise.allSettled([...this.openings, this.moving])
     this.surface = undefined
     let hasFailure = false
     for (const id of this.acquired) {
@@ -107,25 +118,30 @@ export class PortableTasks implements TasksTabPort {
     this.current = view
     this.isEnded = false
     this.post()
-    if (this.opening !== undefined) {
-      await this.opening
+    const sessionId = this.sessionId()
+    if (this.opening?.sessionId === sessionId) {
+      await this.opening.work
       return
     }
-    if (this.surface?.sessionId === this.sessionId()) {
+    if (this.surface?.sessionId === sessionId) {
       await this.host.request('surfaces/focus', { surfaceId: this.surface.id })
       return
     }
     const old = this.surface
     this.surface = undefined
     this.listeners.clear()
-    this.opening = (async () => {
+    const generation = ++this.generation
+    const work = (async () => {
       if (old !== undefined) await this.close(old.id)
-      await this.acquire('tab')
+      await this.acquire('tab', sessionId, generation)
     })()
+    this.opening = { sessionId, work }
+    this.openings.add(work)
     try {
-      await this.opening
+      await work
     } finally {
-      this.opening = undefined
+      this.openings.delete(work)
+      if (generation === this.generation) this.opening = undefined
     }
   }
 
