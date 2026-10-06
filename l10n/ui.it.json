@@ -2799,6 +2799,11 @@
     "keybindings": "Scorciatoie da tastiera"
   },
   "reportUi": {
+    "invalidArguments": "Argomenti del rapporto non validi. Scegli un tipo di rapporto e il suo ambito.",
+    "problem": "Segnala un problema…",
+    "scope": "Inserisci l’id del traguardo o la versione del rilascio.",
+    "historyRequired": "Salva questo rapporto nella cronologia prima di confrontarlo.",
+    "format": "Formato",
     "show": "Mostra rapporto…",
     "description": "Genera un rapporto deterministico da fonti identificate, senza chiamare un modello.",
     "usageAction": "Rapporto di utilizzo",

@@ -2893,6 +2893,11 @@
     "keybindings": "Skróty klawiszowe"
   },
   "reportUi": {
+    "invalidArguments": "Nieprawidłowe argumenty raportu. Wybierz rodzaj raportu i jego zakres.",
+    "problem": "Zgłoś problem…",
+    "scope": "Wprowadź identyfikator kamienia milowego lub wersję wydania.",
+    "historyRequired": "Przed porównaniem zapisz ten raport w historii.",
+    "format": "Format pliku",
     "show": "Pokaż raport…",
     "description": "Wygeneruj deterministyczny raport z nazwanych źródeł, bez wywołania modelu.",
     "usageAction": "Raport użycia",

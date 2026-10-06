@@ -2799,6 +2799,11 @@
     "keybindings": "Raccourcis clavier"
   },
   "reportUi": {
+    "invalidArguments": "Arguments de rapport non valides. Choisissez un type de rapport et sa portée.",
+    "problem": "Signaler un problème…",
+    "scope": "Saisissez l’identifiant du jalon ou la version publiée.",
+    "historyRequired": "Enregistrez ce rapport dans l’historique avant de le comparer.",
+    "format": "Format de fichier",
     "show": "Afficher un rapport…",
     "description": "Générer un rapport déterministe à partir de sources nommées, sans appel à un modèle.",
     "usageAction": "Rapport d’utilisation",

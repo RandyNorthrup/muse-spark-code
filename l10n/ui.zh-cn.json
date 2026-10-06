@@ -2611,6 +2611,11 @@
     "keybindings": "快捷键"
   },
   "reportUi": {
+    "invalidArguments": "报告参数无效。请选择报告类型及其范围。",
+    "problem": "报告问题…",
+    "scope": "请输入里程碑 id 或发布版本。",
+    "historyRequired": "比较前请将此报告保存到历史记录。",
+    "format": "格式",
     "show": "显示报告…",
     "description": "从具名来源生成确定性报告，不调用模型。",
     "usageAction": "用量报告",

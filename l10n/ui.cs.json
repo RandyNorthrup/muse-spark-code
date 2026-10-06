@@ -2893,6 +2893,11 @@
     "keybindings": "Klávesové zkratky"
   },
   "reportUi": {
+    "invalidArguments": "Neplatné argumenty přehledu. Vyberte typ přehledu a jeho rozsah.",
+    "problem": "Nahlásit problém…",
+    "scope": "Zadejte id milníku nebo verzi vydání.",
+    "historyRequired": "Před porovnáním uložte tento přehled do historie.",
+    "format": "Formát",
     "show": "Zobrazit zprávu…",
     "description": "Vytvořit deterministickou zprávu z pojmenovaných zdrojů bez volání modelu.",
     "usageAction": "Zpráva o využití",

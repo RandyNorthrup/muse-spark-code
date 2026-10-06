@@ -2799,6 +2799,11 @@
     "keybindings": "Atajos de teclado"
   },
   "reportUi": {
+    "invalidArguments": "Argumentos de informe no válidos. Elige un tipo de informe y su alcance.",
+    "problem": "Informar de un problema…",
+    "scope": "Introduce el id del hito o la versión del lanzamiento.",
+    "historyRequired": "Guarda este informe en el historial antes de compararlo.",
+    "format": "Formato",
     "show": "Mostrar informe…",
     "description": "Generar un informe determinista a partir de fuentes identificadas, sin llamar a un modelo.",
     "usageAction": "Informe de uso",

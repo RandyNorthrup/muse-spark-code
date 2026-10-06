@@ -2611,6 +2611,11 @@
     "keybindings": "키 바인딩"
   },
   "reportUi": {
+    "invalidArguments": "보고서 인수가 잘못되었습니다. 보고서 종류와 범위를 선택하세요.",
+    "problem": "문제 보고…",
+    "scope": "마일스톤 id 또는 릴리스 버전을 입력하세요.",
+    "historyRequired": "비교하기 전에 이 보고서를 기록에 저장하세요.",
+    "format": "형식",
     "show": "보고서 표시…",
     "description": "모델을 호출하지 않고 명시된 출처에서 결정론적 보고서를 생성합니다.",
     "usageAction": "사용량 보고서",

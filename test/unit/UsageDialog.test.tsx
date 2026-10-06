@@ -79,6 +79,12 @@ function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
 }
 
 describe('UsageDialog', () => {
+  it('opens the local usage report through the injected host action', () => {
+    const onUsageReport = vi.fn()
+    renderDialog({ onUsageReport })
+    fireEvent.click(screen.getByRole('button', { name: EN.reportUsageAction }))
+    expect(onUsageReport).toHaveBeenCalledOnce()
+  })
   it('shows hook additions separately without subtracting them from packing savings', () => {
     renderDialog({
       usage: {

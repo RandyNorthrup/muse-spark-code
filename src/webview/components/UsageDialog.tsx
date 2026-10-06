@@ -64,6 +64,8 @@ export interface UsageDialogProps {
   readonly now: () => number
   readonly onOpenExternal: (url: string) => void
   readonly onClose: () => void
+  /** M113 W binds this to the shared host's local `report usage` operation. */
+  readonly onUsageReport?: () => void
 }
 
 type InsightWindow = 'day' | 'week'
@@ -616,6 +618,7 @@ export function UsageDialog({
   now,
   onOpenExternal,
   onClose,
+  onUsageReport,
 }: UsageDialogProps) {
   const [confirmInstall, setConfirmInstall] = useState(false)
   const [, setCountdownTick] = useState(0)
@@ -694,6 +697,11 @@ export function UsageDialog({
   }
   return (
     <Modal title={UI_TEXT.usageLabel} titleId="usage-title" onClose={onClose}>
+      {onUsageReport === undefined ? null : (
+        <button type="button" className="button-secondary" onClick={onUsageReport}>
+          {UI_TEXT.reportUsageAction}
+        </button>
+      )}
       {body}
       {auth.status === 'signedIn' ? (
         <div className="usage-setup">

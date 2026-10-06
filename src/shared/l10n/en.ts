@@ -1278,6 +1278,11 @@ export const EN = {
     keybindings: 'Key bindings',
   },
   reportUi: {
+    invalidArguments: 'Invalid report arguments. Choose a report kind and its scope.',
+    problem: 'Report a problem…',
+    scope: 'Enter the milestone id or release version.',
+    historyRequired: 'Save this report in history before comparing it.',
+    format: 'Format',
     show: 'Show report…',
     description: 'Generate a deterministic report from named sources, without a model call.',
     usageAction: 'Usage report',

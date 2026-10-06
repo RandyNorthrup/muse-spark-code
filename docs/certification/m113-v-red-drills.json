@@ -1,0 +1,291 @@
+[
+  {
+    "name": "strict-save-message",
+    "file": "src/webview/reporting/protocol.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "rejects malformed actions",
+    "failed": [
+      "     × rejects malformed actions, foreign history ids and unverified documents 26ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > rejects malformed actions, foreign history ids and unverified documents",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+    ],
+    "beforeHash": "8770129668de79f6bd99b7367d5fbfdab2220b2591def93b259a14a954fad9a2",
+    "restoredHash": "8770129668de79f6bd99b7367d5fbfdab2220b2591def93b259a14a954fad9a2",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "history-membership",
+    "file": "src/host/reporting/reportPanel.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "rejects malformed actions",
+    "failed": [
+      "     × rejects malformed actions, foreign history ids and unverified documents 87ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > rejects malformed actions, foreign history ids and unverified documents",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+    ],
+    "beforeHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "restoredHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "save-cancellation",
+    "file": "src/host/reporting/reportPanel.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "saves all four formats",
+    "failed": [
+      "     × saves all four formats only to the dialog URI and writes nothing on cancel 459ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > saves all four formats only to the dialog URI and writes nothing on cancel",
+      "AssertionError: expected \"vi.fn()\" to be called 4 times, but got 5 times"
+    ],
+    "beforeHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "restoredHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "stale-save",
+    "file": "src/host/reporting/reportPanel.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "does not write or publish",
+    "failed": [
+      "     × does not write or publish an old operation after its tab closes 40ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > does not write or publish an old operation after its tab closes",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+    ],
+    "beforeHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "restoredHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "busy-admission",
+    "file": "src/host/reporting/reportPanel.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "serializes actions",
+    "failed": [
+      "     × serializes actions and reports clipboard/save failures using fixed localized messages 23ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > serializes actions and reports clipboard/save failures using fixed localized messages",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+    ],
+    "beforeHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "restoredHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "command-uri-disabled",
+    "file": "src/host/reporting/reportPanel.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "loads nothing at construction",
+    "failed": [
+      "     × loads nothing at construction and sends the verified report only after ready 54ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > loads nothing at construction and sends the verified report only after ready",
+      "AssertionError: expected { enableScripts: true, …(2) } to match object { enableCommandUris: false }"
+    ],
+    "beforeHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "restoredHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "output-format",
+    "file": "src/host/reporting/reportPanel.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "saves all four formats",
+    "failed": [
+      "     × saves all four formats only to the dialog URI and writes nothing on cancel 548ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > saves all four formats only to the dialog URI and writes nothing on cancel",
+      "AssertionError: expected last \"vi.fn()\" call to have been called with [ FakeUri{ …(5) }, …(1) ]"
+    ],
+    "beforeHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "restoredHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "saved-metadata",
+    "file": "src/host/reporting/reportPanel.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "rejects saved metadata",
+    "failed": [
+      "     × rejects saved metadata and comparison headers that disagree with the selected history 144ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > rejects saved metadata and comparison headers that disagree with the selected history",
+      "AssertionError: expected false to be true // Object.is equality"
+    ],
+    "beforeHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "restoredHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "comparison-metadata",
+    "file": "src/host/reporting/reportPanel.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "rejects saved metadata",
+    "failed": [
+      "     × rejects saved metadata and comparison headers that disagree with the selected history 273ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > rejects saved metadata and comparison headers that disagree with the selected history",
+      "AssertionError: expected false to be true // Object.is equality"
+    ],
+    "beforeHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "restoredHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "history-order",
+    "file": "src/host/reporting/reportPanel.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "sorts saved history",
+    "failed": [
+      "     × sorts saved history by instant, then id, and scrubs source text before display 75ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > sorts saved history by instant, then id, and scrubs source text before display",
+      "AssertionError: expected [ 'z', 'early', 'a' ] to deeply equal [ 'a', 'z', 'early' ]"
+    ],
+    "beforeHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "restoredHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "history-scrub",
+    "file": "src/host/reporting/reportPanel.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "sorts saved history",
+    "failed": [
+      "     × sorts saved history by instant, then id, and scrubs source text before display 79ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > sorts saved history by instant, then id, and scrubs source text before display",
+      "AssertionError: expected '{\"type\":\"reportingState\",\"busy\":false…' not to contain 'owner@example.com'"
+    ],
+    "beforeHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "restoredHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "generation-kind",
+    "file": "src/host/reporting/reportPanel.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "rejects a wrong report kind",
+    "failed": [
+      "     × rejects a wrong report kind and discards generation completed after disposal 92ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > rejects a wrong report kind and discards generation completed after disposal",
+      "AssertionError: expected 'usage' to be 'project' // Object.is equality"
+    ],
+    "beforeHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "restoredHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "stale-generation",
+    "file": "src/host/reporting/reportPanel.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "rejects a wrong report kind",
+    "failed": [
+      "     × rejects a wrong report kind and discards generation completed after disposal 89ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > rejects a wrong report kind and discards generation completed after disposal",
+      "AssertionError: expected 'usage' to be 'project' // Object.is equality"
+    ],
+    "beforeHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "restoredHash": "39a467c554cf3c2695301eff5461bf545ff222336e019f4e2496153821431c18",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "host-state-strict",
+    "file": "src/webview/reporting/protocol.ts",
+    "test": "test/unit/reportingApp.test.tsx",
+    "exitCode": 1,
+    "expected": "ignores malformed host states",
+    "failed": [
+      "     × ignores malformed host states and disables exports until a document is available 75ms",
+      " FAIL  test/unit/reportingApp.test.tsx > the shared report page > ignores malformed host states and disables exports until a document is available"
+    ],
+    "beforeHash": "8770129668de79f6bd99b7367d5fbfdab2220b2591def93b259a14a954fad9a2",
+    "restoredHash": "8770129668de79f6bd99b7367d5fbfdab2220b2591def93b259a14a954fad9a2",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "html-sandbox",
+    "file": "src/webview/reporting/ReportApp.tsx",
+    "test": "test/unit/reportingApp.test.tsx",
+    "exitCode": 1,
+    "expected": "uses a separate bridge",
+    "failed": [
+      "     × uses a separate bridge and sandboxed static document with all six report actions 116ms",
+      " FAIL  test/unit/reportingApp.test.tsx > the shared report page > uses a separate bridge and sandboxed static document with all six report actions"
+    ],
+    "beforeHash": "52fedb1e8cbfd700ba3a79f85d7638ffe8ca8767fccb183f4819b082d51c6c95",
+    "restoredHash": "52fedb1e8cbfd700ba3a79f85d7638ffe8ca8767fccb183f4819b082d51c6c95",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "parser-duplicate",
+    "file": "src/host/reporting/reportRequest.ts",
+    "test": "test/unit/reportingRequest.test.ts",
+    "exitCode": 1,
+    "expected": "refuses malformed",
+    "failed": [
+      "     × refuses malformed scopes, flags and duplicate options without quoting the input 9ms",
+      " FAIL  test/unit/reportingRequest.test.ts > the local report command grammar > refuses malformed scopes, flags and duplicate options without quoting the input",
+      "AssertionError: expected [Function] to throw an error"
+    ],
+    "beforeHash": "9f39e7e1f298509739804cd93e9c680ad0a695e403de21e34995474e07b226ee",
+    "restoredHash": "9f39e7e1f298509739804cd93e9c680ad0a695e403de21e34995474e07b226ee",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "parser-scope",
+    "file": "src/host/reporting/reportRequest.ts",
+    "test": "test/unit/reportingRequest.test.ts",
+    "exitCode": 1,
+    "expected": "refuses malformed",
+    "failed": [
+      "     × refuses malformed scopes, flags and duplicate options without quoting the input 8ms",
+      " FAIL  test/unit/reportingRequest.test.ts > the local report command grammar > refuses malformed scopes, flags and duplicate options without quoting the input",
+      "AssertionError: expected [Function] to throw an error"
+    ],
+    "beforeHash": "9f39e7e1f298509739804cd93e9c680ad0a695e403de21e34995474e07b226ee",
+    "restoredHash": "9f39e7e1f298509739804cd93e9c680ad0a695e403de21e34995474e07b226ee",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "slash-model-refusal",
+    "file": "src/host/conversation/conversationController.ts",
+    "test": "test/unit/conversationController.test.ts",
+    "exitCode": 1,
+    "expected": "report",
+    "failed": [
+      "     × intercepts report arguments before auth, hooks and backend admission 6ms",
+      "     × refuses a local report with no bound surface instead of sending it to a model 2ms",
+      " FAIL  test/unit/conversationController.test.ts > report a problem wiring (M93, PLAN.md D72) > intercepts report arguments before auth, hooks and backend admission",
+      "AssertionError: expected [] to deeply equal [ [ '' ], [ 'milestone M113' ], …(1) ]",
+      " FAIL  test/unit/conversationController.test.ts > report a problem wiring (M93, PLAN.md D72) > refuses a local report with no bound surface instead of sending it to a model",
+      "AssertionError: expected [ { type: 'sendFailed', …(3) } ] to deep equally contain { type: 'notice', …(2) }"
+    ],
+    "beforeHash": "5e6439433368b34ff55a3b7344c231819ae6e22e9746da667c3d13abe41ef522",
+    "restoredHash": "5e6439433368b34ff55a3b7344c231819ae6e22e9746da667c3d13abe41ef522",
+    "byteExact": true,
+    "fired": true
+  }
+]

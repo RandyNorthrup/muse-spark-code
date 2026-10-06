@@ -2799,6 +2799,11 @@
     "keybindings": "Atalhos de teclado"
   },
   "reportUi": {
+    "invalidArguments": "Argumentos de relatório inválidos. Escolha um tipo de relatório e seu escopo.",
+    "problem": "Relatar um problema…",
+    "scope": "Digite o id do marco ou a versão da publicação.",
+    "historyRequired": "Salve este relatório no histórico antes de compará-lo.",
+    "format": "Formato",
     "show": "Mostrar relatório…",
     "description": "Gerar um relatório determinístico de fontes identificadas, sem chamar um modelo.",
     "usageAction": "Relatório de uso",
