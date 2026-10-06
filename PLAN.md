@@ -20927,6 +20927,18 @@ Each joins when its dependency merges, and none blocks the others.
 
 ## 7. Gates
 
+**M109 lane 0 contract slice (2026-10-05, Kubuntu).** The item/material,
+binding, policy, grant, requester, approval, ticket, audit, slot and broker
+contracts, canonical use digest and test-only fakes are supplied by lane 0.
+The isolated Models & Agents vault state and value-free host messages await
+M95/M104/U binding on integration. Lane 0 does not implement OS slots,
+policy enforcement, feeders or migration. Research corrections and the
+V1–V16 runtime proof owners are recorded in
+`docs/certification/m109-threat-model.md`; focused validation and deliberate
+failures are in `docs/certification/m109-0.md`. Manifest registration, bundle
+readers and the feature reference stay with their owning integration lanes.
+The full M109 checklist remains open until those lanes and captures pass.
+
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
 scoped tests. Typecheck, changed-file lint/format, localization (source and staged),

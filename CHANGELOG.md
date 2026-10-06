@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- M109's credential-vault contracts, canonical use digest, translated panel
+  labels and warnings, test-only broker and route harnesses, and threat and
+  capture plan. This prepares the runtime lanes; it does not enable a vault
+  command or change credential storage yet.
+
 ### Fixed
 
 - ACP help and argument errors now use one complete localized usage table,

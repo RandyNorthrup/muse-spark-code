@@ -1,0 +1,201 @@
+import { describe, expect, it } from 'vitest'
+import { randomBytes } from 'node:crypto'
+import { Buffer } from 'node:buffer'
+import {
+  FakeVaultBroker,
+  FakeVaultClock,
+  FakeVaultSlot,
+  InMemoryVault,
+} from '../helpers/vault/core'
+import { FakeCdpTarget, FakeGit, FakeSudo } from '../helpers/vault/routes'
+import { FakeSshClient, FakeSshServer } from '../helpers/vault/sshPair'
+import { item, metadata, requester, use } from '../helpers/vault/fixtures'
+import { vaultUseDigest } from '../../../src/core/vault/useDigest'
+import { vaultSlotRecordSchema, type VaultUse } from '../../../src/shared/vault'
+
+describe('vault test doubles (not runtime certification)', () => {
+  it('owns private byte copies and returns metadata only', async () => {
+    const store = new InMemoryVault()
+    const original = item()
+    const expected = Uint8Array.from(
+      original.material.kind === 'secret' ? original.material.value : [],
+    )
+    await store.write(original)
+    if (original.material.kind === 'secret') original.material.value.fill(0)
+    const read = await store.read(original.metadata.id)
+    expect(read.material.kind === 'secret' && read.material.value).toEqual(expected)
+    if (read.material.kind === 'secret') read.material.value.fill(0)
+    const again = await store.read(original.metadata.id)
+    expect(again.material.kind === 'secret' && again.material.value).toEqual(expected)
+    expect(await store.list()).toEqual([metadata()])
+    await store.remove(original.metadata.id)
+    await expect(store.read(original.metadata.id)).rejects.toThrow('missing')
+    store.lock()
+    expect(() => store.list()).toThrow('locked')
+  })
+
+  it('recovers from a lost slot through every other tier and prompts separately', async () => {
+    const key = randomBytes(32)
+    const hardware = new FakeVaultSlot('hardware')
+    const hardwareSlot = await hardware.wrap(key)
+    hardware.lost = true
+    await expect(hardware.unwrap(hardwareSlot, 'use')).rejects.toThrow('unavailable')
+    for (const tier of ['presence', 'osStore', 'secretStorage', 'passphrase', 'recovery']) {
+      const slot = new FakeVaultSlot(vaultSlotRecordSchema.shape.tier.parse(tier))
+      const record = await slot.wrap(key)
+      expect(await slot.unwrap(record, 'use one')).toEqual(Uint8Array.from(key))
+      expect(await slot.unwrap(record, 'use two')).toEqual(Uint8Array.from(key))
+      expect(slot.prompts.length).toBe(tier === 'presence' || tier === 'passphrase' ? 2 : 0)
+    }
+    const denied = new FakeVaultSlot('presence', () => false)
+    await expect(denied.unwrap(await denied.wrap(key), 'denied use')).rejects.toThrow(
+      'presence denied',
+    )
+  })
+
+  it('slots own copies at wrap and return a fresh buffer for every unwrap', async () => {
+    const key = randomBytes(32)
+    const expected = Uint8Array.from(key)
+    const slot = new FakeVaultSlot('hardware')
+    const record = await slot.wrap(key)
+    key.fill(0)
+    const first = await slot.unwrap(record, 'first')
+    expect(first).toEqual(expected)
+    first.fill(0)
+    expect(await slot.unwrap(record, 'second')).toEqual(expected)
+  })
+
+  it('V11 V13: fake approval refuses changed digests, foreign hosts, non-UI answers, replay and expiry', async () => {
+    const store = new InMemoryVault()
+    await store.write(item())
+    const clock = new FakeVaultClock()
+    const broker = new FakeVaultBroker(store, clock)
+    const req = await broker.request(requester(), metadata().handle, use(), {
+      tainted: false,
+      reasons: [],
+    })
+    const peer = { hostId: requester().hostId, processId: 100, userId: 'test-user', ui: true }
+    const answer = { requestId: req.id, digest: req.digest, decision: 'allowOnce' as const }
+    expect(await broker.answer(peer, { ...answer, digest: '0'.repeat(64) })).toBe(false)
+    expect(await broker.answer({ ...peer, hostId: '0'.repeat(32) }, answer)).toBe(false)
+    expect(await broker.answer({ ...peer, ui: false }, answer)).toBe(false)
+    expect(await broker.answer(peer, answer)).toBe(true)
+    expect(await broker.answer(peer, answer)).toBe(false)
+    const expired = await broker.request(requester(), metadata().handle, use(), {
+      tainted: true,
+      reasons: [{ source: 'web', label: 'fake page' }],
+    })
+    clock.advance(120_000)
+    expect(
+      await broker.answer(peer, { ...answer, requestId: expired.id, digest: expired.digest }),
+    ).toBe(false)
+    await broker.lock()
+    const status = await broker.status()
+    expect(status.state).toBe('locked')
+    expect(status.lockEpoch).toBe(1)
+    await expect(
+      broker.request(requester(), metadata().handle, use(), { tainted: false, reasons: [] }),
+    ).rejects.toThrow('locked')
+    expect(() => {
+      clock.advance(-1)
+    }).toThrow('invalid')
+  })
+
+  it('RFC 9987 pair supports identities and signing with and without session-bind', () => {
+    const server = new FakeSshServer()
+    const client = new FakeSshClient(server)
+    expect(client.identities()[0]?.[4]).toBe(12)
+    expect(client.sign(randomBytes(32))[0]?.[4]).toBe(5)
+    expect(client.bind(randomBytes(32))[0]?.[4]).toBe(6)
+    expect(client.sign(randomBytes(32))[0]?.[4]).toBe(14)
+    expect(client.bind(randomBytes(32))[0]?.[4]).toBe(5)
+    const unbound = new FakeSshClient(new FakeSshServer(true))
+    expect(unbound.sign(randomBytes(32))[0]?.[4]).toBe(14)
+  })
+
+  it('SSH fake refuses corrupted binding signatures and ungranted forwarding', () => {
+    const corrupt = new FakeSshClient(new FakeSshServer())
+    expect(corrupt.bind(randomBytes(32), false, true)[0]?.[4]).toBe(5)
+    expect(corrupt.sign(randomBytes(32))[0]?.[4]).toBe(5)
+    const forwarded = new FakeSshClient(new FakeSshServer())
+    expect(forwarded.bind(randomBytes(32), true)[0]?.[4]).toBe(6)
+    expect(forwarded.sign(randomBytes(32))[0]?.[4]).toBe(5)
+    const allowed = new FakeSshClient(new FakeSshServer(false, true))
+    allowed.bind(randomBytes(32), true)
+    expect(allowed.sign(randomBytes(32))[0]?.[4]).toBe(14)
+  })
+
+  it('SSH framing handles split and coalesced frames and refuses oversized frames', () => {
+    const server = new FakeSshServer()
+    const frame = server.bindFrame(randomBytes(32))
+    expect(server.receive(frame.subarray(0, 2))).toEqual([])
+    expect(server.receive(frame.subarray(2))[0]?.[4]).toBe(6)
+    expect(server.receive(Buffer.from([0, 0, 0, 1, 11, 0, 0, 0, 1, 11]))).toHaveLength(2)
+    expect(() => new FakeSshServer().receive(Buffer.from([255, 255, 255, 255]))).toThrow(
+      'invalid frame',
+    )
+  })
+
+  it('V15: sudo fake records exact -S -k argv and refuses swaps', () => {
+    const sudo = new FakeSudo()
+    const target: Extract<VaultUse, { kind: 'sudo' }> = {
+      kind: 'sudo',
+      command: use().command,
+      sudoPath: '/usr/bin/sudo',
+    }
+    const digest = vaultUseDigest(target)
+    sudo.run(target, digest, randomBytes(32))
+    expect(sudo.runs[0]?.argv).toEqual(['-S', '-k', '-p', '', '--', '/usr/bin/tool', '--check'])
+    expect(() => {
+      sudo.run({ ...target, sudoPath: '/bad/sudo' }, digest, randomBytes(32))
+    }).toThrow('changed')
+    expect(() => {
+      sudo.run({ ...target, command: { ...target.command, cwd: '/bad' } }, digest, randomBytes(32))
+    }).toThrow('changed')
+    sudo.cached = true
+    sudo.clear()
+    expect(sudo.cached).toBe(false)
+  })
+
+  it('git fake returns an ephemeral descriptor only for its exact scope and never stores', () => {
+    const scope = { protocol: 'https', host: 'example.test', path: 'owner/repo' }
+    const git = new FakeGit(scope)
+    expect(git.get('get', scope)).toEqual({ ephemeral: true, password_expiry_utc: 1_000_000 })
+    expect(git.get('store', scope)).toBeNull()
+    expect(git.get('erase', scope)).toBeNull()
+    for (const changed of [
+      { ...scope, protocol: 'http' },
+      { ...scope, host: 'outside.test' },
+      { ...scope, path: 'other/repo' },
+    ])
+      expect(git.get('get', changed)).toBeNull()
+    expect(git.operations).toHaveLength(6)
+  })
+
+  it('V14: CDP fake refuses changed live facts and never reads back a password', () => {
+    const use: Extract<VaultUse, { kind: 'fill' }> = {
+      kind: 'fill',
+      origin: 'https://example.test',
+      topOrigin: 'https://example.test',
+      frameOrigin: 'https://example.test',
+      frameId: 'frame',
+      browserId: 'a'.repeat(32),
+      certificateValid: true,
+      field: 'password',
+    }
+    const good = new FakeCdpTarget(use.origin)
+    good.insert(use, randomBytes(32))
+    expect(good.inserted).toEqual([32])
+    expect(() => good.readPassword()).toThrow('forbidden')
+    for (const target of [
+      new FakeCdpTarget('https://outside.test'),
+      new FakeCdpTarget('https://outside.test', use.frameOrigin),
+      new FakeCdpTarget(use.origin, 'https://outside.test'),
+      new FakeCdpTarget(use.origin, use.origin, false),
+      new FakeCdpTarget(use.origin, use.origin, true, 'text'),
+    ])
+      expect(() => {
+        target.insert(use, randomBytes(32))
+      }).toThrow('changed')
+  })
+})

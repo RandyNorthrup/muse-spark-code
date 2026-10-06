@@ -1,0 +1,1267 @@
+{
+  "rig": "kubuntu",
+  "modelAttempts": 0,
+  "method": "Replace one refinement with true or apply the named mutation; run at most three owned files with maxWorkers=3 and testTimeout=120000; restore original bytes in finally and compare SHA-256.",
+  "receipts": [
+    {
+      "file": "src/shared/vault.ts",
+      "line": 13,
+      "guard": "z.minLength(1)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects empty text"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 13,
+      "guard": "z.maxLength(VAULT_LIMITS.text)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects long text"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 13,
+      "guard": "z.regex(/^[^\\0\\r\\n]*$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > validates handles, names, identifiers and bounded metadata"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 14,
+      "guard": "z.regex(/^[a-f0-9]{32}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > validates handles, names, identifiers and bounded metadata"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 15,
+      "guard": "z.regex(/^[a-f0-9]{64}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects malformed digest"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 16,
+      "guard": "z.int()",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects fractional counter",
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > validates handles, names, identifiers and bounded metadata"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 16,
+      "guard": "z.nonnegative()",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11: grants validate every count and local-time window and cannot come from model or prompt",
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V6 V16: all slot tiers are represented and basic_text is refused"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 17,
+      "guard": "z.regex(/^secret:\\/\\/[a-z][a-z0-9-]{0,47}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > checks name and handle format and their equality",
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > validates handles, names, identifiers and bounded metadata"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 20,
+      "guard": "z.refine((v) => v.byteLength > 0 && v.byteLength <= VAULT_LIMITS.valueBytes)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V7: private material is bytes, with matching kinds; passkeys have no representation"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 22,
+      "guard": "z.minLength(1)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects empty SSH session"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 23,
+      "guard": "z.maxLength(VAULT_LIMITS.frameBytes, { abort: true })",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects large SSH session"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 24,
+      "guard": "z.regex(/^[A-Za-z0-9+/]*={0,2}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects bad SSH encoding",
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > requires slot encryption metadata and pinned KDF parameters"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 25,
+      "guard": "z.refine((v) => v.length % VAULT_BASE64_GROUP_CHARS === 0)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects partial base64 group"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 28,
+      "guard": "z.refine(\n    (v) => v.startsWith('/') || /^[A-Za-z]:[\\\\/]/u.test(v) || /^\\\\\\\\[^\\\\]+\\\\[^\\\\]+/u.test(v),\n  )",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V2 V15: command and sudo paths must be absolute and arguments cannot contain NUL",
+        "test/unit/vault/useDigest.test.ts > canonical vault uses > rejects unvalidated uses before hashing them"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 33,
+      "guard": "z.refine((v) => {\n    try {\n      const u = new URL(v)\n      return (\n        (u.protocol === 'https:' || u.protocol === 'http:') &&\n        u.origin === v &&\n        u.username === '' &&\n        u.password === ''\n      )\n    } catch {\n      return false\n    }\n  })",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V3: origins and OAuth audiences are canonical and bound, not credential-bearing URLs"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 49,
+      "guard": "z.refine((v) => {\n    try {\n      const u = new URL(v)\n      return (\n        (u.protocol === 'https:' || u.protocol === 'http:') &&\n        u.username === '' &&\n        u.password === '' &&\n        u.hash === ''\n      )\n    } catch {\n      return false\n    }\n  })",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects bad use resource",
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects bad binding resource",
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects bad material resource",
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects credential-bearing resource",
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects fragment resource"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 63,
+      "guard": "z.startsWith('https://')",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V14: fill rejects IDN look-alikes, HTTP, cross-origin frames and invalid certificates"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 64,
+      "guard": "z.regex(/^SHA256:[A-Za-z0-9+/]{43}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > first-party and internal items are hidden, Never and undisclosable"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 66,
+      "guard": "z.minLength(1)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > validates environment names as a nonempty unique set",
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11: grants validate every count and local-time window and cannot come from model or prompt"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 67,
+      "guard": "z.maxLength(VAULT_LIMITS.names)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > validates environment names as a nonempty unique set"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 68,
+      "guard": "z.refine((v) => new Set(v).size === v.length)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > validates environment names as a nonempty unique set"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 71,
+      "guard": "z.refine((v) => v.every((n) => /^[A-Za-z_][A-Za-z0-9_]*$/u.test(n)))",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > validates environment names as a nonempty unique set"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 91,
+      "guard": "z.positive()",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects zero peer"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 110,
+      "guard": "z.refine(\n      (v) =>\n        !['headless', 'schedule', 'timedSend', 'goal', 'relocated'].includes(v.source) ||\n        v.unattended,\n    )",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V12: presence cannot allow unattended use; unattended sources must say so"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 121,
+      "guard": "z.maxLength(VAULT_LIMITS.text)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects long argv"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 121,
+      "guard": "z.regex(/^[^\\0]*$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V2 V15: command and sudo paths must be absolute and arguments cannot contain NUL"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 122,
+      "guard": "z.maxLength(VAULT_LIMITS.argv)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V2 V15: command and sudo paths must be absolute and arguments cannot contain NUL"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 135,
+      "guard": "z.refine((v) => (v.hostKeyFingerprint === null) === (v.sessionId === null))",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/useDigest.test.ts > canonical vault uses > V13 binds the SSH destination, host key, user, session and forwarding"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 176,
+      "guard": "z.regex(/^[!#$%&'*+.^_`|~\\w-]+$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects bad header token"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 195,
+      "guard": "z.refine((v) => v.origin === v.topOrigin && v.origin === v.frameOrigin)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V14: fill rejects IDN look-alikes, HTTP, cross-origin frames and invalid certificates"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 282,
+      "guard": "z.maxLength(VAULT_LIMITS.items)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects large ceiling"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 290,
+      "guard": "z.minLength(1)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11: grants validate every count and local-time window and cannot come from model or prompt"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 290,
+      "guard": "z.maxLength(VAULT_LIMITS.names)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects large roles"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 294,
+      "guard": "z.positive()",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11: grants validate every count and local-time window and cannot come from model or prompt"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 300,
+      "guard": "z.int()",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects fractional or out-of-range window [ 1.5 ] 0 24"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 300,
+      "guard": "z.minimum(0)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects fractional or out-of-range window [ -1 ] 0 24"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 300,
+      "guard": "z.maximum(VAULT_LIMITS.day)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11: grants validate every count and local-time window and cannot come from model or prompt"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 301,
+      "guard": "z.minLength(1)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11: grants validate every count and local-time window and cannot come from model or prompt"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 302,
+      "guard": "z.refine((v) => new Set(v).size === v.length)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11: grants validate every count and local-time window and cannot come from model or prompt"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 304,
+      "guard": "z.int()",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects fractional or out-of-range window [ 1 ] 0.5 24"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 304,
+      "guard": "z.minimum(0)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects fractional or out-of-range window [ 1 ] -1 24"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 305,
+      "guard": "z.int()",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects fractional or out-of-range window [ 1 ] 0 0.5"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 305,
+      "guard": "z.maximum(VAULT_LIMITS.hour)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11: grants validate every count and local-time window and cannot come from model or prompt"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 307,
+      "guard": "z.refine((v) => v.startHour < v.endHour)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects fractional or out-of-range window [ 1 ] 0 0",
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11: grants validate every count and local-time window and cannot come from model or prompt"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 316,
+      "guard": "z.refine((v) => v.maxUses === null || v.uses <= v.maxUses)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11: grants validate every count and local-time window and cannot come from model or prompt"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 343,
+      "guard": "z.maxLength(VAULT_LIMITS.label)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > validates handles, names, identifiers and bounded metadata"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 345,
+      "guard": "z.maxLength(VAULT_LIMITS.grants)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects large bindings"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 355,
+      "guard": "z.refine((v) => v.handle === `secret://${v.name}`)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > checks name and handle format and their equality",
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > validates handles, names, identifiers and bounded metadata"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 356,
+      "guard": "z.refine(\n      (v) =>\n        (!v.firstParty && !['internal', 'devicePair'].includes(v.kind)) ||\n        (v.hidden &&\n          v.policy.mode === 'never' &&\n          !v.policy.allowDisclosure &&\n          !v.policy.unattendedAllowed),\n    )",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > first-party and internal items are hidden, Never and undisclosable"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 364,
+      "guard": "z.refine((v) => !v.requirePresence || !v.policy.unattendedAllowed)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V12: presence cannot allow unattended use; unattended sources must say so"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 365,
+      "guard": "z.refine((v) => v.kind === 'sshKey' || (v.publicKey === null && v.fingerprint === null))",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > first-party and internal items are hidden, Never and undisclosable"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 400,
+      "guard": "z.minLength(1)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects empty origins"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 400,
+      "guard": "z.maxLength(VAULT_LIMITS.names)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects large origins"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 410,
+      "guard": "z.positive()",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects zero TOTP period"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 424,
+      "guard": "z.refine((v) => v.metadata.kind === v.material.kind)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V7: private material is bytes, with matching kinds; passkeys have no representation"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 447,
+      "guard": "z.maxLength(VAULT_LIMITS.reasons)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects large taint"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 449,
+      "guard": "z.refine((v) => v.tainted || v.reasons.length === 0)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V1: taint carries provenance and cannot deny having recorded untrusted content"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 466,
+      "guard": "z.refine(\n      (v) => v.expiresAt > v.createdAt && v.expiresAt - v.createdAt <= VAULT_APPROVAL_TTL_MS,\n    )",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11 V13: approvals and tickets require digest, nonce, requester, epoch and future expiry"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 491,
+      "guard": "z.refine((v) => v.expiresAt > v.issuedAt && v.expiresAt - v.issuedAt <= VAULT_APPROVAL_TTL_MS)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11 V13: approvals and tickets require digest, nonce, requester, epoch and future expiry"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "line": 587,
+      "guard": "z.refine((v) => {\n      switch (v.tier) {\n        case 'hardware': {\n          return (\n            ['windowsTpm', 'secureEnclave', 'linuxTpm2'].includes(v.provider) &&\n            v.keyReference !== null &&\n            v.kdf === null\n          )\n        }\n        case 'presence': {\n          return v.provider === 'passphrase'\n            ? v.kdf !== null && v.nonce !== null && v.tag !== null\n            : ['windowsTpm', 'secureEnclave', 'linuxTpm2'].includes(v.provider) &&\n                v.keyReference !== null &&\n                v.kdf === null\n        }\n        case 'osStore': {\n          return (\n            ['windowsDpapi', 'loginKeychain', 'secretService'].includes(v.provider) &&\n            v.kdf === null\n          )\n        }\n        case 'secretStorage': {\n          return v.provider === 'secretStorage' && v.backend !== null && v.kdf === null\n        }\n        case 'passphrase': {\n          return v.provider === 'passphrase' && v.kdf !== null && v.nonce !== null && v.tag !== null\n        }\n        case 'recovery': {\n          return v.provider === 'recovery' && v.kdf === null && v.nonce !== null && v.tag !== null\n        }\n      }\n    })",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > requires slot encryption metadata and pinned KDF parameters",
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V6 V16: all slot tiers are represented and basic_text is refused"
+      ],
+      "sha256": "cfcddfbc13c309500c1104d6dafca396ec6b502d5eb32a13dba7be8f180cabd4"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 23,
+      "guard": "z.regex(/^[a-f0-9]{32}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects protocol id"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 24,
+      "guard": "z.regex(/^[a-f0-9]{64}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects protocol digest"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 27,
+      "guard": "z.minLength(1)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects protocol empty text"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 27,
+      "guard": "z.maxLength(VAULT_LIMITS.text)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects protocol long text"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 27,
+      "guard": "z.regex(/^[^\\0\\r\\n]*$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects protocol text controls"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 28,
+      "guard": "z.int()",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects protocol fractional counter"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 28,
+      "guard": "z.nonnegative()",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects protocol negative counter"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 29,
+      "guard": "z.regex(/^secret:\\/\\/[a-z][a-z0-9-]{0,47}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects protocol handle"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 31,
+      "guard": "z.refine((v) => !v.hidden && !v.firstParty && !['devicePair', 'internal'].includes(v.kind))",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V1 V9: public lists never admit hidden or first-party records or secret fields"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 80,
+      "guard": "z.maxLength(VAULT_LIMITS.frameBytes)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects large scrub request"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 94,
+      "guard": "z.maxLength(VAULT_LIMITS.items)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects large items"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 100,
+      "guard": "z.maxLength(VAULT_LIMITS.items)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects large audit"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 104,
+      "guard": "z.maxLength(VAULT_LIMITS.frameBytes)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects large scrub response"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 151,
+      "guard": "z.positive()",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V4 V5 V13: public protocol is versioned and proposals cannot claim identity or approval"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 172,
+      "guard": "z.minLength(1)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects empty private encoding"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 173,
+      "guard": "z.maxLength(VAULT_LIMITS.frameBytes, { abort: true })",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects large private encoding"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 174,
+      "guard": "z.regex(/^[A-Za-z0-9+/]*={0,2}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > private read material stays on its dedicated channel with a known client and bounded encoding"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 175,
+      "guard": "z.refine((v) => v.length % VAULT_BASE64_GROUP_CHARS === 0)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects partial private group"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 188,
+      "guard": "z.regex(/^SHA256:[A-Za-z0-9+/]{43}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects bad remote fingerprint"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "line": 195,
+      "guard": "z.startsWith('https://')",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects remote HTTP origin"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/modelsPanel.ts",
+      "line": 14,
+      "guard": "z.maxLength(VAULT_LIMITS.items)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects oversized panel lists and ambient paths"
+      ],
+      "sha256": "2f92dea81b22fe8cc905c35e53d524dc79d95bd89256901b852f9c58686f3b72"
+    },
+    {
+      "file": "src/shared/modelsPanel.ts",
+      "line": 15,
+      "guard": "z.maxLength(VAULT_LIMITS.grants)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects oversized panel lists and ambient paths"
+      ],
+      "sha256": "2f92dea81b22fe8cc905c35e53d524dc79d95bd89256901b852f9c58686f3b72"
+    },
+    {
+      "file": "src/shared/modelsPanel.ts",
+      "line": 16,
+      "guard": "z.maxLength(VAULT_LIMITS.items)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects oversized panel lists and ambient paths"
+      ],
+      "sha256": "2f92dea81b22fe8cc905c35e53d524dc79d95bd89256901b852f9c58686f3b72"
+    },
+    {
+      "file": "src/shared/modelsPanel.ts",
+      "line": 17,
+      "guard": "z.maxLength(VAULT_LIMITS.items)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects oversized panel lists and ambient paths"
+      ],
+      "sha256": "2f92dea81b22fe8cc905c35e53d524dc79d95bd89256901b852f9c58686f3b72"
+    },
+    {
+      "file": "src/shared/modelsPanel.ts",
+      "line": 21,
+      "guard": "z.maxLength(VAULT_LIMITS.text)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects oversized panel lists and ambient paths"
+      ],
+      "sha256": "2f92dea81b22fe8cc905c35e53d524dc79d95bd89256901b852f9c58686f3b72"
+    },
+    {
+      "file": "src/shared/modelsPanel.ts",
+      "line": 25,
+      "guard": "z.maxLength(VAULT_LIMITS.items)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects oversized panel lists and ambient paths"
+      ],
+      "sha256": "2f92dea81b22fe8cc905c35e53d524dc79d95bd89256901b852f9c58686f3b72"
+    },
+    {
+      "file": "src/shared/hostApi/vaultMessages.ts",
+      "line": 18,
+      "guard": "z.regex(/^[a-f0-9]{32}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects vaultRevoke identifier"
+      ],
+      "sha256": "56e583d1577ca9c17af10530cc2bfff9f750ae9e9bf2dfb689085e4bc41233f1"
+    },
+    {
+      "file": "src/shared/hostApi/vaultMessages.ts",
+      "line": 24,
+      "guard": "z.regex(/^[a-f0-9]{32}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects client identifier"
+      ],
+      "sha256": "56e583d1577ca9c17af10530cc2bfff9f750ae9e9bf2dfb689085e4bc41233f1"
+    },
+    {
+      "file": "src/shared/hostApi/vaultMessages.ts",
+      "line": 28,
+      "guard": "z.regex(/^[a-f0-9]{32}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects vaultRemove identifier"
+      ],
+      "sha256": "56e583d1577ca9c17af10530cc2bfff9f750ae9e9bf2dfb689085e4bc41233f1"
+    },
+    {
+      "file": "src/shared/hostApi/vaultMessages.ts",
+      "line": 33,
+      "guard": "z.regex(/^[a-f0-9]{32}$/u)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects vaultPublicKey identifier"
+      ],
+      "sha256": "56e583d1577ca9c17af10530cc2bfff9f750ae9e9bf2dfb689085e4bc41233f1"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "guard": "strict unknown-field rejection",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V1 V4 V8 V9: no value can be added to metadata, panel, audit or host messages",
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V1 V9: public lists never admit hidden or first-party records or secret fields"
+      ],
+      "sha256": "8ab64554dff586257bee7fcf16ad3557f2d60201d4cff08a7617c73fdc312f95"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "guard": "strict unknown-field rejection",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V4 V5 V13: public protocol is versioned and proposals cannot claim identity or approval",
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V1 V9: public lists never admit hidden or first-party records or secret fields",
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V10: device protocol permits only bound signatures and codes"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/shared/modelsPanel.ts",
+      "guard": "strict unknown-field rejection",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V1 V4 V8 V9: no value can be added to metadata, panel, audit or host messages"
+      ],
+      "sha256": "2f92dea81b22fe8cc905c35e53d524dc79d95bd89256901b852f9c58686f3b72"
+    },
+    {
+      "file": "src/shared/hostApi/vaultMessages.ts",
+      "guard": "strict unknown-field rejection",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V1 V4 V8 V9: no value can be added to metadata, panel, audit or host messages"
+      ],
+      "sha256": "56e583d1577ca9c17af10530cc2bfff9f750ae9e9bf2dfb689085e4bc41233f1"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "guard": "argv handle refusal",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V2 V15: command and sudo paths must be absolute and arguments cannot contain NUL"
+      ],
+      "sha256": "8ab64554dff586257bee7fcf16ad3557f2d60201d4cff08a7617c73fdc312f95"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "guard": "card cannot grant Always",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11 V13: approvals and tickets require digest, nonce, requester, epoch and future expiry"
+      ],
+      "sha256": "8ab64554dff586257bee7fcf16ad3557f2d60201d4cff08a7617c73fdc312f95"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "guard": "grant author is user surface only",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V11: grants validate every count and local-time window and cannot come from model or prompt"
+      ],
+      "sha256": "8ab64554dff586257bee7fcf16ad3557f2d60201d4cff08a7617c73fdc312f95"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "guard": "private material types and no passkey",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V7: private material is bytes, with matching kinds; passkeys have no representation"
+      ],
+      "sha256": "8ab64554dff586257bee7fcf16ad3557f2d60201d4cff08a7617c73fdc312f95"
+    },
+    {
+      "file": "src/shared/vaultProtocol.ts",
+      "guard": "restricted device uses",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/contracts.test.ts > M109 strict contracts > V10: device protocol permits only bound signatures and codes"
+      ],
+      "sha256": "aa5a1a7e01c55a65968c194113c59f88bbc1cb3836c445dfe4121a84e38522f5"
+    },
+    {
+      "file": "src/core/vault/useDigest.ts",
+      "guard": "object key order and digest golden",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/useDigest.test.ts > canonical vault uses > is insertion-order independent, SHA-256 and does not mutate its input"
+      ],
+      "sha256": "4ce6120d8aa9b28adfada929b0586940e56502a2a3fbee658be92c0691e359b0"
+    },
+    {
+      "file": "src/core/vault/useDigest.ts",
+      "guard": "environment-name set order",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/useDigest.test.ts > canonical vault uses > is insertion-order independent, SHA-256 and does not mutate its input"
+      ],
+      "sha256": "4ce6120d8aa9b28adfada929b0586940e56502a2a3fbee658be92c0691e359b0"
+    },
+    {
+      "file": "src/core/vault/useDigest.ts",
+      "guard": "validate before hashing",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/useDigest.test.ts > canonical vault uses > is insertion-order independent, SHA-256 and does not mutate its input",
+        "test/unit/vault/useDigest.test.ts > canonical vault uses > rejects unvalidated uses before hashing them"
+      ],
+      "sha256": "4ce6120d8aa9b28adfada929b0586940e56502a2a3fbee658be92c0691e359b0"
+    },
+    {
+      "file": "src/core/vault/useDigest.ts",
+      "guard": "SHA-256 algorithm",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/useDigest.test.ts > canonical vault uses > is insertion-order independent, SHA-256 and does not mutate its input"
+      ],
+      "sha256": "4ce6120d8aa9b28adfada929b0586940e56502a2a3fbee658be92c0691e359b0"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "owned store copy",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > owns private byte copies and returns metadata only"
+      ],
+      "sha256": "af370fb4a8db4d2ee1a5cd93f936596af9e8629115cc64a51257a691d778b696"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "owned slot wrap copy",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > slots own copies at wrap and return a fresh buffer for every unwrap"
+      ],
+      "sha256": "af370fb4a8db4d2ee1a5cd93f936596af9e8629115cc64a51257a691d778b696"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "owned slot unwrap copy",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > slots own copies at wrap and return a fresh buffer for every unwrap"
+      ],
+      "sha256": "af370fb4a8db4d2ee1a5cd93f936596af9e8629115cc64a51257a691d778b696"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "slot availability and tier",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > recovers from a lost slot through every other tier and prompts separately"
+      ],
+      "sha256": "af370fb4a8db4d2ee1a5cd93f936596af9e8629115cc64a51257a691d778b696"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "per-use presence denial",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > recovers from a lost slot through every other tier and prompts separately"
+      ],
+      "sha256": "af370fb4a8db4d2ee1a5cd93f936596af9e8629115cc64a51257a691d778b696"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "negative clock advance",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V11 V13: fake approval refuses changed digests, foreign hosts, non-UI answers, replay and expiry"
+      ],
+      "sha256": "af370fb4a8db4d2ee1a5cd93f936596af9e8629115cc64a51257a691d778b696"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "digest approval binding",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V11 V13: fake approval refuses changed digests, foreign hosts, non-UI answers, replay and expiry"
+      ],
+      "sha256": "af370fb4a8db4d2ee1a5cd93f936596af9e8629115cc64a51257a691d778b696"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "host approval binding",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V11 V13: fake approval refuses changed digests, foreign hosts, non-UI answers, replay and expiry"
+      ],
+      "sha256": "af370fb4a8db4d2ee1a5cd93f936596af9e8629115cc64a51257a691d778b696"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "UI authority",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V11 V13: fake approval refuses changed digests, foreign hosts, non-UI answers, replay and expiry"
+      ],
+      "sha256": "af370fb4a8db4d2ee1a5cd93f936596af9e8629115cc64a51257a691d778b696"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "current approval deadline",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V11 V13: fake approval refuses changed digests, foreign hosts, non-UI answers, replay and expiry"
+      ],
+      "sha256": "af370fb4a8db4d2ee1a5cd93f936596af9e8629115cc64a51257a691d778b696"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "consume approved id",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V11 V13: fake approval refuses changed digests, foreign hosts, non-UI answers, replay and expiry"
+      ],
+      "sha256": "af370fb4a8db4d2ee1a5cd93f936596af9e8629115cc64a51257a691d778b696"
+    },
+    {
+      "file": "test/unit/helpers/vault/sshPair.ts",
+      "guard": "host signature on session-bind",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH fake refuses corrupted binding signatures and ungranted forwarding"
+      ],
+      "sha256": "82bf9a4d1c64b0e1ab04ddd33b81cabb7f03dead184015d602c93413dcf2a0c7"
+    },
+    {
+      "file": "test/unit/helpers/vault/sshPair.ts",
+      "guard": "destination evidence",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RFC 9987 pair supports identities and signing with and without session-bind",
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH fake refuses corrupted binding signatures and ungranted forwarding"
+      ],
+      "sha256": "82bf9a4d1c64b0e1ab04ddd33b81cabb7f03dead184015d602c93413dcf2a0c7"
+    },
+    {
+      "file": "test/unit/helpers/vault/sshPair.ts",
+      "guard": "forwarding requires grant",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH fake refuses corrupted binding signatures and ungranted forwarding"
+      ],
+      "sha256": "82bf9a4d1c64b0e1ab04ddd33b81cabb7f03dead184015d602c93413dcf2a0c7"
+    },
+    {
+      "file": "test/unit/helpers/vault/sshPair.ts",
+      "guard": "frame size bound",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH framing handles split and coalesced frames and refuses oversized frames"
+      ],
+      "sha256": "82bf9a4d1c64b0e1ab04ddd33b81cabb7f03dead184015d602c93413dcf2a0c7"
+    },
+    {
+      "file": "test/unit/helpers/vault/routes.ts",
+      "guard": "sudo actual-use digest",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V15: sudo fake records exact -S -k argv and refuses swaps"
+      ],
+      "sha256": "289996655ddfc8fe505294e9248a62a4c5b7a4d16d4356ccb65bb9212286593e"
+    },
+    {
+      "file": "test/unit/helpers/vault/routes.ts",
+      "guard": "sudo -k cache isolation",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V15: sudo fake records exact -S -k argv and refuses swaps"
+      ],
+      "sha256": "289996655ddfc8fe505294e9248a62a4c5b7a4d16d4356ccb65bb9212286593e"
+    },
+    {
+      "file": "test/unit/helpers/vault/routes.ts",
+      "guard": "git exact protocol",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > git fake returns an ephemeral descriptor only for its exact scope and never stores"
+      ],
+      "sha256": "289996655ddfc8fe505294e9248a62a4c5b7a4d16d4356ccb65bb9212286593e"
+    },
+    {
+      "file": "test/unit/helpers/vault/routes.ts",
+      "guard": "git exact host",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > git fake returns an ephemeral descriptor only for its exact scope and never stores"
+      ],
+      "sha256": "289996655ddfc8fe505294e9248a62a4c5b7a4d16d4356ccb65bb9212286593e"
+    },
+    {
+      "file": "test/unit/helpers/vault/routes.ts",
+      "guard": "git exact path",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > git fake returns an ephemeral descriptor only for its exact scope and never stores"
+      ],
+      "sha256": "289996655ddfc8fe505294e9248a62a4c5b7a4d16d4356ccb65bb9212286593e"
+    },
+    {
+      "file": "test/unit/helpers/vault/routes.ts",
+      "guard": "git never stores",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > git fake returns an ephemeral descriptor only for its exact scope and never stores"
+      ],
+      "sha256": "289996655ddfc8fe505294e9248a62a4c5b7a4d16d4356ccb65bb9212286593e"
+    },
+    {
+      "file": "test/unit/helpers/vault/routes.ts",
+      "guard": "CDP exact frame origin",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V14: CDP fake refuses changed live facts and never reads back a password"
+      ],
+      "sha256": "289996655ddfc8fe505294e9248a62a4c5b7a4d16d4356ccb65bb9212286593e"
+    },
+    {
+      "file": "test/unit/helpers/vault/routes.ts",
+      "guard": "CDP valid certificate",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V14: CDP fake refuses changed live facts and never reads back a password"
+      ],
+      "sha256": "289996655ddfc8fe505294e9248a62a4c5b7a4d16d4356ccb65bb9212286593e"
+    },
+    {
+      "file": "test/unit/helpers/vault/routes.ts",
+      "guard": "CDP password field",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V14: CDP fake refuses changed live facts and never reads back a password"
+      ],
+      "sha256": "289996655ddfc8fe505294e9248a62a4c5b7a4d16d4356ccb65bb9212286593e"
+    },
+    {
+      "file": "test/unit/helpers/vault/routes.ts",
+      "guard": "CDP exact origin",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V14: CDP fake refuses changed live facts and never reads back a password"
+      ],
+      "sha256": "289996655ddfc8fe505294e9248a62a4c5b7a4d16d4356ccb65bb9212286593e"
+    }
+  ]
+}
