@@ -51,7 +51,7 @@ export function commandBlock(
   return refusals.some(
     (record) =>
       record.kind === 'note' &&
-      record.value.code === 'permissionLaundering' &&
+      ['permissionLaundering', 'hookTampering', 'gateSkipped'].includes(record.value.code) &&
       at - record.value.at < PLAYBOOK_LAUNDER_WINDOW_MS,
   )
     ? 'permissionLaundering'

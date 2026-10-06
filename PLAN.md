@@ -27269,6 +27269,20 @@ and HELP, quiet hours, the summary and link, the caps, the price and the
 paid ask-once; 18 h, Win11 VM), with the lead's 2 h; it needs M109 and
 M110, and fake providers for every adapter.
 
+- **RVM116P repair (2026-10-06).** Fix all nine findings in lane P,
+  without changing guard ceilings or adding packages: tokenize shell commands
+  with the installed shell-quote parser and subcommand-specific Git options;
+  retain policy refusals for same-effect retries; require lineage for current,
+  historical, Git-renamed and content-identical file sets and share subsequent
+  strikes; retain a workspace journal marker and fail closed on lost history;
+  authorize three-strikes opt-outs through the trusted user port; retain
+  redesign escalation until a recorded user decision; reserve patch work in
+  durable journal notes until review/release or expiry; use OS temporary
+  directories in tests. Each finding gets a regression and byte-exact red
+  drill in `docs/certification/m116-p.md`. The shared core applies equally to
+  all editor/runtime bindings; lane I must bind the trusted workspace and
+  authorization ports and keep a reservation alive throughout actual work.
+
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **`src/shared/reportSchema.ts`:** `report-v1` (header, Needs you,
     sections with typed rows and stable row keys, sources, footer) as zod;

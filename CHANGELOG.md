@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Harden the shared orchestrator playbook's safety history: policy refusals
+  block same-effect retries across tools, agents and restart. Disk-journal
+  tests create and clean their own OS temporary directories.
+
 ## [0.14.1] - 2026-10-05
 
 ### Security

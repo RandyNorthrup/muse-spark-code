@@ -470,11 +470,12 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       : this.decide('refuse', 'onePassReview', 'answersPending', { module: lane.module.key })
   }
 
-  beforeCommand(command: PlaybookCommand, _requester: PlaybookRequester): PlaybookDecision {
+  beforeCommand(command: PlaybookCommand, requester: PlaybookRequester): PlaybookDecision {
     this.refresh()
     const code = commandBlock(command, this.records, this.options.now())
     return this.decide(code ? 'refuse' : 'allow', 'neverAround', code, {
       ...(code && { module: actionIdentity(command) }),
+      ...(code && code !== 'permissionLaundering' && { actor: requester.agentId }),
       needsUser: code !== undefined,
     })
   }

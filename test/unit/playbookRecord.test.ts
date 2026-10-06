@@ -1,5 +1,6 @@
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PLAYBOOK_RECORD_MAX } from '../../src/shared/constants'
 import {
@@ -25,7 +26,7 @@ afterEach(() => {
 })
 
 function diskJournal() {
-  const directory = mkdtempSync(path.join(process.cwd(), 'temp/m116-p-record-'))
+  const directory = mkdtempSync(path.join(tmpdir(), 'm116-p-record-'))
   tempDirectories.push(directory)
   const workspace = path.join(directory, 'workspace')
   mkdirSync(workspace)

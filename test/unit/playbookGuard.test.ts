@@ -45,11 +45,14 @@ describe('M116 immutable route-around guard', () => {
     expect(
       policy.beforeCommand({ ...COMMAND, command: 'runner --skip-gates' }, REQUESTER).kind,
     ).toBe('refuse')
-    expect(policy.beforeCommand({ ...COMMAND, command: 'git status' }, REQUESTER).kind).toBe(
-      'allow',
-    )
     expect(
-      policy.beforeCommand({ ...ACTION, kind: 'edit', paths: ['src/husky.ts'] }, REQUESTER).kind,
+      policy.beforeCommand({ ...COMMAND, effect: 'read', command: 'git status' }, REQUESTER).kind,
+    ).toBe('allow')
+    expect(
+      policy.beforeCommand(
+        { ...ACTION, effect: 'edit', kind: 'edit', paths: ['src/husky.ts'] },
+        REQUESTER,
+      ).kind,
     ).toBe('allow')
   })
   it('blocks delegated and same-agent retries by effect and subject across teams and restart', () => {
@@ -76,6 +79,26 @@ describe('M116 immutable route-around guard', () => {
     expect(
       new OrchestratorPlaybook(fixture.options).beforeCommand(COMMAND, DELEGATE),
     ).toMatchObject({ kind: 'refuse', note: { code: 'classifierBlocked', needsUser: true } })
+  })
+  it('retains policy safety refusals across restart and a different tool or agent', () => {
+    const fixture = policyFixture()
+    const action = { effect: 'skip-gate', subject: 'quality' }
+    expect(
+      fixture.policy.beforeCommand(
+        { ...action, kind: 'gate', gate: 'quality', skip: true },
+        REQUESTER,
+      ).kind,
+    ).toBe('refuse')
+    const restarted = new OrchestratorPlaybook(fixture.options)
+    expect(
+      restarted.beforeCommand({ ...action, kind: 'shell', command: 'delegate quality' }, DELEGATE),
+    ).toMatchObject({ kind: 'refuse', note: { code: 'permissionLaundering' } })
+    expect(
+      restarted.beforeCommand(
+        { ...action, subject: 'other', kind: 'shell', command: 'delegate quality' },
+        DELEGATE,
+      ).kind,
+    ).toBe('allow')
   })
   it('does not expose subjects, commands or credentials in refusal history', () => {
     const { policy } = policyFixture()
