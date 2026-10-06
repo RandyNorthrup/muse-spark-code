@@ -43,6 +43,7 @@ import {
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
 import type { AgentEvent } from '../shared/agentEvents'
@@ -90,6 +91,7 @@ import {
   promptParts,
   UpdateTranslator,
 } from './translate'
+import type { AcpSharingPort } from './sharing'
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -138,6 +140,8 @@ export interface AcpAgentDeps {
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
   readonly paid: AcpPaidUse
   readonly log: CoreLogger
+  /** M118-X-ACP: P/C storage/rendering and the host's explicit preview/insert bridge. */
+  readonly sharing?: AcpSharingPort
   /**
    * Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
    * for the standalone report's journal. The runtime wires this to its local
@@ -186,6 +190,7 @@ type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown
 
 interface PreparingPrompt {
   isCancelled: boolean
+  readonly abort: AbortController
   error?: unknown
 }
 
@@ -314,15 +319,21 @@ class AcpSession {
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
       observeError(this.deps, 'skillsUnavailable')
-      return
+      if (this.deps.sharing === undefined) return
+      this.skills = []
     }
     this.send({
       sessionUpdate: 'available_commands_update',
-      availableCommands: this.skills.map((skill) => ({
-        name: skill.selector,
-        description: skill.description === '' ? skill.displayName : skill.description,
-        input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
-      })),
+      availableCommands: [
+        ...(this.deps.sharing?.commands() ?? []),
+        ...this.skills
+          .filter((skill) => skill.selector !== 'share' && skill.selector !== 'prompt')
+          .map((skill) => ({
+            name: skill.selector,
+            description: skill.description === '' ? skill.displayName : skill.description,
+            input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
+          })),
+      ],
     })
   }
 
@@ -826,12 +837,49 @@ class AcpSession {
     if (!parsed.ok) {
       throw RequestError.invalidParams(undefined, parsed.reason)
     }
-    const preparing: PreparingPrompt = { isCancelled: false }
+    const preparing: PreparingPrompt = { isCancelled: false, abort: new AbortController() }
     this.preparing = preparing
     try {
       await this.announceCommands()
+      // Reserved local commands never become a skill or a model turn, even when
+      // their runtime bridge has not been bound yet or their syntax is invalid.
+      const local = parseSkillInvocation(parsed.displayText, new Set(['share', 'prompt']))
+      if (local !== undefined) {
+        if (blocks.length !== 1 || blocks[0]?.type !== 'text') {
+          throw RequestError.invalidParams(undefined, UI_TEXT.promptFileInvalid)
+        }
+        const sharing = this.deps.sharing
+        if (sharing === undefined) {
+          throw RequestError.invalidRequest(
+            undefined,
+            fill(UI_TEXT.acpUnknownArgument, {
+              argument: `/${local.selector}`,
+            }),
+          )
+        }
+        const isActive = () =>
+          !this.isDisposed &&
+          this.preparing === preparing &&
+          !preparing.isCancelled &&
+          !('error' in preparing)
+        if (!isActive()) return 'cancelled'
+        const text = await unlessAborted(
+          sharing.execute(parsed.displayText, {
+            cwd: this.cwd,
+            sessionId: this.sessionId,
+            isActive,
+            signal: preparing.abort.signal,
+          }),
+          preparing.abort.signal,
+        )
+        if ('error' in preparing) throw preparing.error
+        if (text === undefined || !isActive()) return 'cancelled'
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        await this.outbox
+        return 'end_turn'
+      }
     } finally {
-      this.preparing = undefined
+      if (this.preparing === preparing) this.preparing = undefined
     }
     if ('error' in preparing) {
       throw preparing.error
@@ -884,6 +932,8 @@ class AcpSession {
   public async cancel(): Promise<void> {
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.abort.abort()
+      this.preparing = undefined
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
       return
     }
@@ -907,6 +957,7 @@ class AcpSession {
     const error = RequestError.internalError(undefined, description)
     if (this.preparing !== undefined) {
       this.preparing.error = error
+      this.preparing.abort.abort()
     }
     this.pending?.reject(error)
     this.pending = undefined
@@ -932,6 +983,8 @@ class AcpSession {
     this.isDisposed = true
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.abort.abort()
+      this.preparing = undefined
     }
     const wasRunning = this.pending !== undefined
     this.pending?.resolve('cancelled')

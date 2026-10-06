@@ -6905,6 +6905,50 @@ provider wire shapes; no live or paid captures are needed.
 on base `81a5ccfa`; no commands are registered by this lane. P/C/X must add
 their actual commands to the help reference when that parallel feature lands.
 
+### M118 lane X — ACP, CLI and editor sharing adapters (2026-10-06)
+
+Authority: `C:/lanes/_ctx/M118X.rig.md`, D98/M118 on
+`plan/m105-m107`, and `docs/certification/m118-handoff-x.md`.
+Implement `/share chat`, `/prompt save|list|use|share` and the CLI
+`share`/`prompts` parser and runner against lane 0's portable contracts.
+Prompt storage and the scrubbed renderer are injected P/C ports, shared across
+workspaces through `agentDataFolder`; never a separate library or a model turn.
+ACP command interception is opt-in through a runtime binding, with reserved
+commands failing explicitly when that binding is absent. A preview's exact
+bytes/request are held in memory, bound to its one-use final action, and the
+live confidential setting is checked again at release. Cancellation or session
+replacement invalidates pending actions. Prompt use returns insert-only text.
+
+The base lacks P/C implementations, M110a0's TUI, M104's MHP and the feature
+catalog. Supply tested adapters and named integration handoffs for their actual
+runtime/main, bridge, menus, TUI, help, README/ACP guide and changelog bindings.
+Do not edit those other lanes' files or invent a protocol method. Lane X's
+certification records exact parser syntax, lifecycle and final-confirmation
+drills. Scoped checks run directly on win11; full quality and native editor
+certification remain with W. No paid/live/network calls or new dependencies.
+
+- [x] X parser/runner, ACP local interception and native-menu adapters behind
+      injected P/C/UI ports; no model send and no fake production bindings.
+- [x] Win11 owning/regression tests and static/build checks recorded in
+      `docs/certification/m118-x.md`; 67 named red drills, byte-exact restores.
+- [x] Missing runtime, TUI, MHP, help/docs and lazy-bundle bindings named in
+      `docs/certification/m118-x-handoff.md`; installed/native parity remains W's.
+
+**FIXM118X / RVM118X (2026-10-06, Kubuntu).** Repair all four reviewed P2
+adapter defects within X's files: reuse workspace-path confinement for the
+resolved output and allowed root at release; require explicit headless
+destination and file output flags; abort every pending sharing UI when ACP
+cancels/releases/exits; reuse the shared skill/slash parser for reserved
+commands with leading whitespace. Interactive defaults stay unchanged.
+No new dependency, model call or production P/C/native binding is in scope.
+Record regression failures, byte-exact red drills and bounded checks in
+`docs/certification/m118-x.md`, and update W's integration contracts there.
+
+- [x] P2-1 output confinement and resolved path/root release contract.
+- [x] P2-2 explicit headless destination and file output admission.
+- [x] P2-3 abortable sharing UI and immediate ACP prompt/session cleanup.
+- [x] P2-4 shared leading-whitespace local-command interception.
+
 ### BADGEFIX — Exact package versions on store pages (2026-10-05)
 
 - [x] Generate static Marketplace/Open VSX and npm/GitHub release version
@@ -18451,6 +18495,18 @@ record actual failures in `docs/certification/m118-p.md` rather than weaken
 any threshold. W also owns the integrated CHANGELOG, README and help reference
 (the catalog/generator are absent here).
 
+**M118 lane X bounded certification.** The rig brief prohibits aggregate
+quality, merges, pushes and other lanes' edits. Run at most three owning test
+files per invocation, all typechecks, scoped lint/format, localization,
+deadcode, duplication, host API and production build directly on win11. Keep
+unbound P/C/TUI/MHP and main/help wiring explicit in the handoff; no fake
+production implementation, gate weakening or quality claim.
+
+FIXM118X's review repair checks run directly on Kubuntu under the same bounds.
+README/changelog/ACP guide and feature-reference changes remain W's handoff
+because the fix brief restricts edits to X-owned files; no installed command
+or native-binding claim is made. Full integrated quality remains W/lead's.
+
 **M118 lane 0 bounded certification.** The rig brief and shared rules prohibit
 aggregate quality, merges and pushes. Run the owning contracts, typecheck,
 scoped lint/format, localization, deadcode, duplication, host API and build
@@ -19687,6 +19743,20 @@ before a repaired one loads (2026-09-30).
   Save prompt still needs App.tsx callback binding and GooeyMenu.tsx
   contextmenu handling. Safe for now: installed-editor acceptance remains
   explicitly unclaimed. Follow-up: W wires and certifies both real menus.
+
+- **FIXM118X / RVM118X (2026-10-06).** All four reviewed P2 adapter
+  findings are fixed; no P1/P2/P3 finding is deferred. Regression failures,
+  byte-exact red drills and bounded Kubuntu checks are recorded in
+  `docs/certification/m118-x.md`.
+  **M118-X-production-bindings (inherited integration follow-up):** P/C stores
+  and renderers, runtime/main, TUI, native/companion editor mounting,
+  README/changelog/ACP guide and the absent feature catalog remain W's work.
+  Safe for this lane because its unbound installed commands refuse explicitly;
+  these tests do not claim installed-editor parity or authorize release.
+  Follow-up: W must bind the updated signal and output-root ports described in
+  `docs/certification/m118-x-handoff.md`, propagate nonzero refusal messages,
+  update the help/docs in that same integration, and run integrated quality,
+  unchanged bundle budgets and installed-host tests before claiming support.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
