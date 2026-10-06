@@ -80,6 +80,12 @@
       "grade": "inherited",
       "fix": "No independent painted surface or interaction state; audit through the named owning child/parent scenes.",
       "evidence": "Component delegates its DOM/states to children or a shared parent."
+    },
+    "host-error": {
+      "dimensions": ["colour"],
+      "grade": "fail",
+      "fix": "Add a distinct host-error foreground mapping in the token source, with its name agreed by lane 0 and captured host AA uses, before migrating this read. Keep input-validation error text, testing failure and chart danger distinct; retain existing fallback order. C must bind the resulting role after the token contract is extended.",
+      "evidence": "styles.css .message-error, .context-meter-high, .mic-button.mic-listening, .tool-dot-failed, .tool-failure and other failed-state fallbacks read this variable; no consumers.json.hostRoles entry maps it."
     }
   },
   "roleMap": {
@@ -392,7 +398,17 @@
           "declarations": "position: relative;\n  margin-inline: var(--ms-column-inset);"
         }
       ],
-      "captureSelector": ".app, .jump-latest, .body, .composer-area"
+      "captureSelector": ".app, .jump-latest, .body, .composer-area",
+      "vscodeVariables": [
+        "--vscode-button-background",
+        "--vscode-button-border",
+        "--vscode-button-foreground",
+        "--vscode-button-hoverBackground",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/TasksApp.tsx",
@@ -464,7 +480,18 @@
           "declarations": "flex: 1;\n  min-width: 0;\n  margin: 0;\n  overflow-wrap: anywhere;\n  font-size: 1em;"
         }
       ],
-      "captureSelector": ".todo-surface, .todo-tab-header, .todo-window"
+      "captureSelector": ".todo-surface, .todo-tab-header, .todo-window",
+      "vscodeVariables": [
+        "--vscode-button-border",
+        "--vscode-button-secondaryBackground",
+        "--vscode-button-secondaryForeground",
+        "--vscode-button-secondaryHoverBackground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/AgentMap.tsx",
@@ -536,7 +563,17 @@
           "declarations": "animation: none;"
         }
       ],
-      "captureSelector": ".agent-details"
+      "captureSelector": ".agent-details",
+      "vscodeVariables": [
+        "--vscode-button-background",
+        "--vscode-editor-background",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-progressBar-background",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/ApprovalCard.tsx",
@@ -629,7 +666,21 @@
           "declarations": "outline: 1px solid var(--vscode-focusBorder);\n  outline-offset: -1px;"
         }
       ],
-      "captureSelector": ".approval, .approval-choices, .approval-feedback, .approval-moved-note"
+      "captureSelector": ".approval, .approval-choices, .approval-feedback, .approval-moved-note",
+      "vscodeVariables": [
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-input-border",
+        "--vscode-input-foreground",
+        "--vscode-inputValidation-warningBackground",
+        "--vscode-inputValidation-warningForeground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/ApprovalDock.tsx",
@@ -670,7 +721,14 @@
           "declarations": "margin: 0;\n  color: var(--vscode-descriptionForeground);\n  font-size: 0.85em;"
         }
       ],
-      "captureSelector": ".approval-dock, .approval-dock-count"
+      "captureSelector": ".approval-dock, .approval-dock-count",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/AttachmentChips.tsx",
@@ -741,7 +799,17 @@
           "declarations": "flex-shrink: 0;"
         }
       ],
-      "captureSelector": ".chip, .chip-remove, .chip-size"
+      "captureSelector": ".chip, .chip-remove, .chip-size",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/BestOfNDialog.tsx",
@@ -820,7 +888,24 @@
           "declarations": "max-height: 30vh;\n  margin: 0;\n  padding: 4px 6px;\n  border: 1px solid var(--vscode-panel-border);\n  border-radius: var(--ms-radius);\n  background: var(--vscode-editor-background);\n  font-family: var(--vscode-editor-font-family);\n  font-size: var(--vscode-editor-font-size);\n  white-space: pre-wrap;\n  overflow-wrap: anywhere;\n  overflow-y: auto;"
         }
       ],
-      "captureSelector": ".bestofn-prompt, .bestofn-diff, .bestofn-attempt, .palette"
+      "captureSelector": ".bestofn-prompt, .bestofn-diff, .bestofn-attempt, .palette",
+      "vscodeVariables": [
+        "--vscode-editor-background",
+        "--vscode-editor-font-family",
+        "--vscode-editor-font-size",
+        "--vscode-editorWidget-background",
+        "--vscode-editorWidget-border",
+        "--vscode-editorWidget-foreground",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-input-border",
+        "--vscode-input-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-shadow"
+      ]
     },
     {
       "file": "src/webview/components/CodeBlock.tsx",
@@ -887,7 +972,19 @@
           "declarations": "color: var(--vscode-foreground);"
         }
       ],
-      "captureSelector": ".code-block, .code-block-button, .code-block-body, .hljs"
+      "captureSelector": ".code-block, .code-block-button, .code-block-body, .hljs",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-editor-font-family",
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-textCodeBlock-background"
+      ]
     },
     {
       "file": "src/webview/components/Composer.tsx",
@@ -926,7 +1023,7 @@
         "typography.font-size",
         "typography.font-ui"
       ],
-      "findings": ["roles", "scale", "states", "focus", "placeholder", "motion"],
+      "findings": ["roles", "scale", "states", "focus", "placeholder", "motion", "host-error"],
       "fix": "Use input, badge, control and type tokens; replace the suppressed textarea outline with a 2 px container ring; preserve single-row toolbar fit and address placeholder contrast.",
       "evidence": [
         {
@@ -1074,7 +1171,29 @@
           "declarations": "animation: none;"
         }
       ],
-      "captureSelector": ".composer, .composer-input, .pill, .send-button, .mic-button"
+      "captureSelector": ".composer, .composer-input, .pill, .send-button, .mic-button",
+      "vscodeVariables": [
+        "--vscode-badge-background",
+        "--vscode-badge-foreground",
+        "--vscode-button-background",
+        "--vscode-button-foreground",
+        "--vscode-button-hoverBackground",
+        "--vscode-charts-red",
+        "--vscode-disabledForeground",
+        "--vscode-editorWarning-foreground",
+        "--vscode-errorForeground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-input-border",
+        "--vscode-input-foreground",
+        "--vscode-input-placeholderForeground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-toolbar-hoverBackground"
+      ]
     },
     {
       "file": "src/webview/components/ContextMeter.tsx",
@@ -1156,7 +1275,17 @@
           "declarations": "outline: 1px solid var(--vscode-focusBorder);\n  outline-offset: -1px;"
         }
       ],
-      "captureSelector": ".context-meter, .context-meter-ring, .context-meter-track"
+      "captureSelector": ".context-meter, .context-meter-ring, .context-meter-track",
+      "vscodeVariables": [
+        "--vscode-editor-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-progressBar-background",
+        "--vscode-sideBar-background",
+        "--vscode-toolbar-hoverBackground"
+      ]
     },
     {
       "file": "src/webview/components/DeferredReportDialog.tsx",
@@ -1202,7 +1331,19 @@
           "declarations": "display: flex;\n  flex-direction: column;\n  width: min(100%, 440px);\n  max-height: 90vh;\n  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));\n  border-radius: var(--ms-radius);\n  color: var(--vscode-foreground);\n  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));\n  box-shadow: 0 4px 16px var(--vscode-widget-shadow);"
         }
       ],
-      "captureSelector": ".modal, .report-preview"
+      "captureSelector": ".modal, .report-preview",
+      "vscodeVariables": [
+        "--vscode-editor-background",
+        "--vscode-editor-font-family",
+        "--vscode-editorWidget-background",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-border",
+        "--vscode-widget-shadow"
+      ]
     },
     {
       "file": "src/webview/components/DeferredSurface.tsx",
@@ -1245,7 +1386,18 @@
           "declarations": "display: flex;\n  flex-direction: column;\n  width: min(100%, 440px);\n  max-height: 90vh;\n  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));\n  border-radius: var(--ms-radius);\n  color: var(--vscode-foreground);\n  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));\n  box-shadow: 0 4px 16px var(--vscode-widget-shadow);"
         }
       ],
-      "captureSelector": "[data-deferred-loading]"
+      "captureSelector": "[data-deferred-loading]",
+      "vscodeVariables": [
+        "--vscode-editor-background",
+        "--vscode-editorWidget-background",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-border",
+        "--vscode-widget-shadow"
+      ]
     },
     {
       "file": "src/webview/components/DiffTally.tsx",
@@ -1296,7 +1448,14 @@
           "declarations": "min-height: var(--ms-control-size);\n  margin-inline-start: auto;"
         }
       ],
-      "captureSelector": ".diff-tally, .diff-tally-lines, .diff-tally-review"
+      "captureSelector": ".diff-tally, .diff-tally-lines, .diff-tally-review",
+      "vscodeVariables": [
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/EffortSlider.tsx",
@@ -1366,7 +1525,15 @@
           "declarations": "color: var(--vscode-foreground);\n  opacity: 85%;"
         }
       ],
-      "captureSelector": ".slider-step, .palette-slider"
+      "captureSelector": ".slider-step, .palette-slider",
+      "vscodeVariables": [
+        "--vscode-checkbox-border",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/ElicitationCard.tsx",
@@ -1423,7 +1590,15 @@
           "declarations": "color: var(--vscode-foreground);\n  font-size: 0.9em;\n  font-weight: 600;"
         }
       ],
-      "captureSelector": ".question, .elicitation-input, .elicitation-error"
+      "captureSelector": ".question, .elicitation-input, .elicitation-error",
+      "vscodeVariables": [
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/EmptyState.tsx",
@@ -1482,7 +1657,14 @@
           "declarations": "margin: 0;\n  color: var(--vscode-descriptionForeground);\n  text-align: center;"
         }
       ],
-      "captureSelector": ".empty-state, .brand, .hint"
+      "captureSelector": ".empty-state, .brand, .hint",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/ErrorBoundary.tsx",
@@ -1535,7 +1717,16 @@
           "declarations": "display: flex;\n  flex-direction: column;\n  gap: 4px;"
         }
       ],
-      "captureSelector": ".gate, .gate-diagnostic, .gate-actions"
+      "captureSelector": ".gate, .gate-diagnostic, .gate-actions",
+      "vscodeVariables": [
+        "--vscode-editorWidget-background",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-inputValidation-warningBackground",
+        "--vscode-inputValidation-warningForeground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/ExternalLink.tsx",
@@ -1696,7 +1887,17 @@
           "declarations": "margin: 0;\n  color: var(--vscode-descriptionForeground);"
         }
       ],
-      "captureSelector": ".markdown a, .citations a"
+      "captureSelector": ".markdown a, .citations a",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-textLink-foreground"
+      ]
     },
     {
       "file": "src/webview/components/GitPanel.tsx",
@@ -1767,7 +1968,17 @@
           "declarations": "outline: 1px solid var(--vscode-focusBorder);\n  outline-offset: -1px;"
         }
       ],
-      "captureSelector": ".git-panel, .git-hold, .git-form, .git-pr-title, .git-check"
+      "captureSelector": ".git-panel, .git-hold, .git-form, .git-pr-title, .git-check",
+      "vscodeVariables": [
+        "--vscode-editorWarning-foreground",
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/GoalPanel.tsx",
@@ -1837,7 +2048,15 @@
           "declarations": "flex: 1 1 200px;"
         }
       ],
-      "captureSelector": ".goal, .goal-controls, .goal-edit-input"
+      "captureSelector": ".goal, .goal-controls, .goal-edit-input",
+      "vscodeVariables": [
+        "--vscode-editorWidget-background",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/GoalParts.tsx",
@@ -1906,7 +2125,18 @@
           "declarations": "margin: 0;\n  overflow-wrap: anywhere;"
         }
       ],
-      "captureSelector": ".usage-bar, .tool-facts"
+      "captureSelector": ".usage-bar, .tool-facts",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-panel-border",
+        "--vscode-progressBar-background",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/GooeyMenu.tsx",
@@ -2015,7 +2245,21 @@
           "declarations": "animation: none;"
         }
       ],
-      "captureSelector": ".gooey-menu-pill, .row-actions-button"
+      "captureSelector": ".gooey-menu-pill, .row-actions-button",
+      "vscodeVariables": [
+        "--vscode-button-background",
+        "--vscode-button-border",
+        "--vscode-button-foreground",
+        "--vscode-button-hoverBackground",
+        "--vscode-editor-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-toolbar-hoverBackground"
+      ]
     },
     {
       "file": "src/webview/components/HandoffDialog.tsx",
@@ -2070,7 +2314,18 @@
           "declarations": "display: flex;\n  flex-direction: column;\n  width: min(100%, 440px);\n  max-height: 90vh;\n  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));\n  border-radius: var(--ms-radius);\n  color: var(--vscode-foreground);\n  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));\n  box-shadow: 0 4px 16px var(--vscode-widget-shadow);"
         }
       ],
-      "captureSelector": ".handoff-edit, .handoff-actions, .modal"
+      "captureSelector": ".handoff-edit, .handoff-actions, .modal",
+      "vscodeVariables": [
+        "--vscode-editor-background",
+        "--vscode-editorWidget-background",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-border",
+        "--vscode-widget-shadow"
+      ]
     },
     {
       "file": "src/webview/components/Header.tsx",
@@ -2149,7 +2404,20 @@
           "declarations": "background: var(--vscode-toolbar-hoverBackground);"
         }
       ],
-      "captureSelector": ".header, .badge, .header-title-input, .agents-pill"
+      "captureSelector": ".header, .badge, .header-title-input, .agents-pill",
+      "vscodeVariables": [
+        "--vscode-badge-background",
+        "--vscode-badge-foreground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-input-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-toolbar-hoverBackground"
+      ]
     },
     {
       "file": "src/webview/components/HeartbeatTrace.tsx",
@@ -2184,7 +2452,13 @@
           "declarations": "display: none;"
         }
       ],
-      "captureSelector": ".heartbeat-trace"
+      "captureSelector": ".heartbeat-trace",
+      "vscodeVariables": [
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/HighlightedCode.tsx",
@@ -2234,7 +2508,17 @@
           "declarations": "color: var(--vscode-debugTokenExpression-number, var(--vscode-foreground));"
         }
       ],
-      "captureSelector": ".hljs, .hljs-keyword, .hljs-string, .hljs-number"
+      "captureSelector": ".hljs, .hljs-keyword, .hljs-string, .hljs-number",
+      "vscodeVariables": [
+        "--vscode-debugTokenExpression-number",
+        "--vscode-debugTokenExpression-string",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background",
+        "--vscode-symbolIcon-keywordForeground",
+        "--vscode-textLink-foreground"
+      ]
     },
     {
       "file": "src/webview/components/HistoryDialog.tsx",
@@ -2303,7 +2587,15 @@
           "declarations": "visibility: visible;"
         }
       ],
-      "captureSelector": ".history, .history-toggle, .history-archive"
+      "captureSelector": ".history, .history-toggle, .history-archive",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/JudgeStatusLine.tsx",
@@ -2332,7 +2624,13 @@
           "declarations": "margin: 0 var(--ms-gap) 0.5em;\n  color: var(--vscode-foreground);\n  font-size: 0.9em;\n  overflow-wrap: anywhere;"
         }
       ],
-      "captureSelector": ".judge-status"
+      "captureSelector": ".judge-status",
+      "vscodeVariables": [
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/ListBody.tsx",
@@ -2361,7 +2659,13 @@
           "declarations": "overflow: auto;"
         }
       ],
-      "captureSelector": ".palette-body"
+      "captureSelector": ".palette-body",
+      "vscodeVariables": [
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/MarkdownView.tsx",
@@ -2465,7 +2769,20 @@
           "declarations": "outline: 1px solid var(--vscode-focusBorder);\n  outline-offset: -1px;"
         }
       ],
-      "captureSelector": ".markdown, .markdown-inline, .markdown-image"
+      "captureSelector": ".markdown, .markdown-inline, .markdown-image",
+      "vscodeVariables": [
+        "--vscode-badge-background",
+        "--vscode-descriptionForeground",
+        "--vscode-editor-font-family",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-textCodeBlock-background",
+        "--vscode-textLink-foreground"
+      ]
     },
     {
       "file": "src/webview/components/MentionMenu.tsx",
@@ -2540,7 +2857,20 @@
           "declarations": "color: inherit;"
         }
       ],
-      "captureSelector": ".mention-menu, .menu-item, .menu-item-active"
+      "captureSelector": ".mention-menu, .menu-item, .menu-item-active",
+      "vscodeVariables": [
+        "--vscode-editorWidget-background",
+        "--vscode-editorWidget-border",
+        "--vscode-editorWidget-foreground",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-list-activeSelectionBackground",
+        "--vscode-list-activeSelectionForeground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-shadow"
+      ]
     },
     {
       "file": "src/webview/components/MenuOption.tsx",
@@ -2592,7 +2922,15 @@
           "declarations": "color: inherit;"
         }
       ],
-      "captureSelector": ".menu-item, .menu-item-active"
+      "captureSelector": ".menu-item, .menu-item-active",
+      "vscodeVariables": [
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-list-activeSelectionBackground",
+        "--vscode-list-activeSelectionForeground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/Modal.tsx",
@@ -2653,7 +2991,18 @@
           "declarations": "display: flex;\n  flex-direction: column;\n  width: min(100%, 440px);\n  max-height: 90vh;\n  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));\n  border-radius: var(--ms-radius);\n  color: var(--vscode-foreground);\n  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));\n  box-shadow: 0 4px 16px var(--vscode-widget-shadow);"
         }
       ],
-      "captureSelector": ".modal-backdrop, .modal, .modal-header, .modal-body"
+      "captureSelector": ".modal-backdrop, .modal, .modal-header, .modal-body",
+      "vscodeVariables": [
+        "--vscode-editor-background",
+        "--vscode-editorWidget-background",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-border",
+        "--vscode-widget-shadow"
+      ]
     },
     {
       "file": "src/webview/components/Onboarding.tsx",
@@ -2730,7 +3079,17 @@
           "declarations": "flex: 0 1 auto;\n  max-width: 50%;\n  min-width: 2em;\n  text-align: center;"
         }
       ],
-      "captureSelector": ".onboarding, .onboarding-list, .usage-link"
+      "captureSelector": ".onboarding, .onboarding-list, .usage-link",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-textLink-foreground"
+      ]
     },
     {
       "file": "src/webview/components/PaidBadge.tsx",
@@ -2774,7 +3133,17 @@
           "declarations": "border: 1px solid var(--vscode-editorWarning-foreground, var(--vscode-panel-border));\n  color: var(--vscode-foreground);\n  background: transparent;"
         }
       ],
-      "captureSelector": ".badge-paid, .badge"
+      "captureSelector": ".badge-paid, .badge",
+      "vscodeVariables": [
+        "--vscode-badge-background",
+        "--vscode-badge-foreground",
+        "--vscode-editorWarning-foreground",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/Palette.tsx",
@@ -2870,7 +3239,24 @@
           "declarations": "transition: none;"
         }
       ],
-      "captureSelector": ".palette, .palette-filter, .palette-toggle, .toggle-knob"
+      "captureSelector": ".palette, .palette-filter, .palette-toggle, .toggle-knob",
+      "vscodeVariables": [
+        "--vscode-button-foreground",
+        "--vscode-editorWidget-background",
+        "--vscode-editorWidget-border",
+        "--vscode-editorWidget-foreground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-input-border",
+        "--vscode-input-foreground",
+        "--vscode-input-placeholderForeground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-shadow"
+      ]
     },
     {
       "file": "src/webview/components/PopoverMenu.tsx",
@@ -2937,7 +3323,19 @@
           "declarations": "outline: 1px solid var(--vscode-focusBorder);\n  outline-offset: -1px;"
         }
       ],
-      "captureSelector": ".popover, .popover-list, .menu-item"
+      "captureSelector": ".popover, .popover-list, .menu-item",
+      "vscodeVariables": [
+        "--vscode-editorWidget-background",
+        "--vscode-editorWidget-border",
+        "--vscode-editorWidget-foreground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-shadow"
+      ]
     },
     {
       "file": "src/webview/components/QuestionCard.tsx",
@@ -3023,7 +3421,20 @@
           "declarations": "outline: 1px solid var(--vscode-focusBorder);\n  outline-offset: -1px;"
         }
       ],
-      "captureSelector": ".question, .question-tab, .question-choice, .question-input"
+      "captureSelector": ".question, .question-tab, .question-choice, .question-input",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-input-border",
+        "--vscode-input-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/QuoteMenu.tsx",
@@ -3106,7 +3517,18 @@
           "declarations": "animation: none;"
         }
       ],
-      "captureSelector": ".gooey-menu-pill"
+      "captureSelector": ".gooey-menu-pill",
+      "vscodeVariables": [
+        "--vscode-button-background",
+        "--vscode-button-border",
+        "--vscode-button-foreground",
+        "--vscode-button-hoverBackground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/ReasoningRow.tsx",
@@ -3175,7 +3597,14 @@
           "declarations": "transition: none;"
         }
       ],
-      "captureSelector": ".reasoning, .reasoning-header, .reasoning-body, .chevron"
+      "captureSelector": ".reasoning, .reasoning-header, .reasoning-body, .chevron",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/ReportDialog.tsx",
@@ -3237,7 +3666,19 @@
           "declarations": "display: flex;\n  flex-direction: column;\n  width: min(100%, 440px);\n  max-height: 90vh;\n  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));\n  border-radius: var(--ms-radius);\n  color: var(--vscode-foreground);\n  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));\n  box-shadow: 0 4px 16px var(--vscode-widget-shadow);"
         }
       ],
-      "captureSelector": ".report-preview, .report-description, .report-actions, .modal"
+      "captureSelector": ".report-preview, .report-description, .report-actions, .modal",
+      "vscodeVariables": [
+        "--vscode-editor-background",
+        "--vscode-editor-font-family",
+        "--vscode-editorWidget-background",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-border",
+        "--vscode-widget-shadow"
+      ]
     },
     {
       "file": "src/webview/components/ReviewFindings.tsx",
@@ -3245,7 +3686,7 @@
       "selectors": [".review-finding", ".review-finding-location", ".review-severity"],
       "scene": "review-findings",
       "grades": {
-        "colour": "partial",
+        "colour": "fail",
         "radius": "partial",
         "elevation": "not-applicable",
         "motion": "not-applicable",
@@ -3268,7 +3709,7 @@
         "typography.font-size",
         "typography.font-ui"
       ],
-      "findings": ["roles", "scale", "states", "focus"],
+      "findings": ["roles", "scale", "states", "focus", "host-error"],
       "fix": "Use severity-edge and text tokens without colouring severity words below AA; add location-link rings/pressed states and scale the finding card spacing/radius.",
       "evidence": [
         {
@@ -3308,7 +3749,18 @@
           "declarations": "border-left-color: var(--vscode-focusBorder);"
         }
       ],
-      "captureSelector": ".review-finding, .review-finding-location, .review-severity"
+      "captureSelector": ".review-finding, .review-finding-location, .review-severity",
+      "vscodeVariables": [
+        "--vscode-editor-font-family",
+        "--vscode-editorWarning-foreground",
+        "--vscode-errorForeground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/ReviewPane.tsx",
@@ -3387,7 +3839,20 @@
           "declarations": "max-width: 100%;"
         }
       ],
-      "captureSelector": ".review-hunk, .review-actions, .review-comment-field, .modal"
+      "captureSelector": ".review-hunk, .review-actions, .review-comment-field, .modal",
+      "vscodeVariables": [
+        "--vscode-disabledForeground",
+        "--vscode-editor-background",
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-border",
+        "--vscode-widget-shadow"
+      ]
     },
     {
       "file": "src/webview/components/SchedulePanel.tsx",
@@ -3457,7 +3922,15 @@
           "declarations": "min-width: 24px;\n  min-height: 24px;"
         }
       ],
-      "captureSelector": ".local-schedule, .local-schedule-actions, .local-schedule-facts"
+      "captureSelector": ".local-schedule, .local-schedule-actions, .local-schedule-facts",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/SecretPromptDialog.tsx",
@@ -3512,7 +3985,18 @@
           "declarations": "display: flex;\n  flex-direction: column;\n  width: min(100%, 440px);\n  max-height: 90vh;\n  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));\n  border-radius: var(--ms-radius);\n  color: var(--vscode-foreground);\n  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));\n  box-shadow: 0 4px 16px var(--vscode-widget-shadow);"
         }
       ],
-      "captureSelector": ".approval-prompt, .question-actions, .modal"
+      "captureSelector": ".approval-prompt, .question-actions, .modal",
+      "vscodeVariables": [
+        "--vscode-editor-background",
+        "--vscode-editorWidget-background",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-border",
+        "--vscode-widget-shadow"
+      ]
     },
     {
       "file": "src/webview/components/SessionBoardDialog.tsx",
@@ -3576,7 +4060,15 @@
           "declarations": "justify-content: space-between;"
         }
       ],
-      "captureSelector": ".palette.history, .palette-item-detail, .palette-header"
+      "captureSelector": ".palette.history, .palette-item-detail, .palette-header",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/ShareView.tsx",
@@ -3629,7 +4121,16 @@
           "declarations": "display: flex;\n  flex-wrap: wrap;\n  align-items: center;\n  justify-content: space-between;\n  gap: var(--ms-gap);\n  border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));\n  padding-top: var(--ms-gap);"
         }
       ],
-      "captureSelector": ".share-meta, .share-section, .share-more"
+      "captureSelector": ".share-meta, .share-section, .share-more",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-border"
+      ]
     },
     {
       "file": "src/webview/components/SignIn.tsx",
@@ -3685,7 +4186,14 @@
           "declarations": "overflow-wrap: anywhere;\n  user-select: text;"
         }
       ],
-      "captureSelector": ".gate, .gate-install-confirm, .gate-device-code"
+      "captureSelector": ".gate, .gate-install-confirm, .gate-device-code",
+      "vscodeVariables": [
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/SlashMenu.tsx",
@@ -3750,7 +4258,16 @@
           "declarations": "color: inherit;"
         }
       ],
-      "captureSelector": ".slash-menu, .palette-item-detail, .menu-item-active"
+      "captureSelector": ".slash-menu, .palette-item-detail, .menu-item-active",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-list-activeSelectionBackground",
+        "--vscode-list-activeSelectionForeground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/StatusLine.tsx",
@@ -3803,7 +4320,14 @@
           "declarations": "visibility: hidden;"
         }
       ],
-      "captureSelector": ".status-line, .status-verb, .status-verb-sizer"
+      "captureSelector": ".status-line, .status-verb, .status-verb-sizer",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/StatusMark.tsx",
@@ -3892,7 +4416,13 @@
           "declarations": "--amplitude: 3px;\n    --scale: 3;"
         }
       ],
-      "captureSelector": ".status-mark, .status-mark-circle"
+      "captureSelector": ".status-mark, .status-mark-circle",
+      "vscodeVariables": [
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/TodoPanel.tsx",
@@ -3973,7 +4503,21 @@
           "declarations": "background: var(--vscode-button-secondaryHoverBackground);"
         }
       ],
-      "captureSelector": ".todo, .todo-title, .todo-open, .todo-progress"
+      "captureSelector": ".todo, .todo-title, .todo-open, .todo-progress",
+      "vscodeVariables": [
+        "--vscode-button-border",
+        "--vscode-button-secondaryBackground",
+        "--vscode-button-secondaryForeground",
+        "--vscode-button-secondaryHoverBackground",
+        "--vscode-descriptionForeground",
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/ToolBlocks.tsx",
@@ -4045,7 +4589,17 @@
           "declarations": "padding: 0 6px;\n  vertical-align: top;"
         }
       ],
-      "captureSelector": ".tool-expand, .tool-open, .tool-pre, .diff"
+      "captureSelector": ".tool-expand, .tool-open, .tool-pre, .diff",
+      "vscodeVariables": [
+        "--vscode-editor-background",
+        "--vscode-editor-font-family",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-shadow"
+      ]
     },
     {
       "file": "src/webview/components/ToolBodies.tsx",
@@ -4128,7 +4682,16 @@
           "declarations": "display: inline-block;\n  min-width: 24px;\n  min-height: 24px;\n  color: var(--vscode-textLink-foreground);\n  line-height: 24px;\n  overflow-wrap: anywhere;"
         }
       ],
-      "captureSelector": ".schedule-list"
+      "captureSelector": ".schedule-list",
+      "vscodeVariables": [
+        "--vscode-editorWidget-background",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-textLink-foreground"
+      ]
     },
     {
       "file": "src/webview/components/ToolRow.tsx",
@@ -4235,7 +4798,17 @@
           "declarations": "animation: none;"
         }
       ],
-      "captureSelector": ".tool, .tool-toggle, .tool-chevron, .shell-box, .tool-dot-running"
+      "captureSelector": ".tool, .tool-toggle, .tool-chevron, .shell-box, .tool-dot-running",
+      "vscodeVariables": [
+        "--vscode-button-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-progressBar-background",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/Transcript.tsx",
@@ -4364,7 +4937,22 @@
           "declarations": "animation: none;"
         }
       ],
-      "captureSelector": ".message, .message-time, .cursor, .steps-toggle, .notice-action"
+      "captureSelector": ".message, .message-time, .cursor, .steps-toggle, .notice-action",
+      "vscodeVariables": [
+        "--vscode-button-border",
+        "--vscode-descriptionForeground",
+        "--vscode-editor-background",
+        "--vscode-editorCursor-foreground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-textLink-foreground",
+        "--vscode-toolbar-hoverBackground"
+      ]
     },
     {
       "file": "src/webview/components/UsageDialog.tsx",
@@ -4472,7 +5060,24 @@
           "declarations": "color: var(--vscode-button-foreground);\n  background: var(--vscode-button-background);"
         }
       ],
-      "captureSelector": ".usage-toggle, .usage-link, .usage-bar, .usage-paid-always, .modal"
+      "captureSelector": ".usage-toggle, .usage-link, .usage-bar, .usage-paid-always, .modal",
+      "vscodeVariables": [
+        "--vscode-button-background",
+        "--vscode-button-foreground",
+        "--vscode-editor-background",
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-panel-border",
+        "--vscode-progressBar-background",
+        "--vscode-sideBar-background",
+        "--vscode-textLink-foreground",
+        "--vscode-widget-border",
+        "--vscode-widget-shadow"
+      ]
     },
     {
       "file": "src/webview/components/UserShellRow.tsx",
@@ -4530,7 +5135,15 @@
           "declarations": "overflow: hidden;\n  font-family: var(--vscode-editor-font-family);\n  font-size: 0.9em;\n  text-overflow: ellipsis;\n  white-space: nowrap;"
         }
       ],
-      "captureSelector": ".user-shell, .user-shell-command, .shell-box, .tool-task-action"
+      "captureSelector": ".user-shell, .user-shell-command, .shell-box, .tool-task-action",
+      "vscodeVariables": [
+        "--vscode-editor-font-family",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/VerifyParts.tsx",
@@ -4589,7 +5202,16 @@
           "declarations": "margin-top: 6px;"
         }
       ],
-      "captureSelector": ".then-run"
+      "captureSelector": ".then-run",
+      "vscodeVariables": [
+        "--vscode-editor-font-family",
+        "--vscode-editorWidget-background",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/WorkflowRun.tsx",
@@ -4645,7 +5267,13 @@
           "declarations": "display: flex;\n  flex-direction: column;\n  gap: 2px;"
         }
       ],
-      "captureSelector": ".workflow-header, .workflow-agent, .workflow-result"
+      "captureSelector": ".workflow-header, .workflow-agent, .workflow-result",
+      "vscodeVariables": [
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/icons.tsx",
@@ -4686,7 +5314,13 @@
           "declarations": "width: 1.8em;"
         }
       ],
-      "captureSelector": ".icon, .brand-logo"
+      "captureSelector": ".icon, .brand-logo",
+      "vscodeVariables": [
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/modeIcons.tsx",
@@ -4721,7 +5355,13 @@
           "declarations": "width: 1.2em;\n  height: 1.2em;"
         }
       ],
-      "captureSelector": ".icon"
+      "captureSelector": ".icon",
+      "vscodeVariables": [
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/components/paletteDialog.tsx",
@@ -4799,7 +5439,18 @@
           "declarations": "font-weight: normal;"
         }
       ],
-      "captureSelector": ".palette-filter, .palette-list, .palette-item, .history-current"
+      "captureSelector": ".palette-filter, .palette-list, .palette-item, .history-current",
+      "vscodeVariables": [
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-input-border",
+        "--vscode-input-foreground",
+        "--vscode-input-placeholderForeground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/main.tsx",
@@ -4840,7 +5491,13 @@
           "declarations": "overflow: auto;\n  padding: var(--ms-gap);"
         }
       ],
-      "captureSelector": ".app, .todo-surface, .gate"
+      "captureSelector": ".app, .todo-surface, .gate",
+      "vscodeVariables": [
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ]
     },
     {
       "file": "src/webview/whatsNew/whatsNewPage.ts",
@@ -5042,7 +5699,29 @@
           "declarations": "display: inline-flex;\n  gap: var(--ms-gap);\n  align-items: center;\n  cursor: pointer;"
         }
       ],
-      "captureSelector": "h1"
+      "captureSelector": "h1",
+      "vscodeVariables": [
+        "--vscode-button-background",
+        "--vscode-button-border",
+        "--vscode-button-foreground",
+        "--vscode-button-hoverBackground",
+        "--vscode-contrastBorder",
+        "--vscode-descriptionForeground",
+        "--vscode-editor-background",
+        "--vscode-editor-font-family",
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background",
+        "--vscode-textBlockQuote-border",
+        "--vscode-textCodeBlock-background",
+        "--vscode-textLink-activeForeground",
+        "--vscode-textLink-foreground",
+        "--vscode-textPreformat-foreground",
+        "--vscode-widget-border"
+      ]
     }
   ],
   "otherWebviewFiles": [
@@ -5709,5 +6388,12 @@
       "file": "src/webview/workflowDetails.ts",
       "sha256": "aaad8daf2db26e898e6a7d6dcfbe4b9ad8d52d9e31a1beb9d34dacab9a89e0fe"
     }
-  ]
+  ],
+  "unmappedHostVariables": {
+    "--vscode-errorForeground": {
+      "owner": "0 / P1 / P2 / C",
+      "fix": "Add a distinct host-error foreground mapping in the token source, with its name agreed by lane 0 and captured host AA uses, before migrating this read. Keep input-validation error text, testing failure and chart danger distinct; retain existing fallback order. C must bind the resulting role after the token contract is extended.",
+      "evidence": "styles.css .message-error, .context-meter-high, .mic-button.mic-listening, .tool-dot-failed, .tool-failure and other failed-state fallbacks read this variable; no consumers.json.hostRoles entry maps it."
+    }
+  }
 }

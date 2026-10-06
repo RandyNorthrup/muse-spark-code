@@ -27506,6 +27506,17 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   static/build checks pass; the existing S-owned host-API record and changelog
   handoffs remain, with full quality still assigned to the lead by §7.
 
+- **Lane A capture storage decision (lead, 2026-10-06):** keep the 804
+  before PNGs outside git to bound repository size, at
+  `/home/randy/archive/m114-a-before-17d7`. Commit only their manifest,
+  accessibility receipts and index. Always test manifest completeness and
+  SHA-256/byte-size metadata; check actual bytes only when
+  `MUSE_M114_CAPTURES_DIR` names the archive. CI does not have that archive.
+  S must decide a size-bounded visual-regression strategy: regenerate
+  baselines from the base commit in CI or commit a small reviewed set,
+  rather than about 800 PNGs. Results belong in `docs/certification/m114-a.md`;
+  S retains CHANGELOG and the final integrated visual/quality gates.
+
 - **Lane 0's contracts,** frozen before the other lanes start:
   - the token names and groups, with each role's VS Code variable and its
     Muse palette values;

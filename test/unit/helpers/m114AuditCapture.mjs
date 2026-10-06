@@ -202,7 +202,8 @@ async function captureBefore() {
             })
             await page.clock.runFor(100)
           }
-          if (scene === 'whats-new-footer')
+          if (scene === 'verify') await page.locator('.then-run').scrollIntoViewIfNeeded()
+          else if (scene === 'whats-new-footer')
             await page.evaluate(() => globalThis.scrollTo(0, globalThis.document.body.scrollHeight))
           const renderedComponents = await page.evaluate(
             (rows) =>
