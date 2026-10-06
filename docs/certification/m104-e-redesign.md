@@ -204,3 +204,55 @@ assembly remains with integration lanes. Windows job execution and macOS
 process-group execution cannot run on this Linux rig; no such runtime receipt
 is claimed. Full aggregate quality/coverage are expressly left to the lead by
 the rig brief and PLAN §7. No product or parity status is promoted.
+
+## RVM104E3 follow-up: runtime descendants
+
+FIXM104E3, Kubuntu, 2026-10-05, base `fef327e47`. RVM104E3 finding 1
+is fixed for observed separate-session descendants. Previously, `kill(-pid)`
+only addressed the runtime's process group: ToolIo and MCP children use their
+own POSIX sessions, and an exited parent's `descendants()` is empty. The
+adapter now retains handles and start instants while the parent is alive,
+snapshots before signalling, lets the supervisor stop its own children first,
+then forces containment and remaining identities only if the OS start instant
+still matches. The JVM hook uses the same retained identities without stream I/O.
+
+The new separate-session crash regression failed against the original code:
+`testR3ParentFirstDeathKillsSeparateSessionWorkerAndReconnects` was the sole
+failure in **63 tests** (`temp/r3-before-process.log`, exit 1). The restored
+process fix passed **65 tests**, ktlint and detekt (`temp/r3-process-green.log`).
+The subsequent identity regression brings the inventory to 66; final and drill
+receipts are recorded below before handoff.
+
+Named residual **R3-tree-discovery-window**: a detached child that is created
+and reparented entirely between the 10-ms observations may never enter the
+snapshot. ProcessHandle cannot reconstruct an exited parent's lost ancestry.
+The runtime's cooperative supervision and same-group/job containment remain;
+this is safe only within the adapter's existing development qualification,
+with no supported whole-tree guarantee. Follow-up: integration must qualify
+supervisor shutdown and consider OS containment covering independently detached
+children before support is claimed. This requires a broader containment design;
+it is not silently claimed structurally impossible. Windows/macOS and installed
+IDE qualification remain pending as already recorded.
+
+Runtime cleanup drill receipts: [R3 drill records](m104-e-r3-drills.json).
+All four attempts ran the complete owned suite of **66 tests**, without filters,
+and restored `RuntimeProcess.kt` byte-exact to SHA-256
+`73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5`.
+
+| Deliberate mutation                                        | Expected regression                                                                                                                   | Observed                                                                 |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Disable the live descendant tracker                        | `testR3ParentFirstDeathKillsSeparateSessionWorkerAndReconnects`, `testR3IdeJvmExitKillsSeparateSessionWorkerWhoseRuntimeParentExited` | Both failed; exit 1                                                      |
+| Ignore the captured process start instant                  | `reusedPidWithDifferentStartInstantCannotBeSignalled`                                                                                 | Sole failure; exit 1                                                     |
+| Signal children before the supervisor, initial fixture     | `runtimeStopsItsSeparateSessionWorkerBeforeForceCleanup`                                                                              | Did not fail; signal delivery raced. Retained as an unsuccessful attempt |
+| Signal children before the supervisor, acknowledged worker | `runtimeStopsItsSeparateSessionWorkerBeforeForceCleanup`                                                                              | Sole failure; exit 1                                                     |
+
+The cleanup-order fixture now installs a child signal handler, waits for its
+readiness and records whether it was signalled before the supervisor started
+cleanup. This closes the scheduling ambiguity in the initial attempted drill.
+The PID-reuse regression tests the current JVM handle with a deliberately
+mismatched start instant; it never signals that handle.
+
+Final restored runtime cleanup: **66/66 passed, zero failures/errors/skips**,
+ktlint and detekt exit 0 (`temp/r3-process-restored.log`). Hooks were present
+through `.husky/_/pre-commit`; no preload, environment override or hook change
+was used. The earlier hook incident remains historical and is not repeated.

@@ -25,10 +25,22 @@ object RuntimeExitFixture {
     val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(WAIT_SECONDS)
     while (Files.size(receipt) == 0L && System.nanoTime() < deadline) Thread.sleep(POLL_MILLIS)
     check(Files.size(receipt) > 0L) { "FAKE_RUNTIME_RECEIPT_MISSING" }
-    if (mode == "parent-first") check(runtime.process.waitFor(WAIT_SECONDS, TimeUnit.SECONDS))
+    if (mode == "detached-parent-first") {
+      Thread.sleep(SNAPSHOT_SETTLE_MILLIS)
+      Files.writeString(
+        receipt.resolveSibling(receipt.fileName.toString().substringBeforeLast('.') + ".release"),
+        "exit",
+      )
+    }
+    if (mode == "parent-first" ||
+      mode == "detached-parent-first"
+    ) {
+      check(runtime.process.waitFor(WAIT_SECONDS, TimeUnit.SECONDS))
+    }
     System.exit(0)
   }
 
+  private const val SNAPSHOT_SETTLE_MILLIS = 100L
   private const val WAIT_SECONDS = 10L
   private const val POLL_MILLIS = 10L
 }

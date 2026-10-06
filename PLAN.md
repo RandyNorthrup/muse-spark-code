@@ -5299,6 +5299,15 @@ have equivalent functionality even if we need to develop it ourselves".
   and force-kills without stream I/O: daemon cleanup alone can be abandoned
   when the IDE exits. Separate-JVM fake tests cover an attached runtime and a
   parent-first worker; the shutdown hook is removed after normal cleanup.
+- **FIXM104E3 / RVM104E3 (2026-10-05).** Close both P2 lifecycle gaps
+  inside the JetBrains lane. Retain descendant handles and start instants while
+  the runtime is alive, snapshot before signalling, first let the runtime stop
+  its supervised children, then force remaining verified identities, including
+  separate POSIX sessions and JVM exit. Fence editor requests against their
+  originating connection epoch synchronously at every native mutation and
+  inside document write actions. Add regressions, byte-exact red drills and
+  repeat strict Plugin Verifier on the three declared IDEA releases. Keep
+  frozen wire, dependencies, shared runtime and gates unchanged.
 - **MHP 1.2 proposal (E3; other hosts unchanged).** The frozen 1.1
   `initialize` direction is runtime-to-host, but its result cannot carry the
   host's actual metadata. Add capability `hostMetadata` and protocol version
@@ -16276,6 +16285,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM104E3 / RVM104E3 — R3-tree-discovery-window:** retained descendant
+  identities fix cleanup of observed separate-session workers after parent-first
+  exit and JVM shutdown. A detached child created and reparented wholly between
+  the 10-ms observations cannot be discovered from an exited parent's ancestry.
+  Cooperative runtime supervision and process-group/Windows-job containment
+  remain, but no unconditional whole-tree claim is made. Safe for the existing
+  development-only qualification; follow-up is supervisor integration and an OS
+  containment design before product support. Exact regression/drill and strict
+  verifier receipts are in `docs/certification/m104-e-redesign.md`.
 
 - **REDM104E / RVM104E2 (2026-10-05):** the generation owner replaces the
   first-round split lifecycle. Native stress tests cover blocked process

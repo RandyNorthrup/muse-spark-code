@@ -74,6 +74,51 @@ class RuntimeProcessTest {
     }
   }
 
+  @Test
+  fun reusedPidWithDifferentStartInstantCannotBeSignalled() {
+    val handle = ProcessHandle.current()
+    val started = handle.info().startInstant().orElseThrow()
+    assertEquals(handle.pid(), RuntimeProcess.Identity(handle, started).current()?.pid())
+    assertEquals(null, RuntimeProcess.Identity(handle, started.plusSeconds(1)).current())
+  }
+
+  @Test
+  fun runtimeStopsItsSeparateSessionWorkerBeforeForceCleanup() {
+    val receipt = Files.createTempFile(Path.of("build"), "cooperative-stop-", ".pid")
+    val stopped = receipt.resolveSibling(receipt.fileName.toString().substringBeforeLast('.') + ".stopped")
+    val runtime =
+      RuntimeProcess.start(
+        listOf(
+          "/usr/bin/python3",
+          "-u",
+          Path.of("test/fixtures/shutdown_runtime.py").toAbsolutePath().toString(),
+          receipt.toAbsolutePath().toString(),
+          "detached-cooperative",
+        ),
+        Path.of(".").toAbsolutePath(),
+        mapOf("PATH" to "/usr/bin:/bin"),
+      )
+    try {
+      val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(WAIT_SECONDS)
+      while (Files.size(receipt) == 0L && System.nanoTime() < deadline) Thread.sleep(POLL_MILLIS)
+      assertTrue("Worker receipt missing", Files.size(receipt) > 0L)
+      runtime.close()
+      assertEquals("supervisor-first", Files.readString(stopped))
+      assertFalse(runtime.process.isAlive)
+    } finally {
+      runtime.close()
+      if (Files.size(receipt) > 0L) {
+        Files.readAllLines(receipt).map(String::toLong).forEach { pid ->
+          ProcessHandle.of(pid).ifPresent { it.destroyForcibly() }
+        }
+      }
+      for (suffix in listOf(".stopped", ".signal", ".workerready")) {
+        Files.deleteIfExists(receipt.resolveSibling(receipt.fileName.toString().substringBeforeLast('.') + suffix))
+      }
+      Files.deleteIfExists(receipt)
+    }
+  }
+
   private fun checkReload(surface: PanelSurface) {
     surface.savedState = json("draft" to "kept")
     surface.reload()
@@ -131,6 +176,7 @@ class RuntimeProcessTest {
   }
 
   companion object {
+    private const val POLL_MILLIS = 10L
     private const val WAIT_SECONDS = 10L
   }
 }

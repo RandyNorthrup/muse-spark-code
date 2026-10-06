@@ -1,0 +1,52 @@
+[
+  {
+    "drill": "r3-descendant-retention",
+    "file": "RuntimeProcess.kt",
+    "exit": 1,
+    "tests": 66,
+    "expected": [
+      "testR3ParentFirstDeathKillsSeparateSessionWorkerAndReconnects",
+      "testR3IdeJvmExitKillsSeparateSessionWorkerWhoseRuntimeParentExited"
+    ],
+    "failedTests": [
+      "testR3ParentFirstDeathKillsSeparateSessionWorkerAndReconnects",
+      "testR3IdeJvmExitKillsSeparateSessionWorkerWhoseRuntimeParentExited"
+    ],
+    "observed": true,
+    "sha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5",
+    "restoredSha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5"
+  },
+  {
+    "drill": "r3-process-identity",
+    "file": "RuntimeProcess.kt",
+    "exit": 1,
+    "tests": 66,
+    "expected": ["reusedPidWithDifferentStartInstantCannotBeSignalled"],
+    "failedTests": ["reusedPidWithDifferentStartInstantCannotBeSignalled"],
+    "observed": true,
+    "sha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5",
+    "restoredSha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5"
+  },
+  {
+    "drill": "r3-supervisor-first",
+    "file": "RuntimeProcess.kt",
+    "exit": 0,
+    "tests": 66,
+    "expected": ["runtimeStopsItsSeparateSessionWorkerBeforeForceCleanup"],
+    "failedTests": [],
+    "observed": false,
+    "sha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5",
+    "restoredSha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5"
+  },
+  {
+    "drill": "r3-supervisor-first-acknowledged",
+    "file": "RuntimeProcess.kt",
+    "exit": 1,
+    "tests": 66,
+    "expected": ["runtimeStopsItsSeparateSessionWorkerBeforeForceCleanup"],
+    "failedTests": ["runtimeStopsItsSeparateSessionWorkerBeforeForceCleanup"],
+    "observed": true,
+    "sha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5",
+    "restoredSha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5"
+  }
+]

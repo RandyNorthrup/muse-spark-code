@@ -24,6 +24,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- JetBrains development plugin: retain observed runtime descendants by PID and
+  start instant so separate POSIX sessions are cleaned up after parent-first
+  exit and JVM shutdown. Give the runtime the first bounded stop opportunity
+  before forcing remaining verified children.
+
 - JetBrains development plugin: give each runtime a connection actor and epoch;
   bound writes, metadata collection and cleanup; terminate contained workers
   after parent-first crashes. Reconnect drops old work, overflowing edit

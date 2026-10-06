@@ -62,12 +62,18 @@ fails the connection with a visible technical reason. A two-second write
 deadline detects a runtime that stops reading stdin. Project disposal marks
 the generation closed immediately, cancels its work and requests stream
 closure on private workers, so Java's buffered pipe locks cannot stall the IDE.
-The owner signals process handles with a two-second stop deadline, terminates
-containment and bounds worker joins. POSIX launches establish a process group
+The owner snapshots descendant handles with their start instants before
+signalling, gives the supervising runtime a two-second stop opportunity, then
+terminates containment and any remaining verified descendants and bounds worker
+joins. A private tracker retains observed descendants while the parent is alive,
+including children that start separate POSIX sessions. POSIX launches establish a process group
 through the system Perl/POSIX launcher; Windows assigns a gated command launcher
 to a kill-on-close job before releasing it to start the runtime. A parent exit
-also fails the connection, even when its worker keeps stdout open. Containment
-retains workers after parent-first exit; a missing launcher or failed job
+also fails the connection, even when its worker keeps stdout open. The retained identity snapshot reaches observed separate-session workers after
+parent-first exit; the process group alone reaches only its own members.
+A detached child created and reparented entirely between observations cannot be
+discovered afterward; that qualification limit is recorded in the certification.
+Containment retains same-group workers after parent-first exit; a missing launcher or failed job
 assignment refuses startup. A JVM shutdown hook uses the prepared containment
 handle to force termination without stream I/O, and normal cleanup removes it. Transport failure removes native commands, widgets,
 panels and Tab bindings. Reconnect creates a new epoch, and closed-epoch work,

@@ -4,6 +4,8 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import java.io.Closeable
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -14,14 +16,57 @@ class RuntimeProcess private constructor(
   private var stderr: Thread? = null
   private val closed = AtomicBoolean()
   private val containmentClosed = AtomicBoolean()
+
+  internal data class Identity(
+    val handle: ProcessHandle,
+    val started: Instant,
+  ) {
+    fun current(): ProcessHandle? =
+      ProcessHandle.of(handle.pid()).orElse(null)?.takeIf { it.info().startInstant().orElse(null) == started }
+  }
+
+  private val root = process.toHandle()
+  private val rootStarted = root.info().startInstant().orElse(null)
+  private val descendants = ConcurrentHashMap<Long, Identity>()
+  private val tracker =
+    Thread({
+      while (!containmentClosed.get()) {
+        snapshotDescendants()
+        try {
+          Thread.sleep(SNAPSHOT_MILLIS)
+        } catch (_: InterruptedException) {
+          break
+        }
+      }
+    }, "Muse runtime descendants").apply { isDaemon = true }
+
+  private fun snapshotDescendants() {
+    descendants.entries.removeIf { it.value.current()?.isAlive != true }
+    val parents = if (root.isAlive) listOf(root) else descendants.values.mapNotNull(Identity::current)
+    for (parent in parents) {
+      val children = parent.descendants().use { it.toList() }
+      for (handle in children) {
+        val started = handle.info().startInstant().orElse(null) ?: continue
+        descendants[handle.pid()] = Identity(handle, started)
+      }
+    }
+  }
+
   private val forceStop = {
+    snapshotDescendants()
     if (containmentClosed.compareAndSet(false, true)) containment.close()
-    process.toHandle().destroyForcibly()
+    // A retained handle is safe only while the OS still reports its captured start instant.
+    descendants.values
+      .toList()
+      .asReversed()
+      .forEach { it.current()?.destroyForcibly() }
+    if (rootStarted != null && root.info().startInstant().orElse(null) == rootStarted) root.destroyForcibly()
   }
   private val shutdown = Thread({ runCatching(forceStop) }, "Muse runtime JVM shutdown")
 
   init {
     Runtime.getRuntime().addShutdownHook(shutdown)
+    tracker.start()
   }
 
   override fun close() {
@@ -32,17 +77,19 @@ class RuntimeProcess private constructor(
         isDaemon = true
         start()
       }
-    val descendants = process.descendants().toList().asReversed()
+    snapshotDescendants()
     try {
       try {
-        descendants.forEach { it.destroy() }
-        process.toHandle().destroy()
+        // Ask the supervising runtime to stop first; detached children receive its own cleanup.
+        // Do not signal children before their supervisor has had its bounded stop opportunity.
+        root.destroy()
         process.waitFor(STOP_SECONDS, TimeUnit.SECONDS)
       } finally {
         forceStop()
       }
       process.waitFor(STOP_SECONDS, TimeUnit.SECONDS)
-      descendants.filter { it.isAlive }.forEach { it.destroyForcibly() }
+      tracker.interrupt()
+      tracker.join(STOP_MILLIS)
       stderr?.join(STOP_MILLIS)
       stderrClose.join(STOP_MILLIS)
     } finally {
@@ -73,6 +120,7 @@ class RuntimeProcess private constructor(
   }
 
   companion object {
+    private const val SNAPSHOT_MILLIS = 10L
     private const val STDERR_BUFFER_BYTES = 4096
     private const val STOP_SECONDS = 2L
     private const val STOP_MILLIS = 2000L

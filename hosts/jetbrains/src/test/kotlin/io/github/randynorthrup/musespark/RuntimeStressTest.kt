@@ -37,6 +37,8 @@ class RuntimeStressTest : HeavyPlatformTestCase() {
 
   fun testIdeJvmExitKillsAWorkerWhoseRuntimeParentAlreadyExited() = exitFixture("parent-first")
 
+  fun testR3IdeJvmExitKillsSeparateSessionWorkerWhoseRuntimeParentExited() = exitFixture("detached-parent-first")
+
   private fun exitFixture(mode: String) {
     val receipt = Files.createTempFile(Path.of("build"), "jvm-exit-", ".pid")
     val sdk = Path.of(System.getProperty("idea.home.path"))
@@ -74,6 +76,7 @@ class RuntimeStressTest : HeavyPlatformTestCase() {
           ProcessHandle.of(pid).ifPresent { it.destroyForcibly() }
         }
       }
+      Files.deleteIfExists(receipt.resolveSibling(receipt.fileName.toString().substringBeforeLast('.') + ".release"))
       Files.deleteIfExists(receipt)
     }
   }
@@ -156,6 +159,13 @@ class RuntimeStressTest : HeavyPlatformTestCase() {
 
   fun testR2ParentFirstDeathKillsReparentedWorkerAndReconnects() =
     exercise("die") { fixture ->
+      val request = fixture.owner.request("tab/complete", tabParams())
+      fixture.failed("MHP_TRANSPORT_ENDED")
+      assertTrue(request.isCompletedExceptionally)
+    }
+
+  fun testR3ParentFirstDeathKillsSeparateSessionWorkerAndReconnects() =
+    exercise("detached-die") { fixture ->
       val request = fixture.owner.request("tab/complete", tabParams())
       fixture.failed("MHP_TRANSPORT_ENDED")
       assertTrue(request.isCompletedExceptionally)
@@ -306,7 +316,7 @@ class RuntimeStressTest : HeavyPlatformTestCase() {
               fixture.waitFor(".ready")
               fixture.owner.notify("documents/didChange", documentNotification())
             }
-            "late", "die" -> fixture.owner.request("tab/complete", tabParams())
+            "late", "die", "detached-die" -> fixture.owner.request("tab/complete", tabParams())
             "flood" -> fixture.release()
           }
         }

@@ -10,7 +10,7 @@ import time
 mode, receipt_name, release_name = sys.argv[1:]
 receipt = pathlib.Path(receipt_name)
 release = pathlib.Path(release_name)
-worker = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
+worker = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"], start_new_session=mode == "detached-die")
 receipt.write_text(str(worker.pid))
 
 def send(value):
@@ -77,7 +77,7 @@ else:
             break
         method = frame.get("method")
         if method == "tab/complete":
-            if mode == "die":
+            if mode in ("die", "detached-die"):
                 os._exit(0)  # Leave the worker reparented, still in the launch group.
             if mode == "late" and pending is None:
                 pending = frame["id"]
