@@ -2070,12 +2070,8 @@
               { name: 'updates', title: 'Receive updates', type: 'boolean', required: true },
             ],
           })
-          later(300, () => {
-            setValue(
-              document.querySelector('.elicitation-input'),
-              HTMLInputElement.prototype,
-              'invalid-address',
-            )
+          whenFound('.elicitation-input', (input) => {
+            setValue(input, HTMLInputElement.prototype, 'invalid-address')
           })
         },
         'elicitation-narrow': () => {

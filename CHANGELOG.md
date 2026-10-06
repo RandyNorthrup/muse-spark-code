@@ -50,6 +50,8 @@ happened, not what was planned; superseded entries are kept.
   known terminal states survive same-session history refreshes. The attention
   dock prioritizes the newest waiting question over past reminders while
   preserving a focused question and retaining inactive drafts.
+- MCP-form accessibility scenes wait for the lazy dock's input before filling
+  it, so a slower first load is checked without a harness timing failure.
 
 ### Changed
 
