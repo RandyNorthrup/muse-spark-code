@@ -96,17 +96,30 @@ function waitingQuestion(overrides: Partial<PendingQuestion> = {}): PendingQuest
   return { ...questionFixture({ state: 'waiting', deferredAt: undefined }), ...overrides }
 }
 
+function newestQuestion(askedAt = questionFixture().askedAt): PendingQuestion {
+  return waitingQuestion({
+    userInputId: 'q-2',
+    askedAt,
+    questions: [{ ...questionFixture().questions[0]!, header: 'Newest' }],
+  })
+}
+
+async function focusedWaitingScene() {
+  const actions = group([waitingQuestion()])
+  const view = await mountScene(actions)
+  const input = within(dock()).getByLabelText('Other: Colour')
+  act(() => {
+    input.focus()
+  })
+  return { ...view, actions, input }
+}
+
 afterEach(() => {
   vi.useRealTimers()
 })
 describe('M112 attention dock and the two views', () => {
   it('lets a new waiting question replace an unfocused retained draft without losing it', async () => {
-    const actions = group([waitingQuestion()])
-    const { rerender } = await mountScene(actions)
-    const input = within(dock()).getByLabelText('Other: Colour')
-    act(() => {
-      input.focus()
-    })
+    const { actions, rerender, input } = await focusedWaitingScene()
     fireEvent.change(input, { target: { value: 'Teal' } })
     const composer = document.createElement('textarea')
     composer.value = 'typing'
@@ -114,11 +127,7 @@ describe('M112 attention dock and the two views', () => {
     act(() => {
       composer.focus()
     })
-    const newest = waitingQuestion({
-      userInputId: 'q-2',
-      askedAt: 2000,
-      questions: [{ ...questionFixture().questions[0]!, header: 'Newest' }],
-    })
+    const newest = newestQuestion(2000)
     rerender(scene({ ...actions, questions: [questionFixture(), newest] }))
     expect(within(dock()).getByRole('group', { name: 'Newest' })).toBeVisible()
     expect(composer).toHaveFocus()
@@ -129,10 +138,7 @@ describe('M112 attention dock and the two views', () => {
   })
 
   it('prefers the last arrival when waiting questions have matching timestamps', async () => {
-    const newest = waitingQuestion({
-      userInputId: 'q-2',
-      questions: [{ ...questionFixture().questions[0]!, header: 'Newest' }],
-    })
+    const newest = newestQuestion()
     await mountScene(group([waitingQuestion(), newest]))
     expect(within(dock()).getByRole('group', { name: 'Newest' })).toBeVisible()
   })
@@ -140,20 +146,11 @@ describe('M112 attention dock and the two views', () => {
   it.each(['focus', 'typing'])(
     'protects a question with %s when a newer waiting question arrives',
     async (protection) => {
-      const actions = group([waitingQuestion()])
-      const { rerender } = await mountScene(actions)
-      const input = within(dock()).getByLabelText('Other: Colour')
-      act(() => {
-        input.focus()
-      })
+      const { actions, rerender, input } = await focusedWaitingScene()
       if (protection === 'typing') {
         fireEvent.change(input, { target: { value: 'Teal' } })
       }
-      const newest = waitingQuestion({
-        userInputId: 'q-2',
-        askedAt: 2000,
-        questions: [{ ...questionFixture().questions[0]!, header: 'Newest' }],
-      })
+      const newest = newestQuestion(2000)
       rerender(scene({ ...actions, questions: [questionFixture(), newest] }))
       expect(within(dock()).getByRole('group', { name: 'Colour' })).toBeVisible()
       expect(within(dock()).queryByRole('group', { name: 'Newest' })).toBeNull()

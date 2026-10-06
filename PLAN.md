@@ -6523,8 +6523,9 @@ The owner, 2026-10-05:
    - **Approvals come first and are unchanged.** They block, never defer and
      never collapse. D26's order, D48's paid popup and the focus rule are as
      today.
-   - **Below them, the question group,** oldest first: waiting questions,
-     then MCP forms, then the open questions (decision 3) as one compact
+   - **Below them, the question group:** newest waiting questions first
+     (2026-10-06 review ruling), then MCP forms, then the open questions
+     (decision 3) as one compact
      chip, "N open questions", with **Answer**, **Previous** and **Next**.
    - **One card is full at a time.** While an approval waits, the question
      group is one line. The dock stays within
@@ -18643,7 +18644,8 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M112 — Questions that never block (D92)
 
-**Status 2026-10-05: planned.** Small: about 48 lane-hours in lane 0 and
+**Status 2026-10-06: fake-only integration complete; live checks and full
+quality remain with the lead.** Small: about 48 lane-hours in lane 0 and
 three lanes, for a 0.14.x patch (0.14.3, or folded into 0.14.2 when both are
 ready together). Lanes Q, U and A start together once lane 0's contracts
 freeze, and none waits on an unmerged milestone. The native-host, TUI and
@@ -18916,6 +18918,10 @@ all production artifact measurements, owning suites and failure drills are
 in docs/certification/m112.md.
 
 The rig brief prohibits full quality locally; hosted CI owns that gate.
+Round 2's unchanged zero-duplication gate exposed two repeated setup blocks
+in U's new dock priority regressions; share only those test fixtures and
+retain every assertion. The MCP accessibility fixture uses its existing
+bounded field waiter so the new lazy dock is measured after it renders.
 check:reference, featureCatalog.ts and its generator are absent on this base,
 so HELPREF must add the named dock, setting, navigation, ACP commands and flag
 when its sources arrive. Native MHP adapters/envelopes are absent; acceptance
@@ -20175,14 +20181,13 @@ before a repaired one loads (2026-09-30).
   `docs/certification/m112-a.md`; none is deferred. Lane A meets the ACP
   additive target (1.81 KiB) by loading `acpQuestions.js` on first use, with
   a separate 25 KiB ceiling and the existing ACP 850 KiB cap unchanged.
-  This base still lacks Q's backend `deferQuestions`, durable registry/queue
-  and runtime/exec bindings; typecheck and the eight frozen model-text
-  reader checks therefore remain red. Safe for now: this is an unmerged
-  integration lane, with no production no-op binding or shipping-ready claim.
-  Follow-up: Q/lead bind the real registry, run integrated goldens/e2e/full
-  quality, remeasure Q/U/A growth, and collect the installed-editor and
-  authorized live receipts. HELPREF/M104 bindings remain the named handoffs
-  in the same certification record; this repair adds no command or setting.
+  The frozen A lane lacked Q's backend `deferQuestions`, durable registry/queue
+  and runtime/exec bindings; M112 integration closes those holds with actual
+  implementations. Integrated typechecks, request goldens, question/ACP e2e
+  and all model-text readers pass; measured ACP growth is 1.980 KiB against
+  the unchanged 2 KiB target. Full quality, installed-editor and counted live
+  receipts remain with the lead. HELPREF/M104 bindings remain the named
+  handoffs in the certification record; this repair adds no command or setting.
 
 - **FIXM112U-P3-STARTUP — WAIVED by the lead 2026-10-06.** M112's measured
   webview startup growth is 4.74 KiB against the plan's 3 KiB target. The
