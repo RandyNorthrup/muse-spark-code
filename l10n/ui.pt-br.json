@@ -2668,6 +2668,15 @@
       "enabled": "Ativar agendamentos nos backends disponíveis. Ativos por padrão; cada execução funciona sem supervisão dentro de sua permissão permanente.",
       "defaultDelivery": "Entrega padrão para novos agendamentos. Por padrão, iniciar um novo turno quando ocioso.",
       "agentCreation": "Permissão padrão para agentes criarem agendamentos: perguntar, sempre dentro dos limites ou nunca. Perguntar por padrão."
+    },
+    "runtime": {
+      "usage": "Uso: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "accepted": "Solicitação de agendamento aceita",
+      "empty": "Nenhum agendamento ou execução próxima.",
+      "unavailable": "Os agendamentos não estão disponíveis neste host. É necessária a conexão com o agendador do ambiente de execução.",
+      "invalidRequest": "Solicitação de agendamento inválida. Verifique o rascunho, o identificador e as opções.",
+      "invalidResponse": "O agendador retornou uma resposta inválida.",
+      "consentRequired": "O agendamento em segundo plano exige seu Sim explícito."
     }
   }
 }

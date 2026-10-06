@@ -2476,6 +2476,15 @@
       "enabled": "在可用后端上启用日程。默认开启，每次执行均在长期授权范围内无人值守运行。",
       "defaultDelivery": "新日程的默认投递方式。默认在空闲时开始新轮次。",
       "agentCreation": "代理创建日程的默认权限：询问、在上限内始终允许或永不允许。默认询问。"
+    },
+    "runtime": {
+      "usage": "用法: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "accepted": "已接受计划请求",
+      "empty": "没有计划或即将运行的任务。",
+      "unavailable": "此主机无法使用计划任务。需要连接运行时调度器。",
+      "invalidRequest": "计划请求无效。请检查草稿、标识符和选项。",
+      "invalidResponse": "调度器返回了无效响应。",
+      "consentRequired": "后台计划需要您明确选择“是”。"
     }
   }
 }

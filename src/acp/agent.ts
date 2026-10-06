@@ -11,6 +11,7 @@
 // paid.ts). Every update of a turn goes out before the turn's response.
 
 import { randomUUID } from 'node:crypto'
+import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
 import {
   agent as acpAgent,
@@ -129,6 +130,7 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  readonly schedules?: AcpSchedulePort
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -233,6 +235,7 @@ class AcpSession {
   private preparing: PreparingPrompt | undefined
   private skills: readonly SkillSummary[] = []
   private areCommandsAnnounced = false
+  private releaseSchedules: (() => Promise<void>) | undefined
   private effort: EffortLevel = DEFAULT_EFFORT
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
@@ -314,15 +317,28 @@ class AcpSession {
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
       observeError(this.deps, 'skillsUnavailable')
-      return
+      if (this.deps.schedules === undefined) return
     }
     this.send({
       sessionUpdate: 'available_commands_update',
-      availableCommands: this.skills.map((skill) => ({
-        name: skill.selector,
-        description: skill.description === '' ? skill.displayName : skill.description,
-        input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
-      })),
+      availableCommands: [
+        ...(this.deps.schedules === undefined
+          ? []
+          : [
+              {
+                name: 'schedule',
+                description: UI_TEXT.scheduleV2.labels.title,
+                input: { hint: UI_TEXT.scheduleV2.runtime.usage },
+              },
+            ]),
+        ...this.skills
+          .filter((skill) => this.deps.schedules === undefined || skill.selector !== 'schedule')
+          .map((skill) => ({
+            name: skill.selector,
+            description: skill.description === '' ? skill.displayName : skill.description,
+            input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
+          })),
+      ],
     })
   }
 
@@ -830,6 +846,21 @@ class AcpSession {
     this.preparing = preparing
     try {
       await this.announceCommands()
+      if (/^\/schedule(?:\s|$)/.test(parsed.displayText)) {
+        const result =
+          this.deps.schedules === undefined
+            ? UI_TEXT.scheduleV2.runtime.unavailable
+            : await this.deps.schedules.run(parsed.displayText, {
+                cwd: this.cwd,
+                sessionId: this.sessionId,
+                backend: this.deps.backend.kind,
+              })
+        if (preparing.isCancelled) return 'cancelled'
+        if ('error' in preparing) throw preparing.error
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: result } })
+        await this.outbox
+        return 'end_turn'
+      }
     } finally {
       this.preparing = undefined
     }
@@ -916,6 +947,12 @@ class AcpSession {
     return this.isDisposed
   }
 
+  public async holdSchedules(): Promise<void> {
+    const release = await this.deps.schedules?.holdWorkspace?.(this.cwd)
+    if (this.isDisposed) await release?.()
+    else this.releaseSchedules = release
+  }
+
   /**
    * Let go (closed, loaded again, or never set up). At once it stops
    * following the backend, the editor's late answers decide nothing, and a
@@ -937,6 +974,14 @@ class AcpSession {
     this.pending?.resolve('cancelled')
     this.pending = undefined
     this.unsubscribe()
+    const releaseSchedules = this.releaseSchedules
+    this.releaseSchedules = undefined
+    try {
+      await releaseSchedules?.()
+    } catch {
+      this.deps.log.warn('ACP schedule workspace release failed')
+      observeError(this.deps, 'scheduleReleaseFailed')
+    }
     if (wasRunning) {
       // Stopped once its start is answered, even a start that failed: one
       // past its deadline (Muse Code's `turn/start`) may still start.
@@ -1046,6 +1091,7 @@ class AgentState {
         session.modelId,
       )
       this.adopting.set(sessionId, acp)
+      await acp.holdSchedules()
       await prepare(acp)
       this.ensureClaim(claim, host)
       if (acp.isReleased) {

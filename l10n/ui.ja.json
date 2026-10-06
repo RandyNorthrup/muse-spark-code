@@ -2476,6 +2476,15 @@
       "enabled": "利用可能なバックエンドでスケジュールを有効にします。既定で有効で、各実行は継続的な許可の範囲内で無人実行されます。",
       "defaultDelivery": "新しいスケジュールの既定の配信方法です。既定ではアイドル時に新しいターンを開始します。",
       "agentCreation": "エージェントによるスケジュール作成の既定の権限：確認、上限内で常に許可、または許可しない。既定では確認します。"
+    },
+    "runtime": {
+      "usage": "使用法: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "accepted": "スケジュール要求を受け付けました",
+      "empty": "スケジュールや今後の実行はありません。",
+      "unavailable": "このホストではスケジュールを利用できません。ランタイムのスケジューラーとの接続が必要です。",
+      "invalidRequest": "スケジュール要求が無効です。下書き、識別子、オプションを確認してください。",
+      "invalidResponse": "スケジューラーが無効な応答を返しました。",
+      "consentRequired": "バックグラウンド実行には、明示的に「はい」と答える必要があります。"
     }
   }
 }

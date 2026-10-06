@@ -2764,6 +2764,15 @@
       "enabled": "Włącz harmonogramy w dostępnych silnikach. Domyślnie włączone; każde uruchomienie działa bez nadzoru w ramach stałego zezwolenia.",
       "defaultDelivery": "Domyślne dostarczenie nowych harmonogramów. Domyślnie rozpocznij nową turę po przejściu w bezczynność.",
       "agentCreation": "Domyślne uprawnienie agentów do tworzenia harmonogramów: pytaj, zawsze w ramach limitów lub nigdy. Domyślnie pytaj."
+    },
+    "runtime": {
+      "usage": "Użycie: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "accepted": "Przyjęto żądanie harmonogramu",
+      "empty": "Brak harmonogramów lub nadchodzących uruchomień.",
+      "unavailable": "Harmonogramy są niedostępne na tym hoście. Wymagane jest połączenie z harmonogramem środowiska wykonawczego.",
+      "invalidRequest": "Nieprawidłowe żądanie harmonogramu. Sprawdź wersję roboczą, identyfikator i opcje.",
+      "invalidResponse": "Harmonogram zwrócił nieprawidłową odpowiedź.",
+      "consentRequired": "Harmonogram w tle wymaga wyraźnej odpowiedzi Tak."
     }
   }
 }

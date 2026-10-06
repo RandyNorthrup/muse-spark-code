@@ -2476,6 +2476,15 @@
       "enabled": "在可用後端上啟用排程。預設開啟，每次執行均在長期授權範圍內無人值守執行。",
       "defaultDelivery": "新排程的預設傳送方式。預設在閒置時開始新回合。",
       "agentCreation": "代理建立排程的預設權限：詢問、在上限內一律允許或永不允許。預設詢問。"
+    },
+    "runtime": {
+      "usage": "用法: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "accepted": "已接受排程要求",
+      "empty": "沒有排程或即將執行的工作。",
+      "unavailable": "此主機無法使用排程。需要連接執行階段排程器。",
+      "invalidRequest": "排程要求無效。請檢查草稿、識別碼和選項。",
+      "invalidResponse": "排程器傳回了無效回應。",
+      "consentRequired": "背景排程需要您明確選擇「是」。"
     }
   }
 }

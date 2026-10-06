@@ -2572,6 +2572,15 @@
       "enabled": "Kullanılabilir arka uçlarda zamanlamaları etkinleştir. Varsayılan olarak açık; her çalıştırma kalıcı izni içinde gözetimsiz çalışır.",
       "defaultDelivery": "Yeni zamanlamalar için varsayılan iletim. Varsayılan olarak boştayken yeni bir tur başlat.",
       "agentCreation": "Ajanların zamanlama oluşturması için varsayılan izin: sor, sınırlar içinde her zaman veya hiçbir zaman. Varsayılan olarak sor."
+    },
+    "runtime": {
+      "usage": "Kullanım: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "accepted": "Zamanlama isteği kabul edildi",
+      "empty": "Zamanlama veya yaklaşan çalıştırma yok.",
+      "unavailable": "Bu ana makinede zamanlamalar kullanılamıyor. Çalışma zamanı zamanlayıcısının bağlantısı gerekiyor.",
+      "invalidRequest": "Geçersiz zamanlama isteği. Taslağı, tanımlayıcıyı ve seçenekleri kontrol edin.",
+      "invalidResponse": "Zamanlayıcı geçersiz bir yanıt döndürdü.",
+      "consentRequired": "Arka plan zamanlaması için açıkça Evet demeniz gerekir."
     }
   }
 }

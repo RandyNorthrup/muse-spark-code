@@ -2668,6 +2668,15 @@
       "enabled": "Activer les planifications sur les moteurs disponibles. Activées par défaut ; chaque exécution est autonome dans son autorisation permanente.",
       "defaultDelivery": "Acheminement par défaut des nouvelles planifications. Démarrer un nouveau tour une fois inactif par défaut.",
       "agentCreation": "Permission par défaut des agents pour créer des planifications : demander, toujours dans les limites ou jamais. Demander par défaut."
+    },
+    "runtime": {
+      "usage": "Utilisation: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "accepted": "Demande de planification acceptée",
+      "empty": "Aucune planification ni exécution à venir.",
+      "unavailable": "Les planifications sont indisponibles sur cet hôte. La connexion au planificateur du runtime est requise.",
+      "invalidRequest": "Demande de planification non valide. Vérifiez le brouillon, l’identifiant et les options.",
+      "invalidResponse": "Le planificateur a renvoyé une réponse non valide.",
+      "consentRequired": "La planification en arrière-plan nécessite votre Oui explicite."
     }
   }
 }

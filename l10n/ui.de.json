@@ -2572,6 +2572,15 @@
       "enabled": "Zeitpläne auf verfügbaren Backends aktivieren. Standardmäßig an; jede Ausführung läuft unbeaufsichtigt innerhalb ihrer dauerhaften Freigabe.",
       "defaultDelivery": "Standardzustellung für neue Zeitpläne. Standardmäßig einen neuen Durchgang bei Leerlauf starten.",
       "agentCreation": "Standardberechtigung für Agenten zum Erstellen von Zeitplänen: fragen, immer innerhalb der Grenzen oder nie. Standardmäßig fragen."
+    },
+    "runtime": {
+      "usage": "Verwendung: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "accepted": "Zeitplananfrage angenommen",
+      "empty": "Keine Zeitpläne oder bevorstehenden Ausführungen.",
+      "unavailable": "Zeitpläne sind auf diesem Host nicht verfügbar. Die Anbindung an den Laufzeitplaner ist erforderlich.",
+      "invalidRequest": "Ungültige Zeitplananfrage. Prüfen Sie Entwurf, Kennung und Optionen.",
+      "invalidResponse": "Der Planer hat eine ungültige Antwort zurückgegeben.",
+      "consentRequired": "Die Hintergrundplanung erfordert Ihr ausdrückliches Ja."
     }
   }
 }

@@ -18,6 +18,17 @@ import { forms } from './forms'
 export const EN = {
   // M115 lane 0: strings for the lazy schedule surfaces and adapters.
   scheduleV2: {
+    runtime: {
+      usage:
+        'Usage: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]',
+      accepted: 'Schedule request accepted',
+      empty: 'No schedules or upcoming fires.',
+      unavailable:
+        'Schedules are unavailable in this host. The runtime scheduler binding is required.',
+      invalidRequest: 'Invalid schedule request. Check the draft, identifier and options.',
+      invalidResponse: 'The scheduler returned an invalid response.',
+      consentRequired: 'Background scheduling requires your explicit Yes.',
+    },
     settings: {
       enabled:
         'Enable schedules on available backends. On by default; each fire runs unattended within its standing grant.',

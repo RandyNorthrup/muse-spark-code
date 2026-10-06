@@ -2572,6 +2572,15 @@
       "enabled": "Ütemezések engedélyezése az elérhető háttérrendszereken. Alapértelmezetten bekapcsolva; minden futás felügyelet nélkül, az állandó engedélyen belül működik.",
       "defaultDelivery": "Új ütemezések alapértelmezett kézbesítése. Alapértelmezetten új kör indítása üresjáratban.",
       "agentCreation": "Az ügynökök ütemezéslétrehozási alapengedélye: kérdezzen, mindig a korlátokon belül vagy soha. Alapértelmezetten kérdezzen."
+    },
+    "runtime": {
+      "usage": "Használat: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "accepted": "Ütemezési kérés elfogadva",
+      "empty": "Nincsenek ütemezések vagy közelgő futtatások.",
+      "unavailable": "Ezen a gazdagépen az ütemezések nem érhetők el. A futtatókörnyezet ütemezőjének csatlakoztatása szükséges.",
+      "invalidRequest": "Érvénytelen ütemezési kérés. Ellenőrizze a piszkozatot, az azonosítót és a beállításokat.",
+      "invalidResponse": "Az ütemező érvénytelen választ adott.",
+      "consentRequired": "A háttérben történő ütemezéshez kifejezett Igen válasz szükséges."
     }
   }
 }

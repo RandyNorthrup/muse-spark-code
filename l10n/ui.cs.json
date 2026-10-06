@@ -2764,6 +2764,15 @@
       "enabled": "Povolit plány na dostupných backendech. Ve výchozím stavu zapnuto; každé spuštění běží bez dozoru v rámci trvalého povolení.",
       "defaultDelivery": "Výchozí doručení nových plánů. Ve výchozím stavu spustit nový tah při nečinnosti.",
       "agentCreation": "Výchozí oprávnění agentů vytvářet plány: zeptat se, vždy v rámci limitů nebo nikdy. Ve výchozím stavu se zeptat."
+    },
+    "runtime": {
+      "usage": "Použití: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "accepted": "Požadavek na plán přijat",
+      "empty": "Žádné plány ani nadcházející spuštění.",
+      "unavailable": "Plány nejsou na tomto hostiteli dostupné. Je nutné připojení plánovače běhového prostředí.",
+      "invalidRequest": "Neplatný požadavek na plán. Zkontrolujte návrh, identifikátor a možnosti.",
+      "invalidResponse": "Plánovač vrátil neplatnou odpověď.",
+      "consentRequired": "Plánování na pozadí vyžaduje vaše výslovné Ano."
     }
   }
 }

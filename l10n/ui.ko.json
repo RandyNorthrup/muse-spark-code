@@ -2476,6 +2476,15 @@
       "enabled": "사용 가능한 백엔드에서 일정을 활성화합니다. 기본적으로 켜져 있으며 각 실행은 상시 허용 범위 내에서 무인으로 진행됩니다.",
       "defaultDelivery": "새 일정의 기본 전달 방식입니다. 기본적으로 유휴 상태에서 새 턴을 시작합니다.",
       "agentCreation": "에이전트의 일정 생성 기본 권한: 묻기, 한도 내 항상 허용 또는 허용 안 함. 기본적으로 묻습니다."
+    },
+    "runtime": {
+      "usage": "사용법: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "accepted": "일정 요청을 수락했습니다",
+      "empty": "일정이나 예정된 실행이 없습니다.",
+      "unavailable": "이 호스트에서는 일정을 사용할 수 없습니다. 런타임 스케줄러 연결이 필요합니다.",
+      "invalidRequest": "잘못된 일정 요청입니다. 초안, 식별자 및 옵션을 확인하세요.",
+      "invalidResponse": "스케줄러가 잘못된 응답을 반환했습니다.",
+      "consentRequired": "백그라운드 일정 실행에는 명시적으로 예를 선택해야 합니다."
     }
   }
 }

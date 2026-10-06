@@ -1,4 +1,5 @@
 import { fill } from '../../src/shared/l10n/text'
+import type { AcpSchedulePort } from '../../src/acp/schedules'
 import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it, vi } from 'vitest'
@@ -54,6 +55,7 @@ interface Harness {
 }
 
 interface HarnessOptions {
+  readonly schedules?: AcpSchedulePort
   readonly backendHost?: AgentHost
   readonly readiness?: BackendReadiness
   readonly answer?: PermissionAnswer
@@ -88,6 +90,7 @@ function harness(options: HarnessOptions = {}): Harness {
     log,
   })
   const deps: AcpAgentDeps = {
+    ...(options.schedules !== undefined && { schedules: options.schedules }),
     backend: {
       kind,
       readiness: (isRecheck) => {
@@ -597,6 +600,57 @@ describe('the ACP agent (M63)', () => {
         entries: [{ content: 'Write tests', priority: 'medium', status: 'in_progress' }],
       },
     ])
+  })
+
+  it('routes /schedule locally and holds its workspace only while the ACP session exists', async () => {
+    const release = vi.fn<() => Promise<void>>().mockResolvedValue()
+    const run = vi.fn<AcpSchedulePort['run']>().mockResolvedValue('Schedule list')
+    const holdWorkspace = vi
+      .fn<NonNullable<AcpSchedulePort['holdWorkspace']>>()
+      .mockResolvedValue(release)
+    const h = harness({ schedules: { run, holdWorkspace } })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(
+        await client.request('session/prompt', {
+          sessionId,
+          prompt: [{ type: 'text', text: '/schedule list' }],
+        }),
+      ).toEqual({ stopReason: 'end_turn' })
+      expect(run).toHaveBeenCalledWith('/schedule list', {
+        cwd: CWD,
+        sessionId,
+        backend: 'museCode',
+      })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      expect(holdWorkspace).toHaveBeenCalledWith(CWD)
+      expect(h.updates).toContainEqual({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'Schedule list' },
+      })
+      expect(h.updates[0]).toMatchObject({
+        sessionUpdate: 'available_commands_update',
+        availableCommands: [{ name: 'schedule' }],
+      })
+      await client.request('session/close', { sessionId })
+      expect(release).toHaveBeenCalledOnce()
+    })
+  })
+
+  it('refuses /schedule without a binding instead of starting a model turn', async () => {
+    const h = harness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await client.request('session/prompt', {
+        sessionId,
+        prompt: [{ type: 'text', text: '/schedule add {}' }],
+      })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      expect(h.updates).toContainEqual({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: UI_TEXT.scheduleV2.runtime.unavailable },
+      })
+    })
   })
 
   it('announces skills as commands and runs /selector as the skill', async () => {

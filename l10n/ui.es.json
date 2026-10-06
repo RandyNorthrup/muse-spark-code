@@ -2668,6 +2668,15 @@
       "enabled": "Activar las programaciones en los motores disponibles. Activadas por defecto; cada ejecución funciona sin supervisión dentro de sus permisos permanentes.",
       "defaultDelivery": "Entrega predeterminada de nuevas programaciones. Por defecto, iniciar un nuevo turno al quedar inactivo.",
       "agentCreation": "Permiso predeterminado para que los agentes creen programaciones: preguntar, siempre dentro de los límites o nunca. Preguntar por defecto."
+    },
+    "runtime": {
+      "usage": "Uso: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "accepted": "Solicitud de programación aceptada",
+      "empty": "No hay programaciones ni ejecuciones próximas.",
+      "unavailable": "Las programaciones no están disponibles en este host. Se requiere la conexión con el programador del entorno de ejecución.",
+      "invalidRequest": "Solicitud de programación no válida. Compruebe el borrador, el identificador y las opciones.",
+      "invalidResponse": "El programador devolvió una respuesta no válida.",
+      "consentRequired": "La programación en segundo plano requiere que responda Sí explícitamente."
     }
   }
 }

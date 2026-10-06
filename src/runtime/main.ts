@@ -59,6 +59,7 @@ import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { uiLocale } from '../shared/l10n/text'
+import { runtimeSchedulesBinding } from './schedules/binding'
 
 const EXIT_FAILED = 1
 // The Model API key variable Muse Code reads; the report says only whether it was set.
@@ -307,6 +308,8 @@ async function setupHooks(
 
 async function serve(options: ServeOptions, log: Logger): Promise<number> {
   const runtime = runtimeFor(options, log)
+  const loadSchedules = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+  let loadedSchedules: Awaited<ReturnType<typeof loadSchedules>> | undefined
   // A proxy the Model API backend's requests will not use is said at once (Q66).
   const proxyWarning = envProxyWarning({
     backend: options.backend,
@@ -326,6 +329,24 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   const journal = await reportJournal(log)
   await journal.startup()
   const agent = createAcpAgent({
+    schedules: {
+      async holdWorkspace(cwd) {
+        try {
+          loadedSchedules ??= await loadSchedules()
+          return await loadedSchedules.holdWorkspace(cwd)
+        } catch {
+          return
+        }
+      },
+      async run(text, context) {
+        try {
+          loadedSchedules ??= await loadSchedules()
+          return await loadedSchedules.run(text, context)
+        } catch {
+          return UI_TEXT.scheduleV2.runtime.unavailable
+        }
+      },
+    },
     backend: runtime.backend,
     version: packageVersion(),
     options: {
@@ -347,9 +368,19 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     ndJsonStream(Writable.toWeb(process.stdout), webReadable(process.stdin)),
   )
   log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
-  await connection.closed
-  await runtime.close()
-  await journal.shutdown()
+  try {
+    await connection.closed
+  } finally {
+    try {
+      await loadedSchedules?.close()
+    } finally {
+      try {
+        await runtime.close()
+      } finally {
+        await journal.shutdown()
+      }
+    }
+  }
   return 0
 }
 
@@ -487,6 +518,28 @@ async function main(): Promise<number> {
     log,
   })
   switch (command.command) {
+    case 'schedule': {
+      const load = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+      let binding: Awaited<ReturnType<typeof load>> | undefined
+      try {
+        binding = await load()
+        const result = await binding.command(
+          command.options,
+          path.resolve(command.options.cwd ?? process.cwd()),
+        )
+        writeLine(process.stdout, result.output)
+        return result.exitCode
+      } catch {
+        const reason = UI_TEXT.scheduleV2.runtime.unavailable
+        writeLine(
+          command.options.isJson ? process.stdout : process.stderr,
+          command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
+        )
+        return EXIT_FAILED
+      } finally {
+        await binding?.close()
+      }
+    }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
     }
@@ -592,6 +645,7 @@ async function main(): Promise<number> {
     }
     case 'help': {
       writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      writeLine(process.stdout, UI_TEXT.scheduleV2.runtime.usage)
       return 0
     }
     case 'invalid': {
