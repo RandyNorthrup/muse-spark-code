@@ -8,47 +8,36 @@ import {
 } from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'
 
-/** Refuse lossy keys before zod records run, and preserve JSON records without a prototype. */
-export function execRecordSchema<T>(
-  valueSchema: z.ZodMiniType<T>,
-): z.ZodMiniType<Record<string, T>> {
+/** Typed records are built only after the shared input preflight refuses lossy keys. */
+function execRecordSchema<T>(valueSchema: z.ZodMiniType<T>): z.ZodMiniType<Record<string, T>> {
   return z.pipe(
-    z.pipe(
-      z.transform((value: unknown, context) => {
-        let nodes = 0
-        const copy = (item: unknown, depth: number): unknown => {
-          nodes += 1
-          if (nodes > MCP_SCHEMA_LIMITS.nodes || depth > MCP_SCHEMA_LIMITS.depth * 2 + 2)
-            throw new Error('depth / nodes')
-          if (Array.isArray(item)) return item.map((child: unknown) => copy(child, depth + 1))
-          if (typeof item !== 'object' || item === null) return item
-          const record: Record<string, unknown> = {}
-          Object.setPrototypeOf(record, null)
-          for (const [key, child] of Object.entries(item)) {
-            if (['__proto__', 'constructor', 'prototype'].includes(key))
-              throw new Error('forbidden record key')
-            record[key] = copy(child, depth + 1)
-          }
-          return record
-        }
-        try {
-          return copy(value, 0)
-        } catch (error: unknown) {
-          context.issues.push({
-            code: 'custom',
-            input: value,
-            message: error instanceof Error ? error.message : 'record',
-          })
-          return value
-        }
-      }),
-      z.record(z.string(), valueSchema),
-    ),
+    z.record(z.string(), valueSchema),
     z.transform((record) => {
       Object.setPrototypeOf(record, null)
       return record
     }),
   )
+}
+
+/** One bounded preflight per input, before any record, grammar or answer schema runs. */
+export function parseExecRecord(value: unknown): Record<string, unknown> {
+  let nodes = 0
+  const copy = (item: unknown, depth: number): unknown => {
+    nodes += 1
+    if (nodes > MCP_SCHEMA_LIMITS.nodes || depth > MCP_SCHEMA_LIMITS.depth * 2 + 2)
+      throw new Error('depth / nodes')
+    if (Array.isArray(item)) return item.map((child: unknown) => copy(child, depth + 1))
+    if (typeof item !== 'object' || item === null) return item
+    const record: Record<string, unknown> = {}
+    Object.setPrototypeOf(record, null)
+    for (const [key, child] of Object.entries(item)) {
+      if (['__proto__', 'constructor', 'prototype'].includes(key))
+        throw new Error('forbidden record key')
+      record[key] = copy(child, depth + 1)
+    }
+    return record
+  }
+  return execRecordSchema(z.unknown()).parse(copy(value, 0))
 }
 
 const types = ['object', 'array', 'string', 'number', 'integer', 'boolean', 'null'] as const
@@ -152,13 +141,14 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
     invalid('JSON / UTF-8')
   }
   if (!isBounded(decoded)) invalid('depth / nodes')
-  const parsed = nodeSchema.safeParse(decoded)
-  if (!parsed.success)
-    invalid(
-      parsed.error.issues.some((issue) => issue.message === 'forbidden record key')
-        ? 'forbidden record key'
-        : 'keywords / types',
-    )
+  let record: Record<string, unknown>
+  try {
+    record = parseExecRecord(decoded)
+  } catch (error: unknown) {
+    invalid(error instanceof Error ? error.message : 'record')
+  }
+  const parsed = nodeSchema.safeParse(record)
+  if (!parsed.success) invalid('keywords / types')
   const root = parsed.data
   if (root.type !== 'object' || root.$ref !== undefined || root.anyOf !== undefined)
     invalid('root object')
@@ -352,23 +342,24 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
   }
   return {
     sha256: fingerprint(source),
-    schema: execRecordSchema(z.unknown()).parse(decoded),
+    schema: record,
     parseAnswer(text) {
       let answer: unknown
       try {
-        answer = JSON.parse(text)
-      } catch {
-        return { ok: false, detail: 'JSON' }
+        answer = parseExecRecord(JSON.parse(text))
+      } catch (error: unknown) {
+        return {
+          ok: false,
+          detail:
+            error instanceof Error &&
+            ['forbidden record key', 'depth / nodes'].includes(error.message)
+              ? error.message
+              : 'JSON',
+        }
       }
       if (!isBounded(answer)) return { ok: false, detail: 'depth / nodes' }
       const json = outputJsonSchema.safeParse(answer)
-      if (!json.success)
-        return {
-          ok: false,
-          detail: JSON.stringify(json.error.issues).includes('forbidden record key')
-            ? 'forbidden record key'
-            : 'JSON',
-        }
+      if (!json.success) return { ok: false, detail: 'JSON' }
       try {
         return isValidAnswer(json.data)
           ? { ok: true, value: json.data }

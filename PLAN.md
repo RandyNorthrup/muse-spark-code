@@ -21250,6 +21250,24 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM106O22 (2026-10-06).** Both RVM106O22 P2 findings are fixed;
+  neither is deferred. O2's shared record parser refuses own `__proto__`,
+  `constructor` and `prototype` keys at every depth before strict grammar or
+  answer validation, preserving null-prototype records. Its single confined
+  schema reader opens first, uses final-component no-follow where supported,
+  compares the held file's exact BigInt device/inode with lstat of the path's
+  realpath, enforces workspace containment, and reads only that handle.
+  Regression seams cover file/parent swaps and Windows junctions; regular-file,
+  stat-size, growth, close and outside-disclosure controls remain enforced.
+  No new P2/P3 residual is accepted. Existing O2-CLI-W, O2-FORMAT-W-M95,
+  O2-RESULT-W and O2-HELP-DOC-W ownership handoffs below remain in force.
+  Follow-up: W adopts the same record preflight in canonical readers and
+  downstream contracts and publishes the help/CHANGELOG note after its fake
+  CLI smoke and the lead's certification. Suggested note: “Headless schema
+  validation refuses reserved record keys instead of dropping them; confined
+  schema reads verify the opened file before reading.” No supported public
+  feature or Windows-native execution is inferred from the scoped seam tests.
+
 - **O2-CLI-W / O2-FORMAT-W-M95 / O2-RESULT-W / O2-HELP-DOC-W
   (FIXM106O2, 2026-10-06).** All six RVM106O2 P2 findings are fixed in O2's
   shared runtime and fake-only tests; none is left as a finding residual.

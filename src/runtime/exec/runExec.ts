@@ -1,7 +1,13 @@
 import * as acp from '@agentclientprotocol/sdk'
-import { stat, realpath } from 'node:fs/promises'
+import { constants as fileFlags, stat, realpath, open, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import type { Readable } from 'node:stream'
+import {
+  handleIdentity,
+  lstatIdentity,
+  sameFile,
+  type FileIdentity,
+} from '../../core/fs/fileIdentity'
 import { createAcpAgent } from '../../acp/agent'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
@@ -89,6 +95,55 @@ export interface ExecDeps {
   randomHex: (bytes: number) => string
   log: Logger
   outputSchema?: ExecOutputSchemaPort
+  /** Filesystem seam for races and Windows junctions; production uses the native filesystem. */
+  schemaFileIo?: {
+    open: (file: string, flags: number) => Promise<FileHandle>
+    realpath: (file: string) => Promise<string>
+    lstat: (file: string) => Promise<FileIdentity>
+  }
+}
+
+/** Open first, verify the held target, then read exclusively through that handle. */
+async function readSchemaFile(
+  deps: ExecDeps,
+  cwd: string,
+  signal: AbortSignal,
+  log: Logger,
+): Promise<Uint8Array> {
+  signal.throwIfAborted()
+  const io = deps.schemaFileIo ?? { open, realpath, lstat: lstatIdentity }
+  const file = path.resolve(cwd, deps.options.outputSchema ?? '')
+  // Windows has no O_NOFOLLOW; handle identity and realpath confinement still apply.
+  const flags = fileFlags.O_RDONLY | (deps.platform === 'win32' ? 0 : fileFlags.O_NOFOLLOW)
+  const handle = await io.open(file, flags)
+  try {
+    signal.throwIfAborted()
+    const [info, target, workspace] = await Promise.all([
+      handleIdentity(handle),
+      io.realpath(file),
+      io.realpath(cwd),
+    ])
+    const paths = deps.platform === 'win32' ? path.win32 : path
+    const relative = paths.relative(workspace, target).replaceAll('\\', '/')
+    const isOutside = relative === '..' || relative.startsWith('../') || paths.isAbsolute(relative)
+    if (isOutside && deps.options.outputSchemaOutside !== true)
+      throw new Error(UI_TEXT.outputSchemaOutsideRefused)
+    const current = await io.lstat(target)
+    if (!info.isFile() || !sameFile(info, current)) throw new Error(UI_TEXT.execFileUnreadable)
+    if (isOutside) log.info(UI_TEXT.outputSchemaOutsideAllowed)
+    if (info.size > BigInt(EXEC_PROMPT_MAX_BYTES)) throw new Error(UI_TEXT.execFileTooLarge)
+    const bytes = new Uint8Array(EXEC_PROMPT_MAX_BYTES + 1)
+    let offset = 0
+    for (;;) {
+      signal.throwIfAborted()
+      const part = await handle.read(bytes, offset, bytes.length - offset, null)
+      offset += part.bytesRead
+      if (offset > EXEC_PROMPT_MAX_BYTES) throw new Error(UI_TEXT.execFileTooLarge)
+      if (part.bytesRead === 0) return bytes.subarray(0, offset)
+    }
+  } finally {
+    await handle.close()
+  }
 }
 
 function stopMessage(cause: StopCause, maxRequests: number): string {
@@ -321,27 +376,13 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     const folder = await lifecycle.race(stat(cwd))
     if (!folder.isDirectory()) throw new Error(UI_TEXT.execFileUnreadable)
     if (options.outputSchema !== undefined) {
-      let resolved: [string, string]
-      try {
-        resolved = await lifecycle.race(
-          Promise.all([realpath(cwd), realpath(path.resolve(cwd, options.outputSchema))]),
-        )
-      } catch {
-        throw new Error(fill(UI_TEXT.outputSchemaReadFailed, { detail: 'file' }))
-      }
-      const [workspacePath, schemaPath] = resolved
-      const relative = path.relative(workspacePath, schemaPath).replaceAll('\\', '/')
-      const isOutside = relative === '..' || relative.startsWith('../') || path.isAbsolute(relative)
-      if (isOutside && options.outputSchemaOutside !== true)
-        throw new Error(UI_TEXT.outputSchemaOutsideRefused)
-      if (isOutside) log.info(UI_TEXT.outputSchemaOutsideAllowed)
       let bytes: Uint8Array
       try {
-        bytes = await lifecycle.race(
-          deps.readFile(schemaPath, EXEC_PROMPT_MAX_BYTES, lifecycle.signal),
-        )
-      } catch {
-        throw new Error(fill(UI_TEXT.outputSchemaReadFailed, { detail: 'file' }))
+        bytes = await lifecycle.race(readSchemaFile(deps, cwd, lifecycle.signal, log))
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message === UI_TEXT.outputSchemaOutsideRefused)
+          throw error
+        throw new Error(fill(UI_TEXT.outputSchemaReadFailed, { detail: 'file' }), { cause: error })
       }
       outputSchema = compileOutputSchema(bytes)
       if (deps.outputSchema === undefined)
