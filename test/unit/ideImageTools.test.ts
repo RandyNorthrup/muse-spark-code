@@ -49,7 +49,7 @@ function setup(
       keyGeneration: options.keyGeneration ?? (() => 0),
       workspace:
         options.hasFolder === false ? undefined : { workspaceRoot: ROOT, platform: 'linux', io },
-      client,
+      client: () => client,
       confirm: (plan) => {
         asked.push(plan)
         return options.confirm?.(plan) ?? Promise.resolve(options.answer ?? true)

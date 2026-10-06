@@ -5,6 +5,7 @@
 import { parseArgs } from 'node:util'
 import * as z from 'zod/mini'
 import {
+  ACP_AGENT_NAME,
   ACP_BACKENDS,
   ACP_DEFAULT_BACKEND,
   ACP_PAID_FEATURES,
@@ -48,10 +49,23 @@ export interface ServeOptions {
   readonly isVerbose: boolean
 }
 
+/** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
+export interface ReportOptions {
+  /** Write the report to this file instead of stdout; undefined prints it. */
+  readonly out: string | undefined
+  /** What was happening, in the user's own words (capped and scrubbed by the builder). */
+  readonly description: string
+  /** Section switches: the user can leave items out before anyone reads them. */
+  readonly includeFacts: boolean
+  readonly includeEvents: boolean
+}
+
 export type RuntimeCommand =
   | { readonly command: 'usage'; readonly options: UsageCommand }
+  | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
+  | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'help' | 'version' }
@@ -92,6 +106,7 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
   if (argv[0] === '--usage') return parseUsage(['--json', ...argv.slice(1)])
   if (argv[0] === 'usage') return parseUsage(argv.slice(1))
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
+  if (argv[0] === 'report') return parseReport(argv.slice(1))
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
     parsed = parseCommandLineStrictly(argv)
@@ -137,6 +152,12 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     isVerbose: values.verbose === true,
   }
   const [first, second, ...rest] = positionals
+  if (first === 'setup' && second === undefined) {
+    return options.trustWorkspace
+      ? { command: 'setup', options, maintenance: values.maintenance === true }
+      : { command: 'invalid', reason: UI_TEXT.hooksNotRunnable }
+  }
+  if (values.maintenance === true) return invalid('--maintenance')
   if (first === undefined) {
     return { command: 'serve', options }
   }
@@ -294,6 +315,43 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
   }
 }
 
+/** `report [options]`: the standalone problem report (M93 lane A, PLAN.md D72). */
+function parseReport(argv: readonly string[]): RuntimeCommand {
+  try {
+    const { values, positionals } = parseArgs({
+      args: [...argv],
+      allowPositionals: true,
+      strict: true,
+      options: {
+        out: { type: 'string' },
+        description: { type: 'string' },
+        'no-facts': { type: 'boolean' },
+        'no-events': { type: 'boolean' },
+        help: { type: 'boolean', short: 'h' },
+      },
+    })
+    if (values.help === true) return { command: 'help' }
+    if (positionals.length > 0 || values.out === '') {
+      return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+    }
+    return {
+      command: 'report',
+      options: {
+        out: values.out,
+        description: values.description ?? '',
+        includeFacts: values['no-facts'] !== true,
+        includeEvents: values['no-events'] !== true,
+      },
+    }
+  } catch {
+    return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+  }
+}
+
+function reportUsage(): string {
+  return fill(UI_TEXT.reportUsage, { command: ACP_AGENT_NAME })
+}
+
 function parseCommandLineStrictly(argv: readonly string[]) {
   return parseArgs({
     args: [...argv],
@@ -303,6 +361,7 @@ function parseCommandLineStrictly(argv: readonly string[]) {
       backend: { type: 'string' },
       'usage-history': { type: 'string' },
       'trust-workspace': { type: 'boolean' },
+      maintenance: { type: 'boolean' },
       'muse-binary': { type: 'string' },
       'shell-sandbox': { type: 'string' },
       'allow-dangerously-skip-permissions': { type: 'boolean' },

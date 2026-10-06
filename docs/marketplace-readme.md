@@ -7,6 +7,29 @@ macOS and Linux, in English and fourteen translated languages.
 Unofficial. Not affiliated with or endorsed by Meta. “Muse Spark” and “Muse
 Code” are Meta trademarks. You bring your own credentials.
 
+[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
+
+## What's new in 0.14.0
+
+- **Tab completions** (see [Tab completions](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)). Alt+\ invokes
+  ghost text. First-use consent names the model price and the separate
+  $1.00/day default hard budget; your stored Model API key pays on either backend.
+- **Git and pull requests** (see [Git and pull requests](https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests)).
+  Draft a commit or PR in the conversation, commit and push with confirmation,
+  and open a foreign PR in a held worktree until you confirm its trust card.
+- **Hooks and plugins** (see [Hooks](https://github.com/RandyNorthrup/muse-spark-code#hooks)). Import popular agent hook formats,
+  run Setup and Manual hooks on both backends, and use bounded Amp and OpenCode
+  plugins on the Model API backend. Hooks keep their permission and paid-use limits.
+- **Report a problem** (see [Reporting a problem](https://github.com/RandyNorthrup/muse-spark-code#reporting-a-problem)). Preview
+  the exact scrubbed report, remove items, then copy, save or open an issue.
+  The report is built locally and the extension sends nothing.
+- **Muse Judge phase 1** (see [Muse Judge](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)). The conversation model
+  can add uncalibrated caution to an approval; it cannot grant permission.
+  Model API Judge asks for paid-use consent and shares the durable daily budget.
+
+Earlier releases are in the
+[changelog](https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md).
+
 ## Get started
 
 1. Open **Muse Spark** from the activity bar in a trusted workspace.

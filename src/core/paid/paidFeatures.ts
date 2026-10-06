@@ -46,8 +46,25 @@ export interface PaidFeatureGateDeps {
   /** The modal naming the price; true when the user turned the feature on. */
   readonly confirm: (feature: PaidFeature) => Promise<boolean>
   readonly isWindowFocused: () => boolean
+  /**
+   * Features whose price the first use's question names instead of a
+   * turn-on confirmation (Tab, M94 Q-M94a; owner 2026-10-04: on by default,
+   * ask once before the first charge). Their acceptance follows the setting
+   * without a modal, so turning one off still voids its "always" grants
+   * (M58); nothing is billed before the first use's answer (paidConsent.ts).
+   */
+  readonly asksOnFirstUse?: ReadonlySet<PaidFeature>
   readonly log: CoreLogger
 }
+
+/**
+ * M91 prompt/agent hooks (PLAN.md D70) are available by default (OWNER
+ * RULING 2026-10-04, superseding the plan's "off by default"): no turn-on
+ * confirmation asks for them. Their price is asked per run in the paid-use
+ * popup instead, so the gate never confirms them and `isOn` reads only the
+ * setting (the machine-scoped kill switch).
+ */
+const AVAILABLE_BY_DEFAULT: ReadonlySet<PaidFeature> = new Set(['hookModels'])
 
 export class PaidFeatureGate {
   /** Features whose confirmation is on screen now: never asked twice at once. */
@@ -95,12 +112,19 @@ export class PaidFeatureGate {
     this.notify()
   }
 
+  /** Whether the feature's price is named by its first use instead of a turn-on modal. */
+  private asksOnFirstUse(feature: PaidFeature): boolean {
+    return this.deps.asksOnFirstUse?.has(feature) ?? false
+  }
+
   /** Availability only: paidConsent and the request boundary authorize spending. */
   public isOn(feature: PaidFeature): boolean {
     return (
       this.deps.isSettingOn(feature) &&
       this.deps.isAvailable?.(feature) !== false &&
-      (this.deps.isDefaultOn?.(feature) === true || this.deps.readAccepted().has(feature))
+      (AVAILABLE_BY_DEFAULT.has(feature) ||
+        this.deps.isDefaultOn?.(feature) === true ||
+        this.deps.readAccepted().has(feature))
     )
   }
 
@@ -125,14 +149,25 @@ export class PaidFeatureGate {
   public async review(): Promise<void> {
     const pending: PaidFeature[] = []
     for (const feature of PAID_FEATURES) {
+      // A feature available by default needs no turn-on confirmation: its
+      // price is asked per use. Nothing is forgotten either: it holds no
+      // acceptance to lose.
+      if (AVAILABLE_BY_DEFAULT.has(feature)) {
+        continue
+      }
       const isSettingOn = this.deps.isSettingOn(feature)
       const isAccepted = this.deps.readAccepted().has(feature)
       if (!isSettingOn && isAccepted) {
         await this.setAccepted(feature, false)
         this.deps.log.info(`Paid feature ${feature} turned off`)
+      } else if (isSettingOn && !isAccepted && this.asksOnFirstUse(feature)) {
+        // No modal: its first use asks, naming the price (D48).
+        await this.setAccepted(feature, true)
+        this.deps.log.info(`Paid feature ${feature} on; its first use asks`)
       } else if (
         isSettingOn &&
         !isAccepted &&
+        feature !== 'judge' &&
         !this.asking.has(feature) &&
         this.deps.isDefaultOn?.(feature) !== true
       ) {
@@ -149,9 +184,25 @@ export class PaidFeatureGate {
     }
   }
 
+  /** M98: called only after the first-charge three-choice popup accepted the price. */
+  public async acceptJudgePrice(): Promise<boolean> {
+    if (!this.deps.isSettingOn('judge')) return false
+    await this.setAccepted('judge', true)
+    this.notify()
+    return this.isOn('judge')
+  }
+
   /** The palette's toggle turning a feature on: the confirmation first, then the setting. */
   public async turnOn(feature: PaidFeature): Promise<boolean> {
     if (this.isOn(feature)) {
+      return true
+    }
+    if (this.asksOnFirstUse(feature)) {
+      // No modal: its first use asks, naming the price (D48).
+      await this.setAccepted(feature, true)
+      await this.deps.setSetting(feature, true)
+      this.deps.log.info(`Paid feature ${feature} turned on; its first use asks`)
+      this.notify()
       return true
     }
     if (this.asking.has(feature)) {
@@ -353,11 +404,45 @@ export class PaidUsage {
         this.tally = { ...tally, bestOfNAttempts: (tally.bestOfNAttempts ?? 0) + units }
         break
       }
+      case 'tab': {
+        this.tally = { ...tally, tabRequests: (tally.tabRequests ?? 0) + units }
+        break
+      }
+      case 'hookModels': {
+        this.tally = {
+          ...tally,
+          hookModelRuns: (tally.hookModelRuns ?? 0) + units,
+          hookModelUnknownRequests: (tally.hookModelUnknownRequests ?? 0) + units,
+        }
+        break
+      }
+      case 'judge': {
+        this.tally = {
+          ...tally,
+          judgeCalls: (tally.judgeCalls ?? 0) + units,
+          judgeUnknownRequests: (tally.judgeUnknownRequests ?? 0) + units,
+        }
+        break
+      }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
     for (const listener of this.listeners) {
       listener()
     }
+  }
+
+  /** One paid judge receipt, apart from main-thread tokens; unmatched receipts do nothing. */
+  public addJudgeUsage(modelId: string, usage: SubagentUsage): void {
+    const cost = reviewerCost(modelId, usage)
+    const unknown = this.tally.judgeUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      judgeUnknownRequests: unknown - 1,
+      judgeTokens: (this.tally.judgeTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      judgeCostUsd: (this.tally.judgeCostUsd ?? 0) + cost,
+    }
+    for (const listener of this.listeners) listener()
   }
 
   /** One Auto review's tokens and cost (M78), billed apart from the conversation. */
@@ -405,6 +490,70 @@ export class PaidUsage {
       ...this.tally,
       bestOfNRequests: (this.tally.bestOfNRequests ?? 0) + 1,
       bestOfNUnknownRequests: (this.tally.bestOfNUnknownRequests ?? 0) + 1,
+    }
+    for (const listener of this.listeners) listener()
+  }
+
+  /** One prompt/agent hook run started; its cost settles when reported. */
+  public addHookModelRun(): void {
+    this.add('hookModels', 1)
+  }
+
+  /** One hook run's reported billable usage; never replayed from storage. */
+  public addHookModelUsage(modelId: string, usage: SubagentUsage): void {
+    if (modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate hook model use for an unpriced model')
+    }
+    if (
+      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      usage.cachedTokens > usage.inputTokens
+    ) {
+      throw new Error('Hook model usage must be valid nonnegative token counts')
+    }
+    const unknown = this.tally.hookModelUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      hookModelUnknownRequests: unknown - 1,
+      hookModelTokens: (this.tally.hookModelTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      hookModelCostUsd: (this.tally.hookModelCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+    }
+    for (const listener of this.listeners) listener()
+  }
+
+  /** A Tab suggestion request was sent (M94, PLAN.md D73): counted at once, priced on report. */
+  public addTabRequest(): void {
+    this.tally = {
+      ...this.tally,
+      tabRequests: (this.tally.tabRequests ?? 0) + 1,
+      tabUnknownRequests: (this.tally.tabUnknownRequests ?? 0) + 1,
+    }
+    for (const listener of this.listeners) listener()
+  }
+
+  /**
+   * One Tab request's reported tokens (M94, PLAN.md D73): its cost at the
+   * request model's rates, apart from every conversation. A request that
+   * never reports keeps its unknown count, never a zero cost.
+   */
+  public addTabUsage(modelId: string, usage: SubagentUsage): void {
+    if (modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate Tab use for an unpriced model')
+    }
+    if (
+      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      usage.cachedTokens > usage.inputTokens
+    ) {
+      throw new Error('Tab usage must be valid nonnegative token counts')
+    }
+    const unknown = this.tally.tabUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      tabUnknownRequests: unknown - 1,
+      tabTokens: (this.tally.tabTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      tabCachedTokens: (this.tally.tabCachedTokens ?? 0) + usage.cachedTokens,
+      tabCostUsd: (this.tally.tabCostUsd ?? 0) + estimateCostUsd(usage, modelId),
     }
     for (const listener of this.listeners) listener()
   }

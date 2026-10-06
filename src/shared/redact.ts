@@ -120,13 +120,15 @@ const SECRET_FIELD_LITERALS = ['token', 'secret', 'apikey', 'api_key', 'password
 // on over line breaks other than in the white space after a name, `=` or `:`
 // (`redactableSlices` relies on that).
 const PEM_PRIVATE_KEY =
-  /-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----[A-Za-z0-9+/=\s]*(?:-----END [A-Z0-9 ]{0,40}PRIVATE KEY-----)?/g
+  /-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z0-9 ]{0,40}PRIVATE KEY-----|$)/g
 
 // M92's installer validates exactly 32 base64url bytes with token boundaries.
 const GADGET_SDK_TOKEN_PATTERN =
   /(?<![A-Za-z0-9_-])mgst_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048](?![A-Za-z0-9_-])/g
 
 export const SECRET_RULES: readonly SecretRule[] = [
+  // M71: redact whole PEM blocks before any rule can consume a boundary.
+  { pattern: PEM_PRIVATE_KEY, literals: ['private key'], replace: mark },
   // Meta Model API keys.
   { pattern: /LLM_[\w-]{16,}|LLM\|\d+\|[\w+./=-]+/g, literals: ['llm'], replace: mark },
   { pattern: /(\bBearer\s+)[\w+./=~-]+/gi, literals: ['bearer'], replace: markAfter },
@@ -180,9 +182,7 @@ export const SECRET_RULES: readonly SecretRule[] = [
     literals: ['://'],
     replace: markUserInfo,
   },
-  // Whole tokens, recognised by their shape and replaced entirely. A PEM
-  // private key, its body to the END line:
-  { pattern: PEM_PRIVATE_KEY, literals: ['private key'], replace: mark },
+  // Whole tokens, recognised by their shape and replaced entirely.
   // GitHub tokens, GitLab personal access tokens, npm tokens.
   {
     pattern: /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_\w{20,})/g,
@@ -196,7 +196,7 @@ export const SECRET_RULES: readonly SecretRule[] = [
   { pattern: /\bAIza[\w-]{35}/g, literals: ['aiza'], replace: mark },
   // AWS access key ids, Slack tokens, and `sk-` / `sk_live_` style API keys.
   { pattern: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, literals: ['akia', 'asia'], replace: mark },
-  { pattern: /\bxox[abposr]-[A-Za-z0-9-]{10,}/g, literals: ['xox'], replace: mark },
+  { pattern: /\bxox[abeposr]-[A-Za-z0-9-]{10,}/g, literals: ['xox'], replace: mark },
   {
     pattern: /\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9]{16,255}|\bsk-[\w-]{20,255}/g,
     literals: ['_live_', '_test_', 'sk-'],

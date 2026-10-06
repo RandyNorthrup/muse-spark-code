@@ -231,6 +231,11 @@ export const EN = {
     'paid:scheduledPrompts': 'Turn paid scheduled prompts on or off.',
     'paid:autoReviewer': 'Turn the paid Auto reviewer on or off.',
     'paid:bestOfN': 'Turn paid Best of N on or off.',
+    'paid:tab': 'Turn paid Tab completions on or off.',
+    'paid:judge': 'Turn paid Judge advice on or off.',
+    'paid:hookModels': 'Turn paid model hooks on or off.',
+    // M91: `/hook run`, a Manual hook from spark-hooks.json.
+    hookRun: 'Run one of your Manual hooks from spark-hooks.json now.',
     loop: 'Schedule a prompt in this Model API conversation.',
     importSession: 'Resume an exported session file on the Model API backend.',
     review: 'Ask Muse to review your changes, or what you describe.',
@@ -298,10 +303,7 @@ export const EN = {
   importFailed: 'Muse Code could not import skills',
   // Import from Claude Code, Codex and Cursor (M83, D49).
   agentImportItem: 'Import from other agents…',
-  agentImportDetail:
-    'Copy MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor',
   agentImportSourceTitle: 'Import from',
-  agentImportSourceAll: 'All three',
   agentImportSourceCursor: 'Cursor',
   agentImportPickTitle: 'What to import',
   agentImportPickPlaceholder: 'Checked entries are previewed before anything is written',
@@ -367,6 +369,32 @@ export const EN = {
   agentImportCountSections: 'Sections for AGENTS.md: {count}',
   agentImportCountCopies: 'Entries offered in the editor: {count}',
   agentImportCountSkipped: 'Not imported: {count}',
+  // Hooks from every popular agent (M91, PLAN.md D70): the new sources.
+  agentImportSourceGemini: 'Gemini CLI',
+  agentImportSourceCopilot: 'Copilot and VS Code',
+  agentImportSourceWindsurf: 'Windsurf',
+  agentImportSourceKiro: 'Kiro',
+  agentImportSourceCline: 'Cline',
+  agentImportSourceAmp: 'Amp',
+  agentImportSourceOpenCode: 'OpenCode',
+  agentImportSourceEvery: 'All of them',
+  agentImportDetailEvery:
+    'Copy MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, and hooks and plugins from Gemini CLI, Copilot, Windsurf, Kiro, Cline, Amp and OpenCode',
+  agentImportKindPlugin: 'Plugin',
+  // Why an entry is not imported, after "Not imported:".
+  agentImportSkippedWeaker:
+    'here it could not block as it does where it came from, so the guard would be weaker',
+  agentImportSkippedChooses: 'it chooses a path, a model or a tool, which no hook may do here',
+  // {field}: a field name as the source writes it.
+  agentImportSkippedField: 'it sets {field}, which has no equivalent here',
+  agentImportSkippedNotify: 'Codex’s notify program is not a hook, so it is listed, not converted',
+  agentImportSkippedNeedsMatcher: 'FileChanged needs a matcher naming the files to watch',
+  agentImportSkippedUnknownFormat: 'its file is in a format this version does not read',
+  agentImportKeptWaiting:
+    'kept, waiting for inline completions, which this extension does not have yet',
+  // Kiro's spec-task triggers map to the todo-item events (M91, PLAN.md D70):
+  // the preview says so in plain words.
+  agentImportKiroTaskNote: 'Kiro spec-task triggers run on todo items here',
   exportNothing: 'There is no conversation to export yet.',
   exportFailed: 'The conversation could not be exported',
   exportSaved: 'Conversation exported to {path}',
@@ -543,6 +571,131 @@ export const EN = {
   hooksManagedSet: 'Set by your settings; whoever controls this file controls what runs',
   hooksManagedMissing: 'Your settings name this file, but it does not exist.',
   hooksDocs: 'Hooks in Muse Code (documentation)',
+  // Hooks from every popular agent (M91, PLAN.md D70). The Hooks picker's
+  // rows for spark-hooks.json, the extension's own hook file, which Muse Code
+  // never reads.
+  hooksSparkProject: 'Extension hooks for this project',
+  hooksSparkProjectFile: '.muse/spark-hooks.json',
+  hooksSparkProjectNone: 'This workspace has no .muse/spark-hooks.json.',
+  hooksSparkUser: 'Your extension hooks',
+  hooksSparkUserNone: 'You have no spark-hooks.json.',
+  // {file}: the file's name or path.
+  hooksSparkCount: forms({
+    one: '{count} hook in {file}',
+    other: '{count} hooks in {file}',
+  }),
+  hooksSparkAbout:
+    'Muse Code never reads this file. It holds the events only this extension runs, and hooks imported from other agents.',
+  // Which backend runs a file's hooks, under its row.
+  hooksBackendMuseCode: 'Run by Muse Code',
+  hooksBackendBoth: 'Run by Muse Code, and by this window on the Model API backend',
+  hooksBackendSpark:
+    'Run by this window: on the Model API backend, and on both backends for the events the extension itself handles',
+  hooksFormatModelApiOnly: 'Hooks in another agent’s format run only on the Model API backend.',
+  // {format}: the source agent's name, such as Cursor.
+  hooksFormatTag: '{format} format',
+  // {event}: a hook event's name as the file writes it.
+  hooksMuseEventRefused:
+    '{event} is a Muse Code event: configure it in .muse/hooks.json, so it runs once.',
+  hooksExtensionEventSkipped:
+    '{event} runs only from spark-hooks.json; Muse Code skips it in this file.',
+  hooksStopFailureNote:
+    'Muse Code 1.4.2 does not run StopFailure hooks; this window runs them on the Model API backend.',
+  hooksSessionForkNote:
+    'Muse Code 1.4.2 accepts SessionFork hooks but never runs them, so this window does not run them either.',
+  hooksTabWaiting:
+    'Waiting for inline completions, which this extension does not have yet, so it never runs.',
+  hooksNotRunnable: 'Hooks run only in a trusted workspace, once museSpark.modelApiHooks is on.',
+  // What a hook refused, with the hook's own words as {reason}.
+  // {name}: the slash command or skill.
+  hookRefusedExpansion: 'A hook refused {name}: {reason}',
+  // {model}: the model id the conversation stays on.
+  hookRefusedModelSwitch: 'A hook kept the model on {model}: {reason}',
+  // {subject}: the task's subject.
+  hookRefusedTaskCreated: 'A hook refused the task “{subject}”: {reason}',
+  hookRefusedTaskCompleted: 'A hook kept the task “{subject}” open: {reason}',
+  hookWorktreeCreateFailed: 'A WorktreeCreate hook failed, so this attempt did not run: {reason}',
+  // {name}: a Best-of-N attempt's or a subagent's label.
+  hookTeammateKept: 'A hook kept {name} working: {reason}',
+  hookFileChangedPaused: forms({
+    one: 'FileChanged hooks are paused for a minute: more than {count} change arrived.',
+    other: 'FileChanged hooks are paused for a minute: more than {count} changes arrived.',
+  }),
+  // A PostToolUseFailure hook's corrected call; {reason}: one of the three below.
+  hookCorrectionRefused: 'A hook’s corrected call was refused: {reason}',
+  hookCorrectionOtherTool: 'it names a different tool',
+  hookCorrectionOutside: 'it reaches outside the workspace',
+  hookCorrectionTooDeep: forms({
+    one: 'it went past {count} correction in a row',
+    other: 'it went past {count} corrections in a row',
+  }),
+  // Why a call was not run: a BeforeToolSelection hook took its tool away.
+  hookToolRemoved: 'a hook removed this tool for this turn',
+  // A MessageDisplay hook's display-only rewrite: its marker and the switch.
+  hookMessageEdited: 'Edited by a hook',
+  hookMessageShowOriginal: 'Show the original',
+  hookMessageShowEdited: 'Show the hook’s version',
+  // Setup and Manual hooks, which run only when the user starts them.
+  setupHooksNone: 'No Setup hooks are configured in spark-hooks.json.',
+  setupHooksRan: forms({ one: 'Ran {count} Setup hook.', other: 'Ran {count} Setup hooks.' }),
+  setupHooksFailed: 'A Setup hook failed: {reason}',
+  manualHookPick: 'Run which hook?',
+  manualHookNone: 'No Manual hooks are configured in spark-hooks.json.',
+  // {name}: the name `/hook run` was given.
+  manualHookNoneNamed: 'No Manual hook is named {name}.',
+  // {name}: the hook's name in spark-hooks.json.
+  manualHookDone: 'Hook {name} finished.',
+  manualHookFailed: 'Hook {name} failed: {reason}',
+  manualHookSlashDetail: 'Run a Manual hook from spark-hooks.json',
+  // dist/extensionHooks.js failed to load.
+  extensionHooksUnavailable:
+    'The extension hooks could not be loaded, so no hook ran; reinstall the extension and reload the window. The log has the details.',
+  // The Model API shell's kept working directory. {path}: workspace-relative.
+  shellDirectory: 'In {path}',
+  shellDirectoryReset:
+    'The shell went back to the workspace root: {path} is outside the workspace.',
+  // MCP elicitation on the Model API backend. {server}: the MCP server's name.
+  elicitationTitle: '{server} asks for information',
+  elicitationNote: 'Your answer goes to {server}, not to Muse. Never enter a password or a key.',
+  elicitationSend: 'Send',
+  elicitationDecline: 'Decline',
+  elicitationCancel: 'Cancel',
+  elicitationRequired: 'Required',
+  // {field}: the field's title, or its name when it has none.
+  elicitationInvalid: '{field} does not fit what {server} asked for.',
+  elicitationDeclinedByHook: 'A hook declined this request from {server}: {reason}',
+  elicitationAnsweredByHook: 'One of your hooks answered this request from {server}.',
+  elicitationExpired: 'The request from {server} is no longer waiting.',
+  // The http and mcp_tool hook handlers. {host}: a host name; {tool}: a tool name.
+  hookHttpHostRefused: 'An http hook was refused: {host} is not an allowed host.',
+  hookHttpSchemeRefused: 'An http hook was refused: only HTTPS is allowed.',
+  hookHttpRedirectRefused: 'An http hook was refused: it redirected to {host}.',
+  hookHttpProjectRefused:
+    'An http hook in a project file was refused: http hooks run only from your own files.',
+  hookHttpNetworkRefused:
+    'An http hook was refused: this window’s network setting blocks the network.',
+  hookMcpToolMissing: 'An mcp_tool hook was refused: {tool} is not a tool of a running MCP server.',
+  // The prompt and agent handlers on Muse Code: one side-session turn each.
+  hookModelMuseCodeNotice:
+    'Prompt and agent hooks each run one short turn of your Muse subscription, in a hidden side session that History does not list.',
+  // Amp and OpenCode plugins in the plugin host. {name}: the plugin's name;
+  // {api}: the plugin API it called, as written.
+  pluginStopped: 'The {name} plugin stopped: {reason}',
+  pluginApiUnavailable:
+    'The {name} plugin called {api}, which the plugin host does not offer, so that hook failed.',
+  // Hooks in another agent's format. {format}: the source agent's name.
+  hookAdapterUnreadable:
+    'A {format}-format hook gave an answer this window cannot read, so it counts as a failure.',
+  hookAdapterFailClosed:
+    'A {format}-format guard failed, so the call was blocked, as {format} itself would block it.',
+  // A hook in another agent's format replaced a tool's output for the model.
+  hookOutputReplaced:
+    'A hook replaced what the model sees of this tool’s output; the row shows the real output.',
+  // Amp and OpenCode plugin hooks on Windows without their job (M91b): the
+  // notice, and what Retry Plugin Hooks says once it forgot the failure.
+  pluginHooksNoJob:
+    'Amp and OpenCode plugin hooks did not run: Windows could not prepare the job that contains them. Run “Retry Plugin Hooks” to try again.',
+  pluginHooksRetried: 'Plugin hooks will prepare their Windows job again the next time one runs.',
   // Memory (M49, D41): the notes Muse Code keeps, on both backends.
   memoryItem: 'Memory…',
   memoryItemDetail: 'The notes Muse keeps for later sessions',
@@ -609,12 +762,232 @@ export const EN = {
   worktreeDiscardAction: 'Remove and discard changes',
   worktreeRemoveFailed: 'git could not remove the worktree',
   worktreeRemoved: 'Removed the worktree at {path}',
+  // M71 (PLAN.md D49): git and pull requests, conversations in a worktree.
+  groupGit: 'Git and pull requests',
+  gitCommitItem: 'Commit…',
+  gitCommitItemDetail:
+    'Commit the changes in this workspace; a message is written only when you ask',
+  gitPushItem: 'Push…',
+  gitPushItemDetail: 'Push this branch; always asks, never forces',
+  gitPullRequestItem: 'Open a pull request…',
+  gitPullRequestItemDetail: 'On GitHub, as a draft or ready, linked to this conversation',
+  gitCheckoutItem: 'Open a pull request in a conversation…',
+  gitCheckoutItemDetail: 'Check a pull request out in its own worktree and window',
+  gitRestricted:
+    'Git and pull requests are unavailable in Restricted Mode: git can run programs a repository’s configuration names. Trust the workspace to use them.',
+  gitHeld: 'Git and pull requests wait until you trust this worktree in the card above.',
+  gitUnavailable: 'VS Code’s Git is not available here',
+  gitExtensionMissing: 'VS Code’s built-in Git extension is not available in this window.',
+  gitExtensionDisabled: 'VS Code’s Git is turned off (git.enabled).',
+  gitNoRepository: 'This workspace is not in a git repository that VS Code’s Git has open.',
+  gitNothingToCommit: 'There is nothing to commit.',
+  gitNothingStaged:
+    'Nothing is staged. Tick “Include unstaged changes and new files”, or stage some first.',
+  gitCommitMessageEmpty: 'Write a commit message first.',
+  gitCredentialMasked:
+    'A credential-shaped string in the text was masked. Check the text, then send it again.',
+  gitCommitFailed: 'The commit failed',
+  gitCommitted: 'Committed “{subject}” on {branch}',
+  gitPushDetached: 'HEAD is detached: create a branch first.',
+  gitPushUnsafeName:
+    'This branch’s name would change what git pushes (it starts with + or -, or holds : or a space), so it is not pushed.',
+  gitPushBehind: 'This branch is behind its upstream. Pull first: Muse Spark never force-pushes.',
+  gitPushUpToDate: 'The branch is up to date with its upstream: there is nothing to push.',
+  gitPushNoRemote: 'This repository has no remote to push to.',
+  gitPushDeclined: 'Nothing was pushed.',
+  gitPushFailed: 'The push failed',
+  gitPushed: 'Pushed {branch} to {remote}',
+  gitPushConfirm: 'Push {branch} to {remote}?',
+  gitPushRemoteLine: 'Remote: {remote} ({url})',
+  gitPushNoUrl: 'no URL known',
+  gitPushBranchLine: 'Branch: {branch} → {target}',
+  gitPushFirstPush: 'A first push: the branch is created there and tracked from now on.',
+  gitPushCommits: forms({ one: '{count} commit goes up.', other: '{count} commits go up.' }),
+  gitPushNeverForce: 'Never a force push: a branch that has diverged is refused.',
+  gitPushAction: 'Push',
+  gitPickRemoteTitle: 'Push to which remote?',
+  gitPickRemotePlaceholder: 'This branch has no upstream yet',
+  gitHubOnly: 'Pull requests open on github.com only, and the remote “{remote}” is not there.',
+  gitHubSignInDeclined: 'GitHub sign-in was not given, so nothing was sent to GitHub.',
+  gitHubFailed: 'The GitHub request failed',
+  gitHubAnswered: 'GitHub answered {status}',
+  gitHubResponseInvalid: 'GitHub returned a response in an unexpected format.',
+  gitHubCommitInvalid: 'Not a commit ID: {sha}',
+  gitDestinationBaseUnavailable:
+    'The destination repository’s base branch could not be found. Add its fetch remote and fetch the base, then try again.',
+  gitPullRequestExists:
+    'Pull request #{number} is already open for this branch; it is now linked to this conversation.',
+  gitPullRequestOpened: 'Opened pull request #{number}: {url}',
+  gitDraftPullRequestOpened: 'Opened draft pull request #{number}: {url}',
+  gitTitleEmpty: 'Give the pull request a title.',
+  gitTextTooLong: 'The title or the description is longer than GitHub accepts.',
+  gitBaseInvalid: 'That base branch name would not mean only itself to git.',
+  gitBranchChanged: 'The branch changed since the form opened. Open the form again.',
+  gitOpenPullRequestFirst: 'Open the pull request form first, so the draft knows its branches.',
+  gitDraftFailed: 'No draft came back; the form is as it was.',
+  gitAskCommitMessage: 'Write a commit message for my changes.',
+  gitAskPullRequest: 'Write the title and description of a pull request for this branch.',
+  gitCommitFormLabel: 'Commit',
+  gitCommitTitle: 'Commit',
+  gitOnBranch: 'on {branch}',
+  gitChangeCounts: '{staged}, {unstaged}',
+  gitStagedCount: forms({ one: '{count} staged', other: '{count} staged' }),
+  gitUnstagedCount: forms({ one: '{count} not staged', other: '{count} not staged' }),
+  gitFileStaged: 'staged',
+  gitFileUnstaged: 'not staged',
+  gitMoreFiles: forms({ one: 'and {count} more file', other: 'and {count} more files' }),
+  gitMessageLabel: 'Commit message',
+  gitIncludeUnstaged: 'Include unstaged changes and new files',
+  gitGenerate: 'Write with Muse',
+  gitGenerateTitle: 'Asks the model in this conversation, as your own message',
+  gitGenerating: 'Writing…',
+  gitCommitAction: 'Commit',
+  gitCommitConfirm: 'Commit these changes?',
+  gitOperationChanged: 'Repository, conversation or trust changed. Open the form again.',
+  gitCommandConsequences:
+    'Git may run repository hooks, signing programs or credential helpers. Cancellation stops later steps; a Git or GitHub call already started may finish.',
+  gitCommitting: 'Committing…',
+  gitCancel: 'Cancel',
+  gitPullRequestFormLabel: 'Pull request',
+  gitPrTitle: 'Pull request on {repository}',
+  gitPrRemote: 'Remote',
+  gitPrHead: 'Branch',
+  gitPrBase: 'Into',
+  gitPrTitleLabel: 'Title',
+  gitPrBodyLabel: 'Description',
+  gitPrDraft: 'Open as a draft',
+  gitPrMasked: 'Credential-shaped text is masked before anything is sent.',
+  gitPrCreate: 'Create pull request',
+  gitPrCreateDraft: 'Create draft pull request',
+  gitPrPushFirst: 'The branch goes to {remote} first, a first push; you will be asked.',
+  gitPrPushCommits: forms({
+    one: '{count} commit goes to {remote} first; you will be asked.',
+    other: '{count} commits go to {remote} first; you will be asked.',
+  }),
+  gitPrBehind: 'The branch is behind its upstream: the pull request shows what is already pushed.',
+  gitPullRequestLabel: 'This conversation’s pull request',
+  gitPullRequestName: '#{number} {title}',
+  gitStateOpen: 'Open',
+  gitStateDraft: 'Draft',
+  gitStateMerged: 'Merged',
+  gitStateClosed: 'Closed',
+  gitChecksLine: 'Checks: {checks}',
+  gitChecksNone: 'none reported',
+  gitChecksPassed: forms({ one: '{count} passed', other: '{count} passed' }),
+  gitChecksFailed: forms({ one: '{count} failed', other: '{count} failed' }),
+  gitChecksRunning: forms({ one: '{count} running', other: '{count} running' }),
+  gitChecksSkipped: forms({ one: '{count} skipped', other: '{count} skipped' }),
+  gitChecksCancelled: forms({ one: '{count} cancelled', other: '{count} cancelled' }),
+  gitChecksNotRead: forms({ one: '{count} more not read', other: '{count} more not read' }),
+  gitStatusNeedsSignIn: 'Sign in to GitHub to see its status.',
+  gitCheckedAt: 'as of {time}',
+  gitSignInGitHub: 'Sign in to GitHub',
+  gitRefresh: 'Refresh',
+  gitOpenOnGitHub: 'Open on GitHub',
+  gitWorktreeBranch: 'Worktree on {branch}, of {repository}',
+  gitWorktreePullRequest: 'Worktree of pull request #{number}, of {repository}',
+  worktreeHoldLabel: 'Held pull request worktree',
+  worktreeHoldTitle: 'Someone else’s code: held until you trust it',
+  worktreeHoldPullRequest: 'Pull request #{number} by {author}: held until you trust it',
+  worktreeHoldDetail:
+    'This conversation stays in Plan mode, and this worktree’s project rules, skills, hooks and MCP servers stay off, until you trust the worktree here. VS Code’s own trust does not change that.',
+  worktreeHoldRestricted:
+    'VS Code also opened this folder in Restricted Mode, which applies as well.',
+  worktreeHoldOtherExtensions:
+    'Other extensions follow VS Code’s own workspace trust, which Muse Spark cannot lower.',
+  worktreeTrustButton: 'Trust this worktree…',
+  worktreeTrustConfirm: 'Trust the code in this worktree?',
+  worktreeTrustPullRequest: 'Pull request #{number} by {author}.',
+  worktreeTrustDetail:
+    'Muse Spark will load this worktree’s project rules, skills, hooks and MCP servers, and the conversation may leave Plan mode. Its code can then run through the agent’s tools, asking as the mode says.',
+  worktreeTrustOtherExtensions: 'Other extensions follow VS Code’s own workspace trust.',
+  worktreeTrustAction: 'Trust',
+  worktreeHeldPlanOnly:
+    'This window is held on someone else’s pull request: the conversation stays in Plan mode until you trust the worktree in the card.',
+  worktreeHeldShell:
+    'Held until you trust this worktree in the card: no command runs here before that.',
+  openPullRequestTitle: 'Open a pull request in a conversation',
+  openPullRequestPlaceholder: 'A number, like 51, or the pull request’s GitHub address',
+  openPullRequestInvalid: 'Type a pull request number, or its github.com address.',
+  openPullRequestNoRemote:
+    'There is no GitHub remote to read the pull request from (upstream, the tracked one, origin, or the only one).',
+  openPullRequestOtherRepository: 'No remote of this repository points at {repository}.',
+  openPullRequestConfirm: 'Open pull request #{number} in a new window?',
+  openPullRequestBy: 'By {author}',
+  openPullRequestBranches: 'From {head} into {base}',
+  openPullRequestOwnDetail:
+    'Your own pull request: checked out at its head commit in a worktree beside the repository.',
+  openPullRequestHeldDetail:
+    'Someone else wrote it: it is checked out under Muse Spark’s own storage, and the new window holds the conversation in Plan mode, with this worktree’s project rules, skills, hooks and MCP servers off, until you trust it there.',
+  openPullRequestUnfilteredDetail:
+    'Git does not check it out: its files are written exactly as the commit stores them, so no Git filter, hook or conversion runs. LFS files stay pointers and line endings stay as committed; links become files holding their target, and submodules empty folders. Trusting the worktree does not rewrite them.',
+  openPullRequestFiltersUnavailable:
+    'Safe pull request checkout cannot disable repository programs with this Git version or configuration. Git 2.36 or newer is required. Nothing was checked out.',
+  openPullRequestUnsafePath:
+    'The pull request has a path a held checkout does not write: {path}. Nothing was checked out.',
+  openPullRequestPathCollision:
+    '{first} and {second} would be the same file or folder here. Nothing was checked out.',
+  openPullRequestTooLarge:
+    'The pull request is larger than a held checkout writes (at most {files} files and folders, {size} in all). Nothing was checked out.',
+  openPullRequestUnreadable:
+    'Git did not give back the pull request’s files as its tree lists them.',
+  openPullRequestAction: 'Open',
+  openPullRequestExisting:
+    'Pull request #{number} is already checked out. Open it, at the commit it was checked out at?',
+  openPullRequestFetchFailed: 'The pull request could not be fetched',
+  openPullRequestOpened: 'Pull request #{number} opened in a new window.',
+  openPullRequestOpenedHeld:
+    'Pull request #{number} opened in a new window, held until you trust it there.',
   compactItem: '/compact',
   compactDetail: 'Summarise older context to free the window',
   clearItem: '/clear',
   logoutItem: '/logout',
   openLog: 'Open output log',
   reportIssue: 'Report an issue…',
+  // Report a problem (M93, PLAN.md D72): the crash offer, the report
+  // dialog's labels and actions, and the export outcomes. The preview shows
+  // exactly what Copy, Save and the issue page carry.
+  reportCrashOffer: 'Muse Spark Code stopped unexpectedly last time — report it?',
+  reportCrashAction: 'Report a problem',
+  reportCrashDismiss: 'Not now',
+  reportThisAction: 'Report this',
+  reportTitle: 'Report a problem',
+  reportDescriptionLabel: 'What were you doing when it happened?',
+  reportIncludeFacts: 'Include support facts',
+  reportIncludeEvents: 'Include recent events',
+  reportPreviewLabel: 'Preview',
+  reportCopyAction: 'Copy report',
+  reportOpenIssueAction: 'Open issue page',
+  reportSaveAction: 'Save to a file',
+  reportVscodeReporterAction: 'Use the VS Code issue reporter',
+  reportCancelAction: 'Cancel',
+  reportCopied: 'The report was copied to the clipboard.',
+  reportCopyFailed: 'The report could not be copied. Copy it from the preview instead.',
+  reportSaved: 'The report was saved.',
+  reportSaveFailed: 'The report could not be saved.',
+  reportBuildFailed: 'The report could not be built.',
+  reportUrlTooLong:
+    'The report is too long to open in a browser address. Copy it instead, then paste it into the new-issue form.',
+  reportRecordingUnavailable:
+    'Event recording was unavailable, so this report has no recent events.',
+  reportDescriptionWarning:
+    'Review the scrubbed preview before sharing. Your description can still disclose confidential information; do not include passwords or keys.',
+  reportVscodeReporterNote:
+    'The VS Code issue reporter adds its own data, may search GitHub for similar issues, and controls sign-in and submission.',
+  // Report a problem (M93 lane W): the preview dialog's item list, its
+  // export outcomes and its updating state. Item labels stay identifiers
+  // (an event kind, a relative age), so the preview matches the export.
+  reportItemsLabel: 'What this report contains',
+  reportRemoveItem: 'Remove {item}',
+  reportFactsItem: 'Support facts',
+  reportEventItem: '{kind} · {age}',
+  reportUpdating: 'Updating the preview…',
+  reportStaleDraft:
+    'The report changed while exporting. The preview below is current — export again.',
+  reportIssueOpened: 'The issue page was opened in the browser.',
+  reportIssueOpenFailed: 'The issue page could not be opened. Copy the report instead.',
+  reportVscodeReporterOpened: 'The VS Code issue reporter was opened.',
+  reportVscodeReporterFailed: 'The VS Code issue reporter could not be opened.',
   openDocs: 'Muse Code documentation',
   modelListLabel: 'Models',
   thinkingOff: 'No thinking',
@@ -1150,6 +1523,8 @@ export const EN = {
   usageCached: 'Cached',
   usageContext: 'Context',
   usagePackedAvoided: 'Packing saved (estimate)',
+  // Tokens hooks added, never netted against the savings (M91, SoL-Pi rule 6).
+  usageAddedByHooks: 'Added by hooks (estimate)',
   usageNoSession: 'No tokens counted yet in this conversation.',
   usageLoading: 'Reading usage…',
   usageUnavailable: 'Usage could not be read',
@@ -1566,6 +1941,7 @@ export const EN = {
   // and the label the row shows; unknown tools show their raw name. The IDE
   // tool is named by the CLI's MCP catalog: `mcp__<server>__<tool>`.
   toolLabels: {
+    judge: 'Judge',
     write_file: 'Write',
     edit_file: 'Edit',
     read_file: 'Read',
@@ -1871,6 +2247,7 @@ export const EN = {
   whatsNewNoNotes: 'No release notes ship with version {version}.',
   whatsNewFullChangelog: 'Full changelog on GitHub',
   whatsNewReadme: 'README on GitHub',
+  whatsNewStarGithub: 'Enjoying Muse Spark Code? A star on GitHub helps other people find it.',
   whatsNewHideOnUpdate: 'Don’t show on updates',
   whatsNewUpdatedNotice: 'Muse Spark Code updated to {version}.',
   whatsNewOpen: 'What’s New',
@@ -1961,6 +2338,7 @@ export const EN = {
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
     '  {command} exec [options] <prompt>  Run one headless turn',
     '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
+    '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
     'Options:',
     '  --backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     '  --trust-workspace                Load the folder’s rules, skills and memory',
@@ -1972,6 +2350,24 @@ export const EN = {
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
+  ].join('\n'),
+  // The Setup hooks' command (M91, PLAN.md D70); {command}: the executable's
+  // name. Lane E adds it to the usage above with the command.
+  acpUsageSetup:
+    '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',
+  // Report a problem headless (M93 lane A, PLAN.md D72): `report --help`
+  // and bad report arguments print this on stderr, never the report itself.
+  // {command}: the executable's name. <file> and <text> stay as typed.
+  reportUsage: [
+    'Usage:',
+    '  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]',
+    '  Prints the scrubbed problem report to stdout, or writes it to <file> with --out.',
+    '  Starts no backend, signs in nowhere, and opens no browser.',
+    'Options:',
+    '  --out <file>         Write the report to a file instead of stdout',
+    '  --description <text>  What was happening, in your own words',
+    '  --no-facts           Leave the support facts out',
+    '  --no-events          Leave the recent events out',
   ].join('\n'),
   // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
   execBudgetRequired: 'Model API requires --max-budget-usd.',
@@ -2192,6 +2588,71 @@ export const EN = {
     'The same prompt runs in separate worktrees, each billed to your Model API key. {price} Each run asks for approval in every permission mode, including Bypass, unless you allow best-of-N always in this workspace. Actual cost depends on tokens used; other paid tools cost extra. Model API backend only.',
   usagePaidBestOfNAttempts: forms({ one: '{count} attempt', other: '{count} attempts' }),
   usagePaidBestOfNIncluded: 'Reported token estimate: {cost}',
+  // Inline completions (M94, PLAN.md D73): the paid feature, the
+  // once-per-window popup (Q-M94a), the status bar with its menu, the snooze
+  // and the Account & usage row. {price} is a dollar amount in the display
+  // language's money format.
+  paidTabName: 'Tab completions',
+  paidConfirmTab:
+    'Tab completions send the code around your cursor to Meta as you type, billed to your Model API key. {price} At typical typing that is about $0.80 an hour on Standard and about $0.05 on the contributor model, capped by a daily budget you can change in settings. The contributor model is cheaper, and Meta trains on the code it is sent. Copilot, if on, is yielded to: automatic Tab suggestions pause for its languages unless you run both. Tab asks once per window before its first suggestion.',
+  paidUseTabTitle: 'Let Tab suggest in this window?',
+  paidUseTabDetail:
+    'Tab sends the code around your cursor to Meta’s {model} model, billed to your Model API key at {price}. Today’s budget is {budget}; Tab stops for the day if it is reached. {training} Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
+  tabTrainingContributor:
+    'The contributor model is cheaper, and Meta trains on the code it is sent.',
+  // The status bar item while the feature is on; {spend} is today's spend.
+  tabStatusSpend: 'Tab {spend}',
+  tabStatusTooltip:
+    'Tab completions ({model}). {requests} today, {spend} of the {budget} daily budget.',
+  // Each state D73 names; {left} is the snooze's remaining time.
+  tabStatusSnoozed: 'Tab snoozed ({left} left)',
+  tabStatusBudget: 'Tab daily budget reached',
+  tabStatusNoKey: 'Tab: no key',
+  tabStatusUntrusted: 'Tab off in an untrusted workspace',
+  tabStatusLanguageOff: 'Tab off for {language}',
+  tabStatusCopilot: 'Tab: on Invoke while Copilot is on',
+  // {kind} is the last failure's class, never code or a path.
+  tabStatusError: 'Tab failed ({kind})',
+  // The status bar menu: turn off, the snoozes, languages, the multi-line
+  // mode, Copilot's row and Account & usage.
+  tabMenuTurnOff: 'Turn Tab off',
+  tabMenuSnoozeShort: 'Snooze for 15 minutes',
+  tabMenuSnoozeLong: 'Snooze for an hour',
+  tabMenuSnoozeRestart: 'Snooze until restart',
+  tabMenuLanguages: 'Tab languages…',
+  tabMenuMultiline: 'Multi-line mode…',
+  tabMultilineAuto: 'Automatic',
+  tabMultilineOnInvoke: 'Only when invoked',
+  tabMultilineNever: 'Single-line context only',
+  tabMenuUsage: 'Account & usage',
+  tabMenuCopilotOff: 'Turn off Copilot’s suggestions for {language}',
+  tabMenuRunBoth: 'Run both',
+  tabCopilotConfirmTitle: 'Turn off Copilot’s suggestions for {language}?',
+  tabCopilotConfirmDetail:
+    'Tab stops waiting for Invoke in {language} and sends its own automatic suggestions, billed to your Model API key. You can turn Copilot’s suggestions back on in settings any time.',
+  // The Account & usage row: requests, tokens, cached tokens, cost today and
+  // in this window, and the budget.
+  usagePaidTabRequests: forms({ one: '{count} Tab request', other: '{count} Tab requests' }),
+  usagePaidTabTokens: '{tokens} tokens ({cached} cached)',
+  usagePaidTabReported: 'Reported token estimate: {cost}',
+  usagePaidTabCostToday: 'Today: {cost}',
+  usagePaidTabCostWindow: 'This window: {cost}',
+  usagePaidTabBudget: 'Daily budget: {budget}',
+  // The prompt and agent hook handlers on the Model API (M91, PLAN.md D70):
+  // a paid use under D30 and D48, tallied on their own line.
+  paidHookModelName: 'Model hooks',
+  // {event}: the hook event's name.
+  paidHookModelTitle: 'Let this {event} hook ask the model?',
+  // {kind}: prompt or agent, as written in the file; {model}: the model id.
+  paidHookModelDetail:
+    'A {kind} hook asks {model} before it answers.\n\n{price}\n\nBilled to your Model API key. Actual cost depends on tokens used. Allow once covers this hook run only.',
+  paidConfirmHookModel:
+    'Prompt and agent hooks ask the model before they answer, each run billed to your Model API key. {price} Each run asks for approval in every permission mode, including Bypass, unless you allow model hooks always in this workspace. Actual cost depends on tokens used. They can only refuse, narrow or add context. Model API backend only; on Muse Code they use a turn of your subscription instead.',
+  usagePaidHookModelRuns: forms({ one: '{count} hook run', other: '{count} hook runs' }),
+  // A prompt or agent hook refused while museSpark.modelApiHookModels is off.
+  hookModelPaidOff:
+    'Model hooks are off. Turn on museSpark.modelApiHookModels to let prompt and agent hooks ask the model.',
+  paidHookModelDailyBudget: 'Shared daily paid budget: {budget}.',
   // The session board (M77, PLAN.md D49).
   boardTitle: 'Session board',
   boardUnavailable:
@@ -2512,6 +2973,22 @@ export const EN = {
   paidUseAutoReviewerDetail:
     '{action}\n\nA separate call to {model} judges whether it may run without asking you. Billed to your Model API key: {price}. Total varies with tokens used. Deny shows you the approval card instead.',
   usagePaidAutoReviews: forms({ one: '{count} review', other: '{count} reviews' }),
+  // The Muse Judge (M98, PLAN.md D77): its name, confirmation and tally.
+  paidJudgeName: 'Judge',
+  paidConfirmJudge:
+    'Your own chat model judges each risky Auto action that no rule settles, and can only add caution: a ready caution turns an allow into a question, or into a note on the approval card. Each judgment is billed to your Model API key at the conversation model’s token rates:\n{price}\nThe judge asks once before the first charge, with these prices and the shared daily budget: {budget}. Switching from a free source to a paid one asks again. On Muse Code the same calls run on your subscription instead.',
+  usagePaidJudgeCalls: forms({ one: '{count} judgment', other: '{count} judgments' }),
+  judgeCaution: 'Muse Judge suggests caution. You decide; it cannot approve this action.',
+  judgeSubscriptionNotice:
+    'Muse Judge uses your chat model on your Muse subscription and counts against its limits. Each batch uses a fresh isolated Plan session. A tool-item guard cancels the session, but cannot prove that no tool ran. It can only add caution.',
+  judgeStatusSame: 'Same model',
+  judgeStatusOff: 'Off',
+  judgeStatusUnavailable: 'Off: source unavailable or standing allow rules',
+  judgeStatusConsent: 'Waiting for first-charge consent',
+  judgeStatusDeclined: 'Off: paid use declined',
+  judgeStatusSlow: 'Off by default: too few results ready at the reviewer fence',
+  judgeStatusSubscription: 'Subscription',
+  judgeStatusPaid: 'Paid',
   // Problems in the permission settings, each said once in the conversation.
   // {setting}: the setting's name; {index}: the rule's place in it, from 1;
   // {pattern}: the rule's words; {detail}: the error, or the failing example.

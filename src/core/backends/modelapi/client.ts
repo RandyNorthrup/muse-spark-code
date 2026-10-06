@@ -104,6 +104,39 @@ export class MissingApiKeyError extends Error {
   }
 }
 
+/**
+ * Whether `error` is a `ModelApiError`, by name and fields rather than
+ * `instanceof`: Tab's bundle crosses a bundle boundary where `instanceof`
+ * fails (M94, PLAN.md D73).
+ */
+export function isModelApiError(error: unknown): error is ModelApiError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    error.name === 'ModelApiError' &&
+    'status' in error &&
+    typeof error.status === 'number' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  )
+}
+
+/**
+ * Whether `error` is a `MissingApiKeyError`, by name rather than
+ * `instanceof` (see above).
+ */
+export function isMissingApiKeyError(error: unknown): error is MissingApiKeyError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    error.name === 'MissingApiKeyError' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  )
+}
+
 const JSON_MEDIA_TYPE = 'application/json'
 const EVENT_STREAM_MEDIA_TYPE = 'text/event-stream'
 const RETRY_AFTER_HEADER = 'retry-after'

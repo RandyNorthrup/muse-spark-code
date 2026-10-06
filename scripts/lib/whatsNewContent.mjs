@@ -27,6 +27,9 @@ import path from 'node:path'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { gfmFromMarkdown } from 'mdast-util-gfm'
 import { gfm } from 'micromark-extension-gfm'
+import { loadL10n } from './l10nSource.mjs'
+
+const { encodeWhatsNewContent } = await loadL10n(process.cwd())
 
 export const HIGHLIGHTS_HEADING = 'Highlights'
 export const MAX_HIGHLIGHTS = 5
@@ -334,7 +337,7 @@ export function writeWhatsNewContent(root = '.') {
       releases.push({ ...latestHighlights, sections: [] })
     }
   }
-  const text = JSON.stringify({ schema: SCHEMA_VERSION, releases })
+  const text = encodeWhatsNewContent(JSON.stringify({ schema: SCHEMA_VERSION, releases }))
   const target = path.join(root, CONTENT_FILE)
   mkdirSync(path.dirname(target), { recursive: true })
   writeFileSync(target, text)

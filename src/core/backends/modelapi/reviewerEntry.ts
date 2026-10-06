@@ -37,6 +37,9 @@ import {
 import { fill, setUiText } from '../../../shared/l10n/text'
 import type { UiText } from '../../../shared/l10n/en'
 
+// M91 hook model turns share the paid helper bundle and its existing lazy boundary.
+export { runHookModelTurn } from './hookModelEntry'
+
 type ReviewerResult =
   { readonly decision: 'allow' } | { readonly decision: 'ask'; readonly note: string }
 interface ReviewerContext {

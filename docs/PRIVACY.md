@@ -86,6 +86,20 @@ independent $1/day journal is excluded. ACP and headless policies are unchanged.
   display text so the extension can mark its file card after History resume;
   the annotation contains file names only, no file contents. Native Muse Code
   clients may show this line.
+- **Git and pull requests (M71).** A commit or push goes through VS Code's
+  own Git to the remote you push to, as any push from VS Code does. When you
+  open a pull request, the extension sends to `api.github.com`: the
+  repository and branch names, the title and the description the form
+  showed you (credential-shaped text is masked before anything is sent), and
+  whether it is a draft. It reads back the pull request's number, address,
+  state, author and head commit, and that commit's checks (names and
+  results), to show them above the composer and to open a pull request in a
+  conversation. It uses the token of VS Code's GitHub sign-in (scope
+  `repo`), read for each call and never stored, logged or passed to a
+  process. **Write with Muse** in the commit or pull request form sends your
+  own message to the model, with the staged diff (or every change, when
+  nothing is staged) and the changed files' names, or the branch's commit
+  subjects and changed files, as any message you send does.
 - **Installing Muse Code.** **Install Muse Code** shows Meta's install
   command for your system (`irm https://dev.meta.ai/install.ps1 | iex` on
   Windows, `curl -fsSL https://dev.meta.ai/install.sh | sh` elsewhere). Only
@@ -150,6 +164,24 @@ independent $1/day journal is excluded. ACP and headless policies are unchanged.
   without allow-once and shared-panel sessions are never reviewed. Busy,
   timeout and breaker fallbacks leave the card; host exit recreates the
   side session.
+- **Muse Judge (M98 phase 1, `auto` by default).** At an already held approval,
+  the conversation's own model receives a redacted risk question containing
+  the current request/action and earlier calls selected by the approval path.
+  On Muse Code it is a standalone prompt in a fresh hidden Plan session, in
+  an empty temporary folder, on your subscription; no Model API price is
+  asked. Standing user-level allow rules or unreadable settings disable it.
+  Tool-item cancellation reacts after a notification, so native execution
+  before notification is a residual. The CLI may retain the hidden session
+  in its own store even after the extension removes its temporary folder;
+  History hides its id. The bounded result cache is window memory only.
+  The Model API source preserves the main request, copying its prefix only
+  if redaction changes no byte and no hosted billable tool is present,
+  otherwise using a standalone request with no tools. That
+  paid source asks for consent before dispatch and uses D78's shared daily
+  ledger, retaining liability for a missing receipt. Judge never delays a
+  card, allows an action, or adds its result to a main request. Pattern
+  redaction does not remove every private fact. Logs contain fixed failures
+  and reason words, not judged content or probabilities. See [Judge](judge.md).
 - **Best-of-N (Model API, available by default).** After its paid-use popup names
   N and the request ceiling, the same prompt runs in separate local Git
   worktrees. Each attempt sends its conversation and tool outputs to Meta
@@ -235,6 +267,8 @@ independent $1/day journal is excluded. ACP and headless policies are unchanged.
   Model API key are left out. What a hook does with that is up to the hook:
   it can write it to disk or send it anywhere, so read a hook before you
   turn the setting on. No hook runs while the folder is in Restricted Mode.
+  Hooks imported from other agents into `spark-hooks.json` get the same
+  bounded data, in the shape their own agent sends it.
 - **Workspace rules, skills, agents and memory.** In a trusted workspace the
   agent reads `AGENTS.md` (or `CLAUDE.md`), the skills under `.agents/skills`
   and `~/.config/muse/skills`, on the Model API backend the custom agents
@@ -356,8 +390,10 @@ independent $1/day journal is excluded. ACP and headless policies are unchanged.
     (and confirm that run, unless you allowed scheduled prompts always in
     this workspace); a due prompt never runs on its own.
 
-The extension itself has **no telemetry**, no analytics, no crash reporting
-and no hosted server of its own. It contacts Meta when you send a message,
+The extension itself has **no telemetry**, no analytics, no automatic crash
+reporting and no hosted server of its own. **Report a problem** contacts
+nothing: it builds a draft that leaves only through an export you choose
+(see [Reporting a problem](#reporting-a-problem)). It contacts Meta when you send a message,
 sign in, dictate with Muse Voice, use a paid feature, run a scheduled prompt
 with **Run now**, or open a panel while signed in (to list models; that request
 carries no message). **Install Muse Code** downloads Meta's installer from
@@ -378,12 +414,51 @@ whether a proxy is set, never its address. **Muse Spark: Diagnostics** runs
 machine. The public-issue report includes only recognized source and
 generation fields, never raw configuration or failed-command output.
 
+## Tab completions
+
+Tab is on by default and asks before its first charge in each window. A
+stored Model API key pays for its separate requests on either chat backend;
+the Muse Code subscription never pays. Each request sends a
+workspace-relative path, language id and redacted code around the cursor.
+Multi-line requests also send bounded redacted excerpts of recent edits and
+symbol definitions. Standard is the default and Meta does not train on this
+traffic; the contributor model is a separate choice that permits training.
+Requests use `store: false` and their own prompt cache key, with no chat
+history, goal or memory.
+
+Private, protected, ignored, excluded, outside-workspace and oversized files
+are refused as context as well as as the current file. Related buffers are
+opened only after the path, resolved links, ignore rules and disk size pass;
+large unsaved buffers are refused conservatively before their text is read.
+Secrets are redacted before cutting excerpts. No code, completion or path is
+written to the Tab log, and Tab adds no telemetry.
+
+The local-day spend ledger is in the extension's global storage under
+`tab-spend/<date>/<window>.json`. It contains request counts and reserved and
+reported USD amounts, never code or keys. All windows count toward the hard
+daily limit ($1.00 by default). A sent request runs to completion even when
+its suggestion is dismissed, so its cost is accounted for. Missing usage
+keeps the reservation. The typing-through cache and the recent-edit path
+list are kept only in this window's memory.
+
+Tab's hook bridge is prepared for M91/lane K; configuring Cursor's Tab hooks
+does not yet execute them in this build. When that lane lands, a local
+`beforeTabFileRead` hook sees the full unredacted file and may deny it;
+`afterTabFileEdit` observes accepted edits locally.
+
 ## Credentials
 
 - A Model API key you paste is stored in VS Code's secret storage (the
   operating system's credential vault), never in settings files, logs or the
   workspace. It is sent only to `api.meta.ai` as a bearer token, and never
   passed to the Muse Code CLI or any other process.
+- GitHub: the extension signs in through VS Code's built-in GitHub sign-in
+  (`vscode.authentication`), which keeps the token; the extension asks
+  VS Code for it at each GitHub call, sends it only to `api.github.com`, and
+  keeps no copy. Which pull request each conversation opened is kept in
+  VS Code's per-workspace extension state (its number, address and title,
+  by session id), and the worktrees the extension made in its global state
+  (folder, repository, branch or pull request, and whether you trusted it).
 - The Muse Code CLI keeps its own sign-in. On Windows and Linux it is in
   the CLI's credential file (`~/.config/muse/auth.json`). On macOS the token
   is in your login Keychain (item `ai.meta.dev.credentials`, account
@@ -640,6 +715,9 @@ hands it and what its tools read or run, the same way the extension does:
   certificate settings do not apply to it.
 - **The log** goes to stderr, which the editor shows or keeps as its agent
   log; keys and tokens are redacted.
+- **Problem reports**: the agent's failure journals, in `reports/` under
+  that data folder, and `muse-spark-code-acp report` are described under
+  [Reporting a problem](#reporting-a-problem).
 - The folder's rules, skills, custom agents and memory are read only with
   `--trust-workspace` (the agent runs no subagents, so no agent is ever
   offered or sent); contributor-tier models are listed only with
@@ -648,6 +726,109 @@ hands it and what its tools read or run, the same way the extension does:
   it in the editor's prompt, which names the price (Allow once, Allow
   always in this workspace with `--trust-workspace`, or Deny).
   It has no telemetry either.
+
+## Reporting a problem
+
+**Muse Spark: Report a Problem** (M93) builds a bug report on your machine.
+The panel reaches the same dialog from the palette's **Report an issue…**,
+from **Report this** on a recorded error notice or failed turn, and from
+**Report a problem** on the panel's crash screen. The extension never posts
+or uploads the report and calls no network service or model for it; there
+is no telemetry and no GitHub access.
+
+- **The flight recorder.** Each VS Code window keeps its own journal in the
+  extension's global storage, `reports/journal-<window>.jsonl`, with an
+  activation marker, `reports/marker-<window>.json`, beside it. Neither is
+  in Settings Sync or in the workspace's storage. In a remote window the
+  extension, and so the journal, lives on the remote host. A journal keeps
+  records for 7 days and at most 256 KiB, oldest removed first. It is pruned
+  when the extension starts, at each new record and each time a report reads
+  it, so an editor you have closed cannot prune its journal until you use it
+  again. A window records at most 20 failures a minute.
+- **What is recorded:** activation failures (once the recorder has started),
+  Muse Code process exits nobody asked for, failed turns, failed tool calls,
+  the error notices the panel shows, and the panel's own window errors,
+  unhandled promise rejections and render failures. For those the panel
+  sends only the kind, a known error class and frames inside its own
+  bundle.
+- **What a record holds:** a fixed event kind (`activationFailed`,
+  `backendExit`, `toolCallFailed`, `windowError`, `unhandledRejection`,
+  `reactBoundary`, `errorNotice`); a code from a fixed vocabulary
+  (JavaScript error class names, errno names such as `ENOENT`, Muse Code
+  exit signals such as `SIGKILL` or the word `exited`, the ACP agent's
+  fixed failure words) or the word `unknown`; the extension and host
+  versions; sometimes the backend; and stack frames inside the extension's
+  shipped bundles only (`dist/extension.js:2:345`). Never prompts, code,
+  file contents, model output, tool arguments or results, command text,
+  messages, absolute paths, URLs, session ids or credentials.
+  - Records are scrubbed and validated before they are written and again
+    when they are read; a torn or tampered line is skipped.
+  - Symbolic links, hard links and unexpected files in the folder are
+    refused.
+  - If storage fails, the window stops recording with one warning in the
+    log, and its report says that recording was unavailable.
+- **The crash offer.** The marker is set just after the extension starts
+  (when its recorder loads) and cleared when it shuts down normally. At the
+  next start, a marker left by a window whose process is gone is removed,
+  and the extension offers once: "Muse Spark Code stopped unexpectedly last
+  time — report it?" (**Report a problem** or **Not now**). The marker is
+  gone, so a dismissal is remembered. A second window that is still running
+  is never taken for a crash. The offer cannot tell a crash from a forced
+  exit (a killed process, a power loss), and it cannot see a failure before
+  the recorder has loaded. The extension starts when the panel opens or a
+  command runs, so the offer appears then.
+- **The dialog** has a description field, which warns that what you write
+  can still disclose confidential information (the description is never
+  kept in the journal); switches for **Include support facts** and
+  **Include recent events**; a list of every item in the report, each with
+  **Remove**; and a read-only preview of the exact final text.
+  - Support facts: the extension, VS Code and Node versions, the platform,
+    the backend and shell-sandbox settings, whether the Muse Code CLI was
+    found and the version its installer recorded, whether it is signed in
+    (from the credential file's structure only: no account lookup, no CLI
+    started), whether a Model API key is stored and whether `META_API_KEY`
+    is set (yes or no only), and the names, never the values, of the Muse
+    Spark settings you changed.
+  - Recent events: up to the last 50, with relative ages ("3m ago").
+  - Building the report starts no session, signs in nowhere and runs no
+    workspace command.
+- **A second scrub** runs over the whole final draft, the title and your
+  description included: workspace roots become `<workspace>` and the home
+  folder `~` (on Windows in any letter case, with either separator and in
+  the extended `\\?\` spelling); other user paths, Windows network (UNC)
+  paths, e-mail addresses, IPv4 and IPv6 addresses,
+  URL query strings, fragments and credentials, your login and machine
+  names, and every secret pattern the extension's redactor knows are
+  removed.
+- **The exports** all use the exact previewed text. A change after the
+  preview builds a new preview instead of exporting.
+  - **Copy report** puts the report on the clipboard.
+  - **Open issue page** opens this repository's GitHub new-issue page in
+    your browser with the title and body filled in. When the encoded
+    address would pass 2,000 characters, the report is copied instead and
+    the empty new-issue form opens, with an instruction to paste. If that
+    copy fails, nothing opens and the dialog says so.
+  - **Save to a file** writes the report to a file you pick.
+  - **Use the VS Code issue reporter**, where VS Code has it, opens VS
+    Code's own reporter with the title and body. VS Code adds its own data,
+    may search GitHub for similar issues, and controls sign-in and
+    submission, so what it sends is not only the previewed text.
+- Opening the browser hands the draft to GitHub under your account. The
+  clipboard's history, a saved file and the browser's history are outside
+  the recorder's retention.
+- **The agent for other editors.** `muse-spark-code-acp report` builds the
+  same kind of scrubbed report from the agent's own journals, in
+  `reports/` under the data folder named above, kept under the same
+  policy. It prints the report, or writes it to a file with `--out`. It
+  starts no backend, signs in nowhere, opens no browser, makes no network or
+  model call, and creates or consumes no activation marker. While the agent
+  serves an editor it records its own failures there as fixed words
+  (`updateNotSent`, `skillsUnavailable`, `permissionRequestFailed`,
+  `approvalWithoutDenial`, `questionFailed`) with no frames, and it never
+  writes report text to the editor's ACP channel. Its report names no VS
+  Code version (`none (standalone agent)`), gives the backend and sandbox as
+  `auto`, and lists no setting names; a credential store it cannot read
+  counts as no stored key.
 
 ## Your choices
 

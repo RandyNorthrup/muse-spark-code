@@ -15,6 +15,7 @@ import {
   MODEL_API_PRICES_VERIFIED_ON,
   type ModelPricing,
   PAID_PRICES_VERIFIED_ON,
+  TAB_DAILY_BUDGET_DEFAULT_USD,
   type PaidFeature,
   UI_TEXT,
   USAGE_COUNTDOWN_REFRESH_MS,
@@ -241,6 +242,12 @@ function TokensSection({
             <dd>{formatTokenWindow(usage.packedTokensAvoided)}</dd>
           </>
         )}
+        {usage?.hookTokensAdded === undefined ? null : (
+          <>
+            <dt>{UI_TEXT.usageAddedByHooks}</dt>
+            <dd>{formatTokenWindow(usage.hookTokensAdded)}</dd>
+          </>
+        )}
         {cost !== undefined && (
           <>
             <dt>{UI_TEXT.usageCost}</dt>
@@ -296,6 +303,17 @@ function paidUseText(feature: PaidFeature, tally: PaidTally): string {
     }
     case 'bestOfN': {
       return plural(UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts ?? 0)
+    }
+    // M94 lane 0: the row's request count, keeping this total while lane U
+    // writes the Tab row (tokens, cached tokens, costs, budget).
+    case 'tab': {
+      return plural(UI_TEXT.usagePaidTabRequests, tally.tabRequests ?? 0)
+    }
+    case 'hookModels': {
+      return plural(UI_TEXT.usagePaidHookModelRuns, tally.hookModelRuns ?? 0)
+    }
+    case 'judge': {
+      return plural(UI_TEXT.usagePaidJudgeCalls, tally.judgeCalls ?? 0)
     }
   }
 }
@@ -356,6 +374,8 @@ function paidRowState(feature: PaidFeature, paid: PaidState): string {
 }
 
 function paidTokenTally(feature: PaidFeature, paid: PaidState) {
+  if (feature === 'judge')
+    return [paid.tally.judgeCalls, paid.tally.judgeUnknownRequests, paid.tally.judgeTokens]
   if (feature === 'autoReviewer') {
     return [
       paid.tally.autoReviews,
@@ -366,6 +386,13 @@ function paidTokenTally(feature: PaidFeature, paid: PaidState) {
   if (feature === 'bestOfN') {
     return [paid.tally.bestOfNRequests, paid.tally.bestOfNUnknownRequests, paid.tally.bestOfNTokens]
   }
+  if (feature === 'hookModels') {
+    return [
+      paid.tally.hookModelRuns,
+      paid.tally.hookModelUnknownRequests,
+      paid.tally.hookModelTokens,
+    ]
+  }
   return [
     paid.tally.subagentRequests,
     paid.tally.subagentUnknownRequests,
@@ -373,12 +400,67 @@ function paidTokenTally(feature: PaidFeature, paid: PaidState) {
   ]
 }
 
+/**
+ * The Tab row (M94 lane U, PLAN.md D73 acceptance 16): today's spend against
+ * the daily budget, the request count, and the on/off state. "Today" is the
+ * ledger's total for the local day across every window, shown once Tab has
+ * run in this window (the ledger is read by dist/tab.js); "This window" is
+ * this window's reported cost; the budget is the configured one (RVM94HU
+ * 23–24). While Tab is off and has never run here, the row says off with the
+ * budget instead of zeros that read as use. The facts wrap, as the other
+ * token rows do (RVM94HU 25).
+ */
+function TabRow({ paid }: { readonly paid: PaidState }) {
+  const state = paidRowState('tab', paid)
+  const requests = paid.tally.tabRequests ?? 0
+  const unknown = paid.tally.tabUnknownRequests ?? 0
+  const hasRun = requests > 0 || paid.features.includes('tab')
+  const cost = formatUsd(paidCostUsd('tab', paid.tally))
+  const todayUsd = paid.tab?.todayUsd
+  const budget = formatUsd(paid.tab?.budgetUsd ?? TAB_DAILY_BUDGET_DEFAULT_USD)
+  const windowText = fill(UI_TEXT.usagePaidTabCostWindow, { cost })
+  return (
+    <>
+      <dt>{`${paidFeatureName('tab')} (${state})`}</dt>
+      <dd className="usage-paid-child">
+        {hasRun ? (
+          <>
+            {`${paidUseText('tab', paid.tally)} · ${fill(UI_TEXT.usagePaidTabTokens, {
+              tokens: formatNumber(paid.tally.tabTokens ?? 0),
+              cached: formatNumber(paid.tally.tabCachedTokens ?? 0),
+            })} · ${fill(UI_TEXT.usagePaidTabReported, { cost })}`}
+            {unknown > 0 ? (
+              <p className="usage-row-meta">{plural(UI_TEXT.usagePaidSubagentUnknown, unknown)}</p>
+            ) : null}
+            <p className="usage-row-meta">
+              {todayUsd === undefined
+                ? windowText
+                : `${fill(UI_TEXT.usagePaidTabCostToday, { cost: formatUsd(todayUsd) })} · ${windowText}`}
+            </p>
+            <p className="usage-row-meta">{fill(UI_TEXT.usagePaidTabBudget, { budget })}</p>
+          </>
+        ) : (
+          <span className="usage-row-meta">{fill(UI_TEXT.usagePaidTabBudget, { budget })}</span>
+        )}
+      </dd>
+    </>
+  )
+}
+
 function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly paid: PaidState }) {
+  if (feature === 'tab') {
+    return <TabRow paid={paid} />
+  }
   const state = paidRowState(feature, paid)
   const isReview = feature === 'autoReviewer'
   const isAttempt = feature === 'bestOfN'
   const [requests = 0, unknown = 0, tokens = 0] = paidTokenTally(feature, paid)
-  const isTokenFeature = feature === 'subagents' || isReview || isAttempt
+  const isTokenFeature =
+    feature === 'subagents' ||
+    isReview ||
+    isAttempt ||
+    feature === 'hookModels' ||
+    feature === 'judge'
   const isEntirelyUnknown = isTokenFeature && requests > 0 && requests === unknown
   const cost = formatUsd(paidCostUsd(feature, paid.tally))
   let costDetail = cost

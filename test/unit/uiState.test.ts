@@ -149,6 +149,12 @@ describe('uiReducer: shell', () => {
     expect(uiReducer(state, { type: 'insertApplied' }).pendingInsert).toBeUndefined()
   })
 
+  it('counts the host’s Account & usage requests (the Tab menu, RVM94HU 21)', () => {
+    const state = reduceAll([host(init), host({ type: 'openUsage' }), host({ type: 'openUsage' })])
+    expect(state.usageRequests).toBe(2)
+    expect(state.focusRequests).toBe(1)
+  })
+
   it('tracks auth and session info', () => {
     const state = reduceAll([
       host({

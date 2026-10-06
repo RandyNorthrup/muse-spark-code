@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, renameSync, statSync } from 'node:fs'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
+import type { JudgeDailyLedger } from '../../core/judge/admission'
 import type { ModelApiClientDeps } from '../../core/backends/modelapi/client'
 import { estimateCostUsd } from '../../core/usage/insights'
 import { unlessAborted } from '../../core/timeouts'
@@ -225,5 +226,50 @@ export function createPaidDailyBudget(deps: {
       },
     ]
   }
-  return { capUsd, reserve, readToday }
+  const latestDay = async () => {
+    const scope = day()
+    readLimit(scope)
+    const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
+    if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+    if (total.hasUnknownHistoricalFees) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    return { day: scope, capUsd: readLimit(scope), spentUsd: total.spentUsd }
+  }
+  const judgeLedger: JudgeDailyLedger = {
+    remainingUsd: async () => {
+      const current = await latestDay()
+      return Math.max(0, current.capUsd - current.spentUsd)
+    },
+    reserve: async (costUsd) => {
+      const scope = day()
+      readLimit(scope)
+      const claim = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, costUsd)
+      const check = () => {
+        if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+        claim.check(readLimit(scope))
+      }
+      try {
+        check()
+      } catch (error: unknown) {
+        await claim.settle(0)
+        throw error
+      }
+      return {
+        claimId: claim.claimId,
+        reservedUsd: claim.reservedUsd,
+        check,
+        settle: async (actualCostUsd) => {
+          await claim.settle(actualCostUsd)
+        },
+      }
+    },
+  }
+  return {
+    capUsd,
+    readToday,
+    reserve,
+    judgeLedger,
+    latestDay,
+    lookupByClaimId: (scope: string, claimId: string) =>
+      journal.lookupByClaimId(scope, PAID_DAILY_BUDGET.accountId, claimId),
+  }
 }

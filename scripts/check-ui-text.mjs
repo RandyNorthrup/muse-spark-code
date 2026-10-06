@@ -16,7 +16,7 @@ function loadBundle(file, exportName) {
   const require = createRequire(file)
   const module = { exports: {} }
   let tableLoads = 0
-  runInNewContext(readFileSync(file, 'utf8'), {
+  const context = {
     module,
     exports: module.exports,
     require: (name) => {
@@ -43,7 +43,9 @@ function loadBundle(file, exportName) {
     clearInterval: globalThis.clearInterval,
     __dirname: path.dirname(file),
     __filename: file,
-  })
+  }
+  module._compile = (source) => runInNewContext(source, context)
+  runInNewContext(readFileSync(file, 'utf8'), context)
   assert.ok(tableLoads > 0, `${file} did not load its English fallback`)
   assert.equal(typeof module.exports[exportName], 'function')
 }
@@ -61,7 +63,13 @@ const help = execFileSync(process.execPath, [agent, '--help'], {
   encoding: 'utf8',
   env: { LC_ALL: 'en_US.UTF-8' },
 })
-assert.equal(help.trim(), table.acpUsage.replaceAll('{command}', 'muse-spark-code-acp').trim())
+assert.equal(
+  help.trim(),
+  [table.acpUsage, table.acpUsageSetup]
+    .join('\n')
+    .replaceAll('{command}', 'muse-spark-code-acp')
+    .trim(),
+)
 console.log(
   'ok   extension, Model API, review and installed ACP tarball load the shared English fallback',
 )

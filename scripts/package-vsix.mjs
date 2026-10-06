@@ -3,6 +3,7 @@
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { packRuntimeArchive } from './lib/packageArchive.mjs'
 import { pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
 
@@ -30,7 +31,16 @@ export async function stageVsix(root, stage) {
     throw new Error('Shared validation runtime excluded from VSIX')
   rmSync(stage, { recursive: true, force: true })
   mkdirSync(stage, { recursive: true })
+  const tables = []
   for (const file of files) {
+    const isUiTable = /^l10n\/ui\.[^/]+\.json$/.test(file)
+    if (isUiTable) {
+      tables.push([
+        path.basename(file).slice('ui.'.length, -'.json'.length),
+        JSON.parse(readFileSync(path.join(root, file), 'utf8')),
+      ])
+      continue
+    }
     const target = path.join(stage, file)
     mkdirSync(path.dirname(target), { recursive: true })
     if (COMPACT_JSON.test(file)) {
@@ -39,6 +49,13 @@ export async function stageVsix(root, stage) {
       copyFileSync(path.join(root, file), target)
     }
   }
+  const keys = Object.keys(tables[0]?.[1] ?? {})
+  if (
+    keys.length === 0 ||
+    tables.some(([, table]) => JSON.stringify(Object.keys(table)) !== JSON.stringify(keys))
+  )
+    throw new Error('Translation tables have inconsistent key order')
+  await packRuntimeArchive(root, stage, files, tables)
   writeFileSync(
     path.join(stage, 'README.md'),
     readFileSync(path.join(root, 'docs/marketplace-readme.md')),
@@ -56,6 +73,10 @@ async function main() {
   await stageVsix(root, stage)
   // The same strict localization gate reads the exact staged bytes too.
   execFileSync(process.execPath, ['scripts/check-l10n.mjs', '--packaged', stage], {
+    cwd: root,
+    stdio: 'inherit',
+  })
+  execFileSync(process.execPath, ['test/packaging/moduleExports.test.mjs', 'vsix', stage], {
     cwd: root,
     stdio: 'inherit',
   })

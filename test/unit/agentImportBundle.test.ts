@@ -170,6 +170,7 @@ describe('the shipped import bundle', () => {
         workspaceRoot: undefined,
         currentRoot: () => undefined,
         isActive: () => true,
+        isProjectTrusted: () => true,
         captureOwner,
         editProject: async (work) => await work(() => undefined),
         beforeProjectWrite: () => Promise.resolve(),

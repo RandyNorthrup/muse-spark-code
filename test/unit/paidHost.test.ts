@@ -1,3 +1,4 @@
+import { memento } from './helpers/memento'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
 import { askPaidUse, createPaidFeatures } from '../../src/host/paid/paidHost'
@@ -10,6 +11,7 @@ import {
 } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { mockJudgePaidConfiguration } from './helpers/judgePaidConfiguration'
 import { confirmModal } from './helpers/vscodeViews'
 import { window } from './mocks/vscode'
 import { usageRecordSchema } from '../../src/shared/usageJournal'
@@ -25,16 +27,6 @@ beforeEach(() => {
   window.state.focused = true
   vi.mocked(confirmModal).mockReset()
 })
-
-function memento(data: Map<string, unknown>) {
-  return {
-    get: (key: string) => data.get(key),
-    update: (key: string, value: unknown) => {
-      data.set(key, value)
-      return Promise.resolve()
-    },
-  }
-}
 
 function paidWithSettings(
   data: Map<string, unknown>,
@@ -414,6 +406,98 @@ describe('Allow always in this workspace (M58)', () => {
   })
 })
 
+describe('M94 Tab wording and window question (lane L, PLAN.md D73)', () => {
+  const TAB = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
+
+  it('refuses Tab on a model without verified rates before any popup', async () => {
+    await expect(
+      askPaidUse({ feature: 'tab', modelId: 'muse-spark-future', budgetUsd: 1 }, true),
+    ).resolves.toBe('deny')
+    expect(confirmModal).not.toHaveBeenCalled()
+  })
+
+  it('refuses Tab with an unusable budget before any popup', async () => {
+    await expect(
+      askPaidUse({ feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: NaN }, true),
+    ).resolves.toBe('deny')
+    expect(confirmModal).not.toHaveBeenCalled()
+  })
+
+  it('names Tab, the model, its rates and today\u{2019}s budget', async () => {
+    const standard = await details(TAB)
+    expect(standard.title).toBe(UI_TEXT.paidUseTabTitle)
+    expect(standard.detail).toContain('muse-spark-1.3')
+    expect(standard.detail).toContain('$1.250/1M input')
+    expect(standard.detail).toContain('$1.00')
+    expect(standard.detail).toContain('Allow once covers this window until it closes')
+    const contributor = await details({ ...TAB, modelId: 'muse-spark-1.3-contributor' })
+    expect(contributor.detail).toContain('muse-spark-1.3-contributor')
+    expect(contributor.detail).toContain(UI_TEXT.tabTrainingContributor)
+  })
+
+  it('shows no turn-on confirmation: Tab is on, and its first request asks (owner 2026-10-04)', async () => {
+    const data = new Map<string, unknown>()
+    const { paid } = paidWithSettings(data, ['tab'])
+    await paid.gate.review()
+    expect(confirmModal).not.toHaveBeenCalled()
+    expect(paid.gate.isOn('tab')).toBe(true)
+    // The price is named by the first request's question instead.
+    answerWith(UI_TEXT.paidDeny)
+    await expect(paid.consent.allows(TAB)).resolves.toBe(false)
+    expect(confirmModal).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail).toContain('$1.250/1M input')
+  })
+
+  it('asks once per window, and again after the price acceptance changes', async () => {
+    const data = new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['tab']]])
+    const { paid, settings } = paidWithSettings(data, ['tab'])
+    answerWith(UI_TEXT.allowOnce)
+    await expect(paid.consent.allows(TAB)).resolves.toBe(true)
+    await expect(paid.consent.allows(TAB)).resolves.toBe(true)
+    expect(confirmModal).toHaveBeenCalledTimes(1)
+    // Nothing was stored for this window: only the setting's price was kept.
+    expect(data.get(GLOBAL_STATE_KEYS.paidConfirmations)).toEqual(['tab'])
+    // The setting turned off and on again (no turn-on modal for Tab, M94):
+    // the acceptance changed under the window's once, so it asks again.
+    settings.delete('tab')
+    await paid.gate.review()
+    settings.add('tab')
+    await paid.gate.review()
+    expect(paid.gate.isOn('tab')).toBe(true)
+    expect(confirmModal).toHaveBeenCalledTimes(1)
+    answerWith(UI_TEXT.allowOnce)
+    await expect(paid.consent.allows(TAB)).resolves.toBe(true)
+    expect(confirmModal).toHaveBeenCalledTimes(2)
+  })
+
+  it('asks again after another window withdrew and accepted the price anew (RVM94LC finding 7)', async () => {
+    // Two windows: each its own memory, one shared global state.
+    const data = new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['tab']]])
+    const windowA = paidWithSettings(data, ['tab'])
+    const windowB = paidWithSettings(data, ['tab'])
+    answerWith(UI_TEXT.allowOnce)
+    await expect(windowA.paid.consent.allows(TAB)).resolves.toBe(true)
+    // Window B withdraws Tab's price, then accepts it again.
+    windowB.settings.delete('tab')
+    await windowB.paid.gate.review()
+    windowB.settings.add('tab')
+    // No turn-on modal for Tab (M94, owner 2026-10-04): the acceptance
+    // follows the setting, and the generation still moves.
+    await windowB.paid.gate.review()
+    expect(data.get(GLOBAL_STATE_KEYS.paidGrantGenerations)).toEqual({ tab: 2 })
+    expect(windowA.paid.gate.isOn('tab')).toBe(true)
+    // Window A's once was given under the withdrawn acceptance: it asks.
+    answerWith(UI_TEXT.paidDeny)
+    await expect(windowA.paid.consent.allows(TAB)).resolves.toBe(false)
+    expect(confirmModal).toHaveBeenCalledTimes(2)
+    // A reload keeps nothing either: it asks under the current acceptance.
+    const reloaded = paidWithSettings(data, ['tab'])
+    answerWith(UI_TEXT.paidDeny)
+    await expect(reloaded.paid.consent.allows(TAB)).resolves.toBe(false)
+    expect(confirmModal).toHaveBeenCalledTimes(3)
+  })
+})
+
 describe('M48 paid child task price', () => {
   it('requires the current price revision in addition to the setting and accepted feature', () => {
     const data = new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['subagents']]])
@@ -462,4 +546,36 @@ describe('M77 best-of-N feature acceptance', () => {
     const { paid } = paidWithSettings(data, [])
     expect(paid.gate.isOn('bestOfN')).toBe(false)
   })
+})
+
+async function judgeDetail(budget: unknown) {
+  const { get } = mockJudgePaidConfiguration(budget)
+  // U defers the same price text to the actual first-charge three-choice popup.
+  const { paid } = paidWithSettings(new Map<string, unknown>(), ['judge'])
+  answerWith(UI_TEXT.allowOnce)
+  await paid.allowsJudgeUse('muse-spark-1.3')
+  const detail = vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail ?? ''
+  return { detail, get }
+}
+
+describe('M98 judge first-charge detail', () => {
+  it('asks once before the first charge and fills the shared daily budget', async () => {
+    const { detail, get } = await judgeDetail(12.5)
+    expect(detail).toContain('asks once before the first charge')
+    expect(detail).not.toContain('Every judgment asks first')
+    expect(detail).toContain('$12.50')
+    expect(detail).not.toContain('{budget}')
+    expect(detail).not.toContain('{price}')
+    expect(detail).toContain('$1.250/1M input')
+    expect(get).toHaveBeenCalledWith('paidDailyBudgetUsd')
+  })
+
+  it.each([undefined, '12.5', NaN, Infinity, -1])(
+    'shows zero rather than an invalid shared daily budget (%s)',
+    async (budget) => {
+      const { detail } = await judgeDetail(budget)
+      expect(detail).toContain('shared daily budget: $0.00')
+      expect(detail).not.toContain('{budget}')
+    },
+  )
 })

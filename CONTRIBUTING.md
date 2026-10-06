@@ -268,6 +268,27 @@ the extension-side Node process exits, and `fakeMcpPrebindParent.mjs` checks dea
 helper binds that process. The withheld-GO test's marker must never start.
 The test-owned fixture PIDs must be gone after the suite.
 
+## Hooks from other agents (M91)
+
+A hook imported in another agent's format runs only through lane P's
+adapters (`src/core/backends/modelapi/hookFormats/`, PLAN.md D70), never as a
+native hook:
+
+- Each vendor's contract is a table under `hookFormats/contracts/`, and
+  every row cites its saved source.
+- `hookFormatsContracts.test.ts` proves the engine's invariants over every
+  row; a new row is covered there the moment it exists. Above all, no row
+  produces an allow.
+- The dispatcher's side lives in `hooks.ts` (the import record's checks,
+  `ForeignHookAdapter`) and `foreignHooksEntry.ts` (the source's rules
+  around the run: patterns, triggers, directory, shell, timeouts, loop
+  limits). It is tested in `foreignHooks.test.ts` and, in a running
+  session, in `modelApiForeignHooks.test.ts`.
+- The adapters ship in `dist/foreignHooks.js`. `check-bundle-split.mjs`
+  fails if `dist/modelApi.js` starts carrying them.
+- `modelApiGoldenRequests.test.ts` must stay byte-identical: with hooks
+  off, no change may move a request's bytes.
+
 ## Reporting bugs and proposing features
 
 Use the issue templates. For a bug, run **Muse Spark: Diagnostics** from
@@ -340,3 +361,22 @@ portable root `tmp/`; this is test tooling only, never an npm/product dependency
 or global install. Windows Node tar checks use native System32 bsdtar so drive
 letters are not interpreted as GNU tar remote hosts. A shell startup failure or
 failure to reach the fixture is a failed check, never a proved refusal.
+
+## Tab completion checks (M94)
+
+`test/unit/tab*.test.ts` covers the core, privacy boundaries, spend ledger,
+consent, startup status and localized menus against fakes. The integration
+suite `test/integration/tab.test.ts` loads the dev build's real `dist/tab.js`
+against a loopback fake Model API, then exercises full and word accepts in
+VS Code at the manifest floor and stable. It uses no credential.
+
+The opt-in probe is `test/e2e/tab.live.e2e.test.ts`. Only the lead runs it with
+explicit paid-call authorization: first announce the expected 30 requests,
+count HTTP attempts and usage frames separately, and record the actual cost
+and workspace in `docs/certification/m94.md`. Lane W's validation makes no
+live model calls. The final live check and the real Tab hook drills wait
+for M91/lane K. Every new guard or gate must have an observed failing drill
+and a byte-exact restoration recorded before certification.
+
+The Windows release-shell fixtures use Git Bash's installed path when it
+exists, otherwise Bash from PATH. A missing Bash remains a test failure.

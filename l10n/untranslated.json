@@ -51,7 +51,16 @@
       "wireFormats.anthropic",
       "pickerMetaGroup",
       "contextMeterUnderOne",
-      "diffTallyLines"
+      "diffTallyLines",
+      "gitPullRequestName",
+      "reportEventItem",
+      "hooksSparkProjectFile",
+      "agentImportSourceGemini",
+      "agentImportSourceWindsurf",
+      "agentImportSourceKiro",
+      "agentImportSourceCline",
+      "agentImportSourceAmp",
+      "agentImportSourceOpenCode"
     ],
     "cs": [
       "providerFilters.cloud",
@@ -69,7 +78,8 @@
       "toolLabels.shell",
       "workflowChildUntitled",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "gitChangeCounts"
     ],
     "tr": [
       "modelColumns.name",
@@ -78,7 +88,8 @@
       "usageModel",
       "modelPillLabel",
       "exportModelLine",
-      "usagePlan"
+      "usagePlan",
+      "gitChangeCounts"
     ],
     "pl": [
       "modelColumns.name",
@@ -97,7 +108,8 @@
       "imageBuyPrompt",
       "workflowChildUntitled",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "gitChangeCounts"
     ],
     "de": [
       "providerFilters.cloud",
@@ -124,7 +136,14 @@
       "toolLabels.find_definition",
       "toolLabels.mcp__ide__findDefinition",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "gitCommitItem",
+      "gitPushBranchLine",
+      "gitCommitFormLabel",
+      "gitCommitTitle",
+      "gitChangeCounts",
+      "gitCommitAction",
+      "shellDirectory"
     ],
     "es": [
       "modelLocal",
@@ -134,7 +153,9 @@
       "toolLabels.shell",
       "goalTokens",
       "agentImportKindHook",
-      "verifyErrors.one"
+      "verifyErrors.one",
+      "hooksItem",
+      "gitChangeCounts"
     ],
     "pt-br": [
       "modelLocal",
@@ -143,7 +164,9 @@
       "toolLabels.shell",
       "goalTokens",
       "imageBuyPrompt",
-      "agentImportKindHook"
+      "agentImportKindHook",
+      "gitPushBranchLine",
+      "gitChangeCounts"
     ],
     "fr": [
       "providerFilters.cloud",
@@ -164,7 +187,9 @@
       "toolLabels.mcp__ide__generateImage",
       "workflowChildUntitled",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "gitChangeCounts",
+      "gitPrBodyLabel"
     ],
     "it": [
       "providerFilters.cloud",
@@ -176,11 +201,20 @@
       "exportOutputLabel",
       "toolLabels.shell",
       "imageBuyPrompt",
-      "agentImportKindHook"
+      "agentImportKindHook",
+      "gitChangeCounts"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
-    "hu": ["usageLimit", "toolLabels.shell", "imageBuyPrompt", "agentImportKindHook"]
+    "hu": [
+      "usageLimit",
+      "toolLabels.shell",
+      "imageBuyPrompt",
+      "agentImportKindHook",
+      "gitChangeCounts"
+    ],
+    "ko": ["gitChangeCounts"],
+    "ru": ["gitChangeCounts"]
   },
   "usage": {
     "*": ["chartBucket"],
@@ -214,7 +248,7 @@
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],
     "cs": ["views.chatView.name"],
     "de": ["views.chatView.name", "command.hooks.title"],
-    "es": ["views.chatView.name"],
+    "es": ["views.chatView.name", "command.hooks.title"],
     "pt-br": ["views.chatView.name"],
     "fr": ["command.hooks.title"],
     "it": ["views.chatView.name"]

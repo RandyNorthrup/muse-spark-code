@@ -1,3 +1,4 @@
+import type { JudgeStatus } from '../../shared/judge'
 // Webview UI state: a pure reducer over host messages and local edits. No DOM
 // access here; the components apply focus and caret changes. Timestamps come
 // in with the action (`at`) so reasoning durations stay deterministic in tests.
@@ -48,6 +49,10 @@ import type {
   MentionItem,
   ModelOption,
   NoticeAction,
+  ReportDraftItem,
+  ReportEventRef,
+  ReportExportChannel,
+  ReportExportReason,
   ReviewFile,
   SettingsSnapshot,
   SignInMethod,
@@ -65,6 +70,20 @@ import type {
   UsageInsights,
 } from '../../shared/usage'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
+import {
+  type GitFormEdit,
+  type GitUiState,
+  initialGitUiState,
+  withCommitForm,
+  withDone,
+  withDraft,
+  withFormBusy,
+  withFormEdit,
+  withGeneration,
+  withGitState,
+  withPullRequestForm,
+  withSendFailed,
+} from './gitState'
 import { backgroundRun } from '../toolDetails'
 import {
   type ChildTranscript,
@@ -73,6 +92,7 @@ import {
   type NoticeLevel,
   type OutputRef,
   type PendingApproval,
+  type PendingElicitation,
   type PendingQuestion,
   QUEUED_DISPOSITION,
   recordedAtMs,
@@ -86,6 +106,7 @@ export type {
   ChildTranscript,
   ContextSummary,
   PendingApproval,
+  PendingElicitation,
   PendingQuestion,
   TranscriptEntry,
   UsageSummary,
@@ -133,6 +154,39 @@ export interface SharePreview {
   readonly modelId: string
   readonly redacted: boolean
   readonly items: readonly ItemSnapshot[]
+}
+
+/** What the last export attempt answered, in the host's fixed words (M93 lane W). */
+export interface ReportExportStatus {
+  readonly via: ReportExportChannel
+  readonly ok: boolean
+  /** The over-long draft, copied with a paste note; rides only on an opened issue page. */
+  readonly issueFallback?: boolean | undefined
+  readonly reason?: ReportExportReason | undefined
+}
+
+/** The report-a-problem preview dialog's state (M93 lane W). */
+export interface ReportDialogState {
+  /** The host's dialog session this draft belongs to (one per open). */
+  readonly session: number
+  /** Which of the dialog's choices the draft answers; 0 is the opening draft. */
+  readonly revision: number
+  /** The description the draft was built with, echoed by the host. */
+  readonly description: string
+  readonly includeFacts: boolean
+  readonly includeEvents: boolean
+  /** Every item the draft contains that the user can remove. */
+  readonly items: readonly ReportDraftItem[]
+  /** Lane P's exact final draft: the preview shows `text` byte-identical. */
+  readonly title: string
+  readonly text: string
+  /** The draft's seal, carried back by the export. */
+  readonly hash: string
+  /** The VS Code reporter action shows only while its command exists. */
+  readonly canUseVscodeReporter: boolean
+  readonly recordingUnavailable: boolean
+  /** The last export attempt's answer; cleared by the next draft. */
+  readonly exportStatus: ReportExportStatus | undefined
 }
 
 export interface OutputPage {
@@ -187,6 +241,7 @@ export interface CheckpointView {
 }
 
 export interface UiState {
+  readonly judge: JudgeStatus | undefined
   /** Newest resolutions whose tool rows have not arrived yet; never saved. */
   readonly pendingApprovalResolutions: readonly Extract<AgentEvent, { type: 'approvalResolved' }>[]
   readonly phase: 'connecting' | 'ready'
@@ -246,6 +301,8 @@ export interface UiState {
     | undefined
   /** Incremented per host `focusInput`; the composer focuses when it changes. */
   readonly focusRequests: number
+  /** Incremented per host `openUsage`; Account & usage opens when it changes (M94). */
+  readonly usageRequests: number
   /** Text waiting to be inserted at the composer caret, if any. */
   readonly pendingInsert: string | undefined
   readonly auth: {
@@ -361,6 +418,8 @@ export interface UiState {
   readonly goal: SessionGoal | undefined
   /** Extension-owned Model API schedules for this session (M52). */
   readonly schedules: readonly ScheduleView[]
+  /** Git and pull requests (M71): the host's cards and the open form. */
+  readonly git: GitUiState
   /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
   readonly outputPages: Readonly<Record<string, OutputPage>>
   /** Pictures loaded for tool rows (M43), keyed by `toolImageKey`; never saved. */
@@ -398,6 +457,18 @@ export interface UiState {
    * the composer's model. Shown once above the composer, until dismissed.
    */
   readonly setupComplete: { readonly provider: string; readonly model: string } | undefined
+  /**
+   * The report-a-problem preview (M93 lane W): lane P's sealed draft as the
+   * host built it, with the removable items it contains. Undefined while
+   * the dialog is closed; never saved (the journal outlives the panel, and
+   * the command reads it again after a reload).
+   */
+  readonly report: ReportDialogState | undefined
+  /**
+   * The newest report session the user closed (0 for none): a draft still on
+   * its way for it, or for an older one, never reopens the dialog.
+   */
+  readonly closedReportSession: number
   /**
    * The conversation in the transcript holds imported history (M84, the
    * host's `historyLoaded`): its code blocks offer Copy, never Insert or Apply.
@@ -457,6 +528,8 @@ export type UiAction =
     }
   /** The user answered or cancelled a question card; lock it until the host settles it (M25). */
   | { readonly type: 'questionSubmitted'; readonly userInputId: string }
+  /** The user answered, declined or cancelled an elicitation form; lock it until the host settles it. */
+  | { readonly type: 'elicitationSubmitted'; readonly elicitationId: string }
   /** A row's Move to background or Stop (M46): its button waits for the host. */
   | { readonly type: 'taskRequested'; readonly itemId: string; readonly request: TaskRequest }
   /** A line for the transcript the webview itself has to say (M25). */
@@ -469,6 +542,17 @@ export type UiAction =
   | { readonly type: 'attachmentRefused'; readonly name: string; readonly reason: string }
   /** The app asked the host to drop these images (M25). */
   | { readonly type: 'attachmentsReleased'; readonly ids: readonly string[] }
+  /** The user typed in the git form (M71). */
+  | { readonly type: 'gitFormEdited'; readonly edit: GitFormEdit }
+  | { readonly type: 'gitFormClosed' }
+  /** Commit or Create pressed: the form waits for the host's `gitDone`. */
+  | { readonly type: 'gitFormBusy' }
+  /**
+   * "Write with Muse" pressed: the user's own message asking for the draft
+   * goes in the transcript (the composer's draft stays as it is), and the
+   * form waits for the reply.
+   */
+  | { readonly type: 'gitDraftRequested'; readonly localId: string; readonly text: string }
   /**
    * A card that did not come from the composer (M70): a review a palette row
    * started, or a comment from the review pane. The draft, its chips and its
@@ -492,6 +576,8 @@ export type UiAction =
   | { readonly type: 'shareClosed' }
   /** The × on the post-wizard confirmation (M95). */
   | { readonly type: 'setupCompleteDismissed' }
+  /** Cancel (or Escape, the × or the backdrop) on the report dialog (M93 lane W). */
+  | { readonly type: 'reportClosed' }
 
 export const initialUiState: UiState = {
   pendingApprovalResolutions: [],
@@ -523,7 +609,9 @@ export const initialUiState: UiState = {
   pendingHandoffCommand: undefined,
   handoff: undefined,
   focusRequests: 0,
+  usageRequests: 0,
   pendingInsert: undefined,
+  judge: undefined,
   auth: { status: 'checking', detail: undefined, backend: undefined, methods: undefined },
   model: undefined,
   models: [],
@@ -560,6 +648,7 @@ export const initialUiState: UiState = {
   todos: [],
   goal: undefined,
   schedules: [],
+  git: initialGitUiState,
   outputPages: {},
   toolImages: {},
   reviewPane: undefined,
@@ -573,6 +662,8 @@ export const initialUiState: UiState = {
   pendingClearEchoes: 0,
   share: undefined,
   setupComplete: undefined,
+  report: undefined,
+  closedReportSession: 0,
   isImported: false,
 }
 
@@ -935,6 +1026,7 @@ function withNotice(
   text: string,
   redoRestoreId?: string,
   actions?: readonly NoticeAction[],
+  reportRef?: ReportEventRef,
 ): UiState {
   const localSequence = state.localSequence + 1
   const repeatIndex =
@@ -956,6 +1048,7 @@ function withNotice(
         ...(redoRestoreId !== undefined && { redoRestoreId }),
         ...(actions !== undefined && actions.length > 0 && { actions }),
         ...(repeatCount !== undefined && { repeatCount }),
+        ...(reportRef !== undefined && { reportRef }),
       },
     ],
   }
@@ -991,6 +1084,7 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     approval: undefined,
     approvalOutcome: undefined,
     question: undefined,
+    elicitation: undefined,
     questionOutcome: undefined,
     taskRequest: undefined,
   }
@@ -1057,6 +1151,7 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
         kind: 'assistant',
         id: item.itemId,
         text: item.text ?? '',
+        displayText: item.displayText,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations,
         usage: item.usage,
@@ -1106,6 +1201,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       return {
         ...entry,
         text: item.text ?? entry.text,
+        displayText: item.displayText ?? entry.displayText,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations ?? entry.citations,
         usage: item.usage ?? entry.usage,
@@ -1218,7 +1314,12 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
     }
     case 'tool': {
       const isCutOff = entry.status === IN_PROGRESS && !entry.isBackground
-      if (!isCutOff && entry.approval === undefined && entry.question === undefined) {
+      if (
+        !isCutOff &&
+        entry.approval === undefined &&
+        entry.question === undefined &&
+        entry.elicitation === undefined
+      ) {
         return entry
       }
       return {
@@ -1226,6 +1327,7 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
         status: isCutOff ? TOOL_STATUS_INTERRUPTED : entry.status,
         approval: undefined,
         question: undefined,
+        elicitation: undefined,
         // A Move to background the turn's end overtook asks nothing any more (M46).
         taskRequest: isCutOff ? undefined : entry.taskRequest,
       }
@@ -1249,12 +1351,23 @@ function withTaskRequest(
   )
 }
 
-/** Question cards locked on a submission the host refused, open again (M25). */
+/** Answer cards locked on a submission the host refused, open again (M25). */
 function unlockQuestions(entries: readonly TranscriptEntry[]): readonly TranscriptEntry[] {
-  return entries.some((entry) => entry.kind === 'tool' && entry.question?.isSubmitted === true)
+  const isLocked = (entry: TranscriptEntry): boolean =>
+    entry.kind === 'tool' &&
+    (entry.question?.isSubmitted === true || entry.elicitation?.isSubmitted === true)
+  return entries.some((entry) => isLocked(entry))
     ? entries.map((entry) =>
-        entry.kind === 'tool' && entry.question?.isSubmitted === true
-          ? { ...entry, question: { ...entry.question, isSubmitted: false } }
+        entry.kind === 'tool'
+          ? {
+              ...entry,
+              ...(entry.question?.isSubmitted === true && {
+                question: { ...entry.question, isSubmitted: false },
+              }),
+              ...(entry.elicitation?.isSubmitted === true && {
+                elicitation: { ...entry.elicitation, isSubmitted: false },
+              }),
+            }
           : entry,
       )
     : entries
@@ -1675,6 +1788,7 @@ function completeTurn(
   state: UiState,
   event: Extract<AgentEvent, { type: 'turnCompleted' }>,
   at: number,
+  reportRef: ReportEventRef | undefined,
 ): UiState {
   const child = childOwnerOf(state, event.turnId)
   if (child?.childSessionId !== undefined) {
@@ -1688,6 +1802,7 @@ function completeTurn(
             kind: 'error',
             id: `error:${event.turnId}`,
             text: event.reason ?? event.errorKind ?? UI_TEXT.turnFailed,
+            ...(reportRef !== undefined && { reportRef }),
           },
         ]
       : []
@@ -1709,7 +1824,12 @@ function completeTurn(
   )
 }
 
-function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState {
+function applyAgentEvent(
+  state: UiState,
+  event: AgentEvent,
+  at: number,
+  reportRef?: ReportEventRef,
+): UiState {
   switch (event.type) {
     case 'turnStarted': {
       return childOwnerOf(state, event.turnId) === undefined
@@ -1741,7 +1861,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       return transcript === state.transcript ? state : { ...state, transcript }
     }
     case 'turnCompleted': {
-      return completeTurn(state, event, at)
+      return completeTurn(state, event, at, reportRef)
     }
     case 'userMessageTurnChanged': {
       const card = state.transcript.findLast(
@@ -1806,6 +1926,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
           ...(event.packedTokensAvoided !== undefined && {
             packedTokensAvoided: event.packedTokensAvoided,
           }),
+          ...(event.hookTokensAdded !== undefined && { hookTokensAdded: event.hookTokensAdded }),
         },
       }
     }
@@ -1844,6 +1965,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         availableChoices: event.availableChoices,
         isProtectedWrite: event.isProtectedWrite,
         isJudgeEscalated: event.isJudgeEscalated,
+        judgeCaution: event.judgeCaution,
         note: event.note,
       }
       return announce(
@@ -1880,6 +2002,21 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         fill(UI_TEXT.announceApprovalFor, { tool: toolLabel(event.toolName) ?? event.toolName }),
       )
     }
+    case 'approvalCaution': {
+      const transcript = state.transcript.map((entry) => {
+        return entry.kind !== 'tool' ||
+          entry.approval?.approvalId !== event.approvalId ||
+          entry.approval.requirementId.approvalId !== event.requirementId.approvalId ||
+          entry.approval.requirementId.sourceIndex !== event.requirementId.sourceIndex ||
+          entry.approval.decidedSourceIndex !== undefined ||
+          entry.approval.judgeCaution === true
+          ? entry
+          : { ...entry, approval: { ...entry.approval, judgeCaution: true } }
+      })
+      return transcript.some((entry, index) => entry !== state.transcript[index])
+        ? announce({ ...state, transcript }, UI_TEXT.judgeCaution)
+        : state
+    }
     case 'approvalUpdated': {
       return {
         ...state,
@@ -1893,6 +2030,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
                   subject: event.subject,
                   availableChoices: event.availableChoices,
                   note: event.note ?? entry.approval.note,
+                  judgeCaution: undefined,
                 },
               }
             : entry,
@@ -1964,6 +2102,42 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
                   }),
                 },
               }
+            : entry,
+        ),
+      }
+    }
+    case 'elicitationRequested': {
+      const form: PendingElicitation = {
+        elicitationId: event.elicitationId,
+        server: event.server,
+        message: event.message,
+        fields: [...event.fields],
+      }
+      const rowId = event.itemId ?? `elicitation:${event.elicitationId}`
+      return announce(
+        withToolEntry(
+          state,
+          rowId,
+          () =>
+            toolEntry({
+              itemId: rowId,
+              kind: 'toolCall',
+              status: IN_PROGRESS,
+              tool: event.server,
+            }),
+          (entry) => (entry.kind === 'tool' ? { ...entry, elicitation: form } : entry),
+        ),
+        fill(UI_TEXT.elicitationTitle, { server: event.server }),
+      )
+    }
+    case 'elicitationSettled': {
+      // The settlement carries the action only: values never reach the
+      // transcript, so settling clears the form with nothing kept.
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'tool' && entry.elicitation?.elicitationId === event.elicitationId
+            ? { ...entry, elicitation: undefined }
             : entry,
         ),
       }
@@ -2140,6 +2314,7 @@ export function planReplyIdOf(state: UiState): string | undefined {
 function clearedConversation(state: UiState): UiState {
   return {
     ...state,
+    judge: undefined,
     pendingApprovalResolutions: [],
     attachmentEpoch: state.attachmentEpoch + 1,
     attachmentSettlements: [],
@@ -2175,6 +2350,8 @@ function clearedConversation(state: UiState): UiState {
     todos: [],
     goal: undefined,
     schedules: [],
+    // A new conversation starts without a form; the host says what else stays.
+    git: { ...state.git, form: undefined },
     outputPages: {},
     toolImages: {},
     reviewPane: undefined,
@@ -2308,6 +2485,9 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'focusInput': {
       return { ...state, focusRequests: state.focusRequests + 1 }
+    }
+    case 'openUsage': {
+      return { ...state, usageRequests: state.usageRequests + 1 }
     }
     case 'conversationCleared': {
       if (message.accountBoundary === true) {
@@ -2539,6 +2719,9 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         dictationAnnouncement(state.dictation.status, message.status),
       )
     }
+    case 'judgeState': {
+      return { ...state, judge: message.state }
+    }
     case 'paidState': {
       return { ...state, paid: message.state }
     }
@@ -2744,6 +2927,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       return announce(
         {
           ...state,
+          git: withSendFailed(state.git, message.localId),
           draft: shouldRestoreDraft ? pending.text : state.draft,
           pendingSendDraft: pending?.localId === message.localId ? undefined : pending,
           pendingSendDrafts: without(state.pendingSendDrafts, message.localId),
@@ -2833,7 +3017,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       )
     }
     case 'agentEvent': {
-      return applyAgentEvent(state, message.event, at)
+      return applyAgentEvent(state, message.event, at, message.reportRef)
     }
     case 'modelList': {
       return { ...state, models: message.models }
@@ -2893,6 +3077,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         message.text,
         message.redoRestoreId,
         message.actions,
+        message.reportRef,
       )
       return announce(
         message.level === 'error'
@@ -2900,6 +3085,47 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           : noticed,
         message.level === 'info' ? undefined : message.text,
       )
+    }
+    case 'reportDraft': {
+      // The preview dialog's draft (M93 lane W): shown byte-identical, so a
+      // fresh draft clears the last export's answer. Opening moves focus
+      // into the dialog (the app watches `report`); an update while typing
+      // must not steal it, so nothing is announced here — the dialog's own
+      // status line reads export outcomes out. A draft for a session the user
+      // closed (or an older one), or for an older choice than the one shown,
+      // arrived late: it is dropped, never reopening or rewinding the dialog.
+      const shown = state.report
+      if (
+        message.session <= state.closedReportSession ||
+        (shown !== undefined &&
+          (message.session < shown.session ||
+            (message.session === shown.session && message.revision < shown.revision)))
+      ) {
+        return state
+      }
+      const { type: _draft, ...draft } = message
+      return { ...state, report: { ...draft, exportStatus: undefined } }
+    }
+    case 'reportExported': {
+      // An export attempt's answer in fixed words (M93 lane W): shown on
+      // the dialog's status line. An answer for a closed dialog, another
+      // session or a draft no longer on screen is dropped: it is not about
+      // what the dialog shows.
+      if (state.report?.session !== message.session || state.report.hash !== message.hash) {
+        return state
+      }
+      return {
+        ...state,
+        report: {
+          ...state.report,
+          exportStatus: {
+            via: message.via,
+            ok: message.ok,
+            issueFallback: message.issueFallback,
+            reason: message.reason,
+          },
+        },
+      }
     }
     case 'outputPage': {
       const key = outputPageKey(message.itemId, message.outputRef)
@@ -2949,6 +3175,21 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       const restored =
         state.draft === '' ? { ...state, draft: `${USER_SHELL_PREFIX}${message.command}` } : state
       return announce(withNotice(restored, 'warning', message.reason), message.reason)
+    }
+    case 'gitState': {
+      return { ...state, git: withGitState(state.git, message.state) }
+    }
+    case 'gitCommitForm': {
+      return { ...state, git: withCommitForm(state.git, message.form) }
+    }
+    case 'gitPullRequestForm': {
+      return { ...state, git: withPullRequestForm(state.git, message.form) }
+    }
+    case 'gitDraft': {
+      return { ...state, git: withDraft(state.git, message.draft) }
+    }
+    case 'gitDone': {
+      return { ...state, git: withDone(state.git, message.form, message.ok) }
     }
     case 'toolImage': {
       const image: ToolImageState =
@@ -3168,6 +3409,16 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         ),
       }
     }
+    case 'elicitationSubmitted': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'tool' && entry.elicitation?.elicitationId === action.elicitationId
+            ? { ...entry, elicitation: { ...entry.elicitation, isSubmitted: true } }
+            : entry,
+        ),
+      }
+    }
     case 'taskRequested': {
       return {
         ...state,
@@ -3195,11 +3446,45 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     case 'bannerDismissed': {
       return { ...state, banner: undefined }
     }
+    case 'gitFormEdited': {
+      return { ...state, git: withFormEdit(state.git, action.edit) }
+    }
+    case 'gitFormClosed': {
+      return { ...state, git: { ...state.git, form: undefined } }
+    }
+    case 'gitFormBusy': {
+      return { ...state, git: withFormBusy(state.git) }
+    }
+    case 'gitDraftRequested': {
+      return {
+        ...state,
+        git: withGeneration(state.git, action.localId),
+        sequence: state.sequence + 1,
+        transcript: [
+          ...state.transcript,
+          {
+            kind: 'user',
+            id: action.localId,
+            seq: state.sequence + 1,
+            text: action.text,
+            status: 'pending',
+            attachments: [],
+          },
+        ],
+      }
+    }
     case 'shareClosed': {
       return { ...state, share: undefined }
     }
     case 'setupCompleteDismissed': {
       return { ...state, setupComplete: undefined }
+    }
+    case 'reportClosed': {
+      return {
+        ...state,
+        report: undefined,
+        closedReportSession: Math.max(state.closedReportSession, state.report?.session ?? 0),
+      }
     }
     case 'conversationCleared': {
       return {
@@ -3409,6 +3694,9 @@ export function waitingApprovals(
 export function hasPendingRequest(state: UiState): boolean {
   return state.transcript.some(
     (entry) =>
-      entry.kind === 'tool' && (entry.approval !== undefined || entry.question !== undefined),
+      entry.kind === 'tool' &&
+      (entry.approval !== undefined ||
+        entry.question !== undefined ||
+        entry.elicitation !== undefined),
   )
 }

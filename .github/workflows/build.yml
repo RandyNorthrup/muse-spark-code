@@ -336,13 +336,16 @@ jobs:
             extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \
             extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
             extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
-            extension/dist/extension.js extension/dist/modelApi.js extension/dist/searchWorker.js \
+            extension/dist/extension.js extension/dist/conversation.js extension/dist/modelApi.js extension/dist/searchWorker.js \
             extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
-            extension/dist/review.js extension/dist/agentImport.js extension/dist/bundledSkills.js \
-            extension/dist/uiText.js extension/dist/validation.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
+            extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
+            extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \
+            extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
             extension/dist/sessionBoard.js extension/dist/reviewer.js \
+            extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js \
             extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
-            extension/dist/webFetch.js extension/dist/whatsNew.js extension/dist/whatsNew.json \
+            extension/dist/report.js extension/dist/recorder.js \
+            extension/dist/webFetch.js extension/dist/judge.js extension/docs/judge.md extension/dist/whatsNew.js extension/dist/whatsNew.json \
             extension/dist/webview/main.js extension/dist/webview/main.css \
             extension/dist/webview/whatsNew.js extension/dist/webview/whatsNew.css; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
@@ -363,7 +366,11 @@ jobs:
       - name: the agent's package carries its bundles, tables, notices and manifest
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
-          for entry in package/package.json package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/reviewer.js \
+          for entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js \
+            package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
+            package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
+            package/dist/recorder.js \
+            package/dist/runtime.bundles.json.br \
             package/dist/searchWorker.js package/dist/pageWorker.js \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
@@ -373,12 +380,10 @@ jobs:
               exit 1
             fi
           done
-          for table in l10n/ui.*.json; do
-            if ! grep -Fxq -- "package/$table" <<< "$listing"; then
-              echo "::error::$table is missing from the agent's package" >&2
-              exit 1
-            fi
-          done
+          if ! grep -Fxq -- "package/l10n/ui.tables.json.br" <<< "$listing"; then
+            echo "::error::runtime table archive is missing from the agent's package" >&2
+            exit 1
+          fi
           echo "the agent's package holds $(wc -l <<< "$listing") entries, the required ones included"
       # The bundles load the shared English table at runtime: the extension
       # and Model API bundles from this build, the agent as npm installs it.

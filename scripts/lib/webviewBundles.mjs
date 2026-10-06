@@ -21,10 +21,11 @@ export function webviewStartupOutputs(
 }
 
 export const DEFERRED_WEBVIEW_SURFACES = [
+  'GitPanel',
   'AgentMap',
   'UsageDialog',
   'BestOfNDialog',
   'ReviewPane',
   'HistoryDialog',
-  'SessionBoardDialog',
+  'ReportDialog',
 ]
