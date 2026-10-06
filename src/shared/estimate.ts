@@ -18,6 +18,9 @@ const positiveCount = z.int().check(z.positive())
 const instant = z.iso.datetime()
 const milestoneId = z.string().check(z.regex(/^M[1-9]\d*[a-z\d]*$/))
 const boundedIds = z.array(id).check(z.maxLength(ESTIMATE_MAX_ITEMS))
+const goalName = z
+  .string()
+  .check(z.minLength(1), z.maxLength(ESTIMATE_ID_MAX_CHARS), z.regex(/^[\w.-]+$/))
 const os = z.enum(['windows', 'macos', 'linux'])
 const architecture = z.enum(['x64', 'arm64'])
 const areUnique = (values: readonly string[]): boolean => new Set(values).size === values.length
@@ -37,11 +40,13 @@ export const estimateGoalSchema = z.discriminatedUnion('kind', [
     kind: z.literal('label'),
     label: z.string().check(z.minLength(1), z.maxLength(ESTIMATE_LABEL_MAX_CHARS)),
   }),
-  z.strictObject({ kind: z.literal('release'), release: id }),
+  z.strictObject({ kind: z.literal('release'), release: goalName }),
   z.strictObject({
     kind: z.literal('lanes'),
     milestoneId,
-    laneIds: boundedIds.check(z.minLength(1), z.refine(areUnique)),
+    laneIds: z
+      .array(goalName)
+      .check(z.minLength(1), z.maxLength(ESTIMATE_MAX_ITEMS), z.refine(areUnique)),
   }),
 ])
 export type EstimateGoal = z.infer<typeof estimateGoalSchema>
@@ -61,6 +66,7 @@ export function parseEstimateGoal(text: string): EstimateGoal | undefined {
       : { kind: 'milestone', milestoneId: canonicalId }
   } else {
     const colon = value.indexOf(':')
+    if (colon < 1) return undefined
     const kind = value.slice(0, colon)
     const detail = value.slice(colon + 1)
     switch (kind) {
@@ -90,6 +96,168 @@ export function parseEstimateGoal(text: string): EstimateGoal | undefined {
   return parsed.success ? parsed.data : undefined
 }
 
+// Quantitative application inputs retain unavailable measurements explicitly.
+const numericUncertainty = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('unknown') }),
+  z
+    .strictObject({ kind: z.literal('interval'), lower: z.number(), upper: z.number() })
+    .check(z.refine((range) => range.lower <= range.upper)),
+])
+const hasSamplesForBasis = (evidence: { basis: string; samples: number }): boolean =>
+  evidence.basis === 'history' || evidence.basis === 'calibration'
+    ? evidence.samples > 0
+    : evidence.samples === 0
+
+function resourceQuantity(valueSchema: typeof hours) {
+  return z.discriminatedUnion('status', [
+    z.strictObject({
+      status: z.literal('unknown'),
+      value: z.null(),
+      basis: z.literal('unknown'),
+      samples: z.literal(0),
+      uncertainty: z.strictObject({ kind: z.literal('unknown') }),
+    }),
+    z
+      .strictObject({
+        status: z.literal('known'),
+        value: valueSchema,
+        basis: z.enum(['history', 'calibration', 'assumption']),
+        samples: count,
+        uncertainty: numericUncertainty,
+      })
+      .check(
+        z.refine(
+          (quantity) =>
+            hasSamplesForBasis(quantity) &&
+            (quantity.uncertainty.kind === 'unknown' ||
+              (quantity.uncertainty.lower <= quantity.value &&
+                quantity.value <= quantity.uncertainty.upper)),
+        ),
+      ),
+  ])
+}
+const demand = resourceQuantity(hours)
+const bytes = z.int().check(z.nonnegative())
+const byteDemand = resourceQuantity(bytes)
+// Opaque allocation roles (workspace, worktrees, temp, logs, data, state, ...).
+// A machine maps each role to one physical volume; volumes are not capped at three.
+const volumeRole = id
+const diskFields = {
+  volumeId: id,
+  roles: z.array(volumeRole).check(z.minLength(1), z.refine(areUnique)),
+}
+const diskHeadroomSchema = z.discriminatedUnion('status', [
+  z.strictObject({ status: z.literal('unknown'), ...diskFields }),
+  z
+    .strictObject({
+      status: z.literal('known'),
+      ...diskFields,
+      totalBytes: bytes,
+      freeBytes: bytes,
+      floorBytes: bytes,
+      headroomBytes: bytes,
+    })
+    .check(
+      z.refine(
+        (disk) =>
+          disk.freeBytes <= disk.totalBytes &&
+          disk.floorBytes <= disk.totalBytes &&
+          disk.headroomBytes === Math.max(0, disk.freeBytes - disk.floorBytes),
+      ),
+    ),
+])
+
+const windowFields = {
+  id,
+  unit: z.enum(['requests', 'tokens', 'usd', 'percent']),
+  remaining: hours,
+  allowance: hours,
+  resetsAt: instant,
+  timeZone: z.string().check(
+    z.refine((zone) => {
+      try {
+        new Intl.DateTimeFormat('en', { timeZone: zone })
+        return true
+      } catch {
+        return false
+      }
+    }),
+  ),
+}
+const usageWindowSchema = z
+  .discriminatedUnion('kind', [
+    z.strictObject({ kind: z.literal('rolling'), periodSeconds: positiveCount, ...windowFields }),
+    // Repeat the reset's local time/day; clamp month-end to the last local day.
+    z.strictObject({
+      kind: z.literal('calendar'),
+      period: z.enum(['day', 'week', 'month']),
+      ...windowFields,
+    }),
+  ])
+  .check(
+    z.refine(
+      (window) =>
+        window.remaining <= window.allowance &&
+        (window.unit !== 'percent' || window.allowance <= 100),
+    ),
+  )
+
+// One complete review pass is one lane round, regardless of module count.
+// Module/class strikes count rounds with unresolved findings, never findings.
+const reviewSchema = z.discriminatedUnion('status', [
+  z.strictObject({ status: z.literal('unknown') }),
+  z
+    .strictObject({
+      status: z.literal('known'),
+      rounds: count,
+      modules: z.array(
+        z.strictObject({
+          familyId: id,
+          strikes: count,
+          classes: z.array(
+            z.strictObject({
+              class: z.enum([
+                'validationSecurity',
+                'failureHonesty',
+                'concurrencyLifecycle',
+                'testsGates',
+                'docs',
+              ]),
+              strikes: count,
+            }),
+          ),
+        }),
+      ),
+      redesigns: z.array(
+        z.strictObject({
+          moduleFamilyId: id,
+          afterRound: positiveCount,
+          outcome: z.enum(['impossible', 'caught', 'remains']),
+        }),
+      ),
+    })
+    .check(
+      z.refine(
+        (review) =>
+          areUnique(review.modules.map((module) => module.familyId)) &&
+          review.modules.every(
+            (module) =>
+              module.strikes <= review.rounds &&
+              areUnique(module.classes.map((entry) => entry.class)) &&
+              module.classes.every((entry) => entry.strikes <= module.strikes),
+          ) &&
+          areUnique(
+            review.redesigns.map((event) => `${event.moduleFamilyId}:${String(event.afterRound)}`),
+          ) &&
+          review.redesigns.every(
+            (event) =>
+              event.afterRound <= review.rounds &&
+              review.modules.some((module) => module.familyId === event.moduleFamilyId),
+          ),
+      ),
+    ),
+])
+
 export const machineClassSchema = z.strictObject({
   id,
   vcpu: positiveCount,
@@ -114,6 +282,14 @@ const machineSchema = z.strictObject({
   cores: positiveCount,
   ramGiB: z.number().check(z.positive()),
   gpu: z.optional(z.strictObject({ count: positiveCount, memoryGiB: hours })),
+  disks: z.array(diskHeadroomSchema).check(
+    z.minLength(1),
+    z.refine(
+      (disks) =>
+        areUnique(disks.map((disk) => disk.volumeId)) &&
+        areUnique(disks.flatMap((disk) => disk.roles)),
+    ),
+  ),
   governorSlots: count,
   capacityByKind: z.array(z.strictObject({ kind: id, slots: count })),
   caps: z.strictObject({
@@ -130,19 +306,10 @@ const accountSchema = z.strictObject({
   tokensPerMinute: z.optional(hours),
   // Multiple hard windows may apply at once (for example daily and weekly).
   usageLimits: z.optional(
-    z
-      .array(
-        z.strictObject({
-          id,
-          unit: z.enum(['requests', 'tokens', 'usd']),
-          remaining: hours,
-          resetsAt: instant,
-        }),
-      )
-      .check(
-        z.maxLength(ESTIMATE_MAX_ITEMS),
-        z.refine((limits) => areUnique(limits.map((limit) => limit.id))),
-      ),
+    z.array(usageWindowSchema).check(
+      z.maxLength(ESTIMATE_MAX_ITEMS),
+      z.refine((limits) => areUnique(limits.map((limit) => limit.id))),
+    ),
   ),
 })
 
@@ -206,15 +373,37 @@ export const estimateLaneSchema = z.strictObject({
     gpuRequired: z.boolean(),
   }),
   resources: z.strictObject({
-    slots: positiveCount,
-    accountRequestsPerHour: hours,
-    accountTokensPerHour: hours,
-    accountUsdPerHour: hours,
-    ciJobs: count,
-    ciMinutes: hours,
+    slots: resourceQuantity(positiveCount),
+    accountRequestsPerHour: demand,
+    accountTokensPerHour: demand,
+    accountUsdPerHour: demand,
+    accountPercentPerHour: demand,
+    ciJobs: resourceQuantity(count),
+    ciMinutes: demand,
+    disk: z
+      .array(
+        z
+          .strictObject({
+            role: volumeRole,
+            peakBytes: byteDemand,
+            steadyBytes: byteDemand,
+          })
+          .check(
+            z.refine(
+              (disk) =>
+                disk.peakBytes.value === null ||
+                disk.steadyBytes.value === null ||
+                disk.steadyBytes.value <= disk.peakBytes.value,
+            ),
+          ),
+      )
+      .check(
+        z.minLength(1),
+        z.refine((disks) => areUnique(disks.map((disk) => disk.role))),
+      ),
     ciId: z.optional(id),
   }),
-  reviewRounds: count,
+  review: reviewSchema,
 })
 export type EstimateLane = z.infer<typeof estimateLaneSchema>
 
@@ -225,7 +414,7 @@ export const historyRecordSchema = z
     machineClassId: id,
     estimatedHours: z.number().check(z.positive()),
     actualHours: hours,
-    reviewRounds: count,
+    review: reviewSchema,
     ciHours: z.optional(hours),
     startedAt: instant,
     finishedAt: instant,
@@ -317,6 +506,47 @@ const setupSchema = z
   })
   .check(z.refine((setup) => Date.parse(setup.p90) >= Date.parse(setup.p50)))
 
+const disclosureSchema = z
+  .strictObject({
+    // JSON Pointer into this section, excluding the disclosures themselves.
+    path: z.string().check(z.startsWith('/'), z.maxLength(ESTIMATE_LABEL_MAX_CHARS)),
+    basis: z.enum(['history', 'calibration', 'assumption', 'unknown']),
+    samples: count,
+    uncertainty: z.union([
+      numericUncertainty,
+      z
+        .strictObject({ kind: z.literal('time'), earliest: instant, latest: instant })
+        .check(z.refine((range) => Date.parse(range.earliest) <= Date.parse(range.latest))),
+    ]),
+  })
+  .check(
+    z.refine(
+      (disclosure) =>
+        hasSamplesForBasis(disclosure) &&
+        (disclosure.basis !== 'unknown' || disclosure.uncertainty.kind === 'unknown'),
+    ),
+  )
+
+/** Cover numbers in inputs and results, and dates predicting a finish.
+ * Evidence metadata is covered too; only this index's own metadata is excluded
+ * to avoid infinite self-description. JSON Pointer makes coverage unambiguous.
+ */
+function disclosureTargets(value: unknown, pointer = ''): Map<string, number | string> {
+  if (typeof value === 'number') return new Map([[pointer, value]])
+  if (typeof value === 'string' && /\/(?:p50|p90)$/.test(pointer))
+    return new Map([[pointer, value]])
+  const targets = new Map<string, number | string>()
+  if (value !== null && typeof value === 'object') {
+    for (const [key, child] of Object.entries(value)) {
+      if (pointer === '' && key === 'disclosures') continue
+      const segment = key.replaceAll('~', '~0').replaceAll('/', '~1')
+      for (const [path, target] of disclosureTargets(child, `${pointer}/${segment}`))
+        targets.set(path, target)
+    }
+  }
+  return targets
+}
+
 /** Section payload for M113 report-v1; lane W binds its envelope when merged. */
 export const estimateSectionSchema = z
   .strictObject({
@@ -331,7 +561,7 @@ export const estimateSectionSchema = z
     criticalPath: boundedIds,
     limitingResource: z
       .strictObject({
-        kind: z.enum(['machines', 'slots', 'accountRate', 'ci', 'criticalPath']),
+        kind: z.enum(['machines', 'slots', 'accountRate', 'ci', 'disk', 'criticalPath']),
         resourceId: z.optional(id),
         hoursSavedIfUnbounded: hours,
         moreAgentsHelp: z.boolean(),
@@ -345,6 +575,7 @@ export const estimateSectionSchema = z
       ),
     setups: z.array(setupSchema),
     inputs: estimateInputsSchema,
+    disclosures: z.array(disclosureSchema),
     calibration: z.array(
       z
         .strictObject({
@@ -385,8 +616,40 @@ export const estimateSectionSchema = z
         ) &&
         estimate.criticalPath.every((laneId) =>
           estimate.inputs.lanes.some((lane) => lane.id === laneId),
-        ),
+        ) &&
+        areUnique(estimate.calibration.map((row) => `${row.kind}:${row.machineClassId}`)) &&
+        estimate.inputs.lanes.every((lane) =>
+          estimate.calibration.some((row) => row.kind === lane.kind),
+        ) &&
+        estimate.schedule.every((entry) => {
+          const lane = estimate.inputs.lanes.find((lane) => lane.id === entry.laneId)
+          const machine = estimate.inputs.fleet.machines.find(
+            (machine) => machine.id === entry.machineId,
+          )
+          return estimate.calibration.some(
+            (row) => row.kind === lane?.kind && row.machineClassId === machine?.classId,
+          )
+        }),
     ),
+    z.refine((estimate) => {
+      if (estimate.inputs.lanes.length === 0) return true
+      const targets = disclosureTargets(estimate)
+      return (
+        areUnique(estimate.disclosures.map((disclosure) => disclosure.path)) &&
+        estimate.disclosures.length === targets.size &&
+        estimate.disclosures.every((disclosure) => {
+          const value = targets.get(disclosure.path)
+          if (value === undefined) return false
+          const range = disclosure.uncertainty
+          if (range.kind === 'unknown') return true
+          return typeof value === 'number'
+            ? range.kind === 'interval' && range.lower <= value && value <= range.upper
+            : range.kind === 'time' &&
+                Date.parse(range.earliest) <= Date.parse(value) &&
+                Date.parse(value) <= Date.parse(range.latest)
+        })
+      )
+    }),
   )
 export type EstimateSection = z.infer<typeof estimateSectionSchema>
 

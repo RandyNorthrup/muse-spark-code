@@ -18,14 +18,115 @@
           "gpuRequired": false
         },
         "resources": {
-          "slots": 1,
-          "accountRequestsPerHour": 1,
-          "accountTokensPerHour": 10,
-          "ciJobs": 0,
-          "ciMinutes": 0,
-          "accountUsdPerHour": 0
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
         },
-        "reviewRounds": 0
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
       },
       {
         "id": "B",
@@ -43,14 +144,115 @@
           "gpuRequired": false
         },
         "resources": {
-          "slots": 1,
-          "accountRequestsPerHour": 1,
-          "accountTokensPerHour": 10,
-          "ciJobs": 0,
-          "ciMinutes": 0,
-          "accountUsdPerHour": 0
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
         },
-        "reviewRounds": 0
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
       },
       {
         "id": "C",
@@ -68,14 +270,115 @@
           "gpuRequired": false
         },
         "resources": {
-          "slots": 1,
-          "accountRequestsPerHour": 1,
-          "accountTokensPerHour": 10,
-          "ciJobs": 0,
-          "ciMinutes": 0,
-          "accountUsdPerHour": 0
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
         },
-        "reviewRounds": 0
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
       }
     ],
     "golden": {
@@ -123,14 +426,115 @@
           "gpuRequired": false
         },
         "resources": {
-          "slots": 1,
-          "accountRequestsPerHour": 1,
-          "accountTokensPerHour": 10,
-          "ciJobs": 0,
-          "ciMinutes": 0,
-          "accountUsdPerHour": 0
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
         },
-        "reviewRounds": 0
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
       },
       {
         "id": "B",
@@ -148,14 +552,115 @@
           "gpuRequired": false
         },
         "resources": {
-          "slots": 1,
-          "accountRequestsPerHour": 1,
-          "accountTokensPerHour": 10,
-          "ciJobs": 0,
-          "ciMinutes": 0,
-          "accountUsdPerHour": 0
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
         },
-        "reviewRounds": 0
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
       },
       {
         "id": "C",
@@ -173,14 +678,115 @@
           "gpuRequired": false
         },
         "resources": {
-          "slots": 1,
-          "accountRequestsPerHour": 1,
-          "accountTokensPerHour": 10,
-          "ciJobs": 0,
-          "ciMinutes": 0,
-          "accountUsdPerHour": 0
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
         },
-        "reviewRounds": 0
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
       }
     ],
     "golden": {
@@ -228,14 +834,115 @@
           "gpuRequired": false
         },
         "resources": {
-          "slots": 1,
-          "accountRequestsPerHour": 1,
-          "accountTokensPerHour": 10,
-          "ciJobs": 0,
-          "ciMinutes": 0,
-          "accountUsdPerHour": 0
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
         },
-        "reviewRounds": 0
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
       },
       {
         "id": "B",
@@ -253,14 +960,115 @@
           "gpuRequired": false
         },
         "resources": {
-          "slots": 1,
-          "accountRequestsPerHour": 1,
-          "accountTokensPerHour": 10,
-          "ciJobs": 0,
-          "ciMinutes": 0,
-          "accountUsdPerHour": 0
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
         },
-        "reviewRounds": 0
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
       },
       {
         "id": "C",
@@ -278,14 +1086,115 @@
           "gpuRequired": false
         },
         "resources": {
-          "slots": 1,
-          "accountRequestsPerHour": 1,
-          "accountTokensPerHour": 10,
-          "ciJobs": 0,
-          "ciMinutes": 0,
-          "accountUsdPerHour": 0
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
         },
-        "reviewRounds": 0
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
       },
       {
         "id": "D",
@@ -303,14 +1212,115 @@
           "gpuRequired": false
         },
         "resources": {
-          "slots": 1,
-          "accountRequestsPerHour": 1,
-          "accountTokensPerHour": 10,
-          "ciJobs": 0,
-          "ciMinutes": 0,
-          "accountUsdPerHour": 0
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
         },
-        "reviewRounds": 0
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
       }
     ],
     "golden": {
@@ -363,14 +1373,115 @@
           "gpuRequired": false
         },
         "resources": {
-          "slots": 1,
-          "accountRequestsPerHour": 1,
-          "accountTokensPerHour": 10,
-          "ciJobs": 0,
-          "ciMinutes": 0,
-          "accountUsdPerHour": 0
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
         },
-        "reviewRounds": 0
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
       },
       {
         "id": "B",
@@ -388,14 +1499,115 @@
           "gpuRequired": false
         },
         "resources": {
-          "slots": 1,
-          "accountRequestsPerHour": 1,
-          "accountTokensPerHour": 10,
-          "ciJobs": 0,
-          "ciMinutes": 0,
-          "accountUsdPerHour": 0
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
         },
-        "reviewRounds": 0
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
       }
     ],
     "golden": {

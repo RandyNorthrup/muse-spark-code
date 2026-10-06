@@ -40,14 +40,70 @@ request, fleet and section. Quantities are finite and nonnegative; capacities
 and identities are validated. CI minutes may be absent when not reported.
 Account identifiers are opaque aliases. Their optional `usageLimits` preserve
 all simultaneous hard windows (daily and weekly, for example), each with an
-opaque id, unit, remaining amount and reset time. Absence means not reported;
+opaque id, unit, remaining and full allowance, renewal instant, recurrence and
+time zone. `rolling` repeats after `periodSeconds` of elapsed time from
+`resetsAt`; `calendar` repeats daily, weekly or monthly at that instant's
+local time/day in `timeZone`, with month-end clamped to the last local day.
+Units include `percent` (0–100), and remaining cannot exceed the allowance.
+These are normalized application projections, not inferred provider fields.
+An adapter unable to describe renewal must report the source unavailable,
+not invent a renewal schedule. Absence means not reported;
 S must never quietly treat an unreported quota as a reported unlimited one.
-Lane resources carry requests, tokens and USD per hour for matching limit
-units, plus CI jobs/minutes. All slots sharing an account share its limits. The history schema admits only lane
+Lane resources carry requests, tokens, USD and percentage points per hour for
+matching limit units, plus slots and CI jobs/minutes. Each quantity carries
+`status`, `value`, `basis`, `samples` and `uncertainty`; known values use
+`history`, `calibration` or `assumption`. History/calibration require positive
+samples; assumptions use zero. Unknown values have `status: unknown`,
+`value: null`, `basis: unknown`, zero samples and unknown uncertainty. A known
+value may explicitly have unknown uncertainty. An interval must contain its
+value. Unknown never means zero demand or unlimited supply.
+
+Machines carry `disks` per opaque `volumeId`, with opaque allocation roles such as `workspace`, `worktrees`, `temp`,
+`logs`, `data` and `state`; several roles on one volume share its one headroom. A role
+cannot occur on two volumes. The role vocabulary does not impose a limit on
+watched volumes; an explicit regression preserves four independent volumes. Known disk snapshots contain safe-integer byte
+counts for total/free/floor/headroom, with headroom exactly
+`max(0, freeBytes - floorBytes)` and free/floor no greater than total. Unknown
+volume measurements retain their identity and roles without fabricated
+numbers. Lanes require disk demand per role with peak and steady byte
+quantities; steady cannot exceed peak when both are known. Peak includes the
+retained demand while running; steady remains after completion until cleanup,
+so S must reserve concurrent peaks plus retained bytes from completed lanes
+on each physical volume. The ordinary DAG fixtures use 4 GiB peak/2 GiB
+steady, fitting the fake's 12 GiB headroom even when completed lanes retain
+their demand; an explicit regression uses two 8 GiB lanes against that same
+12 GiB volume. `disk` is a possible limiting resource.
+
+All slots sharing an account share its limits. The history schema admits only lane
 identities, classes, UTC instants, hours, counts and provenance, with explicit
 `agentTime` versus `gitElapsed` duration basis. A critical-path bottleneck
 cannot promise gains from more agents. Calibration labels must match D97's
-20-sample threshold. Catalog prices require a public HTTPS catalog and date.
+20-sample threshold. Nonempty sections require calibration for every input
+lane kind and every scheduled kind/machine-class pair, without duplicate pairs.
+They also require `disclosures`, a unique JSON Pointer index covering every
+numeric leaf in inputs/results and each P50/P90 finish date, including setup
+predictions. Each disclosure names history/calibration/assumption/unknown,
+sample size and an interval/time band or explicit unknown uncertainty.
+History/calibration require positive sample sizes; assumptions/unknown use
+zero. Unknown basis requires unknown uncertainty. Every interval contains its
+target. Coverage includes numeric evidence metadata but excludes the
+disclosure index's own metadata to prevent infinite self-description. Missing,
+extra, duplicate or wrong-target disclosures are refused. Empty-lane results
+may have an empty index. Catalog prices require a public HTTPS catalog and date.
+
+Lanes and history use the same typed `review` projection: unknown, or complete
+lane `rounds`, module-family `strikes`, per-finding-class strikes, and redesign
+events (`moduleFamilyId`, `afterRound`, outcome). A complete review pass counts
+once per lane even if it finds problems in several modules. Strikes are the
+current M116 counters for rounds with unresolved findings, not finding counts,
+and are never summed across modules to produce lane rounds. Class counters
+cannot exceed their module counter; modules cannot exceed lane rounds. Module
+families and classes are unique. Redesign events refer to declared families
+and completed rounds, without duplicate family/round events. `caught` does
+not clear a strike; only `impossible` closes it under D96, as reflected by
+M116's projected counters. C/S must use the module state for redesign risk,
+not a sum or maximum presented as a lane-round count. Unknown history is
+excluded from round-rate fitting, rather than represented as zero.
 
 ## Repository history evidence and missing measurements
 
@@ -108,7 +164,7 @@ cross-rig integration remain the lead's gate, as the brief requires.
 
 ## Strings and registration handoff
 
-76 estimator keys are translated in English and all 14 `l10n/ui.*.json`
+98 estimator keys are translated in English and all 14 `l10n/ui.*.json`
 tables, with no new English exceptions. These cover both fleet questions,
 setup choices, input/calibration/honesty labels, the Gantt/accessibility text,
 critical-path and bottleneck copy, catalog/date caveats, provisioning budget
@@ -166,3 +222,92 @@ absent M113/M104 registries, manifest/Help wiring and remaining G/C/S/R/P/U/W
 implementation/acceptance work remain with their named owners above. The
 brief delegates aggregate `quality`, cross-rig/editor and live integration
 certification to the lead; this lane does not claim those are complete.
+
+## FIXM117L0: RVM117L0 repair (Mac mini, 2026-10-06)
+
+All four P2 and both P3 findings are fixed before the contract freeze. No
+finding is deferred, and no dependency, cap, gate, timeout or permission
+policy changed. Portable schemas remain unused by startup/runtime surfaces;
+all editors retain the same G/C/S/R/U/W binding handoffs above. The changes
+are contracts, deterministic test data, translated prepared labels and docs.
+
+| Finding                   | Resolution                                                                                                             | Regression in `estimatorContracts.test.ts`                                                                                                                                                                         | Red drills |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| P2-1 malformed goals      | Colon required for named kinds; release/lane names forbid extra colons; invalid-goal text explicitly reports rejection | `refuses ambiguous or malformed goal labels` / `releases`; `applies the same strict goal names to structured requests`                                                                                             | G01–G02    |
+| P2-2 quota renewal        | Full allowance, rolling/calendar period, reset anchor and validated time zone; percentage units and bounds             | `distinguishes renewed quotas and preserves rolling percentage windows`; `requires renewal metadata and validates quota bounds`                                                                                    | W01–W04    |
+| P2-3 disk constraints     | Per-volume measured/unknown headroom and floor; peak/retained byte demand per volume role; disk bottleneck             | `preserves per-volume disk headroom and peak versus retained demand`; `refuses inconsistent disk headroom, aliases and demand`                                                                                     | D01–D06    |
+| P2-4 missing disclosures  | Kind/class duration calibration plus exhaustive numeric/forecast JSON Pointer evidence index                           | `requires calibration for every lane kind and scheduled machine class`; `requires a calibration disclosure for every number and finish prediction`; `validates calibration identities and dated uncertainty bands` | C01–C08    |
+| P3-1 resource assumptions | Discriminated known/unknown quantities with basis, samples and uncertainty; unknown value is null                      | `distinguishes assumed, observed and unavailable resource quantities`; `requires resource provenance and honest unknown status`                                                                                    | N01–N03    |
+| P3-2 review aggregation   | Complete rounds per lane, current module/class strikes and named redesign events; shared lane/history projection       | `counts rounds per lane and retains strikes per module family and class`; `rejects contradictory review aggregation and orphan redesign events`                                                                    | R01–R07    |
+
+Every drill ran the complete owning test file directly on this rig with
+`--maxWorkers=3` and the repository default timeout, without a test-name
+filter, skip or `--testTimeout`. Each expected named regression failed, then
+its changed file was restored from saved bytes and checked with SHA-256.
+L01 also failed the production localization gate by deleting the German disk
+headroom key. T01 made the fake seed depend on `TZ`; the cross-process
+serialization regression in `estimatorFakes.test.ts` failed. That test builds
+its fixture entry once and runs two children with explicit, different
+`TZ`/`LANG` environments, never inheriting credentials; it uses the ordinary
+five-second test timeout.
+
+The initial percentage probe also exceeded remaining quota, and the initial
+volume-alias probe omitted other referenced machines. Those exploratory
+mutations were rejected by unrelated guards. The tests were corrected to
+isolate each condition; W02 and D02–D04 then fired their intended guards.
+No unsuccessful exploratory probe is counted as a passed drill.
+
+| Drill | Deliberate break                                                                      | Observed named failure                                                                                                   |
+| ----- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| G01   | Remove the missing-colon guard                                                        | `refuses ambiguous or malformed goal labels` (2 expected assertion failure(s), exit 1)                                   |
+| G02   | Allow colons in release/lane names                                                    | `applies the same strict goal names to structured requests` (2 expected assertion failure(s), exit 1)                    |
+| W01   | Make rolling period optional                                                          | `requires renewal metadata and validates quota bounds` (1 expected assertion failure(s), exit 1)                         |
+| W02   | Remove percentage allowance ceiling                                                   | `requires renewal metadata and validates quota bounds` (1 expected assertion failure(s), exit 1)                         |
+| W03   | Remove remaining/full allowance bound                                                 | `requires renewal metadata and validates quota bounds` (1 expected assertion failure(s), exit 1)                         |
+| W04   | Remove time-zone validation                                                           | `requires renewal metadata and validates quota bounds` (1 expected assertion failure(s), exit 1)                         |
+| D01   | Remove headroom arithmetic                                                            | `refuses inconsistent disk headroom, aliases and demand` (1 expected assertion failure(s), exit 1)                       |
+| D02   | Allow one volume role on multiple volumes                                             | `refuses inconsistent disk headroom, aliases and demand` (1 expected assertion failure(s), exit 1)                       |
+| D03   | Remove free/total bound                                                               | `refuses inconsistent disk headroom, aliases and demand` (1 expected assertion failure(s), exit 1)                       |
+| D04   | Remove floor/total bound                                                              | `refuses inconsistent disk headroom, aliases and demand` (1 expected assertion failure(s), exit 1)                       |
+| D05   | Allow retained demand above peak                                                      | `refuses inconsistent disk headroom, aliases and demand` (1 expected assertion failure(s), exit 1)                       |
+| D06   | Restrict allocation roles to three names, excluding watched worktree/log/data volumes | `preserves per-volume disk headroom and peak versus retained demand` (1 expected assertion failure, exit 1)              |
+| N01   | Allow observed quantities with zero samples                                           | `requires resource provenance and honest unknown status` (1 expected assertion failure(s), exit 1)                       |
+| N02   | Allow numeric values for unknown quantities                                           | `requires resource provenance and honest unknown status` (1 expected assertion failure(s), exit 1)                       |
+| N03   | Remove resource uncertainty coverage                                                  | `requires resource provenance and honest unknown status` (1 expected assertion failure(s), exit 1)                       |
+| R01   | Allow module strikes above lane rounds                                                | `rejects contradictory review aggregation and orphan redesign events` (1 expected assertion failure(s), exit 1)          |
+| R02   | Allow class strikes above module strikes                                              | `rejects contradictory review aggregation and orphan redesign events` (1 expected assertion failure(s), exit 1)          |
+| R03   | Allow orphan redesign families                                                        | `rejects contradictory review aggregation and orphan redesign events` (1 expected assertion failure(s), exit 1)          |
+| R04   | Allow redesign events after uncompleted rounds                                        | `rejects contradictory review aggregation and orphan redesign events` (1 expected assertion failure(s), exit 1)          |
+| R05   | Allow duplicate module families                                                       | `rejects contradictory review aggregation and orphan redesign events` (1 expected assertion failure(s), exit 1)          |
+| R06   | Allow duplicate finding classes                                                       | `rejects contradictory review aggregation and orphan redesign events` (1 expected assertion failure(s), exit 1)          |
+| R07   | Allow duplicate family/round redesign events                                          | `rejects contradictory review aggregation and orphan redesign events` (1 expected assertion failure(s), exit 1)          |
+| C01   | Remove lane-kind/scheduled-class calibration coverage                                 | `requires calibration for every lane kind and scheduled machine class` (1 expected assertion failure(s), exit 1)         |
+| C02   | Allow duplicate kind/class calibration rows                                           | `validates calibration identities and dated uncertainty bands` (1 expected assertion failure(s), exit 1)                 |
+| C03   | Bypass exhaustive disclosure coverage                                                 | `requires a calibration disclosure for every number and finish prediction` (2 expected assertion failure(s), exit 1)     |
+| C04   | Allow duplicate disclosure paths                                                      | `requires a calibration disclosure for every number and finish prediction` (1 expected assertion failure(s), exit 1)     |
+| C05   | Allow history disclosures with zero samples                                           | `requires a calibration disclosure for every number and finish prediction` (1 expected assertion failure(s), exit 1)     |
+| C06   | Allow unknown basis with a numeric interval                                           | `requires a calibration disclosure for every number and finish prediction` (1 expected assertion failure(s), exit 1)     |
+| C07   | Remove numeric disclosure interval coverage                                           | `requires a calibration disclosure for every number and finish prediction` (1 expected assertion failure(s), exit 1)     |
+| C08   | Remove forecast-date band coverage                                                    | `validates calibration identities and dated uncertainty bands` (1 expected assertion failure(s), exit 1)                 |
+| L01   | Delete German disk-headroom translation                                               | `keeps all estimator copy and consent values in de` (1 expected assertion failure(s), exit 1)                            |
+| T01   | Make the fake seed depend on environment time zone                                    | `serializes the revised contracts identically across time zones and languages` (1 expected assertion failure(s), exit 1) |
+
+Byte-exact restoration receipts (SHA-256 at drill time; all 32 drills restored):
+
+- `src/shared/estimate.ts`: `fd8d9d13409f660c23edec1f99694d7f62cb1f120058101b053a9a61bdc9fa79`.
+- `l10n/ui.de.json`: `82fb6be5dbdfaf0dddc6741efa3a8172f2175884a6d0d50b2606e96fe19000cf`.
+- `test/unit/helpers/estimator/fixtures.ts`: `64f526caaa1244221dc94e658f2cf11ff8efccc40c8297e5f2cbbfc6deea45ec`.
+
+D06 restored the final schema source to SHA-256 `ac910f7bee62c1a424abbe90c7aa88b111988ab1e88c931a555c9076c2a6147a`.
+
+The source later removes an unused evidence-fields object and inlines its
+only used enum. Disk allocation roles use opaque IDs, so every watched volume
+can be represented rather than imposing a three-volume limit. The fake's
+repeated disk metadata is shared as input data and cloned by schema parsing
+(the unchanged duplication gate caught the repeated literals). Final scoped verification below
+uses the final source. The existing missing real history measurements and
+unmerged integration bindings remain named handoffs, not new review residuals.
+
+Final scoped checks and hooked-commit receipts follow in the validation
+commit; aggregate `npm run quality` is prohibited by this lane brief and
+remains the lead's integration gate.

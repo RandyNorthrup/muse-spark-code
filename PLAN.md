@@ -28422,6 +28422,22 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
 
 ### M117 — The capacity estimator (D97)
 
+**Lane-0 review repair (FIXM117L0, 2026-10-06).** RVM117L0's four P2 and
+two P3 findings are all in scope before freezing the contracts. Goals consume
+the documented grammar, including the colon for named kinds. Account windows
+carry full allowance, rolling seconds or calendar recurrence, next renewal
+and IANA time zone (including percentage windows). Machines report disk free
+space and floor per opaque volume; lanes declare peak and retained bytes per
+volume role, with provenance and explicit unknown measurements. Every numeric
+resource input carries its basis, sample size and uncertainty. Nonempty result
+documents require disclosures covering every numeric value and forecast date,
+as well as duration calibration for every lane kind and scheduled machine
+class. Review input counts complete rounds once per lane, preserves strikes
+per module family and finding class, and names redesign events; unknown review
+history remains unknown. Deterministic fakes, regressions, byte-exact red
+drills and all fourteen translations certify these changes. No new dependency
+or runtime surface is introduced; G/C/S/R/U consume the revised contracts.
+
 **Status 2026-10-06: planned.** No model call is needed. It needs M113's plan
 reader, sources, determinism harness and report renderers, and M116's round
 record; the engine and the panel run on fakes until those merge. M107, M100,
@@ -28687,6 +28703,14 @@ anywhere joined it).
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**FIXM117L0 scoped rig certification (2026-10-06).** The lane/shared brief
+prohibits aggregate `npm run quality` and assigns it to the lead. This repair
+runs owning test files at the repository default timeout, red drills with
+SHA-256 restoration, all five typechecks, scoped lint/format, deadcode,
+duplication, localization, reference, host API and production build checks
+directly on Mac mini. Hooks remain enabled. No merge, rebase or push is
+authorized for this lane, and no gate or cap is weakened.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
@@ -30048,6 +30072,14 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM117L0 contract review.** All six RVM117L0 findings are fixed
+  before the lane-0 freeze, with regression tests and byte-exact red drills;
+  no finding is accepted as a residual. Missing real
+  M103/M104 estimates and the existing M113/M104/fleet/history/surface bindings
+  remain the named integration handoffs in `docs/certification/m117-contracts.md`.
+  Unknown quotas, resources and review data never imply unlimited capacity or
+  zero demand. The lead owns aggregate quality and cross-rig certification.
 
 - **ENVFENCE-HELPREF (resolved in REL0142 integration, 2026-10-06).** Main's
   credential pass-through setting joins the Help permissions feature with its

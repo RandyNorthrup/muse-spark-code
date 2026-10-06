@@ -14,6 +14,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Estimator preparation rejects malformed goals and validates quota renewal,
+  per-volume disk capacity, numeric calibration disclosures and module-level
+  review history. The revised contracts and labels are covered in all fourteen
+  languages; estimator commands and surfaces remain pending integration.
+
 - The release-artifact check validates complete ACP help, including its reference
   hint, in English and every installed language using the CLI's shared formatter.
 

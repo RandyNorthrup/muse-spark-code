@@ -45,6 +45,33 @@ describe('M117 localized estimator consent and manifest handoff', () => {
       expect(idle).toContain('DURATION')
       expect(fill(UI_TEXT.estimateCatalog, { date: 'DATE' })).toContain('DATE')
       expect(UI_TEXT.estimateTitle).toBe(region['estimateTitle'])
+      for (const key of [
+        'estimateWindowRolling',
+        'estimateWindowCalendar',
+        'estimateWindowPeriod',
+        'estimateWindowRenewal',
+        'estimateWindowTimeZone',
+        'estimateAllowance',
+        'estimateDisk',
+        'estimateDiskPeak',
+        'estimateDiskSteady',
+        'estimateDiskHeadroom',
+        'estimateDiskFloor',
+        'estimateBasis',
+        'estimateBasisHistory',
+        'estimateBasisCalibration',
+        'estimateBasisAssumption',
+        'estimateUnknown',
+        'estimateUncertainty',
+        'estimateReviewRounds',
+        'estimateModuleStrikes',
+        'estimateClassStrikes',
+        'estimateRedesigns',
+        'estimateDisclosureMissing',
+      ]) {
+        expect(region[key]).toBeTruthy()
+        if (locale !== BASE_LOCALE) expect(region[key]).not.toBe(enRegion[key])
+      }
       if (locale !== BASE_LOCALE)
         expect(UI_TEXT.estimateConfirmServer).not.toBe(EN.estimateConfirmServer)
     },

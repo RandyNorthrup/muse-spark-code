@@ -20,6 +20,15 @@ export const ESTIMATOR_AS_OF = '2026-10-06T12:00:00.000Z'
 
 /** Fictional aliases and capacities: no host inspection, secrets, or network. */
 export function fakeFleet(): FleetSnapshot {
+  const disk = {
+    status: 'known',
+    volumeId: 'primary',
+    roles: ['workspace', 'temp', 'state'],
+    totalBytes: 107_374_182_400,
+    freeBytes: 23_622_320_128,
+    floorBytes: 10_737_418_240,
+    headroomBytes: 12_884_901_888,
+  }
   return fleetSnapshotSchema.parse({
     asOf: ESTIMATOR_AS_OF,
     machines: [
@@ -31,6 +40,7 @@ export function fakeFleet(): FleetSnapshot {
         architecture: 'x64',
         cores: 8,
         ramGiB: 16,
+        disks: [disk],
         governorSlots: 2,
         capacityByKind: [{ kind: 'core', slots: 2 }],
         caps: { slots: 2, cpuPercent: 80, memoryPercent: 80 },
@@ -43,6 +53,7 @@ export function fakeFleet(): FleetSnapshot {
         architecture: 'arm64',
         cores: 8,
         ramGiB: 16,
+        disks: [disk],
         governorSlots: 1,
         capacityByKind: [
           { kind: 'core', slots: 1 },
@@ -58,6 +69,7 @@ export function fakeFleet(): FleetSnapshot {
         architecture: 'x64',
         cores: 8,
         ramGiB: 16,
+        disks: [disk],
         governorSlots: 1,
         capacityByKind: [{ kind: 'host', slots: 1 }],
         caps: { slots: 1, cpuPercent: 80, memoryPercent: 80 },
@@ -73,8 +85,26 @@ export function fakeFleet(): FleetSnapshot {
         requestsPerMinute: 10,
         tokensPerMinute: 10_000,
         usageLimits: [
-          { id: 'daily', unit: 'requests', remaining: 1000, resetsAt: '2026-10-07T00:00:00.000Z' },
-          { id: 'weekly', unit: 'requests', remaining: 5000, resetsAt: '2026-10-12T00:00:00.000Z' },
+          {
+            id: 'daily',
+            kind: 'calendar',
+            period: 'day',
+            timeZone: 'UTC',
+            unit: 'requests',
+            remaining: 1000,
+            allowance: 1000,
+            resetsAt: '2026-10-07T00:00:00.000Z',
+          },
+          {
+            id: 'weekly',
+            kind: 'calendar',
+            period: 'week',
+            timeZone: 'UTC',
+            unit: 'requests',
+            remaining: 5000,
+            allowance: 5000,
+            resetsAt: '2026-10-12T00:00:00.000Z',
+          },
         ],
       },
     ],

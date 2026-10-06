@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { buildSync } from 'esbuild'
+import path from 'node:path'
+import { spawnSync } from 'node:child_process'
 import dags from '../fixtures/estimator/dags.json'
 import repository from '../fixtures/estimator/repository-history.json'
 import { estimateLaneSchema } from '../../src/shared/estimate'
@@ -8,9 +11,33 @@ import {
   FakeEstimateProvider,
   FakeEstimateStart,
 } from './helpers/estimator/fakes'
-import { fakeHistoryRecord } from './helpers/estimator/fixtures'
+import { fakeEstimate, fakeHistoryRecord } from './helpers/estimator/fixtures'
 
 describe('M117 reusable fakes and evidence', () => {
+  it('serializes the revised contracts identically across time zones and languages', () => {
+    const bundle = buildSync({
+      stdin: {
+        contents:
+          "import { fakeEstimate } from './helpers/estimator/fixtures'; process.stdout.write(JSON.stringify(fakeEstimate()))",
+        resolveDir: path.resolve(import.meta.dirname),
+      },
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      write: false,
+    })
+    const code = bundle.outputFiles[0]!.text
+    const expected = JSON.stringify(fakeEstimate())
+    expect(JSON.stringify(fakeEstimate())).toBe(expected)
+    for (const env of [
+      { TZ: 'Pacific/Auckland', LANG: 'ja_JP.UTF-8' },
+      { TZ: 'America/Los_Angeles', LANG: 'fr_FR.UTF-8' },
+    ]) {
+      const child = spawnSync(process.execPath, ['-e', code], { env, encoding: 'utf8' })
+      expect(child.status, child.stderr).toBe(0)
+      expect(child.stdout).toBe(expected)
+    }
+  })
   it('journals validated metadata without exposing mutable stored rows', async () => {
     const history = new FakeEstimateHistory()
     const record = fakeHistoryRecord()
