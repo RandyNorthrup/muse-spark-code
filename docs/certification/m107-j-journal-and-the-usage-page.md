@@ -206,7 +206,7 @@ logs remain under ignored `temp/m107-j/drills/`.
   and existing schemas are shared. The source/metafile test proves the
   section stays outside both static startup closures, counting its entire
   deferred closure and CSS against an independent **25 KiB** target.
-  This is a integration measurement, not an already shipped M102 mount.
+  This is an integration measurement, not an already shipped M102 mount.
 
 **M107-J-W-host-inventory:** `npm run check:host-api` runs and exits 1 only
 because W's generated record must add `src/webview/usage/ResourcesSection.css`
@@ -221,3 +221,39 @@ brief and remains the lead's integrated qualification.
 The work source must reuse T/C1's cached existing tree-sample cadence, rather
 than starting another OS accounting cadence on each machine sample. J starts
 no timers or probes; `sample`/`event` are explicit inputs to its port.
+
+## Final receipts and local commits
+
+Implementation commit **`e27a1f739c661d6eec26858d7263f608e0967c99`** used
+normal hooks: staged ESLint/Prettier, Stylelint and redacted gitleaks pass;
+**95.26 KB**, no leaks. The source was clean afterwards. No hook, Git
+configuration, branch history or other lane's file was changed.
+
+The final collector/page/split run passes **25/25**; the final actual
+harness/split pair passes **4/4**, including the same two split tests.
+Thus **27 distinct tests in four complete files pass**, with repository-default
+Vitest deadlines and `--maxWorkers=3`, no test-name filter or timeout flag.
+Cycles pass (**593 files, no cycles**). Final plain Knip passes with the
+same two existing configuration hints. The final byte/hash audit matches
+all **35 distinct guard receipts** to the committed source.
+
+`node test/harness/resource-history-check.mjs` passes on final source:
+**8 scenes**, four captured themes × 690/320 px. Every scene has zero axe
+violations, page errors and horizontal page overflow. CPU/memory chart
+values and the four level spans match the supplied view. Wide data tables
+are named, keyboard-focusable scroll regions; the narrow page itself fits
+its viewport. The final section plus CSS is **11,110 bytes / 10.85 KiB**,
+below its independent 25 KiB target. No shipping cap changes.
+
+Tracked receipts: [guard-receipts.json](m107-j/guard-receipts.json) and
+[browser-results.json](m107-j/browser-results.json). Representative
+screenshots were visually checked: [dark at 320 px](m107-j/dark-320.png)
+and [light at 690 px](m107-j/light-690.png). Full eight-scene screenshots,
+metafile and browser log stay under ignored `temp/m107-j/`.
+
+The sole shared check left non-green is the exact W-owned stylesheet-source
+inventory update described above. M102's absence and the four named journal,
+accounting, page/text and delivery handoffs are preserved. No fake storage,
+new command/setting, feature-catalog replacement, release claim, paid/live
+call, push, merge or rebase. Full quality and aggregate coverage remain
+with the integration lead under the brief.
