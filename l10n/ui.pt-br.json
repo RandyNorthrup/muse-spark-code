@@ -2597,12 +2597,20 @@
     "gateSkipped": "Verificação de segurança: ignorar uma verificação é recusado.",
     "permissionLaundering": "Precisa de você: esta ação já foi recusada; outro agente não pode solicitá-la novamente durante {duration}.",
     "classifierBlocked": "Precisa de você: um classificador de segurança bloqueou esta ação; ela não pode ser repetida nem redirecionada.",
-    "ruleDisabled": "Manual: {actor} desativou {rule}: {reason}"
+    "ruleDisabled": "Manual: {actor} desativou {rule}: {reason}",
+    "lineageRequired": "Manual: {module} precisa de uma linhagem de módulo registrada ou de uma exceção do responsável ou proprietário.",
+    "reviewerConflict": "Manual: {module} precisa de um revisor com um identificador de agente e uma sessão diferentes."
   },
   "playbookStrikeBadge": {
     "one": "{count} rodada de revisão",
     "many": "{count} rodadas de revisão",
     "other": "{count} rodadas de revisão"
   },
-  "playbookDesignPending": "Aguardando revisão do redesenho"
+  "playbookDesignPending": "Aguardando revisão do redesenho",
+  "playbookDispositions": {
+    "fixed": "Corrigido",
+    "disputed": "Contestado",
+    "residual": "Problema residual nomeado",
+    "override": "Exceção do responsável ou proprietário"
+  }
 }

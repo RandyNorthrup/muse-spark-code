@@ -52,27 +52,67 @@ export function knownFindingClass(value: string | undefined): PlaybookFindingCla
   return PLAYBOOK_FINDING_CLASSES.find((entry) => entry === value?.toLowerCase())
 }
 
+/** P assigns id once and journals each snapshot. A rename keeps that id;
+ * splits/merges inherit the maximum predecessor round, per class and aggregate.
+ * Any changed key/file set for existing code requires lineage. P refuses files
+ * overlapping a struck module's last file set without lineage unless a recorded
+ * lead/owner override exists. New lanes/branches cannot reset these counters. */
 export const playbookModuleSchema = z.strictObject({
+  id,
   key: file,
   files: z.array(file).check(z.minLength(1), z.maxLength(REVIEW_FINDINGS_MAX)),
   source: z.enum(['lane', 'team', 'directory']),
+  lineage: z.optional(
+    z.union([
+      z.strictObject({ renamedFrom: id }),
+      z.strictObject({ splitFrom: id }),
+      z.strictObject({
+        mergedFrom: z.array(id).check(z.minLength(2), z.maxLength(REVIEW_FINDINGS_MAX)),
+      }),
+    ]),
+  ),
 })
 export type PlaybookModule = z.infer<typeof playbookModuleSchema>
+
+const override = z.strictObject({ actor: z.enum(['lead', 'owner']), reason, at: timestamp })
+const reviewAgents = z.strictObject({
+  implementerId: id,
+  reviewerId: id,
+  implementerSessionId: id,
+  reviewerSessionId: id,
+})
+/** Supplied by the harness from its lane registry, never from model metadata.
+ * P refuses equal agent ids or shared sessions before consuming the review. */
+export type PlaybookReviewAgents = z.infer<typeof reviewAgents>
 
 /** No review text or file contents in the journal: only host-assigned references. */
 const findingRef = z.strictObject({
   id,
   file,
+  severity: z.enum(['P1', 'P2', 'P3']),
   line: z.optional(z.int().check(z.gte(1))),
   class: z.optional(z.enum(PLAYBOOK_FINDING_CLASSES)),
 })
 const answer = z.discriminatedUnion('status', [
   z.strictObject({ findingId: id, status: z.literal('fixed') }),
   z.strictObject({ findingId: id, status: z.literal('disputed'), reason }),
+  z.strictObject({
+    findingId: id,
+    status: z.literal('residual'),
+    name: id,
+    whySafe: reason,
+    followUp: reason,
+  }),
+  z.strictObject({ findingId: id, status: z.literal('override'), ...override.shape }),
 ])
 
+/** P requires every prior id's disposition: fix P1, fix P2 unless redesign is
+ * needed; residuals must be named. A dispute grants no exception; an override
+ * names lead/owner, reason and time. The adapter maps critical/high/other known
+ * severities to P1/P2/P3; absent/unknown severity stays P1 until clarified. */
 export const playbookRoundSchema = z.strictObject({
   module: playbookModuleSchema,
+  ...reviewAgents.shape,
   // Omitted class is the module aggregate; named class is its own counter.
   class: z.optional(z.enum(PLAYBOOK_FINDING_CLASSES)),
   round: z.int().check(z.gte(1)),
@@ -112,6 +152,8 @@ export const playbookWhyNoteSchema = z.strictObject({
     'redesignEscalated',
     'coverageIncomplete',
     'answersPending',
+    'lineageRequired',
+    'reviewerConflict',
     'contractsPending',
     'prerequisiteMissing',
     'reordered',
@@ -147,6 +189,14 @@ export type PlaybookDecision =
 
 /** Each JSONL line is validated. P supplies bounded retention and second scrubbing. */
 export const playbookRecordSchema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    kind: z.literal('module'),
+    value: z.strictObject({
+      module: playbookModuleSchema,
+      override: z.optional(override),
+      at: timestamp,
+    }),
+  }),
   z.strictObject({ kind: z.literal('round'), value: playbookRoundSchema }),
   z.strictObject({ kind: z.literal('design'), value: playbookDesignDecisionSchema }),
   z.strictObject({ kind: z.literal('note'), value: playbookWhyNoteSchema }),
@@ -240,8 +290,12 @@ export interface PlaybookReportItem {
  * Incomplete coverage is refused without incrementing any round. */
 export interface PlaybookPolicy {
   beforeDispatch(lane: PlaybookLane, board: PlaybookBoard): PlaybookDecision
-  beforeReview(module: PlaybookModule): PlaybookDecision
-  afterReview(module: PlaybookModule, review: ReviewBlock): PlaybookDecision
+  beforeReview(module: PlaybookModule, agents: PlaybookReviewAgents): PlaybookDecision
+  afterReview(
+    module: PlaybookModule,
+    review: ReviewBlock,
+    agents: PlaybookReviewAgents,
+  ): PlaybookDecision
   beforeFixRound(module: PlaybookModule): PlaybookDecision
   beforeMerge(lane: PlaybookLane): PlaybookDecision
   beforeCommand(command: PlaybookCommand, requester: PlaybookRequester): PlaybookDecision

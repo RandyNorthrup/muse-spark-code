@@ -2409,10 +2409,18 @@
     "gateSkipped": "安全チェック: ゲートの省略は拒否されます。",
     "permissionLaundering": "判断が必要です: この操作はすでに拒否されました。{duration} 以内に別のエージェントから再要求することはできません。",
     "classifierBlocked": "判断が必要です: 安全分類器がこの操作をブロックしました。再試行や別経路への転送はできません。",
-    "ruleDisabled": "手引き: {actor} が {rule} を無効にしました: {reason}"
+    "ruleDisabled": "手引き: {actor} が {rule} を無効にしました: {reason}",
+    "lineageRequired": "手引き: {module} には、記録されたモジュールの系譜、または責任者か所有者による例外承認が必要です。",
+    "reviewerConflict": "手引き: {module} には、エージェント ID とセッションが異なるレビュアーが必要です。"
   },
   "playbookStrikeBadge": {
     "other": "レビュー {count} ラウンド"
   },
-  "playbookDesignPending": "再設計レビュー待ち"
+  "playbookDesignPending": "再設計レビュー待ち",
+  "playbookDispositions": {
+    "fixed": "修正済み",
+    "disputed": "異議あり",
+    "residual": "名前付きの残存問題",
+    "override": "責任者または所有者による例外承認"
+  }
 }

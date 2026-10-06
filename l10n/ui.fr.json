@@ -2597,12 +2597,20 @@
     "gateSkipped": "Contrôle de sécurité : ignorer un contrôle est refusé.",
     "permissionLaundering": "Votre intervention est requise : cette action a déjà été refusée ; un autre agent ne peut pas la redemander pendant {duration}.",
     "classifierBlocked": "Votre intervention est requise : un classificateur de sécurité a bloqué cette action ; elle ne peut être ni retentée ni réacheminée.",
-    "ruleDisabled": "Guide : {rule} a été désactivée par {actor} : {reason}"
+    "ruleDisabled": "Guide : {rule} a été désactivée par {actor} : {reason}",
+    "lineageRequired": "Guide : {module} nécessite une filiation de module enregistrée ou une dérogation du responsable ou propriétaire.",
+    "reviewerConflict": "Guide : {module} nécessite un réviseur avec un identifiant d’agent et une session différents."
   },
   "playbookStrikeBadge": {
     "one": "{count} cycle de revue",
     "many": "{count} cycles de revue",
     "other": "{count} cycles de revue"
   },
-  "playbookDesignPending": "En attente de la revue de refonte"
+  "playbookDesignPending": "En attente de la revue de refonte",
+  "playbookDispositions": {
+    "fixed": "Corrigé",
+    "disputed": "Contesté",
+    "residual": "Problème restant nommé",
+    "override": "Dérogation du responsable ou propriétaire"
+  }
 }

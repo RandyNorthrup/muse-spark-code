@@ -19,7 +19,11 @@ import {
   plural,
   setUiText,
 } from '../../src/shared/l10n/text'
-import { playbookWhyNoteSchema, type PlaybookWhyNote } from '../../src/shared/playbook'
+import {
+  playbookWhyNoteSchema,
+  type PlaybookRound,
+  type PlaybookWhyNote,
+} from '../../src/shared/playbook'
 
 afterEach(() => {
   setUiText(EN, BASE_LOCALE)
@@ -33,6 +37,11 @@ describe('M116 shared strings', () => {
     ])
     expect(Object.keys(UI_TEXT.playbookClasses)).toEqual(PLAYBOOK_FINDING_CLASSES)
     expect(Object.keys(UI_TEXT.playbookResolutions)).toEqual(PLAYBOOK_RESOLUTIONS)
+    const dispositions: Record<PlaybookRound['answers'][number]['status'], string> =
+      UI_TEXT.playbookDispositions
+    expect(Object.keys(dispositions)).toEqual(['fixed', 'disputed', 'residual', 'override'])
+    expect(UI_TEXT.playbookNotes.lineageRequired).toContain('{module}')
+    expect(UI_TEXT.playbookNotes.reviewerConflict).toContain('{module}')
     // The typed map requires a template for every schema code; parsing each
     // table key catches the other direction (a template with an unknown code).
     const notes: Record<PlaybookWhyNote['code'], string> = UI_TEXT.playbookNotes
@@ -77,6 +86,14 @@ describe('M116 shared strings', () => {
         }).workerId,
       ).toBe('macmini')
       expect(UI_TEXT.playbookSafetyAlwaysOn).not.toBe(EN.playbookSafetyAlwaysOn)
+      for (const code of ['lineageRequired', 'reviewerConflict'] as const) {
+        expect(UI_TEXT.playbookNotes[code]).not.toBe(EN.playbookNotes[code])
+        expect(fill(UI_TEXT.playbookNotes[code], { module: 'src/core/jobs' })).not.toMatch(
+          /\{\w+\}/u,
+        )
+      }
+      for (const status of ['fixed', 'disputed', 'residual', 'override'] as const)
+        expect(UI_TEXT.playbookDispositions[status]).not.toBe(EN.playbookDispositions[status])
       const disabled = fill(UI_TEXT.playbookDisabledDetail, {
         actor: 'owner',
         date: formatDate(0),

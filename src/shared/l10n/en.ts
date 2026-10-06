@@ -71,6 +71,12 @@ export const EN = {
     caught: 'Caught by a check',
     remains: 'Still present',
   },
+  playbookDispositions: {
+    fixed: 'Fixed',
+    disputed: 'Disputed',
+    residual: 'Named residual',
+    override: 'Lead or owner override',
+  },
   playbookDesignFields: {
     failureClass: 'Class of failure',
     whyPatchesFailed: 'Why the patches did not end it',
@@ -88,6 +94,9 @@ export const EN = {
     coverageIncomplete:
       'Playbook: review coverage is incomplete ({classes}); this review was not counted.',
     answersPending: 'Playbook: answer every finding in {module} before another review.',
+    lineageRequired:
+      'Playbook: {module} needs recorded module lineage or a lead or owner override.',
+    reviewerConflict: 'Playbook: {module} needs a reviewer with a different agent id and session.',
     contractsPending: 'Playbook: lane {lane} waits for its reviewed, merged contracts lane.',
     prerequisiteMissing: 'Playbook: lane {lane} waits for {missing}.',
     reordered: 'Playbook: queued by dependency, estimate, then id.',

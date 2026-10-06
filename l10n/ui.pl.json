@@ -2691,7 +2691,9 @@
     "gateSkipped": "Kontrola bezpieczeństwa: pominięcie kontroli jest odrzucane.",
     "permissionLaundering": "Wymaga Ciebie: ta akcja została już odrzucona; inny agent nie może ponownie o nią poprosić przez {duration}.",
     "classifierBlocked": "Wymaga Ciebie: klasyfikator bezpieczeństwa zablokował tę akcję; nie można jej ponawiać ani przekierowywać.",
-    "ruleDisabled": "Podręcznik: {actor} wyłączył(a) {rule}: {reason}"
+    "ruleDisabled": "Podręcznik: {actor} wyłączył(a) {rule}: {reason}",
+    "lineageRequired": "Podręcznik: {module} wymaga zapisanego pochodzenia modułu lub wyjątku zatwierdzonego przez lidera bądź właściciela.",
+    "reviewerConflict": "Podręcznik: {module} wymaga recenzenta z innym identyfikatorem agenta i inną sesją."
   },
   "playbookStrikeBadge": {
     "one": "{count} runda przeglądu",
@@ -2699,5 +2701,11 @@
     "many": "{count} rund przeglądu",
     "other": "{count} rundy przeglądu"
   },
-  "playbookDesignPending": "Oczekiwanie na przegląd przeprojektowania"
+  "playbookDesignPending": "Oczekiwanie na przegląd przeprojektowania",
+  "playbookDispositions": {
+    "fixed": "Naprawiono",
+    "disputed": "Zakwestionowano",
+    "residual": "Nazwany pozostały problem",
+    "override": "Wyjątek zatwierdzony przez lidera lub właściciela"
+  }
 }

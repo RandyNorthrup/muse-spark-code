@@ -2409,10 +2409,18 @@
     "gateSkipped": "안전 검사: 게이트를 건너뛰는 작업은 거부됩니다.",
     "permissionLaundering": "사용자 조치 필요: 이 작업은 이미 거부되었습니다. 다른 에이전트도 {duration} 내에 다시 요청할 수 없습니다.",
     "classifierBlocked": "사용자 조치 필요: 안전 분류기가 이 작업을 차단했습니다. 재시도하거나 다른 경로로 보낼 수 없습니다.",
-    "ruleDisabled": "지침서: {actor}이(가) {rule}을(를) 끔: {reason}"
+    "ruleDisabled": "지침서: {actor}이(가) {rule}을(를) 끔: {reason}",
+    "lineageRequired": "지침서: {module}에는 기록된 모듈 계보 또는 책임자나 소유자의 예외 승인이 필요합니다.",
+    "reviewerConflict": "지침서: {module}에는 에이전트 ID와 세션이 다른 검토자가 필요합니다."
   },
   "playbookStrikeBadge": {
     "other": "검토 {count}라운드"
   },
-  "playbookDesignPending": "재설계 검토 대기 중"
+  "playbookDesignPending": "재설계 검토 대기 중",
+  "playbookDispositions": {
+    "fixed": "수정됨",
+    "disputed": "이의 제기됨",
+    "residual": "이름이 지정된 잔여 문제",
+    "override": "책임자 또는 소유자의 예외 승인"
+  }
 }

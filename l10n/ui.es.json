@@ -2597,12 +2597,20 @@
     "gateSkipped": "Comprobación de seguridad: se rechaza omitir un control.",
     "permissionLaundering": "Necesita tu intervención: esta acción ya fue rechazada; otro agente no puede volver a pedirla durante {duration}.",
     "classifierBlocked": "Necesita tu intervención: un clasificador de seguridad bloqueó esta acción; no se puede reintentar ni redirigir.",
-    "ruleDisabled": "Guía: {actor} desactivó {rule}: {reason}"
+    "ruleDisabled": "Guía: {actor} desactivó {rule}: {reason}",
+    "lineageRequired": "Guía: {module} necesita un registro del origen del módulo o una excepción del responsable o propietario.",
+    "reviewerConflict": "Guía: {module} necesita un revisor con un identificador de agente y una sesión distintos."
   },
   "playbookStrikeBadge": {
     "one": "{count} ronda de revisión",
     "many": "{count} rondas de revisión",
     "other": "{count} rondas de revisión"
   },
-  "playbookDesignPending": "Pendiente de revisión del rediseño"
+  "playbookDesignPending": "Pendiente de revisión del rediseño",
+  "playbookDispositions": {
+    "fixed": "Corregido",
+    "disputed": "Cuestionado",
+    "residual": "Problema pendiente con nombre",
+    "override": "Excepción del responsable o propietario"
+  }
 }

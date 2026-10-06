@@ -2409,10 +2409,18 @@
     "gateSkipped": "安全檢查：拒絕略過品質關卡。",
     "permissionLaundering": "需要你處理：此操作已被拒絕；其他代理程式也無法在 {duration} 內再次要求。",
     "classifierBlocked": "需要你處理：安全分類器已封鎖此操作；無法重試或改走其他路徑。",
-    "ruleDisabled": "工作準則：{actor} 關閉了 {rule}：{reason}"
+    "ruleDisabled": "工作準則：{actor} 關閉了 {rule}：{reason}",
+    "lineageRequired": "工作準則：{module} 需要已記錄的模組沿革，或負責人或擁有者核准的例外。",
+    "reviewerConflict": "工作準則：{module} 需要代理 ID 和工作階段皆不同的審查者。"
   },
   "playbookStrikeBadge": {
     "other": "{count} 輪審查"
   },
-  "playbookDesignPending": "等待重新設計審查"
+  "playbookDesignPending": "等待重新設計審查",
+  "playbookDispositions": {
+    "fixed": "已修復",
+    "disputed": "有異議",
+    "residual": "已命名的遺留問題",
+    "override": "負責人或擁有者核准的例外"
+  }
 }

@@ -2691,7 +2691,9 @@
     "gateSkipped": "Bezpečnostní kontrola: přeskočení kontroly se odmítá.",
     "permissionLaundering": "Vyžaduje vás: tato akce již byla odmítnuta; jiný agent ji nemůže znovu požadovat během {duration}.",
     "classifierBlocked": "Vyžaduje vás: bezpečnostní klasifikátor tuto akci zablokoval; nelze ji opakovat ani přesměrovat.",
-    "ruleDisabled": "Příručka: {actor} vypnul(a) {rule}: {reason}"
+    "ruleDisabled": "Příručka: {actor} vypnul(a) {rule}: {reason}",
+    "lineageRequired": "Příručka: {module} vyžaduje zaznamenaný původ modulu nebo výjimku schválenou vedoucím či vlastníkem.",
+    "reviewerConflict": "Příručka: {module} vyžaduje kontrolora s jiným ID agenta a jinou relací."
   },
   "playbookStrikeBadge": {
     "one": "{count} kolo kontroly",
@@ -2699,5 +2701,11 @@
     "many": "{count} kola kontroly",
     "other": "{count} kol kontroly"
   },
-  "playbookDesignPending": "Čeká na kontrolu přepracování"
+  "playbookDesignPending": "Čeká na kontrolu přepracování",
+  "playbookDispositions": {
+    "fixed": "Opraveno",
+    "disputed": "Zpochybněno",
+    "residual": "Pojmenovaný zbývající problém",
+    "override": "Výjimka schválená vedoucím nebo vlastníkem"
+  }
 }

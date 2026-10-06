@@ -2503,11 +2503,19 @@
     "gateSkipped": "Sicherheitsprüfung: Das Überspringen eines Gates wird abgelehnt.",
     "permissionLaundering": "Ihre Entscheidung ist nötig: Diese Aktion wurde bereits abgelehnt; ein anderer Agent darf sie innerhalb von {duration} nicht erneut anfragen.",
     "classifierBlocked": "Ihre Entscheidung ist nötig: Ein Sicherheitsklassifikator hat diese Aktion blockiert; sie darf weder erneut versucht noch umgeleitet werden.",
-    "ruleDisabled": "Leitfaden: {rule} wurde von {actor} ausgeschaltet: {reason}"
+    "ruleDisabled": "Leitfaden: {rule} wurde von {actor} ausgeschaltet: {reason}",
+    "lineageRequired": "Leitfaden: {module} benötigt eine dokumentierte Modulherkunft oder eine Ausnahme durch die Leitung oder den Eigentümer.",
+    "reviewerConflict": "Leitfaden: {module} benötigt einen Prüfer mit einer anderen Agenten-ID und Sitzung."
   },
   "playbookStrikeBadge": {
     "one": "{count} Prüfrunde",
     "other": "{count} Prüfrunden"
   },
-  "playbookDesignPending": "Wartet auf die Neuentwurfsprüfung"
+  "playbookDesignPending": "Wartet auf die Neuentwurfsprüfung",
+  "playbookDispositions": {
+    "fixed": "Behoben",
+    "disputed": "Bestritten",
+    "residual": "Benanntes Restproblem",
+    "override": "Ausnahme durch Leitung oder Eigentümer"
+  }
 }

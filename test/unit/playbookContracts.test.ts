@@ -45,6 +45,7 @@ import {
   FakePlaybookDelegate,
   FakePlaybookReviewLoop,
   ScriptedPlaybookReviewer,
+  fakePlaybookLanes,
   fakePlaybookPlan,
   threeStrikesScript,
   type FakePlaybookPlan,
@@ -60,12 +61,26 @@ const NOTE: PlaybookWhyNote = {
 }
 const ALLOW: PlaybookDecision = { kind: 'allow', note: NOTE }
 const REFUSE: PlaybookDecision = { kind: 'refuse', note: { ...NOTE, code: 'answersPending' } }
+const REVIEW_AGENTS = {
+  implementerId: 'implementer-1',
+  reviewerId: 'reviewer-2',
+  implementerSessionId: 'session-1',
+  reviewerSessionId: 'session-2',
+}
 const ROUND: PlaybookRound = {
   module: FAKE_PLAYBOOK_MODULE,
+  ...REVIEW_AGENTS,
   class: 'concurrency',
   round: 3,
   phase: 'fix',
-  findings: [{ id: 'store-claim', file: 'src/core/schedules/store.ts', class: 'concurrency' }],
+  findings: [
+    {
+      id: 'store-claim',
+      file: 'src/core/schedules/store.ts',
+      class: 'concurrency',
+      severity: 'P2',
+    },
+  ],
   answers: [{ findingId: 'store-claim', status: 'disputed', reason: 'Requires an atomic claim.' }],
   at: 0,
 }
@@ -231,6 +246,137 @@ describe('M116 contracts', () => {
       false,
     )
   })
+  it('persists stable module snapshots and typed rename, split and merge lineage', () => {
+    const priorId = 'module-store-17'
+    for (const lineage of [
+      { renamedFrom: priorId },
+      { splitFrom: priorId },
+      { mergedFrom: [priorId, 'module-jobs-18'] },
+    ]) {
+      const value = {
+        module: {
+          ...FAKE_PLAYBOOK_MODULE,
+          id: lineage.renamedFrom ?? 'module-successor-19',
+          key: 'src/core/jobs/claims',
+          files: ['src/core/jobs/claims.ts'],
+          lineage,
+        },
+        at: 1,
+      }
+      const record = { kind: 'module', value }
+      expect(playbookRecordSchema.parse(record)).toEqual(record)
+    }
+    const { id: _id, ...withoutId } = { ...FAKE_PLAYBOOK_MODULE, id: priorId }
+    expect(playbookModuleSchema.safeParse(withoutId).success).toBe(false)
+    for (const lineage of [
+      { renamedFrom: '' },
+      { splitFrom: ' ' },
+      { mergedFrom: [] },
+      { mergedFrom: [priorId] },
+      { mergedFrom: Array.from({ length: REVIEW_FINDINGS_MAX + 1 }, () => priorId) },
+      { renamedFrom: priorId, splitFrom: priorId },
+      { previousKeys: ['src/core/schedules/store'] },
+    ])
+      expect(playbookModuleSchema.safeParse({ ...FAKE_PLAYBOOK_MODULE, lineage }).success).toBe(
+        false,
+      )
+    expect(playbookModuleSchema.safeParse({ ...FAKE_PLAYBOOK_MODULE, id: ' ' }).success).toBe(false)
+  })
+  it('records a lead or owner overlap override with its reason and time', () => {
+    for (const actor of ['lead', 'owner']) {
+      const record = {
+        kind: 'module',
+        value: {
+          module: FAKE_PLAYBOOK_MODULE,
+          override: { actor, reason: 'Independent replacement approved.', at: 1 },
+          at: 1,
+        },
+      }
+      expect(playbookRecordSchema.parse(record)).toEqual(record)
+      for (const override of [
+        { actor, at: 1 },
+        { actor, reason: ' ', at: 1 },
+        { actor, reason: 'Approved.' },
+        { actor: 'worker', reason: 'Approved.', at: 1 },
+        { actor, reason: 'Approved.', at: -1 },
+      ])
+        expect(
+          playbookRecordSchema.safeParse({
+            ...record,
+            value: { ...record.value, override },
+          }).success,
+        ).toBe(false)
+    }
+  })
+  it('requires trusted implementer and reviewer agent and session identities in round records', () => {
+    expect(playbookRoundSchema.parse(ROUND)).toMatchObject(REVIEW_AGENTS)
+    for (const field of Object.keys(REVIEW_AGENTS)) {
+      const incomplete = Object.fromEntries(Object.entries(ROUND).filter(([key]) => key !== field))
+      expect(playbookRoundSchema.safeParse(incomplete).success).toBe(false)
+      expect(playbookRoundSchema.safeParse({ ...ROUND, [field]: ' ' }).success).toBe(false)
+    }
+  })
+  it('retains P1 to P3 priority and each finding disposition after journal replay', () => {
+    const dispositions = [
+      { findingId: 'store-claim', status: 'fixed' },
+      { findingId: 'store-claim', status: 'disputed', reason: 'Needs an atomic claim.' },
+      {
+        findingId: 'store-claim',
+        status: 'residual',
+        name: 'claim-redesign',
+        whySafe: 'The caller serializes claims for now.',
+        followUp: 'Replace the multi-step claim in the redesign lane.',
+      },
+      {
+        findingId: 'store-claim',
+        status: 'override',
+        actor: 'owner',
+        reason: 'Approved for this release.',
+        at: 1,
+      },
+    ]
+    for (const severity of ['P1', 'P2', 'P3'])
+      for (const disposition of dispositions) {
+        const record = {
+          kind: 'round',
+          value: {
+            ...ROUND,
+            findings: [{ ...ROUND.findings[0], severity }],
+            answers: [disposition],
+          },
+        }
+        const journalLine = JSON.stringify(record)
+        const replay: unknown = JSON.parse(journalLine)
+        expect(playbookRecordSchema.parse(replay)).toEqual(record)
+      }
+    for (const severity of [undefined, '', 'P0', 'critical'])
+      expect(
+        playbookRoundSchema.safeParse({
+          ...ROUND,
+          findings: [{ ...ROUND.findings[0], severity }],
+        }).success,
+      ).toBe(false)
+    for (const invalid of [
+      { status: 'residual', whySafe: 'Safe.', followUp: 'Redesign.' },
+      { status: 'residual', name: 'r', followUp: 'Redesign.' },
+      { status: 'residual', name: 'r', whySafe: 'Safe.' },
+      { status: 'residual', name: '', whySafe: 'Safe.', followUp: 'Redesign.' },
+      { status: 'residual', name: 'r', whySafe: '', followUp: 'Redesign.' },
+      { status: 'residual', name: 'r', whySafe: 'Safe.', followUp: '' },
+      { status: 'override', actor: 'reviewer', reason: 'Approved.', at: 1 },
+      { status: 'override', reason: 'Approved.', at: 1 },
+      { status: 'override', actor: 'lead', at: 1 },
+      { status: 'override', actor: 'lead', reason: '', at: 1 },
+      { status: 'override', actor: 'lead', reason: 'Approved.' },
+      { status: 'override', actor: 'lead', reason: 'Approved.', at: -1 },
+    ])
+      expect(
+        playbookRoundSchema.safeParse({
+          ...ROUND,
+          answers: [{ findingId: 'store-claim', ...invalid }],
+        }).success,
+      ).toBe(false)
+  })
   it.each(['impossible', 'caught', 'remains'] as const)(
     'keeps each prior finding’s %s reason in the redesign round record',
     (outcome) => {
@@ -311,7 +457,8 @@ describe('M116 acceptance fakes', () => {
   it.each(['impossible', 'caught', 'remains'] as const)(
     'scripts three concurrency rounds and the %s redesign answer',
     (outcome) => {
-      const reviewer = new ScriptedPlaybookReviewer(threeStrikesScript(outcome))
+      const findingId = 'host-generated-17'
+      const reviewer = new ScriptedPlaybookReviewer(threeStrikesScript(outcome, findingId))
       for (let round = 0; round < 3; round += 1) {
         expect(reviewer.next(FAKE_PLAYBOOK_MODULE)).toMatchObject({
           findings: [{ class: 'concurrency' }],
@@ -320,7 +467,7 @@ describe('M116 acceptance fakes', () => {
       }
       expect(reviewer.next(FAKE_PLAYBOOK_MODULE).resolution).toEqual([
         {
-          findingId: 'store-claim',
+          findingId,
           outcome,
           reason:
             outcome === 'impossible'
@@ -332,11 +479,11 @@ describe('M116 acceptance fakes', () => {
     },
   )
   it('keeps rounds per module, preserves unclassified findings, and returns fresh blocks', () => {
-    const other = { ...FAKE_PLAYBOOK_MODULE, key: 'src/host/jobs' }
+    const other = { ...FAKE_PLAYBOOK_MODULE, id: 'module-jobs-18', key: 'src/host/jobs' }
     const script: ScriptedPlaybookReview[] = [
-      ...threeStrikesScript('impossible'),
+      ...threeStrikesScript('impossible', 'store-claim'),
       {
-        module: other.key,
+        module: other.id,
         review: { findings: [{ file: 'src/host/jobs/a.ts', title: 'Unclassified' }] },
       },
     ]
@@ -346,24 +493,76 @@ describe('M116 acceptance fakes', () => {
     expect(reviewer.next(other)).toEqual(script.at(-1)?.review)
     expect(reviewer.next(FAKE_PLAYBOOK_MODULE).findings).toHaveLength(1)
     const bad = new ScriptedPlaybookReviewer([
-      { module: other.key, review: { findings: [{ file: '', title: '' }] } },
+      { module: other.id, review: { findings: [{ file: '', title: '' }] } },
     ])
     expect(() => bad.next(other)).toThrow('Invalid scripted review')
   })
+  it('keeps the same module review sequence across renamed keys', () => {
+    const reviewer = new ScriptedPlaybookReviewer(threeStrikesScript('impossible', 'prior-id'))
+    const renamed = {
+      ...FAKE_PLAYBOOK_MODULE,
+      key: 'src/core/jobs/claims',
+      files: ['src/core/jobs/claims.ts'],
+      lineage: { renamedFrom: FAKE_PLAYBOOK_MODULE.id },
+    }
+    for (let round = 0; round < 3; round += 1) reviewer.next(FAKE_PLAYBOOK_MODULE)
+    expect(reviewer.next(renamed).resolution?.[0]?.findingId).toBe('prior-id')
+    expect(() => reviewer.next(renamed)).toThrow('No scripted review')
+  })
   it('does not consume a review after refusal and forwards the entire admitted block', () => {
     const policy = policySpies()
-    const reviewer = new ScriptedPlaybookReviewer(threeStrikesScript('caught'))
+    const reviewer = new ScriptedPlaybookReviewer(threeStrikesScript('caught', 'store-claim'))
     const next = vi.spyOn(reviewer, 'next')
     const loop = new FakePlaybookReviewLoop(policy, reviewer)
     vi.mocked(policy.beforeReview).mockReturnValueOnce(REFUSE)
-    expect(loop.review(FAKE_PLAYBOOK_MODULE)).toEqual({ kind: 'refused', decision: REFUSE })
+    expect(loop.review(FAKE_PLAYBOOK_MODULE, REVIEW_AGENTS)).toEqual({
+      kind: 'refused',
+      decision: REFUSE,
+    })
     expect(next).not.toHaveBeenCalled()
     expect(policy.afterReview).not.toHaveBeenCalled()
-    const admitted = loop.review(FAKE_PLAYBOOK_MODULE)
+    const admitted = loop.review(FAKE_PLAYBOOK_MODULE, REVIEW_AGENTS)
+    expect(policy.beforeReview).toHaveBeenCalledWith(FAKE_PLAYBOOK_MODULE, REVIEW_AGENTS)
     expect(admitted.kind).toBe('reviewed')
     if (admitted.kind !== 'reviewed') throw new Error('Expected review')
-    expect(policy.afterReview).toHaveBeenCalledWith(FAKE_PLAYBOOK_MODULE, admitted.review)
+    expect(policy.afterReview).toHaveBeenCalledWith(
+      FAKE_PLAYBOOK_MODULE,
+      admitted.review,
+      REVIEW_AGENTS,
+    )
     expect(admitted.decision).toEqual(ALLOW)
+  })
+  it('detaches module data between lanes, fixture calls and new boards', () => {
+    const lanes = fakePlaybookLanes()
+    const other = fakePlaybookLanes()
+    const board = new FakePlaybookBoard()
+    const source = board.readBoard()
+    const supplied = new FakePlaybookBoard(source)
+    source.lanes[0]!.module.files.push('src/supplied.ts')
+    expect(supplied.readBoard().lanes[0]?.module.files).toEqual(['src/core/schedules/store.ts'])
+    lanes[0]!.module.files.push('src/changed.ts')
+    expect(lanes[1]?.module.files).toEqual(['src/core/schedules/store.ts'])
+    expect(other[0]?.module.files).toEqual(['src/core/schedules/store.ts'])
+    expect(new FakePlaybookBoard().readBoard().lanes[0]?.module.files).toEqual([
+      'src/core/schedules/store.ts',
+    ])
+    expect(board.readBoard().lanes[0]?.module.files).toEqual(['src/core/schedules/store.ts'])
+    expect(FAKE_PLAYBOOK_MODULE.files).toEqual(['src/core/schedules/store.ts'])
+  })
+  it('supplies the acceptance board dependency graph and estimates independently of plan order', () => {
+    const board = new FakePlaybookBoard().readBoard()
+    expect(
+      Object.fromEntries(
+        board.lanes.map(({ id, starts, estimateHours }) => [id, { starts, estimateHours }]),
+      ),
+    ).toEqual({
+      '0': { starts: [], estimateHours: 6 },
+      P: { starts: ['0'], estimateHours: 20 },
+      K: { starts: ['0'], estimateHours: 8 },
+      U: { starts: ['0'], estimateHours: 12 },
+      I: { starts: ['P'], estimateHours: 10 },
+      W: { starts: ['P', 'K', 'U', 'I'], estimateHours: 4 },
+    })
   })
   it('offers a mutable board through an isolated plan snapshot, including unreviewed contracts', () => {
     const board = new FakePlaybookBoard()

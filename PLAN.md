@@ -11997,6 +11997,31 @@ core.hooksPath`, edits under `.husky/`, or skipping a gate are refused
     companion page and the native hosts; ACP's `/playbook` (status, record,
     settings); the CLI's `playbook status|record|settings`; the TUI's and
     the desktop's Agent map.
+13. **Lane-0 review amendment (RVM116L0, 2026-10-06).**
+    - A module has a trusted stable `id`, assigned once and persisted with
+      its key/file-set snapshots in the journal. A changed key or file set
+      for existing code carries typed lineage: `renamedFrom`, `splitFrom`
+      or `mergedFrom`, naming module ids. A rename keeps its id; splits and
+      merges inherit the maximum predecessor round, per class and aggregate.
+      P refuses a declaration whose files overlap a struck module's last
+      file set without lineage unless a recorded lead/owner override exists.
+      No counter resets on a new lane, branch, key or file set.
+    - `beforeReview` and `afterReview` receive `implementerId`, `reviewerId`
+      and both session ids from the harness's trusted lane registry, never
+      self-declared model metadata. Every round persists these identities.
+      P refuses equal agent ids or shared sessions before consuming a review.
+    - Journal findings retain normalized severity (`P1`–`P3`); their answers
+      are finding-scoped dispositions: fixed, disputed(reason),
+      residual(name, why safe for now, follow-up), or override(lead/owner,
+      reason, time). P fixes every P1; only an explicit lead/owner override
+      can except it. P2 residuals require redesign and a named follow-up;
+      an ordinary dispute grants no exception. The trusted adapter maps
+      critical/high/medium-or-lower to P1/P2/P3 and treats missing or unknown
+      severity as P1 until clarified. P validates prior ids, scrubs free text
+      and reconstructs this policy from the journal after restart.
+    - Acceptance fakes take the prior finding id as a fixture parameter,
+      detach every lane's module data, and test board dependencies and
+      estimates independently of the plan's delivery-order literal.
 
 ---
 
@@ -27942,8 +27967,9 @@ Total: about 60 lane-hours.
 
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **`src/shared/playbook.ts`:** the rule ids; the team settings with
-    their reasons; the module key; the round record (module, class, round,
-    findings, answers); the design decision (class of failure, why patches
+    their reasons; stable module id/key/file snapshots and typed lineage;
+    the round record (module, trusted agent/session identities, class,
+    round, prioritized findings, dispositions); the design decision (class of failure, why patches
     failed, the structural change, the redesign lane, the outcome); the
     why-note; the record's file
     (`<agentDataFolder>/playbook/v1/<workspaceKey>.jsonl`).
@@ -27951,7 +27977,7 @@ Total: about 60 lane-hours.
     parse: `class` on a finding; `coverage` (the classes checked) and, on a
     review after a redesign, `resolution` per prior finding.
   - **The policy's interface:** `beforeDispatch(lane, board)`,
-    `beforeReview(module)`, `afterReview(module, findings)`,
+    `beforeReview(module, agents)`, `afterReview(module, findings, agents)`,
     `beforeFixRound(module)`, `beforeMerge(lane)`, `beforeCommand(command,
 requester)`, `order(queue)`, each returning allow, or refuse with its
     why-note.
@@ -29515,6 +29541,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M116-L0 enforcement handoff (RVM116L0).** All six lane-0 review findings
+  are fixed in the contracts/fixtures; none is deferred as a residual.
+  Actual stable-id allocation/recovery, lineage counter inheritance,
+  struck-module overlap refusal, trusted registry identity admission and
+  severity/disposition policy belong to P and their adapter binding to I.
+  Safe for this lane: it supplies no running planner or enforcement claim.
+  Follow-up: P/I prove these invariants with real policy tests and restart
+  tests before W certifies the integrated milestone. Existing M104/help and
+  full-editor/full-quality handoffs remain in `m116-contracts.md`.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

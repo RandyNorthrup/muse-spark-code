@@ -2409,10 +2409,18 @@
     "gateSkipped": "安全检查：拒绝跳过质量门禁。",
     "permissionLaundering": "需要你处理：此操作已被拒绝；其他代理也不能在 {duration} 内再次请求。",
     "classifierBlocked": "需要你处理：安全分类器已阻止此操作；不能重试或改走其他路径。",
-    "ruleDisabled": "工作准则：{actor} 关闭了 {rule}：{reason}"
+    "ruleDisabled": "工作准则：{actor} 关闭了 {rule}：{reason}",
+    "lineageRequired": "工作准则：{module} 需要已记录的模块沿革，或负责人或所有者批准的例外。",
+    "reviewerConflict": "工作准则：{module} 需要代理 ID 和会话均不同的审查者。"
   },
   "playbookStrikeBadge": {
     "other": "{count} 轮审查"
   },
-  "playbookDesignPending": "等待重新设计审查"
+  "playbookDesignPending": "等待重新设计审查",
+  "playbookDispositions": {
+    "fixed": "已修复",
+    "disputed": "有异议",
+    "residual": "已命名的遗留问题",
+    "override": "负责人或所有者批准的例外"
+  }
 }

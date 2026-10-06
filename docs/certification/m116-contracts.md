@@ -65,14 +65,57 @@ and a host-assigned prior finding id. P rejects duplicate, unknown or missing
 prior ids and requires every old finding to be structurally impossible before
 closing. A caught finding stays open. A remains answer goes to the user first.
 Coverage validation and round counting belong to P: an incomplete review is
-refused without consuming a round. P supplies finding answers together,
-fixed or disputed with a reason, before admitting the next review.
+refused without consuming a round. P supplies every finding's disposition
+together before admitting the next review, enforcing the priority rules below.
+
+## Durable module identity and review evidence (RVM116L0 amendment)
+
+`PlaybookModule.id` is assigned once by the trusted harness and persisted in
+`kind: module` journal records with the key/file-set snapshot and timestamp.
+The key is a display/lookup name, never the counter identity. A changed key
+or file set for existing code requires one typed lineage record:
+`{ renamedFrom: moduleId }`, `{ splitFrom: moduleId }`, or
+`{ mergedFrom: [moduleId, moduleId, ...] }`. These ids refer to persisted
+predecessors, never paths. Renames retain the stable id; new split/merged
+modules inherit the maximum predecessor round for the aggregate and each
+class. Neither changing lanes/branches nor redeclaring the files resets it.
+P validates predecessor references and persists the snapshot before use.
+
+P must run the **looks like a struck module** check: a declaration whose files
+overlap a struck module's last file set without lineage is refused. The only
+exception is a recorded lead/owner override with reason and time, carried by
+that module's journal entry. P's persisted registry supplies this check after
+restart; lane 0 does not implement path matching or counter inheritance.
+
+`PlaybookReviewAgents` contains `implementerId`, `reviewerId`,
+`implementerSessionId` and `reviewerSessionId`. The harness supplies them from
+the trusted lane registry, never reviewer/model claims. Both review methods
+receive them and every round retains all four. P must refuse equal agent ids
+or shared sessions before a review is consumed; I must preserve that trusted
+origin. Review-block parsing does not confer identity or override authority.
+
+Journal finding references require `severity: P1 | P2 | P3`. The trusted
+adapter maps critical/high/medium-or-lower to P1/P2/P3; absent or unknown
+severity is treated as P1 until clarified. The finding-id-scoped `answers`
+union retains `status` plus the required evidence:
+
+- `fixed`;
+- `disputed` with `reason`;
+- `residual` with bounded `name`, `whySafe` and `followUp`;
+- `override` with `actor: lead | owner`, `reason` and `at`.
+
+P reconstructs priorities and dispositions after restart without raw review
+text. It fixes every P1 (an explicit trusted lead/owner override alone can
+authorize an exception), and every P2 unless its fix needs redesign, in which
+case a named residual explains safety for now and the follow-up. An ordinary
+dispute grants no exception. P rejects duplicate, unknown or missing prior
+finding ids and verifies override authority; a schema only validates shape.
 
 ## Policy seam
 
 `PlaybookPolicy` is synchronous admission, immediately before an effect:
-`beforeDispatch(lane, board)`, `beforeReview(module)`,
-`afterReview(module, reviewBlock)`, `beforeFixRound(module)`,
+`beforeDispatch(lane, board)`, `beforeReview(module, agents)`,
+`afterReview(module, reviewBlock, agents)`, `beforeFixRound(module)`,
 `beforeMerge(lane)`, `beforeCommand(command, requester)`, and `order(queue)`.
 Allow/refuse decisions have a structured `PlaybookWhyNote`. Ordering returns
 its queue and notes, or an explicit refusal for a cycle/missing dependency.
@@ -101,8 +144,11 @@ The contracts do not parse other milestones' files or guess their APIs.
 `playbookRecordFile(workspaceKey)` produces
 `playbook/v1/<workspaceKey>.jsonl`, relative to the agent data folder, with a
 safe hash/slug only; the host joins it using its platform's path API.
-The strict `playbookRecordSchema` validates round, design, note and settings
-lines. Finding references hold only id, file, optional line and known class.
+The strict `playbookRecordSchema` validates module, round, design, note and
+settings lines. Module lines persist stable identity, lineage and any
+authorized overlap override. Round lines retain trusted review identities.
+Finding references hold only id, file, P1–P3 severity, optional line and known
+class; answers retain the typed dispositions above.
 Redesign rounds also retain optional `resolution` entries (each prior id,
 outcome and reason) using the same review-resolution schema. Notes include an
 optional `workerId` for the offload decision and at most eight class entries,
@@ -119,16 +165,19 @@ change, plan location, redesign lane, outcome and timestamp.
 
 `test/unit/helpers/playbook/fakes.ts` provides:
 
-- `ScriptedPlaybookReviewer`: independent per-module sequences, validated
+- `ScriptedPlaybookReviewer`: independent sequences by stable module id, validated
   fresh review blocks, explicit errors on invalid/exhausted scripts.
-- `threeStrikesScript(outcome)`: three concurrency rounds with all-class
-  coverage, followed by `impossible`, `caught` or `remains` for `store-claim`.
+- `threeStrikesScript(outcome, findingId)`: three concurrency rounds with all-class
+  coverage, followed by `impossible`, `caught` or `remains` for the injected
+  actual prior finding id. There is no production naming convention assumed.
   Inject other module/class scripts for counter-isolation acceptance.
 - `FakePlaybookReviewLoop`: calls admission before consuming the reviewer;
-  forwards the complete block to the injected real policy after review.
+  forwards the complete block and trusted identities to the injected real policy.
 - `FakePlaybookBoard`, `fakePlaybookLanes`, `fakePlaybookPlan`: M116's
   deliberately unsorted dependency/estimate board; separate merged/reviewed
-  facts; detached snapshots; workers and CI; explicit unknown-lane failure.
+  facts; detached module data for every lane and board, including caller-supplied
+  boards; detached snapshots; workers and CI; explicit unknown-lane failure.
+  Tests independently assert every dependency and estimate, including W's prerequisites.
 - `FakePlaybookDelegate`: records a permission/classifier refusal before
   another agent re-asks the identical effect and subject.
 
@@ -196,3 +245,12 @@ policy and surfaces once those lanes certify.
 The first piece included a CHANGELOG entry under the general repository
 documentation rule. The ownership review found that region belongs to W;
 the final lane-0 diff restores CHANGELOG byte-exact to the supplied base.
+
+RVM116L0 correction wording for W: preserve stable module lineage and
+independent reviewer evidence across restart; retain finding priorities,
+named residuals and authorized overrides; repair the redesign-id and board
+fixtures, proving dependency/estimate mutations are detected. The new note
+codes (`lineageRequired`, `reviewerConflict`) and disposition labels are in
+English and all 14 UI tables. There is no new command, setting or registered
+surface in this correction. All six findings are fixed; no review residual
+is left. P/I's enforcement and W's full-quality obligations remain handoffs.
