@@ -190,7 +190,7 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
             help: { type: 'boolean', short: 'h' },
           },
     })
-    if (values.help === true) return { command: 'help' }
+    if (values.help === true) return { command: 'help', all: true }
     if (isScan)
       return positionals.length === 1 && positionals[0] !== undefined
         ? {
@@ -228,7 +228,7 @@ function parseReport(argv: readonly string[]): RuntimeCommand {
         help: { type: 'boolean', short: 'h' },
       },
     })
-    if (values.help === true) return { command: 'help' }
+    if (values.help === true) return { command: 'help', all: true }
     if (positionals.length > 0 || values.out === '') {
       return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
     }

@@ -18204,6 +18204,28 @@ joined with M57, M58 and PR #49's sign-in
         (`docs/certification/m92.md`); the commit guard skipped, no
         commit-writing path exists
 
+### FIXHELPREF — Reference truth audit repairs (2026-10-05)
+
+Scope: resolve RVHELPREF findings 1–23 in the existing help lane. Derive paid
+membership from the paid registry, complete setting schemas from the manifest,
+CLI options from the parser, slash syntax from its parsers, and command
+conditions from menus. Record explicit host/backend combinations and effective
+availability; distinguish extension workflows from ACP's local help/skills.
+Inventory existing palette, bridge and keyboard actions independently of the
+catalogue, then check their reference coverage. Correct release placement,
+installed-language output, first-help skill refresh, unavailable values and
+loading failures with retry. Each repair has a failing regression/drill and
+byte-exact restoration in `docs/certification/help-reference.md`.
+
+- [x] Repair all 23 findings, with exact implemented surfaces and complete contracts.
+- [x] Certify 571 scoped tests and 59 deliberate failures with byte-exact restoration.
+- [x] Pass existing static/build gates, production help parity/localization and
+      wide/narrow English/French accessibility; preserve every budget.
+
+The rig brief overrides common.md's old merge step: no merge, push or rebase.
+Scoped checks run on Kubuntu; aggregate quality remains the lead's gate. No
+dependency, live/paid call, credential access or gate/cap weakening.
+
 ### HELPREF — Generated Help & Reference (2026-10-05, release 0.14.1)
 
 Owner requests `/help` opening an always-current, searchable reference of every
@@ -18241,6 +18263,13 @@ or live model calls, dependency changes, credential access or cap changes.
 Certification: `docs/certification/help-reference.md`.
 
 ## 7. Gates
+
+**FIXHELPREF bounded truth certification (2026-10-05).** Kubuntu runs the
+owning reference/ACP regressions, source and guard failure drills with exact
+SHA-256 restoration, five-project typecheck and the existing static/build
+gates. The lane brief forbids aggregate quality, merge, push and rebase;
+full integrated quality and the second truth audit remain with the lead.
+No threshold or size cap changes. Evidence: `docs/certification/help-reference.md`.
 
 **HELPREF bounded rig certification.** The explicit rig/shared rules prohibit
 aggregate `npm run quality`, merge, rebase and push in this lane. Hook-on local
@@ -19421,6 +19450,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **HELPREF-native-companion-integration (pre-existing boundary).** Native
+  shared-webview hosts and the phone companion are planned in the IDE
+  compatibility work and have no implementation in this base. ACP offers
+  local help/installed skills and the generated Markdown; the shared page
+  states exact implemented host/backend pairs and does not claim these
+  integrations exist. Safe for now: no fabricated adapter or availability
+  claim ships. Follow-up: integrate and certify actual native/phone adapters
+  under the IDE compatibility milestones. RVHELPREF 1–23 retain no false-claim
+  residual; this boundary is recorded explicitly for finding 16.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

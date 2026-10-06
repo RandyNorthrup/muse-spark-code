@@ -1,6 +1,6 @@
 // HELPREF: reviewed feature relationships. The generator validates every id
 // against the manifest and reuses its translated text and the palette's tips.
-import { COMMAND_IDS } from './constants'
+import { COMMAND_IDS, PAID_FEATURE_SETTINGS } from './constants'
 import type { UiText } from './l10n/en'
 
 export type ReferenceText =
@@ -20,6 +20,9 @@ interface Feature {
   readonly editors: readonly ('vscode' | 'acp')[]
   readonly backends: readonly ('museCode' | 'modelApi')[]
   readonly paid: boolean
+  readonly surfaces: readonly string[]
+  readonly details: readonly ReferenceText[]
+  readonly facts: Readonly<Record<string, unknown>>
 }
 
 type CommandKey = keyof typeof COMMAND_IDS
@@ -36,8 +39,8 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   openTasks: { description: { ui: 'referenceTasks' }, canRun: false },
   insertMentionReference: { description: { tip: 'mentionFile' }, canRun: false },
   toggleFocusView: { description: { tip: 'focusView' }, canRun: false },
-  toggleThinking: { description: { tip: 'thinking' }, canRun: false },
-  setUpSandbox: { description: { setting: 'shellSandbox' }, canRun: false },
+  toggleThinking: { description: { ui: 'referenceThinking' }, canRun: false },
+  setUpSandbox: { description: { ui: 'referenceSandbox' }, canRun: false },
   showLogs: { description: { tip: 'log' }, canRun: true },
   diagnostics: { description: { ui: 'referenceDiagnostics' }, canRun: true },
   reportProblem: { description: { ui: 'referenceReport' }, canRun: true },
@@ -48,13 +51,13 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   openWalkthrough: { description: { ui: 'referenceWalkthrough' }, canRun: true },
   manageSkills: { description: { tip: 'manageSkills' }, canRun: false },
   importSkills: { description: { tip: 'importSkills' }, canRun: false },
-  importFromAgents: { description: { tip: 'importFromAgents' }, canRun: false },
+  importFromAgents: { description: { ui: 'agentImportDetailEvery' }, canRun: false },
   exportConversation: { description: { tip: 'export' }, canRun: false },
   importSession: { description: { tip: 'importSession' }, canRun: false },
   openShareFile: { description: { tip: 'openShare' }, canRun: false },
-  mcpServers: { description: { ui: 'mcpItemDetailModelApi' }, canRun: false },
+  mcpServers: { description: { ui: 'referenceMcp' }, canRun: false },
   hooks: { description: { tip: 'hooks' }, canRun: false },
-  runSetupHooks: { description: { ui: 'manualHookSlashDetail' }, canRun: false },
+  runSetupHooks: { description: { ui: 'referenceSetup' }, canRun: false },
   runHook: { description: { tip: 'hookRun' }, canRun: false },
   retryPluginHooks: { description: { ui: 'referenceRetry' }, canRun: false },
   memory: { description: { tip: 'memory' }, canRun: false },
@@ -63,15 +66,15 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   moveToBackground: { description: { ui: 'moveToBackgroundTitle' }, canRun: false },
   stopBackgroundTasks: { description: { ui: 'stopAllTasksTitle' }, canRun: false },
   restartMuseCode: { description: { ui: 'mcpRestartDetail' }, canRun: false },
-  installBundledSkills: { description: { setting: 'bundledSkills' }, canRun: false },
-  removeBundledSkills: { description: { setting: 'bundledSkills' }, canRun: false },
-  downloadBrowserCheckRuntime: { description: { setting: 'browserCheckRuntime' }, canRun: false },
+  installBundledSkills: { description: { ui: 'referenceInstallSkills' }, canRun: false },
+  removeBundledSkills: { description: { ui: 'referenceRemoveSkills' }, canRun: false },
+  downloadBrowserCheckRuntime: { description: { ui: 'referenceBrowserDownload' }, canRun: false },
   showWhatsNew: { description: { tip: 'whatsNew' }, canRun: true },
-  tabTurnOn: { description: { setting: 'modelApiTab' }, canRun: false },
-  tabTurnOff: { description: { setting: 'modelApiTab' }, canRun: false },
+  tabTurnOn: { description: { ui: 'referenceTabOn' }, canRun: false },
+  tabTurnOff: { description: { ui: 'referenceTabOff' }, canRun: false },
   tabSnooze: { description: { ui: 'tabMenuSnoozeShort' }, canRun: false },
-  tabMenu: { description: { setting: 'modelApiTab' }, canRun: false },
-  tabLanguages: { description: { setting: 'tabLanguages' }, canRun: false },
+  tabMenu: { description: { ui: 'referenceTabMenu' }, canRun: false },
+  tabLanguages: { description: { ui: 'referenceTabLanguages' }, canRun: false },
   openPullRequestInConversation: { description: { ui: 'gitCheckoutItemDetail' }, canRun: false },
   openHelp: { description: { ui: 'referenceIntro' }, canRun: true },
 }
@@ -85,7 +88,7 @@ function feature(
   docs: string,
   backends: Feature['backends'] = ['museCode', 'modelApi'],
   isPaid = false,
-  editors: Feature['editors'] = ['vscode', 'acp'],
+  editors: Feature['editors'] = ['vscode'],
 ): Feature {
   return {
     id,
@@ -97,12 +100,98 @@ function feature(
     docs: `https://github.com/RandyNorthrup/muse-spark-code#${docs}`,
     backends,
     paid: isPaid,
+    surfaces: editors.flatMap((editor) => backends.map((backend) => `${editor}:${backend}`)),
+    details: [],
+    facts: {},
     editors,
   }
 }
 
 export function featureCatalog(): readonly Feature[] {
   return [
+    feature(
+      'best-of-n',
+      { ui: 'bestOfNTitle' },
+      { ui: 'referenceBestOfN' },
+      [],
+      ['modelApiBestOfN'],
+      'session-board-and-best-of-n',
+      ['modelApi'],
+      true,
+    ),
+    feature(
+      'auto-subscription',
+      { ui: 'permissionModeItem' },
+      { ui: 'museCodeReviewerNotice' },
+      [],
+      ['museCodeAutoReviewer'],
+      'permission-modes',
+      ['museCode'],
+    ),
+    feature(
+      'native-agents',
+      { ui: 'agentsCommand' },
+      { ui: 'referenceNativeAgents' },
+      [],
+      [],
+      'the-panel',
+      ['museCode'],
+    ),
+    feature(
+      'native-search-cron',
+      { ui: 'paidWebSearchName' },
+      { ui: 'referenceNativeSearch' },
+      [],
+      [],
+      'paid-features',
+      ['museCode'],
+    ),
+    feature(
+      'attachments',
+      { ui: 'attachmentsLabel' },
+      { ui: 'referenceAttachments' },
+      [],
+      [],
+      'the-panel',
+    ),
+    feature('effort', { ui: 'effortItem' }, { tip: 'effort' }, [], [], 'the-panel'),
+    feature(
+      'custom-agents',
+      { ui: 'agentsCommand' },
+      { ui: 'referenceCustomAgents' },
+      [],
+      [],
+      'the-panel',
+      ['modelApi'],
+    ),
+    feature(
+      'conversation-actions',
+      { ui: 'transcriptLabel' },
+      { ui: 'referenceConversationActions' },
+      [],
+      [],
+      'the-panel',
+    ),
+    feature('code-output', { ui: 'copyCode' }, { ui: 'referenceCodeOutput' }, [], [], 'the-panel'),
+    feature(
+      'questions',
+      { ui: 'questionSubmit' },
+      { ui: 'referenceQuestions' },
+      [],
+      [],
+      'the-panel',
+    ),
+    feature(
+      'acp',
+      { ui: 'helpReferenceTitle' },
+      { ui: 'referenceAcp' },
+      [],
+      [],
+      'help-and-reference',
+      undefined,
+      false,
+      ['acp'],
+    ),
     feature(
       'web-fetch',
       { ui: 'referenceWebFetchTitle' },
@@ -148,7 +237,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'free-dictation',
       { ui: 'dictationLabel' },
-      { setting: 'dictationEngine' },
+      { ui: 'referenceDictation' },
       [],
       [],
       'voice-dictation',
@@ -230,7 +319,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'skills',
       { ui: 'groupSkills' },
-      { tip: 'manageSkills' },
+      { ui: 'referenceSkills' },
       ['manageSkills', 'importSkills', 'installBundledSkills', 'removeBundledSkills'],
       ['bundledSkills'],
       'bundled-skills',
@@ -238,7 +327,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'imports',
       { command: COMMAND_IDS.importFromAgents },
-      { tip: 'importFromAgents' },
+      { ui: 'agentImportDetailEvery' },
       ['importFromAgents'],
       [],
       'rules-skills-and-memory',
@@ -247,7 +336,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'mcp',
       { ui: 'mcpItem' },
-      { ui: 'mcpItemDetailModelApi' },
+      { ui: 'referenceMcp' },
       ['mcpServers'],
       [],
       'rules-skills-and-memory',
@@ -350,11 +439,11 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'voice',
       { ui: 'paidVoiceName' },
-      { tip: 'paid:voice' },
+      { ui: 'referenceVoice' },
       [],
       ['dictationEngine', 'modelApiVoice'],
       'voice-dictation',
-      undefined,
+      ['museCode'],
       true,
       ['vscode'],
     ),
@@ -394,7 +483,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'agentsCommand' },
       { tip: 'paid:subagents' },
       [],
-      ['modelApiSubagents', 'modelApiBestOfN'],
+      ['modelApiSubagents'],
       'session-board-and-best-of-n',
       ['modelApi'],
       true,
@@ -405,9 +494,9 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'permissionModeItem' },
       { tip: 'paid:autoReviewer' },
       [],
-      ['modelApiAutoReviewer', 'museCodeAutoReviewer'],
+      ['modelApiAutoReviewer'],
       'auto-rules-and-permission-profiles-model-api',
-      undefined,
+      ['modelApi'],
       true,
       ['vscode'],
     ),
@@ -430,7 +519,7 @@ export function featureCatalog(): readonly Feature[] {
       ['modelApiPromptCacheRetention'],
       'paid-features',
       ['modelApi'],
-      true,
+      false,
       ['vscode'],
     ),
     feature(
@@ -440,13 +529,13 @@ export function featureCatalog(): readonly Feature[] {
       [],
       ['paidDailyBudgetUsd'],
       'paid-features',
-      undefined,
-      true,
+      ['modelApi'],
+      false,
     ),
     feature(
       'tab',
       { command: COMMAND_IDS.tabMenu },
-      { setting: 'modelApiTab' },
+      { ui: 'referenceTab' },
       ['tabTurnOn', 'tabTurnOff', 'tabSnooze', 'tabMenu', 'tabLanguages'],
       [
         'modelApiTab',
@@ -492,5 +581,79 @@ export function featureCatalog(): readonly Feature[] {
       ['showWhatsNewOnUpdate'],
       'help-and-reference',
     ),
-  ]
+  ].map((entry) => {
+    const surfaces = REFERENCE_SURFACES[entry.id] ?? entry.surfaces
+    return {
+      ...entry,
+      surfaces,
+      editors: [
+        ...new Set(
+          surfaces.map((surface): 'acp' | 'vscode' =>
+            surface.startsWith('acp:') ? 'acp' : 'vscode',
+          ),
+        ),
+      ],
+      backends: [
+        ...new Set(
+          surfaces.map((surface): 'museCode' | 'modelApi' =>
+            surface.endsWith(':modelApi') ? 'modelApi' : 'museCode',
+          ),
+        ),
+      ],
+      paid:
+        Object.values(PAID_FEATURE_SETTINGS).some((setting) =>
+          entry.settings.includes(`museSpark.${setting}`),
+        ) &&
+        entry.id !== 'auto-subscription' &&
+        entry.id !== 'judge-subscription',
+      description: ['tab', 'voice', 'skills'].includes(entry.id)
+        ? entry.summary
+        : entry.description,
+      details: (REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui })),
+      facts: {},
+    }
+  })
+}
+
+export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
+  'web-fetch': ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
+  search: ['vscode:modelApi', 'acp:modelApi'],
+  images: ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
+  acp: ['acp:museCode', 'acp:modelApi'],
+}
+
+const REFERENCE_DETAILS: Readonly<
+  Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
+> = {
+  permissions: ['referencePermissionLimits'],
+  account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],
+  'code-intelligence': ['referenceCodeIntelExtra'],
+  chat: ['referenceThinking', 'referenceConversationActions'],
+  context: ['referenceContext'],
+  skills: ['referenceBundled'],
+  exports: ['referenceExports'],
+  imports: ['agentImportDetailEvery', 'referenceResumeAgents'],
+  plans: [
+    'planSaveConfirmDetail',
+    'planReplyNotLatest',
+    'planImplementDetail',
+    'planImplementSideChat',
+    'referencePlanModes',
+  ],
+  browser: ['referenceBrowser'],
+  images: ['referencePaidContexts'],
+  search: ['referencePaidContexts'],
+  budget: ['referenceBudget'],
+  voice: ['referencePaidContexts'],
+  auto: ['referencePaidContexts'],
+  subagents: ['referencePaidContexts'],
+  'best-of-n': [
+    'bestOfNTakeExplanation',
+    'bestOfNBudgetUnavailable',
+    'bestOfNGitProgramsUnavailable',
+  ],
+  support: ['referenceAcp'],
+  cache: ['referenceCache'],
+  'custom-agents': ['referencePaidContexts'],
+  'conversation-actions': ['sessionEditsUnsupported'],
 }

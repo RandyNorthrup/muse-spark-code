@@ -5,7 +5,7 @@ import type { UiText } from '../../shared/l10n/en'
 import type { fill as fillTemplate, formatNumber as numberFormatter } from '../../shared/l10n/text'
 import type { SettingsSnapshot, WebviewToHostMessage } from '../../shared/protocol'
 import { parseReferenceModel } from '../../shared/reference/reference.generated'
-import { referenceName, referenceText } from '../../shared/reference/text'
+import { referenceName, referenceText, referenceSchema } from '../../shared/reference/text'
 import type { Modal as ModalComponent } from './Modal'
 import './reference.css'
 
@@ -14,6 +14,7 @@ interface ReferencePageProps {
   readonly values:
     | {
         readonly model: string
+        readonly error?: boolean | undefined
         readonly values: Readonly<Record<string, string>>
         readonly nls: Readonly<Record<string, string>>
       }
@@ -45,15 +46,21 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
   }
 
   return function ReferencePage({ postMessage, values, settings, onClose }: ReferencePageProps) {
+    const [requestedFrom, setRequestedFrom] = useState<typeof values>()
+    const isRetrying = requestedFrom !== undefined && requestedFrom === values
     const [query, setQuery] = useState('')
     useEffect(() => {
       postMessage({ type: 'readReference' })
     }, [postMessage, settings])
     const modelText = values?.model
-    const model = useMemo(
-      () => (modelText === undefined ? undefined : parseReferenceModel(JSON.parse(modelText))),
-      [modelText],
-    )
+    const model = useMemo(() => {
+      if (modelText === undefined || values?.error) return
+      try {
+        return parseReferenceModel(JSON.parse(modelText))
+      } catch {
+        return
+      }
+    }, [modelText, values?.error])
     if (model === undefined)
       return (
         <Modal
@@ -62,7 +69,22 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
           isWide
           onClose={onClose}
         >
-          <p role="status">{UI_TEXT.loadingOutput}</p>
+          {values === undefined || isRetrying ? (
+            <p role="status">{UI_TEXT.loadingOutput}</p>
+          ) : (
+            <>
+              <p role="alert">{UI_TEXT.actionFailed}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setRequestedFrom(values)
+                  postMessage({ type: 'readReference' })
+                }}
+              >
+                {UI_TEXT.retryAction}
+              </button>
+            </>
+          )}
         </Modal>
       )
     const nls = values?.nls ?? {}
@@ -76,6 +98,9 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
         referenceName(f.name, model, nls, UI_TEXT),
         referenceText(f.summary, model, nls, UI_TEXT),
         referenceText(f.description, model, nls, UI_TEXT),
+        ...f.details.map((text) => referenceText(text, model, nls, UI_TEXT)),
+        JSON.stringify(f.facts),
+        ...f.surfaces,
         ...f.settings,
         ...f.commands,
       ),
@@ -84,11 +109,17 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
       isMatch(c.id, translated(c.nameKey, c.name), referenceText(c.text, model, nls, UI_TEXT)),
     )
     const settingsRows = model.settings.filter((s) =>
-      isMatch(s.id, translated(s.nameKey, s.name), translated(s.descriptionKey, s.description)),
+      isMatch(
+        s.id,
+        translated(s.nameKey, s.name),
+        translated(s.descriptionKey, s.description),
+        JSON.stringify(s.schema),
+      ),
     )
     const slashRows = model.slash.filter((c) =>
       isMatch(
         c.name,
+        ...c.syntax,
         ...Object.values(c.descriptions).map((text) => referenceText(text, model, nls, UI_TEXT)),
       ),
     )
@@ -102,7 +133,21 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
         model.commands.find((c) => c.id === k.command)?.description ?? '',
       ),
     )
-    const hasResults = [features, commands, settingsRows, slashRows, shortcuts].some(
+    const cliDescription = (entry: (typeof model.cli)[number]) =>
+      entry.usageKey !== undefined && entry.usageLine !== undefined
+        ? (fill(UI_TEXT[entry.usageKey], { command: model.executable }).split('\n')[
+            entry.usageLine
+          ] ?? entry.description)
+        : fill(
+            entry.text === undefined
+              ? entry.description
+              : referenceText(entry.text, model, nls, UI_TEXT),
+            { command: model.executable },
+          )
+    const cliRows = model.cli.filter((entry) =>
+      isMatch(entry.name, cliDescription(entry), JSON.stringify(entry.contract ?? {})),
+    )
+    const hasResults = [features, commands, settingsRows, slashRows, shortcuts, cliRows].some(
       (rows) => rows.length > 0,
     )
     const openSetting = (key: string) => {
@@ -131,6 +176,7 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
               ['commands', UI_TEXT.referenceCommands],
               ['settings', UI_TEXT.referenceSettings],
               ['shortcuts', UI_TEXT.referenceShortcuts],
+              ['cli', 'ACP / CLI'],
             ].map(([id, label]) => (
               <a key={id} href={`#reference-${id ?? ''}`}>
                 {label}
@@ -148,13 +194,14 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
                 referenceText(f.summary, model, nls, UI_TEXT) ? null : (
                   <p>{referenceText(f.description, model, nls, UI_TEXT)}</p>
                 )}
-                <p className="reference-meta">
-                  {fill(UI_TEXT.referenceApplies, {
-                    editors: f.editors.join(', '),
-                    backends: f.backends.join(', '),
-                  })}
-                </p>
+                <p className="reference-meta">{f.surfaces.join(', ')}</p>
                 {f.paid ? <p>{UI_TEXT.referencePaid}</p> : null}
+                {f.details.map((text, index) => (
+                  <p key={index}>{referenceText(text, model, nls, UI_TEXT)}</p>
+                ))}
+                {Object.keys(f.facts).length === 0 ? null : (
+                  <pre>{JSON.stringify(f.facts, null, 2)}</pre>
+                )}
                 <div className="reference-links">
                   {f.settings.map((id) => (
                     <button
@@ -192,9 +239,15 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
           </section>
           <section id="reference-slash" aria-labelledby="reference-slash-title">
             <h3 id="reference-slash-title">{UI_TEXT.groupSlashCommands}</h3>
+            <p>{UI_TEXT.referenceAcp}</p>
             {slashRows.map((c) => (
               <article key={c.name}>
                 <h4>/{c.name}</h4>
+                {c.syntax.map((syntax) => (
+                  <p key={syntax}>
+                    <code>{syntax}</code>
+                  </p>
+                ))}
                 <p>
                   {Object.entries(c.descriptions).map(([backend, text]) => (
                     <span key={backend}>
@@ -259,6 +312,12 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
                     {Array.isArray(s.type) ? s.type.join(' | ') : s.type} · {s.scope}
                   </code>
                 </p>
+                <pre>{JSON.stringify(referenceSchema(s.schema, nls), null, 2)}</pre>
+                {s.refinements.map((rule) => (
+                  <p key={rule}>
+                    <code>{rule}</code>
+                  </p>
+                ))}
                 {s.enum === undefined ? null : (
                   <ul>
                     {s.enum.map((v, i) => (
@@ -316,7 +375,22 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
                     Linux: <kbd>{k.linux}</kbd>
                   </p>
                 )}
+                {k.text === undefined ? null : <p>{referenceText(k.text, model, nls, UI_TEXT)}</p>}
                 {k.when === undefined ? null : <code className="reference-meta">{k.when}</code>}
+              </article>
+            ))}
+          </section>
+          <section id="reference-cli" aria-labelledby="reference-cli-title">
+            <h3 id="reference-cli-title">ACP / CLI</h3>
+            {cliRows.map((entry) => (
+              <article key={entry.name}>
+                <h4>
+                  <code>{entry.name}</code>
+                </h4>
+                <p>{cliDescription(entry)}</p>
+                {entry.contract === undefined ? null : (
+                  <pre>{JSON.stringify(entry.contract, null, 2)}</pre>
+                )}
               </article>
             ))}
           </section>

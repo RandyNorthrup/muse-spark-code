@@ -30,3 +30,21 @@ export function referenceName(
 ): string {
   return 'setting' in ref ? `museSpark.${ref.setting}` : referenceText(ref, model, nls, table)
 }
+
+/** Translate nested schema annotations while retaining structural values. */
+export function referenceSchema(value: unknown, nls: Readonly<Record<string, string>>): unknown {
+  if (Array.isArray(value)) return value.map((entry: unknown) => referenceSchema(entry, nls))
+  if (typeof value !== 'object' || value === null) return value
+  const fields: Record<string, unknown> = Object.fromEntries(Object.entries(value))
+  return Object.fromEntries(
+    Object.entries(fields)
+      .filter(([key]) => !key.endsWith('Key'))
+      .map(([key, entry]) => {
+        const annotation = fields[`${key}Key`]
+        return [
+          key,
+          typeof annotation === 'string' ? (nls[annotation] ?? entry) : referenceSchema(entry, nls),
+        ]
+      }),
+  )
+}

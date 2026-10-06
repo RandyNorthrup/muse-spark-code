@@ -771,6 +771,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('openHelp') }),
   z.object({
     type: z.literal('referenceValues'),
+    error: z.optional(z.boolean()),
     model: z.string(),
     values: z.record(z.string(), z.string()),
     nls: z.record(z.string(), z.string()),

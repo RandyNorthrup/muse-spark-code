@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Help now distinguishes host/backend combinations, subscription and key billing,
+  paid defaults and actual voice/Tab availability. It retains setting schemas,
+  command prerequisites and CLI/slash syntax, refreshes skills on first ACP help,
+  uses installed manifest translations in CLI help, and offers retry after a
+  help-loading failure. The reference gate checks these source inventories.
+
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.
@@ -28,6 +34,15 @@ happened, not what was planned; superseded entries are kept.
 - Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
   Windows while retaining native-platform parsing and containment checks.
 
+### Added
+
+- **Help & Reference.** `/help` and **Muse Spark: Open Help & Reference** open
+  a lazy, searchable shared-webview page for features, commands, settings,
+  slash syntax, CLI options and keyboard actions. Current/default values, direct setting links,
+  safe command actions and documentation use all 14 translated tables. ACP
+  `/help` answers locally; CLI `help --all` prints the generated reference.
+  `check:reference` guards catalogue coverage and generated-file freshness.
+
 ### Performance
 
 - Shorter tokens in the lossless inline English dictionary keep chat startup smaller than 0.14.0 while adding Help & Reference; the complete fallback and existing size limits remain.
@@ -43,14 +58,6 @@ happened, not what was planned; superseded entries are kept.
 - **Muse Judge phase 1.** The conversation model can add uncalibrated caution to an approval without granting permission. Model API use asks first and shares the durable daily budget. <!-- try: setting museSpark.judge.engine -->
 
 ### Added
-
-- **Help & Reference.** `/help` and **Muse Spark: Open Help & Reference** open
-  a lazy, searchable shared-webview page with every feature, command, setting,
-  slash command and shortcut. Current/default values, direct setting links,
-  safe command actions and documentation use all 14 translated tables. ACP
-  `/help` answers locally; CLI `help --all` prints the generated reference.
-  `check:reference` guards catalogue coverage and generated-file freshness.
-
 
 - A quiet GitHub star link in the GitHub and Marketplace/Open VSX READMEs,
   What's New footer and Getting Started welcome step, with the footer and

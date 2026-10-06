@@ -621,6 +621,43 @@ describe('the ACP agent (M63)', () => {
     expect(h.permissions).toHaveLength(0)
   })
 
+  it('R17 refreshes installed skills before the first local help reply', async () => {
+    const h = harness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const session = h.host.sessions[0]
+      if (session === undefined) throw new Error('missing fake session')
+      session.skills = [
+        {
+          selector: 'audit-skill',
+          displayName: 'Audit',
+          description: 'Audit the project',
+          argumentHint: undefined,
+        },
+      ]
+      await client.request('session/prompt', {
+        sessionId,
+        prompt: [{ type: 'text', text: '/help' }],
+      })
+      expect(session.listSkills).toHaveBeenCalledTimes(1)
+      expect(session.sendTurn).not.toHaveBeenCalled()
+    })
+    expect(h.updates).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: expect.stringContaining('/audit-skill') },
+      }),
+    )
+    expect(h.updates).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: 'available_commands_update',
+        availableCommands: expect.arrayContaining([
+          expect.objectContaining({ name: 'audit-skill' }),
+        ]),
+      }),
+    )
+  })
+
   it('announces skills as commands and runs /selector as the skill', async () => {
     const h = harness()
     await h.run(async (client) => {

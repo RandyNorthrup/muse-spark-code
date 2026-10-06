@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
+import ts from 'typescript'
 import { describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { createReference, type ReferenceHost } from '../../src/shared/reference/referenceEntry'
@@ -5,6 +8,17 @@ import { parseReferenceModel, referenceModel } from '../../src/shared/reference/
 import { parseHostToWebviewMessage, parseWebviewToHostMessage } from '../../src/shared/protocol'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { compactReference } from '../../src/shared/cliCommands'
+
+function isMessageWiring(value: unknown): value is {
+  onConversationMessage(surface: { post(message: unknown): void }, message: { type: string }): void
+} {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'onConversationMessage' in value &&
+    typeof value.onConversationMessage === 'function'
+  )
+}
 
 function host(): ReferenceHost {
   return {
@@ -66,7 +80,7 @@ describe('reference host actions and command line', () => {
       ).rejects.toThrow()
     expect(bridge.runCommand).toHaveBeenCalledTimes(1)
   })
-  it('validates messages, translated dictionaries and the nested reference model', async () => {
+  it('validates messages, translated dictionaries and the nested reference model', () => {
     expect(parseWebviewToHostMessage({ type: 'openReferenceSetting', key: 1 }).ok).toBe(false)
     expect(
       parseHostToWebviewMessage({
@@ -77,12 +91,6 @@ describe('reference host actions and command line', () => {
       }).ok,
     ).toBe(false)
     expect(() => parseReferenceModel({ commands: [] })).toThrow()
-    const bridge = host()
-    bridge.readNls = vi.fn().mockResolvedValue({ key: 1 })
-    await expect(
-      createReference(EN, 'en').handle({ type: 'readReference' }, bridge),
-    ).rejects.toThrow()
-    expect(bridge.post).not.toHaveBeenCalled()
   })
   it('lists reserved ACP help once alongside the installed skills', () => {
     const text = compactReference(['help', 'demo'])
@@ -102,6 +110,114 @@ describe('reference host actions and command line', () => {
     expect(parseCommandLine(['help', '--all'])).toEqual({ command: 'help', all: true })
     expect(parseCommandLine(['help'])).toEqual({ command: 'help', all: false })
     expect(parseCommandLine(['help', '--unknown'])).toMatchObject({ command: 'invalid' })
-    expect(parseCommandLine(['exec', '--help'])).toEqual({ command: 'help' })
+    expect(parseCommandLine(['exec', '--help'])).toEqual({ command: 'help', all: true })
   })
+})
+
+describe('RVHELPREF host and terminal regressions', () => {
+  it('R16 prints applicability, billing, setting type, CLI contracts and unavailable values', () => {
+    const text = createReference(EN, 'en').all()
+    expect(text).not.toMatch(/\{(?:command|server)\}/)
+    for (const marker of [
+      'vscode:modelApi',
+      'acp:modelApi',
+      EN.referencePaid,
+      EN.referenceUnavailable,
+      EN.referenceAcp,
+      '--max-budget-usd',
+      '--out',
+      '"boolean"',
+      'unique:name',
+      '/goal pause',
+    ])
+      expect(text).toContain(marker)
+    for (const route of ['exec', 'report', 'scan-secrets'])
+      expect(parseCommandLine([route, '--help'])).toEqual({ command: 'help', all: true })
+  })
+  it('R20 leaves an unsupported host value set empty without reading sensitive values', async () => {
+    const bridge = host()
+    bridge.currentValue = vi.fn().mockReturnValue(undefined)
+    await createReference(EN, 'en').handle({ type: 'readReference' }, bridge)
+    expect(bridge.post).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'referenceValues', values: {} }),
+    )
+    expect(bridge.currentValue).not.toHaveBeenCalledWith('museSpark.environmentVariables')
+  })
+  it('R21 answers malformed or unreadable NLS with an explicit retryable error', async () => {
+    for (const readNls of [
+      vi.fn().mockRejectedValue(new Error('missing')),
+      vi.fn().mockResolvedValue({ bad: 1 }),
+    ]) {
+      const bridge = { ...host(), readNls }
+      await createReference(EN, 'en').handle({ type: 'readReference' }, bridge)
+      expect(bridge.post).toHaveBeenCalledWith({
+        type: 'referenceValues',
+        model: '',
+        values: {},
+        nls: {},
+        error: true,
+      })
+    }
+  })
+  it('R22 uses installed manifest titles, setting prose and enum translations in full help', () => {
+    const nls = {
+      'command.openInSidebar.title': 'Ouvrir dans la barre latérale',
+      'config.backend.description': 'Choisir le moteur',
+      'config.tabTrigger.enumDescriptions.onInvoke': 'Sur invocation',
+    }
+    const text = createReference(EN, 'fr').all(nls)
+    expect(text).toContain(nls['command.openInSidebar.title'])
+    expect(text).toContain(nls['config.backend.description'])
+    expect(text).toContain(nls['config.tabTrigger.enumDescriptions.onInvoke'])
+    expect(text).not.toContain('Muse Spark: Open in Sidebar (museSpark.openInSidebar)')
+  })
+})
+
+// Exercise the activation closure itself; extension.ts is excluded from unit imports.
+it('R21 reports a synchronous lazy bundle failure through the real activation wiring', async () => {
+  const source = readFileSync(new URL('../../src/extension.ts', import.meta.url), 'utf8')
+  const start = source.indexOf('onConversationMessage: (surface, message) => {')
+  const end = source.indexOf('\n  }\n\n  registry.onRemoved', start)
+  expect(start).toBeGreaterThan(0)
+  expect(end).toBeGreaterThan(start)
+  const post = vi.fn()
+  const log = vi.fn()
+  const code = ts.transpileModule(`({${source.slice(start, end)}})`, {
+    compilerOptions: { target: ts.ScriptTarget.ESNext },
+  }).outputText
+  const wiring: unknown = runInNewContext(code, {
+    isReferenceRequest: () => true,
+    referenceBundle: () => {
+      throw new Error('bundle missing')
+    },
+    l10n: { table: EN, locale: 'en' },
+    logRejection: () => log,
+    log: {},
+  })
+  if (!isMessageWiring(wiring)) throw new Error('missing reference wiring')
+  const onMessage = wiring.onConversationMessage
+  expect(() => {
+    onMessage({ post }, { type: 'readReference' })
+  }).not.toThrow()
+  await vi.waitFor(() => {
+    expect(post).toHaveBeenCalledWith({
+      type: 'referenceValues',
+      model: '',
+      values: {},
+      nls: {},
+      error: true,
+    })
+  })
+  expect(log).toHaveBeenCalledOnce()
+})
+
+it('round-trips the entire compressed reference without losing any fact', () => {
+  const json = JSON.parse(
+    readFileSync(
+      new URL('../../src/shared/reference/reference.generated.json', import.meta.url),
+      'utf8',
+    ),
+  )
+  expect(referenceModel()).toEqual(json)
+  expect(createReference(EN, 'en').all()).not.toContain('{command}')
 })

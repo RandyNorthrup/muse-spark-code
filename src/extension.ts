@@ -3158,9 +3158,9 @@ async function activateWindow(
     },
     onConversationMessage: (surface, message) => {
       if (isReferenceRequest(message)) {
-        const reference = referenceBundle().createReference(l10n.table, l10n.locale)
-        void reference
-          .handle(message, {
+        void (async () => {
+          const reference = referenceBundle().createReference(l10n.table, l10n.locale)
+          await reference.handle(message, {
             readNls: async () => {
               const file =
                 l10n.locale === 'en' ? 'package.nls.json' : `package.nls.${l10n.locale}.json`
@@ -3179,7 +3179,10 @@ async function activateWindow(
               surface.post(reply)
             },
           })
-          .catch(logRejection(log, 'help reference'))
+        })().catch((error: unknown) => {
+          logRejection(log, 'help reference')(error)
+          surface.post({ type: 'referenceValues', model: '', values: {}, nls: {}, error: true })
+        })
         return
       }
       void controllerFor(surface).handle(message)

@@ -3193,21 +3193,27 @@ What stays in English:
 ## Help and reference
 
 Type `/help` in the panel, or run **Muse Spark: Open Help & Reference**, for a
-searchable reference of features, slash commands, commands, settings and keyboard
-shortcuts. It shows current and default values, links directly to settings and
-lets you run reviewed, context-free commands. Environment-variable values stay
-hidden. The page follows the editor’s theme and display language.
+searchable reference of features, slash commands, commands, settings, keyboard
+actions and ACP/CLI flags. It shows exact host/backend pairs, paid admission
+rules, current/default values, nested setting schemas, command prerequisites
+and CLI limits. Environment-variable values stay hidden. Load failures show a
+retry action. The page follows the editor’s theme and display language.
 
-ACP editors can send `/help` for a compact local list and the
-[generated companion reference](docs/reference.md). In a terminal,
-`muse-spark-code-acp help --all` prints the complete reference without a model
-call. `muse-spark-code-acp --help` and `exec --help` point to it.
+ACP editors can send `/help` for the current installed-skill list and the
+[generated reference](docs/reference.md). ACP locally handles `/help` and
+installed skills; the linked panel slash commands and settings are extension
+workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
+reference in the installed language without a model call. `exec --help`,
+`report --help` and `scan-secrets --help` also print it; `--help` prints concise
+ACP usage. Terminal help states that VS Code current values are unavailable.
 
-The reference is generated from the manifest, slash palette, CLI command table
-and typed feature catalogue. Maintainers run `npm run reference:generate` after
-changes; `npm run check:reference` checks coverage and rejects stale files in CI.
-Native shared-webview hosts use the same page and bridge messages; their settings
-bridge opens the requested key’s anchor in their own settings page.
+Maintainers run `npm run reference:generate` after changes. `npm run
+check:reference` checks feature/action coverage, paid registry membership,
+reviewed host capabilities and admission wiring, parser flags/contracts,
+keyboard handlers, manifest schemas/defaults/enums, descriptions, relationships
+and generated-file freshness. Installed skills are dynamic and are refreshed
+when ACP answers help. Native shared-webview and phone companion integrations
+remain planned; this reference does not claim those hosts implement the page.
 
 ## Commands and keybindings
 

@@ -300,6 +300,7 @@ export interface UiState {
   readonly referenceValues:
     | {
         readonly model: string
+        readonly error?: boolean | undefined
         readonly values: Readonly<Record<string, string>>
         readonly nls: Readonly<Record<string, string>>
       }
@@ -2489,7 +2490,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'referenceValues': {
       return {
         ...state,
-        referenceValues: { model: message.model, values: message.values, nls: message.nls },
+        referenceValues: {
+          model: message.model,
+          values: message.values,
+          nls: message.nls,
+          error: message.error,
+        },
       }
     }
     case 'conversationCleared': {

@@ -9,6 +9,7 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { fill, formatNumber } from '../../src/shared/l10n/text'
 import { Modal } from '../../src/webview/components/Modal'
 import { createReferencePage } from '../../src/webview/components/ReferencePage'
+import { createReference } from '../../src/shared/reference/referenceEntry'
 import { App } from '../../src/webview/App'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { createUiStore } from '../../src/webview/state/store'
@@ -94,7 +95,7 @@ describe('shared Help & Reference page', () => {
       type: 'runReferenceCommand',
       command: 'museSpark.showLogs',
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Documentation: Conversation' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Documentation: Code intelligence' }))
     expect(postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'openExternal' }))
   })
   it('uses installed control, command and setting translations', () => {
@@ -158,5 +159,77 @@ describe('shared Help & Reference page', () => {
     deliver({ type: 'referenceValues', ...values })
     await screen.findByRole('searchbox')
     expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'sendMessage' }))
+  })
+})
+
+describe('RVHELPREF page parity and errors', () => {
+  it('R16 searches CLI options, slash grammar and structural bounds', () => {
+    page()
+    expect(screen.getByRole('region', { name: 'ACP / CLI' })).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '--max-budget-usd' } })
+    expect(
+      within(screen.getByRole('region', { name: 'ACP / CLI' })).getByText(
+        'exec: --max-budget-usd <value>',
+      ),
+    ).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '/goal pause' } })
+    expect(screen.getByText('/goal pause')).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'timeoutSeconds' } })
+    expect(
+      within(screen.getByRole('region', { name: EN.referenceSettings })).getByRole('heading', {
+        name: 'museSpark.checkCommands',
+      }),
+    ).toBeInTheDocument()
+  })
+  it('R20 shows the unavailable notice for the actual unsupported-host response', async () => {
+    let reply: Extract<HostToWebviewMessage, { type: 'referenceValues' }> | undefined
+    await createReference(EN, 'en').handle(
+      { type: 'readReference' },
+      {
+        readNls: () => Promise.resolve({}),
+        currentValue: () => undefined,
+        openSetting: () => Promise.resolve(),
+        runCommand: () => Promise.resolve(),
+        post: (message) => {
+          if (message.type === 'referenceValues') reply = message
+        },
+      },
+    )
+    if (reply === undefined) throw new Error('reference did not reply')
+    render(
+      <ReferencePage
+        postMessage={vi.fn()}
+        onClose={vi.fn()}
+        settings={testSettings}
+        values={reply}
+      />,
+    )
+    expect(screen.getByText(EN.referenceUnavailable)).toBeInTheDocument()
+  })
+  it('R21 renders a retryable failure and recovers after a new valid response', () => {
+    const postMessage = vi.fn()
+    const props = { postMessage, onClose: vi.fn(), settings: testSettings }
+    const { rerender } = render(
+      <ReferencePage {...props} values={{ ...values, model: '', error: true }} />,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent(EN.actionFailed)
+    expect(screen.queryByText(EN.loadingOutput)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: EN.retryAction }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'readReference' })
+    expect(screen.getByRole('status')).toHaveTextContent(EN.loadingOutput)
+    rerender(<ReferencePage {...props} values={values} />)
+    expect(screen.getByRole('searchbox')).toBeInTheDocument()
+  })
+  it('R21 turns malformed lazy model data into a visible error', () => {
+    render(
+      <ReferencePage
+        postMessage={vi.fn()}
+        onClose={vi.fn()}
+        settings={testSettings}
+        values={{ ...values, model: '{' }}
+      />,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent(EN.actionFailed)
+    expect(screen.getByRole('button', { name: EN.retryAction })).toBeInTheDocument()
   })
 })

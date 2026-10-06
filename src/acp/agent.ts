@@ -837,6 +837,18 @@ class AcpSession {
       parsed.parts[0]?.type === 'text' &&
       parsed.parts[0].text.trim() === `/${SLASH_COMMAND_NAMES.help}`
     ) {
+      const preparing: PreparingPrompt = { isCancelled: false }
+      this.preparing = preparing
+      try {
+        await this.announceCommands()
+      } finally {
+        this.preparing = undefined
+      }
+      if ('error' in preparing) throw preparing.error
+      if (preparing.isCancelled) {
+        await this.outbox
+        return 'cancelled'
+      }
       this.send({
         sessionUpdate: 'agent_message_chunk',
         content: {

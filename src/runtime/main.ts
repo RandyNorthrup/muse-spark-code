@@ -599,7 +599,9 @@ async function main(): Promise<number> {
           bundlePath: path.join(distDir, REFERENCE_BUNDLE_FILE),
           log,
         })().createReference(referenceTable, uiLocale())
-        writeLine(process.stdout, reference.all())
+        const file = uiLocale() === 'en' ? 'package.nls.json' : `package.nls.${uiLocale()}.json`
+        const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
+        writeLine(process.stdout, reference.all(nls))
       } else {
         writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
         writeLine(process.stdout, `${UI_TEXT.helpReferenceTitle}: ${ACP_AGENT_NAME} help --all`)
