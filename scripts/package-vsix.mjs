@@ -3,9 +3,8 @@
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
-import { loadL10n } from './lib/l10nSource.mjs'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { packRuntimeArchive } from './lib/packageArchive.mjs'
+import { pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
 import { renderPackageReadme } from './check-badges.mjs'
 
@@ -24,9 +23,6 @@ export function packagedChangelog(text) {
 export async function stageVsix(root, stage) {
   // The stage is build output in this worktree, never a user-selected folder.
   if (stage !== path.join(root, 'dist', 'vsix-package')) throw new Error('Invalid VSIX stage')
-  const { L10N_COMPRESSION_QUALITY, L10N_TABLE_ARCHIVE_FILE } = await loadL10n(
-    path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'),
-  )
   const files = await listFiles({ cwd: root, dependencies: false })
   const webview = JSON.parse(readFileSync(path.join(root, 'dist/meta/webview.json'), 'utf8'))
   for (const file of Object.keys(webview.outputs)) {
@@ -61,19 +57,7 @@ export async function stageVsix(root, stage) {
     tables.some(([, table]) => JSON.stringify(Object.keys(table)) !== JSON.stringify(keys))
   )
     throw new Error('Translation tables have inconsistent key order')
-  const archive = {
-    version: 1,
-    keys,
-    locales: tables.map(([locale]) => locale),
-    values: tables.map(([, table]) => keys.map((key) => table[key])),
-  }
-  mkdirSync(path.join(stage, 'l10n'), { recursive: true })
-  writeFileSync(
-    path.join(stage, 'l10n', L10N_TABLE_ARCHIVE_FILE),
-    brotliCompressSync(JSON.stringify(archive), {
-      params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
-    }),
-  )
+  await packRuntimeArchive(root, stage, files, tables)
   writeFileSync(
     path.join(stage, 'README.md'),
     renderPackageReadme(
@@ -98,6 +82,10 @@ async function main() {
     stdio: 'inherit',
   })
   execFileSync(process.execPath, ['scripts/check-badges.mjs', '--packaged-vsix', stage], {
+    cwd: root,
+    stdio: 'inherit',
+  })
+  execFileSync(process.execPath, ['test/packaging/moduleExports.test.mjs', 'vsix', stage], {
     cwd: root,
     stdio: 'inherit',
   })

@@ -1,0 +1,14 @@
+[
+  {
+    "drill": "archive-vm-require",
+    "exit": 1,
+    "before": "e430e27cf3f4e14f4db49a29cf00d7eaf3dcc6b95ffba68b368345987b62fb25",
+    "restored": "e430e27cf3f4e14f4db49a29cf00d7eaf3dcc6b95ffba68b368345987b62fb25"
+  },
+  {
+    "drill": "canonical-acp-help",
+    "exit": 1,
+    "before": "e430e27cf3f4e14f4db49a29cf00d7eaf3dcc6b95ffba68b368345987b62fb25",
+    "restored": "e430e27cf3f4e14f4db49a29cf00d7eaf3dcc6b95ffba68b368345987b62fb25"
+  }
+]

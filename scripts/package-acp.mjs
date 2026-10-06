@@ -16,10 +16,10 @@
 import { execFileSync } from 'node:child_process'
 import {
   copyFileSync,
-  cpSync,
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -27,6 +27,7 @@ import {
 import path from 'node:path'
 import process from 'node:process'
 import { renderPackageReadme } from './check-badges.mjs'
+import { packRuntimeArchive } from './lib/packageArchive.mjs'
 
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
@@ -106,9 +107,20 @@ for (const source of JOB_SOURCES) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
 }
-cpSync('l10n', path.join(STAGE, 'l10n'), {
-  recursive: true,
-  filter: (source) => !source.endsWith('untranslated.json'),
+const tables = readdirSync('l10n')
+  .filter((file) => /^ui\.[^/]+\.json$/.test(file))
+  .map((file) => [
+    file.slice('ui.'.length, -'.json'.length),
+    JSON.parse(readFileSync(path.join('l10n', file), 'utf8')),
+  ])
+await packRuntimeArchive(
+  process.cwd(),
+  STAGE,
+  BUNDLES.map((bundle) => `dist/${bundle}`),
+  tables,
+)
+execFileSync(process.execPath, ['scripts/check-l10n.mjs', '--packaged-acp', STAGE], {
+  stdio: 'inherit',
 })
 copyFileSync('LICENSE', path.join(STAGE, 'LICENSE'))
 writeFileSync(
@@ -168,4 +180,9 @@ const packed = execFileSync('npm', ['pack', '--pack-destination', '..'], {
   .trim()
   .split('\n')
   .at(-1)
+execFileSync(
+  process.execPath,
+  ['test/packaging/moduleExports.test.mjs', 'acp', path.join('dist', String(packed))],
+  { stdio: 'inherit' },
+)
 console.log(`dist/${String(packed)}: ${PACKAGE_NAME} ${String(manifest.version)}`)

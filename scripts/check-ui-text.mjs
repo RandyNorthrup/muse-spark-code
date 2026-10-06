@@ -16,7 +16,7 @@ function loadBundle(file, exportName) {
   const require = createRequire(file)
   const module = { exports: {} }
   let tableLoads = 0
-  runInNewContext(readFileSync(file, 'utf8'), {
+  const context = {
     module,
     exports: module.exports,
     require: (name) => {
@@ -43,7 +43,10 @@ function loadBundle(file, exportName) {
     clearInterval: globalThis.clearInterval,
     __dirname: path.dirname(file),
     __filename: file,
-  })
+  }
+  Object.assign(context.require, { resolve: require.resolve, cache: require.cache })
+  module._compile = (source) => runInNewContext(source, context)
+  runInNewContext(readFileSync(file, 'utf8'), context)
   assert.ok(tableLoads > 0, `${file} did not load its English fallback`)
   assert.equal(typeof module.exports[exportName], 'function')
 }

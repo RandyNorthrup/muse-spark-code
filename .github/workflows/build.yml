@@ -370,6 +370,7 @@ jobs:
             package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
             package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
             package/dist/recorder.js \
+            package/dist/runtime.bundles.json.br \
             package/dist/searchWorker.js package/dist/pageWorker.js \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
@@ -379,12 +380,10 @@ jobs:
               exit 1
             fi
           done
-          for table in l10n/ui.*.json; do
-            if ! grep -Fxq -- "package/$table" <<< "$listing"; then
-              echo "::error::$table is missing from the agent's package" >&2
-              exit 1
-            fi
-          done
+          if ! grep -Fxq -- "package/l10n/ui.tables.json.br" <<< "$listing"; then
+            echo "::error::runtime table archive is missing from the agent's package" >&2
+            exit 1
+          fi
           echo "the agent's package holds $(wc -l <<< "$listing") entries, the required ones included"
       # The bundles load the shared English table at runtime: the extension
       # and Model API bundles from this build, the agent as npm installs it.
