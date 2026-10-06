@@ -643,7 +643,7 @@ export class MuseSession implements AgentSession {
   private readonly prompts = new PromptLedger()
   /** A stage's callers share its eventual result, and Stop waits for it. */
   private readonly decisionsInFlight = new Map<string, Promise<void>>()
-  private hardwareGuard: SessionHardwareGuard | undefined
+  private readonly hardwareGuard: SessionHardwareGuard
   /**
    * What arrived before anyone listened (D26): the events right after
    * `session/resume` (the re-issued prompts, a running turn's stream) land
@@ -675,6 +675,13 @@ export class MuseSession implements AgentSession {
   ) {
     this.log = channel.log
     this.timeouts = channel.timeouts
+    this.hardwareGuard = new SessionHardwareGuard(
+      this.hardwareContext,
+      (id) => this.prompts.pending(id),
+      (id) => {
+        void this.rejectWaitingStage(id)
+      },
+    )
   }
 
   /** One MSP command against this session with a freshly minted commandId. */
@@ -705,7 +712,7 @@ export class MuseSession implements AgentSession {
   }
 
   private finishDispose(): void {
-    this.hardwareGuard?.dispose()
+    this.hardwareGuard.dispose()
     this.isDisposed = true
     this.listeners.clear()
     this.logDamagedListeners.clear()
@@ -934,13 +941,6 @@ export class MuseSession implements AgentSession {
         event.type === 'approvalRequested'
           ? event.toolName
           : this.prompts.pending(event.approvalId)?.toolName
-      this.hardwareGuard ??= new SessionHardwareGuard(
-        this.hardwareContext,
-        (id) => this.prompts.pending(id),
-        (id) => {
-          void this.rejectWaitingStage(id)
-        },
-      )
       event = this.hardwareGuard.scrub(event, toolName)
     }
     if (
@@ -948,7 +948,7 @@ export class MuseSession implements AgentSession {
       event.subject.kind === 'shell' &&
       event.subject.command !== undefined &&
       event.subject.stages === undefined &&
-      isHardwareStop(event.subject.command, 'bash', this.hardwareContext())
+      isHardwareStop(event.subject.command, 'bash', this.hardwareGuard.current())
     ) {
       const stop = this.prompts.admit(event)
       if (
@@ -976,7 +976,7 @@ export class MuseSession implements AgentSession {
     }
     if (
       (admitted.type === 'approvalRequested' || admitted.type === 'approvalUpdated') &&
-      this.hardwareGuard?.admit(admitted) === false
+      !this.hardwareGuard.admit(admitted)
     )
       return
     if (this.early !== undefined) {
@@ -995,7 +995,7 @@ export class MuseSession implements AgentSession {
    * more than the user typed (editor context, M5).
    */
   public async sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission> {
-    await prepareHardwareTurn(this.hardwareContext(), (mode) => this.setApprovalMode(mode))
+    await prepareHardwareTurn(this.hardwareGuard.current(), (mode) => this.setApprovalMode(mode))
     let ack: unknown
     try {
       ack = await this.command('turn/start', {
@@ -1086,7 +1086,7 @@ export class MuseSession implements AgentSession {
   public async setApprovalMode(mode: string): Promise<void> {
     try {
       await this.command('session/setApprovalMode', {
-        mode: hardwareApprovalMode(mode, this.hardwareContext()),
+        mode: hardwareApprovalMode(mode, this.hardwareGuard.current()),
       })
     } catch (error: unknown) {
       throw ceilingOr(error)
@@ -1131,7 +1131,7 @@ export class MuseSession implements AgentSession {
       throw new PromptSettledError('movedOn', `${stage}: the approval moved on`)
     }
     const current = this.prompts.pending(approvalId)
-    this.hardwareGuard?.validate(
+    this.hardwareGuard.validate(
       key,
       approvalId,
       current?.availableChoices.find((choice) => choice.choiceId === decision.choiceId),
@@ -1142,7 +1142,7 @@ export class MuseSession implements AgentSession {
     this.decisionsInFlight.set(key, pending)
     try {
       await pending
-      this.hardwareGuard?.settled(key)
+      this.hardwareGuard.settled(key)
     } finally {
       this.decisionsInFlight.delete(key)
     }
@@ -1242,7 +1242,7 @@ export class MuseSession implements AgentSession {
    * `session/goalChanged`.
    */
   public async controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
-    await prepareHardwareTurn(this.hardwareContext(), command.verb)
+    await prepareHardwareTurn(this.hardwareGuard.current(), command.verb)
     let ack: unknown
     try {
       ack = await this.command(
@@ -1579,7 +1579,10 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /** Registers the handle for a session this connection now holds. */
-  private track(record: { readonly sessionId: string }, modelId: string): MuseSession {
+  private track(
+    record: { readonly sessionId: string; readonly workspaceRoot?: string | null | undefined },
+    modelId: string,
+  ): MuseSession {
     const existing = this.sessions.get(record.sessionId)
     if (existing !== undefined) {
       // A second surface on the same session: closing one must not deafen the other.
@@ -1594,7 +1597,10 @@ export class MuseCodeHost implements AgentHost {
         this.sessions.delete(record.sessionId)
       },
       this.info.grantedCapabilities.includes(MSP_USER_SHELL_CAPABILITY),
-      this.hardwareContext,
+      () => ({
+        ...this.hardwareContext(),
+        ...(typeof record.workspaceRoot === 'string' && { workspaceRoot: record.workspaceRoot }),
+      }),
     )
     this.sessions.set(record.sessionId, handle)
     const waiting = this.unclaimed.get(record.sessionId) ?? []
