@@ -129,19 +129,24 @@ export function inspectNodeArchive(directory, { scanLayer, extractLayer }) {
     for (const layer of manifest.layers) {
       const files = extractLayer(blob(layer), layer.digest)
       scanLayer(files.directory)
-      for (const name of files.names) {
-        const normalized = name.replace(/^\.\//, '')
+      // Whiteouts affect only lower layers, regardless of archive entry order.
+      const names = files.names.map((name) => path.posix.normalize(name).replace(/\/$/, ''))
+      for (const normalized of names) {
         const parent = path.posix.dirname(normalized)
         const base = path.posix.basename(normalized)
         if (base === '.wh..wh..opq') {
           for (const existing of contents.keys())
-            if (existing.startsWith(`${parent}/`)) contents.delete(existing)
+            if (parent === '.' || existing.startsWith(`${parent}/`)) contents.delete(existing)
         } else if (base.startsWith('.wh.')) {
           const removed = path.posix.join(parent, base.slice('.wh.'.length))
           for (const existing of contents.keys())
             if (existing === removed || existing.startsWith(`${removed}/`))
               contents.delete(existing)
-        } else contents.set(normalized, path.join(files.directory, normalized))
+        }
+      }
+      for (const normalized of names) {
+        if (normalized !== '.' && !path.posix.basename(normalized).startsWith('.wh.'))
+          contents.set(normalized, path.join(files.directory, normalized))
       }
     }
     scanLayer(directory) // Includes config/history, not only rootfs material.

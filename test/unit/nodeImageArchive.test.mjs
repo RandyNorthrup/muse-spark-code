@@ -32,7 +32,7 @@ const put = (content, mediaType) => {
   writeFileSync(path.join(fixture.oci, 'blobs/sha256', hash), bytes)
   return { digest: `sha256:${hash}`, size: bytes.length, mediaType }
 }
-const layer = (files) => {
+const layer = (files, names = ['.']) => {
   const directory = mkdtempSync(path.join(fixture.root, 'layer-'))
   for (const [name, content] of Object.entries(files)) {
     const file = path.join(directory, name)
@@ -40,7 +40,7 @@ const layer = (files) => {
     writeFileSync(file, content)
   }
   const archive = `${directory}.tar.gz`
-  execFileSync('tar', ['-czf', archive, '-C', directory, '.'])
+  execFileSync('tar', ['-czf', archive, '-C', directory, ...names])
   return put(readFileSync(archive), 'application/vnd.oci.image.layer.v1.tar+gzip')
 }
 const writeIndex = (mutate = (statements) => statements, binding) => {
@@ -245,6 +245,85 @@ describe('OCI release gates', () => {
       fixture.layers.push(layer({ [name]: '' }))
       writeIndex()
       expect(inspect).toThrow('licence notices')
+    },
+  )
+  it.each([
+    ['.wh..wh..opq', 'licence notices'],
+    ['opt/.wh..wh..opq', 'licence notices'],
+    ['opt/muse/.wh..wh..opq', 'licence notices'],
+    ['opt/muse/image-notices/.wh..wh..opq', 'licence notices'],
+    ['usr/.wh..wh..opq', 'privilege bootstrap'],
+    ['usr/local/.wh..wh..opq', 'privilege bootstrap'],
+    ['usr/local/bin/.wh..wh..opq', 'privilege bootstrap'],
+    ['.wh.opt', 'licence notices'],
+    ['opt/.wh.muse', 'licence notices'],
+    ['opt/muse/.wh.image-notices', 'licence notices'],
+    ['opt/muse/image-notices/.wh.node.txt', 'licence notices'],
+    ['.wh.usr', 'privilege bootstrap'],
+    ['usr/.wh.local', 'privilege bootstrap'],
+    ['usr/local/.wh.bin', 'privilege bootstrap'],
+    ['usr/local/bin/.wh.muse-node-entrypoint', 'privilege bootstrap'],
+  ])('rejects lower files removed by whiteout %s', (name, error) => {
+    fixture.layers.push(layer({ [name]: '' }))
+    writeIndex()
+    expect(inspect).toThrow(error)
+  })
+  it('rejects launchers deleted by a root opaque whiteout even when notices return', () => {
+    fixture.layers.push(
+      layer({
+        '.wh..wh..opq': '',
+        ...Object.fromEntries(notices.map((name) => [name, 'replacement notice'])),
+      }),
+    )
+    writeIndex()
+    expect(inspect).toThrow('privilege bootstrap')
+  })
+  it.each([
+    '.wh..wh..opq',
+    'opt/.wh..wh..opq',
+    'opt/muse/.wh..wh..opq',
+    'opt/muse/image-notices/.wh..wh..opq',
+    'usr/.wh..wh..opq',
+    'usr/local/.wh..wh..opq',
+    'usr/local/bin/.wh..wh..opq',
+    '.wh.opt',
+    'opt/.wh.muse',
+    'opt/muse/.wh.image-notices',
+    'opt/muse/image-notices/.wh.node.txt',
+    '.wh.usr',
+    'usr/.wh.local',
+    'usr/local/.wh.bin',
+    'usr/local/bin/.wh.muse-node-entrypoint',
+  ])('retains same-layer replacements before and after whiteout %s', (name) => {
+    const replacements = {
+      ...Object.fromEntries(notices.map((notice) => [notice, 'replacement notice'])),
+      'usr/local/bin/muse-node-entrypoint': readFileSync('deploy/container/entrypoint.sh'),
+      'usr/local/bin/muse-spark-code-acp': readFileSync('deploy/container/muse-spark-code-acp'),
+    }
+    const files = { ...replacements, [name]: '' }
+    for (const names of [
+      [name, ...Object.keys(replacements)],
+      [...Object.keys(replacements), name],
+    ]) {
+      fixture.layers.push(layer(files, names))
+      writeIndex()
+      expect(inspect().images[0].platform).toBe('linux/amd64')
+      fixture.layers.pop()
+    }
+  })
+  it.each(['.wh..wh..opq', 'usr/local/bin/.wh..wh..opq', 'usr/local/bin/.wh.muse-node-entrypoint'])(
+    'rejects an unreviewed launcher reintroduced before whiteout %s',
+    (name) => {
+      const replacements = {
+        ...Object.fromEntries(notices.map((notice) => [notice, 'replacement notice'])),
+        'usr/local/bin/muse-node-entrypoint': '#!/bin/sh\nexec node /opt/muse/dist/node.js serve\n',
+        'usr/local/bin/muse-spark-code-acp': readFileSync('deploy/container/muse-spark-code-acp'),
+      }
+      fixture.layers.push(
+        layer({ ...replacements, [name]: '' }, [...Object.keys(replacements), name]),
+      )
+      writeIndex()
+      expect(inspect).toThrow('privilege bootstrap')
     },
   )
   it('rejects a changed privilege bootstrap', () => {

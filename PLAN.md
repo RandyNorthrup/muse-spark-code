@@ -22522,6 +22522,18 @@ it: D80's security exception to the enhancements-on ruling, applied again.
   secret. The runtime's settings store (M104 lane B) holds the shared
   settings; headless runs take flags as D65 does.
 
+**Lane C review fixes (FIXM110C, 2026-10-05).** RVM110C's two P2 findings
+are in scope: compare the current stable/preview channel's release tags by
+SemVer before promotion, so recovery and reruns cannot downgrade it; and
+apply OCI file/directory and opaque whiteouts against lower layers at every
+depth, including the root, before installing this layer's files. Each fix
+requires a failing regression on the reviewed code, a passing fixed suite,
+and deliberate guard mutations with byte-exact SHA-256 restoration recorded
+in `docs/certification/m110-c.md`. No rollback input is added to this release
+workflow; deliberate rollback requires a separate explicit audited workflow.
+J owns the CHANGELOG/operator documentation handoff. No dependency or gate
+changes, registry writes, live model calls, merges or pushes are authorized.
+
 **Roadmap.** Each phase lands on its own integration branch and ships in the
 train named. Estimates are lane-hours of implementation, review and
 certification at the fleet's usual split (Muse implements, Codex reviews by
@@ -22896,6 +22908,13 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
         live or paid call without CLAUDE.md's count first
 
 ## 7. Gates
+
+**FIXM110C bounded rig certification (2026-10-05).** The rig/shared brief
+prohibits aggregate `npm run quality` and full `npm test`; the lead retains
+those integration gates. Run the complete owned test files in batches of at
+most three with three workers, plus typecheck, changed-file lint/format,
+deadcode, duplication, localization, host API and production build directly
+on Kubuntu. Hooks remain enabled. No gate or threshold is weakened.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
