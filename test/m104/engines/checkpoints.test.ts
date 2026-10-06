@@ -18,6 +18,7 @@ import {
 import type { VerifyHooks } from '../../../src/core/backends/modelapi/verifyLoop'
 import * as checkpointBundle from '../../../src/host/checkpoints/checkpointStoreEntry'
 import { MuseCodeBackendManager } from '../../../src/host/backend/museCodeBackendManager'
+import { ModelApiBackendManager } from '../../../src/host/backend/modelApiBackendManager'
 import { UI_TEXT, SECRET_KEYS } from '../../../src/shared/constants'
 import { FakeLogOutputChannel, memorySecrets } from '../../unit/helpers/fakes'
 import { FAKE_MODEL_API_KEY, fakeModelApi } from '../../unit/helpers/fakeModelApi'
@@ -56,6 +57,22 @@ const jobs = fixtureJobLifecycle()
 const finishAdmission = () => undefined
 function noAdmissionListener() {
   return finishAdmission
+}
+function dailyBudget(data: string) {
+  const budget = createRuntimePaidBudget(
+    {
+      directory: path.join(data, 'paid-daily'),
+      now: Date.now,
+      capUsd: () => 0.5,
+      sleep: () => Promise.resolve(),
+      assertCurrent: () => undefined,
+      isLocalStorage: () => true,
+    },
+    UI_TEXT,
+    'en',
+  )
+  paidBudgets.push(budget)
+  return budget
 }
 beforeAll(async () => {
   await jobs.setup()
@@ -120,6 +137,7 @@ async function setup() {
       | 'isWorkspaceTrusted'
       | 'interactivePaid'
       | 'reservePaidRequest'
+      | 'paidResponseCost'
       | 'paidUsage'
       | 'exec'
       | 'mcp'
@@ -206,6 +224,48 @@ async function changeNote(
 }
 
 describe('portable checkpoint backend recording', () => {
+  it('retains a feature cleanup failure while draining a suspended manager and its journal', async () => {
+    const { root, create, backend } = await setup()
+    const checkpoint = await create()
+    const checkpointClose = vi.spyOn(checkpoint, 'dispose')
+    const fetched = createRuntimeWebFetch({
+      fetchPage: () => Promise.reject(new Error('fixture forbids network')),
+      assertCurrent: () => undefined,
+      isOffered: () => true,
+    })
+    const disposeFetch = fetched.dispose
+    vi.spyOn(fetched, 'dispose').mockImplementation(async () => {
+      await disposeFetch()
+      throw new Error('native cleanup failed')
+    })
+    const runtime = backend('modelApi', () => Promise.resolve(checkpoint), {
+      webFetch: () => fetched,
+    })
+    const host = await runtime.backend.hostFor(root)
+    const pending = Promise.withResolvers<undefined>()
+    const reached = Promise.withResolvers<undefined>()
+    vi.spyOn(ModelApiBackendManager.prototype, 'dispose').mockImplementation(async () => {
+      reached.resolve(undefined)
+      await pending.promise
+      await host.close()
+    })
+    const closing = runtime.close()
+    const result = expect(closing).rejects.toThrow('MHP_RUNTIME_CLOSE_FAILED')
+    try {
+      await reached.promise
+      // Give an immediate native rejection a full event-loop turn while manager shutdown waits.
+      await new Promise<undefined>((resolve) => {
+        setImmediate(resolve, undefined)
+      })
+      expect(checkpointClose).not.toHaveBeenCalled()
+    } finally {
+      pending.resolve(undefined)
+      await result
+      runtimes.splice(runtimes.indexOf(runtime), 1)
+    }
+    expect(checkpointClose).toHaveBeenCalledOnce()
+    expect(fetched.isOffered()).toBe(false)
+  })
   it('uses portable fetch and browser owners in actual runtime tools and drains them on close', async () => {
     const { root, create, backend, api, log } = await setup()
     vi.spyOn(nativeWebFetcher, 'createWebFetcher').mockReturnValue(() =>
@@ -430,19 +490,7 @@ describe('portable checkpoint backend recording', () => {
     const { root, create, backend, api, data } = await setup()
     const service = await create()
     const { paid, ask, usage } = paidHarness(['imageGeneration'])
-    const budget = createRuntimePaidBudget(
-      {
-        directory: path.join(data, 'paid-daily'),
-        now: Date.now,
-        capUsd: () => 0.5,
-        sleep: () => Promise.resolve(),
-        assertCurrent: () => undefined,
-        isLocalStorage: () => true,
-      },
-      UI_TEXT,
-      'en',
-    )
-    paidBudgets.push(budget)
+    const budget = dailyBudget(data)
     const runtime = backend('modelApi', () => Promise.resolve(service), {
       interactivePaid: paid,
       paidUsage: usage,
@@ -486,6 +534,61 @@ describe('portable checkpoint backend recording', () => {
     )
     expect(watched.events.some((event) => event.type === 'approvalRequested')).toBe(false)
   })
+
+  it.each(['once', 'deny'] as const)(
+    'routes %s consent and the paid receipt through the packaged runtime subagent client',
+    async (decision) => {
+      const { root, create, backend, api, data } = await setup()
+      const { paid, ask, usage } = paidHarness(['subagents'], () => 0.25)
+      ask.mockResolvedValue(decision)
+      const budget = dailyBudget(data)
+      const receiptCost = vi.fn(() => 0.25)
+      const admission = runtimePaidRequestAdmission({
+        budget,
+        isOn: (feature) => paid.isOn(feature),
+        price: () => ({ costUsd: 0.4, isCurrent: () => true, receiptCost }),
+      })
+      const runtime = backend('modelApi', () => create(), {
+        interactivePaid: paid,
+        paidUsage: usage,
+        reservePaidRequest: admission,
+        paidResponseCost: admission.responseCost,
+      })
+      const { session, watched } = await startRuntimeSession(runtime, root)
+      api.script(
+        {
+          calls: [
+            { name: 'subagent_spawn', arguments: '{"role":"explorer","objective":"Report done"}' },
+          ],
+        },
+        { text: 'done' },
+        { text: 'done' },
+      )
+      const done = watched.turnDone()
+      await session.sendTurn([{ type: 'text', text: 'delegate the fixture report' }])
+      await done
+      expect(ask).toHaveBeenCalledOnce()
+      if (decision === 'deny') {
+        expect(receiptCost).not.toHaveBeenCalled()
+        expect(api.responseBodies()).toHaveLength(2)
+        await expect(budget.latestDay()).resolves.toMatchObject({ spentUsd: 0 })
+        return
+      }
+      await vi.waitFor(() => {
+        expect(receiptCost).toHaveBeenCalledOnce()
+      })
+      await expect(budget.latestDay()).resolves.toMatchObject({ spentUsd: 0.25 })
+      await vi.waitFor(() => {
+        expect(usage.current.subagentCostUsd).toBe(0.25)
+      })
+      expect(watched.events).toContainEqual(
+        expect.objectContaining({
+          type: 'itemCompleted',
+          item: expect.objectContaining({ tool: 'subagent_spawn', paid: 'subagents' }),
+        }),
+      )
+    },
+  )
   it('uses live interactive trust before a model tool can write in Bypass', async () => {
     const { root, create, backend, api } = await setup()
     const service = await create()

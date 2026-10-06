@@ -718,7 +718,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       closing ??= (async () => {
         // A probe still waiting on its short-lived host ends with the agent.
         accountHosts.close()
-        const checking = [
+        const checking = Promise.allSettled([
           ...Array.from(verifyHosts.values(), (service) => service.dispose()),
           ...Array.from(hookHosts.values(), (service) => service.dispose()),
           ...Array.from(codeIntelHosts.values(), (service) => service.dispose()),
@@ -727,13 +727,13 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
           ...(deps.exec === undefined && deps.interactivePaid !== undefined
             ? [deps.interactivePaid.dispose()]
             : []),
-        ]
+        ])
         const managers = [
           ...museCodeHosts.values(),
           ...Array.from(modelApiHosts.values(), ({ manager }) => manager),
         ]
         const stopped = await Promise.allSettled(managers.map((manager) => manager.dispose()))
-        const verified = await Promise.allSettled(checking)
+        const verified = await checking
         verifyHosts.clear()
         hookHosts.clear()
         codeIntelHosts.clear()

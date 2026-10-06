@@ -5,7 +5,10 @@ import type { PaidGrantStore, PaidUseAsker } from '../../../src/acp/paid'
 import { PAID_FEATURES, type PaidFeature } from '../../../src/shared/constants'
 import { FakeLogOutputChannel } from '../../unit/helpers/fakes'
 
-export function paidHarness(features: readonly PaidFeature[] = PAID_FEATURES) {
+export function paidHarness(
+  features: readonly PaidFeature[] = PAID_FEATURES,
+  costOf?: ConstructorParameters<typeof PaidUsage>[1],
+) {
   const state = { isOn: true, isAvailable: true, isCurrent: true, canRemember: true }
   const granted = new Map<string, Set<PaidFeature>>()
   const grants: PaidGrantStore = {
@@ -32,7 +35,7 @@ export function paidHarness(features: readonly PaidFeature[] = PAID_FEATURES) {
     isWindowFocused: () => true,
     log,
   })
-  const usage = new PaidUsage(log)
+  const usage = new PaidUsage(log, costOf)
   const paid = new RuntimePaidUse({
     gate,
     usage,

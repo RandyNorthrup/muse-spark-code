@@ -351,3 +351,57 @@ translation key was added by B. The original XL lane still needs F6/F17/F18/
 F20/F23/F24/F36/F37/F38/F41/F42/F53/F54/F55/F56 implementation/bindings and full
 qualification; partially exposed rows also remain P until assembled receipts.
 No registry status is changed by B.
+
+### A/F — final gate blockers (2026-10-06, Kubuntu)
+
+`npm run deadcode` currently exits 1: A's unchanged central test discovery
+reports 19 new engine test/helper files, eleven portable feature implementation
+files and createRuntimeCheckpoints as unused. Add the requested engine test
+entry and actual named lazy factory entry; do not add ignores or remove exports
+that the frozen factory/native bindings require. B keeps plain knip and its
+rule levels unchanged. The exact raw receipt is in the lane's final gate record.
+
+`npm run check:host-api` currently exits 1 solely because F-owned
+`docs/ide-compatibility/host-api.md` needs regeneration. Run the existing
+`npm run check:host-api -- --write`, review the generated diff and rerun the
+gate. Expected Node built-in import counts: node:crypto 53 → 54, node:fs
+36 → 37, node:path 90 → 92, node:url 7 → 11. VS Code API count stays 349,
+files importing vscode 32 and theme variables 61. B changed no native VS Code
+adapter or central gate. F must record the justified integration deferrals in
+PLAN §7; neither failing aggregate gate is claimed green. The lead runs full
+quality after assembling A/C/D/E/F; this rig brief forbids B's aggregate run.
+
+A's Knip discovery request was checked with a scratch copy of the exact central
+config, adding only `test/m104/engines/**/*.test.{ts,tsx,mjs}` to entry. Plain
+Knip with that config exits 0 (no rule/exclude/ignore changes). This proves the
+discovery fix; it does not make the unchanged aggregate deadcode command green
+or prove the portable factories are shipped. Actual lazy composition/inventory
+still needs A's integration and native qualification.
+
+### A/C/F — F38 portable trace insight data
+
+Bind `createRuntimeUsageInsights(deps)` from
+`src/runtime/features/usageInsights.ts` as C's `usageInsights` data port. Pass
+the actual CLI home directory, now(), immutable current profile owner and live
+`canReadTraceLogs()` for that CLI source. Register awaited dispose immediately.
+It reuses the existing bounded/cached captured CLI parser and actual day/week
+summaries, checks before/after reads and drains pending work on release.
+Model API/other-provider spending must come from actual backend observations
+and the already verified PaidUsage tariff reader, not these CLI trace lines.
+Account facts, credential/provider status, native presentation and full F38
+qualification are still open. No new wire field, UI string, key read or price
+fallback is introduced. Add this factory to the appropriate named lazy reader
+and exact inventory while preserving all caps; F owns PLAN/Unreleased/help.
+
+The final actual runtime subagent scenario verifies that both root and packaged
+ModelApiBackendManager must carry admission.responseCost. Allow once settles the
+original tariff and Deny dispatches no child/no paid claim. F17 has component
+receipts now, while its map/control presentation and editor/provider captures
+remain open. No team delegation or real paid/model call occurs in the fixture.
+
+Historical Account & usage pricing must bind the owning provider/profile's
+immutable verified tariffs too, using provider-qualified model identity where
+IDs collide. The PaidUsage costOf reader must never read a new selection's
+rates for an older response. The actual runtime subagent fixture injects the
+same verified $0.25 cost into its ledger receipt and PaidUsage tally and asserts
+both. Native/account/provider qualification still remains open.

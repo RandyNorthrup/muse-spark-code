@@ -126,6 +126,26 @@ describe('priced portable request admission', () => {
     await expect(responseFrames(client)).resolves.toContain('response.completed')
     await expect(budget.latestDay()).rejects.toThrow(UI_TEXT.paidDailyLedgerUnavailable)
   })
+  it.each([NaN, Infinity, -1])(
+    'retains liability for an invalid verified receipt cost (%s)',
+    async (costUsd) => {
+      const { budget, settings, api } = await setup()
+      const admission = runtimePaidRequestAdmission({
+        budget,
+        isOn: () => true,
+        price: () => ({ costUsd: 0.4, isCurrent: () => true, receiptCost: () => costUsd }),
+      })
+      const client = new ModelApiClient({
+        ...settings,
+        fetch: api.fetch,
+        reservePaidRequest: admission,
+        paidResponseCost: admission.responseCost,
+      })
+      api.script({ text: 'done' })
+      await expect(responseFrames(client)).resolves.toContain('response.completed')
+      await expect(budget.latestDay()).rejects.toThrow(UI_TEXT.paidDailyLedgerUnavailable)
+    },
+  )
   it('reserves before the actual fake image transport and refuses its unaffordable next request', async () => {
     const { client, body, api, budget } = await setup()
     const image = await client.createImage(body, new AbortController().signal)

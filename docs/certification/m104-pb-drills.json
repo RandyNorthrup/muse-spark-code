@@ -586,5 +586,84 @@
     "exitCode": 1,
     "sha256Before": "8a47761d9dfaa146354a617925cf5889fefcfc1ee1a68c82db17fb8dbbd03483",
     "sha256Restored": "8a47761d9dfaa146354a617925cf5889fefcfc1ee1a68c82db17fb8dbbd03483"
+  },
+  {
+    "drill": "runtime-cleanup-error-retention",
+    "file": "src/runtime/backends.ts",
+    "exitCode": 1,
+    "sha256Before": "5cfc34cf7d63e00b4f2edc5aa28d3197e078c0011b9bce1a8bfbb9ee09bf2980",
+    "sha256Restored": "5cfc34cf7d63e00b4f2edc5aa28d3197e078c0011b9bce1a8bfbb9ee09bf2980"
+  },
+  {
+    "drill": "response-invalid-receipt",
+    "file": "src/core/backends/modelapi/client.ts",
+    "exitCode": 1,
+    "sha256Before": "daad2ef4324e98ce0825068a82d50f037bc1d2adec3f20dec753d6725b9dc56d",
+    "sha256Restored": "daad2ef4324e98ce0825068a82d50f037bc1d2adec3f20dec753d6725b9dc56d"
+  },
+  {
+    "drill": "edit-review-trust",
+    "file": "src/runtime/features/editReview.ts",
+    "exitCode": 1,
+    "sha256Before": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9",
+    "sha256Restored": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9",
+    "recoveredFromCommit": "d2b80fb23"
+  },
+  {
+    "drill": "edit-review-release",
+    "file": "src/runtime/features/editReview.ts",
+    "exitCode": 1,
+    "sha256Before": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9",
+    "sha256Restored": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9",
+    "recoveredFromCommit": "d2b80fb23"
+  },
+  {
+    "drill": "usage-current-owner",
+    "file": "src/runtime/features/usageInsights.ts",
+    "exitCode": 1,
+    "sha256Before": "aa0a450715ba6b1c8aa7181c4e0b17f5ccddb530f52e4f029448025a43f3533c",
+    "sha256Restored": "aa0a450715ba6b1c8aa7181c4e0b17f5ccddb530f52e4f029448025a43f3533c"
+  },
+  {
+    "drill": "usage-source-availability",
+    "file": "src/runtime/features/usageInsights.ts",
+    "exitCode": 1,
+    "sha256Before": "aa0a450715ba6b1c8aa7181c4e0b17f5ccddb530f52e4f029448025a43f3533c",
+    "sha256Restored": "aa0a450715ba6b1c8aa7181c4e0b17f5ccddb530f52e4f029448025a43f3533c"
+  },
+  {
+    "drill": "usage-actual-reader",
+    "file": "src/runtime/features/usageInsights.ts",
+    "exitCode": 1,
+    "sha256Before": "aa0a450715ba6b1c8aa7181c4e0b17f5ccddb530f52e4f029448025a43f3533c",
+    "sha256Restored": "aa0a450715ba6b1c8aa7181c4e0b17f5ccddb530f52e4f029448025a43f3533c"
+  },
+  {
+    "drill": "usage-lifetime-binding",
+    "file": "src/runtime/features/usageInsights.ts",
+    "exitCode": 1,
+    "sha256Before": "aa0a450715ba6b1c8aa7181c4e0b17f5ccddb530f52e4f029448025a43f3533c",
+    "sha256Restored": "aa0a450715ba6b1c8aa7181c4e0b17f5ccddb530f52e4f029448025a43f3533c"
+  },
+  {
+    "drill": "runtime-subagent-deny",
+    "file": "src/runtime/features/paidUse.ts",
+    "exitCode": 1,
+    "sha256Before": "129f02334e286b62f40ece606ce3680494af5cec71ba9890f3b92300c00e4b00",
+    "sha256Restored": "129f02334e286b62f40ece606ce3680494af5cec71ba9890f3b92300c00e4b00"
+  },
+  {
+    "drill": "runtime-receipt-routing",
+    "file": "src/runtime/backends.ts",
+    "exitCode": 1,
+    "sha256Before": "5cfc34cf7d63e00b4f2edc5aa28d3197e078c0011b9bce1a8bfbb9ee09bf2980",
+    "sha256Restored": "5cfc34cf7d63e00b4f2edc5aa28d3197e078c0011b9bce1a8bfbb9ee09bf2980"
+  },
+  {
+    "drill": "packaged-receipt-routing",
+    "file": "src/host/backend/modelApiBackendManager.ts",
+    "exitCode": 1,
+    "sha256Before": "91551637b6c5b1df031c18639c8b2dfa52d6eb641401afc18a5bc5956a79c83e",
+    "sha256Restored": "91551637b6c5b1df031c18639c8b2dfa52d6eb641401afc18a5bc5956a79c83e"
   }
 ]
