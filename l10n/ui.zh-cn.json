@@ -2808,5 +2808,9 @@
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
   "modelApiPacingTokenLimit": "并行请求超出了为后台任务预留的令牌预算。",
   "modelApiPacingWaiting": "正在等待速率限制内的可用容量…",
-  "modelApiPacingExpired": "等待可用容量的时间已到。请重新发送消息以重试。"
+  "modelApiPacingExpired": "等待可用容量的时间已到。请重新发送消息以重试。",
+  "sessionDeleteConnectionClosed": "删除确认前连接已关闭。会话仍保留在历史记录中。",
+  "sessionDeleteHostExited": "删除确认前 Muse Code 已退出。会话仍保留在历史记录中。",
+  "sessionDeleteHostClosed": "删除确认前宿主已关闭。会话仍保留在历史记录中。",
+  "sessionDeleteTimedOut": "等待删除确认超时。会话仍保留在历史记录中。"
 }

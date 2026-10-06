@@ -9,7 +9,7 @@
 // itself carries the value ("Effort (Extra high)") and takes Left / Right.
 
 import { type EffortLevel, UI_TEXT } from '../../shared/constants'
-import { effortIndex, effortLabel } from '../../shared/effort'
+import { effortLabel, isEffortLevel } from '../../shared/effort'
 
 export interface EffortSliderProps {
   readonly levels: readonly EffortLevel[]
@@ -18,25 +18,68 @@ export interface EffortSliderProps {
   readonly onSelect: ((level: EffortLevel) => void) | undefined
   /** In a row that is itself the control: dots for the mouse only. */
   readonly isInsideOption?: boolean
+  /** Lane W supplies the validated Muse Code catalogue through the shared bridge. */
+  readonly model?: {
+    readonly variants: readonly string[] | 'unknown'
+    readonly reasoningEffortVariants?: readonly {
+      readonly tier: string
+      readonly description?: string
+    }[]
+    readonly defaultReasoningEffort?: string
+    readonly current?: string
+    readonly onSelect?: (tier: string) => void
+  }
 }
 
 function stepClass(index: number, currentIndex: number): string {
   return index <= currentIndex ? 'slider-step slider-step-on' : 'slider-step'
 }
 
-export function EffortSlider({ levels, current, onSelect, isInsideOption }: EffortSliderProps) {
-  const currentIndex = effortIndex(levels, current)
+export function EffortSlider({
+  levels,
+  current,
+  onSelect,
+  isInsideOption,
+  model,
+}: EffortSliderProps) {
+  const variants = model?.variants
+  const hasCatalogue = variants !== undefined && variants !== 'unknown'
+  const selected = hasCatalogue ? (model?.current ?? model?.defaultReasoningEffort) : current
+  const steps = hasCatalogue
+    ? variants.map((tier) => ({
+        tier,
+        label:
+          model?.reasoningEffortVariants?.find((variant) => variant.tier === tier)?.description ??
+          (isEffortLevel(tier) ? effortLabel(tier) : tier),
+        select:
+          model?.onSelect === undefined
+            ? undefined
+            : () => {
+                model.onSelect?.(tier)
+              },
+      }))
+    : levels.map((tier) => ({
+        tier,
+        label: effortLabel(tier),
+        select:
+          onSelect === undefined
+            ? undefined
+            : () => {
+                onSelect(tier)
+              },
+      }))
+  const currentIndex = steps.findIndex((step) => step.tier === selected)
   if (isInsideOption === true) {
     return (
       <span className="palette-slider" aria-hidden="true">
-        {levels.map((level, index) => (
+        {steps.map((step, index) => (
           <span
-            key={level}
+            key={step.tier}
             className={stepClass(index, currentIndex)}
-            title={effortLabel(level)}
+            title={step.label}
             onClick={(event) => {
               event.stopPropagation()
-              onSelect?.(level)
+              step.select?.()
             }}
           />
         ))}
@@ -45,15 +88,15 @@ export function EffortSlider({ levels, current, onSelect, isInsideOption }: Effo
   }
   return (
     <span className="palette-slider" role="group" aria-label={UI_TEXT.effortItem}>
-      {levels.map((level, index) => (
+      {steps.map((step, index) => (
         <button
-          key={level}
+          key={step.tier}
           type="button"
           className={stepClass(index, currentIndex)}
-          title={effortLabel(level)}
-          aria-label={effortLabel(level)}
-          aria-pressed={level === current}
-          disabled={onSelect === undefined}
+          title={step.label}
+          aria-label={step.label}
+          aria-pressed={step.tier === selected}
+          disabled={step.select === undefined}
           tabIndex={-1}
           onMouseDown={(event) => {
             // Keep focus in the menu or filter box that owns the keyboard.
@@ -61,7 +104,7 @@ export function EffortSlider({ levels, current, onSelect, isInsideOption }: Effo
           }}
           onClick={(event) => {
             event.stopPropagation()
-            onSelect?.(level)
+            step.select?.()
           }}
         />
       ))}

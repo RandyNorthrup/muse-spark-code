@@ -3014,5 +3014,9 @@
   "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
   "modelApiPacingTokenLimit": "La richiesta parallela supera il budget di token riservato al lavoro in background.",
   "modelApiPacingWaiting": "In attesa di capacità disponibile entro il limite di richieste…",
-  "modelApiPacingExpired": "Il tempo di attesa della capacità disponibile è scaduto. Invia di nuovo il messaggio per riprovare."
+  "modelApiPacingExpired": "Il tempo di attesa della capacità disponibile è scaduto. Invia di nuovo il messaggio per riprovare.",
+  "sessionDeleteConnectionClosed": "La connessione si è chiusa prima della conferma dell’eliminazione. La sessione rimane nella cronologia.",
+  "sessionDeleteHostExited": "Muse Code è terminato prima della conferma dell’eliminazione. La sessione rimane nella cronologia.",
+  "sessionDeleteHostClosed": "L’host si è chiuso prima della conferma dell’eliminazione. La sessione rimane nella cronologia.",
+  "sessionDeleteTimedOut": "Il tempo di attesa per la conferma dell’eliminazione è scaduto. La sessione rimane nella cronologia."
 }

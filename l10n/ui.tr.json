@@ -2911,5 +2911,9 @@
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
   "modelApiPacingTokenLimit": "Paralel istek, arka plan çalışması için ayrılan token bütçesini aşıyor.",
   "modelApiPacingWaiting": "İstek sınırı içinde boş kapasite bekleniyor…",
-  "modelApiPacingExpired": "Boş kapasite bekleme süresi doldu. Yeniden denemek için mesajı tekrar gönderin."
+  "modelApiPacingExpired": "Boş kapasite bekleme süresi doldu. Yeniden denemek için mesajı tekrar gönderin.",
+  "sessionDeleteConnectionClosed": "Silme işlemi onaylanmadan bağlantı kapandı. Oturum geçmişte kalır.",
+  "sessionDeleteHostExited": "Silme işlemi onaylanmadan Muse Code sonlandı. Oturum geçmişte kalır.",
+  "sessionDeleteHostClosed": "Silme işlemi onaylanmadan ana bilgisayar kapandı. Oturum geçmişte kalır.",
+  "sessionDeleteTimedOut": "Silme onayı için bekleme süresi doldu. Oturum geçmişte kalır."
 }

@@ -3014,5 +3014,9 @@
   "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada.",
   "modelApiPacingTokenLimit": "A solicitação paralela excede o orçamento de tokens reservado para o trabalho em segundo plano.",
   "modelApiPacingWaiting": "Aguardando capacidade disponível no limite de solicitações…",
-  "modelApiPacingExpired": "O tempo de espera por capacidade disponível expirou. Envie a mensagem novamente para tentar de novo."
+  "modelApiPacingExpired": "O tempo de espera por capacidade disponível expirou. Envie a mensagem novamente para tentar de novo.",
+  "sessionDeleteConnectionClosed": "A conexão foi fechada antes da confirmação da exclusão. A sessão permanece no histórico.",
+  "sessionDeleteHostExited": "O Muse Code foi encerrado antes da confirmação da exclusão. A sessão permanece no histórico.",
+  "sessionDeleteHostClosed": "O host foi fechado antes da confirmação da exclusão. A sessão permanece no histórico.",
+  "sessionDeleteTimedOut": "O tempo de espera pela confirmação da exclusão expirou. A sessão permanece no histórico."
 }

@@ -3117,5 +3117,9 @@
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
   "modelApiPacingTokenLimit": "Požadavek souběžného zpracování překračuje rozpočet tokenů vyhrazený pro práci na pozadí.",
   "modelApiPacingWaiting": "Čekání na dostupnou kapacitu v limitu požadavků…",
-  "modelApiPacingExpired": "Čekání na dostupnou kapacitu v limitu požadavků vypršelo. Zkuste zprávu odeslat znovu."
+  "modelApiPacingExpired": "Čekání na dostupnou kapacitu v limitu požadavků vypršelo. Zkuste zprávu odeslat znovu.",
+  "sessionDeleteConnectionClosed": "Spojení se zavřelo před potvrzením smazání. Relace zůstává v historii.",
+  "sessionDeleteHostExited": "Muse Code skončil před potvrzením smazání. Relace zůstává v historii.",
+  "sessionDeleteHostClosed": "Hostitel se zavřel před potvrzením smazání. Relace zůstává v historii.",
+  "sessionDeleteTimedOut": "Časový limit pro potvrzení smazání vypršel. Relace zůstává v historii."
 }

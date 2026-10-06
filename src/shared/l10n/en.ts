@@ -254,6 +254,13 @@ export const EN = {
   referenceWalkthrough: 'Open the Getting Started walkthrough.',
   referenceRetry: 'Retry preparation of the Windows job for plugin hooks.',
 
+  sessionDeleteConnectionClosed:
+    'The connection closed before deletion was confirmed. The session remains in History.',
+  sessionDeleteHostExited:
+    'Muse Code exited before deletion was confirmed. The session remains in History.',
+  sessionDeleteHostClosed:
+    'The host closed before deletion was confirmed. The session remains in History.',
+  sessionDeleteTimedOut: 'Deletion confirmation timed out. The session remains in History.',
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:

@@ -3117,5 +3117,9 @@
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
   "modelApiPacingTokenLimit": "Żądanie równoległe przekracza budżet tokenów zarezerwowany dla pracy w tle.",
   "modelApiPacingWaiting": "Oczekiwanie na wolną przepustowość w limicie żądań…",
-  "modelApiPacingExpired": "Upłynął czas oczekiwania na wolną przepustowość. Wyślij wiadomość ponownie, aby spróbować jeszcze raz."
+  "modelApiPacingExpired": "Upłynął czas oczekiwania na wolną przepustowość. Wyślij wiadomość ponownie, aby spróbować jeszcze raz.",
+  "sessionDeleteConnectionClosed": "Połączenie zamknięto przed potwierdzeniem usunięcia. Sesja pozostaje w historii.",
+  "sessionDeleteHostExited": "Muse Code zakończył działanie przed potwierdzeniem usunięcia. Sesja pozostaje w historii.",
+  "sessionDeleteHostClosed": "Host zamknięto przed potwierdzeniem usunięcia. Sesja pozostaje w historii.",
+  "sessionDeleteTimedOut": "Upłynął czas oczekiwania na potwierdzenie usunięcia. Sesja pozostaje w historii."
 }

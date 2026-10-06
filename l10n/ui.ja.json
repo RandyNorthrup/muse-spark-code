@@ -2808,5 +2808,9 @@
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
   "modelApiPacingTokenLimit": "並列リクエストがバックグラウンド処理用のトークン予算を超えています。",
   "modelApiPacingWaiting": "レート制限の空き容量を待っています…",
-  "modelApiPacingExpired": "レート制限の空き容量を待つ時間が終了しました。再試行するにはメッセージをもう一度送信してください。"
+  "modelApiPacingExpired": "レート制限の空き容量を待つ時間が終了しました。再試行するにはメッセージをもう一度送信してください。",
+  "sessionDeleteConnectionClosed": "削除が確認される前に接続が閉じられました。セッションは履歴に残ります。",
+  "sessionDeleteHostExited": "削除が確認される前にMuse Codeが終了しました。セッションは履歴に残ります。",
+  "sessionDeleteHostClosed": "削除が確認される前にホストが閉じられました。セッションは履歴に残ります。",
+  "sessionDeleteTimedOut": "削除確認の待機時間を超過しました。セッションは履歴に残ります。"
 }

@@ -2808,5 +2808,9 @@
   "referenceScanSecrets": "掃描 UTF-8 修補檔案中的秘密資訊，偵測到時以失敗結束。--key-stdin 也會檢查記憶體中的 Model API 金鑰原值；不儲存金鑰。",
   "modelApiPacingTokenLimit": "並行請求超出了為背景工作預留的權杖預算。",
   "modelApiPacingWaiting": "正在等待速率限制內的可用容量…",
-  "modelApiPacingExpired": "等待可用容量的時間已到。請重新傳送訊息以重試。"
+  "modelApiPacingExpired": "等待可用容量的時間已到。請重新傳送訊息以重試。",
+  "sessionDeleteConnectionClosed": "刪除確認前連線已關閉。工作階段仍保留在歷程記錄中。",
+  "sessionDeleteHostExited": "刪除確認前 Muse Code 已結束。工作階段仍保留在歷程記錄中。",
+  "sessionDeleteHostClosed": "刪除確認前主程式已關閉。工作階段仍保留在歷程記錄中。",
+  "sessionDeleteTimedOut": "等待刪除確認逾時。工作階段仍保留在歷程記錄中。"
 }

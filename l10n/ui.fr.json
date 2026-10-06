@@ -3014,5 +3014,9 @@
   "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée.",
   "modelApiPacingTokenLimit": "La requête parallèle dépasse le budget de jetons réservé au travail en arrière-plan.",
   "modelApiPacingWaiting": "En attente de capacité dans la limite de requêtes…",
-  "modelApiPacingExpired": "Le délai d’attente de capacité a expiré. Renvoyez le message pour réessayer."
+  "modelApiPacingExpired": "Le délai d’attente de capacité a expiré. Renvoyez le message pour réessayer.",
+  "sessionDeleteConnectionClosed": "La connexion a été fermée avant la confirmation de la suppression. La session reste dans l’historique.",
+  "sessionDeleteHostExited": "Muse Code s’est arrêté avant la confirmation de la suppression. La session reste dans l’historique.",
+  "sessionDeleteHostClosed": "L’hôte a été fermé avant la confirmation de la suppression. La session reste dans l’historique.",
+  "sessionDeleteTimedOut": "Le délai de confirmation de la suppression a expiré. La session reste dans l’historique."
 }

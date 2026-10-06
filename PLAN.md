@@ -27767,6 +27767,36 @@ The existing host regression that discarded steering on buffered-response
 Stop is updated to the lead's explicit every-exit preservation policy.
 Certification: `docs/certification/m106-l2.md`. No live/paid calls, dependency,
 merge, rebase or push; aggregate quality and wiring remain lane W's work.
+**Lane S third review repair (RVM106S3, 2026-10-06).** The one P2 finding
+is fixed by a synchronous scrub with the current host literal registry inside
+the actual feedback dispatch callback, followed by preview equality and
+send in the same tick with no intervening await. A changed preview refuses
+dispatch; the shared dialog refreshes the scrubbed preview for fresh approval.
+Regressions register a literal during the asynchronous submission gap,
+prove no MSP request leaves, and prove a refreshed preview can be approved.
+Four byte-exact red drills and scoped rig gates certify this narrow repair;
+the existing S1–S5 integration handoffs remain with lane W/the lead.
+
+**Lane S second review repair (RVM106S2, 2026-10-06).**
+Both P2 findings are fixed: a matched, validated deletion terminal is
+final across connection/process/host shutdown, with pending →
+terminal-validated → reported state; every host/session observer invocation
+in `MuseCodeHost.ts`, including backlog replay and log-damage recovery,
+uses `src/core/events/notify.ts`. This branch needs the shared utility;
+its integration API matches lane L2: `notify(listeners, value, log, site,
+report?)`. No wire shape, dependency or guard is widened. Regression tests
+and eight byte-exact red drills are recorded in `docs/certification/m106-s.md`.
+
+**Lane S review repair (RVM106S, 2026-10-06).** All three P2 findings are fixed:
+scrub feedback with the shared credential detector and host-held literal
+secrets before preview/dispatch, send exactly the approved note, isolate
+public lifecycle observers from private deletion bookkeeping, and reject
+deletion waits on connection close, process exit, explicit host close or
+the named terminal deadline. Failed/uncertain deletion never emits success
+or removes stored History. Regression tests and byte-exact red drills are
+recorded in `docs/certification/m106-s.md`; no review residual remains.
+The rig brief prohibits aggregate quality and merging; scoped local checks
+and hook-on commits precede the lead's integrated quality gate.
 
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
@@ -31656,6 +31686,31 @@ only in its lazy Model API inventory and the dynamically loaded status row.
 The prior R-BUNDLE deferral is closed. Full quality, coverage, accessibility,
 live and platform checks remain the lead's gates under the rig/common brief.
 No dependency, existing cap, timeout, hook or protocol guard is weakened.
+**FIXM106S3 scoped review certification (2026-10-06).** The rig brief
+requires the repository's default test timeout, at most three files and
+three workers per run, hook-on commits, and no aggregate quality or merge.
+Four regressions fail under deliberate mutations restored byte-exact, and
+268 final tests pass without skips. Typechecks, scoped lint/format, deadcode,
+duplication, localization, host API and production build pass. Receipts are
+in `docs/certification/m106-s.md`; integrated quality remains the
+lead's gate, with no gate, hook, timeout or size cap changed.
+
+**FIXM106S2 scoped review certification (2026-10-06).** Both RVM106S2
+P2 findings are fixed by construction; the three-file repair batch passes
+132 tests at the repository timeout. Eight deliberate mutations fail named
+regressions, with SHA-256 verified byte-exact restoration. The ten observer
+invocation sites all use the shared `notify` utility. The rig's prohibition
+on aggregate quality and merging still applies; the lead retains that gate.
+Full scoped verification is recorded in `docs/certification/m106-s.md`.
+
+**FIXM106S scoped review certification (2026-10-06).** The rig repair
+brief requires all three RVM106S P2 findings fixed, no residuals, default
+test timeouts, and three-file/three-worker batches. The shared rules
+explicitly prohibit aggregate `npm run quality`; the lead retains that
+integrated gate. Local scoped regressions, byte-exact red drills, static
+checks and a production build precede hook-on commits. No timeout,
+threshold, rule, ignore, cap or hook is changed. Evidence is recorded in
+`docs/certification/m106-s.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -33540,6 +33595,18 @@ review findings and terminal settlement-pricing failure.
   scrubber; provider prose, identifiers, tokens and causes are discarded.
   The original provider/team/health/help bindings remain named integration
   handoffs in the M106 R certification, not newly accepted review findings.
+- **M106 S third review (RVM106S3, 2026-10-06).** The one P2
+  literal-registry race at dispatch is fixed; no review residual is accepted. Host literals
+  stay in the host, and preview changes require fresh approval. The existing
+  S1–S5 capture/bridge integration handoffs still belong to lane W/the lead;
+  this shared core/React repair serves every editor without certifying those
+  unbound features. No new parser, dependency, credential read or paid call.
+
+- **M106 S second review (RVM106S2, 2026-10-06).** Both P2s are repaired;
+  no review residual is accepted. The existing S1–S5 capture, bridge and
+  integration handoffs in `docs/research/m106-s-integration.md` remain with
+  lane W/the lead. This repair changes shared core behavior in every editor,
+  adds no parser or paid call, and does not certify those unbound features.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

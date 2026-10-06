@@ -2911,5 +2911,9 @@
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
   "modelApiPacingTokenLimit": "A párhuzamos kérés meghaladja a háttérmunkára fenntartott tokenkeretet.",
   "modelApiPacingWaiting": "Várakozás a kérések korlátján belüli szabad kapacitásra…",
-  "modelApiPacingExpired": "Lejárt a szabad kapacitásra várakozás ideje. Az újrapróbálkozáshoz küldje el újra az üzenetet."
+  "modelApiPacingExpired": "Lejárt a szabad kapacitásra várakozás ideje. Az újrapróbálkozáshoz küldje el újra az üzenetet.",
+  "sessionDeleteConnectionClosed": "A kapcsolat a törlés megerősítése előtt lezárult. A munkamenet megmarad az előzményekben.",
+  "sessionDeleteHostExited": "A Muse Code a törlés megerősítése előtt leállt. A munkamenet megmarad az előzményekben.",
+  "sessionDeleteHostClosed": "A gazdagép a törlés megerősítése előtt bezárult. A munkamenet megmarad az előzményekben.",
+  "sessionDeleteTimedOut": "A törlés megerősítésére rendelkezésre álló idő lejárt. A munkamenet megmarad az előzményekben."
 }

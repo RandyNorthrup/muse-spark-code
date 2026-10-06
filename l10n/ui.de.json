@@ -2911,5 +2911,9 @@
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
   "modelApiPacingTokenLimit": "Die parallele Anfrage überschreitet das für Hintergrundarbeit reservierte Tokenbudget.",
   "modelApiPacingWaiting": "Warten auf freie Kapazität im Ratenlimit…",
-  "modelApiPacingExpired": "Die Wartezeit auf freie Kapazität im Ratenlimit ist abgelaufen. Senden Sie die Nachricht erneut."
+  "modelApiPacingExpired": "Die Wartezeit auf freie Kapazität im Ratenlimit ist abgelaufen. Senden Sie die Nachricht erneut.",
+  "sessionDeleteConnectionClosed": "Die Verbindung wurde geschlossen, bevor das Löschen bestätigt wurde. Die Sitzung bleibt im Verlauf.",
+  "sessionDeleteHostExited": "Muse Code wurde beendet, bevor das Löschen bestätigt wurde. Die Sitzung bleibt im Verlauf.",
+  "sessionDeleteHostClosed": "Der Host wurde geschlossen, bevor das Löschen bestätigt wurde. Die Sitzung bleibt im Verlauf.",
+  "sessionDeleteTimedOut": "Die Wartezeit auf die Löschbestätigung ist abgelaufen. Die Sitzung bleibt im Verlauf."
 }

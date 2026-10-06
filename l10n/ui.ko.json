@@ -2808,5 +2808,9 @@
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
   "modelApiPacingTokenLimit": "병렬 요청이 백그라운드 작업에 예약된 토큰 예산을 초과합니다.",
   "modelApiPacingWaiting": "요청 제한 내 여유 용량을 기다리는 중…",
-  "modelApiPacingExpired": "여유 용량 대기 시간이 만료되었습니다. 다시 시도하려면 메시지를 다시 보내세요."
+  "modelApiPacingExpired": "여유 용량 대기 시간이 만료되었습니다. 다시 시도하려면 메시지를 다시 보내세요.",
+  "sessionDeleteConnectionClosed": "삭제가 확인되기 전에 연결이 닫혔습니다. 세션은 기록에 남아 있습니다.",
+  "sessionDeleteHostExited": "삭제가 확인되기 전에 Muse Code가 종료되었습니다. 세션은 기록에 남아 있습니다.",
+  "sessionDeleteHostClosed": "삭제가 확인되기 전에 호스트가 닫혔습니다. 세션은 기록에 남아 있습니다.",
+  "sessionDeleteTimedOut": "삭제 확인 대기 시간이 초과되었습니다. 세션은 기록에 남아 있습니다."
 }
