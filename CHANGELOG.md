@@ -92,6 +92,9 @@ happened, not what was planned; superseded entries are kept.
 - POSIX runner jobs remove credential variables without starting a process
   for each environment name. Matching remains case-insensitive, and the
   helper restores its previous shell option afterward.
+- Paid-consent regression tests share their exact pending-popup assertions,
+  clearing the zero-duplication gate while preserving both Allow-once and
+  Deny coverage.
 
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the

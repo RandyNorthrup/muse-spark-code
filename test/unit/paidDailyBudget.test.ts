@@ -89,6 +89,14 @@ function defaultImagePaid() {
   })
 }
 
+async function expectPendingImageConsent(api: ReturnType<typeof fakeModelApi>): Promise<void> {
+  await vi.waitFor(() => {
+    expect(confirmModal).toHaveBeenCalledOnce()
+  })
+  expect(api.imageBodies()).toEqual([])
+  expect(vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail).toContain('$5.00')
+}
+
 async function failureOf(work: Promise<unknown>, state?: { isSettled: boolean }): Promise<unknown> {
   try {
     await work
@@ -374,11 +382,7 @@ describe('D78 interactive paid daily budget', () => {
     )
     try {
       await session.sendTurn([{ type: 'text', text: 'Draw a tree' }])
-      await vi.waitFor(() => {
-        expect(confirmModal).toHaveBeenCalledOnce()
-      })
-      expect(api.imageBodies()).toEqual([])
-      expect(vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail).toContain('$5.00')
+      await expectPendingImageConsent(api)
       allow?.()
       await watched.turnDone()
       expect(api.imageBodies()).toHaveLength(1)
@@ -538,11 +542,7 @@ describe('D78 interactive paid daily budget', () => {
     await paid.gate.review()
     expect(confirmModal).not.toHaveBeenCalled()
     const pending = use()
-    await vi.waitFor(() => {
-      expect(confirmModal).toHaveBeenCalledOnce()
-    })
-    expect(api.imageBodies()).toEqual([])
-    expect(vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail).toContain('$5.00')
+    await expectPendingImageConsent(api)
     answer.resolve(undefined)
     await pending
     expect(api.imageBodies()).toEqual([])

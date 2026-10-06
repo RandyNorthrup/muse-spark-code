@@ -20106,6 +20106,13 @@ final cleanup; each case retains the unchanged default deadline.
 Retain every check,
 wire shape, process deadline, native boundary and price policy.
 
+**Round 3d duplication repair.** The single full-quality run finds an
+identical paid-consent observation block in the real host Allow-once test
+and the direct Deny test. Share that test-only assertion helper, retaining
+the awaited popup, zero dispatched images and exact daily-budget price
+assertions in both cases. Recheck the affected file and the unchanged
+zero-duplication gate; the lead owns the next aggregate run.
+
 **M96INT round 3c (2026-10-05, macmini).** Merge W final fixes at
 `71baf294` and package diet at `be00b172` as merge commits. W remains the
 shared Git classifier owner; retain both lanes' admission regressions.
@@ -26454,6 +26461,21 @@ the unchanged audit pass. The shared worktree tooling stays at 1.2.1 under
 the lane rule. Refresh an isolated development install to the committed
 lock before the next full-profile run. Final complete accessibility,
 SAST and localization pass; their receipts do not replace that full run.
+
+**M96INT3D single aggregate receipt (2026-10-05).** On `79b6589c`,
+`VITEST_MAX_WORKERS=3 npm run quality` exits 1 at the zero-duplication
+gate: two paid-consent tests repeat the same six-line, 61-token observation
+block. Formatting, JavaScript/CSS lint, all five typecheck projects,
+localization, host API, knip and cycles pass first; PowerShell lint retains
+its existing Windows-only policy. Share the exact test assertions, then
+the affected paid-budget file passes all 17 cases and the unchanged
+duplication gate reports zero clones. Coverage tests and later aggregate
+gates were not reached. The twelve prescribed files separately pass 306
+assertions; they are not a green coverage-profile receipt. No second full
+run is authorized in this lane; the lead decides it. The default history
+scan is now clean after archive refs moved outside this repository, and
+the shared install now contains the pinned source-map-js 1.2.2. Windows
+proof remains WINPUB on win11 for the lead's release batch.
 
 ## 8. Escape hatches register
 

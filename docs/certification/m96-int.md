@@ -950,3 +950,40 @@ fixtures remain untouched.
 The twelve prescribed files pass 306 distinct assertions after the two added
 SSH case boundaries. Aggregate quality, private packages and final byte counts
 follow below; Windows remains WINPUB, not a Mac certification claim.
+
+### Round 3d single quality run and scoped repair
+
+The only authorized `VITEST_MAX_WORKERS=3 npm run quality` runs on committed
+source `79b6589c` and **exits 1 at duplication**. The gate finds an identical
+six-line, 61-token block in `paidDailyBudget.test.ts`: the real host Allow-once
+and direct Deny cases both await the popup and verify zero sent images and
+the exact `$5.00` daily-budget detail. Share that exact observation helper;
+both original scenarios and every assertion remain. No production behavior,
+gate configuration, assertion, deadline or skip changes.
+
+The repaired paid-budget file passes **17/17** with the prescribed three-worker,
+120,000 ms scoped command. `npm run duplication` then reports **zero clones**
+over the unchanged 1,366 files and zero threshold. The full gate's red result
+is never relabelled green. Its relevant tail is:
+
+```text
+Found 1 clones.
+ERROR: jscpd found too many duplicates (0.0%) over threshold (0.0%)
+ERROR: "duplication" exited with 1.
+ERROR: "quality:gates" exited with 1.
+```
+
+Before stopping, aggregate formatting, JavaScript/CSS lint, all five typecheck
+projects, localization, host API, knip and dpdm pass. Localization reads 14
+tables, 165 manifest strings and 693 source files with zero problems; host API
+records 332 VS Code APIs, 31 VS Code-importing files, 26 Node built-ins and 61
+theme variables with zero problems. The two existing knip configuration hints
+remain advisory. PowerShell lint is Windows-only and was not run on Darwin.
+
+**Coverage tests, the aggregate build, audit, accessibility, history scan and
+SAST were not reached in this invocation.** Earlier standalone production
+build, package probes and the clean default history scan are separate receipts.
+The lead decides a second aggregate invocation against this repaired tree;
+the 306 passing prescribed assertions do not certify the default coverage
+profile. Windows remains WINPUB on win11. No full suite rerun, push, rebase,
+other merge, shared tooling/configuration change, paid or live call occurs.

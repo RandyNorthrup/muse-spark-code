@@ -304,5 +304,59 @@
   ],
   "drillsFile": "m96-int-round3d-drills.json",
   "prescribedDistinctPassed": 306,
-  "prescribedExistingPlatformCases": 2
+  "prescribedExistingPlatformCases": 2,
+  "quality": {
+    "command": "VITEST_MAX_WORKERS=3 npm run quality",
+    "sourceCommit": "79b6589c656489088681454ef722dee713cef26f",
+    "invocations": 1,
+    "exit": 1,
+    "stoppedAt": "duplication",
+    "passedBeforeStop": [
+      "format:check",
+      "lint:js",
+      "lint:css",
+      "typecheck:host",
+      "typecheck:webview",
+      "typecheck:unit",
+      "typecheck:e2e",
+      "typecheck:integration",
+      "check:l10n",
+      "check:host-api",
+      "deadcode",
+      "cycles"
+    ],
+    "existingPlatformGate": "lint:ps runs on Windows only",
+    "notReached": [
+      "test:unit (coverage)",
+      "build",
+      "security:audit",
+      "test:a11y",
+      "security:secrets",
+      "security:sast"
+    ],
+    "cause": "Two exact pending-paid-image consent observation blocks (6 lines, 61 tokens) violate the unchanged zero-duplication gate.",
+    "repair": "Share the exact awaited-popup, zero-dispatch and $5.00 detail assertions in a test-only helper.",
+    "repairTests": {
+      "command": "npx vitest run test/unit/paidDailyBudget.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 0,
+      "passed": 17,
+      "failed": 0,
+      "pending": 0
+    },
+    "repairGate": {
+      "command": "npm run duplication",
+      "exit": 0,
+      "clones": 0,
+      "files": 1366,
+      "threshold": 0
+    },
+    "tail": [
+      "Found 1 clones.",
+      "ERROR: jscpd found too many duplicates (0.0%) over threshold (0.0%)",
+      "ERROR: \"duplication\" exited with 1.",
+      "ERROR: \"quality:gates\" exited with 1."
+    ],
+    "nextAggregateOwner": "lead; no second full run in this lane",
+    "coverageCertified": false
+  }
 }
