@@ -1,5 +1,6 @@
 // The image, PDF and text chips above the composer for files waiting to be sent.
 
+import type { ReactNode } from 'react'
 import { TEXT_ATTACHMENT_MEDIA_TYPE, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'
 import type { AttachmentSummary } from '../../shared/protocol'
@@ -8,6 +9,8 @@ import { CloseIcon, FileIcon, ImageIcon } from './icons'
 export interface AttachmentChipsProps {
   readonly attachments: readonly AttachmentSummary[]
   readonly onRemove: (id: string) => void
+  /** M105-A: E1/C inject the lazy sound surface after W admits its budget. */
+  readonly renderAudio?: (attachment: AttachmentSummary) => ReactNode
 }
 
 function sizeLabel(attachment: AttachmentSummary): string {
@@ -19,7 +22,7 @@ function sizeLabel(attachment: AttachmentSummary): string {
     : UI_TEXT.pdfLabel
 }
 
-export function AttachmentChips({ attachments, onRemove }: AttachmentChipsProps) {
+export function AttachmentChips({ attachments, onRemove, renderAudio }: AttachmentChipsProps) {
   if (attachments.length === 0) {
     return null
   }
@@ -30,6 +33,7 @@ export function AttachmentChips({ attachments, onRemove }: AttachmentChipsProps)
           {attachment.width === undefined ? <FileIcon /> : <ImageIcon />}
           <span className="chip-name">{attachment.name}</span>
           <span className="chip-size">{sizeLabel(attachment)}</span>
+          {renderAudio?.(attachment)}
           <button
             type="button"
             className="chip-remove"

@@ -469,6 +469,15 @@ export interface ModelApiPaidHooks {
 }
 
 export interface ModelApiHostDeps extends ModelApiPaidHooks {
+  /** M105-A: M2 binds the attachment choices to the portable sound router in
+   * dist/media.js. Absent until that lane is integrated; no eager media load. */
+  readonly prepareAudioMessage?: (request: {
+    readonly sessionId: string
+    readonly turnId: string
+    readonly modelId: string
+    readonly parts: readonly TurnPart[]
+    readonly signal: AbortSignal
+  }) => Promise<PreparedAudioMessage | undefined>
   /** M98: injected same-model source; all paid dispatch admitted by lane A. */
   readonly judge?: JudgeAdvisory | undefined
   readonly client: ModelApiClient
@@ -786,9 +795,18 @@ const GOAL_REFUSAL_REASONS: Readonly<Record<GoalRefusal, string>> = {
 // The verbs that wake the agent when they leave the goal active (MSP's wake gate).
 const GOAL_WAKING_VERBS: ReadonlySet<GoalCommandVerb> = new Set(['set', 'edit', 'resume'])
 
+interface PreparedAudioMessage {
+  readonly parts: readonly TurnPart[]
+  readonly modelId: string
+  /** Owner, key, capabilities, mode, trust, source and contributor consent. */
+  readonly assertCurrent: () => void
+}
+
 interface ActiveTurn {
   readonly turnId: string
   readonly abort: AbortController
+  /** In-memory request choice, never the session's persisted model setting. */
+  audioMessage?: PreparedAudioMessage
   readonly confirmedRequest?: ConfirmedModelRequest
   /** Steered input, appended before the next model call. */
   readonly steered: { readonly parts: readonly TurnPart[]; readonly userMessageId: string }[]
@@ -2802,7 +2820,10 @@ export class ModelApiSession implements AgentSession {
     if (capUsd <= 0 && this.budgetJournal() === undefined) {
       return body
     }
-    const estimate = estimateInput(requestParts(body), this.budgetBase)
+    const estimate = estimateInput(
+      requestParts(body),
+      body.model === this.modelId ? this.budgetBase : undefined,
+    )
     const maxOutputTokens = body.max_output_tokens
     const reservation =
       capUsd > 0
@@ -3136,6 +3157,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   private body(): CreateResponseBody {
+    this.active?.audioMessage?.assertCurrent()
     this.drainChildResults()
     const fitted = this.budget.fit(this.replay.map((entry) => entry.item))
     // Packing projects per request only: the replay keeps the originals, so
@@ -3148,7 +3170,7 @@ export class ModelApiSession implements AgentSession {
     }
     const today = new Date(this.deps.now()).toISOString().slice(0, ISO_DATE_LENGTH)
     return this.keyed({
-      model: this.modelId,
+      model: this.active?.audioMessage?.modelId ?? this.modelId,
       input,
       ...this.promptAndTools(
         today,
@@ -3410,6 +3432,7 @@ export class ModelApiSession implements AgentSession {
   ): ResponseAttemptGuard {
     const reservation = directBudget === undefined ? this.openReservation : undefined
     const guard: ResponseAttemptGuard = (keyDigest) => {
+      this.active?.audioMessage?.assertCurrent()
       if (this.isHostClosing() || this.isDisposed) {
         this.active?.abort.abort()
         this.compacting?.abort()
@@ -10321,16 +10344,59 @@ export class ModelApiSession implements AgentSession {
         )
       }
       this.drainChildResults()
+      let parts = queued.parts
+      if (
+        !queued.isGoalWake &&
+        queued.isHookContinuation !== true &&
+        queued.isReview !== true &&
+        queued.confirmedRequest === undefined &&
+        !this.isSubagent &&
+        this.deps.prepareAudioMessage !== undefined
+      ) {
+        const revision = this.modelRevision
+        const prepared = await this.deps.prepareAudioMessage({
+          sessionId: this.sessionId,
+          turnId: turn.turnId,
+          modelId: this.modelId,
+          parts,
+          signal: turn.abort.signal,
+        })
+        turn.abort.signal.throwIfAborted()
+        if (revision !== this.modelRevision) throw new AbortedError()
+        if (prepared !== undefined) {
+          prepared.assertCurrent()
+          const acceptedBytes =
+            textAttachmentBytes(prepared.parts) +
+            turn.steered.reduce((bytes, steer) => bytes + textAttachmentBytes(steer.parts), 0)
+          const error = textAttachmentBudgetError(acceptedBytes)
+          if (error !== undefined) throw error
+          turn.audioMessage = {
+            ...prepared,
+            assertCurrent: () => {
+              if (revision !== this.modelRevision) throw new AbortedError()
+              prepared.assertCurrent()
+            },
+          }
+          parts = prepared.parts
+          turn.acceptedTextAttachmentBytes = acceptedBytes
+          if (prepared.modelId !== this.modelId)
+            this.emit({
+              type: 'backendNotice',
+              level: 'info',
+              text: fill(UI_TEXT.media.useSoundtrackModel, { model: prepared.modelId }),
+            })
+        }
+      }
       if (queued.isGoalWake) {
-        this.appendGoalWake(turn.turnId, queued.parts)
+        this.appendGoalWake(turn.turnId, parts)
       } else if (queued.isHookContinuation === true) {
-        this.appendHookContexts(turn.turnId, [typedText(queued.parts)])
+        this.appendHookContexts(turn.turnId, [typedText(parts)])
       } else {
         const replayStart = this.replay.length
-        this.appendUserMessage(turn.turnId, queued.parts, queued.displayText, queued.userMessageId)
+        this.appendUserMessage(turn.turnId, parts, queued.displayText, queued.userMessageId)
         await this.expandSkillsForHooks(
           turn.turnId,
-          queued.parts,
+          parts,
           replayStart,
           turn.abort.signal,
           queued.displayText,
@@ -10342,7 +10408,7 @@ export class ModelApiSession implements AgentSession {
         const submitted = await this.runHooks(
           'UserPromptSubmit',
           turn.turnId,
-          { prompt: typedText(queued.parts) },
+          { prompt: typedText(parts) },
           undefined,
           turn.abort.signal,
         )
