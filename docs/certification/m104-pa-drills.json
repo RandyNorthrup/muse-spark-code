@@ -1,0 +1,114 @@
+[
+  {
+    "name": "prepare-fence",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release fences suspended composition and concurrent callers await the final drain 66ms"
+    ],
+    "restoredSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf"
+  },
+  {
+    "name": "late-controller-disposal",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf",
+    "exitCode": 1,
+    "failedAssertions": ["\u00d7 disposes a controller created during a reentrant release 40ms"],
+    "restoredSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf"
+  },
+  {
+    "name": "release-shared-completion",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release fences suspended composition and concurrent callers await the final drain 21ms"
+    ],
+    "restoredSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf"
+  },
+  {
+    "name": "release-inflight-drain",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf",
+    "exitCode": 0,
+    "failedAssertions": [],
+    "restoredSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf"
+  },
+  {
+    "name": "prepare-fence",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release fences suspended composition and concurrent callers await the final drain 91ms"
+    ],
+    "restoredSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5"
+  },
+  {
+    "name": "late-controller-disposal",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5",
+    "exitCode": 1,
+    "failedAssertions": ["\u00d7 disposes a controller created during a reentrant release 55ms"],
+    "restoredSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5"
+  },
+  {
+    "name": "release-shared-completion",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release fences suspended composition and concurrent callers await the final drain 31ms"
+    ],
+    "restoredSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5"
+  },
+  {
+    "name": "release-inflight-drain",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release waits for an admitted replay before the final storage drain 86ms"
+    ],
+    "restoredSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5"
+  },
+  {
+    "name": "prepare-fence",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release fences suspended composition and concurrent callers await the final drain 62ms"
+    ],
+    "restoredSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6"
+  },
+  {
+    "name": "late-controller-disposal",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6",
+    "exitCode": 1,
+    "failedAssertions": ["\u00d7 disposes a controller created during a reentrant release 39ms"],
+    "restoredSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6"
+  },
+  {
+    "name": "release-shared-completion",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release fences suspended composition and concurrent callers await the final drain 19ms"
+    ],
+    "restoredSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6"
+  },
+  {
+    "name": "release-inflight-drain",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release waits for an admitted replay before the final storage drain 61ms"
+    ],
+    "restoredSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6"
+  }
+]

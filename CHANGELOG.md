@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Native panel requests retain bounded, method-validated late-reply correlation after cancellation or timeout so unrelated requests keep working.
+
+- Runtime panel and ACP teardown waits for suspended controller preparation and admitted work before draining storage; concurrent releases share the same completion.
+
 ### Added
 
 - Experimental standalone `panel --stdio` and `panel --companion` carriers

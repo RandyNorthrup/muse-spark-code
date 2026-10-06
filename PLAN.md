@@ -19218,6 +19218,30 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104PA parity lane A (2026-10-06, lead decisions).** First close the
+integration review's preparation/release barrier, method-aware bounded late
+reply correlation and same-record storage publication races. Storage uses a
+process-wide resolved-path queue and versioned compare-and-swap under an
+exclusive per-record publication lock; stale snapshots retry from the current
+revision. Activity/restoration updates keep the greatest `at`, with revision
+order breaking equal timestamps. Then implement fresh immutable carrier bindings
+for new/fork/switch/worktree sessions, coherent live settings/provider/model
+state, external permission/trust transitions and rich/restored turns. Bind
+portable feature exports from lanes B/C or freeze their typed composition
+contract in `docs/certification/m104-pa.md` before implementation.
+
+**Protocol ruling superseding the earlier 1.2 proposals below and under D84:**
+MHP 1.2 replaces 1.1; no native plugin has shipped. The editor spawns the
+runtime and initiates `initialize` with host metadata, locale, theme, folders,
+trust and capabilities; the runtime replies with its version/capabilities.
+Only 1.2 is selected; incompatible offers receive `MHP_INCOMPATIBLE_VERSION`.
+Regenerate snapshots and locks as an explicit reviewed version change with
+`scripts/mhp-schema.mjs`, update compatibility fixtures, and give native
+adoption to the owning D/E/F lanes. Runtime-initiated metadata/HTML proposals
+are dropped. Lane F owns the README carrier status correction (finding 5).
+This lane runs the brief's scoped gates, never aggregate quality, and makes
+no live/paid calls or support promotion.
+
 **M104INT integration (2026-10-06, authorized rig brief).** Merge lanes D,
 E redesign, G repair, F, I, Xcode and H repair in that order with merge
 commits and unchanged cap measurements. Do not merge the LSP supervision

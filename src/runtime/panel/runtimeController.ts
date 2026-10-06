@@ -20,6 +20,9 @@ import type { SessionController } from './controllerRegistry'
 export class RuntimeConversation implements SessionController, PanelView {
   private readonly listeners = new Set<(message: HostToWebviewMessage) => void>()
   private conversation: ConversationController | undefined
+  private preparation: Promise<void> | undefined
+  private releasing: Promise<void> | undefined
+  private readonly inFlight = new Set<Promise<void>>()
   private isDisposed = false
   private isHostStopped = false
   private authMessage: HostToWebviewMessage | undefined
@@ -36,7 +39,11 @@ export class RuntimeConversation implements SessionController, PanelView {
     this.sessionId = session.sessionId
   }
 
-  public async prepare(
+  private ensureLive(): void {
+    if (this.isDisposed) throw new Error('MHP_PANEL_UNKNOWN_SURFACE')
+  }
+
+  private async prepareController(
     ports: Omit<RuntimeConversationPorts, 'surface'>,
     loaded: LoadedSession,
     bundlePath: string,
@@ -48,6 +55,7 @@ export class RuntimeConversation implements SessionController, PanelView {
     const surface: ChatSurface = {
       id: this.sessionId,
       post: (message) => {
+        if (this.isDisposed) return
         const parsed = hostToWebviewMessageSchema.parse(message)
         if (parsed.type === 'authState') this.authMessage = parsed
         for (const listener of this.listeners) listener(parsed)
@@ -72,6 +80,7 @@ export class RuntimeConversation implements SessionController, PanelView {
       },
     }
     const deps = await compose({ ...ports, surface })
+    this.ensureLive()
     // The controller adopts exactly the handle prepared for registry publication.
     // Session switches need a fresh carrier binding; refusing here prevents one
     // opaque surface silently changing its session under MHP 1.1.
@@ -108,20 +117,19 @@ export class RuntimeConversation implements SessionController, PanelView {
       UI_TEXT,
       uiLocale(),
     )
+    if (this.isReleased) {
+      this.conversation.dispose()
+      this.conversation = undefined
+      throw new Error('MHP_PANEL_UNKNOWN_SURFACE')
+    }
     await this.conversation.restoreSession(this.sessionId)
+    this.ensureLive()
     if (externalMode !== undefined) this.conversation.useExternalPermissionMode(externalMode)
     if (this.conversation.boardSession()?.sessionId !== this.sessionId)
       throw new Error('MHP_PANEL_SESSION_ADOPTION_FAILED')
   }
 
-  public get controller(): ConversationController | undefined {
-    return this.conversation
-  }
-  public get isReleased(): boolean {
-    return this.isDisposed
-  }
-
-  public async handle(payload: Parameters<PanelView['handle']>[0]): Promise<void> {
+  private async handleMessage(payload: Parameters<PanelView['handle']>[0]): Promise<void> {
     if (this.isDisposed || this.conversation === undefined)
       throw new Error('MHP_PANEL_UNKNOWN_SURFACE')
     const message = webviewToHostMessageSchema.parse(payload)
@@ -175,8 +183,67 @@ export class RuntimeConversation implements SessionController, PanelView {
     }
   }
 
+  private async releaseController(): Promise<void> {
+    try {
+      // Cancel on the actual session, including a start not yet acknowledged.
+      if (this.isHostStopped) {
+        await this.host.close()
+      } else {
+        await this.session.cancel()
+      }
+    } finally {
+      // Preparation can own a controller before registry publication. Its awaits
+      // and every admitted handler must quiesce before the last storage drain.
+      await Promise.allSettled([
+        ...(this.preparation === undefined ? [] : [this.preparation]),
+        ...this.inFlight,
+      ])
+      try {
+        if (!this.isHostStopped) await this.conversation?.backendStopping(true)
+      } finally {
+        this.conversation?.dispose()
+        this.conversation = undefined
+        this.session.dispose()
+        await this.store?.settled()
+      }
+    }
+  }
+  public prepare(
+    ports: Omit<RuntimeConversationPorts, 'surface'>,
+    loaded: LoadedSession,
+    bundlePath: string,
+    compose: typeof runtimeConversationDeps,
+    externalMode?: PermissionMode,
+  ): Promise<void> {
+    if (this.isDisposed || this.preparation !== undefined)
+      return Promise.reject(new Error('MHP_PANEL_UNKNOWN_SURFACE'))
+    this.preparation = this.prepareController(ports, loaded, bundlePath, compose, externalMode)
+    return this.preparation
+  }
+
+  public get controller(): ConversationController | undefined {
+    return this.conversation
+  }
+  public get isReleased(): boolean {
+    return this.isDisposed
+  }
+
+  public handle(payload: Parameters<PanelView['handle']>[0]): Promise<void> {
+    if (this.isDisposed) return Promise.reject(new Error('MHP_PANEL_UNKNOWN_SURFACE'))
+    const work = this.handleMessage(payload)
+    this.inFlight.add(work)
+    void work
+      .then(() => {
+        this.inFlight.delete(work)
+      })
+      .catch(() => {
+        this.inFlight.delete(work)
+      })
+    return work
+  }
+
   public subscribe(listener: (message: HostToWebviewMessage) => void): () => void {
-    if (this.isDisposed) throw new Error('MHP_PANEL_UNKNOWN_SURFACE')
+    this.ensureLive()
     this.listeners.add(listener)
     return () => {
       this.listeners.delete(listener)
@@ -190,22 +257,11 @@ export class RuntimeConversation implements SessionController, PanelView {
     this.stopped()
   }
 
-  public async release(): Promise<void> {
-    if (this.isDisposed) return
+  public release(): Promise<void> {
+    if (this.releasing !== undefined) return this.releasing
     this.isDisposed = true
     this.listeners.clear()
-    try {
-      // Cancel on the actual session, including a start not yet acknowledged.
-      if (this.isHostStopped) {
-        await this.host.close()
-      } else {
-        await this.session.cancel()
-        await this.conversation?.backendStopping(true)
-      }
-    } finally {
-      this.conversation?.dispose()
-      this.session.dispose()
-      await this.store?.settled()
-    }
+    this.releasing = this.releaseController()
+    return this.releasing
   }
 }
