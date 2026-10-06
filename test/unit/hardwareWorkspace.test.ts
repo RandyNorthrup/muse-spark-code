@@ -1,16 +1,114 @@
 import { describe, expect, it } from 'vitest'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
 import { APPROVAL_MODES } from '../../src/shared/permissionModes'
 import { PermissionEngine } from '../../src/core/backends/modelapi/permissions'
 import { isHardwareWorkspace, hardwareShellNote } from '../../src/core/maker/guard/shellPolicy'
 import type { GuardDialect } from '../../src/core/maker/guard/shellParse'
 import { hardwareAction } from '../../src/core/maker/guard/hardwareCommands'
 import { developerHardwareCorpus } from './helpers/hardwareCorpus'
+import { SessionHardwareGuard } from '../../src/core/maker/sessionGuard'
+import type { HardwareContext } from '../../src/core/maker/guard/httpCommands'
 import { UI_TEXT } from '../../src/shared/constants'
 
 const dialects: readonly GuardDialect[] = ['bash', 'powershell', 'cmd']
 const hardware = { isHardwareWorkspace: true }
 
-describe('fourth design: every hardware shell asks', () => {
+function latch(source: () => HardwareContext) {
+  return new SessionHardwareGuard(
+    source,
+    () => undefined,
+    () => undefined,
+  )
+}
+
+describe('fourth design: hardware latch and immutable dispatch binding', () => {
+  it.each([
+    ['platformio.ini', '[env:board]'],
+    ['sdkconfig', 'CONFIG_IDF_TARGET=esp32'],
+    ['CMakeLists.txt', 'include($ENV{IDF_PATH}/tools/cmake/project.cmake)'],
+    ['sketch.ino', 'void setup() {}'],
+    ['CMakeLists.txt', 'include(pico_sdk_import.cmake)'],
+  ])(
+    'project marker %s is latched at session start, never re-read at shell entry',
+    (file, content) => {
+      const root = path.resolve('temp')
+      mkdirSync(root, { recursive: true })
+      const workspace = mkdtempSync(path.join(root, 'guard4-marker-'))
+      if (!workspace.startsWith(root + path.sep)) throw new Error('Fixture escaped worktree')
+      try {
+        const marker = path.join(workspace, file)
+        writeFileSync(marker, content)
+        const guard = latch(() => ({ workspaceRoot: workspace }))
+        expect(guard.current().isHardwareWorkspace).toBe(true)
+        rmSync(marker)
+        expect(guard.current().isHardwareWorkspace).toBe(true)
+        guard.turnOffFromHostUI()
+        expect(guard.current().isHardwareWorkspace).toBe(false)
+        writeFileSync(marker, content)
+        expect(guard.current().isHardwareWorkspace).toBe(false)
+        guard.dispose()
+      } finally {
+        rmSync(workspace, { recursive: true, force: true })
+      }
+    },
+  )
+
+  it('R3F2: a device observed between shell entries latches on even after it disappears', () => {
+    let observer: ((context: HardwareContext) => void) | undefined
+    let isDisposed = false
+    const stopObserving = () => {
+      isDisposed = true
+    }
+    const guard = latch(() => ({
+      onHardwareObserved: (observe) => {
+        observer = observe
+        return stopObserving
+      },
+    }))
+    expect(guard.current().isHardwareWorkspace).toBe(false)
+    observer?.({ targets: [{ address: 'COM5', usbSerial: 'board-one' }] })
+    expect(guard.current().isHardwareWorkspace).toBe(true)
+    guard.dispose()
+    expect(isDisposed).toBe(true)
+  })
+
+  it('host UI cannot clear the latch during any active command or device session', () => {
+    const guard = latch(() => ({}))
+    guard.observe(hardware)
+    const releaseFirst = guard.beginCommand()
+    const releaseSecond = guard.beginCommand()
+    expect(() => {
+      guard.turnOffFromHostUI()
+    }).toThrow(UI_TEXT.hardwareRefused)
+    releaseFirst()
+    releaseFirst()
+    expect(() => {
+      guard.turnOffFromHostUI()
+    }).toThrow(UI_TEXT.hardwareRefused)
+    releaseSecond()
+    guard.turnOffFromHostUI()
+    expect(guard.current().isHardwareWorkspace).toBe(false)
+    guard.dispose()
+  })
+
+  it.each(['isCommandActive', 'hasActiveDeviceSession'] as const)(
+    'host UI reset requires idle %s and does not re-derive mode from an old flag',
+    (active) => {
+      let isActive = true
+      const guard = latch(() => ({ ...hardware, [active]: isActive }))
+      expect(() => {
+        guard.turnOffFromHostUI()
+      }).toThrow(UI_TEXT.hardwareRefused)
+      isActive = false
+      guard.turnOffFromHostUI()
+      expect(isHardwareWorkspace(guard.current())).toBe(false)
+      guard.observe({ targets: [{ address: 'COM5' }] })
+      expect(isHardwareWorkspace(guard.current())).toBe(true)
+      guard.dispose()
+    },
+  )
+
   it.each(dialects)(
     'R3F1: argv spelling never proves ls/PATH/functions/wrappers safe (%s)',
     (dialect) => {
