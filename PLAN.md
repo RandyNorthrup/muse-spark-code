@@ -13072,6 +13072,18 @@ reference and fake stdio suites with default timeouts, audit, typecheck,
 lint, formatting, reference freshness and production build. No new command
 or feature, gate change, paid/live call, merge, push, tag or publication.
 
+Round 6 repairs the universal release-artifact check on PR #127: compose
+compact ACP help from both installed table entries, including its reference
+hint, with one formatter shared by the CLI, fake stdio tests and bundle check.
+Check English and every installed translation. Audit scripts and workflows
+for other stale usage comparisons, and reproduce the secret-free universal
+artifact job locally: production build, universal VSIX and contents/size
+checks, ACP pack/install and contents checks, shared-text loading, fake
+headless process guards, SBOMs and source/hash receipt. Keep repository test
+timeouts, hooks and all budgets unchanged; no merge, push, tag, publication,
+live/paid calls or aggregate quality. Record baseline failure and deliberate
+guard failures in `docs/certification/rel0142.md`.
+
 ### Delivery order (2026-10-06)
 
 The owner, 2026-10-05: "make sure you prioritize all of the remaining stuff

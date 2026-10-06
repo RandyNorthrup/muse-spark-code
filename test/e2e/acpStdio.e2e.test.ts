@@ -22,6 +22,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { createRuntimeBackend } from '../../src/runtime/backends'
+import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { webReadable } from '../../src/runtime/webStreams'
 import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
@@ -208,9 +209,8 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
     const usage = fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME })
-    expect(help.stdout.trim()).toBe(
-      `${usage}\n${UI_TEXT.helpReferenceTitle}: ${ACP_AGENT_NAME} help --all`,
-    )
+    expect(help.stdout.trim()).toBe(formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+    expect(help.stdout).toContain(`${ACP_AGENT_NAME} help --all\n`)
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
@@ -229,9 +229,8 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(
-      `${fill(table.acpUsage, { command: ACP_AGENT_NAME })}\n${table.helpReferenceTitle}: ${ACP_AGENT_NAME} help --all`,
-    )
+    expect(help.stdout.trim()).toBe(formatAcpUsage(table, ACP_AGENT_NAME))
+    expect(help.stdout).toContain(table.helpReferenceTitle)
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
   })
 

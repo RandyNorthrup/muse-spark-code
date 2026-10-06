@@ -1,4 +1,14 @@
 import type { UiText } from '../shared/l10n/en'
+import { fill } from '../shared/l10n/text'
+
+/** Compact CLI help, also checked against the installed package's tables. */
+export function formatAcpUsage(
+  table: Pick<UiText, 'acpUsage' | 'helpReferenceTitle'>,
+  command: string,
+): string {
+  return `${fill(table.acpUsage, { command })}\n${table.helpReferenceTitle}: ${command} help --all`
+}
+
 // One parseArgs definition per runtime route, also read by the lazy reference.
 interface CliParserOption {
   readonly type: 'string' | 'boolean'

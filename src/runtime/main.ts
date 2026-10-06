@@ -33,6 +33,7 @@ import { fill } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
 import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
+import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
 import { REFERENCE_BUNDLE_FILE } from '../shared/constants'
 import { UI_TEXT as referenceTable } from '../shared/l10n/text'
@@ -603,8 +604,7 @@ async function main(): Promise<number> {
         const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
         writeLine(process.stdout, reference.all(nls))
       } else {
-        writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
-        writeLine(process.stdout, `${UI_TEXT.helpReferenceTitle}: ${ACP_AGENT_NAME} help --all`)
+        writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
       }
       return 0
     }

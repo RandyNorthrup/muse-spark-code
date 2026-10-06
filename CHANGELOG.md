@@ -14,6 +14,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The release-artifact check validates complete ACP help, including its reference
+  hint, in English and every installed language using the CLI's shared formatter.
+
 - The report CLI help test follows the documented complete-reference contract
   for subcommand `--help` and `-h`.
 
