@@ -426,6 +426,69 @@ def test_hand_over_give_back_disconnect_lease_open_close_release_reconnect():
         peer.close()
 
 
+@pytest.mark.parametrize('stage', ['before_hello', 'before_welcome'])
+def test_round3_hand_over_waits_for_validated_welcome_and_held_lease(stage):
+    peer = Peer()
+    workbench = FakeWorkbench()
+    runner = FakeRunner(workbench)
+    engine = BridgeEngine(FakeBackend(workbench, runner))
+    entered, proceed = threading.Event(), threading.Event()
+
+    def factory(*args):
+        client = ProviderClient(*args, connect=lambda *a, **k: peer.plugin_side)
+        send = client._send
+
+        def send_hello(message):
+            if message['type'] == 'hello' and stage == 'before_hello':
+                entered.set()
+                assert proceed.wait(5)
+            send(message)
+
+        client._send = send_hello
+        return client
+
+    plugin, notices, opened, _ = _plugin(workbench=workbench, engine=engine,
+                                        client_factory=factory)
+    session = FakeSerialSession(runner)
+    try:
+        plugin.on_open()
+        if stage == 'before_hello':
+            assert entered.wait(5)
+        else:
+            assert peer.read_frame()['type'] == 'hello'
+        plugin.on_hand_port()
+        assert not plugin._client.is_connected
+        assert runner.disconnected == 0 and runner.get_backend_proxy()
+        assert plugin._port_saved is None and plugin._port_thread is None
+        assert notices.errors and not opened
+
+        proceed.set()
+        if stage == 'before_hello':
+            assert peer.read_frame()['type'] == 'hello'
+        peer.send({'v': protocol.PROTOCOL_VERSION, 'type': 'welcome'})
+        plugin._open_thread.join(5)
+        assert not plugin._open_thread.is_alive() and opened
+        assert plugin._client.is_connected
+        plugin.on_hand_port()
+        request = peer.read_frame()
+        assert request['type'] == 'port_request' and request['op'] == 'acquire'
+        assert runner.disconnected == 1 and runner.reconnected == 0
+        assert plugin._port_busy and plugin._completions.empty()
+        assert not session.leased and not session.opened
+        reply = session.handle(request)
+        assert session.leased and session.opened
+        peer.send(reply)
+        plugin._port_thread.join(5)
+        assert not plugin._port_thread.is_alive()
+        plugin._pump()
+        assert not plugin._port_busy and plugin._port_saved is not None
+        assert runner.reconnected == 0
+    finally:
+        proceed.set()
+        plugin.shutdown()
+        peer.close()
+
+
 def test_port_transfer_failure_never_reconnects_automatically():
     workbench = FakeWorkbench()
     runner = FakeRunner(workbench)

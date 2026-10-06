@@ -51,6 +51,7 @@ class ProviderClient:
         self._connect = connect
         self._connect_timeout = connect_timeout
         self._sock: Optional[socket.socket] = None
+        self._ready = False
         self._closed = threading.Event()
         self._leftover = b""
         self._lock = threading.RLock()
@@ -59,8 +60,9 @@ class ProviderClient:
 
     @property
     def is_connected(self) -> bool:
-        """True between a successful :meth:`connect` and :meth:`close`."""
-        return self._sock is not None and not self._closed.is_set()
+        """True only after validated welcome, until :meth:`close`."""
+        with self._lock:
+            return self._ready and self._sock is not None and not self._closed.is_set()
 
     def connect(self) -> None:
         """Open the socket and say hello. Raises :class:`ConnectionFailed`
@@ -100,6 +102,7 @@ class ProviderClient:
                 # The timeout bounds only connection/handshake, not idle use.
                 sock.settimeout(None)
                 self._engine.attach()
+                self._ready = True
         except Exception as exc:
             self.close()
             raise ConnectionFailed("provider handshake failed: %s" % exc)
@@ -108,8 +111,7 @@ class ProviderClient:
         """Serve requests until the runtime hangs up or :meth:`close` is
         called. Returns on a clean hangup; raises :class:`ConnectionFailed`
         on anything else."""
-        sock = self._sock
-        if sock is None:
+        if not self.is_connected:
             raise ConnectionFailed("not connected")
         try:
             while not self._closed.is_set():
@@ -130,6 +132,7 @@ class ProviderClient:
         """Hang up. Idempotent; safe from any thread."""
         with self._lock:
             self._closed.set()
+            self._ready = False
             for _, done, _ in self._port_pending.values():
                 done.set()
             sock, self._sock = self._sock, None

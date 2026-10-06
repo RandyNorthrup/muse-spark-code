@@ -15142,6 +15142,18 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**Lane T third-review correction (FIXM103T2, 2026-10-05).** Address all
+three RVM103T3 findings within the existing lane-T files. Provider readiness
+starts only after validated welcome, so a Hand click during connection cannot
+disconnect Thonny or send port control before hello. Keep acquisition pending
+until the runtime confirms its held lease and open serial session. Drain
+runtime stdout as bytes, decode UTF-8 independently of the Windows locale,
+report invalid diagnostics with fixed words and continue draining; report
+unrecoverable reader failures and stop the owned child. Correct the active
+wire-freeze residual to the no-write-path context/acquire/release proposal.
+Each finding gets a regression and a byte-exact red drill in m103-t.md.
+No new dependency, widened guard, live call or merge is authorized.
+
 **Lane T redesign (REDM103T, 2026-10-05, lead decision).** Remove every
 Thonny device command and write path after the second queue-bypass review.
 While Thonny owns the port the plugin serves only bounded text already shown
@@ -15418,7 +15430,7 @@ logged.
         reads bounded displayed console context without a device command;
         user hand-over disconnects Thonny before a fake runtime lease/open,
         and give-back releases/closes before Thonny reconnects. No automatic
-        the port.
+        transfer or reconnection.
       - The Eclipse rows wait for M65; the beta ACP Connector route for
         Espressif-IDE is recorded if it installs.
       - CLion 2026.1 runs the ACP flows against fakes.
@@ -16239,15 +16251,21 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
-- **M103T-WIRE-FREEZE (existing interoperability limit, 2026-10-05):** all
+- **M103T-WIRE-FREEZE (existing interoperability limit, 2026-10-05):**
   REDM103T supersedes the write bridge after RVM103T2. The v2 context and
   explicit port-control interface is fake-tested, but the announcement/provider
-  protocol is still T's proposal awaiting R/P freeze. Writes require a bytes
-  digest, opaque runner/proxy connection identity and UTC approval expiry;
-  the runtime must capture those at approval time. Safe for now only within
-  that authenticated loopback proposal: missing fields, foreign endpoints or
-  changed identity fail closed. Follow-up: R/P freeze and fake editor-to-runtime
-  receipts before claiming installed-runtime compatibility.
+  protocol is still T's proposal awaiting R/P freeze. Thonny accepts no device
+  payloads or write approvals and exports no runner/proxy identity. Port control
+  starts only after validated welcome. `acquire` succeeds only after lane P's
+  lease is held and its serial session is open; `release` acknowledges only
+  after serial close and lease release, including uncertain-acquire recovery.
+  Provider closure must cancel outstanding acquisitions and release its owned
+  session before a replacement provider connects. Safe for now within the
+  fake-tested authenticated loopback proposal: malformed control replies and
+  foreign endpoints fail closed, uncertain transfers stay disconnected, and
+  changed Thonny targets refuse give-back. Follow-up: R/P freeze and fake
+  editor-to-runtime receipts proving these ownership/closure guarantees before
+  claiming installed-runtime compatibility.
 - **M103T-POSIX-RIG-RECEIPTS (verification limit, 2026-10-05):** Windows job
   ownership and actual fake descendants are tested on win11; POSIX session
   creation/group signals are exercised with injected OS calls here. Actual

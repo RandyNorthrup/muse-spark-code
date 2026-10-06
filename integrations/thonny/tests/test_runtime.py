@@ -304,6 +304,69 @@ def test_stdout_is_drained_after_announcements(tmp_path):
     assert not reader.is_alive()
 
 
+@pytest.mark.parametrize('phase', ['startup', 'running'])
+@pytest.mark.parametrize('diagnostic', [b'\xe3\x81\x82\n', b'\xff\n'])
+def test_round3_utf8_and_invalid_diagnostics_never_abandon_stdout(tmp_path, caplog, phase, diagnostic):
+    marker, proceed = tmp_path / 'output-complete', tmp_path / 'proceed'
+    output = "sys.stdout.buffer.write(" + repr(diagnostic) + "); sys.stdout.buffer.flush()\n"
+    extra = output if phase == 'startup' else ''
+    extra += '\n'.join("print(" + repr(line.strip()) + ", flush=True)" for line in ANNOUNCE[1:])
+    extra += "\nwhile not Path(" + repr(str(proceed)) + ").exists(): time.sleep(0.01)\n"
+    if phase == 'running':
+        extra += output
+    extra += "sys.stdout.buffer.write(b'x' * (1024 * 1024) + b'\\n'); sys.stdout.buffer.flush()\n"
+    extra += "Path(" + repr(str(marker)) + ").write_text('done')\ntime.sleep(90)\n"
+    ctl = _real_fake_controller(tmp_path, extra)
+    reader = None
+    with caplog.at_level('WARNING', logger='thonnycontrib.muse_spark'):
+        try:
+            ctl.start()
+            reader = ctl._reader
+            proceed.write_text('go')
+            _wait_for_file(marker)
+            assert reader.is_alive() and ctl.is_running
+        finally:
+            ctl.stop()
+    assert reader is not None and not reader.is_alive()
+    messages = [record.getMessage() for record in caplog.records]
+    assert messages == (['runtime output contained invalid UTF-8'] if diagnostic == b'\xff\n' else [])
+
+
+@pytest.mark.parametrize('phase', ['startup', 'running'])
+def test_round3_reader_failure_is_reported_and_stops_owned_child(caplog, phase):
+    harness = Harness()
+    proceed = threading.Event()
+
+    class FailingStream(FakeStream):
+        def readline(self):
+            if self._lines:
+                return super().readline()
+            assert proceed.wait(5)
+            raise OSError('synthetic private diagnostic')
+
+    harness.process.stdout = FailingStream(ANNOUNCE if phase == 'running' else [])
+    ctl = harness.controller()
+    if phase == 'startup':
+        proceed.set()
+    with caplog.at_level('ERROR', logger='thonnycontrib.muse_spark'):
+        try:
+            if phase == 'startup':
+                with pytest.raises(runtime.RuntimeError, match='output could not be read'):
+                    ctl.start()
+            else:
+                ctl.start()
+                reader = ctl._reader
+                proceed.set()
+                reader.join(5)
+                assert not reader.is_alive()
+            assert harness.process.terminated and harness.process.killed
+            assert not ctl.is_running
+        finally:
+            proceed.set()
+            ctl.stop()
+    assert [record.getMessage() for record in caplog.records] == ['runtime output could not be read']
+
+
 @pytest.mark.parametrize("parent_exits", [False, True])
 @pytest.mark.parametrize("launch", ["panel", "stop_timeout", "stop_shutdown"])
 def test_stop_kills_real_fake_runtime_descendant(tmp_path, parent_exits, launch):

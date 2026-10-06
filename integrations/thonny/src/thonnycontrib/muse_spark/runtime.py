@@ -118,7 +118,7 @@ class RuntimeController:
             try:
                 proc = self.popen(
                     [binary, PANEL_ARGV[0]], stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL, text=True, bufsize=1,
+                    stderr=subprocess.DEVNULL, text=False,
                 )
                 with self._lock:
                     if generation != self._generation:
@@ -126,7 +126,7 @@ class RuntimeController:
                     self._process = proc
                     box, draining = queue.Queue(maxsize=1), threading.Event()
                     reader = threading.Thread(target=_drain_output,
-                                              args=(proc.stdout, box, draining), daemon=True)
+                                              args=(proc.stdout, box, draining, proc), daemon=True)
                     self._reader, self._draining = reader, draining
                     reader.start()
                 found = self._read_announcements(box, generation)
@@ -245,13 +245,20 @@ class RuntimeController:
                     _stop_process(proc)
 
 
-def _drain_output(stream, box, draining):
-    """One reader for startup and the whole lifetime; discard diagnostics."""
+def _drain_output(stream, box, draining, proc):
+    """Drain bytes for the whole lifetime; report failures without peer text."""
     while True:
         try:
             line = stream.readline()
         except Exception as exc:
+            log.error("runtime output could not be read")
             line = exc
+        if isinstance(line, bytes):
+            try:
+                line = line.decode("utf-8")
+            except UnicodeDecodeError:
+                log.warning("runtime output contained invalid UTF-8")
+                continue
         ended = isinstance(line, Exception) or not line
         if not draining.is_set() and (ended or protocol.parse_announcement(line.rstrip("\r\n"))):
             while not draining.is_set():
@@ -261,6 +268,8 @@ def _drain_output(stream, box, draining):
                 except queue.Full:
                     continue
         if ended:
+            if isinstance(line, Exception):
+                _stop_process(proc)
             return
 
 

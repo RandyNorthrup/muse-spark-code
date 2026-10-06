@@ -53,6 +53,8 @@ on stdout, in any order. The host must be literal `127.0.0.1`. The browser
 gets the launch code only in a URL fragment. The socket starts with the
 plugin's `hello` (`provider: thonny`, token); the runtime answers `welcome`.
 Only strict integer `v: 2` is accepted. V1 peers are refused.
+Hand-over is available only after a validated welcome; a click during
+connection leaves Thonny connected and sends no port request.
 
 Frames are newline-delimited JSON, at most 65,536 bytes plus the newline,
 in both directions. The runtime may send `device_request` with exactly
@@ -80,8 +82,11 @@ wakes socket and control waiters; expired/cancelled context cannot reach Tk.
 Peer values never enter logs or notices. Open starts are serialized;
 shutdown owns and joins Open, provider, transfer and Stop workers. Every
 runtime/Stop process belongs to a Windows kill-on-close job or POSIX process
-group, including command shims and exited parents. Startup stdout is drained
-for the child's whole lifetime; Stop stdout/stderr go to the null device.
+group, including command shims and exited parents. Stdout is drained as bytes
+for the child's whole lifetime and decoded as UTF-8 independently of the
+Windows locale. Invalid UTF-8 diagnostics produce a fixed warning and draining
+continues. An unreadable pipe produces a fixed error and stops the owned child;
+diagnostic contents never enter logs. Stop stdout/stderr go to the null device.
 
 ## Languages and publishing
 

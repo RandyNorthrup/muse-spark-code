@@ -19,6 +19,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Thonny handshake readiness and stdout failures (RVM103T3).** Hand-over
+  waits for a validated provider welcome and held-lease acknowledgement.
+  Runtime output is decoded as UTF-8 without relying on the Windows locale;
+  invalid diagnostics are reported while draining continues, and unreadable
+  output stops the owned child. The active wire-freeze residual now describes
+  context and explicit acquire/release, with no Thonny write-approval path.
+
 - **Thonny port hand-over redesign (REDM103T / RVM103T2).** Removed every
   device command and write path through Thonny. The bridge serves bounded
   displayed shell context only. Explicit Hand the port to Muse Spark / Give
