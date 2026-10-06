@@ -17,6 +17,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Hosted-search Always approvals follow one persisted profile order, so an older
+  owner cannot restore a higher ceiling. Revoked save completions preserve fresh
+  approvals, parallel conversations keep independent consent, and child tasks
+  inherit the parent's bounded search authorization. Legacy owner-local orders
+  ask again when moving to the profile chronology.
+- The ACP guide links the canonical v2 decimal-string schemas and identifies
+  the v1 numeric reader as legacy compatibility.
+
 - Hosted-search grants are owned by one synchronous state machine and saved as immutable provider/model/quote records. Ask again invalidates pending answers and writers, including delayed writes over a newer tariff ceiling.
 - Paid budgets, pricing, claims and settlements use exact decimal money across interactive and ACP ports. Daily raises preserve the entered digits. The private headless result/event contract advances to v2 with canonical USD strings and matching Action validation; flags and hard budgets are unchanged.
 

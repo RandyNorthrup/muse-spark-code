@@ -1,6 +1,11 @@
+import type * as Fs from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { UI_TEXT } from '../../src/shared/constants'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
+  nextPaidApprovalOrder,
   latestPaidGrant,
   PaidAuthority,
   initialPaidAuthorityState,
@@ -15,6 +20,12 @@ import { PaidUsage } from '../../src/core/paid/paidFeatures'
 import { paidCostUsd } from '../../src/shared/paid'
 import { Usd } from '../../src/shared/usd'
 import { FakeLogOutputChannel } from './helpers/fakes'
+
+vi.mock('node:fs', async (importActual) => {
+  const actual = await importActual<typeof Fs>()
+  return { ...actual, writeFileSync: vi.fn(actual.writeFileSync) }
+})
+const actualFs = await vi.importActual<typeof Fs>('node:fs')
 
 function permutations<T>(items: readonly T[]): T[][] {
   return items.length === 0
@@ -212,7 +223,7 @@ describe('paid effect ownership', () => {
     expect(owner.canSpend(a.quote)).toBe(true)
     const another = { quote: quotedSearch('0.01', 'model-a', 'another').quote, generation: 'old' }
     owner.dispatch({ type: 'quote', ...another, ask: true })
-    expect(owner.isApproved(grant)).toBe(false)
+    expect(owner.isApproved(grant)).toBe(true)
     owner.revokeAll('new')
     expect(owner.isCurrent(another)).toBe(false)
   })
@@ -269,15 +280,16 @@ it('immutable persisted answers prefer newer order and the lower ceiling on a co
   const owner = new PaidAuthority()
   expect(owner.nextOrder(a.quote, undefined)).toBe(1)
   owner.dispatch({ type: 'quote', ...old, ask: true })
+  owner.dispatch(answer(old))
   expect(owner.nextOrder(a.quote, fresh)).toBe(3)
   expect(
     owner.dispatch({ type: 'observedGrant', grant: { ...fresh, generation: 'other' } }),
   ).toEqual([])
-  expect(owner.dispatch({ type: 'observedGrant', grant: old })).toEqual([])
+  owner.dispatch({ type: 'observedGrant', grant: old })
   expect(owner.dispatch({ type: 'observedGrant', grant: { ...fresh, order: 0 } })).toEqual([])
   owner.dispatch({ type: 'observedGrant', grant: fresh })
   expect(owner.isCurrent(old)).toBe(false)
-  expect(owner.dispatch({ type: 'observedGrant', grant: fresh })).toEqual([])
+  owner.dispatch({ type: 'observedGrant', grant: fresh })
   expect(owner.hasGrant()).toBe(true)
   owner.revokeAll('revoked')
   expect(owner.hasGrant()).toBe(false)
@@ -294,4 +306,121 @@ it('R3 P2-2: a reissued quote id still rejects its original revocation generatio
   state = saving(state, fresh)
   expect(step(state, { type: 'saved', grant: a, ok: true })).toEqual({ state, effects: [] })
   expect(state.grants.size).toBe(0)
+})
+
+it('R4 P2-3: two conversations keep independent same-id approval and cancellation', () => {
+  const owner = new PaidAuthority()
+  const first = { ...a, quote: { ...a.quote, conversationId: 'first' } }
+  const second = { ...a, quote: { ...a.quote, conversationId: 'second' } }
+  for (const grant of [first, second]) {
+    owner.dispatch({ type: 'quote', ...grant, ask: true })
+    owner.dispatch({ type: 'answer', grant, answer: 'once' })
+  }
+  expect(owner.canSpend(first.quote)).toBe(true)
+  expect(owner.canSpend(second.quote)).toBe(true)
+  owner.bind(second.quote, () => false)
+  expect(owner.canSpend(second.quote)).toBe(false)
+  expect(owner.canSpend(first.quote)).toBe(true)
+  expect(owner.canSpend({ ...first.quote, tariffUsd: Usd.from('1').toAmount() })).toBe(false)
+})
+
+it('R4 P2-4: inherited child tokens retain the parent tariff, bound and revocation', () => {
+  const owner = new PaidAuthority()
+  const parent = { ...a, quote: { ...a.quote, maxCalls: 1 } }
+  owner.dispatch({ type: 'quote', ...parent, ask: true })
+  owner.dispatch({ type: 'answer', grant: parent, answer: 'once' })
+  const child = { ...parent.quote, id: 'child', conversationId: 'child' }
+  expect(owner.inherit(parent.quote, { ...child, tariffUsd: Usd.from('1').toAmount() })).toBe(false)
+  expect(owner.inherit(parent.quote, { ...child, maxCalls: 2 })).toBe(false)
+  expect(owner.inherit(parent.quote, child)).toBe(true)
+  expect(owner.canSpend(child)).toBe(true)
+  owner.dispatch({
+    type: 'reserve',
+    quote: child,
+    claimId: 'child',
+    reservedUsd: Usd.from('1').toAmount(),
+  })
+  owner.revokeAll('new')
+  expect(owner.canSpend(child)).toBe(false)
+  expect(
+    owner.dispatch({ type: 'settle', claimId: 'child', returnedCalls: 1, isTerminal: true }),
+  ).toContainEqual(
+    expect.objectContaining({
+      settlement: expect.objectContaining({ costUsd: parent.quote.tariffUsd }),
+    }),
+  )
+})
+
+it('R4 interleavings: two conversations, parent/child, revoked saves and older orders across 720 schedules', () => {
+  const first = { ...a, order: 1, quote: { ...a.quote, conversationId: 'first', maxCalls: 1 } }
+  const second = { ...first, quote: { ...first.quote, conversationId: 'second' } }
+  const child = { ...first.quote, id: 'child', conversationId: 'child' }
+  const fresh = { ...first, generation: 'new', order: 2, quote: { ...first.quote, id: 'fresh' } }
+  const key = paidAuthorityKey(first.quote)
+  let initial = saving(initialPaidAuthorityState(), first)
+  initial = step(initial, { type: 'quote', ...second, ask: true }).state
+  initial = step(initial, { type: 'answer', grant: second, answer: 'once' }).state
+  const batches: PaidAuthorityEvent[][] = [
+    [{ type: 'saved', grant: first, ok: true }],
+    [{ type: 'inherit', parent: second.quote, quote: child }],
+    [
+      { type: 'revoke', key, generation: 'new' },
+      { type: 'quote', ...fresh, ask: true },
+      answer(fresh),
+      { type: 'saved', grant: fresh, ok: true },
+    ],
+    [{ type: 'observedGrant', grant: { ...first, generation: 'new' } }],
+    [{ type: 'invalidate', grant: first }],
+    [{ type: 'revoke', key, generation: 'new', previousGeneration: 'old' }],
+  ]
+  for (const schedule of permutations(batches)) {
+    let state = initial
+    let hasReplaced = false
+    for (const events of schedule) {
+      for (const event of events) state = step(state, event).state
+      if (events.some((event) => event.type === 'saved' && event.grant === fresh))
+        hasReplaced = true
+      if (hasReplaced) {
+        expect(state.grants.get(key)).toEqual(fresh)
+        expect(Array.from(state.quotes, ([, current]) => current)).toContainEqual(
+          expect.objectContaining({ quote: fresh.quote, status: 'approved' }),
+        )
+      }
+      for (const current of state.quotes.values())
+        expect(current.generation).toBe(state.generations.get(key))
+    }
+  }
+})
+
+it('R4 P2-1: one persisted profile counter survives reopened owners and rejects damage', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'paid-order-'))
+  try {
+    expect(nextPaidApprovalOrder(directory)).toBe(1)
+    expect(nextPaidApprovalOrder(directory)).toBe(2)
+    expect(nextPaidApprovalOrder(directory)).toBe(3)
+    writeFileSync(path.join(directory, 'broken.order'), '')
+    expect(() => nextPaidApprovalOrder(directory)).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+it('R4 P2-1: exclusive profile slots retry a concurrent winner instead of reusing its order', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'paid-order-race-'))
+  const write = actualFs.writeFileSync
+  let didRace = false
+  const spy = vi.mocked(writeFileSync).mockImplementation((file, data, options) => {
+    if (!didRace) {
+      didRace = true
+      write(file, data, options)
+    }
+    write(file, data, options)
+  })
+  try {
+    expect(nextPaidApprovalOrder(directory)).toBe(2)
+    expect(nextPaidApprovalOrder(directory)).toBe(3)
+  } finally {
+    spy.mockImplementation(actualFs.writeFileSync)
+    rmSync(directory, { recursive: true, force: true })
+  }
 })

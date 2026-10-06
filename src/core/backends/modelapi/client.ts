@@ -524,6 +524,11 @@ export class ModelApiClient {
     return Usd.from(cost).toAmount()
   }
 
+  /** Children inherit their parent's token through the same authority. */
+  public inheritSearchQuote(parent: PaidQuote, quote: PaidQuote): boolean {
+    return this.deps.paidAuthority?.inherit(parent, quote) ?? true
+  }
+
   /** Whether interactive extras have a finite daily admission port (D78). */
   public get hasPaidDailyBudget(): boolean {
     return this.deps.reservePaidRequest !== undefined

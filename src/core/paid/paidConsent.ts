@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 // Asking before each paid use (M58, PLAN.md D48). The owner (2026-09-27):
 // "anything requiring extra payment should promt you with a popup that asks
 // allow once allow always in this workspace or deny".
@@ -33,7 +34,7 @@ import {
 import { Usd } from '../../shared/usd'
 import { DEFAULT_MODEL_ID } from '../../shared/constants'
 import type { CoreLogger } from '../logging'
-import { PaidAuthority, paidAuthorityKey, latestPaidGrant, type PaidGrant } from './paidAuthority'
+import { PaidAuthority, paidAuthorityKey, type PaidGrant } from './paidAuthority'
 
 /** The popup's three answers. */
 export type PaidUseAnswer = 'once' | 'always' | 'deny'
@@ -198,6 +199,7 @@ export interface PaidUseConsentDeps {
   /** The popup; "always" is offered only when `canRemember` is true. */
   readonly ask: (request: PaidUseRequest, canRemember: boolean) => Promise<PaidUseAnswer>
   readonly authority?: PaidAuthority
+  readonly nextQuoteOrder?: () => number | Promise<number>
   readonly prepareQuoteGeneration?: () => Promise<string>
   readonly quoteGeneration?: () => string
   readonly readQuoteGrant?: (quote: PaidQuote) => PaidGrant | undefined
@@ -330,7 +332,7 @@ export class PaidUseConsent {
       return undefined
     const quote = freezePaidQuote(
       request.quote ?? {
-        id: `${String(Date.now())}:${request.priceUsd}`,
+        id: randomUUID(),
         feature: 'webSearch',
         provider: 'meta',
         model: DEFAULT_MODEL_ID,
@@ -346,12 +348,8 @@ export class PaidUseConsent {
     if (this.deps.readQuoteGrant === undefined) remembered = this.authority.grant(quote)
     else if (stored !== undefined)
       remembered = { ...stored, generation: JSON.stringify([this.revocation, stored.generation]) }
-    const local = this.authority.grant(quote)
-    const prior = latestPaidGrant([
-      ...(remembered === undefined ? [] : [remembered]),
-      ...(local?.generation === generation ? [local] : []),
-    ])
-    const tag: PaidGrant = { quote, generation, order: this.authority.nextOrder(quote, prior) }
+    const prior = remembered?.generation === generation ? remembered : undefined
+    let tag: PaidGrant = { quote, generation, order: this.authority.nextOrder(quote, prior) }
     const effects = this.authority.dispatch({
       type: 'quote',
       ...tag,
@@ -368,12 +366,15 @@ export class PaidUseConsent {
             generation: JSON.stringify([this.revocation, observed.generation]),
           },
         })
-      if (generation !== this.quoteGeneration())
+      if (generation !== this.quoteGeneration()) {
         this.authority.dispatch({
           type: 'revoke',
           key: paidAuthorityKey(quote),
           generation: this.quoteGeneration(),
+          previousGeneration: generation,
         })
+        return false
+      }
       return (
         this.isEnabled('webSearch') &&
         request.isCurrent?.() !== false &&
@@ -385,13 +386,20 @@ export class PaidUseConsent {
     if (effects.length === 0) return quote
     const answer = await ask({ ...request, quote }, this.deps.canRemember())
     if (!isCurrent()) return undefined
+    const approvalOrder =
+      answer === 'always' && this.deps.canRemember()
+        ? await (this.deps.nextQuoteOrder?.() ?? this.authority.nextOrder(quote, prior))
+        : undefined
+    if (!isCurrent()) return undefined
     const saving = this.authority.dispatch({
       type: 'answer',
       grant: tag,
+      ...(approvalOrder !== undefined && { approvalOrder }),
       answer: answer === 'always' && !this.deps.canRemember() ? 'once' : answer,
     })
     for (const effect of saving) {
       if (effect.type !== 'save') continue
+      tag = effect.grant
       let isOk = false
       try {
         if (this.deps.writeQuoteGrant === undefined) isOk = await this.remember('webSearch')
@@ -424,7 +432,9 @@ export class PaidUseConsent {
     return (
       this.deps.isOn(feature) &&
       this.deps.canRemember() &&
-      ((this.authority.hasGrant() && feature === 'webSearch') ||
+      ((this.deps.readQuoteGrant === undefined &&
+        this.authority.hasGrant() &&
+        feature === 'webSearch') ||
         this.deps.readGrants().has(feature))
     )
   }

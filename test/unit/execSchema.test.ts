@@ -467,3 +467,17 @@ describe('M80 schemas (A15/A16/F1)', () => {
     })
   })
 })
+
+it('R4 P3: ACP guide links canonical v2 decimal schemas and labels the v1 reader legacy', async () => {
+  const guide = await readFile(new URL('../../docs/acp.md', import.meta.url), 'utf8')
+  for (const kind of ['result', 'event']) {
+    const name = `exec-${kind}-v2.schema.json`
+    expect(guide).toContain(`schemas/${name}`)
+    await expect(
+      readFile(new URL(`../../docs/schemas/${name}`, import.meta.url), 'utf8'),
+    ).resolves.toContain('string')
+    expect(guide).not.toContain(`exec-${kind}-v1.schema.json`)
+  }
+  expect(guide).toContain('USD amounts are exact decimal strings')
+  expect(guide).toContain('reader are legacy compatibility only')
+})

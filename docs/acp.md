@@ -408,12 +408,15 @@ known patterns and the exact key literal, not every unknown secret.
 
 Read [the complete CLI/CI guide](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ci.md)
 for all options, limits, conditional billing theorem, Action lifecycle and
-workflow templates. Schemas ship as `schemas/exec-result-v1.schema.json`
-and `schemas/exec-event-v1.schema.json`; canonical
-[result](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-result-v1.schema.json),
-[event](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-event-v1.schema.json)
+workflow templates. Schemas ship as `schemas/exec-result-v2.schema.json`
+and `schemas/exec-event-v2.schema.json`; canonical
+[result](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-result-v2.schema.json),
+[event](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-event-v2.schema.json)
 and [receipts](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/certification/m80.md)
-use absolute links because npm does not resolve relative links. Registry Action
+use absolute links because npm does not resolve relative links. Version 2 is the
+canonical contract: USD amounts are exact decimal strings. The historical v1
+numeric-money schemas and reader are legacy compatibility only; current output
+and Action validation require v2. Registry Action
 support still requires post-release LR, beyond unsigned candidate acceptance.
 
 ## Report a problem (M93)

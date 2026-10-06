@@ -99,6 +99,9 @@ export const COMMAND_IDS = {
   tabLanguages: 'museSpark.tabLanguages',
 } as const
 
+// Profile-wide, exclusive approval-order records shared by all processes.
+export const PAID_APPROVAL_ORDER_DIRECTORY = 'paid-approval-order'
+
 // Extension-private `globalState` keys (never machine-wide configuration).
 export const GLOBAL_STATE_KEYS = {
   /** "Don't ask again" on the Windows sandbox setup prompt. */
@@ -120,6 +123,7 @@ export const GLOBAL_STATE_KEYS = {
    * before the change is void in every workspace.
    */
   paidGrantGenerations: 'museSpark.paidGrantGenerations',
+  paidApprovalOrder: 'museSpark.paidApprovalOrder',
   /**
    * The worktrees the extension made for a conversation (M71), read by every
    * window: what each is, and whether someone else's pull request is held.

@@ -1772,7 +1772,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       'allow_always',
       'reject_once',
     ])
-    expect(h.grants.byFolder.get(CWD)).toEqual(new Set(['webSearch', 'imageGeneration']))
+    expect(h.grants.read(CWD)).toEqual(new Set(['webSearch', 'imageGeneration']))
     expect(h.paid.isRemembered(CWD, 'webSearch')).toBe(true)
   })
 

@@ -12,6 +12,7 @@ import { PaidUseConsent, type PaidUseAnswer, paidUseQuestion } from '../../core/
 import { PaidFeatureGate, PaidUsage, paidStateOf } from '../../core/paid/paidFeatures'
 import {
   GLOBAL_STATE_KEYS,
+  PAID_APPROVAL_ORDER_DIRECTORY,
   PAID_FEATURE_SETTINGS,
   PAID_FEATURES,
   type PaidFeature,
@@ -34,6 +35,7 @@ import type { Logger } from '../logger'
 import {
   paidAuthorityKey,
   latestPaidGrant,
+  nextPaidApprovalOrder,
   type PaidAuthority,
 } from '../../core/paid/paidAuthority'
 
@@ -60,6 +62,7 @@ interface MementoLike {
 
 export interface PaidFeaturesDeps {
   readonly authority?: PaidAuthority
+  readonly orderDirectory?: string
   readonly globalState: MementoLike
   /** Where "Allow always in this workspace" is kept (M58). */
   readonly workspaceState: MementoLike & { keys(): readonly string[] }
@@ -262,6 +265,22 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     isWindowFocused: () => vscode.window.state.focused,
     log: deps.log,
   })
+  const readQuoteGrants = () => {
+    const prefix = `${WORKSPACE_STATE_KEYS.paidQuoteGrants}:${PAID_APPROVAL_ORDER_DIRECTORY}:`
+    return deps.workspaceState
+      .keys()
+      .filter((key) => key.startsWith(prefix))
+      .flatMap((key) => {
+        const parsed = quoteGrantSchema.safeParse(deps.workspaceState.get(key))
+        return parsed.success &&
+          parsed.data.generation === quoteGeneration() &&
+          key.startsWith(
+            `${prefix}${paidAuthorityKey(parsed.data.quote)}:${parsed.data.generation}:`,
+          )
+          ? [parsed.data]
+          : []
+      })
+  }
   const consent = new PaidUseConsent({
     isOn: (feature) => gate.isOn(feature),
     // Tab's "Allow once" covers this window until it closes (M94 Q-M94a):
@@ -277,22 +296,27 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     canRemember: deps.canRememberPaidUse,
     ...(deps.authority !== undefined && { authority: deps.authority }),
     quoteGeneration,
-    readQuoteGrant: (quote) => {
-      const prefix = `${WORKSPACE_STATE_KEYS.paidQuoteGrants}:${paidAuthorityKey(quote)}:${quoteGeneration()}:`
-      const records = deps.workspaceState
-        .keys()
-        .filter((key) => key.startsWith(prefix))
-        .flatMap((key) => {
-          const parsed = quoteGrantSchema.safeParse(deps.workspaceState.get(key))
-          return parsed.success ? [parsed.data] : []
-        })
-      return latestPaidGrant(records)
+    nextQuoteOrder: async () => {
+      if (deps.orderDirectory !== undefined) return nextPaidApprovalOrder(deps.orderDirectory)
+      const current = z
+        .int()
+        .check(z.nonnegative())
+        .parse(deps.globalState.get(GLOBAL_STATE_KEYS.paidApprovalOrder) ?? 0)
+      const order = current + 1
+      await deps.globalState.update(GLOBAL_STATE_KEYS.paidApprovalOrder, order)
+      return order
     },
+    readQuoteGrant: (quote) =>
+      latestPaidGrant(
+        readQuoteGrants().filter(
+          (grant) => paidAuthorityKey(grant.quote) === paidAuthorityKey(quote),
+        ),
+      ),
     writeQuoteGrant: async (grant) => {
       // This record carries the generation captured before the popup. A
       // delayed update can never become a grant in a later generation.
       await deps.workspaceState.update(
-        `${WORKSPACE_STATE_KEYS.paidQuoteGrants}:${paidAuthorityKey(grant.quote)}:${grant.generation}:${String(grant.order ?? 0)}:${grant.quote.id}`,
+        `${WORKSPACE_STATE_KEYS.paidQuoteGrants}:${PAID_APPROVAL_ORDER_DIRECTORY}:${paidAuthorityKey(grant.quote)}:${grant.generation}:${String(grant.order ?? 0)}:${grant.quote.id}`,
         grant,
       )
       if (grant.generation !== quoteGeneration()) return
@@ -312,11 +336,12 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
       return new Set(
         PAID_FEATURES.filter(
           (feature) =>
-            grants[feature] !== undefined &&
-            grants[feature] === generationOf(generations, feature) &&
-            (feature !== 'subagents' ||
-              deps.globalState.get(GLOBAL_STATE_KEYS.subagentPriceAcceptance) ===
-                SUBAGENT_PRICE_ACCEPTANCE_VERSION),
+            (feature === 'webSearch' && readQuoteGrants().length > 0) ||
+            (grants[feature] !== undefined &&
+              grants[feature] === generationOf(generations, feature) &&
+              (feature !== 'subagents' ||
+                deps.globalState.get(GLOBAL_STATE_KEYS.subagentPriceAcceptance) ===
+                  SUBAGENT_PRICE_ACCEPTANCE_VERSION)),
         ),
       )
     },

@@ -34,6 +34,7 @@ export interface PaidGrantStore {
   readonly add: (workspaceRoot: string, features: readonly PaidFeature[]) => Promise<void>
   /** Takes these features out of every folder's grants. */
   readonly forget: (features: readonly PaidFeature[]) => Promise<void>
+  readonly nextQuoteOrder?: () => number
   readonly prepareQuoteGeneration?: () => Promise<string>
   readonly quoteGeneration?: () => string
   readonly readQuote?: (workspaceRoot: string, quote: PaidQuote) => PaidGrant | undefined
@@ -101,7 +102,7 @@ export function paidUseAnswer(
 
 export class AcpPaidUse {
   private readonly consents = new Map<string, PaidUseConsent>()
-  private readonly authorities = new Map<string, PaidAuthority>()
+  private readonly authority = new PaidAuthority()
   private asker: PaidUseAsker | undefined
   private readonly used = new Map<PaidFeature, number>()
 
@@ -141,13 +142,8 @@ export class AcpPaidUse {
   }
 
   /** Whether the backend may use the feature at all: its flag given. */
-  public authorityFor(workspaceRoot: string): PaidAuthority {
-    let authority = this.authorities.get(workspaceRoot)
-    if (authority === undefined) {
-      authority = new PaidAuthority()
-      this.authorities.set(workspaceRoot, authority)
-    }
-    return authority
+  public authorityFor(): PaidAuthority {
+    return this.authority
   }
 
   public isOn(feature: PaidFeature): boolean {
@@ -173,7 +169,10 @@ export class AcpPaidUse {
     let consent = this.consents.get(workspaceRoot)
     if (consent === undefined) {
       consent = new PaidUseConsent({
-        authority: this.authorityFor(workspaceRoot),
+        authority: this.authorityFor(),
+        ...(this.deps.grants.nextQuoteOrder !== undefined && {
+          nextQuoteOrder: this.deps.grants.nextQuoteOrder,
+        }),
         isOn: (feature) => this.isOn(feature),
         canRemember: this.deps.canRemember,
         ...(this.deps.grants.prepareQuoteGeneration !== undefined && {

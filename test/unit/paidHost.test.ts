@@ -591,6 +591,35 @@ describe('M98 judge first-charge detail', () => {
   )
 })
 
+function heldPaidQuoteWriter() {
+  const data = new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]])
+  const workspace = new Map<string, unknown>()
+  const entered = Promise.withResolvers<undefined>()
+  const released = Promise.withResolvers<undefined>()
+  const base = memento(workspace)
+  let isFirst = true
+  const paid = createPaidFeatures({
+    globalState: memento(data),
+    workspaceState: {
+      keys: base.keys,
+      get: base.get,
+      update: async (key, value) => {
+        if (isFirst && key.startsWith(`${WORKSPACE_STATE_KEYS.paidQuoteGrants}:`)) {
+          isFirst = false
+          entered.resolve(undefined)
+          await released.promise
+        }
+        await base.update(key, value)
+      },
+    },
+    isSettingOn: () => true,
+    isKeyStored: () => true,
+    canRememberPaidUse: () => true,
+    log: new FakeLogOutputChannel(),
+  })
+  return { data, workspace, paid, entered, released }
+}
+
 describe('R3 Memento grant races', () => {
   it('P2-1: a model B Always answer after Ask again never restores revoked model A', async () => {
     const workspace = new Map<string, unknown>()
@@ -612,33 +641,13 @@ describe('R3 Memento grant races', () => {
   })
 
   it.each([true, false])(
-    'P2-2: a held expensive writer cannot replace a cheaper quote (revocation %s)',
+    'R4 P2-1: older approval with three Once answers cannot replace a newer cheaper ceiling (revocation %s)',
     async (revokes) => {
-      const data = new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]])
-      const workspace = new Map<string, unknown>()
-      const entered = Promise.withResolvers<undefined>()
-      const released = Promise.withResolvers<undefined>()
-      const base = memento(workspace)
-      let isFirst = true
-      const first = createPaidFeatures({
-        globalState: memento(data),
-        workspaceState: {
-          keys: base.keys,
-          get: base.get,
-          update: async (key, value) => {
-            if (isFirst && key.startsWith(`${WORKSPACE_STATE_KEYS.paidQuoteGrants}:`)) {
-              isFirst = false
-              entered.resolve(undefined)
-              await released.promise
-            }
-            await base.update(key, value)
-          },
-        },
-        isSettingOn: () => true,
-        isKeyStored: () => true,
-        canRememberPaidUse: () => true,
-        log: new FakeLogOutputChannel(),
-      })
+      const { data, workspace, paid: first, entered, released } = heldPaidQuoteWriter()
+      for (const id of ['once-a', 'once-b', 'once-c'])
+        await first.consent.allows(quotedSearch('0.01', 'model-a', id), false, () =>
+          Promise.resolve('once'),
+        )
       const pending = first.consent.allows(quotedSearch('0.01'), false, () =>
         Promise.resolve('always'),
       )
@@ -658,4 +667,36 @@ describe('R3 Memento grant races', () => {
       expect(denied).toHaveBeenCalledOnce()
     },
   )
+})
+
+it('R4 P2-2: a revoked save completion preserves the same owner replacement approval', async () => {
+  const { paid, entered, released } = heldPaidQuoteWriter()
+  const old = paid.consent.allows(quotedSearch('0.01'), false, () => Promise.resolve('always'))
+  await entered.promise
+  await paid.consent.forget()
+  const fresh = quotedSearch('0.0025', 'model-a', 'replacement')
+  await paid.consent.allows(fresh, false, () => Promise.resolve('always'))
+  expect(paid.consent.authority.canSpend(fresh.quote)).toBe(true)
+  released.resolve(undefined)
+  expect(await old).toBeUndefined()
+  expect(paid.consent.authority.canSpend(fresh.quote)).toBe(true)
+  expect(paid.consent.isRemembered('webSearch')).toBe(true)
+})
+
+it('R4 P2-1: incomparable legacy owner orders ask again in the profile chronology', async () => {
+  const workspace = new Map<string, unknown>()
+  const old = quotedSearch('0.01')
+  const generation = JSON.stringify([0, 0])
+  workspace.set(
+    `${WORKSPACE_STATE_KEYS.paidQuoteGrants}:${JSON.stringify(['webSearch', 'meta', 'model-a'])}:${generation}:100:old`,
+    { generation, order: 100, quote: old.quote },
+  )
+  const { paid } = paidWithSettings(
+    new Map([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]]),
+    ['webSearch'],
+    { workspace },
+  )
+  const ask = vi.fn(() => Promise.resolve<PaidUseAnswer>('deny'))
+  expect(await paid.consent.allows(old, false, ask)).toBeUndefined()
+  expect(ask).toHaveBeenCalledOnce()
 })

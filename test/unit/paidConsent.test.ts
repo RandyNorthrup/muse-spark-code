@@ -435,3 +435,17 @@ describe('window-scoped Allow once (M94 Q-M94a)', () => {
     expect(same.consent.isRemembered('tab')).toBe(true)
   })
 })
+
+it('R4 P2-3: same-clock legacy requests receive independent authorization ids', async () => {
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(1)
+  try {
+    const t = consentWith()
+    const [first, second] = await Promise.all([t.consent.allows(SEARCH), t.consent.allows(SEARCH)])
+    if (typeof first !== 'object' || typeof second !== 'object') throw new Error('missing approval')
+    expect(first.id).not.toBe(second.id)
+    expect(t.consent.authority.canSpend(first)).toBe(true)
+    expect(t.consent.authority.canSpend(second)).toBe(true)
+  } finally {
+    clock.mockRestore()
+  }
+})

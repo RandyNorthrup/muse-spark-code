@@ -1,5 +1,9 @@
 import { paidQuoteSchema } from '../shared/paid'
-import { paidAuthorityKey, latestPaidGrant } from '../core/paid/paidAuthority'
+import {
+  paidAuthorityKey,
+  latestPaidGrant,
+  nextPaidApprovalOrder,
+} from '../core/paid/paidAuthority'
 // "Allow always" for the ACP agent (M58, D48, D62). Each feature has a
 // revocation generation, and each workspace a grant for that generation.
 // Independent grants never rewrite a shared map; a writer begun before a
@@ -16,7 +20,12 @@ import type { PaidGrantStore } from '../acp/paid'
 import type { CoreLogger } from '../core/logging'
 import { describeStoreError, storeErrorCode } from '../host/backend/storeErrors'
 import { writeFileAtomically } from '../host/fsAtomic'
-import { ATOMIC_TEMPORARY_SUFFIX, PAID_FEATURES, type PaidFeature } from '../shared/constants'
+import {
+  ATOMIC_TEMPORARY_SUFFIX,
+  PAID_APPROVAL_ORDER_DIRECTORY,
+  PAID_FEATURES,
+  type PaidFeature,
+} from '../shared/constants'
 import { workspaceKey } from './dataFolder'
 
 export interface PaidGrantFileDeps {
@@ -122,8 +131,35 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
     order: z.optional(z.number().check(z.int(), z.gte(0))),
   })
   const quotePrefix = (workspaceRoot: string, generation: string, key: string) =>
-    `${grantFile(workspaceRoot, 'webSearch', generation)}.${workspaceKey(key)}.`
+    `${grantFile(workspaceRoot, 'webSearch', generation)}.${workspaceKey(key)}.${PAID_APPROVAL_ORDER_DIRECTORY}.`
+  const readQuotes = (workspaceRoot: string, generation: string) => {
+    let names: string[]
+    try {
+      names = readdirSync(featureFolder('webSearch'))
+    } catch {
+      return []
+    }
+    const prefix = `${path.basename(grantFile(workspaceRoot, 'webSearch', generation))}.`
+    return names
+      .filter(
+        (name) =>
+          name.startsWith(prefix) &&
+          name.includes(`.${PAID_APPROVAL_ORDER_DIRECTORY}.`) &&
+          name.endsWith('.quote'),
+      )
+      .flatMap((name) => {
+        const record = read(path.join(featureFolder('webSearch'), name), quoteSchema)
+        return record?.generation === generation &&
+          name.startsWith(
+            path.basename(quotePrefix(workspaceRoot, generation, paidAuthorityKey(record.quote))),
+          )
+          ? [record]
+          : []
+      })
+  }
   return {
+    nextQuoteOrder: () =>
+      nextPaidApprovalOrder(path.join(`${deps.file}.d`, PAID_APPROVAL_ORDER_DIRECTORY)),
     prepareQuoteGeneration: async () => {
       const generation = await generationFor('webSearch')
       return generation.id
@@ -132,20 +168,10 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
     readQuote: (workspaceRoot, quote) => {
       const generation = read(generationFile('webSearch'), generationSchema)
       if (generation === undefined) return
-      const prefix = quotePrefix(workspaceRoot, generation.id, paidAuthorityKey(quote))
-      let names: string[]
-      try {
-        names = readdirSync(featureFolder('webSearch'))
-      } catch {
-        return
-      }
       const grant = latestPaidGrant(
-        names
-          .filter((name) => name.startsWith(path.basename(prefix)) && name.endsWith('.quote'))
-          .flatMap((name) => {
-            const record = read(path.join(featureFolder('webSearch'), name), quoteSchema)
-            return record === undefined ? [] : [record]
-          }),
+        readQuotes(workspaceRoot, generation.id).filter(
+          (record) => paidAuthorityKey(record.quote) === paidAuthorityKey(quote),
+        ),
       )
       return read(generationFile('webSearch'), generationSchema)?.id === generation.id
         ? grant
@@ -168,7 +194,8 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
           const before = read(file, generationSchema)
           if (
             before === undefined ||
-            read(grantFile(workspaceRoot, feature, before.id), grantSchema) !== before.id
+            (!(feature === 'webSearch' && readQuotes(workspaceRoot, before.id).length > 0) &&
+              read(grantFile(workspaceRoot, feature, before.id), grantSchema) !== before.id)
           ) {
             return false
           }

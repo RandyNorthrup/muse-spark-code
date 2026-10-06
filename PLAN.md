@@ -19407,6 +19407,28 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**H round-4 fixes (FIXM106H4, 2026-10-06).** Resolve all four P2s and
+P3 in RVM106H4 without changing the reducer architecture. One profile-wide
+approval counter is persisted beside the grant store; exclusive publication
+orders approvals across owners, independently of quote history. Grants remain
+keyed by feature/provider/model and newer cheaper Always replaces the ceiling.
+Active quotes are scoped by conversation/request, tariff changes and revocation
+invalidate only matching authority, and revoked save completions are discarded.
+Children, follow-ups and retries inherit the parent's search token and bound,
+with the existing parent/session/daily budget fences. ACP docs name decimal-string
+v2 schemas as canonical and the v1 reader as legacy. Extend the interleaving
+model and production adapter probes, red drill each finding, and run the bounded
+rig gates at default timeouts. No dependency, merge or live/paid call is authorized.
+
+**H round-4 rig result (2026-10-06).** All RVM106H4 findings are fixed.
+The final default-timeout run passes 1,077 tests in 15 whole files. Twelve red
+drills fail by name and restore byte-exact; both 720-schedule models pass.
+Owner coverage is 97.98% statements, 93.67% branches, 100% functions and 99.44%
+lines. Scoped lint/format, five-project typecheck, knip, cycles, zero-clone
+jscpd, localization, host API, schemas and production build pass. Model API
+is 466.6/475 KiB, ACP 834.7/850 KiB and extension 456.6/600 KiB. The durable
+record is `docs/certification/m106-h.md`; §9 has no accepted finding residual.
+
 **H round-3 redesign (REDM106H, 2026-10-06).** Replace snapshot-based
 search authority with one synchronous `step(state, event)` owner. Prompts and
 persistence are tagged effects; provider/model grant writes carry their original
@@ -21297,6 +21319,21 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+**FIXM106H4 review disposition (2026-10-06).** All four P2s and the
+ACP documentation P3 in RVM106H4 are fixed; no named finding residual remains.
+Approval order comes from one exclusive persisted profile counter, with legacy
+owner-local records asking again. Revoked save completions cannot clear a fresh
+generation. Conversation/request identities, including UUIDs for same-clock
+legacy requests, isolate independently consented uses and cancellation. Child
+and follow-up tokens inherit the parent tariff and hosted-call bound through the
+shared authority; existing daily/session/task budgets and retry fences stay in
+force. Workspace Always status is read from that workspace's persisted records.
+The guide names v2 decimal-string schemas and labels the v1 reader legacy.
+Default-timeout regressions, two 720-schedule models and twelve byte-exact red
+drills are recorded in `docs/certification/m106-h.md`. Existing W/M95 handoffs,
+full integrated quality, multi-OS/editor checks and M80 hosted/live receipts
+remain with the lead; no live or separate-process certification is claimed.
 
 **FIXM106H2 review disposition (2026-10-06).** All four P2 findings and
 the arithmetic P3 in RVM106H2 are fixed, with no accepted finding residual.

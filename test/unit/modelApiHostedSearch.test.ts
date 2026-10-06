@@ -8,13 +8,22 @@ import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { ModelApiClient, type ModelApiClientDeps } from '../../src/core/backends/modelapi/client'
-import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
+import {
+  ModelApiHost,
+  ModelApiSession,
+  type ModelApiHostDeps,
+} from '../../src/core/backends/modelapi/ModelApiHost'
 import { responseSchema, type CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { estimateInput, requestParts } from '../../src/core/backends/modelapi/sessionBudget'
 import type { SessionStore } from '../../src/core/backends/modelapi/sessionStore'
 import { estimateCostUsd, formatUsd } from '../../src/core/usage/insights'
 import { PaidUsage, webSearchPriceUsd } from '../../src/core/paid/paidFeatures'
-import { paidUseQuestion } from '../../src/core/paid/paidConsent'
+import { PaidAuthority } from '../../src/core/paid/paidAuthority'
+import {
+  PaidUseConsent,
+  paidUseQuestion,
+  type PaidUseAnswer,
+} from '../../src/core/paid/paidConsent'
 import { paidCostUsd, paidTallySchema } from '../../src/shared/paid'
 import { parseExec } from '../../src/runtime/exec/execArgs'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
@@ -64,7 +73,10 @@ afterEach(async () => {
 function client(
   reservePaidRequest?: ModelApiClientDeps['reservePaidRequest'],
   pricing: Partial<
-    Pick<ModelApiClientDeps, 'webSearchPriceUsd' | 'searchTokenCostUsd' | 'apiKey'>
+    Pick<
+      ModelApiClientDeps,
+      'webSearchPriceUsd' | 'searchTokenCostUsd' | 'apiKey' | 'paidAuthority'
+    >
   > = {},
 ) {
   const api = fakeModelApi()
@@ -118,6 +130,8 @@ async function cappedOneSearchHost() {
 async function host(
   options: {
     readonly daily?: ModelApiClientDeps['reservePaidRequest']
+    readonly subagents?: boolean
+    readonly isRemembered?: ModelApiHostDeps['isPaidUseRemembered']
     readonly capabilities?: ModelApiHostDeps['modelCapabilities']
     readonly capUsd?: UsdAmount
     readonly maxCalls?: () => number
@@ -125,7 +139,10 @@ async function host(
     readonly isOn?: () => boolean
     readonly journal?: SessionStore['budget']
     readonly pricing?: Partial<
-      Pick<ModelApiClientDeps, 'webSearchPriceUsd' | 'searchTokenCostUsd' | 'apiKey'>
+      Pick<
+        ModelApiClientDeps,
+        'webSearchPriceUsd' | 'searchTokenCostUsd' | 'apiKey' | 'paidAuthority'
+      >
     >
     readonly modelId?: string
     readonly notePaidUse?: ModelApiHostDeps['notePaidUse']
@@ -149,7 +166,10 @@ async function host(
       log: t.log,
     }),
     store,
-    isPaidFeatureOn: (feature) => feature === 'webSearch' && (options.isOn?.() ?? true),
+    isPaidFeatureOn: (feature) =>
+      (feature === 'webSearch' && (options.isOn?.() ?? true)) ||
+      (feature === 'subagents' && options.subagents === true),
+    isPaidUseRemembered: options.isRemembered ?? (() => false),
     sessionBudgetUsd: () => Usd.from(options.capUsd ?? 0).toAmount(),
     allowsPaidUse: consent,
     notePaidUse: paidUses,
@@ -162,6 +182,7 @@ async function host(
     modelId: options.modelId ?? 'muse-spark-1.3',
     approvalMode: 'allowAll',
   })
+  if (!(session instanceof ModelApiSession)) throw new Error('expected Model API session')
   const watched = watchSessionTurns(session)
   const turn = async () => {
     await session.sendTurn([{ type: 'text', text: 'Find it' }])
@@ -836,4 +857,111 @@ describe('M106 hosted-search bounds', () => {
     expect(c.amounts).toEqual([0.0126])
     expect(c.settled).toEqual([0.0001])
   })
+})
+
+function quotedConsent(authority: PaidAuthority, answer: PaidUseAnswer = 'once') {
+  const ask = vi.fn(() => Promise.resolve(answer))
+  const consent = new PaidUseConsent({
+    authority,
+    isOn: () => true,
+    canRemember: () => true,
+    readGrants: () => new Set(),
+    writeGrants: () => Promise.resolve(),
+    ask,
+    log: new FakeLogOutputChannel(),
+  })
+  return { consent, ask }
+}
+
+it('R4 P2-3: two approved conversations both POST after an interleaved daily reservation', async () => {
+  const authority = new PaidAuthority()
+  const { consent, ask } = quotedConsent(authority)
+  const held = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  const budget = claims()
+  let isFirst = true
+  const t = await host({
+    capabilities: () => CAPABILITIES,
+    maxCalls: () => 1,
+    pricing: { paidAuthority: authority },
+    consent: (request) => consent.allows(request),
+    daily: async (...args) => {
+      if (isFirst) {
+        isFirst = false
+        held.resolve(undefined)
+        await release.promise
+      }
+      return await budget.reserve(...args)
+    },
+  })
+  t.api.script(
+    { text: 'Second complete.', searches: [{}] },
+    { text: 'First complete.', searches: [{}] },
+  )
+  const firstTurn = t.turn()
+  await held.promise
+  const second = await t.engine.startSession({
+    workspaceRoot: '/ws',
+    modelId: 'muse-spark-1.3',
+    approvalMode: 'allowAll',
+  })
+  const watched = watchSessionTurns(second)
+  await second.sendTurn([{ type: 'text', text: 'Second search' }])
+  await watched.turnDone()
+  release.resolve(undefined)
+  await firstTurn
+  expect(ask).toHaveBeenCalledTimes(2)
+  expect(t.api.responseBodies()).toHaveLength(2)
+  expect(t.events).not.toContainEqual(
+    expect.objectContaining({ type: 'turnCompleted', errorKind: 'modelApi' }),
+  )
+  expect(budget.exactSettled).toHaveLength(2)
+})
+
+it('R4 P2-4: a parent-authorized explorer and retried follow-up POST through the shared authority', async () => {
+  const authority = new PaidAuthority()
+  const { consent, ask } = quotedConsent(authority, 'always')
+  const t = await host({
+    capabilities: () => CAPABILITIES,
+    maxCalls: () => 1,
+    pricing: { paidAuthority: authority },
+    consent: (request) => consent.allows(request),
+    subagents: true,
+    isRemembered: () => consent.isRemembered('webSearch'),
+    daily: claims().reserve,
+  })
+  t.api.script(
+    {
+      calls: [
+        {
+          name: 'subagent_spawn',
+          arguments: '{"role":"explorer","objective":"Research files"}',
+          callId: 'spawn',
+        },
+      ],
+    },
+    { text: 'Complete.', searches: [{}] },
+    { text: 'Complete.', searches: [{}] },
+  )
+  await t.session.sendTurn([{ type: 'text', text: 'Delegate research' }])
+  await vi.waitFor(() => {
+    expect(t.session.status).toBe('idle')
+    expect(t.session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
+      controlStatus: 'resultReady',
+      result: { summary: 'Complete.' },
+    })
+  })
+  expect(t.api.responseBodies()).toHaveLength(3)
+  const child = t.session.history().items.find((item) => item.kind === 'subagent')
+  if (child?.kind !== 'subagent' || child.subagentId === undefined) throw new Error('missing child')
+  t.api.script({ httpError: { status: 429 } }, { text: 'Follow-up complete.', searches: [{}] })
+  await t.session.messageSubagent(child.subagentId, 'Continue research', true)
+  await vi.waitFor(() => {
+    expect(t.session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
+      result: { summary: 'Follow-up complete.' },
+    })
+  })
+  expect(t.api.responseBodies()).toHaveLength(5)
+  expect(t.api.responseBodies().every((body) => body['max_tool_calls'] === 1)).toBe(true)
+  expect(ask.mock.calls).toHaveLength(3)
 })

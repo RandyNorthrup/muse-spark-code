@@ -1,3 +1,4 @@
+import { PAID_APPROVAL_ORDER_DIRECTORY } from './shared/constants'
 import { PaidAuthority } from './core/paid/paidAuthority'
 import { Usd } from './shared/usd'
 import { isJudgeEngineOn } from './core/judge/engine'
@@ -914,6 +915,7 @@ async function activateWindow(
   })
   const paid = createPaidFeatures({
     authority: paidAuthority,
+    orderDirectory: path.join(context.globalStorageUri.fsPath, PAID_APPROVAL_ORDER_DIRECTORY),
     globalState: context.globalState,
     workspaceState: context.workspaceState,
     isSettingOn: (feature) =>

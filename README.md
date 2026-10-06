@@ -199,7 +199,11 @@ Hosted-search approvals bind the provider, model and quoted price. A model
 change while the question is open asks again. A higher price also asks again;
 an equal or lower price can use the workspace's approval for that same model
 and provider. **Ask again** invalidates pending answers and saves; saving one
-model cannot restore another model’s approval. A dispatched request settles at its original quote. Accounting
+model cannot restore another model’s approval. The newest Always approval sets
+the tariff ceiling across conversations and windows, including a cheaper price.
+Parallel conversations keep their own approved requests; child tasks inherit the
+parent’s search authorization within its bound and existing budgets. A dispatched
+request settles at its original quote. Accounting
 keeps exact decimal amounts, and paid displays round upward so a positive
 charge is never shown as free. Hosted-search product wiring remains subject
 to the verified billing-bound availability described above.

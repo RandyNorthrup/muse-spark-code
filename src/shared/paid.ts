@@ -37,6 +37,8 @@ import type { BackendKind } from './protocol'
 export const paidQuoteSchema = z.object({
   id: z.string().check(z.minLength(1)),
   feature: z.literal('webSearch'),
+  conversationId: z.optional(z.string()),
+  maxCalls: z.optional(z.int().check(z.positive())),
   provider: z.string().check(z.minLength(1)),
   model: z.string().check(z.minLength(1)),
   modelRevision: z.int().check(z.nonnegative()),

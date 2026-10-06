@@ -3490,6 +3490,8 @@ export class ModelApiSession implements AgentSession {
       const quote = freezePaidQuote({
         id: this.deps.newId(),
         feature: 'webSearch',
+        conversationId: this.sessionId,
+        ...(this.webSearchBound() !== undefined && { maxCalls: this.webSearchBound() }),
         provider: this.deps.client.providerId(this.modelId),
         model: this.modelId,
         modelRevision: this.modelRevision,
@@ -3504,7 +3506,8 @@ export class ModelApiSession implements AgentSession {
           this.childTaskGrant?.isWebSearchAllowed === true &&
           parentQuote?.provider === quote.provider &&
           parentQuote.model === quote.model &&
-          Usd.from(quote.tariffUsd).compare(Usd.from(parentQuote.tariffUsd)) <= 0
+          Usd.from(quote.tariffUsd).compare(Usd.from(parentQuote.tariffUsd)) <= 0 &&
+          this.deps.client.inheritSearchQuote(parentQuote, quote)
             ? quote
             : undefined
       } else {

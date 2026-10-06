@@ -291,14 +291,14 @@ describe('AcpPaidUse', () => {
 
   it('lets an "always" it cannot keep go ahead once, and asks again next time', async () => {
     const grants = memoryPaidGrants()
-    vi.spyOn(grants, 'add').mockRejectedValue(new Error('read-only data folder'))
+    vi.spyOn(grants, 'writeQuote').mockRejectedValue(new Error('read-only data folder'))
     const log = logger()
     const paid = new AcpPaidUse({ flagged: ['webSearch'], canRemember: () => true, grants, log })
     const asker = vi.fn(() => Promise.resolve('always' as const))
     paid.attach(asker)
     expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
     expect(log.warn).toHaveBeenCalledWith(
-      'Paid use of webSearch: "always" could not be kept, so it is allowed once: read-only data folder',
+      'Paid search quote could not be kept: read-only data folder',
     )
     expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
     expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
@@ -612,7 +612,7 @@ describe('R3 ACP generation-owned quote records', () => {
   })
 
   it.each([true, false])(
-    'P2-2: a delayed expensive quote save cannot overwrite a cheaper grant (revocation %s)',
+    'R4 P2-1: persisted approval order beats an older owner three-Once history (revocation %s)',
     async (revokes) => {
       const file = grantsFile()
       const store = fileStore(file)
@@ -622,6 +622,9 @@ describe('R3 ACP generation-owned quote records', () => {
         grants: store,
         log: logger(),
       })
+      first.attach(() => Promise.resolve('once'))
+      for (const id of ['once-a', 'once-b', 'once-c'])
+        await first.allows(FOLDER, 'old', quotedSearch('0.01', 'model-a', id), false)
       first.attach(() => Promise.resolve('always'))
       const barrier = holdFirstRename((_from, to) =>
         String(to).replaceAll('\\', '/').endsWith('.quote'),
@@ -650,4 +653,38 @@ describe('R3 ACP generation-owned quote records', () => {
       expect(question).toHaveBeenCalledOnce()
     },
   )
+})
+
+it('R4 P2-1: ACP does not import legacy incomparable quote orders', async () => {
+  const file = grantsFile()
+  const store = fileStore(file)
+  const generation = await store.prepareQuoteGeneration?.()
+  if (generation === undefined) throw new Error('missing generation')
+  const request = quotedSearch('0.01')
+  const key = JSON.stringify(['webSearch', 'meta', 'model-a'])
+  writeFileSync(
+    path.join(
+      `${file}.d`,
+      'webSearch',
+      `${workspaceKey(FOLDER)}.${generation}.json.${workspaceKey(key)}.legacy.quote`,
+    ),
+    JSON.stringify({ generation, order: 100, quote: request.quote }),
+  )
+  expect(store.readQuote?.(FOLDER, request.quote)).toBeUndefined()
+})
+
+it('R4 P2-3: profile authority preserves workspace-scoped remembered search', async () => {
+  const paid = new AcpPaidUse({
+    flagged: ['webSearch'],
+    canRemember: () => true,
+    grants: fileStore(grantsFile()),
+    log: logger(),
+  })
+  paid.attach(() => Promise.resolve('always'))
+  await paid.allows(FOLDER, 'first', quotedSearch('0.0025', 'model-a', 'first'), false)
+  paid.attach(() => Promise.resolve('once'))
+  await paid.allows(OTHER, 'second', quotedSearch('0.0025', 'model-a', 'second'), false)
+  await paid.allows(FOLDER, 'first', quotedSearch('0.0025', 'model-a', 'first-again'), false)
+  expect(paid.isRemembered(FOLDER, 'webSearch')).toBe(true)
+  expect(paid.isRemembered(OTHER, 'webSearch')).toBe(false)
 })
