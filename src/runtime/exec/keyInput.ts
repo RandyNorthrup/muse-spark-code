@@ -1,6 +1,9 @@
 // Bounded, cancellable stdin readers; never load a native credential module.
 import type { Readable } from 'node:stream'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
+import type { KeyShape } from '../../core/providers/presets'
+import { presets } from '../../host/backend/providersEntry'
+const { isKeyShape } = presets
 import { EXEC_KEY_MAX_BYTES, SECRET_KEYS, UI_TEXT } from '../../shared/constants'
 
 export interface MemorySecretStore extends SecretStore {
@@ -9,20 +12,29 @@ export interface MemorySecretStore extends SecretStore {
 
 /** The supplied key is the sole entry, even when a caller tries another name. */
 export function memorySecretStore(key: string): MemorySecretStore {
-  let held: string | undefined = key
+  return memorySecretStoreFor({ [SECRET_KEYS.modelApiKey]: key })
+}
+
+/**
+ * Headless secrets held only in memory: each account's key, cleared when
+ * the run ends. The map is exactly what the caller gave: a provider run
+ * holds its provider's account, never the Meta key's alongside it.
+ */
+export function memorySecretStoreFor(entries: Readonly<Record<string, string>>): MemorySecretStore {
+  const held = new Map(Object.entries(entries))
   return {
     get(name) {
-      return Promise.resolve(name === SECRET_KEYS.modelApiKey ? held : undefined)
+      return Promise.resolve(held.get(name))
     },
     store() {
       return Promise.reject(new Error(UI_TEXT.execTrustRefused))
     },
     delete(name) {
-      if (name === SECRET_KEYS.modelApiKey) held = undefined
+      held.delete(name)
       return Promise.resolve()
     },
     clear() {
-      held = undefined
+      held.clear()
     },
   }
 }
@@ -97,9 +109,11 @@ function readBytes(
   })
 }
 
-export async function readKeyLine(
+/** One bounded, wiped UTF-8 line, with the caller's key-shape validator. */
+async function readValidatedKeyLine(
   input: Readable,
   signal: AbortSignal,
+  isValid: (key: string) => boolean,
 ): Promise<
   { ok: true; key: string } | { ok: false; reason: 'tty' | 'empty' | 'invalid' | 'tooLong' }
 > {
@@ -121,11 +135,27 @@ export async function readKeyLine(
     bytes.fill(0)
   }
   if (key === '') return { ok: false, reason: 'empty' }
-  // isValidModelApiKey trims for pasted keys; this key is used as read, so
-  // surrounding white space is refused rather than sent.
-  return key === key.trim() && isValidModelApiKey(key)
-    ? { ok: true, key }
-    : { ok: false, reason: 'invalid' }
+  return key === key.trim() && isValid(key) ? { ok: true, key } : { ok: false, reason: 'invalid' }
+}
+
+export async function readKeyLine(
+  input: Readable,
+  signal: AbortSignal,
+): Promise<
+  { ok: true; key: string } | { ok: false; reason: 'tty' | 'empty' | 'invalid' | 'tooLong' }
+> {
+  return await readValidatedKeyLine(input, signal, isValidModelApiKey)
+}
+
+/** Provider keys use the same bounded input and cleanup as Meta, with their own shape. */
+export async function readProviderKeyLine(
+  input: Readable,
+  signal: AbortSignal,
+  shape: KeyShape,
+): Promise<
+  { ok: true; key: string } | { ok: false; reason: 'tty' | 'empty' | 'invalid' | 'tooLong' }
+> {
+  return await readValidatedKeyLine(input, signal, (key) => isKeyShape(shape, key))
 }
 
 export async function readPromptStdin(

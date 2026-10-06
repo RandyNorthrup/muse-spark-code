@@ -17,6 +17,9 @@ import {
   type ShellSandboxMode,
   UI_TEXT,
 } from '../shared/constants'
+import { modelRef } from '../host/backend/providersEntry'
+const { isProviderId } = modelRef
+import type { OpenRouterPrivacy } from '../core/providers/presets'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
 import type { UsageQuery } from '../shared/usagePage'
@@ -31,6 +34,7 @@ export type UsageCommand =
       readonly format: 'text' | 'json' | 'csv'
       readonly out?: string
     }
+import type { ChatGptProviderAction } from './chatGptProviderCommands'
 
 export interface ServeOptions {
   readonly usageHistory?: boolean
@@ -60,16 +64,82 @@ export interface ReportOptions {
   readonly includeEvents: boolean
 }
 
+/** `providers add` flags (M95, PLAN.md D74): the terminal runs the same checks as the wizard. */
+export interface ProvidersAddOptions {
+  /** The preset to add from (or a configured provider id for `custom --as`). */
+  readonly preset: string
+  /** The entry id when it differs from the preset (`custom` servers). */
+  readonly as?: string | undefined
+  /** A custom server's address, a loopback address or an Azure resource. */
+  readonly address?: string | undefined
+  /** A custom server's wire format (D74: chat, responses or anthropic). */
+  readonly format?: 'chat' | 'responses' | 'anthropic' | undefined
+  /** The models to offer (`<modelId>` as the provider lists them). */
+  readonly models: readonly string[]
+  /** OpenRouter's privacy routing; the default stays `zdr` (D74). */
+  readonly privacy?: OpenRouterPrivacy | undefined
+  /** Confirm a private-network address (asked once, D74). */
+  readonly privateOk: boolean
+  /** Read the key from standard input (never an argument or the environment). */
+  readonly keyFromStdin: boolean
+}
+
 export type RuntimeCommand =
   | { readonly command: 'usage'; readonly options: UsageCommand }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
+  | { readonly command: 'chatGptProvider'; readonly action: ChatGptProviderAction }
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
-  | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'help' | 'version' }
+  | {
+      readonly command: 'authSet' | 'authStatus' | 'authClear'
+      readonly provider?: string | undefined
+    }
+  | { readonly command: 'providersList' }
+  | { readonly command: 'providersAdd'; readonly options: ProvidersAddOptions }
+  | { readonly command: 'providersTest'; readonly provider: string }
+  | { readonly command: 'providersRemove'; readonly provider: string }
+  | { readonly command: 'help' | 'version' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
+
+/** Exact terminal grammar: credentials and extra arguments are never accepted. */
+export function parseChatGptProviderAction(
+  argv: readonly string[],
+): ChatGptProviderAction | undefined {
+  const [command, action, provider, ...rest] = argv
+  if (command !== 'providers' || provider !== 'chatgpt' || rest.length > 0) return
+  switch (action) {
+    case 'add':
+    case 'remove':
+    case 'status': {
+      return action
+    }
+    default: {
+      return undefined
+    }
+  }
+}
+/**
+ * Flags `serve` and `login` never take (M95: `auth … --provider` and
+ * `providers …`). Each names a key of the strict parser's values, so
+ * indexing with one typechecks without a cast.
+ */
+const PROVIDER_AUTH_OPTIONS = [
+  'preset',
+  'as',
+  'address',
+  'format',
+  'model',
+  'privacy',
+  'private-ok',
+  'key-stdin',
+] as const
+const NON_SERVE_OPTIONS = ['provider', ...PROVIDER_AUTH_OPTIONS] as const
+
+/** The strict parser's values, for the provider subcommands below. */
+type StrictValues = ReturnType<typeof parseCommandLineStrictly>['values']
 
 /** `auth set|status|clear`: the key's three commands (D61). */
 function authCommand(name: string | undefined): 'authSet' | 'authStatus' | 'authClear' | undefined {
@@ -90,6 +160,7 @@ function authCommand(name: string | undefined): 'authSet' | 'authStatus' | 'auth
 }
 
 function isOneOf<T extends string>(allowed: readonly T[], value: string | undefined): value is T {
+  // Widened only to call includes; the predicate's true branch is the narrowing.
   return value !== undefined && (allowed as readonly string[]).includes(value)
 }
 
@@ -105,6 +176,12 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
   if (argv[0] === '--usage') return parseUsage(['--json', ...argv.slice(1)])
   if (argv[0] === 'usage') return parseUsage(argv.slice(1))
+  if (argv[0] === 'providers' && (argv[2] === 'chatgpt' || argv[2] === 'copilot')) {
+    const action = parseChatGptProviderAction(argv)
+    return action === undefined
+      ? { command: 'invalid', reason: UI_TEXT.acpChatGpt.usage }
+      : { command: 'chatGptProvider', action }
+  }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))
   let parsed: ReturnType<typeof parseCommandLineStrictly>
@@ -159,13 +236,155 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
   }
   if (values.maintenance === true) return invalid('--maintenance')
   if (first === undefined) {
-    return { command: 'serve', options }
+    // The provider commands' flags are not serve flags.
+    return NON_SERVE_OPTIONS.some((name) => values[name] !== undefined)
+      ? invalid(positionals.join(' '))
+      : { command: 'serve', options }
   }
-  if (first === 'login' && second === undefined) {
-    return { command: 'login', options }
+  if (first === 'login') {
+    return second === undefined && NON_SERVE_OPTIONS.every((name) => values[name] === undefined)
+      ? { command: 'login', options }
+      : invalid(positionals.join(' '))
   }
-  const auth = first === 'auth' && rest.length === 0 ? authCommand(second) : undefined
-  return auth === undefined ? invalid(positionals.join(' ')) : { command: auth }
+  if (first === 'providers') {
+    return parseProviders(values, second, rest)
+  }
+  if (first !== 'auth' || rest.length > 0) {
+    return invalid(positionals.join(' '))
+  }
+  if (PROVIDER_AUTH_OPTIONS.some((name) => values[name] !== undefined)) {
+    return invalid(positionals.join(' '))
+  }
+  const auth = authCommand(second)
+  if (auth === undefined) {
+    return invalid(positionals.join(' '))
+  }
+  const provider = values.provider
+  if (provider !== undefined && !isProviderId(provider)) {
+    return { command: 'invalid', reason: fill(UI_TEXT.providerUnknown, { provider }) }
+  }
+  return provider === undefined ? { command: auth } : { command: auth, provider }
+}
+
+/** `providers list|add|test|remove` (M95, PLAN.md D74). */
+function parseProviders(
+  values: StrictValues,
+  verb: string | undefined,
+  rest: readonly string[],
+): RuntimeCommand {
+  switch (verb) {
+    case 'list': {
+      return rest.length === 0 ? { command: 'providersList' } : invalid('providers list')
+    }
+    case 'test':
+    case 'remove': {
+      const [provider] = rest
+      if (provider === undefined || rest.length !== 1 || !isProviderId(provider)) {
+        return {
+          command: 'invalid',
+          reason: fill(UI_TEXT.providerUnknown, { provider: provider ?? '' }),
+        }
+      }
+      return { command: verb === 'test' ? 'providersTest' : 'providersRemove', provider }
+    }
+    case 'add': {
+      return parseProvidersAdd(values, rest)
+    }
+    default: {
+      return invalid(`providers ${verb ?? ''}`.trim())
+    }
+  }
+}
+
+/** `providers add --preset <id> [--as <id>] [--address <url>] [--model <id>…] …`. */
+function parseProvidersAdd(values: StrictValues, rest: readonly string[]): RuntimeCommand {
+  if (rest.length > 0) {
+    return invalid(`providers add ${rest.join(' ')}`.trim())
+  }
+  const preset = values.preset
+  if (typeof preset !== 'string' || !isProviderId(preset)) {
+    return {
+      command: 'invalid',
+      reason: fill(UI_TEXT.providerUnknown, {
+        provider: typeof preset === 'string' ? preset : '',
+      }),
+    }
+  }
+  const as = values.as
+  const address = values.address
+  // Narrowed without a cast: only these literals reach the options below.
+  let formatOption: 'chat' | 'responses' | 'anthropic' | undefined
+  switch (values.format) {
+    case 'chat':
+    case 'responses':
+    case 'anthropic': {
+      formatOption = values.format
+      break
+    }
+    default: {
+      formatOption = undefined
+      break
+    }
+  }
+  let privacyOption: OpenRouterPrivacy | undefined
+  switch (values.privacy) {
+    case 'zdr':
+    case 'no-training':
+    case 'any': {
+      privacyOption = values.privacy
+      break
+    }
+    default: {
+      privacyOption = undefined
+      break
+    }
+  }
+  const format = values.format
+  const privacy = values.privacy
+  if (
+    (as !== undefined && (typeof as !== 'string' || !isProviderId(as))) ||
+    (address !== undefined && typeof address !== 'string') ||
+    (format !== undefined && formatOption === undefined) ||
+    (privacy !== undefined && privacyOption === undefined) ||
+    // `--format` is a custom server's choice; `--privacy` is OpenRouter's.
+    (format !== undefined && preset !== 'custom') ||
+    (privacy !== undefined && preset !== 'openrouter')
+  ) {
+    return invalid('providers add')
+  }
+  const rawModels = values.model ?? []
+  if (rawModels.some((model) => typeof model !== 'string' || model === '')) {
+    return invalid('providers add')
+  }
+  for (const name of Object.keys(values)) {
+    if (
+      ![
+        'preset',
+        'as',
+        'address',
+        'format',
+        'model',
+        'privacy',
+        'key-stdin',
+        'private-ok',
+      ].includes(name)
+    ) {
+      return invalid(`--${name}`)
+    }
+  }
+  return {
+    command: 'providersAdd',
+    options: {
+      preset,
+      ...(as !== undefined && { as }),
+      ...(address !== undefined && { address }),
+      ...(formatOption !== undefined && { format: formatOption }),
+      models: rawModels,
+      ...(privacyOption !== undefined && { privacy: privacyOption }),
+      privateOk: values['private-ok'] === true,
+      keyFromStdin: values['key-stdin'] === true,
+    },
+  }
 }
 
 function parseUsage(argv: readonly string[]): RuntimeCommand {
@@ -272,6 +491,7 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
             'prompt-file': { type: 'string' },
             'untrusted-file': { type: 'string', multiple: true },
             'permission-mode': { type: 'string' },
+            provider: { type: 'string' },
             model: { type: 'string' },
             effort: { type: 'string' },
             output: { type: 'string' },
@@ -369,6 +589,16 @@ function parseCommandLineStrictly(argv: readonly string[]) {
       [ACP_PAID_FLAGS.webSearch]: { type: 'boolean' },
       [ACP_PAID_FLAGS.imageGeneration]: { type: 'boolean' },
       verbose: { type: 'boolean' },
+      // `auth … --provider <id>` and `providers …` (M95, PLAN.md D74).
+      provider: { type: 'string' },
+      preset: { type: 'string' },
+      as: { type: 'string' },
+      address: { type: 'string' },
+      format: { type: 'string' },
+      model: { type: 'string', multiple: true },
+      privacy: { type: 'string' },
+      'private-ok': { type: 'boolean' },
+      'key-stdin': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
     },

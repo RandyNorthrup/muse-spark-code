@@ -30,6 +30,8 @@ const BUDGETS = [
   // M95 integration: measured 93.0, 50.1 and 404.7 KiB respectively.
   // New bundles use measured + 15%, rounded up to 25 KiB (D6/D74).
   { path: 'dist/providers.js', budgetKiB: 125 },
+  { path: 'dist/subscriptions.js', budgetKiB: 50 },
+  { path: 'dist/configuredProviders.js', budgetKiB: 25 },
   { path: 'dist/modelsPanel.js', budgetKiB: 75 },
   // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
   { path: 'dist/usageService.js', budgetKiB: 100 },
@@ -157,6 +159,8 @@ const BUDGETS = [
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
   { path: 'dist/acp.js', budgetKiB: 850 },
+  // M102INT3: headless exec loads on first run; 799.3 KiB +15%, rounded to 25 KiB.
+  { path: 'dist/headless.js', budgetKiB: 925 },
 ]
 
 // Optional surfaces have their own measured + 15%, rounded-up budget.

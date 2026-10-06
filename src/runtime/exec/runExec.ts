@@ -37,7 +37,6 @@ import {
   MODEL_API_IMAGE_MODEL,
   SECRET_KEYS,
   UI_TEXT,
-  type EnvironmentVariable,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
 import { fill, formatUsd, plural } from '../../shared/l10n/text'
@@ -57,10 +56,19 @@ import {
   type TokenTotals,
 } from './execProtocol'
 import type { FdWriter } from './fdWriter'
-import { memorySecretStore, type MemorySecretStore, readKeyLine, readPromptStdin } from './keyInput'
+import {
+  memorySecretStore,
+  type MemorySecretStore,
+  readKeyLine,
+  readProviderKeyLine,
+  readPromptStdin,
+} from './keyInput'
+import { assembleProviderRun, type AssembledProviderRun } from './providerExec'
+import { providersFilePath, resolveEndpointHost } from '../providersCommands'
 import { createRunLedger } from './runLedger'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
+export { setUiText } from '../../shared/l10n/text'
 
 export interface ExecDeps {
   readonly usageRecording?: UsageRecording | undefined
@@ -77,14 +85,29 @@ export interface ExecDeps {
   stderr: FdWriter
   storeSecrets: SecretStore
   runGit: (args: readonly string[], cwd: string) => Promise<string>
-  museCodeCredentials: readonly EnvironmentVariable[]
   fetch: typeof fetch
   sleep: (ms: number) => Promise<void>
   now: () => number
   readFile: (path: string, maxBytes: number, signal: AbortSignal) => Promise<Uint8Array>
   randomHex: (bytes: number) => string
   log: Logger
+  /**
+   * The provider turn itself (M95 lanes T/I): lanes T/I provide the
+   * transport and host integration, so until they land this stays unset
+   * and a provider run fails with an explicit error after validation.
+   */
+  runProvider?: ProviderExecRunner | undefined
 }
+
+/** What the provider turn receives: the lifecycle, the run's deps and the assembly. */
+export interface ProviderRunRequest {
+  readonly lifecycle: Lifecycle
+  readonly deps: ExecDeps
+  readonly run: AssembledProviderRun
+}
+
+/** A provider turn on an assembled run (M95 lanes T/I own the implementation). */
+export type ProviderExecRunner = (request: ProviderRunRequest) => Promise<number>
 
 function stopMessage(cause: StopCause, maxRequests: number): string {
   switch (cause.kind) {
@@ -302,6 +325,57 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     }
     drain(sink)
   }
+  /**
+   * A BYO provider run (M95, PLAN.md D74): everything is resolved and
+   * checked up front — the provider from the runner's own user file, a
+   * model naming it, a bound credential, a re-checked endpoint and the
+   * pinned fetch — then the turn itself runs through lane T/I's seam.
+   */
+  async function runWithProvider(): Promise<number> {
+    const providerId = options.provider ?? ''
+    // Past argument parsing: failures from here are the run's, not usage,
+    // unless assembly says otherwise.
+    setup.isUsageError = false
+    const assembled = await lifecycle.race(
+      assembleProviderRun({
+        filePath: providersFilePath({
+          platform: deps.platform,
+          homeDir: deps.homeDir,
+          xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+        }),
+        readFile: async (filePath) => {
+          const bytes = await deps.readFile(filePath, EXEC_PROMPT_MAX_BYTES, lifecycle.signal)
+          return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+        },
+        secrets: deps.storeSecrets,
+        resolveHost: resolveEndpointHost,
+        readKey: (shape) => readProviderKeyLine(deps.stdin, lifecycle.signal, shape),
+        providerId,
+        model: options.model,
+        keyFromStdin: options.keyFromStdin,
+        baseFetch: deps.fetch,
+      }),
+    )
+    if (!assembled.ok) {
+      if (assembled.failure.kind === 'usage') {
+        setup.isUsageError = true
+      } else {
+        status = 'auth_required'
+      }
+      error = assembled.failure.reason
+      return await finish()
+    }
+    memory = assembled.run.memory
+    for (const literal of assembled.run.literals) {
+      literals.push(literal)
+    }
+    if (deps.runProvider === undefined) {
+      status = 'backend_unavailable'
+      error = fill(UI_TEXT.execProviderNotReady, { provider: providerId })
+      return await finish()
+    }
+    return await deps.runProvider({ lifecycle, deps, run: assembled.run })
+  }
   void (async () => {
     try {
       await lifecycle.stopped
@@ -334,6 +408,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     }
   }
   try {
+    if (options.provider !== undefined) {
+      return await runWithProvider()
+    }
     const folder = await lifecycle.race(stat(cwd))
     if (!folder.isDirectory()) throw new Error(UI_TEXT.execFileUnreadable)
     let prompt: string
@@ -461,10 +538,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         homeDir: deps.homeDir,
         secrets: watchedSecrets,
         runGit: deps.runGit,
-        museCodeCredentials: deps.museCodeCredentials,
         fetch: transport?.fetch ?? deps.fetch,
         sleep: (ms) => lifecycle.race(deps.sleep(ms)),
         log,
+        usageRecording,
         exec: {
           isEphemeral: options.ephemeral,
           streamIdleMs: EXEC_STREAM_IDLE_MS,

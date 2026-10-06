@@ -12,7 +12,6 @@
 
 import { randomUUID } from 'node:crypto'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
-import { usageCompanionUrl } from '../runtime/usage/usageAdapter'
 import path from 'node:path'
 import {
   agent as acpAgent,
@@ -64,7 +63,7 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
-import { fill } from '../shared/l10n/text'
+import { fill, uiLocale } from '../shared/l10n/text'
 import { parseSkillInvocation } from '../shared/mentions'
 import type { PaidUseRequest } from '../shared/paid'
 import {
@@ -128,6 +127,8 @@ export interface SignInMethod {
   readonly args: readonly string[]
   /** The command a user runs by hand where the client cannot (`muse-spark-code-acp auth set`). */
   readonly command: string
+  /** Terminal provider actions verify their own local result, independently of Meta. */
+  readonly verify?: () => Promise<string | undefined>
 }
 
 export interface AcpAgentDeps {
@@ -138,6 +139,7 @@ export interface AcpAgentDeps {
   readonly version: string
   readonly options: AcpAgentOptions
   readonly signIn: SignInMethod
+  readonly providerSignIns?: readonly SignInMethod[]
   /** The folder a `session/list` without one lists (the agent's own). */
   readonly defaultCwd: string
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
@@ -679,53 +681,21 @@ class AcpSession {
       !['/usage', '/usage page', '/usage open'].includes(block.text.trim())
     )
       return false
-    if (!this.canReplyUsage(preparing)) return true
-    const access = usage.access()
-    const state = await access.read({ range: '30d', groupBy: 'provider', metric: 'cost' })
-    if (!this.canReplyUsage(preparing)) return true
-    const text = access.usageText(state, 'markdown', 'summary')
-    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
-    const url = usageCompanionUrl(await usage.openPage())
-    if (!this.canReplyUsage(preparing)) return true
-    if (this.clientCapabilities.elicitation?.url != null) {
-      const cancellation = new AbortController()
-      const abandoned = new Promise<void>((resolve) => {
-        preparing.abandonElicitation = () => {
-          cancellation.abort()
-          resolve()
-        }
-      })
-      try {
-        // SDK cancellation tells the client to abandon the request, but its
-        // promise still waits for the peer. Release this command independently;
-        // the race also consumes a late client failure without a stale reply.
-        await Promise.race([
-          this.client.request(
-            'elicitation/create',
-            {
-              sessionId: this.sessionId,
-              mode: 'url',
-              elicitationId: randomUUID(),
-              message: UI_TEXT.openUsagePage,
-              url,
-            },
-            { cancellationSignal: cancellation.signal },
-          ),
-          abandoned,
-        ])
-        return true
-      } catch {
-        // An advertised feature can still fail; the local page remains reachable.
-        this.deps.log.warn('ACP usage URL elicitation failed')
-      } finally {
-        delete preparing.abandonElicitation
-      }
-    }
-    if (this.canReplyUsage(preparing))
-      this.send({
-        sessionUpdate: 'agent_message_chunk',
-        content: { type: 'text', text: `\n[${UI_TEXT.openUsagePage}](${url})` },
-      })
+    const entry = await import('../runtime/usage/usageAcp')
+    entry.setUiText(UI_TEXT, uiLocale())
+    await entry.replyAcpUsage({
+      usage,
+      preparing,
+      canReply: () => this.canReplyUsage(preparing),
+      send: (text) => {
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+      },
+      canElicitUrl: this.clientCapabilities.elicitation?.url != null,
+      sessionId: this.sessionId,
+      request: (params, signal) =>
+        this.client.request('elicitation/create', params, { cancellationSignal: signal }),
+      log: this.deps.log,
+    })
     return true
   }
 
@@ -1065,8 +1035,8 @@ class AgentState {
    * allows a terminal method only then), otherwise by the user, whose
    * `authenticate` this checks.
    */
-  private authMethod(): AuthMethod {
-    const { id, name, description, args, command } = this.deps.signIn
+  private authMethod(method: SignInMethod): AuthMethod {
+    const { id, name, description, args, command } = method
     return this.clientCapabilities.auth?.terminal === true
       ? { type: 'terminal', id, name, description, args: [...args] }
       : { id, name, description: fill(UI_TEXT.acpSignInByHand, { command }) }
@@ -1270,13 +1240,22 @@ class AgentState {
         mcpCapabilities: { http: this.deps.backend.kind === 'museCode', sse: false },
         sessionCapabilities: { list: {}, resume: {}, close: {} },
       },
-      authMethods: [this.authMethod()],
+      authMethods: [this.deps.signIn, ...(this.deps.providerSignIns ?? [])].map((method) =>
+        this.authMethod(method),
+      ),
       agentInfo: { name: ACP_AGENT_NAME, title: ACP_AGENT_TITLE, version: this.deps.version },
     }
   }
 
   /** Confirms the sign-in took; the client asks again if not. */
-  public async authenticate(): Promise<Record<string, never>> {
+  public async authenticate(methodId: string): Promise<Record<string, never>> {
+    const provider = this.deps.providerSignIns?.find((method) => method.id === methodId)
+    if (provider?.verify !== undefined) {
+      const failure = await provider.verify()
+      if (failure !== undefined) throw RequestError.authRequired(undefined, failure)
+      return {}
+    }
+    if (methodId !== this.deps.signIn.id) throw RequestError.invalidParams()
     await this.requireReady(true)
     return {}
   }
@@ -1424,7 +1403,7 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
       deps.onClientName?.(context.params.clientInfo?.name ?? 'ACP')
       return state.initialize(context.params.clientCapabilities)
     })
-    .onRequest('authenticate', () => state.authenticate())
+    .onRequest('authenticate', (context) => state.authenticate(context.params.methodId))
     .onRequest('session/new', (context) =>
       state.newSession(context.params.cwd, context.params.mcpServers, context.client),
     )

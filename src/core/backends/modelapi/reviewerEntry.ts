@@ -17,6 +17,7 @@ import {
   reserveRequest,
   type OwnedSessionBudgetScope,
   type SessionBudgetClaim,
+  helperRequestSettlement,
 } from './sessionBudget'
 import {
   effortForPolicy,
@@ -358,18 +359,16 @@ async function callReviewer(
       }
     }
     if (claim !== undefined) {
-      const wasSent = directBudget?.isSent === true
-      const hasUsage = usage !== null && usage !== undefined && context.isCountedUsage(usage)
-      let costUsd = wasSent && !wasRefused ? reservedUsd : 0
-      let hasKnownCost = false
-      if (usage !== null && usage !== undefined && context.isCountedUsage(usage)) {
-        const settledCost = context.resolved.price.settle(modelPricedUsage(usage), {
-          cost: usage.provider_cost_usd,
-        })
-        hasKnownCost = settledCost !== undefined
-        costUsd = settledCost ?? reservedUsd
-      }
-      await claim.settle(costUsd, wasSent && !wasRefused && (!hasUsage || !hasKnownCost))
+      const settlement = helperRequestSettlement(
+        modelId,
+        usage,
+        context.isCountedUsage,
+        directBudget?.isSent === true,
+        wasRefused,
+        reservedUsd,
+        context.resolved.price,
+      )
+      await claim.settle(settlement.costUsd, settlement.isUnknown)
     }
   }
   return parseReviewerAnswer(text) ?? 'unreadable'

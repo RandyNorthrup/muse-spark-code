@@ -17,6 +17,11 @@ import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
 import type { UsagePanel } from './host/usage/usagePanel'
+import {
+  PROVIDER_SECRET_PREFIX,
+  PROVIDERS_CONFIG_DIR_NAME,
+  PROVIDERS_FILE_NAME,
+} from './shared/constants'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
@@ -206,7 +211,6 @@ import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import {
   modelsPanelLoader,
-  providersSeamLoader,
   providerCredentials,
   recoverProviderRemovals,
 } from './host/models/modelsPanelBundle'
@@ -249,7 +253,6 @@ import {
   BROWSER_RUNTIME_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
   MODELS_PANEL_BUNDLE_FILE,
-  PROVIDERS_BUNDLE_FILE,
   WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
@@ -964,13 +967,59 @@ async function activateWindow(
     },
   }
 
-  const providersSeamBundle = providersSeamLoader({
-    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', PROVIDERS_BUNDLE_FILE).fsPath,
+  const modelsPanelBundle = modelsPanelLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_PANEL_BUNDLE_FILE).fsPath,
     log,
   })
-  const credentials = providerCredentials(context.secrets, log, () =>
-    providersSeamBundle().store.list(),
+  const providerConfigFile = path.join(
+    process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
+    PROVIDERS_CONFIG_DIR_NAME,
+    PROVIDERS_FILE_NAME,
   )
+  let isSubscriptionConnecting = false
+  let subscriptions:
+    ReturnType<ReturnType<typeof modelsPanelBundle>['createSubscriptionFeatures']> | undefined
+  const subscriptionFeatures = () =>
+    (subscriptions ??= modelsPanelBundle().createSubscriptionFeatures({
+      log,
+      secrets: context.secrets,
+      globalStorageUri: context.globalStorageUri,
+      globalState: context.globalState,
+      l10n,
+      catalogFile: vscode.Uri.joinPath(context.extensionUri, 'dist', 'providerCatalog.json').fsPath,
+      configFile: providerConfigFile,
+      isRemote: vscode.env.remoteName !== undefined,
+      isConfidential: () => currentSettings().confidentialWorkspace,
+      access: context.languageModelAccessInformation,
+      disconnected: async () => {
+        await restartBackend('a subscription disconnected')
+        await auth.refresh()
+      },
+      connected: async (ref) => {
+        isSubscriptionConnecting = true
+        try {
+          await vscode.workspace
+            .getConfiguration(SETTINGS_SECTION)
+            .update('backend', 'modelApi', vscode.ConfigurationTarget.Global)
+          await restartBackend('a subscription connected')
+          await auth.refresh()
+          await setComposerModel(ref)
+        } finally {
+          isSubscriptionConnecting = false
+        }
+      },
+    }))
+  const providersSeamBundle = () => subscriptionFeatures().seam
+  const credentials = providerCredentials(context.secrets, log, async () => {
+    const features = subscriptionFeatures()
+    const entries = await features.seam.store.list()
+    // Only a live, non-confidential host grant supplies credential-free readiness.
+    return entries.map((entry) =>
+      entry.id === 'copilot' && features.hasCopilotAccess()
+        ? { ...entry, auth: 'none' as const }
+        : entry,
+    )
+  })
   // The paid Model API features (M33–M35, PLAN.md D30): on only with the
   // setting on and the price accepted; every panel shows which are on.
   // Whether a Model API key is stored (M44): the Muse Code backend then
@@ -1641,6 +1690,11 @@ async function activateWindow(
   const hasCliSession = async () =>
     backend.hasEnvironmentKey() || isCliSignedIn(await cliAccount.signIn(false))
   const auth = new AuthService({
+    getPlanAccount: async () =>
+      subscriptions === undefined &&
+      (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
+        ? undefined
+        : await subscriptionFeatures().planAccount(),
     backend: {
       resolveCli: () => {
         // The sign-in gate's check is an explicit re-look: an install is noticed at once.
@@ -2274,6 +2328,13 @@ async function activateWindow(
         })
   const modelApi = new ModelApiBackendManager({
     judge,
+    createProviderClient: async (meta) =>
+      subscriptions === undefined &&
+      !existsSync(providerConfigFile) &&
+      (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
+        ? meta
+        : await subscriptionFeatures().createClient(meta),
+    getProviderAccountId: () => subscriptionFeatures().accountId(),
     log,
     // Each Model API turn's unit (M86): its record before it runs, its own
     // recorded writes while it does, then its writes drained, its unit folded
@@ -3373,10 +3434,6 @@ async function activateWindow(
   // lane-P/T seam load on the first Models action; activation keeps only
   // these registrations and the loaders. Until lanes P and I merge, the
   // seam load refuses and each command says the panel is unavailable.
-  const modelsPanelBundle = modelsPanelLoader({
-    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_PANEL_BUNDLE_FILE).fsPath,
-    log,
-  })
   /** Asks the conversation to set the composer's model (its refusal stands). */
   const setComposerModel = async (modelRef: string): Promise<void> => {
     if (registry.active === undefined) {
@@ -3405,6 +3462,10 @@ async function activateWindow(
       const seam = providersSeamBundle()
       modelsFeatures = bundle.createModelsPanelFeatures(
         {
+          connectChatGpt: () => subscriptionFeatures().connectChatGpt(),
+          connectCopilot: () => subscriptionFeatures().connectCopilot(),
+          removeSubscription: (id) => subscriptionFeatures().removeSubscription(id),
+          isConfidential: () => currentSettings().confidentialWorkspace,
           secrets: context.secrets,
           extensionUri: context.extensionUri,
           l10n,
@@ -3641,6 +3702,7 @@ async function activateWindow(
       // message spawns afresh (and resumes the conversation, D25).
       const isBackendSetting = event.affectsConfiguration(BACKEND_SETTING)
       if (isBackendSetting) {
+        if (isSubscriptionConnecting) return
         void restartBackend('the backend setting changed')
           .then(() => auth.refresh())
           .catch(logRejection(log, 'backend restart'))
@@ -3709,6 +3771,12 @@ async function activateWindow(
       surface.reveal()
       await controllerFor(surface).handle({ type: 'clearConversation' })
     }),
+    registerLoggedCommand(log, COMMAND_IDS.connectChatGpt, () =>
+      subscriptionFeatures().connectChatGpt(),
+    ),
+    registerLoggedCommand(log, COMMAND_IDS.connectCopilot, () =>
+      subscriptionFeatures().connectCopilot(),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.signOut, async () => {
       await auth.signOut()
       void vscode.window.showInformationMessage(UI_TEXT.signedOutNotice)

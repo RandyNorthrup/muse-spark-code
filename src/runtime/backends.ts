@@ -1,3 +1,5 @@
+import type { ProviderClient } from '../core/backends/modelapi/client'
+import type { runtimeSubscriptionClient } from './chatGptProviderCommands'
 // The ACP agent's backend (PLAN.md D62): the panel's backend managers,
 // given in this process what VS Code gives them in the extension, one per
 // workspace folder. Muse Code signs in on its own and the subscription
@@ -11,12 +13,17 @@
 // through the client (M63c).
 
 import { randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
-import { environmentValue } from '../core/backends/musecode/launch'
+import {
+  buildChildEnvironment,
+  environmentValue,
+  withLoopbackBypass,
+} from '../core/backends/musecode/launch'
 import { personalSkillsRoot } from '../core/context/skills'
 import { personalAgentsRoot } from '../core/context/customAgents'
 import { memoryDataRoot } from '../core/memory/memoryLocation'
@@ -44,13 +51,15 @@ import { pageConverter } from '../host/web/pageConverter'
 import { createWebFetcher } from '../host/web/webFetcher'
 import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
-  type EnvironmentVariable,
   FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
   MODEL_API_BUNDLE_FILE,
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
+  PROVIDER_SECRET_PREFIX,
+  PROVIDERS_CONFIG_DIR_NAME,
+  PROVIDERS_FILE_NAME,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
@@ -62,7 +71,11 @@ import {
   paidGrantsFile,
   workspaceSessionsFolder,
 } from './dataFolder'
-import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
+import {
+  museCodeEnvironment,
+  withoutCredentials,
+  withoutKeyringRoutes,
+} from './credentialVariables'
 import { walkFiles } from './fileWalk'
 import { paidGrantFile } from './paidGrants'
 
@@ -84,12 +97,6 @@ export interface RuntimeBackendDeps {
   readonly homeDir: string
   readonly secrets: SecretStore
   readonly runGit: (args: readonly string[], cwd: string) => Promise<string>
-  /**
-   * The credential variables taken out of the agent's own environment at
-   * start (credentialVariables.ts): handed back to Muse Code's processes
-   * only, as the extension's `muse serve` inherits them (D1).
-   */
-  readonly museCodeCredentials: readonly EnvironmentVariable[]
   /** The Model API's transport. */
   readonly fetch: typeof fetch
   /** Waits between retries and rename attempts; injectable so tests do not sleep. */
@@ -129,13 +136,30 @@ function independentEditorStartupPolicy(log: Logger): Promise<void> {
 
 function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undefined) {
   const { options, log } = deps
-  return new MuseCodeBackendManager({
+  // VS Code inherits its host environment (D1); the standalone runtime has
+  // a stricter boundary, shared by serve, account hosts and login.
+  const Manager = class extends MuseCodeBackendManager {
+    public override childEnvironment(): NodeJS.ProcessEnv {
+      const env = museCodeEnvironment(deps.env)
+      return withLoopbackBypass(
+        buildChildEnvironment({
+          platform: deps.platform,
+          baseEnv: env,
+          extraVariables: [],
+          systemRoot: environmentValue(env, deps.platform, 'SystemRoot'),
+          programFiles: environmentValue(env, deps.platform, 'ProgramFiles'),
+        }),
+        deps.platform,
+      )
+    }
+  }
+  return new Manager({
     // This records the actual scope boundary; it does not certify a VS Code fence.
     beforeWorkspaceHostStart: () => independentEditorStartupPolicy(log),
     log,
     extensionVersion: deps.version,
     getConfiguredBinaryPath: () => options.museBinary,
-    getEnvironmentVariables: () => deps.museCodeCredentials,
+    getEnvironmentVariables: () => [],
     workspaceRoot,
     getShellSandbox: () => options.shellSandbox,
     // No `--sandbox-network` (M56): Muse Code's default, or a managed policy's.
@@ -163,6 +187,24 @@ function modelApiManager(
   assertWorkspaceCurrent: () => void,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
+  const providerConfigFile = path.join(
+    deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+    PROVIDERS_CONFIG_DIR_NAME,
+    PROVIDERS_FILE_NAME,
+  )
+  let subscriptions: Promise<ReturnType<typeof runtimeSubscriptionClient>> | undefined
+  const subscriptionClient = () =>
+    (subscriptions ??= (async () => {
+      const bundle = await import('./chatGptProviderCommands')
+      return bundle.runtimeSubscriptionClient({
+        secrets: deps.secrets,
+        fetch: deps.fetch,
+        catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+        configFile: providerConfigFile,
+        openBrowser: () => Promise.reject(new Error(UI_TEXT.acpChatGpt.failure)),
+        callbackText: () => UI_TEXT.acpChatGpt.callback,
+      })
+    })())
   const isWorkspaceTrusted = () => options.trustWorkspace
   const dataInput: DataFolderInput = { platform, env: deps.env, homeDir: deps.homeDir }
   const systemRoot = deps.env['SystemRoot']
@@ -259,6 +301,21 @@ function modelApiManager(
     contextIo: fileContextIo,
     webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
     fetch: deps.fetch,
+    ...(deps.exec === undefined && {
+      createProviderClient: async (meta: ProviderClient) => {
+        if (
+          !existsSync(providerConfigFile) &&
+          (await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
+        )
+          return meta
+        const factory = await subscriptionClient()
+        return await factory.createClient(meta)
+      },
+      getProviderAccountId: async () => {
+        const factory = await subscriptionClient()
+        return await factory.accountId()
+      },
+    }),
     ...(deps.exec !== undefined && { streamIdleMs: deps.exec.streamIdleMs }),
     newId: () => randomUUID(),
     now: () => Date.now(),
@@ -423,6 +480,31 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       return {
         state: 'unavailable',
         message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
+      }
+    }
+    if (deps.exec === undefined && (key === undefined || key === '')) {
+      try {
+        if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)
+          return { state: 'ready' }
+        const configFile = path.join(
+          deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+          PROVIDERS_CONFIG_DIR_NAME,
+          PROVIDERS_FILE_NAME,
+        )
+        if (existsSync(configFile)) {
+          const entry = await import('./chatGptProviderCommands')
+          const factory = entry.runtimeSubscriptionClient({
+            secrets: deps.secrets,
+            fetch: deps.fetch,
+            configFile,
+            catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+            openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
+            callbackText: () => UI_TEXT.acpChatGpt.callback,
+          })
+          if ((await factory.accountId()) !== undefined) return { state: 'ready' }
+        }
+      } catch {
+        return { state: 'unavailable', message: UI_TEXT.acpChatGpt.storeUnavailable }
       }
     }
     return key === undefined || key === ''

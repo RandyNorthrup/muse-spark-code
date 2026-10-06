@@ -3321,6 +3321,7 @@ export class ConversationController {
         outputUsdPerMTokens: model.outputUsdPerMTokens,
       }),
       ...(model.isPinned === true && { isPinned: model.isPinned }),
+      ...(model.planLimitsUrl !== undefined && { planLimitsUrl: model.planLimitsUrl }),
       ...(model.trainsOnContent === true && { trainsOnContent: model.trainsOnContent }),
     }))
     this.post({ type: 'modelList', models: [...this.models] })
@@ -7877,6 +7878,7 @@ export class ConversationController {
       ...(providers.length > 0 && { providers }),
       ...(shown !== undefined && { subscription: shown }),
       ...(insights !== undefined && { insights }),
+      ...(host.readPlanUsage !== undefined && { plans: [...host.readPlanUsage()] }),
     })
   }
 

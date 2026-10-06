@@ -322,3 +322,6 @@ export async function serveUsageStdio(
     }
   }
 }
+
+export { replyAcpUsage } from './usageAcp'
+export { setUiText } from '../../shared/l10n/text'

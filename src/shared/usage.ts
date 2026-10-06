@@ -80,6 +80,29 @@ export const providerUsageRowSchema = z.object({
 })
 export type ProviderUsageRow = z.infer<typeof providerUsageRowSchema>
 
+// Lane S's non-secret tally contract, validated without loading the provider bundle.
+const planCount = z.int().check(z.gte(0))
+const planTokens = z.object({
+  inputTokens: planCount,
+  outputTokens: planCount,
+  requests: planCount,
+})
+const planRow = z
+  .object({
+    requests: planCount,
+    providerId: z.string().check(
+      z.regex(/^[a-z][a-z0-9-]{0,31}$/),
+      z.refine((id) => id !== 'meta'),
+    ),
+    estimated: planTokens,
+    reported: planTokens,
+  })
+  .check(z.refine((row) => row.estimated.requests + row.reported.requests <= row.requests))
+export const planUsageReportSchema = z
+  .array(planRow)
+  .check(z.refine((rows) => new Set(rows.map((row) => row.providerId)).size === rows.length))
+export type PlanUsageRow = z.infer<typeof planRow>
+
 export const FULL_PERCENT = 100
 const MILLISECONDS_PER_MINUTE = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 

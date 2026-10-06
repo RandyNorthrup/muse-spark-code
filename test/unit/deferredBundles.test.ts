@@ -1,5 +1,3 @@
-import { readFileSync, writeFileSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
 // Build the real shipped Node entries once with the production plugins.
 // Each drill changes its own metafile copy, never shared dist/ files.
 import { createHash } from 'node:crypto'
@@ -9,7 +7,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { EN } from '../../src/shared/l10n/en'
 import { L10N_COMPRESSION_QUALITY } from '../../src/shared/constants'
@@ -65,46 +63,51 @@ beforeAll(async () => {
     define: { 'process.env.NODE_ENV': '"production"' },
   } as const
   const builds = await Promise.all([
+    ...Object.entries({
+      extension: 'src/extension.ts',
+      conversation: 'src/host/conversation/conversationEntry.ts',
+      modelApi: 'src/host/backend/modelApiEntry.ts',
+      providers: 'src/host/backend/providersEntry.ts',
+      subscriptions: 'src/host/backend/subscriptionsEntry.ts',
+      configuredProviders: 'src/host/backend/configuredProvidersEntry.ts',
+      usageService: 'src/runtime/usage/usageServiceEntry.ts',
+      usageCompanion: 'src/runtime/usage/usageCompanionEntry.ts',
+      usagePanel: 'src/host/usage/usagePanelEntry.ts',
+      headless: 'src/runtime/exec/runExec.ts',
+      modelsPanel: 'src/host/models/modelsPanelEntry.ts',
+      sessionBoard: 'src/host/sessionBoardEntry.ts',
+      reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
+      foreignHooks: 'src/core/backends/modelapi/foreignHooksEntry.ts',
+      hookRuntime: 'src/core/backends/modelapi/hookRuntimeEntry.ts',
+      pluginHooks: 'src/core/backends/modelapi/pluginHooksEntry.ts',
+      tab: 'src/host/tab/tabEntry.ts',
+      judge: 'src/host/judge/judgeEntry.ts',
+      report: 'src/host/support/reportEntry.ts',
+      recorder: 'src/host/support/recorderEntry.ts',
+      codeIntel: 'src/host/ide/codeIntelEntry.ts',
+      voice: 'src/host/voice/voiceEntry.ts',
+      webFetch: 'src/host/web/webFetchEntry.ts',
+      museCodeReviewer: 'src/host/review/museCodeReviewerEntry.ts',
+      whatsNew: 'src/host/whatsNew/whatsNewEntry.ts',
+      browserCheck: 'src/host/browser/browserCheckEntry.ts',
+      browserRuntime: 'src/host/browser/browserRuntimeEntry.ts',
+      checkpointStore: 'src/host/checkpoints/checkpointStoreEntry.ts',
+      pageWorker: 'src/host/web/pageWorker.ts',
+      searchWorker: 'src/host/backend/searchWorker.ts',
+    }).map(([name, entry]) =>
+      build({
+        ...common,
+        outfile: `dist/${name}.js`,
+        entryPoints: [entry],
+        plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+        external: ['vscode', '@napi-rs/keyring'],
+      }),
+    ),
     build({
       ...common,
-      outdir: 'dist',
-      entryPoints: {
-        extension: 'src/extension.ts',
-        conversation: 'src/host/conversation/conversationEntry.ts',
-        modelApi: 'src/host/backend/modelApiEntry.ts',
-        providers: 'src/host/backend/providersEntry.ts',
-        modelsPanel: 'src/host/models/modelsPanelEntry.ts',
-        usageService: 'src/runtime/usage/usageServiceEntry.ts',
-        usageCompanion: 'src/runtime/usage/usageCompanionEntry.ts',
-        usagePanel: 'src/host/usage/usagePanelEntry.ts',
-        sessionBoard: 'src/host/sessionBoardEntry.ts',
-        reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
-        foreignHooks: 'src/core/backends/modelapi/foreignHooksEntry.ts',
-        hookRuntime: 'src/core/backends/modelapi/hookRuntimeEntry.ts',
-        pluginHooks: 'src/core/backends/modelapi/pluginHooksEntry.ts',
-        tab: 'src/host/tab/tabEntry.ts',
-        judge: 'src/host/judge/judgeEntry.ts',
-        report: 'src/host/support/reportEntry.ts',
-        recorder: 'src/host/support/recorderEntry.ts',
-        codeIntel: 'src/host/ide/codeIntelEntry.ts',
-        voice: 'src/host/voice/voiceEntry.ts',
-        webFetch: 'src/host/web/webFetchEntry.ts',
-        museCodeReviewer: 'src/host/review/museCodeReviewerEntry.ts',
-        whatsNew: 'src/host/whatsNew/whatsNewEntry.ts',
-        browserCheck: 'src/host/browser/browserCheckEntry.ts',
-        browserRuntime: 'src/host/browser/browserRuntimeEntry.ts',
-        checkpointStore: 'src/host/checkpoints/checkpointStoreEntry.ts',
-        pageWorker: 'src/host/web/pageWorker.ts',
-        searchWorker: 'src/host/backend/searchWorker.ts',
-      },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
-      external: ['vscode', '@napi-rs/keyring'],
-    }),
-    build({
-      ...common,
-      outdir: 'dist',
+      outfile: 'dist/acp.js',
       target: 'node22',
-      entryPoints: { acp: 'src/runtime/main.ts' },
+      entryPoints: ['src/runtime/main.ts'],
       plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
       external: ['@napi-rs/keyring'],
     }),
@@ -142,10 +145,13 @@ beforeAll(async () => {
         ),
         outputs: { [`dist/${name}.js`]: details },
       })
-      fixtures.set(`dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`, {
-        bytes: Buffer.from(JSON.stringify(meta)),
-        meta,
-      })
+      fixtures.set(
+        `dist/${['acp', 'headless'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+        {
+          bytes: Buffer.from(JSON.stringify(meta)),
+          meta,
+        },
+      )
     }
   }
   parsers.push(parserSchema.parse(loadSupportBundle('validation')))
@@ -176,10 +182,11 @@ function loadSupportBundle(name: string): unknown {
     { filename: entry },
   )
   Reflect.apply(run, undefined, [
-    (file: string): unknown =>
-      file.startsWith('./') && bundleTexts.has(path.basename(file, '.js'))
-        ? loadSupportBundle(path.basename(file, '.js'))
-        : createRequire(entry)(file),
+    (file: string): unknown => {
+      if (file.startsWith('./') && bundleTexts.has(path.basename(file, '.js')))
+        return loadSupportBundle(path.basename(file, '.js'))
+      return file === 'vscode' ? {} : createRequire(entry)(file)
+    },
     module,
     module.exports,
     path.dirname(entry),
@@ -254,6 +261,126 @@ describe('deferred cohort bundles', () => {
     }
   })
 
+  it('installs the caller language in the compiled subscription command factory', async () => {
+    const loaded = loadSupportBundle('modelsPanel')
+    if (
+      typeof loaded !== 'object' ||
+      loaded === null ||
+      !('createSubscriptionFeatures' in loaded) ||
+      typeof loaded.createSubscriptionFeatures !== 'function'
+    )
+      throw new Error('Missing subscription factory')
+    const fetcher = vi.fn(() => Promise.reject(new Error('No provider calls')))
+    const options = {
+      l10n: {
+        locale: 'fr',
+        table: {
+          ...EN,
+          planUi: { ...EN.planUi, copilotUnavailable: 'synthetic French model recovery' },
+        },
+      },
+      log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), trace: vi.fn() },
+      secrets: {
+        get: () => Promise.resolve(undefined),
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+      globalStorageUri: { fsPath: path.resolve('temp') },
+      configFile: 'synthetic-unused.json',
+      globalState: { get: () => undefined, update: () => Promise.resolve() },
+      isRemote: false,
+      isConfidential: () => false,
+      access: { canSendRequest: () => false, onDidChange: () => ({ dispose: vi.fn() }) },
+      fetch: fetcher,
+      connected: () => Promise.resolve(),
+      disconnected: () => Promise.resolve(),
+    }
+    try {
+      const features: unknown = Reflect.apply(loaded.createSubscriptionFeatures, undefined, [
+        options,
+      ])
+      if (
+        typeof features !== 'object' ||
+        features === null ||
+        !('connectCopilot' in features) ||
+        typeof features.connectCopilot !== 'function'
+      )
+        throw new Error('Missing subscription action')
+      await expect(Reflect.apply(features.connectCopilot, undefined, [])).rejects.toThrow(
+        options.l10n.table.planUi.copilotUnavailable,
+      )
+      expect(fetcher).not.toHaveBeenCalled()
+    } finally {
+      Reflect.apply(loaded.createSubscriptionFeatures, undefined, [
+        { ...options, l10n: { table: EN, locale: 'en' } },
+      ])
+    }
+  })
+  it('installs the caller language before translated ChatGPT failures leave the lazy bundle', () => {
+    const loaded = loadSupportBundle('subscriptions')
+    if (
+      typeof loaded !== 'object' ||
+      loaded === null ||
+      !('runtimeChatGptCommandDeps' in loaded) ||
+      typeof loaded.runtimeChatGptCommandDeps !== 'function' ||
+      !('setUiText' in loaded) ||
+      typeof loaded.setUiText !== 'function'
+    )
+      throw new Error('Missing provider factory')
+    const table = {
+      ...EN,
+      acpChatGpt: { ...EN.acpChatGpt, storeUnavailable: 'synthetic French desktop recovery' },
+    }
+    try {
+      const deps: unknown = Reflect.apply(loaded.runtimeChatGptCommandDeps, undefined, [
+        {
+          uiText: table,
+          locale: 'fr',
+          configFile: 'synthetic-unused.json',
+          secrets: {
+            get: () => Promise.resolve(undefined),
+            store: () => Promise.resolve(),
+            delete: () => Promise.resolve(),
+          },
+          fetch,
+          openBrowser: () => Promise.resolve(),
+          callbackText: () => '',
+          print: vi.fn(),
+          printError: vi.fn(),
+        },
+      ])
+      if (
+        typeof deps !== 'object' ||
+        deps === null ||
+        !('text' in deps) ||
+        typeof deps.text !== 'object' ||
+        deps.text === null ||
+        !('failure' in deps.text) ||
+        typeof deps.text.failure !== 'function'
+      )
+        throw new Error('Missing translated command text')
+      const message: unknown = Reflect.apply(deps.text.failure, undefined, ['store-unavailable'])
+      expect(message).toBe(table.acpChatGpt.storeUnavailable)
+    } finally {
+      Reflect.apply(loaded.setUiText, undefined, [EN, 'en'])
+    }
+  })
+  it('keeps ChatGPT runtime and core in subscriptions.js behind the real ACP dynamic import', () => {
+    const acpInputs = inputs('acp')
+    expect(bundleText('acp')).toContain('./subscriptions.js')
+    for (const file of [
+      'src/runtime/chatGptProviderCommands.ts',
+      'src/runtime/chatGptHost.ts',
+      'src/core/providers/subscriptions/chatgpt.ts',
+    ]) {
+      expect(inputs('subscriptions')).toContain(file)
+      expect(acpInputs).not.toContain(file)
+    }
+    const bundle = loadSupportBundle('subscriptions')
+    expect(bundle).toHaveProperty('runtimeChatGptCommandDeps', expect.any(Function))
+    expect(bundle).toHaveProperty('runChatGptProviderCommand', expect.any(Function))
+    expect(bundle).toHaveProperty('chatGptAuthenticationMethods', expect.any(Function))
+  })
   it('loads the activation entry without requiring either action bundle', () => {
     const entry = bundleFile('extension')
     expect(bundleText('extension')).toContain('conversation.js')
@@ -284,9 +411,9 @@ describe('deferred cohort bundles', () => {
     expect(loaded).toContain('./wire.js')
     expect(loaded).not.toContain('./sessionBoard.js')
     expect(loaded).not.toContain('./reviewer.js')
+    expect(loaded).not.toContain('./conversation.js')
     expect(loaded).not.toContain('./providers.js')
     expect(loaded).not.toContain('./modelsPanel.js')
-    expect(loaded).not.toContain('./conversation.js')
   })
 
   it('keeps the conversation implementation behind its first-surface factory', () => {
@@ -421,43 +548,9 @@ describe('deferred cohort bundles', () => {
     }
   })
 
-  it('rejects a missing deferred input and restores its metafile byte-exact', () => {
-    const file = 'dist/meta/reviewer.json'
-    const meta = structuredClone(fixture(file).meta)
-    const original = JSON.stringify(meta)
-    const hash = createHash('sha256').update(original).digest('hex')
-    const output = meta.outputs['dist/reviewer.js']
-    if (output === undefined) throw new Error('Missing reviewer output')
-    const source = 'src/core/backends/modelapi/reviewerEntry.ts'
-    const input = output.inputs[source]
-    if (input === undefined) throw new Error('Missing reviewer input')
-    const originalInputs = structuredClone(output.inputs)
-    const check = () => {
-      const changed = outputInputs(meta, 'dist/reviewer.js')
-      return checkDeferredBundles((bundle) =>
-        bundle.metafile === file ? changed : bundleInputs(bundle),
-      )
-    }
-    expect(check()).toEqual([])
-    try {
-      Reflect.deleteProperty(output.inputs, source)
-      expect(check()).toEqual([`dist/reviewer.js no longer carries ${source}`])
-    } finally {
-      output.inputs = originalInputs
-    }
-    expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
-    expect(check()).toEqual([])
-  })
-
   it.each([
-    ['extension', 'src/core/usage/usageService.ts', 'on its first action'],
-    ['modelApi', 'src/core/usage/journalStore.ts', 'on its first action'],
-    ['acp', 'src/runtime/usage/usageCompanionEntry.ts', 'on its first action'],
-    ['extension', 'src/host/usage/usagePanel.ts', 'on its first action'],
+    ['reviewer', 'src/core/backends/modelapi/reviewerEntry.ts', 'missing'],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
-    ['modelsPanel', 'src/shared/protocol.ts', 'chat schemas'],
-    ['modelApi', 'node_modules/zod/v4/mini/future.js', 'shared mini-parser'],
-    ['webview', 'src/webview/components/UsageDialog.tsx', 'deferred webview chunk'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],
     ['acp', 'src/host/support/reportJournal.ts', 'from the recorder bundle'],
@@ -485,42 +578,55 @@ describe('deferred cohort bundles', () => {
     ['providers', 'src/core/backends/modelapi/codecs/responses.ts', 'missing'],
     ['providers', 'src/core/backends/modelapi/codecs/chat.ts', 'missing'],
     ['providers', 'src/core/backends/modelapi/codecs/ollama.ts', 'missing'],
+    ['subscriptions', 'src/core/providers/subscriptions/chatgpt.ts', 'missing'],
+    ['subscriptions', 'src/core/providers/subscriptions/registry.ts', 'missing'],
+    ['configuredProviders', 'src/core/providers/configured.ts', 'missing'],
+    ['configuredProviders', 'src/core/backends/modelapi/authSource.ts', 'missing'],
+    ['configuredProviders', 'src/core/backends/modelapi/providerClient.ts', 'missing'],
+    ['usageService', 'src/runtime/usage/usageAcp.ts', 'missing'],
+    ['acp', 'src/runtime/usage/usageAcp.ts', 'on its first action'],
+    ['headless', 'src/runtime/exec/runExec.ts', 'missing'],
+    ['acp', 'src/runtime/exec/runExec.ts', 'on its first action'],
+    ['modelApi', 'src/core/backends/modelapi/ndjson.ts', 'missing'],
+    ['modelApi', 'src/core/backends/modelapi/transport.ts', 'missing'],
+    ['modelApi', 'src/core/backends/modelapi/sse.ts', 'missing'],
+    ['extension', 'src/core/backends/modelapi/transport.ts', 'in dist/modelApi.js'],
+    ['acp', 'src/core/backends/modelapi/authSource.ts', 'in dist/configuredProviders.js'],
+    ['providers', 'src/core/backends/modelapi/sse.ts', 'in dist/modelApi.js'],
     // M90: the Auto reviewer on Muse Code, required on the first review.
     ['extension', 'src/host/review/museCodeReviewer.ts', 'on the first review'],
   ])(
     'fires the %s split guard for %s and restores its metafile byte-exact',
     (name, source, use) => {
-      const file = `dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`
-      const original = readFileSync(file)
+      const file = `dist/${['acp', 'headless'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`
+      const meta = structuredClone(fixture(file).meta)
+      const original = JSON.stringify(meta)
       const hash = createHash('sha256').update(original).digest('hex')
-      const meta = metafileSchema.parse(JSON.parse(original.toString('utf8')))
-      const output = meta.outputs[name === 'webview' ? 'dist/webview/main.js' : `dist/${name}.js`]
+      const output = meta.outputs[`dist/${name}.js`]
       if (output === undefined) throw new Error('Missing bundle output')
-      if (name === 'providers') expect(output.inputs).toHaveProperty(source)
+      const check = () => {
+        const changed = outputInputs(meta, `dist/${name}.js`)
+        return checkDeferredBundles((bundle) =>
+          bundle.metafile === file ? changed : bundleInputs(bundle),
+        )
+      }
+      expect(check()).toEqual([])
+      const originalInputs = structuredClone(output.inputs)
+      if (use === 'missing') expect(output.inputs).toHaveProperty(source)
       else expect(output.inputs).not.toHaveProperty(source)
       try {
-        if (name === 'providers') Reflect.deleteProperty(output.inputs, source)
+        if (use === 'missing') Reflect.deleteProperty(output.inputs, source)
         else output.inputs[source] = { bytesInOutput: 1 }
-        writeFileSync(file, JSON.stringify(meta))
-        const red = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
-          encoding: 'utf8',
-        })
-        expect(red.status).toBe(1)
-        let message = `dist/${name}.js carries ${source}, which loads only ${use}`
-        if (name === 'webview') {
-          message = `${source} must occur in exactly one deferred webview chunk`
-        } else if (use === 'chat schemas') {
-          message = 'dist/modelsPanel.js carries unrelated chat schemas'
-        } else if (use === 'shared mini-parser') {
-          message = 'dist/modelApi.js inlines the shared mini-parser'
-        } else if (name === 'providers') {
-          message = `dist/providers.js no longer carries ${source}`
-        }
-        expect(red.stderr).toContain(message)
+        expect(check()).toEqual([
+          use === 'missing'
+            ? `dist/${name}.js no longer carries ${source}`
+            : `dist/${name}.js carries ${source}, which loads only ${use}`,
+        ])
       } finally {
-        writeFileSync(file, original)
+        output.inputs = originalInputs
       }
-      expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
+      expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
+      expect(check()).toEqual([])
     },
   )
 })

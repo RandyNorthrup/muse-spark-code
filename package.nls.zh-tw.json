@@ -125,7 +125,7 @@
   "config.modelApiPermissionProfiles.markdownDescription": "Model API 後端：具名的權限設定檔。每個設定檔可以列出 `denyRead` glob（檔案工具不得讀取、列出、搜尋或寫入的工作區相對路徑）和 `extraRoots`（`read_file` 可以讀取的工作區外絕對路徑資料夾）。使用 `museSpark.modelApiPermissionProfile` 選擇一個。僅限使用者和電腦設定。",
   "config.modelApiPermissionProfile.markdownDescription": "Model API 後端：生效的權限設定檔，依其在 `museSpark.modelApiPermissionProfiles` 中的名稱指定；留空表示無。設定檔開啟期間，在「手動」、「自動編輯」和「自動」模式下，每個 shell 命令和 MCP 工具呼叫都會詢問（規劃模式會拒絕 shell 命令以及唯讀工具以外的所有 MCP 工具；「略過權限」會直接執行它們），因為 shell 和 MCP 伺服器在設定檔的檔案規則之外執行。僅限使用者和電腦設定。",
   "config.modelApiRepositoryRules.markdownDescription": "Model API 後端：存放庫可以在其 `.vscode/settings.json` 中新增的規則：詢問或禁止的 `commandRules`，以及 `denyRead` glob。它們只能收緊您自己的規則，因此這裡的允許規則不會套用。",
-  "config.modelApiAutoReviewer.description": "付費，預設為關閉。在 Model API 後端的自動模式下，一次單獨的模型呼叫會評判每個沒有規則決定的有風險操作，看起來安全時不詢問直接執行；它拒絕或失敗時由您決定。它絕不會允許被禁止的命令、您的規則要求詢問的命令、受保護的寫入或付費呼叫。每次審查依對話模型的權杖費率計入您的 Model API 金鑰，除非您在此工作區中一律允許審查，否則會先詢問。",
+  "config.modelApiAutoReviewer.description": "Auto 模式中，付費審查會判斷尚未解決的高風險操作；無法繞過禁止的命令、受保護的寫入或必須詢問的要求。 在 Model API 上預設可用。收費前會顯示價格和共用每日預算，並詢問：允許一次／在此工作區一律允許／拒絕。明確設定 false 會關閉此功能。",
   "config.museCodeAutoReviewer.description": "預設開啟。在 Muse Code 的自動模式下，只有目前回合中沒有規則作出決定的核准請求才符合審查條件：在隱藏的規劃工作階段中使用您的訂閱進行一次簡短的 Muse Code 回合。受保護的寫入、付費呼叫、子工作、提問、重播或升級的請求、未知對象、沒有僅允許一次選項的請求，以及多個面板共用的工作階段都不會被審查。成功的審查可以允許一次；拒絕、失敗、工作階段忙碌、逾時或斷路器觸發時會顯示核准卡片。主程序結束後會重新建立輔助工作階段。",
   "command.startWithOwnModel.title": "使用自己的模型開始",
   "command.modelsAndAgents.title": "模型與代理",
@@ -171,5 +171,7 @@
   "config.judge.engine.description": "`auto`（您自己的聊天模型；第1階段即`same`）和`same`只能給沒有規則決定的有風險的Auto操作增加謹慎：就緒的提醒會將允許變為提問，或在審批卡上新增備註。`off`不執行評判器。在Model API後端，每次評判計入您的金鑰並先詢問一次；在Muse Code上改走您的訂閱。",
   "config.judge.engine.enumDescriptions.auto": "您自己的聊天模型評判（第1階段即`same`）；設定單獨的評判器後會加入。",
   "config.judge.engine.enumDescriptions.same": "僅您自己的聊天模型評判；從不切換模型。",
-  "config.judge.engine.enumDescriptions.off": "無評判器：審批與沒有評判器時完全一致。"
+  "config.judge.engine.enumDescriptions.off": "無評判器：審批與沒有評判器時完全一致。",
+  "command.connectChatGpt": "使用 ChatGPT 繼續",
+  "command.connectCopilot": "使用我的 Copilot 模型"
 }

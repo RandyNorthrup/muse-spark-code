@@ -75,6 +75,7 @@ import ts from 'typescript'
 import { createRequire } from 'node:module'
 import {
   BUNDLES,
+  SUBSCRIPTION_ONLY,
   DEFERRED,
   ON_FIRST_USE,
   DEFERRED_ONLY,
@@ -115,7 +116,6 @@ const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts'])
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
   ['schemas.ts', 'shared boundary schemas used by activation and ACP'],
-  ['sse.ts', 'ACP event streams also use this parser'],
   ['imageGeneration.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['sessionStore.ts', "the stored-session format the window's session store reads (D14)"],
@@ -128,6 +128,9 @@ const ACTIVATION_ALLOWED = new Map([
 const LAZY_ONLY = [
   // TRAIN14A: stored-key image/Tab HTTP calls load the same client on first use.
   'client.ts',
+  'transport.ts',
+  'sse.ts',
+  'ndjson.ts',
   'ModelApiHost.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',
@@ -199,12 +202,16 @@ function backendFiles() {
 }
 
 const problems = []
+const CONFIGURED_ONLY = ['authSource.ts', 'providerClient.ts']
+const PROVIDER_ONLY = []
 const onDisk = new Set(backendFiles())
 const lazy = new Set(LAZY_ONLY)
 for (const name of onDisk) {
   const lists =
     Number(ACTIVATION_ALLOWED.has(name)) +
     Number(lazy.has(name)) +
+    Number(CONFIGURED_ONLY.includes(name)) +
+    Number(PROVIDER_ONLY.includes(name)) +
     Number(DEFERRED_ONLY.includes(name)) +
     Number(name.startsWith('codecs/')) +
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
@@ -221,6 +228,8 @@ for (const name of onDisk) {
 for (const name of [
   ...ACTIVATION_ALLOWED.keys(),
   ...lazy,
+  ...CONFIGURED_ONLY,
+  ...PROVIDER_ONLY,
   ...DEFERRED_ONLY,
   ...FOREIGN_HOOKS_ONLY,
   ...HOOK_RUNTIME_ONLY,
@@ -236,6 +245,19 @@ for (const name of [
 const activation = inputsOf(BUNDLES.activation)
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
+for (const [names, owner] of [
+  [CONFIGURED_ONLY, BUNDLES.configured],
+  [PROVIDER_ONLY, BUNDLES.providers],
+]) {
+  for (const name of names) {
+    const file = `${MODEL_API_DIR}/${name}`
+    if (!inputsOf(owner).has(file)) problems.push(`${owner.output} no longer carries ${file}`)
+    for (const parent of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+      if (inputsOf(parent).has(file))
+        problems.push(`${parent.output} carries the lazy provider implementation ${file}`)
+    }
+  }
+}
 const extensionHooks = inputsOf({
   output: 'dist/extensionHooks.js',
   metafile: 'dist/meta/extensionHooks.json',
@@ -635,34 +657,6 @@ if (
   problems.push(`${BUNDLES.acp.output} no longer loads the shared recorder`)
 }
 
-const providers = inputsOf(BUNDLES.providers)
-for (const name of onDisk) {
-  if (name.startsWith('codecs/') && !providers.has(`${MODEL_API_DIR}/${name}`)) {
-    problems.push(`${BUNDLES.providers.output} no longer carries ${MODEL_API_DIR}/${name}`)
-  }
-}
-
-// M95: codecs belong exclusively to the separate providers bundle. Check
-// every emitted JS output, including future bundles and new codec files.
-for (const directory of ['dist/meta', 'dist/meta-acp']) {
-  for (const name of readdirSync(directory)) {
-    if (!name.endsWith('.json')) continue
-    const { outputs } = JSON.parse(readFileSync(path.join(directory, name), 'utf8'))
-    for (const [output, bundle] of Object.entries(outputs)) {
-      if (output === BUNDLES.providers.output || !output.endsWith('.js')) continue
-      for (const input of Object.keys(bundle.inputs)) {
-        if (
-          input.startsWith(`${MODEL_API_DIR}/codecs/`) ||
-          (input.startsWith('src/core/providers/') &&
-            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js'))
-        ) {
-          problems.push(`${output} carries ${input}, which loads only in dist/providers.js`)
-        }
-      }
-    }
-  }
-}
-
 // What's New's page script (M99) is a few lines that pass clicks back: it
 // carries no package, not the display table and not constants.ts (which
 // re-exports that table), only the script and its markup contract.
@@ -682,6 +676,38 @@ for (const prefix of WHATS_NEW_PAGE.never) {
 }
 if (!whatsNewPage.has(WHATS_NEW_PAGE.script)) {
   problems.push(`${WHATS_NEW_PAGE.output} no longer carries ${WHATS_NEW_PAGE.script}`)
+}
+
+const providers = inputsOf(BUNDLES.providers)
+for (const name of onDisk) {
+  if (name.startsWith('codecs/') && !providers.has(`${MODEL_API_DIR}/${name}`)) {
+    problems.push(`${BUNDLES.providers.output} no longer carries ${MODEL_API_DIR}/${name}`)
+  }
+}
+
+// M95: codecs belong exclusively to the separate providers bundle. Check
+// every emitted JS output, including future bundles and new codec files.
+for (const directory of ['dist/meta', 'dist/meta-acp']) {
+  for (const name of readdirSync(directory)) {
+    if (!name.endsWith('.json')) continue
+    const { outputs } = JSON.parse(readFileSync(path.join(directory, name), 'utf8'))
+    for (const [output, bundle] of Object.entries(outputs)) {
+      if (output === BUNDLES.providers.output || !output.endsWith('.js')) continue
+      for (const input of Object.keys(bundle.inputs)) {
+        if (
+          input.startsWith(`${MODEL_API_DIR}/codecs/`) ||
+          (input.startsWith('src/core/providers/') &&
+            !(output === BUNDLES.subscriptions.output && SUBSCRIPTION_ONLY.includes(input)) &&
+            !(
+              input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
+            ) &&
+            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js'))
+        ) {
+          problems.push(`${output} carries ${input}, which loads only in dist/providers.js`)
+        }
+      }
+    }
+  }
 }
 
 // Model text (PLAN.md D6, 2026-10-03). One object is carried whole by every
@@ -790,13 +816,13 @@ const TEXT_BLOCKS = [
   {
     block: 'WEB_FETCH_MODEL_TEXT',
     sentinels: ['webFetchUntrusted', 'webFetchMovedOpen'],
-    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, BUNDLES.acp.output],
+    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, BUNDLES.acp.output, 'dist/headless.js'],
   },
   // A headless run's attached files (M80): the ACP agent's runtime only.
   {
     block: 'EXEC_MODEL_TEXT',
     sentinels: ['execUntrustedLead'],
-    readers: [BUNDLES.acp.output],
+    readers: ['dist/headless.js'],
   },
   // The Auto reviewer (M78, M90): the paid reviewer and the reviewer on Muse
   // Code. dist/modelApi.js carries autoReviewer.ts for its types and policy

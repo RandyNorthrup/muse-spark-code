@@ -21,20 +21,10 @@ import { runAddProviderQuickPick, type ProviderQuickPickOutcome } from './models
 import { createProvidersHost, type ProvidersHost } from '../providers/providersHost'
 import type { ModelScan, ScanStore } from '../providers/modelScans'
 import type { PendingRemoval, RemovalStore } from '../providers/providerRemoval'
-import type {
-  AddressPolicy,
-  CodeExchanger,
-  KeyTester,
-  KeyUsageReader,
-  ModelFetcher,
-  PkceSource,
-  PresetCatalog,
-  ProviderEntry,
-  ProviderModelRow,
-  ProvidersStore,
-  SuggestionEngine,
-} from '../providers/providerPorts'
+import type { ModelsPanelSeam, ProviderEntry, ProviderModelRow } from '../providers/providerPorts'
+export type { ModelsPanelSeam } from '../providers/providerPorts'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
+export { createSubscriptionFeatures } from '../providers/subscriptionFeatures'
 
 /** VS Code's global state, taken by shape (as `MementoLike` in paidHost). */
 export interface ModelsPanelMemento {
@@ -42,20 +32,11 @@ export interface ModelsPanelMemento {
   update(key: string, value: unknown): Thenable<void>
 }
 
-/** The lane-P/T seam the factory is composed with (PLAN.md M95 lanes). */
-export interface ModelsPanelSeam {
-  readonly store: ProvidersStore
-  readonly catalog: PresetCatalog
-  readonly policy: AddressPolicy
-  readonly tester: KeyTester
-  readonly fetcher: ModelFetcher
-  readonly exchanger: CodeExchanger
-  readonly usage: KeyUsageReader
-  readonly pkce: PkceSource
-  readonly suggest: SuggestionEngine
-}
-
 export interface ModelsPanelHostDeps {
+  readonly connectChatGpt?: () => Promise<void>
+  readonly connectCopilot?: () => Promise<void>
+  readonly removeSubscription?: (id: string) => Promise<void>
+  readonly isConfidential?: () => boolean
   readonly secrets: SecretStore
   readonly credentials?: CredentialStore
   readonly extensionUri: vscode.Uri
@@ -327,6 +308,10 @@ export function createModelsPanelFeatures(
         l10n: host.l10n,
         log: host.log,
         providers,
+        connectChatGpt: host.connectChatGpt,
+        connectCopilot: host.connectCopilot,
+        removeSubscription: host.removeSubscription,
+        isConfidential: host.isConfidential,
         isRemote: host.isRemote,
         writeExportFile: host.writeExportFile ?? writeExportFile,
         readImportFile: host.readImportFile ?? readImportFile,

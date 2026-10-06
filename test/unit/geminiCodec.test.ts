@@ -28,7 +28,7 @@ import { ObservationPack } from '../../src/core/backends/modelapi/observationPac
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { memoryContextIo } from './helpers/fakeContextIo'
+import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { watchSessionTurns } from './helpers/sessionTurns'
 import {
@@ -751,11 +751,12 @@ describe('decodeGeminiStream turns', () => {
     )
     let ids = 0
     const host = new ModelApiHost({
-      client,
-      workspaceRoot: '/ws',
-      platform: 'linux',
-      io: memoryToolIo({}, '/ws'),
-      contextIo: memoryContextIo(new Map()),
+      ...fakeModelApiHostDeps({
+        client,
+        workspaceRoot: '/ws',
+        io: memoryToolIo({}, '/ws'),
+        log,
+      }),
       newId: () => `id${String((ids += 1))}`,
       now: () => 0,
       personalSkillsRoot: undefined,
@@ -773,9 +774,6 @@ describe('decodeGeminiStream turns', () => {
       sessionBudgetUsd: () => 0,
       showReplyUsage: () => false,
       getAccountId: () => Promise.resolve('fake-account'),
-      memory: undefined,
-      noteSubagentUsage: () => undefined,
-      noteReviewerUsage: () => undefined,
     })
     const session = await host.startSession({
       workspaceRoot: '/ws',
@@ -918,7 +916,17 @@ describe('parseGeminiModelsList', () => {
       ],
     })
     expect(models).toEqual([
-      { id: 'gemini-3.5-flash-lite', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
+      {
+        id: 'gemini-3.5-flash-lite',
+        inputTokenLimit: 1_048_576,
+        outputTokenLimit: 65_536,
+        native: {
+          name: 'models/gemini-3.5-flash-lite',
+          inputTokenLimit: 1_048_576,
+          outputTokenLimit: 65_536,
+          supportedGenerationMethods: ['generateContent', 'countTokens'],
+        },
+      },
     ])
   })
 
@@ -928,11 +936,12 @@ describe('parseGeminiModelsList', () => {
     const summary: unknown = capture('01-models-list.json').response.bodySummary
     const entries: unknown =
       isRecord(summary) && 'sample' in summary ? summary['sample'] : undefined
-    expect(parseGeminiModelsList({ models: entries })).toEqual([
+    expect(parseGeminiModelsList({ models: entries })).toMatchObject([
       { id: 'gemini-2.5-flash', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
       { id: 'gemini-2.5-pro', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
       { id: 'gemini-3.5-flash-lite', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
     ])
+    expect(parseGeminiModelsList({ models: entries }).map((model) => model.native)).toEqual(entries)
   })
 
   it('throws when the list has no models', () => {

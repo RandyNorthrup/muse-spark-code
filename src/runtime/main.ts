@@ -27,14 +27,24 @@ import {
   EXTENSION_HOOKS_BUNDLE_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
+  PROVIDERS_CONFIG_DIR_NAME,
+  PROVIDERS_FILE_NAME,
   SETTING_DEFAULTS,
   USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
-import { fill } from '../shared/l10n/text'
-import { uiLocale } from '../shared/l10n/text'
-import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
+import { fill, uiLocale } from '../shared/l10n/text'
+import {
+  authClear,
+  authClearProvider,
+  type AuthCommandDeps,
+  authSet,
+  authSetProvider,
+  authStatus,
+  authStatusProvider,
+  login,
+} from './authCommands'
 import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -43,7 +53,18 @@ import { reportEventsOf } from '../core/support/journalEvents'
 import { agentDataFolder } from './dataFolder'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
-import { credentialStoreName, keyringSecretStore } from './keyStore'
+import { credentialStoreName, keyringSecretStore, StoreUnavailableError } from './keyStore'
+import type { ChatGptProviderAction } from './chatGptProviderCommands'
+import {
+  providersAdd,
+  providersFilePath,
+  providersList,
+  providersRemove,
+  providersTest,
+  type ProvidersDeps,
+  resolveEndpointHost,
+  userFileIo,
+} from './providersCommands'
 import { takeCredentials } from './credentialVariables'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
@@ -53,7 +74,6 @@ import { webReadable } from './webStreams'
 import { createLifecycle } from './exec/execLimits'
 import { createFdWriter } from './exec/fdWriter'
 import { createExecLogger, redactWhole } from './exec/execOutput'
-import { runExec } from './exec/runExec'
 import { runSecretScan } from './exec/scanSecrets'
 import { runProgram } from '../host/processTree'
 import { lazyUsageAdapter, usageCompanionUrl } from './usage/usageAdapter'
@@ -75,11 +95,12 @@ import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 
 const EXIT_FAILED = 1
-// The Model API key variable Muse Code reads; the report says only whether it was set.
+// Keep only presence for reports, before credential variables leave the process.
 const META_API_KEY_VARIABLE = 'META_API_KEY'
+const wasEnvironmentApiKeyPresent = process.env[META_API_KEY_VARIABLE] !== undefined
 // Credential variables leave the agent's own environment before anything
-// starts a process; only Muse Code's processes get them back (rule 8).
-const museCodeCredentials = takeCredentials(process.env)
+// starts a process; no child gets them back (FIXM95X).
+takeCredentials(process.env)
 // The package root holds `package.json` and `l10n/`; this file runs from `dist/`.
 const distDir = __dirname
 const packageRoot = path.dirname(distDir)
@@ -128,7 +149,11 @@ async function loadSecrets(): Promise<SecretStore> {
         new AsyncEntry(service, account, { linux: { store: 'secret-service' } }),
     )
   })()
-  return await nativeStore.value
+  try {
+    return await nativeStore.value
+  } catch {
+    throw new StoreUnavailableError()
+  }
 }
 const secrets: SecretStore = {
   async get(name) {
@@ -209,6 +234,57 @@ function authDeps(): AuthCommandDeps {
   }
 }
 
+async function chatGptDeps() {
+  const bundle = await import('./chatGptProviderCommands')
+  const commands = bundle.runtimeChatGptCommandDeps({
+    uiText: UI_TEXT,
+    locale: uiLocale(),
+    secrets,
+    fetch: globalThis.fetch.bind(globalThis),
+    configFile: path.join(
+      process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
+      PROVIDERS_CONFIG_DIR_NAME,
+      PROVIDERS_FILE_NAME,
+    ),
+    callbackText: () => UI_TEXT.acpChatGpt.callback,
+    openBrowser: (url) => {
+      writeLine(process.stdout, url)
+      return Promise.resolve()
+    },
+    print: (line) => {
+      writeLine(process.stdout, line)
+    },
+    printError: (line) => {
+      writeLine(process.stderr, line)
+    },
+  })
+  return {
+    signIns: bundle.chatGptAuthenticationMethods(() => commands.createHost()),
+    run: (action: ChatGptProviderAction) => bundle.runChatGptProviderCommand(action, commands),
+  }
+}
+
+/** The runner's own user file (never a repository file). */
+function userProvidersFile() {
+  return userFileIo(
+    providersFilePath({
+      platform: process.platform,
+      homeDir: homedir(),
+      xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+    }),
+  )
+}
+
+/** The `providers …` commands' dependencies: the user's own file, the OS store, stdin. */
+function providersDeps(): ProvidersDeps {
+  return {
+    ...authDeps(),
+    ...userProvidersFile(),
+    resolveHost: resolveEndpointHost,
+    fetch: globalThis.fetch.bind(globalThis),
+  }
+}
+
 function signInMethod(options: ServeOptions): SignInMethod {
   if (options.backend === 'modelApi') {
     const { id, args } = ACP_AUTH_METHODS.modelApiKey
@@ -240,7 +316,6 @@ function runtimeFor(options: ServeOptions, log: Logger) {
     homeDir: homedir(),
     secrets,
     runGit: processGitRunner(),
-    museCodeCredentials,
     fetch: globalThis.fetch.bind(globalThis),
     sleep,
     log,
@@ -426,6 +501,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     }
     // "Allow always" lapses for a paid feature started without its flag (M58).
     await runtime.forgetUnflaggedGrants()
+    const providerCommands = await chatGptDeps()
     const agent = createAcpAgent({
       onClientName: (name) => {
         clientName = name
@@ -438,6 +514,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
         initialMode: SETTING_DEFAULTS.initialPermissionMode,
       },
       signIn: signInMethod(options),
+      providerSignIns: providerCommands.signIns,
       defaultCwd: process.cwd(),
       paid: runtime.paid,
       log,
@@ -549,7 +626,9 @@ async function main(): Promise<number> {
           return headlessCode
         }
       }
-      headlessCode = await runExec(lifecycle, {
+      const headless = await import('./exec/runExec')
+      headless.setUiText(UI_TEXT, uiLocale())
+      headlessCode = await headless.runExec(lifecycle, {
         options: command.options,
         version: packageVersion(),
         distDir,
@@ -562,7 +641,6 @@ async function main(): Promise<number> {
         stderr,
         storeSecrets: secrets,
         runGit: processGitRunner(),
-        museCodeCredentials,
         fetch: globalThis.fetch.bind(globalThis),
         sleep,
         now,
@@ -634,6 +712,10 @@ async function main(): Promise<number> {
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
     }
+    case 'chatGptProvider': {
+      const providers = await chatGptDeps()
+      return await providers.run(command.action)
+    }
     case 'serve': {
       return await serve(command.options, log)
     }
@@ -651,13 +733,31 @@ async function main(): Promise<number> {
       })
     }
     case 'authSet': {
-      return await authSet(authDeps())
+      return command.provider === undefined
+        ? await authSet(authDeps())
+        : await authSetProvider(authDeps(), command.provider, userProvidersFile().readUserFile)
     }
     case 'authStatus': {
-      return await authStatus(authDeps())
+      return command.provider === undefined
+        ? await authStatus(authDeps())
+        : await authStatusProvider(authDeps(), command.provider)
     }
     case 'authClear': {
-      return await authClear(authDeps())
+      return command.provider === undefined
+        ? await authClear(authDeps())
+        : await authClearProvider(authDeps(), command.provider)
+    }
+    case 'providersList': {
+      return await providersList(providersDeps())
+    }
+    case 'providersAdd': {
+      return await providersAdd(providersDeps(), command.options)
+    }
+    case 'providersTest': {
+      return await providersTest(providersDeps(), command.provider)
+    }
+    case 'providersRemove': {
+      return await providersRemove(providersDeps(), command.provider)
     }
     case 'report': {
       // No backend, no auth flow and no model startup: only local, capped
@@ -697,9 +797,7 @@ async function main(): Promise<number> {
         },
         // The agent took its credential variables out of its environment at
         // start (rule 8): presence is read from what it took.
-        hasEnvironmentApiKey: museCodeCredentials.some(
-          (variable) => variable.name === META_API_KEY_VARIABLE,
-        ),
+        hasEnvironmentApiKey: wasEnvironmentApiKeyPresent,
         readStoredKeyPresence: async () => {
           try {
             const stored = await secrets.get(SECRET_KEYS.modelApiKey)
@@ -736,11 +834,13 @@ async function main(): Promise<number> {
     }
     case 'help': {
       writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      writeLine(process.stdout, UI_TEXT.acpChatGpt.usage)
       return 0
     }
     case 'invalid': {
       writeLine(process.stderr, command.reason)
       writeLine(process.stderr, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      writeLine(process.stderr, UI_TEXT.acpChatGpt.usage)
       return command.exitCode ?? EXIT_FAILED
     }
   }

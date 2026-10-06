@@ -2,6 +2,7 @@ import { recordPaidUse } from '../../paid/paidFeatures'
 import type { RecordedCall, UsageRecording } from '../../usage/recording'
 import type { UsageBudgetRead } from '../../usage/usageService'
 import { redactDiagnosticEvent } from '../../redact'
+import type { PlanUsageRow } from '../../../shared/usage'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
 // replay, `store: false`) with the in-process tool harness, the permission
@@ -25,6 +26,7 @@ import type {
 import {
   AGENT_SOURCE_LABELS,
   AUTH_REQUIRED_ERROR_KIND,
+  CHATGPT_PLAN_LIMIT_ERROR_KIND,
   AUTO_REVIEW_ROW_TOOL,
   AUTO_REVIEWER_RECENT_CALLS,
   BACKGROUND_INITIATOR_USER,
@@ -244,8 +246,9 @@ import {
   type ConfirmedModelRequest,
   MissingApiKeyError,
   type ResponseObservation,
-  type ModelApiClient,
+  type ProviderClient,
   ModelApiError,
+  isModelApiError,
   type RetryBudget,
   type RetryNotice,
   type ResponseAttemptGuard,
@@ -486,9 +489,9 @@ export interface ModelApiPaidHooks {
 }
 
 export interface ModelApiHostDeps extends ModelApiPaidHooks {
-  /** M98: injected same-model source; all paid dispatch admitted by lane A. */
+  /** M98: same-model paid source. */
   readonly judge?: JudgeAdvisory | undefined
-  readonly client: ModelApiClient
+  readonly client: ProviderClient
   readonly models?: ModelResolver | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
   readonly workspaceRoot: string
@@ -1248,7 +1251,7 @@ function describe(error: unknown): string {
 function isAuthFailure(error: unknown): boolean {
   return (
     error instanceof MissingApiKeyError ||
-    (error instanceof ModelApiError && error.status === HTTP_UNAUTHORIZED)
+    (isModelApiError(error) && error.status === HTTP_UNAUTHORIZED)
   )
 }
 
@@ -2241,9 +2244,11 @@ export class ModelApiSession implements AgentSession {
   }
 
   private async resolveModel(ref = this.modelId): Promise<ResolvedModel> {
-    const model = ref.includes('/')
-      ? await this.deps.models?.resolve(ref)
-      : metaResolvedModel(ref, this.deps.client)
+    const model =
+      ref.includes('/') &&
+      (this.deps.models !== undefined || this.deps.client.isPlanModel?.(ref) !== true)
+        ? await this.deps.models?.resolve(ref)
+        : metaResolvedModel(ref, this.deps.client)
     if (model?.ref !== ref || !model.isCurrent()) {
       throw new Error(UI_TEXT.execUnknownModel)
     }
@@ -2258,7 +2263,8 @@ export class ModelApiSession implements AgentSession {
   private selectedModel(ref = this.modelId): ResolvedModel {
     const found = this.resolvedModels.get(ref)
     if (found !== undefined) return found
-    if (ref.includes('/')) throw new Error(UI_TEXT.execUnknownModel)
+    if (ref.includes('/') && this.deps.client.isPlanModel?.(ref) !== true)
+      throw new Error(UI_TEXT.execUnknownModel)
     return metaResolvedModel(ref, this.deps.client)
   }
 
@@ -2865,7 +2871,7 @@ export class ModelApiSession implements AgentSession {
    */
   private budgeted(body: CreateResponseBody): CreateResponseBody {
     this.openReservation = undefined
-    if (this.isSubagent) return body
+    if (this.isSubagent || this.deps.client.isPlanModel?.(body.model) === true) return body
     const capUsd = this.currentBudgetCap()
     if (capUsd <= 0 && this.budgetJournal() === undefined) {
       return body
@@ -2986,11 +2992,14 @@ export class ModelApiSession implements AgentSession {
   }
 
   private currentBudgetCap(): number {
+    if (this.deps.client.isPlanModel?.(this.modelId) === true) return 0
     return this.isSubagent ? 0 : (this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd())
   }
 
   private budgetJournal(): SessionStore['budget'] {
-    return this.deps.budgetScope?.journal ?? this.deps.store?.budget
+    return this.deps.client.isPlanModel?.(this.modelId) === true
+      ? undefined
+      : (this.deps.budgetScope?.journal ?? this.deps.store?.budget)
   }
 
   /** Read shared spending before computing any new request's allowance. */
@@ -3133,7 +3142,7 @@ export class ModelApiSession implements AgentSession {
 
   private noteRequestRefusal(reservation: OpenReservation | undefined, error: unknown): void {
     const isRefused =
-      error instanceof ModelApiError &&
+      isModelApiError(error) &&
       (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
     if (isRefused && this.recordedCall !== undefined && reservation?.hasStarted !== true) {
       this.recordedCall = { ...this.recordedCall, outcome: 'refused' }
@@ -4841,7 +4850,7 @@ export class ModelApiSession implements AgentSession {
       isCountedUsage,
       abortError: () => new AbortedError(),
       isRefused: (error: unknown) =>
-        error instanceof ModelApiError &&
+        isModelApiError(error) &&
         (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
       emit: (event: AgentEvent) => {
         this.emit(event)
@@ -4960,7 +4969,7 @@ export class ModelApiSession implements AgentSession {
           isCountedUsage,
           abortError: () => new AbortedError(),
           isRefused: (error) =>
-            error instanceof ModelApiError &&
+            isModelApiError(error) &&
             (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
           emit: (event) => {
             this.emit(event)
@@ -5860,7 +5869,7 @@ export class ModelApiSession implements AgentSession {
         return egressRefusal
       }
       isRefused =
-        error instanceof ModelApiError &&
+        isModelApiError(error) &&
         (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
       throw error
     } finally {
@@ -10688,7 +10697,9 @@ export class ModelApiSession implements AgentSession {
         if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
         } else {
-          errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
+          if (isModelApiError(error) && error.code === CHATGPT_PLAN_LIMIT_ERROR_KIND)
+            errorKind = CHATGPT_PLAN_LIMIT_ERROR_KIND
+          else errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
         }
         this.deps.log.warn(
           error instanceof HookStoppedError
@@ -10985,8 +10996,7 @@ export class ModelApiSession implements AgentSession {
         }
       }
     } catch (error: unknown) {
-      const status =
-        error instanceof ModelApiError ? `HTTP ${String(error.status)}` : 'request failed'
+      const status = isModelApiError(error) ? `HTTP ${String(error.status)}` : 'request failed'
       this.deps.log.warn(`The compacted context could not be counted: ${status}`)
     }
     return { status: ACCEPTED, reason: undefined }
@@ -12982,17 +12992,32 @@ export class ModelApiHost implements AgentHost {
     return NO_UNSUBSCRIBE
   }
 
+  public readPlanUsage(): readonly PlanUsageRow[] {
+    return this.deps.client.readPlanUsage?.() ?? []
+  }
+
   public async listModels(sessionId?: string): Promise<readonly ModelSummary[]> {
     const ids = this.deps.hasMetaCredential?.() === false ? [] : await this.deps.client.listModels()
     const providers = (await this.deps.models?.list?.()) ?? []
     const active = sessionId === undefined ? undefined : this.sessions.get(sessionId)?.modelId
     return [
       ...ids
-        .filter((id) => id.startsWith(MODEL_API_MODEL_PREFIX))
+        .filter(
+          (id) =>
+            id.startsWith(MODEL_API_MODEL_PREFIX) || this.deps.client.isPlanModel?.(id) === true,
+        )
         .map((id) => ({
           modelId: id,
           displayLabel: id,
-          contextLimit: MODEL_API_CONTEXT_WINDOW,
+          contextLimit:
+            this.deps.client.isPlanModel?.(id) === true
+              ? this.deps.client.modelContextLimit?.(id)
+              : MODEL_API_CONTEXT_WINDOW,
+          ...(this.deps.client.isPlanModel?.(id) === true && {
+            pricing: 'plan' as const,
+            providerId: replayProducer(id).provider,
+            trainsOnContent: id.startsWith('copilot/'),
+          }),
           isDefault: id === DEFAULT_MODEL_ID,
           isActive: id === active,
         })),

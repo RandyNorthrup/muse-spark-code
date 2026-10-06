@@ -69,7 +69,7 @@ export const presetCardSchema = z.strictObject({
   /** Where the endpoint comes from; `fixed` names it in `originDisplay`. */
   originKind: z.enum(['fixed', 'azure-resource', 'loopback', 'custom']),
   originDisplay: z.string(),
-  auth: z.enum(['apiKey', 'none']),
+  auth: z.enum(['apiKey', 'none', 'subscription']),
   /** True where the account connects over OAuth instead of a pasted key. */
   connectOAuth: z.boolean(),
   /** The key's shape as a hint beside the key field (never a key). */
@@ -121,7 +121,7 @@ export const providerStateSchema = z.strictObject({
   label: z.string(),
   address: z.optional(z.string()),
   format: z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama']),
-  auth: z.enum(['apiKey', 'none']),
+  auth: z.enum(['apiKey', 'none', 'subscription']),
   key: providerKeySchema,
   test: providerTestSchema,
   /** The chosen models (`<modelId>` as the provider lists them). */
@@ -258,7 +258,7 @@ const endpointFields = {
 export const panelDraftSchema = z.strictObject({
   ...endpointFields,
   step: wizardStepSchema,
-  auth: z.enum(['apiKey', 'none']),
+  auth: z.enum(['apiKey', 'none', 'subscription']),
   /** A key was entered (the host holds it; never the webview, never here). */
   keyPresent: z.boolean(),
   keyShapeOk: z.boolean(),
@@ -332,6 +332,8 @@ export const modelsPanelStateSchema = z.strictObject({
   importPreview: z.optional(importPreviewSchema),
   /** A transient host confirmation (an export done, a save applied). */
   notice: z.optional(z.string()),
+  subscriptionsAvailable: z.optional(z.boolean()),
+  copilotAvailable: z.optional(z.boolean()),
 })
 export type ModelsPanelState = z.infer<typeof modelsPanelStateSchema>
 
@@ -377,6 +379,10 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('providers/connect'),
     providerId: z.optional(z.string()),
+  }),
+  z.strictObject({
+    type: z.literal('providers/connectSubscription'),
+    providerId: z.enum(['chatgpt', 'copilot']),
   }),
   // Without a provider it tests the wizard's draft; with one it tests
   // that saved provider. Where no free check exists the host answers

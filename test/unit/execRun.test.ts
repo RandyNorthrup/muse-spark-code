@@ -190,7 +190,6 @@ async function harness(
     stderr: err,
     storeSecrets: store,
     runGit: vi.fn(() => Promise.resolve('')),
-    museCodeCredentials: [],
     fetch: api.fetch,
     sleep: () => Promise.resolve(),
     now,

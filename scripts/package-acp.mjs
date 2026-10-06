@@ -31,8 +31,12 @@ import { packRuntimeArchive } from './lib/packageArchive.mjs'
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
+  'headless.js',
   'modelApi.js',
   'providers.js',
+  'subscriptions.js',
+  'configuredProviders.js',
+  'providerCatalog.json',
   'reviewer.js',
   'foreignHooks.js',
   'hookRuntime.js',

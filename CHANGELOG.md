@@ -22,6 +22,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Usage request observations run at the shared transport boundary for Meta and
+  configured providers. ACP loads `/usage` rendering and headless execution
+  on first use, preserving the existing startup cap. Production headless BYO
+  accounting remains explicitly unavailable before dispatch.
+
 - Contributor models show the confidentiality warning even after contributor
   confirmation. Package frame validation includes the Models and Usage bundles.
 - Usage and Models pages share React and browser common code with chat. The
@@ -68,11 +73,98 @@ happened, not what was planned; superseded entries are kept.
   recovers from native host send failures with localized feedback and retry.
   Charts use contrasting theme-token boundaries and non-color series cues;
   provider-limit observations and keyboard selection follow elapsed time.
+- Join general provider management and origin-bound credentials to the ACP
+  runtime. Free terminal probes use the shared transport. Headless provider
+  arguments validate their inputs and explicitly refuse without an accounting
+  runner; they do not dispatch an unbudgeted request.
+  Serialize terminal configuration commits, detect stale snapshots and
+  compensate secret changes on write failure. Retain private-network consent,
+  custom formats/base paths and captured free-probe headers and model lists.
+  Keep translated terminal help complete and show the same help after invalid
+  arguments, including the existing ChatGPT commands.
+
+- Join the configured providers to the shared request transport: origin-bound
+  credentials, redirect refusal, bounded framing, parser redaction and event
+  progress deadlines. Meta's request bytes remain unchanged.
+  Redact stream failure diagnostics while preserving executable arguments
+  and model content. Bind legacy review consent to the client's actual origin
+  and recognize errors structurally across lazy bundles.
+
+- Include the lazy subscription and configured-provider bundles in the VSIX
+  allowlist and keep crash-report frames aligned with the packaged files.
+- Preserve normalized Gemini model IDs when joining free model scans to
+  catalogue capabilities, so captured tool-capable models remain selectable.
+- Pin the patched development source-map parser, `source-map-js` 1.2.2,
+  after the dependency audit reports GHSA-68fv-2mgg-jv7q.
+- Record the plugin runtime launcher's deliberate, bounded subprocess
+  boundary for static analysis, retaining its runtime and credential checks.
+- Restore Copilot's production tool loop by binding admission to the same
+  host grant identity used when the request was confirmed.
+- Connect the captured Mistral plan-key preset and configured providers to
+  a shared, pinned transport in VS Code and ACP. Resolve capabilities and
+  pricing from the selected model, reread origin-bound credentials at each
+  send, and count plan requests separately from dollar budgets.
+- Load subscription authentication and account details lazily so the joined
+  release passes the existing provider and deferred browser size caps.
+- Integrate the M95 capability, host, deflake and subscription lanes onto
+  release 0.14.0, retaining lazy bundle boundaries and translated strings.
+  Keep bundle drills in memory and include the release build inputs and
+  provider bundle in private ACP packaging fixtures.
+- Drive harness scenarios after the real webview ready message, wait for
+  Models data, and acknowledge the plan disclosure before opening usage.
+- Restore model-text split checks over every browser chunk and its own
+  declared readers, retaining all size caps and guard failures.
+- Keep Account & usage open for unpriced models whose usage includes cached
+  tokens; show dollar estimates only with a verified Model API tariff.
+- Restore the confidential contributor-model warning before remembered
+  consent can return, retaining the fresh configured-provider privacy check.
+- Document Copilot's VS Code Language Model API boundary and the ChatGPT/API
+  routes available to other editors; record remaining integration failures.
+
+### Added
+
+- M95b connects ChatGPT and Copilot subscription actions to the Models panel,
+  command palette and shared harness. ChatGPT uses the account catalogue and
+  parses headerless SSE, including usage limits inside HTTP 200; ACP editors
+  use the same dispatch. Plan attempts have separate token/request tallies
+  and bypass USD reservations. Copilot uses host consent and remains reduced
+  and unavailable in confidential workspaces. Live success certification
+  remains pending; Mistral plan-key transport is wired in both hosts.
+
+### Fixed
+
+- Chat startup now loads syntax highlighting only for a closed supported code
+  fence, leaving code text and Copy, Insert and Apply immediately available
+  while its engine loads. Action-only dialogs and the separate Tasks surface
+  also load on demand; the command palette reuses its shared list shell. The
+  900 KiB startup budget and existing deferred budget stay unchanged.
+
+- Isolate M95's built exec package and bundle-split drills so parallel unit
+  suites cannot delete each other's browser chunks or read partially written
+  metafiles. Share the verified restored-fixture check across cases, cutting
+  repeated source parsing under CPU load. Keep real production builds, exact
+  guard failures, coverage thresholds and default deadlines unchanged.
 
 - Package only allowlisted build artifacts with a short landing guide and recent
   release notes. Compact staged translation and manifest JSON preserves every
   value, and the strict localization gate validates the exact packaged data.
   Source docs and tables remain complete; the VSIX size cap stays unchanged.
+- M95 capability review repairs keep enabled thinking above zero, omit
+  unsupported effort without disabling supported thinking, and derive the
+  reasoning mode from native/catalogue effort evidence. Sparse Anthropic and
+  Gemini list rows retain native metadata; Anthropic image admission enforces
+  its documented 10 MB bound. Gemini 2.5 fallback mode cites research rather
+  than an uncaptured wire claim. Media refusals explain capability, MIME and
+  individual limits separately from exhausted replay budgets.
+
+- M95 model capabilities now retain evidence sources and distinguish unknown
+  from unsupported. Native model lists retain reasoning, limits, modalities,
+  structured-output and sampling metadata; custom model overrides are validated
+  and stored as user evidence. Haiku 4.5 uses manual budgeted thinking, while
+  captured Sonnet/Opus and Gemini models use their supported reasoning mode.
+  Composer effort tiers and image/PDF admission accept the resolved model
+  policy. Meta request bytes and existing media limits remain unchanged.
+  Final host dispatch and pricing composition remain assigned to lane I.
 - Bind replayed reasoning and Model API hook identity to the producing
   provider and model; name BYO models in the system prompt.
 
@@ -81,6 +173,23 @@ happened, not what was planned; superseded entries are kept.
   Bind retries and held confirmations to the provider/model/credential,
   retain unknown costs and separate Meta image credentials from BYO profiles.
   Production transport composition remains pending M95 lane T/W integration.
+- Windows concurrent ChatGPT refresh recovery retries transient sharing
+  refusals without deleting a live owner or replacing a legacy ownerless lock.
+
+- Plan notices now use a verified account hash, and dismissed usage limits
+  stay dismissed through model switches and saved conversation restoration.
+  Plan billing disclosures survive a temporarily empty model catalogue.
+  Subscription commands install the language in both deferred bundles.
+  Corrupted subscription records return a fixed error without exposing their
+  stored text through JSON parsing failures.
+
+
+- ChatGPT provider add, remove and status commands now reach the ACP executable
+  and appear as terminal or manual actions in every ACP editor. Sign-in saves
+  the account's eligible catalogue models atomically; translated notices and
+  callback text ship in all fourteen languages. Native credential-store failures
+  retain a sanitized recovery category and direct users to an interactive
+  desktop session, without exposing the store's error text.
 
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage
@@ -242,6 +351,24 @@ happened, not what was planned; superseded entries are kept.
   missing-browser-chunk checks accept Windows filesystem error paths.
 - Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
   Windows while retaining native-platform parsing and containment checks.
+
+### Fixed
+
+- Archived Node bundles retain their named exports under native `import()` and
+  `require()`, restoring lazy hooks, MCP forms, Auto review and deferred panels.
+  Both package jobs now compare every Node module's exports and selected
+  function calls with the unpacked build.
+- The VSIX packaging unit suite now builds its own English fixtures from source,
+  so a fresh checkout can run it before a production build.
+
+### Changed
+
+- Smaller universal VSIX and ACP packages: runtime translations, lazy English
+  regions share a bounded Brotli archive; exact lazy Node sources use a separate
+  solid archive so translation damage preserves backend availability.
+  Bundle checksums preserve the compiled bytes and filename; damaged tables
+  retain the existing English fallback. Lossless walkthrough image compression
+  preserves every pixel. Activation code and all package caps stay unchanged.
 
 ## [0.14.0] - 2026-10-05
 

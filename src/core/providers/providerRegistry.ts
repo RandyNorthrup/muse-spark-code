@@ -23,6 +23,7 @@ export interface RegistryModel {
   readonly isPinned?: boolean | undefined
   readonly isDefault?: boolean | undefined
   readonly trainsOnContent?: boolean | undefined
+  readonly planLimitsUrl?: string | undefined
 }
 
 export interface ProviderRegistryDeps {
@@ -54,6 +55,7 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
             pricing: pricing.kind,
             isPinned: model.isPinned,
             trainsOnContent: model.trainsOnContent,
+            planLimitsUrl: model.planLimitsUrl,
             ...(pricing.kind === 'priced' && {
               inputUsdPerMTokens: pricing.card.input * TOKENS_PER_MILLION,
               outputUsdPerMTokens: pricing.card.output * TOKENS_PER_MILLION,
@@ -81,14 +83,14 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
         policy: modelPolicyFor(ref, { ...model.evidence, pricing }),
         price: {
           reserve(usage) {
-            if (pricing.kind === 'local') return 0
+            if (pricing.kind === 'local' || pricing.kind === 'plan') return 0
             return pricing.kind === 'priced'
               ? reserveRequestUsd(pricing.card, { ...usage, cacheWriteTokens: usage.inputTokens }) +
                   (usage.images ?? 0) * (pricing.card.image ?? 0)
               : undefined
           },
           settle(usage, reported) {
-            if (pricing.kind === 'local') return 0
+            if (pricing.kind === 'local' || pricing.kind === 'plan') return 0
             return pricing.kind === 'priced'
               ? settleWithImages(pricing, usage, reported)
               : undefined

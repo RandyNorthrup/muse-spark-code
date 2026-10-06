@@ -8,13 +8,12 @@
 // usage row, `/usage` and `/cost`; centred over the transcript with the
 // chat dimmed behind it.
 
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
 import {
   META_DASHBOARD_URL,
   MODEL_API_PRICES_VERIFIED_ON,
   type ModelPricing,
   PAID_PRICES_VERIFIED_ON,
-  TAB_DAILY_BUDGET_DEFAULT_USD,
   type PaidFeature,
   UI_TEXT,
   USAGE_COUNTDOWN_REFRESH_MS,
@@ -29,27 +28,42 @@ import {
   paidTotalUsd,
   usablePaidFeatures,
 } from '../../shared/paid'
-import { backendLabel, formatTokenWindow } from '../../shared/palette'
+import { formatTokenWindow } from '../../shared/palette'
 import { relativeTime } from '../../shared/sessions'
 import {
   barValue,
   FULL_PERCENT,
   formatDuration,
   formatWindowLength,
-  planLabel,
-  type AccountFacts,
-  type ProviderUsageRow,
   type SubscriptionUsage,
   type UsageInsights,
 } from '../../shared/usage'
 import { estimateCostUsd, formatUsd, percentOf } from '../../core/usage/insights'
 import type { ContextSummary, UsageReport, UsageSummary } from '../state/uiState'
 import type { UiState } from '../state/uiState'
-import type { SignInMethod } from '../../shared/protocol'
+import type { SignInMethod, WebviewToHostMessage } from '../../shared/protocol'
+import type { ModelOption } from '../../shared/protocol'
+const TabRow = lazy(async () => {
+  const module = await import('./UsageProviderSections')
+  return { default: module.TabRow }
+})
+const AccountSection = lazy(async () => {
+  const module = await import('./UsageProviderSections')
+  return { default: module.AccountSection }
+})
+const ProvidersSection = lazy(async () => {
+  const module = await import('./UsageProviderSections')
+  return { default: module.ProvidersSection }
+})
+const PlanUsageSection = lazy(async () => {
+  const module = await import('./UsageProviderSections')
+  return { default: module.PlanUsageSection }
+})
 import { paidUseText } from '../agentFormat'
 import { Modal } from './Modal'
 
 export interface UsageDialogProps {
+  readonly models?: readonly ModelOption[]
   /** undefined while the host has not answered `readUsage`. */
   readonly report: UsageReport | undefined
   readonly usage: UsageSummary | undefined
@@ -367,56 +381,17 @@ function paidTokenTally(feature: PaidFeature, paid: PaidState) {
   ]
 }
 
-/**
- * The Tab row (M94 lane U, PLAN.md D73 acceptance 16): today's spend against
- * the daily budget, the request count, and the on/off state. "Today" is the
- * ledger's total for the local day across every window, shown once Tab has
- * run in this window (the ledger is read by dist/tab.js); "This window" is
- * this window's reported cost; the budget is the configured one (RVM94HU
- * 23–24). While Tab is off and has never run here, the row says off with the
- * budget instead of zeros that read as use. The facts wrap, as the other
- * token rows do (RVM94HU 25).
- */
-function TabRow({ paid }: { readonly paid: PaidState }) {
-  const state = paidRowState('tab', paid)
-  const requests = paid.tally.tabRequests ?? 0
-  const unknown = paid.tally.tabUnknownRequests ?? 0
-  const hasRun = requests > 0 || paid.features.includes('tab')
-  const cost = formatUsd(paidCostUsd('tab', paid.tally))
-  const todayUsd = paid.tab?.todayUsd
-  const budget = formatUsd(paid.tab?.budgetUsd ?? TAB_DAILY_BUDGET_DEFAULT_USD)
-  const windowText = fill(UI_TEXT.usagePaidTabCostWindow, { cost })
-  return (
-    <>
-      <dt>{`${paidFeatureName('tab')} (${state})`}</dt>
-      <dd className="usage-paid-child">
-        {hasRun ? (
-          <>
-            {`${paidUseText('tab', paid.tally)} · ${fill(UI_TEXT.usagePaidTabTokens, {
-              tokens: formatNumber(paid.tally.tabTokens ?? 0),
-              cached: formatNumber(paid.tally.tabCachedTokens ?? 0),
-            })} · ${fill(UI_TEXT.usagePaidTabReported, { cost })}`}
-            {unknown > 0 ? (
-              <p className="usage-row-meta">{plural(UI_TEXT.usagePaidSubagentUnknown, unknown)}</p>
-            ) : null}
-            <p className="usage-row-meta">
-              {todayUsd === undefined
-                ? windowText
-                : `${fill(UI_TEXT.usagePaidTabCostToday, { cost: formatUsd(todayUsd) })} · ${windowText}`}
-            </p>
-            <p className="usage-row-meta">{fill(UI_TEXT.usagePaidTabBudget, { budget })}</p>
-          </>
-        ) : (
-          <span className="usage-row-meta">{fill(UI_TEXT.usagePaidTabBudget, { budget })}</span>
-        )}
-      </dd>
-    </>
-  )
-}
-
 function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly paid: PaidState }) {
   if (feature === 'tab') {
-    return <TabRow paid={paid} />
+    return (
+      <Suspense fallback={null}>
+        <TabRow
+          paid={paid}
+          state={paidRowState('tab', paid)}
+          useText={paidUseText('tab', paid.tally)}
+        />
+      </Suspense>
+    )
   }
   const state = paidRowState(feature, paid)
   const isReview = feature === 'autoReviewer'
@@ -457,119 +432,6 @@ function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly pa
         ) : null}
       </dd>
     </>
-  )
-}
-
-function signInLabel(method: AccountFacts['signInMethod'] | undefined): string {
-  if (method === 'cli') {
-    return UI_TEXT.usageAuthCli
-  }
-  return method === 'apiKey' ? UI_TEXT.usageAuthKey : UI_TEXT.usageAuthNone
-}
-
-function planFor(report: UsageReport): string {
-  if (report.subscription !== undefined) {
-    return planLabel(report.subscription.tier)
-  }
-  return report.backend === 'modelApi' ? UI_TEXT.usagePlanPayAsYouGo : UI_TEXT.usagePlanUnknown
-}
-
-/**
- * How a provider row's cost reads: settled dollars, `unpriced`, `local`,
- * `plan`, or nothing yet for a priced model the host has not settled (M95).
- */
-function providerCost(row: ProviderUsageRow): string | undefined {
-  if (row.costUsd !== undefined) {
-    return formatUsd(row.costUsd)
-  }
-  switch (row.pricing) {
-    case 'priced': {
-      return undefined
-    }
-    case 'unpriced': {
-      return UI_TEXT.modelUnpriced
-    }
-    case 'local': {
-      // A local model shows cost 0 (M95 acceptance 10).
-      return formatUsd(0)
-    }
-    case 'plan': {
-      return UI_TEXT.modelPlan
-    }
-  }
-}
-
-/**
- * This window's tallies per BYO provider (M95): tokens with their settled
- * cost, and an account-connected key's own usage, limit and remainder where
- * the provider reports them (today only OpenRouter's `/key`, in USD). Each
- * metric is its own row, so no language's word order is assumed.
- */
-function ProvidersSection({ providers }: { readonly providers: readonly ProviderUsageRow[] }) {
-  return (
-    <>
-      <h3 className="usage-heading">{UI_TEXT.providersSectionTitle}</h3>
-      <dl className="usage-facts">
-        {providers.map((row) => {
-          const cost = providerCost(row)
-          const tokens = `${formatTokenWindow(row.inputTokens)} / ${formatTokenWindow(row.outputTokens)}`
-          return (
-            <div key={row.providerId}>
-              <dt>{row.providerLabel}</dt>
-              <dd>{cost === undefined ? tokens : `${tokens} · ${cost}`}</dd>
-              {row.keyUsage === undefined ? null : (
-                <>
-                  <dt>{UI_TEXT.usageKeyUsage}</dt>
-                  <dd>
-                    <Facts
-                      rows={[
-                        [UI_TEXT.usageToday, formatUsd(row.keyUsage.todayUsd)],
-                        [UI_TEXT.usageThisMonth, formatUsd(row.keyUsage.monthUsd)],
-                        [
-                          UI_TEXT.usageLimit,
-                          row.keyUsage.limitUsd === undefined
-                            ? undefined
-                            : formatUsd(row.keyUsage.limitUsd),
-                        ],
-                        [
-                          UI_TEXT.usageRemaining,
-                          row.keyUsage.remainingUsd === undefined
-                            ? undefined
-                            : formatUsd(row.keyUsage.remainingUsd),
-                        ],
-                      ]}
-                    />
-                  </dd>
-                </>
-              )}
-            </div>
-          )
-        })}
-      </dl>
-    </>
-  )
-}
-
-function AccountSection({
-  report,
-  modelId,
-}: {
-  readonly report: UsageReport
-  readonly modelId: string | undefined
-}) {
-  const { account } = report
-  const signIn = signInLabel(account?.signInMethod)
-  const plan = planFor(report)
-  return (
-    <Facts
-      rows={[
-        [UI_TEXT.usageAuthMethod, signIn],
-        [UI_TEXT.usagePlan, plan],
-        [UI_TEXT.usageBackend, backendLabel(report.backend)],
-        [UI_TEXT.usageCliVersion, account?.cliVersion],
-        [UI_TEXT.usageModel, modelId],
-      ]}
-    />
   )
 }
 
@@ -652,11 +514,12 @@ function InsightsSection({
 }
 
 export function UsageDialog({
+  models = [],
   report,
   usage,
   context,
   modelId,
-  modelPricing,
+  modelPricing: listedPricing,
   paid,
   auth,
   onInstallMuseCode,
@@ -678,14 +541,23 @@ export function UsageDialog({
     }
   }, [])
   const nowMs = now()
+  // The bound reference remains authoritative while the catalogue is recovering.
+  const providerId = modelId?.includes('/') ? modelId.split('/', 1)[0] : undefined
+  const model = models.find((option) => option.modelId === modelId)
+  const provider =
+    (model?.providerId === providerId ? model?.providerLabel : undefined) ??
+    providerId ??
+    UI_TEXT.modelPlan
+  const modelPricing = providerId === 'chatgpt' || providerId === 'copilot' ? 'plan' : listedPricing
   // Priced on the Model API only, whose usage always carries its cached total.
   const cachedTokens = usage?.cachedTokens
   const costUsd =
     usage !== undefined &&
     cachedTokens !== undefined &&
     modelId !== undefined &&
-    report?.backend === 'modelApi' &&
-    modelApiPaidTier(modelId) !== undefined
+    (modelPricing === undefined || modelPricing === 'priced') &&
+    modelApiPaidTier(modelId) !== undefined &&
+    report?.backend === 'modelApi'
       ? estimateCostUsd(
           { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cachedTokens },
           modelId,
@@ -699,17 +571,24 @@ export function UsageDialog({
   if (report === undefined) {
     body = <p className="usage-row-meta">{UI_TEXT.usageLoading}</p>
   } else {
+    let usageNote =
+      report.backend === 'modelApi' ? UI_TEXT.usageModelApiNote : UI_TEXT.usageNoSubscription
+    if (modelPricing === 'plan') usageNote = UI_TEXT.planUi.usageDetail
     body = (
       <>
         <h3 className="usage-heading">{UI_TEXT.usageAccount}</h3>
-        <AccountSection report={report} modelId={modelId} />
+        <Suspense fallback={null}>
+          <AccountSection
+            report={report}
+            modelId={modelId}
+            modelPricing={modelPricing}
+            providerId={providerId}
+            provider={provider}
+          />
+        </Suspense>
         <h3 className="usage-heading">{UI_TEXT.usageHeading}</h3>
         {report.subscription === undefined ? (
-          <p className="usage-row-meta">
-            {report.backend === 'modelApi'
-              ? UI_TEXT.usageModelApiNote
-              : UI_TEXT.usageNoSubscription}
-          </p>
+          <p className="usage-row-meta">{usageNote}</p>
         ) : (
           <SubscriptionSection subscription={report.subscription} nowMs={nowMs} />
         )}
@@ -722,7 +601,14 @@ export function UsageDialog({
           pricing={modelPricing}
         />
         {report.providers !== undefined && report.providers.length > 0 ? (
-          <ProvidersSection providers={report.providers} />
+          <Suspense fallback={null}>
+            <ProvidersSection providers={report.providers} />
+          </Suspense>
+        ) : null}
+        {report.plans !== undefined && report.plans.length > 0 ? (
+          <Suspense fallback={null}>
+            <PlanUsageSection rows={report.plans} models={models} onOpenExternal={onOpenExternal} />
+          </Suspense>
         ) : null}
         {paidFeatures.length > 0 ? (
           <>
@@ -847,5 +733,48 @@ export function UsageDialog({
         </div>
       ) : null}
     </Modal>
+  )
+}
+
+/** The state-backed App adapter stays with the deferred account surface. */
+export function UsageSurface({
+  state,
+  postMessage,
+  onSetupSignIn,
+  now,
+  onOpenExternal,
+  onClose,
+}: {
+  readonly state: UiState
+  readonly postMessage: (message: WebviewToHostMessage) => void
+  readonly onSetupSignIn: (method: SignInMethod) => void
+  readonly now: () => number
+  readonly onOpenExternal: (url: string) => void
+  readonly onClose: () => void
+}) {
+  return (
+    <UsageDialog
+      auth={state.auth}
+      report={state.usageReport}
+      usage={state.usage}
+      context={state.context}
+      modelId={state.model?.modelId}
+      modelPricing={state.models.find((model) => model.modelId === state.model?.modelId)?.pricing}
+      models={state.models}
+      paid={state.paid}
+      onInstallMuseCode={() => {
+        postMessage({ type: 'installMuseCode' })
+      }}
+      onSetupSignIn={(method) => {
+        onClose()
+        onSetupSignIn(method)
+      }}
+      onForgetPaidUse={() => {
+        postMessage({ type: 'forgetPaidUse' })
+      }}
+      now={now}
+      onOpenExternal={onOpenExternal}
+      onClose={onClose}
+    />
   )
 }

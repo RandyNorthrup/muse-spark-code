@@ -41,7 +41,12 @@ async function setup(
   options: Partial<ModelApiHostDeps> = {},
   source: RegistryModel = model,
   isCurrent = () => true,
-  clientFactory = fakeModelApiClient,
+  clientFactory = (api: Parameters<typeof fakeModelApiClient>[0], log: FakeLogOutputChannel) =>
+    new ModelApiClient({
+      ...fakeModelApiClientSettings(log),
+      baseUrl: `${source.origin}/v1`,
+      fetch: api.fetch,
+    }),
 ) {
   const meta = fakeModelApi()
   const provider = fakeModelApi()

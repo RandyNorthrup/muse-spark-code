@@ -33,7 +33,7 @@ key to the CLI.
 
 **Contents:** [What's new](#whats-new-in-0140) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
-[Get started](#get-started) · [Backends](#backends) ·
+[Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [Web fetch](#web-fetch) ·
@@ -441,6 +441,25 @@ This setup follows JetBrains' documentation and has not been tested here yet.
 Add `"--backend", "modelApi"` to `args` in either editor to use the Model
 API backend instead of Muse Code.
 
+**ChatGPT subscription sign-in (M95b preview):** terminal-capable ACP editors
+offer Continue with ChatGPT, Remove and Check; other editors show the same
+commands to run by hand:
+
+```sh
+muse-spark-code-acp providers add chatgpt
+muse-spark-code-acp providers status chatgpt
+muse-spark-code-acp providers remove chatgpt
+```
+
+Add requires Plus or Pro, prints the plan/credit notice and the browser URL,
+and saves only eligible models from the account's own catalogue in the
+user-level providers file. Tokens stay in the OS credential store. Status
+reads local state without a network request; Remove attempts revocation and
+clears local sign-in and configuration. If the store is unavailable, sign in
+from an interactive desktop session with an unlocked store (Linux also needs
+Secret Service). These commands certify sign-in management; combined M95b
+model dispatch and editor acceptance still await integration certification.
+
 **On Windows**, npm installs `muse-spark-code-acp` as a `.cmd` launcher,
 which some editors cannot start. If the editor says it cannot find or start
 the agent, use `node` as the command and the agent's script as the first
@@ -462,6 +481,65 @@ which editors have been tried: so far VSCodium, code-server, Eclipse
 Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
 the extension, and Zed, Emacs (agent-shell), Neovim (CodeCompanion) and
 JupyterLab (Jupyter AI) with the agent.
+
+## Subscriptions
+
+Subscription sign-in is being integrated under M95b; installed-editor and live
+success certification is still pending ([record](docs/certification/m95b.md)).
+In **Models & Agents → Providers**, choose **Continue with ChatGPT** or
+**Use my Copilot models**. The same actions are available in the command palette.
+Connecting selects the shared in-process harness and the account's first
+eligible model; the model picker can select another catalogue model.
+
+**ChatGPT:** OpenAI's sanctioned Subscription Sharing preview accepts eligible
+**Plus and Pro** accounts. Free and other ineligible accounts cannot use this
+flow. The system browser signs in with OpenAI, with a local loopback callback;
+remote VS Code windows currently require signing in from a local window.
+Models come from your account's catalogue, rather than a fixed example model.
+The conversation, tools and tool results spend your ChatGPT plan. **Manage
+usage** opens the provider's limits page. A limit reached inside a successful
+HTTP stream stops the turn and offers usage management. Remove revokes the
+grant and deletes this product's secret record.
+The plan notice is remembered for each verified account. Older grants without
+that identity keep showing it until a verified sign-in or refresh supplies it.
+
+**Copilot:** available only in VS Code hosts exposing `vscode.lm`, using the
+host's Copilot consent. Select it again after reloading the window. It spends
+your Copilot plan or AI credits under GitHub's terms. Models are marked
+**reduced**: token counts are estimates, server reasoning/cache details are
+unavailable, and images are refused unless the host adapter has a verified
+image capability. Quota and consent errors are explained; confidential
+workspaces hide and refuse Copilot. The AI-content note and report link remain
+visible with its plan mark. Other editors use ChatGPT through the shared ACP
+runtime's existing add/status/remove actions and authentication menu (configure
+`--backend model-api`); Copilot
+requires VS Code's Language Model API. JetBrains, Visual Studio, Eclipse,
+Zed, Xcode, Neovim, Emacs and Sublime use their own Copilot plugin for
+Copilot, and this product's shared ChatGPT/API-key routes where implemented.
+The ACP agent has no Copilot token route and reads none of Copilot's credential
+storage. A compatible extension host must actually expose `vscode.lm`;
+a VS Code-like interface alone does not provide it.
+
+Plan requests never consume the harness's USD cap or open its paid-use popup.
+Account & usage counts each dispatched request, with reported ChatGPT tokens
+and estimated Copilot tokens kept separately. Optional paid extras continue
+to require their own supported credential and consent; a subscription does
+not pay for them. The captured **Mistral plan** preset now uses the same
+origin-bound key transport in VS Code and ACP, shows **plan** in the picker,
+links its plan limits, and counts reported tokens and every dispatched
+attempt. Its key is read from each host's credential store immediately
+before sending. Configured API-key and local providers share the captured
+Responses, Chat Completions, Anthropic, Gemini and Ollama codecs; redirects
+are refused and each request pins checked DNS answers. ACP reads the same
+user-level `providers.json`, using its own OS credential store. The terminal
+offers `providers list`, `providers add`, `providers test`, `providers remove`
+and `auth set|status|clear --provider <id>`. Free checks use the shared
+transport; keys are entered through stdin and stored with their origin.
+Headless `exec --provider` validates configuration, credentials and endpoints,
+then refuses before dispatch until its provider-aware accounting runner exists;
+installed-editor and live provider certification are still open. MiniMax
+and Alibaba plan presets await captures, and Hugging Face OAuth awaits
+application registration.
 
 ## Permission modes
 
@@ -3143,6 +3221,8 @@ Open **Muse Spark: Open usage page** from the command palette, the graph item in
 VS Code's status bar, the panel menu, or **Open usage page** in Account & usage.
 The same page is available through ACP's `/usage page` companion link; ACP
 `/usage` and the terminal summary use the same formatter and journal.
+ACP loads the summary renderer and journal aggregation on the first usage
+action. Headless execution loads its separate bundle on the first `exec`.
 
 The local history counts model calls, input/output/cache tokens, durations,
 retries, reported limits and paid feature units across editors. Known costs show
@@ -3255,6 +3335,52 @@ What stays in English:
 
 ## Limits
 
+The table below describes Meta Muse. M95's provider core resolves capabilities
+per configured provider and native model, with user overrides taking precedence
+over captures, model lists, the catalogue and presets. Unknown support does not
+permit tools or media. Images and PDFs have separate support and limits.
+Native image evidence retains the existing 10 MiB application byte bound;
+Anthropic uses its documented, smaller 10 MB bound. Enabled budgeted thinking
+uses a positive default even when the catalogue permits zero. Effort is sent
+only when the record explicitly lists the selected native level; otherwise
+supported thinking uses its native default. Effort-only metadata establishes
+its reasoning mode, and sparse model rows retain their original native JSON.
+Media omitted from replay explains unsupported capability, MIME refusal or
+individual model limits separately from limits consumed by newer media.
+Final provider dispatch remains an integration milestone; this core change is
+not a claim that every listed vendor is supported in the installed extension.
+
+Custom models can declare `modelCapabilities` in their user-level
+`providers.json` entry, keyed by native model id. For example:
+
+```json
+{
+  "modelCapabilities": {
+    "my-model": {
+      "tools": { "calling": { "state": "yes", "value": true } },
+      "reasoning": {
+        "modes": { "state": "yes", "value": ["manual"] },
+        "effortLevels": { "state": "no" }
+      },
+      "modalities": {
+        "image": {
+          "state": "yes",
+          "value": { "mimes": ["image/png"], "maxBytes": 1048576, "maxCount": 2 }
+        },
+        "pdf": { "state": "no" }
+      }
+    }
+  }
+}
+```
+
+This is a fragment of a provider entry; its existing custom-model limits are
+still required. Other record families cover cache, output formats and limits,
+context limits, sampling, logprobs, completion and hosted services. Yes carries
+a value, no explicitly refuses support, and unknown supplies no evidence.
+User-file parsing stamps known overrides with `source.kind: "user"`; a supplied
+source cannot elevate their priority. See [M95 N's record contract](docs/certification/m95-n.md).
+
 | What                             | Limit                                                                                                                                                                                                                                                           |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Images and PDFs                  | 20 attachments per message together; images 10 MiB each (PDFs: next row)                                                                                                                                                                                        |
@@ -3310,6 +3436,8 @@ What stays in English:
 | Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                       |
 | Command                                             | Default keybinding                                                                               | What it does                                                                                                                                                                                                                  |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                    |
+| Muse Spark: Continue with ChatGPT                   | —                                                                                                | Connect an eligible Plus/Pro plan in the system browser and select its catalogue model                                                                                                                                        |
+| Muse Spark: Use my Copilot models                   | —                                                                                                | Select VS Code’s Copilot models using host consent and the user’s plan or AI credits                                                                                                                                          |
 | Muse Spark: Open in Sidebar                         | —                                                                                                | Focus the chat view in the activity bar                                                                                                                                                                                       |
 | Muse Spark: New Conversation                        | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused                      | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                                                                                      |
 | Muse Spark: Sign Out                                | —                                                                                                | Forget the stored Model API key and sign the CLI out when it is signed in (its `account/logout`, else `muse logout`)                                                                                                          |
@@ -3347,6 +3475,9 @@ What stays in English:
 | Muse Spark: What's New                              | —                                                                                                | Open the release notes of this version (back to the newest release with Highlights) in an editor tab; see [What's New after an update](#whats-new-after-an-update)                                                            |
 | Muse Spark: Open a Pull Request in a Conversation…  | —                                                                                                | Check a GitHub pull request out in a worktree of its own and open it in a new window; someone else's is held in Plan mode, its project configuration off, until you trust it there                                            |
 | Muse Spark: Move Running Command to Background      | `Ctrl+B` (also on macOS), while the conversation in view runs a shell command                    | Let the running shell commands go on in the background while the agent carries on; VS Code keeps `Ctrl+B` otherwise                                                                                                           |
+| Muse Spark: Start with Your Own Model               | —                                                                                                | Open the setup wizard at "Pick a provider"; keys stay in the host draft until Save, failures restore prior provider/default/secret state, and setup confirmation requires the composer's model receipt. Cancel writes nothing |
+| Muse Spark: Models & Agents                         | —                                                                                                | Open the Models & Agents panel: providers with key state, model scans with diffs, removal with Undo, import and export                                                                                                        |
+| Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                       |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
 which is why its two shortcuts add `Alt`. Twelve commands appear in the
@@ -3828,6 +3959,10 @@ stopped and the next message resumes the same session.
   log says which credential it started with). If the CLI itself holds a
   pay-as-you-go key (`muse auth set`) or `META_API_KEY` is exported in your
   environment, the CLI uses it, exactly as Meta documents.
+  The standalone ACP agent strips credential variables and gives Muse Code
+  only allowlisted process, profile, configuration-home, proxy and
+  certificate-path variables. Its provider keys stay in the OS credential
+  store and are read when used.
 - **The Agent map says delegation is off** — Muse Code hides its subagent
   tools until `run.subagent_delegation_mode` is `"auto"` in its own settings
   file; the map's button opens that file. The extension never edits it.

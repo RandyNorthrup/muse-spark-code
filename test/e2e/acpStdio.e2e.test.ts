@@ -108,9 +108,6 @@ afterAll(async () => {
 function agentEnvironment(configHome: string): NodeJS.ProcessEnv {
   return {
     ...process.env,
-    // What the fake CLI needs (fakeMuse.ts), handed through the agent's own environment.
-    MUSE_FAKE_NODE: process.execPath,
-    MUSE_FAKE_FINGERPRINT: EXPECTED_SCHEMA_FINGERPRINT,
     NODE_PATH,
     XDG_CONFIG_HOME: configHome,
     LANG: 'C',
@@ -207,7 +204,11 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     const help = spawnSync(process.execPath, [AGENT, '--help'], { encoding: 'utf8', env })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(fill(UI_TEXT.acpUsage, { command: 'muse-spark-code-acp' }))
+    expect(help.stdout.trim()).toBe(
+      [UI_TEXT.acpUsage, UI_TEXT.acpChatGpt.usage]
+        .map((value) => fill(value, { command: 'muse-spark-code-acp' }))
+        .join('\n'),
+    )
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
@@ -216,9 +217,9 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(wrong.stderr).toContain(help.stdout)
   })
 
-  it('prints the complete translated usage from one table entry', () => {
+  it('prints complete translated usage for the agent and provider commands', () => {
     const table = z
-      .object({ acpUsage: z.string() })
+      .object({ acpUsage: z.string(), acpChatGpt: z.object({ usage: z.string() }) })
       .parse(JSON.parse(readFileSync(path.join(PACKAGE, 'l10n', 'ui.de.json'), 'utf8')))
     const help = spawnSync(process.execPath, [AGENT, '--help'], {
       encoding: 'utf8',
@@ -226,7 +227,11 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(table.acpUsage.replaceAll('{command}', 'muse-spark-code-acp'))
+    expect(help.stdout.trim()).toBe(
+      [table.acpUsage, table.acpChatGpt.usage]
+        .map((value) => fill(value, { command: 'muse-spark-code-acp' }))
+        .join('\n'),
+    )
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
   })
 
@@ -309,12 +314,11 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(museCode.stderr.join('')).not.toContain('HTTPS_PROXY is set')
   })
 
-  it('hands META_API_KEY in its own environment to Muse Code only, as the extension does (D1)', async () => {
+  it('refuses environment credentials as Muse Code sign-in (FIXM95X)', async () => {
     const agent = startAgent(signedOut, [], { META_API_KEY: 'LLM|1|placeholder' })
-    // Signed out, but the CLI's own key variable is its credential.
-    await agent.run((client) => newSession(client))
+    await expect(agent.run((client) => newSession(client))).rejects.toMatchObject({ code: -32_000 })
     const said = agent.stderr.join('')
-    expect(said).toContain('META_API_KEY in the environment present')
+    expect(said).not.toContain('META_API_KEY in the environment present')
     expect(said).not.toContain('placeholder')
     expect(agent.wire.join('')).not.toContain('placeholder')
   })
@@ -345,7 +349,6 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
         homeDir: configHome,
         secrets: memorySecrets(),
         runGit: () => Promise.reject(new Error('no git')),
-        museCodeCredentials: [],
         fetch: () => Promise.reject(new Error('no network')),
         sleep: () => Promise.resolve(),
         log,
@@ -395,10 +398,10 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
           }),
         })
       }
-      // With META_API_KEY in its environment `muse serve` starts whatever the file says.
+      // Environment credentials cannot turn a signed-out standalone runtime into ready.
       writeFakeCredential(configHome, LOGOUT_SHELL)
       vi.stubEnv('META_API_KEY', 'LLM|1|placeholder')
-      expect(await runtime.backend.readiness(false)).toEqual({ state: 'ready' })
+      expect(await runtime.backend.readiness(false)).toMatchObject({ state: 'signedOut' })
     } finally {
       vi.unstubAllEnvs()
       await Promise.all([runtime.close(), mac.close()])
@@ -421,7 +424,6 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       homeDir: dataHome,
       secrets,
       runGit: () => Promise.reject(new Error('no git')),
-      museCodeCredentials: [],
       fetch: api.fetch,
       sleep: () => Promise.resolve(),
       log,

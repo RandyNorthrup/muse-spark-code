@@ -37,8 +37,11 @@ function fixture() {
   )
   for (const bundle of [
     'acp',
+    'headless',
     'modelApi',
     'providers',
+    'subscriptions',
+    'configuredProviders',
     'reviewer',
     'foreignHooks',
     'hookRuntime',
@@ -59,6 +62,7 @@ function fixture() {
   for (const file of ['MuseSparkJob', 'MuseSparkMcpJob'])
     put(`native/windows/${file}.cs`, '// test source')
   put('LICENSE', 'MIT')
+  put('dist/providerCatalog.json', '{"providers":{}}')
   put('docs/npm-readme.md', '# Test package')
   for (const schema of ['exec-result-v1', 'exec-event-v1'])
     put(`docs/schemas/${schema}.schema.json`, '{}')

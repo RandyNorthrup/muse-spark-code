@@ -45,6 +45,8 @@ export const GOOEY_MENU = {
 } as const
 
 export const COMMAND_IDS = {
+  connectChatGpt: 'museSpark.connectChatGpt',
+  connectCopilot: 'museSpark.connectCopilot',
   openInSidebar: 'museSpark.openInSidebar',
   openInNewTab: 'museSpark.openInNewTab',
   openTasks: 'museSpark.openTasks',
@@ -117,6 +119,9 @@ export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
+/** ACP grant mutations serialize by exclusively listening on this loopback port. */
+export const CHATGPT_REFRESH_LOCK_PORT = 49_953
+export const CHATGPT_REFRESH_LOCK_RETRY_MS = 100
 /** A removed provider's secret waits ten seconds behind Undo (D74). */
 export const PROVIDER_UNDO_WINDOW_MS = 10 * 1000
 /** How long Scan this computer waits on one loopback port (D74). */
@@ -1008,6 +1013,9 @@ export const IMAGE_EXTENSIONS: Readonly<Record<string, ImageMediaType>> = {
   '.webp': 'image/webp',
 }
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+// Documented Anthropic image limit: 10 MB, not the product's 10 MiB default
+// (docs/certification/m95-research.md §1.5, A-vi).
+export const ANTHROPIC_MAX_IMAGE_BYTES = 10_000_000
 // Images and PDFs together (M54).
 export const MAX_ATTACHMENTS_PER_MESSAGE = 20
 
@@ -1658,6 +1666,8 @@ export const TOKENS_PER_MILLION = 1_000_000
 // output cap is well under the documented 131,072 maximum.
 export const MODEL_API_CONTEXT_WINDOW = 1_048_576
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
+/** Smallest documented manual-thinking budget; always below the output cap. */
+export const PROVIDER_MANUAL_THINKING_BUDGET = 1024
 // A turn that ran this long earns a notification when it ends while the
 // VS Code window is unfocused (M82): shorter turns answer before the user
 // looks away.
@@ -4431,6 +4441,8 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/uiText.js',
   'dist/modelApi.js',
   'dist/providers.js',
+  'dist/subscriptions.js',
+  'dist/configuredProviders.js',
   'dist/modelsPanel.js',
   'dist/usageService.js',
   'dist/usageCompanion.js',
@@ -4937,13 +4949,13 @@ export const CODE_INTEL_MODEL_TEXT = {
 export const BYO_MODEL_REFERENCE_PATTERN = /^[a-z][a-z0-9-]{0,31}\/\S+$/
 
 export const MODEL_API_MODEL_TEXT = {
+  // M91 lane E: BeforeToolSelection's tail note, and TeammateIdle's default.
+  hookToolsUnavailable: 'Tools unavailable for this turn:',
+  hookTeammateContinue: 'Continue the current task; a TeammateIdle hook requested another check.',
   toolCallingUnavailable:
     'The selected model has no verified tool-calling capability; this call was not run.',
   providerIdentity:
     'You are {model}, served by {provider}, a coding agent working inside Visual Studio Code through the Muse Spark Code (Unofficial) extension.',
-  // M91 lane E: BeforeToolSelection's tail note, and TeammateIdle's default.
-  hookToolsUnavailable: 'Tools unavailable for this turn:',
-  hookTeammateContinue: 'Continue the current task; a TeammateIdle hook requested another check.',
   // M73 (PLAN.md D49): observation packing. The placeholder names the
   // packed output's id, size and first and last lines; recall_output pages
   // the original back. Placeholders never reach the transcript: only the
@@ -4990,6 +5002,10 @@ export const MODEL_API_MODEL_TEXT = {
     '[An image attached earlier is left out of this request because newer media fill the request limit.]',
   pdfLeftOut:
     '[The PDF {name}, attached earlier, is left out of this request because newer media fill the request limit.]',
+  mediaLeftOut: '[Media is left out of this request because {reason}.]',
+  mediaSupportRefused: 'the selected model does not have established support for this media',
+  mediaMimeRefused: 'the selected model does not support this image MIME type',
+  mediaLimitExceeded: 'the media exceeds the selected model media limits',
   // M67 (PLAN.md D49): the code intelligence tools in the system prompt, and
   // rename_symbol's write, which only the Model API backend applies itself.
   codeIntelInstructions:
@@ -5328,6 +5344,15 @@ export const ZAI_KEY_PATTERN = /^[0-9a-f]{32}\.[A-Za-z0-9]{8,64}$/
 export const PROVIDERS_CONFIG_DIR_NAME = 'muse-spark-code'
 export const PROVIDERS_FILE_NAME = 'providers.json'
 export const PROVIDERS_FILE_VERSION = 1
+// M95b destinations: opening one never changes billing or sends a model call.
+export const CHATGPT_MANAGE_USAGE_URL = 'https://chatgpt.com/settings/usage'
+export const COPILOT_REPORT_URL = 'mailto:copilot-partners@github.com'
+export const COPILOT_MANAGE_USAGE_URL = 'https://github.com/settings/copilot'
+export const CHATGPT_PLAN_NOTICE_STORAGE_KEY = 'museSpark.chatGptPlanNotice.v1'
+// Owner capture M95B-FINDINGS.md, 2026-10-05: SSE error inside HTTP 200.
+export const CHATGPT_PLAN_LIMIT_MESSAGE = 'Subscription Sharing usage limit'
+export const CHATGPT_PLAN_LIMIT_ERROR_KIND = 'subscription_sharing_usage_limit_exceeded'
+export const SUBSCRIPTION_STREAM_MAX_BYTES = 16 * 1024 * 1024
 // A credential record's version (`{v, auth, origin, …}`, bound to the exact
 // origin it was obtained for).
 export const CREDENTIAL_RECORD_VERSION = 1
@@ -5346,6 +5371,12 @@ export const OLLAMA_NUM_CTX_OPTIONS: readonly number[] = [32_768, 65_536, 131_07
 // A model id or label a provider lists is untrusted text: control and
 // format characters are stripped and the rest is cut to this.
 export const PROVIDER_MODEL_LABEL_MAX_CHARS = 120
+
+// M95-T: untrusted provider responses are bounded before JSON or codec parsing.
+export const PROVIDER_STREAM_FRAME_MAX_BYTES = 16_777_216
+export const PROVIDER_STREAM_MAX_BYTES = 134_217_728
+export const PROVIDER_STREAM_MAX_FRAMES = 100_000
+export const PROVIDER_HTTP_BODY_MAX_BYTES = 16_777_216
 // The suggestion engine's fallback session (D74: "a stated assumption when
 // there is no history"): the default model's price for a reference session
 // of this size.
@@ -5355,6 +5386,11 @@ export const SUGGEST_REFERENCE_SESSION_OUTPUT_TOKENS = 10_000
 // the verifier's random bytes, and the `state` secret's.
 export const PKCE_VERIFIER_BYTES = 32
 export const PKCE_STATE_BYTES = 16
+// How long the ACP agent's free provider test waits for one answer (M95
+// lane X: `providers add|test`).
+export const PROVIDER_PROBE_TIMEOUT_MS = 30_000
+// A bounded free models list, shared by the runtime's captured list parsers.
+export const PROVIDER_PROBE_MODEL_IDS_MAX = 5000
 // The OAuth loopback callback (lane K's one-shot `127.0.0.1` server, reused
 // by M95b): bound to loopback only, one use, codes last this long
 // (OpenRouter's codes are single-use and last ten minutes).

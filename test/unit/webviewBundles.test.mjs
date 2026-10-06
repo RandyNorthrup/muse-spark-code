@@ -16,6 +16,7 @@ const output = (imports = [], entryPoint) => ({ imports, entryPoint })
 function metafile() {
   return {
     outputs: {
+      'dist/webview/models.js': output(),
       [MAIN]: output([
         edge(CORE),
         edge(HIGHLIGHT, 'dynamic-import'),

@@ -77,7 +77,40 @@ describe('bundled What’s New content budget', () => {
   })
 
   it.each([
-    ['deferred JS', 50, 'src/webview/components/deferredHelper.ts'],
+    { root: 'dist/webview/main.js', budget: 900, over: true },
+    { root: 'dist/webview/models.js', budget: 475, over: true },
+    { root: 'dist/webview/models.js', budget: 475, over: false },
+  ])(
+    'counts $root eager chunks at the $budget KiB boundary (over: $over)',
+    async ({ root, budget, over }) => {
+      const other = root.endsWith('main.js') ? 'dist/webview/models.js' : 'dist/webview/main.js'
+      const eager = 'dist/webview/chunks/eager.js'
+      readFileSync.mockReturnValue(
+        JSON.stringify({
+          outputs: {
+            [root]: { imports: [{ path: eager, kind: 'import-statement' }] },
+            [other]: { imports: [] },
+            'dist/webview/usage.js': { imports: [] },
+            [eager]: { imports: [] },
+          },
+        }),
+      )
+      statSync.mockImplementation((file) => ({
+        size: file === eager ? budget * 1024 + (over ? 1 : 0) : 0,
+      }))
+      const run = import('../../scripts/check-bundle-size.mjs')
+      if (over) {
+        await expect(run).rejects.toThrow('exit 1')
+        expect(console.log).toHaveBeenCalledWith(expect.stringContaining(`OVER ${root}`))
+      } else {
+        await run
+        expect(process.exit).not.toHaveBeenCalled()
+      }
+    },
+  )
+
+  it.each([
+    ['deferred JS', 50, 'src/webview/deferredUnknown.ts'],
     ['code highlighting', 125, 'src/webview/components/HighlightedCode.tsx'],
     ['action dialogs', 25, 'src/webview/components/ShareView.tsx'],
     ['tasks tab', 25, 'src/webview/TasksApp.tsx'],

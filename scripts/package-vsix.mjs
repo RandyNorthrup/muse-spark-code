@@ -11,7 +11,7 @@ import { listFiles, pack } from '@vscode/vsce/out/package.js'
 const RECENT_RELEASES = 2
 const HISTORY = 'https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md'
 const COMPACT_JSON =
-  /^(?:l10n\/(?:ui|usage)\.[^/]+\.json|dist\/providerCatalog\.json|package(?:\.nls(?:\.[^/]+)?)?\.json)$/
+  /^(?:l10n\/(?:ui|usage)\.[^/]+\.json|dist\/(?:providerCatalog|whatsNew)\.json|package(?:\.nls(?:\.[^/]+)?)?\.json)$/
 
 export function packagedChangelog(text) {
   const headings = text.matchAll(/^## \[\d+\.\d+\.\d+\].*$/gm).toArray()

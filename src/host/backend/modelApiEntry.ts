@@ -8,6 +8,21 @@
 // available when this backend is loaded outside the extension.
 
 import { ModelApiClient, type ModelApiClientDeps } from '../../core/backends/modelapi/client'
+// T's one request loop and framing API are shared by the lazy provider adapters.
+export {
+  RequestTransport,
+  ModelApiError,
+  isModelApiError,
+  rateLimitHeaders,
+  parseJsonResponse,
+  redactModelApiError,
+  ignoreClosingError,
+  redactSecrets,
+} from '../../core/backends/modelapi/transport'
+export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
+export { parseNdjson } from '../../core/backends/modelapi/ndjson'
+export { streamEventSchema, usageSchema } from '../../core/backends/modelapi/schemas'
+export { pinnedHttpsRequest, pinnedPostRequest } from '../web/pinnedRequest'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
 import {
   type HookDefinition,
@@ -72,17 +87,6 @@ async function loadSparkHooks(sources: HookLoadDeps): Promise<readonly Extension
 export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<ModelApiHost> {
   setUiText(deps.uiText, deps.uiLocale)
   const { host: hostDeps, hookSettingsPath } = deps
-  let providers: ReturnType<NonNullable<typeof deps.createProviders>> | undefined
-  const resolveProviders = async () => {
-    if (deps.createProviders === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
-    providers ??= deps.createProviders()
-    try {
-      return await providers
-    } catch (error: unknown) {
-      providers = undefined
-      throw error
-    }
-  }
   const sourcesFor = () =>
     hookSettingsPath === undefined || hostDeps.isHooksEnabled?.() !== true
       ? undefined
@@ -96,9 +100,23 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
             hostDeps.log.warn(`Hooks: ${message}`)
           },
         }
+  let providers: ReturnType<NonNullable<typeof deps.createProviders>> | undefined
+  const resolveProviders = async () => {
+    if (deps.createProviders === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+    providers ??= deps.createProviders()
+    try {
+      return await providers
+    } catch (error: unknown) {
+      providers = undefined
+      throw error
+    }
+  }
+  const meta = new ModelApiClient(deps.client)
+  const client = (await deps.createProviderClient?.(meta)) ?? meta
   const host = new ModelApiHost({
     ...hostDeps,
-    client: new ModelApiClient(deps.client),
+    client,
+    ...('models' in client && { models: client.models }),
     ...(deps.createProviders !== undefined && {
       models: {
         resolve: async (ref: string) => {
@@ -144,3 +162,4 @@ export function createModelApiClient(
   setUiText(table, locale)
   return new ModelApiClient(deps)
 }
+export { setUiText } from '../../shared/l10n/text'

@@ -2964,6 +2964,30 @@ li:focus-within > .row-actions .row-actions-button,
   text-decoration: underline;
 }
 
+.plan-mark {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+  font-size: var(--vscode-font-size);
+  overflow-wrap: anywhere;
+}
+
+.plan-usage-facts {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+
+.plan-usage-facts dd {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.copilot-note {
+  margin: 4px 12px;
+  overflow-wrap: anywhere;
+}
+
 .usage-link:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 1px;

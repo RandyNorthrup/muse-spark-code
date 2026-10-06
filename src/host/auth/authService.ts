@@ -71,6 +71,10 @@ export interface AuthBackendFacts {
 }
 
 export interface AuthServiceDeps {
+  /** Only a verified subject hash; missing legacy identity keeps the disclosure visible. */
+  readonly getPlanAccount?: () => Promise<
+    Extract<HostToWebviewMessage, { type: 'authState' }>['planAccount']
+  >
   readonly backend: AuthBackendFacts
   readonly credentials: CredentialStore
   /** Extension-private, credential-free state retained across activation. */
@@ -106,6 +110,7 @@ export interface SignOutOptions {
 }
 
 export interface AuthSnapshot {
+  readonly planAccount?: Extract<HostToWebviewMessage, { type: 'authState' }>['planAccount']
   readonly status: AuthStatus
   readonly detail: string | undefined
   /** The backend the window uses (known once the facts are in). */
@@ -813,7 +818,16 @@ export class AuthService {
     // Muse Code would be used but cannot start with its credential file:
     // said by name, not left to a host that exits at every message.
     const isBlocked = choice.kind === 'museCode' && cli.ok && isUnsupportedFile
+    let planAccount: AuthSnapshot['planAccount']
+    if (choice.kind === 'modelApi' && choice.status === 'signedIn') {
+      try {
+        planAccount = await this.deps.getPlanAccount?.()
+      } catch {
+        this.deps.log.warn('Plan account identity could not be read')
+      }
+    }
     return {
+      ...(planAccount !== undefined && { planAccount }),
       status: isBlocked ? 'error' : choice.status,
       detail: isBlocked ? this.unsupportedFileText() : undefined,
       backend: choice.kind,
@@ -1079,6 +1093,9 @@ export class AuthService {
   public toMessage(): HostToWebviewMessage {
     return {
       type: 'authState',
+      ...(this.snapshot.status === 'signedIn' &&
+        this.snapshot.backend === 'modelApi' &&
+        this.snapshot.planAccount !== undefined && { planAccount: this.snapshot.planAccount }),
       status: this.snapshot.status,
       ...(this.snapshot.detail !== undefined && { detail: this.snapshot.detail }),
       ...(this.snapshot.backend !== undefined && { backend: this.snapshot.backend }),

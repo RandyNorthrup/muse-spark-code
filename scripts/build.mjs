@@ -92,6 +92,10 @@ const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
 const PROVIDERS_OUTFILE = 'dist/providers.js'
+const SUBSCRIPTIONS_ENTRY = 'src/host/backend/subscriptionsEntry.ts'
+const SUBSCRIPTIONS_OUTFILE = 'dist/subscriptions.js'
+const CONFIGURED_ENTRY = 'src/host/backend/configuredProvidersEntry.ts'
+const CONFIGURED_OUTFILE = 'dist/configuredProviders.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
@@ -226,6 +230,18 @@ const providersOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const configuredOptions = {
+  ...modelApiOptions,
+  entryPoints: [CONFIGURED_ENTRY],
+  outfile: CONFIGURED_OUTFILE,
+}
+
+const subscriptionsOptions = {
+  ...modelApiOptions,
+  entryPoints: [SUBSCRIPTIONS_ENTRY],
+  outfile: SUBSCRIPTIONS_OUTFILE,
+}
+
 const sessionBoardOptions = {
   ...modelApiOptions,
   entryPoints: [SESSION_BOARD_ENTRY],
@@ -353,17 +369,6 @@ const whatsNewOptions = {
   target: HOST_NODE_TARGET,
 }
 
-/** @type {import('esbuild').BuildOptions} */
-const modelsPanelOptions = {
-  ...common,
-  plugins: [sharedUiText, sharedValidation],
-  entryPoints: [MODELS_PANEL_ENTRY],
-  outfile: MODELS_PANEL_OUTFILE,
-  platform: 'node',
-  external: ['vscode'],
-  format: 'cjs',
-  target: HOST_NODE_TARGET,
-}
 const usageServiceOptions = {
   ...modelApiOptions,
   entryPoints: [USAGE_SERVICE_ENTRY],
@@ -391,6 +396,18 @@ const judgeOptions = {
   ...planMarkdownOptions,
   entryPoints: [JUDGE_ENTRY],
   outfile: JUDGE_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const modelsPanelOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  entryPoints: [MODELS_PANEL_ENTRY],
+  outfile: MODELS_PANEL_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -490,6 +507,13 @@ const acpOptions = {
   target: AGENT_NODE_TARGET,
   external: ['@napi-rs/keyring'],
   banner: { js: '#!/usr/bin/env node' },
+}
+
+const headlessOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/exec/runExec.ts'],
+  outfile: 'dist/headless.js',
+  banner: undefined,
 }
 
 // Keep the production Node fallback under its existing cap; runtime values
@@ -609,6 +633,8 @@ if (isWatch) {
     esbuild.context(tabOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(providersOptions),
+    esbuild.context(subscriptionsOptions),
+    esbuild.context(configuredOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(reviewerOptions),
@@ -626,6 +652,7 @@ if (isWatch) {
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
     esbuild.context(usageServiceOptions),
+    esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
     esbuild.context(usagePanelOptions),
     esbuild.context(extensionHooksOptions),
@@ -653,6 +680,8 @@ if (isWatch) {
     tab: esbuild.build(tabOptions),
     modelApi: esbuild.build(modelApiOptions),
     providers: esbuild.build(providersOptions),
+    subscriptions: esbuild.build(subscriptionsOptions),
+    configuredProviders: esbuild.build(configuredOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
     reviewer: esbuild.build(reviewerOptions),
@@ -694,7 +723,8 @@ if (isWatch) {
     whatsNewPage: esbuild.build(whatsNewPageOptions),
   }
   const acp = esbuild.build(acpOptions)
-  const builds = [...Object.values(shipped), acp]
+  const headless = esbuild.build(headlessOptions)
+  const builds = [...Object.values(shipped), acp, headless]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
@@ -710,7 +740,9 @@ if (isWatch) {
     }
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
     const { metafile } = await acp
+    const { metafile: headlessMetafile } = await headless
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'headless.json'), JSON.stringify(headlessMetafile))
   }
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
@@ -718,6 +750,8 @@ if (isWatch) {
   reportSize(TAB_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(PROVIDERS_OUTFILE)
+  reportSize(SUBSCRIPTIONS_OUTFILE)
+  reportSize(CONFIGURED_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
   reportSize(REVIEWER_OUTFILE)
@@ -761,4 +795,5 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)
+  reportSize('dist/headless.js')
 }

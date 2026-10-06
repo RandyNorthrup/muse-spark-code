@@ -29,6 +29,7 @@ import { fill } from '../../../shared/l10n/text'
 import { modelApiPaidTier } from '../../../shared/paid'
 import { formatUsd, estimateCostUsd } from '../../usage/insights'
 import type { ModelPricePolicy } from './modelPolicy'
+import { modelPricedUsage } from './modelPolicy'
 import type { CreateResponseBody, Usage } from './schemas'
 
 const PART_DIGEST = 'sha256'
@@ -206,6 +207,37 @@ export function reserveRequest(request: {
   }
 }
 
+/** A hidden paid request's known charge, or its retained uncertain reservation. */
+export function helperRequestSettlement(
+  modelId: string,
+  usage: Usage | null | undefined,
+  isCountedUsage: (usage: Usage) => boolean,
+  wasSent: boolean,
+  wasRefused: boolean,
+  reservedUsd: number,
+  price?: ModelPricePolicy,
+) {
+  const hasUsage = usage !== null && usage !== undefined && isCountedUsage(usage)
+  let costUsd = wasSent && !wasRefused ? reservedUsd : 0
+  let hasKnownCost = price === undefined
+  if (usage !== null && usage !== undefined && isCountedUsage(usage)) {
+    const settled = price?.settle(modelPricedUsage(usage), { cost: usage.provider_cost_usd })
+    hasKnownCost = price === undefined || settled !== undefined
+    costUsd =
+      price === undefined
+        ? estimateCostUsd(
+            {
+              inputTokens: usage.input_tokens,
+              outputTokens: usage.output_tokens,
+              cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
+            },
+            modelId,
+          )
+        : (settled ?? reservedUsd)
+  }
+  return { costUsd, isUnknown: wasSent && !wasRefused && (!hasUsage || !hasKnownCost) }
+}
+
 /** A provider's public price-card reservation bounds every potentially written input token. */
 function reserveProviderRequest(request: {
   readonly capUsd: number
@@ -248,28 +280,4 @@ function reserveProviderRequest(request: {
   const costUsd = request.price.reserve({ ...usage, outputTokens: low })
   if (costUsd === undefined) throw new SessionBudgetExceededError(UI_TEXT.subagentTariffUnknown)
   return { estimatedInputTokens: usage.inputTokens, maxOutputTokens: low, costUsd }
-}
-
-/** A hidden paid request's known charge, or its retained uncertain reservation. */
-export function helperRequestSettlement(
-  modelId: string,
-  usage: Usage | null | undefined,
-  isCountedUsage: (usage: Usage) => boolean,
-  wasSent: boolean,
-  wasRefused: boolean,
-  reservedUsd: number,
-) {
-  const hasUsage = usage !== null && usage !== undefined && isCountedUsage(usage)
-  let costUsd = wasSent && !wasRefused ? reservedUsd : 0
-  if (usage !== null && usage !== undefined && isCountedUsage(usage)) {
-    costUsd = estimateCostUsd(
-      {
-        inputTokens: usage.input_tokens,
-        outputTokens: usage.output_tokens,
-        cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
-      },
-      modelId,
-    )
-  }
-  return { costUsd, isUnknown: wasSent && !wasRefused && !hasUsage }
 }
