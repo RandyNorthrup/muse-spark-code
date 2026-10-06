@@ -2,6 +2,8 @@ import {
   NODE_APPROVAL_TTL_MS,
   NODE_MAX_CHALLENGES,
   NODE_MAX_SESSIONS,
+  NODE_SESSION_IDLE_MS,
+  NODE_SESSION_MAX_MS,
   UI_TEXT,
 } from '../../shared/constants'
 import type { NodeClock } from '../../shared/node'
@@ -18,7 +20,10 @@ export interface NodeRunPolicy {
 
 /** A1 calls attach only after authentication; public session data is not a proof. */
 export class NodeAttendance {
-  private readonly attached = new Map<string, { session: NodeSession; deadline: number }>()
+  private readonly attached = new Map<
+    string,
+    { session: NodeSession; verifiedAt: number; lastActivityAt: number }
+  >()
   private readonly asks = new Map<
     string,
     {
@@ -45,19 +50,37 @@ export class NodeAttendance {
     ask.finish(isAllowed)
   }
 
+  private remaining(item: { verifiedAt: number; lastActivityAt: number }, now: number): number {
+    return Math.min(
+      NODE_SESSION_IDLE_MS,
+      NODE_SESSION_MAX_MS,
+      NODE_SESSION_IDLE_MS - (now - item.lastActivityAt),
+      NODE_SESSION_MAX_MS - (now - item.verifiedAt),
+    )
+  }
+
   sessions(): NodeSession[] {
-    for (const [id, item] of this.attached) {
-      if (this.clock.monotonicMs() >= item.deadline) this.attached.delete(id)
+    const now = this.clock.monotonicMs()
+    // A1 detaches expired identities. Retain anchors until then so a repeated
+    // verification cannot restart the absolute limit after sessions() is read.
+    const sessions: NodeSession[] = []
+    for (const item of this.attached.values()) {
+      if (this.remaining(item, now) > 0) sessions.push(structuredClone(item.session))
     }
-    return Array.from(this.attached.values(), ({ session }) => structuredClone(session))
+    return sessions
   }
 
   attach(input: NodeSession): void {
     const session = nodeSessionSchema.parse(input)
-    const remaining = Math.min(session.idleExpiresAt, session.absoluteExpiresAt) - this.clock.now()
-    if (session.ownerId !== this.ownerId || remaining <= 0)
+    const wallNow = this.clock.now()
+    if (
+      session.ownerId !== this.ownerId ||
+      session.createdAt > wallNow ||
+      session.lastSeenAt > wallNow ||
+      session.idleExpiresAt <= wallNow ||
+      session.absoluteExpiresAt <= wallNow
+    )
       throw new Error(UI_TEXT.nodeErrors.expired)
-    this.sessions()
     if (!this.attached.has(session.id) && this.attached.size >= NODE_MAX_SESSIONS) {
       throw new Error(UI_TEXT.nodeErrors.tooLarge)
     }
@@ -65,7 +88,14 @@ export class NodeAttendance {
     if (current !== undefined && current.session.createdAt !== session.createdAt) {
       throw new Error(UI_TEXT.nodeErrors.conflict)
     }
-    this.attached.set(session.id, { session, deadline: this.clock.monotonicMs() + remaining })
+    const now = this.clock.monotonicMs()
+    if (current !== undefined && this.remaining(current, now) <= 0)
+      throw new Error(UI_TEXT.nodeErrors.expired)
+    this.attached.set(session.id, {
+      session,
+      verifiedAt: current?.verifiedAt ?? now,
+      lastActivityAt: now,
+    })
   }
 
   detach(id: string): void {

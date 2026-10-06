@@ -288,12 +288,75 @@ remove Origin individually. The last two fail the new HTTP and WebSocket
 foreign-site/origin cases. All restore the production source byte-exact:
 [review drill receipts](m110-n-review-drills.json).
 
+H08 is fixed in `attendance.ts`: first accepted verification and latest
+authenticated activity are monotonic anchors. Remaining attendance is
+`min(idle maximum, absolute maximum, idle maximum - elapsed since activity,
+absolute maximum - elapsed since verification)`; wall-clock expiry fields
+never set its length. Reverification refreshes activity and retains the first
+anchor. Future creation/activity and already expired metadata fail closed;
+the shared schema enforces both recorded lifetime maxima. Expired identities
+cannot be revived by querying attendance or reattaching the same id. A1 must
+detach identities after ending their actual sessions; until then retained
+anchors count toward the existing 100-session cap. Lock/Stop endAll clears
+them. This uses existing shared core behavior for all editor/runtime callers.
+
+New regressions cover backward wall-clock steps before and after attach,
+verification close to a metadata expiry, repeated activity up to the absolute
+boundary, expired first attachment and both over-long verifier lifetimes.
+The original attendance source is replayed as a red drill against the final
+tests; no raised timeout is used. The wall timestamp and expiry checks have
+redundant schema ordering, so their paired removals are documented together
+in the review receipts. Other drills independently remove idle/absolute
+elapsed bounds, reset the first anchor, suppress activity refresh and allow
+expired identity revival. Existing lifetime schema guards are also removed
+individually to prove the over-long verifier cases fire. Every restored hash
+matches the final production source.
+
 **Named residual `M110N-packed-replace-ref` (RVM110NG P3):** `gitSnapshot.ts`
 rejects loose replacement refs but still imports packed replacement refs.
 Safe for now: all `NodeGitRunner` operations prepend `NODE_GIT_OPTIONS`,
 including `--no-replace-objects`, and current commands ignore replacement
 objects. Existing `nodeMethods.test.ts` asserts that fixed option and the
-Git canary/drills prove policy options reach the child. Follow-up: N/U1
+Git runner still prepends the fixed options for each child. Follow-up: N/U1
 reject packed replacement refs in the bounded FD-held importer, add a packed
 replacement regression/red drill, and qualify before expanding the invocation
 surface. PLAN §9 records the same residual. No P1 or P2 is deferred.
+
+| Finding                           | Result                                    | Regression / verification                                                                                                                    | Red drill                                                                 |
+| --------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| P2 H07 browser WebSocket metadata | Fixed                                     | `nodeListenerGuard.test.ts`: browser destination and both transports' foreign-site/origin cases; local TLS upgrade in `nodeListener.test.ts` | Four `H07-review-*` receipts                                              |
+| P2 H08 session attendance         | Fixed                                     | Seven added `nodeLifecycle.test.ts` cases: rollback, verification origin, repeated activity, future/expired and over-long verifier metadata  | Eleven `H08-review-*` receipts, including original-source replay          |
+| P3 packed replacement refs        | Named residual `M110N-packed-replace-ref` | `nodeMethods.test.ts` asserts `--no-replace-objects`; `nodeGitRunner.test.ts` verifies the current closed runner                             | No new packed-ref drill; importer regression/drill is the named follow-up |
+
+### FIXM110N2 final verification
+
+Kubuntu Linux x86_64, Node **v24.18.0**, repository-default test timeout.
+The final scoped runs use `npx vitest run <files> --maxWorkers=3`, three files
+per invocation, with `TMPDIR` pointing only to this worktree's
+`temp/verification`. No test filter, skip, timeout override or gate change.
+
+- Listener guard/socket/HTTPS: **96 tests**.
+- Attendance/lifecycle, service and commands: **54 tests**.
+- Git runner, shared method contracts and shipped bundle: **53 tests**.
+- Total: **203 tests in nine files**, pass. **15** accepted review drills
+  (H07 four, H08 eleven), all named failures and equal restored SHA-256 hashes.
+- `npm run typecheck` (five projects), changed-file ESLint with zero warnings,
+  changed-file Prettier, `npm run deadcode` (two existing configuration hints),
+  `npx jscpd` (zero clones) and `npm run check:l10n` (14 tables, 164 manifest
+  strings, zero problems): pass.
+- `npm run build`: pass, including unchanged size/split/global/notices gates.
+  Node **64.9/75 KiB**, shared validation **41.2/50 KiB**, ACP **817.9/850 KiB**,
+  extension **437.0/600 KiB**, Model API **447.0/475 KiB**, browser startup
+  **896.2/900 KiB**, deferred JS **49.7/50 KiB**.
+- `npm run check:host-api`: **exit 1**, the same eleven J-owned import-count
+  rows listed in the listener continuation above. Counts of VS Code APIs
+  (332), importers (31), built-ins (25) and theme variables (61) are unchanged.
+  J/lead must regenerate/review that snapshot in integration; this is not
+  reported green. PLAN §7 retains the full-quality delegation to the lead.
+
+The duplication gate initially caught the repeated fresh-session setup in two
+regressions; they now share one test-only fixture helper. Lint also rejected
+the temporary-array form of the attendance projection; a plain bounded loop
+keeps the existing ES2023 API surface. The final receipt hashes cover that loop.
+No dependency was added or installed. No merge, push, rebase, live/paid model
+call, credential read or machine setting change. Local commits keep hooks on.

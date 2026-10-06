@@ -26,7 +26,7 @@ async function setup() {
   initial.auditHead = { seq: 0, hash: NODE_ZERO_DIGEST }
   await state.initialize(initial)
   const clock = new FakeNodeClock()
-  clock.shiftWall(-clock.now())
+  clock.shiftWall(1 - clock.now())
   const tools = new FakeNodeToolHost(new Set(['workspace']))
   const stop = vi.fn(() => Promise.resolve())
   const endSessions = vi.fn(() => Promise.resolve())

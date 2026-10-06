@@ -7,15 +7,19 @@ import {
   NODE_STOP_TIMEOUT_MS,
   NODE_MAX_SESSIONS,
   NODE_MAX_CHALLENGES,
+  NODE_SESSION_IDLE_MS,
+  NODE_SESSION_MAX_MS,
 } from '../../src/shared/constants'
 import { NodeAttendance, type NodeRunPolicy } from '../../src/runtime/node/attendance'
+import { nodeAuthenticate } from '../../src/runtime/node/listenerGuard'
 import { NodeKillSwitch } from '../../src/runtime/node/killSwitch'
 import { NodeAttempts, superviseNode } from '../../src/runtime/node/supervisor'
 import { NodePrivateFiles } from '../../src/runtime/node/privateFiles'
 import { nodeHealth } from '../../src/runtime/node/health'
 import { NodeStateStore } from '../../src/runtime/node/state'
 import { NODE_ZERO_DIGEST } from '../../src/shared/constants'
-import { nodeSession, nodeState } from './helpers/node/records'
+import { nodeBearer, nodeSession, nodeState } from './helpers/node/records'
+import { listenerFixture } from './helpers/node/listener'
 import { FakeNodeClock } from './helpers/node/clock'
 
 const directories: string[] = []
@@ -34,8 +38,18 @@ const policy: NodeRunPolicy = {
 }
 function attendance() {
   const clock = new FakeNodeClock()
-  clock.shiftWall(-clock.now())
+  clock.shiftWall(1 - clock.now())
   return { clock, people: new NodeAttendance(clock, 'owner') }
+}
+function verifiedSession(clock: FakeNodeClock) {
+  const now = clock.now()
+  return {
+    ...nodeSession(),
+    createdAt: now,
+    lastSeenAt: now,
+    idleExpiresAt: now + NODE_SESSION_IDLE_MS,
+    absoluteExpiresAt: now + NODE_SESSION_MAX_MS,
+  }
 }
 afterEach(async () => {
   vi.useRealTimers()
@@ -80,6 +94,116 @@ describe('M110-N attendance and headless floor', () => {
     expect(() => {
       people.attach({ ...nodeSession(), ownerId: 'other' })
     }).toThrow()
+  })
+  it('H08 a backward wall-clock step cannot extend idle attendance or bypass the unattended floor', () => {
+    const { people, clock } = attendance()
+    const session = verifiedSession(clock)
+    people.attach(session)
+    clock.advance(NODE_SESSION_IDLE_MS - 1)
+    clock.shiftWall(-NODE_SESSION_MAX_MS)
+    expect(people.sessions()).toHaveLength(1)
+    clock.advance(1)
+    expect(people.sessions()).toEqual([])
+    expect(() => {
+      people.assertRunAllowed({ ...policy, mode: 'bypass' })
+    }).toThrow()
+    expect(() => {
+      people.attach(session)
+    }).toThrow()
+  })
+  it('H08 idle time starts at verification and never comes from wall-clock expiry distances', () => {
+    const { people, clock } = attendance()
+    clock.advance(NODE_SESSION_IDLE_MS - 2)
+    people.attach(nodeSession())
+    clock.advance(NODE_SESSION_IDLE_MS - 1)
+    expect(people.sessions()).toHaveLength(1)
+    clock.advance(1)
+    expect(people.sessions()).toEqual([])
+  })
+  it('H08 repeated verified activity refreshes idle time without restarting the absolute limit', () => {
+    const { people, clock } = attendance()
+    const session = verifiedSession(clock)
+    people.attach(session)
+    for (
+      let elapsed = NODE_SESSION_IDLE_MS - 1;
+      elapsed < NODE_SESSION_MAX_MS;
+      elapsed += NODE_SESSION_IDLE_MS - 1
+    ) {
+      clock.advance(NODE_SESSION_IDLE_MS - 1)
+      session.lastSeenAt = clock.now()
+      session.idleExpiresAt = Math.min(
+        clock.now() + NODE_SESSION_IDLE_MS,
+        session.absoluteExpiresAt,
+      )
+      people.attach(session)
+    }
+    clock.shiftWall(-2)
+    clock.advance(NODE_SESSION_MAX_MS - clock.monotonicMs() - 1)
+    expect(people.sessions()).toHaveLength(1)
+    clock.advance(1)
+    expect(people.sessions()).toEqual([])
+    // Wall metadata still appears live; neither querying nor reattaching may reset verification.
+    expect(() => {
+      people.attach(session)
+    }).toThrow()
+  })
+  it('H08 refuses future verifier timestamps and a rollback before first attachment', async () => {
+    const { people, clock } = attendance()
+    const { verifier } = listenerFixture()
+    const createdAt = clock.now() + NODE_SESSION_MAX_MS
+    verifier.verifyBearer.mockResolvedValue({
+      ...nodeSession(),
+      createdAt,
+      lastSeenAt: createdAt,
+      idleExpiresAt: createdAt + NODE_SESSION_IDLE_MS,
+      absoluteExpiresAt: createdAt + NODE_SESSION_MAX_MS,
+    })
+    const verified = await nodeAuthenticate(
+      verifier,
+      nodeBearer,
+      'owner',
+      new AbortController().signal,
+    )
+    expect(() => {
+      people.attach(verified)
+    }).toThrow()
+    clock.shiftWall(-NODE_SESSION_MAX_MS)
+    expect(() => {
+      people.attach(nodeSession())
+    }).toThrow()
+    expect(people.sessions()).toEqual([])
+  })
+  it.each(['idleExpiresAt', 'absoluteExpiresAt'] as const)(
+    'H08 refuses an over-long verifier %s',
+    async (field) => {
+      const { people } = attendance()
+      const { verifier } = listenerFixture()
+      const session = nodeSession()
+      session[field] += 2
+      verifier.verifyBearer.mockResolvedValue(session)
+      await expect(
+        nodeAuthenticate(verifier, nodeBearer, 'owner', new AbortController().signal),
+      ).rejects.toThrow()
+      expect(() => {
+        people.attach(session)
+      }).toThrow()
+      expect(people.sessions()).toEqual([])
+    },
+  )
+  it('H08 refuses an already expired verifier session at first attachment', async () => {
+    const { people, clock } = attendance()
+    const { verifier } = listenerFixture()
+    clock.advance(NODE_SESSION_IDLE_MS)
+    const verified = await nodeAuthenticate(
+      verifier,
+      nodeBearer,
+      'owner',
+      new AbortController().signal,
+    )
+    expect(() => {
+      people.attach(verified)
+    }).toThrow()
+    expect(people.sessions()).toEqual([])
   })
   it.each([
     { mode: 'bypass' },

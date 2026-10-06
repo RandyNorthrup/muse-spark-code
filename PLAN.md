@@ -22544,8 +22544,17 @@ future or over-long public session metadata. Reverification never resets the
 absolute clock. Retain expired attachment records until A1 detaches/ends them
 so a repeated id cannot restart either limit; the existing session cap bounds
 that memory. Add before-fix regressions and byte-exact guard-fire receipts.
-The P3 packed replace-ref finding is the named §9 residual below; no guard,
-dependency, protocol shape or unrelated lane file changes.
+The P3 packed replace-ref finding is the named §9 residual below. No guard is
+widened; no dependency, protocol shape or unrelated lane file changes.
+
+**FIXM110N2 receipt.** Both P2 findings are fixed. The nine scoped final
+suites pass **203 tests** with repository-default timeouts; the original
+source fails both regressions. **15** accepted red drills restore byte-exact
+and match the final source hashes. Detailed tests, metadata sources, A1's
+expired-identity detach handoff and the P3 follow-up are recorded in
+`docs/certification/m110-n-node-service.md` and
+`docs/certification/m110-n-review-drills.json`. The inherited J-owned host-API
+snapshot mismatch remains the §7 integration handoff; no gate is weakened.
 
 **RVM110L0 corrections (FIXM110L0).** Before freezing these contracts,
 close all three review findings: require a closed, service-owned Git
