@@ -57,6 +57,7 @@ import {
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
+  readonly judge?: ModelApiHostDeps['judge']
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
   readonly workspaceRoot: string | undefined
@@ -271,6 +272,7 @@ export class ModelApiBackendManager {
         ...(this.deps.networkAdvice !== undefined && { networkAdvice: this.deps.networkAdvice }),
       },
       host: {
+        judge: this.deps.judge,
         workspaceRoot: variant.workspaceRoot,
         platform: process.platform,
         io: variant.io,
@@ -365,6 +367,10 @@ export class ModelApiBackendManager {
           : (newPool) => createMcpServers(workspaceRoot, newPool),
       readyMessage: 'Model API backend ready (api.meta.ai/v1, stateless reasoning replay)',
     })
+  }
+
+  public judgeConnection(sessionId: string, turnId: string) {
+    return this.host?.judgeConnection(sessionId, turnId)
   }
 
   /**

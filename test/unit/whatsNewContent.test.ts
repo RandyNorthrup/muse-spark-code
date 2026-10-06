@@ -4,6 +4,7 @@
 // parts, and the file the build writes read back through the extension's
 // schema.
 
+import { brotliCompressSync } from 'node:zlib'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -17,7 +18,10 @@ import {
   repositoryUrl,
   writeWhatsNewContent,
 } from '../../scripts/lib/whatsNewContent.mjs'
-import { parseWhatsNewContent } from '../../src/core/whatsNew/whatsNewContent'
+import {
+  encodeWhatsNewContent,
+  parseWhatsNewContent,
+} from '../../src/core/whatsNew/whatsNewContent'
 import { releasesToShow } from '../../src/core/whatsNew/whatsNewVersions'
 import { renderWhatsNewPage } from '../../src/host/whatsNew/whatsNewHtml'
 import { WHATS_NEW_CHANGELOG_URL } from '../../src/shared/constants'
@@ -315,5 +319,63 @@ describe('writeWhatsNewContent', () => {
     expect(releases.length).toBeGreaterThan(0)
     expect(releases.some((release) => release.version === manifest.version)).toBe(true)
     parseWhatsNewContent(JSON.stringify({ schema: 1, releases }))
+  })
+})
+
+describe('bounded lossless What’s New artifact', () => {
+  it('keeps both complete releases identical after generated artifact encoding', () => {
+    const changelog = readFileSync(path.resolve(import.meta.dirname, '../../CHANGELOG.md'), 'utf8')
+    const releases = parseChangelog(
+      changelog,
+      contributedIds(manifest),
+      repositoryUrl(manifest),
+    ).slice(0, 2)
+    const plain = JSON.stringify({ schema: 1, releases })
+    const encoded = encodeWhatsNewContent(plain)
+    expect(Buffer.byteLength(encoded)).toBeLessThanOrEqual(40 * 1024)
+    // Small notes ship as written; only notes over the cap are packed.
+    if (Buffer.byteLength(plain) > 40 * 1024) {
+      expect(JSON.parse(encoded)).toHaveProperty('encoding', 'br')
+    } else {
+      expect(encoded).toBe(plain)
+    }
+    expect(parseWhatsNewContent(encoded)).toEqual(JSON.parse(plain))
+  })
+
+  it('packs real release notes that exceed the cap and decodes them losslessly', () => {
+    const changelog = readFileSync(path.resolve(import.meta.dirname, '../../CHANGELOG.md'), 'utf8')
+    const all = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
+    // The smallest leading run of real releases whose JSON exceeds the 40 KiB cap.
+    let count = 1
+    while (
+      count < all.length &&
+      Buffer.byteLength(JSON.stringify({ schema: 1, releases: all.slice(0, count) })) <= 40 * 1024
+    ) {
+      count += 1
+    }
+    const plain = JSON.stringify({ schema: 1, releases: all.slice(0, count) })
+    expect(Buffer.byteLength(plain)).toBeGreaterThan(40 * 1024)
+    const encoded = encodeWhatsNewContent(plain)
+    expect(JSON.parse(encoded)).toHaveProperty('encoding', 'br')
+    expect(Buffer.byteLength(encoded)).toBeLessThanOrEqual(40 * 1024)
+    expect(parseWhatsNewContent(encoded)).toEqual(JSON.parse(plain))
+  })
+
+  it('refuses expansion past the bounded decoded tree', () => {
+    const plain = JSON.stringify({ schema: 1, releases: [] }).padEnd(75 * 1024 + 1)
+    const encoded = JSON.stringify({
+      encoding: 'br',
+      data: brotliCompressSync(plain).toString('base64'),
+    })
+    expect(() => parseWhatsNewContent(encoded)).toThrow()
+  })
+
+  it('refuses oversized packed input and malformed envelopes', () => {
+    const data = brotliCompressSync(JSON.stringify({ schema: 1, releases: [] })).toString('base64')
+    const oversized = JSON.stringify({ encoding: 'br', data }).padEnd(40 * 1024 + 1)
+    expect(() => parseWhatsNewContent(oversized)).toThrow()
+    expect(() =>
+      parseWhatsNewContent(JSON.stringify({ encoding: 'br', data: 'invalid*' })),
+    ).toThrow()
   })
 })

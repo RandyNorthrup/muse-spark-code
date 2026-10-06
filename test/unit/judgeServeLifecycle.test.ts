@@ -41,7 +41,11 @@ const disconnect = () => { if (process.connected) process.disconnect() }
 process.once('SIGINT', disconnect)
 process.once('SIGTERM', disconnect)
 process.on('message', (value) => {
-  const command = z.enum(['fatal', 'disconnect']).parse(value)
+  const command = z.enum(['fatal', 'disconnect', 'SIGINT', 'SIGTERM']).parse(value)
+  if (command === 'SIGINT' || command === 'SIGTERM') {
+    process.emit(command)
+    return
+  }
   disconnect()
   if (command === 'fatal') throw new Error('synthetic fatal exit')
 })
@@ -94,6 +98,12 @@ async function launch(port = 0, phase: 'ready' | 'sync' | 'close' = 'ready') {
   })
   return { ...readySchema.parse(frame), child, ended }
 }
+function gracefulSignal(service: Awaited<ReturnType<typeof launch>>, signal: 'SIGINT' | 'SIGTERM') {
+  // Windows child.kill force-terminates; IPC exercises the registered Node handler.
+  // POSIX continues to deliver the actual OS signal. Hard-kill rotation is real on both.
+  if (process.platform === 'win32') service.child.send(signal)
+  else service.child.kill(signal)
+}
 async function endedWithin(service: Awaited<ReturnType<typeof launch>>) {
   let timer: ReturnType<typeof setTimeout> | undefined
   const deadline = new Promise<never>((_resolve, reject) => {
@@ -140,7 +150,7 @@ describe('judge serve installed Node lifecycle', () => {
       const service = await launch()
       const token = await readFile(service.tokenPath, 'utf8')
       expect(await status(service.url, token)).toBe(403)
-      service.child.kill(signal)
+      gracefulSignal(service, signal)
       expect(await endedWithin(service)).toEqual({ code: 0, signal: null })
       await expect(stat(service.tokenPath)).rejects.toMatchObject({ code: 'ENOENT' })
       await expect(status(service.url, token)).rejects.toMatchObject({ code: 'ECONNREFUSED' })
@@ -179,7 +189,7 @@ describe('judge serve installed Node lifecycle', () => {
     expect(old === current).toBe(false)
     expect(await status(restarted.url, old)).toBe(401)
     expect(await status(restarted.url, current)).toBe(403)
-    restarted.child.kill('SIGTERM')
+    gracefulSignal(restarted, 'SIGTERM')
     await endedWithin(restarted)
     await expect(stat(restarted.tokenPath)).rejects.toMatchObject({ code: 'ENOENT' })
   })

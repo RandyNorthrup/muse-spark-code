@@ -33,6 +33,9 @@
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
+// - the conversation Git implementation or the window's git and pull request
+//   features (M71) leak back into activation, dist/modelApi.js or
+//   dist/acp.js, or are missing from their checked factory bundle.
 // - the bundled skills installer (M89: the copy and links for Muse Code) is
 //   in dist/extension.js, dist/modelApi.js or dist/acp.js, or missing from
 //   dist/bundledSkills.js, or that bundle carries its own English table.
@@ -48,8 +51,12 @@
 //   dist/extension.js or missing from dist/whatsNew.js; or its page script,
 //   dist/webview/whatsNew.js, carries any package, the display table or
 //   constants.ts, or no longer carries the page script.
+// - the report dialog (M93: the builder, its second scrub, the export paths
+//   and the handler) or the flight recorder's journal (its policy and frame
+//   mapping) is in dist/extension.js, or missing from dist/report.js or
+//   dist/recorder.js. The ACP agent loads that same journal before serving.
 // - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
-//   CHECKPOINT_, AGENT_IMPORT_, REVIEW_, WEB_FETCH_, EXEC_,
+//   CHECKPOINT_, AGENT_IMPORT_, GIT_, REVIEW_, WEB_FETCH_, EXEC_,
 //   AUTO_REVIEWER_MODEL_TEXT) is
 //   in any shipped bundle but the ones declared to read it, or no longer in
 //   one of those; a block is declared that this check does not guard;
@@ -66,16 +73,26 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { createRequire } from 'node:module'
-import { DEFERRED_WEBVIEW_SURFACES, webviewStartupOutputs } from './lib/webviewBundles.mjs'
+import {
+  BUNDLES,
+  DEFERRED,
+  ON_FIRST_USE,
+  DEFERRED_ONLY,
+  FOREIGN_HOOKS_ONLY,
+  HOOK_RUNTIME_ONLY,
+  PLUGIN_HOOKS_ONLY,
+  checkDeferredBundles,
+} from './lib/deferredBundles.mjs'
+import {
+  ADDITIONAL_WEBVIEW_BUDGETS,
+  DEFERRED_WEBVIEW_SURFACES,
+  webviewStartupOutputs,
+} from './lib/webviewBundles.mjs'
+import { UI_TEXT_REGIONS } from './lib/uiTextRegions.mjs'
 
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 const ENTRY = 'src/host/backend/modelApiEntry.ts'
-const BUNDLES = {
-  activation: { output: 'dist/extension.js', metafile: 'dist/meta/extension.json' },
-  modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
-  acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
-}
-const JUDGE = { output: 'dist/judge.js', metafile: 'dist/meta/judge.json' }
+const JUDGE = { output: 'dist/judgeP2.js', metafile: 'dist/meta/judgeP2.json' }
 const JUDGE_ONLY = [
   'src/runtime/judge/judgeEntry.ts',
   'src/core/judge/calibration/apply.ts',
@@ -147,85 +164,30 @@ const JUDGE_CHILDREN = [
     files: ['src/runtime/judge/judgeHookEntry.ts', 'src/runtime/judge/hook.ts'],
   },
 ]
-const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
 // M91 lane W: the adapters for hooks imported in another agent's format (lane
 // P's contracts and engine), dist/foreignHooks.js, loaded the first time a
 // session holding one runs a hook.
-const FOREIGN_HOOKS_ONLY = [
-  'foreignHooksEntry.ts',
-  'hookFormats.ts',
-  'hookFormats/core.ts',
-  'hookFormats/engine.ts',
-  'hookFormats/transforms.ts',
-  'hookFormats/contracts/cline.ts',
-  'hookFormats/contracts/copilot.ts',
-  'hookFormats/contracts/cursor.ts',
-  'hookFormats/contracts/gemini.ts',
-  'hookFormats/contracts/kiro.ts',
-  'hookFormats/contracts/vscode.ts',
-  'hookFormats/contracts/windsurf.ts',
-]
+
 // M91: the hook and MCP-form runtime, dist/hookRuntime.js (lane E's
 // spark-hooks.json reader and dispatcher, lane H's typed handlers, lane M's
 // form checks), loaded the first time a session needs one of them. The
 // modules it re-exports stay LAZY_ONLY: dist/modelApi.js keeps their types,
 // field builders and constants, and esbuild leaves the runners out of it.
-const HOOK_RUNTIME_ONLY = ['hookRuntimeEntry.ts']
 // M91b: the Amp and OpenCode plugin host, its child's source and its event
 // mapping, dist/pluginHooks.js, which the adapters require on the first
 // plugin hook (the import bundle reads the mapping too).
-const PLUGIN_HOOKS_ONLY = [
-  'pluginHooksEntry.ts',
-  'pluginHost.ts',
-  'pluginChild.ts',
-  'pluginFormats.ts',
-]
+
 // Files of type declarations only, which no bundle carries: lane P's contract
 // shapes, read by the adapters' compiler and never at run time.
 const TYPES_ONLY = new Set(['hookFormats/contract.ts'])
 // M91 lane X's Cline discovery, which no bundle carries until its dispatcher
 // wiring lands (PLAN.md M91, lane X; the lead's call).
 const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts'])
-const DEFERRED = [
-  {
-    output: 'dist/sessionBoard.js',
-    metafile: 'dist/meta/sessionBoard.json',
-    files: [
-      'src/host/sessionBoardEntry.ts',
-      'src/host/sessionBoard.ts',
-      'src/host/bestOfN/bestOfNManager.ts',
-      'src/core/bestOfN/bestOfNRunner.ts',
-      'src/core/bestOfN/worktreeConversationHost.ts',
-      'src/core/bestOfN/bestOfN.ts',
-    ],
-  },
-  {
-    output: 'dist/reviewer.js',
-    metafile: 'dist/meta/reviewer.json',
-    files: DEFERRED_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
-  },
-  {
-    output: 'dist/foreignHooks.js',
-    metafile: 'dist/meta/foreignHooks.json',
-    files: FOREIGN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
-  },
-  {
-    output: 'dist/hookRuntime.js',
-    metafile: 'dist/meta/hookRuntime.json',
-    files: HOOK_RUNTIME_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
-  },
-  {
-    output: 'dist/pluginHooks.js',
-    metafile: 'dist/meta/pluginHooks.json',
-    files: PLUGIN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
-  },
-]
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
-  ['client.ts', 'the key client that makes images for Muse Code (M44)'],
-  ['schemas.ts', "the key client's request and response shapes"],
-  ['sse.ts', "the key client's stream parser"],
+  ['schemas.ts', 'shared boundary schemas used by activation and ACP'],
+  ['sse.ts', 'ACP event streams also use this parser'],
   ['imageGeneration.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['sessionStore.ts', "the stored-session format the window's session store reads (D14)"],
@@ -236,6 +198,8 @@ const ACTIVATION_ALLOWED = new Map([
 // The files that load only with the backend: the host, its tools, hooks,
 // goals, subagents, memory tools, permission engine and MCP client.
 const LAZY_ONLY = [
+  // TRAIN14A: stored-key image/Tab HTTP calls load the same client on first use.
+  'client.ts',
   'ModelApiHost.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',
@@ -355,30 +319,6 @@ for (const file of ['src/host/extensionHooksEntry.ts', 'src/host/extensionHooksR
   }
   if (!extensionHooks.has(file)) problems.push(`dist/extensionHooks.js no longer carries ${file}`)
 }
-for (const bundle of DEFERRED) {
-  const inputs = inputsOf(bundle)
-  for (const file of bundle.files) {
-    for (const parent of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
-      if (inputsOf(parent).has(file)) {
-        problems.push(`${parent.output} carries ${file}, which loads only on its first action`)
-      }
-    }
-    if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
-  }
-}
-// The plugin host loads only on the first plugin hook: the adapters' bundle
-// requires it rather than carry it (M91b).
-{
-  const adapters = inputsOf(DEFERRED.find((bundle) => bundle.output === 'dist/foreignHooks.js'))
-  for (const name of PLUGIN_HOOKS_ONLY) {
-    const file = `${MODEL_API_DIR}/${name}`
-    if (adapters.has(file)) {
-      problems.push(
-        `dist/foreignHooks.js carries ${file}, which loads only on the first plugin hook`,
-      )
-    }
-  }
-}
 // The bundles that load the backend from dist/modelApi.js rather than carry it.
 const loaders = [
   [BUNDLES.activation.output, activation],
@@ -480,85 +420,50 @@ const REVIEW = { output: 'dist/review.js', metafile: 'dist/meta/review.json' }
 const UI_TEXT = { output: 'dist/uiText.js', metafile: 'dist/meta/uiText.json' }
 const ENGLISH_TABLE = 'src/shared/l10n/en.ts'
 const AGENT_IMPORT = { output: 'dist/agentImport.js', metafile: 'dist/meta/agentImport.json' }
+const CONVERSATION_GIT = {
+  output: 'dist/conversationGit.js',
+  metafile: 'dist/meta/conversationGit.json',
+}
 const BUNDLED_SKILLS = {
   output: 'dist/bundledSkills.js',
   metafile: 'dist/meta/bundledSkills.json',
 }
 // Split out of activation on 2026-10-03 (D6): each loads on its first use.
 // The Model API backend keeps its own copy of code intelligence.
-const ON_FIRST_USE = [
-  {
-    output: 'dist/codeIntel.js',
-    metafile: 'dist/meta/codeIntel.json',
-    use: 'the first code intelligence call',
-    files: [
-      'src/host/ide/codeIntelEntry.ts',
-      'src/core/codeIntel/codeIntelQuery.ts',
-      'src/core/codeIntel/codeIntelTools.ts',
-      'src/core/codeIntel/codeText.ts',
-      'src/core/codeIntel/rename.ts',
-      'src/core/codeIntel/repoMap.ts',
-    ],
-  },
-  {
-    output: 'dist/voice.js',
-    metafile: 'dist/meta/voice.json',
-    use: 'the first recording',
-    files: [
-      'src/host/voice/voiceEntry.ts',
-      'src/host/voice/voiceProcesses.ts',
-      'src/core/voice/dictation.ts',
-      'src/core/voice/museVoice.ts',
-      'src/core/voice/recorderHelper.ts',
-    ],
-  },
-  // The window's web fetch (M69), split out on 2026-10-04: the Model API
-  // backend keeps its own URL checks, the ACP agent its own fetch.
-  {
-    output: 'dist/webFetch.js',
-    metafile: 'dist/meta/webFetch.json',
-    use: 'the first web fetch',
-    files: [
-      'src/host/web/webFetchEntry.ts',
-      'src/host/web/webFetcher.ts',
-      'src/host/web/pinnedRequest.ts',
-      'src/core/web/webFetch.ts',
-      'src/core/web/fetchFailure.ts',
-      'src/core/web/pageUrl.ts',
-      'src/core/web/publicAddress.ts',
-      'src/core/web/mimeType.ts',
-      'src/core/web/textDecoding.ts',
-    ],
-  },
-  {
-    output: 'dist/museCodeReviewer.js',
-    metafile: 'dist/meta/museCodeReviewer.json',
-    use: 'the first review',
-    files: [
-      'src/host/review/museCodeReviewerEntry.ts',
-      'src/host/review/museCodeReviewer.ts',
-      'src/core/backends/modelapi/autoReviewer.ts',
-    ],
-  },
-  // What's New (M99, D79): activation keeps the update check, the claim and
-  // the loader; the page is required on the first page or notice.
-  {
-    output: 'dist/whatsNew.js',
-    metafile: 'dist/meta/whatsNew.json',
-    use: 'the first What’s New page or notice',
-    files: [
-      'src/host/whatsNew/whatsNewEntry.ts',
-      'src/host/whatsNew/whatsNewPanel.ts',
-      'src/host/whatsNew/whatsNewHtml.ts',
-      'src/core/whatsNew/whatsNewContent.ts',
-      'src/shared/whatsNewMessages.ts',
-    ],
-  },
-]
+
 const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
 }
+// ACTDIET: only the shared fallback may reference a generated English region.
+for (const region of UI_TEXT_REGIONS) {
+  const bundle = {
+    output: region.output,
+    metafile: `dist/meta/${path.basename(region.output, '.js')}.json`,
+  }
+  if (!inputsOf(bundle).has(ENGLISH_TABLE)) {
+    problems.push(`${region.output} no longer carries its English region`)
+  }
+  const imported = `./${path.basename(region.output)}`
+  const coreMeta = JSON.parse(readFileSync(UI_TEXT.metafile, 'utf8'))
+  if (
+    coreMeta.outputs[UI_TEXT.output].imports.every(
+      (entry) => !(entry.path === imported && entry.external),
+    )
+  ) {
+    problems.push(`${UI_TEXT.output} no longer references ${region.output}`)
+  }
+  for (const { output, metafile } of shippedBundles()) {
+    if (output === UI_TEXT.output || output.startsWith('dist/webview/')) continue
+    const meta = JSON.parse(readFileSync(metafile, 'utf8'))
+    if (meta.outputs[output].imports.some((entry) => entry.path === imported)) {
+      problems.push(
+        `${output} directly imports ${region.output}, which only the shared fallback reads`,
+      )
+    }
+  }
+}
+
 // M81: the browser check's pipe, run, proxy, canaries and processes live in
 // their own bundle, required on the first check; activation keeps the
 // loader, the tool and the lifetime both bundles' callers share.
@@ -635,11 +540,12 @@ for (const bundle of [
   BUNDLES.acp,
   CHECKPOINT_STORE,
   REVIEW,
-  ...DEFERRED,
-  AGENT_IMPORT,
-  BUNDLED_SKILLS,
   JUDGE,
   ...JUDGE_CHILDREN,
+  ...DEFERRED,
+  AGENT_IMPORT,
+  CONVERSATION_GIT,
+  BUNDLED_SKILLS,
   ...ON_FIRST_USE,
 ]) {
   const inputs = inputsOf(bundle)
@@ -688,6 +594,7 @@ for (const file of REVIEW_ONLY) {
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',
+  'src/host/agentImportHost.ts',
   'src/host/commands/agentImportCommands.ts',
   'src/host/importIo.ts',
   'src/core/import/agentImport.ts',
@@ -727,6 +634,42 @@ for (const prefix of IMPORT_ONLY) {
   }
 }
 
+// M71: the conversations' Git adapter and the window's git and pull request
+// features (VS Code's git extension adapter, the GitHub client and sign-in,
+// the pull request links, the checkout and its untrusted git lane, the
+// prompts) load with the first conversation or pull request command.
+// Activation keeps the hold, the worktree records and the checked loader.
+const GIT_ONLY = [
+  'src/host/git/conversationGit.ts',
+  'src/host/git/conversationGitEntry.ts',
+  'src/host/git/gitWindow.ts',
+  'src/host/git/gitExtension.ts',
+  'src/host/git/githubSession.ts',
+  'src/host/git/heldCheckout.ts',
+  'src/host/git/pullRequestCheckout.ts',
+  'src/host/git/pullRequestLinks.ts',
+  'src/host/git/untrustedGit.ts',
+  'src/core/git/github.ts',
+  'src/core/git/githubRemote.ts',
+  'src/core/git/gitText.ts',
+  'src/core/git/heldTree.ts',
+  'src/core/git/pullRequestRef.ts',
+  'src/core/git/pushPlan.ts',
+]
+const conversationGit = inputsOf(CONVERSATION_GIT)
+for (const file of GIT_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(
+        `${bundle.output} carries ${file}, which belongs to the conversation Git bundle`,
+      )
+    }
+  }
+  if (!conversationGit.has(file)) {
+    problems.push(`${CONVERSATION_GIT.output} no longer carries ${file}`)
+  }
+}
+
 // M89: the bundled skills installer loads on its first install, removal or
 // offer; the activation bundle has its loader, its offer and its types only.
 const BUNDLED_SKILLS_ONLY = [
@@ -745,18 +688,22 @@ for (const file of BUNDLED_SKILLS_ONLY) {
   }
 }
 
-for (const bundle of ON_FIRST_USE) {
-  const inputs = inputsOf(bundle)
-  for (const file of bundle.files) {
-    if (activation.has(file)) {
-      problems.push(
-        `${BUNDLES.activation.output} carries ${file}, which loads only on ${bundle.use}`,
-      )
-    }
-    if (!inputs.has(file)) {
-      problems.push(`${bundle.output} no longer carries ${file}`)
-    }
-  }
+// Keep Tab's full source inventory guarded when adding an engine module.
+const tabFiles = ON_FIRST_USE.find((bundle) => bundle.output === 'dist/tab.js').files
+for (const file of readdirSync('src/core/tab')) {
+  if (file.endsWith('.ts') && !tabFiles.includes(`src/core/tab/${file}`))
+    problems.push(`src/core/tab/${file} is absent from the deferred Tab inventory`)
+}
+problems.push(...checkDeferredBundles(inputsOf))
+
+// ACTDIET: ACP shares the journal before session initialization or report reading.
+const acpMeta = JSON.parse(readFileSync(BUNDLES.acp.metafile, 'utf8'))
+if (
+  acpMeta.outputs[BUNDLES.acp.output].imports.every(
+    (entry) => !(entry.path === './recorder.js' && entry.external),
+  )
+) {
+  problems.push(`${BUNDLES.acp.output} no longer loads the shared recorder`)
 }
 
 // What's New's page script (M99) is a few lines that pass clicks back: it
@@ -800,12 +747,21 @@ function shippedBundles() {
         const metafile = `${dir}/${name}`
         const { outputs } = JSON.parse(readFileSync(metafile, 'utf8'))
         return Object.keys(outputs)
-          .filter((output) => output.endsWith('.js') && !output.startsWith('dist/webview/chunks/'))
+          .filter((output) => output.endsWith('.js'))
           .map((output) => ({ output, metafile }))
       }),
   )
 }
 const SHIPPED = shippedBundles()
+// ESM splitting moves shared constants to one common browser chunk. Identify
+// that chunk by its source, so hashes may change without loosening the text gate.
+const webviewConstants = SHIPPED.filter(
+  (bundle) =>
+    bundle.output.startsWith('dist/webview/') && inputsOf(bundle).has('src/shared/constants.ts'),
+)
+if (webviewConstants.length !== 1) {
+  problems.push('the webview must carry shared constants in exactly one JavaScript output')
+}
 // The shared parser exposes conversion lazily; no other shipped bundle may
 // carry the converter or its entry, even if a caller only lists tools.
 for (const file of ['src/host/validationSchemaEntry.ts']) {
@@ -852,6 +808,16 @@ function shipped(output) {
 }
 const TEXT_BLOCKS = [
   {
+    block: 'CONVERSATION_MODEL_TEXT',
+    sentinels: ['planBriefRequest', 'replyContextLead'],
+    readers: ['dist/conversation.js', BUNDLES.modelApi.output],
+  },
+  {
+    block: 'TAB_MODEL_TEXT',
+    sentinels: ['tabSystem', 'tabUserTemplate'],
+    readers: ['dist/tab.js'],
+  },
+  {
     block: 'HOOK_MODEL_TEXT',
     sentinels: ['hookPromptRole', 'hookAgentRole', 'hookAnswer'],
     // Lane H's prompt and agent handlers run from the hook runtime (M91).
@@ -877,12 +843,22 @@ const TEXT_BLOCKS = [
     sentinels: ['importedRulesHeading'],
     readers: [AGENT_IMPORT.output],
   },
+  {
+    block: 'GIT_MODEL_TEXT',
+    sentinels: ['gitCommitInstructions', 'gitPullRequestInstructions'],
+    readers: [CONVERSATION_GIT.output],
+  },
   // The review turn's text (M70): the review's bundle, the Model API's
-  // built-in Reviewer, and the review pane's removed-line note.
+  // built-in Reviewer. The pane's one comment template has its own block.
   {
     block: 'REVIEW_MODEL_TEXT',
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
-    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/webview/main.js'],
+    readers: [REVIEW.output, BUNDLES.modelApi.output],
+  },
+  {
+    block: 'REVIEW_COMMENT_MODEL_TEXT',
+    sentinels: ['reviewRemovedLine'],
+    readers: webviewConstants.map(({ output }) => output),
   },
   // Web fetch's own words (M69): the window's fetch, the Model API
   // backend's URL checks and the ACP agent's fetch.
@@ -904,6 +880,12 @@ const TEXT_BLOCKS = [
     block: 'AUTO_REVIEWER_MODEL_TEXT',
     sentinels: ['autoReviewerInstructions', 'museCodeReviewerTurn'],
     readers: ['dist/reviewer.js', 'dist/museCodeReviewer.js'],
+  },
+  // The same-model Judge's sources and question load only at an eligible approval.
+  {
+    block: 'JUDGE_MODEL_TEXT',
+    sentinels: ['judgeSystemInstruction', 'judgeStandaloneTurn'],
+    readers: ['dist/judge.js'],
   },
 ].map((entry) => ({
   ...entry,
@@ -937,13 +919,7 @@ function blockKeys(name) {
 const outputText = new Map()
 function textOf(output) {
   if (!outputText.has(output)) {
-    const files =
-      output === 'dist/webview/main.js'
-        ? Object.keys(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs).filter(
-            (file) => file.endsWith('.js'),
-          )
-        : [output]
-    outputText.set(output, files.map((file) => readFileSync(file, 'utf8')).join('\n'))
+    outputText.set(output, readFileSync(output, 'utf8'))
   }
   return outputText.get(output)
 }
@@ -1009,10 +985,17 @@ for (const key of modelTextKeys) {
   }
 }
 
-// All six optional surfaces must remain behind dynamic imports. Every
+// All optional surfaces must remain behind dynamic imports. Every
 // emitted JS chunk must be reachable and packaged; stale output is refused.
 const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
 const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
+for (const file of eagerWebview) {
+  const sources = Object.keys(webviewMeta.outputs[file].inputs)
+  for (const source of sources) {
+    if (source.startsWith('node_modules/highlight.js/'))
+      problems.push(`highlight.js must stay deferred: ${source}`)
+  }
+}
 const reachableWebview = new Set()
 const visitWebview = (file) => {
   if (reachableWebview.has(file)) return
@@ -1025,8 +1008,12 @@ const visitWebview = (file) => {
   for (const imported of output.imports) if (!imported.external) visitWebview(imported.path)
 }
 visitWebview('dist/webview/main.js')
-for (const surface of DEFERRED_WEBVIEW_SURFACES) {
-  const source = `src/webview/components/${surface}.tsx`
+const deferredWebviewSources = [
+  ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
+  ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
+  'src/webview/highlightRuntime.ts',
+]
+for (const source of deferredWebviewSources) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
     Object.hasOwn(output.inputs, source),
   )
@@ -1041,9 +1028,7 @@ for (const [file, output] of Object.entries(webviewMeta.outputs)) {
   if (
     output.entryPoint &&
     output.entryPoint !== 'src/webview/main.tsx' &&
-    DEFERRED_WEBVIEW_SURFACES.every(
-      (name) => output.entryPoint !== `src/webview/components/${name}.tsx`,
-    )
+    !deferredWebviewSources.includes(output.entryPoint)
   ) {
     problems.push(`Unlisted deferred webview surface ${output.entryPoint}`)
   }
@@ -1079,12 +1064,11 @@ for (const file of nodeMetafiles) {
   }
 }
 for (const input of validationReaders) {
-  const source = ts.createSourceFile(
-    input,
-    readFileSync(input, 'utf8'),
-    ts.ScriptTarget.Latest,
-    true,
-  )
+  const text = readFileSync(input, 'utf8')
+  // A file that never names the module has no alias to check; parsing every
+  // source input made this the slowest part of the check.
+  if (!text.includes('zod/mini')) continue
+  const source = ts.createSourceFile(input, text, ts.ScriptTarget.Latest)
   const aliases = new Set()
   for (const statement of source.statements) {
     if (
@@ -1174,6 +1158,10 @@ console.log(
   `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
+console.log('ok   webview: optional surfaces and highlighting load only in guarded deferred chunks')
+console.log(
+  `ok   ${CONVERSATION_GIT.output}: carries the Git adapter and the window's ${String(GIT_ONLY.length - 2)} git and pull request files; activation keeps its checked loader`,
+)
 console.log(`ok   ${JUDGE.output}: B/D/CS/G load only on an explicit judge action`)
 for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on its first action`)
 for (const bundle of ON_FIRST_USE) {

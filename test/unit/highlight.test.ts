@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { escapeHtml, highlight, resolveLanguage } from '../../src/webview/highlight'
+import { resolveLanguage } from '../../src/webview/highlight'
+import { escapeHtml, highlight } from '../../src/webview/highlightRuntime'
 
 describe('resolveLanguage', () => {
   it('accepts registered grammars and their aliases, case-insensitively', () => {

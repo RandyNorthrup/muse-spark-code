@@ -8,6 +8,8 @@ import type { CliFeatureDeps } from '../../../src/host/cliFeatures'
 export function inertAgentImport(root?: string): CliFeatureDeps['agentImport'] {
   return {
     isActive: () => true,
+    isProjectTrusted: () => true,
+    isProjectHeld: () => false,
     currentRoot: () => root,
     editProject: async (work) => await work(() => undefined),
     beforeProjectWrite: () => Promise.resolve(),

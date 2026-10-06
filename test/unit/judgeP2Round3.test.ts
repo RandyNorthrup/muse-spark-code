@@ -19,7 +19,7 @@ beforeAll(() => {
 
 function features() {
   return judgeFeaturesLoader({
-    bundlePath: path.resolve('dist/judge.js'),
+    bundlePath: path.resolve('dist/judgeP2.js'),
     log: createLogger(new FakeLogOutputChannel()),
   })()
 }
@@ -31,7 +31,7 @@ describe('round-3 production judge factories', () => {
       for (const isMalformed of [false, true]) {
         const folder = mkdtempSync(path.join(tmpdir(), 'muse-judge-child-'))
         try {
-          for (const file of ['judge.js', 'uiText.js', 'validation.js']) {
+          for (const file of ['judgeP2.js', 'uiText.js', 'validation.js']) {
             copyFileSync(path.resolve('dist', file), path.join(folder, file))
           }
           if (isMalformed)
@@ -40,7 +40,7 @@ describe('round-3 production judge factories', () => {
               'module.exports = { createJudgeLintFeatures: true, createJudgeHookFeatures: true, createJudgeLocalFeatures: true, createJudgeUsesFeatures: true }',
             )
           const root = judgeFeaturesLoader({
-            bundlePath: path.join(folder, 'judge.js'),
+            bundlePath: path.join(folder, 'judgeP2.js'),
             log: createLogger(new FakeLogOutputChannel()),
           })()
           const load = () => {
@@ -125,7 +125,7 @@ describe('round-3 production judge factories', () => {
       'cursor',
       'PostToolUse',
       { ...PAYLOAD, cwd: '/workspace', tool_response: 'clean' },
-      { sourceEvent: 'postToolUse' },
+      { sourceEvent: 'postToolUse', platform: 'linux', workspaceRoot: '/workspace' },
     )
     if (payload.outcome !== 'run') throw new Error('Captured contract refused observation')
     const selected = source('paid', 0.01)

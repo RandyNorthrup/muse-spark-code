@@ -45,6 +45,18 @@ import { memoryToolIo, type MemoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
 import { editThenRunCall } from './helpers/shellTurns'
+import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
+import { promptCacheKey } from '../../src/core/backends/modelapi/promptCache'
+import { isJudgeEngineOn } from '../../src/core/judge/engine'
+import { JudgeUse, type JudgeAdvisory } from '../../src/core/judge/use'
+import type { JudgeEntryHandle } from '../../src/core/judge/entries'
+import { redactSecrets } from '../../src/core/redact'
+import {
+  ModelApiSameJudge,
+  type ModelApiJudgeTransport,
+} from '../../src/host/judge/modelApiSameJudge'
+import { JudgeResultCache } from '../../src/core/judge/same/resultCache'
+import { judgeJob, judgeOnce, SpyJudgeStore, startJudgeEntry } from './helpers/judgeSameRig'
 
 const ROOT = '/ws'
 const FIXTURE_DIR = path.join(__dirname, '..', 'fixtures', 'golden-requests')
@@ -71,7 +83,7 @@ interface Harness {
 
 async function setup(
   files: Record<string, string>,
-  options: { readonly paidSubagents?: boolean } = {},
+  options: { readonly paidSubagents?: boolean; readonly judge?: JudgeAdvisory } = {},
 ): Promise<Harness> {
   const api = fakeModelApi()
   const rawBodies: string[] = []
@@ -93,6 +105,7 @@ async function setup(
   const base = fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log })
   const deps: ModelApiHostDeps = {
     ...base,
+    judge: options.judge,
     // Hooks OFF: the golden baseline every later M91 lane must not move.
     isHooksEnabled: () => false,
     // Packing stays on (it is not a hook): scenario 4 watches a long output
@@ -287,25 +300,33 @@ describe('golden request normalization boundaries', () => {
   })
 })
 
+async function plainGolden(harness: Harness): Promise<void> {
+  harness.api.script({ text: 'Hello back.' })
+  await runTurn(harness, 'Hello.')
+  expect(harness.api.responseBodies()).toHaveLength(1)
+  checkGolden('01-plain-turn', harness)
+}
+
+async function readGolden(harness: Harness): Promise<void> {
+  harness.api.script(
+    { calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'c1' }] },
+    { text: 'It says alpha.' },
+  )
+  await runTurn(harness, 'What is in a.txt?')
+  expect(harness.api.responseBodies()).toHaveLength(2)
+  checkGolden('02-tool-call', harness)
+}
+
 describe('M91-G golden requests with hooks off', () => {
   it('records a plain one-turn reply', async () => {
     const harness = await setup({})
-    harness.api.script({ text: 'Hello back.' })
-    await runTurn(harness, 'Hello.')
-    expect(harness.api.responseBodies()).toHaveLength(1)
-    checkGolden('01-plain-turn', harness)
+    await plainGolden(harness)
     await harness.host.close()
   })
 
   it('records a turn with one tool call and its result', async () => {
     const harness = await setup({ 'a.txt': 'Alpha.\n' })
-    harness.api.script(
-      { calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'c1' }] },
-      { text: 'It says alpha.' },
-    )
-    await runTurn(harness, 'What is in a.txt?')
-    expect(harness.api.responseBodies()).toHaveLength(2)
-    checkGolden('02-tool-call', harness)
+    await readGolden(harness)
     await harness.host.close()
   })
 
@@ -386,6 +407,230 @@ describe('M91-G golden requests with hooks off', () => {
     await runTurn(harness, 'Go.')
     expect(harness.api.responseBodies()).toHaveLength(1)
     checkGolden('07-skills-and-rules', harness)
+    await harness.host.close()
+  })
+})
+
+// Lane M98-G: the judge's invariance over the M91-G harness (PLAN.md M98
+// acceptance item 1). No independent baseline: every main-body comparison
+// below reads the fixtures above. Both engine cases install the approval
+// interface on the real host; direct allows must not start its runner.
+const G_NOUL = { id: 'risk', kind: 'noul' as const, text: 'Is deleting this risky?' }
+
+describe('M98 integrated Model API source', () => {
+  it.each(['complete', 'missing', 'partial', 'invalid'] as const)(
+    'reads the actual sent body and keeps a %s receipt honest without changing the main replay',
+    async (receipt) => {
+      const harness = await setup({})
+      const held = Promise.withResolvers<undefined>()
+      harness.api.script(
+        { text: 'Hello back.', hold: held.promise },
+        {
+          text: '{"answer":"yes","confidence":99}',
+          ...(receipt === 'missing' && { omitUsage: true }),
+          ...(receipt === 'partial' && { usageOverride: { input_tokens: 10, output_tokens: 2 } }),
+          ...(receipt === 'invalid' && {
+            usageOverride: {
+              input_tokens: -1,
+              output_tokens: 2,
+              input_tokens_details: { cached_tokens: 0 },
+              output_tokens_details: { reasoning_tokens: 0 },
+            },
+          }),
+        },
+      )
+      const submitted = await harness.session.sendTurn([{ type: 'text', text: 'Hello.' }])
+      await vi.waitFor(() => {
+        expect(harness.rawBodies).toHaveLength(1)
+      })
+      checkGolden('01-plain-turn', harness)
+      const connection = harness.host.judgeConnection(harness.session.sessionId, submitted.turnId)
+      if (connection === undefined) throw new Error('the live source is absent')
+      const main = connection.source.readMainBody()
+      expect(JSON.stringify(main)).toBe(harness.rawBodies[0])
+      const snapshot = JSON.stringify(main)
+      const history = JSON.stringify(harness.session.history())
+      expect(connection.source.keyPrefix(main)).toBe(main.prompt_cache_key)
+      const admitted = vi.fn()
+      const pending = connection.transport.send(
+        { ...main, tools: [], input: [], instructions: 'Judge this action.' },
+        new AbortController().signal,
+        admitted,
+      )
+      if (receipt === 'invalid') await expect(pending).rejects.toThrow('Invalid Judge usage')
+      else {
+        const response = await pending
+        expect(response.text).toBe('{"answer":"yes","confidence":99}')
+        if (receipt === 'complete') expect(response.usage?.inputTokens).toBeGreaterThan(0)
+        else expect(response.usage).toBeUndefined()
+      }
+      expect(admitted).toHaveBeenCalledWith(connection.keyDigest)
+      expect(JSON.stringify(main)).toBe(snapshot)
+      expect(JSON.stringify(harness.session.history())).toBe(history)
+      await expect(connection.transport.send(main, new AbortController().signal)).rejects.toThrow(
+        'requires admission',
+      )
+      expect(harness.host.judgeConnection('absent', 'turn')).toBeUndefined()
+      held.resolve(undefined)
+      await harness.turnDone()
+      await harness.host.close()
+      expect(() => connection.source.readMainBody()).toThrow('source changed')
+    },
+  )
+})
+
+function judgeOverMain(main: CreateResponseBody): {
+  readonly entries: SpyJudgeStore
+  readonly sent: CreateResponseBody[]
+  readonly errors: unknown[]
+  readonly judge: ModelApiSameJudge
+} {
+  const entries = new SpyJudgeStore()
+  const cache = new JudgeResultCache()
+  const sent: CreateResponseBody[] = []
+  const errors: unknown[] = []
+  const transport: ModelApiJudgeTransport = {
+    send: (body, _signal) => {
+      sent.push(body)
+      return Promise.resolve({
+        text: '{"answer":"yes","confidence":95}',
+        inputTokens: 10,
+        outputTokens: 5,
+      })
+    },
+  }
+  const judge = new ModelApiSameJudge({
+    modelId: main.model,
+    timeoutMs: 2000,
+    measureTokens: (text) => text.length,
+    entries,
+    cache,
+    onError: (error) => {
+      errors.push(error)
+    },
+    redact: (text) => redactSecrets(text),
+    source: {
+      readMainBody: () => main,
+      keyPrefix: (prefix) => promptCacheKey(prefix),
+      prefixTokens: () => 4357,
+    },
+    transport,
+  })
+  return { entries, sent, errors, judge }
+}
+
+/** The body as the client serializes it, with `input` rebuilt in wire order. */
+function wireString(body: CreateResponseBody, input: readonly unknown[]): string {
+  const rebuilt: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(body)) {
+    rebuilt[key] = key === 'input' ? input : value
+  }
+  return JSON.stringify(rebuilt)
+}
+
+function heldKey(entries: SpyJudgeStore): JudgeEntryHandle {
+  return startJudgeEntry(entries, {
+    backend: 'model-api',
+    turnId: 't1',
+    tool: 'run_shell',
+    args: { command: 'rm -rf /tmp/x' },
+  })
+}
+
+async function capturedPlain(harness: Harness): Promise<{ main: CreateResponseBody; raw: string }> {
+  await plainGolden(harness)
+  const raw = harness.rawBodies[0]
+  if (raw === undefined) throw new Error('no main request recorded')
+  const main: CreateResponseBody = JSON.parse(raw)
+  return { main, raw }
+}
+
+async function sideJudge(main: CreateResponseBody) {
+  const before = structuredClone(main)
+  const rig = judgeOverMain(main)
+  const key = heldKey(rig.entries)
+  expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'rm -rf /tmp/x', [G_NOUL]))).toBe(
+    'caution',
+  )
+  expect(rig.sent).toHaveLength(1)
+  const sent = rig.sent[0]
+  if (sent === undefined) throw new Error('no side request sent')
+  return { before, rig, sent }
+}
+
+function directAllowJudge(engine: 'off' | 'same') {
+  const start = vi.fn(() => {
+    throw new Error('a direct allow started the judge')
+  })
+  const judge = new JudgeUse({
+    isOn: () => isJudgeEngineOn(engine),
+    createRunner: start,
+    prepare: () => Promise.resolve(true),
+    question: () => G_NOUL,
+    onError: (error) => {
+      throw error
+    },
+  })
+  return { judge, start }
+}
+
+describe('M98-G judge invariance (Model API)', () => {
+  it('engine off sends nothing beyond the golden bytes', async () => {
+    const rig = directAllowJudge('off')
+    const harness = await setup({}, { judge: rig.judge })
+    await plainGolden(harness)
+    expect(rig.start).not.toHaveBeenCalled()
+    await harness.host.close()
+  })
+
+  it('engine same with no hint keeps the golden bytes', async () => {
+    const rig = directAllowJudge('same')
+    const harness = await setup({ 'a.txt': 'Alpha.\n' }, { judge: rig.judge })
+    await readGolden(harness)
+    expect(rig.start).not.toHaveBeenCalled()
+    await harness.host.close()
+  })
+
+  it('a side request shares the main cached prefix byte-exact', async () => {
+    const harness = await setup({})
+    const { main, raw: mainRaw } = await capturedPlain(harness)
+    const { before, rig, sent } = await sideJudge(main)
+    // The side prefix is the main body byte for byte; only the tail is new.
+    expect(wireString(sent, sent.input.slice(0, -1))).toBe(mainRaw)
+    // The side request reads the main cached prefix: the same cache key over
+    // the same model, instructions and tools triple.
+    expect(sent.prompt_cache_key).toBe(main.prompt_cache_key)
+    expect(
+      promptCacheKey({ model: sent.model, instructions: sent.instructions, tools: sent.tools }),
+    ).toBe(
+      promptCacheKey({ model: main.model, instructions: main.instructions, tools: main.tools }),
+    )
+    expect(sent.input).toHaveLength(main.input.length + 1)
+    // The main body is never edited, reordered or trimmed.
+    expect(main).toEqual(before)
+    expect(rig.errors).toEqual([])
+    await harness.host.close()
+  })
+
+  it('redaction sends a standalone side body carrying only the tail', async () => {
+    const harness = await setup({})
+    const { main: clean } = await capturedPlain(harness)
+    const main: CreateResponseBody = {
+      ...clean,
+      instructions: `${clean.instructions} key: LLM_abcdefghijklmnop`,
+    }
+    const { before, rig, sent } = await sideJudge(main)
+    // Standalone: the redacted prefix is not reused; only the tail is sent.
+    expect(sent.input).toHaveLength(1)
+    expect(sent.instructions).toBe('')
+    expect(sent.tools).toEqual([])
+    expect(sent.model).toBe(main.model)
+    expect(sent.prompt_cache_key).toBe(
+      promptCacheKey({ model: main.model, instructions: '', tools: [] }),
+    )
+    expect(JSON.stringify(sent)).not.toContain('LLM_abcdefghijklmnop')
+    expect(main).toEqual(before)
+    expect(rig.errors).toEqual([])
     await harness.host.close()
   })
 })

@@ -39,6 +39,17 @@ function count(text: string, pattern: RegExp): number {
 const SURFACE_ACTIVE = `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || focusedView == '${CHAT_VIEW_ID}'`
 
 describe('package.json manifest', () => {
+  it('offers paid Tab by default while retaining its machine scope and daily cap', () => {
+    const properties = manifest.contributes.configuration.properties
+    expect(properties['museSpark.modelApiTab']).toMatchObject({ default: true, scope: 'machine' })
+    expect(properties['museSpark.tabDailyBudgetUsd']).toMatchObject({
+      default: 1,
+      minimum: 0.05,
+      maximum: 50,
+      scope: 'machine',
+    })
+  })
+
   it('identifies the extension the way constants.ts expects', () => {
     expect(manifest.name).toBe(EXTENSION_NAME)
     expect(manifest.publisher).toBe(EXTENSION_PUBLISHER)
@@ -92,8 +103,19 @@ describe('package.json manifest', () => {
       linux: 'ctrl+alt+o',
       when: 'museSpark.inputFocused',
     })
+    expect(bindings.get('editor.action.inlineSuggest.trigger')).toMatchObject({
+      key: 'alt+\\',
+      when: 'editorTextFocus && museSpark.tabOn',
+    })
     for (const command of bindings.keys()) {
-      expect(Object.values(COMMAND_IDS)).toContain(command)
+      if (command === 'editor.action.inlineSuggest.trigger') {
+        expect(bindings.get(command)).toMatchObject({
+          key: 'alt+\\',
+          when: 'editorTextFocus && museSpark.tabOn',
+        })
+      } else {
+        expect(Object.values(COMMAND_IDS)).toContain(command)
+      }
     }
   })
 
@@ -114,8 +136,11 @@ describe('package.json manifest', () => {
     expect(properties['museSpark.archiveInactiveSessions'].enum).toEqual([...ARCHIVE_DAY_CHOICES])
   })
 
-  it('activates for restored chat panels only (D15)', () => {
-    expect(manifest.activationEvents).toEqual([`onWebviewPanel:${CHAT_PANEL_VIEW_TYPE}`])
+  it('activates at startup for Tab and for restored chat panels (D15, D73)', () => {
+    expect(manifest.activationEvents).toEqual([
+      `onWebviewPanel:${CHAT_PANEL_VIEW_TYPE}`,
+      'onStartupFinished',
+    ])
   })
 
   it('machine-scopes the settings that choose what runs and what is billed (D15)', () => {
@@ -258,6 +283,8 @@ describe('package.json manifest', () => {
       // git worktrees of the open folder's repository (M32).
       [COMMAND_IDS.newWorktree]: 'workspaceFolderCount > 0',
       [COMMAND_IDS.removeWorktree]: 'workspaceFolderCount > 0',
+      // A pull request of the open folder's repository, in a worktree (M71).
+      [COMMAND_IDS.openPullRequestInConversation]: 'workspaceFolderCount > 0',
       // Only while the conversation in view runs a command to move (M46).
       [COMMAND_IDS.moveToBackground]: CONTEXT_KEYS.canMoveToBackground,
       // The background tasks of the conversation in front of the user (M46).

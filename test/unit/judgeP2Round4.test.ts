@@ -24,7 +24,7 @@ afterEach(() => {
 
 function features() {
   return judgeFeaturesLoader({
-    bundlePath: path.resolve('dist/judge.js'),
+    bundlePath: path.resolve('dist/judgeP2.js'),
     log: createLogger(new FakeLogOutputChannel()),
   })()
 }

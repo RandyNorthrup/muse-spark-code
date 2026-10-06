@@ -404,6 +404,8 @@ const agentEventSchema = z.discriminatedUnion('type', [
   // The host is waiting for a decision on a gated tool call.
   z.object({
     type: z.literal('approvalRequested'),
+    /** Extension-owned advisory, never a Muse Code wire field. */
+    judgeCaution: z.optional(z.boolean()),
     approvalId: z.string(),
     itemId: z.string(),
     toolName: z.string(),
@@ -431,6 +433,12 @@ const agentEventSchema = z.discriminatedUnion('type', [
      * Auto reviewer answers only the running parent turn's (M90).
      */
     turnId: z.optional(z.string()),
+  }),
+  // Extension-owned note only: cannot change a choice or settle an approval.
+  z.object({
+    type: z.literal('approvalCaution'),
+    approvalId: z.string(),
+    requirementId: requirementRefSchema,
   }),
   // A stage was decided and the next one is pending: new choices, same card.
   z.object({

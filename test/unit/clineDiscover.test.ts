@@ -4,7 +4,7 @@
 // only, and it must be executable. Anything else is ignored, never
 // converted. Fake filesystem throughout.
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clineFileName,
   discoverClineHooks,
@@ -27,6 +27,15 @@ function fakeFs(
 
 const GLOBAL = '/home/u/Documents/Cline/Hooks'
 const PROJECT = '/ws/.clinerules/hooks'
+const posixJoin = path.posix.join
+const windowsJoin = path.win32.join
+
+beforeEach(() => {
+  vi.spyOn(path, 'join').mockImplementation(posixJoin)
+})
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 describe('expected filenames per platform', () => {
   it.each([
@@ -103,6 +112,7 @@ describe('unix discovery', () => {
 
 describe('windows discovery', () => {
   it('takes HookName.ps1 only', () => {
+    vi.mocked(path.join).mockImplementation(windowsJoin)
     const dir = path.join(String.raw`C:\Users\u`, 'Documents', 'Cline', 'Hooks')
     const refs = discoverClineHooks({
       platform: 'win32',
@@ -110,6 +120,7 @@ describe('windows discovery', () => {
       ...fakeFs({ [dir]: ['PreToolUse', 'PreToolUse.ps1'] }, new Set()),
     })
     expect(refs.map((ref) => ref.sourceEvent)).toEqual(['PreToolUse'])
+    expect(refs.map((ref) => ref.path)).toEqual([windowsJoin(dir, 'PreToolUse.ps1')])
   })
 })
 

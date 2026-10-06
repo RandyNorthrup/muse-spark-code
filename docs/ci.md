@@ -575,6 +575,51 @@ jobs:
           artifact-name: ${{ needs.propose.outputs.artifact }}
 ```
 
+## Release publication and README badges
+
+The release workflow reports GitHub Release, Marketplace, Open VSX and npm
+outcomes before its final **refresh README badges** job. That job runs only
+when the summary succeeds and every channel reports `published`; a registry
+skipped for a missing secret does not start it. It needs no secret, no publishing
+permission and no paid call.
+
+`scripts/refresh-badges.mjs` polls the Marketplace extension query, Open VSX's
+extension API, npm's `muse-spark-code-acp` latest tag and GitHub's latest release
+for the manifest version. It polls unresolved channels every 30 seconds for at
+most 15 minutes; each request has a 10-second deadline. It then requests every
+badge image URL in README.md, including HTML, Markdown/reference images and
+GitHub's workflow badge; PNG screenshots are excluded. Only an older version
+badge gets a cache-busting retry; current, newer, static/count and unreadable
+badges do not. It checks the original URL again because a fresh cache-busted
+answer does not establish freshness of the URL used by the README.
+
+Finally it fetches the public repository page, deduplicates its
+`camo.githubusercontent.com` image URLs and sends HTTP PURGE to each, logging
+status codes. Propagation timeouts, stale answers, unavailable pages and purge
+failures produce warnings. Job-level `continue-on-error` also makes checkout,
+Node setup and dependency-install failures nonblocking. Refreshing caches is
+best effort: a successful run cannot guarantee immediate freshness for every
+viewer. Fake-fetch and red-drill evidence lives in
+[BADGES](certification/badges.md); the next hosted release must confirm actual
+public-service responses and cache behavior.
+
+Store landing pages use `{version}` in static Shields URLs; the VSIX and ACP
+packagers fill it from `package.json` and check the exact staged README before
+packing. Marketplace/Open VSX, npm and the npm page's GitHub release badge show
+that package's version. Counts stay dynamic. The root GitHub README keeps its
+latest-release badges and receives the release refresh above.
+
+`npm run check:badges` runs in quality and the CI static job. It checks HTTPS
+images, uses the pinned vsce processor to validate SVG service hosts (including
+extensionless badge URLs), rejects dynamic store versions or mismatched static
+versions, and fetches images with a 10-second deadline. Badge responses must be
+well-formed SVG with the SVG namespace and cannot render an error; exact static
+versions must render their expected label and version. PNG/content images must
+return an image content type. Local offline runs may name a reason through
+`BADGE_CHECK_SKIP_NETWORK`; CI rejects that override. Requests use no credentials.
+Package checks use the same network policy. Focused proofs and archive inspection
+are recorded in [BADGEFIX](certification/badgefix.md).
+
 ## Evidence and troubleshooting
 
 `.github/workflows/action-check.yml` runs W with the composite Action on the

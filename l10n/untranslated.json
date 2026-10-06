@@ -5,7 +5,6 @@
       "modesHintKeys",
       "exportItem",
       "compactItem",
-      "handoffItem",
       "clearItem",
       "logoutItem",
       "agentsCommand",
@@ -40,10 +39,13 @@
       "pdfLabel",
       "loopItem",
       "namedFilesMore",
-      "noticeRepeatBadge",
-      "reviewItem",
-      "agentImportSourceCursor",
       "exportThenRunSkipped",
+      "gitPullRequestName",
+      "handoffItem",
+      "agentImportSourceCursor",
+      "noticeRepeatBadge",
+      "reportEventItem",
+      "reviewItem",
       "execUsage",
       "execScanUsage",
       "hooksSparkProjectFile",
@@ -68,10 +70,18 @@
       "agentsCount.one",
       "toolLabels.shell",
       "workflowChildUntitled",
+      "gitChangeCounts",
       "agentImportKindHook",
       "agentImportKindAgent"
     ],
-    "tr": ["groupModel", "usageModel", "modelPillLabel", "exportModelLine", "usagePlan"],
+    "tr": [
+      "groupModel",
+      "usageModel",
+      "modelPillLabel",
+      "exportModelLine",
+      "usagePlan",
+      "gitChangeCounts"
+    ],
     "pl": [
       "groupModel",
       "usageModel",
@@ -86,6 +96,7 @@
       "agentsCount.one",
       "imageBuyPrompt",
       "workflowChildUntitled",
+      "gitChangeCounts",
       "agentImportKindHook",
       "agentImportKindAgent"
     ],
@@ -110,6 +121,12 @@
       "workflowsLabel",
       "toolLabels.find_definition",
       "toolLabels.mcp__ide__findDefinition",
+      "gitCommitItem",
+      "gitPushBranchLine",
+      "gitCommitFormLabel",
+      "gitCommitTitle",
+      "gitChangeCounts",
+      "gitCommitAction",
       "agentImportKindHook",
       "agentImportKindAgent",
       "shellDirectory"
@@ -121,15 +138,19 @@
       "permissionModes.manual",
       "toolLabels.shell",
       "goalTokens",
-      "agentImportKindHook",
-      "verifyErrors.one"
+      "verifyErrors.one",
+      "gitChangeCounts",
+      "agentImportKindHook"
     ],
     "pt-br": [
       "agentTokens",
       "permissionModes.manual",
       "toolLabels.shell",
       "goalTokens",
-      "imageBuyPrompt"
+      "imageBuyPrompt",
+      "gitPushBranchLine",
+      "gitChangeCounts",
+      "agentImportKindHook"
     ],
     "fr": [
       "modesTitle",
@@ -147,6 +168,8 @@
       "toolLabels.image_generation",
       "toolLabels.mcp__ide__generateImage",
       "workflowChildUntitled",
+      "gitChangeCounts",
+      "gitPrBodyLabel",
       "agentImportKindHook",
       "agentImportKindAgent"
     ],
@@ -155,11 +178,14 @@
       "exportOutputLabel",
       "toolLabels.shell",
       "imageBuyPrompt",
+      "gitChangeCounts",
       "agentImportKindHook"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
-    "hu": ["toolLabels.shell", "imageBuyPrompt", "agentImportKindHook"]
+    "hu": ["toolLabels.shell", "imageBuyPrompt", "gitChangeCounts", "agentImportKindHook"],
+    "ko": ["gitChangeCounts"],
+    "ru": ["gitChangeCounts"]
   },
   "manifest": {
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],

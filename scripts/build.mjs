@@ -11,7 +11,10 @@
 // voice's drivers (M9/M35, loaded on the first recording), the window's web
 // fetch (M69, loaded on the first fetch) and the Auto reviewer on Muse Code
 // (M90, loaded on the first review), What's New (M99: the page's renderer,
-// content schema and tab, loaded on the first page or notice), the webview,
+// content schema and tab, loaded on the first page or notice), the report
+// dialog (M93: the builder, its second scrub, the export paths and the
+// handler, loaded on the first open; dist/report.js) and its flight recorder
+// (the journal, loaded just after activation; dist/recorder.js), the webview,
 // What's New's page script, and (in dev mode) the integration tests with
 // esbuild. It first writes What's New's content, dist/whatsNew.json, from
 // CHANGELOG.md (scripts/lib/whatsNewContent.mjs); a Try it naming a command
@@ -49,10 +52,20 @@
 
 import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { Buffer } from 'node:buffer'
-import { runInNewContext } from 'node:vm'
-import { brotliCompressSync } from 'node:zlib'
+import {
+  UI_TEXT_REGIONS,
+  regionalUiText,
+  compressedEnglish,
+  compactBrowserEnglish,
+} from './lib/uiTextRegions.mjs'
+import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
+import {
+  sharedUiText,
+  sharedValidation,
+  deferredCohort,
+  sharedWire,
+} from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
   writeWhatsNewContent,
@@ -64,14 +77,16 @@ const isWatch = args.has('--watch')
 
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
+const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
+const CONVERSATION_OUTFILE = 'dist/conversation.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
+const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
+const TAB_OUTFILE = 'dist/tab.js'
 const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
 const UI_TEXT_OUTFILE = 'dist/uiText.js'
 const VALIDATION_ENTRY = 'src/host/validationEntry.ts'
 const VALIDATION_OUTFILE = 'dist/validation.js'
-const VALIDATION_SCHEMA_ENTRY = 'src/host/validationSchemaEntry.ts'
-const VALIDATION_SCHEMA_OUTFILE = 'dist/validationSchema.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
@@ -97,6 +112,8 @@ const REVIEW_ENTRY = 'src/host/review/reviewEntry.ts'
 const REVIEW_OUTFILE = 'dist/review.js'
 const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
 const AGENT_IMPORT_OUTFILE = 'dist/agentImport.js'
+const CONVERSATION_GIT_ENTRY = 'src/host/git/conversationGitEntry.ts'
+const CONVERSATION_GIT_OUTFILE = 'dist/conversationGit.js'
 const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
@@ -119,14 +136,20 @@ const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
+const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
+const JUDGE_OUTFILE = 'dist/judge.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
+const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
+const REPORT_OUTFILE = 'dist/report.js'
+const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
+const RECORDER_OUTFILE = 'dist/recorder.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
-const JUDGE_ENTRY = 'src/runtime/judge/judgeEntry.ts'
-const JUDGE_OUTFILE = 'dist/judge.js'
+const JUDGE_P2_ENTRY = 'src/runtime/judge/judgeEntry.ts'
+const JUDGE_P2_OUTFILE = 'dist/judgeP2.js'
 const JUDGE_LINT_ENTRY = 'src/runtime/judge/judgeLintEntry.ts'
 const JUDGE_LINT_OUTFILE = 'dist/judgeLint.js'
 const JUDGE_HOOK_ENTRY = 'src/runtime/judge/judgeHookEntry.ts'
@@ -149,64 +172,8 @@ const AGENT_NODE_TARGET = 'node22'
 const BROWSER_TARGET = 'chrome128'
 const BYTES_PER_KIB = 1024
 const METAFILE_DIR = 'dist/meta'
-
-/** @type {import('esbuild').Plugin} */
-const sharedUiText = {
-  name: 'shared-ui-text',
-  setup(build) {
-    // esbuild sends this filter to Go RE2, which rejects JavaScript's u flag.
-    // `en`, `en.js` and `en.ts` all name the table's TypeScript source.
-    build.onResolve({ filter: /\/en(?:\.[jt]s)?$/ }, (args) =>
-      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
-      path.resolve(UI_TEXT_ENTRY)
-        ? { path: './uiText.js', external: true }
-        : undefined,
-    )
-  },
-}
-
-// Share the used mini-parser API across Node bundles; browsers and integration
-// test bundles still inline it. The split gate checks every runtime member.
-/** @type {import('esbuild').Plugin} */
-const sharedValidation = {
-  name: 'shared-validation',
-  setup(build) {
-    build.onResolve({ filter: /^zod\/mini$/ }, () => ({
-      path: './validation.js',
-      external: true,
-    }))
-  },
-}
-
-// Keep dynamic imports dynamic: these entries run only on their first action.
-const DEFERRED_OUTFILES = new Map([
-  [path.resolve(SESSION_BOARD_ENTRY), SESSION_BOARD_OUTFILE],
-  [path.resolve(REVIEWER_ENTRY), REVIEWER_OUTFILE],
-  [path.resolve(FOREIGN_HOOKS_ENTRY), FOREIGN_HOOKS_OUTFILE],
-  [path.resolve(HOOK_RUNTIME_ENTRY), HOOK_RUNTIME_OUTFILE],
-  [path.resolve(WEB_FETCH_ENTRY), WEB_FETCH_OUTFILE],
-  [path.resolve(PLUGIN_HOOKS_ENTRY), PLUGIN_HOOKS_OUTFILE],
-])
-/** @type {import('esbuild').Plugin} */
-const deferredCohort = {
-  name: 'deferred-cohort',
-  setup(build) {
-    build.onResolve(
-      {
-        filter:
-          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry)(?:\.[jt]s)?$/,
-      },
-      (args) => {
-        if (args.kind !== 'dynamic-import') return
-        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
-        const output = DEFERRED_OUTFILES.get(source)
-        return output === undefined
-          ? undefined
-          : { path: `./${path.basename(output)}`, external: true }
-      },
-    )
-  },
-}
+// Hashed browser chunks from an earlier build must not enter the package.
+rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
 
 /** @type {import('esbuild').BuildOptions} */
 const common = {
@@ -221,7 +188,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -231,9 +198,16 @@ const hostOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const conversationOptions = {
+  ...hostOptions,
+  entryPoints: [CONVERSATION_ENTRY],
+  outfile: CONVERSATION_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
@@ -279,9 +253,36 @@ const pluginHooksOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const reviewOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [REVIEW_ENTRY],
   outfile: REVIEW_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The report dialog's bundle (M93) takes the editor's clipboard, browser and
+// save picker as a parameter: it imports no `vscode`, which is not external
+// there, so a stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const reportOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [REPORT_ENTRY],
+  outfile: REPORT_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The flight recorder's journal (M93), loaded just after activation or at
+// the first failure; it reads no `vscode`, so a stray import fails here.
+/** @type {import('esbuild').BuildOptions} */
+const recorderOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [RECORDER_ENTRY],
+  outfile: RECORDER_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -290,7 +291,7 @@ const reviewOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const planMarkdownOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [PLAN_MARKDOWN_ENTRY],
   outfile: PLAN_MARKDOWN_OUTFILE,
   platform: 'node',
@@ -333,7 +334,7 @@ const museCodeReviewerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const whatsNewOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [WHATS_NEW_ENTRY],
   outfile: WHATS_NEW_OUTFILE,
   platform: 'node',
@@ -350,9 +351,43 @@ const extensionHooksOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const judgeP2Options = {
+  ...planMarkdownOptions,
+  entryPoints: [JUDGE_P2_ENTRY],
+  outfile: JUDGE_P2_OUTFILE,
+}
+
+const judgeLintOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_LINT_ENTRY],
+  outfile: JUDGE_LINT_OUTFILE,
+}
+const judgeLocalOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_LOCAL_ENTRY],
+  outfile: JUDGE_LOCAL_OUTFILE,
+}
+const judgeUsesOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_USES_ENTRY],
+  outfile: JUDGE_USES_OUTFILE,
+}
+const judgeHookOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_HOOK_ENTRY],
+  outfile: JUDGE_HOOK_OUTFILE,
+}
+
+const judgeOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [JUDGE_ENTRY],
+  outfile: JUDGE_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [AGENT_IMPORT_ENTRY],
   outfile: AGENT_IMPORT_OUTFILE,
   platform: 'node',
@@ -362,9 +397,16 @@ const agentImportOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const tabOptions = {
+  ...agentImportOptions,
+  entryPoints: [TAB_ENTRY],
+  outfile: TAB_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const bundledSkillsOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [BUNDLED_SKILLS_ENTRY],
   outfile: BUNDLED_SKILLS_OUTFILE,
   platform: 'node',
@@ -384,9 +426,21 @@ const searchWorkerOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const conversationGitOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [CONVERSATION_GIT_ENTRY],
+  outfile: CONVERSATION_GIT_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
@@ -394,39 +448,10 @@ const checkpointStoreOptions = {
   target: HOST_NODE_TARGET,
 }
 
-// M98 B/D/CS/G: shared by the extension and ACP package, absent at activation.
-/** @type {import('esbuild').BuildOptions} */
-const judgeOptions = {
-  ...planMarkdownOptions,
-  entryPoints: [JUDGE_ENTRY],
-  outfile: JUDGE_OUTFILE,
-}
-
-const judgeLintOptions = {
-  ...judgeOptions,
-  entryPoints: [JUDGE_LINT_ENTRY],
-  outfile: JUDGE_LINT_OUTFILE,
-}
-const judgeLocalOptions = {
-  ...judgeOptions,
-  entryPoints: [JUDGE_LOCAL_ENTRY],
-  outfile: JUDGE_LOCAL_OUTFILE,
-}
-const judgeUsesOptions = {
-  ...judgeOptions,
-  entryPoints: [JUDGE_USES_ENTRY],
-  outfile: JUDGE_USES_OUTFILE,
-}
-const judgeHookOptions = {
-  ...judgeOptions,
-  entryPoints: [JUDGE_HOOK_ENTRY],
-  outfile: JUDGE_HOOK_OUTFILE,
-}
-
 /** @type {import('esbuild').BuildOptions} */
 const browserCheckOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [BROWSER_CHECK_ENTRY],
   outfile: BROWSER_CHECK_OUTFILE,
   platform: 'node',
@@ -437,7 +462,7 @@ const browserCheckOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const browserRuntimeOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [BROWSER_RUNTIME_ENTRY],
   outfile: BROWSER_RUNTIME_OUTFILE,
   platform: 'node',
@@ -448,7 +473,7 @@ const browserRuntimeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
   platform: 'node',
@@ -458,47 +483,34 @@ const acpOptions = {
   banner: { js: '#!/usr/bin/env node' },
 }
 
-// Preserve every table value while keeping the shared Node fallback under
-// its unchanged cap. Browser and development output keep the source form.
-/** @type {import('esbuild').Plugin} */
-const compactEnglish = {
-  name: 'compact-node-english',
-  setup(build) {
-    build.onEnd((result) => {
-      if (result.errors.length > 0) return
-      const output = result.outputFiles?.[0]
-      if (output === undefined || result.metafile === undefined)
-        throw new Error('English table output is missing')
-      const context = { module: { exports: {} } }
-      // Only the just-built, repository-owned table is evaluated, without I/O.
-      runInNewContext(output.text, context)
-      const encoded = brotliCompressSync(JSON.stringify(context.module.exports.EN)).toString(
-        'base64',
-      )
-      const compact = `exports.EN=JSON.parse(require("node:zlib").brotliDecompressSync(Buffer.from(${JSON.stringify(encoded)},"base64")).toString("utf8"));\n`
-      writeFileSync(UI_TEXT_OUTFILE, compact)
-      const meta = result.metafile.outputs[UI_TEXT_OUTFILE]
-      meta.bytes = Buffer.byteLength(compact)
-      meta.inputs[UI_TEXT_ENTRY].bytesInOutput = encoded.length
-      meta.imports.push({ path: 'node:zlib', kind: 'require-call', external: true })
-    })
-  },
-}
-
+// Keep the production Node fallback under its existing cap; runtime values
+// are the same table. Browser and development outputs retain their inline text.
+const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
 /** @type {import('esbuild').BuildOptions} */
 const uiTextOptions = {
   ...common,
+  plugins: [
+    regionalUiText(),
+    compressedEnglish(UI_TEXT_OUTFILE, isProduction, L10N_COMPRESSION_QUALITY),
+  ],
   entryPoints: [UI_TEXT_ENTRY],
   outfile: UI_TEXT_OUTFILE,
-  ...(isProduction && { write: false, plugins: [compactEnglish] }),
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
 }
 
+const uiTextRegionOptions = UI_TEXT_REGIONS.map((region) => ({
+  ...uiTextOptions,
+  plugins: [
+    regionalUiText(region.name),
+    compressedEnglish(region.output, isProduction, L10N_COMPRESSION_QUALITY),
+  ],
+  outfile: region.output,
+}))
+
 const validationOptions = {
   ...uiTextOptions,
-  write: true,
   plugins: [],
   entryPoints: [VALIDATION_ENTRY],
   outfile: VALIDATION_OUTFILE,
@@ -506,8 +518,15 @@ const validationOptions = {
 
 const validationSchemaOptions = {
   ...validationOptions,
-  entryPoints: [VALIDATION_SCHEMA_ENTRY],
-  outfile: VALIDATION_SCHEMA_OUTFILE,
+  entryPoints: ['src/host/validationSchemaEntry.ts'],
+  outfile: 'dist/validationSchema.js',
+}
+
+const wireOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: ['src/shared/wireEntry.ts'],
+  outfile: 'dist/wire.js',
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -524,12 +543,15 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
+  plugins: isProduction ? [compactBrowserEnglish] : [],
+  charset: 'utf8',
   entryPoints: [WEBVIEW_ENTRY],
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
   format: 'esm',
   splitting: true,
-  chunkNames: 'chunks/[name]-[hash]',
+  // STARTDIET: content hashes identify chunks; repeated names inflate every import.
+  chunkNames: 'chunks/[hash]',
   target: BROWSER_TARGET,
   jsx: 'automatic',
 }
@@ -577,6 +599,8 @@ console.log(
 if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
+    esbuild.context(conversationOptions),
+    esbuild.context(tabOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
@@ -587,21 +611,27 @@ if (isWatch) {
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
+    esbuild.context(conversationGitOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
+    esbuild.context(extensionHooksOptions),
+    esbuild.context(reportOptions),
+    esbuild.context(recorderOptions),
+    esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
+    esbuild.context(judgeP2Options),
     esbuild.context(judgeLintOptions),
     esbuild.context(judgeHookOptions),
     esbuild.context(judgeLocalOptions),
     esbuild.context(judgeUsesOptions),
-    esbuild.context(extensionHooksOptions),
-    esbuild.context(whatsNewOptions),
-    esbuild.context(uiTextOptions),
-    esbuild.context(validationOptions),
     esbuild.context(validationSchemaOptions),
+    esbuild.context(uiTextOptions),
+    ...uiTextRegionOptions.map((options) => esbuild.context(options)),
+    esbuild.context(validationOptions),
+    esbuild.context(wireOptions),
     esbuild.context(browserCheckOptions),
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
@@ -614,6 +644,8 @@ if (isWatch) {
 } else {
   const shipped = {
     extension: esbuild.build(hostOptions),
+    conversation: esbuild.build(conversationOptions),
+    tab: esbuild.build(tabOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
@@ -624,21 +656,32 @@ if (isWatch) {
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
+    conversationGit: esbuild.build(conversationGitOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
+    extensionHooks: esbuild.build(extensionHooksOptions),
+    report: esbuild.build(reportOptions),
+    recorder: esbuild.build(recorderOptions),
+    whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),
+    judgeP2: esbuild.build(judgeP2Options),
     judgeLint: esbuild.build(judgeLintOptions),
     judgeHook: esbuild.build(judgeHookOptions),
     judgeLocal: esbuild.build(judgeLocalOptions),
     judgeUses: esbuild.build(judgeUsesOptions),
-    extensionHooks: esbuild.build(extensionHooksOptions),
-    whatsNew: esbuild.build(whatsNewOptions),
-    uiText: esbuild.build(uiTextOptions),
-    validation: esbuild.build(validationOptions),
     validationSchema: esbuild.build(validationSchemaOptions),
+    uiText: esbuild.build(uiTextOptions),
+    ...Object.fromEntries(
+      UI_TEXT_REGIONS.map((region, index) => [
+        path.basename(region.output, '.js'),
+        esbuild.build(uiTextRegionOptions[index]),
+      ]),
+    ),
+    validation: esbuild.build(validationOptions),
+    wire: esbuild.build(wireOptions),
     browserCheck: esbuild.build(browserCheckOptions),
     browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
@@ -664,6 +707,8 @@ if (isWatch) {
   }
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
+  reportSize(CONVERSATION_OUTFILE)
+  reportSize(TAB_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
@@ -673,20 +718,27 @@ if (isWatch) {
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
+  reportSize(CONVERSATION_GIT_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
-  reportSize(JUDGE_OUTFILE)
-  reportSize(JUDGE_LINT_OUTFILE)
-  reportSize(JUDGE_HOOK_OUTFILE)
   reportSize(EXTENSION_HOOKS_OUTFILE)
+  reportSize(REPORT_OUTFILE)
+  reportSize(RECORDER_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
+  reportSize(JUDGE_OUTFILE)
+  reportSize(JUDGE_P2_OUTFILE)
+  reportSize(JUDGE_LINT_OUTFILE)
+  reportSize(JUDGE_HOOK_OUTFILE)
+  reportSize(JUDGE_LOCAL_OUTFILE)
+  reportSize(JUDGE_USES_OUTFILE)
+  reportSize('dist/validationSchema.js')
   reportSize(UI_TEXT_OUTFILE)
+  for (const region of UI_TEXT_REGIONS) reportSize(region.output)
   reportSize(VALIDATION_OUTFILE)
-  reportSize(VALIDATION_SCHEMA_OUTFILE)
   reportSize(BROWSER_CHECK_OUTFILE)
   reportSize(BROWSER_RUNTIME_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)

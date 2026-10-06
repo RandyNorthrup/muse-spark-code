@@ -476,6 +476,23 @@ describe('Composer attachments', () => {
     expect(props.onAttachImage).not.toHaveBeenCalled()
   })
 
+  it.each(['.crt', '.cert', '.keystore'])(
+    'refuses a PDF dropped as %s before reading bytes',
+    (name) => {
+      const { props } = renderComposer()
+      const file = new File(['%PDF-1.4'], name, { type: 'application/pdf' })
+      const peek = vi.spyOn(file, 'slice')
+      const read = vi.spyOn(file, 'arrayBuffer')
+      fireEvent.drop(screen.getByRole('contentinfo'), {
+        dataTransfer: { files: [file], getData: () => '' },
+      })
+      expect(props.onRefuseFile).toHaveBeenCalledWith(name, UI_TEXT.textFilePrivate)
+      expect(peek).not.toHaveBeenCalled()
+      expect(read).not.toHaveBeenCalled()
+      expect(props.onAttachImage).not.toHaveBeenCalled()
+    },
+  )
+
   it('reserves aggregate media at header completion across rapid paste and drop', async () => {
     const { props, textarea } = renderComposer()
     const header = new TextEncoder().encode('%PDF-1.4')

@@ -31,6 +31,7 @@ import {
   UI_TEXT,
   WHATS_NEW_CHANGELOG_URL,
   WHATS_NEW_README_URL,
+  WHATS_NEW_REPOSITORY_URL,
 } from '../../shared/constants'
 import { BASE_LOCALE, fill, formatDate } from '../../shared/l10n/text'
 import {
@@ -243,6 +244,7 @@ export function renderWhatsNewPage(options: WhatsNewPageOptions): WhatsNewPage {
     '<footer>',
     `<p>${writer.link(WHATS_NEW_CHANGELOG_URL, escapeHtml(UI_TEXT.whatsNewFullChangelog))}</p>`,
     `<p>${writer.link(WHATS_NEW_README_URL, escapeHtml(UI_TEXT.whatsNewReadme))}</p>`,
+    `<p>${writer.link(WHATS_NEW_REPOSITORY_URL, escapeHtml(UI_TEXT.whatsNewStarGithub))}</p>`,
     `<p><label><input type="checkbox" id="${WHATS_NEW_TOGGLE_ID}"${options.isShownOnUpdate ? '' : ' checked'}> ${escapeHtml(UI_TEXT.whatsNewHideOnUpdate)}</label></p>`,
     '</footer>',
   ].join('')

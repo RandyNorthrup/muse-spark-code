@@ -25,6 +25,16 @@ import {
   SETTINGS_SECTION,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
+  TAB_DAILY_BUDGET_MAX_USD,
+  TAB_DAILY_BUDGET_MIN_USD,
+  TAB_MODELS,
+  TAB_MULTILINE_MODES,
+  TAB_TRIGGER_MODES,
+  TAB_WITH_COPILOT_MODES,
+  type TabModel,
+  type TabMultiline,
+  type TabTrigger,
+  type TabWithCopilot,
 } from '../shared/constants'
 import type { PermissionSettings } from '../core/permissionSettings'
 import { type SettingsSnapshot, settingsSnapshotShape } from '../shared/protocol'
@@ -36,6 +46,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** Absolute path to the `muse` executable; empty means "discover". */
   readonly museBinaryPath: string
   readonly environmentVariables: readonly EnvironmentVariable[]
+  readonly 'shell.passEnvironmentVariables': readonly string[]
   /** Shell sandbox posture for `muse serve` (PLAN.md D12). */
   readonly shellSandbox: ShellSandboxMode
   /** Which backend hosts conversations (PLAN.md D1, M7). */
@@ -74,6 +85,20 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiRepositoryRules: unknown
   /** Paid Auto reviewer availability (M78, D78); each use needs consent. */
   readonly modelApiAutoReviewer: boolean
+  /** Inline completions (M94, PLAN.md D73): on only with the price accepted too. */
+  readonly modelApiTab: boolean
+  /** The model Tab completion requests use (Q-M94b). */
+  readonly tabModel: TabModel
+  /** The hard daily budget in US dollars for Tab requests (Q-M94c). */
+  readonly tabDailyBudgetUsd: number
+  /** The languages Tab suggests in, like `github.copilot.enable`. */
+  readonly tabLanguages: Readonly<Record<string, boolean>>
+  /** When Tab adds surrounding context for multi-line completions. */
+  readonly tabMultiline: TabMultiline
+  /** Whether Tab suggests automatically or only when invoked. */
+  readonly tabTrigger: TabTrigger
+  /** What Tab does where GitHub Copilot also suggests. */
+  readonly tabWithCopilot: TabWithCopilot
   /** The Muse Judge's engine (M98, PLAN.md D77): `auto` is `same` in phase 1. */
   readonly 'judge.engine': JudgeEngine
   /** Configured separate source/model id; empty keeps today's single-model setup. */
@@ -122,6 +147,7 @@ const settingSchemas = {
   ...settingsSnapshotShape,
   museBinaryPath: z.string(),
   environmentVariables: z.array(environmentVariableSchema),
+  'shell.passEnvironmentVariables': z.array(z.string().check(z.regex(/^[A-Za-z_][A-Za-z0-9_]*$/))),
   shellSandbox: z.enum(SHELL_SANDBOX_MODES),
   backend: z.enum(BACKEND_MODES),
   enableNewConversationShortcut: z.boolean(),
@@ -143,6 +169,15 @@ const settingSchemas = {
   modelApiPermissionProfile: z.unknown(),
   modelApiRepositoryRules: z.unknown(),
   modelApiAutoReviewer: z.boolean(),
+  modelApiTab: z.boolean(),
+  tabModel: z.enum(TAB_MODELS),
+  tabDailyBudgetUsd: z
+    .number()
+    .check(z.gte(TAB_DAILY_BUDGET_MIN_USD), z.lte(TAB_DAILY_BUDGET_MAX_USD)),
+  tabLanguages: z.record(z.string(), z.boolean()),
+  tabMultiline: z.enum(TAB_MULTILINE_MODES),
+  tabTrigger: z.enum(TAB_TRIGGER_MODES),
+  tabWithCopilot: z.enum(TAB_WITH_COPILOT_MODES),
   'judge.engine': z.enum(JUDGE_ENGINES),
   'judge.separate': z.string(),
   diagnosticsAfterEdits: z.boolean(),
@@ -223,6 +258,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     archiveInactiveSessions: readSetting(config, 'archiveInactiveSessions', log),
     museBinaryPath: readSetting(config, 'museBinaryPath', log),
     environmentVariables: readSetting(config, 'environmentVariables', log),
+    'shell.passEnvironmentVariables': readSetting(config, 'shell.passEnvironmentVariables', log),
     shellSandbox: readSetting(config, 'shellSandbox', log),
     backend: readSetting(config, 'backend', log),
     enableNewConversationShortcut: readSetting(config, 'enableNewConversationShortcut', log),
@@ -262,6 +298,13 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     'judge.engine': readSetting(config, 'judge.engine', log),
     'judge.separate': readSetting(config, 'judge.separate', log),
     museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),
+    modelApiTab: readSetting(config, 'modelApiTab', log),
+    tabModel: readSetting(config, 'tabModel', log),
+    tabDailyBudgetUsd: readSetting(config, 'tabDailyBudgetUsd', log),
+    tabLanguages: readSetting(config, 'tabLanguages', log),
+    tabMultiline: readSetting(config, 'tabMultiline', log),
+    tabTrigger: readSetting(config, 'tabTrigger', log),
+    tabWithCopilot: readSetting(config, 'tabWithCopilot', log),
   }
 }
 

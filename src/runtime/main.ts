@@ -5,9 +5,9 @@
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
 import { spawn } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { open, readFile } from 'node:fs/promises'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { open, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -15,7 +15,7 @@ import { Writable } from 'node:stream'
 import { ndJsonStream } from '@agentclientprotocol/sdk'
 import { createAcpAgent, type SignInMethod } from '../acp/agent'
 import { processGitRunner } from '../host/git'
-import { loadUiTable } from '../host/l10n'
+import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
   ACP_AUTH_METHODS,
@@ -24,6 +24,7 @@ import {
   EXEC_FORCE_WRITE_MS,
   EXTENSION_HOOKS_BUNDLE_FILE,
   SEARCH_WORKER_FILE,
+  SECRET_KEYS,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
@@ -32,6 +33,11 @@ import { fill } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
 import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
+import { isProcessAlive } from '../host/checkpoints/windowPresence'
+import type { ReportJournal } from '../host/support/reportJournal'
+import { reportEventsOf } from '../core/support/journalEvents'
+import { agentDataFolder } from './dataFolder'
+import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore } from './keyStore'
 import { takeCredentials } from './credentialVariables'
@@ -56,6 +62,8 @@ import { jobSourceReader } from '../host/backend/jobSource'
 import { uiLocale } from '../shared/l10n/text'
 
 const EXIT_FAILED = 1
+// The Model API key variable Muse Code reads; the report says only whether it was set.
+const META_API_KEY_VARIABLE = 'META_API_KEY'
 // Credential variables leave the agent's own environment before anything
 // starts a process; only Muse Code's processes get them back (rule 8).
 const museCodeCredentials = takeCredentials(process.env)
@@ -66,7 +74,7 @@ const packageRoot = path.dirname(distDir)
 function loadDisplayLanguage(log: Logger) {
   return loadUiTable({
     language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
-    readExtensionFile: (segments) => readFile(path.join(packageRoot, ...segments), 'utf8'),
+    readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
     log,
   })
 }
@@ -157,6 +165,29 @@ async function readBoundedFile(
   } finally {
     await handle.close()
   }
+}
+
+/**
+ * This agent process's flight recorder (M93, PLAN.md D72): the extension's
+ * own ReportJournal, with the same policy, under the agent's data folder
+ * (no workspace needed). Each process writes only its own journal; `report`
+ * reads them all.
+ */
+async function reportJournal(log: Logger): Promise<ReportJournal> {
+  const { ReportJournal } = await import('../host/support/recorderEntry')
+  return new ReportJournal({
+    globalStorageDir: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    instance: randomUUID(),
+    ext: packageVersion(),
+    host: process.versions.node,
+    pid: process.pid,
+    log,
+    isAlive: isProcessAlive,
+  })
 }
 
 function authDeps(): AuthCommandDeps {
@@ -298,6 +329,11 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   }
   // "Allow always" lapses for a paid feature started without its flag (M58).
   await runtime.forgetUnflaggedGrants()
+  // The agent records its own failures for `report` (M93): an activation
+  // marker shields this process's journal from a peer's cleanup while it
+  // runs; there is no crash offer outside the editor, so startup's is unused.
+  const journal = await reportJournal(log)
+  await journal.startup()
   const agent = createAcpAgent({
     backend: runtime.backend,
     version: packageVersion(),
@@ -310,6 +346,11 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     defaultCwd: process.cwd(),
     paid: runtime.paid,
     log,
+    reportError: (fact) => {
+      // Facts only (a fixed kind and code): it never touches ACP stdout, and
+      // the recorder never throws into the session it watches.
+      void journal.record(fact)
+    },
   })
   const connection = agent.connect(
     ndJsonStream(Writable.toWeb(process.stdout), webReadable(process.stdin)),
@@ -317,6 +358,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
   await connection.closed
   await runtime.close()
+  await journal.shutdown()
   return 0
 }
 
@@ -340,7 +382,7 @@ async function main(): Promise<number> {
       stderr.write(`${redactWhole(line, [])}\n`)
     }, 'warn')
     const loadJudge = judgeFeaturesLoader({
-      bundlePath: path.join(distDir, 'judge.js'),
+      bundlePath: path.join(distDir, 'judgeP2.js'),
       log,
     })
     process.on('SIGINT', stop)
@@ -508,13 +550,83 @@ async function main(): Promise<number> {
     case 'authClear': {
       return await authClear(authDeps())
     }
+    case 'report': {
+      // No backend, no auth flow and no model startup: only local, capped
+      // recorder data and allowlisted local facts (M93, D72).
+      const homeDir = homedir()
+      const nowMs = Date.now()
+      return await runReportCommand({
+        options: command.options,
+        version: packageVersion(),
+        nodeVersion: process.version,
+        platform: process.platform,
+        pathEntries: (process.env['PATH'] ?? '').split(path.delimiter),
+        homeDir,
+        localAppData: process.platform === 'win32' ? process.env['LOCALAPPDATA'] : undefined,
+        xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+        museBinaryPath: '',
+        fileExists: (file) => {
+          try {
+            return existsSync(file)
+          } catch {
+            return false
+          }
+        },
+        readTextFile: (file): string | undefined => {
+          try {
+            return readFileSync(file, 'utf8')
+          } catch {
+            return undefined
+          }
+        },
+        listDirectory: (directory) => {
+          try {
+            return readdirSync(directory)
+          } catch {
+            return []
+          }
+        },
+        // The agent took its credential variables out of its environment at
+        // start (rule 8): presence is read from what it took.
+        hasEnvironmentApiKey: museCodeCredentials.some(
+          (variable) => variable.name === META_API_KEY_VARIABLE,
+        ),
+        readStoredKeyPresence: async () => {
+          try {
+            const stored = await secrets.get(SECRET_KEYS.modelApiKey)
+            return stored !== undefined && stored !== ''
+          } catch {
+            // A store that cannot be read reads no (documented in docs/acp.md).
+            return false
+          }
+        },
+        nowMs,
+        // Reading prunes expired records but sets and consumes no marker.
+        readJournal: async () => {
+          const journal = await reportJournal(log)
+          const merged = await journal.readMerged()
+          return {
+            entries: reportEventsOf(merged.entries, nowMs),
+            recordingUnavailable: !journal.isAvailable,
+          }
+        },
+        writeStdout: (text) => {
+          writeLine(process.stdout, text)
+        },
+        writeOutFile: async (file, text) => {
+          await writeFile(file, text, 'utf8')
+        },
+        printError: (line) => {
+          writeLine(process.stderr, line)
+        },
+      })
+    }
     case 'version': {
       writeLine(process.stdout, packageVersion())
       return 0
     }
     case 'help': {
       writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
-      writeLine(process.stdout, fill(UI_TEXT.acpUsageSetup, { command: ACP_AGENT_NAME }))
       return 0
     }
     case 'invalid': {

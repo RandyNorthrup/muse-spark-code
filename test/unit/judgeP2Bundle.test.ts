@@ -14,7 +14,7 @@ import { removeFolder } from './helpers/temporaryFolders'
 import { samplingRequest, techniqueFixture } from './judgeSamplingFixtures'
 import { answered, command, io, REQUEST, source } from './judgeCliFixtures'
 
-const built = builtForTests('src/runtime/judge/judgeEntry.ts', 'judge.js')
+const built = builtForTests('src/runtime/judge/judgeEntry.ts', 'judgeP2.js')
 const temporary = mkdtempSync(path.join(tmpdir(), 'muse-judge-assembly-'))
 const unavailable = () => fill(UI_TEXT.judgeNoAnswer, { reason: 'source-unavailable' })
 const limits: CalibrationLimits = {

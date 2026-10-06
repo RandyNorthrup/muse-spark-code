@@ -10,7 +10,7 @@ import type { ItemSnapshot } from '../../src/shared/agentEvents'
 import {
   DEFAULT_EFFORT,
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
-  MODEL_TEXT,
+  CONVERSATION_MODEL_TEXT,
   SESSION_EXPORT_MAX_ITEMS,
   SESSION_EXPORT_SCRUB_SLICE_CHARS,
   UI_TEXT,
@@ -30,8 +30,8 @@ import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
 
 const [KEY] = CURRENT_SHAPE_KEYS
 const DIGEST = 'a'.repeat(64)
-const REDACTED_PATH = MODEL_TEXT.exportRedactedPath
-const REDACTED_ACCOUNT = MODEL_TEXT.exportRedactedAccount
+const REDACTED_PATH = CONVERSATION_MODEL_TEXT.exportRedactedPath
+const REDACTED_ACCOUNT = CONVERSATION_MODEL_TEXT.exportRedactedAccount
 const NO_ROOTS = { localRoots: [] } as const
 
 function userItem(itemId: string, text: string): ItemSnapshot {
@@ -461,7 +461,7 @@ describe('parseSessionExport', () => {
       expect(parsed.reason).not.toContain(secret)
     }
     expect(parsed.reason).not.toMatch(/\p{Cc}/u)
-    expect(parsed.reason).toContain(MODEL_TEXT.exportRedactedAccount)
+    expect(parsed.reason).toContain(CONVERSATION_MODEL_TEXT.exportRedactedAccount)
     expect(parsed.reason).toContain(REDACTED_PATH)
   })
 
@@ -604,9 +604,11 @@ describe('sanitizeImportedSession', () => {
     }
     const [first = '', second = ''] = session.replay.map((entry) => textOf(entry))
     expect(
-      first.startsWith(`${MODEL_TEXT.importedHistoryNote}\n\n${MODEL_TEXT.importedTurnLead}\n[`),
+      first.startsWith(
+        `${CONVERSATION_MODEL_TEXT.importedHistoryNote}\n\n${CONVERSATION_MODEL_TEXT.importedTurnLead}\n[`,
+      ),
     ).toBe(true)
-    expect(second.startsWith(`${MODEL_TEXT.importedTurnLead}\n[`)).toBe(true)
+    expect(second.startsWith(`${CONVERSATION_MODEL_TEXT.importedTurnLead}\n[`)).toBe(true)
     expect(turnItems(first)).toEqual([
       { kind: 'userMessage', status: 'completed', text: 'Read notes.md' },
       {

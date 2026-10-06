@@ -4,6 +4,7 @@ import { ReviewBreaker } from '../../src/core/backends/modelapi/autoReviewer'
 import { mapNotification } from '../../src/core/backends/musecode/mapNotification'
 import type { JudgeRuntime } from '../../src/core/judge/engine'
 import type { JudgeOutcome } from '../../src/core/judge/schema'
+import type { JudgeAdvisory, JudgeFence } from '../../src/core/judge/use'
 import { JudgeUses } from '../../src/host/judge/uses'
 import {
   ReviewedApprovals,
@@ -69,7 +70,7 @@ const ask: MuseCodeReviewOutcome = {
   hasTripped: false,
 }
 
-function setup() {
+function setup(advisory?: JudgeAdvisory) {
   const session = new FakeAgentSession('s1', 'fixture-model')
   const host = new FakeAgentHost()
   const judge = deferred<JudgeOutcome>()
@@ -89,6 +90,7 @@ function setup() {
   const approvals = new ReviewedApprovals(
     {
       judgeUses: uses,
+      judge: advisory,
       showCard: cards,
       notice: vi.fn(),
       mayAllow: () => true,
@@ -145,6 +147,31 @@ afterEach(() => {
 })
 
 describe('independent reviewer and synchronous caution fence', () => {
+  it.each(['caution', 'none'] as const)(
+    'reads both independent holders when the shipped phase-1 fence returns %s',
+    async (outcome) => {
+      const fence: JudgeFence = { read: vi.fn(() => outcome), card: vi.fn(), discard: vi.fn() }
+      const advisory: JudgeAdvisory = {
+        start: vi.fn(() => fence),
+        discardTurn: vi.fn(),
+        discardSession: vi.fn(),
+      }
+      const t = setup(advisory)
+      t.approvals.hold(t.event, t.hold)
+      t.judge.resolve(useOutput(t.policy(), undefined, {}, 'review'))
+      await flush()
+      t.review.resolve(allow)
+      await flush()
+      expect(fence.read).toHaveBeenCalledOnce()
+      expect(t.runtime.judge.mock.calls[0]?.[1].aborted).toBe(true)
+      expect(t.cards).toHaveBeenCalledExactlyOnceWith(
+        outcome === 'caution' ? { ...t.event, judgeCaution: true } : t.event,
+        undefined,
+      )
+      expect(t.session.decideApproval).not.toHaveBeenCalled()
+    },
+  )
+
   it('refuses aborted, wrong-use and oversized inputs before a source call', () => {
     const t = setup()
     const stop = new AbortController()

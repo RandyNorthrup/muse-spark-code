@@ -9,7 +9,6 @@
 // `onActiveRowChange`.
 
 import {
-  type FocusEvent,
   type KeyboardEvent,
   type Ref,
   useEffect,
@@ -33,6 +32,7 @@ import { scrollRowIntoView, wrapIndex } from '../listNavigation'
 import { EffortSlider } from './EffortSlider'
 import { BackIcon, CheckIcon } from './icons'
 import { ListBody } from './ListBody'
+import { PaletteList, usePaletteDismiss } from './paletteDialog'
 
 export type PaletteView = 'actions' | 'models'
 
@@ -338,60 +338,49 @@ export function Palette(props: PaletteProps) {
   let body
   if (rows.length === 0) {
     body = <p className="menu-empty">{UI_TEXT.paletteNoMatches}</p>
-  } else if (view === 'models') {
-    body = (
-      <ul
-        id={PALETTE_LISTBOX_ID}
-        role="listbox"
-        aria-label={UI_TEXT.modelListLabel}
-        className="palette-list"
-      >
-        {rows.map((_, index) => renderRow(index))}
-      </ul>
-    )
   } else {
     body = (
-      <ul
-        id={PALETTE_LISTBOX_ID}
-        role="listbox"
-        aria-label={UI_TEXT.paletteLabel}
-        className="palette-list"
+      <PaletteList
+        listboxId={PALETTE_LISTBOX_ID}
+        label={view === 'models' ? UI_TEXT.modelListLabel : UI_TEXT.paletteLabel}
       >
-        {entries.map((entry) => {
-          switch (entry.kind) {
-            case 'title': {
-              return (
-                <li key={entry.key} role="presentation" className="palette-group-title">
-                  {entry.title}
-                </li>
-              )
-            }
-            case 'disabled': {
-              return (
-                // A note, not an option: its tip is the pointer's title only.
-                // An ARIA attribute here would void the presentation role and
-                // leave the listbox a child it may not hold (lane W's full a11y run).
-                <li
-                  key={entry.key}
-                  role="presentation"
-                  className="palette-item palette-item-disabled"
-                  title={entry.item.tip}
-                >
-                  <span className="palette-item-text">
-                    <span className="palette-item-label">{entry.item.label}</span>
-                  </span>
-                  {entry.item.widget === undefined ? null : (
-                    <Widget widget={entry.item.widget} onStep={undefined} />
-                  )}
-                </li>
-              )
-            }
-            case 'row': {
-              return renderRow(entry.index)
-            }
-          }
-        })}
-      </ul>
+        {view === 'models'
+          ? rows.map((_, index) => renderRow(index))
+          : entries.map((entry) => {
+              switch (entry.kind) {
+                case 'title': {
+                  return (
+                    <li key={entry.key} role="presentation" className="palette-group-title">
+                      {entry.title}
+                    </li>
+                  )
+                }
+                case 'disabled': {
+                  return (
+                    // A note, not an option: its tip is the pointer's title only.
+                    // An ARIA attribute here would void the presentation role and
+                    // leave the listbox a child it may not hold (lane W's full a11y run).
+                    <li
+                      key={entry.key}
+                      role="presentation"
+                      className="palette-item palette-item-disabled"
+                      title={entry.item.tip}
+                    >
+                      <span className="palette-item-text">
+                        <span className="palette-item-label">{entry.item.label}</span>
+                      </span>
+                      {entry.item.widget === undefined ? null : (
+                        <Widget widget={entry.item.widget} onStep={undefined} />
+                      )}
+                    </li>
+                  )
+                }
+                case 'row': {
+                  return renderRow(entry.index)
+                }
+              }
+            })}
+      </PaletteList>
     )
   }
 
@@ -403,33 +392,17 @@ export function Palette(props: PaletteProps) {
   // Anything taking the focus outside the palette closes it; Tab into the
   // list keeps it open (M37). Attached, the focus is the prompt's, which
   // closes it itself.
-  const onPaletteBlur = (event: FocusEvent<HTMLDivElement>) => {
-    if (isAttached) {
-      return
-    }
-    if (!event.currentTarget.contains(event.relatedTarget)) {
-      onClose()
-    }
-  }
-  // Escape from the list; the filter box handles its own.
-  const onPaletteKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Escape' || event.target === filterBox.current) {
-      return
-    }
-    event.preventDefault()
-    if (view === 'models') {
-      onBack()
-    } else {
-      onClose()
-    }
-  }
+  const { onDialogBlur } = usePaletteDismiss(filterBox, onClose)
   return (
     <div
       className={isAttached ? 'palette palette-attached' : 'palette'}
       role="dialog"
       aria-label={UI_TEXT.paletteLabel}
-      onBlur={onPaletteBlur}
-      onKeyDown={onPaletteKeyDown}
+      onBlur={isAttached ? undefined : onDialogBlur}
+      onKeyDown={(event) => {
+        // The filter handles its own keys; the list shares its Escape behavior.
+        if (event.key === 'Escape' && event.target !== filterBox.current) didHandleKey(event)
+      }}
     >
       {isAttached ? null : (
         <div className="palette-header">

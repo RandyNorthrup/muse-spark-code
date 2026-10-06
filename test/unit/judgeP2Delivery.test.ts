@@ -6,7 +6,7 @@ import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 
-const judgeFiles = [
+const judgeFiles = new Set([
   'src/runtime/judge/judgeEntry.ts',
   'src/core/judge/calibration/apply.ts',
   'src/core/judge/calibration/fit.ts',
@@ -18,7 +18,7 @@ const judgeFiles = [
   'src/runtime/judge/tokenFile.ts',
   'src/runtime/judge/commands.ts',
   'src/runtime/judge/mcp.ts',
-]
+])
 const children = [
   {
     name: 'judgeLocal',
@@ -133,13 +133,11 @@ function guard(file: string, mutate: () => void, script: string, message: string
 
 describe('phase-2 judge production delivery', () => {
   it('ships every merged implementation exclusively in the explicit-action factory', () => {
-    const judge = output('dist/meta/judge.json', 'judge').result
+    const judge = output('dist/meta/judgeP2.json', 'judgeP2').result
     for (const source of judgeFiles) expect(judge.inputs).toHaveProperty(source)
     for (const [name, file] of targets) {
       const parent = output(file, name).result
-      expect(
-        Object.keys(parent.inputs).filter((source) => source.startsWith('src/core/judge/')),
-      ).toEqual([])
+      expect(Object.keys(parent.inputs).filter((source) => judgeFiles.has(source))).toEqual([])
     }
     expect(
       Object.keys(judge.inputs).filter(
@@ -151,44 +149,46 @@ describe('phase-2 judge production delivery', () => {
     expect(gate('check-bundle-split').status).toBe(0)
   })
 
-  it.each(targets)(
-    'fires each phase-2 leak guard in %s with byte-exact restoration',
-    (name, file) => {
-      for (const source of judgeFiles) {
-        guard(
-          file,
-          () => {
-            const { meta, result } = output(file, name)
-            result.inputs[source] = { bytesInOutput: 1 }
-            writeFileSync(file, JSON.stringify(meta))
-          },
-          'check-bundle-split',
-          `carries ${source}, which belongs to the lazy judge bundle`,
-        )
-      }
-    },
-  )
-
-  it('fires every missing implementation guard with byte-exact restoration', () => {
-    const file = 'dist/meta/judge.json'
-    for (const source of judgeFiles) {
+  // Each real-gate control has its own unchanged deadline on this Windows rig.
+  it.each(
+    targets.flatMap(([name, file]) => [...judgeFiles].map((source) => ({ name, file, source }))),
+  )(
+    'fires the phase-2 leak guard in $name for $source with byte-exact restoration',
+    ({ name, file, source }) => {
       guard(
         file,
         () => {
-          const { meta, result } = output(file, 'judge')
+          const { meta, result } = output(file, name)
+          result.inputs[source] = { bytesInOutput: 1 }
+          writeFileSync(file, JSON.stringify(meta))
+        },
+        'check-bundle-split',
+        `carries ${source}, which belongs to the lazy judge bundle`,
+      )
+    },
+  )
+
+  it.each([...judgeFiles])(
+    'fires the missing implementation guard for %s with byte-exact restoration',
+    (source) => {
+      const file = 'dist/meta/judgeP2.json'
+      guard(
+        file,
+        () => {
+          const { meta, result } = output(file, 'judgeP2')
           Reflect.deleteProperty(result.inputs, source)
           writeFileSync(file, JSON.stringify(meta))
         },
         'check-bundle-split',
-        `dist/judge.js no longer carries ${source}`,
+        `dist/judgeP2.js no longer carries ${source}`,
       )
-    }
-  })
+    },
+  )
 
   it.each(children.flatMap(({ name, sources }) => sources.map((source) => ({ name, source }))))(
     'fires each $name child split guard for $source with byte-exact restoration',
     ({ name, source }) => {
-      for (const [parent, file] of [...targets, ['judge', 'dist/meta/judge.json'] as const]) {
+      for (const [parent, file] of [...targets, ['judgeP2', 'dist/meta/judgeP2.json'] as const]) {
         guard(
           file,
           () => {
@@ -252,39 +252,42 @@ describe('phase-2 judge production delivery', () => {
     expect(vsixListing()).toContain(file)
   })
 
-  it('refuses duplicated English fallback and a missing shared-table import', () => {
-    const file = 'dist/meta/judge.json'
-    guard(
-      file,
-      () => {
-        const { meta, result } = output(file, 'judge')
-        result.inputs['src/shared/l10n/en.ts'] = { bytesInOutput: 1 }
-        writeFileSync(file, JSON.stringify(meta))
-      },
-      'check-bundle-split',
-      'dist/judge.js duplicates src/shared/l10n/en.ts',
-    )
-    guard(
-      file,
-      () => {
-        const { meta, result } = output(file, 'judge')
-        result.imports = result.imports.filter((entry) => entry.path !== './uiText.js')
-        writeFileSync(file, JSON.stringify(meta))
-      },
-      'check-bundle-split',
-      'dist/judge.js no longer loads the shared English table',
-    )
-  })
+  it.each(['judgeP2', ...children.map((child) => child.name)])(
+    'refuses %s duplicated English fallback and a missing shared-table import',
+    (name) => {
+      const file = `dist/meta/${name}.json`
+      guard(
+        file,
+        () => {
+          const { meta, result } = output(file, name)
+          result.inputs['src/shared/l10n/en.ts'] = { bytesInOutput: 1 }
+          writeFileSync(file, JSON.stringify(meta))
+        },
+        'check-bundle-split',
+        `dist/${name}.js duplicates src/shared/l10n/en.ts`,
+      )
+      guard(
+        file,
+        () => {
+          const { meta, result } = output(file, name)
+          result.imports = result.imports.filter((entry) => entry.path !== './uiText.js')
+          writeFileSync(file, JSON.stringify(meta))
+        },
+        'check-bundle-split',
+        `dist/${name}.js no longer loads the shared English table`,
+      )
+    },
+  )
 
   it('fires the new size and host-global guards without changing caps', () => {
-    const file = 'dist/judge.js'
+    const file = 'dist/judgeP2.js'
     guard(
       file,
       () => {
         writeFileSync(file, ' '.repeat(75 * 1024 + 1))
       },
       'check-bundle-size',
-      'OVER dist/judge.js',
+      'OVER dist/judgeP2.js',
     )
     guard(
       file,
@@ -292,7 +295,7 @@ describe('phase-2 judge production delivery', () => {
         writeFileSync(file, `${readFileSync(file, 'utf8')}\nnavigator\n`)
       },
       'check-host-globals',
-      'FAIL dist/judge.js',
+      'FAIL dist/judgeP2.js',
     )
     const hidden = `${file}.missing-control`
     const originalHash = digest(file)
@@ -300,10 +303,10 @@ describe('phase-2 judge production delivery', () => {
     try {
       const red = gate('check-bundle-size')
       expect(red.status).toBe(1)
-      expect(red.stdout).toContain('MISS dist/judge.js')
+      expect(red.stdout).toContain('MISS dist/judgeP2.js')
       const pack = gate('package-acp')
       expect(pack.status).toBe(1)
-      expect(pack.stderr).toContain('dist/judge.js is missing')
+      expect(pack.stderr).toContain('dist/judgeP2.js is missing')
     } finally {
       renameSync(hidden, file)
     }
@@ -312,24 +315,24 @@ describe('phase-2 judge production delivery', () => {
   })
 
   it('includes the new member in the actual VSIX list and excludes it when its allowlist entry is removed', () => {
-    expect(vsixListing()).toContain('dist/judge.js')
+    expect(vsixListing()).toContain('dist/judgeP2.js')
     const file = '.vscodeignore'
     const original = readFileSync(file)
     const hash = digest(file)
     try {
-      writeFileSync(file, original.toString('utf8').replace('!dist/judge.js\n', ''))
-      expect(vsixListing()).not.toContain('dist/judge.js')
+      writeFileSync(file, original.toString('utf8').replace('!dist/judgeP2.js\n', ''))
+      expect(vsixListing()).not.toContain('dist/judgeP2.js')
     } finally {
       writeFileSync(file, original)
     }
     expect(digest(file)).toBe(hash)
-    expect(vsixListing()).toContain('dist/judge.js')
+    expect(vsixListing()).toContain('dist/judgeP2.js')
   })
 
-  it('lists judge.js as required in both CI package inventories', () => {
+  it('lists judgeP2.js as required in both CI package inventories', () => {
     const workflow = readFileSync('.github/workflows/build.yml', 'utf8')
-    expect(workflow).toContain('extension/dist/judge.js')
-    expect(workflow).toContain('package/dist/judge.js')
+    expect(workflow).toContain('extension/dist/judgeP2.js')
+    expect(workflow).toContain('package/dist/judgeP2.js')
     // These are delivery inputs, not additional CLI commands or support claims.
     const root = path.resolve('src/runtime/main.ts')
     expect(readFileSync(root, 'utf8')).not.toContain('judgeEntry')

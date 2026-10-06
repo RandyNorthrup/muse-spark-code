@@ -47,7 +47,7 @@ beforeAll(async () => {
   await build({
     ...options,
     entryPoints: ['src/runtime/judge/judgeEntry.ts'],
-    outfile: path.join(path.dirname(entry), 'judge.js'),
+    outfile: path.join(path.dirname(entry), 'judgeP2.js'),
   })
   writeFileSync(path.join(folder, 'package.json'), '{"version":"test"}')
   mkdirSync(path.join(folder, 'l10n'))

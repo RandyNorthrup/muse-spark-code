@@ -5,7 +5,7 @@
 // with an argument array (never a shell string, PLAN.md D4) in the
 // workspace root, with a timeout and an output cap. The interpreter is found
 // by absolute path only and the environment is the one VS Code's own
-// terminal would give (D24).
+// terminal would give, with credential variables fenced (D89.5).
 
 import { spawn } from 'node:child_process'
 import { existsSync, type BigIntStats } from 'node:fs'
@@ -41,12 +41,12 @@ import { resolveExecutable } from '../../core/executables'
 import { isPdf } from '../../core/pdf'
 import type { ToolImageIo } from '../../core/toolImages'
 import { isSamePath } from '../../core/paths'
+import { isCredentialVariable, withoutCredentials } from '../../core/credentialEnvironment'
 import { powerShellQuoted } from '../../core/shellQuote'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   BYTES_PER_MIB,
   FILE_REFUSAL_MODEL_TEXT,
-  HOOK_FORBIDDEN_ENV_NAMES,
   HOOK_OUTPUT_MAX_BYTES,
   HOOK_STDIN_MAX_BYTES,
   MAX_DOCUMENT_BYTES,
@@ -72,6 +72,8 @@ export interface ToolIoDeps {
   readonly systemRoot: string | undefined
   /** The environment for the next command: read per command, so a changed setting applies. */
   readonly env: () => NodeJS.ProcessEnv
+  /** D89.5: names only; honored solely for an explicitly interactive shell entry. */
+  readonly passEnvironmentVariables?: (() => readonly string[]) | undefined
   /** The bundled `searchWorker.js`. */
   readonly searchWorkerPath: string
   /** Where a failed tree kill is reported. */
@@ -98,7 +100,10 @@ export function searchOnWorker(
   timeoutMs: number,
 ): Promise<SearchOutcome> {
   return new Promise<SearchOutcome>((resolve) => {
-    const worker = new Worker(workerPath, { workerData: job })
+    const worker = new Worker(workerPath, {
+      workerData: job,
+      env: withoutCredentials(process.env),
+    })
     const hits: SearchHit[] = []
     let isSettled = false
     const settle = (outcome: SearchOutcome) => {
@@ -233,14 +238,16 @@ export function withTerminalOverrides(
   return env
 }
 
-/** The shell tool's environment: the user's, without the extension host's own plumbing. */
+/** The shell tool's environment, without host plumbing or unapproved credentials. */
 export function shellEnvironment(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
   systemRoot: string | undefined,
+  passNames: readonly string[] = [],
 ): NodeJS.ProcessEnv {
   const clean: NodeJS.ProcessEnv = {}
-  for (const [key, value] of Object.entries(env)) {
+  const entries = Object.entries(withoutCredentials(env, passNames, platform))
+  for (const [key, value] of entries) {
     if (HOST_ONLY_VARIABLES.every((pattern) => !pattern.test(key))) {
       clean[key] = value
     }
@@ -254,16 +261,6 @@ export function shellEnvironment(
     )
   }
   return clean
-}
-
-/**
- * A provider credential's variable: any `*_API_KEY`, and the named ones.
- * Hooks never get one (Muse Code's narrow environment), nor does any process
- * the ACP agent starts but Muse Code's own (runtime/credentialVariables.ts).
- */
-export function isCredentialVariable(name: string): boolean {
-  const upper = name.toUpperCase()
-  return upper.endsWith('_API_KEY') || HOOK_FORBIDDEN_ENV_NAMES.has(upper)
 }
 
 export function hookEnvironment(
@@ -680,7 +677,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     listFiles: deps.listFiles,
     searchFiles: (job) => searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS),
     realPath: canonicalPath,
-    async runShell(command, cwd, timeoutMs, signal, limit, assertCanRun) {
+    async runShell(command, cwd, timeoutMs, signal, limit, assertCanRun, isInteractive = false) {
       if (interpreter === undefined) {
         const missing = deps.platform === 'win32' ? 'Windows PowerShell' : BASH
         return unstartedShell(`${missing} was not found on the absolute entries of PATH`)
@@ -698,7 +695,12 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         file: interpreter,
         args: shellArguments(deps.platform, command, job),
         cwd,
-        env: shellEnvironment(deps.env(), deps.platform, deps.systemRoot),
+        env: shellEnvironment(
+          deps.env(),
+          deps.platform,
+          deps.systemRoot,
+          isInteractive ? deps.passEnvironmentVariables?.() : [],
+        ),
         timeoutMs,
         signal,
         limit,

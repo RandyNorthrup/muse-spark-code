@@ -27,6 +27,7 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
+import { brotliDecompressSync } from 'node:zlib'
 import process from 'node:process'
 import ts from 'typescript'
 import { loadL10n } from './lib/l10nSource.mjs'
@@ -154,10 +155,14 @@ function duplicateKeys(text) {
 }
 
 /** The parsed JSON file, or undefined with the reason added to `problems`. */
-function readJson(file, problems, root = repoRoot) {
+function readJson(file, problems, root = repoRoot, maxOutputLength) {
   let value
   try {
-    const text = readFileSync(path.join(root, file), 'utf8')
+    const target = path.join(root, file)
+    const text =
+      maxOutputLength === undefined
+        ? readFileSync(target, 'utf8')
+        : brotliDecompressSync(readFileSync(`${target}.br`), { maxOutputLength }).toString('utf8')
     value = JSON.parse(text)
     for (const key of duplicateKeys(text))
       problems.push(`${file}: "${key}" is named twice in one object; JSON keeps only the last`)
@@ -493,7 +498,22 @@ function checkPackaged(root, l10n, untranslatedFor, strings, problems) {
     ]),
   ]
   for (const file of files) {
-    const shipped = readJson(file, problems, root)
+    let shipped
+    if (file.startsWith(`${l10n.TABLE_DIRECTORY}/`)) {
+      try {
+        const text = brotliDecompressSync(
+          readFileSync(path.join(root, l10n.TABLE_DIRECTORY, l10n.L10N_TABLE_ARCHIVE_FILE)),
+          {
+            maxOutputLength: l10n.L10N_TABLE_MAX_BYTES * l10n.TABLE_LOCALES.length,
+          },
+        ).toString('utf8')
+        shipped = JSON.parse(
+          l10n.readArchivedUiTable(text, TABLE_FILE.exec(path.basename(file))?.[1]),
+        )
+      } catch (error) {
+        problems.push(`${file}: ${error.message}`)
+      }
+    } else shipped = readJson(file, problems, root)
     const source = readJson(file, problems)
     if (JSON.stringify(shipped) !== JSON.stringify(source))
       problems.push(`packaged ${file}: differs from source`)

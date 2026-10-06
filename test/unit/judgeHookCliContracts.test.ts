@@ -18,7 +18,8 @@ function foreignPayload(format: HookFormat, event: string, muse: AdapterEvent = 
     format,
     muse,
     { ...PAYLOAD, cwd: '/workspace', tool_response: 'clean' },
-    { sourceEvent: event },
+    // The borrowed POSIX fixtures need their platform at main's path boundary.
+    { sourceEvent: event, platform: 'linux', workspaceRoot: '/workspace' },
   )
   if (built.outcome !== 'run') throw new Error('fixture build refused')
   const payload: unknown = JSON.parse(built.stdin)

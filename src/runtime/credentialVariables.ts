@@ -10,7 +10,8 @@
 // processes (`muse serve`, its account hosts, `muse login`), the way the
 // extension adds `museSpark.environmentVariables` to them.
 
-import { isCredentialVariable } from '../host/backend/toolIo'
+import { isCredentialVariable } from '../core/credentialEnvironment'
+export { withoutCredentials } from '../core/credentialEnvironment'
 import { EXEC_CHILD_ENV_DROP, type EnvironmentVariable } from '../shared/constants'
 
 /** The credential variables in `env`, by name and value. */
@@ -27,13 +28,6 @@ export function takeCredentials(env: NodeJS.ProcessEnv): readonly EnvironmentVar
     Reflect.deleteProperty(env, name)
   }
   return taken
-}
-
-/** `env` without any credential variable: what a tool process gets. */
-export function withoutCredentials(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const copy = { ...env }
-  takeCredentials(copy)
-  return copy
 }
 
 /** Headless tools cannot inherit credential-store sockets or CI token routes. */

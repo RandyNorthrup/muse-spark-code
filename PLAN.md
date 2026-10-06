@@ -238,57 +238,128 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                                                                                                                        |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
-| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                                                                                                                                                                                                              |
-| `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                                                                        |
-| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                                                                                                                                                                                                               |
-| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                                                                             |
-| `dist/webview/main.js`     | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                                                                                                                                                                                                          |
-| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
-| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
-| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
-| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
-| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)                                                                                                                                                                                            |
-| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                        |
-| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                      |
-| `dist/foreignHooks.js`     | ≤ 100 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract, 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`; 2026-10-05 on 0.13.0's shared `dist/validation.js`: 65.4 KiB, plus 15%, rounded up to 25 KiB) |
-| `dist/hookRuntime.js`      | ≤ 50 KiB (M91: the hook and MCP-form runtime, lane E's spark-hooks.json reader and dispatcher, lane H's typed handlers and lane M's form checks, moved out of `dist/modelApi.js` and loaded when a spark-hooks.json exists, a typed handler runs or a server asks for a form; 67.1 KiB when split out, 41.7 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)  |
-| `dist/pluginHooks.js`      | ≤ 75 KiB (M91b: the Amp and OpenCode plugin host, loaded on the first plugin hook; measured 51.6 KiB plus 15%, rounded up to 25 KiB; foreignHooks.js is 69.5 KiB with its glue)                                                                                                                                                                                                                        |
-| `dist/agentImport.js`      | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                                                                                                                                                                                                                 |
-| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                             |
-| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                  |
-| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                    |
-| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                  |
-| `dist/extensionHooks.js`   | ≤ 75 KiB (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
-| `dist/browserCheck.js`     | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                         |
-| `dist/browserRuntime.js`   | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                 |
-| `dist/whatsNew.js`         | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                               |
-| `dist/whatsNew.json`       | ≤ 40 KiB raw (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                                                                                                                                                                                                               |
-| `dist/webview/whatsNew.js` | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
-| `dist/validationSchema.js` | ≤ 50 KiB (M98 integration: JSON Schema writer, only loaded when a caller converts a schema; existing parser stays ≤ 50 KiB)                                                                                                                                                                                                                                                                            |
-| `dist/judgeLint.js`        | ≤ 50 KiB (H lint library; child of the explicit-action judge factory)                                                                                                                                                                                                                                                                                                                                  |
-| `dist/judgeHook.js`        | ≤ 100 KiB (GH advisory hook contracts; child of the explicit-action judge factory)                                                                                                                                                                                                                                                                                                                     |
-| `dist/judgeLocal.js`       | ≤ 75 KiB (J local source and platform helper preparation; measured 49 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                 |
-| `dist/judgeUses.js`        | ≤ 25 KiB (FU independent use admission and caution holders; measured 16 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                               |
-| `dist/judge.js`            | ≤ 75 KiB (M98 phase-2 B/D/CS: offline calibration, injected sampling/contrastive and authenticated serve factory; explicit-action loading only; 61,039 bytes plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                           |
+**TRAIN14A integration size recovery (2026-10-05).** The initial M94 archive
+has insufficient universal-helper headroom, and the prepared M71 join exceeds
+activation and shared English by 7.1 KiB each; browser budgets still fit.
+Apply the common size recovery before M71 so both integration stages fit. Keep GitPanel behind DeferredSurface.
+Load the stored-key HTTP client from the existing Model API bundle only on
+its first Tab/image call, with the caller's installed table and checked,
+retryable factory; preserve every paid admission guard and credential boundary.
+Compress the generated production Node English fallback and staged VSIX UI
+translation tables with built-in Brotli at quality 11; decode to the same EN/table objects.
+The translation reader accepts bounded compressed tables and ordinary source/ACP
+JSON. Exact staged decoded values still pass the original strict localization
+checks. Source translations and browser/integration fallback stay readable and
+unchanged. Verify exact
+round-trip values, loading/retry/localization and client dispatch, drill these
+properties, and retain all existing caps. No new artifact or dependency.
+
+| Artifact                              | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dist/conversation.js`                | ≤ 250 KiB (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                         |
+| `dist/tab.js`                         | ≤ 75 KiB (M94: first request/menu; status/provider registration stays eager)                                                                                                                                                                                                                                                                                                                           |
+| `dist/extension.js`                   | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
+| `dist/modelApi.js`                    | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)                                                                                              |
+| `dist/review.js`                      | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                                                                        |
+| `dist/searchWorker.js`                | ≤ 50 KiB                                                                                                                                                                                                                                                                                                                                                                                               |
+| `dist/pageWorker.js`                  | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                                                                             |
+| `dist/webview/main.js`                | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                                                                                                                                                                                                          |
+| Webview original deferred surfaces    | ≤ 50 KiB aggregate for the original seven surfaces and unclassified/shared deferred helpers (TRAIN13B; unchanged in STARTDIET)                                                                                                                                                                                                                                                                         |
+| Webview highlighting import closure   | ≤ 125 KiB (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                         |
+| Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
+| Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
+| `.vsix`                               | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
+| `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
+| `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
+| `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
+| `dist/uiText.js`                      | ≤ 125 KiB (original cap retained; ACTDIET regional core 116,791 bytes)                                                                                                                                                                                                                                                                                                                                 |
+| `dist/wire.js`                        | ≤ 50 KiB (TRAIN14B: shared existing Node protocol and agent-event schemas; 41,370 bytes plus 15%, rounded to 25 KiB; browser and integration parsers stay inline)                                                                                                                                                                                                                                      |
+| `dist/uiTextRuntime.js`               | ≤ 25 KiB (ACTDIET: ACP/headless English, 8,338 bytes plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                      |
+| `dist/uiTextHooks.js`                 | ≤ 25 KiB (ACTDIET: hooks/import English, 12,176 bytes by the same rule)                                                                                                                                                                                                                                                                                                                                |
+| `dist/uiTextSurfaces.js`              | ≤ 25 KiB (ACTDIET: Tab/report/What's New English, 5,893 bytes by the same rule)                                                                                                                                                                                                                                                                                                                        |
+| `dist/sessionBoard.js`                | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                        |
+| `dist/reviewer.js`                    | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                      |
+| `dist/foreignHooks.js`                | ≤ 100 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract, 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`; 2026-10-05 on 0.13.0's shared `dist/validation.js`: 65.4 KiB, plus 15%, rounded up to 25 KiB) |
+| `dist/hookRuntime.js`                 | ≤ 50 KiB (M91: the hook and MCP-form runtime, lane E's spark-hooks.json reader and dispatcher, lane H's typed handlers and lane M's form checks, moved out of `dist/modelApi.js` and loaded when a spark-hooks.json exists, a typed handler runs or a server asks for a form; 67.1 KiB when split out, 41.7 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)  |
+| `dist/pluginHooks.js`                 | ≤ 50 KiB (M91b: the Amp and OpenCode plugin host, loaded on the first plugin hook; 51.6 KiB when split out, 33.8 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)                                                                                                                                                                                             |
+| `dist/agentImport.js`                 | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; M91 lane I's readers for every agent's hooks: 147.7 KiB on 2026-10-04, 108.1 KiB on 0.13.0's shared `dist/validation.js` on 2026-10-05, within the unchanged budget)                                                                                                                            |
+| `dist/bundledSkills.js`               | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                             |
+| `dist/codeIntel.js`                   | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                  |
+| `dist/voice.js`                       | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                    |
+| `dist/museCodeReviewer.js`            | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                  |
+| `dist/extensionHooks.js`              | ≤ 75 KiB (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
+| `dist/browserCheck.js`                | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                         |
+| `dist/browserRuntime.js`              | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                 |
+| `dist/whatsNew.js`                    | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                               |
+| `dist/whatsNew.json`                  | ≤ 40 KiB on-disk JSON, independent of ZIP compression; bounded lossless envelope with 75 KiB decoded maximum (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                                                                                                               |
+| `dist/webview/whatsNew.js`            | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
+| `dist/tab.js`                         | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                                                                                                                                                                                                         |
+| `dist/judgeLint.js`                   | ≤ 50 KiB (unchanged phase-2 lint child).                                                                                                                                                                                                                                                                                                                                                               |
+| `dist/judgeHook.js`                   | ≤ 100 KiB (unchanged phase-2 hook child).                                                                                                                                                                                                                                                                                                                                                              |
+| `dist/judgeLocal.js`                  | ≤ 75 KiB (unchanged phase-2 local child).                                                                                                                                                                                                                                                                                                                                                              |
+| `dist/judgeUses.js`                   | ≤ 25 KiB (unchanged phase-2 use child).                                                                                                                                                                                                                                                                                                                                                                |
+| `dist/validationSchema.js`            | ≤ 50 KiB (unchanged lazy JSON Schema writer).                                                                                                                                                                                                                                                                                                                                                          |
+| `dist/judgeP2.js`                     | ≤ 75 KiB (M98 phase-2 B/D/CS: offline calibration, injected sampling/contrastive and authenticated serve factory; explicit-action loading only; 61,039 bytes plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                           |
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
 the existing rule). Browser/integration parsers stay inline. All Node
 consumers, including ACP and workers, ship it beside their bundles; the
 split and host-global gates enforce separation and API completeness.
-The six deferred chat surfaces use ESM chunks under dist/webview/chunks.
+The optional chat surfaces use ESM chunks under dist/webview/chunks; ACTDIET
+adds the report dialog; TRAIN14 kept Share and Session Board eager to
+fit both unchanged aggregate caps (STARTDIET supersedes their placement below). Browser English remains fully inline through
+a lossless synchronous fragment dictionary.
 The unchanged 900 KiB startup cap includes every transitively eager chunk;
-optional JavaScript has a new 50 KiB total cap (38.6 KiB measured plus
+the original optional surfaces retain their 50 KiB total cap (38.6 KiB measured plus
 15%, rounded by D6). Chunk reachability, lazy placement and packaging are
 guarded; stale chunks are cleared before a build. Existing caps are unchanged.
+
+**STARTDIET (2026-10-05).** Highlighting loads only for a closed supported
+fence, with plain React-escaped code and all actions rendered immediately.
+Its static import closure has a new **125 KiB** cap (93.1 KiB measured plus
+15%, rounded to 25 KiB). The original deferred surfaces retain their aggregate
+50 KiB cap, including any helpers they share with a new closure; unclassified
+deferred JavaScript is charged there too. Startup remains capped at 900 KiB.
+The four remaining action dialogs (Share, Session Board, handoff, secret prompt)
+share a new **25 KiB** import-closure cap (11.2 KiB at first split; plus 15%,
+rounded to 25 KiB), and the separate Tasks surface has a **25 KiB** cap (1.4 KiB
+by the same rule). The command palette reuses its list/dismissal shell with
+History/Session Board, removing duplicate markup/handlers while keeping that
+small shared shell eager so the original deferred cap holds.
+
+| `dist/conversationGit.js` | ≤ 150 KiB (M71: the Git adapter and the window's git and pull request features; measured 127.4 KiB plus 15%, rounded up to 25 KiB) |
+
+M98 adds `dist/judge.js` at **100 KiB**, measured at 77.7 KiB on Kubuntu,
+plus 15% rounded to 25 KiB. It contains the sources, latch, admission and
+usage and is required only at an eligible approval. Every existing cap
+stays unchanged; `JUDGE_MODEL_TEXT` is guarded in that bundle alone.
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
 has its own `scripts/check-vsix-size.mjs` gate in the CI package job. This table
 mirrors both scripts and changes with them, with a CHANGELOG entry.
+
+**ACTDIET (2026-10-05): regional English and the first chat surface.**
+`conversation.js` loads synchronously when the first surface needs a controller;
+its factory installs the caller's display language. Backend restart sequencing
+has its own eager helper. Cross-bundle MSP failures are recognized by the SDK's
+name/kind/code shape for safe logging rather than constructor identity.
+`uiText.js` is generated from canonical `en.ts` as a core and enumerable lazy
+accessors for runtime, hooks/import and optional surfaces. The installed-language
+state clones descriptors, preserving laziness and its complete shape; replacing
+it copies the checked table's descriptors, so translations remain independent.
+Browser/integration builds keep the full inline fallback. A complete table's
+validation or serialization loads all regions; translated startup still validates
+against all English keys. Nothing claims a wall-clock startup improvement when
+a restored chat or What's New page immediately needs these bundles. The split,
+size, package member, cold-load and full-table equality tests guard the change.
+ACP shares the recorder before session initialization or reading reports. The
+webview's report and share dialogs use the existing deferred surface affordance;
+report focus is captured before the loading modal mounts. Its removed-line
+comment alone lives in REVIEW_COMMENT_MODEL_TEXT, guarded for the webview;
+REVIEW_MODEL_TEXT stays in the backend readers. Browser output uses equivalent
+UTF-8 source text; browser and integration fallback still have every key.
 
 **M78b implementation scope (2026-10-02): deferred cohort bundles.**
 **FIXCOH review scope (2026-10-02).** Refuse a missing or malformed board
@@ -4991,6 +5062,104 @@ The step 1 captures are in `docs/certification/m91.md`.
   hold hooks and MCP servers that those agents run outside our sandbox. This
   ships early as its own fix (`fix/protect-agent-folders`, 2026-10-04).
 
+### D72 — Report a problem, without recording the conversation (M93, 2026-10-04)
+
+The owner approved a local, crash-safe support workflow on 2026-10-04:
+someone can report a failure after a crash, Reload Window or a new chat,
+without giving the extension access to their GitHub account or recording
+their prompts, code or model output. **Implemented in M93 (2026-10-05):**
+`docs/certification/m93.md` records what shipped, where it differs from the
+bullets below (as noted inline), and the receipts still open.
+Research and the engine-floor source check: `docs/certification/m93-research.md`.
+D70, D71 and D73 remain reserved for the other planning branches.
+
+- **A flight recorder, not a log attachment.** A versioned, bounded journal
+  under `ExtensionContext.globalStorageUri`, never Settings Sync or workspace
+  storage; 7 days and 256 KiB, oldest entries removed first. Prune at startup,
+  append and report read; a closed editor cannot expire files until next use.
+  Record errors, backend exits, failed tool calls, webview `window.onerror` and
+  `unhandledrejection` (scrubbed, schema-validated posts to the host), React
+  boundary failures, and activation failures once the recorder
+  can start. Record each event as it happens, without relying on deactivate.
+  An incomplete final record after a crash is discarded; valid earlier records
+  survive. Disk failures leave the extension usable and the report states that
+  recording was unavailable, without recursively recording its own failure.
+  Confine journal/marker reads and writes to owned storage; refuse links or
+  unexpected file types that could redirect them to another file.
+- **Scrub before writing.** A strict zod allowlist accepts only fixed event
+  kinds, known error codes (unknown codes become a fixed word), extension/host
+  versions, a retention timestamp, and bounded frames inside the installed
+  extension. Frames contain verified package-relative paths and line/column
+  numbers, never the stack's message, absolute roots, outside frames or arbitrary
+  function names. Reject traversal, URLs and unknown entry fields. No prompts,
+  code, file contents, model output, tool arguments/results, command text,
+  conversation/session ids, credentials or raw MSP/stderr/error messages enter
+  the file. Run every `redactSecrets` pattern too; regexes alone are insufficient.
+- **Unclean shutdown is a hint.** Set an activation marker before normal
+  startup and clear only this activation's marker on deactivate. On next
+  activation, consume a stale marker before offering once: “Muse Spark Code
+  stopped unexpectedly last time — report it?” Dismissal is remembered across
+  reloads. A new abnormal exit can produce a new offer. Window ownership must
+  keep a second live window from being reported as a crash; any local ownership
+  metadata stays out of reports. Never promise to distinguish a crash from a
+  forced exit, or capture a failure before the extension's entry point runs.
+- **Build from facts.** Reuse D14's `SupportFacts`/`renderSupportReport`, not
+  the log channel. Revalidate support-field values against fixed vocabularies;
+  CLI install paths and failure reasons are not inherently safe. Add the last
+  50 valid entries by default, a bounded stack and relative ages. These limits,
+  the entry-size bound and URL limit are named tunables in `constants.ts`, not
+  new settings. Gather facts locally without starting a session, authenticating,
+  inspecting credential values or running workspace commands.
+- **Scrub again before export.** Replace workspace roots with `<workspace>`
+  before replacing home with `~`; remove other absolute user paths, user/machine
+  names, emails, IPv4/IPv6 addresses, URL credentials, queries and fragments.
+  Apply every `redact.ts` secret pattern to the entire final draft, including
+  title and user description. Validate stored entries again; a tampered journal
+  cannot become an arbitrary text attachment. No existing log file is read.
+- **The exact draft comes first.** A labelled description field, section
+  switches for support facts/recent events, and a read-only preview of the final
+  scrubbed text. Changes rebuild the preview; actions use that same immutable
+  draft. Cancel leaves without exporting. Explain that a user-written description
+  can still disclose confidential information; no description is kept in the
+  recorder. Keyboard operation, focus return, screen-reader labels, narrow-panel
+  layout, long-line wrapping and the four VS Code themes are acceptance gates.
+- **User-controlled export.** Open on GitHub opens only this repository's
+  HTTPS new-issue page in the user's browser/account, with encoded title/body.
+  Measure the full encoded URL against a conservative named 2,000-character
+  limit. Above it, copy the same draft, then open the unfilled page with a paste
+  instruction; a failed clipboard write must not pretend the draft was copied.
+  Copy and Save as file are independent choices; save uses the user's picker.
+  No token, automatic submission, upload, extension network call or model call.
+  Opening a browser deliberately hands the draft to GitHub; clipboard history,
+  saved files and browser history are outside the recorder's retention.
+- **Built-in reporter, with a separate boundary.** VS Code 1.99 supports
+  `workbench.action.openIssueReporter` prefill (`extensionId`, `issueTitle`,
+  `issueBody`; `data` is forwarded but absent from the documented option schema).
+  Use the supported body/title fields for an explicitly chosen “VS Code issue
+  reporter” action after our preview. Disclose that VS Code adds its own data,
+  may search GitHub, and controls sign-in/submission; its output is not our
+  exact-only export. Keep the browser/Copy/Save paths available. No private
+  inclusion flags, extension token access, telemetry setting changes or fallback
+  that silently opens a different reporter. Missing/disabled commands show the
+  normal export choices. Engine-floor and current-host receipts remain required.
+- **Every entry point reaches the same workflow.** A contributed command
+  `museSpark.reportProblem`; the palette's Support item replaces its bare link;
+  “Report this” on error notices, transcript error rows and the render-failure
+  fallback. Only a sanitized event reference is handed off, never the row text.
+  After reload/new chat the command reads the journal independently of history.
+  A standalone `muse-spark-code-acp report` prints the same scrubbed report to
+  stdout, with no backend started, sign-in, editor required or browser opened.
+  Its recorder uses the runtime's local data directory and the same policy.
+  Report mode only reads retained records; it does not create an activation
+  marker or consume the editor's crash offer. ACP protocol mode never writes
+  report text to stdout; it remains ACP frames.
+- **SoL-Pi is untouched.** Reporting observes sanitized failures after they
+  occur; it never changes requests, tool declarations, admission, outputs,
+  ObservationPack/archive/sticky swaps, history, paid consent/budgets, guarded
+  `then_run`, todo compaction, hidden turns or M75 evaluation. No paid call is
+  added. Golden request bytes must match with recording on/off and after a
+  report; existing M68/M73/M74/M75 guards must still fail when deliberately broken.
+
 ### D79 — What's New after an update (M99, 2026-10-04)
 
 The owner asked (2026-10-04): "after the app updates it opens a whats new/
@@ -5098,6 +5267,27 @@ we make". His standing ruling: enhancements are on by default.
   otherwise (`docs/RELEASING.md`). Older releases are taken as written
   (0.10.0 has ten).
 
+**STAR — a quiet GitHub star line (owner, 2026-10-05).** Use the same
+sentence, "Enjoying Muse Spark Code? A star on GitHub helps other people
+find it.", linked to `https://github.com/RandyNorthrup/muse-spark-code`,
+near the top of the GitHub and packaged Marketplace/Open VSX READMEs, in
+the What's New footer, and in the Getting Started welcome markdown and
+step description. Translate the footer and manifest description in all
+14 languages. Reuse `PageWriter.link` and the host's indexed
+`openExternal` handler, with escaped display text and unchanged CSP.
+**No prompts, no panel line:** Marketplace users can discover the
+repository without interrupting work or growing the crowded chat bundle.
+Activation gains no imports or bytes. Acceptance: the staged and actual
+VSIX README retain the line; the footer renders escaped, translated text
+and opens only its indexed repository URL; the welcome step retains its
+existing guidance; localization, manifest, scoped tests and bundle caps
+pass. Remove the packaged README line and footer separately to prove the
+tests fail, restore byte-exact, then rerun. Lane checks replace full quality
+only for this handoff; the release lead owns full quality after integration.
+Evidence: `docs/certification/star-line.md`.
+
+### D70 — (reserved for M91 hooks; on another branch, 2026-10-04)
+
 ### D71 — Muse Gadgets: help build them, never become one (M92, 2026-10-04)
 
 The owner asked whether Meta's Muse Gadgets (gadgets.muse.ai,
@@ -5158,6 +5348,500 @@ the scope below on 2026-10-04.
 - **Never a gadget.** The extension never installs, configures or recommends
   the Linux gadget service on a development machine. That service lets the
   cloud assistant run any command there; README and the skill say so.
+
+### D73 — Inline completions (Tab), billed to the Model API key (M94, 2026-10-04)
+
+The owner, 2026-10-04: "yes plan and build the feature". Inline code
+completions ("Tab") are added, and Cursor's two Tab hooks
+(`beforeTabFileRead`, `afterTabFileEdit`) work with them. The research,
+with a source and date for every fact, is
+`docs/certification/m94-research.md`; its fact numbers (A1, C3, V10…) are
+cited here. D70 (M91) owns hooks in general; this decision owns the Tab side
+and the two hook points.
+
+- **The Model API only, never the subscription.** Muse Code has no
+  completion method: its 1.4.2 schema and the SDK's index offer only
+  `turn/start` (C3). A short turn there costs four model attempts and about
+  33,000 input tokens, and its first token comes at 5.4 s (C5). Tab runs
+  only on a stored Model API key. On the Muse Code backend it is offered only
+  while a key is stored, as M44's images and voice are. With no key it never
+  asks for one and never falls back; the status bar says "no key". If Meta
+  adds a completion method to MSP, this decision is revisited.
+- **A chat model fills a marked hole.** No FIM or completion endpoint exists,
+  and `stop`, `prediction` and `n` > 1 are refused (A1, A2). Each Tab request is
+  its own `POST /responses` through the existing key client:
+  - `stream: true`, `store: false`, no tools, no `previous_response_id`;
+  - `reasoning.effort: "minimal"`, since `none` is refused (A3), with no
+    reasoning summary requested;
+  - a mode's `max_output_tokens`, which counts reasoning and is at least 16
+    (A4);
+  - instructions from `TAB_MODEL_TEXT`, a block of its own that only the Tab
+    bundle reads (AGENTS rule 5);
+  - one user message holding the file's workspace-relative path and language
+    id, the prefix, a fixed hole marker, the suffix and, in multi-line mode,
+    context snippets, each fenced as data.
+
+  The reply is the text between two fixed tags. Anything outside them, or no
+  tags at all, means no suggestion.
+
+- **Never the conversation's cache or history (SoL-Pi, M68/M73–M75).**
+  - A Tab request never carries, reads or changes a session's input, history,
+    goal or memory.
+  - It has its own `prompt_cache_key`: `TAB_PROMPT_CACHE_KEY_PREFIX` plus a
+    digest of the model and the Tab instructions, never a chat key (A7).
+  - The request is ordered for prefix caching: instructions, context snippets
+    (sorted by path), the file header, then the prefix window, the marker and
+    the suffix. The prefix window starts on a line that is a multiple of
+    `TAB_PREFIX_ANCHOR_LINES`, so its start stays put while the user types
+    and consecutive requests share a cached prefix (A6, A7).
+- **Two modes.**
+  - **Fast** (automatic triggers, the default): the current file only,
+    `TAB_FAST_PREFIX_CHARS` before and `TAB_FAST_SUFFIX_CHARS` after the
+    cursor. It completes the rest of the line, or at most
+    `TAB_FAST_MAX_LINES` lines.
+  - **Multi-line**: used when the cursor's line is blank, or ends in a block
+    opener with nothing after the cursor, and `museSpark.tabMultiline` is
+    `auto`; and on every explicit Invoke (VS Code's
+    `editor.action.inlineSuggest.trigger`). It adds context snippets:
+    - the user's recent edits in other eligible files;
+    - the definitions of identifiers on the cursor's line, found through
+      code intelligence (`src/core/codeIntel/definitions.ts`).
+
+    The snippets are bounded by `TAB_CONTEXT_CHARS`, and a completion by
+    `TAB_MULTILINE_MAX_LINES` lines.
+
+  - `museSpark.tabMultiline` is `auto` (default), `onInvoke` or `never`.
+  - **Planned values** (lane 0 sets them; the probe may retune those marked
+    \*). These are what research §7's estimate assumes:
+
+    | Constant                                                             | Value          |
+    | -------------------------------------------------------------------- | -------------- |
+    | `TAB_FAST_PREFIX_CHARS` / `TAB_FAST_SUFFIX_CHARS`                    | 6,000 / 1,600  |
+    | `TAB_MULTILINE_PREFIX_CHARS` / `TAB_MULTILINE_SUFFIX_CHARS`          | 12,000 / 3,200 |
+    | `TAB_CONTEXT_CHARS`                                                  | 8,000          |
+    | `TAB_PREFIX_ANCHOR_LINES`                                            | 32             |
+    | `TAB_FAST_MAX_LINES` / `TAB_MULTILINE_MAX_LINES`                     | 3 / 16         |
+    | `TAB_MAX_COMPLETION_CHARS`                                           | 2,000          |
+    | `TAB_DEBOUNCE_MS`\*                                                  | 350            |
+    | `TAB_FAST_MAX_OUTPUT_TOKENS`\* / `TAB_MULTILINE_MAX_OUTPUT_TOKENS`\* | 128 / 512      |
+    | `TAB_CACHE_ENTRIES` / `TAB_HOOK_VERDICT_CACHE`                       | 64 / 128       |
+
+  - VS Code's core gives `editor.action.inlineSuggest.trigger` no key here
+    (research §3, UNKNOWN). M94 binds Alt+\ to it while Tab is on (the
+    `museSpark.tabOn` context key). That is the key the description of
+    Copilot's `github.copilot.enable` names for triggering by hand. M94 adds
+    no trigger command of its own.
+- **Debounce; a sent request is never aborted.**
+  - VS Code's own delay is effectively 0 to 50 ms (V14), so Tab waits
+    `TAB_DEBOUNCE_MS` (350, retuned once from the probe) on the token after an
+    Automatic trigger. A keystroke cancels the token (V15), and then nothing is
+    sent. Invoke skips the wait.
+  - `museSpark.tabTrigger` is `automatic` or `onInvoke`. Its default comes
+    from M94's latency probe: `onInvoke` if a fast suggestion's median first
+    text is slower than `TAB_AUTOMATIC_LATENCY_CEILING_MS` (1,500 ms).
+  - Once a request is sent it runs to its end, even when the token is
+    cancelled. Meta does not say what an abandoned `store: false` stream bills,
+    and an aborted stream reports no usage (A10). Letting it finish keeps the
+    ledger exact. Its answer goes to the cache.
+  - At most `TAB_MAX_IN_FLIGHT` requests (2) are open at once, and at most
+    `TAB_MAX_REQUESTS_PER_MINUTE` (20) start per window, below the contributor
+    tier's 100 RPM team limit (A8). A trigger that finds no slot waits; a newer
+    trigger replaces a waiting one, unsent.
+- **The typing-through cache** (Continue's design, research §4).
+  - The window keeps an LRU of `TAB_CACHE_ENTRIES` entries. Each holds the
+    document, the prefix it answered, its suffix and the completion.
+  - A lookup takes the entry with the longest prefix that the current prefix
+    starts with and the same suffix. It serves the rest of the completion
+    only if the text typed since that prefix is the start of the completion.
+    No request is sent.
+  - The same key is used to read and to write: the document's raw prefix, not
+    the compiled request. Research §4 notes a read/write key mismatch in
+    Continue.
+  - A trigger whose prefix extends an open request's prefix, matching what
+    that request has streamed so far, waits for it instead of sending another
+    (Continue, Zed).
+- **Filters** (from Continue's, research §4).
+  - **Before anything else:** a code fence or a lead-in sentence around the
+    tags is stripped.
+  - **No suggestion** when the reply:
+    - is empty, whitespace, or outside the tags;
+    - only repeats the start of the suffix (the overlap is trimmed first),
+      the line above, or the next non-blank line below;
+    - holds a run of three identical lines;
+    - closes brackets it never opened (fast mode);
+    - holds a secret (`countSecretMatches`) or the redactor's mark.
+  - **Cuts:** a multi-line reply ends at its first blank line after the first
+    line. A reply longer than its mode allows is cut at a line boundary, then
+    at `TAB_MAX_COMPLETION_CHARS`.
+
+  "Repeats" means equal after trimming whitespace. While the suggest widget
+  has a selection, Tab returns nothing (V2). On Invoke it returns one item
+  (A2). Sampling stays at Meta's tuned defaults (A11).
+
+- **Partial accept.** VS Code's own Accept Word (Ctrl/Cmd+Right) and Accept
+  Line (no default key) work for every provider and do not ask the provider
+  again (V7). Tab adds no keys of its own; the README names both commands.
+  The cache keeps the unaccepted rest, so typing on serves it without a
+  request.
+- **Cost: on, ask once first, loud and capped** (owner, 2026-10-04;
+  D30, D34, D48). The owner requires enhancements to be featured and active
+  out of the box. Tab's setting is on by default on the Model API backend;
+  paid dispatch remains opt in through the first-request D48 answer.
+  - **The paid feature `tab`** joins `PAID_FEATURES`. Its setting is
+    `museSpark.modelApiTab`: machine-scoped, default `true`. Its description
+    and its confirmation name the model's rates and the estimated cost per
+    hour of typing (research §7). The confirmation also says that Copilot, if
+    on, is yielded to.
+  - **A hard daily budget**, `museSpark.tabDailyBudgetUsd` (machine-scoped;
+    default $1.00, decided 2026-10-04 (Q-M94c); from $0.05 to $50).
+    - It is kept for each local calendar day, across every window on the
+      machine, in a ledger of its own under the extension's global storage:
+      one file per window per day (`tab-spend/<date>/<window>.json`),
+      written atomically.
+    - Before every request, the window writes the request's worst case into
+      its file: input at one token per UTF-8 byte at the input price, plus
+      `max_output_tokens` at the output price (M82's estimate). The request is
+      sent only if that write succeeds and today's total across all files,
+      plus this worst case, stays within the budget. Reported usage then
+      replaces the reservation.
+    - A request that never reports usage keeps its whole reservation (M82). A
+      missing, corrupt or unreadable ledger refuses the request.
+    - At the budget, Tab stops for the day. The status bar says so in its
+      warning colour, and the next local day or a raised budget resumes it.
+  - **The model.** `museSpark.tabModel` is `muse-spark-1.3` (default:
+    Standard, Meta does not train on it) or `muse-spark-1.3-contributor`,
+    which the setting and the confirmation say is cheaper and that Meta trains
+    on the code it is sent (D4; Q-M94b, decided 2026-10-04: Standard).
+  - **The D48 popup, once per window, not per keystroke** (Q-M94a, decided
+    2026-10-04). A popup before each request is impossible. The first request
+    in a window asks D48's question, naming Tab, the model's rates and today's
+    budget (default $1.00/day). Nothing is sent before an allowing answer;
+    closing the modal denies. No separate enable-price modal at activation:
+    - **Allow once** allows Tab in this window until it closes;
+    - **Allow always in this workspace** is D48's revocable grant;
+    - **Deny** snoozes Tab in this window.
+  - **Shown and counted.** The status bar shows today's spend, and Account &
+    usage gains a Tab row (requests, tokens, cached tokens, cost today and
+    this window, the budget). `PaidUsage` counts each request. Hooks never
+    answer the popup.
+- **When Tab runs.** All of these must hold:
+  - the feature is on and its price accepted;
+  - a key is stored, the workspace is trusted, and Tab is not snoozed;
+  - the document's scheme is `file`, inside a workspace folder;
+  - its language is on in `museSpark.tabLanguages`. This is machine-scoped,
+    shaped like Copilot's `github.copilot.enable` and has the same default
+    (V12): every language on except `plaintext`, `markdown` and `scminput`;
+  - Copilot is not yielded to (below);
+  - the budget allows the request;
+  - every file the request reads is eligible.
+- **Eligible files (privacy).** Tab reads a file, whether the current one or a
+  context one, only when it:
+  - is inside the trusted workspace;
+  - is not private (`isPrivateFileName`: `.env*`, keys, credential files) and
+    not protected (`isProtectedPath`, with M91's additions). Lane 0 widens
+    the one shared private list with the other leaders' entries (research
+    §4): `*.crt`, `*.cert`, `*.keystore`, `secrets.yml` and `.dev.vars`. The
+    attachments and the review use the same list, and they are tightened
+    with it (a CHANGELOG line);
+  - is not ignored by git (`git check-ignore`, cached per path and dropped
+    when an ignore file changes);
+  - is not matched by a workspace root's `.cursorignore` or `.continueignore`.
+    Cursor's and Continue's own autocomplete obey these files (research §4),
+    and a user who moves from either keeps them. They are checked by the
+    same git call, given `-c core.excludesFile=<file>` and `--no-index` so
+    that a tracked file is caught too;
+  - for both git checks: where git cannot answer (no git, or no repository)
+    and such an ignore file is present, no file there is read;
+  - is not matched by `files.exclude`;
+  - is no larger than `TAB_FILE_MAX_BYTES` (192 KiB);
+  - is allowed by `beforeTabFileRead`.
+
+  `museSpark.respectGitIgnore` belongs to mentions and does not loosen this.
+  Everything sent goes through `redactSecrets` first. Only the
+  workspace-relative path and the language id go with the text. **No
+  telemetry.** Tab logs counts, sizes, timings, statuses and the cache hit
+  rate, never code, a completion or a path.
+
+- **Copilot: yield by default.**
+  - Copilot is built into VS Code since 1.116, its provider asks with a 0 ms
+    delay, and on an Automatic trigger the first provider with an answer is
+    shown and the rest cancelled (V10, V12). With both on, Tab would be billed
+    for suggestions nobody sees.
+  - Whether Copilot actually holds a token cannot be seen (V13). So under
+    `museSpark.tabWithCopilot: "yield"` (the default), Tab sends no automatic
+    request for a language while all of these hold:
+    - `GitHub.copilot` or `GitHub.copilot-chat` is installed;
+    - `github.copilot.enable` is on for the language;
+    - `chat.disableAIFeatures` is not `true`.
+
+    Invoke still works, and VS Code merges both answers there (V10).
+
+  - The status bar says "Tab: on Invoke while Copilot is on". Its menu offers
+    **Turn off Copilot's suggestions for <language>**, which writes
+    `github.copilot.enable` in user settings after a confirmation, and
+    **Run both**, which sets `"both"`. Tab never changes another extension's
+    settings without that click.
+- **The status bar and the snooze.**
+  - One item while the feature is on, showing today's spend (`Tab $0.12`).
+    Its tooltip gives the model, the budget and today's requests.
+  - It names each state: on, snoozed (with the minutes left), budget reached,
+    no key, untrusted, the language off, on Invoke for Copilot, and the last
+    failure's class.
+  - Its menu: turn off, snooze (15 minutes, an hour, until restart),
+    languages, the multi-line mode, Account & usage.
+  - Snooze is also a command. A timed snooze applies to every window, kept
+    in global state with its end time; "until restart" applies to this
+    window.
+  - Its icon is a codicon, never `$(sparkle)` (the owner's branding rule).
+- **The two Cursor Tab hooks, M91's runner.**
+  - **Where they come from.** M91's `spark-hooks.json` (both scopes) lists
+    them under Cursor's names with Cursor's contract (research §5).
+    `format: cursor` handlers imported from `.cursor/hooks.json` run there
+    through M91's adapter. They are bound by M51 and D70's rules:
+    - a trusted workspace and `museSpark.modelApiHooks`;
+    - a scrubbed environment;
+    - `HOOK_STDIN_MAX_BYTES`, `HOOK_OUTPUT_MAX_BYTES` and
+      `HOOK_MAX_RUNNING_COMMANDS`;
+    - the process tree killed when it ends;
+    - no hook grants anything.
+  - **`beforeTabFileRead`** runs before Tab reads any file into a request.
+    - Its payload fields are `hook_event_name`, `file_path` (absolute),
+      `content`, `workspace_roots`, `model` and `generation_id` (the Tab
+      request's id). `content` is the file's full text, unredacted, as Cursor
+      sends it: the hook is the user's own code on the user's machine.
+    - A payload over `HOOK_STDIN_MAX_BYTES` refuses the read without running
+      the hook.
+    - The answer is `{"permission": "allow" | "deny"}`. `deny`, exit 2,
+      invalid JSON, an answer that fails the schema, a crash, a timeout, or no
+      answer all refuse the read; for Tab every failure fails closed, which
+      is stricter than Cursor's default and allowed by D70's "never weaker".
+    - Each hook's timeout is capped at `TAB_HOOK_TIMEOUT_MS` (1,500 ms), since
+      a suggestion waits for it.
+    - Answers are cached per path and content digest
+      (`TAB_HOOK_VERDICT_CACHE` entries). The cache is cleared when the hook
+      configuration changes, and a `deny` holds until then.
+    - A refused current file means no suggestion. A refused context file is
+      left out.
+  - **`afterTabFileEdit`** runs after an accepted Tab edit is in the
+    document.
+    - Its payload fields are `hook_event_name`, `file_path`,
+      `workspace_roots`, `model`, `generation_id` and `edits`. Each edit
+      carries `old_string`, `new_string`, `old_line`, `new_line` and a
+      `range` of `start_line_number`, `start_column`, `end_line_number` and
+      `end_column`.
+    - Lines and columns count from 1. Cursor does not say, and its example
+      reads as 1-based.
+    - The strings are capped at `HOOK_TOOL_VALUE_PREVIEW_CHARS` each, with the
+      cut counted.
+    - A full accept is known exactly from the item's `command` (V8).
+    - A partial accept has no stable signal (V9). It is inferred when a single
+      change of at least two characters inserts the start of the item's
+      unaccepted rest at its position while the item is current. Such an edit
+      carries `"inferred": true`; Cursor's adapter drops the field.
+    - It is observation only: its output and exit code are logged, never
+      used. It never blocks the editor. At most `TAB_EDIT_HOOK_QUEUE`
+      (8) wait; past that the oldest is dropped and the drop logged.
+- **Activation (the lead's engineering call, recorded).**
+  - A provider must be registered in windows where the panel was never
+    opened, so `onStartupFinished` joins `activationEvents`. That makes the
+    extension start in every window, which M62 declined because `activate()`
+    reads SecretStorage at once.
+  - M94 therefore defers that read (`refreshKeyPresence`) to the first view,
+    panel, command or Tab request. A test proves that an activation with no
+    view or panel and Tab off reads no secret, starts no process and requires
+    no lazy bundle.
+  - The Tab bundle is required on the first request. This also starts Theia's
+    sidebar (M62's note).
+- **The bundle.** `dist/tab.js` is loaded on the first Tab request
+  (`tabEntry.ts`). Activation keeps a shim of no more than 4 KiB: the
+  provider registration, the status bar item, the commands and the setting
+  reads. It is handed the activation bundle's key client (which M57 keeps in
+  activation for M44) and its installed table, rather than carrying copies.
+  Its errors cross the bundle boundary, so the Tab bundle tells them apart by
+  name and fields through new `isModelApiError` and `isMissingApiKeyError`
+  guards beside the classes, never by `instanceof` (M57's rule and lint). Its D6 budget is the measured size plus 15%, rounded up
+  to 25 KiB. `check-bundle-split.mjs` gains a rule that keeps Tab's modules out
+  of `dist/extension.js`.
+- **Next edit suggestions wait.** No stable API offers an edit away from the
+  cursor. `isInlineEdit` and `showRange` are proposed only, the older
+  `inlineEdit` proposal was removed, and a stable item's range must stay on
+  one line (V16). A Marketplace extension cannot use a proposal (V17). They are
+  planned as M94b, which starts when a stable `vscode.d.ts` carries those
+  fields. Each VS Code release's notes are checked for it, and §3 holds it as
+  a watch item (Q-M94d).
+
+### D80 — Link devices on the LAN, with each device owning its work (M100, 2026-10-04)
+
+The owner, 2026-10-04: "we should plan out multi device orchistration ie we
+have the extension open on multiple devices on the same network and you can
+link and orchistrate". His Windows PC, Kubuntu VM, Mac mini and Windows 11 VM
+are the first qualification set. This is a plan, not a shipped capability.
+Sources, dependency revisions and the review lessons are recorded in
+`docs/certification/m100-research.md`.
+
+**Build on D74/M95 and D75/M96/M96c.** M95 owns provider clients, model
+identity, credentials, prices and sign-ins. M96 owns roles, worker policy,
+isolated working copies, the board, scheduler, process journal and merge
+queue. M100 adds authenticated device pools and a remote attempt adapter to
+those facilities. It does not build M96d's machine coordinator, election,
+cross-window locks or singleton sharing. The following ten decisions define
+the first delivery:
+
+1. **Explicit, mutual, revocable pairing.** Devices starts off, machine-scoped.
+   The user chooses **Pair device** on both machines. Each generates a
+   per-pair key locally in SecretStorage and exchanges a public invitation
+   (QR, or its copyable text) containing its public certificate, fingerprint,
+   address, protocol version and bounded invitation validity. Both users confirm the peer fingerprint
+   against the other screen before either side enables its listener. There
+   is no unauthenticated network bootstrap port and no trust on first contact.
+   The invitation is not a bearer credential; copying it cannot prove
+   possession of the private key. Short numeric-code pairing waits for a
+   reviewed standard PAKE implementation, not a home-made code-to-key scheme.
+   **Unlink** revokes this pair locally, closes its connections and removes
+   its private key; another pair is unaffected. A changed key needs pairing
+   again. Offline peer revocation cannot recall already admitted work.
+2. **Discovery supplies addresses, never trust.** Manual address entry bypasses
+   discovery only. Connectivity still needs a route to the chosen private
+   interface/address and explicitly authorized inbound access to the actual
+   listening application and TCP port, including on the owner's VM networks.
+   Setup identifies that application, interface/address and port, and explains
+   Windows Defender Firewall prompts/policy, macOS application firewall
+   approval and Linux host firewall rules. A standard user may need an
+   administrator's narrowly scoped allow rule; notifications, an OS prompt or
+   local approval may be unavailable or restricted by policy. No prompt-free
+   or administrator-free connectivity is promised. A failed connection shows
+   **Blocked or unreachable**, without claiming a timeout proves a firewall
+   denial: verify the selected interface, route, address/port and receiver
+   offer; inspect the OS permission/firewall policy, approve only the intended
+   listener or ask the administrator for scoped access, then retry the same
+   paired identity. Keep unresolved attempt ownership and spending uncertainty;
+   reconnect still reconciles before resume. Optional mDNS is
+   off by default and only advertises an opaque service id, port and protocol
+   version while a paired receiver is enabled. It broadcasts no account,
+   repository, model, task or stable device name. Spoofed discovery cannot
+   replace the saved peer pin. No global discovery, relay, UPnP, port scan,
+   automatic firewall change or internet rendezvous is added.
+3. **Pinned mutual TLS, on a chosen interface.** One bounded, versioned
+   protocol over TLS 1.3, using Node's TLS implementation, with client and
+   server certificates checked against the exact per-pair pins. Certificate
+   verification stays on; no application message before mutual authentication,
+   no early data or session resumption, and revocation is checked on every request, including an
+   existing connection. Bind only the chosen loopback or private LAN address,
+   never a wildcard; allow RFC 1918 and IPv6 ULA, refuse public and metadata
+   destinations, redirects and proxy routing. Resolve and check every address
+   again and connect to the checked address. Protocol mismatch refuses work
+   with an upgrade message. Time, byte, connection and queue caps apply before
+   parsing, then zod validates every message and artifact manifest. A new
+   service port exists only after local pairing and explicit **Offer lanes**.
+4. **A device offers scoped execution, with its own credentials.** Its user
+   maps an opaque repository id to a locally selected trusted repository and
+   chooses roles/models, worker and process caps, heavy-check slots, token
+   and spend caps, and whether it offers checks, lanes, or both. The offer
+   contains capability and availability summaries, not provider definitions,
+   endpoints, credentials, login labels or personal paths. Workers use M96's
+   `own-branch` isolated copies in that device's storage (shared clones, not
+   a network-shared `.git`), or read-only snapshots; remote `in-place` is
+   refused. Checks are that device's approved M68/M96c commands, not arbitrary
+   command strings sent by the peer. Muse Code and external CLIs sign in on
+   that device; M95 engine requests use only its locally stored keys.
+5. **The orchestrating window keeps the board.** A device is another lane
+   pool in M96's scheduler, with platform/toolchain labels, role/model entries
+   and advertised caps. One explicitly selected receiver window represents
+   each device in the first delivery. Caps bound that window's offered pool,
+   not every process or duplicate editor on the machine; other windows remain
+   M96's advisory hints. Receiver incarnations are distinct: no listener
+   takeover, election or automatic resubmission into another window. Selection
+   meets the board/role/entry caps with the target's admission and local load
+   guard. Routing names the pair, pool and entry as well as M95's canonical
+   model identity; equal provider ids on different devices never share an
+   auth owner. The target atomically owns its slots, write-set and resource leases;
+   those leases are never exported or reclaimed by the orchestrator. M96's
+   board still orders overlapping planned writes and dependencies across its
+   managed tasks. No cross-device MCP proxy or singleton lease is offered.
+6. **Git carries results; the orchestrator integrates.** Both users approve
+   the repository mapping and the exact base snapshot. The receiver must have
+   that base or explicitly import its bounded Git bundle; dirty tracked files
+   need a separate snapshot preview, and ignored files are excluded. At
+   retirement its host commits the lane's result in its own repository, then
+   returns a bounded base-to-head Git bundle over the paired transport. The
+   orchestrator imports it into a quarantine repository, validates objects,
+   ancestry, path/mode changes, size and expected base/head, then installs only
+   the task's namespaced branch. An optional user-configured pushed ref uses
+   the receiver host's own Git authentication and an exact remote/ref grant;
+   workers still cannot push. No peer can update the orchestrator's `HEAD`,
+   index, working tree, hooks or merge rules. M96c reviews, stages, checks and
+   lands the whole final snapshot under its existing approval. Remote checks
+   are attributed to their device and bound to tree, check and toolchain
+   identities; a peer's reported pass alone never authorizes a merge.
+7. **Disconnect pauses ownership, never duplicates it.** The source journals
+   a dispatch intent before sending; the receiver journals admission and
+   launch intent before starting. Pair, receiver incarnation, board, task and
+   attempt identify the dispatch; retries with the same identity return the
+   recorded outcome, never another launch. Lost acknowledgements, sleep,
+   partition or orchestrator reload pause the queue and keep the attempt's
+   occupancy and uncertain spend counted. After either side detects loss,
+   it admits no new work; a receiver pauses at the next controlled boundary.
+   An already admitted tool or request may finish and incur cost. On reconnect,
+   reconcile durable records first, then ask **Resume queue**; paid work asks
+   locally again. Only the receiver's locally observed retirement can settle
+   its attempt, including all tool processes; an unproved descendant cannot
+   be retired by its direct parent's exit. A timer, RPC failure, missing endpoint, PID/start-time check
+   or user assertion never releases it. An unresolved launch stays blocked
+   and its copy quarantined, even after reboot or journal damage; retained
+   tombstones prevent replay after cleanup. M96's **Hand off anyway** is not
+   offered for distributed tasks. No reassignment while the old attempt is
+   uncertain, and no network-wide exactly-once or instant-stop claim.
+8. **Permissions and paid consent belong to the executing device.** Pairing
+   authenticates a peer, not its authority to run a task. Every admission meets
+   the sender's role/mode ceiling with the receiver's repository grant,
+   role/tools, workspace trust, protected paths and current approval policy.
+   A remote Bypass or ordinary approval does not widen any of these. Existing
+   user grants on the receiver can allow ordinary work; forwarding approvals
+   to the orchestrator is deferred until an explicit receiver-side grant and
+   per-action binding are designed. D48's paid gate, price acceptance and
+   per-use popup remain on the receiver, including Bypass; no pairing grant,
+   worker grant or subscription substitutes for them. A waiting prompt appears
+   as **Waiting for approval on <device>**. Trust loss, unlink or a narrowed
+   offer blocks new admissions and retires existing work through local rules.
+9. **Privacy and costs are per device.** Setup names exactly which repository
+   snapshot, task brief and result go to which device, and which model/vendor
+   receives its context. No full chat, memory, skills, auth files, environment
+   or log directory is synchronized. Needed role guidance is an approved
+   bounded task input; the receiver uses its own skills and MCP configuration.
+   Contributor/training and confidential-workspace refusals meet both sides'
+   policies. Reports and logs are bounded and scrubbed on both ends, rendered
+   as untrusted data, and never grant tools or open remote links automatically.
+   Each device bills its own subscriptions/keys and holds its own D78/M82
+   reservations and uncertain liabilities. The map labels device, model,
+   payer kind and known/estimated/uncertain usage. Each paid use keeps M96's
+   composer badge, paid transcript row and PaidUsage tally on the receiver,
+   with attributed usage on the source. Pairing/discovery cost no
+   model call; there is no fleet budget ledger or transfer of spending grants.
+   Shared vendor accounts can share upstream quotas: device caps do not create
+   independent subscription entitlements or a global hard spend guarantee.
+10. **Devices lives in the Agent map, and stays out of ordinary chat.** Reuse
+    M95's Models & Agents panel and M96's map, with a **Devices** section:
+    Pair, manual address, discovery switch, fingerprint, offered roles/models,
+    caps, local/connected/paused/offline/uncertain/incompatible status,
+    Blocked or unreachable setup with recovery instructions, last
+    observation, waiting approvals, task branches, Pause offers and Unlink.
+    Status is an observation, never a safety proof. Task rows show their device
+    and route; caps can only narrow already running work at its next boundary.
+    With Devices off or no paired/approved offer, nothing is discovered,
+    listened for, loaded or injected into a model request, and no extra section
+    appears. The explicit Pair command opens setup. Pairing does not turn the
+    team on: D75's distinct-loaded-model, Solo and conversation-boundary rules
+    still apply. Manually requested check-only use is separate from chat and
+    starts no model or hidden team. Requests and first-send timing for existing
+    single-device/single-model users stay unchanged.
+
+**Supported first:** local desktop extension hosts on Windows, Linux and
+macOS, with the extension open on each device. VS Code stores SecretStorage
+on the client even for a remote extension host; Remote SSH/Tunnels, WSL,
+containers, web editors and standalone/headless receivers therefore wait
+for separate host/key-location qualification. No daemon, cloud control plane,
+VPN installer, SSH credential manager or remote filesystem is added. M96d
+remains a separate prerequisite only for a future machine-wide guarantee.
 
 ### D77 — Muse Judge: a calibrated System One judge for any agent (M98, 2026-10-04)
 
@@ -5745,7 +6429,70 @@ Decisions:
   It changes no decision. The product's local judge stays on the user's own
   machine; the rigs are development infrastructure.
 
+### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
+
+The VS Code Model API shell inherited credential variables from the extension
+host and terminal overrides. The shared, case-insensitive credential-name
+matcher now fences shell commands, verification/`then_run`, background and
+scheduled runs, child/team workers, hooks/plugins, Git and native helpers.
+MCP stdio servers keep their narrow host projection and their explicitly
+configured `env`; browser checks keep their private projection. Image tools
+use in-process HTTP and file IO, with no child process. Muse Code's own
+`serve`, account, skills and login processes keep D1's credential path.
+
+`museSpark.shell.passEnvironmentVariables` is an empty-by-default,
+machine-scoped array of variable names, never values. Only an interactive
+top-level shell command (including the user's `!` command) may pass a named
+credential. Unattended verification/`then_run`, schedules, child/team workers,
+hooks/plugins and helpers never honor it. Moving an already admitted
+interactive shell to the background preserves its starting environment.
+The setting warns that a command can expose the value to the conversation
+and model provider. ACP/headless keep their existing credential-free tool
+environments in every editor; no pass-through flag is added there.
+
+The base lacks `src/shared/featureCatalog.ts`: add the setting to HELPREF's
+catalogue when that lane merges. No paid/live calls are authorized.
+
+**FIXENVFENCE review repair (2026-10-05).** RVENVFENCE found two P1s:
+common credential names escaped the matcher, and a scheduled shell delayed
+in directory preparation could read a later active-turn state as interactive.
+Cover the standard credential suffix families and known exact/prefix names,
+with an explicit harmless-name allow-list. Capture interactive admission when
+the command is created, before hooks or directory waits; the native spawn
+still rechecks the captured owner's admission. Regressions must include a
+real shell, ACP startup removal, safe-name preservation, and a backgrounded
+scheduled command released after its turn ends. Deliberately break each fix,
+observe the named tests fail, restore byte-exact and record the evidence in
+`docs/certification/envfence.md`. No new dependency or broader exception.
+
 ## 3. Open questions (need the owner)
+
+- **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
+  `native/darwin/muse-dictate`. The lane's shared rules forbid network except
+  `npm ci` and reads from other worktrees without authorization. An existing
+  helper/VSIX location was requested; none was supplied. All production caps
+  and helperless packages pass, and estimates use the prior train's actual
+  119,506-byte ZIP contribution. Actual CI-shaped VSIX certification requires
+  an authorized real universal helper; no placeholder substitutes for it.
+
+- **Q-M100 — Optional expansion after the paired desktop slice.** Short-code
+  PAKE, remote-host key placement, approval forwarding, persistent receivers,
+  VPN/public-address routes and machine-wide caps need their own design and
+  qualification. Defaults: public QR/text exchange with fingerprint checks,
+  local desktop windows, receiver-local approvals, chosen private LAN address,
+  one offered window's caps. M100's lane 0 must settle the certificate/QR
+  implementation, bounded protocol constants and durable journal retention
+  before implementation; uncertain records have no time-based deletion.
+
+- **DEFLAKE3 hosted failure receipt (2026-10-05):** what exact assertion,
+  timeout and stack did PR #116's Windows checkpoint-copy count/cursor test
+  report? The lane brief names the failure without its output; 100 normal
+  and 100 CPU-loaded original-file runs did not reproduce it. The old test
+  accepts a deliberately broken cursor restart, and its large real-file
+  fixture adds a latency dependency to CI's five-second test deadline.
+  Default: retain production behavior, reduce only the test fixture and prove
+  exact bounds/cursor identity; leave the original hosted trigger unconfirmed
+  until its receipt is available. Evidence: `docs/certification/deflake3.md`.
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
@@ -5800,7 +6547,33 @@ Decisions:
 - **M88 one-shot confirmation on the Model API (D67, item 15).** **Resolved 2026-10-03 (owner): confirm when scheduling.** The D48 popup is shown once at scheduling, for that run only, bound to its prompt, model, session and key digest. At its time all of these are checked again; any change sends it back to Run, and nothing is billed without a match.
 - **M88 unattended timed sends on Muse Code (D67, items 15 and 16).** **Resolved 2026-10-03 (owner): yes, on both backends.** A Muse Code timed send or resume goes at its time without Send now. It runs in the conversation's current mode, so Manual still stops at each approval. The Model API follows the scheduling-time confirmation above.
 - **M88 Muse Code usage-limit capture (D67, item 16).** **Resolved 2026-10-03 (lead, under the owner's live-spend authorisation of 2026-09-25 and 2026-10-02): capture it.** The next time the owner's window is full, run one short contributor-model turn in an empty workspace and record the error.
+- **Q-M94a: Tab's paid-use question (D73, D48).** D48 asks before every paid
+  use; Tab would ask on every keystroke pause. **Decided 2026-10-04 (owner):
+  yes, once per window, as Tab's form of D48** — Allow once this window (until
+  it closes), Allow always in this workspace, or Deny (snoozes Tab in this
+  window).
+- **Q-M94b: Tab's default model (D73, D4).** On Standard (`muse-spark-1.3`) Meta
+  does not train on the code, and typing costs about $0.80 an hour (from $0.40
+  to $2.00; research §7). On the contributor model it costs about $0.05 an
+  hour, and Meta trains on every file window Tab sends. **Decided 2026-10-04
+  (owner): Standard; the contributor model is a setting the user chooses,
+  with the training said in the setting and the confirmation.**
+- **Q-M94c: Tab's default daily budget (D73).** $1.00 a day is about 75
+  minutes of typical typing on Standard, or a full working day and more on the
+  contributor model. **Decided 2026-10-04 (owner): $1.00, from $0.05 to $50.**
+- **Q-M94d (watch, not a question): next edit suggestions.** These wait for
+  `isInlineEdit`/`showRange` to reach a stable `vscode.d.ts` (D73, research
+  V16 and V17). Each VS Code release's notes are read for it. When it lands,
+  M94b is planned against that release and the engine floor it needs.
 - **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K wires `beforeTabFileRead` and `afterTabFileEdit` to them. Until then M91 imports them as "waiting for inline completions", where they run nothing.
+
+- **M93:** No new owner choice blocks the shipped workflow. Last 50 entries,
+  a 2,000-character encoded URL and 20 recorded failures a window a minute are
+  conservative implementation defaults, tunable after browser receipts. Still
+  open as receipts, not design questions: the installed-editor runs (engine
+  floor 1.99 and current VS Code, a remote window, two live windows, a real
+  crash), the browser's new-issue page at the cap, and an aggregate on-disk
+  budget across windows (§9, FIXM93R-R7).
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -6076,6 +6849,235 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### BADGEFIX — Exact package versions on store pages (2026-10-05)
+
+- [x] Generate static Marketplace/Open VSX and npm/GitHub release version
+      badges from the manifest while staging each package. Landing-page templates
+      use `{version}`; installed READMEs contain the exact package version.
+      Keep GitHub's root README versions and all count badges dynamic.
+- [x] Discover all README badge images, including Markdown/reference images and
+      GitHub's trusted workflow badge; fetch them before purging GitHub camo.
+- [x] Add `check:badges` to quality and CI: HTTPS image targets, trusted store
+      SVG hosts, no dynamic store versions, exact staged versions and valid SVG
+      responses. Keep PNG screenshots as HTTPS content images. Network skips
+      require a named local reason and are refused in CI; packaging checks the
+      exact staged READMEs. No model calls, dependencies or runtime UI changes.
+- [x] Package and inspect the VSIX and ACP tarball; prove dynamic-version and
+      version-mismatch failures, restore byte-exact, and record focused/static
+      checks and artifact versions in `docs/certification/badgefix.md`.
+
+The rig brief prohibits push, merge and rebase; shared rules reserve aggregate
+quality for the lead. Run the bounded owning tests and static/build gates here,
+with hooks on. Badge-check public requests are the brief's sole added network
+exception; release cache refresh remains CI-only. Time box: 60 minutes.
+
+### CIFIX14T — Timed-out monitor cleanup on macOS (2026-10-05)
+
+- [x] Collect 30 complete baseline owning-file runs under twelve CPU load
+      workers. Capture a running descendant after return with a 300-call
+      native diagnostic; prove Mac zombies also accept signal zero.
+- [x] Fix the proven product race: SIGKILL returned before a descendant
+      exited (loaded native probe: PID 60465, parent 1, group 60423, state R).
+      Await POSIX group exit for up to two seconds, then signal again and log.
+      Exclude Linux zombies from running groups and make the Mac test probe
+      recognize exited zombies and already-reaped PIDs. Preserve Windows jobs.
+- [x] Prove 30/30 loaded runs (210 tests), with the wait removed failing 3/3
+      loaded drills. All seven guard drills restore exact SHA-256 bytes.
+      Five owning shell files pass 113 tests, with six existing Windows skips.
+- [x] Complete static/build checks and prepare the hook-on local repair
+      commit within the 60-minute lane. No push, merge, rebase or paid/live call.
+
+Evidence belongs in `docs/certification/cifix14-monitor.md`. The explicit rig
+brief prohibits pushes, merges, rebases and paid/live calls; the shared lane
+rules reserve aggregate quality and integrated coverage for the lead. Test
+deadlines, retries, skips and every existing gate remain unchanged. Shared
+shell execution covers the extension and ACP/headless runtime on every editor.
+
+### STARTDIET — Chat startup headroom (2026-10-05)
+
+- **Scope.** Measure the production startup import closure and record its forty
+  largest modules with import chains. Keep the 900 KiB startup cap and all
+  existing budgets; achieve at least 40 KiB of startup headroom on 0.14.0.
+  Move the syntax engine and all eighteen grammars to a lazy code-body chunk:
+  render the escaped, selectable code and its actions immediately, including
+  during streaming and import latency. Load highlighting only for a closed,
+  supported fence. Keep Markdown/GFM parsing synchronous for restored messages.
+  Defer the remaining action-only dialogs (Share, Session Board, handoff,
+  secret prompt), and the separate Tasks surface. Reuse React, localization,
+  language aliases and shared helpers through ESM splitting. Reuse the existing
+  palette list/dismissal shell in the command palette: deferring Session Board
+  otherwise moves that shell into the original deferred cohort (52.0/50 KiB).
+  Deduplicate those handlers/markup and keep the shared shell eager so that cap
+  holds, without inventing a helper or changing dismissal behavior. Use hash-only
+  generated browser chunk names: the first shell dedupe still leaves 80 import
+  bytes over the old cap, and more palette-body cleanup only saves eager bytes.
+  Stop that route; remove repeated generated names from import paths instead.
+  Metafile source/entry-point guards and `chunks/*.js` packaging stay unchanged.
+  The full accessibility scan found no axe violations but one report page checked
+  its lazy dialog at a fixed 400 ms before it loaded. Use the existing bounded
+  `whenFound` helper for its checkbox inspection; retain both the exact count
+  and 24 px spacing assertions, and rerun the complete gate.
+  No dependency,
+  translated text, model/wire shape, paid-call or host-specific change.
+- **Budgets.** Add measured budgets for the new lazy import closures under D6's
+  existing size-plus-15%-rounded-to-25-KiB rule. The original seven deferred
+  surfaces retain their aggregate 50 KiB cap, including any shared deferred
+  helpers. Unclassified deferred output stays charged to that cap. Guard new
+  entry points, their source placement and startup exclusion in the split gate.
+- **Proof.** Before/after per-output bytes and startup/deferred totals; unchanged
+  empty/sign-in/transcript/Markdown harness images; the accessibility gate;
+  directly run touched/owning unit files (at most three per invocation, three
+  workers), typecheck, changed-file lint/format, localization, host API,
+  deadcode, duplication and production build. Hold a new import to prove code
+  and actions render while it loads and a canceled dialog stays closed. Statically
+  re-import a moved module, watch the bundle split check fail, then restore its
+  SHA-256 exactly. Record results in `docs/certification/startdiet.md`.
+- **Editors.** All changes are in the shared browser UI/build guards; every editor
+  using that webview receives the same behavior. ACP/headless have no browser
+  surface and their bundles/behavior are unchanged. No live or paid calls.
+- **Certified.** Startup 893.221 → 792.149 KiB (107.851 KiB headroom), original
+  deferred surfaces 49.697/50 KiB; new highlighting 93.131/125, action dialogs
+  9.141/25, Tasks 1.343/25. All existing caps unchanged. 302 owning unit tests,
+  production build, static checks, four identical screenshot pairs and all 620
+  accessibility pages pass. Red fallback/static-import/close/checkbox drills
+  fire and restored bytes/receipts are in `docs/certification/startdiet.md`.
+- **Lane gates.** The rig brief explicitly forbids full quality/full unit runs
+  and merges; use its direct targeted checks and hooks-on local commits. The
+  lead owns the full cross-rig gate and integration.
+
+### CIFIX14C — Packaged ACP help agrees with its canonical table (2026-10-05)
+
+- [x] Reproduce the release job's strict English fallback check against the
+      installed production ACP tarball, and trace both help strings through
+      the generated runtime region and package copy.
+- [x] Fold the existing translated Setup command into `acpUsage` in English
+      and all 14 translations; remove the separate key and appended write.
+      Both help and argument errors read the complete canonical usage once.
+- [x] Prove exact help/table equality and Setup visibility in process tests,
+      including a translated locale; run the release package steps, localization
+      checks and ACP regressions directly on Kubuntu in bounded batches.
+- [x] Record gate-fire drills, artifact sizes and unavailable platform steps in
+      `docs/certification/cifix14-acp-usage.md`; commit locally with hooks.
+
+The rig brief prohibits pushes, merges, rebases and paid/live calls; shared
+rules prohibit aggregate quality and writes to the existing `node_modules`.
+Use the installed dependency tree and an offline scratch-prefix tarball install.
+The lead retains the integrated full quality and hosted universal-helper checks.
+The existing strict equality check and every budget remain unchanged.
+
+### CIFIX14W2 — Windows short paths in the kept shell directory (2026-10-05)
+
+- [x] Resolve Windows workspace roots and shell-reported directories to the
+      native long form before containment, relative tails and command cwd use.
+      Keep POSIX path handling unchanged and retain link/junction confinement.
+- [x] Reproduce with a real 8.3 directory on the Windows 11 rig; assert the
+      canonical tracked directory, the `sub` tail, root silence and escape reset.
+      Exercise both short/long input directions with injected path functions.
+- [x] Remove canonicalization, observe the complete owning file fail, restore
+      byte-exact and collect the shell suites with default CLI timeouts and
+      three workers. Run the shared lane's static/build checks and commit locally
+      with hooks; no push, merge, rebase or paid/live calls. Time box: 60 minutes.
+
+Evidence belongs in `docs/certification/cifix14-shortpath.md`. Shared lane
+rules reserve the integrated full quality run for the lead; all existing
+gates and timeouts remain unchanged.
+
+### CIFIX14M — macOS hosted CI repair for 0.14.0 (2026-10-05)
+
+- [x] Collect all four CI unit/process-e2e shards on the Mac mini, in the rig
+      brief's batches of at most three files with three workers. Preserve coverage
+      collection and merge the complete map against the unchanged thresholds.
+- [x] Repair the deferred-bundle tests' dependency on pre-existing `dist/`
+      artifacts: build and load every required support bundle from private fixtures,
+      using the production English compression plugin for the exact-value check.
+      Preserve activation's assertions that action bundles remain unloaded.
+- [x] Fix any further macOS failures at their root, prove regression assertions
+      fire, then collect two consecutive green complete runs and per-file receipts.
+- [x] Run typecheck, scoped lint/format and the available static/build gates;
+      commit locally with hooks. No push, merge, rebase or paid/live call. VS Code
+      integration is outside the macOS CI matrix. Time box: 90 minutes.
+
+The explicit lane brief authorizes full shard coverage but shared rules prohibit
+`npm run quality`; the lead retains the integrated full quality gate. No gate,
+timeout, retry or skip policy is changed. Evidence is recorded in
+`docs/certification/cifix14-macos.md`.
+
+### TRAIN14B — Complete the 0.14.0 release train (2026-10-05)
+
+- [x] Merge origin-main (#121), M91/M91b, M93, Knip constants, DEFLAKE4 and M98 phase 1 in the brief's order, retaining every source head and both split-check speed fixes. Skip unready m94/kw and ci/refresh-badges for the lead.
+- [x] Connect metered Judge claim/settle/refund/lookupByClaimId/latestDay to D78's shared daily ledger and test shared reservation plus subscription-only consent behavior.
+- [x] Adapt ACTDIET prototype commits after the merges; activation at most 600,000 bytes, shared English under the original 125 KiB, webview startup under 921,600 bytes, all other caps unchanged.
+- [x] If the actual universal package still exceeds its unchanged cap, use measured shared Node wire schemas and one bounded lossless translation archive, preserving exact locale values, source tables, browser parsing and ACP JSON compatibility. Before startup repair the real universal VSIX is 2,436,399 bytes; fourteen individual Brotli tables occupy 605,236 ZIP bytes. A language-major values matrix measures 434,140 Brotli bytes, and shared existing protocol/agent-event schemas save about 20.6 KiB compressed across five measured Node consumers before conversation/ACP. No dependency or existing cap changes.
+- [x] Preserve the browser’s synchronous inline English fallback with a build-only dictionary over repeated text and label-key fragments; decode all keys, values and plural forms exactly before localization state is created. Register every new exact bundle path in M93’s frame vocabulary, preserving package-only stack privacy. Rebalance Share and the small Session Board into eager imports so the unchanged 50-KiB deferred cap and 900-KiB startup cap both hold. The lossless key/value probe saves 38,451 bytes; no user copy, functionality, dependency or cap is removed.
+- [x] Preserve both full What’s New releases through a lossless Node-only Brotli envelope when the plain tree exceeds its unchanged 40-KiB on-disk cap. The measured 60,873-byte tree needs a new 75-KiB decoded bound (measured plus 15%, rounded to 25 KiB); validate the envelope and decoded tree, retain small/plain compatibility, and prove round-trip and expansion limits. This follows the existing packed Node fallback and keeps all release content.
+- [x] Prepare 0.14.0 with one dated changelog section, at most five Highlights, byte-identical older releases, and matching full/Marketplace README sections and install versions.
+- [ ] Run full quality directly on Kubuntu and measure a CI-shaped VSIX with the checksum-verified universal helper from the authorized 0.13.0 archive. Record conflicts, sizes, drills, gate tail and PR description in the train certification. Local hook-on commits only, no push, rebase, paid/live call; 180-minute time box.
+
+Train 0.14.0 final gate repair: update ACP fixtures for required split bundles, await the lazy report, and use VSCE’s actual listFiles API without CLI startup. Optimize the build-only lossless English codec without changing output or timeouts. M91 extension hooks must use M71’s held-project trust both before loading and before running, including manual hooks; certify the activation wiring regression.
+
+### TRAIN14A — Start the 0.14.0 release batch (2026-10-05)
+
+Final integration review joins M94 Tab to M71 held-project trust: the Tab
+factory receives `isProjectTrusted`, and its ignore-check Git runner carries
+the same predicate through `beforeRun` to the native entry. Prove both wiring
+checks fail under deliberate bypasses, then restore exact source bytes.
+
+- [x] Merge M94 Tab, M71 git/PRs, M100 multi-device plan and DEFLAKE3 in that order, each as a two-parent merge commit. Preserve all decisions, translations and byte-identical released changelog sections from `7820bd30`.
+- [x] Resolve integration overlaps by retaining D78 default availability and M94 first-use consent, then regenerate generated inventories. Defer a merged feature's optional UI through the existing chunks if required; every current size cap stays unchanged.
+- [x] Run each branch's scoped tests (at most three files, three workers, 120-second test timeout), typecheck, changed-file lint/format, localization, host API, production build and package after every merge. Full quality belongs to the later completed train and is explicitly excluded by this brief.
+- [ ] Certify each CI-shaped VSIX with the actual universal helper. Its measured prior-train ZIP contribution gives estimates within the cap after the repairs; Q-TRAIN14 records the missing artifact and read/network fence.
+- [x] Record conflict decisions, checks, gate-fire drills if new guards are needed, and exact per-merge bundle/archive bytes in `docs/certification/train-0.14.0.md`. Commit locally with hooks; no push, main merge, rebase, credential access or paid/live call. Time box: 100 minutes on Kubuntu.
+
+### KNIPC — Restore dead-export analysis of shared constants (2026-10-05)
+
+- [x] Reproduce the Knip 6.38.0 blind spot and bisect a scratch copy of
+      `src/shared/constants.ts`; identify the source construct or entry/config
+      classification that suppresses its exports.
+- [x] Fix the cause without an ignore or weakened gate; remove genuinely
+      unused constants and tests that only keep those constants alive.
+      The whole-module enumeration in `execSchema.test.ts` and disabled
+      namespace issue types were the two blockers. Named imports plus additive
+      `nsExports`/`nsTypes` inclusion expose both planted value/type exports;
+      every existing constant remains referenced, so none is removed.
+- [x] Plant an unused export, observe plain Knip exit 1, restore byte-exact
+      and observe exit 0. Record evidence and scoped static/build/test checks
+      in `docs/certification/knip-constants.md`; commit locally with hooks on.
+
+The KNIPC rig brief and shared lane rules prohibit full quality/full-unit
+runs and integration merges/pushes. The lead retains full quality, coverage,
+accessibility and integration certification; this lane runs the required
+scoped checks directly on macmini, with all existing gates unchanged.
+
+### DEFLAKE4 — Deterministic deferred-bundle split drills (2026-10-05)
+
+Scope: remove repeated child-process/full-repository split scans from
+`test/unit/deferredBundles.test.ts` without changing a timeout, retry,
+platform condition or gate. Reuse the production build and the actual gate's
+deferred-bundle declarations and checks; a small callable tooling module is
+needed because importing the current CLI executes every gate and exits.
+
+- [x] D4-A: build real shipped entries once per test file and cache their
+      metafiles; each case mutates an isolated in-memory copy.
+- [x] D4-B: every existing split drill observes its exact rejection and
+      restored green, with SHA-256 byte-exact restoration; deliberate guard
+      defects must make the owning tests fail.
+- [x] D4-C: run the entire owning file 50 times on this Windows host with
+      another Vitest run alongside; report each test's maximum and mean,
+      comfortably below 2 seconds, in `docs/certification/deflake4.md`.
+- [x] D4-D: run the lane's scoped/static/build gates, update changelog and
+      certification, then commit explicit paths with hooks enabled.
+
+Readiness: the existing build already runs once in `beforeAll`; each of five
+drills launches the full split CLI twice, repeatedly reading all outputs and
+source files and parsing TypeScript. Preserve the canonical declarations,
+diagnostics and every parent/destination check. No UI, protocol, dependency,
+paid call or release change. The named brief authorizes local parallel Vitest
+for D4-C despite common.md's ordinary rig-only/one-process rules.
+
+- [ ] Recover the merged webview startup overage within unchanged startup and
+      deferred budgets: inspect model-text overcarriage, then defer optional
+      dialogs with the existing loading/focus affordance only if measurements fit.
 
 ### TRAIN13B — Release-train size recovery and complete Kubuntu gate (2026-10-05)
 
@@ -7338,6 +8340,21 @@ merged through pull request #7 from `hardening/m26-platform`, shipped in
 - **Security**: the PAT is confined to one step; tags must be on `main`; no
   tokens persisted; the audit has no silent bypass; no new dependencies; no
   signing credentials created.
+
+### M26 follow-up — Refresh README badges after publication (BADGES)
+
+The 0.13.0 release exposed stale badge-service and GitHub image-proxy caches.
+Extend the existing release workflow and scripts without changing publication:
+BADGES-A waits at most 15 minutes, polling every 30 seconds, for all four public
+channel versions; BADGES-B requests README badge URLs and retries older version
+answers with a cache-busting query; BADGES-C purges the repository page's camo
+images and logs statuses. Every failure warns only, with no credential required.
+The final job requires the summary's successful, all-published outcome.
+Fake-fetch tests and red drills cover parsing, version ordering, retries,
+polling bounds and warning-only failures; hosted public-service proof remains
+the lead's next release check. Implemented: 40 focused tests and 14 red drills
+passed, with typecheck and required focused gates green on the worktree merged
+with `8c894b60a`. Evidence: [BADGES](docs/certification/badges.md).
 
 ### M27 — The tree kill's orphans (D25)
 
@@ -10796,6 +11813,525 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M71 — Git and pull requests (D49)
 
+**FIX78W browser budget repair (2026-10-04, bounded rig proof complete;
+lead gates open).** Compare production metafiles for `main-sync` and this
+branch on Kubuntu. Defer the Git panel until it has state to show and
+Account & usage until the user opens it;
+the Git panel alone cannot recover the 13 KiB overflow. Use React's lazy
+components and esbuild's browser ESM splitting, preserving the installed
+language and all form state in the shared runtime. Keep the nonce-only CSP,
+ship every generated chunk, and enforce the existing 900 KiB cap on the
+entire static import graph, not just the smaller entry file. Prove loading,
+form behavior, packaging and the guards with owning tests and byte-exact
+negative controls. Run serial scoped checks and M71/M83/UI owners directly
+on this rig; full quality and publication remain lead-owned under the
+lane's shared rules. Evidence: `docs/certification/fix78w.md`.
+The repaired startup graph is 898.4/900 KiB (entry 699.3 KiB), down from
+913.0 KiB on this rig; both deferred chunks together are 19.6 KiB. Owning
+tests pass 1,666 cases in 46 files, with one existing Windows-only skip.
+Eleven byte-exact negative controls fire, production Chrome verifies the
+nonce-only CSP in English and German, and axe passes 52 pages. The
+loading Account dialog stays keyboard-dismissable. No cap is raised.
+
+**MRG78 rig main join (2026-10-04, bounded proof complete; size gate open).** Merge
+`main-sync` `244d5905` into `cb00e78f`, preserving M71 and FIX78B trust
+guards alongside main's activation diet, tiered CI, release reuse, M80
+receipts and M87 panel behavior. Fix merge breakage only. Regenerate notices
+and the host API inventory; keep released changelog bytes identical to
+main and union translated keys. Run serial bounded Win11 compilers, lint,
+formatting, localization, dead-code, duplication, host API, production build
+and M71/M83 plus changelog/manifest owners. No live calls or push; full
+quality and hosted/editor certification remain lead-owned under the rig
+brief and common rules. Evidence belongs in `docs/certification/mrg78.md`.
+
+Win11: 45 owning files pass 1,580 tests with three existing platform/tool
+skips. Final five-project compilers, scoped JavaScript/CSS lint, knip,
+zero-clone duplication, cycles, localization, regenerated host API, split,
+host globals and notices pass. Three negative controls fail and restore
+byte-exact. Production build remains red at the unchanged browser cap
+(913.5/900 KiB); the additional PowerShell lint cannot load the rig's
+missing pinned analyzer. See section 7 and the certification record.
+
+Merge `c32ded4d` initially found the copied rig missing its ignored Husky
+wrappers, so Git ran no pre-commit hook. Pinned wrappers are restored
+locally without a configuration change. The exact committed merge delta
+passes stock lint-staged tasks (Windows argument batches at 4,000
+characters, unchanged commands/rules) and gitleaks (one merge patch, zero
+leaks), leaving the worktree unchanged. A normal hook-on evidence commit
+records this limitation and correction; history is not rewritten.
+
+**FIX78B repair (2026-10-04, bounded rig proof complete; lead gates open):** close RVFIX78's remaining P2/P3
+without merging main. Classify the Muse settings destination by canonical
+workspace containment before the planning read, refusing held/untrusted
+project bytes and binding permitted reads to the existing native project
+root guard. Reuse `readPlanFile`, canonical path IO and held refusal text.
+Prove XDG-in-workspace and personal-link-to-project regressions, plus an
+actual host UI regression with raw VS Code trust true and combined trust
+false, personal import and released controls. Drill both guards on Mac mini
+through the prescribed rig helpers, restore exact source bytes, and record
+bounded evidence in `docs/certification/m71.md`. Full quality, hosted/native
+editor certification and the later main join remain lead-owned. Readiness:
+brief, existing source and tests settle behavior; no new wire shape, UI,
+dependency or owner decision. Existing plan remains the proof ledger; the
+skill's separate structural ledger validator remains deferred under the
+recorded no-extra-planning-layer decision.
+Evidence: 137 tests in four whole files on Mac mini, three guards drilled
+red/restored-green with exact source hashes, five type projects and scoped
+static/build gates. Host API inventory regenerated. Current receipts and
+the pre-existing Model API budget versus common.md mismatch are recorded
+in `docs/certification/m71.md`; no budget changed in this repair.
+
+**MG78b current-main join, 2026-10-04 (merge review fix in; lead gates open).**
+Join main `77800e8f` into `8a796842`, retaining Git and every main feature
+and lazy bundle. Preserve main budgets, including UI text at 125 KiB; an
+activation overflow stays assigned to the separate activation-diet lane.
+Resolve by behavior, share the duplicate Git version check in the existing
+Git module and reuse the existing memento fixture without changing behavior
+or gates, then run serial bounded static checks, the full configured
+Win11 suite in slot `mg78b` (more than 30 conflict owners) and M71 axe
+scenarios, then commit with hooks and no origin push. Evidence and limits:
+`docs/certification/mg78b.md`. Build passes (activation 598.5/600 KiB),
+all five type projects have passing receipts, and localization, host API,
+knip, zero-clone duplication, cycles, formatting and 16 Git axe pages pass.
+Win11 full run: 7,236 tests pass, one test fails and one suite fails setup
+(M80 D9 uncertain-cost assertion; Bash missing for M80 stdio guards).
+The merge review (Codex RVMG78, P2) found main's Best-of-N, session-board
+worktree reads and `/review` Git presets admitted by VS Code's trust alone,
+so a held PR window VS Code trusts ran their Git. They now require M71's
+project trust (VS Code trust and no hold) at the controller and at
+Best-of-N's native entry, until the card releases the hold: behavior tests
+and eight red drills in `docs/certification/m71.md` (2026-10-04 merge
+review fix). Scoped lint passes after the shared version check became
+`hasGitProgramControls`. The two Win11 M80 failures stay open; no origin
+push. Full quality/editor/hosted gates remain lead-owned.
+
+**MG78 main join after M86 and CLI recovery, 2026-10-03 (bounded verification
+complete; lead gates open).** Merge main `d7c0e46f` into M71 `0c6873dc`.
+The controller keeps Git session tracking and draft generation alongside
+the CLI recovery's effort synchronization and M86's pending running mark.
+All translated additions and manifest keys remain; the changelog is rebuilt
+on main with its released bytes unchanged, and the host API record is
+regenerated. Main's shared `BUNDLE_SAFE_ERRORS`, including
+`SteerRefusedError`, stays in both lint blocks. No feature, refactor,
+dependency, test or gate change beyond the merge. All five type projects,
+scoped ESLint/Prettier, localization, knip, zero-clone duplication, cycles,
+host API and production build pass. Mac mini full suite, snapshot
+`8e062479`: 304 files and 5,495 tests passed, 3 files and 57 tests skipped
+by existing live/platform conditions. Activation is 580.8/600 KiB; the Git
+bundle is 128.4/150 KiB. The lane's common brief reserves full quality and
+publication for the lead. Evidence: `docs/certification/m71.md`, "MG78 main
+join after M86 and CLI recovery".
+
+**MG78 main join, 2026-10-02 (bounded verification complete; lead gates
+open).** Join main `0e9546e0` into M71 `cee8c830`, retaining M71 and main's
+M73, M74, M83, M84 and released documentation. The shared send path keeps
+handoff card/session parameters and Git draft/base parameters in separate
+positions, with both acceptance and cleanup paths. Both CLI dependency
+ports, panel callbacks and all translated keys remain. The host API record
+is regenerated on Kubuntu. Unreleased has one Added, Changed and Fixed
+section; milestones stay under Added, while every byte from 0.10.1 onward
+comes from main.
+
+The merged activation bundle exceeded its unchanged 600 KiB cap at
+607.0 KiB. The existing conversation Git adapter now ships as
+`dist/conversationGit.js`, loaded synchronously at its original
+construction point with the installed language table and activation's
+error constructors, preserving GitHub sign-in classification. The importer
+shim stays separate from its UI adapter and top-level configuration schema.
+No feature behavior, existing cap, dependency, hook or gate level changes.
+Final sizes: activation 585.0/600 KiB, conversation Git 75.3/100 KiB,
+Model API 356.4/400 KiB and checkpoints 130.1/225 KiB. The new Git cap follows
+D6: initial measured size plus 15%, rounded up to 25 KiB. Build/watch,
+VSIX member checks, notices, host-global/split checks and graph entries all
+include the new artifact.
+
+Kubuntu snapshot `3fea958b` passes all five type projects, scoped lint and
+formatting, knip, zero-clone duplication, localization, host API, cycles,
+production build and VSIX member listing; 23 owning files pass 1,415 tests
+with no skips. Eight semantic drills and both split-guard drills fail as
+intended and pass after byte-exact restoration. A missing handoff routing
+assertion exposed by a drill is added; the compiled Git bundle's error
+identity regression fails before repair and passes after it. The source
+fingerprint binds the merged files to the tested snapshot. Evidence:
+`docs/certification/m71.md`, MG78 main join, and `mg78-gates.json` /
+`mg78-drills.json` beside it. Full quality, editor/hosted checks and
+publication remain the lead's gates; no public push.
+
+**Late main advance included (MG78, 2026-10-02).** After merge
+`57f1c236` completed, main advanced to `8dac84cf` (PR #80, M84 keyboard
+focus in narrow share views). Join it normally too, without conflicts,
+retaining the initial merge and both feature sets. Kubuntu snapshot
+`70de9c55` repeats all five types, scoped lint/format,
+knip, duplication, localization, host API, cycles, build and VSIX membership
+successfully, and all 23 owning files still pass 1,415 tests without skips.
+The host API record is regenerated from this newer tree. Released
+changelog bytes remain identical to the newer main. The current and initial
+join proofs are both in `mg78-gates.json`; full quality/editor/hosted gates
+remain the lead's.
+
+**Activation headroom (2026-10-03).** After joining main `bb9649bd`,
+activation built 598.2/600 KiB, with about 13 KiB more queued ahead of
+#78; main alone builds 566.0 KiB. The window's git and pull request
+features (VS Code's git adapter, the GitHub client and sign-in, the pull
+request links, the checkout and its untrusted git lane, the prompt words)
+now ship in `dist/conversationGit.js`, made there with the first
+conversation or pull request command from activation's primitives; the
+adapter recognises its own window's errors, and a bundle that cannot load
+refuses the command with `gitUnavailable`. Activation: 573.8/600 KiB, M71's
+share 7.8 KiB (the hold, the protocol's Git schemas, the controller port,
+wiring and loader stay). The Git bundle measures 127.4 KiB; its cap becomes
+150 KiB by this decision's rule. Evidence: `docs/certification/m71.md`,
+"Activation headroom".
+
+**Main join, M71m, 2026-10-02 (bounded verification complete; lead gates
+open).** Merge `a08bd8d4` joins main `2a03a79b` (M84 and 0.10.1) into M71
+`4e0d8ba0`, preserving Git/held-checkout and session export/import/share.
+Main's redactor rule list retains M71 credential coverage through the
+compatibility follow-up below. The host API record is regenerated on
+Kubuntu. Both README sections and main's released changelog bytes remain.
+Final owning suites pass on Kubuntu (45 files, 1,695 tests) and Windows 11
+(33 files, 1,153 tests), with the existing genuine short-name skip and the
+compiled Model API bundle included. Import/share routing assertions and
+nine exact-restored semantic drills pass. All five types, scoped lint and
+formatting, knip, zero-clone duplication, localization, host API and the
+production build pass on the final source. Real-time Playwright/axe
+measures 20 owning pages with zero failures; the CLI virtual-time runner
+still produces no measurements, deferred in section 7. Proof and limits:
+`docs/certification/m71.md`, M71m main join. The lead retains full quality,
+editor/hosted checks and publication; this lane does not push.
+
+**M71m redactor compatibility follow-up (2026-10-02, bounded proof complete).**
+The final pattern comparison found M71 coverage missing from main: the
+`xoxe-` Slack prefix, complete suffixes past 255 characters, and whole legacy
+encrypted PEM blocks with Proc-Type/DEK-Info headers. Preserve all seven
+M71 Slack prefixes and complete linear suffixes in the existing rule;
+retain main's bounded PEM edge names and mask complete bodies first.
+The prefilter and export slicer remain unchanged. Nine regressions expose
+all three missing behaviors before repair. The existing 4,000-case slicing
+differential catches an edge consumed by an earlier rule; PEM-first order
+preserves equivalence. Four exact-restored compatibility drills pass,
+as do all 102 redactor cases and both complete owning batches above.
+All requested static/build checks were refreshed successfully. The repair
+is a follow-up commit; the completed merge is not rewritten.
+
+**Pre-push repair, M71f, 2026-10-02 (bounded lane verified; lead review
+and full gates open).** P2-1 and P3-1/2/3 in `m71-prepush.md` are repaired:
+failed opens remove only their matching publication and restore a displaced
+pending record, preserving the successful open's identity in both orders;
+`createHeldCheckout` rejects non-commit SHA arguments before Git; an
+`ls-tree` output-cap overflow uses the existing too-large refusal. No new
+dependency, setting or UI text. Three owning files pass 50 tests on both
+Kubuntu and Windows 11; six byte-restored red drills (these three regressions
+plus missing object, trailing byte and truncated BlobAnswers) are recorded
+beside D6 in `docs/certification/m71.md`. Kubuntu tsc and local changed-file
+ESLint/Prettier, dead code, duplication, localization, host API and build
+passed; full quality remains the lead's gate. The shared candidate merge
+is already present at `c0bff49f`.
+
+**Structural fix, review round 3 (RV71c), 2026-10-02 (built; lead review,
+merge and full gates open).** The confirmation review found the
+filter-enumeration design still open in four ways (the real caller's `-c`
+prefix skipped attribute discovery; a destination-only include could name
+`core.attributesFile`; the attribute parser disagreed with Git's on quotes
+and whitespace; the name-refusal tests were vacuous). Lead decision: stop
+enumerating filter drivers. Someone else's pull request is materialized
+without Git's checkout pipeline: `git worktree add --no-checkout --detach`
+in the untrusted lane (no hooks, fsmonitor, replacement objects or
+maintenance; named hooks the configuration defines switched off), the
+index from `git read-tree <sha>` run in the new worktree, then every file
+written by the extension from one streamed `git cat-file --batch`, raw,
+through the existing exclusive writer (`createFileExclusively`, now also
+taking bytes) after `confineWorkspacePath` and a canonical-spelling check.
+No Git command runs in the worktree after its first foreign byte, and the
+held window's own Git features already show the held message. The listing
+(`ls-tree -r -z --full-tree --long`) is refused whole before anything is
+created for: empty, `.` or `..` segments, any `.git` form (case-insensitive,
+trailing dots/spaces, `GIT~1`, HFS-ignorable characters), backslashes,
+undecodable names, Windows-illegal names on Windows, folded collisions
+(case and NFC on Windows/macOS; file-versus-folder and duplicates
+everywhere), unknown modes, and more than `HELD_CHECKOUT_MAX_ENTRIES`
+(20,000) entries or `HELD_CHECKOUT_MAX_BYTES` (250 MB). Mode 100755 sets the
+execute bit on POSIX, 120000 becomes a file holding the link text, 160000
+an empty folder. A failure after the add removes the worktree with
+`worktree remove --force` (no status, so no filter), when trust still holds.
+Deleted: the attribute parser, the attribute/info/global-attributes
+discovery, every filter override of the untrusted lane and their tests
+(RV71c 1–3 and 6 disappear by construction). `createGitProcess` gained a
+paced stdout taker; a native probe showed a child closes before a paused
+taker finishes, so takes are chained and the command settles after the
+chain. Also fixed: `holdFor` lets the deepest containing record decide (a
+trusted parent never releases a held PR below it; RV71c 4), and reopening
+a commit or PR form clears the webview's pending-generation marker so Write
+with Muse is free again (RV71c 5). Proof: `docs/certification/m71.md`,
+"Structural fix, review round 3".
+
+**Independent review repair, M71b, 2026-10-01 (bounded lane complete).**
+The six findings in `RV71.report.md` at `badbe5bb` are accepted for repair:
+bind held trust to each root and select the backend's first workspace folder;
+discover checkout filter selectors from the foreign tree's attributes, shared
+info attributes and effective global attributes, including macros, while
+retaining source-config overrides; bind draft generations to their form
+instance and retire them on successful completion; compare fork PR drafts
+against a verified destination-remote base, fetching only through checkpoint
+admission when missing; report a completed PR POST as successful even after
+Cancel, then stop later steps; localize GitHub fallback failures in all 14
+tables. Extend the owning suites and native conditional-include canary,
+then prove each repair by semantic red and exact byte restoration in
+`docs/certification/m71.md`. No merge, push, live call, dependency or gate
+change is authorized in this lane. Serial bounded checks run here; full
+quality and platform/editor certification remain with the lead. Reuse the
+existing canonical plan and its prior structured-ledger deferral.
+
+The final effective-attributes boundary review found that Git treats an empty
+`XDG_CONFIG_HOME` as unset (a native Windows fixture selected the filter in
+`HOME/.config/git/attributes`). Normalize that empty value before the existing
+default lookup; the native configured/global-attributes witness now includes
+the empty-XDG case. This stays within finding 2's required
+effective attributes-file discovery; no new option or helper layer is needed.
+All six repairs have regression and semantic red/restored-green proof. The
+final six owning files pass 128 tests each on Kubuntu, Mac mini and Windows
+11 VM, zero skips; thirteen distinct guard mutations are detected, including
+three refreshed filter mutations on the final runner. All five tsconfigs,
+owned ESLint/Prettier, knip, zero-clone jscpd, localization, normal host-API
+check and production build pass serially on Windows. Generated host-API docs
+reflect only the two standard-library import counts. Final sizes and exact
+restoration hashes are in `docs/certification/m71.md`. No lane code blocker
+remains; no merge is performed. The lead retains full quality, independent
+review, the M72 join and editor/platform/hosted release gates.
+
+**Resumed lane review, 2026-09-30 (in progress).** The shared English table
+is isolated in build commit `28cd4876`; M71 source will follow separately.
+The named PR32 handoff was read and its eleven M72 findings were checked
+against the current candidate. Preserve its memory, final shell admission,
+no-launch provenance, canonical-root and native long-path repairs. The
+installed feature-delivery package was found through its junction target;
+stack inventory succeeded. Its separate structured ledger remains deferred
+under the existing no-extra-design-layer decision. One additional M71 seam
+needs correction before closure: PR fetch and worktree checkout start
+workspace-capable Git processes without the existing checkpoint admission.
+Pass that admission through the current checkout dependencies, check the
+captured trust/physical owner after its wait and before each writer entry,
+and prove admission loss starts neither fetch nor checkout. No new layer,
+dependency, bundle or loader is needed. Complete owning tests with the
+worktree's genuine short TEMP alias, restore-hash drills, current-candidate
+merge and all serial checks from `common.md`. Full quality, four-platform
+and publication gates belong to the lead.
+The repaired source passed five typechecks and all 824 owning cases in 29
+files with zero skips. Eight semantic source mutants failed for their
+intended reasons and restored green with exact source hashes. The current
+record is `docs/certification/m71.md`; final candidate join and serial
+static/build checks follow the M71 source commit.
+The join to `669e8301` retains M72's selected lexical `workspaceRoot` for
+sessions and uses the canonical root only for checkpoints. Its removed
+`displayRoot` local left M71's window argument unresolved; pass the same
+selected `workspaceRoot` into Git and update the activation wiring assertion.
+The merge hook and compiler caught this seam before a merge commit.
+**Lane implementation complete, bounded verification passed.** Source
+commit `55f5e55f` follows the separate build commit. Join `7decc32c` contains
+candidate `669e8301`; all serial checks requested by `common.md` pass on the
+joined source, with 826 owning tests in 29 files and zero skips. All sixteen
+M71 accessibility pages pass; fresh held/commit/300 px PR renders were
+inspected. The final ACP tarball installs offline and its runtime smoke,
+the extension/Model API smoke and both package file lists pass. Final sizes
+and exact limits are in `docs/certification/m71.md`. No code blocker remains;
+the lead still owns independent review, full quality/coverage/security,
+actual editor, four-platform and hosted checks. The POST 201/GET schema,
+`repo` scope and terminology decisions remain unchanged.
+The final policy pass places M71's existing 1,000-character Git error-detail
+limit in `src/shared/constants.ts` as rule 5 requires. Its name, value and
+behavior are unchanged. All serial source checks were rerun successfully
+after the relocation, including 826 tests with zero skips; reported sizes
+remain unchanged. The five installed ACP bundles match that final build
+byte-for-byte, and the runtime smoke passes again.
+
+The host-API gate also found the recovered controller's type import reaches
+`vscode` through the Git adapter. Keep the controller portable: declare its
+existing Git surface and required method contract in the controller itself,
+then have the adapter implement that injected contract. Do not weaken the
+host-API gate or introduce another module. Existing controller/Git behavior
+tests and the normal host-API check must pass after this boundary repair.
+
+**Previous-run release-candidate checkpoint, 2026-09-30 (historical).** Continue
+the partial port on `feature/m71-git-prs`, based on `1fd98aaf`; preserve the
+prepared `754082e651` behavior and recorded owner decisions. Five typechecks
+and 811 owning tests passed on the recovered source; one existing genuine
+short-TEMP case requires an actual 8.3 TEMP alias before closure. The first
+production build failed: activation 648.4/600 KiB, Model API 409.3/400 KiB.
+M71's translated English fallback table is duplicated in each host bundle.
+Share that existing table as `dist/uiText.js` across the Node bundles,
+including the ACP package, using the build's existing manual splitting
+approach. Keep each bundle's mutable installed-language state separate and
+leave the browser's fallback bundled. Add a 100 KiB table budget and split
+checks; every existing cap stays unchanged. Recheck trust/owner/lifetime
+before push's first Git API entry after checkpoint admission. Prove both
+guards with semantic reds and exact byte restoration, merge the current
+release candidate, then run the brief's serial owning checks. The lane's
+explicit `common.md` forbids full quality, network/live calls and push;
+the lead owns complete quality, platform review and publication. The named
+`muse-extension-pr32/temp/HANDOFF_2026-09-30.md` is absent; its external
+finding list cannot yet be reconciled. The installed feature-delivery skill
+contains only SKILL.md, so its supplemental inventory/validator resources
+are unavailable; no structured-validator pass is claimed.
+
+**Short-name compatibility review, 2026-09-30 (bounded proof complete).** Keep
+the existing async `canonicalPath` for owner capture: actual Host evidence
+shows it expands the genuine 8.3 alias just as `memoryIo.systemPath` does.
+JavaScript sync realpath retains the short spelling on Node 24.20.0; use it
+only to prove the fixture is genuine. The temporary native-port change is
+reverted because the original async resolver is not confirmed defective.
+Retain
+the directory/nonzero identity checks, both lexical/canonical stat fences,
+sticky loss and original own-PR location semantics. The existing filesystem
+fixture will exercise an actual short-TEMP alias against the API's long root
+when available; the allocated Windows runner must prove that case executes.
+Lean `5e4956f2` passed five types, 135 affected Git cases in 12 files, owned
+lint, whole-repository duplication and 14 localization tables. Real short-root
+and own-alias positives ran; omitted-owner, sticky-loss, lexical-location and
+raw-versus-canonical root comparison mutants each showed green → red → restored
+green with exact hashes restored. Fixture setup failures are retained, not
+counted as semantic reds. No fake alias rewriting or NTFS setting changes;
+independent final review, latest-main join and root's complete gates remain open.
+
+**Alias destination compatibility, 2026-09-30 (bounded proof complete).**
+Keep the selected lexical workspace root for an own-PR sibling folder's name
+and its stored `repositoryRoot`. Carry the captured canonical cwd separately
+for native Git execution and the existing physical-owner fences. No guard
+requires renaming the destination. A real unchanged-alias own-PR fixture must
+assert its lexical folder/record and canonical Git cwd before the next gates.
+Prior `5466687d` bounded proof remains valid only for its frozen source. The
+own-alias positive passed within Host `81df`'s 1,147 owning cases; its one
+test-arrow lint finding is repaired and lean `5e4956f2` subsequently passed
+the affected suites and static gates. That remains bounded evidence.
+
+**Confirmed physical-owner repair, 2026-09-30 (bounded proof complete).** A
+native junction witness retargeted the selected root during PR consent while
+HEAD, remotes and the cached Git API root stayed identical. Three subsequent
+Git calls reached the foreign repository, wrote its `FETCH_HEAD` and opened
+a worktree from it. Preserve that failing evidence. Bind the selected physical
+directory before repository lookup, validate the cached API root against it,
+and synchronously check both lexical and canonical directory identities before
+each API/native entry and after awaits. Observed ownership loss is permanent
+for that operation. Native calls use the captured canonical cwd. Reuse
+`canonicalPath`, bigint directory identity and the existing dependency ports;
+production always captures real identity, while virtual fixtures explicitly
+inject test-only owners. Real unchanged-link success, held-link refusal,
+commit/push consent and sticky-loss regressions passed. Exact source
+`5466687dacdd1959da9e07774fb6b54e7f198373` passed five typechecks,
+1,145 focused tests in 28 files, owned lint, whole-repository duplication and
+all 14 localization tables on the Windows fixture. Two physical-owner
+production mutants showed green → red → restored green with canonical hashes
+unchanged. The preceding 14 semantic receipts remain preserved. Independent
+current-source review, root's full quality and installed/platform gates are
+still required; these bounded results are not final certification.
+
+**Main integration, 2026-09-30:** exact `24ff09bc` to main
+`327094412dac315b1f8dcf971b014c6c69b27104` content joins the preserved
+M71 source through a three-way delta. Host, controller, ToolIO and Plan
+capture seams retain current M68 behavior; the Plan recorder stays bound to
+the original session before confirmation and reports only actual creation.
+M71 retains its generation/edited-base/trust/activation/native Git guards.
+Docs, translations, constants and harness scenarios keep both milestones.
+Early old-main evidence is preliminary: c316 has five types, 768 tests in
+23 files and 14 localization tables green, with two combined-guard lint
+findings repaired. Fresh current-main gates and semantic reds are required.
+
+**Independent current-source repairs, 2026-09-30 (verification queued).**
+M32 worktree actions recheck current project trust and their owning window
+after pickers and confirmations, and immediately before native Git entry.
+Untrusted PR checkout uses a scoped lane of the existing bounded Git runner:
+Git 2.36 or newer, names-only filter configuration discovery, empty external
+clean/smudge/process commands, non-required passthrough, and disabled hooks,
+fsmonitor, replacement objects, automatic maintenance and GC. Ordinary
+commit/push Git keeps its existing consent and configuration behavior.
+The confirmation explains that LFS pointers and other stored filter input
+stay unfiltered until explicitly trusted; normal built-in Git newline,
+ident and encoding conversions still apply. Primary Git gitattributes and
+convert.c confirm empty commands execute no filter. Real native positive
+and negative canaries remain required; no proof is inferred from source.
+Program subsection names containing equals/newlines cannot be represented
+by these `-c key=value` overrides and explicitly refuse before checkout.
+Native filter canaries and metadata tests cover that configuration boundary.
+WorktreeRegistry persistence reads validated raw records, separately from
+its existing-folder display view, and serializes local writes so a pending
+PR record cannot be erased by a concurrent M32 put. Cleanup removes only
+the explicitly owned record. Native held-trust and actual-state persistence
+regressions are drafted before the allocated gates and external red drills.
+
+**Status 2026-09-29: resumed** from unverified WIP `cfa2bc68` on
+`feature/m71-git-prs`; the older gate on `3af80e40` does not certify this
+tree. Current integration is isolated on `integrate/m71-resume-20260929`
+and normally joins approved main `24ff09bc`, preserving the original WIP.
+Its shared send path must retain M79's brief/todo rollback while admitting
+only the current M71 draft generation. Fresh focused/negative proofs and
+independent review precede root's complete exact-tree gates; all earlier
+evidence remains historical. Complete the existing three-class review before integration: bind
+commit and PR forms to their repository/branch/diffs, recheck trust and
+conversation lifetime after awaits, stop later steps when Cancel closes a
+form, name Git hooks/signers/credential helpers in consent, and require the
+fetched PR head to match GitHub before creating its worktree. Keep the
+existing API adapters, forms, GitHub captures and local Git fixtures;
+no new dependency or design layer. Focused tests and disposable red drills
+go in `docs/certification/m71.md`; latest-main integration, independent
+review and full local/hosted gates remain required. Decisions taken in the build:
+
+- **Where it lives.** `src/core/git/` (the push plan, the GitHub REST
+  client, remote parsing, the draft prompts), `src/core/worktreeConversations.ts`
+  (the worktree records and the hold, the piece M77 reuses),
+  `src/host/git/` (VS Code's Git extension API, its GitHub sign-in, the
+  pull request checkout, one `ConversationGit` per conversation) and
+  `GitPanel.tsx` above the composer.
+- **Push.** Three arguments to the Git extension's `push` (remote,
+  refspec, set-upstream); its fourth, force parameter is not in the typed
+  subset. Refused before anything asks: a detached HEAD, a branch behind its
+  upstream, and a branch, upstream or remote name starting with `+` or
+  `-` or holding `:` or whitespace. A first push goes to the only remote,
+  `origin`, or one the user picks, with `-u`.
+- **Commit.** `commit(message, { all?, postCommitCommand: null })`, so
+  `git.postCommitCommand` never pushes or syncs on its own.
+- **Drafts.** "Write with Muse" sends the user's own message (a
+  localized sentence the transcript shows) with one extra text part: the
+  instructions (`MODEL_TEXT`), a line saying what follows is data, and the
+  diff or the commit subjects in a fence longer than any run of backticks
+  in them, cut at 60,000 characters with a line saying so. The reply to
+  that turn fills the form; a turn that fails, is cancelled or is ended by a
+  restart gives the button back. It is the user's own turn (D49), so no
+  paid-use popup.
+- **Pull requests.** `POST /repos/{owner}/{repo}/pulls`, draft by default
+  in the form. From a fork (the repository's `parent`, captured) it opens
+  on the parent with `owner:branch` as the head. An open pull request for
+  the branch is linked instead of a second one. Title and description over
+  GitHub's limits, or holding a credential shape (`redactSecrets`, which
+  M71 extends with GitHub tokens, PEM private keys, AWS key ids and Slack
+  tokens), go back to the form masked. VS Code's GitHub sign-in with the
+  `repo` scope, read per call.
+- **Status.** The link (session id to number, address, title) in
+  workspace state, the newest 200 kept; state and checks read from GitHub
+  when the conversation shows and on Refresh, one page of 100 check runs
+  plus the commit statuses, counted into passed, failed (named), running,
+  skipped, cancelled, and anything else as it came (D36).
+- **A conversation in a worktree.** The new window's first folder is the
+  worktree, so both backends already run there (M32); the extension records
+  each worktree it makes in global state (`museSpark.worktreeConversations`)
+  and the panel names its branch or pull request.
+- **Someone else's pull request.** Fetched as `pull/<n>/head` through the
+  Git extension, checked that GitHub's head commit arrived, and added
+  detached under `<globalStorage>/pr-worktrees/<n>-<repo digest>`, recorded
+  before the folder exists. Git never checks it out (RV71c, 2026-10-02):
+  `worktree add --no-checkout`, `read-tree <sha>`, and the extension writes
+  each file from one `cat-file --batch` exactly as stored
+  (`core/git/heldTree.ts`, `host/git/heldCheckout.ts`). A window whose folder, as given or resolved
+  through links, is under that root is held at activation, by location
+  alone; only a record whose trust the user confirmed in the card
+  (`trustConfirmedAt`) lets it go, and the deepest record holding the
+  folder decides. Held means: Plan mode (the Modes menu
+  and Shift+Tab refused), no `!` commands, and every place that loads the
+  project's configuration reads "untrusted" (Muse Code starts with
+  `--disable-shell` in place of `--trust-workspace`; the Model API backend
+  loads no rules, skills, hooks, MCP servers or memory and offers no shell
+  tool; `muse skills` and `muse init` are not run). Trusting restarts the
+  backends so the next message loads them. The user's own pull request
+  goes beside the repository as `pr-<n>`, not held.
+
 - **Goal.** From finished work to an open PR without leaving the panel.
 - **Scope.**
   - A generated commit message for the conversation's changes.
@@ -13285,6 +14821,13 @@ requests) that found each request's estimate above what Meta counted.
 
 ### M83 — Import from other agents (D49)
 
+**M71 integration correction (FIX78B, 2026-10-04):** canonical project scope
+must also guard the Muse settings planning read, including XDG roots and
+personal links into a project. Host UI trust wiring needs an executed
+mutation-sensitive regression. Scope and bounded receipts belong to M71
+above and `docs/certification/m71.md`; older M83 records do not prove these
+two boundaries.
+
 **Status 2026-10-02 (round 5): exposure-preserving import (D64) implemented;
 prescribed scoped rig verification complete, lead certification pending.** Five
 reviews found new credential spellings, so the detector and masking are
@@ -13909,6 +15452,18 @@ The original text follows for the record; where it differs, M98 wins.
 
 ### M86 — Restore by the tools' own writes (D63)
 
+- **DEFLAKE3 Windows follow-up (2026-10-04), verification in progress.**
+  The original checkpoint-copy file passed 100 normal and 100 CPU-loaded
+  invocations; the brief supplies no exact CI error, so the hosted trigger
+  remains unconfirmed. Remove the count fixture's unnecessary hundreds of
+  disk operations with a four-entry test-only budget, retaining real files,
+  and prove exact traversal counts and second-pass cursor identity. Both
+  deliberate bound/cursor breaks fail the named test and are restored
+  byte-exact; the original test passes the broken cursor control. Require
+  300 consecutive final-file passes, a full unit inventory run in batches of
+  at most three files and shared static/build checks. Product remains
+  unchanged; no timeout increases, retries or new skips. Receipts belong in
+  [deflake3.md](docs/certification/deflake3.md); no pushes, merges or rebases.
 - **Round-3 redesign (RD86, 2026-10-03), in progress.** R1: one core
   filesystem module owns exact BigInt identity samples and comparisons for
   the recorder, tool reservations, atomic/exclusive publication, plan cleanup,
@@ -15819,6 +17374,464 @@ its messages) and `whatsNewHtml.ts` (the page, the Try it allow list) over
         versus main `bf77aabe` on the same rig (without the macOS helper).
   - [ ] Universal VSIX within its 2200 KiB budget (hosted CI package job).
 
+### M94 — Inline completions (Tab) (D73)
+
+**Status 2026-10-04: lanes 0/P/C/L/H/U integrated; lane W finishing wiring
+and verification on `feature/m94-tab`, merged with `main-sync`.** The plan
+is D73, Q-M94a–d and this section; the research is
+`docs/certification/m94-research.md`. Lane K waits for M91 and the final live
+check remains with the lead. W also moves the small status item into the
+activation shim, translates the multi-line picker, and wires recent-edit
+and definition snippets through the same privacy checks as the current file.
+The full gate also joins main's M87 palette-tip contract: Tab's paid row
+gets a tip in English and every translated table before it is certified.
+The review fixture follows the shared privacy rule that a bare `.pem`
+filename is private; it must no longer expect that file to be attachable.
+The full Windows gate also resolves the release-tag fixture's Bash executable
+from PATH instead of assuming a machine-wide `Program Files/Git` install.
+Its actual workflow shell and all assertions remain intact.
+The real-host Tab fixture scopes its command registrations and returned
+accept command IDs because startup activation already owns the product IDs.
+It still runs the dev bundle and real trigger/full/word acceptance commands.
+Current-file and context header paths pass through secret redaction too;
+the privacy fixture embeds a synthetic secret in both filenames and checks
+the exact redacted prompt reservation before the engine receives it.
+
+- **Goal.** Ghost-text completions as the user types, in every language the
+  user enables, billed to the Model API key. Tab is on by default and asks once before the first charge. It is capped by a hard daily budget, counted
+  in the status bar and in Account & usage, and never sends a private,
+  protected or ignored file. It never touches a conversation's cache or
+  history. Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks run at
+  its two points.
+- **Depends on.** Main, for every lane except K. Lane K needs M91 (D70) on
+  main: its hook runner, `spark-hooks.json` and the Cursor format adapter.
+- **Scope.**
+  - D73's provider: the fast and multi-line modes, the debounce, the
+    typing-through cache, the filters and partial accept (VS Code's own).
+  - The paid feature `tab`: its confirmation, the once-per-window D48
+    question, the daily ledger, the status bar, the snooze and the Account &
+    usage row.
+  - The language list, the Copilot yield and the two hook points.
+  - The activation change (`onStartupFinished` with the secret read
+    deferred) and the lazy `dist/tab.js`.
+  - Strings in all 14 tables.
+  - README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, this plan and
+    `docs/certification/m94.md`.
+  - **Not here:** next edit suggestions (M94b, which waits for a stable API;
+    Q-M94d) and a local or self-hosted model (Muse Glimmer, research A13; a
+    product question for later, not part of this milestone).
+- **Settings** (all machine-scoped, so a workspace's settings cannot change
+  what Tab spends):
+  - `museSpark.modelApiTab` (boolean, default `true`; paid, asks once first);
+  - `museSpark.tabModel` (`muse-spark-1.3` | `muse-spark-1.3-contributor`);
+  - `museSpark.tabDailyBudgetUsd` (number, $1.00, from $0.05 to $50);
+  - `museSpark.tabLanguages` (object, Copilot's default shape);
+  - `museSpark.tabMultiline` (`auto` | `onInvoke` | `never`);
+  - `museSpark.tabTrigger` (`automatic` | `onInvoke`; the default is set by
+    the probe, step 1);
+  - `museSpark.tabWithCopilot` (`yield` | `both`, default `yield`).
+- **Commands:** Turn Tab On, Turn Tab Off, Snooze Tab, Tab Menu (the status
+  bar's), Tab Languages.
+- **Lanes and file ownership.** One integration branch, `feature/m94-tab`.
+  - Lane 0 and lane P go first, in parallel; P touches no source.
+  - Then C, L, H and U run in parallel. K follows once M91 is on main, and W
+    comes last.
+  - Region-owned shared files follow M87's lane rules: constants, styles,
+    harness, `extension.ts`, `protocol.ts`.
+  - **Scope amendment (lead, FIXM94L0, 2026-10-04):** lane 0 owns the seven
+    settings contributions in `package.json`; the unused-NLS gate requires
+    them alongside their descriptions. W keeps commands, the Alt+\\ binding,
+    activation, build/bundle/VSIX wiring and final gates. L/H implement the
+    owner's default-on, first-request D48 consent before paid dispatch.
+
+| Lane                    | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Strings and constants | `src/shared/l10n/en.ts` and the 14 `l10n/ui.*.json`; `package.nls*.json` (the settings and commands); `package.json` (the seven Tab settings contributions); the Tab region of `src/shared/constants.ts` (`TAB_*`, `TAB_MODEL_TEXT`, `TAB_PROMPT_CACHE_KEY_PREFIX`, `tab` in `PAID_FEATURES` and `PAID_FEATURE_SETTINGS`, the defaults); the five new private entries in `PRIVATE_ATTACHMENT_NAMES`/`PRIVATE_ATTACHMENT_EXTENSIONS`, with `privateFiles` tests; `src/shared/paid.ts` (the tally's Tab fields)                                                                                             |
+| P Probe                 | `test/e2e/tab.live.e2e.test.ts` (opt-in, bills the key, contributor model) and the probe section of `docs/certification/m94.md`; no source file                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| C Core                  | the new `src/core/tab/`: `tabContext.ts` (windows, the anchor, snippet order), `tabRequest.ts` (the body and the cache key), `tabReply.ts` (the tags and the filters), `tabCache.ts` (typing through, open-request reuse), `tabScheduler.ts` (debounce, in-flight and per-minute caps, never abort), `tabSpend.ts` (worst case, settlement, the local day); `isModelApiError` and `isMissingApiKeyError` in `src/core/backends/modelapi/client.ts`; in `schemas.ts`, `CreateResponseBody`'s `reasoning.summary` made optional (types only), since Tab asks for no reasoning summary; tests `tab*.test.ts` |
+| L Ledger and paid       | the new `src/host/tab/tabLedger.ts` (one file per window per day, atomic writes, the cross-window total); the `tab` cases of `src/core/paid/paidFeatures.ts` (`PaidUsage`) and `paidConsent.ts` (the window-scoped Allow once); the Tab wording region of `src/host/paid/paidHost.ts`; tests                                                                                                                                                                                                                                                                                                              |
+| H Host                  | the new `src/host/tab/`: `tabProvider.ts` (the provider, eligibility, the `git check-ignore` cache, the Copilot yield, the accept command, the inferred partial accept), `tabStatus.ts` (the status bar, its menu, the snooze), `tabEntry.ts` (the `dist/tab.js` entry) and `tabBundle.ts` (types-only interface and loader); the Tab region of `src/extension.ts` (the shim, and `refreshKeyPresence` deferred); tests, and `test/integration/tab.test.ts` with a local fake Model API                                                                                                                   |
+| K Hook points           | the new `src/core/tab/tabHooks.ts` (the two payloads, the verdict cache, fail-closed mapping, the edit queue); one region each in M91's `EXTENSION_HOOK_EVENTS` and Cursor adapter (`src/core/backends/modelapi/hookFormats.ts`) for the two events; tests                                                                                                                                                                                                                                                                                                                                                |
+| U Usage UI              | the Tab row of the Account & usage dialog (`src/webview/components/UsageDialog.tsx`), reading the tally fields lane 0 adds to `paidStateSchema` (`src/shared/paid.ts`); harness shots in both themes; the accessibility gate                                                                                                                                                                                                                                                                                                                                                                              |
+| W Wiring                | `package.json` (commands, the Alt+\ binding of `editor.action.inlineSuggest.trigger` under `museSpark.tabOn`, `onStartupFinished`); `scripts/build.mjs` (`dist/tab.js` in production, dev and watch); `scripts/check-bundle-size.mjs`, `scripts/check-bundle-split.mjs` (Tab's modules never in `dist/extension.js`); `.vscodeignore`, `knip.jsonc`, the dpdm entry; the host-API record; README, PRIVACY, CHANGELOG, AGENTS.md (layout and rule 12), CONTRIBUTING, PLAN, `docs/certification/m94.md`; the full gate                                                                                      |
+
+- **Steps.**
+  1. **The probe (lane P), before any constant is tuned.**
+     - **Where and with what.** `muse-spark-1.3-contributor` (the owner's
+       live-test rule), in the empty workspace `C:\muse-live-ws`, on generated
+       throwaway files, through the real key client.
+     - **What runs.** 20 fast-shaped requests (10 pairs, the second of each
+       typed three characters on from the first, sharing the prefix) and 10
+       multi-line-shaped ones. They have D73's shape, with no reasoning
+       summary. The probe's instructions are the first draft of
+       `TAB_MODEL_TEXT`, and lane C starts from them.
+     - **Expected model calls: 30.** They are counted afterwards from the
+       client's trace lines and from `usage`. Retries are counted apart.
+     - **Recorded per request:** time to the first `output_text` delta,
+       total time, input, cached, output and reasoning tokens, the status, and
+       whether the reply stayed inside the tags.
+     - **What it sets** (from the medians and the 95th percentiles):
+       `TAB_DEBOUNCE_MS`, `TAB_FAST_MAX_OUTPUT_TOKENS` and
+       `TAB_MULTILINE_MAX_OUTPUT_TOKENS` (the p99 reasoning plus the mode's
+       completion allowance), and `TAB_REQUEST_TIMEOUT_MS`. It also replaces
+       research §7's estimate with measured cost per request and the cache hit
+       rate (U1–U3).
+     - **The latency gate.** If the median time to the first text of a fast
+       request is over `TAB_AUTOMATIC_LATENCY_CEILING_MS` (1,500 ms),
+       `museSpark.tabTrigger` defaults to `onInvoke` and the README says why.
+       Otherwise it defaults to `automatic`.
+     - **A gap.** Standard-tier latency is not measured (the owner's rule is
+       the contributor model), so the record says it is assumed equal.
+  2. **Lane 0:** every string and constant above, in all 14 tables.
+  3. **Lane C:** the pure core, against fakes; no `vscode` import (AGENTS
+     layout).
+  4. **Lane L:** the ledger, the `tab` paid feature, the once-per-window
+     question and the tally.
+  5. **Lane H:** the provider, eligibility, the Copilot yield, the status bar
+     and snooze, the shim, the deferred secret read, and the lazy bundle with
+     its loader. Then the integration test against a local fake Model API, at
+     the 1.99 floor and at stable.
+  6. **Lane U:** the Account & usage row.
+  7. **Lane K (after M91 merges):** the two hook points. Their fixtures come
+     from real hook scripts run on the rigs (a POSIX shell script and a
+     PowerShell one, each allowing, denying and crashing), not from a guess
+     (AGENTS rule 13: the contract is Cursor's page, the fixtures are the
+     scripts' real output).
+  8. **Lane W:** the wiring, the docs and the full gate.
+  9. **The live check (end).** In `C:\muse-live-ws` on the contributor
+     model, with Tab on:
+     - type a short throwaway function: about 10 requests are expected. The
+       count is checked against the ledger and the trace log, and the
+       ledger's cost against the reported usage;
+     - then with a `beforeTabFileRead` script that denies: 0 requests;
+     - then with an `afterTabFileEdit` script that writes a marker on an
+       accept, accepted once in full and once by word: 0 additional requests
+       beyond the accepted suggestions.
+
+     State the expected count before running. Record what was spent.
+- **Acceptance.**
+  1. **On, ask once first.** The setting defaults to on and the status bar
+     shows at startup without loading the engine or reading a secret. The
+     first request asks the paid-use question; Deny snoozes this window.
+     With the setting off, no request is sent, no lazy bundle loads and
+     nothing reaches the network.
+  2. **No key.** No request, the status bar says "no key", and Tab never
+     prompts for a key. On Muse Code with no key, nothing is offered.
+  3. **Where it stays quiet.** No request in an untrusted workspace, for a
+     scheme other than `file`, for a file outside the workspace folders, in a
+     language turned off, while snoozed, or while the suggest widget has a
+     selection.
+  4. **Files it never reads.** Tab never reads a file, as the current file or
+     as context, if it is:
+     - private (including the five new entries) or protected;
+     - git-ignored, or `.cursorignore`d or `.continueignore`d (tracked or
+       not);
+     - `files.exclude`d;
+     - oversize.
+
+     Where git cannot answer and an ignore file is present, nothing in that
+     folder is read.
+
+  5. **Secrets.** Every byte sent has passed `redactSecrets`, and a secret in
+     the window reaches the fake server only as the mark. A reply holding a
+     secret or the mark is dropped.
+  6. **The request.** Its own `TAB_PROMPT_CACHE_KEY_PREFIX` key, never equal
+     to a conversation's. No `previous_response_id`, `store: false`, no tools,
+     `minimal` effort and the mode's `max_output_tokens`. Two consecutive
+     requests while typing forward are byte-identical up to the earlier
+     cursor.
+  7. **Debounce and never abort.** Keystrokes inside the debounce send
+     nothing, and a token cancelled before sending sends nothing. A token
+     cancelled after sending leaves the request running, and its answer
+     reaches the cache and its usage the ledger.
+  8. **Typing through and partial accept.** After a suggestion, typing its
+     first characters shows the rest with no request. After VS Code's Accept
+     Word, the rest is served from the cache.
+  9. **Caps.** At most 2 open requests. The 21st trigger in a minute sends
+     nothing.
+  10. **The daily budget.**
+      - A request whose worst case would pass the budget is not sent.
+      - Two windows, two ledger writers on one folder, never pass it together.
+      - An open reservation survives a crash.
+      - Reported usage replaces the reservation.
+      - A corrupt or unreadable ledger refuses the request.
+      - The local day's change starts a new total.
+  11. **The question.** The first request in a window asks. Allow once covers
+      that window. Always persists for the workspace and is voided by a price
+      change (D48). Deny snoozes the window. No hook answers it.
+  12. **Filters.** Each refusal has its own case: empty, outside the tags, a
+      repeat of the suffix, of the line above or of the next line below,
+      three identical lines, unbalanced in fast mode, and a secret. Each
+      cut has its own case too: fences and lead-ins stripped, the first blank
+      line, and the line and character limits.
+  13. **Modes.**
+      - Fast or multi-line is chosen by D73's rules, and Invoke is always
+        multi-line.
+      - `tabMultiline` `never` and `onInvoke` and `tabTrigger` `onInvoke` are
+        obeyed.
+      - Invoke returns one item.
+  14. **Copilot.** With a Copilot extension installed, `github.copilot.enable`
+      on for the language and AI features not turned off, no automatic
+      request is sent and Invoke still works. **Run both** and **Turn off
+      Copilot's suggestions** act only when clicked, the latter only after its
+      confirmation.
+  15. **Status bar and snooze.** Each state of D73 shows. The spend shown
+      equals the ledger's total for the day across windows. A 15-minute snooze
+      ends on time in every window.
+  16. **Account & usage.** The Tab row shows requests, tokens, cached tokens,
+      cost today and in this window, and the budget, in both themes and at
+      the accessibility gate.
+  17. **Hooks.**
+      - Each refusal refuses the read: `beforeTabFileRead` `deny`, exit 2,
+        invalid JSON, a schema mismatch, a crash, a timeout, and an oversize
+        payload (which is never run). `allow` reads.
+      - Verdicts are cached and cleared on a configuration change.
+      - `afterTabFileEdit` gets D73's payload on a full accept, gets it with
+        `inferred: true` on an Accept Word, and never runs on typing. Its
+        queue bound holds.
+  18. **Activation.** With Tab off and no view or panel, activation reads no
+      secret, starts no process and requires no lazy bundle. With Tab on,
+      `dist/tab.js` is required on the first request only.
+  19. **Size.** `dist/tab.js` fits its budget. `dist/extension.js` grows by no
+      more than 4 KiB and stays within 600. The split gate and the VSIX
+      budget pass.
+  20. **Logs.** No code, completion or path appears in any log line at any
+      level.
+- **Tests** (each can fail; each has a red drill recorded in
+  `docs/certification/m94.md`).
+  - **Unit, lane C:**
+    - `tabContext`: drill, remove the anchor; the prefix-identity case fails.
+    - `tabRequest`: drill, reuse a chat cache key or add
+      `previous_response_id`; the request-shape cases fail.
+    - `tabReply`: drill, drop each filter in turn; its own case fails.
+    - `tabCache`: drill, skip the prefix check; a stale suggestion is served
+      and the case fails.
+    - `tabScheduler`: drill, abort on cancel; the "never aborts" case fails.
+      Drill, lift the per-minute cap; the cap case fails.
+    - `tabSpend`: drill, reserve after the fetch; the ordering case fails.
+  - **Unit, lane L:**
+    - the ledger: drills, a two-writer race on a real temporary folder, a
+      corrupt file accepted, and a missed day boundary;
+    - the consent: drills, a question on every request, and Allow once kept
+      past the window.
+  - **Unit, lane H:**
+    - eligibility: drill, remove each exclusion; its case fails;
+    - redaction: drill, skip `redactSecrets`; the fake server sees the
+      secret and the case fails;
+    - the Copilot yield: drill, ignore `github.copilot.enable`;
+    - activation: drill, restore the eager `refreshKeyPresence`; the
+      no-secret-at-startup case fails;
+    - logs: drill, log the completion; the log scan fails.
+  - **Unit, lane K:** drills, timeout fails open, the verdict survives a
+    configuration change, and `afterTabFileEdit` fires on typing.
+  - **Integration** (`test/integration/tab.test.ts`, at the 1.99 floor and at
+    stable):
+    - the provider is built from the dev build's `dist/tab.js` against a
+      local fake Model API;
+    - `editor.action.inlineSuggest.trigger` then
+      `editor.action.inlineSuggest.commit` changes the document, and the
+      item's `command` runs a fixture `afterTabFileEdit`;
+    - `editor.action.inlineSuggest.acceptNextWord` inserts one word and the
+      inference fires.
+  - **Live (opt-in):** the probe (step 1) and the live check (step 9), with
+    their call counts.
+- **Gates.** The full quality gate. `check:l10n`. `check:host-api`, whose new
+  entries are the inline-completion API, the status bar and
+  `extensions.getExtension`. The bundle-size and bundle-split gates, with
+  `dist/tab.js`'s budget and its split rule. The VSIX size gate. The
+  accessibility gate for the usage row. Secrets and SAST. Every new gate and
+  rule is broken once on purpose (drills above).
+- **Security and privacy.**
+  - What may be read: D73's eligibility, enforced at each read (the current
+    file and every context file), not once per request.
+  - What leaves the machine: `redactSecrets` on everything sent, and only the
+    workspace-relative path and language id beside the text.
+  - Logging: no telemetry; the log scan test (acceptance 20).
+  - The key: read per request from SecretStorage by the existing client, and
+    never handed to a hook or child process (AGENTS rule 8). Hook
+    environments are scrubbed as in M51.
+  - Hooks: a `beforeTabFileRead` hook sees the file's full text because it
+    is the user's own code on the user's machine. PRIVACY says so.
+  - Copilot: Tab never writes another extension's setting without the
+    user's click and confirmation.
+  - Workspace settings cannot widen what Tab does: every Tab setting is
+    machine-scoped.
+  - **Residuals, recorded.**
+    - An inferred partial accept could also match a paste of the same text at
+      the same place. The edit is marked `inferred`, and the hook observes
+      only.
+    - The Copilot yield cannot see whether Copilot is signed in (V13), so a
+      signed-out Copilot still makes Tab wait for Invoke. The status bar says
+      so, and **Run both** is one click.
+    - A request whose answer the user typed past is still billed, because it
+      is never aborted. It is counted, and the cache often uses it.
+- **Cost controls.**
+  - The setting is on by default; the first request asks the price before dispatch.
+  - The D48 question comes once per window (Q-M94a).
+  - The model choice says which tier trains on the code (Q-M94b).
+  - The hard daily budget is reserved before every request across windows
+    (Q-M94c).
+  - At most 2 requests are open, and at most 20 start per minute.
+  - A sent request is never aborted, so its usage is always counted.
+  - The typing-through cache, and yielding to Copilot, avoid requests whose
+    answer nobody would see.
+  - Today's spend is in the status bar, and the Tab row in Account & usage.
+  - The subscription never pays for Tab.
+- **The two hook points.**
+
+| Hook                | When                                                                                                                                  | Payload (stdin)                                                                                                                                                                                                          | Answer                                             | Bounds                                                                                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `beforeTabFileRead` | Before Tab reads any file into a request (the current file each request, each context file); matcher `TabRead`                        | `hook_event_name`, `file_path` (absolute), `content` (the full text, unredacted), `workspace_roots`, `model`, `generation_id` (the Tab request's id)                                                                     | `{"permission": "allow" \| "deny"}`; exit 2 = deny | Stdin ≤ `HOOK_STDIN_MAX_BYTES` (a larger payload refuses the read, unrun); timeout ≤ `TAB_HOOK_TIMEOUT_MS` (1,500 ms); every failure refuses; verdicts cached per path and content digest; M51's caps |
+| `afterTabFileEdit`  | After an accepted Tab edit is in the document: a full accept (the item's `command`) or an inferred partial accept; matcher `TabWrite` | `hook_event_name`, `file_path`, `edits[]` with `old_string`, `new_string`, `range` (1-based lines and columns), `old_line`, `new_line` and, when inferred, `inferred: true`; `workspace_roots`, `model`, `generation_id` | None; output and exit code logged only             | Strings ≤ `HOOK_TOOL_VALUE_PREVIEW_CHARS` each, the cut counted; never blocks the editor; queue ≤ `TAB_EDIT_HOOK_QUEUE` (8), the oldest dropped and logged; M51's caps                                |
+
+- **Docs.**
+  - **README.** A Tab section covering default-on behavior, first-charge consent, the price and the
+    estimate, the budget, languages, snooze, the multi-line and trigger
+    settings, partial accept with VS Code's Accept Word (Ctrl/Cmd+Right) and
+    Accept Line (bind it yourself), and Copilot. Also the hooks.
+  - **PRIVACY.** What Tab sends to Meta and under which tier; contributor
+    training; that hooks see the full file locally; no telemetry; the
+    ledger's files.
+  - **CHANGELOG.** Under `[Unreleased]`.
+  - **AGENTS.md.** The layout (`src/core/tab`, `src/host/tab`, `dist/tab.js`)
+    and rule 12's once-per-window form for Tab.
+  - **CONTRIBUTING.** The probe and the live check.
+  - **This plan, and `docs/certification/m94.md`.** The drills, the probe's
+    receipts, the live counts and the bundle sizes.
+- **Owner steps.** None are needed to build it. Q-M94a–c are decided
+  (owner, 2026-10-04; §3). The probe and the live check use the existing DPAPI test key on
+  the contributor model under his live-spend rule, so no credential is minted.
+- **Certification checklist.**
+  - [x] The probe recorded, with its call count; the constants and §7 of the
+        research updated from it.
+  - [ ] Acceptance 1–20, each with its test and drill
+        (`docs/certification/m94.md`).
+  - [x] The integration test at the 1.99 floor and at stable.
+  - [ ] The live check recorded, with its call count and spend.
+  - [ ] Bundle sizes measured and within budget.
+  - [x] README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING and this record
+        updated.
+
+### M94b — Next edit suggestions (D73; waits)
+
+**Status 2026-10-04: waiting for a stable API (Q-M94d).** Edits away from the
+cursor, which Copilot's NES and Cursor's Tab jumps offer, need
+`isInlineEdit`/`showRange` or an equivalent in a stable `vscode.d.ts`. Today
+they are only in the `inlineCompletionsAdditions` proposal. A Marketplace
+extension cannot ship a proposal, and a stable item's range must stay on one
+line (research V16 and V17). When a VS Code release makes them stable, this
+milestone is planned against it:
+
+- the engine floor it needs;
+- the edit-history context it sends, through the same eligibility,
+  redaction, budget and hooks as M94;
+- a separate mode with its own price line.
+
+Until then nothing is built for it.
+
+### M100 — Paired devices as lane pools (D80, planned)
+
+**Status 2026-10-05: documentation only on `feature/m100-multi-device`.**
+Independent RVM100 review passed with no P1; its one P2 connectivity promise
+is corrected in D80, acceptance B/K and `m100-research.md`. **Devices and mDNS
+off by default** is a deliberate security exception to the owner's
+enhancements-on ruling: listening on the network and sending repository
+context need an explicit local choice.
+Implementation starts after the dependency contracts and lane 0's security
+review are accepted. No pairing, listener, discovery or remote execution is
+implemented or certified by this record.
+
+- **Goal.** The owner explicitly links his four LAN devices, offers a bounded
+  pool from each open extension, delegates independent lanes and checks from
+  one board, and receives reviewable Git branches without moving credentials
+  or giving a peer merge authority.
+- **Depends on.** D74/M95's registry, provider-local auth/prices and panel;
+  D75/M96's roles, tools, isolated copies, paid policy and process journal;
+  M96c's board, retirement, check identity and merge queue. Reuse M96c's SSH
+  runners for existing runner-only installations; M100 supplies another
+  authenticated execution adapter, not a replacement SSH stack. D78's paid
+  ledger remains local to each device. No dependency on shipping M96d's
+  machine coordinator, and no fleet-wide cap or singleton claim without it.
+- **First slice.** Manual public-invitation pairing, pinned TLS, one offered
+  desktop window per device, scoped check-only work, then role lanes and
+  quarantine-to-branch results. QR rendering and optional mDNS follow on the
+  same trust contract. Both invitation paths must be available before M100 is
+  called complete. Paid/model drills require a later explicit authorization;
+  this plan authorizes none. Short numeric codes, unattended services,
+  approval forwarding and ACP/headless pairing remain Q-M100.
+- **Lanes and file ownership.** These are future implementation/review lanes;
+  this documentation task launches none. One integration branch; lane 0
+  settles contracts first, P and T follow, E then S/G, U against fakes after
+  lane 0, and I last. Security and concurrency lanes receive independent
+  Codex/Claude review; the lead serializes shared-file regions and integrates.
+
+  | Lane                  | Owns                                                                                                                                                                                                                                                                  | Review focus                                                                                                                                                                                                                           |
+  | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | 0 Contracts/strings   | New `src/shared/devices.ts`; Devices regions of `src/shared/modelsPanel.ts`, protocol and constants; `DEVICE_MODEL_TEXT` with declared lazy readers; runtime English keys, all 14 `l10n/ui.*.json`, `package.nls*.json`; contract tests                               | Strict versioned zod envelopes, all resource caps, no credential/provider/command payload, translations; TLS/certificate/QR dependency choice with exact pins, peers/audit/notices; reviewed trust and durable-state design before P/T |
+  | P Pairing/storage     | New `src/core/devices/pairing.ts` and `grants.ts`; `src/host/devices/deviceSecrets.ts`, `deviceStore.ts`, pairing UI adapter; owning pairing/storage tests                                                                                                            | Public QR/text invites, bilateral fingerprints, key possession, revocation, storage failures, nonsync state and execution-host location; no unauthenticated bootstrap                                                                  |
+  | T Transport/discovery | New `src/host/devices/deviceTransport.ts` and `deviceDiscovery.ts`; portable address/protocol logic under `src/core/devices/`; transport/discovery tests                                                                                                              | Exact peer pins and mutual TLS on the floor, no early data/resumption bypass, interface/DNS restrictions, optional minimal mDNS, pre-parse bounds, no proxy or credential forwarding                                                   |
+  | E Execution/journal   | New `src/host/devices/deviceReceiver.ts`, `src/core/devices/attemptJournal.ts`; adapter regions calling existing M96 worker/check admission, retirement and process journal; owning execution/recovery tests                                                          | Grant intersection, local approval/paid enforcement, prelaunch durability, deduplication, surviving children, disconnect boundaries, uncertain occupancy/debt; no second scheduler implementation                                      |
+  | S Board adapter       | New `src/core/team/remotePool.ts`, `src/host/devices/devicePool.ts`; device routing/status regions of M96 board, scheduler, roster and check runner selection; owning scheduler tests                                                                                 | Target/source caps, fair ordering, stale receiver/attempt events, no automatic reassignment, distinct-model readiness, unchanged Solo/single-model goldens; no cross-process lease release                                             |
+  | G Git results         | New `src/host/devices/deviceArtifacts.ts`; reuse M77 snapshot/confinement and M96c staging/merge helpers through adapter regions; temporary-repository tests                                                                                                          | Approved base and exact tree/check identity, bounded bundle quarantine, namespace/ref/path/mode confinement, no hooks/filters/config execution on import, optional exact pushed-ref grant, workers never push or merge                 |
+  | U Devices UI          | Devices view under `src/webview/models/sections/agents/`, map/task device regions, host message handlers, styles and harness cases; owning UI tests                                                                                                                   | Setup, status/caps, paused/uncertain recovery, device-local prompts, revoke, focus/keyboard, 320px, pseudo-locale and four themes; no changes shown to a Devices-off user                                                              |
+  | I Integration/docs    | Lazy `src/host/devices/deviceEntry.ts`/bundle loader; command/activation regions, `package.json`, build/split/size/host-globals/notices/packaging gates, knip/dpdm entries; README, PRIVACY, SECURITY, CHANGELOG, PLAN, host API record, `docs/certification/m100.md` | Installed desktop/floor behavior, package includes lazy assets, exact gate-fire receipts, source-to-result chain and model-attempt accounting, no support claims ahead of certification                                                |
+
+- **Acceptance and red drills.** Each row requires a real failing test on an
+  intentional guard break, byte-exact restored source SHA-256, then a passing
+  run recorded in `docs/certification/m100.md`. These are planned tests, not
+  receipts from this documentation lane.
+
+  | Proof                             | Test and deliberate break                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+  | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | A Pairing and revocation          | Wrong/swapped fingerprint, one side not confirmed, replayed/expired invitation, copied public invite without private key, changed pin, missing SecretStorage, unlink while connected and old TLS tickets. Remove each possession/pin/grant check separately; unauthorized connections or work must fail. Pair-key corruption fails closed; re-pair does not settle old tasks.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+  | B Address and transport boundary  | Spoofed mDNS, malicious DNS rebinding, IPv4-mapped IPv6, metadata/public destinations, wildcard bind, proxy environment, certificate mismatch, no client certificate, old protocol, invalid/oversize/slow frames and floods. Bypass the pin, bind or byte/queue guard separately; tests must fail. Separately test multicast blocked with a routed private path and authorized inbound TCP: manual entry connects without discovery. Inbound access blocked by standard-user/default-firewall policy (no allow rule or unavailable prompt), explicit OS/firewall deny and missing-route cases show Blocked or unreachable and admit no work. Removing the failure/admission guard must fail; failed connect/retry retains existing ownership and uncertain spend.                                                                                                                                                                                   |
+  | C Caps and ownership              | Concurrent dispatches contend for the final worker/check slot; local work already occupies it; a delegating parent would exhaust child capacity. Meet role, entry, board, device-offer, process, load and paid caps. Remove target admission or retained uncertain occupancy; count must exceed the cap and fail. Unrelated receiver windows are explicitly outside the machine-wide guarantee.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+  | D No duplicate dispatch           | Drop the admission reply and resend the same attempt; duplicate/reordered events, changed payload under the same id, receiver restart/new incarnation, full logout/runtime-folder loss, delayed terminal reply and replay after cleanup. Remove journal-before-start or idempotence separately; a launch counter must detect the second start. Corrupt or unwritable durable state refuses dispatch and never recreates an empty success.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+  | E Sleep, partition and retirement | Freeze a live receiver, saturate a live endpoint, remove its pathname, blackhole the connection, disconnect after launch-before-confirmation, survive direct-parent exit with a descendant, ignore cancellation and give a mistaken user "stopped" answer. Advance every timeout: no release, duplication, reassignment or merge. Deliberately release on timeout/primary exit/cancel acknowledgement; each test fails. Reconnect reconciles the original attempt; orphan/native uncertainty stays blocked.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+  | F Approval and paid boundaries    | Sender Bypass versus receiver Manual/Plan, protected write, trust revoked during admission, changed role/offer, missing target key, local paid gate off, local Deny, altered price/model/credential and forged approval/settlement. Omit the receiver intersection or paid popup independently; denied work must reach a forbidden-call spy and fail. No provider secret reaches protocol, child args/environment, fixtures, log or artifact.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+  | G Git and exact checked bytes     | Wrong repo/base/head, forged ref, extra parents/objects, traversal, symlink/junction escape, executable-mode change, oversized/decompression-heavy pack, Git config/hooks/filters sentinel, dirty source snapshot and results from an old attempt. Checks read the admitted final tree with exact check/toolchain identity; altered blobs or a false peer pass cannot land. Remove quarantine/ref/tree binding separately; tests fail. The peer never writes the source checkout.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+  | H Privacy and accounting          | Insert fake secret/path/email/prompt sentinels in optional fields, errors, logs and report output; no discovery or support export contains them. Inspect both disks and all frames. Duplicate settlement, lost reply, reboot, uncertain request and shared-vendor quota all preserve per-device liability and never credit twice. Disable allowlisting/scrub/idempotent settlement separately; tests fail.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+  | J No new work for ordinary users  | Devices off, no pair or no approved offer: absolute zero device activity except an explicit setup action. Solo and D75 single-model conversations: unchanged byte-exact request/MSP goldens and no conversation-triggered SecretStorage read, DNS/socket/discovery, module load, model probe or first-send wait; explicitly enabled receiver/status activity is accounted separately. Add a chat-start probe or remote roster note; the golden/zero-traffic test fails. Explicit check-only use starts no model.                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+  | K UI and installed hosts          | Full keyboard pairing/QR-text fallback, cap edits, waiting remote approval, offline/uncertain recovery, unlink, all four themes, 320px and pseudo-locale. Separately from multicast-blocked success, exercise standard-user/default-firewall and explicit-deny setup on the four rigs, recording each actual default-policy outcome. When denied or unreachable, Blocked or unreachable names the listener/interface/address/port and usable OS/admin recovery, never promises prompt-free/admin-free access, never changes the firewall, and retains unresolved attempts/debt through retry. Record the actual listening application/TCP port, OS permissions/policy and authorization needed on each rig. Break a message schema/focus label/status/recovery mapping; owning tests/a11y fail. Qualify local VS Code 1.99/current on Windows PC, Kubuntu VM, Mac mini and Windows 11 VM; a remote-host window refuses Offer lanes with its reason. |
+
+- **Steps and certification.** Lane 0 records a reviewed pairing/transport
+  threat model and durable dispatch/settlement ordering, including the exact
+  scope of retirement proofs. P/T/E use fake backends, real local TLS peers,
+  temporary repositories and owned child processes first. Check-only then
+  runs on two machines; S/G add lanes, review and a returned branch; U/I
+  finish the four-device installed test. Record versions, execution/storage
+  locations, OS/interface/firewall facts, dispatch/tree/ref/check identities,
+  retained liabilities, packet privacy, measured sizes and all red/restored
+  receipts. Protocol frames are this product's own designed/captured exchange;
+  any new Muse Code, provider or external-agent field still needs AGENTS rule
+  13's capture, workspace and counted attempts. No guessed upstream schema.
+- **Gates.** Scoped typecheck, lint, formatting, deadcode, duplication,
+  localization, host API and production build in each implementation lane;
+  meaningful owning tests, max three files/workers per rig run. The lead runs
+  §6.0 and all §7 gates, `npm run quality`, coverage, integration, a11y,
+  secrets/SAST/audit and packaged-host checks on the exact joined tree. No
+  threshold, ignore or permission waiver is introduced. Real-model/paid
+  certification, if separately authorized, records every attempt and actual
+  spend; the default certification is fake-only and costs no inference.
+- **Size.** Pairing, TLS, QR, discovery, journal and artifact code load only
+  through proposed `dist/devices.js` at the first explicit Devices action;
+  the Devices browser view is lazy too. Use Node built-ins, the shared English
+  fallback and a separately declared `DEVICE_MODEL_TEXT` block. Existing D6
+  caps stay fixed, including activation 600 KiB, Model API 475 KiB, checkpoint
+  store 225 KiB and webview main 900 KiB. The new host bundle has a planning
+  target of at most 100 KiB, not a measured or granted budget; lane 0/I must
+  measure it and record the D6 budget before shipping. Split-gate drills prove
+  that activation/Model API/ACP bundles contain no receiver or crypto/QR code,
+  and a missing lazy asset refuses Devices without breaking chat. Measure
+  memory, journal/artifact disk caps and idle CPU/network on the four rigs.
+- **Security and docs.** D80's threat table in `m100-research.md` is a required
+  review input. README documents actual tested commands/settings, pairing,
+  caps and device-local sign-ins/costs, firewall/manual-address help, pause and
+  unresolved recovery; PRIVACY covers transferred context and discovery;
+  SECURITY covers peer compromise and revocation limits; CHANGELOG names the
+  delivered slice. None describes future behavior as supported. Single-device
+  requests, gates, secrets and Meta's unofficial product name stay unchanged.
+
 ### M41 — Install Muse Code from the panel (folded into M55)
 
 **Status 2026-09-25: folded into M55 (D36); built there (PR #43, merged
@@ -16129,6 +18142,118 @@ joined with M57, M58 and PR #49's sign-in
   before sign-in; the key never in a frame, an argument, the environment
   or the log; every gate green.
 
+### M93 — Report a problem after a crash or reload (D72, implemented 2026-10-05)
+
+- **Goal.** A user can prepare and inspect a useful, scrubbed report without
+  an active chat, backend or credential, then choose where it goes.
+- **Scope.** D72's journal, crash offer, report builder, preview and export;
+  error entry points and the standalone ACP command. No automatic issue
+  submission, log upload, telemetry, model call or wire-shape changes.
+- **Lanes and file ownership.** Muse implements; Codex reviews each completed
+  lane and its failing-test receipts. The lead serializes shared-file edits,
+  merges and aggregate certification. Lane 0 first; R and P next; W and A
+  after their contracts; I last. These are future lanes, not agents launched
+  by this plan-only task.
+
+  | Lane                | Muse owns                                                                                                                                                                                                                                                                               | Codex review focus                                                                                   |
+  | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+  | 0 Strings/contracts | Report constants region; `src/shared/l10n/en.ts`, all 14 `l10n/ui.*.json`, `package.nls*.json`; report-message region in shared protocol; owning schema tests                                                                                                                           | Real translations, runtime lookup, bounded zod shapes, no free-text event payload                    |
+  | R Recorder          | New portable `src/core/support/flightRecorder.ts`; journal/marker adapter in `src/host/support/`; `test/unit/flightRecorder.test.ts`                                                                                                                                                    | Write-time scrub, size/age caps, truncated/tampered records, multi-window ownership, storage failure |
+  | P Report/export     | `src/core/support/report.ts`, new scrubbed report builder and `src/host/support/reportProblem.ts`; owning report/export unit tests                                                                                                                                                      | D14 value allowlist, final draft identity, second scrub, URL/clipboard/save failures, no network     |
+  | W Webview           | Report preview and render-failure UI in `src/webview/**`; report-only message handler in `src/host/conversation/`; error-row/notice regions; harness scenarios and owning UI tests                                                                                                      | Error transport contains no raw text; keyboard/focus/labels; 320px, pseudo-locale, four themes       |
+  | A ACP/headless      | `src/runtime/**` report subcommand and recorder adapter; ACP error-observer region; runtime/stdio owning tests; `docs/acp.md`                                                                                                                                                           | No backend/auth/model startup; local capped data; stdout is text only in standalone report mode      |
+  | I Integration/docs  | Report registration/activation/error-observer regions in `src/extension.ts` and backend managers; `src/shared/palette.ts`, `package.json`, build/split scripts if needed; README, `docs/PRIVACY.md`, CHANGELOG, PLAN, `docs/ide-compatibility/host-api.md`, `docs/certification/m93.md` | Both backends; native-command disclosure/fallback; D6 measured; invariant and complete gate receipts |
+
+- **Lane R review correction (FIXM93R, 2026-10-04).** Address RVM93R
+  findings 1–12 with fixed error/package-file vocabularies, confined native
+  storage, live-owner-aware cleanup, append-time age/byte pruning, bounded
+  malformed-file recovery, visible read failures and shutdown cleanup. Correct
+  the description warning in all languages and prove each corrected guard with
+  a named regression and byte-exact red drill in `docs/certification/m93-r.md`.
+  An aggregate on-disk cap across live processes requires a shared transaction
+  protocol; record that redesign explicitly in §9 if it cannot fit this lane.
+
+- **Acceptance and red drills.** Each row needs a real failing test, restored
+  source SHA-256, then passing receipt in `docs/certification/m93.md`.
+
+  | Proof                         | Test and intentional break                                                                                                                                                                                                                                       |
+  | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | Privacy at rest and export    | Inject paths, names, email, IPv4/IPv6, URL queries, every supported token shape, prompt/code/file-content sentinels in errors, stack headers and extra fields; inspect raw disk and every export. Bypass write scrub and final scrub separately; each must fail. |
+  | Crash recovery                | Leave a marker set, restart, dismiss, restart again, then simulate a new crash. Offer once per abnormal activation; reload/new chat retain entries. Break marker consumption; test fails. Include normal deactivate, activation failure and two live windows.    |
+  | Caps and allowlist            | Controlled clock: day boundary and oldest-first eviction; UTF-8 byte size including multibyte input, oversize entry, corrupt/partial records, unknown schema/kind/code/fields, outside frames and traversal. Break each age/byte/schema guard separately.        |
+  | Exact export and URL fallback | Description/section changes update preview; Copy, decoded URL body, saved bytes and fallback clipboard equal it. URL at/over cap, Unicode encoding, clipboard/save/browser failures and cancellation. Break threshold/draft binding; test fails.                 |
+  | No network or charge          | Fetch/socket/HTTP/model/auth/backend-start fakes throw on contact during record/build/Copy/Save/standalone report. Only explicit Open actions call the opener or host command. Add a forbidden call; test fails.                                                 |
+  | UI and host routing           | Command, Support item, error row, notice and render fallback reach preview; malformed messages are dropped. Test absent/disabled native reporter; receipt in 1.99/current VS Code, remote host and ACP stdio. Break routing/schema; test fails.                  |
+  | SoL-Pi preservation           | Golden requests equal before/after recording and reporting; no history/output/tool mutation, no hidden prompt hook, no budget/consent change. Rerun owning M68/M73/M74/M75 invariant tests and record their guard drills.                                        |
+
+- **Gates.** The lead runs `npm run quality`, integration/a11y, check-l10n
+  (all 14 tables), host-API, deadcode, duplication and production builds on
+  the required rigs. D6 caps stay unchanged: keep activation's observer small,
+  lazy-load the recorder/report implementation if needed, and extend split
+  checks to prove the heavy bundle is absent before first use. Record actual
+  sizes, no estimate presented as a pass. No new dependency is assumed.
+- **Security and privacy.** Threats: malicious error text/webview messages,
+  forged journal fields, external stack paths, failed disk writes, retention
+  overflow, concurrent windows and accidental export. Strict boundary schemas,
+  bounded local writes, both scrubs, per-window marker ownership and explicit
+  preview/actions address them. Local user/admin access and voluntarily typed
+  confidential prose remain residuals; a crash before initialization is unseen.
+  Existing raw MSP/stderr log cleanup is separate work; never ingest those logs.
+- **Docs.** README and `docs/acp.md` gain commands only after successfully run.
+  `docs/PRIVACY.md` must describe local storage (remote host when applicable),
+  7-day/256-KiB caps and next-use pruning, excluded content, crash-offer limits,
+  exact preview, browser/clipboard/file consequences, and VS Code reporter's
+  separate host data/network/submission policy. CHANGELOG calls implementation
+  shipped only once certified; this lane records a plan, not a working command.
+- **Lane I integration (2026-10-05).** The lead merged P, W, A and R (with
+  R's fix round) and fixed all ten RVM93W findings: webview frames only from
+  the bundle's own script URL; a revision and a host session on every draft
+  and export answer; the item list is the builder's selection; the report
+  dialog keeps the one-modal policy; browser refusals answer `openFailed`;
+  localized item ages; a real 320 px narrow scenario. Lane A's separate JSON
+  journal was replaced by R's ReportJournal in the agent's data folder (strict
+  records, links refused, pruning at append and read), and the standalone
+  report names no VS Code version. The dialog's builder, scrub, export paths
+  and handler are `dist/report.js`, loaded on first open; they take the
+  editor's clipboard, browser, save picker and issue reporter as
+  `ReportEditorIo`, so the portable conversation controller still reaches no
+  `vscode` (D60). The flight recorder's journal, policy and frame mapping
+  are `dist/recorder.js`: activation keeps only a front that answers and
+  queues, and the journal loads just after activation (or at the first
+  failure) to set the marker and offer a crash report. Appends prune
+  amortized: the whole journal is read again only past its byte cap (then
+  down to 192 KiB) or when it holds an expired record, so a long session is
+  no longer quadratic (owner's coordinator, 2026-10-05; the bounds are R's). An exported BigInt constant broke vitest's shared module cache
+  for every suite importing `constants.ts`; it is a number compared as
+  BigInt. Receipts: `docs/certification/m93.md`.
+- **Windows validation (WINM93, 2026-10-05).** Run M93's owning suites on
+  Windows 11, including UNC/extended paths, drive-letter case, journal storage
+  with spaces and Unicode, links/junctions, open-file append/prune, CRLF export
+  identity and the four-theme 320 px dialog. Correct Windows path scrubbing
+  when these probes fail; keep POSIX path handling unchanged. Windows native
+  checkboxes expose 22 px safe spacing in the report dialog: give its section
+  rows the same 24 px minimum as the existing native option rows, preserving
+  checkbox behavior and testing the real harness geometry. Record failing
+  probes, byte-exact red drills and restored receipts in `m93.md`.
+- **Certification checklist.**
+  - [x] Owner-approved decision and milestone planned; source research recorded.
+  - [x] All acceptance tests fail under their breaks, then pass on restored code
+        (lanes' drills in `m93-0/p/r/w/a.md`, integration drills in `m93.md`).
+  - [ ] Both backends, reload/new chat, crash recovery and multi-window proof:
+        unit-level on both backends' event paths, the per-window journals and
+        markers (R), and the command/notice/turn wiring; an installed-editor run
+        is still open.
+  - [ ] Engine floor/current VS Code, remote-host and standalone ACP receipts:
+        the standalone command is covered by unit tests over the real journal
+        adapter; installed-editor, remote and packaged-agent runs are still open.
+  - [x] Accessibility (the `report` and `report-narrow` harness scenarios in
+        the full gate's a11y run), real translations in all 14 tables and the
+        pseudo-locale, and exact-export proof (preview = Copy/Save/URL/reporter).
+  - [x] SoL-Pi invariants (golden request bytes with recording and a report
+        between turns; M68 and M73 guards re-drilled), D6 sizes measured, and the
+        full lead gate exit 0 on the final tree (`m93.md`).
+  - [x] README/ACP/privacy/changelog/host-API and `m93.md` match shipped behavior.
+
 ### M92 — Muse Gadgets support (D71)
 
 - **Goal.** Firmware and device work with Muse Spark Code is safe, with tokens
@@ -16235,7 +18360,46 @@ joined with M57, M58 and PR #49's sign-in
         (`docs/certification/m92.md`); the commit guard skipped, no
         commit-writing path exists
 
-### M98 — Muse Judge: a calibrated judge for any agent (D77, planned)
+### ENVFENCE — Shell credential fence (D89.5, security fix for 0.14.1)
+
+- [x] Shared credential matcher and fences at model process entry.
+- [x] Machine-scoped interactive name-only exception, with 14 translations.
+- [x] Spawn environment snapshots and real-shell fake-credential probe;
+      deliberately remove guards, observe failures and restore byte-exact.
+- [x] Focused rig tests, typecheck/lint/format, localization, host API,
+      deadcode/duplication and production bundle budgets.
+- [x] Certification: `docs/certification/envfence.md`; hooks-on local commit.
+      The lead runs aggregate quality on the rigs (lane common rules).
+- [x] FIXENVFENCE: repair both RVENVFENCE P1s with regression tests and red
+      drills (25 matcher failures, 2 delayed-origin failures), followed by
+      byte-exact restoration. Focused certification is appended to
+      `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
+
+### M98 — Muse Judge: a calibrated judge for any agent (D77, phase 1 integration)
+
+Lane D integration (2026-10-05, Kubuntu): merge A's review fixes and G's
+M91-G goldens into U, activate the same-model sources through a lazy window
+bundle, retain A's live binding and dispatch guards, and connect dispatch
+receipts to U's separate usage rows. Repair the recorded 320 px tool-row
+overflow. Document and certify only the behaviour exercised on this tree.
+D78's `paidDailyBudget.ts` and setting are absent from this checkout; its
+historical `3db0ef37` factory exposes `capUsd`/`reserve`, not A's complete
+daily-ledger interface. Metered Judge stays unavailable until that real
+adapter and D77's entry-criteria receipts land; no competing store is added.
+The exact handoff is recorded in `docs/certification/m98.md`. Prefixes with
+hosted billable tools use a standalone body with no tools: Judge token
+consent cannot authorize a separate hosted-search charge.
+The full rig gate also exposes Chrome CLI `--dump-dom` stalls on ordinary
+pages. Use the existing Playwright page driver for every accessibility
+scenario, preserving the four themes, real 690/320 px viewports, 120-second
+page timeout and every axe finding rule; prove the ordinary-page failure
+and the restored driver before rerunning the complete quality command.
+Lane D's final Kubuntu `npm run quality` exits 0 (7,317 passing tests;
+464 accessibility pages). Package and raw size check exit 0 at 2,113,751
+bytes against the unchanged 2,252,800 cap. The universal macOS helper is
+absent; CI's exact presence check fails only for that helper. The combined
+final-tree checkbox stays open. Receipts and the D78 handoff are in the
+aggregate certification record.
 
 - **Goal.** Small, calibrated, advisory decisions, on out of the box (D78),
   from the user's own chat model first, with separate judges later. The Muse
@@ -16503,7 +18667,8 @@ joined with M57, M58 and PR #49's sign-in
         and byte-exact red drills; no finding remains as an accepted residual.
   - [ ] Phase 1 acceptance 1–11, each with its failing drill and passing
         receipt.
-  - [ ] M91-G's harness merged, and lane G certified on it.
+  - [x] M91-G's harness merged with `--no-ff` in `e64ced28`; lane G's
+        golden and MSP receipts are linked in `docs/certification/m98.md`.
   - [ ] D78's ledger meets entry criteria 1–7, or FIXDEF gaps are closed.
   - [ ] Phase-1 final tree: full quality, a11y, package and bundle caps,
         installed-host receipts.
@@ -17103,7 +19268,341 @@ VSIX/ACP/test-package, notices/SBOM, globals, knip/cycles and exclusive split
 guards together; measure separate child budgets by D6 without raising an
 existing cap. Native/source/factory controls receive byte-exact red/green proofs.
 
+**M98P2INT2 joins shipped phase 1 (2026-10-05).** Merge main
+`81a5ccfa` with `--no-ff` into the phase-2 integration. Preserve the
+released changelog byte-for-byte, additive planning history and every real
+translation. The two factory entries previously collide at `dist/judge.js`:
+retain shipped phase 1 there and deliver phase 2 as `dist/judgeP2.js` under
+its unchanged 75 KiB cap. Adapt phase-2 callers to shipped interfaces, keep
+FU's optional caution holder independent from the phase-1 fence, and retain
+both owning fence suites. No source or use becomes enabled by integration.
+Regenerate inventories/notices by script and check all M98 suites in batches
+of at most three, typechecks, lint/format, localization, host API, cycles,
+plain knip, build/caps and PowerShell lint. No full quality, push, paid/live
+calls or cap increase is authorized. Release-train gates and outstanding
+calibration/source/adoption receipts remain lead-owned.
+
 ## 7. Gates
+
+**M98P2INT2 scoped integration (2026-10-05, Windows 11).** The explicit lane
+brief reserves full `npm run quality` for the 0.16.0 train. This lane runs
+every M98 phase-one/phase-two unit suite in whole-file batches of at most
+three, the non-inference native checks available on Windows, all five
+typecheck projects, scoped lint/format, localization, regenerated/reviewed
+host inventory, cycles, plain knip, duplication, build/caps and PowerShell
+lint. No threshold or ignore is weakened. Receipts and platform/release
+limits are recorded in `docs/certification/m98-p2int-main.md`.
+
+**BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
+prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
+test files, deliberate failures, typecheck, scoped lint/format, deadcode,
+duplication, localization, host API and production/package checks directly on
+Kubuntu; the lead retains full integrated quality and hosted service proof.
+Local badge requests use the explicitly permitted named skip because the shared
+rig lane forbids public network. CI and CI packaging reject that override and
+must validate actual SVG responses. PNG screenshots remain HTTPS content images;
+the SVG requirement applies to badges. No threshold or existing gate is relaxed.
+Focused certification passed: 86 tests, 23 byte-exact red drills, required
+static/build/package checks and actual VSIX/ACP archive version inspection.
+The 0.14.0 VSIX is 2,168,278 bytes under the unchanged 2,252,800-byte cap; the
+ACP tarball is 1,295,446 bytes. Both carry exact static v0.14.0 badges, and a
+future-version fixture proves no manual badge bump is needed. The Kubuntu
+package lacks the compiled macOS helper; hosted universal packaging remains
+unchanged. Receipts: `docs/certification/badgefix.md`.
+
+**CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
+tarball passes the unchanged strict English fallback check and 382 distinct
+scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
+deadcode, duplication, host API and production build gates pass. Shared rules
+prohibit aggregate `npm run quality` and replacing the existing dependency tree;
+fresh tarball installs use an offline scratch prefix. Kubuntu runs Node 24.18.0,
+not CI's requested Node 22, and lacks CI's downloaded compiled macOS helper.
+The exact universal VSIX listing therefore fails only that helper entry; hosted
+artifact operations and full integrated quality remain with the lead. No check
+is weakened. Receipts and deliberate failures are in
+`docs/certification/cifix14-acp-usage.md`.
+
+**CIFIX14W2 short-path certification (2026-10-05).** The explicit rig brief
+requires complete directory-tracking and shell files with default CLI timeouts,
+three workers and a real 8.3 fixture. Shared lane rules prohibit aggregate
+`npm run quality`; focused regressions, static checks and the production build
+run locally with hooks on. The lead retains the integrated full quality gate.
+No threshold, timeout, retry, skip policy or gate is changed; evidence is in
+`docs/certification/cifix14-shortpath.md`.
+
+**CIFIX14M bounded macOS certification (2026-10-05).** The explicit lane brief
+requires all four unit/process-e2e coverage shards and two complete green runs.
+The rig note overrides the shared prohibition on full suites for that work,
+while retaining its three-file/three-worker batches. Shared rules still prohibit
+`npm run quality`; hook-on commits use scoped regressions, typecheck, lint and
+format, with the available static/build checks and merged coverage recorded in
+`docs/certification/cifix14-macos.md`. The lead retains the integrated aggregate
+quality, accessibility and hosted certification. No gate is weakened.
+**CIFIX14W Windows hosted-CI repair (2026-10-05).** Reproduce all four unit
+and process-e2e shards on the Windows 11 rig, in the rig brief's bounded
+three-file batches with V8 coverage, then repeat the complete suite twice
+after repairs. Correct foreign-platform fixtures with explicit path/platform
+semantics and make in-memory bundle tests independent of existing `dist`.
+Check the real PowerShell directory case before deciding whether product
+changes are needed. Run the Windows integration suite using local VS Code
+downloads only; network, live models, timeout increases and gate changes are
+prohibited. Exact receipts and any unavailable checks belong in
+`docs/certification/cifix14-windows.md`.
+The shared rules prohibit the aggregate `quality` command; scoped gates and
+the expressly requested full tests run instead. The rig's Node is 24.21.0,
+not CI's Node 22, and only installed VS Code 1.139.1 is available offline.
+The first full scan also hits the unchanged five-second restore-lease deadline
+in checkpoint restore; that entire file then passes in isolation. These
+limits are recorded, with no green full-run or exact-CI-version claim until
+the required receipts exist.
+The continued scan finds one more foreign-shell fixture:
+`importHookSources.test.ts` starts Bash for a POSIX quoting case on Windows.
+Use each OS's actual shell and generated command, and assert the complete
+literal path and absence of command substitution on both branches.
+The complete scan additionally exposes a missing Bash-name dependency in
+the headless fixture and a POSIX-only missing-chunk error-path assertion.
+Git's installed `sh.exe` on this rig identifies itself as GNU Bash 5.3.15;
+admit that existing binary only after verifying it is Bash, keep executing
+the actual fake-only headless/workflow fixtures, and normalize filesystem
+separators while retaining the missing-file and failed-stat assertions.
+The last shard also exposes four fake-child plugin dispatch cases whose
+POSIX plugin paths are parsed with the real Windows platform. Give those
+fixtures a drive-qualified root on Windows, retaining native-platform
+parsing and all cap, grant-stripping and containment assertions.
+
+**TRAIN14B Judge activation fixture stop (2026-10-05).** Full quality is
+explicitly authorized by this rig brief. Its aggregate unit run exposes a
+legacy Judge activation fixture that omits D78’s default callback. The field
+extraction fix resolves the undefined-variable error; a backend-availability
+fixture fix still leaves three subscription-default assertions failing.
+Common.md requires stopping after two different fixes to the same test, so
+this path is paused pending the requested explicit override for one targeted
+`isDefaultOn` fixture correction. No gate, test, timeout or paid policy is
+weakened. Until the unchanged full gate exits zero, this train is not ready
+for merge/release; all other authorized checks continue and their exact
+receipts are in `docs/certification/train-0.14.0.md`.
+
+**ACTDIET preview integration deferral (2026-10-05).** Full quality is prohibited
+by the explicit lane brief; focused tests, static gates and production builds
+run on Kubuntu instead. `jscpd` reports existing clones in M91 hooks and their
+fixtures, MCP/plugin fixture setup, golden/shell test setup and repeated shell
+scenarios. The implicated files are byte-identical to merged preview ce99c0fc
+(`git diff ce99c0fc --` those ten paths is empty). ACTDIET's repeated split-drill
+logic is consolidated and adds no clone. No ignore, threshold or gate changes.
+These integration refactors remain with the owning feature/release lanes; the
+preview is not certified for release while duplication is red. Exact findings
+and other results are in `docs/certification/actdiet.md`.
+
+**FIXM91P4 lane-scope deferrals (2026-10-04, not gate exceptions).** The required
+commands ran directly on the Mac mini. `check:host-api` fails on the review base
+as well as this correction: its generated record says 65 `node:path` importers,
+the scanner finds 66. **P-host-api-baseline:** W/lead must regenerate and review
+`docs/ide-compatibility/host-api.md` with `npm run check:host-api -- --write`.
+`npm run build` compiles and passes all size caps, then the unchanged split gate
+rejects all eleven unwired adapter modules as on neither list. The same original
+sources reproduce those eleven errors. **P-bundle-map-baseline:** W must register
+the files' actual bundle/type membership while wiring them, then rerun the build.
+Both target files are outside lane P's permitted edits. Neither gate, ignore nor
+cap was changed; neither failing command is claimed green. Certification and
+PLAN §9 name the residuals. Full quality remains the lead's integration gate,
+as the shared lane rules expressly forbid running it in the lane.
+
+**Resolved in integration (lane W, 2026-10-05).** The bundle map is registered: lane P's modules ship in `dist/foreignHooks.js` (`FOREIGN_HOOKS_ONLY`) and its type-only `contract.ts` is listed as such. The host-API record is regenerated with the integration's full gate.
+
+**M91-I-Bundle-budget deferral (FIXM91I3, 2026-10-04).** The required
+production build was run and the import bundle alone exceeds its unchanged
+125 KiB cap: 148.5 KiB after removing the new heavy name-builder import and
+all six duplication-gate clones. An in-memory build of the starting commit
+`d1eeaadbb791c93a9440e36d358b9cfdc7f2c9f1`, with the production options and
+shared English fallback, is already 147.7 KiB. This is a blocking packaging
+deferral, not a gate waiver or support claim. Splitting a bundle needs build,
+bundle-split and host entry changes outside lane I's owned files; the lane
+brief forbids widening there and common.md says to stop and report when a
+bundle cannot fit. Follow-up: W/lead splits the importer under the existing
+budgets and reruns the production build and full quality gate before landing.
+No cap, threshold, ignore or rule level changed.
+
+**Resolved in integration (lane W, 2026-10-04, accepted by the lead).** The import bundle's cap is 175 KiB under the D6 rule (147.7 KiB measured, plus 15%, rounded up to 25 KiB); see the D6 table.
+**KNIPC bounded lane (2026-10-05).** The rig brief and shared rules prohibit
+aggregate quality/full-unit runs and integration merges/pushes on this lane.
+Full quality, coverage, accessibility and integration certification remain
+the lead's gates. The namespace export/type checks extend Knip's existing
+issue set without an ignore or lowered severity; value/type plants prove
+both guards fire. Scoped macmini evidence is recorded in
+`docs/certification/knip-constants.md`.
+**DEFLAKE4 lane (2026-10-05).** The named brief and common.md assign full
+quality, coverage and hosted certification to the lead; this lane runs the
+owning test file and scoped gates only. Full quality remains required before
+integration. The feature-delivery ledger validator cannot validate this
+existing section-based roadmap (`expected exactly one quality-ledger fence`);
+retain its canonical format and record that structural check as deferred.
+Current receipts and any remaining blockers belong in
+`docs/certification/deflake4.md`.
+
+**STAR lane (2026-10-05).** The owner's lane brief requires scoped tests,
+typecheck, lint, localization/manifest checks, bundle budgets and an actual
+VSIX README inspection, with removal drills and hooks enabled. It expressly
+assigns full `npm run quality` to the release lead after integration; this
+lane does not run it or weaken any gate. The generic delivery validator's
+ledger-format check remains deferred for this established plan format.
+Current receipts: `docs/certification/star-line.md`.
+
+**TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
+failures and running the complete quality gate directly on Kubuntu within
+120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
+The earlier TRAIN13 budget stop is historical; current receipts go in the
+same train certification record.
+
+**TRAIN13 release train (2026-10-04, Kubuntu).** Merge the six reviewed
+branches in the owner's order with two-parent commits, preserving all PR
+heads. Resolve only integration breakage; retain D78, D79 and D71 with all
+existing decisions and milestones. Consolidate Unreleased into one Highlights
+list of at most five bullets and the Added/Changed/Fixed/Security sections;
+released sections remain byte-identical to `main-sync`. Regenerate notices,
+the host API inventory and exec schemas. Verify the shared M92 detection table
+still feeds #116's host-to-webview diagnostics and confidential admission,
+then run full `npm run quality` once and the unchanged 2200 KiB VSIX gate.
+A size-budget failure stops this lane and is reported without changing a cap.
+The first combined gate exposed the missing M99 palette tip and stale eager-recall/request-order assertions after D78. Add the tip in every language; bind the concurrency test to parent/child identity and assert recall is absent until packing. Match the monitor probe to the existing MCP Linux zombie check and retain proof that it recognizes a live process. The corrected full run passes static gates and 7,758 tests, but two unchanged checkpoint tests fail under the shared `/tmp` quota (`EDQUOT`); coverage and downstream gates are unverified. The separate build gate fails on webview main (928,507 bytes against 921,600); a private Linux VSIX measurement also fails (2,330,538 against 2,252,800 bytes), without the universal macOS helper. Stop implementation at those budget failures as the brief requires. No cap, timeout, test skip or gate is changed. Quota recovery, full certification and package reduction remain deferred to the lead. Hooks stay on; no push, rebase, live model or paid call. Current evidence and any outstanding gate are in `docs/certification/train-0.13.0.md`.
+
+**MRG116 bounded merge lane (2026-10-04).** The rig brief requires merging
+`main-sync` (M87) into PR #116 with scoped owning tests and static/build
+checks. Its shared rules prohibit this lane from running full quality or
+the full test suite, assigning those checks to the lead. Full quality,
+coverage, accessibility and installed-editor/platform acceptance therefore
+remain required after integration; no gate or threshold is changed.
+Conflict resolutions, generated material, redaction drills and the observed
+Kubuntu results are recorded in `docs/certification/docs-truth-audit-0120.md`.
+
+**MG87c merge (2026-10-04): main's activation diet into M81.** The browser
+check's model text sits by reader under D6's 2026-10-03 rule: `MODEL_TEXT`
+for what activation reads, `MODEL_API_MODEL_TEXT` for the three words only
+the Model API backend says; the refusal table reads them by name. Activation
+is 572.6 of 600 KiB. The shipped-bundle text test allows words a bundle's own
+blocks share with `MODEL_TEXT`, with four red drills. See
+`docs/certification/mg87c.md`.
+
+**MG87b merge (2026-10-04), source proof and explicit deferrals.** Merge `origin/main`
+into M81 while retaining all main bundles, budgets, translations and
+permission behavior. Browser results join M78's live policy fence; best-of-N
+attempts receive no window browser check. The lane runs targeted static
+gates and Kubuntu tests, with hooks on and no origin push; full quality
+remains the lead's gate. Kubuntu passes 7,105 tests; final integration and
+fixture runs pass 672 and 19 tests. Activation is 610.2 KiB against 600: the
+brief assigns its correction to the activation-diet lane. Focused accessibility
+has two missing Chrome results, so no complete browser pass is claimed.
+See `docs/certification/mg87b.md` for resolutions, drills and gate evidence.
+
+**M100 planning lane (2026-10-04).** The rig brief restricts changes to
+PLAN and `docs/certification/m100-research.md`, forbids full quality/unit
+runs and main integration, and requires a local normal-hook commit. Scoped
+checks and their actual outcomes are in that research record. Runtime tests,
+gate-fire and four-device certification are future M100 delivery work; the
+lead retains the unchanged full quality gate on the joined tree. No product
+gate is waived or weakened by committing this plan.
+
+**M100 review correction (FIXM100, 2026-10-05).** The follow-up brief authorizes
+the D80/acceptance/research correction, its Unreleased changelog entry and a
+local merge of the already-fetched `origin/main`, keeping both sides and
+renumbering nothing. Only changed-document formatting/Markdown checks and
+normal commit hooks run here; full quality remains the lead's joined-tree
+gate. The research record separates these receipts from runtime certification.
+
+**DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
+complete Windows unit inventory in batches of at most three files and
+300 consecutive checkpoint-copy file passes. It explicitly requires full
+`npm run quality` only for a product change; this lane changes tests and
+documentation only. Shared static/build checks still apply. Aggregate
+coverage/full quality and hosted confirmation remain the lead's gates; no
+rule, timeout or coverage threshold is weakened. The exact original hosted
+failure is not supplied and has not reproduced in 200 original-file runs.
+Evidence: `docs/certification/deflake3.md`.
+
+**DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
+and the required static/build gates passed; two deliberate regressions
+failed and were restored byte-exact. The rig brief prohibits integration
+merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
+this shared lane. Full quality, aggregate coverage, accessibility and the
+hosted Windows recheck remain the lead's gates. No gate or deadline was
+weakened. Evidence: `docs/certification/mcp-job-flake.md`.
+**M94W size boundary (2026-10-05).** The Windows production build passes
+activation at 578.0/600 KiB and Tab at 62.4/75 KiB. W adds 3,378 bytes
+(3.299 KiB) against the integrated pre-W source control, within the brief's
+added-startup allowance. The whole Tab shim is 7.393 KiB, inherited from a
+4.431 KiB H shim: D73's stricter whole-shim 4 KiB target and acceptance 19
+are not certified. Reducing the whole shim needs the existing service/provider
+orchestration moved into the lazy entry while preserving loader retry,
+cleanup and startup status; that broader follow-up is deferred to the lead
+under W's bounded scope. The hard 600 KiB cap and every existing gate remain
+unchanged. The exact control and bundle measurements are in
+`docs/certification/m94.md`.
+
+W's final `npm run quality` exits 0 on Windows (2026-10-05), and integration
+passes 34 tests each at VS Code 1.99.0 and stable 1.140.0. The local VSIX
+passes 2,176,052 / 2,252,800 bytes and includes `dist/tab.js`; the rig lacks
+the built macOS helper, so universal release-size certification remains
+with the lead. The SAST receipt records one rule timeout in the existing
+`ModelApiHost.ts` despite its successful zero-finding exit. These limits
+and the complete gate/failure-drill receipts are recorded in M94's
+certification; acceptance 19 and final live certification stay open.
+
+**FIXM94L0 scoped result (2026-10-04).** Macmini passes changed-file ESLint,
+all five typecheck projects, Knip, jscpd (0 clones), localization (0 problems)
+and the host-API record (0 problems). Production build emits all bundles
+and passes the current size gate, but exits 1 at the exhaustive split gate:
+`TAB_MODEL_TEXT` has no registered reader. This wiring is explicitly lane W's
+ownership in M94, so it is deferred to W's `dist/tab.js` build/split wiring;
+no check, cap or ignore was changed. The inherited Model API bundle is
+426.5 KiB under main's existing 475 KiB gate, not compliant with common.md's
+older 400 KiB figure. Full quality and the later build-chain checks remain
+open. See `docs/certification/m94-0.md` for scoped tests and byte-exact drills.
+**MRG78 rig PowerShell analyzer unavailable.** The additional
+`npm run lint:ps` check fails before analysis because this Win11 rig has
+no PSScriptAnalyzer 1.25.0 module. JavaScript and CSS lint pass. Native
+PowerShell files are unchanged by this merge; no global install, network
+fetch, version downgrade or skip is permitted under the shared rig rules.
+The lead retains the pinned PowerShell check on a provisioned machine.
+
+**MRG78 browser size blocker (2026-10-04; resolved by FIX78W).** The merged production
+build emits `dist/webview/main.js` at 935,470 bytes (913.5 KiB), over its
+unchanged 900 KiB cap. A build of `main-sync` `244d5905` using the same
+browser options emits 910,023 bytes (888.7 KiB). Every Node bundle fits;
+the M71 model text block is registered with main's split gate and its
+positive/negative controls pass. The rig brief permits merge repairs only;
+an unrelated browser refactor or a new loading architecture is deferred
+to the lead. No cap, threshold, hook or feature has been weakened. This
+merge is not aggregate-green or ready to release while that gate fails.
+Bounded receipts: `docs/certification/mrg78.md`. FIX78W closes the size
+blocker with the unchanged 900 KiB cap applied to the entry and all static
+imports (898.4 KiB); its production build and bundle checks pass on Kubuntu.
+Full quality and native/hosted certification remain lead-owned. See
+`docs/certification/fix78w.md`.
+
+**MRG78 native identity integration.** Main's R1 lint gate rejects M71's
+direct `dev`/`ino` reads in `gitExtension.ts`. Reuse the existing
+`statIdentity`, `statIdentitySync`, `fileIdentityKey` and `sameFile` helpers
+for physical owner capture and synchronous rechecks, preserving the
+canonical cwd, both lexical/canonical checks and sticky ownership loss.
+No suppression or gate change. Verify native Git owners and their callers.
+
+**MRG78 panel compatibility.** The owning test sweep exposes an old
+M71 review assertion missing main's `disposition: started` acknowledgement
+field, and the four Git palette rows missing M87's required tips. Keep the
+complete acknowledgement assertion and reuse each row's existing translated
+detail as its tip; no new English or translated key is needed.
+
+**M71m CLI accessibility runner deferral (2026-10-02).** Required bounded
+merge checks pass. The unchanged CLI accessibility script produced no axe
+measurements for its 20 owning pages; a process-local background-timer
+retry also produced none for the four held-PR themes. A blank browser
+control and HTTP assets succeed. Real-time Playwright measured the same
+20 harness pages with the same axe rules and incomplete-result exceptions:
+zero violations, undecided failures or page errors (44 unseen contrast
+elements counted). This evidence does not close the CLI runner failure.
+The lead must resolve that runner before full quality certification; no
+gate, threshold, timeout, hook or skip is changed. The existing Windows
+8.3 fixture also needs a genuine short-name TEMP for its native proof.
+See `docs/certification/m71.md`, M71m main join.
 
 **M98P2INT round-4 bounded integration (2026-10-05).** The explicit rig
 brief authorizes four ordered no-ff merges (J2fix, J3-linux, J3-macos, FUfix),
@@ -17381,6 +19880,31 @@ in the original CS receipt: paidHost configuration reads 11 → 12, its
 Node/VS Code importer. Z owns `docs/ide-compatibility/host-api.md`; refresh
 it with `npm run check:host-api -- --write`, review and rerun on the
 integrated tree. No inventory gate is weakened or claimed green.
+
+**FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
+shared lane rules prohibit a full `npm run quality` or full test suite in
+this worktree. Hook-on repair commits require the owning regression files,
+red drills, scoped lint/format and typecheck here; the final lane receipt
+also runs dead-code, duplication, localization, host API and production
+build. The lead retains full quality, coverage, accessibility and installed
+host certification on the integrated tree. No threshold or rule is changed.
+
+**CIFIX14T verified local result (2026-10-05).** The five owning suites
+pass 113 tests (six existing Windows-only skips); the exact restored monitor
+file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
+drills; all seven drills restore SHA-256-exact source. All five compiler
+projects, final unit compile, scoped ESLint/Prettier, plain knip, duplication,
+localization, host API and production build pass. Extension 437.4 / 600 KiB,
+Model API 446.6 / 475 KiB, ACP 817.5 / 850 KiB; every budget is unchanged.
+Native Mac proof and complete receipts are in `docs/certification/cifix14-monitor.md`.
+Hosted Node 22 and native Linux/Windows certification remain with the lead.
+
+**CIFIX14T bounded-lane gate delegation (2026-10-05).** The requested Mac
+mini reproduction and red drills run directly here with hooks enabled.
+`common.md` prohibits aggregate quality/full unit runs; collect the owned
+shell tests and required static/build checks, leaving full quality, merged
+coverage and hosted cross-platform certification to the lead. No gate is
+weakened and no integrated-green claim is made by this lane.
 
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in
@@ -17716,6 +20240,32 @@ Installed M68 tools were reused only after lock/npmrc and installed package
 metadata equality checks; fresh `npm ci`, full quality and rig gates remain
 required. See `docs/certification/m75.md`. No packing or model run occurred.
 
+**FIXM93R gate boundary (2026-10-04).** The rig brief and shared lane rules
+forbid `npm run quality` and full-suite tests, reserve aggregate certification
+for the lead, and prohibit merging/rebasing/pushing in this worktree. Run the
+named suites and all requested static/build gates directly on Kubuntu, serially;
+commit with hooks enabled. Record pending integration gates without weakening
+any rule, threshold or ignore. The correction and red-drill receipts are in
+`docs/certification/m93-r.md`.
+
+**WINM93 gate boundary (2026-10-05).** Its rig brief and shared rules reserve
+full quality/coverage for the lead and forbid merges, rebases and pushes. Run
+M93 owning files (at most three per vitest invocation, three workers), the
+requested static/build checks and report accessibility directly on Windows 11;
+commit locally with hooks enabled. The Windows receipts are in `m93.md`.
+
+- **FIXM93R-G-L10N (resolved by lane I, 2026-10-05):** `museSpark.reportProblem`
+  is contributed; `check:l10n` reports 0 problems on the integrated tree.
+- **FIXM93R-G-HOSTAPI (resolved by lane I, 2026-10-05):** the record is
+  regenerated and reviewed on the integrated source; `check:host-api` passes.
+
+**M93 planning lane (2026-10-04).** Documentation only. Its task-specific
+`common.md` forbids a local aggregate quality run and delegates it to the lead;
+the lane verifies changed Markdown and commits with hooks enabled. Product
+tests, drills, build sizes and runtime certification remain M93 implementation
+gates, unchecked above. Integration state and lane receipts are in
+`docs/certification/m93-research.md`.
+
 **Merge goal progress (2026-09-29, America/Los_Angeles):** PR #32 merged at
 17:31 (`fefb6068`), PR #57/M67 at 18:20 (`4c35e73e`), and PR #52/M69 at
 19:46 (`c323dcc0`). Each passed independent review, four local full-quality
@@ -17903,9 +20453,21 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
-| M98 phase-2 Z location             | Escape hatch                             | Reason                                                                                                                                                                                | Date       |
-| ---------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/runtime/judge/judgeBundle.ts` | `value is JudgeBundle` (`isJudgeBundle`) | Checks the callable factory export; its parameter/result signatures are trusted because entry, loader and package share one typed source tree/build. Built-factory tests exercise it. | 2026-10-05 |
+| M98 phase-2 Z location              | Escape hatch                             | Reason                                                                                                                                                                                                                                             | Date       |
+| ----------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/judge/judgeBundle.ts`  | `value is JudgeBundle` (`isJudgeBundle`) | Checks the callable factory export; its parameter/result signatures are trusted because entry, loader and package share one typed source tree/build. Built-factory tests exercise it.                                                              | 2026-10-05 |
+| Location                            | Escape hatch                             | Reason                                                                                                                                                                                                                                             |
+| ----------------------------------- | -----------------------------------      | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone      | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+
+Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
+
+| M94 staged exports (`src/shared/constants.ts`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Owner                                                             | Deferral and removal condition                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TAB_FAST_PREFIX_CHARS`, `TAB_FAST_SUFFIX_CHARS`, `TAB_MULTILINE_PREFIX_CHARS`, `TAB_MULTILINE_SUFFIX_CHARS`, `TAB_CONTEXT_CHARS`, `TAB_PREFIX_ANCHOR_LINES`, `TAB_FAST_MAX_LINES`, `TAB_MULTILINE_MAX_LINES`, `TAB_MAX_COMPLETION_CHARS`, `TAB_DEBOUNCE_MS`, `TAB_FAST_MAX_OUTPUT_TOKENS`, `TAB_MULTILINE_MAX_OUTPUT_TOKENS`, `TAB_REQUEST_TIMEOUT_MS`, `TAB_CACHE_ENTRIES`, `TAB_AUTOMATIC_LATENCY_CEILING_MS`, `TAB_MAX_IN_FLIGHT`, `TAB_MAX_REQUESTS_PER_MINUTE`, `TAB_PROMPT_CACHE_KEY_PREFIX`, `TAB_HOLE_MARKER`, `TAB_REPLY_OPEN_TAG`, `TAB_REPLY_CLOSE_TAG`, `TAB_MODEL_TEXT`, `TAB_MODELS`, `TabModel`, `TAB_MULTILINE_MODES`, `TabMultiline` | C (H reads latency/model/mode domains; P retunes measured values) | Lane 0 stages the agreed contract before runtime consumers merge. Tests are Knip entrypoints and keep these exports referenced, but do not prove production use. Remove this deferral after C/H/P merge and W verifies production references; remove any export still unused instead of adding an ignore. |
+| `TAB_DAILY_BUDGET_DEFAULT_USD`, `TAB_DAILY_BUDGET_MIN_USD`, `TAB_DAILY_BUDGET_MAX_USD`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | L                                                                 | Remove after ledger/budget readers merge and W verifies production use.                                                                                                                                                                                                                                   |
+| `TAB_FILE_MAX_BYTES`, `TAB_SNOOZE_SHORT_MINUTES`, `TAB_SNOOZE_LONG_MINUTES`, `TAB_TRIGGER_MODES`, `TabTrigger`, `TAB_WITH_COPILOT_MODES`, `TabWithCopilot`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | H                                                                 | Remove after provider/status/settings consumers merge and W verifies production use.                                                                                                                                                                                                                      |
+| `TAB_HOOK_TIMEOUT_MS`, `TAB_HOOK_VERDICT_CACHE`, `TAB_EDIT_HOOK_QUEUE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | K                                                                 | Remove after the two Tab hooks merge and W verifies production use. No Knip configuration exception is added.                                                                                                                                                                                             |
 
 | M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
 | ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -17915,6 +20477,15 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | ------------------------------------------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/runtime/main.ts`, `exitHeadless`                        | `eslint-disable-next-line unicorn/no-process-exit`   | A standalone headless command owns its process. It must end within the deadline/grace/force bounds even if a pipe or late backend setup never closes, including usage errors. Writes remain async and bounded before exit.                                                                                                                                                                                                                                                                                                                                             | 2026-10-02 |
 | `src/runtime/exec/execClient.ts`, constructor session router | Reflection of SDK 1.4.0's private `builder.handlers` | The SDK's constructor-installed session router validates a closed union before custom notification parsers, dropping future variants. This headless instance uses `request()` and no active-session helpers; remove only its single constructor handler after validating the exact descriptor `client-session-update-router`. The SDK's original builder and public handler/request/connection APIs remain in use. Structural checking fails closed if this pinned seam changes; real JSON-RPC and real-engine tests cover it. No dependency or SDK source is patched. | 2026-10-02 |
+
+**M91 provisional budget (lead decision, 2026-10-05).** `dist/uiText.js`,
+the English fallback on the startup path, is at 126.8 KiB with M91's strings
+on 0.13.0. Its budget goes from 125 to 150 KiB (D6's rule) only until the
+0.14.0 batch applies ACTDIET's per-bundle English split, which a separate
+lane is measuring on Kubuntu. That split brings it back under 125 KiB, and
+the budget returns to 125 with it. TRAIN14B restores the 125 KiB cap on the
+merged tree: round one already packs the fallback losslessly, and the
+ACTDIET split further reduces startup loading. The provisional exception is closed.
 
 **M81 accepted residuals (lead decision, 2026-10-04).** The §7 positive
 controls that change a test machine (planted Chrome policies including G8 DoH,
@@ -17961,35 +20532,42 @@ before a repaired one loads (2026-09-30).
 | `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate)     | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules.                                                | 2026-09-30 |
 | `src/host/skills/bundledSkills.ts`              | `value is BundledSkillsBundle` (`isBundledSkillsBundle`, a type predicate) | M89: `require` of `dist/bundledSkills.js` returns `unknown`; the guard checks that `bundledSkillsStatus`, `installBundledSkills` and `removeBundledSkills` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `bundledSkillsInstall.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, installs and removes through it, and refuses a malformed module. | 2026-10-03 |
 | `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                    | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                                  | 2026-09-30 |
+| `src/host/git/conversationGitBundle.ts`         | `value is ConversationGitBundle`                                           | MG78: checks the packaged factory is a function; its signature is trusted only across one source/build/package. The shipped-bundle test verifies installed language, trust refusal, loader repair and activation's error identities.                                                                                                                                                                                                                                                              | 2026-10-02 |
 
-| File                                        | Construct                                                                    | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
-| ------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/backend/toolIo.ts`                | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)           | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
-| `src/host/backend/searchWorker.ts`          | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)           | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
-| `src/host/voice/dictationHost.ts`           | `nosemgrep` on two `spawn` calls (`detect-child-process`)                    | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
-| `native/darwin/Dictation.swift`             | `unsafeBitCast(symbol, to: SetDisclaim.self)`                                | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
-| `src/host/backend/shellJob.ts`              | `catch { }` in the join statement each Windows command starts with           | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                                           | 2026-09-23 |
-| `test/unit/App.test.tsx`                    | `as unknown as Selection` (four stubs)                                       | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
-| `scripts/capture-themes.mjs`                | `nosemgrep` on `spawn` (`detect-child-process`)                              | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
-| `scripts/sast.mjs`                          | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)                | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
-| `src/host/backend/mcpProcess.ts`            | `nosemgrep` on `spawn` (`detect-child-process`)                              | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                   | 2026-09-25 |
-| `src/host/backend/mcpJobLaunch.ts`          | `nosemgrep` on `spawn` (`detect-child-process`)                              | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`). | 2026-09-26 |
-| `test/unit/helpers/fakeMcpOrphan.mjs`       | `nosemgrep` on `spawn` (`detect-child-process`)                              | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                              | 2026-09-25 |
-| `src/host/backend/modelApiBundle.ts`        | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)             | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                        | 2026-09-27 |
-| `src/host/codeIntel/languageServices.ts`    | `Reflect.get(edit, '_allEntries')`, an undocumented member                   | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                     | 2026-09-28 |
-| `src/runtime/main.ts`                       | `nosemgrep` on `spawn` (`detect-child-process`)                              | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
-| `src/webview/components/HeartbeatTrace.tsx` | `eslint-disable-next-line unicorn/prefer-path2d` on the tick segment path    | The beam draws a new 0.5 px segment at its current position every 6 ms tick; a reused `Path2D` would freeze the beam at its first segment. The suppression covers only this `beginPath`, with the reason inline.                                                                                                                                                                                                                                                                                                                                                                       | 2026-10-04 |
-| -------------------------------------       | ------------------------------------------------------------------           | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/verifyEditor.test.ts`            | `as unknown as` on five `vscode` stubs                                       | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
-| `src/core/browser/canaries.ts`              | `nosemgrep` on a plain WebSocket URL (`detect-insecure-websocket`)           | Canary C2 (M81 A1, design spec v4 §7): the probe page opens a plain WebSocket to a reserved `.invalid` nonce name so that its CONNECT can be seen refused at the check's own proxy; it never connects and nothing is sent over it. Canary C5w (review round 1): a plain WebSocket to a loopback host the user did not widen, at the phase's own fixture port, refused the same way.                                                                                                                                                                                                    | 2026-10-02 |
-| `src/host/browser/browserProcess.ts`        | `nosemgrep` on `spawn` (`detect-child-process`)                              | The browser check (M81 A1, D49) starts only the pinned Chrome for Testing headless shell at the absolute path the runtime bundle verified against `browserRuntime.json` in the extension's own storage (never PATH, a system browser or a workspace file), its identity read again just before, as an argument array with no shell: the fixed flags of `BROWSER_LAUNCH_FLAGS`, the check's own proxy endpoint and profile, and a projected environment. The model's URL and steps go over the CDP pipe, never on the command line.                                                     | 2026-10-02 |
-| `src/host/browser/browserProcess.ts`        | `nosemgrep` on `execFile` (`detect-child-process`)                           | The tree kill of the check's own browser on Windows: `taskkill.exe` by its absolute path under `SystemRoot` with `/PID <the browser's pid> /T /F`, an argument array, no shell. POSIX kills the browser's own process group instead.                                                                                                                                                                                                                                                                                                                                                   | 2026-10-02 |
-| `src/host/browser/browserChecks.ts`         | `value is BrowserCheckBundle` (`isBrowserCheckBundle`, a type predicate)     | `require` of `dist/browserCheck.js` returns `unknown`; the guard checks that `runBrowserCheck` is a function, not its parameter and result types. Entry, loader and package come from one source tree and one `npm run build` (M81, the checkpoint store's pattern); the real runner is exercised against real browsers by `browserCheckLive.test.ts`, and a missing or malformed bundle refuses the check and is read again later.                                                                                                                                                    | 2026-10-01 |
-| `src/host/browser/browserChecks.ts`         | `value is BrowserRuntimeBundle` (`isBrowserRuntimeBundle`, a type predicate) | `require` of `dist/browserRuntime.js` returns `unknown`; the guard checks that `prepareRuntime` is a function. The same build, pattern and refusal as the check's bundle (M81 A1); the real store is exercised end to end by `runtimeStore.test.ts` on real folders and by the rigs' runs of the built bundles.                                                                                                                                                                                                                                                                        | 2026-10-02 |
+| File                                        | Construct                                                                                               | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/backend/toolIo.ts`                | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)                                      | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
+| `src/host/backend/searchWorker.ts`          | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)                                      | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
+| `src/host/voice/dictationHost.ts`           | `nosemgrep` on two `spawn` calls (`detect-child-process`)                                               | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
+| `native/darwin/Dictation.swift`             | `unsafeBitCast(symbol, to: SetDisclaim.self)`                                                           | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
+| `src/host/backend/shellJob.ts`              | `catch { }` in the join statement each Windows command starts with                                      | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                                           | 2026-09-23 |
+| `test/unit/App.test.tsx`                    | `as unknown as Selection` (four stubs)                                                                  | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
+| `scripts/capture-themes.mjs`                | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
+| `scripts/sast.mjs`                          | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)                                           | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
+| `src/host/backend/mcpProcess.ts`            | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                   | 2026-09-25 |
+| `src/host/backend/mcpJobLaunch.ts`          | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`). | 2026-09-26 |
+| `test/unit/helpers/fakeMcpOrphan.mjs`       | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                              | 2026-09-25 |
+| `src/host/backend/modelApiBundle.ts`        | `value is KeyClientBundle` (`isKeyClientBundle`)                                                        | Checks the stored-key factory function from the same source/build/package; its parameter and result signature is trusted like the existing host factory. The real built module is tested for lazy loading, retry and language handoff in modelApiBundle.test.ts.                                                                                                                                                                                                                                                                                                                       | 2026-10-05 |
+| `src/host/backend/modelApiBundle.ts`        | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)                                        | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                        | 2026-09-27 |
+| `src/host/codeIntel/languageServices.ts`    | `Reflect.get(edit, '_allEntries')`, an undocumented member                                              | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                     | 2026-09-28 |
+| `src/runtime/main.ts`                       | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
+| `src/webview/components/HeartbeatTrace.tsx` | `eslint-disable-next-line unicorn/prefer-path2d` on the tick segment path                               | The beam draws a new 0.5 px segment at its current position every 6 ms tick; a reused `Path2D` would freeze the beam at its first segment. The suppression covers only this `beginPath`, with the reason inline.                                                                                                                                                                                                                                                                                                                                                                       | 2026-10-04 |
+| -------------------------------------       | ------------------------------------------------------------------                                      | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/verifyEditor.test.ts`            | `as unknown as` on five `vscode` stubs                                                                  | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
+| `src/core/browser/canaries.ts`              | `nosemgrep` on a plain WebSocket URL (`detect-insecure-websocket`)                                      | Canary C2 (M81 A1, design spec v4 §7): the probe page opens a plain WebSocket to a reserved `.invalid` nonce name so that its CONNECT can be seen refused at the check's own proxy; it never connects and nothing is sent over it. Canary C5w (review round 1): a plain WebSocket to a loopback host the user did not widen, at the phase's own fixture port, refused the same way.                                                                                                                                                                                                    | 2026-10-02 |
+| `src/host/browser/browserProcess.ts`        | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | The browser check (M81 A1, D49) starts only the pinned Chrome for Testing headless shell at the absolute path the runtime bundle verified against `browserRuntime.json` in the extension's own storage (never PATH, a system browser or a workspace file), its identity read again just before, as an argument array with no shell: the fixed flags of `BROWSER_LAUNCH_FLAGS`, the check's own proxy endpoint and profile, and a projected environment. The model's URL and steps go over the CDP pipe, never on the command line.                                                     | 2026-10-02 |
+| `src/host/browser/browserProcess.ts`        | `nosemgrep` on `execFile` (`detect-child-process`)                                                      | The tree kill of the check's own browser on Windows: `taskkill.exe` by its absolute path under `SystemRoot` with `/PID <the browser's pid> /T /F`, an argument array, no shell. POSIX kills the browser's own process group instead.                                                                                                                                                                                                                                                                                                                                                   | 2026-10-02 |
+| `src/host/browser/browserChecks.ts`         | `value is BrowserCheckBundle` (`isBrowserCheckBundle`, a type predicate)                                | `require` of `dist/browserCheck.js` returns `unknown`; the guard checks that `runBrowserCheck` is a function, not its parameter and result types. Entry, loader and package come from one source tree and one `npm run build` (M81, the checkpoint store's pattern); the real runner is exercised against real browsers by `browserCheckLive.test.ts`, and a missing or malformed bundle refuses the check and is read again later.                                                                                                                                                    | 2026-10-01 |
+| `src/host/browser/browserChecks.ts`         | `value is BrowserRuntimeBundle` (`isBrowserRuntimeBundle`, a type predicate)                            | `require` of `dist/browserRuntime.js` returns `unknown`; the guard checks that `prepareRuntime` is a function. The same build, pattern and refusal as the check's bundle (M81 A1); the real store is exercised end to end by `runtimeStore.test.ts` on real folders and by the rigs' runs of the built bundles.                                                                                                                                                                                                                                                                        | 2026-10-02 |
+| File                                        | Construct                                                                                               | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| -------------------------------------       | ------------------------------------------------------------------                                      | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/git/gitExtension.ts`              | `value is GitRepository` and two more type predicates (`isGitExtension`, `isGitApi`, `isGitRepository`) | VS Code's Git extension exports are `unknown` to this extension; the guards check that each member it calls is there (functions, the change lists as arrays), not the members' parameter and result types, which no run-time check can see. It is VS Code's own API (`git.d.ts` version 1, the same from 1.99 to 1.139), and `test/integration` commits and pushes through the real one on the floor version and the latest (M71).                                                                                                                                                     | 2026-09-28 |
 
-| File                             | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
-| -------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/modelApiHost.test.ts` | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
+| File                               | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
+| ---------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/modelApiHost.test.ts`   | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
+| `test/unit/flightRecorder.test.ts` | `as never` on a hostile event kind and backend                                 | The refusal branches are reachable only with values outside `REPORT_EVENT_KINDS`/`BACKEND_KINDS`, which a typed test cannot spell; the two test-only casts feed them in. Inline comments name that invariant. Lane R product code holds no cast.                                                            | 2026-10-05 |
 
 | File                                                                  | Construct                                                                   | Reason                                                                                                                                                                                                                        | Added      |
 | --------------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -18058,6 +20636,13 @@ before a repaired one loads (2026-09-30).
   are permanently excluded from this registration list. Observation rows
   remain available; the production-factory regression is proved red when
   that exclusion is removed, then byte-exact restored and green.
+
+- **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
+  `src/shared/featureCatalog.ts` or reference generator. The existing setting
+  and its full security contract are in README, D89.5, the manifest and all
+  translations, so the repair introduces no undocumented command or option.
+  Follow-up: add the setting to HELPREF's catalogue when that lane joins the
+  release. RVENVFENCE's two P1 findings are fixed; no review finding is deferred.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
@@ -18162,6 +20747,40 @@ before a repaired one loads (2026-09-30).
   foreign-record boundary above. Follow-up W/X: invoke sourceEntry.path as
   a path under live canonical scope and workspace trust checks immediately
   before spawning, and prove the real Unix and Windows execution paths.
+- **FIXM93R-R7 — aggregate journal disk budget (RVM93R finding 7, P2).**
+  Residual requiring redesign: the unchanged 256-KiB bound is enforced per
+  owned journal, and against the merged report, but several retained/live
+  journals can exceed 256 KiB on disk in aggregate. A peer cannot enforce an
+  aggregate disk budget by rewriting a live journal outside its append queue.
+  All retained fields remain scrubbed and each journal is bounded and expires
+  on next eligible use; live peer files wait for their own queue (append/read
+  or a later closed-file sweep), while merged reads filter their expired
+  entries immediately. M93 ships with this residual (lead, 2026-10-05): the
+  report reads at most the last 50 records, each window writes at most 20
+  records a minute, and a journal with no valid record left is deleted. It is
+  not the D72 aggregate disk guarantee. Follow-up: a cross-process storage transaction/ownership protocol
+  that serializes admission, append and oldest-first aggregate eviction, with
+  native concurrent-process tests, before claiming that guarantee. The R7
+  regression demonstrates both the bounded merged report and this disk limit.
+- **FIXM93R native-directory race boundary (finding 3 correction).**
+  Static links/junctions, hard-linked leaves and unexpected file types are
+  refused; no-follow opens, exact handle identity, canonical-directory checks
+  and exclusive random stages cover ordinary redirects. Node has no portable
+  directory-relative open/rename/unlink API: a local actor with the same user's
+  storage permissions can swap an ancestor between the final check and the
+  syscall. This remains within D72's local-user/admin residual, as for the
+  existing atomic writer; it is not a guarantee against that actor. Follow-up
+  if that threat enters scope: native directory-handle operations.
+
+- **M93.** Support recording accepts facts, not arbitrary log text;
+  write-time validation/scrub and export-time validation/scrub are separate
+  boundaries. Local user/admin access, confidential user-authored descriptions,
+  retention while the editor is closed, and host/browser/clipboard/file behavior
+  after an explicit handoff remain limits stated in D72 and the privacy guide.
+  A crash before the recorder starts, or a forced exit, is not told apart from
+  a crash; a frame inside the package can be forged by an error message that
+  imitates a stack line, but it can then name only a shipped bundle and two
+  numbers.
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through
   the shell-command guard, which scans the command text and does not inspect

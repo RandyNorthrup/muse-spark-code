@@ -7,7 +7,6 @@
 import {
   type EffortLevel,
   type ExportFormat,
-  ISSUES_URL,
   HOOK_RUN_SLASH_COMMAND,
   MUSE_DOCS_URL,
   type PaidFeature,
@@ -68,12 +67,17 @@ export type PaletteAction =
   | { readonly type: 'showPlans' }
   | { readonly type: 'newWorktree' }
   | { readonly type: 'removeWorktree' }
+  /** Commit, push and pull requests in the panel (M71). */
+  | { readonly type: 'gitAction'; readonly action: 'openCommit' | 'push' | 'openPullRequest' }
+  | { readonly type: 'openPullRequestInConversation' }
   | { readonly type: 'exportConversation'; readonly format: ExportFormat }
   /** "Import session…" (M84): resume a portable JSON file on the Model API backend. */
   | { readonly type: 'importSession' }
   /** "Open share file…" (M84): a portable JSON file read-only in the panel. */
   | { readonly type: 'openShareFile' }
   | { readonly type: 'openLog' }
+  /** "Report an issue…" (M93, PLAN.md D72): the scrubbed report's preview, never a bare link. */
+  | { readonly type: 'openReport' }
   /** "What's New" (M99): the release notes of this version in an editor tab. */
   | { readonly type: 'showWhatsNew' }
   | { readonly type: 'openExternal'; readonly url: string }
@@ -464,6 +468,45 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         },
       ],
     },
+    // Git and pull requests (M71): the same on both backends.
+    {
+      id: 'git',
+      title: UI_TEXT.groupGit,
+      items: [
+        {
+          id: 'commit',
+          label: UI_TEXT.gitCommitItem,
+          tip: UI_TEXT.gitCommitItemDetail,
+          slashName: SLASH_COMMAND_NAMES.commit,
+          detail: UI_TEXT.gitCommitItemDetail,
+          action: { type: 'gitAction', action: 'openCommit' },
+        },
+        {
+          id: 'push',
+          label: UI_TEXT.gitPushItem,
+          tip: UI_TEXT.gitPushItemDetail,
+          slashName: SLASH_COMMAND_NAMES.push,
+          detail: UI_TEXT.gitPushItemDetail,
+          action: { type: 'gitAction', action: 'push' },
+        },
+        {
+          id: 'pullRequest',
+          label: UI_TEXT.gitPullRequestItem,
+          tip: UI_TEXT.gitPullRequestItemDetail,
+          slashName: SLASH_COMMAND_NAMES.pullRequest,
+          detail: UI_TEXT.gitPullRequestItemDetail,
+          action: { type: 'gitAction', action: 'openPullRequest' },
+        },
+        {
+          id: 'checkoutPullRequest',
+          label: UI_TEXT.gitCheckoutItem,
+          tip: UI_TEXT.gitCheckoutItemDetail,
+          slashName: SLASH_COMMAND_NAMES.checkoutPullRequest,
+          detail: UI_TEXT.gitCheckoutItemDetail,
+          action: { type: 'openPullRequestInConversation' },
+        },
+      ],
+    },
     {
       id: 'model',
       title: UI_TEXT.groupModel,
@@ -649,11 +692,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       items: [
         { id: 'log', label: UI_TEXT.openLog, action: { type: 'openLog' } },
         { id: 'whatsNew', label: UI_TEXT.whatsNewOpen, action: { type: 'showWhatsNew' } },
-        {
-          id: 'issue',
-          label: UI_TEXT.reportIssue,
-          action: { type: 'openExternal', url: ISSUES_URL },
-        },
+        { id: 'issue', label: UI_TEXT.reportIssue, action: { type: 'openReport' } },
         {
           id: 'docs',
           label: UI_TEXT.openDocs,

@@ -20,7 +20,8 @@ import {
   importFromAgents,
   runAgentImport as bundledAgentImport,
 } from '../../src/host/agentImportEntry'
-import { type AgentImportHostDeps, runAgentImport } from '../../src/host/agentImportHost'
+import type { AgentImportHostDeps } from '../../src/host/agentImportHost'
+import { runAgentImport } from '../../src/host/agentImportBundle'
 import { fileImportWriter, isPathPresent } from '../../src/host/importIo'
 import { AGENT_IMPORT_PATHS, ATOMIC_TEMPORARY_SUFFIX, UI_TEXT } from '../../src/shared/constants'
 import { fakeModelApi } from './helpers/fakeModelApi'
@@ -126,6 +127,7 @@ function hostDeps(
   return {
     workspaceRoot: root,
     isActive: () => true,
+    isProjectTrusted: () => true,
     currentRoot: () => root,
     editProject: async (work) => await work(() => undefined),
     beforeProjectWrite: () => Promise.resolve(),
@@ -135,6 +137,14 @@ function hostDeps(
     log: new FakeLogOutputChannel(),
     ...overrides,
   }
+}
+
+/** Both actual UI flows select Claude and retain every listed candidate. */
+function pickClaudeImport(): void {
+  vi.mocked(pickOne).mockImplementationOnce((items) =>
+    Promise.resolve(items.find((item) => item.label === UI_TEXT.importSourceClaude)),
+  )
+  vi.mocked(pickMany).mockImplementationOnce((items) => Promise.resolve([...items]))
 }
 
 async function projectWrite(root: string, mode: ImportWrite['mode']): Promise<ImportWrite> {
@@ -179,6 +189,86 @@ function configDocument(file: string, text: string): TextDocument {
 }
 
 describe('import workspace write notices', () => {
+  it.each([true, false])(
+    'uses combined host trust with raw VS Code trust true (held=%s), preserving personal imports',
+    async (isHeld) => {
+      const root = '/ws'
+      const home = '/home/u'
+      const settings = `${home}/.config/muse/settings.json`
+      const hooks = `${root}/.muse/hooks.json`
+      const io = memoryImportIo({
+        files: {
+          [`${home}/.claude.json`]: '{"mcpServers":{"personal":{"command":"personal-server"}}}',
+          [`${home}/.claude/commands/review.md`]: 'Review carefully.',
+          [`${root}/.claude/settings.json`]:
+            '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"project-hook"}]}]}}',
+          [`${root}/.claude/commands/ship.md`]: 'Ship carefully.',
+        },
+      })
+      expect(workspace.isTrusted).toBe(true)
+      pickClaudeImport()
+      vi.mocked(inform).mockImplementation((_message, ...choices) => Promise.resolve(choices[0]))
+      const load = vi
+        .spyOn(workspace, 'openTextDocument')
+        .mockResolvedValue(configDocument(settings, ''))
+      const show = vi.spyOn(window, 'showTextDocument')
+      const apply = vi.spyOn(workspace, 'applyEdit').mockResolvedValue(true)
+      const warn = vi.spyOn(window, 'showWarningMessage')
+      try {
+        await runAgentImport(
+          hostDeps(root, {
+            isProjectTrusted: () => workspace.isTrusted && !isHeld,
+            isProjectHeld: () => isHeld,
+            museSettingsPath: () => settings,
+            bundle: () => ({
+              runAgentImport: bundledAgentImport,
+              importFromAgents: async (host) => {
+                const { environment: _environment, ...rest } = host
+                await runImportFlow({
+                  ...rest,
+                  platform: 'linux',
+                  homeDir: home,
+                  workspaceRoots: () => [root],
+                  io,
+                  writer: io,
+                  isPresent: io.isPresent,
+                  claudeConfigDir: undefined,
+                  codexHome: undefined,
+                  gate: createImportGate(),
+                })
+              },
+            }),
+          }),
+        )
+        expect(io.files.has(`${home}/.config/muse/skills/review/SKILL.md`)).toBe(true)
+        expect(io.files.has(`${root}/.agents/skills/ship/SKILL.md`)).toBe(!isHeld)
+        expect(load).toHaveBeenCalledWith(Uri.file(settings).with({ scheme: 'untitled' }))
+        expect(apply).toHaveBeenCalledTimes(isHeld ? 1 : 2)
+        const copied = apply.mock.calls.map(
+          ([edit]) => edit.get(Uri.file(settings))[0]?.newText ?? '',
+        )
+        expect(copied[0]).toContain('personal-server')
+        if (isHeld) {
+          expect(io.reads.filter((file) => file.startsWith(`${root}/`))).toEqual([])
+          expect(copied.join('\n')).not.toContain('project-hook')
+          expect(warn).toHaveBeenCalledWith(UI_TEXT.worktreeHeldShell)
+        } else {
+          expect(io.reads).toContain(`${root}/.claude/settings.json`)
+          expect(copied[1]).toContain('project-hook')
+          expect(warn).not.toHaveBeenCalled()
+        }
+        expect(show).toHaveBeenCalledTimes(isHeld ? 1 : 2)
+        expect(io.files.has(hooks)).toBe(false)
+        expect(io.files.has(settings)).toBe(false)
+      } finally {
+        load.mockRestore()
+        show.mockRestore()
+        apply.mockRestore()
+        warn.mockRestore()
+      }
+    },
+  )
+
   it('refuses an MCP server that appeared after preview, preserving the live editor bytes', async () => {
     const file = path.join(gates.home, 'settings.json')
     const prior = '{"mcpServers":{"new":{"command":"keep"}}}'
@@ -602,10 +692,7 @@ describe('import workspace write notices', () => {
     let active = await host.startSession(options)
     const original = active
     const captureOwner = vi.fn(() => f.manager.captureExternalEditOwner(active))
-    vi.mocked(pickOne).mockImplementationOnce((items) =>
-      Promise.resolve(items.find((item) => item.label === UI_TEXT.importSourceClaude)),
-    )
-    vi.mocked(pickMany).mockImplementationOnce((items) => Promise.resolve([...items]))
+    pickClaudeImport()
     const held = Promise.withResolvers<undefined>()
     const resume = Promise.withResolvers<string>()
     vi.mocked(inform).mockImplementationOnce(() => {

@@ -162,7 +162,6 @@ describe('shellEnvironment', () => {
     expect(env).toEqual({
       PATH: '/usr/bin',
       HOME: '/home/u',
-      META_API_KEY: 'LLM|1|x',
       VSCODE_SHELL_LOGIN: '1',
       SNAPSHOT_DIR: 'kept',
     })
@@ -201,7 +200,6 @@ describe('hookEnvironment (M51)', () => {
       HOME: '/home/u',
       PATH: '/usr/bin:/opt/bin',
       LANG: 'en_US.UTF-8',
-      CI_TOKEN: 'secret',
     })
   })
 

@@ -1,9 +1,17 @@
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { brotliDecompressSync } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { stageVsix, packagedChangelog } from '../../scripts/package-vsix.mjs'
+import { renderPackageReadme } from '../../scripts/check-badges.mjs'
+import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
 import { listFiles } from '@vscode/vsce/out/package.js'
+
+// The staged-bytes check starts three Node children, each loading vsce and
+// jsdom; hosted runners take about five seconds for the three.
+const CHILD_PROCESS_TIMEOUT_MS = 60_000
 
 const ROOT = process.cwd()
 const fixture = { root: '', stage: '', files: [] }
@@ -55,6 +63,7 @@ beforeAll(async () => {
     'dist/webview/main.css',
     'dist/webview/chunks/UsageDialog-test.js',
     'native/darwin/muse-dictate',
+    'l10n/ui.de.json.br',
   ]) {
     mkdirSync(path.dirname(path.join(fixture.root, file)), { recursive: true })
     writeFileSync(path.join(fixture.root, file), 'runtime')
@@ -82,6 +91,7 @@ describe('VSIX packaging', () => {
         'dist/validation.js',
         'dist/webview/chunks/UsageDialog-test.js',
         'native/darwin/muse-dictate',
+        'l10n/ui.tables.json.br',
       ]),
     )
     expect(packaged).not.toContain('docs/marketplace-readme.md')
@@ -89,16 +99,22 @@ describe('VSIX packaging', () => {
   it('compacts translations with identical values and leaves the source byte-exact', () => {
     const source = path.join(fixture.root, 'l10n/ui.de.json')
     const before = readFileSync(path.join(ROOT, 'l10n/ui.de.json'))
-    const shipped = readFileSync(path.join(fixture.stage, 'l10n/ui.de.json'), 'utf8')
-    expect(JSON.parse(shipped)).toEqual(JSON.parse(before))
-    expect(shipped).toBe(JSON.stringify(JSON.parse(before)))
+    const shipped = brotliDecompressSync(
+      readFileSync(path.join(fixture.stage, 'l10n/ui.tables.json.br')),
+    ).toString('utf8')
+    const table = readArchivedUiTable(shipped, 'de')
+    expect(JSON.parse(table)).toEqual(JSON.parse(before))
+    expect(table).toBe(JSON.stringify(JSON.parse(before)))
     expect(createHash('sha256').update(readFileSync(source)).digest('hex')).toBe(
       createHash('sha256').update(before).digest('hex'),
     )
   })
   it('keeps a compact guide and recent notes with links to complete documentation', () => {
     expect(readFileSync(path.join(fixture.stage, 'README.md'), 'utf8')).toBe(
-      readFileSync('docs/marketplace-readme.md', 'utf8'),
+      renderPackageReadme(
+        readFileSync('docs/marketplace-readme.md', 'utf8'),
+        JSON.parse(readFileSync(path.join(fixture.root, 'package.json'), 'utf8')).version,
+      ),
     )
     const source = readFileSync('CHANGELOG.md', 'utf8')
     const sections = source.matchAll(/^## \[\d+\.\d+\.\d+\].*$/gm).toArray()
@@ -108,6 +124,57 @@ describe('VSIX packaging', () => {
     expect(shipped).toContain('[Complete release history]')
     expect(packagedChangelog('## [0.1.0] - 2026-01-01\n\nNotes')).toContain('Notes')
     expect(() => packagedChangelog('No releases')).toThrow('No released')
+  })
+  it('generates both static badges from the manifest, with no unresolved token', () => {
+    const version = JSON.parse(
+      readFileSync(path.join(fixture.root, 'package.json'), 'utf8'),
+    ).version
+    const shipped = readFileSync(path.join(fixture.stage, 'README.md'), 'utf8')
+    expect(shipped).toContain(`/badge/Marketplace-v${version}-`)
+    expect(shipped).toContain(`/badge/Open%20VSX-v${version}-`)
+    expect(shipped).not.toContain('{version}')
+    expect(shipped).not.toContain('badgen.net/vs-marketplace/v/')
+  })
+  it(
+    'checks exact staged bytes and rejects a staged README or manifest version mismatch',
+    () => {
+      const readme = path.join(fixture.stage, 'README.md')
+      const manifest = path.join(fixture.stage, 'package.json')
+      const originalReadme = readFileSync(readme)
+      const originalManifest = readFileSync(manifest)
+      const version = JSON.parse(originalManifest).version
+      const check = () =>
+        execFileSync(
+          process.execPath,
+          ['scripts/check-badges.mjs', '--packaged-vsix', fixture.stage],
+          {
+            cwd: ROOT,
+            env: { ...process.env, CI: '', BADGE_CHECK_SKIP_NETWORK: 'fake-only staged fixture' },
+            encoding: 'utf8',
+            stdio: 'pipe',
+          },
+        )
+      expect(check()).toContain('network skipped: fake-only staged fixture')
+      try {
+        writeFileSync(
+          readme,
+          originalReadme.toString().replace(`Marketplace-v${version}`, 'Marketplace-v0.0.0'),
+        )
+        expect(check).toThrow('version mismatch')
+        writeFileSync(readme, originalReadme)
+        writeFileSync(manifest, JSON.stringify({ version: '0.0.0' }))
+        expect(check).toThrow('Staged manifest version mismatch')
+      } finally {
+        writeFileSync(readme, originalReadme)
+        writeFileSync(manifest, originalManifest)
+      }
+    },
+    CHILD_PROCESS_TIMEOUT_MS,
+  )
+  it('keeps the quiet GitHub star link in the README Marketplace and Open VSX render', () => {
+    expect(readFileSync(path.join(fixture.stage, 'README.md'), 'utf8')).toContain(
+      '[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)',
+    )
   })
   it('refuses a stage outside its owned build directory', async () => {
     await expect(stageVsix(fixture.root, path.join(fixture.root, 'other'))).rejects.toThrow(

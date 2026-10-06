@@ -81,9 +81,11 @@ describe('Transcript', () => {
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.hookMessageShowEdited }))
     expect(screen.getByText('a hook wrote this')).toBeTruthy()
     // Copy takes the original, whichever version shows.
-    const copyButtons = screen.getAllByRole('button', { name: UI_TEXT.copyResponse })
-    expect(copyButtons).toHaveLength(2)
-    fireEvent.click(copyButtons[0] ?? document.body)
+    // Copy lives in each row's actions menu (0.13.0).
+    const menus = screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions })
+    expect(menus).toHaveLength(2)
+    fireEvent.click(menus[0] ?? document.body)
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.copyResponse }))
     expect(copied).toEqual(['the model wrote this'])
   })
 
@@ -977,7 +979,7 @@ describe('Transcript rows (M25)', () => {
 })
 
 describe('Transcript replies (M25)', () => {
-  it('shows a fence still streaming as plain text, and highlights it once closed', () => {
+  it('shows a fence still streaming as plain text, and highlights it once closed', async () => {
     const streaming = '```ts\nconst a = 1'
     const view = mountTranscript([
       { kind: 'assistant', id: 'a', text: streaming, isStreaming: true },
@@ -988,7 +990,7 @@ describe('Transcript replies (M25)', () => {
     view.rerender({
       entries: [{ kind: 'assistant', id: 'a', text: `${streaming}\n\`\`\``, isStreaming: false }],
     })
-    expect(document.querySelector('.hljs-keyword')).not.toBeNull()
+    await screen.findByText('const', { selector: '.hljs-keyword' })
   })
 
   it('opens a relative link as a workspace file and refuses one outside it', () => {

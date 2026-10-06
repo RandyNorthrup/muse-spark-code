@@ -7,7 +7,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WhatsNewContent } from '../../src/core/whatsNew/whatsNewContent'
 import { createWhatsNewPagesFor } from '../../src/host/whatsNew/whatsNewPanel'
-import { UI_TEXT, WHATS_NEW_CHANGELOG_URL } from '../../src/shared/constants'
+import {
+  UI_TEXT,
+  WHATS_NEW_CHANGELOG_URL,
+  WHATS_NEW_REPOSITORY_URL,
+} from '../../src/shared/constants'
 import { FakeLogOutputChannel, FakeWebviewPanel } from './helpers/fakes'
 import { logLines } from './helpers/logText'
 import { commands as fakeCommands, env as fakeEnv, Uri, window as fakeWindow } from './mocks/vscode'
@@ -150,6 +154,21 @@ describe('createWhatsNewPagesFor', () => {
     await settle()
     expect(fakeCommands.executeCommand).toHaveBeenCalledTimes(2)
     expect(logLines(log).some((line) => line.includes('no Try it 2 on the page'))).toBe(true)
+  })
+
+  it('opens the footer’s indexed star link through the host', async () => {
+    const { pages, panels } = setUp()
+    pages.open(undefined, false)
+    const panel = panels[0]
+    const link = panel?.webview.html.match(
+      /<a href="https:\/\/github\.com\/RandyNorthrup\/muse-spark-code" data-link="(\d+)">/,
+    )
+    expect(link?.[1]).toBeDefined()
+    panel?.webview.messages.fire({ type: 'openLink', index: Number(link?.[1]) })
+    await settle()
+    expect(fakeEnv.openExternal).toHaveBeenCalledExactlyOnceWith(
+      Uri.parse(WHATS_NEW_REPOSITORY_URL),
+    )
   })
 
   it('never renders or runs a Try it for an unknown command, even when the content names one', async () => {

@@ -1,4 +1,4 @@
-// B/D/CS/G assembly (M98 phase 2): built as dist/judge.js, required only by
+// B/D/CS/G assembly (M98 phase 2): built as dist/judgeP2.js, required only by
 // an explicit judge surface. Source selection and per-attempt admission are
 // supplied by the caller; importing this factory starts no backend or server.
 import path from 'node:path'

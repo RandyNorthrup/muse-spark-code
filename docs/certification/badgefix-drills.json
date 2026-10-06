@@ -1,0 +1,140 @@
+[
+  {
+    "name": "store-dynamic-version",
+    "exit": 1,
+    "sha256": "d376d8636006aa28b0bab6be4cc0e176573b5641bb56a3bc6d72d1bb9bd884ae",
+    "restored": true
+  },
+  {
+    "name": "store-version-mismatch",
+    "exit": 1,
+    "sha256": "d376d8636006aa28b0bab6be4cc0e176573b5641bb56a3bc6d72d1bb9bd884ae",
+    "restored": true
+  },
+  {
+    "name": "npm-version-mismatch",
+    "exit": 1,
+    "sha256": "bb9b96ed0c1c2dc342e6902d87cfa5f37eacd41e507072584917fcfb16fa1b5c",
+    "restored": true
+  },
+  {
+    "name": "network-skip-reason",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "network-skip-ci",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "https-credentials",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "vsce-trusted-host",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "dynamic-version-guard",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "static-version-guard",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "static-label-guard",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "http-response-guard",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "https-redirect-guard",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "svg-content-type",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "svg-namespace",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "svg-doctype",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "svg-error-badge",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "svg-rendered-label-version",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "raster-content-type",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "manifest-version-render",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "markdown-reference-discovery",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "all-badge-refresh",
+    "exit": 1,
+    "sha256": "7ff636f6809c905d042e775e39a5836141bf416f0e56f17c3a121b06031a611c",
+    "restored": true
+  },
+  {
+    "name": "staged-readme-check",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  },
+  {
+    "name": "staged-manifest-version",
+    "exit": 1,
+    "sha256": "44491f05349518e4250014c7fbba7c2efa5e1e338067e301ff281e88fe09f799",
+    "restored": true
+  }
+]

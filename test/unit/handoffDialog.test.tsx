@@ -139,13 +139,13 @@ describe('/handoff (M74)', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'requestHandoff', requestId: REQUEST_ID })
   })
 
-  it('shows the brief and the open items it seeds before anything starts; Start sends the edited brief back', () => {
+  it('shows the brief and the open items it seeds before anything starts; Start sends the edited brief back', async () => {
     const postMessage = renderPanel()
     submit('/handoff Ship it')
     admit()
     expect(screen.queryByRole('dialog')).toBeNull()
     deliver({ ...READY, goal: 'Ship it', todos: ['Ship it', 'Tell the team'] })
-    const dialog = screen.getByRole('dialog')
+    const dialog = await screen.findByRole('dialog', { name: UI_TEXT.handoffDialogTitle })
     expect(dialog).toHaveTextContent(UI_TEXT.handoffDialogBody)
     expect(dialog).toHaveTextContent(fill(UI_TEXT.handoffRequestCardWithGoal, { goal: 'Ship it' }))
     expect(dialogText().value).toBe(BRIEF)
@@ -245,9 +245,39 @@ describe('/handoff (M74)', () => {
     },
   )
 
+  it('keeps a brief that arrives while the report dialog is open waiting, one modal at a time (M93)', async () => {
+    renderPanel()
+    submitCommand('/handoff')
+    admit()
+    deliver({
+      type: 'reportDraft',
+      session: 1,
+      revision: 0,
+      description: '',
+      includeFacts: true,
+      includeEvents: true,
+      items: [{ kind: 'facts', label: 'Support facts' }],
+      title: 'Problem report',
+      text: 'Muse Spark problem report',
+      hash: '0'.repeat(64),
+      canUseVscodeReporter: false,
+      recordingUnavailable: false,
+    })
+    const report = await screen.findByRole('dialog', { name: UI_TEXT.reportTitle })
+    deliver(READY)
+    // The report keeps the screen and the focus; the brief waits.
+    expect(modalRoots()).toEqual([report])
+    expect(report.contains(document.activeElement)).toBe(true)
+    expect(screen.queryByRole('button', { name: UI_TEXT.handoffConfirm })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.reportCancelAction }))
+    const dialog = screen.getByRole('dialog', { name: UI_TEXT.handoffDialogTitle })
+    expect(modalRoots()).toEqual([dialog])
+    expect(dialogText().value).toBe(BRIEF)
+  })
+
   it.each(['before', 'after'])(
     'keeps the handoff waiting when a share opens %s its brief, restoring focus on close (M84)',
-    (when) => {
+    async (when) => {
       const postMessage = renderPanel()
       submitCommand('/handoff')
       admit()
@@ -267,7 +297,7 @@ describe('/handoff (M74)', () => {
       if (when === 'before') {
         deliver(READY)
       }
-      const share = screen.getByRole('dialog', { name: 'Shared conversation' })
+      const share = await screen.findByRole('dialog', { name: 'Shared conversation' })
       expect(modalRoots()).toEqual([share])
       expect(share.contains(document.activeElement)).toBe(true)
       expect(screen.queryByRole('button', { name: UI_TEXT.handoffConfirm })).toBeNull()

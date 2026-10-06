@@ -86,7 +86,8 @@ describe('judge hook native advisory formats', () => {
       format,
       muse,
       { ...PAYLOAD, cwd: '/workspace', prompt: 'review this action' },
-      { sourceEvent: event },
+      // The borrowed POSIX fixture is not a Windows rooted path.
+      { sourceEvent: event, platform: 'linux', workspaceRoot: '/workspace' },
     )
     if (built.outcome !== 'run') throw new Error('fixture build refused')
     const result = await invoke(JSON.parse(built.stdin), { format, event })
@@ -128,7 +129,7 @@ describe('judge hook native advisory formats', () => {
           content: 'file',
           status: 'completed',
         },
-        { sourceEvent: event },
+        { sourceEvent: event, platform: 'linux', workspaceRoot: '/workspace' },
       )
       if (built.outcome !== 'run') throw new Error('fixture build refused')
       const deps = hookDeps()

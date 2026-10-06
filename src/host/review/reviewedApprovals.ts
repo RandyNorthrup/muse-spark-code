@@ -1,3 +1,4 @@
+import { startApprovalJudge } from '../../core/judge/use'
 // The approvals one conversation hands the Auto reviewer on Muse Code (M90,
 // PLAN.md D69). The panel holds a request Muse Code raised in Auto (its card
 // is not shown) and hands it here; this decides what follows:
@@ -18,6 +19,7 @@ import {
   isMuseCodeFaultError,
   isPromptSettledError,
 } from '../../core/agent/agentBackend'
+import type { JudgeAdvisory, JudgeFence } from '../../core/judge/use'
 import { allowOnceChoice } from '../../core/agent/approvalRules'
 import type { ReviewBreaker, ReviewRequest } from '../../core/backends/modelapi/autoReviewer'
 import type { CoreLogger } from '../../core/logging'
@@ -38,6 +40,7 @@ export interface ReviewedApprovalsDeps {
   readonly notice: (level: 'info' | 'warning', text: string) => void
   /** Whether the reviewer may still answer it: Auto, the setting on, the same session. */
   readonly mayAllow: (event: ApprovalRequest) => boolean
+  readonly judge?: JudgeAdvisory | undefined
   readonly log: CoreLogger
   /** A failure as the log may name it (never the CLI's own words). */
   readonly describeFailure: (error: unknown) => string
@@ -60,7 +63,8 @@ export type ReviewOne = (
 interface Held {
   event: ApprovalRequest
   readonly stop: AbortController
-  readonly caution: JudgeCautionLatch | undefined
+  readonly caution: JudgeFence | undefined
+  readonly useCaution: JudgeCautionLatch | undefined
 }
 
 interface Allowance {
@@ -118,12 +122,21 @@ export class ReviewedApprovals {
   ) {}
 
   private async judge(event: ApprovalRequest, hold: ReviewHold): Promise<void> {
-    this.held.get(event.approvalId)?.stop.abort()
-    this.held.get(event.approvalId)?.caution?.discard()
     const stop = new AbortController()
-    let caution: JudgeCautionLatch | undefined
+    const caution = startApprovalJudge(
+      this.deps.judge,
+      {
+        backend: 'museCode',
+        sessionId: hold.session.sessionId,
+        turnId: event.turnId ?? '',
+        tool: event.toolName,
+      },
+      event.rawArgs,
+      JSON.stringify(hold.request),
+    )
+    let useCaution: JudgeCautionLatch | undefined
     try {
-      caution = this.deps.judgeUses?.startReview(
+      useCaution = this.deps.judgeUses?.startReview(
         {
           action: {
             backend: 'museCode',
@@ -137,10 +150,10 @@ export class ReviewedApprovals {
         stop.signal,
       )
     } catch {
-      // A failed advisory leaves the independent reviewer unchanged.
-      caution = undefined
+      // A failed optional use has no opinion; the shipped judge and reviewer continue.
+      useCaution = undefined
     }
-    const held: Held = { event, stop, caution }
+    const held: Held = { event, stop, caution, useCaution }
     this.held.set(event.approvalId, held)
     this.deps.log.info(`Approval ${event.approvalId} goes to the Auto reviewer first`)
     if (this.isFirstReview()) {
@@ -168,14 +181,15 @@ export class ReviewedApprovals {
       return
     }
     this.held.delete(event.approvalId)
-    // Read exactly once at the existing fence; a pending judge is never awaited.
-    let hasCaution = false
+    const hasJudgeCaution = held.caution?.read() === 'caution'
+    let hasUseCaution = false
     try {
-      hasCaution = held.caution?.read() === true
+      hasUseCaution = held.useCaution?.read() ?? false
     } catch {
-      // A broken injected latch has no opinion; the reviewer's verdict stands.
-      held.caution?.discard()
+      // A broken injected latch has no opinion at the synchronous reviewer fence.
+      held.useCaution?.discard()
     }
+    if (hasJudgeCaution) held.event = { ...held.event, judgeCaution: true }
     if (outcome.hasTripped) {
       this.deps.notice('warning', UI_TEXT.autoReviewerTripped)
     }
@@ -184,7 +198,7 @@ export class ReviewedApprovals {
     )
     if (outcome.decision === 'ask') {
       this.deps.showCard(held.event, reviewNote(outcome))
-    } else if (hasCaution) {
+    } else if (hasJudgeCaution || hasUseCaution) {
       this.deps.showCard(held.event, undefined)
     } else if (this.deps.mayAllow(held.event)) {
       await this.allow(hold.session, held.event, outcome.reason)
@@ -236,6 +250,9 @@ export class ReviewedApprovals {
 
   /** An approval goes to the reviewer; the panel shows nothing of it until the review ends. */
   public hold(event: ApprovalRequest, hold: ReviewHold): void {
+    this.held.get(event.approvalId)?.caution?.discard()
+    this.held.get(event.approvalId)?.useCaution?.discard()
+    this.held.get(event.approvalId)?.stop.abort()
     void this.judge(event, hold)
   }
 
@@ -257,6 +274,7 @@ export class ReviewedApprovals {
       if (!isSame) {
         held.stop.abort()
         held.caution?.discard()
+        held.useCaution?.discard()
         this.held.delete(event.approvalId)
         this.deps.showCard(held.event, undefined)
       }
@@ -281,8 +299,9 @@ export class ReviewedApprovals {
    * transcript's reason when the reviewer allowed it, else undefined.
    */
   public resolved(event: Extract<AgentEvent, { type: 'approvalResolved' }>): string | undefined {
-    this.held.get(event.approvalId)?.stop.abort()
     this.held.get(event.approvalId)?.caution?.discard()
+    this.held.get(event.approvalId)?.useCaution?.discard()
+    this.held.get(event.approvalId)?.stop.abort()
     this.held.delete(event.approvalId)
     const allowance = this.allowed.get(event.approvalId)
     this.allowed.delete(event.approvalId)
@@ -296,6 +315,7 @@ export class ReviewedApprovals {
     for (const held of this.held.values()) {
       held.stop.abort()
       held.caution?.discard()
+      held.useCaution?.discard()
       this.deps.showCard(held.event, undefined)
     }
     this.held.clear()
@@ -313,6 +333,7 @@ export class ReviewedApprovals {
     for (const held of this.held.values()) {
       held.stop.abort()
       held.caution?.discard()
+      held.useCaution?.discard()
     }
     this.held.clear()
     this.allowed.clear()
