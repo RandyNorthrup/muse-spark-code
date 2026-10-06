@@ -21,6 +21,9 @@ export interface ResourceProcessLaunch {
   readonly parentPid?: number | undefined
 }
 export interface ResourceLease {
+  /** Explicit owner shutdown only; true proves dispatch, never whole-tree retirement. */
+  kill?: (() => Promise<boolean>) | undefined
+  isTreeGone?: (() => Promise<boolean>) | undefined
   register(process: ResourceProcessLaunch): void
   /** true requires failed spawn, logical completion, or proved whole-tree retirement. */
   complete(isTreeGone: boolean): void
@@ -31,7 +34,10 @@ export interface ResourceAdmissionPort {
   run<T>(kind: ResourceKind, action: () => Promise<T>, signal?: AbortSignal): Promise<T>
 }
 export interface ResourceTreeBinding {
-  readonly reader: ResourceTreeReader & { forget?: (ticket: ResourceTicket) => void }
+  readonly reader: ResourceTreeReader & {
+    forget?: (ticket: ResourceTicket) => void
+    kill?: (ticket: ResourceTicket, member: ResourceProcessIdentity) => Promise<boolean>
+  }
   readonly root: ResourceProcessIdentity | null
   readonly scope: ResourceTicket['scope']
   /** Failure is unknown, never retirement. */

@@ -44,6 +44,7 @@ import { isSamePath } from '../../core/paths'
 import { powerShellQuoted } from '../../core/shellQuote'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
+  CLI_OUTPUT_MAX_BYTES,
   BYTES_PER_MIB,
   FILE_REFUSAL_MODEL_TEXT,
   HOOK_FORBIDDEN_ENV_NAMES,
@@ -64,11 +65,69 @@ import {
 import { canonicalPath } from '../canonicalPath'
 import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
 import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
+import { spawnMcpJob } from './mcpJobLaunch'
 import { joinStatement, newShellJob } from './shellJob'
 import type { ResourceLease } from '../../core/resources/launch'
-import { admitResource } from '../../core/resources/admission'
+import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
 import { observeResourceProcess } from '../resources/resourceAdmission'
 import { holdResourceJob } from '../resources/resourceJobHolder'
+
+/** Short window CLI commands share the shell's admission, native tree and bounded teardown. */
+export async function runResourceCommand(
+  invocation: { readonly command: string; readonly args: readonly string[] },
+  timeoutMs: number,
+  cwd?: string,
+  env?: NodeJS.ProcessEnv,
+  signal?: AbortSignal,
+  assertCanRun?: () => void,
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  let resource: ResourceLease | undefined
+  let nativeJob: Awaited<ReturnType<typeof resourceWindowsJob>>
+  const childEnv = env ?? process.env
+  const systemRoot = environmentValue(childEnv, process.platform, 'SystemRoot')
+  try {
+    resource = await admitResource('other', signal, 'foreground')
+    nativeJob =
+      resource !== undefined && process.platform === 'win32'
+        ? await resourceWindowsJob()
+        : undefined
+    assertCanRun?.()
+  } catch (error: unknown) {
+    resource?.complete(true)
+    return {
+      exitCode: -1,
+      stdout: '',
+      stderr: error instanceof Error ? error.message : String(error),
+    }
+  }
+  const result = await runCommand({
+    file: invocation.command,
+    args: invocation.args,
+    cwd: cwd ?? process.cwd(),
+    env: childEnv,
+    timeoutMs,
+    signal,
+    tree: {
+      platform: process.platform,
+      systemRoot,
+      log: () => {
+        /* The caller scrubs and reports the command result. */
+      },
+    },
+    nativeJob,
+    resource,
+    maxOutputBytes: CLI_OUTPUT_MAX_BYTES,
+    maxOutputChars: CLI_OUTPUT_MAX_BYTES,
+  })
+  return {
+    exitCode:
+      result.isTimedOut || result.isCancelled || result.isOutputTooLarge === true
+        ? -1
+        : (result.exitCode ?? -1),
+    stdout: result.stdout,
+    stderr: result.stderr,
+  }
+}
 
 export interface ToolIoDeps {
   readonly platform: NodeJS.Platform
@@ -825,6 +884,8 @@ export class BoundedText {
 }
 
 export interface CommandRun {
+  readonly nativeJob?: Awaited<ReturnType<typeof resourceWindowsJob>>
+  readonly maxOutputChars?: number | undefined
   readonly resource?: ResourceLease | undefined
   readonly file: string
   readonly args: readonly string[]
@@ -847,14 +908,27 @@ export interface CommandRun {
 function startProcess(run: CommandRun) {
   try {
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is the payload by design: the user approved it on a card, and it runs through the interpreter as an argument array, never a shell string (PLAN.md §8)
-    const child = spawn(run.file, [...run.args], {
-      cwd: run.cwd,
-      env: run.env,
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      ...treeSpawnOptions(run.tree.platform),
-    })
-    observeResourceProcess(run.resource, child, run.job)
+    const child =
+      run.nativeJob === undefined
+        ? spawn(run.file, [...run.args], {
+            cwd: run.cwd,
+            env: run.env,
+            windowsHide: true,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            ...treeSpawnOptions(run.tree.platform),
+          })
+        : spawnMcpJob({
+            executablePath: run.nativeJob.executablePath,
+            resourceAssembly: run.nativeJob.assemblyPath,
+            file: run.file,
+            args: run.args,
+            cwd: run.cwd,
+            env: run.env,
+            isVerbatim: false,
+            resource: run.resource,
+            log: run.tree.log,
+          })
+    if (run.nativeJob === undefined) observeResourceProcess(run.resource, child, run.job)
     return child
   } catch (error: unknown) {
     return error instanceof Error ? error : new Error(String(error))
@@ -892,8 +966,8 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       resolve(unstartedShell(child.message))
       return
     }
-    const stdout = new BoundedText(SHELL_OUTPUT_MAX_CHARS)
-    const stderr = new BoundedText(SHELL_OUTPUT_MAX_CHARS)
+    const stdout = new BoundedText(run.maxOutputChars ?? SHELL_OUTPUT_MAX_CHARS)
+    const stderr = new BoundedText(run.maxOutputChars ?? SHELL_OUTPUT_MAX_CHARS)
     let isTimedOut = false
     let isCancelled = false
     let isOutputTooLarge = false

@@ -64,6 +64,8 @@ export async function holdResourceJob(
     wasRetired = hasEnded && code === 0 && signal === null
   })
   return {
+    kill: lease.kill,
+    isTreeGone: lease.isTreeGone,
     register: (launch) => {
       lease.register({ ...launch, job: { ...job, isRetired: () => wasRetired } })
     },

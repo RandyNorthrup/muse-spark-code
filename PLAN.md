@@ -19621,6 +19621,23 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**FIXM107INT review repair (2026-10-06, Win11).** Fix all four RVM107INT
+findings on the merged G/A/C1 tree: bounded SDK shutdown with a registry-
+verified Windows whole-job kill, foreground admission for queued user turns,
+schedule-id/generation-owned leases, and governed/native-registered short
+window CLI commands. Add a before-fix regression and byte-exact red drill per
+finding, Windows native receipts, scoped static/build gates and hooked local
+commits. No dependency, guard widening, paid/live call or full quality run;
+the rig brief delegates aggregate qualification to the lead. Record receipts
+in `docs/certification/m107-c1.md`; name any residual in §9.
+The complete spawn inventory also routes the plugin runtime's default version
+probe through its existing native tree port. Session cleanup runs in finally
+when bounded SDK close rejects. Native initialized-close testing proves the
+CLI must inherit the SDK's handles directly: PowerShell's native pipeline can
+close MSP input before initialization. Reuse the existing suspended MCP job
+launcher, its owner/nonce handshake and native argv quoting for that launch;
+no protocol field or model request changes.
+
 **M107INT2 continuation (2026-10-06, Win11).** Merge the G review repairs
 (`6bd4b74a`) and A controllers/review repairs (`9501f9cf`) into C1's
 `83f5b458` tree with the two listed no-fast-forward merges. Preserve additive
@@ -20103,6 +20120,15 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM107INT bounded review certification (2026-10-06).** The user's rig
+brief/common rules prohibit full quality and aggregate unit/coverage runs.
+Run complete owning files in serial groups of at most three, before-fix
+regressions and byte-exact red drills, native Windows receipts, all-project
+typecheck, scoped lint/format, localization, host API regeneration/review,
+cycles, plain knip, duplication and production build/caps. The lead owns
+aggregate quality and the remaining platform/editor qualification. No gate,
+threshold, cap or existing skip changes. See `docs/certification/m107-c1.md`.
 
 **M107INT2 bounded continuation certification (2026-10-06).** The rig
 brief requires the two named G/A merges, six native Windows cases and the
@@ -21329,6 +21355,17 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM107INT qualification (2026-10-06).** The four RVM107INT findings
+  are repaired at their launch, queue and ownership boundaries; none is
+  accepted as a reviewed residual. Explicit owner shutdown alone invokes
+  registry-verified job termination. Native birth identity and membership
+  are checked through the same job handle before termination; governor policy
+  still kills nothing. Failed proof retains unknown capacity and rejects
+  close within its bound. Windows receipts and deliberate failures are in
+  `docs/certification/m107-c1.md`. The rig forbids full quality/coverage and
+  non-Windows/editor delivery qualification here; those existing W/lead
+  handoffs remain, along with the separate T2 actuator binding below.
 
 - **M107-INT2-actuator-lifecycle-binding (2026-10-06).** G and A's reviewed
   implementations are merged; all six Windows-native cases pass, including

@@ -30,6 +30,27 @@ function pendingMembership(reader: FakeResourceTree) {
 }
 
 describe('resource launch authority (M107 T)', () => {
+  it('kills only a current registered member and refuses retirement during proof', async () => {
+    const { ticket, reader } = world()
+    const kill = vi.fn(() => Promise.resolve(true))
+    const registry = new ResourceTreeRegistry(Object.assign(reader, { kill }))
+    expect(await registry.kill(ticket)).toBe(false)
+    await registry.register(ticket)
+    expect(await registry.kill({ ...ticket, sessionId: 'forged' })).toBe(false)
+    expect(await registry.kill(ticket)).toBe(true)
+    expect(kill).toHaveBeenCalledExactlyOnceWith(ticket, ticket.root)
+    const proof = pendingMembership(reader)
+    vi.mocked(reader.contains).mockClear()
+    const pending = registry.kill(ticket)
+    await vi.waitFor(() => {
+      expect(reader.contains).toHaveBeenCalledWith(ticket, ticket.root)
+    })
+    registry.unregister(ticket)
+    proof.resolve(true)
+    expect(await pending).toBe(false)
+    expect(kill).toHaveBeenCalledTimes(1)
+  })
+
   it('registers every kind and both classes with its actual root, scope and session', async () => {
     for (const kind of resourceKindSchema.options) {
       for (const workClass of ['foreground', 'background'] as const) {

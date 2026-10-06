@@ -26,10 +26,9 @@
 import { Buffer } from 'node:buffer'
 import { admitResource } from '../../resources/admission'
 import type { ResourceLease } from '../../resources/launch'
-import { type ChildProcess, execFile as nodeExecFile, spawn as nodeSpawn } from 'node:child_process'
+import { type ChildProcess, spawn as nodeSpawn } from 'node:child_process'
 import { statSync } from 'node:fs'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import * as z from 'zod/mini'
 import {
   HOOK_FORBIDDEN_ENV_NAMES,
@@ -73,7 +72,7 @@ export interface PluginChildHandle {
   /** Writes the request and closes stdin; a write error reaches `onError`. */
   write(text: string): void
   onStdout(listener: (chunk: Buffer) => void): void
-  onClose(listener: () => void): void
+  onClose(listener: (code?: number | null) => void): void
   /** A spawn error, or a stdin error such as EPIPE. */
   onError(listener: () => void): void
 }
@@ -123,15 +122,66 @@ export type RuntimeResolution =
   | { readonly ok: true; readonly command: string; readonly args: readonly string[] }
   | { readonly ok: false; readonly reason: string }
 
-const execFileAsync = promisify(nodeExecFile)
-
-async function defaultRunVersion(command: string, env: NodeJS.ProcessEnv): Promise<string> {
-  const { stdout } = await execFileAsync(command, ['--version'], {
-    env,
-    timeout: PLUGIN_RUNTIME_PROBE_TIMEOUT_MS,
-    windowsHide: true,
+async function defaultRunVersion(
+  command: string,
+  env: NodeJS.ProcessEnv,
+  deps: PluginRunDeps,
+  signal?: AbortSignal,
+): Promise<string> {
+  const tree = treeFor(deps, deps.platform ?? process.platform)
+  if (tree === undefined) throw new Error('Plugin runtime probe has no process tree')
+  const resource = await admitResource('hook', signal)
+  let child: PluginChildHandle
+  try {
+    if (signal?.aborted === true) throw new Error('Plugin runtime probe cancelled')
+    child = await tree.spawn(command, ['--version'], {
+      env,
+      cwd: path.dirname(command),
+      ...(resource !== undefined && { resource }),
+    })
+  } catch (error: unknown) {
+    resource?.complete(true)
+    throw error
+  }
+  return await new Promise<string>((resolve, reject) => {
+    const chunks: Buffer[] = []
+    let bytes = 0
+    let isDone = false
+    const finish = (error?: Error) => {
+      if (isDone) return
+      isDone = true
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
+      endTree(tree, child)
+      if (error === undefined) resolve(Buffer.concat(chunks).toString('utf8'))
+      else reject(error)
+    }
+    const abort = () => {
+      finish(new Error('Plugin runtime probe cancelled'))
+    }
+    const timer = setTimeout(() => {
+      finish(new Error('Plugin runtime probe timed out'))
+    }, PLUGIN_RUNTIME_PROBE_TIMEOUT_MS)
+    signal?.addEventListener('abort', abort, { once: true })
+    child.onError(() => {
+      finish(new Error('Plugin runtime probe failed'))
+    })
+    child.onClose((code) => {
+      finish(
+        code === undefined || code === 0
+          ? undefined
+          : new Error('Plugin runtime probe exited unsuccessfully'),
+      )
+    })
+    child.onStdout((chunk) => {
+      if (isDone) return
+      bytes += chunk.byteLength
+      if (bytes > PLUGIN_RESPONSE_MAX_BYTES)
+        finish(new Error('Plugin runtime probe output exceeded its bound'))
+      else chunks.push(chunk)
+    })
+    if (signal?.aborted === true) abort()
   })
-  return stdout
 }
 
 function isExistingFile(filePath: string): boolean {
@@ -186,10 +236,13 @@ function withoutCredentials(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 export async function resolvePluginRuntime(
   system: PluginSystem,
   deps: PluginRunDeps,
+  signal?: AbortSignal,
 ): Promise<RuntimeResolution> {
   const platform = deps.platform ?? process.platform
   const env = withoutCredentials(deps.env)
-  const runVersion = deps.runVersion ?? defaultRunVersion
+  const runVersion =
+    deps.runVersion ??
+    ((command: string, env: NodeJS.ProcessEnv) => defaultRunVersion(command, env, deps, signal))
   const name = system === 'amp' ? 'node' : 'bun'
   const command = resolveExecutable(name, {
     platform,
@@ -301,8 +354,8 @@ export function nodeChildHandle(child: ChildProcess): PluginChildHandle {
       })
     },
     onClose: (listener) => {
-      child.on('close', () => {
-        listener()
+      child.on('close', (code) => {
+        listener(code)
       })
     },
     onError: (listener) => {
@@ -542,7 +595,7 @@ async function runInScope(
       transportFailure(call, 'plugin children run only in a job object, which is unavailable here'),
     )
   }
-  const runtime = await resolvePluginRuntime(call.system, deps)
+  const runtime = await resolvePluginRuntime(call.system, deps, scope?.signal)
   if (scope?.isClosed() === true) return closed()
   if (!runtime.ok) return settled(call, transportFailure(call, runtime.reason))
   const source = deps.childSource ?? pluginChildSource()
@@ -643,6 +696,7 @@ export async function runPluginHook(
 
 /** One session's plugin children: dispose ends every live child's tree. */
 export class PluginSession {
+  private readonly resourceStop = new AbortController()
   private readonly owned = new Set<PluginChildHandle>()
   private isDisposed = false
 
@@ -653,16 +707,21 @@ export class PluginSession {
    * A stopped turn (`signal`) ends the child and answers nothing.
    */
   public async run(call: PluginCall, signal?: AbortSignal): Promise<ForeignHookAnswer> {
+    const stop =
+      signal === undefined
+        ? this.resourceStop.signal
+        : AbortSignal.any([signal, this.resourceStop.signal])
     return await runInScope(call, this.deps, {
       owned: this.owned,
       isClosed: () => this.isDisposed || signal?.aborted === true,
-      signal,
+      signal: stop,
     })
   }
 
   /** End every live child's tree; later calls are refused. */
   public dispose(): void {
     this.isDisposed = true
+    this.resourceStop.abort()
     const tree = treeFor(this.deps, this.deps.platform ?? process.platform)
     if (tree !== undefined) for (const child of this.owned) endTree(tree, child)
     this.owned.clear()

@@ -2,13 +2,14 @@ import * as childProcess from 'node:child_process'
 import * as museSdk from '@muse-code/sdk'
 import { spawnResourceMuseConnection } from '../../src/host/resources/museResourceLaunch'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { admitResource } from '../../src/core/resources/admission'
+import { admitResource, resourceWindowsJob } from '../../src/core/resources/admission'
 import type { ResourceLease } from '../../src/core/resources/launch'
 import { nativeToolIo } from './helpers/fakeToolIo'
 import { createGitProcess } from '../../src/host/git'
 import { modelApiMcpPoolDeps } from '../../src/host/backend/mcpServers'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { spawnHelper, startRecorder } from '../../src/host/voice/voiceProcesses'
+import { runResourceCommand } from '../../src/host/backend/toolIo'
 
 vi.mock('../../src/core/resources/admission', () => ({
   admitResource: vi.fn(),
@@ -20,19 +21,80 @@ const lease: ResourceLease = { register: vi.fn(), complete: vi.fn(), background:
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(admitResource).mockResolvedValue(lease)
+  vi.mocked(resourceWindowsJob).mockResolvedValue(undefined)
 })
 
 const io = () => nativeToolIo(undefined, () => process.env)
 
 describe('C1 final process admission', () => {
+  it.each([-1, 0.5, NaN, Infinity, 2_147_483_648])(
+    'refuses an invalid SDK shutdown timer %s before launch',
+    async (shutdownTimeoutMs) => {
+      await expect(
+        spawnResourceMuseConnection(
+          { command: 'unused', shutdownTimeoutMs },
+          lease,
+          () => Promise.resolve(undefined),
+          process.env['SystemRoot'],
+          () => Promise.resolve(),
+        ),
+      ).rejects.toThrow(RangeError)
+      expect(museSdk.spawnMspConnection).not.toHaveBeenCalled()
+      expect(lease.complete).toHaveBeenCalledWith(true)
+    },
+  )
+
+  it('admits and registers short CLI commands before they start', async () => {
+    const held = Promise.withResolvers<ResourceLease>()
+    vi.mocked(admitResource).mockReturnValue(held.promise)
+    const pending = runResourceCommand(
+      { command: process.execPath, args: ['-e', "process.stdout.write('cli-result')"] },
+      1000,
+    )
+    expect(childProcess.spawn).not.toHaveBeenCalled()
+    expect(childProcess.execFile).not.toHaveBeenCalled()
+    expect(admitResource).toHaveBeenCalledWith('other', undefined, 'foreground')
+    held.resolve(lease)
+    expect(await pending).toEqual({ exitCode: 0, stdout: 'cli-result', stderr: '' })
+    expect(lease.register).toHaveBeenCalledWith(
+      expect.objectContaining({ pid: expect.any(Number) }),
+    )
+    expect(lease.complete).toHaveBeenCalledWith(false)
+  })
+
+  it('rechecks short CLI ownership after admission and never starts a cancelled command', async () => {
+    const held = Promise.withResolvers<ResourceLease>()
+    vi.mocked(admitResource).mockReturnValue(held.promise)
+    let isAllowed = true
+    const stop = new AbortController()
+    const pending = runResourceCommand(
+      { command: process.execPath, args: ['-e', 'process.exit(0)'] },
+      1000,
+      undefined,
+      undefined,
+      stop.signal,
+      () => {
+        if (!isAllowed) throw new Error('CLI owner changed')
+      },
+    )
+    isAllowed = false
+    held.resolve(lease)
+    expect(await pending).toMatchObject({ exitCode: -1, stderr: 'CLI owner changed' })
+    expect(childProcess.spawn).not.toHaveBeenCalled()
+    expect(lease.complete).toHaveBeenCalledWith(true)
+  })
   it('rechecks the Muse SDK owner after launch preparation before the SDK can start a process', async () => {
     const sdk = vi.spyOn(museSdk, 'spawnMspConnection')
+    vi.mocked(resourceWindowsJob).mockResolvedValue({
+      assemblyPath: 'unused.dll',
+      executablePath: 'unused.exe',
+    })
     try {
       await expect(
         spawnResourceMuseConnection(
           { command: 'unused', args: [] },
           lease,
-          () => Promise.resolve(undefined),
+          () => Promise.resolve('unused.dll'),
           process.env['SystemRoot'],
           () => {
             throw new Error('Muse owner changed')

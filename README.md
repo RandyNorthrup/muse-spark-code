@@ -3862,7 +3862,13 @@ M107's staged resource integration uses a shared admission shim and loads
 check, MCP, hook, browser, Git, voice/recording and Muse Code adapters share it; Model API
 attempts, children and scheduled runs carry background admission. Windows
 jobs preserve the browser's CDP pipes and retain a query handle until the
-whole job is empty. Holder failure retains unknown work. Missing native identity proof remains
+whole job is empty. Short CLI commands and plugin runtime probes share
+admission and native registration. Queued user turns retain the foreground
+20-second bound; each schedule owns its lease by id and generation.
+Muse Code inherits the SDK's stdio directly, and closing it stops its verified
+Windows job within a bounded shutdown. A forced stop or missing exit proof
+is reported explicitly, with session handles still disposed. Holder failure
+retains unknown work. Missing native identity proof remains
 unknown. The remaining milestone lanes supply actions, routing, UI, runtime
 wiring and final delivery; see [C1 certification](docs/certification/m107-c1.md).
 

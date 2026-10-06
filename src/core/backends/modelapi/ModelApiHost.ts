@@ -763,6 +763,7 @@ interface ChildTaskGrant {
 }
 
 interface QueuedTurn {
+  readonly resourceClass?: 'foreground' | 'background'
   readonly turnId: string
   readonly parts: readonly TurnPart[]
   readonly displayText: string | undefined
@@ -2081,7 +2082,15 @@ export class ModelApiSession implements AgentSession {
   /** Model calls since the goal last moved: the step probe's count (D38). */
   private goalSteps = 0
   private resourceAdmissionStop = new AbortController()
-  private scheduledResource: ResourceLease | undefined
+  private scheduledResource:
+    | {
+        readonly id: string
+        readonly generation: number
+        readonly lease: ResourceLease | undefined
+        turnId?: string
+      }
+    | undefined
+  private scheduleResourceGeneration = 0
   private scheduleTimer: ReturnType<typeof setInterval> | undefined
   private usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
   /**
@@ -10509,8 +10518,10 @@ export class ModelApiSession implements AgentSession {
         }),
       })
     }
-    this.scheduledResource?.complete(true)
-    this.scheduledResource = undefined
+    if (this.scheduledResource?.turnId === turn.turnId) {
+      this.scheduledResource.lease?.complete(true)
+      this.scheduledResource = undefined
+    }
     this.emit({
       type: 'turnCompleted',
       turnId: turn.turnId,
@@ -10545,7 +10556,15 @@ export class ModelApiSession implements AgentSession {
         })
         continue
       }
-      this.track(this.runTurn(next), false)
+      this.track(
+        inResourceClass(
+          next.resourceClass ?? (this.isSubagent ? 'background' : 'foreground'),
+          async () => {
+            await this.runTurn(next)
+          },
+        ),
+        false,
+      )
       return
     }
   }
@@ -10889,6 +10908,7 @@ export class ModelApiSession implements AgentSession {
       throw new Error(UI_TEXT.scheduleConfirmationExpired)
     if (!this.deps.isPaidFeatureOn('scheduledPrompts')) throw new Error(UI_TEXT.schedulePaidOff)
     if (this.isDisposed || this.isScheduleBusy()) throw new Error(UI_TEXT.scheduleBusy)
+    const generation = ++this.scheduleResourceGeneration
     const resource = await admitResource(
       'schedule',
       this.resourceAdmissionStop.signal,
@@ -10897,11 +10917,14 @@ export class ModelApiSession implements AgentSession {
     try {
       return await inResourceClass(
         'background',
-        async () => await this.runAdmittedSchedule(id, occurrenceMs, confirmed, resource),
+        async () =>
+          await this.runAdmittedSchedule(id, occurrenceMs, confirmed, resource, generation),
       )
     } catch (error: unknown) {
       resource?.complete(true)
-      this.scheduledResource = undefined
+      if (this.scheduledResource?.id === id && this.scheduledResource.generation === generation) {
+        this.scheduledResource = undefined
+      }
       throw error
     }
   }
@@ -10911,6 +10934,7 @@ export class ModelApiSession implements AgentSession {
     occurrenceMs: number,
     confirmed: ScheduleRunConfirmation,
     resource: ResourceLease | undefined,
+    generation: number,
   ): Promise<TurnSubmission> {
     if (this.isSideChat) {
       throw new Error(UI_TEXT.sideChatPlanOnly)
@@ -10948,6 +10972,9 @@ export class ModelApiSession implements AgentSession {
     // The request carries only the confirmed model and a digest of the key.
     // The client checks the actual SecretStorage key just before HTTP.
     const requestFor = (turnId: string): ConfirmedModelRequest => {
+      if (this.scheduledResource?.id === id && this.scheduledResource.generation === generation) {
+        this.scheduledResource.turnId = turnId
+      }
       let hasStarted = false
       return {
         modelId: confirmed.modelId,
@@ -10980,7 +11007,7 @@ export class ModelApiSession implements AgentSession {
     }
     // No await between this check and sendTurn: a new turn cannot slip in and
     // turn a confirmed scheduled prompt into a silently queued later run.
-    this.scheduledResource = resource
+    this.scheduledResource = { id, generation, lease: resource }
     const submission = await this.sendTurn(
       [{ type: 'text', text: job.prompt }],
       job.prompt,
@@ -11014,6 +11041,8 @@ export class ModelApiSession implements AgentSession {
     const userMessageId = this.deps.newId()
     const confirmedRequest = requestFor?.(turnId)
     const queued: QueuedTurn = {
+      resourceClass:
+        confirmedRequest !== undefined || this.isSubagent ? 'background' : 'foreground',
       turnId,
       parts,
       displayText,
@@ -11812,7 +11841,7 @@ export class ModelApiSession implements AgentSession {
     }
     this.isDisposed = true
     this.resourceAdmissionStop.abort()
-    this.scheduledResource?.complete(true)
+    this.scheduledResource?.lease?.complete(true)
     this.scheduledResource = undefined
     if (this.shellSidecarFile !== undefined) {
       // The session's side file goes with it; a tracked call still running

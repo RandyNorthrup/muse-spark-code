@@ -1,6 +1,11 @@
 import { Buffer } from 'node:buffer'
 import * as resourceAdmission from '../../src/core/resources/admission'
 import type { ResourceLease } from '../../src/core/resources/launch'
+import { ResourceLaunchHost } from '../../src/core/resources/launchHost'
+import { ResourceGovernor } from '../../src/core/resources/governor'
+import { ResourceEvents } from '../../src/core/resources/events'
+import { resourceSettingsSchema } from '../../src/shared/resources'
+import { FakeResourceClock, ScriptedResourceSampler } from './helpers/resources/fakes'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { rename } from 'node:fs/promises'
@@ -31,6 +36,7 @@ import {
   type PermissionMode,
   type PromptCacheRetention,
   REVIEW_MODEL_TEXT,
+  RESOURCE_FOREGROUND_WAIT_MS,
   SCHEDULE_LIFETIME_MS,
   SUBAGENT_MAX_PER_CONVERSATION,
   UI_TEXT,
@@ -1908,6 +1914,179 @@ async function startAccountScopedSchedules(
 }
 
 describe('Model API scheduled prompts (M52)', () => {
+  it('admits a user turn queued behind a schedule as foreground at its exact wait bound', async () => {
+    const clock = new FakeResourceClock()
+    const settings = resourceSettingsSchema.parse({})
+    const resourceEvents = new ResourceEvents(vi.fn())
+    const governor = new ResourceGovernor({
+      clock,
+      settings,
+      events: resourceEvents,
+      sampler: new ScriptedResourceSampler([]),
+      hasRelocationTarget: () => false,
+      onError: vi.fn(),
+    })
+    const capacity = vi.spyOn(governor, 'capacity').mockReturnValue(null)
+    const resources = new ResourceLaunchHost({
+      clock,
+      governor,
+      events: resourceEvents,
+      settings: () => settings,
+      bindTree: () => Promise.resolve(null),
+      onError: vi.fn(),
+    })
+    const context = vi
+      .spyOn(resourceAdmission, 'inResourceClass')
+      .mockImplementation(async (workClass, action) => await resources.inClass(workClass, action))
+    const admission = vi
+      .spyOn(resourceAdmission, 'admitResource')
+      .mockImplementation(
+        async (kind, signal, workClass) => await resources.admit(kind, signal, workClass),
+      )
+    let now = 1_000_000
+    const held = Promise.withResolvers<boolean>()
+    const scheduledHook = Promise.withResolvers<boolean>()
+    const queuedHook = Promise.withResolvers<boolean>()
+    let hooks = 0
+    let isEntered = false
+    const t = setup({
+      store: memorySessionStore(),
+      paid: ['scheduledPrompts'],
+      scheduleStore: createFileScheduleStore({
+        directory: path.join(scheduleRoot, 'queued-resource-class'),
+        now: () => now,
+        log: new FakeLogOutputChannel(),
+      }),
+      hooks: hooksFor('PreLLMCall', 'resource-hook'),
+      runHook: async () => {
+        hooks++
+        if (hooks === 1) {
+          scheduledHook.resolve(true)
+          await held.promise
+        } else {
+          queuedHook.resolve(true)
+          const lease = await resourceAdmission.admitResource('hook')
+          isEntered = true
+          lease?.complete(true)
+        }
+        return await hookReply('{}')
+      },
+    })
+    try {
+      const { session, events } = await startSession(t)
+      const { schedules, job } = await dueSchedule(t, session)
+      now = job.nextFireAtMs + 1
+      t.api.script({ text: 'scheduled' }, { text: 'user' })
+      await schedules.run(job.id, job.nextFireAtMs, confirmedRun(job, session))
+      await scheduledHook.promise
+      const queued = await session.sendTurn([{ type: 'text', text: 'user queued' }])
+      expect(queued.disposition).toBe('queued')
+      capacity.mockReturnValue(0)
+      held.resolve(true)
+      await queuedHook.promise
+      await Promise.resolve()
+      expect(isEntered).toBe(false)
+      clock.advance(RESOURCE_FOREGROUND_WAIT_MS - 1)
+      await Promise.resolve()
+      expect(isEntered).toBe(false)
+      clock.advance(1)
+      await vi.waitFor(() => {
+        expect(isEntered).toBe(true)
+      })
+      await vi.waitFor(() => {
+        expect(events.filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
+      })
+    } finally {
+      held.resolve(true)
+      capacity.mockReturnValue(null)
+      resources.dispose()
+      await t.host.close()
+      context.mockRestore()
+      admission.mockRestore()
+    }
+  })
+
+  it.each(['duplicate', 'different'] as const)(
+    'releases a rejected %s schedule lease without clearing the running generation',
+    async (kind) => {
+      const firstLease: ResourceLease = {
+        register: vi.fn(),
+        complete: vi.fn(),
+        background: vi.fn(),
+      }
+      const secondLease: ResourceLease = {
+        register: vi.fn(),
+        complete: vi.fn(),
+        background: vi.fn(),
+      }
+      const admission = vi
+        .spyOn(resourceAdmission, 'admitResource')
+        .mockResolvedValueOnce(firstLease)
+        .mockResolvedValueOnce(secondLease)
+      const claims = [Promise.withResolvers<boolean>(), Promise.withResolvers<boolean>()]
+      let now = 1_000_000
+      const store = createFileScheduleStore({
+        directory: path.join(scheduleRoot, `concurrent-resource-leases-${kind}`),
+        now: () => now,
+        log: new FakeLogOutputChannel(),
+      })
+      const claim = vi
+        .spyOn(store, 'claim')
+        .mockImplementationOnce(() => claims[0]!.promise)
+        .mockImplementationOnce(() => claims[1]!.promise)
+      const hook = Promise.withResolvers<boolean>()
+      const release = Promise.withResolvers<boolean>()
+      const t = setup({
+        store: memorySessionStore(),
+        paid: ['scheduledPrompts'],
+        scheduleStore: store,
+        hooks: hooksFor('PreLLMCall', 'hold-schedule'),
+        runHook: async () => {
+          hook.resolve(true)
+          await release.promise
+          return await hookReply('{}')
+        },
+      })
+      try {
+        const { session, turnDone } = await startSession(t)
+        const { schedules, job } = await dueSchedule(t, session)
+        const other =
+          kind === 'duplicate'
+            ? job
+            : await schedules.create({ kind: 'interval', everyMs: 60_000 }, 'Other scheduled task')
+        if (kind === 'different') t.advanceClock(65_000)
+        now = Math.max(job.nextFireAtMs, other.nextFireAtMs) + 1
+        t.api.script({ text: 'scheduled' })
+        const running = schedules.run(job.id, job.nextFireAtMs, confirmedRun(job, session))
+        await vi.waitFor(() => {
+          expect(claim).toHaveBeenCalledTimes(1)
+        })
+        const rejected = schedules.run(other.id, other.nextFireAtMs, confirmedRun(other, session))
+        void rejected.catch(() => undefined)
+        await vi.waitFor(() => {
+          expect(claim).toHaveBeenCalledTimes(2)
+        })
+        claims[0]!.resolve(true)
+        await running
+        await hook.promise
+        claims[1]!.resolve(kind !== 'duplicate')
+        await expect(rejected).rejects.toThrow(
+          kind === 'duplicate' ? UI_TEXT.scheduleAlreadyRun : UI_TEXT.scheduleBusy,
+        )
+        expect(secondLease.complete).toHaveBeenCalledWith(true)
+        expect(firstLease.complete).not.toHaveBeenCalled()
+        const completed = turnDone()
+        release.resolve(true)
+        await completed
+        expect(firstLease.complete).toHaveBeenCalledExactlyOnceWith(true)
+        expect(secondLease.complete).toHaveBeenCalledExactlyOnceWith(true)
+      } finally {
+        release.resolve(true)
+        await t.host.close()
+        admission.mockRestore()
+      }
+    },
+  )
   it('refuses a seven-day cadence before storing a never-runnable job', async () => {
     const scheduleStore = createFileScheduleStore({
       directory: path.join(scheduleRoot, 'seven-day-boundary'),

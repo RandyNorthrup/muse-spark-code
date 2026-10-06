@@ -380,7 +380,24 @@ public static class MuseSparkJob {
     held = job;
   }
 
-  /** Ends every process in the named job; false when there is no such job. */
+  /** Ends only the job whose current member still has the registered birth identity. */
+  public static bool TerminateVerified(string name, uint pid, string startTime, uint exitCode) {
+    long expected;
+    if (!long.TryParse(startTime, System.Globalization.NumberStyles.None, Invariant, out expected)) return false;
+    IntPtr job = OpenJobObjectW(JOB_OBJECT_QUERY | JOB_OBJECT_TERMINATE, false, name);
+    if (job == IntPtr.Zero) return false;
+    try {
+      IntPtr process = QueryProcess(pid, false);
+      if (process == IntPtr.Zero) return false;
+      try {
+        if (Creation(process) != expected || !Member(process, job)) return false;
+        if (!TerminateJobObject(job, exitCode)) throw new Win32Exception();
+        return true;
+      } finally { CloseHandle(process); }
+    } finally { CloseHandle(job); }
+  }
+
+  /** Legacy shell stop: the caller owns the freshly generated job name. */
   public static bool Terminate(string name, uint exitCode) {
     IntPtr job = OpenJobObjectW(JOB_OBJECT_TERMINATE, false, name);
     if (job == IntPtr.Zero) {

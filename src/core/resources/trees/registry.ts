@@ -14,7 +14,10 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
   private readonly entries = new Map<string, { ticket: ResourceTicket; ready: boolean }>()
 
   constructor(
-    private readonly reader: ResourceTreeReader & { forget?: (ticket: ResourceTicket) => void },
+    private readonly reader: ResourceTreeReader & {
+      forget?: (ticket: ResourceTicket) => void
+      kill?: (ticket: ResourceTicket, member: ResourceProcessIdentity) => Promise<boolean>
+    },
   ) {}
 
   private entry(ticket: ResourceTicket): { ticket: ResourceTicket; ready: boolean } | undefined {
@@ -68,6 +71,20 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
       if (entry.ready) tickets.push(structuredClone(entry.ticket))
     }
     return tickets
+  }
+
+  /** Stop is an explicit owner action, outside governor admission and policy. */
+  async kill(ticket: ResourceTicket): Promise<boolean> {
+    const entry = this.entry(ticket)
+    if (entry?.ready !== true || this.reader.kill === undefined) return false
+    const members = await this.members(ticket)
+    for (const member of members) {
+      if (this.entry(ticket) !== entry) return false
+      if (await this.contains(ticket, member)) {
+        return await this.reader.kill(structuredClone(entry.ticket), member)
+      }
+    }
+    return false
   }
 
   async contains(ticket: ResourceTicket, identity: ResourceProcessIdentity): Promise<boolean> {

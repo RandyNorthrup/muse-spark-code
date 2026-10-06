@@ -3,21 +3,24 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { spawnMspConnection } from '@muse-code/sdk'
-import { powerShellQuoted, posixQuoted } from '../../core/shellQuote'
+import { posixQuoted } from '../../core/shellQuote'
+import { resourceWindowsJob } from '../../core/resources/admission'
 import type { ResourceLease } from '../../core/resources/launch'
 import {
   RESOURCE_ID_MAX_LENGTH,
   RESOURCE_SAMPLE_MS,
   RESOURCE_LAUNCH_POLL_MS,
-  WINDOWS_POWERSHELL_COMMAND_ARGS,
+  RESOURCE_MUSE_SHUTDOWN_MS,
+  RESOURCE_MUSE_CLOSE_GRACE_MS,
+  RESOURCE_TIMER_MAX_MS,
 } from '../../shared/constants'
-import { windowsPowerShell } from '../processTree'
-import { joinStatement, newShellJob } from '../backend/shellJob'
-import { holdResourceJob } from './resourceJobHolder'
+import { prepareMcpJobLaunch } from '../backend/mcpJobLaunch'
 
 interface MuseResourceCommand {
   readonly command: string
   readonly args: readonly string[]
+  readonly env?: NodeJS.ProcessEnv | undefined
+  readonly cwd?: string | undefined
 }
 
 /** The SDK owns the process group; its public child deliberately exposes no PID. */
@@ -46,22 +49,39 @@ async function museResourceLaunch(
   }
   if (resource === undefined) return unchanged
   if (process.platform === 'win32') {
-    if (assembly === undefined || systemRoot === undefined) return unchanged
-    const job = newShellJob(assembly)
-    const held = await holdResourceJob(resource, job, systemRoot)
+    const helper = await resourceWindowsJob()
+    if (assembly === undefined || systemRoot === undefined || helper === undefined)
+      throw new Error('Windows Muse Code native job launcher unavailable')
+    const prepared = prepareMcpJobLaunch({
+      executablePath: helper.executablePath,
+      file: launch.command,
+      args: launch.args,
+      cwd: launch.cwd ?? process.cwd(),
+      env: launch.env ?? process.env,
+      resource,
+      resourceAssembly: assembly,
+      isVerbatim: false,
+      log: () => {
+        /* Native control failures remain unknown in the resource reader. */
+      },
+    })
+    prepared.stopWith(() => {
+      void resource.kill?.().catch(() => {
+        /* Failed proof cannot retire the tree. */
+      })
+    })
     return {
-      command: windowsPowerShell(systemRoot).file,
-      args: [
-        ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-        `${joinStatement(job, true)}& ${powerShellQuoted(launch.command)} ${launch.args.map((arg) => powerShellQuoted(arg)).join(' ')}; exit $LASTEXITCODE`,
-      ],
+      command: helper.executablePath,
+      args: [],
+      env: prepared.env,
       register: () => {
-        held.register({ job })
+        prepared.register()
         return Promise.resolve()
       },
       dispose: () => Promise.resolve(),
       complete: (isTreeGone) => {
-        held.complete(isTreeGone)
+        prepared.closeControl()
+        resource.complete(isTreeGone)
       },
     }
   }
@@ -110,14 +130,86 @@ export async function spawnResourceMuseConnection(
   let launch: Awaited<ReturnType<typeof museResourceLaunch>> | undefined
   let handshake: ReturnType<typeof spawnMspConnection> | undefined
   try {
+    const drainMs = options.shutdownTimeoutMs ?? RESOURCE_MUSE_SHUTDOWN_MS
+    if (!Number.isSafeInteger(drainMs) || drainMs < 0 || drainMs > RESOURCE_TIMER_MAX_MS)
+      throw new RangeError('Invalid Muse Code shutdown budget')
+    const closeBoundMs = Math.min(RESOURCE_TIMER_MAX_MS, drainMs + RESOURCE_MUSE_CLOSE_GRACE_MS)
     launch = await museResourceLaunch(
-      { command: options.command, args: options.args ?? [] },
+      { command: options.command, args: options.args ?? [], env: options.env, cwd: options.cwd },
       resource,
       resource === undefined ? undefined : await assembly(),
       systemRoot,
     )
     await assertCanRun()
-    handshake = spawnMspConnection({ ...options, command: launch.command, args: [...launch.args] })
+    // Windows' SDK ladder must not kill the launcher while the registry is
+    // proving and stopping its job. Our deadline remains the caller's drain plus grace.
+    handshake = spawnMspConnection({
+      ...options,
+      command: launch.command,
+      args: [...launch.args],
+      shutdownTimeoutMs:
+        resource !== undefined && process.platform === 'win32' ? closeBoundMs : drainMs,
+      ...(launch.env !== undefined && { env: launch.env }),
+    })
+    // All SDK close surfaces retain their actual exit evidence. A failed native
+    // proof or pipes that remain open reject within the bound, never report success.
+    const bounded = <T>(action: () => Promise<T>): (() => Promise<T>) => {
+      let pending: Promise<T> | undefined
+      return () =>
+        (pending ??= (async () => {
+          let forceTimer: NodeJS.Timeout | undefined
+          let finalTimer: NodeJS.Timeout | undefined
+          let wasForced = false
+          let isExpired = false
+          const force = async () => {
+            wasForced = ((await resource?.kill?.()) ?? false) || wasForced
+          }
+          try {
+            const stopped = new Promise<never>((_resolve, reject) => {
+              forceTimer = setTimeout(() => {
+                void force().catch(() => {
+                  /* The final bound reports an unproved stop. */
+                })
+              }, drainMs)
+              finalTimer = setTimeout(() => {
+                isExpired = true
+                reject(new Error('Muse Code shutdown did not prove process exit within its bound'))
+              }, closeBoundMs)
+            })
+            const closing = async () => {
+              let result: T
+              try {
+                result = await action()
+              } catch (error: unknown) {
+                await force()
+                throw error
+              }
+              if (process.platform === 'win32' && resource?.isTreeGone !== undefined) {
+                if (!(await resource.isTreeGone())) await force()
+                while (!isExpired && !(await resource.isTreeGone()))
+                  await delay(RESOURCE_LAUNCH_POLL_MS)
+                if (isExpired)
+                  throw new Error('Muse Code shutdown did not prove process exit within its bound')
+                if (wasForced)
+                  throw new Error('Muse Code shutdown force-stopped its registered tree')
+              }
+              return result
+            }
+            return await Promise.race([closing(), stopped])
+          } finally {
+            clearTimeout(forceTimer)
+            clearTimeout(finalTimer)
+          }
+        })())
+    }
+    handshake.close = bounded(handshake.close.bind(handshake))
+    handshake.child.close = bounded(handshake.child.close.bind(handshake.child))
+    const initialize = handshake.initialize.bind(handshake)
+    handshake.initialize = async (params) => {
+      const spawned = await initialize(params)
+      spawned.close = bounded(spawned.close.bind(spawned))
+      return spawned
+    }
     const ended = () => {
       launch?.complete(false)
     }

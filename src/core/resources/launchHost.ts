@@ -189,6 +189,18 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       throw new DOMException('Resource admission cancelled', 'AbortError')
     }
     return {
+      isTreeGone: async () => {
+        await this.refreshTrees()
+        return (await work.binding?.gone()) ?? false
+      },
+      kill: async () => {
+        await this.refreshTrees()
+        return (
+          this.work.has(work) &&
+          work.ticket !== undefined &&
+          ((await work.registry?.kill(work.ticket)) ?? false)
+        )
+      },
       register: (process) => {
         if (!this.work.has(work)) return
         work.process = process

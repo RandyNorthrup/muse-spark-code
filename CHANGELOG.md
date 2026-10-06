@@ -9,6 +9,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Windows Muse Code shutdown stops the verified registered job, bounds all
+  SDK close surfaces, reports forced or unproved shutdown honestly, and
+  disposes session handles even when close reports a failure. The CLI inherits
+  the SDK's stdio handles directly instead of PowerShell's native pipeline.
+- User turns queued behind scheduled work keep foreground admission and its
+  20-second wait bound. Rejected concurrent schedules release only their own
+  lease; completion is matched to the running schedule's generation and turn.
+- Short window CLI commands, including rules initialization and diagnostics,
+  and plugin runtime version probes enter resource admission and register
+  native process trees. CLI commands recheck their owner after admission,
+  preserve argument boundaries and stop their tree on cancellation.
 - Resource-governor recovery uses margins scaled to the configured limit
   and machine memory, so low GPU/disk limits and small containers can recover.
   Resume override expiry drains older pending reads and waits for a fresh

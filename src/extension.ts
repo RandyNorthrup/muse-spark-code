@@ -4,7 +4,6 @@ import { storeErrorCode } from './host/backend/storeErrors'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
-import { execFile, type ExecFileException } from 'node:child_process'
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import path from 'node:path'
@@ -27,7 +26,7 @@ import { memoryDataRoot } from './core/memory/memoryLocation'
 import { isSamePath } from './core/paths'
 import { terminalArgument } from './core/shellQuote'
 import { renderSupportReport } from './core/support/report'
-import { type CliInvocation, isSandboxNetworkApplied } from './core/backends/musecode/sandbox'
+import { isSandboxNetworkApplied } from './core/backends/musecode/sandbox'
 import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry, diagnosticsTool } from './core/diagnostics'
 import type { EditorContext } from './core/editorContext'
 import type { MentionSource } from './core/mention'
@@ -48,7 +47,7 @@ import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { createFileScheduleStore } from './host/backend/fileScheduleStore'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
 import { chooseAuthorizedHost } from './host/backend/selectedHost'
-import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
+import { SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
@@ -65,6 +64,7 @@ import {
 import { type ShellJobDeps, shellJobAssembly } from './host/backend/shellJob'
 import {
   createToolIo,
+  runResourceCommand as runProcess,
   readPickedFile,
   toolImagePreviewIo,
   hookEnvironment,
@@ -208,7 +208,6 @@ import {
   HAS_APPROVAL_UI,
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
-  CLI_OUTPUT_MAX_BYTES,
   COMMAND_IDS,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
@@ -477,40 +476,6 @@ function findWorkspaceFiles(): Promise<readonly string[]> {
 // git by absolute path, with a timeout and no optional locks (PLAN.md D24).
 const runGit = processGitRunner()
 const automaticBestOfNGit = processGitRunner({ isAutomatic: true })
-
-// A failed spawn or a timeout kill has no exit code; report it as negative so
-// the caller can tell "the CLI said no" from "the CLI never ran".
-const NO_EXIT_CODE = -1
-
-function exitCodeOf(error: ExecFileException | null): number {
-  if (error === null) {
-    return 0
-  }
-  return typeof error.code === 'number' ? error.code : NO_EXIT_CODE
-}
-
-/**
- * Runs a short CLI command to completion without a shell; never rejects.
- * `env` replaces the inherited environment (`muse serve`'s, so the CLI reads
- * the same config root, M30).
- */
-function runProcess(
-  invocation: CliInvocation,
-  timeoutMs: number,
-  cwd?: string,
-  env?: NodeJS.ProcessEnv,
-): Promise<ProcessResult> {
-  return new Promise((resolve) => {
-    execFile(
-      invocation.command,
-      [...invocation.args],
-      { timeout: timeoutMs, windowsHide: true, maxBuffer: CLI_OUTPUT_MAX_BYTES, cwd, env },
-      (error, stdout, stderr) => {
-        resolve({ exitCode: exitCodeOf(error), stdout, stderr })
-      },
-    )
-  })
-}
 
 /**
  * A tested Windows job helper, compiled once from the shared C# (`jobSource.ts`):
@@ -1474,6 +1439,8 @@ async function activateWindow(
                 timeoutMs,
                 workspaceRoot,
                 backend.childEnvironment(),
+                nativeStarts.signal,
+                backend.workspaceActionGuard(nativeStarts.signal),
               ),
             nativeStarts.signal,
           )
@@ -1534,7 +1501,15 @@ async function activateWindow(
     resolveLaunch: () => backend.resolveLaunch(),
     run: async (invocation, timeoutMs) =>
       await backend.startWorkspaceCommand(
-        async () => await runProcess(invocation, timeoutMs),
+        async () =>
+          await runProcess(
+            invocation,
+            timeoutMs,
+            undefined,
+            undefined,
+            nativeStarts.signal,
+            backend.workspaceActionGuard(nativeStarts.signal),
+          ),
         nativeStarts.signal,
       ),
     showWarning: async (message, ...choices) =>
@@ -3516,6 +3491,9 @@ async function activateWindow(
                   { command: resolution.launch.command, args: MUSE_INIT_ARGS },
                   MUSE_INIT_TIMEOUT_MS,
                   workspaceRoot,
+                  backend.childEnvironment(),
+                  nativeStarts.signal,
+                  check,
                 )
               }, nativeStarts.signal)
             : undefined
@@ -3567,6 +3545,8 @@ async function activateWindow(
                 MUSE_CONFIG_STATUS_TIMEOUT_MS,
                 workspaceRoot,
                 backend.childEnvironment(),
+                nativeStarts.signal,
+                backend.workspaceActionGuard(nativeStarts.signal),
               )
           : undefined,
       )
@@ -3577,6 +3557,10 @@ async function activateWindow(
           ? await runProcess(
               { command: MACOS_SECURITY_TOOL, args: MACOS_KEYCHAIN_LOOKUP_ARGS },
               MACOS_KEYCHAIN_LOOKUP_TIMEOUT_MS,
+              undefined,
+              undefined,
+              nativeStarts.signal,
+              backend.workspaceActionGuard(nativeStarts.signal),
             )
           : undefined
       log.info(

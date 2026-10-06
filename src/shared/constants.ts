@@ -37,6 +37,9 @@ export const RESOURCE_MEMORY_MAX_FREE_GIB = 64
 export const RESOURCE_OPTIONAL_MIN_PERCENT = 1
 export const RESOURCE_ID_MAX_LENGTH = 256
 export const RESOURCE_LAUNCH_POLL_MS = 100
+export const RESOURCE_MUSE_SHUTDOWN_MS = 30_000
+export const RESOURCE_MUSE_CLOSE_GRACE_MS = 10_000
+export const RESOURCE_TIMER_MAX_MS = 2_147_483_647
 // libuv fills missing Windows mandatory variables from the parent; blank them explicitly.
 export const RESOURCE_PROBE_EMPTY_ENV_KEYS = [
   'HOMEDRIVE',
