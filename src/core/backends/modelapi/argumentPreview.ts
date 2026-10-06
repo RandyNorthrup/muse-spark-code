@@ -14,6 +14,7 @@ export interface ArgumentPreviewCapabilities {
 
 interface Container {
   readonly kind: 'object' | 'array'
+  readonly withheld: boolean
   isKey: boolean
   sensitive: boolean
 }
@@ -36,6 +37,7 @@ export class ArgumentPreview {
   private text = ''
   private readonly containers: Container[] = []
   private string: OpenString | undefined
+  private scalar = false
   private retained = 0
   private truncated = false
   private done = false
@@ -67,11 +69,12 @@ export class ArgumentPreview {
     } else if (character === '\\') {
       string.escape = character
     } else if (character === '"') {
-      if (string.isKey) {
+      if (string.isKey && !string.sensitive) {
         const container = this.containers.at(-1)
         if (container !== undefined) container.sensitive = isSensitiveKey(string.value)
       }
-      this.text += `"${string.sensitive ? REDACTED_MARK : string.value}"`
+      if (this.containers.at(-1)?.withheld !== true)
+        this.text += `"${string.sensitive ? REDACTED_MARK : string.value}"`
       this.string = undefined
     } else if (character < ' ') {
       this.invalid = true
@@ -94,29 +97,44 @@ export class ArgumentPreview {
         continue
       }
       const container = this.containers.at(-1)
+      const isWithheld = container?.withheld === true
+      const isSensitive = isWithheld || (container?.isKey === false && container.sensitive)
       if (character === '"') {
+        this.scalar = false
         this.string = {
           isKey: container?.isKey === true,
-          sensitive: container?.isKey === false && container.sensitive,
+          sensitive: isSensitive,
           value: '',
           escape: '',
         }
       } else {
         if (character === '{' || character === '[') {
+          this.scalar = false
+          if (!isWithheld) this.text += isSensitive ? `"${REDACTED_MARK}"` : character
           this.containers.push({
             kind: character === '{' ? 'object' : 'array',
+            withheld: isSensitive,
             isKey: character === '{',
             sensitive: false,
           })
         } else if (character === '}' || character === ']') {
+          this.scalar = false
           this.containers.pop()
+          if (!isWithheld) this.text += character
         } else if (character === ':' && container?.kind === 'object') {
           container.isKey = false
+          if (!isWithheld) this.text += character
         } else if (character === ',' && container !== undefined) {
+          this.scalar = false
           container.isKey = container.kind === 'object'
           container.sensitive = false
+          if (!isWithheld) this.text += character
+        } else if (!isSensitive) {
+          this.text += character
+        } else if (!isWithheld && !this.scalar && character.trim() !== '') {
+          this.text += `"${REDACTED_MARK}"`
+          this.scalar = true
         }
-        this.text += character
       }
     }
   }
@@ -126,6 +144,7 @@ export class ArgumentPreview {
     this.text = ''
     this.containers.length = 0
     this.string = undefined
+    this.scalar = false
     this.retained = 0
     this.truncated = false
     this.invalid = false
@@ -147,7 +166,23 @@ export class ArgumentPreview {
       decoded += `"${slices.slice(0, -1).join('')}`
     }
     // Exact registered values precede M84 patterns, on decoded text only.
-    const text = redactSecrets(decoded, this.literals)
+    let text = redactSecrets(decoded, this.literals)
+    if (!this.done) {
+      // Even outside strings, a trailing prefix may become a registered
+      // literal on the next frame. Keep it private until it is disambiguated.
+      let end = text.length
+      for (const literal of this.literals) {
+        if (literal === '') continue
+        let at = text.indexOf(literal.charAt(0), Math.max(0, text.length - literal.length + 1))
+        while (at !== -1 && at < end) {
+          if (literal.startsWith(text.slice(at))) {
+            end = at
+          }
+          at = text.indexOf(literal.charAt(0), at + 1)
+        }
+      }
+      text = text.slice(0, end)
+    }
     return {
       text: text.slice(0, TOOL_ARGUMENT_PREVIEW_MAX_CHARS),
       truncated: this.truncated || text.length > TOOL_ARGUMENT_PREVIEW_MAX_CHARS,

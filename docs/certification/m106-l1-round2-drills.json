@@ -1,0 +1,61 @@
+{
+  "machine": "kubuntu",
+  "date": "2026-10-06",
+  "repositoryDefaultTimeouts": true,
+  "drills": [
+    {
+      "id": "P1-inherited-container",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "withheld: isSensitive, → withheld: false,",
+      "test": "inherits whole-value sensitivity at every byte boundary",
+      "command": ["npx", "vitest", "run", "test/unit/argumentPreview.test.ts", "--maxWorkers=3"],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "73e2a6919361fefda279ae58bcd1a3b771d841145e69350933a3f0e2e00d8dc7",
+      "sha256After": "73e2a6919361fefda279ae58bcd1a3b771d841145e69350933a3f0e2e00d8dc7",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P1-inherited-editor-surfaces",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "withheld: isSensitive, → withheld: false,",
+      "test": "keeps decoded sensitive values out of events, history and ACP",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiArgumentPreview.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "73e2a6919361fefda279ae58bcd1a3b771d841145e69350933a3f0e2e00d8dc7",
+      "sha256After": "73e2a6919361fefda279ae58bcd1a3b771d841145e69350933a3f0e2e00d8dc7",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P1-sensitive-scalar",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "} else if (!isSensitive) { → } else if (!isWithheld) {",
+      "test": "withholds a sensitive scalar from its first byte until close",
+      "command": ["npx", "vitest", "run", "test/unit/argumentPreview.test.ts", "--maxWorkers=3"],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "73e2a6919361fefda279ae58bcd1a3b771d841145e69350933a3f0e2e00d8dc7",
+      "sha256After": "73e2a6919361fefda279ae58bcd1a3b771d841145e69350933a3f0e2e00d8dc7",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P3-registered-prefix",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "if (!this.done) { → if (false) {",
+      "test": "withholds registered numeric prefixes at every split until redaction",
+      "command": ["npx", "vitest", "run", "test/unit/argumentPreview.test.ts", "--maxWorkers=3"],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "73e2a6919361fefda279ae58bcd1a3b771d841145e69350933a3f0e2e00d8dc7",
+      "sha256After": "73e2a6919361fefda279ae58bcd1a3b771d841145e69350933a3f0e2e00d8dc7",
+      "restoredByteExact": true
+    }
+  ]
+}

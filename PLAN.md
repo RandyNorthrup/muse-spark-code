@@ -19412,6 +19412,20 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**FIXM106L13 round-two repairs (2026-10-06).** Resolve all five
+RVM106L12 findings inside L1's existing files. Sensitive classification is
+inherited through the tokenizer's container stack: an entire sensitive
+scalar, object or array value, including nested keys, is withheld across
+frames. Registered literals also withhold any unfinished matching suffix,
+including numeric values, until disambiguation or close. Every processed
+preview snapshot updates the rate timestamp even when deduplicated;
+interruption forces a final scrubbed snapshot before settling and clearing;
+reconciliation settles restored previews whose turn differs from the live
+turn. Add split-at-every-byte property cases and named regression/red drills
+in `docs/certification/m106-l1.md`. No finding is deferred; existing capture,
+capability and W-owned product-documentation handoffs remain. No guard,
+wire schema, dependency, timeout, or capability default changes.
+
 **FIXM106L1 review repairs (2026-10-06).** Resolve RVM106L1's four findings
 within the preview lane: an incremental partial-JSON tokenizer decodes and
 normalizes keys and withholds whole sensitive string values using M84's

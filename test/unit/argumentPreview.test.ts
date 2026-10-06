@@ -85,6 +85,51 @@ describe('display-only argument prefixes', () => {
     expect(append(preview, String.raw`\uDE00\nsafe"}`).text).toContain('😀\nsafe')
   })
 
+  it.each([
+    String.raw`{"password":{"private-name":"dummy-first\ndummy-second"},"content":"visible"}`,
+    String.raw`{"password":["dummy-first\ndummy-second"],"content":"visible"}`,
+    String.raw`{"\u0070assword":{"private-name":{"nested-private":["dummy-first\ndummy-second"]}},"content":"visible"}`,
+    String.raw`{"PASSWORD":[[{"private-name":"dummy-first\ndummy-second"}]],"content":"visible"}`,
+    String.raw`{"outer":[{"api-key":{"private-name":[{"nested-private":"dummy-first\ndummy-second"}]}}],"content":"visible"}`,
+    String.raw`{"ｐａｓｓｗｏｒｄ":{"private-name":["dummy-first\ndummy-second"]},"content":"visible"}`,
+  ])('inherits whole-value sensitivity at every byte boundary: %s', (args) => {
+    const bytes = Buffer.from(args)
+    for (let split = 0; split <= bytes.length; split += 1) {
+      const preview = new ArgumentPreview()
+      const decoder = new TextDecoder()
+      for (const frame of [
+        decoder.decode(bytes.subarray(0, split), { stream: true }),
+        decoder.decode(bytes.subarray(split)),
+      ]) {
+        expect(append(preview, frame).text).not.toMatch(/dummy|private-name|nested-private/)
+      }
+      const final = finish(preview, args).text
+      expect(final).not.toMatch(/dummy|private-name|nested-private/)
+      expect(final).toContain(REDACTED_MARK)
+      expect(final).toContain('visible')
+    }
+    const preview = new ArgumentPreview()
+    const decoder = new TextDecoder()
+    for (const byte of bytes) {
+      expect(
+        append(preview, decoder.decode(Uint8Array.of(byte), { stream: true })).text,
+      ).not.toMatch(/dummy|private-name|nested-private/)
+    }
+    expect(append(preview, decoder.decode()).text).toContain('visible')
+  })
+
+  it.each(['9876543210', 'true', 'false', 'null'])(
+    'withholds a sensitive scalar from its first byte until close: %s',
+    (value) => {
+      const preview = new ArgumentPreview()
+      append(preview, '{"password":')
+      for (const character of value) {
+        expect(append(preview, character).text).toBe(`{"password":"${REDACTED_MARK}"`)
+      }
+      expect(append(preview, ',"content":"visible"}').text).toContain('visible')
+    },
+  )
+
   it('scrubs registered literal values after JSON decoding', () => {
     const preview = new ArgumentPreview(['dummy-registered'])
     expect(finish(preview, String.raw`{"content":"dummy-\u0072egistered"}`).text).toContain(
@@ -102,6 +147,26 @@ describe('display-only argument prefixes', () => {
     expect(final).toContain(REDACTED_MARK)
     expect(final).not.toContain('dummy-first')
     expect(final).not.toContain('dummy-second')
+  })
+
+  it('withholds registered numeric prefixes at every split until redaction', () => {
+    const literal = '9876543210'
+    for (let split = 1; split < literal.length; split += 1) {
+      const preview = new ArgumentPreview([literal, '9876'])
+      expect(append(preview, '{"count":' + literal.slice(0, split)).text).not.toContain('9')
+      const final = append(preview, literal.slice(split) + '}').text
+      expect(final).toBe(`{"count":${REDACTED_MARK}}`)
+    }
+  })
+
+  it('releases a registered prefix when disambiguated or the value closes', () => {
+    const preview = new ArgumentPreview(['9876543210', '9876', ''])
+    expect(append(preview, '{"count":987').text).toBe('{"count":')
+    expect(append(preview, '0').text).toBe('{"count":9870')
+    const closed = new ArgumentPreview(['9876543210'])
+    expect(append(closed, '{"count":987').text).toBe('{"count":')
+    expect(append(closed, '}').text).toBe('{"count":987}')
+    expect(finish(preview, '{"count":987}').text).toBe('{"count":987}')
   })
 
   it('keeps a PEM block split across lines out of all emitted previews', () => {

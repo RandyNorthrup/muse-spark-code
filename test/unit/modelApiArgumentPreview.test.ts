@@ -331,6 +331,8 @@ describe('Model API argument preview admission', () => {
     [String.raw`{"\u0070assword":"dummy-first\n`, 'dummy-second"}'],
     [String.raw`{"\u0070ass`, String.raw`word":"dummy-first\"dummy-second"}`],
     [String.raw`[{"password":"dummy-first\uD83D`, String.raw`\uDE00dummy-second"}]`],
+    [String.raw`{"password":{"private-name":"dummy-first\n`, 'dummy-second"}}'],
+    [String.raw`{"password":[[{"private-name":"dummy-first\n`, 'dummy-second"}]]}'],
   ])('keeps decoded sensitive values out of events, history and ACP: %s', async (first, second) => {
     const h = await setup()
     const frames = [
@@ -358,6 +360,7 @@ describe('Model API argument preview admission', () => {
       })
       expect(displayed).not.toContain('dummy-first')
       expect(displayed).not.toContain('dummy-second')
+      expect(displayed).not.toContain('private-name')
       await h.session.cancel()
       stream.gate.resolve(undefined)
       await done
