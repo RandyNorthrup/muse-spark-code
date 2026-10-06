@@ -68,6 +68,22 @@ describe('schedule grant matching', () => {
     rule.glob = `src/${'*a'.repeat(100)}b`
     expect(matcher.matches(own, { ...action, paths: [`src/${'a'.repeat(100)}`] })).toBeUndefined()
   })
+  it('matches concrete dynamic-route filenames separately from restricted glob syntax', () => {
+    const action = new FakeScheduleApprovalStream('modelApi').request('edit')
+    const own = {
+      ...grant,
+      rules: [{ id: 'routes', kind: 'path', glob: 'src/**', access: 'edit' }],
+    } satisfies Parameters<ScheduleGrants['matches']>[0]
+    for (const path of ['src/app/[slug]/page.tsx', 'src/{literal}/wow!.tsx'])
+      expect(matcher.matches(own, { ...action, paths: [path] })?.id).toBe('routes')
+    for (const glob of ['src/[slug]/**', 'src/{a,b}/**', '!src/**'])
+      expect(
+        matcher.matches(
+          { ...own, rules: [{ id: 'unsupported', kind: 'path', access: 'edit', glob }] },
+          action,
+        ),
+      ).toBeUndefined()
+  })
   it('never grants physical, protected, asking or paid actions through broad tools or paths', () => {
     const stream = new FakeScheduleApprovalStream('museCode')
     for (const kind of ['physical', 'protectedPath', 'requiresAsking', 'paidExtra'] as const) {

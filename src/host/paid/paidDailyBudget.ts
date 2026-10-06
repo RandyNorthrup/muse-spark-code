@@ -225,6 +225,8 @@ export function createPaidDailyBudget(deps: {
     const scope = day()
     const ownScope = `${scope}-schedule-${fingerprint(schedule.id)}`
     const ownCap = Math.min(consent.dailyCapUsd, schedule.paidCapUsd, schedule.grant.paidCapUsd)
+    if (!Number.isFinite(ownCap) || ownCap <= 0 || consent.sharedDailyBudgetUsd <= 0)
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
     const shared = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, costUsd)
     let own: Awaited<ReturnType<typeof journal.reserve>> | undefined
     try {

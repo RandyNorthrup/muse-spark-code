@@ -11,6 +11,7 @@ import {
   type ScheduleConsent,
 } from '../../src/core/paid/paidConsent'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
+import { schedulePaidConsentSchema, scheduleV2Schema } from '../../src/shared/scheduleV2'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 import { removeFolder } from './helpers/temporaryFolders'
 import { window } from './mocks/vscode'
@@ -286,6 +287,111 @@ describe('schedule-scoped paid consent and reservations', () => {
     }
     await expect(scope.reserve(image, undefined, new AbortController().signal)).rejects.toThrow()
     expect(reserve).not.toHaveBeenCalled()
+  })
+  it('rejects zero paid consent while retaining no-consent migration records', () => {
+    const consent = schedule().paidConsent
+    expect(schedulePaidConsentSchema.safeParse({ ...consent, dailyCapUsd: 0 }).success).toBe(false)
+    expect(
+      schedulePaidConsentSchema.safeParse({ ...consent, sharedDailyBudgetUsd: 0 }).success,
+    ).toBe(false)
+    const zero = { ...schedule(), paidCapUsd: 0, grant: { ...schedule().grant, paidCapUsd: 0 } }
+    expect(
+      scheduleV2Schema.safeParse({ ...zero, paidConsent: { ...consent, dailyCapUsd: 0 } }).success,
+    ).toBe(false)
+    expect(scheduleV2Schema.safeParse({ ...zero, paidConsent: undefined }).success).toBe(true)
+  })
+  it('rejects zero cap at the durable reservation independently of schema validation', async () => {
+    const own = schedule()
+    const zero = { ...own, paidCapUsd: 0, grant: { ...own.grant, paidCapUsd: 0 } }
+    vi.spyOn(scheduleV2Schema, 'parse').mockReturnValue(zero)
+    const { first } = await ledgers()
+    await expect(first.reserveSchedule(zero, 0.1, new AbortController().signal)).rejects.toThrow()
+    const latest = await first.latestDay()
+    expect(latest.spentUsd).toBe(0)
+  })
+  it('does not ask for paid consent with a zero cap', async () => {
+    const own = { ...schedule(), paidCapUsd: 0, paidConsent: undefined }
+    const ask = vi.fn()
+    expect(
+      await askSchedulePaidConsent({
+        schedule: own,
+        identity,
+        cadence: 'Once',
+        extras: [],
+        now: () => 1,
+        isOn: () => true,
+        isCurrent: () => true,
+        ask,
+        remember: () => Promise.resolve(true),
+      }),
+    ).toBeUndefined()
+    expect(ask).not.toHaveBeenCalled()
+  })
+  it('rejects zero paid authority at schema, consent and durable reservation before HTTP', async () => {
+    const zero = {
+      ...schedule(),
+      paidCapUsd: 0,
+      grant: { ...schedule().grant, paidCapUsd: 0 },
+      paidConsent: {
+        modelId: identity.modelId,
+        accountId: identity.accountId,
+        priceTier: identity.priceTier,
+        sharedDailyBudgetUsd: identity.sharedDailyBudgetUsd,
+        grantedAtMs: 0,
+        extras: [],
+        dailyCapUsd: 0,
+      },
+    }
+    expect(isScheduleConsentCurrent(zero, identity)).toBe(false)
+    const { first } = await ledgers()
+    const scope = createSchedulePaidScope({
+      backend: 'modelApi',
+      schedule: zero,
+      identity,
+      currentIdentity: () => identity,
+      isCurrent: () => true,
+      isOn: () => true,
+      estimate: () => 0.1,
+      reserve: first.reserveSchedule,
+    })
+    expect(scope.allows('scheduledPrompts')).toBe(false)
+    const api = fakeModelApi()
+    const client = fakeModelApiClient(api, new FakeLogOutputChannel())
+    const guard = Object.assign(() => undefined, {
+      paidFeature: 'scheduledPrompts' as const,
+      reservePaidRequest: () => scope.reserve(body, 100, new AbortController().signal),
+    })
+    await expect(async () => {
+      const stream = client.streamResponse(
+        body,
+        new AbortController().signal,
+        undefined,
+        undefined,
+        guard,
+      )
+      for await (const _event of stream) {
+        // Consume the real client stream.
+      }
+    }).rejects.toThrow()
+    await expect(first.reserveSchedule(zero, 0.1, new AbortController().signal)).rejects.toThrow()
+    expect(api.requests).toHaveLength(0)
+    const latest = await first.latestDay()
+    expect(latest.spentUsd).toBe(0)
+    const ask = vi.fn()
+    expect(
+      await askSchedulePaidConsent({
+        schedule: { ...zero, paidConsent: undefined },
+        identity,
+        cadence: 'Once',
+        extras: [],
+        now: () => 1,
+        isOn: () => true,
+        isCurrent: () => true,
+        ask,
+        remember: () => Promise.resolve(true),
+      }),
+    ).toBeUndefined()
+    expect(ask).not.toHaveBeenCalled()
   })
   it('enforces a schedule cap across independent processes before HTTP without a budget dialog', async () => {
     const { first, second } = await ledgers()

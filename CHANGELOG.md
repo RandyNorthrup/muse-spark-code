@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Repair M115's unshipped unattended authority: zero paid consent cannot
+  enable unlimited spending, while paused migration records retain no paid
+  authority; confined literal filenames such as Next.js `[slug]` routes
+  match simple path grants without enabling unsupported glob expansions.
+
+
 - Correct M115's internal schedule contracts before implementation: stale
   whole-record updates cannot restore revoked grants, crash-receipt migration
   accepts fractional filesystem times, repeated fake approval requests remain

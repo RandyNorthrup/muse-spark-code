@@ -6844,6 +6844,26 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM115U — One unattended authority per scheduled fire (2026-10-06)
+
+Repair all eight RVM115U findings within lane U. The fire's `UnattendedRun`
+is the only paid authority: bind a session-owned client to its reservation
+port for every paid request and never fall back to interactive admission.
+Zero/missing paid authority refuses at consent/schema and reservation; paused
+migration records retain zero as no authority. Admission claims pending steers,
+so each additional fire queues as a separate turn. Check canonical image
+sources/destinations and attachments through run safety before I/O/egress.
+Recheck native ownership after asynchronous cancellation/admission waits,
+race question persistence with Stop, compose Accept edits after unconditional
+safety checks, and separate concrete-path confinement from glob syntax.
+
+Each exact review scenario gets a regression and byte-exact restored red
+drill in `docs/certification/m115-u.md`. No new dependency, guard widening,
+external wire shape, live/paid call, branch merge, push or rebase. The rig
+brief reserves aggregate quality for W/lead; run bounded complete owning
+suites and the shared rules' static/build checks directly on Kubuntu. Core
+ports apply to all editors/runtime; existing named integration handoffs stay.
+
 ### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
 
 Repair all six RVM115L0 P2 findings before M115's wave lanes bind the
@@ -19592,6 +19612,13 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM115U review repair.** All eight RVM115U findings are in scope; no
+  finding is accepted as residual. Lane U certifies core/backend behavior
+  with fake-only regressions, not absent scheduler/UI/OS integrations.
+  Existing S/D/V/W/X, M112/M103/M109/M107/M95 and HELPREF bindings remain
+  named in `docs/certification/m115-u.md`; W/lead owns full quality and
+  integrated coverage. Zero-cap migration records carry no paid authority.
 
 - **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
   none is deferred. These are unshipped internal schedule contracts, not

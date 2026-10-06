@@ -213,8 +213,8 @@ export const schedulePaidConsentSchema = z.strictObject({
   accountId: text,
   priceTier: text,
   grantedAtMs: timestamp,
-  dailyCapUsd: money,
-  sharedDailyBudgetUsd: money,
+  dailyCapUsd: money.check(z.gt(0)),
+  sharedDailyBudgetUsd: money.check(z.gt(0)),
   extras: z.array(z.enum(PAID_FEATURES)),
 })
 export const scheduleCreatorSchema = z.discriminatedUnion('kind', [

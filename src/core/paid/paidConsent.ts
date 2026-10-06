@@ -58,6 +58,10 @@ export function isScheduleConsentCurrent(
   const consent = schedule.paidConsent
   return (
     schedule.action.kind === 'prompt' &&
+    Number.isFinite(consent?.dailyCapUsd) &&
+    (consent?.dailyCapUsd ?? 0) > 0 &&
+    Number.isFinite(consent?.sharedDailyBudgetUsd) &&
+    (consent?.sharedDailyBudgetUsd ?? 0) > 0 &&
     consent?.modelId === identity.modelId &&
     consent.accountId === identity.accountId &&
     consent.priceTier === identity.priceTier &&
@@ -85,7 +89,8 @@ export async function askSchedulePaidConsent(deps: {
     schedule.action.kind !== 'prompt' ||
     !deps.isOn() ||
     !deps.isCurrent() ||
-    identity.price.trim() === ''
+    identity.price.trim() === '' ||
+    !(Math.min(schedule.paidCapUsd, schedule.grant.paidCapUsd, identity.sharedDailyBudgetUsd) > 0)
   )
     return undefined
   if (

@@ -11,11 +11,12 @@ import { judgeCommand } from '../backends/modelapi/commandRules'
 import { isProtectedPath } from '../protectedPaths'
 
 /** Only relative glob segments; unsupported expansion syntax fails closed. */
-function isSafeRelative(value: string): boolean {
+function isSafeRelative(value: string, isPattern = false): boolean {
   return (
     value.length > 0 &&
     !/^(?:[\\/]|[a-z]:)/i.test(value) &&
-    !/[\p{Cc}:{}[\]!]/u.test(value) &&
+    !/[\p{Cc}:]/u.test(value) &&
+    (!isPattern || !/[{}[\]!]/u.test(value)) &&
     value.split(/[\\/]/).every((part) => part !== '' && part !== '.' && part !== '..')
   )
 }
@@ -116,7 +117,7 @@ export class ScheduleGrants implements ScheduleGrantMatcher {
           return (
             action.class === 'edit' &&
             rule.access === 'edit' &&
-            isSafeRelative(rule.glob) &&
+            isSafeRelative(rule.glob, true) &&
             action.paths.length > 0 &&
             action.paths.every((path) => isGlobMatch(rule.glob, path))
           )
