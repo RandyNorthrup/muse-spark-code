@@ -16,6 +16,36 @@
 import { forms } from './forms'
 
 export const EN = {
+  // M106: loop previews, structured answers, health and explicit feedback.
+  toolArgumentPreviewLabel: 'Argument preview',
+  toolArgumentPreviewTruncated: 'Preview truncated.',
+  toolArgumentPreviewPending: 'Waiting for complete arguments…',
+  modelApiContinuing: 'The output limit was reached. Continuing once…',
+  modelApiContinuationLimit: 'The output limit was reached again. Send a message to continue.',
+  modelApiToolStuck:
+    'The turn stopped because the same tool call kept returning an unchanged result. Send a message to try another approach.',
+  structuredOutputRepair: 'The structured answer was invalid. Retrying once…',
+  structuredOutputFallback:
+    'The structured answer could not be validated. Using the text fallback.',
+  outputSchemaInvalid: 'The output schema is outside the supported strict subset: {detail}',
+  outputSchemaMismatch: 'The final answer does not match the output schema: {detail}',
+  outputSchemaReadFailed: 'Could not read the output schema: {detail}',
+  modelApiStatusLabel: 'Meta API status',
+  modelApiStatusUnavailable: 'Status unavailable',
+  modelApiStatusOpen: 'Open service status',
+  modelApiServiceFailure: 'The service returned an error. Check its status or try again.',
+  feedbackTitle: 'Send feedback to Muse Code',
+  feedbackClassification: 'Classification',
+  feedbackNote: 'Note',
+  feedbackWithFiles: 'Include files',
+  feedbackAttachSessionRecord: 'Include session record',
+  feedbackPrivacy:
+    'Muse Code uploads your classification and note. Files and the session record are included only when selected.',
+  feedbackSend: 'Send feedback',
+  feedbackSending: 'Sending feedback…',
+  feedbackSubmitted: 'Feedback submitted.',
+  feedbackFailed: 'Could not submit feedback.',
+  feedbackResult: 'Muse Code returned: {result}',
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:

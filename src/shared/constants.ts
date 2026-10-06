@@ -1595,6 +1595,23 @@ export const TOKENS_PER_MILLION = 1_000_000
 // output cap is well under the documented 131,072 maximum.
 export const MODEL_API_CONTEXT_WINDOW = 1_048_576
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
+// --- Agent-loop contracts (M106, PLAN.md D86) ---
+// The legacy cap above stays until lane L2 applies each model's record and
+// budget clamp. These defaults are fixed for the session, never cache inputs.
+export const MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS = 131_072
+export const MODEL_API_PARALLEL_READS = 4
+export const MODEL_API_CONTINUATIONS_MAX = 1
+export const TOOL_REPEAT_LIMIT = 3
+export const TOOL_ARGUMENT_PREVIEW_MAX_CHARS = 16_000
+export const STRUCTURED_OUTPUT_REPAIRS_MAX = 1
+export const WEB_SEARCH_MAX_PER_REQUEST = 5
+export const WEB_SEARCH_MIN_PER_REQUEST = 1
+export const WEB_SEARCH_MAX_PER_REQUEST_LIMIT = 20
+// U12 captured no reset header: Meta documents a one-minute window. The
+// startup allowance is conservative; captured headers replace it, never a
+// hard-coded account limit. Other providers require their own captures.
+export const PACING_WINDOW_MS = 60_000
+export const PACING_START_REQUESTS_PER_MINUTE = 10
 // A turn that ran this long earns a notification when it ends while the
 // VS Code window is unfocused (M82): shorter turns answer before the user
 // looks away.
@@ -4832,6 +4849,12 @@ export const CODE_INTEL_MODEL_TEXT = {
 // ACP loaders can discard it without changing any words; the bundle-split
 // gate fails when dist/extension.js or dist/acp.js carries it (PLAN.md D6).
 export const MODEL_API_MODEL_TEXT = {
+  // M106: only the Model API loop reads these, so keep them in its lazy
+  // block rather than carrying new keys in activation's MODEL_TEXT (D6).
+  toolRepeatStopped:
+    'This tool call repeats the same arguments and unchanged result. It was not run again. Use a different approach or explain what is blocking the task.',
+  continuationPrompt:
+    'Continue the answer from where the output limit cut it off. Do not repeat the text already returned.',
   // M91 lane E: BeforeToolSelection's tail note, and TeammateIdle's default.
   hookToolsUnavailable: 'Tools unavailable for this turn:',
   hookTeammateContinue: 'Continue the current task; a TeammateIdle hook requested another check.',
