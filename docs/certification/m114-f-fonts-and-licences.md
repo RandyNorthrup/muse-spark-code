@@ -51,6 +51,10 @@ standalone preference stack, followed by these aliases and system fallbacks.
   `6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf`.
 - `.gitattributes` preserves exact licence line endings and WOFF2 bytes on
   Windows as well as POSIX.
+- Final `git diff HEAD~2 HEAD --check` reported the original upstream trailing
+  space at Cascadia OFL line 22 and JetBrains OFL line 21. These digest-pinned
+  licence bytes are retained exactly. The implementation commit's own whitespace
+  check passed; no whitespace rule or quality gate is weakened for these assets.
 
 Runtime, appearance-port, notice, package and final verification receipts are
 recorded in the follow-up below after the asset commit pins distribution URLs.

@@ -28375,6 +28375,9 @@ record needs F's Node use counts (crypto 46→47, fs/promises 47→48, path 84�
 alongside lane 0's existing theme-source inventory repair. ACP startup grows
 1,162 bytes from this base, within its 2 KiB target; the separately budgeted
 installer and manifest add package bytes beyond that target. All hard caps hold.
+The asset-range `git diff --check` flags two original OFL trailing spaces
+(Cascadia line 22, JetBrains line 21); exact upstream licence bytes are retained,
+and no whitespace rule or gate is weakened.
 All receipts and guard restore hashes are in
 `docs/certification/m114-f-fonts-and-licences.md`.
 
