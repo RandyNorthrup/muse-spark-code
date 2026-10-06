@@ -39,7 +39,68 @@ function rig() {
   return { deps, grants, state, create }
 }
 
+function holdFirstWrite(t: ReturnType<typeof rig>) {
+  const finish = Promise.withResolvers<undefined>()
+  const write = vi.mocked(t.deps.writeGrants).getMockImplementation()!
+  vi.mocked(t.deps.writeGrants).mockImplementationOnce(async (key, next) => {
+    await finish.promise
+    await write(key, next)
+  })
+  return finish
+}
+
 describe('M108 account-bound paid use consent', () => {
+  it('merges concurrent Always answers inside the account owner and fences queued revocation', async () => {
+    const t = rig(),
+      a = t.create()
+    vi.mocked(t.deps.ask).mockResolvedValue('always')
+    const finish = holdFirstWrite(t)
+    const judge: PaidUseRequest = { feature: 'judge', modelId: 'muse-spark-1.3', dailyBudgetUsd: 5 }
+    const reviewer: PaidUseRequest = {
+      feature: 'autoReviewer',
+      modelId: 'muse-spark-1.3',
+      tool: 'edit',
+      action: 'edit file',
+    }
+    const first = a.allows(judge),
+      second = a.allows(reviewer)
+    await vi.waitFor(() => {
+      expect(t.deps.writeGrants).toHaveBeenCalledTimes(1)
+    })
+    finish.resolve(undefined)
+    expect(await Promise.all([first, second])).toEqual([true, true])
+    expect(t.grants.size).toBe(1)
+    expect(t.grants.values().next().value).toEqual(new Set(['autoReviewer', 'judge']))
+    expect(await a.allows(judge)).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+    await a.revoke()
+    for (const features of t.grants.values()) expect(features.size).toBe(0)
+  })
+
+  it('discards a queued Always effect after revocation and preserves both features on a fresh generation', async () => {
+    const t = rig(),
+      a = t.create()
+    vi.mocked(t.deps.ask).mockResolvedValue('always')
+    const finish = holdFirstWrite(t)
+    const first = a.allows(REQUEST),
+      second = a.allows({ feature: 'voice' })
+    await vi.waitFor(() => {
+      expect(t.deps.writeGrants).toHaveBeenCalledTimes(1)
+    })
+    const revoked = a.revoke()
+    expect(await a.allows(REQUEST)).toBe(false)
+    finish.resolve(undefined)
+    expect(await Promise.all([first, second])).toEqual([false, false])
+    await revoked
+    expect(t.deps.writeGrants).toHaveBeenCalledTimes(2)
+    for (const features of t.grants.values()) expect(features.size).toBe(0)
+    expect(await Promise.all([a.allows(REQUEST), a.allows({ feature: 'voice' })])).toEqual([
+      true,
+      true,
+    ])
+    expect(t.grants.values().next().value).toEqual(new Set(['webSearch', 'voice']))
+  })
+
   it('asks once before the first charge per account, with the account, tariff and shared budget', async () => {
     const t = rig()
     const a = t.create(),

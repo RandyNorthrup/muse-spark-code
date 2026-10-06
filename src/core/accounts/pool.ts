@@ -57,6 +57,9 @@ export interface AccountPoolDeps {
   ) => Promise<AccountPoolClaim>
   /** Resolves only after the credential-free event is recorded and the UI can show it. */
   readonly record: (event: AccountEvent) => Promise<void>
+  /** Owner transaction: call adopt and publish the event synchronously together.
+   * A thrown fence/I/O refusal commits neither. No await or reentry between them. */
+  readonly commit: (event: AccountEvent, adopt: () => void) => void
   readonly sharedGroupNotice: (account: string) => Promise<void>
 }
 export interface AccountPoolRequest {
@@ -115,6 +118,7 @@ export class AccountPool {
     string,
     {
       readonly account: string
+      readonly trigger: AccountTrigger | undefined
       readonly decision: Extract<AccountPolicyDecision, { kind: 'allow' }> | undefined
     }
   >()
@@ -145,6 +149,7 @@ export class AccountPool {
       limits: this.deps.limits(request),
       request: projected(estimate),
     })
+    const shared: AccountTrigger[] = []
     // A second key cannot escape a live block on its group or a global limit.
     for (const peer of this.rows()) {
       if (
@@ -153,22 +158,35 @@ export class AccountPool {
           (account.limitGroup === undefined || account.limitGroup !== peer.limitGroup))
       )
         continue
-      const shared = evaluateAccountThresholds({
-        provider: this.deps.provider,
-        account: peer,
-        now: this.deps.now(),
-        journal: this.deps.journal,
-        limits: this.deps.limits(request),
-      }).find((trigger) => trigger.kind === 'vendorLimit')
-      if (shared !== undefined) return [shared, ...own]
+      shared.push(
+        ...evaluateAccountThresholds({
+          provider: this.deps.provider,
+          account: peer,
+          now: this.deps.now(),
+          journal: this.deps.journal,
+          limits: this.deps.limits(request),
+        }).filter((trigger) => trigger.kind === 'vendorLimit'),
+      )
     }
-    return own
+    return [...shared, ...own]
+  }
+
+  private reset(triggers: readonly AccountTrigger[]): string | null {
+    if (triggers.length === 0 || triggers.some((entry) => entry.resetAt === null)) return null
+    let latest: string | null = null
+    for (const entry of triggers) {
+      const reset = entry.resetAt
+      if (reset !== null && (latest === null || Date.parse(reset) > Date.parse(latest)))
+        latest = reset
+    }
+    return latest
   }
 
   private async stop(
     account: Account,
     triggers: readonly AccountTrigger[],
     decision?: AccountPolicyDecision,
+    recoveries: readonly (string | null)[] = [this.reset(triggers)],
   ): Promise<never> {
     const trigger = triggers[0]
     if (trigger !== undefined)
@@ -181,13 +199,10 @@ export class AccountPool {
           trigger,
         }),
       )
-    const resets = triggers.map((entry) => entry.resetAt)
     const resetAt =
-      resets.length === 0 || resets.includes(null)
-        ? null
-        : (resets
-            .filter((reset) => reset !== null)
-            .toSorted((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null)
+      recoveries
+        .filter((reset) => reset !== null)
+        .toSorted((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null
     throw new AccountPoolStoppedError(trigger, decision, resetAt, this.deps.usageUrl)
   }
 
@@ -204,8 +219,17 @@ export class AccountPool {
     const row = this.deps.policy()
     if (row === undefined || row.pooling === 'notOffered' || !row.isCredentialHeld)
       return await this.stop(current, triggers, { kind: 'stop', reason: 'notOffered' })
-    if (held?.decision?.isCurrent(row) === false)
-      return await this.stop(current, triggers, { kind: 'stop', reason: 'confirmation' })
+    let heldDecision = held?.decision
+    if (heldDecision?.isCurrent(row) === false) {
+      const refreshed = await this.deps.gate.authorize({
+        policy: this.deps.policy,
+        trigger: held?.trigger,
+        isInteractive: request.isInteractive,
+        hasOfferedRecovery: request.hasOfferedRecovery === true,
+      })
+      if (refreshed.kind !== 'allow') return await this.stop(current, triggers, refreshed)
+      heldDecision = refreshed
+    }
     if (triggers.length > 0 && (!canPool || !settings.isSwapOn))
       return await this.stop(current, triggers)
     if (triggers.length > 0 && rows.length === 1) return await this.stop(current, triggers)
@@ -222,7 +246,8 @@ export class AccountPool {
         trigger: undefined,
         estimate: request.estimate,
         coldCacheUsd: parseUsd(0),
-        decision: held?.decision,
+        decision: heldDecision,
+        policyTrigger: held?.trigger,
       }
     const decision = await this.deps.gate.authorize({
       policy: this.deps.policy,
@@ -243,6 +268,7 @@ export class AccountPool {
         })
       : [...rows.slice(start), ...rows.slice(0, start)]
     const allTriggers = [...triggers]
+    const recoveries = [this.reset(triggers)]
     for (const account of candidates) {
       if (account.id === current.id && triggers.length > 0) continue
       if (!this.deps.canUseModel(account, request)) continue
@@ -270,10 +296,12 @@ export class AccountPool {
           estimate,
           coldCacheUsd,
           decision,
+          policyTrigger: triggers[0],
         }
       allTriggers.push(...blocked)
+      recoveries.push(this.reset(blocked))
     }
-    return await this.stop(current, allTriggers)
+    return await this.stop(current, allTriggers, undefined, recoveries)
   }
 
   private async admit(request: AccountPoolRequest) {
@@ -313,26 +341,6 @@ export class AccountPool {
     }
     try {
       check()
-      const previous = selected.previousAccount
-      if (previous !== selected.account.id) {
-        const trigger = selected.trigger
-        await this.deps.record(
-          accountEventSchema.parse({
-            provider: this.deps.provider,
-            account: selected.account.id,
-            time: new Date(this.deps.now()).toISOString(),
-            ...(trigger === undefined
-              ? { type: 'spread', workerId: request.owner }
-              : {
-                  type: 'swap',
-                  previousAccount: previous,
-                  trigger,
-                  coldCacheUsd: numericUsd(selected.coldCacheUsd),
-                }),
-          }),
-        )
-      }
-      check()
       return { ...selected, claim, check }
     } catch (error: unknown) {
       await claim.settle(parseUsd(0), false)
@@ -370,6 +378,7 @@ export class AccountPool {
     try {
       const admitted = await operation
       const state = { hasSent: false }
+      const hasSent = () => state.hasSent
       let actualUsd: Usd | null = null
       try {
         const result = await dispatch({
@@ -377,12 +386,39 @@ export class AccountPool {
           estimate: admitted.estimate,
           check: admitted.check,
           beforeSend: () => {
-            admitted.check()
-            this.sticky.set(owner, { account: admitted.account.id, decision: admitted.decision })
-            state.hasSent = true
+            const adopt = () => {
+              admitted.check()
+              this.sticky.set(owner, {
+                account: admitted.account.id,
+                decision: admitted.decision,
+                trigger: admitted.policyTrigger,
+              })
+              state.hasSent = true
+            }
+            if (state.hasSent || admitted.previousAccount === admitted.account.id) adopt()
+            else {
+              const trigger = admitted.trigger
+              this.deps.commit(
+                accountEventSchema.parse({
+                  provider: this.deps.provider,
+                  account: admitted.account.id,
+                  time: new Date(this.deps.now()).toISOString(),
+                  ...(trigger === undefined
+                    ? { type: 'spread', workerId: request.owner }
+                    : {
+                        type: 'swap',
+                        previousAccount: admitted.previousAccount,
+                        trigger,
+                        coldCacheUsd: numericUsd(admitted.coldCacheUsd),
+                      }),
+                }),
+                adopt,
+              )
+              if (!hasSent()) throw new Error(UI_TEXT.accounts.invalidAccount)
+            }
           },
         })
-        if (!state.hasSent) throw new Error(UI_TEXT.accounts.invalidAccount)
+        if (!hasSent()) throw new Error(UI_TEXT.accounts.invalidAccount)
         if (result.actualUsd !== null && result.actualUsd < parseUsd(0))
           throw new Error(UI_TEXT.accounts.invalidAccount)
         actualUsd = result.actualUsd

@@ -187,6 +187,8 @@ export interface PaidUseConsentDeps {
   /** The features allowed always in this workspace, still valid (the host drops lapsed ones). */
   readonly readGrants: () => ReadonlySet<PaidFeature>
   readonly writeGrants: (grants: ReadonlySet<PaidFeature>) => Promise<void>
+  /** Account owner performs the read/merge/write inside its serialized mutation. */
+  readonly rememberGrant?: (feature: PaidFeature) => Promise<void>
   /** The popup; "always" is offered only when `canRemember` is true. */
   readonly ask: (request: PaidUseRequest, canRemember: boolean) => Promise<PaidUseAnswer>
   readonly log: CoreLogger
@@ -237,7 +239,9 @@ export class PaidUseConsent {
    */
   private async remember(feature: PaidFeature): Promise<boolean> {
     try {
-      await this.deps.writeGrants(new Set([...this.deps.readGrants(), feature]))
+      if (this.deps.rememberGrant === undefined)
+        await this.deps.writeGrants(new Set([...this.deps.readGrants(), feature]))
+      else await this.deps.rememberGrant(feature)
       return true
     } catch (error: unknown) {
       this.deps.log.warn(
@@ -382,7 +386,12 @@ export interface PaidAccountBinding {
 }
 export interface AccountPaidUseConsentDeps extends Omit<
   PaidUseConsentDeps,
-  'readGrants' | 'writeGrants' | 'ask' | 'windowOnceFeatures' | 'windowOnceGeneration'
+  | 'readGrants'
+  | 'writeGrants'
+  | 'rememberGrant'
+  | 'ask'
+  | 'windowOnceFeatures'
+  | 'windowOnceGeneration'
 > {
   readonly readGrants: (bindingKey: string) => ReadonlySet<PaidFeature>
   readonly writeGrants: (bindingKey: string, grants: ReadonlySet<PaidFeature>) => Promise<void>
@@ -431,19 +440,17 @@ export class AccountPaidUseConsent {
     this.consent = this.createConsent()
   }
 
-  private async write(grants: ReadonlySet<PaidFeature>): Promise<void> {
+  private async write(use: () => Promise<void>): Promise<void> {
     const previous = this.writes
     const operation = (async () => {
-      await previous
-      await this.deps.writeGrants(this.key, grants)
-    })()
-    this.writes = (async () => {
       try {
-        await operation
+        await previous
       } catch {
-        /* Caller receives the failure. */
+        // A failed prior owner must not block this mutation; its caller received the error.
       }
+      await use()
     })()
+    this.writes = operation
     await operation
   }
 
@@ -464,9 +471,23 @@ export class AccountPaidUseConsent {
         isCurrent() && !this.shouldIgnoreStored ? this.deps.readGrants(this.key) : new Set(),
       writeGrants: async (grants) => {
         if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
-        await this.write(grants)
-        if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
-        this.shouldIgnoreStored = false
+        await this.write(async () => {
+          if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
+          await this.deps.writeGrants(this.key, grants)
+          if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
+          this.shouldIgnoreStored = false
+        })
+      },
+      rememberGrant: async (feature) => {
+        await this.write(async () => {
+          if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
+          const grants = this.shouldIgnoreStored
+            ? new Set<PaidFeature>()
+            : this.deps.readGrants(this.key)
+          await this.deps.writeGrants(this.key, new Set([...grants, feature]))
+          if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
+          this.shouldIgnoreStored = false
+        })
       },
       ask: async (request, canRemember) => await this.deps.ask(request, this.binding, canRemember),
     })
@@ -490,7 +511,9 @@ export class AccountPaidUseConsent {
     this.isRevoking = true
     this.shouldIgnoreStored = true
     try {
-      await this.write(new Set())
+      await this.write(async () => {
+        await this.deps.writeGrants(this.key, new Set())
+      })
     } finally {
       this.revocations--
       this.isRevoking = this.revocations > 0

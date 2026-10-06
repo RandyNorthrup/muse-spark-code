@@ -105,6 +105,10 @@ export function poolRig(provider = 'anthropic', product = 'api') {
       events.push(event)
       return Promise.resolve()
     }),
+    commit: vi.fn<AccountPoolDeps['commit']>((event, adopt) => {
+      adopt()
+      events.push(event)
+    }),
     sharedGroupNotice: vi.fn(() => Promise.resolve()),
     reserve: vi.fn<AccountPoolDeps['reserve']>((account, estimate) => {
       const claim: (typeof claims)[number] = { account: account.id, estimate, actual: undefined }

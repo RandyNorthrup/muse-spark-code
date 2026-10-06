@@ -14,6 +14,111 @@ const RESET = new Date(POOL_NOW + 60_000).toISOString()
 const blocked = { blocked: { reason: 'rateLimited', resetAt: RESET } } as const
 
 describe('M108 account pool request boundaries', () => {
+  it('refreshes a sticky grant after policy changes or revoke and reconfirm without bypassing its reason', async () => {
+    const t = poolRig('meta', 'model-api')
+    t.blocks.set('a', blocked)
+    expect(await t.run()).toBe('b')
+    t.change({ recordVersion: 'new-version' })
+    expect(await t.run()).toBe('b')
+    expect(t.ask).toHaveBeenCalledTimes(2)
+    await t.confirmations.revoke('meta', 'model-api')
+    t.ask.mockResolvedValue('ownCapsOnly')
+    await t.confirmations.obtain(t.policy(), true)
+    await expect(t.run()).rejects.toMatchObject({ decision: { reason: 'ownCapsOnly' } })
+    await t.confirmations.revoke('meta', 'model-api')
+    t.ask.mockResolvedValue('confirm')
+    await t.confirmations.obtain(t.policy(), true)
+    expect(await t.run()).toBe('b')
+    expect(t.pool.current('conversation', 'main')).toBe('b')
+  })
+
+  it('commits no swap for failed credentials or a final fence and adopts together with the event', async () => {
+    for (const failure of ['credentials', 'fence']) {
+      const t = poolRig()
+      expect(await t.run()).toBe('a')
+      t.blocks.set('a', blocked)
+      const events = t.events.length
+      await expect(
+        t.pool.run(poolRequest(), async (admission) => {
+          await Promise.resolve()
+          expect(t.pool.current('conversation', 'main')).toBe('a')
+          expect(t.events).toHaveLength(events)
+          if (failure === 'credentials') throw new Error('credential unavailable')
+          t.blocks.set(admission.account, blocked)
+          admission.beforeSend()
+          return { value: 'never', actualUsd: parseUsd(0) }
+        }),
+      ).rejects.toThrow()
+      expect(t.events).toHaveLength(events)
+      expect(t.pool.current('conversation', 'main')).toBe('a')
+      expect(t.claims[1]!.actual).toBe(parseUsd(0))
+    }
+    const t = poolRig()
+    await t.run()
+    t.blocks.set('a', blocked)
+    expect(await t.run()).toBe('b')
+    expect(t.events).toEqual([
+      expect.objectContaining({ type: 'swap', account: t.pool.current('conversation', 'main') }),
+    ])
+  })
+
+  it('serializes overlapping worker consent, credential waits, revocation and atomic event fences', async () => {
+    const t = poolRig('meta', 'model-api')
+    await t.run()
+    t.blocks.set('a', blocked)
+    const credentials = Promise.withResolvers<undefined>()
+    const ready = Promise.withResolvers<undefined>()
+    const pending = t.pool.run(poolRequest(), async (admission) => {
+      ready.resolve(undefined)
+      await credentials.promise
+      admission.beforeSend()
+      return { value: admission.account, actualUsd: admission.estimate.costUsd }
+    })
+    await ready.promise
+    expect(await t.run({ kind: 'worker', owner: 'worker-one' })).toBe('c')
+    expect(t.ask).toHaveBeenCalledTimes(1)
+    const workerEvents = [...t.events]
+    await t.confirmations.revoke('meta', 'model-api')
+    credentials.resolve(undefined)
+    await expect(pending).rejects.toThrow()
+    expect(t.pool.current('conversation', 'main')).toBe('a')
+    expect(t.events).toEqual(workerEvents)
+    expect(t.claims[1]!.actual).toBe(parseUsd(0))
+    await t.confirmations.obtain(t.policy(), true)
+    const commit = t.deps.commit
+    t.deps.commit = (event, adopt) => {
+      t.settings.isSwapOn = false
+      commit(event, adopt)
+    }
+    await expect(t.run()).rejects.toThrow()
+    expect(t.events).toEqual(workerEvents)
+    expect(t.pool.current('conversation', 'main')).toBe('a')
+    t.settings.isSwapOn = true
+    t.deps.commit = (event, adopt) => {
+      commit(event, adopt)
+      expect(t.pool.current('conversation', 'main')).toBe(event.account)
+    }
+    expect(await t.run()).toBe('b')
+    expect(t.events.filter((event) => event.type === 'swap')).toHaveLength(2)
+  })
+
+  it('waits for every blocking trigger per account then chooses a known recovery over unknown peers', async () => {
+    const t = poolRig()
+    t.rows.splice(1)
+    t.rows[0]!.thresholds = { requests: { day: 1 } }
+    t.counts.set('a', 1)
+    t.blocks.set('a', blocked)
+    const dailyReset = new Date(new Date(POOL_NOW).setHours(24, 0, 0, 0)).toISOString()
+    await expect(t.run()).rejects.toMatchObject({ resetAt: dailyReset })
+    t.deps.now = () => Date.parse(RESET)
+    await expect(t.run()).rejects.toMatchObject({ resetAt: dailyReset })
+    const peers = poolRig()
+    peers.blocks.set('a', { blocked: { reason: 'quota', resetAt: null } })
+    peers.blocks.set('b', blocked)
+    peers.blocks.set('c', { blocked: { reason: 'quota', resetAt: null } })
+    await expect(peers.run()).rejects.toMatchObject({ resetAt: RESET })
+  })
+
   it('swaps in configured order at a user cap and stays on the new account', async () => {
     const t = poolRig()
     t.rows[0]!.thresholds = { spendUsd: { day: 1 } }
@@ -48,7 +153,17 @@ describe('M108 account pool request boundaries', () => {
     expect(t.dispatch).not.toHaveBeenCalled()
     expect(t.events).toEqual([expect.objectContaining({ type: 'stop', account: 'a' })])
     t.blocks.set('b', { blocked: { reason: 'quota', resetAt: null } })
-    await expect(t.run()).rejects.toMatchObject({ resetAt: null })
+    await expect(t.run()).rejects.toMatchObject({ resetAt: RESET })
+  })
+
+  it('includes every shared peer vendor trigger in account recovery', async () => {
+    const t = poolRig()
+    for (const row of t.rows) row.limitGroup = 'same-team'
+    t.blocks.set('b', blocked)
+    const later = new Date(POOL_NOW + 120_000).toISOString()
+    t.blocks.set('c', { blocked: { reason: 'usageLimit', resetAt: later } })
+    await expect(t.run()).rejects.toMatchObject({ resetAt: later })
+    expect(t.dispatch).not.toHaveBeenCalled()
   })
 
   it('honors per-account Retry-After at each send and keeps sent uncertainty on its account', async () => {
@@ -96,7 +211,9 @@ describe('M108 account pool request boundaries', () => {
     expect(await t.run()).toBe('b')
     expect(await t.run()).toBe('b')
     await t.confirmations.revoke('meta', 'model-api')
-    await expect(t.run()).rejects.toMatchObject({ decision: { reason: 'confirmation' } })
+    await expect(t.run({ isInteractive: false, hasPoolFlag: true })).rejects.toMatchObject({
+      decision: { reason: 'confirmation' },
+    })
   })
 
   it('spreads by current headroom and sticks per worker without moving the conversation', async () => {
@@ -166,9 +283,12 @@ describe('M108 account pool request boundaries', () => {
   it('records before sending, refuses a silent swap and rechecks after credentials are awaited', async () => {
     const t = poolRig()
     t.blocks.set('a', blocked)
-    t.deps.record = vi.fn(() => Promise.reject(new Error('transcript unavailable')))
+    t.deps.commit = vi.fn(() => {
+      throw new Error('transcript unavailable')
+    })
     await expect(t.run()).rejects.toThrow('transcript unavailable')
-    expect(t.dispatch).not.toHaveBeenCalled()
+    expect(t.pool.current('conversation', 'main')).toBeUndefined()
+    expect(t.events).toEqual([])
     expect(t.claims[0]!.actual).toBe(parseUsd(0))
     const delayed = poolRig()
     await expect(

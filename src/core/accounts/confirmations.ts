@@ -35,7 +35,14 @@ export interface AccountPolicyGrant {
 export class AccountConfirmations {
   private readonly generations = new Map<string, number>()
   private readonly revoked = new Set<string>()
-  private readonly pending = new Map<string, Promise<AccountPolicyGrant | undefined>>()
+  private readonly pending = new Map<
+    string,
+    {
+      readonly generation: number
+      readonly stamp: string
+      readonly result: Promise<AccountPolicyGrant | undefined>
+    }
+  >()
   private writes: Promise<void> = Promise.resolve()
 
   public constructor(
@@ -103,6 +110,8 @@ export class AccountConfirmations {
       })
     })
     if (generation !== (this.generations.get(key) ?? 0)) return
+    // Publishing fresh authority invalidates every storage read begun before it.
+    this.generations.set(key, generation + 1)
     this.revoked.delete(key)
     return this.grant(row, choice)
   }
@@ -139,17 +148,27 @@ export class AccountConfirmations {
     isInteractive: boolean,
   ): Promise<AccountPolicyGrant | undefined> {
     const snapshot = structuredClone(row)
-    const existing = await this.read(snapshot)
-    if (existing !== undefined || !isInteractive) return existing
-    const key = digest(snapshot)
+    if (!isInteractive) return await this.read(snapshot)
+    const key = this.key(snapshot)
+    const stamp = digest(snapshot)
+    const generation = this.generations.get(key) ?? 0
     const pending = this.pending.get(key)
-    if (pending !== undefined) return await pending
-    const decision = this.decide(snapshot)
-    this.pending.set(key, decision)
+    if (pending?.stamp === stamp && pending.generation === generation) return await pending.result
+    if (pending?.generation === generation) this.generations.set(key, generation + 1)
+    const ownedGeneration = this.generations.get(key) ?? 0
+    // Install the owner before any I/O, including the initial storage read.
+    const result = (async () => {
+      await Promise.resolve()
+      const existing = await this.read(snapshot)
+      if (ownedGeneration !== (this.generations.get(key) ?? 0)) return
+      return existing ?? (await this.decide(snapshot))
+    })()
+    const owned = { generation: ownedGeneration, stamp, result }
+    this.pending.set(key, owned)
     try {
-      return await decision
+      return await result
     } finally {
-      this.pending.delete(key)
+      if (this.pending.get(key) === owned) this.pending.delete(key)
     }
   }
 

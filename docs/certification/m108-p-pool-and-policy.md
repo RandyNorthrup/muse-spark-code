@@ -1,5 +1,117 @@
 # M108 P — Pool and policy (macmini, 2026-10-06)
 
+## FIXM108P review repairs
+
+Repair base `d1054081`; all five RVM108P P2 findings are fixed. There were no
+P1 findings and no review finding is left as a residual. Read the full review,
+rig brief and shared rules. Work stays in P's core/paid ports, owning tests,
+PLAN and this record. No network, dependency, credential, paid/live call,
+merge, rebase, push, hook bypass, timeout override or gate weakening.
+
+One profile-owned pool serializes admissions/reservations; synchronous final
+send transitions own stickiness and the swap/spread transaction. Its supplied
+confirmation authority owns a provider/product's in-flight read/question before
+I/O starts and tags all results by generation and policy digest. Successful
+fresh confirmation advances the generation, so stale storage reads cannot mint
+new authority. Changed policy or revoke/reconfirm can refresh a sticky grant,
+using its original pooling trigger so Only at my own caps cannot authorize a
+previous vendor-limit assignment. Account paid mutations read/merge/write
+inside their serialized owner and check the captured generation there.
+
+| Review finding                               | Fix and regression (complete owning files)                                                                                                                                        | Red drill                                                                                                                                      |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2-1 stale sticky policy grant               | `pool.test.ts`: `refreshes a sticky grant after policy changes or revoke and reconfirm without bypassing its reason`; keeps the original reason while refreshing authority        | `P2-1-sticky`: restore the unconditional stale-held stop; named regression fails                                                               |
+| P2-2 concurrent Always loses a feature       | `accountPaidConsent.test.ts`: `merges concurrent Always answers inside the account owner and fences queued revocation`; Judge and Auto reviewer both persist                      | `P2-2-snapshot`: precompute grants outside the owner; `P2-2-owner-serialization`: remove the prior-owner wait; named merge regression fails    |
+| P2-3 phantom swap after a nonsend            | `pool.test.ts`: `commits no swap for failed credentials or a final fence and adopts together with the event`; failed pre-send work refunds and leaves account/event unchanged     | `P2-3-early-event`: append at admission before credentials; named regression fails                                                             |
+| P2-4 premature or hidden stop reset          | `pool.test.ts`: `waits for every blocking trigger per account then chooses a known recovery over unknown peers`; maximum reset within an account, earliest known eligible account | `P2-4-earliest-trigger`: choose the earliest trigger; `P2-4-unknown-peer`: let one unknown account hide known recovery; named regression fails |
+| P2-5 duplicate confirmation after stale read | `confirmations.test.ts`: `owns the storage read before concurrent requests can start a second question`; concurrent callers join before any store read                            | `P2-5-owner-after-read`: restore the old obtain/read ordering; named regression fails                                                          |
+
+Additional interleavings and guard drills:
+
+- `confirmations.test.ts`: `invalidates an older valid read when fresh authority
+is published` and `discards late storage reads and replaced policy questions
+by generation`. `P2-5-stale-read-generation` removes the fresh-authority
+  generation advance; the first named regression fails.
+- `accountPaidConsent.test.ts`: `discards a queued Always effect after
+revocation and preserves both features on a fresh generation`.
+  `P2-2-queued-generation` removes the generation check inside the queued
+  mutation; the named regression fails because a stale write reaches storage.
+- `pool.test.ts`: `serializes overlapping worker consent, credential waits,
+revocation and atomic event fences`: a worker proceeds while the main
+  conversation waits for credentials; revocation rejects that conversation
+  without a swap; a settings change inside the transaction also refuses it;
+  reconfirmation then adopts B together with its row. `P2-3-commit-fence`
+  removes the final check inside adoption; the named regression fails.
+- `pool.test.ts`: `includes every shared peer vendor trigger in account
+recovery`. `P2-4-shared-peers` keeps only the first peer vendor block;
+  the named regression fails on the later shared reset.
+
+The five primary regressions first failed together on the reviewed source:
+**5 failed / 41 passed**, three complete files, default timeouts. All **11**
+mutation variants exited 1 with their named failing regression; each source
+was restored byte-exact and checked by SHA-256 in a finally block. No filtered
+or skipped test and no timeout override was used. The zero-duplication gate
+first found the two test setups and identical owner-queue scaffolding; shared
+test fixtures and a single mutation tail eliminate all three clones without
+changing its configuration.
+
+The sections below the repair receipts retain the original lane certification
+and integration handoffs. W's single profile broker and atomic event adapter
+remain named integration prerequisites, now also recorded as
+`FIXM108P-PROFILE-OWNER` and `FIXM108P-EVENT-TRANSACTION` in PLAN §9. The
+host API generated-record handoff remains W-owned. README, CHANGELOG and the
+help/reference entry for installed pooling remain in `P-W-DOCS-HELP-BUNDLES`;
+this repair introduces no command, setting, wire shape or new visible text.
+
+## FIXM108P final rig verification
+
+Final restored commands ran directly on macmini, serially, with at most three
+complete test files/workers and repository-default timeouts. No paid/live
+calls or new wire shapes were needed. Six files pass **106 tests**:
+
+| Command / scope                                                                                                            | Result                                                                                                    |
+| -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/pool.test.ts test/unit/accountPaidConsent.test.ts test/e2e/accounts.e2e.test.ts --maxWorkers=3`  | **38 passed**: 24 pool/replay, 12 account consent, 2 fake composition                                     |
+| `npx vitest run test/unit/confirmations.test.ts test/unit/policyGate.test.ts test/unit/paidConsent.test.ts --maxWorkers=3` | **68 passed**: 15 confirmation, 32 policy, 21 legacy consent                                              |
+| `npm run typecheck`                                                                                                        | All five projects passed; owner queue uses Node 20-compatible promises                                    |
+| `npx eslint --max-warnings=0` on the seven changed TypeScript files                                                        | Passed; no new escape hatches                                                                             |
+| `npx prettier --check` on all nine changed files; `git diff --check`                                                       | Passed                                                                                                    |
+| `npm run deadcode`                                                                                                         | Passed; only the two existing configuration hints                                                         |
+| `npx jscpd`                                                                                                                | Passed; zero clones, unchanged threshold                                                                  |
+| `node scripts/check-l10n.mjs`                                                                                              | 14 tables, 164 manifest strings, 606 source files; zero problems                                          |
+| `node scripts/check-host-api.mjs`                                                                                          | Exit 1 only for the existing W-owned `node:crypto` count **46 → 47**; no new host API difference          |
+| `npm run build`                                                                                                            | Passed: production build, all size caps, split checks, host globals and third-party notices (83 packages) |
+
+Production bundle measurements (unchanged caps):
+
+| Bundle                      |   KiB | Cap KiB |
+| --------------------------- | ----: | ------: |
+| Activation                  | 440.3 |     600 |
+| Model API                   | 450.1 |     475 |
+| ACP                         | 818.6 |     850 |
+| Webview startup             | 897.3 |     900 |
+| Webview deferred JavaScript |  49.7 |      50 |
+
+Final byte-exact mutation restoration hashes, rechecked before commit:
+
+| Source                               | SHA-256                                                            |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| `src/core/accounts/confirmations.ts` | `635159746ac370846e2904d52652f7f3bb9d86374d40b75cead8b90f0ad685b5` |
+| `src/core/accounts/pool.ts`          | `38933d3ed12c1b343de18801354c36d30591b979d3d2ffead93c18ededbf9712` |
+| `src/core/paid/paidConsent.ts`       | `1e32f0247ceab2f41844ff02b9eeebe62db4eedbbbe6390c283f0249db4d5111` |
+
+The nine changed files are `pool.ts`, `confirmations.ts`, the account region
+and narrow owner hook in `paidConsent.ts`, `pool.test.ts`,
+`confirmations.test.ts`, `accountPaidConsent.test.ts`, their pool fixture,
+PLAN and this certification. The existing fake composition and legacy consent
+files were run without modification. The rig brief forbids aggregate quality,
+full coverage, network and installed/live editor runs; the lead retains those
+release gates as recorded in PLAN §7. No RVM108P review finding remains open.
+The two new named integration prerequisites and existing host-record/docs
+handoffs remain explicit; this lane does not enable installed pooling.
+
+## Original lane certification
+
 Worktree `/Users/randy/lanes/M108P`, branch `m108/p`, base `9cad21cb`.
 Read the rig brief, shared codex/common.md, AGENTS, PLAN D88/M108 and Q-M108,
 the account-terms research and the prerequisite lane certifications. The rig
@@ -19,8 +131,8 @@ rebase, push, credentials, network, live/paid calls or installs were used.
   skipped group keys receive a notice. Known `Retry-After` blocks prevent
   dispatch. No account with room returns an explicit stop with reset and
   usage URL. Events contain opaque IDs and validated trigger data only.
-- Swaps record before dispatch; a failed event write refunds the known
-  nonsend. Cold-cache cost is integer nano-USD, included in the reservation
+- Swaps commit with final account adoption after credential lookup, before
+  the physical send; a refused transaction refunds the known nonsend. Cold-cache cost is integer nano-USD, included in the reservation
   and row. All account changes are conservatively cold pending Q-M108.
   Existing numeric output contracts are used only after exact round-trip
   validation. Shared daily and original parent-conversation budgets remain
@@ -231,7 +343,10 @@ production success.
 
 - **P-M95-PER-REQUEST:** compose `AccountPool.run` at the physical request
   boundary and use K's account-specific guarded lookup/client and credential
-  lifetime. Preserve origin, auth/product eligibility and removal/credential
+  lifetime. Supply `commit(event, adopt)` as the single synchronous owner
+  transaction for the journal/transcript and account adoption, aborting both
+  if the final fence or prepared storage operation refuses. Never replace it
+  with an async event append followed by adoption. Preserve origin, auth/product eligibility and removal/credential
   generations after asynchronous lookups. `canUseModel` must read the selected
   account's scan/capability record for the immutable request's `modelId`.
   Call `beforeSend` synchronously after credential lookup immediately before

@@ -19833,6 +19833,20 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**FIXM108P (2026-10-06):** fix all five RVM108P P2 findings inside P's
+owned core/paid ports. Serialize confirmation read/question/write ownership
+before starting I/O, discard stale reads/results by generation, and refresh
+sticky policy authority against its original pooling reason. Merge paid
+Always grants by reading inside the account owner's write operation. Commit
+swap/spread events and account adoption in one synchronous transaction after
+credential lookup and the final admission fence; the event port must abort
+both on refusal. Compute recovery per account from all blocking triggers,
+then choose the earliest known eligible account. Add deterministic overlapping
+read, popup, write, revocation, credential and final-fence regressions and one
+byte-exact mutation/restoration drill per finding. No dependency, guard,
+threshold, timeout, UI or budget changes; W binds the single profile owner and
+atomic event transaction before installed surfaces are enabled.
+
 **FIXM108T (2026-10-06):** repair both RVM108T P2 findings, with no
 review residuals. Sum settled/reserved/uncertain USD and projected requests
 as integer nano-USD through `src/shared/usd.ts`; compare counts as integers.
@@ -20063,6 +20077,13 @@ No dependency, endpoint guard, paid default or budget changes. See
         full gate green
 
 ## 7. Gates
+
+**FIXM108P bounded-lane certification (2026-10-06).** The rig brief and
+shared rules prohibit aggregate quality/full unit runs, merges and network
+calls. Run complete owning test files with repository timeouts and at most
+three workers/files, scoped static/build checks and hook-on local commits.
+The lead retains integrated quality, coverage and installed editor/live gates;
+no gate is weakened. Receipts: `docs/certification/m108-p-pool-and-policy.md`.
 
 **FIXM108T bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit full quality/full unit runs, merges and network calls.
@@ -21249,6 +21270,29 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM108P-PROFILE-OWNER (P-W-POLICY-STORE / M109 / W).** Compose one
+  profile-owned pool and confirmation authority, and one account/tariff paid
+  authority per workspace/window, through the shared broker. P's synchronous
+  sticky/event transitions and generation-tagged asynchronous effects are
+  certified on injected in-process ports; they are not a cross-process lock.
+  Safe for now: these account modules remain absent from shipped graphs and
+  installed multi-account surfaces remain disabled on this base. Follow-up:
+  W/M109 certify multi-window revocation and concurrent grants on that same
+  profile owner before enabling those surfaces. No RVM108P finding remains
+  within the supplied in-process ports.
+
+- **FIXM108P-EVENT-TRANSACTION (P-M95-PER-REQUEST / U / H / J / W).**
+  `AccountPoolDeps.commit(event, adopt)` is a required synchronous owner
+  transaction after credential lookup: it executes the final fenced adoption
+  and publishes the validated swap/spread together, or commits neither. Its
+  adapter must prepare fallible I/O first and never await/reenter between
+  adoption and publication; an async append by itself does not satisfy this
+  port. Stop-event persistence keeps its async `record` port. Safe for now:
+  only the fake composition supplies this new port; no installed pooling is
+  enabled. Follow-up: W binds the journal/transcript/UI transaction and tests
+  persistence refusal and a revoked final fence through every editor/runtime
+  surface. No false swap row is published by the supplied pool/fake ports.
 
 - **FIXM108K-PROCESS-COMPOSITION (K-M95-FILE / K-M109-VAULT / W).** The
   account store shares its mutation queue and removal generations across
