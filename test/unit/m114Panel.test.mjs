@@ -5,6 +5,7 @@ import { chromium } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { contrastRatio } from '../../scripts/check-tokens.mjs'
+import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
 
 const themes = ['light', 'dark', 'hc-dark', 'hc-light', 'one-dark-pro', 'dracula']
 const cssFiles = ['src/webview/styles.css', 'src/webview/whatsNew/whatsNew.css']
@@ -14,11 +15,12 @@ const fixture = [
   "import {createRoot} from 'react-dom/client';",
   "import {SecretPromptDialog} from './src/webview/components/SecretPromptDialog';",
   "import {ApprovalCard} from './src/webview/components/ApprovalCard';",
+  "import {GooeyMenu} from './src/webview/components/GooeyMenu';",
   "const labels = ['Allow once', 'Always allow this very long command in this workspace', 'Reject with feedback'];",
   "const approval = {approvalId:'test',requirementId:{approvalId:'test',sourceIndex:0},",
   " subject:{kind:'shell',command:'npm run build'},rawArgs:'{}',isProtectedWrite:false,isJudgeEscalated:false,",
   " availableChoices:labels.map((label,i)=>({choiceId:String(i),label,decision:i===2?'abort':'approved',scope:'once',acceptsFeedback:i===2}))};",
-  'createRoot(globalThis.document.getElementById(\'actual\')).render(<><ApprovalCard approval={approval} toolName="shell" onDecide={()=>{}}/><SecretPromptDialog redactedText="[redacted]" onEdit={()=>{}} onSendAnyway={()=>{}}/></>);',
+  'createRoot(globalThis.document.getElementById(\'actual\')).render(<><ApprovalCard approval={approval} toolName="shell" onDecide={()=>{}}/><SecretPromptDialog redactedText="[redacted]" onEdit={()=>{}} onSendAnyway={()=>{}}/><GooeyMenu label="Actions" origin={{x:160,y:400}} items={[{id:"copy",label:"Copy",icon:"C",onSelect:()=>{}}]} onClose={()=>{}}/></>);',
 ].join('\n')
 const markup = `<main>
 <div id="actual"></div>
@@ -34,7 +36,6 @@ const markup = `<main>
 <div class="mention-menu"><ul><li class="menu-item menu-item-active">Mention</li></ul></div>
 <div class="question"><button class="question-tab" aria-selected="true">Question</button><input class="question-input"></div>
 <div class="todo-surface"><header class="todo-tab-header"><h1>Tasks</h1><button class="todo-window">Move</button></header></div>
-<button class="gooey-menu-pill"><span class="gooey-menu-pill-icon">C</span><span class="gooey-menu-pill-label">Copy</span></button>
 <span class="toggle-knob"></span><span class="agent-dot agent-dot-running"></span>
 </main>`
 
@@ -53,6 +54,25 @@ beforeAll(async () => {
     define: { 'process.env.NODE_ENV': '"production"' },
   })
   runtime.js = js.outputFiles[0].text
+  const harness = await build({
+    entryPoints: ['src/webview/main.tsx'],
+    bundle: true,
+    write: false,
+    splitting: true,
+    format: 'esm',
+    platform: 'browser',
+    jsx: 'automatic',
+    minify: true,
+    outdir: 'temp/m114-p2-harness',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  runtime.assets = new Map(
+    harness.outputFiles.map((file) => [
+      `/dist/webview/${path.relative(path.resolve('temp/m114-p2-harness'), file.path).replaceAll('\\', '/')}`,
+      file.text,
+    ]),
+  )
+  runtime.host = await serveRepo(process.cwd())
   const chrome = findChrome()
   if (!chrome) throw new Error('Chrome is required for panel polish verification')
   runtime.browser = await chromium.launch(
@@ -61,7 +81,36 @@ beforeAll(async () => {
 })
 afterAll(async () => {
   await runtime.browser?.close()
+  if (runtime.host) await new Promise((resolve) => runtime.host.server.close(resolve))
 })
+
+async function openHarness(theme, scene) {
+  const page = await runtime.browser.newPage({
+    viewport: { width: 320, height: 760 },
+    reducedMotion: 'reduce',
+  })
+  await page.route('**/*', (route) => {
+    const url = new URL(route.request().url())
+    if (url.hostname !== '127.0.0.1') return route.abort()
+    const asset = runtime.assets.get(url.pathname)
+    return asset === undefined
+      ? route.continue()
+      : route.fulfill({
+          body: asset,
+          contentType: url.pathname.endsWith('.css') ? 'text/css' : 'text/javascript',
+        })
+  })
+  await page.clock.install({ time: new Date('2026-10-06T12:00:00Z') })
+  await page.goto(
+    `http://127.0.0.1:${runtime.host.port}/test/harness/index.html?scenario=${scene}&theme=${theme}`,
+  )
+  await page.evaluate(() => {
+    globalThis.document.documentElement.style.width = '100%'
+    globalThis.document.body.style.width = '100%'
+  })
+  await page.clock.runFor(6500)
+  return page
+}
 
 async function open(theme, width = 320, isWhatsNew = false, motion = 'reduce') {
   const page = await runtime.browser.newPage({
@@ -144,6 +193,139 @@ async function force(page, selector, states) {
 }
 
 describe('M114 P2 panel contract', () => {
+  it('certifies History archive marks outside Tab order with Arrow/Delete keyboard access', async () => {
+    const certification = readFileSync(
+      'docs/certification/m114-p2-panel-polish-menus-dialogs-and-the-rest.md',
+      'utf8',
+    )
+    expect(certification).toContain('remain outside the Tab order')
+    expect(certification).toContain('Arrow keys select a row in the search box; Delete')
+    expect(certification).not.toContain('remain in the Tab order')
+    const page = await openHarness('dark', 'history-archived')
+    try {
+      const marks = await page.locator('.history-archive').evaluateAll((marks) =>
+        marks.map((mark) => ({
+          tabIndex: mark.tabIndex,
+          hidden: mark.getAttribute('aria-hidden'),
+        })),
+      )
+      expect(marks.length).toBeGreaterThan(0)
+      for (const mark of marks) expect(mark).toEqual({ tabIndex: -1, hidden: 'true' })
+      const search = page.getByRole('combobox')
+      await search.focus()
+      const initial = await search.getAttribute('aria-activedescendant')
+      await search.press('ArrowDown')
+      const selected = await search.getAttribute('aria-activedescendant')
+      expect(selected).not.toBe(initial)
+      const row = page.locator(`[id="${selected}"]`)
+      expect(await row.getAttribute('aria-keyshortcuts')).toBe('Delete')
+      const action = await row.getAttribute('aria-description')
+      await search.press('Delete')
+      await page.clock.runFor(100)
+      expect(await row.getAttribute('aria-description')).not.toBe(action)
+    } finally {
+      await page.close()
+    }
+  })
+
+  it.each(
+    themes.flatMap((theme) =>
+      ['chat-tool-menu-narrow', 'agents', 'background-map'].map((scene) => ({ theme, scene })),
+    ),
+  )(
+    '$theme/$scene: real harness header targets are at least 24 by 24 at a 320 px viewport',
+    async ({ theme, scene }) => {
+      const page = await openHarness(theme, scene)
+      try {
+        expect(await page.evaluate(() => globalThis.innerWidth)).toBe(320)
+        await page.waitForSelector('.header button')
+        const buttons = await page.locator('.header button').evaluateAll((buttons) =>
+          buttons.map((button) => {
+            const box = button.getBoundingClientRect()
+            return {
+              label: button.textContent || button.title,
+              width: box.width,
+              height: box.height,
+            }
+          }),
+        )
+        expect(buttons.length).toBe(scene === 'chat-tool-menu-narrow' ? 5 : 4)
+        expect(await page.locator('.header .agents-pill').count()).toBe(1)
+        for (const button of buttons) {
+          expect(button.width, `${scene}: ${button.label}`).toBeGreaterThanOrEqual(24)
+          expect(button.height, `${scene}: ${button.label}`).toBeGreaterThanOrEqual(24)
+        }
+        expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth)).toBe(320)
+        if (scene === 'chat-tool-menu-narrow') {
+          await page.keyboard.press('Escape')
+          await page.locator('.header-title-button').click()
+          const input = await page.locator('.header-title-input').boundingBox()
+          expect(input.width).toBeGreaterThanOrEqual(24)
+          expect(input.height).toBeGreaterThanOrEqual(24)
+          await page.locator('.header-title-input').fill('x')
+          await page.locator('.header-title-input').press('Enter')
+          await page.clock.runFor(100)
+          expect(await page.locator('.header-title-button').textContent()).toBe('x')
+          const renamed = await page.locator('.header-title-button').boundingBox()
+          expect(renamed.width).toBeGreaterThanOrEqual(24)
+          expect(renamed.height).toBeGreaterThanOrEqual(24)
+        }
+      } finally {
+        await page.close()
+      }
+    },
+  )
+
+  it.each(themes.flatMap((theme) => [false, true].map((forced) => ({ theme, forced }))))(
+    '$theme/forced=$forced: enabled approval decisions and crisp pills distinguish hover from pressed',
+    async ({ theme, forced }) => {
+      const page = await open(theme)
+      try {
+        if (forced) await page.emulateMedia({ forcedColors: 'active' })
+        const session = await page.context().newCDPSession(page)
+        await session.send('DOM.enable')
+        await session.send('CSS.enable')
+        const tree = await session.send('DOM.getDocument')
+        for (const selector of [
+          '.approval-choices > button:nth-child(1)',
+          '.approval-choices > button:nth-child(2)',
+          '.approval-choices > button:nth-child(3)',
+          '.gooey-menu-pill',
+        ]) {
+          const { nodeId } = await session.send('DOM.querySelector', {
+            nodeId: tree.root.nodeId,
+            selector,
+          })
+          await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['hover'] })
+          const hover = await style(page, selector)
+          expect(contrast(hover.color, hover.backgroundColor), selector).toBeGreaterThanOrEqual(4.5)
+          await session.send('CSS.forcePseudoState', {
+            nodeId,
+            forcedPseudoClasses: ['hover', 'active'],
+          })
+          const pressed = await style(page, selector)
+          expect(pressed, selector).not.toEqual(hover)
+          expect(contrast(pressed.color, pressed.backgroundColor), selector).toBeGreaterThanOrEqual(
+            4.5,
+          )
+          expect(pressed.outlineWidth, selector).toBe('2px')
+          expect(pressed.outlineOffset, selector).toBe('-2px')
+          expect(
+            contrast(pressed.outlineColor, pressed.backgroundColor),
+            selector,
+          ).toBeGreaterThanOrEqual(3)
+          expect(pressed.filter, selector).toBe('none')
+          expect(pressed.backdropFilter, selector).toBe('none')
+          if (selector === '.gooey-menu-pill') expect(pressed.boxShadow).toBe('none')
+          await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: [] })
+        }
+        await session.detach()
+      } finally {
+        await page.close()
+      }
+    },
+  )
+
   it.each(themes.flatMap((theme) => [320, 690].map((width) => ({ theme, width }))))(
     '$theme/$width: equal approval decisions stay on one row with complete labels',
     async ({ theme, width }) => {

@@ -2377,7 +2377,8 @@ body {
 /* --- session history (M6) --- */
 
 .header-title-button {
-  min-width: 0;
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
   padding: 0 var(--ms-space-4);
   border: 1px solid transparent;
   border-radius: var(--ms-radius);
@@ -2391,6 +2392,7 @@ body {
 .header-title-input {
   flex: 1;
   min-width: 0;
+  min-height: var(--ms-space-24);
   padding: 2px var(--ms-space-4);
   border: 1px solid var(--ms-focus);
   border-radius: var(--ms-radius);
@@ -3185,6 +3187,7 @@ li:focus-within > .row-actions .row-actions-button,
   display: inline-flex;
   gap: calc(var(--ms-space-12) / 2);
   align-items: center;
+  min-height: var(--ms-space-24);
   padding: 1px var(--ms-space-8);
   border: 1px solid var(--ms-border);
   border-radius: var(--ms-radius-pill);
@@ -3833,8 +3836,8 @@ li:focus-within > .row-actions .row-actions-button,
 }
 
 :is(.modal, .gate, .approval, .question) .button-primary:hover:enabled,
-.approval-choices > button:hover:enabled,
-.approval-choices > button:active:enabled,
+.approval .approval-choices > button:hover:enabled,
+.approval .approval-choices > button:active:enabled,
 .modal .question-actions > button:hover:enabled,
 .modal .question-actions > button:active:enabled {
   color: var(--ms-on-accent);
@@ -3876,6 +3879,12 @@ li:focus-within > .row-actions .row-actions-button,
 .gooey-menu-pill:not([aria-disabled='true']):active {
   color: var(--ms-on-accent);
   background: var(--ms-pressed);
+}
+
+.approval .approval-choices > button:active:enabled,
+.gooey-menu-pill:not([aria-disabled='true']):active {
+  outline: var(--ms-focus-width) solid var(--ms-on-accent);
+  outline-offset: calc(-1 * var(--ms-focus-width));
 }
 
 @media (forced-colors: active) {

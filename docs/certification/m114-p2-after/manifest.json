@@ -11,7 +11,7 @@
   "sources": [
     {
       "file": "src/webview/styles.css",
-      "sha256": "e10e6ae7a30172c3d437d9a321d634866c82d02714cb8867d39aababf3f2c868"
+      "sha256": "e776eda325c8b9a8cf26a32f89a5bfb80580ba33c4c0a355413cc5c2b2d0119d"
     },
     {
       "file": "src/webview/whatsNew/whatsNew.css",
@@ -173,8 +173,8 @@
       "theme": "light",
       "width": 320,
       "height": 760,
-      "bytes": 12436,
-      "sha256": "218ec35705772943ec55dbf1914053db36b1be51f5d3be05c519f1326e2fb18a",
+      "bytes": 12429,
+      "sha256": "f10221cab7275d13fe2a84b60f645c0bf12bf86dab7031aeb9588cbe60abb36b",
       "rendered": [
         {
           "file": "src/webview/TasksApp.tsx",
@@ -212,8 +212,8 @@
       "theme": "light",
       "width": 320,
       "height": 760,
-      "bytes": 41388,
-      "sha256": "fb69001d3e8fa2ce6f1a255661f9c62cec887f420e359c988ec5aa33a5890a35",
+      "bytes": 41480,
+      "sha256": "6e2887da4f268c831acef0a6ed8ad095a577342fc05089f035b9b5e1750446d9",
       "rendered": [
         {
           "file": "src/webview/components/AgentMap.tsx",
@@ -593,8 +593,8 @@
       "theme": "light",
       "width": 320,
       "height": 760,
-      "bytes": 58388,
-      "sha256": "acae2d13e5d5e81c1dc826a66845b81b3e0c5115cbd7b6e94967228143dd8889",
+      "bytes": 58516,
+      "sha256": "7a7eb4355b953778239fcd3c6d5d47e26ba958c93e0dfaf17cf1c6951a4546cc",
       "rendered": [
         {
           "file": "src/webview/components/GooeyMenu.tsx",
@@ -1641,8 +1641,8 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "bytes": 13808,
-      "sha256": "f43966fd423001dc3eabedb3b91ba79a70c11984ddfad63ed6c34db04e7124e8",
+      "bytes": 13798,
+      "sha256": "be92fc1372fed7a0258a6e9d82b0f3dec02f643279428f139a5da6395e37f441",
       "rendered": [
         {
           "file": "src/webview/TasksApp.tsx",
@@ -1680,8 +1680,8 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "bytes": 47243,
-      "sha256": "64d8f392c8e1f5ff1e5ef898bf1067ad3b6d37222cd7ef5c5f7d03e2a3d8f459",
+      "bytes": 47382,
+      "sha256": "2ae7882c9331cdc361a92d6ca388d80a6a87d6103469a93d75c61459357fdc9b",
       "rendered": [
         {
           "file": "src/webview/components/AgentMap.tsx",
@@ -1902,8 +1902,8 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "bytes": 62445,
-      "sha256": "3efbf76ecca493beb1c53809138d3a0a25b224b6605655f4e2869532f3dbe1e2",
+      "bytes": 62450,
+      "sha256": "d4b56da3d46d5ad5e679f712bb2a22da27d0280c3d748ed64be8ef68d90f101d",
       "rendered": [
         {
           "file": "src/webview/components/ElicitationCard.tsx",
@@ -2029,8 +2029,8 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "bytes": 70499,
-      "sha256": "7a12af895b2eec75af1a3e4bcb85de1988ac3709a4c4cdb5f1d2d12da858b229",
+      "bytes": 70684,
+      "sha256": "341208fc7aa48003084b237c49c75e719f6cb42c78cd3f435599e463a657bcf1",
       "rendered": [
         {
           "file": "src/webview/components/GooeyMenu.tsx",
@@ -2682,8 +2682,8 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "bytes": 42704,
-      "sha256": "eb46ab407470f7ac2d6b670a3481f9f1fbd2ef341aae9d53323504876bfaf4cf",
+      "bytes": 42699,
+      "sha256": "483dbdab18a73938367ad7b10bf4367a2467f78764c4e0bc7b9de5490c4219da",
       "rendered": [
         {
           "file": "src/webview/components/QuestionCard.tsx",
@@ -2710,8 +2710,8 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "bytes": 34572,
-      "sha256": "8378b1a7a4c448917a5e2f81b53ee07267cfaaa4054ae68801d0407865d3ce56",
+      "bytes": 34590,
+      "sha256": "8be143eb284f90d514d249afe2c489451f58d995c6963c0b6a12adf23e62d44b",
       "rendered": [
         {
           "file": "src/webview/components/QuoteMenu.tsx",
@@ -2889,8 +2889,8 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "bytes": 40119,
-      "sha256": "49374329df6a0e5ab6e28673f4ccaee1500479294f50c872c07c30ccfe1691d3",
+      "bytes": 40116,
+      "sha256": "18eb6f6387d4a0579c1d419122ddefef4b18d378637cf8abfc48d24ddcb242ae",
       "rendered": [
         {
           "file": "src/webview/components/SignIn.tsx",
@@ -3040,8 +3040,8 @@
       "theme": "dark",
       "width": 320,
       "height": 760,
-      "bytes": 13490,
-      "sha256": "ae1cd6a31089ea57b4ad84cb5deff89eabc5c69185c85ef4189bdbce55436e78",
+      "bytes": 13480,
+      "sha256": "e156dd94c5fdefeea79ec52eb4fc497154a584334045dd4e576da6c7999fa00c",
       "rendered": [
         {
           "file": "src/webview/TasksApp.tsx",
@@ -3079,8 +3079,8 @@
       "theme": "dark",
       "width": 320,
       "height": 760,
-      "bytes": 40737,
-      "sha256": "4f73b9eba726708e3a8b8f0784092d9018b75ea147487eb9054a943f4e74493b",
+      "bytes": 40869,
+      "sha256": "44dd7ffa3791ab9c9458bbdd655069bb79048fb96abb00d8e68ed8327c52db3f",
       "rendered": [
         {
           "file": "src/webview/components/AgentMap.tsx",
@@ -3344,8 +3344,8 @@
       "theme": "dark",
       "width": 320,
       "height": 760,
-      "bytes": 55325,
-      "sha256": "0d47e54fd57a0982a9dc41074d5a1f064f5302d18522916c31825b461eea0dd9",
+      "bytes": 55331,
+      "sha256": "7cbee9d22f53700444b907e742e1065e6ee50fde2e8a5eecc233114fc429afcd",
       "rendered": [
         {
           "file": "src/webview/components/ElicitationCard.tsx",
@@ -3471,8 +3471,8 @@
       "theme": "dark",
       "width": 320,
       "height": 760,
-      "bytes": 60981,
-      "sha256": "b49b03a86fa01a63bf1ae053688a3f11452e800a111473b30d253ae86799d414",
+      "bytes": 61124,
+      "sha256": "3af35fc550ac075f15a9d61ae885828e2c512744b244f0b8dc0a92db65183f59",
       "rendered": [
         {
           "file": "src/webview/components/GooeyMenu.tsx",
@@ -4146,8 +4146,8 @@
       "theme": "dark",
       "width": 320,
       "height": 760,
-      "bytes": 40559,
-      "sha256": "e2015190905fe3dbc1f1c004dbe70152ac6925e82a48fb031b830663e389b5db",
+      "bytes": 40557,
+      "sha256": "8fb4444394aaf24b4183528267ab25913e3e4a2ef4d5506be24924beb3c6e4ff",
       "rendered": [
         {
           "file": "src/webview/components/QuestionCard.tsx",
@@ -4174,8 +4174,8 @@
       "theme": "dark",
       "width": 320,
       "height": 760,
-      "bytes": 29051,
-      "sha256": "09255be6f241e79c6b3d56a9ee7939dfe6b022903d368d406195b7858cfe00ef",
+      "bytes": 29055,
+      "sha256": "cc72c501f122be6067027ce247c414bf0d74a83268a4ba9c87ddaf09ca0a127c",
       "rendered": [
         {
           "file": "src/webview/components/QuoteMenu.tsx",
@@ -4298,7 +4298,7 @@
       "width": 320,
       "height": 760,
       "bytes": 65880,
-      "sha256": "c36b5a882217761b28a9156310e8ab0fd81710a52de1c0c625715455066e00b8",
+      "sha256": "eff92fa8299ead1e5647a45d163eedc63edd61d5ce32741ad83b60309d325e22",
       "rendered": [
         {
           "file": "src/webview/components/SessionBoardDialog.tsx",
@@ -4364,8 +4364,8 @@
       "theme": "dark",
       "width": 320,
       "height": 760,
-      "bytes": 37955,
-      "sha256": "25e9d1b7da61c62565b92e3d6e266273ea0d60b0563d979d70e0170c039e7848",
+      "bytes": 37954,
+      "sha256": "fb5be7db5187283dc1d11982ae19f0188f0b13b82bd8f7e25b39b1283d6ffec8",
       "rendered": [
         {
           "file": "src/webview/components/SignIn.tsx",
@@ -4392,8 +4392,8 @@
       "theme": "dark",
       "width": 320,
       "height": 760,
-      "bytes": 65655,
-      "sha256": "bdfb12b822e2f217c139f3ff6a1f0940430bb0e8bf18b42c21bba1a35b308c3c",
+      "bytes": 65656,
+      "sha256": "3a0796e42c60e5e7410c18295baa660da28937444e7264070a8dc7a18c23c8ff",
       "rendered": [
         {
           "file": "src/webview/components/SlashMenu.tsx",
@@ -4569,8 +4569,8 @@
       "theme": "dark",
       "width": 690,
       "height": 760,
-      "bytes": 46252,
-      "sha256": "d26e7eac6dc07593464ff3544384adb91c6760d7474a753b9de96fc9d63a4e12",
+      "bytes": 46410,
+      "sha256": "ce1f45de165f9d306b284a1b1cde6a1cf4691460f8221205dd713bdcdfd4e199",
       "rendered": [
         {
           "file": "src/webview/components/AgentMap.tsx",
@@ -4791,8 +4791,8 @@
       "theme": "dark",
       "width": 690,
       "height": 760,
-      "bytes": 65207,
-      "sha256": "0b71ac3a3c73834dce524a5e4bb7924eabd33256918f08c520031715b54ad148",
+      "bytes": 65205,
+      "sha256": "49b11a0d82b261802c550542b99735189be19ac5b585565001ea3b2f384ab67d",
       "rendered": [
         {
           "file": "src/webview/components/ElicitationCard.tsx",
@@ -4918,8 +4918,8 @@
       "theme": "dark",
       "width": 690,
       "height": 760,
-      "bytes": 72980,
-      "sha256": "44c109244a86d4701a4650abcf32d341a0f2e1dd563914fde31e4aebe2d3bd20",
+      "bytes": 73152,
+      "sha256": "030fd1dce58f4098aed520f60e36e1d066c54ff2990d9f8d7bdc171f1a7aaa20",
       "rendered": [
         {
           "file": "src/webview/components/GooeyMenu.tsx",
@@ -5571,8 +5571,8 @@
       "theme": "dark",
       "width": 690,
       "height": 760,
-      "bytes": 43536,
-      "sha256": "f2234246c1b82231824735169d65f935954748828915916ad45acd338ac00ece",
+      "bytes": 43540,
+      "sha256": "b49789b0fe457237e1507b04430cd5f7fc71e01149d67d9ee0dae77a6dfff25a",
       "rendered": [
         {
           "file": "src/webview/components/QuestionCard.tsx",
@@ -5599,8 +5599,8 @@
       "theme": "dark",
       "width": 690,
       "height": 760,
-      "bytes": 34613,
-      "sha256": "8fc5c3cf91aa41e8e172988cd68eec57dd520a9ef505a079ecf9606aea8477c9",
+      "bytes": 34593,
+      "sha256": "5c0d1d87ce3114efdb2b8e6a7e6bb19fb66fb38895bc517a522e60938a4a0867",
       "rendered": [
         {
           "file": "src/webview/components/QuoteMenu.tsx",
@@ -5739,8 +5739,8 @@
       "theme": "dark",
       "width": 690,
       "height": 760,
-      "bytes": 50397,
-      "sha256": "caaea88dff5f4be4cbb2fbc4e2b536e7aae50037413eba1d71af4f5bb711e128",
+      "bytes": 51034,
+      "sha256": "f337a2819846f99c7030c30109bdbd1a64c49b42ddd4eb9e393ef7df25e3bf61",
       "rendered": [
         {
           "file": "src/webview/components/ShareView.tsx",
@@ -5783,8 +5783,8 @@
       "theme": "dark",
       "width": 690,
       "height": 760,
-      "bytes": 40334,
-      "sha256": "f23f33aa0a238b869c6625ccb5609097c329798bb751246adadc0f50b1a3c6fd",
+      "bytes": 40332,
+      "sha256": "2c72eedcdfd98ed746b8e18652345e16cc63d9ae49b1ccf910c8be6306fb544b",
       "rendered": [
         {
           "file": "src/webview/components/SignIn.tsx",
@@ -5839,8 +5839,8 @@
       "theme": "dark",
       "width": 690,
       "height": 760,
-      "bytes": 99634,
-      "sha256": "88b029b17597ac49a2eb2d5919a3acb12472c6443b3791fbaf3ef6405024e279",
+      "bytes": 99625,
+      "sha256": "dcc864cfdf3cde8dea92d62651d3128319751863caa58de0a4227c980fac9fdf",
       "rendered": [
         {
           "file": "src/webview/components/UsageDialog.tsx",
@@ -6359,8 +6359,8 @@
       "theme": "hc-dark",
       "width": 320,
       "height": 760,
-      "bytes": 57477,
-      "sha256": "8ec7112b47b8a8b7dfe24cf04df9492b41ae04146f6de84ef04bfcf294daa975",
+      "bytes": 57654,
+      "sha256": "b8f320b082f2d125fe418e5f97f27b9cd73f6bfac0cd4cbe2e4ac9708401023c",
       "rendered": [
         {
           "file": "src/webview/components/GooeyMenu.tsx",
@@ -6480,8 +6480,8 @@
       "theme": "hc-dark",
       "width": 320,
       "height": 760,
-      "bytes": 52063,
-      "sha256": "f59fc566f76e894eb59ee5db25003a034eda1da76cb0b55f3df1a49f0b94e76b",
+      "bytes": 52071,
+      "sha256": "98cfcf808f38234c7898e75a82f0da39b3a06822c79cfd290f3376693fa98af8",
       "rendered": [
         {
           "file": "src/webview/components/HistoryDialog.tsx",
@@ -6952,8 +6952,8 @@
       "theme": "hc-dark",
       "width": 320,
       "height": 760,
-      "bytes": 54617,
-      "sha256": "fa7900a2cb650b414805c962b78e1650a6fdaf1bb3eedc9c951d3737c0ed330a",
+      "bytes": 54620,
+      "sha256": "30f9ed5a08cae509c8d12cba9cbd363b55a798b1c7b2f987a23cd92f8f31328d",
       "rendered": [
         {
           "file": "src/webview/components/MentionMenu.tsx",
@@ -7034,8 +7034,8 @@
       "theme": "hc-dark",
       "width": 320,
       "height": 760,
-      "bytes": 38910,
-      "sha256": "b81ea50b473a0ae36cf3248e72074c85f55e17e5a7a11e45fa462778baa5d25e",
+      "bytes": 38918,
+      "sha256": "729613334b88971b3402890170d254ee62b52c1dc037a82f221f246fd7954a54",
       "rendered": [
         {
           "file": "src/webview/components/QuestionCard.tsx",
@@ -7241,8 +7241,8 @@
       "theme": "hc-dark",
       "width": 320,
       "height": 760,
-      "bytes": 34073,
-      "sha256": "5ade4a154a41a009ad34cb8640bc8b179d02e279555d0cc57cf9036149b9b1b1",
+      "bytes": 34078,
+      "sha256": "481f8bb77988d3dba5092e5c9eae9262779209c3d4ae883d806f8963689cdab5",
       "rendered": [
         {
           "file": "src/webview/components/SignIn.tsx",
@@ -7269,8 +7269,8 @@
       "theme": "hc-dark",
       "width": 320,
       "height": 760,
-      "bytes": 59924,
-      "sha256": "c0b3a1d8b57f6e7da4a8d39f93c3640d4d1cd8c167bfabc1919d78476bb6fa82",
+      "bytes": 59926,
+      "sha256": "448eaaf0e918ad6a80999de3918e407d109060ab70afb63c382046deafb03e8b",
       "rendered": [
         {
           "file": "src/webview/components/SlashMenu.tsx",
@@ -7407,8 +7407,8 @@
       "theme": "hc-dark",
       "width": 690,
       "height": 760,
-      "bytes": 14794,
-      "sha256": "4a95341ff97dae5a9728ee9fdc5bb9e5ca7b08ec23a20beabdf3b16bf207eb53",
+      "bytes": 14803,
+      "sha256": "879ba80b99aff69c5339eefaccc57bada4318c9319b48629c66bb7979e0bec2b",
       "rendered": [
         {
           "file": "src/webview/TasksApp.tsx",
@@ -7668,8 +7668,8 @@
       "theme": "hc-dark",
       "width": 690,
       "height": 760,
-      "bytes": 63720,
-      "sha256": "309fc6590d69120e40cdb94017c29e8e61b4e0c7b96ee81d78a0ffc8d95b56f1",
+      "bytes": 63705,
+      "sha256": "fc93f75d8978e81d4bda9b6c748c946713cd4c5dadcc6fb2d010fd8c6960c07e",
       "rendered": [
         {
           "file": "src/webview/components/ElicitationCard.tsx",
@@ -7795,8 +7795,8 @@
       "theme": "hc-dark",
       "width": 690,
       "height": 760,
-      "bytes": 68981,
-      "sha256": "c7968970783d0c49b3aacf25542a364773952b34e52b61147e1a79ccafc849b3",
+      "bytes": 69174,
+      "sha256": "2ff4462383a82ba07a7ea2731e269460231ae962f0eed503e272719ab61041bd",
       "rendered": [
         {
           "file": "src/webview/components/GooeyMenu.tsx",
@@ -7905,8 +7905,8 @@
       "theme": "hc-dark",
       "width": 690,
       "height": 760,
-      "bytes": 58545,
-      "sha256": "0f0b32f9b81bcfad325dd02237b6d909a2e992c00001118e9af1bd4f931e3bb5",
+      "bytes": 58547,
+      "sha256": "d73d92b0bfa90cf9399f4dda7a831364eb0789182e1f05f7997ab4169ee24b68",
       "rendered": [
         {
           "file": "src/webview/components/HistoryDialog.tsx",
@@ -8448,8 +8448,8 @@
       "theme": "hc-dark",
       "width": 690,
       "height": 760,
-      "bytes": 41780,
-      "sha256": "830de9ff689a8c463570a28c44333e0eb28d7943af8acb7e50c708b85fe04eae",
+      "bytes": 41779,
+      "sha256": "5276d9de835ec3474feca84ed620e34d0ccad1455f6c4eb672dd9b3176542b86",
       "rendered": [
         {
           "file": "src/webview/components/QuestionCard.tsx",
@@ -8477,7 +8477,7 @@
       "width": 690,
       "height": 760,
       "bytes": 32821,
-      "sha256": "8464566149999e97a395c058a4fcfe853c301e44968213287c0f14fe9365610d",
+      "sha256": "984d600907eab130dab910241cb7eab82712fbdaafd0a2425bda608a4dee2a4c",
       "rendered": [
         {
           "file": "src/webview/components/QuoteMenu.tsx",
@@ -8655,8 +8655,8 @@
       "theme": "hc-dark",
       "width": 690,
       "height": 760,
-      "bytes": 36913,
-      "sha256": "6e20d0a84f316f5f1c2842eb9d9debbaa282acb9d19a72c2bacb766f80da491b",
+      "bytes": 36911,
+      "sha256": "6fbd85dcb2df7be07d4e9dcb96cf7f95490e961c62c5bc151a12492677b746e1",
       "rendered": [
         {
           "file": "src/webview/components/SignIn.tsx",
@@ -8806,8 +8806,8 @@
       "theme": "hc-light",
       "width": 320,
       "height": 760,
-      "bytes": 12668,
-      "sha256": "608fac3f23de0f08cd399047e655bf5788559a051d7ea84136940d4a9100c397",
+      "bytes": 12632,
+      "sha256": "fc6b6153073fd3149f643ce5326067059215df21fb382e55eea9328d527fa4b2",
       "rendered": [
         {
           "file": "src/webview/TasksApp.tsx",
@@ -9099,8 +9099,8 @@
       "theme": "hc-light",
       "width": 320,
       "height": 760,
-      "bytes": 51831,
-      "sha256": "03497a226fc69a7474708204176274bdc1b7ff437d7cc0b118decf5b06595431",
+      "bytes": 51822,
+      "sha256": "60cebfe44e0a7ac871ec7e7e42187925d7c3d58501272c156c87bfa4c2282a25",
       "rendered": [
         {
           "file": "src/webview/components/ElicitationCard.tsx",
@@ -9226,8 +9226,8 @@
       "theme": "hc-light",
       "width": 320,
       "height": 760,
-      "bytes": 57627,
-      "sha256": "a6d46048dbca923e85f39c7e95a710f21ccee19211c42db933ac30bf36a03eac",
+      "bytes": 57832,
+      "sha256": "9be2772ca57a346c20e5336930f9db5f9d48d70b6852c0033aca5a680a8ba2da",
       "rendered": [
         {
           "file": "src/webview/components/GooeyMenu.tsx",
@@ -9820,7 +9820,7 @@
       "width": 320,
       "height": 760,
       "bytes": 54181,
-      "sha256": "fcf160ac63e0e95637fe60fee2f3caba3eb546277e0b336d24464f397e9c3c8a",
+      "sha256": "f38bec7ae4cba55f1d761e95dd5b40494e2c7132ba9ff85d9b302525c564188e",
       "rendered": [
         {
           "file": "src/webview/components/MentionMenu.tsx",
@@ -9901,8 +9901,8 @@
       "theme": "hc-light",
       "width": 320,
       "height": 760,
-      "bytes": 38778,
-      "sha256": "ba7ce16ef66808741949fdb832a82789a933195b942d1cdd993c1a0159e7349c",
+      "bytes": 38776,
+      "sha256": "205b830255db06b6dc16302ec4969263337a48d1adc88c216f85a7754e267f97",
       "rendered": [
         {
           "file": "src/webview/components/QuestionCard.tsx",
@@ -9929,8 +9929,8 @@
       "theme": "hc-light",
       "width": 320,
       "height": 760,
-      "bytes": 28441,
-      "sha256": "b60fc9b81d0079cc77d52cce2db3fd30dd0a9168bea26fba6d1d8bd0570fa420",
+      "bytes": 28445,
+      "sha256": "091d91c16bc0f58a5be7dc1cef67afb84be09500ee5918083a564bc4838baba0",
       "rendered": [
         {
           "file": "src/webview/components/QuoteMenu.tsx",
@@ -10136,8 +10136,8 @@
       "theme": "hc-light",
       "width": 320,
       "height": 760,
-      "bytes": 57435,
-      "sha256": "422d0426652e880ea7f38818ac881639f9c78804a40afe2e754462397ae5767c",
+      "bytes": 57434,
+      "sha256": "27b66ae3d1942572c43a576126a3472c1a163c59bb06f93608a57367c7085fdc",
       "rendered": [
         {
           "file": "src/webview/components/SlashMenu.tsx",
@@ -10313,8 +10313,8 @@
       "theme": "hc-light",
       "width": 690,
       "height": 760,
-      "bytes": 17893,
-      "sha256": "c69b263c4dd777144f6e8956b413b10ab41f4ee7540692f8a800a979ec2d3607",
+      "bytes": 17896,
+      "sha256": "c134ee60ad93c68d29fcf7b506ffaa163c26b563744d4bee511a31a1b7510232",
       "rendered": [
         {
           "file": "src/webview/components/AgentMap.tsx",
@@ -10662,8 +10662,8 @@
       "theme": "hc-light",
       "width": 690,
       "height": 760,
-      "bytes": 69065,
-      "sha256": "bdfa75a54dd41ec19f2c5a4629a74e26228572e67c7c4e8b0ba8bb470d8b2a1b",
+      "bytes": 69273,
+      "sha256": "a3b1727c5ee59284cd18454f6814ecf40e80ed3a636eae7a14d29534fc1f64f2",
       "rendered": [
         {
           "file": "src/webview/components/GooeyMenu.tsx",
@@ -10772,8 +10772,8 @@
       "theme": "hc-light",
       "width": 690,
       "height": 760,
-      "bytes": 57213,
-      "sha256": "bb623a458fe5803a14a372126f40d9184add0feeb1d0031dd9262e16bbde5f49",
+      "bytes": 57214,
+      "sha256": "560160e5a40905b7b73cca7f64c29e2b258cc5286b92997a76d987e289870d23",
       "rendered": [
         {
           "file": "src/webview/components/HistoryDialog.tsx",
@@ -11315,8 +11315,8 @@
       "theme": "hc-light",
       "width": 690,
       "height": 760,
-      "bytes": 41713,
-      "sha256": "94482a6f92f4c1b729fcaa96c9d8b0ce21f1ab08b70e455184dd8d682a5426a2",
+      "bytes": 41711,
+      "sha256": "34027a6426abeb23e3423c9c969f258803a47ad5291d55c87e0654beaf4cd3c7",
       "rendered": [
         {
           "file": "src/webview/components/QuestionCard.tsx",
@@ -11343,8 +11343,8 @@
       "theme": "hc-light",
       "width": 690,
       "height": 760,
-      "bytes": 33576,
-      "sha256": "e05ca07b62f9a1e28ad2f8bc3e5945f002e19454423c0cff032de753d80dc680",
+      "bytes": 33595,
+      "sha256": "a6f675b996e0ea6604cabd8f040d10d9bfecee5ce30864c9fc88a70f8b7b73a1",
       "rendered": [
         {
           "file": "src/webview/components/QuoteMenu.tsx",
@@ -11673,8 +11673,8 @@
       "theme": "one-dark-pro",
       "width": 320,
       "height": 760,
-      "bytes": 13950,
-      "sha256": "17310f038da0bc814fed28bae4225786680caae8c12744170f818b442a8c06bc",
+      "bytes": 13964,
+      "sha256": "23e6fa5524fa89dbf34f5b257f305808c9bc7baa342e20ca8f62d28a7be1ca13",
       "rendered": [
         {
           "file": "src/webview/TasksApp.tsx",
@@ -11712,8 +11712,8 @@
       "theme": "one-dark-pro",
       "width": 320,
       "height": 760,
-      "bytes": 44730,
-      "sha256": "ec080ed9b7ce733e5050b45bd6bb7d178aee2ee48ac85fe991a80e537079d07d",
+      "bytes": 44924,
+      "sha256": "11a13eba1f6419ca85a2c7c533ac3725157f7e07c194b69049a4c3941913b706",
       "rendered": [
         {
           "file": "src/webview/components/AgentMap.tsx",
@@ -11966,8 +11966,8 @@
       "theme": "one-dark-pro",
       "width": 320,
       "height": 760,
-      "bytes": 57691,
-      "sha256": "2ab851cde63a74439e689aa07c513b8d8967aac987c6f51ff808712187d41b1f",
+      "bytes": 57694,
+      "sha256": "ec5811376b69f66108a26a06685f06f34e54ef5ab673b3e64ed5c2eaeeb316fb",
       "rendered": [
         {
           "file": "src/webview/components/ElicitationCard.tsx",
@@ -12093,8 +12093,8 @@
       "theme": "one-dark-pro",
       "width": 320,
       "height": 760,
-      "bytes": 62935,
-      "sha256": "0995c92b556b16289da4841360271dd395f44224bb7fe58fbacdf6fcc41adaca",
+      "bytes": 63131,
+      "sha256": "da6a621e39e8149b676a6cdd9f4a56872f62c9deb712fdc6935522081e73481e",
       "rendered": [
         {
           "file": "src/webview/components/GooeyMenu.tsx",
@@ -13008,8 +13008,8 @@
       "theme": "one-dark-pro",
       "width": 320,
       "height": 760,
-      "bytes": 68513,
-      "sha256": "17b8df631c8f546f93e5798fc54cef00a0a42bcad9e5f93d96f23e201aab6cf4",
+      "bytes": 68514,
+      "sha256": "bdfb2f5a65e29c695a88161b3f23151a826b3c861a1e59fd06e94222a4df74f1",
       "rendered": [
         {
           "file": "src/webview/components/SlashMenu.tsx",
@@ -13146,8 +13146,8 @@
       "theme": "one-dark-pro",
       "width": 690,
       "height": 760,
-      "bytes": 15181,
-      "sha256": "1f31b4f4fc5ab96ce954b3f3deb6685c8dc6c1fb489f4f3715719fdca000dc5e",
+      "bytes": 15185,
+      "sha256": "15e07e3564a8d5c1e52e3fb90c1f35997cdcc1ad616a2dd2cc16663eef09a176",
       "rendered": [
         {
           "file": "src/webview/TasksApp.tsx",
@@ -13185,8 +13185,8 @@
       "theme": "one-dark-pro",
       "width": 690,
       "height": 760,
-      "bytes": 50241,
-      "sha256": "1a1d13aefbc962615e087c52537ec076b16e722eceefdafd8fb0c065b968dbfa",
+      "bytes": 50467,
+      "sha256": "effe89b464c2934bdb0a7f76ddc6d2161cdb39944457a4556d7509f38f601b6a",
       "rendered": [
         {
           "file": "src/webview/components/AgentMap.tsx",
@@ -13534,8 +13534,8 @@
       "theme": "one-dark-pro",
       "width": 690,
       "height": 760,
-      "bytes": 75540,
-      "sha256": "a05aef7eb68f0b5dac732cb28743d97ef94b409f265726651351920cf3016b53",
+      "bytes": 75754,
+      "sha256": "9f826986aba8c6fe8f00b05a8af0ae17142413e45333ca3396d2d2b956370255",
       "rendered": [
         {
           "file": "src/webview/components/GooeyMenu.tsx",
@@ -14187,8 +14187,8 @@
       "theme": "one-dark-pro",
       "width": 690,
       "height": 760,
-      "bytes": 45034,
-      "sha256": "9932ef60af501e90d04d34ec106e9258acc137a0051ccc28c1e911e5acadcc66",
+      "bytes": 45036,
+      "sha256": "274b7f06920a7012b5630349903e0b1a9b5529bf37999562b4d1890517ba7372",
       "rendered": [
         {
           "file": "src/webview/components/QuestionCard.tsx",
@@ -14215,8 +14215,8 @@
       "theme": "one-dark-pro",
       "width": 690,
       "height": 760,
-      "bytes": 36007,
-      "sha256": "572f01a8ddb85d16b2c7af0a51b90e139ccae06cf7b9e8f41a4f03d0ff9cd221",
+      "bytes": 36027,
+      "sha256": "64a2d5865158721725b1bc563d0ad2ad77ac96ab9e054134a5ebd15730189633",
       "rendered": [
         {
           "file": "src/webview/components/QuoteMenu.tsx",
@@ -14450,8 +14450,8 @@
       "theme": "one-dark-pro",
       "width": 690,
       "height": 760,
-      "bytes": 119330,
-      "sha256": "fde8554a40cb20531c9f4044d2bf2048f4377d1d1b516be5b7bca0a196982da3",
+      "bytes": 119336,
+      "sha256": "c2c171a22b8b9261831ecf880776a44c221f64ea47441476ba4a7f4591af694c",
       "rendered": [
         {
           "file": "src/webview/components/UsageDialog.tsx",
@@ -14545,8 +14545,8 @@
       "theme": "dracula",
       "width": 320,
       "height": 760,
-      "bytes": 13910,
-      "sha256": "4e2eedd832e2db298e66ee56823d13fcac3ff868762269f0f12c98e0045569ae",
+      "bytes": 13926,
+      "sha256": "f3f373da14e1ddd561bc70e9aac2e557413638b4d1255905d48efa76a0a4cc7e",
       "rendered": [
         {
           "file": "src/webview/TasksApp.tsx",
@@ -14584,8 +14584,8 @@
       "theme": "dracula",
       "width": 320,
       "height": 760,
-      "bytes": 45623,
-      "sha256": "daff7e4bf82a9ae6a9ea95abf0927cae7984ecc3ffd9dcdea8f1c9668497b6cc",
+      "bytes": 45828,
+      "sha256": "5e14a251e7aa93eb217caef203ad7204af060b00cae6e94c49d93f61fc63fe73",
       "rendered": [
         {
           "file": "src/webview/components/AgentMap.tsx",
@@ -14612,8 +14612,8 @@
       "theme": "dracula",
       "width": 320,
       "height": 760,
-      "bytes": 60009,
-      "sha256": "630e902e2470920973e42b706e58ae04ef8e53204f8447d24857569e749de586",
+      "bytes": 60005,
+      "sha256": "f02eefa54535af1d1ef76d636098f4a7d6921f020eb2a41e63d295ff8bef26e0",
       "rendered": [
         {
           "file": "src/webview/components/ApprovalCard.tsx",
@@ -14838,8 +14838,8 @@
       "theme": "dracula",
       "width": 320,
       "height": 760,
-      "bytes": 57343,
-      "sha256": "173ed1a579e30924e595476ba3f3eb0a141ae170dc8ccc7e2a2adbdb8a69db67",
+      "bytes": 57341,
+      "sha256": "acccf6b53e71eada8470540a10af90a0854a41641efb75bf760d2865d2a4556a",
       "rendered": [
         {
           "file": "src/webview/components/ElicitationCard.tsx",
@@ -14965,8 +14965,8 @@
       "theme": "dracula",
       "width": 320,
       "height": 760,
-      "bytes": 63777,
-      "sha256": "eb4e6372b1d1f2c8f6e8c30a92a4debaf2253563cac97aa8e376a7ee6d4b1ae6",
+      "bytes": 63963,
+      "sha256": "7469e122a45db36897318901ae3a1b72b9b1d832d2afd8b330d3099cfbe1b97e",
       "rendered": [
         {
           "file": "src/webview/components/GooeyMenu.tsx",
@@ -15558,8 +15558,8 @@
       "theme": "dracula",
       "width": 320,
       "height": 760,
-      "bytes": 59923,
-      "sha256": "4cf0a2bda701f3426e9321937f91f6da77ca341988e0e7027a89ee95081d4307",
+      "bytes": 59927,
+      "sha256": "4893ed07c750473ee04231beee84e970a79e00668490013401442d02bb7290a4",
       "rendered": [
         {
           "file": "src/webview/components/MentionMenu.tsx",
@@ -15668,8 +15668,8 @@
       "theme": "dracula",
       "width": 320,
       "height": 760,
-      "bytes": 31097,
-      "sha256": "0f36b60205405e30086a5dfb255aabdd2fbb889ddeea5cc468a3353e395422d5",
+      "bytes": 31095,
+      "sha256": "f6b86473d1a218ec871b98261996d1a8b24452e31bc3d54d8212d386575632e9",
       "rendered": [
         {
           "file": "src/webview/components/QuoteMenu.tsx",
@@ -15838,7 +15838,12 @@
               "reasons": ["elmPartiallyObscured"]
             },
             {
-              "target": [":root"],
+              "target": [".share-section:nth-child(5) > .markdown > .code-block > pre > code"],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element",
+              "reasons": ["elmPartiallyObscured"]
+            },
+            {
+              "target": [".hljs-title.function_:nth-child(3)"],
               "summary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element",
               "reasons": ["elmPartiallyObscured"]
             }
@@ -15852,8 +15857,8 @@
       "theme": "dracula",
       "width": 320,
       "height": 760,
-      "bytes": 39295,
-      "sha256": "8c93b6b431706ba5251a083be5c33a6f1a8e835f9c6ad1936c967e34db733b1b",
+      "bytes": 39300,
+      "sha256": "3d4efdb3be316cb4ac2adebf782799c4244fb37a2bb6218a457f82ac2672616b",
       "rendered": [
         {
           "file": "src/webview/components/SignIn.tsx",
@@ -15880,8 +15885,8 @@
       "theme": "dracula",
       "width": 320,
       "height": 760,
-      "bytes": 64562,
-      "sha256": "627def7802a9580293bf41de48e8d2c4c045514b10eee129f8ae1529d87e1b89",
+      "bytes": 64566,
+      "sha256": "6e35f932446ae97ba77c9b4e81ccf142cb784fcf3f671c7ab08c7030a7235509",
       "rendered": [
         {
           "file": "src/webview/components/SlashMenu.tsx",
@@ -16018,8 +16023,8 @@
       "theme": "dracula",
       "width": 690,
       "height": 760,
-      "bytes": 15144,
-      "sha256": "bffd9ed4ab7d2f9c0f42056bdbae83ec0aaeb49f245a8322d2a2ff81ef81b616",
+      "bytes": 15152,
+      "sha256": "caca7046ce3eceb9ec7014f6ae6610f17fbefe402f59cab0e49fbe231e2f470a",
       "rendered": [
         {
           "file": "src/webview/TasksApp.tsx",
@@ -16057,8 +16062,8 @@
       "theme": "dracula",
       "width": 690,
       "height": 760,
-      "bytes": 51111,
-      "sha256": "e23eb922f7af68f84a80582fbb7abf0652ce833441331473fdfd42766d429d6a",
+      "bytes": 51335,
+      "sha256": "4907536a6473f9c2551163c9f886e6b6b54e91ddb7acb8da4077060eda0e419d",
       "rendered": [
         {
           "file": "src/webview/components/AgentMap.tsx",
@@ -16406,8 +16411,8 @@
       "theme": "dracula",
       "width": 690,
       "height": 760,
-      "bytes": 76084,
-      "sha256": "4f0be4dae7c9f1ce5406d3e96040d26a3a2304cf23020ff60428463271cfdb01",
+      "bytes": 76296,
+      "sha256": "b9fff1dc2aff1c9926f014671aab687a9fafd32f82b7eedfe4f3d2db096dba0e",
       "rendered": [
         {
           "file": "src/webview/components/GooeyMenu.tsx",
@@ -17059,8 +17064,8 @@
       "theme": "dracula",
       "width": 690,
       "height": 760,
-      "bytes": 45279,
-      "sha256": "a29826e802a371b13eadf320976441c78b39171c9debb387c5a1960410991b11",
+      "bytes": 45281,
+      "sha256": "72d7e4b43c57828e0a38fe155e694eb9ce52e6f19f9b1f56a2ca3c089de9eabd",
       "rendered": [
         {
           "file": "src/webview/components/QuestionCard.tsx",
@@ -17087,8 +17092,8 @@
       "theme": "dracula",
       "width": 690,
       "height": 760,
-      "bytes": 36712,
-      "sha256": "6afaf0a661f5ad0c381d8c8b66059f5ee244758c4da73511e56ff37faa411c74",
+      "bytes": 36716,
+      "sha256": "2ad1b52faeae430aea37e21639d92e27e49f4ead50321d88f390fe856ecc9ffc",
       "rendered": [
         {
           "file": "src/webview/components/QuoteMenu.tsx",
@@ -17322,8 +17327,8 @@
       "theme": "dracula",
       "width": 690,
       "height": 760,
-      "bytes": 119669,
-      "sha256": "a4574e6b37a0da80f4d3aec361cecc81608ebcd8e91de78dbaa4da2e52bbb8bd",
+      "bytes": 119676,
+      "sha256": "a3b7df94d00ec90f74213d461d0e3b5e7d6ca1cb2362cf2f25dd80e7eb1b6d99",
       "rendered": [
         {
           "file": "src/webview/components/UsageDialog.tsx",

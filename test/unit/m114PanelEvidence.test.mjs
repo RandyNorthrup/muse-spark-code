@@ -88,13 +88,27 @@ describe('M114 P2 captured evidence', () => {
     const directory = process.env.MUSE_M114_P2_CAPTURES_DIR
     if (directory === undefined) return
     expect(directory.length).toBeGreaterThan(0)
-    for (const capture of readJson(panelReceipt).captures) {
+    const captures = readJson(panelReceipt).captures
+    const actual = captures.map((capture) => {
       const bytes = readFileSync(path.join(directory, ...normalize(capture.file).split('/')))
-      expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
-      expect(bytes.readUInt32BE(16)).toBe(capture.width)
-      expect(bytes.readUInt32BE(20)).toBe(capture.height)
-      expect(bytes.length).toBe(capture.bytes)
-      expect(digest(bytes)).toBe(capture.sha256)
-    }
+      return {
+        file: capture.file,
+        signature: bytes.subarray(0, 8).toString('hex'),
+        width: bytes.readUInt32BE(16),
+        height: bytes.readUInt32BE(20),
+        bytes: bytes.length,
+        sha256: digest(bytes),
+      }
+    })
+    expect(actual).toEqual(
+      captures.map(({ file, width, height, bytes, sha256 }) => ({
+        file,
+        signature: '89504e470d0a1a0a',
+        width,
+        height,
+        bytes,
+        sha256,
+      })),
+    )
   })
 })

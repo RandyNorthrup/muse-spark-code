@@ -26,8 +26,11 @@ Imports of dialog/menu/settings/history modules are unchanged for DIET1.
 Approval decisions have equal width, height and emphasis on one row, including
 Reject, at 320 px. Long labels ellipsize visually while the complete text and
 title remain. Locked decisions retain equal disabled styling. History archive
-actions use opacity rather than visibility, remain in the Tab order, and reveal
-on row focus. Scrollable menus reserve room for exterior rings; the Account
+marks use opacity rather than visibility, remain outside the Tab order, and
+reveal on the active row. Arrow keys select a row in the search box; Delete
+archives or unarchives it while the search is empty. The row exposes Delete
+through `aria-keyshortcuts` and its Archive/Unarchive description; the marks
+themselves remain mouse-only and `aria-hidden`. Scrollable menus reserve room for exterior rings; the Account
 usage switch no longer clips its buttons' rings. Enabled field placeholders
 use the input foreground to fix the captured third-party theme failures.
 
@@ -61,8 +64,8 @@ key is introduced. No backend, selected-model behavior or consent policy changes
   “Polish menus, pickers, dialogs, Account & usage, History, task windows and
   What's New with shared theme tokens and complete control states; keep
   approval choices equally sized and emphasized on one row at narrow widths,
-  preserve crisp gooey pills, and make History archive actions reachable by
-  keyboard.” No new help-reference entry is needed for styling existing UI.
+  preserve crisp gooey pills, and retain History's Arrow/Delete keyboard
+  archiving.” No new help-reference entry is needed for styling existing UI.
 - **C/N/D:** this shared React/CSS works across host shells. Their actual
   companion/native/node/desktop bindings remain with their named lanes, absent
   here. No VS Code UI selector, remote font/stylesheet or CSP change is added.
@@ -301,3 +304,141 @@ were observed and restored. The final browser/evidence/whatsNewPage run passes
 No filter, skip or timeout override is used. Final prettier/scoped lint and
 `git diff --check` pass; production build budgets remain unchanged. Full
 quality and reviewed visual regression remain the explicit lead/S handoffs.
+
+## RVM114P2 review repairs — 2026-10-06
+
+Repair base `9cad32375`, on the same Kubuntu worktree and `m114/p2` branch.
+Read the complete review and shared rules. All three findings are fixed;
+none is accepted as a residual. No dependency, installation, model/paid call,
+network request outside loopback, merge, push, gate or timeout change.
+
+| Finding                                     | Repair                                                                                                                                                                                                                                                        | Regression                                                                                                                                                                                                                                         |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2: header targets below 24 px              | Token minimum heights on rename button/input and Side chat/agent/task pills; a token minimum width keeps a one-character renamed title at 24 px too. Existing History/Board/New controls already meet the target.                                             | Actual harness at a real 320 px viewport, all six themes, `chat-tool-menu-narrow`, `agents` and `background-map`; every rendered header button and the rename input measures at least 24 × 24, with no horizontal overflow.                        |
+| P3: identical hover and pressed appearances | A crisp 2 px inset outline marks pressed approval decisions and enabled gooey pills. Approval hover/pressed rules are scoped through their card so Reject retains the same blue styling as the other decisions. No filter, blur, shadow or fan-layout change. | Actual ApprovalCard and GooeyMenu render in six themes, with and without forced colours: different computed hover/pressed appearances, 4.5:1 text and 3:1 pressed-outline contrast, and opaque, unblurred pills.                                   |
+| P3: incorrect History Tab-order claim       | Correct the implementation paragraph and changelog handoff to the existing Arrow/Delete contract. No keyboard handler or ARIA shape is changed.                                                                                                               | Certification wording plus actual History harness: archive marks have `tabIndex === -1` and `aria-hidden`; ArrowDown changes the active row, the row advertises Delete, and Delete changes its Archive/Unarchive action from the empty search box. |
+
+The first complete browser run against the reviewed implementation failed
+all 19 new cases and passed all 38 original cases. The stopped fixture
+assumption was that agent-only scenes had a rename control and five buttons:
+they have no session yet, and render four buttons. Waiting for rename timed
+out, and a subsequent count assertion exposed that assumption directly.
+The final probe uses separate per-scene cases and the rendered controls;
+rename editing is tested only in the scene with a session. The five-second
+repository timeout is unchanged. The source-order-only approach to the cue
+was also stopped after stylelint rejected both placements; card-scoped
+selectors fix the cascade without disabling the rule. A stronger contrast
+assertion then exposed Reject's generic hover override in light/HC-light;
+the same card scope fixes it. These diagnostics are not clean red drills.
+
+The restored final production CSS and actual-component fixtures pass
+`m114Panel`, `HistoryDialog` and `GooeyMenu`: **94/94**, default timeouts,
+three workers, three complete files. The new browser file has 69 cases.
+
+### Review repair guard-fire record
+
+Each mutation runs the complete 69-case `test/unit/m114Panel.test.mjs` with
+`--maxWorkers=3`, default timeouts and no filter. Every run exits 1 only at
+the named guard, restores in `finally` and compares SHA-256 byte-for-byte.
+All other cases pass. Logs and JSON remain in ignored
+`temp/m114-p2-review-drills/`; the seven drills add to the earlier record.
+
+| Mutation                                  | Named failing test under `M114 P2 panel contract`                                                                                          | Failing cases |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------: |
+| Remove title minimum height               | `light/chat-tool-menu-narrow: real harness header targets are at least 24 by 24 at a 320 px viewport` (all six themes)                     |             6 |
+| Remove title minimum width                | Same guard, after committing a one-character title                                                                                         |             6 |
+| Remove rename-input minimum height        | Same guard, while editing the title                                                                                                        |             6 |
+| Remove header-pill minimum height         | Same guard in all six themes and all three scenes                                                                                          |            18 |
+| Remove approval pressed cue               | `light/forced=false: enabled approval decisions and crisp pills distinguish hover from pressed` (six themes × both forced-colour settings) |            12 |
+| Remove gooey-pill pressed cue             | Same state guard, at the actual GooeyMenu pill                                                                                             |            12 |
+| Restore the false History Tab-order claim | `certifies History archive marks outside Tab order with Arrow/Delete keyboard access`                                                      |             1 |
+
+Every CSS drill restores
+`e776eda325c8b9a8cf26a32f89a5bfb80580ba33c4c0a355413cc5c2b2d0119d`.
+The History wording drill restores
+`b561c495f3d32b2125c226ae7e643398169dc5e10b3d276eea6af30e1dcbc5df`
+before this review record was appended. No tracked test file is mutated.
+
+**Inherited residual M114-P2-HOST-API:** the imported generated theme-role
+inventory omission and S's stale host-API record remain outside P2 ownership.
+It changes no host calls or permissions and the unchanged gate rejects
+release. S must repair the inventory/record; the lead retains integrated
+quality, reviewed pixel goldens and the C/N/D host bindings. PLAN §9 records
+the same named follow-up. The shared React/CSS fixes apply to every shell
+that uses these components; no editor-specific path is introduced.
+
+**S-owned changelog addition:** “Keep header actions at least 24 × 24 px in
+narrow panels, distinguish pressed approval decisions and crisp menu pills
+from hover in every theme and forced colours, and accurately document
+History's Arrow/Delete keyboard archiving.” No command, setting, help row or
+user-facing string is added.
+
+### Review repair static and build verification
+
+All five compiler projects, scoped ESLint/stylelint/Prettier, plain knip,
+jscpd and localization pass. Knip retains its two existing configuration
+hints; jscpd reports zero clones; localization reports 14 tables and zero
+problems. The production build passes tokens, every size/split check, host
+globals and notices: extension **438.4/600 KiB**, Model API **446.9/475 KiB**,
+checkpoint store **76.9/225 KiB**, eager webview JS **792.8/900 KiB** and
+deferred JS **49.7/50 KiB**. No cap changes.
+
+Production-equivalent CSS measurement is **65,035 → 68,866 bytes**, total
+P2 startup growth **3,831 bytes**, still below 4 KiB. This review repair adds
+331 bytes to `9cad32375`'s 68,535-byte stylesheet. What's New remains 9,116
+bytes in its separate page; no production JavaScript changes. The earlier
+3,500-byte growth record belongs to the reviewed base.
+
+`npm run check:host-api` was run read-only and exits 1 with exactly the
+inherited inventory problem: the document lists 61 theme variables, while
+the scanner sees 29 and misses the imported extended host-role sheet. It
+reports the same 332 VS Code APIs, 31 importing files and 25 Node built-ins.
+Neither the scanner nor S's document is edited. Full quality and reviewed
+visual goldens remain the explicit lead/S handoffs under the rig brief.
+
+### Refreshed observations and final default-timeout tests
+
+The complete six-theme capture driver was rerun after the production build:
+**360 PNGs, 444 renders, zero scoped violations**, Chrome 150.0.7871.186,
+320/690 px, en, UTC, DPR 1, reduced motion, fixed virtual clock and
+loopback-only traffic. The refreshed manifest matches every current source;
+the index is unchanged after formatting. Actual PNGs remain outside git in
+`temp/m114-p2-after`, **18,917,889 bytes**. Axe retains **110 incomplete
+contrast entries / 1009 nodes** as unmeasured. The earlier 1008-node count
+belongs to the reviewed capture. Visual inspection of the actual narrow dark
+header/menu confirms comfortably sized header actions and crisp blue pills.
+These observations remain subject to S's reviewed-golden handoff.
+
+The first final three-file invocation passed 81 cases but exposed a
+five-second timeout in the actual PNG-byte verification case. Its thousands
+of individual matcher calls are now one complete array comparison. It still
+checks every PNG's signature, width, height, byte length and SHA-256, keeps
+the forbidden-in-git PNG check, and validates all 360 files when the archive
+is supplied. No timeout, skip, threshold or expected fact changes.
+
+An additional clean red drill increments the width in P2's first ignored
+PNG. The complete evidence file exits 1 only at
+`keeps image bytes outside git and checks PNG dimensions, length and SHA-256 when the local archive is supplied`.
+The image restores in `finally` to
+`f10221cab7275d13fe2a84b60f645c0bf12bf86dab7031aeb9588cbe60abb36b`;
+the test file remains
+`d22ae2e38c3a2dcdf18cdb31bd064309aabfc171877a5fae1e4c1ea7700fa7fe`.
+The restored evidence file passes **2/2** in 1.04 seconds, including all PNG
+bytes. This brings the review repair to **eight deliberate failures**, all
+restored byte-exact; the original before archive is untouched.
+
+The final ten-file regression set passes **205 distinct tests** in four
+serial batches, each with at most three files, `--maxWorkers=3`, the repository
+timeout and no filter. For the first batch,
+`MUSE_M114_P2_CAPTURES_DIR=temp/m114-p2-after` enables the actual PNG checks.
+
+| Complete files                                                              | Result |
+| --------------------------------------------------------------------------- | -----: |
+| `m114Panel.test.mjs`, `m114PanelEvidence.test.mjs`, `ApprovalDock.test.tsx` |  82/82 |
+| `GooeyMenu.test.tsx`, `HistoryDialog.test.tsx`, `UsageDialog.test.tsx`      |  65/65 |
+| `paidHost.test.ts`, `paidConsent.test.ts`, `whatsNewPage.test.ts`           |  57/57 |
+| `reducedMotion.test.ts`                                                     |    1/1 |
+
+All files are under `test/unit/` and were run with `npx vitest run <files>
+--maxWorkers=3`. The restored two-case evidence check above is an additional
+repeat, not counted twice. No model or paid call is made.
