@@ -2746,7 +2746,12 @@
       "saveRoot": "Ukládat pouze do schváleného kořenového adresáře tohoto plánu.",
       "openWhenBack": "Otevřít, až se vrátím",
       "plannedDestination": "Tento cíl je plánovaný a nedostupný.",
-      "expiredOwner": "Plán skončil se sezením nebo týmem svého tvůrce."
+      "expiredOwner": "Plán skončil se sezením nebo týmem svého tvůrce.",
+      "targetUnavailable": "Cíl tohoto plánu není v tomto hostiteli dostupný.",
+      "targetClosed": "Cíl se zavřel nebo bylo toto čekající spuštění přeskočeno.",
+      "catchUpSkipped": "Zmeškané spuštění bylo přeskočeno podle pravidel tohoto plánu.",
+      "backgroundNotice": "Plán {name} otevřel konverzaci na pozadí.",
+      "conversationTitle": "Plán {name} · {date}"
     },
     "endAfterRuns": {
       "one": "Ukončit po {count} spuštění",

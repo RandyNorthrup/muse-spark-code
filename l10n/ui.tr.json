@@ -2558,7 +2558,12 @@
       "saveRoot": "Yalnızca bu zamanlamanın onaylı köküne kaydedin.",
       "openWhenBack": "Döndüğümde aç",
       "plannedDestination": "Bu hedef planlandı ve kullanılamıyor.",
-      "expiredOwner": "Bu zamanlama oluşturanın oturumu veya ekibiyle birlikte sona erdi."
+      "expiredOwner": "Bu zamanlama oluşturanın oturumu veya ekibiyle birlikte sona erdi.",
+      "targetUnavailable": "Bu zamanlamanın hedefi bu ana makinede kullanılamıyor.",
+      "targetClosed": "Hedef kapatıldı veya bekleyen bu çalıştırma atlandı.",
+      "catchUpSkipped": "Kaçırılan çalıştırma, bu zamanlamanın telafi ilkesine göre atlandı.",
+      "backgroundNotice": "{name} zamanlaması arka planda bir konuşma açtı.",
+      "conversationTitle": "Zamanlama {name} · {date}"
     },
     "endAfterRuns": {
       "one": "{count} çalıştırmadan sonra bitir",

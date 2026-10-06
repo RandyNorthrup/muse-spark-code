@@ -2464,7 +2464,12 @@
       "saveRoot": "このスケジュールで承認されたルート内だけに保存します。",
       "openWhenBack": "戻ったときに開く",
       "plannedDestination": "この送信先は予定段階で利用できません。",
-      "expiredOwner": "このスケジュールは作成者のセッションまたはチームとともに終了しました。"
+      "expiredOwner": "このスケジュールは作成者のセッションまたはチームとともに終了しました。",
+      "targetUnavailable": "このスケジュールの対象は、このホストでは利用できません。",
+      "targetClosed": "対象が閉じられたか、待機中の実行がスキップされました。",
+      "catchUpSkipped": "このスケジュールの追いつき実行ポリシーに従って、未実行分をスキップしました。",
+      "backgroundNotice": "スケジュール {name} がバックグラウンドで会話を開きました。",
+      "conversationTitle": "スケジュール {name} · {date}"
     },
     "endAfterRuns": {
       "other": "{count}回の実行後に終了"

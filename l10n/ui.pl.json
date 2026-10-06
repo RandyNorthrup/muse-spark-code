@@ -2746,7 +2746,12 @@
       "saveRoot": "Zapisuj tylko w zatwierdzonym katalogu głównym tego harmonogramu.",
       "openWhenBack": "Otwórz, gdy wrócę",
       "plannedDestination": "Ten cel jest planowany i niedostępny.",
-      "expiredOwner": "Harmonogram zakończył się wraz z sesją lub zespołem twórcy."
+      "expiredOwner": "Harmonogram zakończył się wraz z sesją lub zespołem twórcy.",
+      "targetUnavailable": "Cel tego harmonogramu jest niedostępny na tym hoście.",
+      "targetClosed": "Cel został zamknięty lub pominięto to oczekujące uruchomienie.",
+      "catchUpSkipped": "Pominięto zaległe uruchomienie zgodnie z zasadą nadrabiania tego harmonogramu.",
+      "backgroundNotice": "Harmonogram {name} otworzył rozmowę w tle.",
+      "conversationTitle": "Harmonogram {name} · {date}"
     },
     "endAfterRuns": {
       "one": "Zakończ po {count} uruchomieniu",

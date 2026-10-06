@@ -2652,7 +2652,12 @@
       "saveRoot": "Enregistrer uniquement dans la racine approuvée de cette planification.",
       "openWhenBack": "Ouvrir à mon retour",
       "plannedDestination": "Cette destination est prévue et indisponible.",
-      "expiredOwner": "Cette planification a pris fin avec la session ou l’équipe de son créateur."
+      "expiredOwner": "Cette planification a pris fin avec la session ou l’équipe de son créateur.",
+      "targetUnavailable": "La cible de cette planification est indisponible sur cet hôte.",
+      "targetClosed": "La cible a été fermée ou cette exécution en attente a été ignorée.",
+      "catchUpSkipped": "L’exécution manquée a été ignorée selon la règle de rattrapage de cette planification.",
+      "backgroundNotice": "La planification {name} a ouvert une conversation en arrière-plan.",
+      "conversationTitle": "Planification {name} · {date}"
     },
     "endAfterRuns": {
       "one": "Terminer après {count} exécution",

@@ -2558,7 +2558,12 @@
       "saveRoot": "Nur innerhalb des genehmigten Stammordners dieses Zeitplans speichern.",
       "openWhenBack": "Öffnen, wenn ich zurück bin",
       "plannedDestination": "Dieses Ziel ist geplant und nicht verfügbar.",
-      "expiredOwner": "Dieser Zeitplan endete mit der Sitzung oder dem Team seines Erstellers."
+      "expiredOwner": "Dieser Zeitplan endete mit der Sitzung oder dem Team seines Erstellers.",
+      "targetUnavailable": "Das Ziel dieses Zeitplans ist auf diesem Host nicht verfügbar.",
+      "targetClosed": "Das Ziel wurde geschlossen oder diese wartende Ausführung wurde übersprungen.",
+      "catchUpSkipped": "Die verpasste Ausführung wurde gemäß der Nachholregel dieses Zeitplans übersprungen.",
+      "backgroundNotice": "Der Zeitplan {name} hat eine Unterhaltung im Hintergrund geöffnet.",
+      "conversationTitle": "Zeitplan {name} · {date}"
     },
     "endAfterRuns": {
       "one": "Nach {count} Ausführung beenden",

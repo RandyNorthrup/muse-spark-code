@@ -2558,7 +2558,12 @@
       "saveRoot": "Csak az ütemezés jóváhagyott gyökérkönyvtárába menthet.",
       "openWhenBack": "Megnyitás, amikor visszatérek",
       "plannedDestination": "Ez a cél tervezett, és nem érhető el.",
-      "expiredOwner": "Az ütemezés a létrehozó munkamenetével vagy csapatával együtt véget ért."
+      "expiredOwner": "Az ütemezés a létrehozó munkamenetével vagy csapatával együtt véget ért.",
+      "targetUnavailable": "Az ütemezés célja nem érhető el ezen a gazdagépen.",
+      "targetClosed": "A cél bezárult, vagy ezt a várakozó futtatást kihagyták.",
+      "catchUpSkipped": "Az elmulasztott futtatás kimaradt az ütemezés pótlási szabálya szerint.",
+      "backgroundNotice": "A(z) {name} ütemezés megnyitott egy beszélgetést a háttérben.",
+      "conversationTitle": "Ütemezés: {name} · {date}"
     },
     "endAfterRuns": {
       "one": "Befejezés {count} futás után",

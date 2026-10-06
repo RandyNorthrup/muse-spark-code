@@ -2464,7 +2464,12 @@
       "saveRoot": "僅儲存到此排程核准的根目錄內。",
       "openWhenBack": "我回來時開啟",
       "plannedDestination": "此目標處於規劃階段，目前無法使用。",
-      "expiredOwner": "此排程隨建立者的工作階段或團隊結束而終止。"
+      "expiredOwner": "此排程隨建立者的工作階段或團隊結束而終止。",
+      "targetUnavailable": "此排程的目標在目前主機上無法使用。",
+      "targetClosed": "目標已關閉，或此等待中的執行已略過。",
+      "catchUpSkipped": "根據此排程的補執行原則，已略過錯過的執行。",
+      "backgroundNotice": "排程 {name} 已在背景開啟對話。",
+      "conversationTitle": "排程 {name} · {date}"
     },
     "endAfterRuns": {
       "other": "執行{count}次後結束"

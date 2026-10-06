@@ -2652,7 +2652,12 @@
       "saveRoot": "Guardar solo dentro de la raíz aprobada de esta programación.",
       "openWhenBack": "Abrir cuando vuelva",
       "plannedDestination": "Este destino está previsto y no está disponible.",
-      "expiredOwner": "Esta programación terminó con la sesión o el equipo de su creador."
+      "expiredOwner": "Esta programación terminó con la sesión o el equipo de su creador.",
+      "targetUnavailable": "El destino de esta programación no está disponible en este anfitrión.",
+      "targetClosed": "El destino se cerró o se omitió esta ejecución pendiente.",
+      "catchUpSkipped": "Se omitió la ejecución perdida según la política de recuperación de esta programación.",
+      "backgroundNotice": "La programación {name} abrió una conversación en segundo plano.",
+      "conversationTitle": "Programación {name} · {date}"
     },
     "endAfterRuns": {
       "one": "Finalizar tras {count} ejecución",
