@@ -21,6 +21,8 @@ import { parseProcessTable, type ProcessRow } from '../core/resources/trees/proc
 export { parseProcessTable } from '../core/resources/trees/processTable'
 
 import { execFile } from 'node:child_process'
+import { stopResourceTree } from '../core/resources/admission'
+import type { ResourceLease } from '../core/resources/launch'
 import path from 'node:path'
 import {
   setEnvironmentVariable,
@@ -254,7 +256,12 @@ export async function sweepExitedTree(
   startedAt: number,
   diedAt: number,
   deps: ProcessTreeDeps,
+  resource?: ResourceLease,
 ): Promise<void> {
+  if (resource !== undefined) {
+    await stopResourceTree(resource)
+    return
+  }
   if (pid === undefined) {
     return
   }
@@ -331,7 +338,12 @@ export async function killTree(
   deps: ProcessTreeDeps,
   startedAt: number,
   job?: ShellJob,
+  resource?: ResourceLease,
 ): Promise<void> {
+  if (resource !== undefined) {
+    await stopResourceTree(resource)
+    return
+  }
   const { pid } = root
   if (pid === undefined || hasExited(root)) {
     return

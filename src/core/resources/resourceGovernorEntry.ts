@@ -12,6 +12,7 @@ import type { ResourceProcessLaunch, ResourceTreeBinding } from './launch'
 import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
 import { WindowsResourceTreeReader } from './trees/windows'
+export { createResources } from '../../runtime/resources/entry'
 
 export interface ResourceHostSettings {
   /** W/H supply T's remaining native identity ports; absence is explicitly unknown. */

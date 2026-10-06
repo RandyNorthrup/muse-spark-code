@@ -6,7 +6,8 @@
 import { spawn } from 'node:child_process'
 import { PassThrough, type Readable, type Writable } from 'node:stream'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
-import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
+import { admitResource, resourceWindowsJob, stopResourceTree } from '../../core/resources/admission'
+import type { ResourceLease } from '../../core/resources/launch'
 import { spawnMcpJob } from '../backend/mcpJobLaunch'
 import { observeResourceProcess } from '../resources/resourceAdmission'
 import { treeSpawnOptions } from '../processTree'
@@ -47,8 +48,9 @@ function admittedVoiceProcess(
   const events = stdout
   const stop = new AbortController()
   let child: ChildProcessWithoutNullStreams | undefined
+  let resource: ResourceLease | undefined
   const start = async () => {
-    const resource = await admitResource('other', stop.signal)
+    resource = await admitResource('other', stop.signal)
     try {
       const job =
         resource !== undefined && process.platform === 'win32'
@@ -114,7 +116,12 @@ function admittedVoiceProcess(
     on: events.on.bind(events),
     kill: () => {
       stop.abort()
-      child?.kill()
+      if (child === undefined) return
+      if (resource === undefined) child.kill()
+      else
+        void stopResourceTree(resource).catch((error: unknown) => {
+          events.emit('error', error)
+        })
     },
   }
 }

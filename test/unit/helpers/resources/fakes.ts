@@ -1,3 +1,4 @@
+import { vi } from 'vitest'
 import {
   deviceResourceSchema,
   resourceSampleSchema,
@@ -13,6 +14,16 @@ import {
   type ResourceTreeReader,
   type ResourceTreeUsage,
 } from '../../../../src/shared/resources'
+
+export function fakeResourceLease(isStopped = false) {
+  return {
+    register: vi.fn(),
+    complete: vi.fn(),
+    background: vi.fn(),
+    kill: vi.fn(() => Promise.resolve(isStopped)),
+    isTreeGone: vi.fn(() => Promise.resolve(false)),
+  }
+}
 
 /** A missing step throws; failed readings must be scripted as explicit nulls. */
 export class ScriptedResourceSampler implements ResourceSampler {

@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Governed shell, MCP, browser, Git, voice and plugin cleanup uses registered
+  member stops, including descendants after root exit. Refused stops retain
+  unknown occupancy and never fall back to a bare process or job kill.
+- The lazy governor artifact exports both the window and runtime factories
+  and ships with the admission shim in the ACP package.
+
 - Runtime resource settings preserve injected class stores' methods. ACP
   shows one full pause warning per conversation while continuing level updates.
 

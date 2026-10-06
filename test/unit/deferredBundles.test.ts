@@ -26,6 +26,8 @@ import {
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
 import type * as resourceGovernor from '../../src/core/resources/resourceGovernorEntry'
+import type * as runtimeResources from '../../src/runtime/resources/entry'
+import { resourceSettingsSchema } from '../../src/shared/resources'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const metafileSchema = z.looseObject({
@@ -516,10 +518,13 @@ describe('deferred cohort bundles', () => {
   )
 })
 
-it('loads the lazy governor with the shared validation exports without probing at construction', () => {
+it('loads both governor factories with shared validation without probing at construction', async () => {
   const module = z
     .object({
       resourceGovernorHost: z.custom<typeof resourceGovernor.resourceGovernorHost>(
+        (value) => typeof value === 'function',
+      ),
+      createResources: z.custom<typeof runtimeResources.createResources>(
         (value) => typeof value === 'function',
       ),
     })
@@ -532,4 +537,23 @@ it('loads the lazy governor with the shared validation exports without probing a
   })
   expect(host.tickets()).toEqual([])
   host.dispose()
+  const runtime = await module.createResources(
+    {
+      machineDir: fixtureRoot,
+      sleep: () => Promise.resolve(),
+      onError: () => {
+        throw new Error('Unexpected runtime resource probe')
+      },
+      machine: {
+        readSettings: () => Promise.resolve(resourceSettingsSchema.parse({ enabled: false })),
+        readResumeUntil: () => Promise.resolve(null),
+        writeResumeUntil: () => Promise.resolve(),
+      },
+    },
+    EN,
+    'en',
+  )
+  const status = await runtime.status()
+  expect(status.settings.enabled).toBe(false)
+  runtime.dispose()
 })

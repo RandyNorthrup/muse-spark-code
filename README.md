@@ -3865,12 +3865,25 @@ jobs preserve the browser's CDP pipes and retain a query handle until the
 whole job is empty. Short CLI commands and plugin runtime probes share
 admission and native registration. Queued user turns retain the foreground
 20-second bound; each schedule owns its lease by id and generation.
-Muse Code inherits the SDK's stdio directly, and closing it stops its verified
-Windows job within a bounded shutdown. A forced stop or missing exit proof
+Muse Code inherits the SDK's stdio directly, and closing it stops its registered
+Windows members through retained birth-checked handles within a bounded shutdown. A forced stop or missing exit proof
 is reported explicitly, with session handles still disposed. Holder failure
 retains unknown work. Missing native identity proof remains
-unknown. The remaining milestone lanes supply actions, routing, UI, runtime
-wiring and final delivery; see [C1 certification](docs/certification/m107-c1.md).
+unknown. Registered shell, MCP, browser, Git, voice and plugin stops use the
+same verified tree API, including cleanup after root exit; a refused stop
+never falls back to a bare process or job kill. The shared resource surface
+and runtime/ACP/headless command modules are now joined. The runtime factory
+shares the lazy governor artifact, which is included in ACP packaging.
+The remaining lanes supply actuator lifecycle bindings, routing, durable
+history, active runtime spawn wiring and final editor delivery; see
+[round-3 certification](docs/certification/m107-int.md).
+
+The staged CLI accepts `muse-spark-code-acp resources status --json` and
+`muse-spark-code-acp resources resume --json`. Status samples the new command
+process; it does not inspect another running session's queue. Resume writes
+the machine's bounded fifteen-minute marker, which loaded runtime hosts read
+on their next refresh; an explicitly disabled governor stays off. Resource
+history currently reports unavailable until its retained journal is bound.
 
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's

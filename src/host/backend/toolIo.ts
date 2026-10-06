@@ -977,7 +977,13 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
     let drain: NodeJS.Timeout | undefined
     let kill: Promise<void> | undefined
     const stop = () => {
-      kill ??= killTree(child, run.tree, startedAt, run.job)
+      kill ??= (async () => {
+        try {
+          await killTree(child, run.tree, startedAt, run.job, run.resource)
+        } catch (error: unknown) {
+          settle(null, String(error))
+        }
+      })()
     }
     const onAbort = () => {
       isCancelled = true
@@ -1011,7 +1017,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
         ...(isOutputTooLarge && { isOutputTooLarge }),
         ...(isUnstarted && { isWorkspaceShutdownProven: true }),
       }
-      // killTree never rejects: what it cannot do, it logs.
+      // Registered stop refusal settles as a failure and retains unknown tree occupancy.
       void (kill ?? Promise.resolve()).then(() => {
         resolve(result)
       })

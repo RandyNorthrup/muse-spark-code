@@ -162,27 +162,6 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
     }
   }
 
-  /** The native call holds one job handle across exact birth/membership proof and kill. */
-  async kill(ticket: ResourceTicket, member: ResourceProcessIdentity): Promise<boolean> {
-    if (
-      ticket.scope.type !== 'job' ||
-      !resourceProcessIdentitySchema.safeParse(member).success ||
-      member.pid === process.pid
-    )
-      return false
-    try {
-      return z
-        .boolean()
-        .parse(
-          await this.call(
-            `if ([${SHELL_JOB_TYPE_NAME}]::TerminateVerified(${powerShellQuoted(ticket.scope.name)}, ${String(member.pid)}, ${powerShellQuoted(member.startTime)}, 1)) { 'true' } else { 'false' }`,
-          ),
-        )
-    } catch {
-      return false
-    }
-  }
-
   async usage(ticket: ResourceTicket): Promise<ResourceTreeUsage | null> {
     try {
       const query = await this.query(ticket)

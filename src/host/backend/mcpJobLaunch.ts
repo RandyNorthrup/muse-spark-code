@@ -11,6 +11,7 @@ import { createServer } from 'node:net'
 import { setEnvironmentVariable } from '../../core/backends/musecode/launch'
 import { redactSecrets } from '../../core/redact'
 import type { ResourceLease } from '../../core/resources/launch'
+import { stopResourceTree } from '../../core/resources/admission'
 import {
   MCP_JOB_CONFIG_VARIABLE,
   MCP_JOB_HANDSHAKE_MAX_CHARS,
@@ -136,7 +137,11 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
       },
     )
     prepared.stopWith(() => {
-      child.kill()
+      if (launch.resource === undefined) child.kill()
+      else
+        void stopResourceTree(launch.resource).catch(() => {
+          launch.log('the registered MCP tree could not be stopped')
+        })
     })
     child.once('exit', prepared.closeControl)
     child.once('error', prepared.closeControl)

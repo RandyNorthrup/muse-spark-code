@@ -21,6 +21,7 @@ import { Duplex } from 'node:stream'
 import type { BrowserProcess, BrowserRunDeps, CheckFolder } from '../../core/browser/browserRun'
 import { startProbeFixture } from '../../core/browser/canaries'
 import type { ResourceLease } from '../../core/resources/launch'
+import { stopResourceTree } from '../../core/resources/admission'
 import { observeResourceProcess } from '../resources/resourceAdmission'
 import { spawnMcpJob } from '../backend/mcpJobLaunch'
 import { startCheckProxy } from '../../core/browser/checkProxy'
@@ -65,6 +66,10 @@ function spawnCodeOf(error: unknown): string | undefined {
 
 /** Ends the browser and everything it started, at once. */
 async function killBrowser(child: ChildProcess, deps: HostBrowserDeps): Promise<void> {
+  if (deps.resource !== undefined) {
+    await stopResourceTree(deps.resource)
+    return
+  }
   const { pid } = child
   if (pid === undefined || child.exitCode !== null || child.signalCode !== null) {
     return
@@ -173,7 +178,9 @@ function spawnBrowser(
     })
   })
   if (!(writer instanceof Duplex) || !(reader instanceof Duplex)) {
-    child.kill()
+    void killBrowser(child, deps).catch(() => {
+      deps.warn('Browser check: the registered browser tree could not be stopped')
+    })
     throw new Error('no debugging pipes')
   }
   // Writing to a browser that has gone fails; its read end says so.

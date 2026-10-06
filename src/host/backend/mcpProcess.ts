@@ -18,6 +18,7 @@
 
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
 import { statSync } from 'node:fs'
+import { stopResourceTree } from '../../core/resources/admission'
 import path from 'node:path'
 import type { Readable, Writable } from 'node:stream'
 import { environmentValue, setEnvironmentVariable } from '../../core/backends/musecode/launch'
@@ -246,6 +247,7 @@ export function observeMcpProcess(
   deps: McpSpawnDeps,
   startedAt: number,
   isJobLauncher = false,
+  resource?: ResourceLease,
 ): McpChildProcess {
   const exitListeners = new Set<(how: string) => void>()
   let exit: string | undefined
@@ -268,7 +270,12 @@ export function observeMcpProcess(
     processSignal = signal
     // A server that exits by itself can still leave a child. Start the
     // identity-checked sweep now; stdout may still have a final MCP frame.
-    if (!isJobLauncher) {
+    if (resource !== undefined) {
+      treeCleanup ??= stopResourceTree(resource)
+      void treeCleanup.catch(() => {
+        deps.log('an exited MCP server has an unproved registered tree stop')
+      })
+    } else if (!isJobLauncher) {
       treeCleanup ??= queueExitedSweep(child.pid, startedAt, Date.now(), deps)
     }
   })
@@ -305,6 +312,10 @@ export function observeMcpProcess(
       }
     },
     kill: () => {
+      if (resource !== undefined) {
+        treeCleanup ??= stopResourceTree(resource)
+        return treeCleanup
+      }
       if (isJobLauncher) {
         if (exit !== undefined) {
           return Promise.resolve()
@@ -379,7 +390,7 @@ export function mcpServerSpawner(
         resource,
         resourceAssembly: assembly,
       })
-      return observeMcpProcess(nodeProcessHandle(child), deps, startedAt, true)
+      return observeMcpProcess(nodeProcessHandle(child), deps, startedAt, true, resource)
     }
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the server the user configured in Muse Code's settings, started only in a trusted workspace, with an absolute resolved command and a fixed argument array (PLAN.md §8).
     const child = spawn(line.file, [...line.args], {
@@ -390,7 +401,7 @@ export function mcpServerSpawner(
       ...treeSpawnOptions(deps.platform),
     })
     observeResourceProcess(resource, child)
-    return observeMcpProcess(nodeProcessHandle(child), deps, startedAt)
+    return observeMcpProcess(nodeProcessHandle(child), deps, startedAt, false, resource)
   }
 }
 

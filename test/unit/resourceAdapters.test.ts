@@ -4,6 +4,7 @@ import { spawnResourceMuseConnection } from '../../src/host/resources/museResour
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { admitResource, resourceWindowsJob } from '../../src/core/resources/admission'
 import type { ResourceLease } from '../../src/core/resources/launch'
+import type * as resources from '../../src/core/resources/admission'
 import { nativeToolIo } from './helpers/fakeToolIo'
 import { createGitProcess } from '../../src/host/git'
 import { modelApiMcpPoolDeps } from '../../src/host/backend/mcpServers'
@@ -11,7 +12,8 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { spawnHelper, startRecorder } from '../../src/host/voice/voiceProcesses'
 import { runResourceCommand } from '../../src/host/backend/toolIo'
 
-vi.mock('../../src/core/resources/admission', () => ({
+vi.mock('../../src/core/resources/admission', async (importOriginal) => ({
+  ...(await importOriginal<typeof resources>()),
   admitResource: vi.fn(),
   resourceWindowsJob: vi.fn(),
 }))

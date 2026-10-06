@@ -31,6 +31,8 @@ const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
   'modelApi.js',
+  'resourceAdmission.js',
+  'resourceGovernor.js',
   'reviewer.js',
   'foreignHooks.js',
   'hookRuntime.js',

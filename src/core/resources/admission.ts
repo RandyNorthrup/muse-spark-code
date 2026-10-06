@@ -63,3 +63,9 @@ export async function resourceWindowsJob(): Promise<
 > {
   return await state.options?.windowsJob?.()
 }
+
+/** Owner Stop bypasses admission; refusal never authorizes a legacy PID/job fallback. */
+export async function stopResourceTree(resource: ResourceLease): Promise<void> {
+  if ((await resource.kill?.()) || (await resource.isTreeGone?.())) return
+  throw new Error('Registered resource tree could not be stopped')
+}

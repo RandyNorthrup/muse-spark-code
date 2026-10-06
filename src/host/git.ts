@@ -7,7 +7,7 @@
 
 import { type ExecFileOptions, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { admitResource, resourceWindowsJob } from '../core/resources/admission'
+import { admitResource, resourceWindowsJob, stopResourceTree } from '../core/resources/admission'
 import { spawnMcpJob } from './backend/mcpJobLaunch'
 import { observeResourceProcess } from './resources/resourceAdmission'
 import { treeSpawnOptions } from './processTree'
@@ -441,7 +441,19 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         })
         const fail = (error: Error) => {
           failure ??= error
-          child.kill()
+          if (resource === undefined) child.kill()
+          else
+            void stopResourceTree(resource).catch((stopError: unknown) => {
+              failure =
+                stopError instanceof Error
+                  ? stopError
+                  : new Error('Registered Git tree stop failed')
+              clearTimeout(timer)
+              options.signal?.removeEventListener('abort', onAbort)
+              child.stdout.destroy()
+              child.stderr.destroy()
+              reject(failure)
+            })
           stopping.abort()
         }
         const timer = setTimeout(() => {

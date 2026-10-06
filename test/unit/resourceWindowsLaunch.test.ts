@@ -70,7 +70,9 @@ describe('C1 native Windows launch boundary', () => {
         throw new Error('Native launch unavailable')
       const reader = new WindowsResourceTreeReader({ assemblyPath: assembly, systemRoot })
       let registered: ResourceProcessLaunch | undefined
+      let stopRegistered: (() => Promise<boolean>) | undefined
       const lease: ResourceLease = {
+        kill: async () => (await stopRegistered?.()) ?? false,
         register: (launch) => {
           registered = launch
         },
@@ -117,10 +119,18 @@ describe('C1 native Windows launch boundary', () => {
           sessionId: null,
         }
         await registry.register(ticket)
+        stopRegistered = async () => {
+          const result = await registry.kill(ticket)
+          return result.status === 'done'
+        }
         expect(await registry.contains(ticket, root)).toBe(true)
         expect(
-          await reader.kill(ticket, { ...root, startTime: String(BigInt(root.startTime) + 1n) }),
-        ).toBe(false)
+          await registry.signal(
+            ticket,
+            { ...root, startTime: String(BigInt(root.startTime) + 1n) },
+            'SIGKILL',
+          ),
+        ).toBe('refused')
         expect(await registry.contains(ticket, root)).toBe(true)
         let foreignLaunch: ResourceProcessLaunch | undefined
         const foreign = spawnMcpJob({
@@ -152,7 +162,7 @@ describe('C1 native Windows launch boundary', () => {
             },
             { timeout: 5000 },
           )
-          expect(await reader.kill(ticket, foreignRoot)).toBe(false)
+          expect(await registry.signal(ticket, foreignRoot, 'SIGKILL')).toBe('refused')
           expect(await registry.contains(ticket, root)).toBe(true)
         } finally {
           const exited = once(foreign, 'exit')
@@ -168,6 +178,7 @@ describe('C1 native Windows launch boundary', () => {
       } finally {
         stop.abort()
         await pending
+        await stopRegistered?.()
         admission.mockRestore()
         helper.mockRestore()
         await removeFolder(folder)
@@ -190,7 +201,7 @@ describe('C1 native Windows launch boundary', () => {
       if (assembly === undefined) throw new Error('Native job unavailable')
       const reader = new WindowsResourceTreeReader({ assemblyPath: assembly, systemRoot })
       const refuseKill =
-        surface === 'unknown' ? vi.spyOn(reader, 'kill').mockResolvedValue(false) : undefined
+        surface === 'unknown' ? vi.spyOn(reader, 'signal').mockResolvedValue('refused') : undefined
       if (job.path === undefined) throw new Error('Native SDK launcher unavailable')
       const helper = vi
         .spyOn(resourceAdmission, 'resourceWindowsJob')

@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -8,6 +8,7 @@ import { build } from 'esbuild'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as runtimeBackends from '../../src/runtime/backends'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
+import { agentDataFolder } from '../../src/runtime/dataFolder'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
 import { execEventV2Schema, execEventSchema } from '../../src/runtime/exec/execProtocol'
 import { runExec } from '../../src/runtime/exec/runExec'
@@ -318,9 +319,17 @@ describe('M107 H headless flags and v2 egress', () => {
     const { rename } = await import('node:fs/promises')
     await rename(path.join(dist, 'entry.js'), path.join(dist, 'resourceGovernor.js'))
     await writeFile(path.join(folder, 'package.json'), '{"version":"test"}')
+    const machine = path.join(folder, 'machine')
+    const home = path.join(folder, 'home')
     const invoke = (args: string[]) =>
       promisify(execFile)(process.execPath, [path.join(dist, 'main.js'), ...args], {
-        env: { XDG_DATA_HOME: path.join(folder, 'machine'), LANG: 'en_US.UTF-8' },
+        env: {
+          LOCALAPPDATA: machine,
+          USERPROFILE: home,
+          HOME: home,
+          XDG_DATA_HOME: machine,
+          LANG: 'en_US.UTF-8',
+        },
         timeout: 30_000,
       })
     const status = await invoke(['resources', '--json'])
@@ -332,6 +341,12 @@ describe('M107 H headless flags and v2 egress', () => {
     const resumed = await invoke(['resources', 'resume', '--json'])
     const resumeRaw: unknown = JSON.parse(resumed.stdout)
     expect(resourceStatusSchema.parse(resumeRaw).overrideUntilMs).toBeGreaterThan(Date.now())
+    const storage = agentDataFolder({
+      platform: process.platform,
+      env: { LOCALAPPDATA: machine, XDG_DATA_HOME: machine },
+      homeDir: home,
+    })
+    expect(await readFile(path.join(storage, 'resource-resume.json'), 'utf8')).toContain('untilMs')
     const help = await invoke(['--help'])
     expect(help.stdout).toContain('--resource-governor on|off')
     await expect(invoke(['resources', 'history', '--json'])).rejects.toMatchObject({

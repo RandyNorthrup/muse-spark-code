@@ -73,7 +73,6 @@ export const ON_FIRST_USE = [
   {
     output: 'dist/resourceGovernor.js',
     metafile: 'dist/meta/resourceGovernor.json',
-    uiText: false,
     use: 'the first governed spawn',
     files: [
       'src/core/resources/resourceGovernorEntry.ts',
@@ -83,6 +82,9 @@ export const ON_FIRST_USE = [
       'src/core/resources/events.ts',
       'src/core/resources/sampler/system.ts',
       'src/core/resources/trees/registry.ts',
+      'src/runtime/resources/entry.ts',
+      'src/runtime/resources/host.ts',
+      'src/runtime/resources/settings.ts',
     ],
   },
   {

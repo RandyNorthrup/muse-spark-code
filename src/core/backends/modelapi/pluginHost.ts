@@ -24,7 +24,7 @@
 // - bounds: PLUGIN_HOOK_TIMEOUT_MS per call, PLUGIN_CHILD_MAX_HEAP_MB heap
 //   for node, PLUGIN_RESPONSE_MAX_BYTES UTF-8 bytes per answer frame [14].
 import { Buffer } from 'node:buffer'
-import { admitResource } from '../../resources/admission'
+import { admitResource, stopResourceTree } from '../../resources/admission'
 import type { ResourceLease } from '../../resources/launch'
 import { type ChildProcess, spawn as nodeSpawn } from 'node:child_process'
 import { statSync } from 'node:fs'
@@ -88,7 +88,7 @@ export interface PluginProcessTree {
     args: readonly string[],
     options: PluginSpawnOptions,
   ): Promise<PluginChildHandle>
-  killTree(child: PluginChildHandle): void
+  killTree(child: PluginChildHandle): void | Promise<void>
 }
 
 export interface PluginRunDeps {
@@ -364,6 +364,15 @@ export function nodeChildHandle(child: ChildProcess): PluginChildHandle {
   }
 }
 
+const resources = new WeakMap<PluginChildHandle, ResourceLease>()
+
+async function didStopRegisteredPlugin(child: PluginChildHandle): Promise<boolean> {
+  const resource = resources.get(child)
+  if (resource === undefined) return false
+  await stopResourceTree(resource)
+  return true
+}
+
 /** POSIX: the child leads a process group of its own, killed as one. */
 export const posixProcessTree: PluginProcessTree = {
   spawn: (command, args, options) => {
@@ -380,10 +389,12 @@ export const posixProcessTree: PluginProcessTree = {
     child.once('error', () => {
       options.resource?.complete(child.pid === undefined)
     })
-    return Promise.resolve(nodeChildHandle(child))
+    const handle = nodeChildHandle(child)
+    if (options.resource !== undefined) resources.set(handle, options.resource)
+    return Promise.resolve(handle)
   },
-  killTree: (child) => {
-    if (child.pid === undefined) return
+  killTree: async (child) => {
+    if ((await didStopRegisteredPlugin(child)) || child.pid === undefined) return
     try {
       process.kill(-child.pid, 'SIGKILL')
     } catch {
@@ -411,9 +422,11 @@ export function jobProcessTree(launch: PluginJobLaunch): PluginProcessTree {
       const launcher = launch(command, args, options)
       const handle = nodeChildHandle(launcher)
       launchers.set(handle, launcher)
+      if (options.resource !== undefined) resources.set(handle, options.resource)
       return Promise.resolve(handle)
     },
-    killTree: (child) => {
+    killTree: async (child) => {
+      if (await didStopRegisteredPlugin(child)) return
       try {
         launchers.get(child)?.kill()
       } catch {
@@ -561,7 +574,9 @@ const NEWLINE = 0x0a
 /** A tree's end, which must never throw out of an event listener. */
 function endTree(tree: PluginProcessTree, child: PluginChildHandle): void {
   try {
-    tree.killTree(child)
+    void Promise.resolve(tree.killTree(child)).catch(() => {
+      // A refused registered stop retains unknown occupancy; the bounded hook still settles.
+    })
   } catch {
     // The tree's own fault: the call still settles.
   }

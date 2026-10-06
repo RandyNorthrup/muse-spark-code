@@ -20179,6 +20179,16 @@ Each joins when its dependency merges, and none blocks the others.
 
 ## 7. Gates
 
+**M107INT round-3 certification (2026-10-06).** The rig brief authorizes
+only the listed T2/U/H merges, scoped complete-file runs (at most three,
+three workers), all-project typecheck, lint/format, localization, generated
+host inventory, cycles, plain knip and production build with every unchanged
+cap. Full quality and aggregate coverage remain the lead's work. The shutdown
+audit repairs have before-fix failures and fourteen byte-exact red/restored
+mutations. The lazy factory regression covers both window and runtime exports;
+the split inventory excludes the runtime implementation from parent bundles.
+See `docs/certification/m107-int.md` for exact receipts and final sizes.
+
 **FIXM107INT bounded review certification (2026-10-06).** The user's rig
 brief/common rules prohibit full quality and aggregate unit/coverage runs.
 Run complete owning files in serial groups of at most three, before-fix
@@ -21324,9 +21334,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
-| ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| Location                                                      | Escape hatch                        | Reason                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET)                           | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                                                               |
+| `src/runtime/resources/load.ts:isResourceModule` (M107 H/INT) | Typed lazy factory predicate        | Checks the loaded object's callable `createResources`; JavaScript cannot inspect its parameter/return types. The loader and factory ship from the same build. The complete `deferredBundles` test loads and calls the actual production factory; `runtimeResources` checks load failure and locale installation. |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
@@ -21447,6 +21458,23 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M107 round-3 delivery qualification (2026-10-06).** T2/U/H are joined
+  into C1/G/A/S. Every repository-owned governed payload stop uses its registered
+  lease; raw legacy paths are guarded by absence of a lease, and failed stop
+  proof never grants a fallback or releases occupied work. Infrastructure and
+  zero-signal probes remain excluded. Both governor factories share the lazy
+  artifact and the ACP package includes its admission/governor files. The
+  shared UI and runtime command implementations are present, while W still
+  owns manifest/reference delivery, active runtime spawn/occupancy binding,
+  A's registered member-state/lifecycle join, native helper selection in all
+  editors and cross-platform/performance/full-gate qualification. C2/R/J and
+  their dependency joins remain separate. The parallel D87.14 disk lane is
+  deliberately untouched. The SDK's private POSIX group/Windows launcher
+  shutdown ladder has no public signal callback and remains a qualified
+  dependency/containment boundary for W/lead, not a registered member action.
+  Historical T/U/H snapshot/factory handoffs below
+  are superseded only where the round-3 receipts explicitly close them.
 
 - **FIXM107INT qualification (2026-10-06).** The four RVM107INT findings
   are repaired at their launch, queue and ownership boundaries; none is
