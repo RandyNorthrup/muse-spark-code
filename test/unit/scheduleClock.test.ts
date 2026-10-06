@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { readScheduleClock, scheduleTimeAtClock } from '../../src/core/schedules/time/clock'
-import { missedScheduleTimes } from '../../src/core/schedules/time/missed'
+import { MISSED_COUNT_MAX, missedScheduleTimes } from '../../src/core/schedules/time/missed'
 import { nextScheduleTime } from '../../src/core/schedules/time/scheduleTime'
+import { ZonedScheduleCalendar } from '../../src/core/schedules/time/zonedCalendar'
 import { FakeScheduleClock } from './helpers/schedules/clock'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 
@@ -194,6 +195,160 @@ describe('M115 elapsed clock and missed-fire computation', () => {
     })
   })
 
+  it('recovers 180 days of minute cron in under 50 ms with one latest catch-up and a capped count', () => {
+    const after = Date.parse('2025-10-05T00:00:00Z')
+    const through = after + 180 * 86_400_000
+    const plan = fakeSchedule({ zone: 'UTC', trigger: { kind: 'cron', expression: '* * * * *' } })
+    const resolve = vi.spyOn(ZonedScheduleCalendar.prototype, 'resolve')
+    try {
+      const began = performance.now()
+      const recovered = missedScheduleTimes(plan, after, through)
+      expect(performance.now() - began).toBeLessThan(50)
+      expect(recovered).toEqual({
+        dueCount: MISSED_COUNT_MAX,
+        missedCount: MISSED_COUNT_MAX - 1,
+        isCountLowerBound: true,
+        catchUpAtMs: through,
+        nextFireAtMs: through + 60_000,
+      })
+      expect(resolve.mock.calls.length).toBeLessThanOrEqual(MISSED_COUNT_MAX + 2)
+      expect(missedScheduleTimes({ ...plan, catchUp: 'skip' }, after, through + 30_000)).toEqual({
+        dueCount: MISSED_COUNT_MAX,
+        missedCount: MISSED_COUNT_MAX,
+        isCountLowerBound: true,
+        nextFireAtMs: through + 60_000,
+      })
+    } finally {
+      resolve.mockRestore()
+    }
+  })
+
+  it('searches backward through a fold including civil times later than the observation', () => {
+    const plan = fakeSchedule({ trigger: { kind: 'cron', expression: '* * * * *' } })
+    expect(
+      missedScheduleTimes(
+        plan,
+        Date.parse('2026-11-01T08:30:00Z'),
+        Date.parse('2026-11-01T09:45:00Z'),
+      ),
+    ).toEqual({
+      dueCount: 29,
+      missedCount: 28,
+      catchUpAtMs: Date.parse('2026-11-01T08:59:00Z'),
+      nextFireAtMs: Date.parse('2026-11-01T10:00:00Z'),
+    })
+    expect(
+      missedScheduleTimes(
+        plan,
+        Date.parse('2026-11-01T08:59:00Z'),
+        Date.parse('2026-11-01T09:45:00Z'),
+      ),
+    ).toEqual({
+      dueCount: 0,
+      missedCount: 0,
+      nextFireAtMs: Date.parse('2026-11-01T10:00:00Z'),
+    })
+  })
+
+  it('keeps short calendar counts exact and marks capped counts as lower bounds', () => {
+    const plan = fakeSchedule({ zone: 'UTC', trigger: { kind: 'cron', expression: '* * * * *' } })
+    for (const count of [MISSED_COUNT_MAX - 1, MISSED_COUNT_MAX, MISSED_COUNT_MAX + 1]) {
+      const through = start + count * 60_000
+      const recovered = missedScheduleTimes(plan, start, through)
+      expect(recovered.dueCount).toBe(Math.min(count, MISSED_COUNT_MAX))
+      expect(recovered.missedCount).toBe(Math.min(count, MISSED_COUNT_MAX) - 1)
+      expect(recovered.isCountLowerBound).toBe(count >= MISSED_COUNT_MAX || undefined)
+      expect(recovered.catchUpAtMs).toBe(through)
+      expect(recovered.nextFireAtMs).toBe(through + 60_000)
+    }
+  })
+
+  it('recovers the latest anchored civil day, weekday, weekly and sparse cron with exclusive ends', () => {
+    const after = Date.parse('2026-01-01T00:00:00Z')
+    const through = Date.parse('2026-10-05T12:00:00Z')
+    const times = [{ hour: 9, minute: 0 }]
+    const triggers = [
+      { kind: 'daily', everyDays: 2, anchorDate: '2026-10-01', times },
+      { kind: 'weekdays', times },
+      { kind: 'weekly', days: [{ weekday: 1, times }] },
+      { kind: 'cron', expression: '0 9 * * *' },
+    ] satisfies (typeof interval.trigger)[]
+    for (const trigger of triggers) {
+      const plan = fakeSchedule({ trigger, zone: 'UTC' })
+      const fire = Date.parse('2026-10-05T09:00:00Z')
+      expect(missedScheduleTimes(plan, after, through).catchUpAtMs).toBe(fire)
+      if (trigger.kind === 'daily') {
+        expect(missedScheduleTimes(plan, after, through).dueCount).toBe(3)
+        expect(missedScheduleTimes(plan, after, through - 86_400_000).catchUpAtMs).toBe(
+          Date.parse('2026-10-03T09:00:00Z'),
+        )
+      }
+      const expired = missedScheduleTimes({ ...plan, end: { atMs: fire } }, after, through)
+      expect(expired.catchUpAtMs).toBeLessThan(fire)
+      expect(expired.nextFireAtMs).toBeUndefined()
+      expect(
+        missedScheduleTimes({ ...plan, end: { afterRuns: 1 }, fireCount: 1 }, after, through),
+      ).toEqual({ dueCount: 0, missedCount: 0 })
+      expect(missedScheduleTimes(plan, fire, through).dueCount).toBe(0)
+    }
+    const leap = fakeSchedule({ zone: 'UTC', trigger: { kind: 'cron', expression: '0 9 29 2 *' } })
+    expect(missedScheduleTimes(leap, after, Date.parse('2029-01-01T00:00:00Z'))).toEqual({
+      dueCount: 1,
+      missedCount: 0,
+      catchUpAtMs: Date.parse('2028-02-29T09:00:00Z'),
+      nextFireAtMs: Date.parse('2032-02-29T09:00:00Z'),
+    })
+    expect(
+      missedScheduleTimes(
+        fakeSchedule({ zone: 'UTC', trigger: { kind: 'cron', expression: '0 9 30 2 *' } }),
+        after,
+        through,
+      ),
+    ).toEqual({ dueCount: 0, missedCount: 0 })
+    const future = fakeSchedule({
+      zone: 'UTC',
+      trigger: { kind: 'daily', everyDays: 1, anchorDate: '2026-10-06', times },
+    })
+    expect(missedScheduleTimes(future, after, through)).toEqual({
+      dueCount: 0,
+      missedCount: 0,
+      nextFireAtMs: Date.parse('2026-10-06T09:00:00Z'),
+    })
+  })
+
+  it('deduplicates reverse gap fires, half-hour transitions and a skipped predecessor date', () => {
+    const gap = fakeSchedule({ trigger: { kind: 'cron', expression: '* * * * *' } })
+    expect(
+      missedScheduleTimes(
+        gap,
+        Date.parse('2026-03-08T09:30:00Z'),
+        Date.parse('2026-03-08T10:30:00Z'),
+      ),
+    ).toMatchObject({ dueCount: 60, catchUpAtMs: Date.parse('2026-03-08T10:30:00Z') })
+    const lordHowe = fakeSchedule({
+      zone: 'Australia/Lord_Howe',
+      trigger: { kind: 'cron', expression: '15,30,45 2 * * *' },
+    })
+    expect(
+      missedScheduleTimes(
+        lordHowe,
+        Date.parse('2026-10-03T15:00:00Z'),
+        Date.parse('2026-10-03T16:00:00Z'),
+      ),
+    ).toMatchObject({ dueCount: 2, catchUpAtMs: Date.parse('2026-10-03T15:45:00Z') })
+    const apia = fakeSchedule({
+      zone: 'Pacific/Apia',
+      trigger: { kind: 'cron', expression: '0 9,12 30 12 *' },
+    })
+    expect(
+      missedScheduleTimes(
+        apia,
+        Date.parse('2011-12-29T12:00:00Z'),
+        Date.parse('2011-12-30T10:30:00Z'),
+      ),
+    ).toMatchObject({ dueCount: 1, catchUpAtMs: Date.parse('2011-12-30T10:00:00Z') })
+  })
+
   it('counts dense wall cron through a whole gap or fold day with no duplicate fires', () => {
     const plan = fakeSchedule({ trigger: { kind: 'cron', expression: '* * * * *' } })
     for (const [after, through, count] of [
@@ -201,9 +356,11 @@ describe('M115 elapsed clock and missed-fire computation', () => {
       ['2026-11-01T07:00:00Z', '2026-11-02T08:00:00Z', 1440],
     ] satisfies [string, string, number][]) {
       const recovered = missedScheduleTimes(plan, Date.parse(after), Date.parse(through))
+      expect(count).toBeGreaterThan(MISSED_COUNT_MAX)
       expect(recovered).toEqual({
-        dueCount: count,
-        missedCount: count - 1,
+        dueCount: MISSED_COUNT_MAX,
+        missedCount: MISSED_COUNT_MAX - 1,
+        isCountLowerBound: true,
         catchUpAtMs: Date.parse(through),
         nextFireAtMs: Date.parse(through) + 60_000,
       })

@@ -29,6 +29,13 @@ function canCronFire(cron: ParsedCron): boolean {
   })
 }
 
+function wallCron(trigger: WallTrigger): ParsedCron | undefined {
+  if (trigger.kind !== 'cron') return undefined
+  const cron = parseCron(trigger.expression)
+  if (cron === undefined) throw new RangeError('scheduleTime.invalidCron')
+  return cron
+}
+
 function clockMinutes(times: readonly { hour: number; minute: number }[]): number[] {
   return times.map((time) => time.hour * MINUTES_PER_HOUR + time.minute)
 }
@@ -71,11 +78,8 @@ function* wallFires(
   beforeMs?: number,
 ): Generator<number, undefined> {
   const calendar = new ZonedScheduleCalendar(zone)
-  const cron = trigger.kind === 'cron' ? parseCron(trigger.expression) : undefined
-  if (trigger.kind === 'cron') {
-    if (cron === undefined) throw new RangeError('scheduleTime.invalidCron')
-    if (!canCronFire(cron)) return undefined
-  }
+  const cron = wallCron(trigger)
+  if (cron !== undefined && !canCronFire(cron)) return undefined
   const local = new Date(calendar.stamp(afterMs))
   const date = civilDate(local.getUTCFullYear(), local.getUTCMonth() + 1, local.getUTCDate())
   // A skipped date's intended times may map into this date. Include its
@@ -193,32 +197,59 @@ export function previewScheduleTimes(
   return fires
 }
 
-/** Lazy recovery traversal, sharing one civil-date search and Intl formatter.
- * It retains no backlog. The current fireCount applies throughout: skipped
- * occurrences are not runs. Preview separately projects successful runs. */
-export function* scheduleTimeOccurrences(
-  plan: ScheduleTimePlan,
+/** Latest wall occurrences first in (afterMs, throughMs]. Recovery can stop
+ * counting without losing the latest occurrence or scanning an outage. The
+ * caller validates the plan/end/run count through nextScheduleTime. */
+export function* previousTimeOccurrences(
+  trigger: WallTrigger,
+  zone: string,
   afterMs: number,
-  eventAtMs?: number,
+  throughMs: number,
 ): Generator<number, undefined> {
-  let fire = nextScheduleTime(plan, afterMs, eventAtMs)
-  if (fire === undefined) return undefined
-  const trigger = plan.trigger
-  switch (trigger.kind) {
-    case 'daily':
-    case 'weekdays':
-    case 'weekly':
-    case 'cron': {
-      yield fire
-      yield* wallFires(trigger, plan.zone, fire, plan.end?.atMs)
-      return undefined
-    }
-    default: {
-      while (fire !== undefined) {
-        yield fire
-        fire = nextScheduleTime(plan, fire, eventAtMs)
-      }
-      return undefined
-    }
+  checkInstant(afterMs)
+  checkInstant(throughMs)
+  if (throughMs <= afterMs) return undefined
+  const cron = wallCron(trigger)
+  if (cron !== undefined && !canCronFire(cron)) return undefined
+  const calendar = new ZonedScheduleCalendar(zone)
+  const local = new Date(calendar.stamp(throughMs))
+  const date = civilDate(local.getUTCFullYear(), local.getUTCMonth() + 1, local.getUTCDate())
+  const days = trigger.kind === 'daily' ? trigger.everyDays : 1
+  if (trigger.kind === 'daily') {
+    const anchor = Date.parse(`${trigger.anchorDate}T00:00:00Z`)
+    if (date.getTime() < anchor) return undefined
+    date.setTime(
+      anchor +
+        Math.floor((date.getTime() - anchor) / (days * MILLISECONDS_PER_DAY)) *
+          days *
+          MILLISECONDS_PER_DAY,
+    )
   }
+  // In the second pass through a fold, a later civil minute's FIRST occurrence
+  // can precede throughMs. Use both neighboring offsets as the civil ceiling.
+  // This also skips tomorrow's minutes cheaply when recovering dense cron.
+  const padding = 2 * MILLISECONDS_PER_DAY
+  const ceiling = Math.max(
+    local.getTime(),
+    calendar.stamp(throughMs - padding) + padding,
+    calendar.stamp(throughMs + padding) - padding,
+  )
+  // A skipped predecessor date can resolve into the cursor's local date.
+  const lowerDate = calendar.stamp(afterMs) - MILLISECONDS_PER_DAY
+  let cursor = throughMs + 1
+  while (Number.isFinite(date.getTime()) && date.getTime() >= lowerDate) {
+    const times = [...new Set(minutesOnDate(trigger, date, cron))].toSorted((a, b) => b - a)
+    for (const minute of times) {
+      const wanted = date.getTime() + minute * SCHEDULE_MIN_INTERVAL_MS
+      if (wanted > ceiling) continue
+      const fire = calendar.resolve(wanted)
+      if (fire > throughMs || fire >= cursor || fire <= afterMs) continue
+      yield fire
+      cursor = fire
+    }
+    if (trigger.kind === 'daily' && date.getTime() <= Date.parse(`${trigger.anchorDate}T00:00:00Z`))
+      break
+    date.setUTCDate(date.getUTCDate() - days)
+  }
+  return undefined
 }
