@@ -91,6 +91,7 @@ describe('native command final owner admission', () => {
         )
         expect(result.exitCode).toBe(0)
         expect(result.stdout.includes('envfence-fake-parent')).toBe(isInteractive)
+        if (!isInteractive) expect(result.stdout).toContain('MUSE_SPARK_AGENT_SHELL=1')
       }
       const fenced = await localIo().runShell(
         command,

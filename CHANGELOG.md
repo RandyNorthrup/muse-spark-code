@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- FIXM103R4: maker CLI hardware enable, machine add and panel commands refuse
+  agent-marked shells before asking for OS presence. Unattended shell children
+  carry the runtime marker; Stop remains available.
+
 - REDM103R supersedes the terminal/SSH approval repairs below: physical maker
   approvals, hardware enable, machine add and panel open require OS user
   authentication bound to the exact action. Grants expire in five seconds and

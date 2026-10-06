@@ -6,7 +6,7 @@ import { runRuntimeMaker } from '../../src/runtime/maker/entry'
 import { parseMakerCommand } from '../../src/runtime/maker/commandArgs'
 import { createUserPresence } from '../../src/runtime/maker/userPresence'
 import { EN } from '../../src/shared/l10n/en'
-import { UI_TEXT } from '../../src/shared/constants'
+import { RUNTIME_MAKER_AGENT_MARKERS, UI_TEXT } from '../../src/shared/constants'
 import { createRuntimeMakerService } from '../../src/runtime/maker/service'
 import { MakerApproval } from '../../src/core/maker/ports'
 import { randomUUID } from 'node:crypto'
@@ -38,6 +38,27 @@ async function fixture() {
   return { deps, presence }
 }
 describe('terminal spoofing never supplies physical authority', () => {
+  it.each(RUNTIME_MAKER_AGENT_MARKERS)(
+    'refuses %s agent-shell enable, add and panel before asking for OS presence',
+    async (marker) => {
+      const { deps, presence } = await fixture()
+      presence.check.mockResolvedValue('approved')
+      for (const args of [
+        ['hardware', 'enable', '--reason', 'agent claim', '--trust-workspace'],
+        ['machines', 'add', '--registration', '{}', '--key-stdin', '--trust-workspace'],
+        ['panel', '--trust-workspace'],
+      ]) {
+        const command = parseMakerCommand(args)
+        if (command === undefined) throw new Error('command')
+        await expect(runRuntimeMaker(command, { ...deps, env: { [marker]: '1' } })).rejects.toThrow(
+          UI_TEXT.makerUnattendedDenied,
+        )
+      }
+      expect(presence.check).not.toHaveBeenCalled()
+      expect(deps.readSecret).not.toHaveBeenCalled()
+      expect(deps.print).not.toHaveBeenCalled()
+    },
+  )
   it.each([
     ['remote SSH peer', 'linux', { SSH_CONNECTION: '203.0.113.5 3000 192.168.1.2 22' }],
     ['LD_PRELOAD forged ps', 'linux', { LD_PRELOAD: '/agent/forged-ps.so' }],

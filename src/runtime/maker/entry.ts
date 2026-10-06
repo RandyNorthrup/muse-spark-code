@@ -5,7 +5,7 @@ import type { MakerCommand } from './commandArgs'
 import { createRuntimeMakerService, runtimeMakerLan } from './service'
 import { stopRuntimeMachines, stopResultText } from './stop'
 import { runMakerCommand, openMakerBrowser } from './commands'
-import { UI_TEXT } from '../../shared/constants'
+import { RUNTIME_MAKER_AGENT_MARKERS, UI_TEXT } from '../../shared/constants'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { createAcpMakerRuntime } from './acpRuntime'
@@ -75,7 +75,7 @@ export async function runRuntimeMaker(
     ...(deps.presence !== undefined && { presence: deps.presence }),
     trusted: () => command.trusted,
     flagged: () => true,
-    interactive: () => true,
+    interactive: () => RUNTIME_MAKER_AGENT_MARKERS.every((key) => (deps.env[key] ?? '') === ''),
     native: {
       platform: deps.platform,
       env: deps.env,

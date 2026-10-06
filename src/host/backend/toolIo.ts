@@ -52,6 +52,7 @@ import {
   MAX_DOCUMENT_BYTES,
   MODEL_TEXT,
   PDF_HEADER_WINDOW_BYTES,
+  RUNTIME_MAKER_AGENT_SHELL,
   SEARCH_TIMEOUT_MS,
   SHELL_DRAIN_GRACE_MS,
   SHELL_OUTPUT_MAX_CHARS,
@@ -696,7 +697,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         args: shellArguments(deps.platform, command, job),
         cwd,
         env: shellEnvironment(
-          deps.env(),
+          isInteractive ? deps.env() : { ...deps.env(), [RUNTIME_MAKER_AGENT_SHELL]: '1' },
           deps.platform,
           deps.systemRoot,
           isInteractive ? deps.passEnvironmentVariables?.() : [],

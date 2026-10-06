@@ -1,0 +1,45 @@
+[
+  {
+    "name": "agent-shell-cli-refusal",
+    "file": "src/runtime/maker/entry.ts",
+    "command": "TMPDIR=/home/randy/lanes/M103R/temp npx vitest run test/unit/runtimeMakerAttendance.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > refuses CI agent-shell enable, add and panel before asking for OS presence",
+      "test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > refuses MUSE_SPARK_AGENT_SHELL agent-shell enable, add and panel before asking for OS presence",
+      "test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > refuses CODEX_THREAD_ID agent-shell enable, add and panel before asking for OS presence",
+      "test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > refuses CODEX_CI agent-shell enable, add and panel before asking for OS presence",
+      "test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > refuses CLAUDECODE agent-shell enable, add and panel before asking for OS presence",
+      "test/unit/runtimeMakerAttendance.test.ts > terminal spoofing never supplies physical authority > refuses CLAUDE_CODE_ENTRYPOINT agent-shell enable, add and panel before asking for OS presence"
+    ],
+    "originalSha256": "342d8b6508e7eb3fb631963a7da6393eddefea1950a2001d747962d7eb8b05ee",
+    "restoredSha256": "342d8b6508e7eb3fb631963a7da6393eddefea1950a2001d747962d7eb8b05ee"
+  },
+  {
+    "name": "agent-shell-child-marker",
+    "file": "src/host/backend/toolIo.ts",
+    "command": "TMPDIR=/home/randy/lanes/M103R/temp npx vitest run test/unit/toolIoCommandAdmission.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/toolIoCommandAdmission.test.ts > native command final owner admission > D89.5 real-shell environment probe withholds parent credentials unless interactive and named"
+    ],
+    "originalSha256": "d83e37d391ffd2bd6bc587767f45ee90ad586fddeb1309880b70199d04351e62",
+    "restoredSha256": "d83e37d391ffd2bd6bc587767f45ee90ad586fddeb1309880b70199d04351e62"
+  },
+  {
+    "name": "muse-code-shell-child-marker",
+    "file": "src/core/backends/musecode/launch.ts",
+    "command": "TMPDIR=/home/randy/lanes/M103R/temp npx vitest run test/unit/launch.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "test/unit/launch.test.ts > buildChildEnvironment > resets PSModulePath on Windows and adds the extras, never a META_API_KEY of its own",
+      "test/unit/launch.test.ts > buildChildEnvironment > replaces an inherited variable whatever its spelling on Windows",
+      "test/unit/launch.test.ts > buildChildEnvironment > leaves PSModulePath alone elsewhere and passes an environment key through untouched",
+      "test/unit/launch.test.ts > buildChildEnvironment > marks Muse Code subagent shell descendants even with a linux environment override",
+      "test/unit/launch.test.ts > buildChildEnvironment > marks Muse Code subagent shell descendants even with a darwin environment override",
+      "test/unit/launch.test.ts > buildChildEnvironment > marks Muse Code subagent shell descendants even with a win32 environment override"
+    ],
+    "originalSha256": "78ef2941f7f1ed316ad3e1ad141c5081c34fd4f3bbfdb17b5e9e1ce4d1db9941",
+    "restoredSha256": "78ef2941f7f1ed316ad3e1ad141c5081c34fd4f3bbfdb17b5e9e1ce4d1db9941"
+  }
+]

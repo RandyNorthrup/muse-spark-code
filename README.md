@@ -4171,6 +4171,11 @@ unavailable and refuse. They never fall back to a terminal or editor click.
 If no presence source is available, enable/install the source for your OS and
 retry; **Stop stays available** without it.
 
+Agent-marked shells (including subagent and unattended shell children) refuse
+`hardware enable`, `machines add` and `panel` before asking for OS presence.
+These commands belong in the person's terminal. Stop remains available there
+and in agent shells.
+
 The runtime opens the OS browser with a single-use launch capability passed
 directly to its launcher, never printed to stdout, stderr or a log. The page
 removes the URL fragment after receiving it. That capability opens a session;

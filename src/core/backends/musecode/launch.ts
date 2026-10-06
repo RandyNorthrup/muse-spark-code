@@ -29,6 +29,7 @@ import {
   NO_PROXY_SPELLINGS,
   NO_PROXY_VARIABLE,
   PROXY_VARIABLE_SPELLINGS,
+  RUNTIME_MAKER_AGENT_SHELL,
   UI_TEXT,
   WINDOWS_PSMODULEPATH_SEGMENTS,
 } from '../../../shared/constants'
@@ -302,6 +303,8 @@ export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.Proc
   for (const variable of input.extraVariables) {
     setEnvironmentVariable(env, input.platform, variable.name, variable.value)
   }
+  // Muse Code's shell descendants, including subagents, never start person-only maker commands.
+  setEnvironmentVariable(env, input.platform, RUNTIME_MAKER_AGENT_SHELL, '1')
   return env
 }
 

@@ -18919,6 +18919,21 @@ Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**FIXM103R4 (2026-10-06, Kubuntu, RVM103R4G).** Close all four findings.
+Browser dev origins come only from user-level settings; private/LAN additions
+require a settings UI confirmation naming the origin, stored outside the
+workspace. Default private access is loopback only after an exact origin is
+configured. Registered machine hosts and known printer/CNC UI destinations
+are always refused, including allowlisted origins and Bypass. Runtime maker
+enable, add and panel refuse agent-marked shells before any presence question;
+unattended shell children carry the marker. Browser proxy classification uses
+the web fetch adapter's NAT64 discovery, including the well-known prefix, and
+refuses unknown IPv6 translation. The panel launcher receives a public URL;
+its one-shot loopback exchange delivers the launch code to the opened page,
+never on any process command line. Each guard has a failing regression and a
+byte-exact red drill in docs/certification/m103-r.md. No dependencies, guard
+widening, merge, push, live/paid/physical calls or aggregate quality runs.
+
 **REDM103R (2026-10-06, Kubuntu, RVM103R3G).** Replace terminal/SSH/process
 authority with one portable UserPresence port. Each approval authenticates the
 OS user for its exact id, payload SHA-256 and target, then mints a short-lived,
