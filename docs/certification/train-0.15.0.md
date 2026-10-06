@@ -1038,3 +1038,8 @@ rig's pre-existing dev tool installation remains 1.10.0.
 Exact owning files, initial failures, final gate/test logs, package inventories,
 helper provenance, golden/released-changelog hashes and drill restorations are
 in [train-0.15.0-train15f.json](train-0.15.0-train15f.json).
+
+Implementation merge: `82c36305cb735131e8ccc0084fe88fbcc8716528`. Normal serial lint-staged and staged
+gitleaks hooks pass. After hooks, all fourteen request golden hashes, main's
+version/README What's New and both released changelog suffixes remain unchanged.
+The implementation commit and hook log are recorded in the JSON receipt.

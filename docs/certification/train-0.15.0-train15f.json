@@ -8106,5 +8106,90 @@
   "holds": [
     "Final helperless/universal compressed VSIX cap excess; exact inventories above. No cap raised.",
     "Full quality, hosted matrices, macOS native/live receipts remain external per the lane brief."
-  ]
+  ],
+  "implementationCommit": "82c36305cb735131e8ccc0084fe88fbcc8716528",
+  "commitChecks": {
+    "hooks": "Normal repository pre-commit hooks: serial lint-staged and staged gitleaks both passed; no bypass or hook changes.",
+    "log": "temp/train15f/merge-commit.log",
+    "afterHooks": {
+      "goldens": [
+        {
+          "file": "test/fixtures/golden-requests/01-plain-turn.json",
+          "expected": "b966dfd7a77f1494d8dfd0fc5a10f7cda83c46c6e1512a22e869f79c06687356",
+          "actual": "b966dfd7a77f1494d8dfd0fc5a10f7cda83c46c6e1512a22e869f79c06687356"
+        },
+        {
+          "file": "test/fixtures/golden-requests/02-tool-call.json",
+          "expected": "46d2723194e1c3e79d707fdc96d45c588c453c0da997dc5f4aba5c94681e8581",
+          "actual": "46d2723194e1c3e79d707fdc96d45c588c453c0da997dc5f4aba5c94681e8581"
+        },
+        {
+          "file": "test/fixtures/golden-requests/03-edit-then-run.json",
+          "expected": "7a3876f6f20d661972514897fdbc365c5df8d6511c8fe42a7af225dee6bd192b",
+          "actual": "7a3876f6f20d661972514897fdbc365c5df8d6511c8fe42a7af225dee6bd192b"
+        },
+        {
+          "file": "test/fixtures/golden-requests/04-packed-output.json",
+          "expected": "0026bdca0c0d2feeb4d5b42b4c3eda64d74cee40e532a83138b39b2259175477",
+          "actual": "0026bdca0c0d2feeb4d5b42b4c3eda64d74cee40e532a83138b39b2259175477"
+        },
+        {
+          "file": "test/fixtures/golden-requests/05-manual-compaction.json",
+          "expected": "161ef6ddb2af796bc1f2f2b23b0afece048a891699b2c4ac894ef3a52fc9563c",
+          "actual": "161ef6ddb2af796bc1f2f2b23b0afece048a891699b2c4ac894ef3a52fc9563c"
+        },
+        {
+          "file": "test/fixtures/golden-requests/06-subagent-child.json",
+          "expected": "0bf6a330e519d0a2e1d411a2af446249b6e4d618f677c6adf0b57e2524455329",
+          "actual": "0bf6a330e519d0a2e1d411a2af446249b6e4d618f677c6adf0b57e2524455329"
+        },
+        {
+          "file": "test/fixtures/golden-requests/07-skills-and-rules.json",
+          "expected": "6d3f6a83316a1c4c0ea482df6cd040510131730e80110e7465ef2ee968d25c42",
+          "actual": "6d3f6a83316a1c4c0ea482df6cd040510131730e80110e7465ef2ee968d25c42"
+        },
+        {
+          "file": "test/fixtures/golden-requests/08-team-on.json",
+          "expected": "ae5efe04e18c5a6e0d9aee9b725cebbd368727f7fde2ff7489a462cebdc6f71b",
+          "actual": "ae5efe04e18c5a6e0d9aee9b725cebbd368727f7fde2ff7489a462cebdc6f71b"
+        },
+        {
+          "file": "test/fixtures/golden-requests/09-single-continuation.json",
+          "expected": "cb32aa73bb211a7772bd989270a1a54102f75a61848b9091c33d3f39591fe82c",
+          "actual": "cb32aa73bb211a7772bd989270a1a54102f75a61848b9091c33d3f39591fe82c"
+        },
+        {
+          "file": "test/fixtures/m95-int/meta/compaction.request.txt",
+          "expected": "46b272d2f36c0950bc84b605e315a4b4b508f00636f20595def2657b17dd2264",
+          "actual": "46b272d2f36c0950bc84b605e315a4b4b508f00636f20595def2657b17dd2264"
+        },
+        {
+          "file": "test/fixtures/m95-int/meta/first-turn.request.txt",
+          "expected": "4b82ac6a4eee44ba2b5a6e57e01f090de8d4f28a4199360024d8d0ad682f282f",
+          "actual": "4b82ac6a4eee44ba2b5a6e57e01f090de8d4f28a4199360024d8d0ad682f282f"
+        },
+        {
+          "file": "test/fixtures/m95-int/meta/image.request.txt",
+          "expected": "c98bec13f654f1b2512f4e47a70540b6d808fdc149ba525430acf6ec3eacb400",
+          "actual": "c98bec13f654f1b2512f4e47a70540b6d808fdc149ba525430acf6ec3eacb400"
+        },
+        {
+          "file": "test/fixtures/m95-int/meta/packed-output.request.txt",
+          "expected": "46b703c88e22d9ee418f7869a2ea3d18b2da6af1787eea27b5b84b1caa9ac94f",
+          "actual": "46b703c88e22d9ee418f7869a2ea3d18b2da6af1787eea27b5b84b1caa9ac94f"
+        },
+        {
+          "file": "test/fixtures/m95-int/meta/tool-loop.request.txt",
+          "expected": "669291fff31d3d816a929d9532ccdc81490a785213bc691178f64cfc37eeddf4",
+          "actual": "669291fff31d3d816a929d9532ccdc81490a785213bc691178f64cfc37eeddf4"
+        }
+      ],
+      "goldensUnchanged": true,
+      "released0141Unchanged": true,
+      "released0142Unchanged": true,
+      "readmeWhatsNewUnchanged": true,
+      "version": "0.14.2",
+      "mainVersion": "0.14.2"
+    }
+  }
 }
