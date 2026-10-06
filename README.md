@@ -3955,6 +3955,41 @@ results and what is still open.
 
 ## Development
 
+M103 lane V supplies the lazy VS Code maker adapter in `dist/makerHost.js`.
+Its factories install the caller's display language and require protected
+engine callbacks; the wiring lane still owns activation, manifest entries,
+the shared device wizard and `makerPreview.js`/`makerPreview.css`. These
+handlers are not yet exposed as installed extension commands:
+
+| Command ID                  | Host behavior                                                                                                                                 |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `museSpark.enableHardware`  | Native reason input in a trusted, attended workspace; calls the guard's audited hardware latch.                                               |
+| `museSpark.disableHardware` | Cancels pending approval and calls the guard to revoke hardware.                                                                              |
+| `museSpark.addMachine`      | Opens the shared wizard; registration confirms the target and LAN HTTP warning, then collects an optional key privately in SecretStorage.     |
+| `museSpark.removeMachine`   | Native selection and confirmation; removes the exact registration generation through the engine.                                              |
+| `museSpark.stopMachine`     | Stops all held machines immediately, including in untrusted, disabled and unattended contexts. The status-bar Stop invokes this same handler. |
+| `museSpark.openDeviceLog`   | Opens the explicit, scrubbed local log view.                                                                                                  |
+
+The `ide` wrappers are `device_list`, `serial_read`, `serial_write`,
+`machine_status`, `machine_send` and `machine_stop`. They depend on the selected
+model's tool capability. Hardware off hides device operations; registered
+machines keep Stop available. Tools cannot supply credentials, addresses,
+approval tokens or a hardware-enable reason. Serial opening and every send
+use the engine's single-use target binding and native Send once / Reject
+modal. Long exact payloads open read-only in the shared preview before the
+modal. A lost acknowledgement remains `sentOutcomeUnknown`, even if the
+notification fails; read status before considering another send.
+
+OctoPrint registration uses the engine's Read-only Access appkeys flow instead
+of a pasted key. This trunk has no captured appkeys implementation; wiring must
+supply that required callback before offering OctoPrint registration.
+
+A software stop does not replace a machine's physical emergency stop.
+Runtime/ACP clients and the companion page receive equivalent engine operations
+through lane R. Native MHP plugins use that runtime and shared maker protocol.
+USB ports belong to the machine running the engine, including remote hosts.
+No hardware, paid calls or live models are needed for the adapter's fake tests.
+
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's
 image-proxy copies. It needs no secret; stale caches or network failures warn

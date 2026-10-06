@@ -84,6 +84,8 @@ const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
 const CONVERSATION_OUTFILE = 'dist/conversation.js'
 const VERIFY_EDITOR_ENTRY = 'src/host/editor/verifyEditor.ts'
 const VERIFY_EDITOR_OUTFILE = 'dist/verifyEditor.js'
+const MAKER_HOST_ENTRY = 'src/host/maker/makerEntry.ts'
+const MAKER_HOST_OUTFILE = 'dist/makerHost.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
@@ -207,6 +209,20 @@ const verifyEditorOptions = {
   ...hostOptions,
   entryPoints: [VERIFY_EDITOR_ENTRY],
   outfile: VERIFY_EDITOR_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const makerHostOptions = {
+  ...hostOptions,
+  entryPoints: [MAKER_HOST_ENTRY],
+  outfile: MAKER_HOST_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const makerPreviewHostOptions = {
+  ...hostOptions,
+  entryPoints: ['src/host/maker/makerPreviewEntry.ts'],
+  outfile: 'dist/makerPreviewHost.js',
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -577,6 +593,8 @@ if (isWatch) {
     esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
     esbuild.context(verifyEditorOptions),
+    esbuild.context(makerHostOptions),
+    esbuild.context(makerPreviewHostOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
@@ -617,6 +635,8 @@ if (isWatch) {
     conversation: esbuild.build(conversationOptions),
     tab: esbuild.build(tabOptions),
     verifyEditor: esbuild.build(verifyEditorOptions),
+    makerHost: esbuild.build(makerHostOptions),
+    makerPreviewHost: esbuild.build(makerPreviewHostOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
@@ -675,6 +695,8 @@ if (isWatch) {
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
   reportSize(TAB_OUTFILE)
+  reportSize(MAKER_HOST_OUTFILE)
+  reportSize('dist/makerPreviewHost.js')
   reportSize(MODEL_API_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)

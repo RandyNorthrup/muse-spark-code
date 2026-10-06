@@ -231,6 +231,41 @@ export const MAKER_PROTOCOL_VERSION = 1
 export const MAKER_PROTOCOL_MAX_TEXT_CHARS = 1024 * 1024
 export const MAKER_PROTOCOL_MAX_ID_CHARS = 256
 export const MAKER_PROTOCOL_MAX_ITEMS = 256
+// M103 V: lazy VS Code host UI; no device transport or guard in activation.
+export const MAKER_STORAGE_PREFIX = 'maker.'
+export const MAKER_PREVIEW_VIEW_TYPE = 'museSpark.makerPreview'
+export const MAKER_PREVIEW_SCRIPT_FILE = 'makerPreview.js'
+export const MAKER_PREVIEW_STYLE_FILE = 'makerPreview.css'
+export const MAKER_MODAL_MAX_LINES = 32
+export const MAKER_MODAL_MAX_CHARS = 8 * 1024
+export const MAKER_COMMANDS = {
+  enableHardware: 'museSpark.enableHardware',
+  disableHardware: 'museSpark.disableHardware',
+  addMachine: 'museSpark.addMachine',
+  removeMachine: 'museSpark.removeMachine',
+  stopMachine: 'museSpark.stopMachine',
+  openDeviceLog: 'museSpark.openDeviceLog',
+} as const
+// Only the deferred VS Code adapter reads these descriptions. W reuses the
+// portable engine operations; these wrappers never classify hardware commands.
+export const MAKER_HOST_MODEL_TEXT = {
+  unavailable: 'The maker host is unavailable. Check the local extension log.',
+  hardwareDisabled: 'Hardware is disabled for this workspace.',
+  unattendedDenied: 'Hardware actions require an attended top-level session.',
+  stopped: 'Stop dispatched. A software stop does not replace a physical emergency stop.',
+  deviceList:
+    'List serial identities without opening a device. Hardware must be enabled in the trusted workspace.',
+  serialRead:
+    'Read bounded serial bytes. Opening may reset the board and always requires native host approval for this one action.',
+  serialWrite:
+    'Send exact hex bytes to the identified serial target only through the protected engine and native approval. Approval fields and keys are not accepted.',
+  machineStatus:
+    'Read the status of a registered machine. Machine addresses and credentials cannot be supplied by the model.',
+  machineSend:
+    'Analyse and send a short exact printer payload through the protected engine. Each action requires native host approval; refused commands and unsafe limits remain refused.',
+  machineStop:
+    'Immediately invoke the registered machine’s fixed Stop independently of hardware admission, approval and the running turn. No arbitrary stop payload is accepted.',
+} as const
 export const MAKER_SIMULATION_TIMEOUT_MS = 60_000
 export const MAKER_GAZEBO_ITERATIONS = 1000
 export const MAKER_PROJECT_KINDS = [

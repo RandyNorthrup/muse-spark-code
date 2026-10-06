@@ -17,6 +17,9 @@
     "src/extension.ts",
     "src/host/conversation/conversationEntry.ts",
     "src/host/editor/verifyEditor.ts",
+    // M103 V's lazy VS Code maker host; W supplies the engine and activation.
+    "src/host/maker/makerEntry.ts",
+    "src/host/maker/makerPreviewEntry.ts",
     "src/shared/validationEntry.ts",
     "src/shared/wireEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.

@@ -70,6 +70,8 @@ beforeAll(async () => {
         extension: 'src/extension.ts',
         conversation: 'src/host/conversation/conversationEntry.ts',
         verifyEditor: 'src/host/editor/verifyEditor.ts',
+        makerHost: 'src/host/maker/makerEntry.ts',
+        makerPreviewHost: 'src/host/maker/makerPreviewEntry.ts',
         modelApi: 'src/host/backend/modelApiEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
         reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
@@ -431,6 +433,9 @@ describe('deferred cohort bundles', () => {
   })
 
   it.each([
+    ['extension', 'src/host/maker/vscodeMakerHost.ts', 'on the first maker UI or device tool'],
+    ['extension', 'src/host/maker/makerPreviewPanel.ts', 'on the first maker preview'],
+    ['makerHost', 'src/host/maker/makerPreviewPanel.ts', 'on the first maker preview'],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],

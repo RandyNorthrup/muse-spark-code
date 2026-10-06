@@ -6834,6 +6834,13 @@ have equivalent functionality even if we need to develop it ourselves".
 
 ## 3. Open questions (need the owner)
 
+**Q-M103V-REFERENCE (integration handoff, 2026-10-05).** The shared lane
+rules require `src/shared/featureCatalog.ts`, `scripts/gen-reference.mjs`
+and `check:reference`; none exists on the specified `c0e6c146` trunk. V
+records its command/tool facts in README and certification. W must merge
+the canonical help-reference infrastructure and add these facts before
+exposing the commands; V does not invent a competing catalogue or weaken a gate.
+
 - **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
   `native/darwin/muse-dictate`. The lane's shared rules forbid network except
   `npm ci` and reads from other worktrees without authorization. An existing
@@ -18754,6 +18761,18 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**M103V bounded adapter lane (2026-10-05, Kubuntu).** The explicit rig
+brief prohibits full quality and main/release merges. Run owning suites in
+groups of at most three, typecheck, changed-file lint/format, localization,
+plain Knip, duplication, host API inventory and production build/caps/split.
+Native UI/device/physical qualification and aggregate quality remain E/W/lead
+obligations. No existing cap, threshold, hook or rule changes. V adds two
+lazy host entries with 25 KiB caps. The exact browser startup comparison
+against `c0e6c146` grows by **137 bytes**, entirely from three required
+English fallback keys; no maker UI/engine source enters startup. Strict
+zero-byte startup growth (M103 acceptance 17) remains an explicit W handoff;
+the inline complete English browser fallback is retained as D6 requires.
+
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
 test files, deliberate failures, typecheck, scoped lint/format, deadcode,
@@ -18909,6 +18928,23 @@ ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
+
+**Lane V scope (2026-10-05, Kubuntu).** Implement the VS Code `MakerHost`
+adapter, canonical host storage and SecretStorage, native single-use approval
+display, independent status-bar/command Stop, host-owned hardware and machine
+commands, the restricted preview tab and validated `ide` wrappers. All engine
+operations remain behind required injected ports; V does not implement G4's
+classifier, hardware latch, serial opener or machine transport. A separate
+lazy host entry is handed to W, which owns activation, manifest, build entries
+and shared U preview wiring. V also builds `dist/makerHost.js` and, only on
+its first preview, `dist/makerPreviewHost.js`, each with shared Node
+fallback/validation, a 25 KiB cap and the production split guard. This makes
+the adapter reviewable before W joins. OctoPrint registration requires W's
+captured Read-only Access appkeys callback and never accepts a pasted key.
+Certify fakes, every new guard's deliberate
+failure, static gates and unchanged production caps; no live/paid calls or
+physical hardware. Runtime/ACP/companion equivalents belong to R; native MHP
+surfaces reuse that runtime and shared protocol. Full quality remains lead-owned.
 
 **M103INT integration and lanes I/0 (2026-10-05, Kubuntu).** Merge only
 m103/sfix, m103/dfix, m103/pfix2, m103/mfix3, m103/x, m103/afix and

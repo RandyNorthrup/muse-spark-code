@@ -76,6 +76,17 @@ describe('bundled What’s New content budget', () => {
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
   })
 
+  it.each(['dist/makerHost.js', 'dist/makerPreviewHost.js'])(
+    'admits %s at 25 KiB and rejects one byte over',
+    async (bundle) => {
+      statSync.mockImplementation((file) => ({ size: file === bundle ? 25 * 1024 : 0 }))
+      await import('../../scripts/check-bundle-size.mjs')
+      vi.resetModules()
+      statSync.mockImplementation((file) => ({ size: file === bundle ? 25 * 1024 + 1 : 0 }))
+      await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    },
+  )
+
   it('admits exactly 40 KiB of raw JSON', async () => {
     await import('../../scripts/check-bundle-size.mjs')
     expect(console.log).toHaveBeenCalledWith('ok   dist/whatsNew.json: 40.0 KiB (budget 40 KiB)')

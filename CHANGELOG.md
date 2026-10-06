@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- A lazy VS Code maker host adapter with native per-action approval, canonical
+  host storage and SecretStorage, independent status-bar Stop, hardware and
+  machine command handlers, a restricted preview tab and validated `ide` tool
+  wrappers. It preserves uncertain send outcomes. Activation, shared preview
+  assets and protected engine wiring remain with M103's wiring lane.
+
 - A consolidated maker text region for approvals, hardware admission and
   physical-stop warnings, target/payload analysis, logs, previews and device
   counts, with real translations in all fourteen UI languages. Maker commands

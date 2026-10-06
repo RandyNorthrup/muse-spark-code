@@ -698,6 +698,11 @@ function shipped(output) {
 }
 const TEXT_BLOCKS = [
   {
+    block: 'MAKER_HOST_MODEL_TEXT',
+    sentinels: ['deviceList', 'serialWrite', 'machineStop'],
+    readers: ['dist/makerHost.js'],
+  },
+  {
     block: 'CONVERSATION_MODEL_TEXT',
     sentinels: ['planBriefRequest', 'replyContextLead'],
     readers: ['dist/conversation.js', BUNDLES.modelApi.output],
