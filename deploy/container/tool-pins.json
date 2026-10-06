@@ -1,0 +1,73 @@
+{
+  "buildkit": "moby/buildkit@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea",
+  "sbomScanner": "docker/buildkit-syft-scanner@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9",
+  "skopeo": "quay.io/skopeo/stable@sha256:a585e4a3b8a045baa87c7f1b2f940d6d299ebede85ab3f2419d52d2264eefc93",
+  "tools": {
+    "cosign": {
+      "repository": "sigstore/cosign",
+      "version": "v2.6.1",
+      "amd64": {
+        "asset": "cosign-linux-amd64",
+        "sha256": "064954c5d8c7e3b28188eee5b1727b31c411550bc5fefd41aa672d3c761d103a"
+      },
+      "arm64": {
+        "asset": "cosign-linux-arm64",
+        "sha256": "56a16480bdd56ec789abaa65924402f6b92c0041f06885995853c05567b76f34"
+      }
+    },
+    "hadolint": {
+      "repository": "hadolint/hadolint",
+      "version": "v2.12.0",
+      "amd64": {
+        "asset": "hadolint-Linux-x86_64",
+        "sha256": "56de6d5e5ec427e17b74fa48d51271c7fc0d61244bf5c90e828aab8362d55010"
+      },
+      "arm64": {
+        "asset": "hadolint-Linux-arm64",
+        "sha256": "5798551bf19f33951881f15eb238f90aef023f11e7ec7e9f4c37961cb87c5df6"
+      }
+    },
+    "trivy": {
+      "repository": "aquasecurity/trivy",
+      "version": "v0.69.3",
+      "amd64": {
+        "asset": "trivy_0.69.3_Linux-64bit.tar.gz",
+        "sha256": "1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75",
+        "member": "trivy"
+      },
+      "arm64": {
+        "asset": "trivy_0.69.3_Linux-ARM64.tar.gz",
+        "sha256": "7e3924a974e912e57b4a99f65ece7931f8079584dae12eb7845024f97087bdfd",
+        "member": "trivy"
+      }
+    },
+    "gitleaks": {
+      "repository": "gitleaks/gitleaks",
+      "version": "v8.24.3",
+      "amd64": {
+        "asset": "gitleaks_8.24.3_linux_x64.tar.gz",
+        "sha256": "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c",
+        "member": "gitleaks"
+      },
+      "arm64": {
+        "asset": "gitleaks_8.24.3_linux_arm64.tar.gz",
+        "sha256": "5f2edbe1f49f7b920f9e06e90759947d3c5dfc16f752fb93aaafc17e9d14cf07",
+        "member": "gitleaks"
+      }
+    },
+    "actionlint": {
+      "repository": "rhysd/actionlint",
+      "version": "v1.7.11",
+      "amd64": {
+        "asset": "actionlint_1.7.11_linux_amd64.tar.gz",
+        "sha256": "900919a84f2229bac68ca9cd4103ea297abc35e9689ebb842c6e34a3d1b01b0a",
+        "member": "actionlint"
+      },
+      "arm64": {
+        "asset": "actionlint_1.7.11_linux_arm64.tar.gz",
+        "sha256": "21bc0dfb57a913fe175298c2a9e906ee630f747cb66d0a934d0d4b69f4ee1235",
+        "member": "actionlint"
+      }
+    }
+  }
+}

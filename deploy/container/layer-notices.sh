@@ -12,5 +12,3 @@ while IFS="$(printf '\t')" read -r package _version _source _source_version; do
 done < "$notices/debian-packages.tsv"
 cp /opt/muse/THIRD_PARTY_NOTICES.txt "$notices/runtime.txt"
 cp /usr/local/LICENSE "$notices/node.txt"
-cp /usr/local/lib/node_modules/npm/LICENSE "$notices/npm.txt"
-cp /usr/local/lib/node_modules/corepack/LICENSE.md "$notices/corepack.txt"

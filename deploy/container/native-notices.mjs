@@ -18,14 +18,30 @@ const notices = packages
     const licence = readdirSync(directory).find((file) =>
       /^(?:licen[cs]e|copying)(?:\.(?:md|txt))?$/i.test(file),
     )
-    if (!licence || !['MIT', 'ISC', 'Apache-2.0', 'BSD-3-Clause'].includes(manifest.license)) {
+    // The exact Linux keyring binary is split from its parent npm package.
+    // Its archive omits LICENSE: use the parent's MIT notice only for this
+    // exact version, repository and declared licence, not arbitrary packages.
+    const isSplitKeyring =
+      /^@napi-rs\/keyring-linux-(?:x64|arm64)-gnu$/.test(name) &&
+      manifest.version === '2.1.0' &&
+      manifest.repository === 'https://github.com/Brooooooklyn/keyring-node' &&
+      manifest.license === 'MIT'
+    if (
+      (!licence && !isSplitKeyring) ||
+      !['MIT', 'ISC', 'Apache-2.0', 'BSD-3-Clause'].includes(manifest.license)
+    ) {
       throw new Error('Native dependency has no reviewed licence notice')
     }
     return {
       name,
       version: manifest.version,
       license: manifest.license,
-      text: readFileSync(path.join(directory, licence), 'utf8'),
+      text: readFileSync(
+        isSplitKeyring
+          ? path.join(root, '@napi-rs/keyring/LICENSE')
+          : path.join(directory, licence),
+        'utf8',
+      ),
     }
   })
 writeFileSync('/opt/muse/native-notices.json', `${JSON.stringify(notices, null, 2)}\n`)

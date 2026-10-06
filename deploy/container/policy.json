@@ -2,6 +2,8 @@
   "image": "ghcr.io/randynorthrup/muse-spark-code-node",
   "platforms": ["linux/amd64", "linux/arm64"],
   "maxCompressedBytes": 200000000,
+  "maxExtractedBytes": 3000000000,
+  "maxExtractedFiles": 100000,
   "artifactRetentionDays": 14,
   "registryKeepVersions": 10,
   "runtimeFiles": [

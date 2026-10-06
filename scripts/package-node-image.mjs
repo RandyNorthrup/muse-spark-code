@@ -112,7 +112,17 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     // Scan the actual staged context, including every runtime file and config.
     execFileSync(
       'gitleaks',
-      ['dir', '--redact', '--no-banner', '--no-color', '--exit-code=1', path.resolve(stage)],
+      [
+        'dir',
+        '--config',
+        path.join(ROOT, 'deploy/container/gitleaks.toml'),
+        '--ignore-gitleaks-allow',
+        '--redact',
+        '--no-banner',
+        '--no-color',
+        '--exit-code=1',
+        path.resolve(stage),
+      ],
       { stdio: 'pipe' },
     )
     console.log('Node image context staged and secret-scanned')

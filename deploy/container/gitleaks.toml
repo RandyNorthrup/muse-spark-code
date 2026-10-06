@@ -1,0 +1,4 @@
+# Use the pinned scanner's complete built-in rules. The staged package cannot
+# replace these rules with its own configuration or suppress them in comments.
+[extend]
+useDefault = true

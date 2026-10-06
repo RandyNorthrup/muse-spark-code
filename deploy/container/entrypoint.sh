@@ -9,15 +9,18 @@ prepare_volume() {
   test -d "$directory" && test ! -L "$directory"
   if test "$(stat -c %u "$directory")" = 0; then
     test -z "$(find "$directory" -mindepth 1 -maxdepth 1 -print -quit)"
-    chown "$owner:$owner" "$directory"
     chmod 0700 "$directory"
+    chown "$owner:$owner" "$directory"
   fi
   test "$(stat -c '%u:%g:%a' "$directory")" = "$owner:$owner:700"
 }
 prepare_volume /var/lib/muse-spark-code-node 10001
 prepare_volume /workspaces 10002
-install -d -m 0710 -o 10002 -g 10003 /run/muse-tools
-install -d -m 0700 -o 10002 -g 10002 /run/muse-tools/home
+mkdir -p /run/muse-tools/home
+chmod 0710 /run/muse-tools
+chmod 0700 /run/muse-tools/home
+chown 10002:10002 /run/muse-tools/home
+chown 10002:10003 /run/muse-tools
 
 drop_node() {
   exec setpriv --reuid=10001 --regid=10001 --groups=10003 \

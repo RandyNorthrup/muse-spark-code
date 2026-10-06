@@ -79,6 +79,10 @@
     "test/unit/helpers/fakeMcpStartMarker.mjs",
     // The never-ending monitor the M92b bounded-run proof starts by path.
     "test/fixtures/never-ending-monitor.mjs",
+    // M110-C: copied into the private image and executed as its real UID probes.
+    "test/fixtures/node-image/node.mjs",
+    "test/fixtures/node-image/tool-host.mjs",
+    "test/fixtures/node-image/acp.mjs",
     "test/integration/**/*.test.ts",
     // The TypeScript fixture VS Code's language service reads in the code
     // intelligence integration test (M67); main.ts imports the rest.
