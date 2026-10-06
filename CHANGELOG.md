@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- M105 Files API transport: stream approved media with progress, Stop,
+  SHA-256 and mandatory expiry; validate provider receipts and reject
+  redirects and ambiguous upload retries. Storage admission and lazy
+  media bindings remain with the integrating lanes.
+
 ### Fixed
 
 - ACP help and argument errors now use one complete localized usage table,

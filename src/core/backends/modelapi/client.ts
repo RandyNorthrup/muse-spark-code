@@ -479,6 +479,33 @@ export class ModelApiClient {
     return credentials.keyDigest
   }
 
+  /** Files share this client's configured endpoint and key; uploads are never retried ambiguously. */
+  public async requestFile(
+    route: string,
+    method: 'GET' | 'POST' | 'DELETE',
+    signal: AbortSignal,
+    multipart?: { readonly body: ReadableStream<Uint8Array>; readonly contentType: string },
+  ): Promise<Response> {
+    if (!/^\/files(?:\?after=file-[A-Za-z0-9_-]+|\/file-[A-Za-z0-9_-]+)?$/u.test(route))
+      throw new Error('Invalid Files route')
+    const credentials = await this.headers()
+    signal.throwIfAborted()
+    const init: RequestInit & { readonly duplex?: 'half' } = {
+      method,
+      headers: {
+        Authorization: credentials.values['Authorization'] ?? '',
+        Accept: JSON_MEDIA_TYPE,
+        ...(multipart !== undefined && { 'Content-Type': multipart.contentType }),
+      },
+      redirect: 'error',
+      signal,
+      ...(multipart !== undefined && { body: multipart.body, duplex: 'half' }),
+    }
+    const response = await this.deps.fetch(`${this.deps.baseUrl}${route}`, init)
+    if (!response.ok) throw await describeFailure(response)
+    return response
+  }
+
   /** The wait before retry number `attempt` (0-based): the same backoff and jitter as a request's. */
   public retryDelayMs(attempt: number): number {
     return this.backoffMs(attempt, undefined)
