@@ -1,0 +1,146 @@
+[
+  {
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/devicePanel.test.ts",
+      "test/unit/deviceIntegration.test.ts",
+      "test/unit/deviceMessageHandler.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 6.51,
+    "log": "temp/m100/final-tests-1.log",
+    "testsPassed": 29
+  },
+  {
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/devicePairing.test.ts",
+      "test/unit/devicePairingAdapter.test.ts",
+      "test/unit/deviceStore.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 6.78,
+    "log": "temp/m100/final-tests-2.log",
+    "testsPassed": 88
+  },
+  {
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deviceBoundary.test.ts",
+      "test/unit/deviceGrants.test.ts",
+      "test/unit/deviceTlsDesign.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 2.07,
+    "log": "temp/m100/final-tests-3.log",
+    "testsPassed": 76
+  },
+  {
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deviceTransport.test.ts",
+      "test/unit/deviceChannel.test.ts",
+      "test/unit/deviceDiscovery.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 14.06,
+    "log": "temp/m100/final-tests-4.log",
+    "testsPassed": 78
+  },
+  {
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/attemptJournal.test.ts",
+      "test/unit/deviceReceiver.test.ts",
+      "test/unit/deviceRecovery.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 4.97,
+    "log": "temp/m100/final-tests-5.log",
+    "testsPassed": 115
+  },
+  {
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/DevicesView.test.tsx",
+      "test/unit/DevicesApp.test.tsx",
+      "test/unit/devicesPanel.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 7.97,
+    "log": "temp/m100/final-tests-6.log",
+    "testsPassed": 112
+  },
+  {
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deviceBundle.test.ts",
+      "test/unit/devices.test.ts",
+      "test/unit/deviceSignIn.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 2.95,
+    "log": "temp/m100/final-tests-7.log",
+    "testsPassed": 151
+  },
+  {
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/bundleSize.test.mjs",
+      "test/unit/webviewBundles.test.mjs",
+      "test/unit/deferredBundles.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 3.5,
+    "log": "temp/m100/final-tests-8.log",
+    "testsPassed": 43
+  },
+  {
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/featureCatalog.test.mjs",
+      "test/unit/manifest.test.ts",
+      "test/unit/modelApiGoldenRequests.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 4.3,
+    "log": "temp/m100/final-tests-9.log",
+    "testsPassed": 58
+  }
+]

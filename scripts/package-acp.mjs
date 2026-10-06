@@ -31,6 +31,8 @@ import { renderPackageReadme } from './check-badges.mjs'
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
+  // Lazy shared method factory; receiver qualification still refuses headless hosts.
+  'devices.js',
   'modelApi.js',
   'reviewer.js',
   'foreignHooks.js',

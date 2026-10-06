@@ -295,6 +295,16 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/webview/whatsNew.js`            | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
 | `dist/tab.js`                         | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                                                                                                                                                                                                         |
 
+**M100I measured additions (2026-10-06).** The exact browser entry is
+`src/webview/models/sections/agents/DevicesApp.tsx`, whose static closure carries
+`DevicesView`; hash names are never the identity. Its additional 27.630 KiB
+gets `25 × ceil(27.630 × 1.15 / 25) = 50 KiB`. The original deferred aggregate
+remains 49.697/50 KiB and startup remains 799.1/900 KiB. The lazy editor-neutral
+`dist/devices.js` measures 75.1 KiB; the same rule grants a new 100 KiB cap,
+within M100’s planning target. Existing activation, Model API, ACP and all
+other caps remain unchanged. Both new caps, closure ownership and absent/foreign
+reader cases are guarded and receive red/restored integration receipts.
+
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
 the existing rule). Browser/integration parsers stay inline. All Node
@@ -5663,6 +5673,20 @@ and the two hook points.
   planned as M94b, which starts when a stable `vscode.d.ts` carries those
   fields. Each VS Code release's notes are checked for it, and §3 holds it as
   a watch item (Q-M94d).
+
+### D83 — Physical device safety (M100 integration, owner brief 2026-10-06)
+
+The M100I brief supplies this policy; none of the four input branches contains
+an earlier D83 decision or a printer/CNC/MCU executor. Simulators are the
+qualification rule: the owner’s physical devices are too old for these drills.
+Every physical action needs a fresh receiver-local approval of the exact payload;
+no unattended action, ordinary approval, pairing grant or Bypass substitutes.
+Stop always reaches the local cancellation port, including a fail-safe channel
+reset and unavailable journal, without waiting for approval or persistence.
+Cancellation does not prove retirement or release occupancy or retained liability.
+Physical support stays unavailable until an actual executor, exact-payload
+approval UI and printer/CNC/MCU simulators are supplied and their receipts pass.
+Software cancellation-port tests alone do not qualify physical support.
 
 ### D80 — Link devices on the LAN, with each device owning its work (M100, 2026-10-04)
 
@@ -17731,7 +17755,39 @@ Until then nothing is built for it.
 
 ### M100 — Paired devices as lane pools (D80, planned)
 
-**Status 2026-10-05: documentation only on `feature/m100-multi-device`.**
+**M100I integration scope (2026-10-06).** Merge P f5da700eb, T fb19b5082,
+E ce479362f and U e0da1ba09 in that order with additive two-parent merges.
+Bind the shared local method port, pairing envelopes/public imports, a host-owned
+monotonic snapshot counter and T’s authenticated receive/disconnect callbacks to
+E’s journal/receiver. Package a lazy editor-neutral factory with mandatory local
+policy, execution, storage and observation ports; absence remains an explicit
+error. Register its actual model-text readers, browser closure, build/split/size,
+knip/cycle and packaging entries; regenerate the host inventory. Normalize
+Windows separators in the browser entry comparison. Repair the
+native keyboard check's macOS-only Select All shortcut to use the current
+platform's modifier; retain all interaction assertions and deadlines. Repair the
+keyboard focus assertion with an effect-aware wait. Add regression/red-restored
+receipts and scoped default-timeout gates in `docs/certification/m100.md`.
+The inherited stalled-handshake test waits a real 10 s against Vitest's 5 s
+default; retain real TCP with one named per-test timeout and its explicit
+reason, as the rig brief permits for a genuinely long operation. Fake JavaScript
+timers cannot drive Node's internal TLS timer; no global timeout is changed.
+M95/M96, S/G, QR/mDNS bindings, native Windows protection and the D83 physical
+executors/simulators are absent from the supplied branches. Do not invent these
+prerequisites or register a listening product command before qualification.
+Document those exact limits in README, privacy/security and the help catalog.
+
+**Status 2026-10-06: P/T/E/U joined on `m100/int`, unshipped.** The shared
+method service binds pairing, pinned TLS, receiver/journal and correlated UI
+snapshots. The real lazy entries and measured budgets are registered; the focus
+regression waits for its effect. Software simulator receipts and joined gates
+are recorded in `docs/certification/m100.md`. M95/M96, S/G, QR/mDNS runtime,
+native Windows storage and concrete physical action controls remain unavailable
+on the supplied inputs; no installed command/listener or physical support is
+claimed. Installed-editor and four-device qualification and aggregate quality
+remain the lead's shipment gates. M100 is not complete.
+
+**Original status 2026-10-05: documentation only on `feature/m100-multi-device`.**
 Independent RVM100 review passed with no P1; its one P2 connectivity promise
 is corrected in D80, acceptance B/K and `m100-research.md`. **Devices and mDNS
 off by default** is a deliberate security exception to the owner's
@@ -19624,6 +19680,19 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
+**M100I gate scope (2026-10-06, rig brief).** The lane runs owning Vitest
+files directly on Kubuntu, at most three files/workers per run, with repository
+default timeouts. One genuine 10 s native TLS stall has a named 15 s per-test
+timeout and an inline reason; no `--testTimeout` or global deadline change.
+Typecheck, changed/owning lint and format, plain knip, zero-duplication, cycles,
+14-language localization, generated reference/host API, production build and
+both package formats are unchanged gates. Scoped Devices keyboard and English/
+pseudo accessibility checks run locally. The lane's shared rules forbid
+aggregate `npm run quality` and full coverage: the lead owns those plus installed
+editor/four-device and concrete physical-action qualification before shipment.
+This is a scope delegation, not a weakened gate. Results and red/restored hashes
+are in `docs/certification/m100.md`.
+
 ## 8. Escape hatches register
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
@@ -19748,6 +19817,17 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M100-I-JOINED-STATUS (2026-10-06).** The P/T/E/U handoffs below describe
+  their isolated input tips. Integration now binds the shared revision/envelope
+  and abort contract, lazy browser/Node entries, model-text/split registrations,
+  package maps and help documentation. Generated host API and scoped gate
+  results are recorded in `docs/certification/m100.md`; prior inherited failing
+  registrations are repaired, without waivers. Concrete M95/M96 execution,
+  S/G, QR/mDNS runtime, native Windows protection and physical approval/Stop
+  authorities remain unresolved prerequisites. Only generic local execution
+  test ports are simulated; no installed editor, physical hardware or unattended
+  qualification follows. A listening product command remains unregistered.
 
 - **M100-E-JOINED-QUALIFICATION (inherited integration handoff).** Both
   RVM100E P2 findings, all four RVM100E2 P2 findings and RVM100E3's P2 are repaired, with

@@ -24,6 +24,7 @@ export const DEVICE_LIMITS = {
   signatureBase64Chars: 128,
   invitationTextChars: 8192,
   invitationValidityMs: 300_000,
+  certificateLifetimeMs: 2_592_000_000,
   uiRequestTimeoutMs: 10_000,
   fingerprintGroupChars: 4,
   // UI observations use Unix milliseconds, from the epoch through 2100-01-01.

@@ -698,6 +698,11 @@ function shipped(output) {
 }
 const TEXT_BLOCKS = [
   {
+    block: 'DEVICE_MODEL_TEXT',
+    sentinels: ['deviceTaskContext', 'deviceApprovalWait'],
+    readers: ['dist/devices.js'],
+  },
+  {
     block: 'CONVERSATION_MODEL_TEXT',
     sentinels: ['planBriefRequest', 'replyContextLead'],
     readers: ['dist/conversation.js', BUNDLES.modelApi.output],

@@ -69,6 +69,7 @@ beforeAll(async () => {
       entryPoints: {
         extension: 'src/extension.ts',
         conversation: 'src/host/conversation/conversationEntry.ts',
+        devices: 'src/host/devices/deviceEntry.ts',
         modelApi: 'src/host/backend/modelApiEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
         reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
@@ -431,6 +432,9 @@ describe('deferred cohort bundles', () => {
 
   it.each([
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
+    ['extension', 'src/host/devices/deviceReceiver.ts', 'on an explicit Devices method'],
+    ['modelApi', 'src/core/devices/pairing.ts', 'on an explicit Devices method'],
+    ['acp', 'src/host/devices/deviceTransport.ts', 'on an explicit Devices method'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],
     ['acp', 'src/host/support/reportJournal.ts', 'from the recorder bundle'],

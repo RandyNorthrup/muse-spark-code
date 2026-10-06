@@ -71,6 +71,28 @@ export const DEFERRED = [
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
   {
+    output: 'dist/devices.js',
+    metafile: 'dist/meta/devices.json',
+    use: 'an explicit Devices method',
+    files: [
+      'src/host/devices/deviceEntry.ts',
+      'src/host/devices/devicePairing.ts',
+      'src/host/devices/deviceStore.ts',
+      'src/host/devices/deviceDiscovery.ts',
+      'src/host/devices/deviceSecrets.ts',
+      'src/host/devices/deviceReceiver.ts',
+      'src/host/devices/deviceTransport.ts',
+      'src/host/devices/deviceChannel.ts',
+      'src/host/devices/deviceMessageHandler.ts',
+      'src/core/devices/pairing.ts',
+      'src/core/devices/grants.ts',
+      'src/core/devices/attemptJournal.ts',
+      'src/core/devices/devicePanel.ts',
+      'src/core/devices/deviceAddress.ts',
+      'src/core/devices/deviceFraming.ts',
+    ],
+  },
+  {
     output: 'dist/conversation.js',
     metafile: 'dist/meta/conversation.json',
     use: 'the first chat surface',
@@ -228,9 +250,10 @@ export function checkDeferredBundles(inputsOf) {
   const problems = []
   for (const bundle of [...DEFERRED, ...ON_FIRST_USE]) {
     const inputs = inputsOf(bundle)
-    const parents = DEFERRED.includes(bundle)
-      ? [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]
-      : [BUNDLES.activation]
+    const parents =
+      DEFERRED.includes(bundle) || bundle.output === 'dist/devices.js'
+        ? [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]
+        : [BUNDLES.activation]
     for (const file of bundle.files) {
       for (const parent of parents) {
         if (inputsOf(parent).has(file)) {
@@ -304,6 +327,7 @@ export const sharedValidation = {
 // Keep dynamic imports dynamic: these entries run only on their first action.
 /** @type {import('esbuild').Plugin} */
 const DEFERRED_OUTFILES = new Map([
+  [path.resolve('src/host/devices/deviceEntry.ts'), 'dist/devices.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],

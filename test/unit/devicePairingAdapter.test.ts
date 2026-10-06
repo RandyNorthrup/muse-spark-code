@@ -54,7 +54,11 @@ async function harness(id: string, host = localHost, protection?: DeviceStorageP
   const secrets = new DeviceSecrets(secretStore, host)
   const disconnectPair = vi.fn<(pairId: string) => void>()
   const otherAction = vi.fn((request: DeviceWebviewRequest) =>
-    Promise.resolve({ requestId: request.requestId, failure: 'grant' as const }),
+    Promise.resolve({
+      viewId: request.viewId,
+      requestId: request.requestId,
+      failure: 'grant' as const,
+    }),
   )
   let now = deviceTestNow
   const adapter = new DevicePairing({
@@ -74,7 +78,13 @@ async function harness(id: string, host = localHost, protection?: DeviceStorageP
     otherAction,
   })
   const act = (action: DeviceWebviewRequest['action']) =>
-    adapter.handle({ type: 'deviceRequest', requestId: 'f'.repeat(32), action })
+    adapter.handle({
+      type: 'deviceRequest',
+      viewId: '9'.repeat(32),
+      requestId: 'f'.repeat(32),
+      revision: 0,
+      action,
+    })
   return {
     adapter,
     act,
@@ -104,6 +114,8 @@ async function pairHosts(
   const peer = await invitation(b)
   const observed0 = await a.act({ kind: 'importInvitation', text: DevicePairing.publicText(peer) })
   expect(observed0.failure).toBeUndefined()
+  expect(observed0.invitation).toEqual(peer)
+  expect(observed0.viewId).toBe('9'.repeat(32))
   const observed1 = await b.act({ kind: 'importInvitation', text: DevicePairing.publicText(local) })
   expect(observed1.failure).toBeUndefined()
   const observed2 = await a.act({
@@ -429,6 +441,8 @@ describe('explicit local pairing adapter and SecretStorage', () => {
     await expect(
       a.adapter.handle({
         type: 'deviceRequest',
+        viewId: '9'.repeat(32),
+        revision: 0,
         requestId: 'f'.repeat(32),
         action: { kind: 'pair', token: 'forbidden' },
       }),
@@ -436,7 +450,11 @@ describe('explicit local pairing adapter and SecretStorage', () => {
     const observed28 = await a.act({ kind: 'setDiscovery', enabled: true })
     expect(observed28.failure).toBe('grant')
     expect(a.otherAction).toHaveBeenCalledOnce()
-    a.otherAction.mockResolvedValueOnce({ requestId: 'broken', failure: 'grant' })
+    a.otherAction.mockResolvedValueOnce({
+      viewId: '9'.repeat(32),
+      requestId: 'broken',
+      failure: 'grant',
+    })
     expect(await a.act({ kind: 'setDiscovery', enabled: true })).toMatchObject({
       failure: 'invalid-frame',
     })
@@ -520,7 +538,11 @@ it('never overwrites or deletes an existing platform key on a secret-name collis
 })
 it('returns a strict error for a valid but mismatched reply id from a neighboring lane', async () => {
   const a = await harness('a')
-  a.otherAction.mockResolvedValueOnce({ requestId: 'e'.repeat(32), failure: 'grant' })
+  a.otherAction.mockResolvedValueOnce({
+    viewId: '9'.repeat(32),
+    requestId: 'e'.repeat(32),
+    failure: 'grant',
+  })
   expect(await a.act({ kind: 'setDiscovery', enabled: true })).toMatchObject({
     failure: 'invalid-frame',
     requestId: 'f'.repeat(32),
@@ -970,3 +992,17 @@ it.each(['owner', 'pair', 'grant', 'repository'])(
     await expect(a.store.read()).rejects.toThrow('storage')
   },
 )
+
+it('binds neighboring action replies to the initiating view as well as request', async () => {
+  const a = await harness('a')
+  a.otherAction.mockResolvedValueOnce({
+    viewId: '8'.repeat(32),
+    requestId: 'f'.repeat(32),
+    failure: 'grant',
+  })
+  expect(await a.act({ kind: 'setDiscovery', enabled: true })).toMatchObject({
+    viewId: '9'.repeat(32),
+    requestId: 'f'.repeat(32),
+    failure: 'invalid-frame',
+  })
+})

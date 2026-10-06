@@ -524,9 +524,11 @@ describe('M100 U shared Devices view', () => {
     importInvitationText(JSON.stringify(peer))
     const confirm = await screen.findByRole('button', { name: EN.devices.confirmFingerprint })
     expect(confirm).toBeDisabled()
-    expect(document.activeElement).toBe(
-      screen.getByRole('heading', { name: EN.devices.peerFingerprint }),
-    )
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole('heading', { name: EN.devices.peerFingerprint }),
+      )
+    })
     fireEvent.click(confirm)
     expect(port.request).toHaveBeenCalledTimes(2)
     fireEvent.click(screen.getByLabelText(EN.devices.fingerprintMatches))

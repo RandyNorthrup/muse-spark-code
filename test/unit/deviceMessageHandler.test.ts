@@ -10,6 +10,12 @@ const request = {
   action: { kind: 'pair' },
 }
 describe('M100 U local host handler', () => {
+  it('forwards the browser abort signal to the same shared method port', async () => {
+    const port = uiPort()
+    const controller = new AbortController()
+    await handleDeviceRequest(request, port, controller.signal)
+    expect(port.request).toHaveBeenCalledWith(request, controller.signal)
+  })
   it('refuses a reply addressed to a different view even when the request id matches', async () => {
     const port = uiPort()
     port.request.mockResolvedValue({

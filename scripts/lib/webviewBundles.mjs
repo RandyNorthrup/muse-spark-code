@@ -23,6 +23,11 @@ export function webviewStartupOutputs(meta) {
 // and every unclassified deferred output retain the existing 50 KiB total cap.
 export const ADDITIONAL_WEBVIEW_BUDGETS = [
   {
+    name: 'Devices',
+    entries: ['src/webview/models/sections/agents/DevicesApp.tsx'],
+    budgetKiB: 50,
+  },
+  {
     name: 'code highlighting',
     entries: ['src/webview/components/HighlightedCode.tsx'],
     budgetKiB: 125,
@@ -48,7 +53,7 @@ export function webviewDeferredBudgetGroups(meta) {
   const eager = new Set(webviewStartupOutputs(meta))
   const entries = (sources) =>
     Object.entries(meta.outputs)
-      .filter(([, output]) => sources.includes(output.entryPoint))
+      .filter(([, output]) => sources.includes(output.entryPoint?.replaceAll('\\', '/')))
       .map(([file]) => file)
   const legacy = new Set(
     staticOutputs(

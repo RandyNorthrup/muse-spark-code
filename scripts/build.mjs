@@ -77,6 +77,8 @@ const isWatch = args.has('--watch')
 
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
+const DEVICES_ENTRY = 'src/host/devices/deviceEntry.ts'
+const DEVICES_OUTFILE = 'dist/devices.js'
 const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
 const CONVERSATION_OUTFILE = 'dist/conversation.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
@@ -203,6 +205,13 @@ const modelApiOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const devicesOptions = {
+  ...modelApiOptions,
+  entryPoints: [DEVICES_ENTRY],
+  outfile: DEVICES_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -557,6 +566,7 @@ if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
+    esbuild.context(devicesOptions),
     esbuild.context(tabOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
@@ -596,6 +606,7 @@ if (isWatch) {
   const shipped = {
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
+    devices: esbuild.build(devicesOptions),
     tab: esbuild.build(tabOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
@@ -653,6 +664,7 @@ if (isWatch) {
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
+  reportSize(DEVICES_OUTFILE)
   reportSize(TAB_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(REVIEW_OUTFILE)

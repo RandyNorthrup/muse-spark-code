@@ -7,7 +7,26 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Join the unshipped Devices pairing, pinned TLS channel and durable receiver
+  behind an editor-neutral lazy method port. Its callers must supply actual local
+  storage, execution, approval and snapshot authorities. No installed Devices
+  command, physical adapter or unattended receiver is registered by this change.
+- Add the generated Devices help inventory and its stale-reference gate.
+
 ### Fixed
+
+- Carry Devices view/request correlation through pairing replies and return the
+  imported public invitation for the full fingerprint comparison. Serialize
+  complete snapshots with a host-owned revision that increases across off states
+  and replies; abort drops UI data without cancelling durable work. The keyboard
+  pairing regression now waits for the focus effect without a fixed sleep.
+- The fake-only Devices keyboard check uses the platform's Select All modifier,
+  so confirmation import and cap editing work on Linux and Windows too.
+- Register the measured Devices browser closure and separate lazy Node bundle,
+  preserving the existing startup and deferred caps. Bind authenticated channel
+  resets to receiver Stop before reporting or snapshot work.
 
 - The unshipped paired-device receiver cancels live attempts before consulting
   its journal, including after a failed flush, corruption or file loss. Full

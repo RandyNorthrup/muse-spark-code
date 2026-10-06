@@ -15,6 +15,10 @@ import {
   transportPort,
 } from './helpers/deviceTransportFixtures'
 
+// A real TLS stall must wait the unchanged 10 s Node handshake deadline.
+const STALLED_HANDSHAKE_TEST_TIMEOUT_MS =
+  DEVICE_LIMITS.handshakeDeadlineMs + DEVICE_LIMITS.handshakeDeadlineMs / 2
+
 const source = transportIdentity()
 const receiver = transportIdentity()
 const attacker = transportIdentity()
@@ -782,25 +786,29 @@ describe('pinned device transport with real loopback TLS', () => {
       for (const socket of stalled) socket.destroy()
     }
   })
-  it('times out a real stalled handshake and never installs an application handler', async () => {
-    const server = manager()
-    const port = await transportPort()
-    const handler = transportHandler()
-    await server.listen(transportPair(receiver, source), '127.0.0.1', port, handler)
-    const socket = tcpConnect({ host: '127.0.0.1', port })
-    socket.on('error', () => undefined)
-    const startedAt = Date.now()
-    try {
-      await new Promise<void>((resolve) => socket.once('close', resolve))
-      expect(Date.now() - startedAt).toBeLessThan(
-        DEVICE_LIMITS.handshakeDeadlineMs + DEVICE_LIMITS.handshakeDeadlineMs / 2,
-      )
-      expect(handler.receive).not.toHaveBeenCalled()
-      expect(handler.disconnected).not.toHaveBeenCalled()
-    } finally {
-      socket.destroy()
-    }
-  })
+  it(
+    'times out a real stalled handshake and never installs an application handler',
+    async () => {
+      const server = manager()
+      const port = await transportPort()
+      const handler = transportHandler()
+      await server.listen(transportPair(receiver, source), '127.0.0.1', port, handler)
+      const socket = tcpConnect({ host: '127.0.0.1', port })
+      socket.on('error', () => undefined)
+      const startedAt = Date.now()
+      try {
+        await new Promise<void>((resolve) => socket.once('close', resolve))
+        expect(Date.now() - startedAt).toBeLessThan(
+          DEVICE_LIMITS.handshakeDeadlineMs + DEVICE_LIMITS.handshakeDeadlineMs / 2,
+        )
+        expect(handler.receive).not.toHaveBeenCalled()
+        expect(handler.disconnected).not.toHaveBeenCalled()
+      } finally {
+        socket.destroy()
+      }
+    },
+    STALLED_HANDSHAKE_TEST_TIMEOUT_MS,
+  )
   it('rejects a CA-signed server child despite a valid chain and checks its exact saved pin', async () => {
     const child = transportIdentity(receiver)
     const accepted = new Set<TLSSocket>()

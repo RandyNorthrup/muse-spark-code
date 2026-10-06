@@ -106,7 +106,7 @@ export function validateDeviceCertificate(
     requirePair(
       start <= now &&
         now < end &&
-        end - start <= DEVICE_LIMITS.terminalRetentionMs + DEVICE_LIMITS.clockSkewMs,
+        end - start <= DEVICE_LIMITS.certificateLifetimeMs + DEVICE_LIMITS.clockSkewMs,
     )
     requirePair(
       certificate.publicKey.asymmetricKeyType === 'ec' &&
@@ -146,7 +146,7 @@ export function createDeviceInvitation(
 ): { invitation: DeviceInvitation; privateKeyPem: string } {
   requirePair(
     certificateExpiresAt > now + DEVICE_LIMITS.invitationValidityMs &&
-      certificateExpiresAt <= now + DEVICE_LIMITS.terminalRetentionMs,
+      certificateExpiresAt <= now + DEVICE_LIMITS.certificateLifetimeMs,
   )
   const keys = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
   const serial = randomBytes(DEVICE_LIMITS.idChars / 2)

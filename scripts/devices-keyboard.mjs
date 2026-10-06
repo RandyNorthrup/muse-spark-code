@@ -14,6 +14,7 @@ import { findChrome } from './lib/chrome.mjs'
 import { serveRepo } from './lib/harnessServer.mjs'
 
 const root = process.cwd()
+const SELECT_ALL_KEY = process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
 await mkdir(path.join(root, 'temp'), { recursive: true })
 const profile = await mkdtemp(path.join(root, 'temp', 'm100-u-browser-'))
 const { server, port } = await serveRepo(root)
@@ -112,7 +113,7 @@ try {
       const confirmation = page.getByLabel('Copy confirmation', { exact: true })
       await confirmation.waitFor()
       await input.focus()
-      await page.keyboard.press('Meta+A')
+      await page.keyboard.press(SELECT_ALL_KEY)
       await page.keyboard.insertText(await confirmation.inputValue())
       await page.keyboard.press('Tab')
       await page.keyboard.press('Tab')
@@ -133,7 +134,7 @@ try {
       await page.keyboard.press('Space')
       const workers = page.getByLabel('Worker limit', { exact: true })
       await workers.focus()
-      await page.keyboard.press('Meta+A')
+      await page.keyboard.press(SELECT_ALL_KEY)
       await page.keyboard.insertText('1')
       await page.getByRole('button', { name: 'Review and save local offer' }).focus()
       await page.keyboard.press('Enter')
@@ -188,7 +189,7 @@ try {
         theme,
         width: 320,
         browser: browser.browser()?.version(),
-        keys: ['Enter', 'Tab', 'Space', 'Meta+A', 'Escape'],
+        keys: ['Enter', 'Tab', 'Space', SELECT_ALL_KEY, 'Escape'],
         actions: calls,
         textFallbackSelection: true,
         comparisonFocus: true,

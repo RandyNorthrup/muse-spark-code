@@ -47,6 +47,7 @@ describe('bundled What’s New content budget', () => {
     ['code highlighting', 125, 'src/webview/components/HighlightedCode.tsx'],
     ['action dialogs', 25, 'src/webview/components/ShareView.tsx'],
     ['tasks tab', 25, 'src/webview/TasksApp.tsx'],
+    ['Devices', 50, 'src/webview/models/sections/agents/DevicesApp.tsx'],
   ])(
     'enforces the %s cap without widening the original deferred allowance',
     async (name, cap, entryPoint) => {

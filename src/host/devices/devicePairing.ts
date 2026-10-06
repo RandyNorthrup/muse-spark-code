@@ -58,7 +58,7 @@ export class DevicePairing {
   private queue = Promise.resolve()
   public constructor(private readonly deps: DevicePairingDeps) {}
   private async perform(request: DeviceWebviewRequest): Promise<Setup> {
-    const setup: Setup = { requestId: request.requestId }
+    const setup: Setup = { viewId: request.viewId, requestId: request.requestId }
     try {
       assertLocalDeviceHost(this.deps.host)
       const action = request.action
@@ -68,7 +68,7 @@ export class DevicePairing {
           break
         }
         case 'importInvitation': {
-          await this.importInvitation(action.text)
+          setup.invitation = await this.importInvitation(action.text)
           break
         }
         case 'confirmFingerprint': {
@@ -101,7 +101,8 @@ export class DevicePairing {
         }
         default: {
           const reply = parseSetup(await this.deps.otherAction(request))
-          if (reply.requestId !== request.requestId) throw new DevicePairingError('invalid-frame')
+          if (reply.requestId !== request.requestId || reply.viewId !== request.viewId)
+            throw new DevicePairingError('invalid-frame')
           return reply
         }
       }
@@ -173,7 +174,7 @@ export class DevicePairing {
     parseDeviceInvitationText(DevicePairing.publicText(pending.local), this.deps.now())
     return pending
   }
-  private async importInvitation(text: string): Promise<void> {
+  private async importInvitation(text: string): Promise<DeviceInvitation> {
     const peer = parseDeviceInvitationText(text, this.deps.now())
     const state = await this.deps.store.read()
     const pending = this.pending(state)
@@ -190,6 +191,7 @@ export class DevicePairing {
       this.pending(current).peer = peer
       return current
     })
+    return peer
   }
   private async confirm(invitationId: string, fingerprint: string) {
     const state = await this.deps.store.read()
@@ -280,6 +282,7 @@ export class DevicePairing {
       }
     } catch (error) {
       return parseSetup({
+        viewId: request.viewId,
         requestId: request.requestId,
         failure: error instanceof DevicePairingError ? error.reason : 'storage',
       })

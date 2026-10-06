@@ -36,6 +36,23 @@ function metafile() {
 }
 
 describe('webview import budgets', () => {
+  it('owns the exact Devices entry and its full static closure with Windows separators', () => {
+    const meta = metafile()
+    const devices = 'dist/webview/chunks/devices.js'
+    const view = 'dist/webview/chunks/devicesView.js'
+    meta.outputs[MAIN].imports.push(edge(devices, 'dynamic-import'))
+    meta.outputs[devices] = output(
+      [edge(view)],
+      String.raw`src\webview\models\sections\agents\DevicesApp.tsx`,
+    )
+    meta.outputs[view] = output()
+    const groups = webviewDeferredBudgetGroups(meta)
+    expect(groups.find(({ name }) => name === 'Devices')).toMatchObject({
+      budgetKiB: 50,
+      outputs: [devices, view],
+    })
+    expect(groups.find(({ name }) => name === 'deferred JS')?.outputs).not.toContain(devices)
+  })
   it('counts the whole static closure exactly once, excluding dynamic and external imports', () => {
     expect(webviewStartupOutputs(metafile())).toEqual([MAIN, CORE])
   })

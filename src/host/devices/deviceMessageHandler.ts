@@ -10,12 +10,16 @@ import {
 export async function handleDeviceRequest(
   input: unknown,
   port: DevicesPanelPort,
+  signal?: AbortSignal,
 ): Promise<DeviceHostMessage> {
   const request = parseDeviceWebviewRequest(input)
   if (!request.ok) throw new Error('invalid-device-message')
   let raw: unknown
   try {
-    raw = await port.request(request.message)
+    raw =
+      signal === undefined
+        ? await port.request(request.message)
+        : await port.request(request.message, signal)
   } catch {
     throw new Error('invalid-device-message')
   }
