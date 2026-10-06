@@ -1,3 +1,4 @@
+import { RecordingScope } from '../../src/core/context/recordingReader'
 import { describe, expect, it } from 'vitest'
 import {
   contentHash,
@@ -11,16 +12,32 @@ const SOURCE: ContentSource = {
   file: { path: '/workspace/src/source.txt', dev: '1', ino: '2', size: 12, mtime: '100' },
 }
 
+function recorded(...bytes: readonly string[]): RecordingScope {
+  return RecordingScope.build((reader) => {
+    for (const input of bytes) reader.read(input, input, SOURCE)
+  }).scope
+}
+
 describe('scheduled byte provenance ledger', () => {
-  it('RVM115U4 P1: a derived entry without an explicit complete input inventory refuses', () => {
+  it('RVM115U5 structural: only closed recording scopes certify all consumed inputs', () => {
     const ledger = new ProvenanceLedger()
-    const allowed = ledger.preFire('allowed leaf', SOURCE)
-    ledger.derive('forgotten inventory', [allowed], 'incomplete-summary')
-    ledger.derive('explicitly incomplete inventory', [allowed], 'incomplete-summary', false)
-    ledger.derive('complete inventory', [allowed], 'complete-summary', true)
+    ledger.preFire('allowed leaf', SOURCE)
+    ledger.derive('forgotten inventory', undefined, 'incomplete-summary')
+    const complete = RecordingScope.build((reader) => {
+      reader.read('allowed leaf', 'allowed leaf', SOURCE)
+      ledger.derive('open inventory', reader, 'open-summary')
+    })
+    ledger.derive('complete inventory', complete.scope, 'complete-summary')
+    const incomplete = RecordingScope.build((reader) => {
+      reader.read('allowed leaf', 'allowed leaf', SOURCE)
+      reader.unrecordable()
+    })
+    ledger.derive('explicitly incomplete inventory', incomplete.scope, 'incomplete-summary')
     expect(ledger.allows('forgotten inventory')).toBe(false)
+    expect(ledger.allows('open inventory')).toBe(false)
     expect(ledger.allows('explicitly incomplete inventory')).toBe(false)
     expect(ledger.allows('complete inventory')).toBe(true)
+    expect(() => complete.scope.read('late', 'late', SOURCE)).toThrow('closed')
   })
 
   it('RVM115U3 P2-7: equal bytes in different buffers and replay objects retain proof by SHA-256', () => {
@@ -40,8 +57,8 @@ describe('scheduled byte provenance ledger', () => {
 
   it('RVM115U3 P1-2: opaque content cannot claim a decision or authorize a transformation', () => {
     const ledger = new ProvenanceLedger()
-    const hash = ledger.opaque('opaque protected output', 'opaque-tool')
-    ledger.derive('compacted opaque output', [hash], 'compaction', true)
+    ledger.opaque('opaque protected output', 'opaque-tool')
+    ledger.derive('compacted opaque output', recorded('opaque protected output'), 'compaction')
     expect(ledger.allows('opaque protected output')).toBe(false)
     expect(ledger.allows('compacted opaque output')).toBe(false)
     expect(ledger.entry('opaque protected output')).toMatchObject({ class: 'opaque' })
@@ -56,29 +73,32 @@ describe('scheduled byte provenance ledger', () => {
 
   it('RVM115U3 P2-6/7/8: verification, media fitting, dates and compaction retain all input hashes', () => {
     const ledger = new ProvenanceLedger()
-    const rules = ledger.preFire('unchanged rule bytes', SOURCE)
-    const edit = ledger.decided(
-      'authorized edit output',
-      { kind: 'tool', callId: 'write' },
-      'edit-decision',
+    ledger.preFire('unchanged rule bytes', SOURCE)
+    ledger.decided('authorized edit output', { kind: 'tool', callId: 'write' }, 'edit-decision')
+    const fitted = ledger.derive('smaller media', recorded('authorized edit output'), 'media-fit')
+    const note = ledger.derive(
+      'clean verification',
+      recorded('authorized edit output'),
+      'verification-note',
     )
-    const fitted = ledger.derive('smaller media', [edit], 'media-fit', true)
-    const note = ledger.derive('clean verification', [edit], 'verification-note', true)
-    const refreshed = ledger.derive('new date, same rules', [rules], 'instruction-refresh', true)
-    ledger.derive('summary', [fitted, note, refreshed], 'compaction', true)
+    const refreshed = ledger.derive(
+      'new date, same rules',
+      recorded('unchanged rule bytes'),
+      'instruction-refresh',
+    )
+    ledger.derive(
+      'summary',
+      recorded('smaller media', 'clean verification', 'new date, same rules'),
+      'compaction',
+    )
     expect(ledger.allows('summary')).toBe(true)
     expect(ledger.entry('summary')).toMatchObject({
       class: 'derived',
       derivedFrom: [fitted, note, refreshed],
     })
-    ledger.derive(
-      'unknown source summary',
-      [fitted, contentHash('unseen bytes')],
-      'compaction',
-      true,
-    )
+    ledger.derive('unknown source summary', recorded('smaller media', 'unseen bytes'), 'compaction')
     expect(ledger.allows('unknown source summary')).toBe(false)
-    ledger.derive('empty source summary', [], 'compaction', true)
+    ledger.derive('empty source summary', recorded(), 'compaction')
     expect(ledger.allows('empty source summary')).toBe(false)
   })
 
@@ -87,7 +107,7 @@ describe('scheduled byte provenance ledger', () => {
     const allowedHash = ledger.preFire('delivered', SOURCE)
     ledger.opaque('delivered')
     expect(ledger.allows('delivered')).toBe(true)
-    ledger.derive('cycle', [contentHash('cycle')], 'cycle', true)
+    ledger.derive('cycle', recorded('cycle'), 'cycle')
     expect(ledger.allows('cycle')).toBe(false)
     ledger.decideTool('call')
     ledger.opaque('allowed opaque', 'call')
@@ -109,7 +129,7 @@ describe('scheduled byte provenance ledger', () => {
         const bytes = `leaf ${String(chain)} ${String(index)}`
         const isAllowed = random() % 2 === 0
         const hash = isAllowed ? ledger.decided(bytes, SOURCE, 'decision') : ledger.opaque(bytes)
-        return { hash, isAllowed }
+        return { hash, bytes, isAllowed }
       })
       for (let step = 0; step < 100; step += 1) {
         const count = 1 + (random() % 4)
@@ -119,12 +139,14 @@ describe('scheduled byte provenance ledger', () => {
         const bytes = `transformation ${String(chain)} ${String(step)}`
         const hash = ledger.derive(
           bytes,
-          inputs.map((input) => input.hash),
+          RecordingScope.build((reader) => {
+            for (const input of inputs) reader.read(input.bytes, input.bytes, SOURCE)
+            if (!isInputsComplete) reader.unrecordable()
+          }).scope,
           'random-transform',
-          isInputsComplete,
         )
         expect(ledger.allows(bytes)).toBe(isAllowed)
-        nodes.push({ hash, isAllowed })
+        nodes.push({ hash, bytes, isAllowed })
       }
     }
   })

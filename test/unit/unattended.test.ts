@@ -70,6 +70,32 @@ describe.each(['modelApi', 'museCode'] as const)('unattended %s', (backend) => {
       expect(decision.allowed).toBe(false)
     }
   })
+  it('RVM115U5 reader: recorded directory members enforce protected and outside paths', async () => {
+    const { run } = unattendedRun()
+    for (const path of ['/workspace/src/safe.ts', String.raw`\workspace\src\safe.ts`]) {
+      expect(
+        await run.decideSource(
+          { kind: 'directory', paths: [path], contentHash: contentHash('safe.ts') },
+          'safe-index',
+        ),
+      ).toEqual({ allowed: true })
+    }
+    for (const path of [
+      '/workspace/.muse/private.ts',
+      '/outside/private.ts',
+      String.raw`\workspace\.muse\private.ts`,
+    ]) {
+      const decision = await run.decideSource(
+        {
+          kind: 'directory',
+          paths: ['/workspace/src/safe.ts', path],
+          contentHash: contentHash('private.ts'),
+        },
+        'protected-index',
+      )
+      expect(decision.allowed).toBe(false)
+    }
+  })
   it('refuses physical and person-required actions even when the mode allows, and binds requester safety', async () => {
     const stream = new FakeScheduleApprovalStream(backend)
     const { run } = unattendedRun()

@@ -78,6 +78,7 @@ import {
   DEFERRED,
   ON_FIRST_USE,
   DEFERRED_ONLY,
+  SCHEDULES_ONLY,
   FOREIGN_HOOKS_ONLY,
   HOOK_RUNTIME_ONLY,
   PLUGIN_HOOKS_ONLY,
@@ -120,7 +121,6 @@ const ACTIVATION_ALLOWED = new Map([
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['sessionStore.ts', "the stored-session format the window's session store reads (D14)"],
   ['goalRecord.ts', "a stored session's goal (D14, M45)"],
-  ['schedules.ts', "the schedule store's next occurrence (M52)"],
 ])
 
 // The files that load only with the backend: the host, its tools, hooks,
@@ -204,6 +204,7 @@ for (const name of onDisk) {
     Number(ACTIVATION_ALLOWED.has(name)) +
     Number(lazy.has(name)) +
     Number(DEFERRED_ONLY.includes(name)) +
+    Number(SCHEDULES_ONLY.includes(name)) +
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
     Number(PLUGIN_HOOKS_ONLY.includes(name)) +
@@ -219,6 +220,7 @@ for (const name of [
   ...ACTIVATION_ALLOWED.keys(),
   ...lazy,
   ...DEFERRED_ONLY,
+  ...SCHEDULES_ONLY,
   ...FOREIGN_HOOKS_ONLY,
   ...HOOK_RUNTIME_ONLY,
   ...PLUGIN_HOOKS_ONLY,

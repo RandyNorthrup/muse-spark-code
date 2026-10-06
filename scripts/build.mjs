@@ -91,6 +91,8 @@ const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
+const SCHEDULES_ENTRY = 'src/core/backends/modelapi/schedulesEntry.ts'
+const SCHEDULES_OUTFILE = 'dist/schedules.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
 // M91 lane W: the adapters for hooks imported in another agent's format,
@@ -210,6 +212,13 @@ const sessionBoardOptions = {
   ...modelApiOptions,
   entryPoints: [SESSION_BOARD_ENTRY],
   outfile: SESSION_BOARD_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const schedulesOptions = {
+  ...modelApiOptions,
+  entryPoints: [SCHEDULES_ENTRY],
+  outfile: SCHEDULES_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -561,6 +570,7 @@ if (isWatch) {
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
+    esbuild.context(schedulesOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(foreignHooksOptions),
     esbuild.context(hookRuntimeOptions),
@@ -600,6 +610,7 @@ if (isWatch) {
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
+    schedules: esbuild.build(schedulesOptions),
     reviewer: esbuild.build(reviewerOptions),
     foreignHooks: esbuild.build(foreignHooksOptions),
     hookRuntime: esbuild.build(hookRuntimeOptions),

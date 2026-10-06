@@ -5,6 +5,7 @@
 !dist/modelApi.js
 !dist/sessionBoard.js
 !dist/reviewer.js
+!dist/schedules.js
 !dist/foreignHooks.js
 !dist/hookRuntime.js
 !dist/extensionHooks.js

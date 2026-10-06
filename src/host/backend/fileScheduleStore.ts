@@ -7,7 +7,6 @@
 import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { nextScheduleFire } from '../../core/backends/modelapi/schedules'
 import { SCHEDULE_CLAIM_RETENTION_MS } from '../../shared/constants'
 import {
   scheduledPromptSchema,
@@ -110,10 +109,14 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
   ): Promise<ScheduledPrompt | undefined> => {
     const receipts = await receiptsFor(job, names)
     const last = receipts.toSorted((a, b) => b.admittedAtMs - a.admittedAtMs)[0]
+    const schedules =
+      last === undefined
+        ? undefined
+        : await import('../../core/backends/modelapi/schedulesEntry.js')
     const nextFireAtMs =
       last === undefined
         ? job.nextFireAtMs
-        : nextScheduleFire(
+        : schedules?.nextScheduleFire(
             job.cadence,
             Math.max(last.occurrenceMs, last.admittedAtMs),
             job.expiresAtMs,

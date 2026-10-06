@@ -1,3 +1,4 @@
+import type * as ContextLoaders from '../backends/modelapi/schedulesEntry'
 // What the Model API backend loads from the workspace for the model (PLAN.md
 // D13): the rules files, the skill catalogue and the memory snapshot (every
 // scope's index and note paths since M49, D41), by Muse Code's conventions,
@@ -7,8 +8,10 @@
 // the host says their files changed. The memory is read once, as Muse Code
 // takes its snapshot at session start.
 
+import { RecordingReader, RecordingScope } from './recordingReader'
 import type { ContentSource } from '../schedules/provenance'
-import { RULES_PREAMBLE } from '../../shared/constants'
+import { uiLocale } from '../../shared/l10n/text'
+import { RULES_PREAMBLE, UI_TEXT } from '../../shared/constants'
 import type { MemoryScopeSnapshot } from '../memory/memoryStore'
 import type { ContextIo } from './contextFiles'
 import {
@@ -17,17 +20,15 @@ import {
   type AgentResolution,
   type AgentRoot,
   agentHoles,
-  loadAgents,
   NO_AGENTS,
   offeredAgents,
   projectAgentsRoot,
   resolveAgent,
 } from './customAgents'
-import { loadRuleFile, type RuleFile, ruleDirectoriesFor, renderRules } from './rules'
+import { type RuleFile, ruleDirectoriesFor, renderRules } from './rules'
 import {
   type BundledSkillsSource,
   bundledSkillsRoot,
-  loadSkills,
   projectSkillsRoot,
   type SkillDefinition,
   type SkillRoot,
@@ -56,6 +57,8 @@ export interface WorkspaceContextDeps {
   /** The memory snapshot (M49); undefined when the backend has no memory. */
   readonly loadMemory: (() => Promise<readonly MemoryScopeSnapshot[]>) | undefined
   readonly warn: (message: string) => void
+  /** Cached projections retain exactly the inputs the guarded reader consumed. */
+  readonly recordDerived?: (bytes: string, scope: RecordingScope) => void
 }
 
 /** The loaded context as the instructions builder consumes it. */
@@ -93,7 +96,17 @@ export class WorkspaceContext {
   private rulesText: string | undefined
   private loading: Promise<void> | undefined
 
-  public constructor(private readonly deps: WorkspaceContextDeps) {}
+  private readonly recorder = new RecordingReader()
+
+  public constructor(private readonly deps: WorkspaceContextDeps) {
+    this.deps = { ...deps, io: this.recorder.context(deps.io) }
+  }
+
+  private async loaders(): Promise<typeof ContextLoaders> {
+    const entry = await import('../backends/modelapi/schedulesEntry.js')
+    entry.installLanguage(UI_TEXT, uiLocale())
+    return entry
+  }
 
   private get isTrusted(): boolean {
     return this.deps.isWorkspaceTrusted()
@@ -166,16 +179,21 @@ export class WorkspaceContext {
       return false
     }
     this.checkedDirectories.add(directory)
-    const load = await loadRuleFile(
-      { io: this.deps.io, workspaceRoot: this.deps.workspaceRoot, platform: this.deps.platform },
-      directory,
-    )
+    const recorded = await this.recorder.run(async () => {
+      const loaders = await this.loaders()
+      return await loaders.loadRuleFile(
+        { io: this.deps.io, workspaceRoot: this.deps.workspaceRoot, platform: this.deps.platform },
+        directory,
+      )
+    })
+    const load = recorded.value
     if (load.warning !== undefined) {
       this.deps.warn(load.warning)
     }
     if (load.file === undefined) {
       return false
     }
+    this.deps.recordDerived?.(load.file.text.trim(), recorded.scope)
     this.rules.push(load.file)
     return true
   }
@@ -219,7 +237,19 @@ export class WorkspaceContext {
     const { platform } = this.deps
     const load = await this.guarded(
       'loading the agents',
-      () => loadAgents({ io: this.deps.io, platform }, roots),
+      async () => {
+        const recorded = await this.recorder.run(async () => {
+          const loaders = await this.loaders()
+          return await loaders.loadAgents({ io: this.deps.io, platform }, roots)
+        })
+        for (const agent of recorded.value.agents)
+          if (agent.source !== 'builtin')
+            this.deps.recordDerived?.(
+              JSON.stringify({ id: agent.id, description: agent.description }),
+              recorded.scope,
+            )
+        return recorded.value
+      },
       // Anything else that fails leaves every root unknown: no name runs,
       // a built-in included, rather than one a file may have narrowed.
       {
@@ -276,7 +306,21 @@ export class WorkspaceContext {
     }
     const load = await this.guarded(
       'loading the skills',
-      () => loadSkills({ io: this.deps.io, platform: this.deps.platform }, this.skillRoots()),
+      async () => {
+        const recorded = await this.recorder.run(async () => {
+          const loaders = await this.loaders()
+          return await loaders.loadSkills(
+            { io: this.deps.io, platform: this.deps.platform },
+            this.skillRoots(),
+          )
+        })
+        for (const skill of recorded.value.skills)
+          this.deps.recordDerived?.(
+            JSON.stringify({ id: skill.id, description: skill.description }),
+            recorded.scope,
+          )
+        return recorded.value
+      },
       { skills: this.skills, warnings: [] },
     )
     for (const warning of load.warnings) {
@@ -297,28 +341,13 @@ export class WorkspaceContext {
     source: ContentSource
     isFullyShown?: boolean
   }[] {
-    return [
-      ...this.rules.map((rule) => ({
-        bytes: rule.text.trim(),
-        isFullyShown: this.rulesText?.includes(rule.text.trim()) === true,
-        source: rule.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
-      })),
-      ...(shouldIncludeSkills ? this.skills : []).map((skill) => ({
-        bytes: JSON.stringify({ id: skill.id, description: skill.description }),
-        source: skill.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
-      })),
-      // Built-in roles are fixed harness scaffolding, not cached workspace files.
-      ...(shouldIncludeAgents ? this.agents.agents : [])
-        .filter((agent) => agent.source !== 'builtin')
-        .map((agent) => ({
-          bytes: JSON.stringify({ id: agent.id, description: agent.description }),
-          source: agent.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
-        })),
-      ...(shouldIncludeMemory ? this.memory : []).map((snapshot) => ({
-        bytes: JSON.stringify(snapshot),
-        source: { kind: 'tool', callId: `context-memory:${snapshot.scope}` } as const,
-      })),
-    ]
+    const recorded = RecordingScope.build((reader) =>
+      this.sections(reader, shouldIncludeAgents, shouldIncludeMemory, shouldIncludeSkills),
+    )
+    return (recorded.scope.inventory() ?? []).map((input) => ({
+      ...input,
+      bytes: String(input.bytes),
+    }))
   }
 
   public skill(id: string): SkillDefinition | undefined {
@@ -330,12 +359,47 @@ export class WorkspaceContext {
     return resolveAgent(this.agents, id)
   }
 
-  public sections(): ContextSections {
+  public sections(
+    reader?: RecordingScope,
+    shouldIncludeAgents = true,
+    shouldIncludeMemory = true,
+    shouldIncludeSkills = true,
+  ): ContextSections {
+    if (reader !== undefined) {
+      for (const rule of this.rules)
+        reader.read(
+          rule,
+          rule.text.trim(),
+          rule.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
+          this.rulesText?.includes(rule.text.trim()) === true,
+        )
+      const skills = shouldIncludeSkills ? this.skills : []
+      for (const skill of skills)
+        reader.read(
+          skill,
+          JSON.stringify({ id: skill.id, description: skill.description }),
+          skill.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
+        )
+      const agents = shouldIncludeAgents ? this.agents.agents : []
+      for (const agent of agents)
+        if (agent.source !== 'builtin')
+          reader.read(
+            agent,
+            JSON.stringify({ id: agent.id, description: agent.description }),
+            agent.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
+          )
+      const memory = shouldIncludeMemory ? this.memory : []
+      for (const snapshot of memory)
+        reader.read(snapshot, JSON.stringify(snapshot), {
+          kind: 'harness',
+          operation: 'memory-snapshot',
+        })
+    }
     return {
       rules: this.rulesText,
-      skills: this.skills,
-      agents: offeredAgents(this.agents),
-      memory: this.memory,
+      skills: shouldIncludeSkills ? this.skills : [],
+      agents: shouldIncludeAgents ? offeredAgents(this.agents) : [],
+      memory: shouldIncludeMemory ? this.memory : [],
     }
   }
 

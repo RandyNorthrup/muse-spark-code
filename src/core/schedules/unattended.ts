@@ -211,18 +211,54 @@ export class UnattendedRun {
     source: ContentSource,
     id: string,
   ): Promise<{ allowed: boolean; reason?: string }> {
-    if (source.kind !== 'file' && source.kind !== 'skill') return { allowed: false }
+    if (source.kind === 'git')
+      return {
+        allowed: false,
+        reason: this.refuse(
+          {
+            id,
+            class: 'mcp',
+            tool: 'cached-git',
+            paths: [source.root + '/.git'],
+            requiresAsking: false,
+            protectedPath: true,
+          },
+          this.modelText.protectedRefused,
+        ),
+      }
+    if (source.kind !== 'file' && source.kind !== 'skill' && source.kind !== 'directory')
+      return { allowed: false }
+    if (source.kind === 'directory') {
+      for (const recordedPath of source.paths) {
+        const path = recordedPath.replaceAll('\\', '/')
+        const decision = await this.decideAction(
+          {
+            id,
+            class: 'mcp',
+            tool: 'cached-index',
+            paths: [path],
+            requiresAsking: false,
+            protectedPath: false,
+          },
+          false,
+          path,
+        )
+        if (!decision.allowed) return decision
+      }
+      return { allowed: this.isActive() }
+    }
+    const path = source.file.path.replaceAll('\\', '/')
     return await this.decideAction(
       {
         id,
         class: 'mcp',
         tool: 'cached-context',
-        paths: [source.file.path],
+        paths: [path],
         requiresAsking: false,
         protectedPath: false,
       },
       false,
-      source.file.path,
+      path,
     )
   }
 

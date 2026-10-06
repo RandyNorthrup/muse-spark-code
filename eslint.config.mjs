@@ -120,6 +120,52 @@ export default tseslint.config(
   },
 
   {
+    // M115: context builders receive the recording workspace/Git/skill ports.
+    // Native adapters own filesystem/process imports; a builder cannot bypass
+    // recording by importing them or the host's raw Git runner.
+    files: [
+      'src/core/context/**/*.ts',
+      'src/core/codeIntel/repoMap.ts',
+      'src/core/memory/memoryStore.ts',
+      'src/core/memory/memoryIndex.ts',
+      'src/core/backends/modelapi/ModelApiHost.ts',
+      'src/core/backends/modelapi/instructions.ts',
+      'src/core/backends/modelapi/mediaBudget.ts',
+      'src/core/backends/modelapi/verifyLoop.ts',
+      'src/core/backends/modelapi/schedulesEntry.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                'node:fs',
+                'node:fs/**',
+                'fs',
+                'fs/**',
+                'node:child_process',
+                'child_process',
+                '**/host/git',
+                '**/host/git.js',
+                '**/host/backend/git',
+                '**/host/backend/git.js',
+                '**/host/backend/contextIo',
+                '**/host/backend/contextIo.js',
+                '**/host/backend/toolIo',
+                '**/host/backend/toolIo.js',
+              ],
+              message:
+                'Context builders must use their scoped recording reader; native I/O and Git belong to adapters.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
     // Webview: browser-only TypeScript + React.
     // unicorn/prefer-global-this produces a hard type error in browser-only
     // code (TS2345 `typeof globalThis` is not assignable to `Window`), so it is

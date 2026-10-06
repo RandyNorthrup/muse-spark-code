@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import type { RecordingScope } from '../context/recordingReader'
 
 export interface FileIdentity {
   readonly path: string
@@ -15,6 +16,13 @@ export type ContentSource =
       readonly id: string
       readonly version: string
       readonly file: FileIdentity
+      readonly contentHash: string
+    }
+  | { readonly kind: 'directory'; readonly paths: readonly string[]; readonly contentHash: string }
+  | {
+      readonly kind: 'git'
+      readonly root: string
+      readonly args: readonly string[]
       readonly contentHash: string
     }
   | { readonly kind: 'tool'; readonly callId: string }
@@ -88,7 +96,7 @@ export class ProvenanceLedger {
 
   /** Authorizes the raw hash retained by a decided read-time source inventory. */
   public decidedSource(
-    source: Extract<ContentSource, { kind: 'file' | 'skill' }>,
+    source: Extract<ContentSource, { kind: 'file' | 'skill' | 'directory' }>,
     decisionId: string,
   ): string {
     return this.put({ hash: source.contentHash, source, class: 'decided', decisionId })
@@ -109,18 +117,16 @@ export class ProvenanceLedger {
 
   public derive(
     bytes: string | Uint8Array,
-    inputs: readonly string[],
+    scope: RecordingScope | undefined,
     operation: string,
-    hasCompleteInputs = false,
   ): string {
-    // Callers certify the complete recipe, including unknown/opaque inputs.
-    // A missing certificate or empty list confers no source authority.
+    const inventory = scope?.inventory()
     return this.put({
       hash: contentHash(bytes),
       source: { kind: 'harness', operation },
       class: 'derived',
-      derivedFrom: [...inputs],
-      hasCompleteInputs,
+      derivedFrom: scope?.hashes() ?? [],
+      hasCompleteInputs: inventory !== undefined,
     })
   }
 

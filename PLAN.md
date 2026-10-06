@@ -260,6 +260,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/tab.js`                         | ≤ 75 KiB (M94: first request/menu; status/provider registration stays eager)                                                                                                                                                                                                                                                                                                                           |
 | `dist/extension.js`                   | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
 | `dist/modelApi.js`                    | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)                                                                                              |
+| `dist/schedules.js`                   | ≤ 50 KiB (FIXM115U6: first-use replay authorization, local scheduling, cached rule/skill/agent loaders and verification-note builder; existing Model API cap retained)                                                                                                                                                                                                                                 |
 | `dist/review.js`                      | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                                                                        |
 | `dist/searchWorker.js`                | ≤ 50 KiB                                                                                                                                                                                                                                                                                                                                                                                               |
 | `dist/pageWorker.js`                  | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                                                                             |
@@ -6886,11 +6887,24 @@ builder modules. Unrecordable language-server dependencies refuse automatic
 verification content during fires, before diagnostics are read. Record cached
 Git facts as opaque repository material, never trusted scaffolding.
 Move fire-only authorization and schedule parsers into the lazy schedules
-chunk, freeing at least 10 KiB of Model API. Add the three regressions,
+chunk, along with the verification-note builder and its dependency refusal,
+freeing at least 10 KiB of Model API. Ordinary verification and cached rule/skill/agent catalogue loading may load
+this chunk on their first use; ordinary source capture remains in the session.
+The new schedules bundle is capped at 50 KiB (the first-use builders share
+this chunk); existing Model API and other bundle budgets remain unchanged. Add the three regressions,
 extend interleavings, prove every guard red with byte-exact restoration.
 No dependency, paid/live call, merge, push or rebase. The lead owns aggregate
 quality; this rig runs bounded default-timeout suites and the required static
 and build checks. Shared core behavior applies to every editor/runtime.
+
+Implemented all three P1s and structural recording, with 14 byte-exact
+restored drills. Bounded final verification passes 1,382 unique tests in 34
+complete files and the required static/build gates. Model API is 460.6/475
+KiB, freeing 11.3 KiB; schedules is 39.3/50 KiB. Records are in
+`docs/certification/m115-u.md`. No P1/P2/P3 review residual is accepted.
+Automatic diagnostics/check dependencies and unproved context remain opaque;
+no hidden settings gain complete delivery evidence. Full quality and unrun
+network/editor/OS integration remain with W/lead.
 
 ### FIXM115U5 — Close RVM115U4's derived-input and owner lifecycle findings (2026-10-06)
 
@@ -18527,6 +18541,13 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM115U6 gate allocation (2026-10-06).** The same rig prohibition on
+aggregate quality applies. The lane runs complete owning files with default
+timeouts, source-boundary lint tests, restored red drills and the required
+static/build gates. W/lead retains full quality/coverage, packaged network
+badge validation, editor integration and other-OS execution. `check:reference`
+remains unavailable as recorded below; no command or setting is added.
+
 **FIXM115U5 lane gate allocation (2026-10-06).** The rig brief forbids
 aggregate quality in lane U; W/lead owns `npm run quality`. This lane runs
 complete bounded owning suites with default timeouts and the required
@@ -19743,6 +19764,25 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM115U6 review repair.** All three RVM115U5 P1s are fixed; that
+  report contains no P2/P3. No review residual is accepted. A derivation
+  receives only the input hashes of a closed recording scope; callers cannot
+  supply a completeness assertion. Cached Git facts include all raw metadata
+  and configuration-query reads, and undelivered Git material refuses because
+  `.git` is protected. Directory receipts cover their actual canonical member
+  paths; empty collections contain no repository text. Automatic scheduled
+  verification returns an explicit refusal before editor diagnostics/checks:
+  the editor port cannot inventory transitive language-server dependencies.
+  Follow-up is a dependency-complete guarded editor port, not a guessed edited-
+  file recipe. Interactive verification retains its behavior. Source identity
+  failures preserve ordinary read results but leave scopes uncertified.
+  Pending native commands survive idle until their own acknowledgement/failure;
+  monotonic evidence settles only earlier observed turns. Shared core/runtime
+  ports retain all editor handoffs. Default-timeout, byte-exact restored drills
+  and bounded final gates are in `docs/certification/m115-u.md`; W/lead owns
+  aggregate quality and unrun integrations. No dependency, paid/live request,
+  external wire shape, merge, push or rebase is added.
 
 - **FIXM115U5 review repair.** RVM115U4's P1 and all five P2 findings
   are fixed; no review residual is accepted. Derived recipes explicitly

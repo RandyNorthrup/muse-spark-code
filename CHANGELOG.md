@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Record cached scheduled-context inputs in closed reader scopes, including
+  Git facts and directory indexes. Undelivered Git subjects refuse replay;
+  automatic verification refuses before reading unconfined editor dependencies.
+  Load schedule authorization and context builders on first use to free more
+  than 10 KiB in the Model API bundle.
+
 - Preserve pending native starts across idle snapshots so scheduled work
   cannot claim an ordinary turn acknowledged after that observation.
 

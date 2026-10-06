@@ -1,3 +1,6 @@
+import * as ts from 'typescript'
+import type { EditedFile, FileDiagnostics } from '../../src/core/verify/diagnosticsReport'
+import { describeEnvironment } from '../../src/host/backend/environment'
 import { ProvenanceLedger, contentHash } from '../../src/core/schedules/provenance'
 import { diagnosticsTool } from '../../src/core/diagnostics'
 import { pdfFixture } from './helpers/pdfFixture'
@@ -7,6 +10,7 @@ import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/mod
 import { ModelApiClient, type ModelApiClientDeps } from '../../src/core/backends/modelapi/client'
 import {
   MODEL_API_TOOLS,
+  MODEL_API_MODEL_TEXT,
   RULES_FILE_MAX_BYTES,
   SUBAGENT_CAPACITY,
 } from '../../src/shared/constants'
@@ -258,6 +262,18 @@ async function completeModelPrompt(
   await done
 }
 
+function diagnosticsOnly(
+  diagnostics: NonNullable<ModelApiHostDeps['verify']>['diagnosticsAfterEdit'],
+): NonNullable<ModelApiHostDeps['verify']> {
+  return {
+    isDiagnosticsOn: () => true,
+    checkCommands: () => [],
+    isFormatOnEdit: () => false,
+    diagnosticsAfterEdit: diagnostics,
+    formatAfterEdit: () => Promise.resolve(undefined),
+  }
+}
+
 async function sendScheduledEdit(
   fixture: Awaited<ReturnType<typeof modelBackend>>,
   run: UnattendedRun,
@@ -322,6 +338,111 @@ async function heldOrdinaryStart(fixture: Awaited<ReturnType<typeof museBackend>
 }
 
 describe('scheduled Model API dispatch', () => {
+  it.each([false, true])(
+    'RVM115U5 P1-2: undelivered cached Git subjects refuse (recorded=%s)',
+    async (recorded) => {
+      const marker = 'UndeliveredGitCommitMarker'
+      const entered = Promise.withResolvers<undefined>()
+      const held = Promise.withResolvers<undefined>()
+      const log = new FakeLogOutputChannel()
+      const beforeTurnRuns = vi
+        .fn()
+        .mockResolvedValue(undefined)
+        .mockImplementationOnce(async () => {
+          entered.resolve(undefined)
+          await held.promise
+        })
+      const fixture = await modelBackend({
+        beforeTurnRuns,
+        describeEnvironment: recorded
+          ? () =>
+              describeEnvironment({
+                runGit: (args) => {
+                  if (args.includes('log')) return Promise.resolve(`abcdef ${marker}`)
+                  if (args.includes('--abbrev-ref')) return Promise.resolve('main')
+                  return Promise.resolve(args.includes('--show-toplevel') ? '/workspace' : '')
+                },
+                workspaceRoot: '/workspace',
+                isWorkspaceTrusted: () => true,
+                log,
+                now: () => 0,
+              })
+          : () =>
+              Promise.resolve({
+                git: { branch: 'main', changedFiles: 0, recentCommits: [marker] },
+              }),
+      })
+      await cancelBeforeDispatch(fixture, entered.promise, held)
+      expect(fixture.api.responseBodies()).toHaveLength(0)
+      const { run } = fixture.run()
+      const sources = vi.spyOn(run, 'decideSource')
+      fixture.api.script({ text: 'fire' })
+      await completeModelPrompt(fixture, run, 'Fire')
+      expect(fixture.api.responseBodies()).toHaveLength(0)
+      expect(JSON.stringify(fixture.api.responseBodies())).not.toContain(marker)
+      expect(run.refusedActions.length).toBeGreaterThan(0)
+      if (recorded) expect(sources.mock.calls.some(([source]) => source.kind === 'git')).toBe(true)
+      await fixture.host.close()
+    },
+  )
+
+  it('RVM115U5 P1-3: protected dependency diagnostics never enter a verification note', async () => {
+    const marker = 'ProtectedDiagnosticMarker'
+    const files = new Map([
+      ['/workspace/.muse/private.ts', `export interface Secret { ${marker}: string }`],
+      [
+        '/workspace/src/new.ts',
+        'import type { Secret } from "../.muse/private"; const value: Secret = {};',
+      ],
+    ])
+    const compiler = () => {
+      const host = ts.createCompilerHost({ noLib: true })
+      host.readFile = (path) => files.get(path.replaceAll('\\', '/'))
+      host.fileExists = (path) => files.has(path.replaceAll('\\', '/'))
+      host.directoryExists = () => true
+      const program = ts.createProgram(['/workspace/src/new.ts'], { noLib: true }, host)
+      return program
+        .getSemanticDiagnostics()
+        .map((entry) => ts.flattenDiagnosticMessageText(entry.messageText, '\n'))
+        .join('\n')
+    }
+    expect(compiler()).toContain(marker)
+    const diagnostics = vi.fn(
+      (edited: readonly EditedFile[]): Promise<readonly FileDiagnostics[]> =>
+        Promise.resolve(
+          edited.map((file) => ({
+            file,
+            entries: [
+              {
+                severity: 'error',
+                line: 1,
+                column: 1,
+                message: compiler(),
+                path: file.relative,
+                source: 'typescript',
+              },
+            ],
+          })),
+        ),
+    )
+    const fixture = await modelBackend({
+      verify: diagnosticsOnly(diagnostics),
+    })
+    fixture.api.script(
+      { calls: [writeCall('src/new.ts', files.get('/workspace/src/new.ts')!)] },
+      { text: 'done' },
+    )
+    const { run } = fixture.run({ ...fakeRunContext(), mode: 'acceptEdits' })
+    await completeModelPrompt(fixture, run, 'Edit')
+    expect(diagnostics).not.toHaveBeenCalled()
+    expect(fixture.api.responseBodies()).toHaveLength(2)
+    expect(JSON.stringify(fixture.api.responseBodies())).not.toContain(marker)
+    expect(JSON.stringify(fixture.api.responseBodies()[1]?.['input'])).toContain(
+      MODEL_API_MODEL_TEXT.verifyAccessRefused,
+    )
+    await fixture.host.close()
+  })
+
   it.each([true, false])(
     'RVM115U4 P1: an unsent cached repo map registers every input (protected=%s)',
     async (isProtected) => {
@@ -366,16 +487,16 @@ describe('scheduled Model API dispatch', () => {
       try {
         await completeModelPrompt(fixture, run, 'Fire')
         expect(fixture.api.responseBodies()).toHaveLength(isProtected ? 0 : 1)
-        expect(sources.mock.calls).toContainEqual([
-          expect.objectContaining({
-            kind: 'file',
-            file: expect.objectContaining({ path: `/workspace/${definition}` }),
-          }),
-          expect.any(String),
-        ])
+        expect(
+          sources.mock.calls.some(([source]) =>
+            source.kind === 'directory'
+              ? source.paths.includes(`/workspace/${definition}`)
+              : source.kind === 'file' && source.file.path === `/workspace/${definition}`,
+          ),
+        ).toBe(true)
         if (!isProtected) {
           const map = derivations.mock.calls.find((recipe) => recipe[2] === 'cached-repo-map')
-          expect(map?.[1]).toHaveLength(3)
+          expect(map?.[1]?.inventory()).toHaveLength(7)
           expect(fixture.api.responseBodies()[0]?.['instructions']).toContain(marker)
         }
         expect(fixture.session.getScheduledRun()).toBeUndefined()
@@ -847,16 +968,10 @@ describe('scheduled Model API dispatch', () => {
     },
   )
 
-  it('RVM115U3 P2-6: an allowed edit derives clean verification notes before the second request', async () => {
+  it('RVM115U5 P1-3: a fire returns explicit verification refusal before reading opaque dependencies', async () => {
     const diagnostics = vi.fn().mockResolvedValue([])
     const fixture = await modelBackend({
-      verify: {
-        isDiagnosticsOn: () => true,
-        checkCommands: () => [],
-        isFormatOnEdit: () => false,
-        diagnosticsAfterEdit: diagnostics,
-        formatAfterEdit: () => Promise.resolve(undefined),
-      },
+      verify: diagnosticsOnly(diagnostics),
     })
     const { run } = fixture.run({ ...fakeRunContext(), mode: 'acceptEdits' })
     fixture.api.script(
@@ -866,7 +981,7 @@ describe('scheduled Model API dispatch', () => {
       { text: 'done' },
     )
     await sendScheduledEdit(fixture, run)
-    expect(diagnostics).toHaveBeenCalledTimes(1)
+    expect(diagnostics).not.toHaveBeenCalled()
     expectCompletedFire(fixture, run)
     await fixture.host.close()
   })
@@ -914,7 +1029,7 @@ describe('scheduled Model API dispatch', () => {
     expect(fixture.api.responseBodies()).toHaveLength(3)
     expect(JSON.stringify(fixture.api.responseBodies()[2]?.['input'])).toContain('trusted summary')
     const recipe = recipes.mock.calls.find((recipe) => recipe[2] === 'cached-compaction')
-    expect(recipe?.[1]).toContain(
+    expect(recipe?.[1]?.hashes()).toContain(
       contentHash(String(fixture.api.responseBodies()[1]?.['instructions'])),
     )
     recipes.mockRestore()
@@ -1806,6 +1921,29 @@ describe('scheduled Model API dispatch', () => {
     expect(fixture.reserve).toHaveBeenCalledTimes(1)
     await fixture.host.close()
   })
+  it('RVM115U5 lazy admission: an accepted fire is active before immediate Stop', async () => {
+    const held = Promise.withResolvers<undefined>()
+    const fixture = await modelBackend({
+      beforeTurnRuns: async () => {
+        await held.promise
+        return { kind: 'off' }
+      },
+    })
+    const { run } = fixture.run()
+    const done = fixture.turnDone()
+    const submission = await fixture.session.sendScheduledTurn(
+      [{ type: 'text', text: 'Fire' }],
+      run,
+    )
+    expect(fixture.events).toContainEqual({ type: 'turnStarted', turnId: submission.turnId })
+    await fixture.session.cancel()
+    held.resolve(undefined)
+    await done
+    expect(fixture.api.responseBodies()).toHaveLength(0)
+    expect(fixture.session.getScheduledRun()).toBeUndefined()
+    await fixture.host.close()
+  })
+
   it('Stop settles a scheduled turn while deferred-question persistence remains pending', async () => {
     const fixture = await modelBackend()
     const held = Promise.withResolvers<undefined>()
@@ -1900,11 +2038,7 @@ describe('scheduled Model API dispatch', () => {
 describe('scheduled Muse Code dispatch over captured MSP frames', () => {
   it('RVM115U5 P1-1: idle before an ordinary ack cannot admit a fire or change mode', async () => {
     const fixture = await museBackend('denyUnmatched')
-    fixture.server.silence('turn/start')
-    const ordinary = fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
-    await vi.waitFor(() => {
-      expect(fixture.server.requestsFor('turn/start')).toHaveLength(1)
-    })
+    const { ordinary } = await heldOrdinaryStart(fixture)
     fixture.server.notify('session/statusChanged', {
       sessionId: fixture.session.sessionId,
       status: 'idle',
@@ -1916,6 +2050,7 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
       startedNewTurn: true,
     }))
     await ordinary
+    fixture.server.unsilence('turn/start')
     const { run } = unattendedRun()
     await expect(
       fixture.session.sendScheduledTurn([{ type: 'text', text: 'Fire' }], run),

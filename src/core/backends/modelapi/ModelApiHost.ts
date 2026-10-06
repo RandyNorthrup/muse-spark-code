@@ -1,4 +1,5 @@
-import { AsyncLocalStorage } from 'node:async_hooks'
+import type { ModelApiSchedules } from './schedulesEntry'
+import { RecordingReader, RecordingScope, type ContentRead } from '../../context/recordingReader'
 import { redactDiagnosticEvent } from '../../redact'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
@@ -9,7 +10,7 @@ import { redactDiagnosticEvent } from '../../redact'
 
 import { Buffer } from 'node:buffer'
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, rm } from 'node:fs/promises'
+import { prepareShellSidecar, removeShellSidecar } from '../../shellSidecar'
 import { homedir, tmpdir } from 'node:os'
 import type {
   AgentEvent,
@@ -29,7 +30,6 @@ import {
   BASE64_DATA_URL_OVERHEAD_CHARS,
   BROWSER_CHECK_SUBJECT_KIND,
   BROWSER_CHECK_WIDEN_SUBJECT_KIND,
-  CHECK_FIX_MAX_ROUNDS,
   type CheckCommandSetting,
   type CheckSkip,
   CLARIFICATION_MAX_CHARS,
@@ -74,7 +74,6 @@ import {
   MODEL_API_OUTPUT_MEDIA_TYPE,
   MODEL_API_PDF_PAGE_IMAGES,
   MODEL_API_RETRYABLE_STREAM_CODES,
-  MODEL_API_SCHEDULED_TOOL,
   MODEL_API_SERVER_NAME,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
@@ -89,12 +88,6 @@ import {
   type PromptCacheRetention,
   QUESTION_OUTCOME_CLARIFIED,
   REPO_MAP_PROMPT_TRIES,
-  SCHEDULE_LIFETIME_MS,
-  SCHEDULE_MAX_INTERVAL_MS,
-  SCHEDULE_MAX_JOBS_PER_SESSION,
-  SCHEDULE_MAX_PROMPT_CHARS,
-  SCHEDULE_MIN_INTERVAL_MS,
-  SCHEDULE_POLL_INTERVAL_MS,
   SEARCHES_PER_PRICE_UNIT,
   SHELL_DEFAULT_TIMEOUT_MS,
   SKILL_FILE_NAME,
@@ -118,7 +111,6 @@ import {
   USER_SHELL_TIMEOUT_MS,
   VERIFY_COMMAND_RULE_KEY,
   VERIFY_NOTE_MAX_CHARS,
-  VERIFY_SHOWN_FILES_MAX,
   VERIFY_TOOLS,
   WEB_FETCH_SUBJECT_KIND,
 } from '../../../shared/constants'
@@ -126,7 +118,7 @@ import { fill, formatNumber, plural } from '../../../shared/l10n/text'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
 import { SessionOwner, type SessionToken } from '../../schedules/sessionOwner'
 import {
-  ProvenanceLedger,
+  type ProvenanceLedger,
   contentHash,
   type ContentSource,
   type ProvenanceEntry,
@@ -141,8 +133,6 @@ import {
 } from '../../../shared/paid'
 import type { SubscriptionUsage } from '../../../shared/usage'
 import {
-  scheduleCadenceSchema,
-  scheduleViewOf,
   type ScheduleCadence,
   type ScheduledPrompt,
   type ScheduleRunConfirmation,
@@ -290,7 +280,6 @@ import {
 import { postModelCallFields, preModelCallFields } from './modelCallHooks'
 import type { HookMcpOutcome, HookModelTurn, HookModelDailyBudget } from './hookHandlers'
 import { ObservationPack, estimatePackTokens } from './observationPack'
-import { nextScheduleFire } from './schedules'
 import {
   type BudgetBase,
   type BudgetReservation,
@@ -446,7 +435,6 @@ import { isCodeLoading } from '../../verify/codeFiles'
 import {
   DiagnosticsHistory,
   type EditedFile,
-  type FileDiagnostics,
   type PendingReport,
 } from '../../verify/diagnosticsReport'
 
@@ -665,15 +653,9 @@ const NO_PERMISSION_SETTINGS: PermissionSettings = {
 /** A request before its prompt-cache fields are added (M56). */
 type UnkeyedBody = Omit<CreateResponseBody, 'prompt_cache_key' | 'prompt_cache_retention'>
 
-interface ContentRead {
-  readonly bytes: string | Uint8Array
-  readonly source: ContentSource
-}
 interface ContentOrigin {
   readonly source: ContentSource
-  readonly inputs: readonly ContentRead[]
-  readonly derivedFrom?: readonly string[]
-  readonly hasCompleteInputs: boolean
+  readonly scope: RecordingScope | undefined
 }
 
 interface ReplayItem {
@@ -820,7 +802,7 @@ const GOAL_REFUSAL_REASONS: Readonly<Record<GoalRefusal, string>> = {
 // The verbs that wake the agent when they leave the goal active (MSP's wake gate).
 const GOAL_WAKING_VERBS: ReadonlySet<GoalCommandVerb> = new Set(['set', 'edit', 'resume'])
 
-interface ActiveTurn {
+export interface ActiveTurn {
   scheduleRun?: UnattendedRun
   /** Immutable evidence of content already sent before this fire took authority. */
   scheduleLedger?: ProvenanceLedger
@@ -981,7 +963,7 @@ function checkScope(check: CheckCommandSetting, files: readonly EditedFile[]): C
 }
 
 /** What the user's tool hooks said about the commands a step ran (M68). */
-interface HookEffects {
+export interface HookEffects {
   readonly contexts: string[]
   readonly messages: string[]
   stopReason: string | undefined
@@ -1945,10 +1927,10 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly providerTurns = new Set<string>()
   private readonly sentContent = new Map<string, ProvenanceEntry>()
   private readonly contentOrigins = new Map<string, ContentOrigin>()
-  private readonly contentReads = new AsyncLocalStorage<ContentRead[]>()
-  private readonly memoryMaterial = new Map<string, ContentSource>()
+  private readonly contentReads = new RecordingReader()
+  private instructionScope: RecordingScope | undefined
+  private mediaScope: RecordingScope | undefined
   private readonly editContent = new Map<string, string>()
-  private isLoadingContextMemory = false
   private readonly withheldChildResults = new WeakSet<UnattendedRun>()
   private readonly transcript: TranscriptItem[] = []
   private readonly turnIds: string[] = []
@@ -2132,7 +2114,6 @@ export class ModelApiSession implements ScheduledAgentSession {
   private goalCommandRevision = 0
   /** Model calls since the goal last moved: the step probe's count (D38). */
   private goalSteps = 0
-  private scheduleTimer: ReturnType<typeof setInterval> | undefined
   private usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
   /**
    * Dollars this conversation spent at list price (M82), kept with the
@@ -2167,6 +2148,9 @@ export class ModelApiSession implements ScheduledAgentSession {
   private isDisposed = false
   /** The surfaces holding this session: closing one must not cancel another's turn. */
   private holders = 1
+  private scheduleLedgerFactory:
+    ((preFire: Iterable<ProvenanceEntry>) => ProvenanceLedger) | undefined
+  private scheduleRuntime: Promise<ModelApiSchedules> | undefined
   private readonly scheduledClient: ModelApiClient
   public readonly schedules?: {
     create: (cadence: ScheduleCadence, prompt: string) => Promise<ScheduledPrompt>
@@ -2219,7 +2203,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.deps = {
       ...deps,
       io: this.scheduledIo(deps.io),
-      contextIo: {
+      contextIo: this.contentReads.context({
         ...deps.contextIo,
         ...(deps.contextIo.readSource !== undefined && {
           readSource: this.guardWorkspaceIo(deps.contextIo.readSource.bind(deps.contextIo), 'mcp'),
@@ -2229,7 +2213,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           deps.contextIo.listDirectory.bind(deps.contextIo),
           'mcp',
         ),
-      },
+      }),
       memory: deps.memory?.withIo((io) => ({
         ...io,
         ...this.guardedMemoryWrites(io),
@@ -2241,10 +2225,10 @@ export class ModelApiSession implements ScheduledAgentSession {
               source = captured
               observe?.(captured)
             })
-            if (text !== undefined && this.isLoadingContextMemory) {
-              this.memoryMaterial.set(
-                text,
-                source ?? {
+            if (text !== undefined)
+              this.contentReads.capture({
+                bytes: text,
+                source: source ?? {
                   kind: 'file',
                   contentHash: contentHash(text),
                   file: {
@@ -2255,13 +2239,29 @@ export class ModelApiSession implements ScheduledAgentSession {
                     mtime: '0',
                   },
                 },
-              )
-            }
+              })
             return text
           },
           'mcp',
         ),
-        listEntries: this.guardWorkspaceIo(io.listEntries.bind(io), 'mcp'),
+        listEntries: this.guardWorkspaceIo(async (path: string) => {
+          const entries = await io.listEntries(path)
+          const bytes = JSON.stringify(entries)
+          this.contentReads.capture({
+            bytes,
+            source: {
+              kind: 'directory',
+              paths: await Promise.all(
+                entries.map(async (entry) => {
+                  const canonical = await io.realPath(path.replaceAll('\\', '/') + '/' + entry.name)
+                  return canonical.replaceAll('\\', '/')
+                }),
+              ),
+              contentHash: contentHash(bytes),
+            },
+          })
+          return entries
+        }, 'mcp'),
       })),
     }
     this.owner = new SessionOwner(approvalMode)
@@ -2296,13 +2296,20 @@ export class ModelApiSession implements ScheduledAgentSession {
         memory === undefined
           ? undefined
           : async () => {
-              this.isLoadingContextMemory = true
-              try {
-                return await memory.snapshot()
-              } finally {
-                this.isLoadingContextMemory = false
-              }
+              const recorded = await this.contentReads.run(async () => await memory.snapshot())
+              for (const snapshot of recorded.value)
+                this.contentOrigins.set(contentHash(JSON.stringify(snapshot)), {
+                  source: { kind: 'harness', operation: 'memory-snapshot' },
+                  scope: recorded.scope,
+                })
+              return recorded.value
             },
+      recordDerived: (bytes, scope) => {
+        this.contentOrigins.set(contentHash(bytes), {
+          source: { kind: 'harness', operation: 'workspace-context' },
+          scope,
+        })
+      },
       warn: (message) => {
         deps.log.warn(`Workspace context: ${message}`)
       },
@@ -2311,10 +2318,22 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.lastActivityAt = this.createdAt
     if (deps.store !== undefined && deps.scheduleStore !== undefined) {
       this.schedules = {
-        create: (cadence, prompt) => this.createSchedule(cadence, prompt),
-        list: () => this.listSchedules(),
-        cancel: (id) => this.cancelSchedule(id),
-        run: (id, occurrenceMs, confirmed) => this.runSchedule(id, occurrenceMs, confirmed),
+        create: async (cadence, prompt) => {
+          const schedules = await this.loadSchedules()
+          return await schedules.createSchedule(cadence, prompt)
+        },
+        list: async () => {
+          const schedules = await this.loadSchedules()
+          return await schedules.listSchedules()
+        },
+        cancel: async (id) => {
+          const schedules = await this.loadSchedules()
+          return await schedules.cancelSchedule(id)
+        },
+        run: async (id, occurrenceMs, confirmed) => {
+          const schedules = await this.loadSchedules()
+          return await schedules.runSchedule(id, occurrenceMs, confirmed)
+        },
       }
     }
   }
@@ -2876,13 +2895,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       return
     }
     try {
-      const inputs: ContentRead[] = []
-      let isInputsComplete = true
       const root = await deps.io.realPath(deps.workspaceRoot)
       const p = pathModule(deps.platform)
-      const text = await this.contentReads.run(
-        inputs,
-        async () =>
+      const recorded = await this.contentReads.run(
+        async (reader) =>
           await repoMapSection(
             {
               ...deps,
@@ -2894,14 +2910,9 @@ export class ModelApiSession implements ScheduledAgentSession {
                     if (bareName(symbol) !== name || symbol.location.path === undefined) continue
                     const canonical = await deps.io.realPath(symbol.location.path)
                     if (!isBelow(p.relative(root, canonical), p)) continue
-                    const captured = inputs.find(
-                      (input) =>
-                        input.source.kind === 'file' &&
-                        input.source.file.path.replaceAll('\\', '/') ===
-                          canonical.replaceAll('\\', '/'),
-                    )
-                    if (captured === undefined) isInputsComplete = false
-                    else inputs.push({ bytes: JSON.stringify(symbol), source: captured.source })
+                    const captured = reader.sourceFor(canonical)
+                    if (captured === undefined) reader.unrecordable()
+                    else reader.read(symbol, JSON.stringify(symbol), captured)
                   }
                   return symbols
                 },
@@ -2912,15 +2923,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       )
       if (!signal.aborted) {
         this.repoMapTries += 1
-        this.repoMapText = text
-        if (text !== undefined)
-          this.contentOrigins.set(contentHash(text), {
+        this.repoMapText = recorded.value
+        if (recorded.value !== undefined)
+          this.contentOrigins.set(contentHash(recorded.value), {
             source: { kind: 'harness', operation: 'repo-map' },
-            inputs: Array.from(
-              new Map(inputs.map((input) => [contentHash(input.bytes), input])),
-              ([, input]) => input,
-            ),
-            hasCompleteInputs: isInputsComplete,
+            scope: recorded.scope,
           })
       }
     } catch (error: unknown) {
@@ -2934,7 +2941,17 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** Never throws: a describer that fails leaves the section at "no git". */
   private async loadEnvironment(): Promise<EnvironmentFacts> {
     try {
-      return await this.deps.describeEnvironment()
+      const recorded = await this.contentReads.run(
+        async () => await this.deps.describeEnvironment(),
+      )
+      if (recorded.value.git !== undefined) {
+        const bytes = JSON.stringify({ git: recorded.value.git })
+        this.contentOrigins.set(contentHash(bytes), {
+          source: { kind: 'harness', operation: 'git-facts' },
+          scope: recorded.value.recording,
+        })
+      }
+      return recorded.value
     } catch (error: unknown) {
       this.deps.log.warn(`The environment could not be described: ${describe(error)}`)
       return NO_ENVIRONMENT
@@ -3295,8 +3312,40 @@ export class ModelApiSession implements ScheduledAgentSession {
     readonly instructions: string
     readonly tools: readonly ToolDefinition[]
   } {
-    const context = this.context.sections()
+    const recorded = RecordingScope.build((reader) => {
+      reader.read(
+        'instruction-scaffolding',
+        'instruction-scaffolding',
+        { kind: 'harness', operation: 'instructions' },
+        false,
+      )
+      return this.recordedPromptAndTools(reader, today, hasPackedRecall)
+    })
+    this.instructionScope = recorded.scope
+    return recorded.value
+  }
+
+  private recordedPromptAndTools(
+    reader: RecordingScope,
+    today: string,
+    hasPackedRecall: boolean,
+  ): {
+    readonly instructions: string
+    readonly tools: readonly ToolDefinition[]
+  } {
+    const isReview = this.isReviewing()
+    const context = this.context.sections(
+      reader,
+      !isReview && this.isAgentCatalogueOffered(),
+      !isReview && this.toolFlags().hasMemory,
+      !isReview,
+    )
     const environment = this.environment ?? NO_ENVIRONMENT
+    if (environment.git !== undefined)
+      reader.read(environment, JSON.stringify({ git: environment.git }), {
+        kind: 'harness',
+        operation: 'git-facts',
+      })
     if (this.isReviewing()) {
       const tools = this.reviewerTools()
       return {
@@ -3315,8 +3364,25 @@ export class ModelApiSession implements ScheduledAgentSession {
     const flags = this.toolFlags()
     const { hasShell, hasMemory } = flags
     const goalSection = goalInstructions(this.goal, this.goalSteps)
+    if (goalSection !== undefined)
+      reader.read(goalSection, goalSection, { kind: 'harness', operation: 'goal-context' })
     const repoMap = this.promptRepoMap()
+    if (repoMap !== undefined)
+      reader.read(repoMap, repoMap, { kind: 'harness', operation: 'repo-map' })
     const role = this.agentRole()
+    if (role !== undefined)
+      reader.read(role, JSON.stringify({ id: role.id, prompt: role.prompt }), {
+        kind: 'harness',
+        operation: 'agent-role',
+      })
+    const checks = this.canRunVerifyCommands() ? this.checkCommands() : []
+    if (checks.length > 0)
+      reader.read(
+        checks,
+        JSON.stringify(checks),
+        { kind: 'harness', operation: 'verify-settings' },
+        false,
+      )
     return {
       instructions: instructionsFor({
         workspaceRoot: this.deps.workspaceRoot,
@@ -3339,7 +3405,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         },
         verify: {
           isDiagnosticsOn: this.deps.verify?.isDiagnosticsOn() === true,
-          checks: this.canRunVerifyCommands() ? this.checkCommands() : [],
+          checks,
         },
         ...(repoMap !== undefined && { repoMap }),
         // Pinned while the goal is active (M45, PLAN.md D38).
@@ -3353,11 +3419,19 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   private body(): CreateResponseBody {
     this.drainChildResults()
-    const fitted = this.budget.fit(this.replay.map((entry) => entry.item))
-    // Packing projects per request only: the replay keeps the originals, so
-    // a later request (or a restore) packs from the full outputs again.
-    // Reviewer tools cannot recall packed output: retain the full observations.
-    const input = this.isReviewing() ? fitted : (this.packing?.project(fitted) ?? fitted)
+    const recorded = RecordingScope.build((reader) => {
+      const original = this.replay.map((entry) =>
+        reader.read(entry.item, JSON.stringify(entry.item), {
+          kind: 'harness',
+          operation: 'media-input',
+        }),
+      )
+      const fitted = this.budget.fit(original)
+      // Packing and fitting consume the same exact replay snapshot.
+      return this.isReviewing() ? fitted : (this.packing?.project(fitted) ?? fitted)
+    })
+    this.mediaScope = recorded.scope
+    const input = recorded.value
     if (this.budget.omitted && !this.mediaNoticeSent) {
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.olderMediaOmitted })
       this.mediaNoticeSent = true
@@ -3407,11 +3481,16 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (currentIndex === -1) {
         continue
       }
+      const recorded = RecordingScope.build((reader) =>
+        reader.read(entry.item, JSON.stringify(entry.item), {
+          kind: 'harness',
+          operation: 'media-input',
+        }),
+      )
       this.active?.scheduleLedger?.derive(
         JSON.stringify(fitted),
-        [contentHash(JSON.stringify(entry.item))],
+        recorded.scope,
         'durable-media-fit',
-        true,
       )
       this.replay[currentIndex] = { ...entry, item: fitted }
       // Any tracked media not sent was replaced by budget text, so it has no
@@ -3746,7 +3825,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     })
   }
 
-  private noteSent(bytes: string, source?: ContentSource): void {
+  private noteSent(bytes: string | Uint8Array, source?: ContentSource): void {
     const hash = contentHash(bytes)
     this.sentContent.set(hash, {
       hash,
@@ -4371,46 +4450,21 @@ export class ModelApiSession implements ScheduledAgentSession {
     run: UnattendedRun | undefined,
     source: ContentSource,
     isOpaque = false,
-    inputs: readonly ContentRead[] = [],
+    scope?: RecordingScope,
     decisionId?: string,
   ): void {
     const bytes = JSON.stringify(entry.item)
-    this.contentOrigins.set(contentHash(bytes), { source, inputs, hasCompleteInputs: !isOpaque })
+    this.contentOrigins.set(contentHash(bytes), { source, scope: isOpaque ? undefined : scope })
     const ledger = run === this.active?.scheduleRun ? this.active?.scheduleLedger : undefined
     if (isOpaque) ledger?.opaque(bytes, source.kind === 'tool' ? source.callId : undefined)
     else ledger?.decided(bytes, source, decisionId ?? entry.turnId)
   }
 
-  private instructionMaterial(): readonly {
-    bytes: string
-    source: ContentSource
-    isFullyShown?: boolean
-  }[] {
-    const isReview = this.isReviewing()
-    const hasMemory = !isReview && this.toolFlags().hasMemory
-    const repoMap = isReview ? undefined : this.promptRepoMap()
-    return [
-      ...(repoMap === undefined
-        ? []
-        : [{ bytes: repoMap, source: { kind: 'harness', operation: 'repo-map' } as const }]),
-      ...this.context.instructionMaterial(
-        !isReview && this.isAgentCatalogueOffered(),
-        hasMemory,
-        !isReview,
-      ),
-      ...(hasMemory
-        ? [...this.memoryMaterial].map(([bytes, source]) => ({
-            bytes,
-            source,
-            isFullyShown: this.context
-              .sections()
-              .memory.some((snapshot) => snapshot.index?.includes(bytes) === true),
-          }))
-        : []),
-    ]
+  private instructionMaterial(): readonly ContentRead[] {
+    return this.instructionScope?.inventory() ?? []
   }
 
-  /** Checks exact replay/request bytes; cached sources never resolve a new alias. */
+  /** Fire-only traversal loads after the synchronous owner has admitted it. */
   private async checkScheduledReplay(run: UnattendedRun, body: CreateResponseBody): Promise<void> {
     const turn = this.active
     const ledger = turn?.scheduleLedger
@@ -4422,99 +4476,22 @@ export class ModelApiSession implements ScheduledAgentSession {
       !run.isActive()
     )
       throw new AbortedError()
-    const refuse = (): never => {
-      throw new Error(
-        run.refuse(
-          {
-            id: this.deps.newId(),
-            class: 'requiresAsking',
-            tool: 'replay',
-            paths: [],
-            requiresAsking: true,
-            protectedPath: false,
-          },
-          run.modelText.requiresAskingRefused,
-        ),
-      )
-    }
-    const canUseSource = async (input: ContentRead): Promise<boolean> => {
-      if (ledger.allows(input.bytes)) return true
-      const id = this.deps.newId()
-      const decision = await run.decideSource(input.source, id)
-      if (!decision.allowed || (input.source.kind !== 'file' && input.source.kind !== 'skill'))
-        return false
-      const hash = ledger.decidedSource(input.source, id)
-      ledger.derive(input.bytes, [hash], 'cached-source', true)
-      return ledger.allows(input.bytes)
-    }
-    const canUseCached = async (bytes: string): Promise<boolean> => {
-      if (ledger.allows(bytes)) return true
-      const origin = this.contentOrigins.get(contentHash(bytes))
-      if (!origin?.hasCompleteInputs) return false
-      if (origin.derivedFrom !== undefined) {
-        ledger.derive(bytes, origin.derivedFrom, 'cached-compaction', origin.hasCompleteInputs)
-        return ledger.allows(bytes)
-      }
-      if (origin.inputs.length === 0) return false
-      for (const input of origin.inputs) if (!(await canUseSource(input))) return false
-      ledger.derive(
-        bytes,
-        origin.inputs.map((input) => contentHash(input.bytes)),
-        origin.source.kind === 'harness' && origin.source.operation === 'repo-map'
-          ? 'cached-repo-map'
-          : 'cached-tool-output',
-        origin.hasCompleteInputs,
-      )
-      return ledger.allows(bytes)
-    }
-    const material = this.instructionMaterial()
-    for (const input of material) {
-      if (ledger.allows(input.bytes)) continue
-      if (
-        !(input.source.kind === 'harness'
-          ? await canUseCached(input.bytes)
-          : await canUseSource(input))
-      )
-        refuse()
-    }
-    // Dynamic dates/goal/tool scaffolding are generated by the trusted harness;
-    // every cached context input retains its independent original-byte evidence.
-    const scaffold = ledger.decided(
-      'instruction-scaffolding',
-      { kind: 'harness', operation: 'instructions' },
-      turn.turnId,
-    )
-    ledger.derive(
-      body.instructions,
-      [scaffold, ...material.map((input) => contentHash(input.bytes))],
-      'instruction-refresh',
-      true,
-    )
-    for (const entry of this.replay) {
-      const bytes = JSON.stringify(entry.item)
-      if (ledger.allows(bytes)) continue
-      if (!(await canUseCached(bytes))) return refuse()
-    }
-    // Fitting/packing are projections of these exact replay bytes. A transform
-    // of an unproved source never becomes allowed just because it is new.
-    for (const [index, item] of body.input.entries()) {
-      const original = this.replay[index]
-      const bytes = JSON.stringify(item)
-      if (original === undefined) {
-        if (ledger.allows(bytes)) continue
-        return refuse()
-      }
-      if (bytes !== JSON.stringify(original.item))
-        ledger.derive(
-          bytes,
-          [contentHash(JSON.stringify(original.item))],
-          'media-fit/packing',
-          true,
-        )
-      if (!ledger.allows(bytes)) refuse()
-    }
-    if (!ledger.allows(body.instructions) || this.active !== turn || !run.isActive())
-      throw new AbortedError()
+    const entry = await import('./schedulesEntry.js')
+    await entry.checkScheduledReplay({
+      run,
+      body,
+      ledger,
+      origins: this.contentOrigins,
+      material: this.instructionMaterial(),
+      instructionScope: this.instructionScope,
+      mediaScope: this.mediaScope,
+      replay: this.replay,
+      turnId: turn.turnId,
+      newId: this.deps.newId,
+      abortError: () => new AbortedError(),
+      isCurrent: () =>
+        this.active === turn && this.owner.matches(turn.scheduleToken ?? this.owner.token()),
+    })
   }
 
   /** One model call's stream, applied to the transcript. */
@@ -5724,12 +5701,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.replay.push(replay)
     const run = this.getScheduledRun()
     const ledger = run === this.active?.scheduleRun ? this.active?.scheduleLedger : undefined
-    ledger?.derive(
-      JSON.stringify(replay.item),
-      files.map((file) => contentHash(JSON.stringify(file.part))),
-      'read-file-media',
-      true,
-    )
+    const recorded = RecordingScope.build((reader) => {
+      for (const file of files)
+        reader.read(file.part, JSON.stringify(file.part), {
+          kind: 'harness',
+          operation: 'read-file-part',
+        })
+    })
+    ledger?.derive(JSON.stringify(replay.item), recorded.scope, 'read-file-media')
     if (pending.length > 0) {
       this.readFileMessages.set(replay, pending)
     }
@@ -6228,7 +6207,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     if (!this.shellSidecarMade) {
       try {
-        await mkdir(p.dirname(sideFile), { recursive: true })
+        await prepareShellSidecar(p.dirname(sideFile))
       } catch (error: unknown) {
         // Nowhere to report to: the command still runs at the root, as before.
         this.deps.log.warn(`The shell's directory tracking is off: ${describe(error)}`)
@@ -6522,15 +6501,21 @@ export class ModelApiSession implements ScheduledAgentSession {
     expected?: string,
   ): Promise<Result> {
     await this.workspaceAccess(path, 'mcp')
-    const canonical = expected ?? (await this.deps.io.realPath(path))
     let source: ContentSource | undefined
     const bytes = await operation((captured) => {
       source = captured
     })
-    if (bytes !== undefined)
-      this.contentReads.getStore()?.push({
-        bytes: typeof bytes === 'string' ? bytes : Buffer.from(bytes),
-        source: source ?? {
+    if (bytes !== undefined) {
+      if (source === undefined) {
+        let canonical: string
+        try {
+          canonical = expected ?? (await this.deps.io.realPath(path))
+        } catch {
+          // Preserve ordinary I/O behavior without certifying an unknown source.
+          this.contentReads.unrecordable()
+          return bytes
+        }
+        source = {
           kind: 'file',
           contentHash: contentHash(bytes),
           file: {
@@ -6540,8 +6525,10 @@ export class ModelApiSession implements ScheduledAgentSession {
             size: typeof bytes === 'string' ? Buffer.byteLength(bytes) : bytes.length,
             mtime: '0',
           },
-        },
-      })
+        }
+      }
+      this.contentReads.capture({ bytes, source })
+    }
     return bytes
   }
 
@@ -6624,6 +6611,22 @@ export class ModelApiSession implements ScheduledAgentSession {
             if (this.getScheduledRun()?.isActive() === false) throw new AbortedError()
           }
         }
+        const bytes = JSON.stringify(allowed)
+        this.contentReads.capture({
+          bytes,
+          source: {
+            kind: 'directory',
+            paths: await Promise.all(
+              allowed.map(async (name) => {
+                const canonical = await io.realPath(
+                  pathModule(this.deps.platform).resolve(this.deps.workspaceRoot, name),
+                )
+                return canonical.replaceAll('\\', '/')
+              }),
+            ),
+            contentHash: contentHash(bytes),
+          },
+        })
         return allowed
       },
       searchFiles: async (job) => {
@@ -9892,7 +9895,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     status: string,
     run?: UnattendedRun,
     decisionId?: string,
-    inputs: readonly ContentRead[] = [],
+    scope?: RecordingScope,
   ): ReplayItem {
     const { itemId } = started
     const outputRef = outcome.patch === undefined ? undefined : `${OUTPUT_REF_PREFIX}${itemId}`
@@ -9931,7 +9934,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       source.kind === 'tool' &&
       (outcome.touched?.complete !== true || outcome.touched.names.length === 0)
     if (decisionId !== undefined) this.active?.scheduleLedger?.decideTool(call.call_id)
-    this.recordContent(replay, run, source, isOpaque, inputs, decisionId)
+    this.recordContent(replay, run, source, isOpaque, scope, decisionId)
     const touchedNames = outcome.touched?.names ?? []
     if (outcome.failureReason === undefined)
       for (const name of touchedNames)
@@ -9948,7 +9951,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (outcome.visibleFile !== undefined) {
       this.readFiles.push(outcome.visibleFile)
       const bytes = JSON.stringify(outcome.visibleFile.part)
-      this.contentOrigins.set(contentHash(bytes), { source, inputs, hasCompleteInputs: !isOpaque })
+      this.contentOrigins.set(contentHash(bytes), { source, scope: isOpaque ? undefined : scope })
       if (decisionId !== undefined && run === this.active?.scheduleRun)
         this.active?.scheduleLedger?.decided(bytes, source, decisionId)
     }
@@ -10114,24 +10117,28 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.recordTranscript(turnId, started)
     this.emit({ type: 'itemStarted', item: started })
     const slot: AdmissionSlot = {}
-    const reads: ContentRead[] = []
+    let reads: RecordingScope | undefined
     let result: CallResult
     try {
-      result =
-        pre.blockedReason === undefined
-          ? await this.contentReads.run(reads, () =>
-              this.decideAndRun(
-                turnId,
-                itemId,
-                effectiveCall,
-                signal,
-                goalCommandRevision,
-                slot,
-                isInteractiveShell,
-                pre.forceApproval,
-              ),
-            )
-          : { outcome: toolFailure(pre.blockedReason), isRejected: true }
+      if (pre.blockedReason === undefined) {
+        const recorded = await this.contentReads.run(
+          async () =>
+            await this.decideAndRun(
+              turnId,
+              itemId,
+              effectiveCall,
+              signal,
+              goalCommandRevision,
+              slot,
+              isInteractiveShell,
+              pre.forceApproval,
+            ),
+        )
+        reads = recorded.scope
+        result = recorded.value
+      } else {
+        result = { outcome: toolFailure(pre.blockedReason), isRejected: true }
+      }
     } catch (error: unknown) {
       if (error instanceof AbortedError || signal.aborted) {
         this.finishCall(
@@ -10494,7 +10501,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.owner.admitted(token, turn.turnId)
         turn.scheduleRun = scheduleRun
         turn.scheduleToken = this.owner.token()
-        turn.scheduleLedger = new ProvenanceLedger(this.sentContent.values())
+        turn.scheduleLedger = this.newScheduleLedger()
         turn.schedulePermissions = new PermissionEngine(mspApprovalMode(scheduleRun.context.mode))
         turn.confirmedRequest = confirmedRequest
       }
@@ -10634,239 +10641,59 @@ export class ModelApiSession implements ScheduledAgentSession {
    * returned.
    */
   private async verifyRound(turn: ActiveTurn, isLastRound: boolean): Promise<string | undefined> {
-    const admission = this.verificationAdmission(turn.abort.signal)
-    const edited = this.ledger.takeRoundEdits()
-    const wasTrusted = this.deps.isWorkspaceTrusted()
-    // Filtering denied files out of lookup must not authorize checks over the revoked edit.
-    const isAllowed: CallAdmission = (canRunDetached) =>
-      admission(canRunDetached) && this.verificationAllowed(edited, undefined, wasTrusted)
-    const { verify } = this.deps
-    const { signal } = turn.abort
-    if (verify === undefined || isAbortRequested(signal)) {
+    if (this.deps.verify === undefined || turn.abort.signal.aborted) {
+      this.ledger.takeRoundEdits()
       return undefined
     }
-    if (isLastRound || edited.length === 0) {
-      // The round's runs are judged, edits or not (the Codex review of PR #54).
-      if (this.ledger.judgeRound()) {
-        this.noteFixLoopStopped(turn.turnId, [])
-      }
-      return undefined
-    }
-    const isDiagnosticsOn = verify.isDiagnosticsOn()
-    // Restricted Mode runs no shell (D13): the checks are left out, not refused
-    // one by one. A check already run on the latest state of what it covers
-    // (by run_checks, or an edit's then_run of its command) is not run again.
-    const selectedChecks =
-      this.ledger.isStopped || !this.deps.isWorkspaceTrusted()
-        ? []
-        : verify
-            .checkCommands()
-            .filter(
-              (check) =>
-                !this.ledger.isRejected(check.name) &&
-                !this.ledger.hasCurrentRun(check.name, checkScope(check, edited)),
-            )
-    const canRunChecks = this.canRunVerifyCommands()
-    const checks = canRunChecks ? selectedChecks : []
-    const refusedChecks = canRunChecks
-      ? []
-      : selectedChecks.map((check) =>
-          skippedCheck(check, 'refused', MODEL_API_MODEL_TEXT.agentToolNotOffered),
-        )
-    if (!isDiagnosticsOn && selectedChecks.length === 0) {
-      if (this.ledger.judgeRound()) {
-        this.noteFixLoopStopped(turn.turnId, [])
-      }
-      return undefined
-    }
-    for (const file of edited) await this.workspaceAccess(file.absolute, 'mcp')
-    const paths = edited.map((file) => file.relative)
-    const parts = (isDiagnosticsOn ? 1 : 0) + selectedChecks.length
-    const share = Math.floor(VERIFY_NOTE_MAX_CHARS / Math.max(parts, 1))
-    const started: ItemSnapshot = {
-      itemId: this.deps.newId(),
-      kind: 'toolCall',
-      status: IN_PROGRESS,
-      turnId: turn.turnId,
-      tool: VERIFY_TOOLS.verifyEdits,
-      args: JSON.stringify({ paths }),
-    }
-    this.recordTranscript(turn.turnId, started)
-    this.emit({ type: 'itemStarted', item: started })
-    const effects = newHookEffects()
-    let pending: PendingReport | undefined
-    let runs: readonly CheckRun[]
-    try {
-      pending = isDiagnosticsOn
-        ? await this.editDiagnostics(verify, edited, signal, share, isAllowed)
-        : undefined
-      // Looked up after the language servers' wait, so a file gone by now is not passed.
-      const existing =
-        checks.length === 0 || !isAllowed() ? [] : await this.existingFiles(edited, isAllowed)
-      runs = isAllowed()
-        ? [
-            ...refusedChecks,
-            ...(await this.runChecks(
-              started.itemId,
-              checks,
-              existing,
-              signal,
-              effects,
-              share,
-              isAllowed,
-            )),
-          ]
-        : selectedChecks.map((check) =>
-            skippedCheck(check, 'refused', MODEL_API_MODEL_TEXT.verifyAccessRefused),
-          )
-      if (isAbortRequested(signal)) {
-        throw new AbortedError()
-      }
-      if (!isAllowed()) {
-        pending = this.refusedDiagnostics(edited)
-        runs = runs.map((run) => ({
-          summary: {
-            name: run.summary.name,
-            outcome: run.summary.outcome,
-            ...(run.summary.skip !== undefined && { skip: run.summary.skip }),
-          },
-          text: MODEL_API_MODEL_TEXT.verifyAccessRefused,
-        }))
-      }
-    } catch (error: unknown) {
-      const isStopped = error instanceof AbortedError || isAbortRequested(signal)
-      const ended: ItemSnapshot = {
-        ...started,
-        status: isStopped ? CANCELLED : FAILED,
-        ...(!isStopped && { failureReason: describe(error) }),
-      }
-      this.emit({ type: 'itemCompleted', item: ended })
-      this.rerecordTranscript(ended)
-      throw isStopped ? new AbortedError() : error
-    }
-    const report = pending?.report
-    const sections = [
-      ...(report === undefined ? [] : [report.text]),
-      ...(runs.length === 0 ? [] : [checksSection(runs)]),
-    ]
-    const completed: ItemSnapshot = {
-      ...started,
-      status: COMPLETED,
-      visibleOutput: sections.join('\n\n'),
-      verifySummary: {
-        files: paths,
-        ...(report?.errors !== undefined && { errors: report.errors }),
-        ...(report?.warnings !== undefined && { warnings: report.warnings }),
-        ...(report?.unchecked !== undefined && { unchecked: report.unchecked }),
-        checks: runs.map((run) => run.summary),
+    if (!this.ledger.needsRoundVerification()) return undefined
+    const entry = await import('./schedulesEntry.js')
+    entry.installLanguage(UI_TEXT, uiLocale())
+    return await entry.verifyRound(
+      {
+        deps: this.deps,
+        ledger: this.ledger,
+        scheduleLedger: turn.scheduleLedger,
+        text: MODEL_API_MODEL_TEXT,
+        replay: this.replay,
+        contentOrigins: this.contentOrigins,
+        diagnosticsHistory: this.diagnosticsHistory,
+        checkScope,
+        newEffects: newHookEffects,
+        verificationAdmission: (signal) => this.verificationAdmission(signal),
+        verificationAllowed: (edited, wasTrusted) =>
+          this.verificationAllowed(edited, undefined, wasTrusted),
+        canRunVerifyCommands: () => this.canRunVerifyCommands(),
+        workspaceAccess: (path) => this.workspaceAccess(path, 'mcp'),
+        existingFiles: (files, isAllowed) => this.existingFiles(files, isAllowed),
+        runChecks: (...args) => this.runChecks(...args),
+        refusedDiagnostics: (files) => this.refusedDiagnostics(files),
+        isDenied: (names) => this.policy().files.isDenied(names),
+        emit: (event) => {
+          this.emit(event)
+        },
+        recordTranscript: (turnId, item) => {
+          this.recordTranscript(turnId, item)
+        },
+        rerecordTranscript: (item) => {
+          this.rerecordTranscript(item)
+        },
+        appendHookEffects: (turnId, effects) => {
+          this.appendHookEffects(turnId, effects)
+        },
+        abortError: () => new AbortedError(),
+        isAbortError: (error) => error instanceof AbortedError,
+        unlessStopped,
+        skippedCheck,
+        checksSection,
       },
-    }
-    this.emit({ type: 'itemCompleted', item: completed })
-    this.rerecordTranscript(completed)
-    if (this.ledger.judgeRound()) {
-      this.noteFixLoopStopped(turn.turnId, sections)
-    } else {
-      this.appendVerificationNote(
-        turn.turnId,
-        [MODEL_API_MODEL_TEXT.verifyLead, ...sections].join('\n\n'),
-        edited.map((file) => file.absolute),
-      )
-    }
-    // The model has the reads now: they become the baseline of the next check.
-    pending?.commit()
-    this.appendHookEffects(turn.turnId, effects)
-    return effects.stopReason
-  }
-
-  /** The verify note with the fix loop's stop at its end, and the panel's notice (M68). */
-  private noteFixLoopStopped(turnId: string, sections: readonly string[]): void {
-    const stopped = fill(MODEL_API_MODEL_TEXT.checksStopped, {
-      count: String(CHECK_FIX_MAX_ROUNDS),
-    })
-    this.appendVerificationNote(
-      turnId,
-      [MODEL_API_MODEL_TEXT.verifyLead, ...sections, stopped].join('\n\n'),
-      [...this.editContent].map(([file]) => file),
+      turn,
+      isLastRound,
     )
-    this.emit({
-      type: 'backendNotice',
-      level: 'warning',
-      text: plural(UI_TEXT.checksStoppedNotice, CHECK_FIX_MAX_ROUNDS),
-    })
-  }
-
-  private appendVerificationNote(turnId: string, text: string, paths: readonly string[]): void {
-    const entry: ReplayItem = { turnId, item: noteItem(text) }
-    const inputs = paths.map((path) => this.editContent.get(path.replaceAll('\\', '/')) ?? '')
-    const ledger = this.active?.scheduleLedger
-    if (inputs.length === 0)
-      inputs.push(
-        ledger?.decided(
-          MODEL_API_MODEL_TEXT.verifyLead,
-          { kind: 'harness', operation: 'verification-control' },
-          turnId,
-        ) ?? '',
-      )
-    ledger?.derive(JSON.stringify(entry.item), inputs, 'verification-note', true)
-    this.replay.push(entry)
   }
 
   /** What the checks' hooks added, after the verify note: their contexts, then their reasons. */
   private appendHookEffects(turnId: string, effects: HookEffects): void {
     this.appendHookContexts(turnId, [...effects.contexts, ...effects.messages])
-  }
-
-  /**
-   * The edited files' diagnostics, compared with their previous check (M68).
-   * At most VERIFY_SHOWN_FILES_MAX files are shown and read, none once the
-   * conversation wrote a file the editor's tools run as code (the M68
-   * review); the others are "not checked" with the reason. Diagnostics that
-   * cannot be read at all are said so, to the model and the log, rather than
-   * reported clean.
-   */
-  private async editDiagnostics(
-    verify: VerifyHooks,
-    edited: readonly EditedFile[],
-    signal: AbortSignal,
-    maxChars: number,
-    isAllowed: () => boolean,
-  ): Promise<PendingReport> {
-    const canReadFile = (file: EditedFile) =>
-      isAllowed() && !this.policy().files.isDenied([file.relative, file.absolute])
-    if (edited.some((file) => !canReadFile(file))) return this.refusedDiagnostics(edited)
-    const { codeFile } = this.ledger
-    const shown = codeFile === undefined ? edited.slice(0, VERIFY_SHOWN_FILES_MAX) : []
-    const skipped: FileDiagnostics[] = edited.slice(shown.length).map((file) => ({
-      file,
-      entries: [],
-      unchecked: codeFile === undefined ? 'tooMany' : 'codeLoading',
-    }))
-    let read: readonly FileDiagnostics[] = []
-    if (shown.length > 0) {
-      try {
-        read = await unlessStopped(verify.diagnosticsAfterEdit(shown, signal, canReadFile), signal)
-      } catch (error: unknown) {
-        if (error instanceof AbortedError) {
-          throw error
-        }
-        if (edited.some((file) => !canReadFile(file))) return this.refusedDiagnostics(edited)
-        this.deps.log.warn(`Verify: the diagnostics could not be read: ${describe(error)}`)
-        return {
-          report: {
-            text: fill(MODEL_API_MODEL_TEXT.verifyDiagnosticsUnavailable, {
-              reason: describe(error),
-            }),
-            unchecked: edited.length,
-          },
-          commit: NOTHING_TO_COMMIT,
-        }
-      }
-    }
-    if (edited.some((file) => !canReadFile(file))) return this.refusedDiagnostics(edited)
-    return this.diagnosticsHistory.report([...read, ...skipped], {
-      maxChars,
-      ...(codeFile !== undefined && { codeFile }),
-    })
   }
 
   private async loop(turn: ActiveTurn): Promise<void> {
@@ -11176,7 +11003,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(queued.scheduleRun !== undefined && {
         scheduleRun: queued.scheduleRun,
         scheduleToken: this.owner.token(),
-        scheduleLedger: new ProvenanceLedger(this.sentContent.values()),
+        scheduleLedger: this.newScheduleLedger(),
         schedulePermissions: new PermissionEngine(mspApprovalMode(queued.scheduleRun.context.mode)),
       }),
       turnId: queued.turnId,
@@ -11564,10 +11391,14 @@ export class ModelApiSession implements ScheduledAgentSession {
       )
       await this.checkScheduledReplay(run, body)
     }
-    const inputs = [
-      contentHash(body.instructions),
-      ...body.input.map((item) => contentHash(JSON.stringify(item))),
-    ]
+    const recorded = RecordingScope.build((reader) => {
+      reader.read(body.instructions, body.instructions, {
+        kind: 'harness',
+        operation: 'compaction-instructions',
+      })
+      for (const item of body.input)
+        reader.read(item, JSON.stringify(item), { kind: 'harness', operation: 'compaction-input' })
+    })
     const { text: summary, response } = await this.collectText(body, signal, chargedGoalId)
     const post = await this.runHooks(
       'PostLLMCall',
@@ -11595,11 +11426,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       const bytes = JSON.stringify(summaryEntry.item)
       this.contentOrigins.set(contentHash(bytes), {
         source: { kind: 'harness', operation: 'compaction' },
-        inputs: [],
-        derivedFrom: inputs,
-        hasCompleteInputs: true,
+        scope: recorded.scope,
       })
-      this.active?.scheduleLedger?.derive(bytes, inputs, 'compaction', true)
+      this.active?.scheduleLedger?.derive(bytes, recorded.scope, 'compaction')
     }
     // The packed originals left with the replay; the ledger stays, a
     // session total like the token counts.
@@ -11673,217 +11502,48 @@ export class ModelApiSession implements ScheduledAgentSession {
     return -1
   }
 
-  /** Only a stored key's digest scopes a job; a changed key sees no old jobs. */
-  private async scheduleAccountId(): Promise<string> {
-    const id = await this.deps.getAccountId()
-    if (id === undefined) {
-      throw new Error(UI_TEXT.scheduleAccountMissing)
-    }
-    return id
+  /** Load before claiming a turn so owner admission and activation stay synchronous. */
+  private async prepareScheduleLedger(): Promise<void> {
+    const entry = await import('./schedulesEntry.js')
+    this.scheduleLedgerFactory = entry.createLedger
   }
 
-  private scheduleStore(): ScheduleStore {
-    const store = this.deps.scheduleStore
-    if (store === undefined) {
-      throw new Error(UI_TEXT.scheduleStorageMissing)
-    }
-    return store
+  private newScheduleLedger(): ProvenanceLedger {
+    if (this.scheduleLedgerFactory === undefined) throw new AbortedError()
+    return this.scheduleLedgerFactory(this.sentContent.values())
+  }
+
+  private loadSchedules(): Promise<ModelApiSchedules> {
+    this.scheduleRuntime ??= this.createSchedules()
+    return this.scheduleRuntime
+  }
+
+  private async createSchedules(): Promise<ModelApiSchedules> {
+    const entry = await import('./schedulesEntry.js')
+    entry.installLanguage(UI_TEXT, uiLocale())
+    return new entry.ModelApiSchedules({
+      deps: this.deps,
+      sessionId: this.sessionId,
+      modelId: () => this.modelId,
+      isDisposed: () => this.isDisposed,
+      isSideChat: this.isSideChat,
+      emit: (event) => {
+        this.emit(event)
+      },
+      touch: () => {
+        this.touch()
+      },
+      onPersisted: () => this.onPersisted(),
+      recordTranscript: (turnId, item) => {
+        this.recordTranscript(turnId, item)
+      },
+      isScheduleBusy: () => this.isScheduleBusy(),
+      sendTurn: (parts, displayText, requestFor) => this.sendTurn(parts, displayText, requestFor),
+    })
   }
 
   private isScheduleBusy(): boolean {
     return this.active !== undefined || this.compacting !== undefined || this.queuedTurns.length > 0
-  }
-
-  private publishSchedules(jobs: readonly ScheduledPrompt[]): readonly ScheduledPrompt[] {
-    this.emit({ type: 'schedulesChanged', jobs: jobs.map((job) => scheduleViewOf(job)) })
-    if (this.scheduleTimer === undefined && !this.isDisposed) {
-      this.scheduleTimer = setInterval(() => {
-        if (!this.isDisposed) {
-          void this.listSchedules().catch((error: unknown) => {
-            this.deps.log.warn(`Scheduled prompts could not be refreshed: ${describe(error)}`)
-          })
-        }
-      }, SCHEDULE_POLL_INTERVAL_MS)
-    }
-    return jobs
-  }
-
-  /** A loaded session polls only its own jobs. Polls never make model calls. */
-  private async listSchedules(): Promise<readonly ScheduledPrompt[]> {
-    // A removed key clears the panel without waiting for storage. Check again
-    // after the read so a slow poll cannot publish a previous account's jobs.
-    if ((await this.deps.getAccountId()) === undefined) {
-      return this.publishSchedules([])
-    }
-    const store = this.scheduleStore()
-    const stored = await store.list(this.sessionId)
-    const accountId = await this.deps.getAccountId()
-    const jobs =
-      accountId === undefined
-        ? []
-        : stored.filter(
-            (job) => job.workspaceRoot === this.deps.workspaceRoot && job.accountId === accountId,
-          )
-    return this.publishSchedules(jobs)
-  }
-
-  private async createSchedule(cadence: ScheduleCadence, prompt: string): Promise<ScheduledPrompt> {
-    if (this.isSideChat) {
-      throw new Error(UI_TEXT.sideChatPlanOnly)
-    }
-    const parsed = scheduleCadenceSchema.safeParse(cadence)
-    const cleanPrompt = prompt.trim()
-    if (
-      cleanPrompt === '' ||
-      cleanPrompt.length > SCHEDULE_MAX_PROMPT_CHARS ||
-      !parsed.success ||
-      (parsed.data.kind === 'interval' &&
-        (!Number.isSafeInteger(parsed.data.everyMs) ||
-          parsed.data.everyMs < SCHEDULE_MIN_INTERVAL_MS ||
-          parsed.data.everyMs > SCHEDULE_MAX_INTERVAL_MS))
-    ) {
-      throw new Error(UI_TEXT.scheduleInvalid)
-    }
-    const existing = await this.listSchedules()
-    if (existing.length >= SCHEDULE_MAX_JOBS_PER_SESSION) {
-      throw new Error(UI_TEXT.scheduleTooMany)
-    }
-    const now = this.deps.now()
-    const expiresAtMs = now + SCHEDULE_LIFETIME_MS
-    const nextFireAtMs = nextScheduleFire(parsed.data, now, expiresAtMs)
-    if (nextFireAtMs === undefined) {
-      throw new Error(UI_TEXT.scheduleNoFire)
-    }
-    const job: ScheduledPrompt = {
-      id: this.deps.newId(),
-      sessionId: this.sessionId,
-      workspaceRoot: this.deps.workspaceRoot,
-      accountId: await this.scheduleAccountId(),
-      prompt: cleanPrompt,
-      cadence: parsed.data,
-      createdAtMs: now,
-      expiresAtMs,
-      nextFireAtMs,
-      fireCount: 0,
-    }
-    await this.scheduleStore().create(job)
-    this.touch()
-    try {
-      // The schedule must not be reported as created until its owning session
-      // is durable too; a crash would otherwise leave an orphaned job.
-      await this.onPersisted()
-    } catch (error: unknown) {
-      await this.scheduleStore().remove(this.sessionId, job.id)
-      throw error
-    }
-    await this.listSchedules()
-    return job
-  }
-
-  private async cancelSchedule(id: string): Promise<boolean> {
-    if (this.isSideChat) {
-      throw new Error(UI_TEXT.sideChatPlanOnly)
-    }
-    const jobs = await this.listSchedules()
-    const job = jobs.find((entry) => entry.id === id)
-    if (job === undefined) {
-      return false
-    }
-    const isRemoved = await this.scheduleStore().remove(this.sessionId, id)
-    await this.listSchedules()
-    if (isRemoved) {
-      this.touch()
-    }
-    return isRemoved
-  }
-
-  /** A confirmed occurrence: check gate and identity again, then claim before spending. */
-  private async runSchedule(
-    id: string,
-    occurrenceMs: number,
-    confirmed: ScheduleRunConfirmation,
-  ): Promise<TurnSubmission> {
-    if (this.isSideChat) {
-      throw new Error(UI_TEXT.sideChatPlanOnly)
-    }
-    if (confirmed.sessionId !== this.sessionId || confirmed.modelId !== this.modelId) {
-      throw new Error(UI_TEXT.scheduleConfirmationExpired)
-    }
-    if (!this.deps.isPaidFeatureOn('scheduledPrompts')) {
-      throw new Error(UI_TEXT.schedulePaidOff)
-    }
-    if (this.isScheduleBusy()) {
-      throw new Error(UI_TEXT.scheduleBusy)
-    }
-    const jobs = await this.listSchedules()
-    const job = jobs.find((entry) => entry.id === id)
-    if (job?.nextFireAtMs !== occurrenceMs || occurrenceMs > this.deps.now()) {
-      throw new Error(UI_TEXT.scheduleNotDue)
-    }
-    if (job.prompt !== confirmed.prompt || this.modelId !== confirmed.modelId) {
-      throw new Error(UI_TEXT.scheduleConfirmationExpired)
-    }
-    if (!(await this.scheduleStore().claim(job, occurrenceMs))) {
-      throw new Error(UI_TEXT.scheduleAlreadyRun)
-    }
-    const accountId = await this.scheduleAccountId()
-    if (this.isDisposed || this.isScheduleBusy()) {
-      throw new Error(UI_TEXT.scheduleBusy)
-    }
-    if (!this.deps.isPaidFeatureOn('scheduledPrompts')) {
-      throw new Error(UI_TEXT.schedulePaidOff)
-    }
-    if (this.modelId !== confirmed.modelId || accountId !== job.accountId) {
-      throw new Error(UI_TEXT.scheduleConfirmationExpired)
-    }
-    // The request carries only the confirmed model and a digest of the key.
-    // The client checks the actual SecretStorage key just before HTTP.
-    const requestFor = (turnId: string): ConfirmedModelRequest => {
-      let hasStarted = false
-      return {
-        modelId: confirmed.modelId,
-        keyDigest: job.accountId,
-        isStillAllowed: () =>
-          !this.isDisposed &&
-          this.modelId === confirmed.modelId &&
-          this.deps.isPaidFeatureOn('scheduledPrompts'),
-        onRequestStarted: () => {
-          if (hasStarted) {
-            return
-          }
-          hasStarted = true
-          const item: ItemSnapshot = {
-            itemId: this.deps.newId(),
-            kind: 'toolCall',
-            status: COMPLETED,
-            turnId,
-            tool: MODEL_API_SCHEDULED_TOOL,
-            args: JSON.stringify({ id: job.id, prompt: job.prompt }),
-            visibleOutput: UI_TEXT.scheduleRunStarted,
-            paid: 'scheduledPrompts',
-          }
-          this.recordTranscript(turnId, item)
-          this.emit({ type: 'itemCompleted', item })
-          this.deps.notePaidUse('scheduledPrompts', 1)
-          this.touch()
-        },
-      }
-    }
-    // No await between this check and sendTurn: a new turn cannot slip in and
-    // turn a confirmed scheduled prompt into a silently queued later run.
-    const submission = await this.sendTurn(
-      [{ type: 'text', text: job.prompt }],
-      job.prompt,
-      requestFor,
-    )
-    this.touch()
-    try {
-      await this.listSchedules()
-    } catch (error: unknown) {
-      // A run already admitted and started must never be reported as rejected.
-      this.deps.log.warn(`Scheduled prompts could not be refreshed: ${describe(error)}`)
-    }
-    return submission
   }
 
   private submitTurn(
@@ -12207,6 +11867,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     displayText?: string,
   ): Promise<TurnSubmission> {
     await run.checkParts(parts)
+    await this.prepareScheduleLedger()
     return await this.submitTurn(
       run.parts(parts),
       displayText,
@@ -12228,6 +11889,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   ): Promise<TurnSubmission> {
     const waiter = this.owner.token()
     await run.checkParts(parts)
+    await this.prepareScheduleLedger()
     this.scheduledRequest(run)
     if (
       this.active?.turnId !== expectedTurnId ||
@@ -12808,15 +12470,14 @@ export class ModelApiSession implements ScheduledAgentSession {
       // reads back "no report" and keeps the previous directory.
       const sideFile = this.shellSidecarFile
       this.shellSidecarFile = undefined
-      void rm(sideFile, { force: true }).catch(() => {
+      void removeShellSidecar(sideFile).catch(() => {
         // Best effort: the operating system cleans its own temp dir.
       })
     }
     this.workspaceEdits.delete(this.ledger)
-    if (this.scheduleTimer !== undefined) {
-      clearInterval(this.scheduleTimer)
-      this.scheduleTimer = undefined
-    }
+    void this.scheduleRuntime?.then((runtime) => {
+      runtime.dispose()
+    })
     void this.cancel()
     // Let this close's Interrupt enter before aborting its owned queue and
     // processes. The handlers are tracked, so host close waits for cleanup.

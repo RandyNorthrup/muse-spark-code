@@ -143,7 +143,7 @@ describe('WorkspaceContext', () => {
     })
     expect(material[1]).toEqual({
       bytes: JSON.stringify(MEMORY[0]),
-      source: { kind: 'tool', callId: 'context-memory:project' },
+      source: { kind: 'harness', operation: 'memory-snapshot' },
     })
   })
 
