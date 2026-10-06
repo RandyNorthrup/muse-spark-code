@@ -3,13 +3,14 @@
 import type { AccountStore, AccountProvider } from '../../core/providers/accounts'
 import { AccountStoreError } from '../../core/providers/credentialRecord'
 import type { AccountConfirmations } from '../../core/accounts/confirmations'
-import { accountPolicyFor, shouldRecheckAccountPolicy } from '../../core/providers/accountPolicy'
+import { accountPolicyFor } from '../../core/providers/accountPolicy'
 import {
   accountsRequestSchema,
   type AccountsRequest,
   type AccountsReply,
 } from '../../shared/hostApi/accounts'
 import { modelsAccountsSliceSchema, type ModelsAccountsSlice } from '../../shared/modelsPanel'
+import { accountPolicyViewFor } from './accountPolicyPrompt'
 
 export interface AccountsPanelHostPort {
   readonly accounts: AccountStore
@@ -43,21 +44,7 @@ export class AccountsPanelHandler {
     const capabilities = this.port.capabilities(provider)
     const accounts = await this.port.accounts.list(provider)
     const current = this.port.currentAccount(provider)
-    const policy =
-      row === undefined
-        ? null
-        : {
-            provider: row.provider,
-            product: row.product,
-            pooling: row.pooling,
-            multipleAccounts: row.multipleAccounts,
-            isCredentialHeld: row.isCredentialHeld,
-            recovery: row.recovery,
-            recordVersion: row.recordVersion,
-            checkedAt: row.checkedAt,
-            sources: row.sources,
-            isStale: shouldRecheckAccountPolicy(row, new Date(this.port.now())),
-          }
+    const policy = row === undefined ? null : accountPolicyViewFor(row, this.port.now())
     return modelsAccountsSliceSchema.parse({
       provider,
       providerLabel: capabilities.label,
@@ -79,6 +66,13 @@ export class AccountsPanelHandler {
     try {
       const entry = await this.port.provider(request.provider)
       if (entry?.id !== request.provider) throw new AccountStoreError('unavailable')
+      if (
+        entry.product === 'muse-code' &&
+        request.type !== 'accounts/list' &&
+        request.type !== 'accounts/revoke' &&
+        request.type !== 'accounts/confirm'
+      )
+        throw new AccountStoreError('unavailable')
       switch (request.type) {
         case 'accounts/list': {
           break
@@ -105,7 +99,6 @@ export class AccountsPanelHandler {
           break
         }
         case 'accounts/use': {
-          if (entry.product === 'muse-code') throw new AccountStoreError('unavailable')
           if (
             accountPolicyFor(entry.policyProvider, entry.product)?.isCredentialHeld !== true ||
             accountPolicyFor(entry.policyProvider, entry.product)?.pooling === 'notOffered'

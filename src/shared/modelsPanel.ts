@@ -16,13 +16,14 @@ const safeUrl = z.url().check(
 export const accountsPolicyViewSchema = z.strictObject({
   provider: accountIdSchema,
   product: accountIdSchema,
+  // The panel's record stamp is separate from the provider's decision fields.
+  recordVersion: z.string().check(z.minLength(1)),
+  checkedAt: z.iso.date(),
+  isStale: z.boolean(),
   pooling: z.enum(['on', 'confirm', 'notOffered']),
   multipleAccounts: z.enum(['yes', 'conditions', 'onePerPerson', 'unclear']),
   isCredentialHeld: z.boolean(),
   recovery: z.enum(['none', 'chatgptPlan', 'museCodeSubscription']),
-  recordVersion: z.string().check(z.minLength(1)),
-  checkedAt: z.iso.date(),
-  isStale: z.boolean(),
   sources: z
     .array(
       z.strictObject({

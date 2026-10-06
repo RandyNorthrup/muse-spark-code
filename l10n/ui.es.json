@@ -2584,6 +2584,11 @@
       "one": "{count} solicitud",
       "many": "{count} solicitudes",
       "other": "{count} solicitudes"
-    }
+    },
+    "none": "Ninguna cuenta seleccionada",
+    "id": "ID de la cuenta",
+    "use": "Usar cuenta",
+    "earlier": "Mover antes",
+    "later": "Mover después"
   }
 }

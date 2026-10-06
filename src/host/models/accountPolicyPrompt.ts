@@ -3,6 +3,22 @@ import { shouldRecheckAccountPolicy } from '../../core/providers/accountPolicy'
 import { accountsRequestSchema } from '../../shared/hostApi/accounts'
 import { accountsPolicyViewSchema, type AccountsPolicyView } from '../../shared/modelsPanel'
 
+/** One projection for the panel and question; the internal limit scopes stay local. */
+export function accountPolicyViewFor(row: AccountPolicy, now: number): AccountsPolicyView {
+  return accountsPolicyViewSchema.parse({
+    provider: row.provider,
+    product: row.product,
+    pooling: row.pooling,
+    multipleAccounts: row.multipleAccounts,
+    isCredentialHeld: row.isCredentialHeld,
+    recovery: row.recovery,
+    recordVersion: row.recordVersion,
+    checkedAt: row.checkedAt,
+    sources: row.sources,
+    isStale: shouldRecheckAccountPolicy(row, new Date(now)),
+  })
+}
+
 /** P injects ask; M104 sends show only on an authenticated local surface. */
 export class AccountPolicyPrompt {
   private pending:
@@ -28,18 +44,7 @@ export class AccountPolicyPrompt {
     // The surface has one modal owner. Overlap fails closed; P may retry.
     if (this.pending !== undefined) return Promise.resolve('cancel')
     const row = structuredClone(policy)
-    const view = accountsPolicyViewSchema.parse({
-      provider: row.provider,
-      product: row.product,
-      pooling: row.pooling,
-      multipleAccounts: row.multipleAccounts,
-      isCredentialHeld: row.isCredentialHeld,
-      recovery: row.recovery,
-      recordVersion: row.recordVersion,
-      checkedAt: row.checkedAt,
-      sources: row.sources,
-      isStale: shouldRecheckAccountPolicy(row, new Date(this.port.now())),
-    })
+    const view = accountPolicyViewFor(row, this.port.now())
     return new Promise((resolve) => {
       this.pending = { provider, row, resolve }
       try {

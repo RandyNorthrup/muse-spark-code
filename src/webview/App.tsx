@@ -126,6 +126,12 @@ const ReviewPane = lazy(async () => {
 })
 
 export interface AppProps {
+  /** M108/M95's lazy shared surface injects nodes; no accounts code loads here. */
+  readonly accounts?: {
+    readonly label?: string
+    readonly pill: ReactNode
+    readonly transcript: ReactNode
+  }
   readonly postMessage: (message: WebviewToHostMessage) => void
   /**
    * The UI store. main.tsx owns one that outlives a crashed tree and keeps
@@ -325,6 +331,7 @@ function promptStartFor(action: PaletteAction): string | undefined {
 
 export function App({
   postMessage,
+  accounts,
   store: externalStore,
   newLocalId = defaultLocalId,
   now = defaultNow,
@@ -2318,6 +2325,7 @@ export function App({
         onContextMenu={onTranscriptContextMenu}
       >
         {body}
+        {accounts?.transcript}
         {hasNewBelow ? (
           <button
             type="button"
@@ -2381,13 +2389,18 @@ export function App({
       <div className="composer-area" inert={isModalOpen}>
         {floating}
         <JudgeStatusLine status={state.judge} />
+        {accounts?.pill}
         <Composer
           draft={state.draft}
           placeholder={state.composerPlaceholder}
           settings={state.settings}
           canSend={canSend(state)}
           isRunning={isRunning}
-          modelLabel={modelLabelFor(state)}
+          modelLabel={
+            accounts?.label === undefined
+              ? modelLabelFor(state)
+              : `${modelLabelFor(state)} · ${accounts.label}`
+          }
           permissionMode={state.permissionMode}
           context={state.context}
           paidBadge={paidBadgeFor(state)}

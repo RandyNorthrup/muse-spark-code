@@ -2489,6 +2489,11 @@
     "requestCount": {
       "one": "{count} Anfrage",
       "other": "{count} Anfragen"
-    }
+    },
+    "none": "Kein Konto ausgewählt",
+    "id": "Konto-ID",
+    "use": "Konto verwenden",
+    "earlier": "Nach vorne verschieben",
+    "later": "Nach hinten verschieben"
   }
 }

@@ -3047,6 +3047,11 @@ export const EN = {
   exportThenRunSkipped: 'then_run `{command}`: {outcome}',
   // M108: shared by the Models panel, usage page, ACP and runtime.
   accounts: {
+    none: 'No account selected',
+    id: 'Account id',
+    use: 'Use account',
+    earlier: 'Move earlier',
+    later: 'Move later',
     title: 'Accounts',
     defaultLabel: 'Default account',
     add: 'Add account',

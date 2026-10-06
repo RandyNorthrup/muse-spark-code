@@ -2394,6 +2394,11 @@
     "removeConfirm": "移除 {account}？其已儲存的認證將被刪除，登入授權將被撤銷。",
     "requestCount": {
       "other": "{count} 次請求"
-    }
+    },
+    "none": "未選取帳戶",
+    "id": "帳戶 ID",
+    "use": "使用帳戶",
+    "earlier": "向前移動",
+    "later": "向後移動"
   }
 }

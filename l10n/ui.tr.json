@@ -2489,6 +2489,11 @@
     "requestCount": {
       "one": "{count} istek",
       "other": "{count} istek"
-    }
+    },
+    "none": "Hesap seçilmedi",
+    "id": "Hesap kimliği",
+    "use": "Hesabı kullan",
+    "earlier": "Öne taşı",
+    "later": "Arkaya taşı"
   }
 }

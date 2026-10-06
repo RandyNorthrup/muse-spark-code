@@ -2679,6 +2679,11 @@
       "few": "{count} żądania",
       "many": "{count} żądań",
       "other": "{count} żądania"
-    }
+    },
+    "none": "Nie wybrano konta",
+    "id": "Identyfikator konta",
+    "use": "Użyj konta",
+    "earlier": "Przesuń wcześniej",
+    "later": "Przesuń później"
   }
 }

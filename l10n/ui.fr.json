@@ -2584,6 +2584,11 @@
       "one": "{count} requête",
       "many": "{count} requêtes",
       "other": "{count} requêtes"
-    }
+    },
+    "none": "Aucun compte sélectionné",
+    "id": "Identifiant du compte",
+    "use": "Utiliser le compte",
+    "earlier": "Déplacer avant",
+    "later": "Déplacer après"
   }
 }

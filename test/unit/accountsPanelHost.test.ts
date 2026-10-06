@@ -76,6 +76,29 @@ function harness() {
 }
 
 describe('M108 panel host', () => {
+  it('keeps uncaptured Muse Code metadata mutations off as well as credentials', async () => {
+    const h = harness()
+    h.configure({ policyProvider: 'meta', product: 'muse-code', auth: 'subscription' })
+    const account = panelSlice().accounts[0]!
+    const requests = [
+      { type: 'accounts/add', provider: 'openai', account: { ...account, id: 'team' } },
+      { type: 'accounts/update', provider: 'openai', account },
+      { type: 'accounts/remove', provider: 'openai', account: 'work' },
+      { type: 'accounts/order', provider: 'openai', accounts: ['personal', 'work'] },
+      { type: 'accounts/thresholds', provider: 'openai', account: 'work', thresholds: {} },
+    ]
+    for (const request of requests) {
+      expect(await h.handler.handle(request)).toEqual({
+        type: 'accounts/error',
+        code: 'unavailable',
+      })
+    }
+    expect(h.metadata.writeAccounts).not.toHaveBeenCalled()
+    expect(h.vault.remove).not.toHaveBeenCalled()
+    expect(h.credential).not.toHaveBeenCalled()
+    const snapshot = await h.handler.snapshot('openai')
+    expect(snapshot.policy?.product).toBe('muse-code')
+  })
   it('adds, labels, groups, orders, edits thresholds and removes through the real account store', async () => {
     const h = harness()
     const account = { id: 'team', label: 'Team', order: 2, thresholds: {} }
@@ -194,15 +217,20 @@ describe('M108 panel host', () => {
   })
 })
 
+function questionHarness() {
+  const row = panelPolicy()
+  const show = vi.fn()
+  const prompt = new AccountPolicyPrompt({
+    show,
+    policy: () => row,
+    now: () => Date.parse('2026-10-06T00:00:00Z'),
+  })
+  return { row, show, prompt }
+}
+
 describe('M108 host-issued policy dialog', () => {
   it('quotes the actual row and only accepts the matching pending provider and product', async () => {
-    const row = panelPolicy()
-    const show = vi.fn()
-    const prompt = new AccountPolicyPrompt({
-      show,
-      policy: () => row,
-      now: () => Date.parse('2026-10-06T00:00:00Z'),
-    })
+    const { row, show, prompt } = questionHarness()
     const request = {
       type: 'accounts/confirm',
       provider: 'openai',
@@ -223,13 +251,7 @@ describe('M108 host-issued policy dialog', () => {
     expect(prompt.answer(request)).toBe(false)
   })
   it('discards a changed row and cancels on disposal or overlapping questions', async () => {
-    const row = panelPolicy()
-    const show = vi.fn()
-    const prompt = new AccountPolicyPrompt({
-      show,
-      policy: () => row,
-      now: () => Date.parse('2026-10-06T00:00:00Z'),
-    })
+    const { row, prompt } = questionHarness()
     const pending = prompt.ask('openai', row)
     expect(await prompt.ask('openai', row)).toBe('cancel')
     row.sources[0]!.quote = 'Changed clause'
