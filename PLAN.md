@@ -10928,6 +10928,7 @@ Gates` appears twice (lines 24216 and 24793) with M98's entry inside the
    | `fleet`                       | —                                                                                                                                                             | agents now: sessions, subagents, best-of-N candidates, schedules, background tasks; team workers and lanes; paired devices; nodes                                                                                                                       | the hosts' live state; M96's team host; M100; M110                               | b (local agents), c           | M96; M100; M110a                        |
    | `security`                    | —                                                                                                                                                             | the vault's tier; items by kind; grants, uses, denials and locks, never a value; developer options' audit (D88's amendment)                                                                                                                             | M109's audit; the developer audit                                                | c                             | M109                                    |
    | `accounts`                    | —                                                                                                                                                             | accounts per provider, their placement, thresholds and use, swaps and stops, confirmations (labels resolved locally)                                                                                                                                    | M108                                                                             | c                             | M108                                    |
+   | `playbook`                    | `--module <glob>`, `--milestone <id>`                                                                                                                         | the three-strikes counts per module and class, the design decisions and their outcomes (`impossible`, `caught`, `remains`), the gates' drill records, every rule turned off with its reason, and the route-around refusals                              | the playbook's record (D96)                                                      | a, once M116 has merged       | M116                                    |
    | `issues`                      | `--repo <owner/name>`                                                                                                                                         | each watched issue: its stage (acknowledged, triage, deciding, in work, verifying, replied, closed), the verdict, its pull request, what it waits for (owner-blocked first), and the day's cap                                                          | M115w's watchdog record                                                          | a, once M115w has merged      | M115w                                   |
    | `schedules`                   | —                                                                                                                                                             | the timeline of upcoming fires and their collisions; each schedule's trigger, target, delivery, grant and who set it; recent fires with outcomes (ran, refused, missed, skipped, failed), refused actions and cost                                      | M115's store and fire record                                                     | a, once M115 has merged       | M115                                    |
    | `keybindings`                 | —                                                                                                                                                             | every key binding in effect, with its command and where it applies: the editor's (from `package.json` and the feature catalogue), the panel's, ACP's commands, the desktop's (D91.15's amendment) and the TUI's; conflicts flagged                      | `package.json`, `featureCatalog.ts`, the desktop's generated configuration       | a (editors); c (desktop, TUI) | the desktop: M111a; the TUI: M110a0's T |
@@ -11618,6 +11619,140 @@ scheduled command released after its turn ends. Deliberately break each fix,
 observe the named tests fail, restore byte-exact and record the evidence in
 `docs/certification/envfence.md`. No new dependency or broader exception.
 
+---
+
+### D96 — The orchestrator playbook (M116, 2026-10-06)
+
+The owner, 2026-10-06: "and the orchestrator will be trained to use our three
+strikes method? this is working very good for us and i think it is pretty
+foundational".
+
+The method is the one this repository has been built with: the owner's
+rulings of 2026-09-27 to 2026-10-05 (redesign at the third round, review in
+one pass, contracts first, small things first, offload to the rigs, one
+integration trunk, break every gate on purpose, loud failures with owner
+items first, never route around a safety check). D96 makes it the
+orchestrator's own, **built in, on by default, and enforced by code**, not
+only written into a prompt. It applies to every orchestrator: M96's team
+host (the lead, team leads and roles), M110's orchestrator hosts, M115w's
+watchdog, and the panel's main conversation whenever it orchestrates
+(subagents, `delegate`, best-of-N, its review loop). It is also this
+repository's own working rule (AGENTS.md rule 14).
+
+**What exists** (read on main):
+
+- Reviews end in a `muse-review` block of findings (`src/shared/reviewFindings.ts`:
+  file, lines, severity, title, detail), with no class and no notion of a
+  round.
+- The verify loop counts failing check rounds per session and stops at
+  `CHECK_FIX_MAX_ROUNDS` (`verifyLedger.ts`), but nothing counts review rounds
+  per module or changes the kind of fix that follows.
+- First-party skills live in `first-party-skills/` beside the vendored
+  package (M92's `muse_gadgets`), loaded and installed by M89's bundled-skills
+  path (D68).
+- M96's charters, board and scheduler, M96c's merge queue and check slots,
+  and M113's plan reader with its lanes tables and delivery-order list are
+  the planner's inputs, as each merges.
+
+1. **Three strikes.**
+   - **What is counted.** Review rounds per **module** (a file set: the
+     lane's declared files, or a team's module globs, or else the file's
+     directory two levels under the workspace's source root) and per
+     **finding class** (decision 2's classes).
+   - **The rule.** The original build and two fix rounds may be patches. When
+     the review after the second fix round still has findings in the same
+     module, the next round is **not another patch**: the policy refuses a
+     fourth patch round on that module (`PLAYBOOK_PATCH_ROUNDS_MAX`, 2 fix
+     rounds after the build).
+   - **A design decision instead.** The orchestrator writes one: the class of
+     failure, why the patches did not end it, and the structural change that
+     removes it (one atomic claim instead of a multi-step one; no allow-list
+     instead of a better allow-list). It goes in the project's plan where
+     there is one (a `D<n>` amendment in this repository's format, or the
+     skill's `quality-ledger`), and in the playbook's record.
+   - **A redesign lane** builds it. The next review is given the old findings
+     and must mark each one `impossible` (with the structural reason),
+     `caught` (a check now catches it) or `remains`. Only `impossible` closes
+     a finding; `caught` alone does not close a strike. A redesign that still
+     leaves findings goes to the user, first in every report.
+   - **Recorded and shown:** the counts per module and class, each decision
+     and its outcome, in the Agent map (a strike badge on the lane) and in
+     `/report` (D93's `playbook` kind, and the milestone and fleet kinds).
+2. **Review in one pass.**
+   - **Every class at once:** validation and security; failure paths and
+     honesty (no empty success, no silent fallback); concurrency and
+     lifecycle; tests and gates; docs. A review states the classes it
+     covered (`coverage`); one that leaves a class out is incomplete, asked
+     again, and not counted as a round.
+   - **Findings carry their class.** The `muse-review` block gains an
+     optional `class`; the playbook's reviewer charter asks for it. M70's
+     `/review` prompt is unchanged, and a finding without a class counts
+     under the module alone.
+   - **Fixes land together.** The next review does not start until every
+     finding of the last one is answered: fixed, or disputed with a reason.
+     There is no one-finding-per-round loop.
+3. **Contracts first.**
+   - **Lane 0** (contracts, strings, fakes, the handoffs) lands and is
+     reviewed before any wave lane of its milestone is dispatched.
+   - **A prerequisite audit runs before each wave:** a lane whose `Starts`
+     names a lane or milestone that has not merged is not started, and the
+     note names what is missing.
+4. **Small first, in a logical order.** The queue is ordered by dependency
+   first (a topological order), then by estimate (smaller first), then by id;
+   M113's reader supplies the plan's lanes tables and the delivery-order list,
+   and M96c's pick uses the order.
+5. **Offload.** Heavy builds and tests go to worker nodes (M100's devices,
+   M96c's runners, M110's nodes) when one is offered, under M107's governor;
+   the user's own machine stays light. One full gate per change, in CI where
+   the project has CI; locally, scoped checks.
+6. **Integrate continuously.** A rolling integration trunk per milestone
+   (`feature/m<id>-…`), into which each lane merges as it certifies; every
+   lane's brief lists the merges already in the trunk.
+7. **Break on purpose.** A lane that adds a gate or a test (a new test file,
+   a new gate script, a new lint rule) certifies only with a drill record:
+   the break, the observed failure, and the byte-exact restore (AGENTS.md
+   rule 3).
+8. **Loud failures, owner items first.** Every report and status message the
+   orchestrator writes starts with what needs the user and whatever is
+   failing (M113's **Needs you**), never buried below progress.
+9. **Never route around a safety check.**
+   - **No hook tampering:** `--no-verify`, `-c core.hooksPath=…`, `git config
+core.hooksPath`, edits under `.husky/`, or skipping a gate are refused
+     and reported.
+   - **No permission laundering:** an action refused to one agent is not
+     asked again through another (a delegate, a role, a tool with the same
+     effect) for `PLAYBOOK_LAUNDER_WINDOW_MS` (one hour) on the same subject;
+     it is reported to the user instead.
+   - **A safety classifier's block** is never retried or rerouted; the user
+     decides (the owner's 2026-10-02 ruling).
+10. **Configurable, with a reason.** Each of rules 1 to 8 is a team setting
+    (`playbook.<rule>`, on by default) that can be turned off only with a
+    stated reason, recorded with who turned it off and when, and shown
+    beside the rule. **Rule 9 has no off switch:** turning it off would itself
+    route around a safety check. `PLAYBOOK_PATCH_ROUNDS_MAX` may be lowered,
+    not raised.
+11. **Enforced, and explained.**
+    - **A policy module** (`src/core/orchestration/playbook/**`, no `vscode`)
+      that every planner calls before it dispatches, reviews, merges or
+      reports: the round counter that refuses a fourth patch round, the
+      coverage and fix-together checks, the contract-first gate, the
+      prerequisite audit, the queue order, the offload preference, the drill
+      requirement, the route-around guard.
+    - **A first-party skill,** `orchestrator-playbook`
+      (`first-party-skills/orchestrator_playbook/`), bundled by D68's path on
+      both backends, which teaches the method and the design-decision
+      template; the module enforces it whether or not the model reads it.
+    - **A "why it did this" note** on every enforced decision, in the
+      transcript, the Agent map and the record: "Playbook: round 3 on
+      `src/core/schedules/store` — a redesign is required (two fix rounds
+      left concurrency findings)".
+    - **No model call of its own,** and no change to any request's prefix: the
+      skill loads as skills do, and the notes are host rows.
+12. **Every editor** shows the same: the notes and badges in the panel, the
+    companion page and the native hosts; ACP's `/playbook` (status, record,
+    settings); the CLI's `playbook status|record|settings`; the TUI's and
+    the desktop's Agent map.
+
 ## 3. Open questions (need the owner)
 
 - **Q-M115 — What M115 needs from the owner (2026-10-06).** Nothing here
@@ -12178,59 +12313,65 @@ train, and those waiting on outside events, keep their own status lines.
    and M113 merge, and none blocks the rest. Its phase M115w (the issue
    watchdog, about 100 lane-hours) follows M96, M113's network sources and
    M109's taint lane.
-5. **M114: design language and polish** (D94) — next after M115: its lane 0
+5. **M116: the orchestrator playbook** (D96) — small (about 60
+   lane-hours) and foundational: every orchestrating milestone after it
+   (M96's team, M110's hosts, M115w's watchdog) is held to it. Its policy
+   module, skill and the panel's own orchestration need only main; the
+   team, node and watchdog hooks join as M96, M110a and M115w merge.
+   Needs: main.
+6. **M114: design language and polish** (D94) — next after M116: its lane 0
    (the token source and the raw-colour rule) is the prerequisite of every
    UI-building lane that follows, M111's and M110's web UI and TUI design
    among them. The panel's part ships in a 0.16.x patch, after 0.16.0's M104
    so that the companion page and the native webviews are polished in the
    same pass; the desktop's and the node's parts ship with M111 and M110a0.
    Needs: main for lanes 0, A, P1, P2, F and S; M104 for C.
-6. **0.15.0: M95, M96, M97, M101 and M102** — the provider registry, roles
+7. **0.15.0: M95, M96, M97, M101 and M102** — the provider registry, roles
    and the team, the usage journal and the rest of the batch; most later
    milestones build on M95 and M102. Needs: main.
-7. **0.16.0: M98 phase 2, M103 and M104** — the maker guard, MHP, the
+8. **0.16.0: M98 phase 2, M103 and M104** — the maker guard, MHP, the
    companion server and the native bridges, which every later editor row
    uses. Needs: 0.15.0.
-8. **M100: paired devices, first slice** (D80) — missing from the order as
+9. **M100: paired devices, first slice** (D80) — missing from the order as
    given; added here. Its lanes S and E gate M107's relocation, M108's
    devices (now the main multi-account path, D88's placement amendment),
    M109's device part and M110a. Needs: M95, M96 and M96c (0.15.0).
-9. **M106: agent-loop wire guarantees** (D86) — moved before M108: its lane R
-   (the rate-limit bucket, `pacing.ts`) is what M108's thresholds read, and
-   M110r's Y1 builds on it. Needs: M95, M101 and M102 (0.15.0); lane T also
-   needs FIXM101P2.
-10. **M107: the resource governor** (D87) — lanes S, T, G, A, C1, U and H need
+10. **M106: agent-loop wire guarantees** (D86) — moved before M108: its lane R
+    (the rate-limit bucket, `pacing.ts`) is what M108's thresholds read, and
+    M110r's Y1 builds on it. Needs: M95, M101 and M102 (0.15.0); lane T also
+    needs FIXM101P2.
+11. **M107: the resource governor** (D87) — lanes S, T, G, A, C1, U and H need
     only main and lane 0. Needs: M96 and M96c for C2, M100's S and E for R,
     M102 for J.
-11. **M109: the vault and broker** (D89) — lanes 0, C, P, B and U need
+12. **M109: the vault and broker** (D89) — lanes 0, C, P, B and U need
     nothing unmerged, so it can run beside M107. Needs: M81's A1 for L; M96
     for R, and M100 and M107's R for R's device part; lane M moves each store
     as its owner merges (M95 K, M108 K, M100 P, M103, M85).
-12. **M108: several accounts per provider** (D88) — corrected: it does not
+13. **M108: several accounts per provider** (D88) — corrected: it does not
     need M109; M109's lane M moves M108's account secrets into the vault
     whichever lands first. Needs: M95 and M102 for lanes 0, K, T, U and J;
     M106's lane R for T; K and P for X (developer options); M100 and M107's R
     for D.
-13. **M105: multimodal input** (D85) — after the governor, vault and accounts
+14. **M105: multimodal input** (D85) — after the governor, vault and accounts
     by size only; nothing in it waits for M107–M109, and delivery a (the
     Files API and the media core) can move up if a slot frees. Needs: M95's
     lane N, M101's C1, P2 and T, M102, and M104's lanes 0, B, C and D.
-14. **M113: deterministic reports** (D93) — runs beside everything from
+15. **M113: deterministic reports** (D93) — runs beside everything from
     M112's lane 0 on. Needs: nothing new for the engine and the project,
     milestone, release, changes, session and editor keybindings kinds; M102
     for usage; M108 for accounts; M109 for security; M96 and, for nodes,
     M110a for fleet; M115 for schedules; M110a0's lane T for the TUI; M111a
     and M111b for the desktop.
-15. **M110a0: the home node, then M110os's first image** (D90) — placed by
+16. **M110a0: the home node, then M110os's first image** (D90) — placed by
     size (about 360 lane-hours), not by dependency: it needs none of M100,
     M107, M108 or M109, and can start right after 0.16.0 when the owner wants
     it sooner. M110os follows M110a0. Needs: M104a's lanes B, C and D, M63,
     M80 and M89; M114's lane 0 for U1, U2 and TD.
-16. **M110's later phases** — each phase's row in M110's roadmap names its
+17. **M110's later phases** — each phase's row in M110's roadmap names its
     own: M110r's Y1 any time after M106's R and M101's C1 and C2; M110t after
     M110a0; M110a with M100 and M96c; M110b with M107's G and M109; M110c
     after M110a and M110b; M110d to M110h after them. Needs: M110a0.
-17. **M111: Muse Desktop** (D91) — corrected: only M111os and M111i wait for
+18. **M111: Muse Desktop** (D91) — corrected: only M111os and M111i wait for
     M110os (OS1, OS2 and OS4). M111a0 needs only M114's lane 0; M111a is
     built on a Debian 13 virtual machine; M111b runs on fakes and is wired on
     M104a and M110a0; M111c's sections join as M96, M100, M102, M103, M108,
@@ -25102,6 +25243,9 @@ and the headless installer ISO uses M111i's daemon and pages.
 - **The design tokens are D94's** (M114, 2026-10-06): lanes U1, U2 and TD
   start on M114's lane 0, and M114's lane N moves the web UI's pages and the
   TUI's palettes onto the tokens.
+- **The orchestrator playbook is D96's** (M116, 2026-10-06): an orchestrator
+  host (M110c's R2) plans, reviews and merges under its policy module, with
+  the same per-team settings.
 
 - **Goal.** A person installs a node on a PC at home, in a container, a VM, a
   Proxmox LXC, a Kubernetes cluster, a rented server or a Pi, or boots Muse
@@ -27028,7 +27172,8 @@ GitHub client, and M109's taint lane (T) before it acts on an issue beyond
 the acknowledgement; until M109's T merges it runs **report only**: it
 acknowledges, triages and shows its findings and plan to the user, and posts
 nothing else. Webhooks wait for M110c's orchestrator host; polling works
-before. Codex or Claude take WT, WD and WS.
+before. Codex or Claude take WT, WD and WS. The orchestrate step runs under
+D96's playbook (M116's lane I).
 
 | Lane                       | Items                                                                                                                                                                                                                                                                                                                                                                                | Files it owns                                                                                          | Its regions in shared files                                                                                                                           | Starts                                 | Rig      | Hours |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | -------- | ----: |
@@ -27073,6 +27218,165 @@ Total: about 100 lane-hours.
      is posted.
   9. **Status:** each issue's card and its `/report issues` row; owner-blocked
      first.
+  10. **The playbook** (D96, M116): the orchestrate step runs under the
+      playbook's policy (three strikes on a fix's modules, one-pass review,
+      contracts first, never around a safety check).
+
+---
+
+### M116 — The orchestrator playbook (D96)
+
+**Status 2026-10-06: planned.** Small: about 60 lane-hours in lane 0 and four
+lanes. No model call is needed; every test runs on a fake review loop and a
+fake board. M96's plan is on its own branch, so the playbook's lanes sit here
+rather than in an M96 follow-up phase; lane I carries the hooks into M96,
+M110 and M115w as each merges, and M96's record gains D96's line when it next
+changes.
+
+- **Goal.** Every orchestrator works the way this repository is built: it
+  stops patching a module after the second fix round and redesigns the
+  failure away, reviews every class in one pass, lands contracts first,
+  orders work small-first by dependency, offloads heavy work, integrates on
+  one trunk, breaks every new gate on purpose, puts the user's items and
+  failures first, and never routes around a safety check. The rules are
+  enforced by a policy module, taught by a skill, explained by a note at each
+  enforced step, and each can be turned off per team only with a reason
+  (never rule 9).
+- **Depends on.**
+  - **Main:** the review findings block (M70), the verify loop's record
+    (M68), the bundled-skills path and the first-party skills folder (D68,
+    M89, M92), subagents and best-of-N (M48, M77).
+  - **Joining as they merge:** M96 and M96c (charters, the board, the
+    scheduler's pick, the merge queue, the team settings); M113 (the plan
+    reader's lanes tables and delivery order; the `playbook` kind); M100 and
+    M110 (worker nodes for offload, orchestrator hosts); M115w (its
+    orchestrate step); M107 (offload under the governor).
+- **Scope.** D96 entire; strings in all 14 tables; AGENTS.md rule 14 (the
+  playbook as this repository's working rule), README ("How the orchestrator
+  works"), CONTRIBUTING (a review states its classes; a redesign closes with
+  `impossible`), CHANGELOG, `docs/acp.md` (`/playbook`), the `/help` rows,
+  M113's `playbook` kind, `docs/ide-compatibility/**` rows, certification.
+- **Settings.** Per team (M96's team settings; before M96, per workspace for
+  the panel's own orchestration): `playbook.threeStrikes`,
+  `playbook.onePassReview`, `playbook.contractsFirst`, `playbook.smallFirst`,
+  `playbook.offload`, `playbook.continuousIntegration`,
+  `playbook.breakOnPurpose`, `playbook.loudFailures`, each on, and off only
+  with a reason; `playbook.patchRoundsMax` (2; 1 or 2). Rule 9 has no
+  setting.
+- **Lanes and file ownership.** One integration branch,
+  `feature/m116-playbook`, under M87's region rules. Codex or Claude
+  implement P (the policy is a safety surface); Muse implements K and U;
+  Codex reviews in one pass by class; the lead integrates. **Order:**
+  1. Lane 0.
+  2. P, K and U in parallel against lane 0's fakes.
+  3. I's panel part after P; its M96, M110 and M115w parts as they merge.
+  4. W last.
+
+| Lane                               | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Files it owns                                                                                          | Its regions in shared files                                                                                                                                                                                                                                                       | Starts                                     | Rig      | Hours |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | -------- | ----: |
+| 0 Contracts, strings, fakes (lead) | The contracts below; every string; the fakes: a scripted reviewer (findings per round, per module and class, with `impossible`, `caught` and `remains` answers), a fake board with lanes, dependencies and estimates, a fake plan, a fake delegate that re-asks a refused action                                                                                                                                                                               | new `src/shared/playbook.ts`, `test/unit/helpers/playbook/**`, `docs/certification/m116-contracts.md`  | `src/shared/reviewFindings.ts` (the optional `class`, `coverage` and `resolution` fields, additive); `constants.ts` (`PLAYBOOK_*`); `en.ts`, the 14 tables, `package.nls*.json`; `src/shared/hostApi/**` (`playbook/*`, with M104 lane 0's owner)                                 | day 0                                      | Kubuntu  |     6 |
+| P Policy module                    | D96.1–9 and 11: the module keys; the round counter per module and class; the refusal of a fourth patch round and the design-decision requirement; the redesign's closure on `impossible` only, and escalation; the coverage and fix-together checks; the contract-first gate; the prerequisite audit; the queue order; the offload preference; the drill requirement; the route-around guard (hooks, laundering, classifier blocks); the record; the why-notes | new `src/core/orchestration/playbook/**`                                                               | —                                                                                                                                                                                                                                                                                 | after 0                                    | Kubuntu  |    20 |
+| K Skill and charters               | D96.11's skill: `first-party-skills/orchestrator_playbook/SKILL.md` (the nine rules, the design-decision template, examples from this repository's own redesigns), bundled on both backends by D68's path; the reviewer charter that asks for classes, coverage and resolutions (a lazily read model-text block of its own, so no other request changes)                                                                                                       | new `first-party-skills/orchestrator_playbook/**`                                                      | `src/host/skills/bundledSkills.ts` and the Muse Code installer's list (with M89's owner); `constants.ts` (`PLAYBOOK_MODEL_TEXT` with its declared readers)                                                                                                                        | after 0                                    | Mac mini |     8 |
+| U Settings and surfaces            | D96.10 and 12: the settings page (each rule's switch with its required reason; rule 9 shown without one); the why-notes as transcript rows; the strike badge in the Agent map; ACP's `/playbook`; the CLI's `playbook status\|record\|settings`; harness scenes and axe                                                                                                                                                                                        | new `src/webview/playbook/**` (a lazy chunk), `src/acp/playbook.ts`, `src/runtime/playbook/command.ts` | the Agent map's row slot (with M96's owner, or the subagent map before it); `ToolRow.tsx` (the note row); `src/acp/agent.ts` (commands); `src/runtime/cliArgs.ts`; `styles.css` (its region); `test/harness` scenes                                                               | after 0                                    | Mac mini |    12 |
+| I Integrations                     | The panel's own orchestration (subagent spawns, `delegate`, best-of-N, the `/review` loop on the same files, which offers **Plan a redesign** at the third round); M96's team host planner and M96c's pick; M110's orchestrator host (the same module in the runtime); M115w's orchestrate step; M113's `playbook` kind and the milestone and fleet rows                                                                                                       | —                                                                                                      | `conversationController.ts` (the review and delegation regions); `subagentTools.ts` (dispatch); M96's planner and M96c's pick (with their owners, once merged); M110's team host (with R2's owner); M115w's `orchestrate.ts` (with WD's owner); M113's collector (with its owner) | after P; each part as its milestone merges | Win11 VM |    10 |
+| W Docs, help, gates (lead)         | AGENTS.md rule 14; README; CONTRIBUTING; CHANGELOG; `docs/acp.md`; the `/help` rows; budgets; certification; the full gate                                                                                                                                                                                                                                                                                                                                     | `docs/certification/m116*.md`                                                                          | AGENTS.md; README; CONTRIBUTING; CHANGELOG; `docs/acp.md`; `src/shared/featureCatalog.ts`; `scripts/build.mjs` (the lazy entries); the split guard; PLAN                                                                                                                          | last                                       | Kubuntu  |     4 |
+
+Total: about 60 lane-hours.
+
+- **Lane 0's contracts,** frozen before the other lanes start:
+  - **`src/shared/playbook.ts`:** the rule ids; the team settings with
+    their reasons; the module key; the round record (module, class, round,
+    findings, answers); the design decision (class of failure, why patches
+    failed, the structural change, the redesign lane, the outcome); the
+    why-note; the record's file
+    (`<agentDataFolder>/playbook/v1/<workspaceKey>.jsonl`).
+  - **The review block's additions,** all optional so old blocks still
+    parse: `class` on a finding; `coverage` (the classes checked) and, on a
+    review after a redesign, `resolution` per prior finding.
+  - **The policy's interface:** `beforeDispatch(lane, board)`,
+    `beforeReview(module)`, `afterReview(module, findings)`,
+    `beforeFixRound(module)`, `beforeMerge(lane)`, `beforeCommand(command,
+requester)`, `order(queue)`, each returning allow, or refuse with its
+    why-note.
+  - **Constants:** `PLAYBOOK_PATCH_ROUNDS_MAX` (2),
+    `PLAYBOOK_LAUNDER_WINDOW_MS` (3,600,000), `PLAYBOOK_RECORD_MAX` (5,000
+    lines per workspace), and the finding classes (`validation`,
+    `security`, `failure`, `honesty`, `concurrency`, `lifecycle`, `tests`,
+    `docs`).
+- **Steps.**
+  1. Lane 0.
+  2. P, K and U against the fakes; I's panel part after P.
+  3. I's M96, M110 and M115w parts as those merge, each with its own test.
+  4. W, and the full gate.
+- **Acceptance** (fakes; no model calls):
+  1. **Three strikes, on a fake review loop.** The scripted reviewer leaves
+     concurrency findings in one module after the build and after each of two
+     fix rounds; the policy refuses the third fix round with its why-note,
+     requires a design decision, and dispatches a redesign lane. A review that
+     answers `caught` for an old finding keeps the strike open; all
+     `impossible` closes it; a redesign that leaves `remains` goes to the user
+     first. A red drill raises the limit by one, and the test fails.
+  2. **Per module and class.** Findings in another module, or a different
+     class in the same module, start their own counts; a finding without a
+     class counts under its module.
+  3. **One pass.** A review whose `coverage` leaves out a class is asked
+     again and not counted; the next review waits until every finding is
+     fixed or disputed with a reason (a red drill starts it early, and the
+     test fails).
+  4. **Contracts first and prerequisites.** A wave lane is refused until its
+     milestone's lane 0 has merged and been reviewed; a lane whose `Starts`
+     names an unmerged lane is refused, naming it (a red drill dispatches
+     it, and the test fails).
+  5. **The order** is topological, then smaller first, then by id (a property
+     test over generated boards).
+  6. **Offload.** With a worker offered, a heavy check goes to it; without,
+     it runs locally under M107; the full gate runs in CI when the project
+     has CI.
+  7. **Break on purpose.** A lane that adds a test or a gate cannot certify
+     without its drill record.
+  8. **Loud first.** Every status message and report the orchestrator writes
+     puts the user's items and failures first (a golden per surface).
+  9. **Never around.** `--no-verify`, `-c core.hooksPath=`, `git config
+core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
+     action within the window, and a retry after a classifier block are each
+     refused and reported (one red drill each). Rule 9 has no switch in the
+     settings, the CLI or ACP.
+  10. **Configurable with a reason.** Each of rules 1 to 8 turns off only
+      with a non-empty reason, recorded and shown; `patchRoundsMax` refuses 3.
+  11. **Explained.** Every refusal and reordering has its why-note in the
+      transcript, the Agent map and the record.
+  12. **Nothing else changes.** Requests outside a playbook review are
+      byte-identical to the goldens; old `muse-review` blocks still parse.
+- **Tests.** `playbookRounds.test.ts` (the fake review loop),
+  `playbookReview.test.ts` (coverage, fix-together),
+  `playbookPrerequisites.test.ts` (contracts first, the audit, the order),
+  `playbookGuard.test.ts` (hooks, laundering, classifier blocks),
+  `playbookSettings.test.ts`, `reviewFindings.test.ts` (the additive fields),
+  `acpPlaybook.test.ts`, `playbookCommand.test.ts`, and the e2e
+  `playbook.e2e.test.ts`: a panel orchestration through three review rounds
+  to a redesign on the fake Model API. Each has a red drill recorded in
+  `docs/certification/m116-<lane>.md`.
+- **Gates.** The full `npm run quality`, `check:l10n`, the host API record,
+  D6's budgets and the split guard (`PLAYBOOK_MODEL_TEXT`'s readers),
+  `test:a11y`, the golden requests, `check:reference`.
+- **Security.** Rule 9 is a guard, not advice: it is checked in the policy
+  before a command runs, in addition to every existing gate, and it cannot
+  be turned off. The record holds module paths, counts, classes and notes,
+  never file contents or command output. PLAN §9 records the residual: a
+  model can still write a weak design decision; the closure on `impossible`
+  and the reviewer's answer are the check on it.
+- **Performance and bundles.** The policy is pure and loads with the planner
+  that calls it (`dist/team.js` once M96 merges; before that a lazy
+  `dist/playbook.js` with the panel's orchestration); `dist/extension.js`
+  gains at most 1 KiB, and no cap rises.
+- **Size.** S–M: about 60 lane-hours.
+- **Certification checklist** (§6.0, plus):
+  - [ ] The fake review loop's round-3 switch and its drill
+  - [ ] The prerequisite and contract-first gates and their drills
+  - [ ] Rule 9's refusals, one drill each; no switch for it anywhere
+  - [ ] I's parts with M96, M110 and M115w, or each named as waiting
+  - [ ] AGENTS.md rule 14; the `/help` rows; strings in all 14 tables;
+        budgets measured; the full gate green
 
 ### ENVFENCE — Shell credential fence (D89.5, security fix for 0.14.1)
 
