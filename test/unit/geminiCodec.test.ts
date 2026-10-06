@@ -37,6 +37,7 @@ import {
   isFunctionCallItem,
   isMessageItem,
   isReasoningItem,
+  outputTextPartSchema,
   type CreateResponseBody,
   type FunctionCallItem,
   type InputMessageItem,
@@ -364,16 +365,75 @@ describe('encodeGeminiRequest history', () => {
   }
 
   it.each([false, true])(
-    'sends tool-result images as sibling inlineData on Gemini 3 (text: %s)',
+    'nests tool-result images in functionResponse.parts on Gemini 3 (text: %s)',
     (hasText) => {
       const body = imageResultBody(hasText)
       const request = encodeGeminiRequest(body, 'gemini-3.5-flash-lite')
-      const contents = JSON.stringify(request.body['contents'])
-      expect(contents).toContain('"functionResponse":{"id":"call_3117260"')
-      expect(contents).toContain('"inlineData":{"mimeType":"image/png","data":"iVBOR"}')
+      expect(request.body['contents']).toContainEqual({
+        role: 'user',
+        parts: [
+          {
+            functionResponse: {
+              id: 'call_3117260',
+              name: 'get_time',
+              response: { result: hasText ? 'picture from view_image' : '(no tool output)' },
+              parts: [{ inlineData: { mimeType: 'image/png', data: 'iVBOR' } }],
+            },
+          },
+        ],
+      })
       expect(JSON.stringify(request.body)).not.toContain('gemini_tool_result_image_unsupported')
     },
   )
+
+  it.each(['gemini-3.5-flash-lite', 'gemini-2.5-flash'])(
+    'omits tool-result image bytes without vision on %s',
+    (model) => {
+      const request = encodeGeminiRequest(imageResultBody(true), model, {
+        capabilities: { vision: false },
+      })
+      const contents = JSON.stringify(request.body['contents'])
+      expect(contents).toContain('picture from view_image')
+      expect(contents).toContain('[image omitted: this model takes no images]')
+      expect(contents).not.toContain('inlineData')
+      expect(contents).not.toContain('iVBOR')
+    },
+  )
+
+  it('keeps parallel tool-result images attached to their own function response', () => {
+    const body = imageResultBody(false)
+    const other = body.input.flatMap((item) =>
+      item.type === 'function_call' || item.type === 'function_call_output'
+        ? [{ ...item, call_id: 'other-call' }]
+        : [],
+    )
+    const request = encodeGeminiRequest(
+      {
+        ...body,
+        input: [
+          ...body.input.filter(
+            (item) => item.type !== 'function_call' && item.type !== 'function_call_output',
+          ),
+          ...[...body.input, ...other].filter((item) => item.type === 'function_call'),
+          ...[...body.input, ...other].filter((item) => item.type === 'function_call_output'),
+        ],
+      },
+      'gemini-3.5-flash-lite',
+      { capabilities: { vision: true } },
+    )
+    const contents = request.body['contents']
+    if (!Array.isArray(contents)) throw new TypeError('expected native contents')
+    const results: unknown = contents.at(-1)
+    expect(results).toMatchObject({
+      role: 'user',
+      parts: ['call_3117260', 'other-call'].map((id) => ({
+        functionResponse: {
+          id,
+          parts: [{ inlineData: { mimeType: 'image/png', data: 'iVBOR' } }],
+        },
+      })),
+    })
+  })
 
   it.each([false, true])(
     'still refuses tool-result images before Gemini 3 (text: %s)',
@@ -907,6 +967,53 @@ describe('decodeGeminiStream turns', () => {
     )
   })
 
+  it('replays the captured signed empty text part without merging or filtering it', async () => {
+    const events = await collect(sseOf(payloadsOf('03-tool-result-stream.json')))
+    const last = events.at(-1)
+    if (last?.type !== 'response.completed') throw new Error('expected a completed capture')
+    const message = last.response.output.find(isMessageItem)
+    if (message === undefined) throw new Error('expected captured answer text')
+    const content = message.content.map((part) => outputTextPartSchema.parse(part))
+    const request = encodeGeminiRequest(
+      { ...TOOL_BODY, input: [{ type: 'message', role: 'assistant', content }] },
+      'gemini-3.5-flash-lite',
+    )
+    expect(request.body['contents']).toEqual([
+      {
+        role: 'model',
+        parts: content.map((part) => ({
+          text: part.text,
+          ...(part.thoughtSignature !== undefined && {
+            thoughtSignature: part.thoughtSignature,
+          }),
+        })),
+      },
+    ])
+    expect(message.content.at(-1)).toMatchObject({ text: '', thoughtSignature: expect.any(String) })
+  })
+
+  it('replays signed whitespace while dropping unsigned blank parts', () => {
+    const request = encodeGeminiRequest(
+      {
+        ...TOOL_BODY,
+        input: [
+          {
+            type: 'message',
+            role: 'assistant',
+            content: [
+              { type: 'output_text', text: ' ', thoughtSignature: 'sig-space' },
+              { type: 'output_text', text: '' },
+            ],
+          },
+        ],
+      },
+      'gemini-3.5-flash-lite',
+    )
+    expect(request.body['contents']).toEqual([
+      { role: 'model', parts: [{ text: ' ', thoughtSignature: 'sig-space' }] },
+    ])
+  })
+
   it('ends MAX_TOKENS incomplete and other reasons failed', async () => {
     const cut = await collect(sseOf([chunk([{ text: 'half' }], 'MAX_TOKENS')]))
     const cutLast = cut.at(-1)
@@ -1082,11 +1189,52 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 7, 11, 13)', () => {
       'gemini-2.5-flash',
     )
     expect(JSON.stringify(old.body)).not.toContain('additionalProperties')
+    expect(JSON.stringify(old.body)).toContain('"parameters":')
+    expect(JSON.stringify(old.body)).not.toContain('parametersJsonSchema')
     const current = encodeGeminiRequest(
       { ...TOOL_BODY, tools: [{ ...timeTool, parameters }] },
       'gemini-3.5-flash-lite',
     )
     expect(JSON.stringify(current.body)).toContain('"additionalProperties":false')
+    expect(current.body['tools']).toEqual([
+      {
+        functionDeclarations: [
+          {
+            name: timeTool.name,
+            description: timeTool.description,
+            parametersJsonSchema: parameters,
+          },
+        ],
+      },
+    ])
+    expect(JSON.stringify(current.body)).not.toContain('"parameters":')
+  })
+
+  it('preserves sibling constraints when expanding full-schema refs, including chained refs', () => {
+    const schema = {
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      properties: {
+        name: { $ref: '#/$defs/Name', maxLength: 3, allOf: [{ pattern: '^a' }] },
+      },
+      $defs: {
+        Name: { $ref: '#/$defs/Base', minLength: 1 },
+        Base: { type: 'string', maxLength: 10 },
+      },
+    }
+    const expanded = toGeminiFullSchema(schema)
+    expect(expanded['properties']).toEqual({
+      name: {
+        allOf: [
+          { allOf: [{ type: 'string', maxLength: 10 }, { minLength: 1 }] },
+          { maxLength: 3, allOf: [{ pattern: '^a' }] },
+        ],
+      },
+    })
+    expect(JSON.stringify(expanded)).not.toContain('"$ref"')
+    expect(() => toGeminiFullSchema({ $ref: '#/loop', loop: { $ref: '#/loop' } })).toThrow(
+      /circular/,
+    )
   })
 
   it('counts omitted usage as zero but keeps an empty usageMetadata silent (BYO item 7)', async () => {
@@ -1146,6 +1294,101 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 7, 11, 13)', () => {
     expect(firstCall?.call_id).toBe('call_resp_a_0')
     expect(secondCall?.call_id).toBe('call_resp_b_0')
     expect(firstCall?.call_id).not.toBe(secondCall?.call_id)
+  })
+
+  it('salts fallback call ids with a late response id and pairs every streamed event', async () => {
+    const ids: string[] = []
+    for (const responseId of ['late_a', 'late_b']) {
+      const events = await collect(
+        sseOf([
+          {
+            candidates: [
+              {
+                content: {
+                  role: 'model',
+                  parts: [
+                    { functionCall: { name: 'get_time', args: { timezone: 'UTC' } } },
+                    { functionCall: { name: 'get_time', args: { timezone: 'CET' } } },
+                  ],
+                },
+              },
+            ],
+          },
+          { candidates: [{ finishReason: 'STOP' }], responseId },
+        ]),
+      )
+      const last = events.at(-1)
+      if (last?.type !== 'response.completed')
+        throw new Error('expected completed late-id response')
+      const calls = last.response.output.filter(isFunctionCallItem)
+      expect(calls.map((call) => call.call_id)).toEqual([
+        `call_${responseId}_0`,
+        `call_${responseId}_1`,
+      ])
+      for (const call of calls) {
+        expect(events).toContainEqual({ type: 'response.output_item.added', item: call })
+        expect(events).toContainEqual({ type: 'response.output_item.done', item: call })
+        expect(events).toContainEqual({
+          type: 'response.function_call_arguments.delta',
+          item_id: call.id,
+          delta: call.arguments,
+        })
+        ids.push(call.call_id)
+      }
+      const replay = encodeGeminiRequest(
+        {
+          ...TOOL_BODY,
+          input: calls.flatMap((call) => [
+            call,
+            {
+              type: 'function_call_output' as const,
+              call_id: call.call_id,
+              output: 'noon',
+            },
+          ]),
+        },
+        'gemini-3.5-flash-lite',
+      )
+      for (const call of calls)
+        expect(JSON.stringify(replay.body)).toContain(`"id":"${call.call_id}"`)
+    }
+    expect(new Set(ids).size).toBe(4)
+  })
+
+  it.each([
+    'promptTokenCount',
+    'candidatesTokenCount',
+    'totalTokenCount',
+    'cachedContentTokenCount',
+    'thoughtsTokenCount',
+  ])('rejects invalid final usage instead of reporting stale counters (%s)', async (field) => {
+    await expect(
+      collect(
+        sseOf([
+          chunk([{ text: 'hi' }]),
+          usageChunk({ promptTokenCount: 10, candidatesTokenCount: 1000, [field]: -1 }),
+        ]),
+      ),
+    ).rejects.toMatchObject({
+      name: 'ModelApiError',
+      kind: 'invalid_usage',
+      code: 'gemini_invalid_usage',
+    })
+  })
+
+  it('rejects proxy-null Gemini usage and keeps the documented contract and proof ledger aligned', async () => {
+    await expect(collect(sseOf([textOnlyChunk('hi'), usageChunk(null)]))).rejects.toThrow(
+      ModelApiError,
+    )
+    const changelog = readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8')
+      .split('- M95 integration', 1)[0]
+      ?.replaceAll(/\s+/g, ' ')
+    expect(changelog).toContain('Gemini rejects proxy-null usage')
+    expect(changelog).not.toContain('and its decoder tolerates proxy-null usage')
+    const plan = readFileSync(path.join(ROOT, 'PLAN.md'), 'utf8')
+    const lane = plan.split('**Lane P1 — provider codecs**', 2)[1]?.split('**Lane P2', 1)[0]
+    expect(lane).toContain('Original lane gates and red drills ran')
+    expect(lane).not.toContain('commit are pending')
   })
 
   it('drops blank text, marks empty results and stands in for images without vision (BYO item 1)', () => {

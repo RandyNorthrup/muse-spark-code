@@ -15704,8 +15704,21 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   Mistral compliant ids), and `docs/certification/m101-p1.md` holding the
   provider x item table, byte diffs, and residuals (session-store signature
   stripping for lane A, replay origins for lane I, id-heuristic generation
-  for lane N). Gates, red drills, bundle measurement and commit are pending:
-  the session had no working shell.
+  for lane N). Original lane gates and red drills ran after its shell
+  recovered; three local commits ended at `05ab4f30`. Original production
+  build receipts remained environment-blocked; RVM101P1 later reproduced
+  bundle sizes but found nine defects (one P1, seven P2, one P3).
+  **FIXM101P1 repair scope (2026-10-05):** correct Gemini 3's
+  `parametersJsonSchema` field, retain signed empty text on replay, gate
+  and nest tool-result media, preserve `$ref` sibling constraints, assign
+  response-salted fallback ids after late response ids, reject invalid
+  usage explicitly, select Mistral ids by preset, preserve own `__proto__`
+  JSON keys (shared and Anthropic), and reconcile the documentation.
+  Each finding gets a regression and deliberate red drill in
+  `docs/certification/m101-p1.md`; only Gemini request goldens move, with
+  cited provider contracts. Meta request fixtures stay byte-identical.
+  Rig rules require local hooked commits and focused direct tests; no
+  push, integration merge, new dependency, live/paid call or gate change.
 - **Lane P2 — provider pricing, limits and retry** (BYO 5, 6, 10, 12, 14, 15,
   16; item 24's per-model strict schemas and the llama.cpp grammar check).
   Retry classification moves into `FormatQuirks`; price cards read long
@@ -15754,6 +15767,15 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   - [ ] Provider × item table complete; full gate green
 
 ## 7. Gates
+
+**FIXM101P1 lane verification (2026-10-05).** The rig brief expressly
+forbids the full `npm run quality` wrapper and full unit suite because the
+rig is shared; the lead runs the combined four-machine quality gate.
+This lane runs focused complete test files (at most three per invocation),
+all project typechecks, changed-file lint/format, deadcode, duplication,
+localization, host API and production build directly on Kubuntu. The final
+receipts and red drills are in `docs/certification/m101-p1.md`. This defers
+only the full-tree/full-platform quality receipt; no gate is weakened.
 
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
@@ -16375,6 +16397,21 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM101P1 / RVM101P1 (2026-10-05):** repair all nine findings, with no
+  assigned P1/P2/P3 residual. The isolated shared-core codec tests do not
+  certify installed-editor dispatch or live services; the lead still owns
+  combined quality and the platform matrix. No credential access or paid
+  call is added. Existing named integration follow-ups remain:
+  **M101-SIGNATURE-PERSISTENCE** (lane A must retain text thought signatures
+  through session-store parsing; release blocker for signed resume/fork),
+  **M101-REPLAY-ORIGIN** (lane I must supply actual replay origins; release
+  blocker for foreign-model Responses replay), and **M101-GENERATION-RECORD**
+  (lane N supplies model generation instead of relying on the id heuristic;
+  the explicit override remains available). These are safe only within this
+  codec-only certification, not proof of integrated behavior. Gemini tool
+  result media now follows the lead-approved documented nested shape,
+  with the generation/vision gates; no new live receipt is claimed.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate

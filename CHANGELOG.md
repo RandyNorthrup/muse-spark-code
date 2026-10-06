@@ -19,8 +19,12 @@ happened, not what was planned; superseded entries are kept.
   per-response Gemini fallback ids. Responses replays send the call `id`
   only for the same model with an `fc_` prefix. Gemini replays thought
   signatures on text parts (empty ones included), counts omitted usage as
-  zero, sends tool-result images and full tool schemas on Gemini 3, and its
-  decoder tolerates proxy-null usage. The Anthropic decoder tolerates
+  zero, sends vision-gated tool-result images inside `functionResponse.parts`
+  and full tool schemas through `parametersJsonSchema` on Gemini 3.
+  Gemini rejects proxy-null usage and explicitly rejects negative usage
+  counters instead of retaining an earlier tally. Signed blank parts replay;
+  late response ids salt fallback call ids; `$ref` siblings stay constrained
+  through `allOf`. The Anthropic decoder tolerates
   proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
   requests `display: summarized` so newer models stream thinking text.
   Lone surrogates are removed from every BYO encoder. Fakes only; no live

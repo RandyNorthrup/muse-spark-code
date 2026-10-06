@@ -241,6 +241,7 @@ function resolveSchemaNode(
   node: unknown,
   root: unknown,
   resolving: readonly string[],
+  shouldStopAtTarget = false,
 ): { current: unknown; seen: readonly string[] } {
   let current: unknown = node
   let seen = resolving
@@ -263,6 +264,9 @@ function resolveSchemaNode(
     }
     seen = [...seen, ref]
     current = resolvePointer(root, ref.slice(1))
+    if (shouldStopAtTarget) {
+      return { current, seen }
+    }
   }
 }
 
@@ -314,18 +318,31 @@ function rewriteFullSchemaNode(
   root: unknown,
   resolving: readonly string[],
 ): unknown {
-  // `$ref`s resolve through the shared resolver; every other key rides
-  // verbatim, in order.
-  const resolved = resolveSchemaNode(node, root, resolving)
-  if (Array.isArray(resolved.current)) {
-    return resolved.current.map((entry) => rewriteFullSchemaNode(entry, root, resolved.seen))
+  if (Array.isArray(node)) {
+    return node.map((entry) => rewriteFullSchemaNode(entry, root, resolving))
   }
-  if (!isRecord(resolved.current)) {
-    return resolved.current
+  if (!isRecord(node)) {
+    return node
+  }
+  if (node['$ref'] !== undefined) {
+    // Resolve one link at a time so chained references keep their siblings
+    // too. JSON Schema 2020-12 applies both the reference and its siblings;
+    // allOf keeps even conflicting constraints instead of overwriting one.
+    const { current, seen } = resolveSchemaNode(node, root, resolving, true)
+    const target = rewriteFullSchemaNode(current, root, seen)
+    const siblings = Object.fromEntries(Object.entries(node).filter(([key]) => key !== '$ref'))
+    return Object.keys(siblings).length === 0
+      ? target
+      : { allOf: [target, rewriteFullSchemaNode(siblings, root, resolving)] }
   }
   const out: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(resolved.current)) {
-    out[key] = rewriteFullSchemaNode(value, root, resolved.seen)
+  for (const [key, value] of Object.entries(node)) {
+    Object.defineProperty(out, key, {
+      value: rewriteFullSchemaNode(value, root, resolving),
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    })
   }
   return out
 }
@@ -391,7 +408,10 @@ function toNativeParts(content: readonly InputContentPart[], build: ContentsBuil
   for (const part of content) {
     if (part.type === 'input_image' || part.type === 'input_file') {
       parts.push(build.vision === false ? { text: CODEC_IMAGE_WITHOUT_VISION } : toInlineData(part))
-    } else if (!isBlankWireText(part.text)) {
+    } else if (
+      !isBlankWireText(part.text) ||
+      (part.type === 'output_text' && part.thoughtSignature !== undefined)
+    ) {
       const text = cleanWireText(part.text)
       if (part.type === 'output_text' && part.thoughtSignature !== undefined) {
         parts.push({ text, thoughtSignature: part.thoughtSignature })
@@ -409,8 +429,8 @@ function toNativeParts(content: readonly InputContentPart[], build: ContentsBuil
  * `{"timezone": …, "time": …}` verbatim); anything else, including text
  * joined from content parts, as `{result}`. M101 lane P1 (BYO items 1,
  * 11, 13): blank results ride as the empty-output marker, and on Gemini 3
- * and later the result's images ride as sibling `inlineData` parts after
- * the `functionResponse` (Pi `google-shared.ts`); older models keep the
+ * and later the result's images ride inside `functionResponse.parts`
+ * (Google's multimodal function-response contract); older models keep the
  * named refusal instead of a silently text-only representation.
  */
 function toFunctionResponseParts(
@@ -424,6 +444,10 @@ function toFunctionResponseParts(
   } else {
     for (const part of output) {
       if (part.type === 'input_image') {
+        if (build.vision === false) {
+          texts.push(CODEC_IMAGE_WITHOUT_VISION)
+          continue
+        }
         if (!build.isGemini3) {
           throw new ModelApiError(
             'GeminiToolResultImageUnsupported',
@@ -502,9 +526,9 @@ function convertItem(build: ContentsBuild, item: InputItem): void {
           id: item.call_id,
           name,
           response,
+          ...(images.length > 0 && { parts: images }),
         },
       },
-      ...images,
     ])
     return
   }
@@ -587,9 +611,9 @@ export function encodeGeminiRequest(
     .map((tool) => ({
       name: tool.name,
       description: tool.description,
-      parameters: isGemini3
-        ? toGeminiFullSchema(tool.parameters)
-        : toGeminiSchemaSubset(tool.parameters),
+      ...(isGemini3
+        ? { parametersJsonSchema: toGeminiFullSchema(tool.parameters) }
+        : { parameters: toGeminiSchemaSubset(tool.parameters) }),
     }))
   const thinkingLevel = geminiThinkingLevelForEffort(body.reasoning.effort)
   const request: Record<string, unknown> = {
@@ -636,9 +660,29 @@ function parseFrameJson(data: string): unknown {
 /** A decoded call: the wire id is kept, so replay and the prefix never shift. */
 interface DecodedCall {
   readonly id: string
+  readonly isPendingId: boolean
   readonly name: string
   readonly args: string
   readonly signature: string | undefined
+}
+
+/** Start a call only once its replay identity is known, including late response ids. */
+function* openingCallEvents(call: DecodedCall): Generator<StreamEvent> {
+  yield {
+    type: 'response.output_item.added',
+    item: {
+      type: 'function_call',
+      id: call.id,
+      call_id: call.id,
+      name: call.name,
+      arguments: call.args,
+    },
+  }
+  yield {
+    type: 'response.function_call_arguments.delta',
+    item_id: call.id,
+    delta: call.args,
+  }
 }
 
 /**
@@ -662,7 +706,12 @@ function toUsage(usage: z.infer<typeof geminiUsageSchema>): Usage | undefined {
   }
   for (const count of counts) {
     if (count !== undefined && (!Number.isFinite(count) || count < 0)) {
-      return undefined
+      throw new ModelApiError(
+        'Gemini stream had invalid usage',
+        0,
+        'invalid_usage',
+        'gemini_invalid_usage',
+      )
     }
   }
   const prompt = promptTokenCount ?? 0
@@ -881,34 +930,20 @@ export async function* decodeGeminiStream(
           }
         } else if (part.functionCall !== undefined) {
           // M101 lane P1 (BYO 3): a call the wire left unnamed takes a
-          // fallback id unique to this response, so two turns never share
-          // one (`call_${n}` repeated across turns would collide in history).
-          const callId =
-            part.functionCall.id ??
-            (responseId !== undefined && responseId !== ''
-              ? `call_${responseId}_${String(calls.length)}`
-              : `call_${String(calls.length)}`)
+          // fallback id salted by the response id. If that id arrives late,
+          // defer the call's opening events until completion so all events
+          // and replay items use the same final identity.
+          const callId = part.functionCall.id ?? `call_${responseId ?? ''}_${String(calls.length)}`
           const call: DecodedCall = {
             id: callId,
+            isPendingId: part.functionCall.id === undefined && responseId === undefined,
             name: part.functionCall.name,
             args: JSON.stringify(part.functionCall.args ?? {}),
             signature: part.thoughtSignature,
           }
           calls.push(call)
-          yield {
-            type: 'response.output_item.added',
-            item: {
-              type: 'function_call',
-              id: call.id,
-              call_id: call.id,
-              name: call.name,
-              arguments: call.args,
-            },
-          }
-          yield {
-            type: 'response.function_call_arguments.delta',
-            item_id: call.id,
-            delta: call.args,
+          if (!call.isPendingId) {
+            yield* openingCallEvents(call)
           }
         } else if (part.text !== undefined) {
           // Unsigned text merges into one segment; a signed part (empty or
@@ -980,7 +1015,14 @@ export async function* decodeGeminiStream(
       },
     }
   }
-  for (const call of calls) {
+  for (const [index, pending] of calls.entries()) {
+    const call = pending.isPendingId
+      ? { ...pending, id: `call_${responseId}_${String(index)}`, isPendingId: false }
+      : pending
+    calls[index] = call
+    if (pending.isPendingId) {
+      yield* openingCallEvents(call)
+    }
     yield {
       type: 'response.output_item.done',
       item: {
