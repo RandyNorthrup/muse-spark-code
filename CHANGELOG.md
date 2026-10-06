@@ -11,6 +11,10 @@ happened, not what was planned; superseded entries are kept.
 
 - VS Code adapter modules now live under `src/host/vscode/`; the host API
   gate enforces this boundary while preserving the existing panel behavior.
+- Portable conversation composition now shares backend, paid-use, review,
+  checkpoint and session-board wiring between VS Code and future runtime
+  callers. Its frozen HostServices adapter validates in-process calls and
+  editor versions; standalone panel command integration remains pending.
 
 - Standalone session controller registry now owns ACP adoption, reload stop
   barriers and host-exit cleanup; the existing ACP wire behavior is preserved.

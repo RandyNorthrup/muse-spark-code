@@ -6459,35 +6459,6 @@ scheduled command released after its turn ends. Deliberately break each fix,
 observe the named tests fail, restore byte-exact and record the evidence in
 `docs/certification/envfence.md`. No new dependency or broader exception.
 
-## 3. Open questions (need the owner)
-
-- **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
-  `native/darwin/muse-dictate`. The lane's shared rules forbid network except
-  `npm ci` and reads from other worktrees without authorization. An existing
-  helper/VSIX location was requested; none was supplied. All production caps
-  and helperless packages pass, and estimates use the prior train's actual
-  119,506-byte ZIP contribution. Actual CI-shaped VSIX certification requires
-  an authorized real universal helper; no placeholder substitutes for it.
-
-- **Q-M100 — Optional expansion after the paired desktop slice.** Short-code
-  PAKE, remote-host key placement, approval forwarding, persistent receivers,
-  VPN/public-address routes and machine-wide caps need their own design and
-  qualification. Defaults: public QR/text exchange with fingerprint checks,
-  local desktop windows, receiver-local approvals, chosen private LAN address,
-  one offered window's caps. M100's lane 0 must settle the certificate/QR
-  implementation, bounded protocol constants and durable journal retention
-  before implementation; uncertain records have no time-based deletion.
-
-- **DEFLAKE3 hosted failure receipt (2026-10-05):** what exact assertion,
-  timeout and stack did PR #116's Windows checkpoint-copy count/cursor test
-  report? The lane brief names the failure without its output; 100 normal
-  and 100 CPU-loaded original-file runs did not reproduce it. The old test
-  accepts a deliberately broken cursor restart, and its large real-file
-  fixture adds a latency dependency to CI's five-second test deadline.
-  Default: retain production behavior, reduce only the test fixture and prove
-  exact bounds/cursor identity; leave the original hosted trigger unconfirmed
-  until its receipt is available. Evidence: `docs/certification/deflake3.md`.
-
 ### D83 — Makers: boards, firmware and machines, with a human at every actuation (M103, 2026-10-05)
 
 The owner asked (2026-10-05): "is there anything we can include that will
@@ -6861,15 +6832,42 @@ have equivalent functionality even if we need to develop it ourselves".
 
 ## 3. Open questions (need the owner)
 
-- **M104 B composition boundary (2026-10-05):** the portable panel needs
-  the full conversation composition extracted by lane A, the browser bridges
-  from lane D, and lane C endpoints aligned with frozen MHP 1.1. On this base
-  the composition still lives in `src/extension.ts` and exceeds the common
-  lane rule's approximately 300 new lines for one finding. Should a follow-up
-  integrate those prerequisites and authorize the larger panel composition?
-  Default: stop that implementation path, retain the tested registry/stores,
-  and keep B and M110a0 incomplete; `docs/certification/m104-b.md` records the
-  missing work. No reduced panel is advertised.
+- **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
+  `native/darwin/muse-dictate`. The lane's shared rules forbid network except
+  `npm ci` and reads from other worktrees without authorization. An existing
+  helper/VSIX location was requested; none was supplied. All production caps
+  and helperless packages pass, and estimates use the prior train's actual
+  119,506-byte ZIP contribution. Actual CI-shaped VSIX certification requires
+  an authorized real universal helper; no placeholder substitutes for it.
+
+- **Q-M100 — Optional expansion after the paired desktop slice.** Short-code
+  PAKE, remote-host key placement, approval forwarding, persistent receivers,
+  VPN/public-address routes and machine-wide caps need their own design and
+  qualification. Defaults: public QR/text exchange with fingerprint checks,
+  local desktop windows, receiver-local approvals, chosen private LAN address,
+  one offered window's caps. M100's lane 0 must settle the certificate/QR
+  implementation, bounded protocol constants and durable journal retention
+  before implementation; uncertain records have no time-based deletion.
+
+- **DEFLAKE3 hosted failure receipt (2026-10-05):** what exact assertion,
+  timeout and stack did PR #116's Windows checkpoint-copy count/cursor test
+  report? The lane brief names the failure without its output; 100 normal
+  and 100 CPU-loaded original-file runs did not reproduce it. The old test
+  accepts a deliberately broken cursor restart, and its large real-file
+  fixture adds a latency dependency to CI's five-second test deadline.
+  Default: retain production behavior, reduce only the test fixture and prove
+  exact bounds/cursor identity; leave the original hosted trigger unconfirmed
+  until its receipt is available. Evidence: `docs/certification/deflake3.md`.
+
+- **M104 B composition boundary (2026-10-05; A prerequisite resolved):**
+  the authorized A extraction provides `composeConversationDeps` in
+  `src/host/compose/conversationDeps.ts`, using frozen `HostServices` and explicit
+  feature/state ports. Its conformance test loads a real controller while any
+  `vscode` import throws. B still must supply runtime ports, integrate D's browser
+  bridges, align C's endpoints with frozen MHP 1.1 and wire the registry and panel
+  commands. B and M110a0 remain incomplete until that continuation qualifies;
+  `docs/certification/m104-a.md` names the exact caller contract. No reduced
+  panel is advertised.
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
@@ -18752,162 +18750,6 @@ joined with M57, M58 and PR #49's sign-in
       byte-exact restoration. Focused certification is appended to
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
-## 7. Gates
-
-**BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
-prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
-test files, deliberate failures, typecheck, scoped lint/format, deadcode,
-duplication, localization, host API and production/package checks directly on
-Kubuntu; the lead retains full integrated quality and hosted service proof.
-Local badge requests use the explicitly permitted named skip because the shared
-rig lane forbids public network. CI and CI packaging reject that override and
-must validate actual SVG responses. PNG screenshots remain HTTPS content images;
-the SVG requirement applies to badges. No threshold or existing gate is relaxed.
-Focused certification passed: 86 tests, 23 byte-exact red drills, required
-static/build/package checks and actual VSIX/ACP archive version inspection.
-The 0.14.0 VSIX is 2,168,278 bytes under the unchanged 2,252,800-byte cap; the
-ACP tarball is 1,295,446 bytes. Both carry exact static v0.14.0 badges, and a
-future-version fixture proves no manual badge bump is needed. The Kubuntu
-package lacks the compiled macOS helper; hosted universal packaging remains
-unchanged. Receipts: `docs/certification/badgefix.md`.
-
-**CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
-tarball passes the unchanged strict English fallback check and 382 distinct
-scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
-deadcode, duplication, host API and production build gates pass. Shared rules
-prohibit aggregate `npm run quality` and replacing the existing dependency tree;
-fresh tarball installs use an offline scratch prefix. Kubuntu runs Node 24.18.0,
-not CI's requested Node 22, and lacks CI's downloaded compiled macOS helper.
-The exact universal VSIX listing therefore fails only that helper entry; hosted
-artifact operations and full integrated quality remain with the lead. No check
-is weakened. Receipts and deliberate failures are in
-`docs/certification/cifix14-acp-usage.md`.
-
-**CIFIX14W2 short-path certification (2026-10-05).** The explicit rig brief
-requires complete directory-tracking and shell files with default CLI timeouts,
-three workers and a real 8.3 fixture. Shared lane rules prohibit aggregate
-`npm run quality`; focused regressions, static checks and the production build
-run locally with hooks on. The lead retains the integrated full quality gate.
-No threshold, timeout, retry, skip policy or gate is changed; evidence is in
-`docs/certification/cifix14-shortpath.md`.
-
-**CIFIX14M bounded macOS certification (2026-10-05).** The explicit lane brief
-requires all four unit/process-e2e coverage shards and two complete green runs.
-The rig note overrides the shared prohibition on full suites for that work,
-while retaining its three-file/three-worker batches. Shared rules still prohibit
-`npm run quality`; hook-on commits use scoped regressions, typecheck, lint and
-format, with the available static/build checks and merged coverage recorded in
-`docs/certification/cifix14-macos.md`. The lead retains the integrated aggregate
-quality, accessibility and hosted certification. No gate is weakened.
-**CIFIX14W Windows hosted-CI repair (2026-10-05).** Reproduce all four unit
-and process-e2e shards on the Windows 11 rig, in the rig brief's bounded
-three-file batches with V8 coverage, then repeat the complete suite twice
-after repairs. Correct foreign-platform fixtures with explicit path/platform
-semantics and make in-memory bundle tests independent of existing `dist`.
-Check the real PowerShell directory case before deciding whether product
-changes are needed. Run the Windows integration suite using local VS Code
-downloads only; network, live models, timeout increases and gate changes are
-prohibited. Exact receipts and any unavailable checks belong in
-`docs/certification/cifix14-windows.md`.
-The shared rules prohibit the aggregate `quality` command; scoped gates and
-the expressly requested full tests run instead. The rig's Node is 24.21.0,
-not CI's Node 22, and only installed VS Code 1.139.1 is available offline.
-The first full scan also hits the unchanged five-second restore-lease deadline
-in checkpoint restore; that entire file then passes in isolation. These
-limits are recorded, with no green full-run or exact-CI-version claim until
-the required receipts exist.
-The continued scan finds one more foreign-shell fixture:
-`importHookSources.test.ts` starts Bash for a POSIX quoting case on Windows.
-Use each OS's actual shell and generated command, and assert the complete
-literal path and absence of command substitution on both branches.
-The complete scan additionally exposes a missing Bash-name dependency in
-the headless fixture and a POSIX-only missing-chunk error-path assertion.
-Git's installed `sh.exe` on this rig identifies itself as GNU Bash 5.3.15;
-admit that existing binary only after verifying it is Bash, keep executing
-the actual fake-only headless/workflow fixtures, and normalize filesystem
-separators while retaining the missing-file and failed-stat assertions.
-The last shard also exposes four fake-child plugin dispatch cases whose
-POSIX plugin paths are parsed with the real Windows platform. Give those
-fixtures a drive-qualified root on Windows, retaining native-platform
-parsing and all cap, grant-stripping and containment assertions.
-
-**TRAIN14B Judge activation fixture stop (2026-10-05).** Full quality is
-explicitly authorized by this rig brief. Its aggregate unit run exposes a
-legacy Judge activation fixture that omits D78’s default callback. The field
-extraction fix resolves the undefined-variable error; a backend-availability
-fixture fix still leaves three subscription-default assertions failing.
-Common.md requires stopping after two different fixes to the same test, so
-this path is paused pending the requested explicit override for one targeted
-`isDefaultOn` fixture correction. No gate, test, timeout or paid policy is
-weakened. Until the unchanged full gate exits zero, this train is not ready
-for merge/release; all other authorized checks continue and their exact
-receipts are in `docs/certification/train-0.14.0.md`.
-
-**ACTDIET preview integration deferral (2026-10-05).** Full quality is prohibited
-by the explicit lane brief; focused tests, static gates and production builds
-run on Kubuntu instead. `jscpd` reports existing clones in M91 hooks and their
-fixtures, MCP/plugin fixture setup, golden/shell test setup and repeated shell
-scenarios. The implicated files are byte-identical to merged preview ce99c0fc
-(`git diff ce99c0fc --` those ten paths is empty). ACTDIET's repeated split-drill
-logic is consolidated and adds no clone. No ignore, threshold or gate changes.
-These integration refactors remain with the owning feature/release lanes; the
-preview is not certified for release while duplication is red. Exact findings
-and other results are in `docs/certification/actdiet.md`.
-
-**FIXM91P4 lane-scope deferrals (2026-10-04, not gate exceptions).** The required
-commands ran directly on the Mac mini. `check:host-api` fails on the review base
-as well as this correction: its generated record says 65 `node:path` importers,
-the scanner finds 66. **P-host-api-baseline:** W/lead must regenerate and review
-`docs/ide-compatibility/host-api.md` with `npm run check:host-api -- --write`.
-`npm run build` compiles and passes all size caps, then the unchanged split gate
-rejects all eleven unwired adapter modules as on neither list. The same original
-sources reproduce those eleven errors. **P-bundle-map-baseline:** W must register
-the files' actual bundle/type membership while wiring them, then rerun the build.
-Both target files are outside lane P's permitted edits. Neither gate, ignore nor
-cap was changed; neither failing command is claimed green. Certification and
-PLAN §9 name the residuals. Full quality remains the lead's integration gate,
-as the shared lane rules expressly forbid running it in the lane.
-
-**Resolved in integration (lane W, 2026-10-05).** The bundle map is registered: lane P's modules ship in `dist/foreignHooks.js` (`FOREIGN_HOOKS_ONLY`) and its type-only `contract.ts` is listed as such. The host-API record is regenerated with the integration's full gate.
-
-**M91-I-Bundle-budget deferral (FIXM91I3, 2026-10-04).** The required
-production build was run and the import bundle alone exceeds its unchanged
-125 KiB cap: 148.5 KiB after removing the new heavy name-builder import and
-all six duplication-gate clones. An in-memory build of the starting commit
-`d1eeaadbb791c93a9440e36d358b9cfdc7f2c9f1`, with the production options and
-shared English fallback, is already 147.7 KiB. This is a blocking packaging
-deferral, not a gate waiver or support claim. Splitting a bundle needs build,
-bundle-split and host entry changes outside lane I's owned files; the lane
-brief forbids widening there and common.md says to stop and report when a
-bundle cannot fit. Follow-up: W/lead splits the importer under the existing
-budgets and reruns the production build and full quality gate before landing.
-No cap, threshold, ignore or rule level changed.
-
-**Resolved in integration (lane W, 2026-10-04, accepted by the lead).** The import bundle's cap is 175 KiB under the D6 rule (147.7 KiB measured, plus 15%, rounded up to 25 KiB); see the D6 table.
-**KNIPC bounded lane (2026-10-05).** The rig brief and shared rules prohibit
-aggregate quality/full-unit runs and integration merges/pushes on this lane.
-Full quality, coverage, accessibility and integration certification remain
-the lead's gates. The namespace export/type checks extend Knip's existing
-issue set without an ignore or lowered severity; value/type plants prove
-both guards fire. Scoped macmini evidence is recorded in
-`docs/certification/knip-constants.md`.
-**DEFLAKE4 lane (2026-10-05).** The named brief and common.md assign full
-quality, coverage and hosted certification to the lead; this lane runs the
-owning test file and scoped gates only. Full quality remains required before
-integration. The feature-delivery ledger validator cannot validate this
-existing section-based roadmap (`expected exactly one quality-ledger fence`);
-retain its canonical format and record that structural check as deferred.
-Current receipts and any remaining blockers belong in
-`docs/certification/deflake4.md`.
-
-**STAR lane (2026-10-05).** The owner's lane brief requires scoped tests,
-typecheck, lint, localization/manifest checks, bundle budgets and an actual
-VSIX README inspection, with removal drills and hooks enabled. It expressly
-assigns full `npm run quality` to the release lead after integration; this
-lane does not run it or weaken any gate. The generic delivery validator's
-ledger-format check remains deferred for this established plan format.
-Current receipts: `docs/certification/star-line.md`.
-
 ### M103 — Makers: boards, firmware and machines (D83)
 
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
@@ -19418,6 +19260,173 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**M104 A (2026-10-05, macmini).** The rig/common brief forbids aggregate
+`npm run quality`; the lead owns integrated quality, coverage and editor
+qualification. A runs all project typechecks, scoped lint/format, owning unit
+and fake-process suites, host inventory, localization, plain knip, cycles,
+duplication and production builds with unchanged caps. Real extension-host
+integration is unavailable here: there is no worktree VS Code test cache or
+installed stable VS Code executable, and public network is forbidden by the
+shared brief. Record this limit rather than filter or weaken integration tests.
+The required release merge and mechanical move preserve all released changelog
+sections byte-exact; every production JavaScript bundle is byte-identical after
+the move. Extraction/adapter and screenshot outcomes are in
+`docs/certification/m104-a.md`. No model or paid calls.
+
+**BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
+prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
+test files, deliberate failures, typecheck, scoped lint/format, deadcode,
+duplication, localization, host API and production/package checks directly on
+Kubuntu; the lead retains full integrated quality and hosted service proof.
+Local badge requests use the explicitly permitted named skip because the shared
+rig lane forbids public network. CI and CI packaging reject that override and
+must validate actual SVG responses. PNG screenshots remain HTTPS content images;
+the SVG requirement applies to badges. No threshold or existing gate is relaxed.
+Focused certification passed: 86 tests, 23 byte-exact red drills, required
+static/build/package checks and actual VSIX/ACP archive version inspection.
+The 0.14.0 VSIX is 2,168,278 bytes under the unchanged 2,252,800-byte cap; the
+ACP tarball is 1,295,446 bytes. Both carry exact static v0.14.0 badges, and a
+future-version fixture proves no manual badge bump is needed. The Kubuntu
+package lacks the compiled macOS helper; hosted universal packaging remains
+unchanged. Receipts: `docs/certification/badgefix.md`.
+
+**CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
+tarball passes the unchanged strict English fallback check and 382 distinct
+scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
+deadcode, duplication, host API and production build gates pass. Shared rules
+prohibit aggregate `npm run quality` and replacing the existing dependency tree;
+fresh tarball installs use an offline scratch prefix. Kubuntu runs Node 24.18.0,
+not CI's requested Node 22, and lacks CI's downloaded compiled macOS helper.
+The exact universal VSIX listing therefore fails only that helper entry; hosted
+artifact operations and full integrated quality remain with the lead. No check
+is weakened. Receipts and deliberate failures are in
+`docs/certification/cifix14-acp-usage.md`.
+
+**CIFIX14W2 short-path certification (2026-10-05).** The explicit rig brief
+requires complete directory-tracking and shell files with default CLI timeouts,
+three workers and a real 8.3 fixture. Shared lane rules prohibit aggregate
+`npm run quality`; focused regressions, static checks and the production build
+run locally with hooks on. The lead retains the integrated full quality gate.
+No threshold, timeout, retry, skip policy or gate is changed; evidence is in
+`docs/certification/cifix14-shortpath.md`.
+
+**CIFIX14M bounded macOS certification (2026-10-05).** The explicit lane brief
+requires all four unit/process-e2e coverage shards and two complete green runs.
+The rig note overrides the shared prohibition on full suites for that work,
+while retaining its three-file/three-worker batches. Shared rules still prohibit
+`npm run quality`; hook-on commits use scoped regressions, typecheck, lint and
+format, with the available static/build checks and merged coverage recorded in
+`docs/certification/cifix14-macos.md`. The lead retains the integrated aggregate
+quality, accessibility and hosted certification. No gate is weakened.
+**CIFIX14W Windows hosted-CI repair (2026-10-05).** Reproduce all four unit
+and process-e2e shards on the Windows 11 rig, in the rig brief's bounded
+three-file batches with V8 coverage, then repeat the complete suite twice
+after repairs. Correct foreign-platform fixtures with explicit path/platform
+semantics and make in-memory bundle tests independent of existing `dist`.
+Check the real PowerShell directory case before deciding whether product
+changes are needed. Run the Windows integration suite using local VS Code
+downloads only; network, live models, timeout increases and gate changes are
+prohibited. Exact receipts and any unavailable checks belong in
+`docs/certification/cifix14-windows.md`.
+The shared rules prohibit the aggregate `quality` command; scoped gates and
+the expressly requested full tests run instead. The rig's Node is 24.21.0,
+not CI's Node 22, and only installed VS Code 1.139.1 is available offline.
+The first full scan also hits the unchanged five-second restore-lease deadline
+in checkpoint restore; that entire file then passes in isolation. These
+limits are recorded, with no green full-run or exact-CI-version claim until
+the required receipts exist.
+The continued scan finds one more foreign-shell fixture:
+`importHookSources.test.ts` starts Bash for a POSIX quoting case on Windows.
+Use each OS's actual shell and generated command, and assert the complete
+literal path and absence of command substitution on both branches.
+The complete scan additionally exposes a missing Bash-name dependency in
+the headless fixture and a POSIX-only missing-chunk error-path assertion.
+Git's installed `sh.exe` on this rig identifies itself as GNU Bash 5.3.15;
+admit that existing binary only after verifying it is Bash, keep executing
+the actual fake-only headless/workflow fixtures, and normalize filesystem
+separators while retaining the missing-file and failed-stat assertions.
+The last shard also exposes four fake-child plugin dispatch cases whose
+POSIX plugin paths are parsed with the real Windows platform. Give those
+fixtures a drive-qualified root on Windows, retaining native-platform
+parsing and all cap, grant-stripping and containment assertions.
+
+**TRAIN14B Judge activation fixture stop (2026-10-05).** Full quality is
+explicitly authorized by this rig brief. Its aggregate unit run exposes a
+legacy Judge activation fixture that omits D78’s default callback. The field
+extraction fix resolves the undefined-variable error; a backend-availability
+fixture fix still leaves three subscription-default assertions failing.
+Common.md requires stopping after two different fixes to the same test, so
+this path is paused pending the requested explicit override for one targeted
+`isDefaultOn` fixture correction. No gate, test, timeout or paid policy is
+weakened. Until the unchanged full gate exits zero, this train is not ready
+for merge/release; all other authorized checks continue and their exact
+receipts are in `docs/certification/train-0.14.0.md`.
+
+**ACTDIET preview integration deferral (2026-10-05).** Full quality is prohibited
+by the explicit lane brief; focused tests, static gates and production builds
+run on Kubuntu instead. `jscpd` reports existing clones in M91 hooks and their
+fixtures, MCP/plugin fixture setup, golden/shell test setup and repeated shell
+scenarios. The implicated files are byte-identical to merged preview ce99c0fc
+(`git diff ce99c0fc --` those ten paths is empty). ACTDIET's repeated split-drill
+logic is consolidated and adds no clone. No ignore, threshold or gate changes.
+These integration refactors remain with the owning feature/release lanes; the
+preview is not certified for release while duplication is red. Exact findings
+and other results are in `docs/certification/actdiet.md`.
+
+**FIXM91P4 lane-scope deferrals (2026-10-04, not gate exceptions).** The required
+commands ran directly on the Mac mini. `check:host-api` fails on the review base
+as well as this correction: its generated record says 65 `node:path` importers,
+the scanner finds 66. **P-host-api-baseline:** W/lead must regenerate and review
+`docs/ide-compatibility/host-api.md` with `npm run check:host-api -- --write`.
+`npm run build` compiles and passes all size caps, then the unchanged split gate
+rejects all eleven unwired adapter modules as on neither list. The same original
+sources reproduce those eleven errors. **P-bundle-map-baseline:** W must register
+the files' actual bundle/type membership while wiring them, then rerun the build.
+Both target files are outside lane P's permitted edits. Neither gate, ignore nor
+cap was changed; neither failing command is claimed green. Certification and
+PLAN §9 name the residuals. Full quality remains the lead's integration gate,
+as the shared lane rules expressly forbid running it in the lane.
+
+**Resolved in integration (lane W, 2026-10-05).** The bundle map is registered: lane P's modules ship in `dist/foreignHooks.js` (`FOREIGN_HOOKS_ONLY`) and its type-only `contract.ts` is listed as such. The host-API record is regenerated with the integration's full gate.
+
+**M91-I-Bundle-budget deferral (FIXM91I3, 2026-10-04).** The required
+production build was run and the import bundle alone exceeds its unchanged
+125 KiB cap: 148.5 KiB after removing the new heavy name-builder import and
+all six duplication-gate clones. An in-memory build of the starting commit
+`d1eeaadbb791c93a9440e36d358b9cfdc7f2c9f1`, with the production options and
+shared English fallback, is already 147.7 KiB. This is a blocking packaging
+deferral, not a gate waiver or support claim. Splitting a bundle needs build,
+bundle-split and host entry changes outside lane I's owned files; the lane
+brief forbids widening there and common.md says to stop and report when a
+bundle cannot fit. Follow-up: W/lead splits the importer under the existing
+budgets and reruns the production build and full quality gate before landing.
+No cap, threshold, ignore or rule level changed.
+
+**Resolved in integration (lane W, 2026-10-04, accepted by the lead).** The import bundle's cap is 175 KiB under the D6 rule (147.7 KiB measured, plus 15%, rounded up to 25 KiB); see the D6 table.
+**KNIPC bounded lane (2026-10-05).** The rig brief and shared rules prohibit
+aggregate quality/full-unit runs and integration merges/pushes on this lane.
+Full quality, coverage, accessibility and integration certification remain
+the lead's gates. The namespace export/type checks extend Knip's existing
+issue set without an ignore or lowered severity; value/type plants prove
+both guards fire. Scoped macmini evidence is recorded in
+`docs/certification/knip-constants.md`.
+**DEFLAKE4 lane (2026-10-05).** The named brief and common.md assign full
+quality, coverage and hosted certification to the lead; this lane runs the
+owning test file and scoped gates only. Full quality remains required before
+integration. The feature-delivery ledger validator cannot validate this
+existing section-based roadmap (`expected exactly one quality-ledger fence`);
+retain its canonical format and record that structural check as deferred.
+Current receipts and any remaining blockers belong in
+`docs/certification/deflake4.md`.
+
+**STAR lane (2026-10-05).** The owner's lane brief requires scoped tests,
+typecheck, lint, localization/manifest checks, bundle budgets and an actual
+VSIX README inspection, with removal drills and hooks enabled. It expressly
+assigns full `npm run quality` to the release lead after integration; this
+lane does not run it or weaken any gate. The generic delivery validator's
+ledger-format check remains deferred for this established plan format.
+Current receipts: `docs/certification/star-line.md`.
 
 **M104 B (2026-10-05, macmini; incomplete lane).** The rig/common brief
 reserves full quality and aggregate coverage/editor qualification for the

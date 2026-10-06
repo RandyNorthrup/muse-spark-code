@@ -5,10 +5,13 @@ import { describe, expect, it } from 'vitest'
 // src/extension.ts is excluded from the unit run (vitest.config.ts): what a
 // unit test can hold it to is the wiring of git and pull requests (M71) to the
 // window's checkpoint, trust and admission primitives (M72, PLAN.md D51).
-const source = readFileSync(
-  fileURLToPath(new URL('../../src/extension.ts', import.meta.url)),
-  'utf8',
-)
+const source = [
+  readFileSync(fileURLToPath(new URL('../../src/extension.ts', import.meta.url)), 'utf8'),
+  readFileSync(
+    fileURLToPath(new URL('../../src/host/compose/conversationDeps.ts', import.meta.url)),
+    'utf8',
+  ),
+].join('\n')
 
 describe('activation wires git and pull requests to the window’s guards (M71)', () => {
   it('admits a commit and a push as a process that may write the workspace', () => {
@@ -51,6 +54,7 @@ describe('activation wires git and pull requests to the window’s guards (M71)'
     expect(source).toMatch(
       /respectGitIgnore:\s*\(\)\s*=>\s*currentSettings\(\)\.respectGitIgnore,\s*isWorkspaceTrusted:\s*isProjectTrusted,/,
     )
+    expect(source).toMatch(/composeConversationDeps\(hostServices,\s*\{[\s\S]*?isProjectTrusted,/)
     expect(source).toMatch(/isProjectTrusted\(\)\s*\?\s*settings\.checkCommands\s*:\s*\[\]/)
     expect(source).not.toMatch(/vscode\.workspace\.isTrusted\s*\?\s*settings\.checkCommands/)
     // The environment facts carry commit subjects: the same rule at the git call's own gate.

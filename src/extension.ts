@@ -1,5 +1,7 @@
 import { isJudgeEngineOn } from './core/judge/engine'
 import { judgeWindowPort } from './host/judge/judgeBundle'
+import { composeConversationDeps } from './host/compose/conversationDeps'
+import { createVscodeHostServices } from './host/vscode/hostServices'
 import { storeErrorCode } from './host/backend/storeErrors'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
@@ -13,8 +15,6 @@ import * as z from 'zod/mini'
 import type { AgentHost, BackendKind } from './core/agent/agentBackend'
 import { environmentValue, terminalEnvironment } from './core/backends/musecode/launch'
 import { confineWorkspacePath, resolveWorkspacePath } from './core/workspacePath'
-import { isProtectedPath } from './core/protectedPaths'
-import type { EditedFile } from './core/verify/diagnosticsReport'
 import { readBackendChoice } from './core/backendSelection'
 import { personalAgentsRoot } from './core/context/customAgents'
 import {
@@ -75,7 +75,6 @@ import { pluginContainment } from './host/backend/pluginContainment'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { createRevertIo } from './host/editor/revertIo'
 import { createVerifyEditor } from './host/vscode/editor/verifyEditor'
-import { verifyGuidance } from './core/verify/checkCommands'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
 import { createRulesFile } from './host/commands/createRulesFile'
 import { insertMentionReference } from './host/commands/insertMention'
@@ -94,7 +93,6 @@ import { restartConversationBackends } from './host/conversation/conversationBac
 import { BackgroundNotifier } from './host/conversation/turnNotifications'
 import type { ReportDataSource } from './host/conversation/reportProblemHandler'
 import { canonicalPath } from './host/canonicalPath'
-import { loadToolImage } from './core/toolImages'
 import { modelApiClientLoader } from './host/backend/modelApiBundle'
 import { ideImageTools } from './host/ide/imageTools'
 import { ideWebFetchTools, isIdeWebFetchOffered, oneQuestionPerUrl } from './host/ide/webFetchTool'
@@ -110,7 +108,6 @@ import { type BrowserCheckHost, browserScopeKey } from './core/browser/browserTo
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { vscodeLanguageServices } from './host/vscode/codeIntel/languageServices'
-import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
 import {
   TAB_BUNDLE_FILE,
@@ -141,7 +138,7 @@ import {
 } from './host/git/conversationGitBundle'
 import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
-import { PendingPrompts, type BoardSession } from './core/sessionBoard'
+import { PendingPrompts } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
 import { createMemoryFeatures } from './host/vscode/memoryFeatures'
 import { createPlanFiles, createPlanIo } from './host/planFeatures'
@@ -204,13 +201,11 @@ import {
   POSIX_TERMINAL_SHELL,
   TERMINAL_ENV_KEYS,
   TERMINAL_ENV_SECTION,
-  HAS_APPROVAL_UI,
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
   CLI_OUTPUT_MAX_BYTES,
   COMMAND_IDS,
   CONTEXT_KEYS,
-  DEFAULT_MODEL_ID,
   EXTENSION_NAME,
   DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
@@ -2789,6 +2784,7 @@ async function activateWindow(
     return outcome
   }
 
+  const hostServices = createVscodeHostServices(context)
   const loadConversation = conversationLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CONVERSATION_BUNDLE_FILE).fsPath,
     log,
@@ -2812,288 +2808,146 @@ async function activateWindow(
       )
       tasksTabs.set(surface.id, tasksTab)
       controller = factory.createConversation(
-        {
-          runManualHook: runManualHookByName,
-          rewriteMessage: async (text) => {
-            const runner = areHooksArmed() ? await hookRunnerFor(false) : undefined
-            return await runner?.rewriteMessage(text)
-          },
-          surface,
-          tasksTab,
-          auth,
-          ensureHost: ensureSelectedHost,
-          workspaceRoot,
-          modelId: DEFAULT_MODEL_ID,
-          initialPermissionMode: currentSettings().initialPermissionMode,
-          hasApprovalUi: HAS_APPROVAL_UI,
-          openExternal: (url) => {
-            void vscode.env.openExternal(vscode.Uri.parse(url))
-          },
-          openSideChat: (sessionId) => {
-            openChatPanel(hostContext, registry, {
-              sessionId,
-              isSideChat: true,
-              onDisposed: () => {
+        composeConversationDeps(hostServices, {
+          features: {
+            runManualHook: runManualHookByName,
+            rewriteMessage: async (text) => {
+              const runner = areHooksArmed() ? await hookRunnerFor(false) : undefined
+              return await runner?.rewriteMessage(text)
+            },
+            surface,
+            tasksTab,
+            auth,
+            ensureHost: ensureSelectedHost,
+            workspaceRoot,
+            openSideChat: (sessionId) => {
+              openChatPanel(hostContext, registry, {
+                sessionId,
+                isSideChat: true,
+                onDisposed: () => {
+                  if (registry.has(surface)) {
+                    surface.reveal()
+                  }
+                },
+              })
+            },
+            mentions: {
+              search: (query, limit) => mentions.search(query, limit),
+              contains: (relativePath) => mentions.contains(relativePath),
+            },
+            files,
+            isRemoteWindow: vscode.env.remoteName !== undefined,
+            confirmContributor: isContributorModelAllowed,
+            runHostAction,
+            notifyAttention: (notice) => {
+              backgroundNotifier.notify(notice, () => {
                 if (registry.has(surface)) {
                   surface.reveal()
                 }
-              },
-            })
-          },
-          mentions: {
-            search: (query, limit) => mentions.search(query, limit),
-            contains: (relativePath) => mentions.contains(relativePath),
-          },
-          files,
-          isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
-          isRemoteWindow: vscode.env.remoteName !== undefined,
-          confirmRemoteBypass: async () =>
-            (await vscode.window.showWarningMessage(
-              UI_TEXT.bypassRemoteTitle,
-              { modal: true, detail: UI_TEXT.bypassRemoteDetail },
-              UI_TEXT.bypassRemoteConfirm,
-            )) === UI_TEXT.bypassRemoteConfirm,
-          isConfidentialWorkspace: () => currentSettings().confidentialWorkspace,
-          // One explicit yes per conversation before the model switches; the
-          // Model API backend asks the same question for a custom agent's model.
-          confirmContributor: isContributorModelAllowed,
-          runHostAction,
-          // A turn needs the user while the VS Code window is unfocused
-          // (M82); the notice's button brings this surface into view, while
-          // it is still open.
-          notifyAttention: (notice) => {
-            backgroundNotifier.notify(notice, () => {
-              if (registry.has(surface)) {
-                surface.reveal()
+              })
+            },
+            museCodeReviewer,
+            judge,
+            insertCode: async (text) => {
+              const editor = vscode.window.activeTextEditor
+              if (editor === undefined) {
+                return false
               }
-            })
-          },
-          museCodeReviewer,
-          judge,
-          copyText: async (text) => {
-            await vscode.env.clipboard.writeText(text)
-          },
-          insertCode: async (text) => {
-            const editor = vscode.window.activeTextEditor
-            if (editor === undefined) {
-              return false
-            }
-            return await editor.edit((builder) => {
-              builder.insert(editor.selection.active, text)
-            })
-          },
-          onSandboxUnavailable: () => {
-            void sandbox.offerIfNeeded('failure').catch(logRejection(log, 'sandbox offer'))
-          },
-          platform: process.platform,
-          shellSandbox: () => backend.shellSandboxPosture(),
-          shouldWarnSandboxOff,
-          editorContext: () => editorContext.active,
-          isAutosaveEnabled: () => currentSettings().autosave,
-          saveAll: async () => {
-            await vscode.workspace.saveAll(false)
-          },
-          // Workspace files open with unsaved changes (PLAN.md D27).
-          unsavedFiles: () =>
-            vscode.workspace.textDocuments
-              .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
-              .map((document) => vscode.workspace.asRelativePath(document.uri, false)),
-          // Code block "Apply": the block replaces the selection (or lands at
-          // the caret); false when no text editor is active.
-          applyCode: async (text) => {
-            const editor = vscode.window.activeTextEditor
-            if (editor === undefined) {
-              return false
-            }
-            const isApplied = await editor.edit((builder) => {
-              builder.replace(editor.selection, text)
-            })
-            if (isApplied) {
-              editor.revealRange(editor.selection)
-            }
-            return isApplied
-          },
-          editReview: review.editReview,
-          review,
-          openDocument,
-          openFile,
-          readToolImage: async (imagePath) =>
-            await loadToolImage(
-              imagePath,
-              workspaceRoot,
-              process.platform,
-              toolImagePreviewIo(toolIo, async (fsPath) => {
-                const stat = await vscode.workspace.fs.stat(vscode.Uri.file(fsPath))
-                return stat.size
-              }),
-            ),
-          // A server that failed to start is started again, and the session
-          // that asked waits for it, so it gets the tool too (D25).
-          ideMcpEndpoint: async () => {
-            if (ideServer.current === undefined) {
-              await startIdeServer()
-            }
-            return ideServer.current
-          },
-          newAttachmentId: () => crypto.randomUUID(),
-          sessions,
-          // The usage modal's Account section and insights (M14).
-          accountFacts: async (kind) => {
-            const resolution = backend.resolveLaunch()
-            const isCliSession = await hasCliSession()
-            const hasKey = (await credentials.getApiKey()) !== undefined
-            const signInMethod = signInMethodFor(kind, isCliSession, hasKey)
-            const cliVersion = resolution.ok
-              ? backend.installedVersion(resolution.launch.installDir)
-              : undefined
-            return {
-              signInMethod,
-              ...(cliVersion !== undefined && { cliVersion }),
-              ...(kind === 'museCode' && {
-                delegationMode: delegationMode(),
-                workflowTriggerMode: workflowTriggerMode(),
-              }),
-            }
-          },
-          usageInsights: () => insights.read(),
-          // Only the sidebar reopens on its last session; a tab is a new
-          // conversation by construction (M6).
-          isRestorable: surface.id === SIDEBAR_SURFACE_ID,
-          dictation,
-          // Muse Voice on the Model API backend, and on Muse Code with a stored key (M44).
-          museVoice: () => {
-            if (
-              !paid.gate.isOn('voice') ||
-              !usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')
-            )
-              return
-            if (auth.current.backend === 'modelApi') {
-              return currentSettings().dictationEngine === 'system'
-                ? undefined
-                : { isAvailable: false, reason: UI_TEXT.sessionBudgetVoiceUnavailable }
-            }
-            return museVoiceSetup
-          },
-          modelApiSessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
-          voiceAccountId: () => modelApi.accountId(),
-          ownedVoiceBudgetScope: async (sessionId) => {
-            if (auth.current.backend !== 'modelApi') {
-              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-            }
-            const host = await modelApi.ensureHost()
-            return await host.getOwnedBudgetScope(sessionId)
-          },
-          exports: cliFeatures.exports,
-          transferFiles: createSessionTransferFiles(),
-          reports: conversationReports,
-          plans,
-          // The palette's paid-feature toggles (M33): on goes through the price confirmation.
-          setPaidFeature: async (feature, isOn) => {
-            if (isOn) {
-              await paid.gate.turnOn(feature)
-            } else {
-              await paid.gate.turnOff(feature)
-            }
-          },
-          // VS Code's trust and the hold apart (M71), so a refusal says which;
-          // the controller asks both before any git (Best-of-N, board, review).
-          isWorkspaceTrusted: () => vscode.workspace.isTrusted,
-          isWorktreeHeld: () => windowHold.isHeld,
-          createGit: conversationGitFactory(conversationGit, gitFeatures),
-          onForegroundTasksChanged: refreshTaskContext,
-          isScheduledPaidOn: () => paid.gate.isOn('scheduledPrompts'),
-          confirmScheduledRun: async (job, modelId) =>
-            await paid.consent.allows({ feature: 'scheduledPrompts', prompt: job.prompt, modelId }),
-          allowsPaidUse: async (request) => await paid.consent.allows(request),
-          forgetPaidUse: async () => {
-            await paid.consent.forget()
-          },
-          checkpoints,
-          // Text files and notebooks open with unsaved changes, by absolute path (M72).
-          unsavedPaths: () =>
-            [...vscode.workspace.textDocuments, ...vscode.workspace.notebookDocuments]
-              .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
-              .map((document) => document.uri.fsPath),
-          confirmFileAction: async (title, detail, action) =>
-            (await vscode.window.showWarningMessage(title, { modal: true, detail }, action)) ===
-            action,
-          // Muse Code checks its own edits (M68): its checks run through its own
-          // shell, so none are named while Restricted Mode runs no shell (D13).
-          // The diagnostics sentence only for a session that has the ide server.
-          verifyGuidance: (hasIdeServer) => {
-            const settings = currentSettings()
-            return verifyGuidance(
-              settings.diagnosticsAfterEdits && hasIdeServer,
-              isProjectTrusted() ? settings.checkCommands : [],
-            )
-          },
-          bundledSkillsOffer: () => bundledSkillsOffer.next(),
-          // The session board's pending prompts, shared by every surface (M77).
-          pendingPrompts: boardPrompts,
-          boardSessions: () => {
-            const sessions: BoardSession[] = []
-            for (const active of controllers.values()) {
-              const session = active.boardSession()
-              if (session !== undefined) sessions.push(session)
-            }
-            return sessions
-          },
-          focusBoardSession: (sessionId, backendKind) => {
-            for (const active of controllers.values()) {
-              if (active.revealBoardSession(sessionId, backendKind)) return true
-            }
-            return false
-          },
-          bestOfNCoordinator,
-          bestOfNWorkspaceEdits: (session) => {
-            const owner =
-              session === undefined ? undefined : modelApi.captureExternalEditOwner(session)
-            return async (root, paths) => {
-              const files: EditedFile[] = []
-              for (const file of paths) {
-                const checked = await confineWorkspacePath(root, file, process.platform, {
-                  realPath: canonicalPath,
-                })
-                if (
-                  !checked.ok ||
-                  isProtectedPath(checked.relative) ||
-                  isProtectedPath(checked.canonical) ||
-                  checked.relative !== checked.canonical
-                ) {
-                  throw new Error(UI_TEXT.bestOfNTargetChanged)
-                }
-                files.push({ relative: checked.canonical, absolute: checked.checkedAbsolute })
+              return await editor.edit((builder) => {
+                builder.insert(editor.selection.active, text)
+              })
+            },
+            onSandboxUnavailable: () => {
+              void sandbox.offerIfNeeded('failure').catch(logRejection(log, 'sandbox offer'))
+            },
+            platform: process.platform,
+            shellSandbox: () => backend.shellSandboxPosture(),
+            shouldWarnSandboxOff,
+            editorContext: () => editorContext.active,
+            isAutosaveEnabled: () => currentSettings().autosave,
+            unsavedFiles: () =>
+              vscode.workspace.textDocuments
+                .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
+                .map((document) => vscode.workspace.asRelativePath(document.uri, false)),
+            applyCode: async (text) => {
+              const editor = vscode.window.activeTextEditor
+              if (editor === undefined) {
+                return false
               }
-              return modelApi.beginExternalEdit(owner, files)
-            }
+              const isApplied = await editor.edit((builder) => {
+                builder.replace(editor.selection, text)
+              })
+              if (isApplied) {
+                editor.revealRange(editor.selection)
+              }
+              return isApplied
+            },
+            editReview: review.editReview,
+            review,
+            openDocument,
+            openFile,
+            ideMcpEndpoint: async () => {
+              if (ideServer.current === undefined) {
+                await startIdeServer()
+              }
+              return ideServer.current
+            },
+            newAttachmentId: () => crypto.randomUUID(),
+            sessions,
+            accountFacts: async (kind) => {
+              const resolution = backend.resolveLaunch()
+              const isCliSession = await hasCliSession()
+              const hasKey = (await credentials.getApiKey()) !== undefined
+              const signInMethod = signInMethodFor(kind, isCliSession, hasKey)
+              const cliVersion = resolution.ok
+                ? backend.installedVersion(resolution.launch.installDir)
+                : undefined
+              return {
+                signInMethod,
+                ...(cliVersion !== undefined && { cliVersion }),
+                ...(kind === 'museCode' && {
+                  delegationMode: delegationMode(),
+                  workflowTriggerMode: workflowTriggerMode(),
+                }),
+              }
+            },
+            usageInsights: () => insights.read(),
+            isRestorable: surface.id === SIDEBAR_SURFACE_ID,
+            dictation,
+            exports: cliFeatures.exports,
+            transferFiles: createSessionTransferFiles(),
+            reports: conversationReports,
+            plans,
+            isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+            isWorktreeHeld: () => windowHold.isHeld,
+            createGit: conversationGitFactory(conversationGit, gitFeatures),
+            onForegroundTasksChanged: refreshTaskContext,
+            checkpoints,
+            unsavedPaths: () =>
+              [...vscode.workspace.textDocuments, ...vscode.workspace.notebookDocuments]
+                .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
+                .map((document) => document.uri.fsPath),
+            bundledSkillsOffer: () => bundledSkillsOffer.next(),
+            pendingPrompts: boardPrompts,
+            bestOfNCoordinator,
+            runGit,
+            runBestOfNGit,
+            realPath: canonicalPath,
+            now: () => Date.now(),
+            log,
           },
-          modelApiAccountId: () => modelApi.accountId(),
-          noteBestOfNRequest: () => {
-            paid.usage.addBestOfNRequest()
-          },
-          noteBestOfNUsage: (modelId, usage) => {
-            paid.usage.addBestOfNUsage(modelId, usage)
-          },
-          bestOfNBudgetScope: (sessionId) => modelApi.bestOfNBudgetScope(sessionId),
-          openBestOfNWorktree: async (absolutePath) => {
-            await vscode.commands.executeCommand(
-              VSCODE_COMMANDS.openFolder,
-              vscode.Uri.file(absolutePath),
-              { forceNewWindow: true },
-            )
-          },
-          runGit,
-          runBestOfNGit,
-          isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
-          notePaidUse: (feature, units) => {
-            paid.usage.add(feature, units)
-          },
-          buildAttemptHost: (worktreeRoot, admitRequest, noteUsage, budgetScope) =>
-            modelApi.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),
-          realPath: canonicalPath,
-          now: () => Date.now(),
-          log,
-        },
+          settings: currentSettings,
+          paid,
+          modelApi,
+          isKeyStored: () => isKeyStored,
+          museVoiceSetup,
+          controllers: () => controllers.values(),
+          isProjectTrusted,
+          toolImageIo: toolImagePreviewIo(toolIo, async (fsPath) => {
+            const stat = await vscode.workspace.fs.stat(vscode.Uri.file(fsPath))
+            return stat.size
+          }),
+        }),
         UI_TEXT,
         uiLocale(),
       )
