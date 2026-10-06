@@ -20391,6 +20391,16 @@ aggregate wrapper. Record the four checkpoint shutdown failures and five
 package timeouts honestly, even if scoped reruns pass. Final aggregate
 coverage and release certification remain a lead prerequisite.
 
+Final independent production package, static, audit and SAST checks pass;
+the certificate records final caps and 1,053 scoped test passes. The entire
+repaired HEAD history and required merge-base range scan have zero findings.
+The unchanged default all-ref secret gate still finds the known original-X
+line at `0bffa2de…:docs/certification/m95-x.md:73`, outside HEAD's ancestry:
+the brief requires retaining that original ref, not rewriting it or ignoring
+the finding. Its disposition remains with the lead. Final-tree a11y is
+unreached by the one failed wrapper and cannot fit the remaining time box;
+the previous 764-page pass is evidence only for its earlier tree.
+
 **FIXM95N scoped proof and delegation (2026-10-05).** The user-invoked
 FIXM95N/common.md brief forbids a full quality run in this lane and delegates
 combined certification to the lead. All seven review findings are fixed:
