@@ -3,7 +3,7 @@
 // `recall_output` paging the original back, the ledger in `tokenUsage`, and
 // nothing packed or offered by default.
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
@@ -12,7 +12,11 @@ import {
   OBS_PACK_THRESHOLD_CHARS,
 } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
-import { ModelApiHost, ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
+import {
+  ModelApiHost,
+  ModelApiSession,
+  type ModelApiHostDeps,
+} from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient, type ModelApiClientDeps } from '../../src/core/backends/modelapi/client'
 import { estimatePackTokens } from '../../src/core/backends/modelapi/observationPack'
 import {
@@ -27,6 +31,7 @@ import {
   responseOutputsByCall,
 } from './helpers/fakeModelApi'
 import { memoryToolIo } from './helpers/fakeToolIo'
+import { memorySessionStore } from './helpers/fakeSessionStore'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { recalledParts } from './helpers/recalledOutput'
 import { watchSessionTurns } from './helpers/sessionTurns'
@@ -51,6 +56,7 @@ interface Harness {
 async function setup(
   isPacking: boolean,
   clientChanges: Partial<ModelApiClientDeps> = {},
+  hostChanges: Partial<ModelApiHostDeps> = {},
 ): Promise<Harness> {
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
@@ -63,6 +69,7 @@ async function setup(
   const host = new ModelApiHost({
     ...fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log }),
     ...(isPacking && { observationPacking: () => true }),
+    ...hostChanges,
   })
   const session = await host.startSession({
     workspaceRoot: ROOT,
@@ -173,16 +180,22 @@ function reloaded(stored: unknown): StoredSession {
 }
 
 describe('observation packing on the host', () => {
-  it('offers recall_output only when this request carries a packed observation', async () => {
+  it('keeps recall_output stable before and after a packing session swaps observations', async () => {
     const packed = await setup(true)
     packed.api.script({ text: 'hi' })
     await sendText(packed, 'hi')
-    expect(toolsOf(packed.api, 0)).not.toContain(MODEL_API_TOOLS.recallOutput)
+    expect(toolsOf(packed.api, 0)).toContain(MODEL_API_TOOLS.recallOutput)
     await readThenAsk(packed)
-    expect(toolsOf(packed.api, 1)).not.toContain(MODEL_API_TOOLS.recallOutput)
-    expect(toolsOf(packed.api, 2)).not.toContain(MODEL_API_TOOLS.recallOutput)
-    expect(toolsOf(packed.api, 3)).not.toContain(MODEL_API_TOOLS.recallOutput)
+    expect(toolsOf(packed.api, 1)).toContain(MODEL_API_TOOLS.recallOutput)
+    expect(toolsOf(packed.api, 2)).toContain(MODEL_API_TOOLS.recallOutput)
+    expect(toolsOf(packed.api, 3)).toContain(MODEL_API_TOOLS.recallOutput)
     expect(toolsOf(packed.api, 4)).toContain(MODEL_API_TOOLS.recallOutput)
+    expect(
+      new Set(packed.api.responseBodies().map((body) => JSON.stringify(body['tools']))).size,
+    ).toBe(1)
+    expect(new Set(packed.api.responseBodies().map((body) => body['prompt_cache_key'])).size).toBe(
+      1,
+    )
     await packed.host.close()
 
     const plain = await setup(false)
@@ -217,6 +230,8 @@ describe('observation packing on the host', () => {
     await readThenAsk(harness)
     const bodies = harness.api.responseBodies()
     expect(bodies).toHaveLength(4)
+    expect(new Set(bodies.map((body) => JSON.stringify(body['tools']))).size).toBe(1)
+    expect(new Set(bodies.map((body) => body['prompt_cache_key'])).size).toBe(1)
     const first = responseOutputsByCall(harness.api, 1).get('c1') ?? ''
     const second = responseOutputsByCall(harness.api, 2).get('c1') ?? ''
     const third = responseOutputsByCall(harness.api, 3).get('c1') ?? ''
@@ -235,6 +250,48 @@ describe('observation packing on the host', () => {
       completed?.type === 'itemCompleted' ? (completed.item.visibleOutput ?? '') : '',
     ).toContain('line 399')
     await harness.host.close()
+  })
+
+  it('forks and rewinds with only surviving sticky ids, keeping recall immediately usable', async () => {
+    const source = await setup(true)
+    await readThenAsk(source)
+    const beforeSecond = source.session.snapshot().turnIds.at(-1)
+    if (beforeSecond === undefined) throw new Error('missing cut')
+    source.api.script(
+      { calls: [{ name: 'read_file', arguments: '{"path":"big.txt"}', callId: 'c2' }] },
+      { text: 'second read' },
+      { text: 'pack second' },
+    )
+    await sendText(source, 'read again')
+    await sendText(source, 'pack it')
+    expect(source.session.snapshot().packedCallIds).toEqual(['c1', 'c2'])
+    const fork = await setup(true)
+    source.session.copyInto(fork.session, undefined)
+    expect(fork.session.snapshot().packedCallIds).toEqual(['c1', 'c2'])
+    fork.api.script({ text: 'fork' })
+    await sendText(fork, 'continue')
+    expect(responseOutputsByCall(fork.api, 0).get('c1')).toBe(
+      responseOutputsByCall(source.api, 3).get('c1'),
+    )
+    const rewind = await setup(true)
+    source.session.copyInto(rewind.session, beforeSecond)
+    expect(rewind.session.snapshot().packedCallIds).toEqual(['c1'])
+    const plainCut = await setup(false)
+    source.session.copyInto(plainCut.session, beforeSecond)
+    expect(plainCut.session.snapshot().packedCallIds).toEqual(['c1'])
+    scriptRecall(rewind.api, 'c1', 0, 'recall', 'restored')
+    await sendText(rewind, 'recall now')
+    expect(responseOutputsByCall(rewind.api, 0).get('c1')).toBe(
+      responseOutputsByCall(source.api, 3).get('c1'),
+    )
+    expect(responseOutputsByCall(rewind.api, 0).has('c2')).toBe(false)
+    expect(pageOf(responseOutputsByCall(rewind.api, 1).get('recall') ?? '')).toContain('line 0')
+    await Promise.all([
+      source.host.close(),
+      fork.host.close(),
+      rewind.host.close(),
+      plainCut.host.close(),
+    ])
   })
 
   it('recalls the original bytes back, page by page', async () => {
@@ -397,32 +454,140 @@ describe('observation packing on the host', () => {
     await harness.host.close()
   })
 
-  it('keeps the ledger across a save and resume, the outputs starting fresh', async () => {
+  it.each([false, true])(
+    'resumes identical packed bytes after a crash during Manual approval (zero usage: %s)',
+    async (zeroUsage) => {
+      const store = memorySessionStore()
+      // No budget journal: zero accounting must still persist a changed sticky id.
+      const { budget: _journal, ...snapshotStore } = store
+      const first = await setup(true, {}, { store: snapshotStore })
+      await first.session.setApprovalMode('promptUnmatched')
+      await readBigOnce(first)
+      await vi.waitFor(() => {
+        expect(store.saved.get(first.session.sessionId)?.packedCallIds).toEqual([])
+      })
+      const before = reloaded(store.saved.get(first.session.sessionId))
+      const usage = zeroUsage ? { input: 0, output: 0 } : { input: 100, output: 10 }
+      const accounting = {
+        usage,
+        ...(zeroUsage && {
+          usageOverride: {
+            input_tokens: 0,
+            output_tokens: 0,
+            total_tokens: 0,
+            input_tokens_details: { cached_tokens: 0 },
+            output_tokens_details: { reasoning_tokens: 0 },
+          },
+        }),
+      }
+      first.api.script(
+        {
+          calls: [{ name: 'read_file', arguments: '{"path":"big.txt"}', callId: 'c2' }],
+          ...accounting,
+        },
+        {
+          calls: [{ name: 'read_file', arguments: '{"path":"small.txt"}', callId: 'small' }],
+          ...accounting,
+        },
+        {
+          calls: [
+            {
+              name: 'write_file',
+              arguments: '{"path":"new.txt","content":"pending"}',
+              callId: 'pending',
+            },
+          ],
+          ...accounting,
+        },
+      )
+      const approval = Promise.withResolvers<undefined>()
+      const unsubscribe = first.session.onEvent((event) => {
+        if (event.type === 'approvalRequested') approval.resolve(undefined)
+      })
+      try {
+        await first.session.sendTurn([{ type: 'text', text: 'Read small.txt, then write new.txt' }])
+        await approval.promise
+        expect(responseOutputsByCall(first.api, 2).get('c1')).toBe(
+          responseOutputsByCall(first.api, 1).get('c1'),
+        )
+        // Wait for the durable pending-tool write, before cancellation can settle the call.
+        await vi.waitFor(() => {
+          expect(store.saved.get(first.session.sessionId)?.packedCallIds).toEqual(['c1'])
+        })
+        const crash = reloaded(store.saved.get(first.session.sessionId))
+        expect(first.session.snapshot().packedCallIds).toEqual(['c1', 'c2'])
+        expect(crash.packedCallIds).toEqual(['c1'])
+        expect(responseOutputsByCall(first.api, 4).get('c1')).toContain('Packed output')
+        expect(crash.replay.filter(({ turnId }) => before.turnIds.includes(turnId))).toEqual(
+          before.replay,
+        )
+        expect(
+          crash.replay.some(
+            ({ item }) => item.type === 'function_call_output' && item.call_id === 'small',
+          ),
+        ).toBe(false)
+        expect(
+          crash.replay.some(
+            ({ item }) => item.type === 'function_call' && item.call_id === 'pending',
+          ),
+        ).toBe(false)
+        if (zeroUsage) {
+          expect(crash.usage).toEqual(before.usage)
+          expect(crash.budgetSpentUsd).toBe(before.budgetSpentUsd)
+        }
+        // Cancellation is cleanup after the crash snapshot was copied. Compare
+        // recovery with the same placeholder the original live session sends.
+        const cancelled = first.turnDone()
+        await first.session.cancel()
+        await cancelled
+        first.api.script({ text: 'live continuation' })
+        await sendText(first, 'continue')
+        const packed = responseOutputsByCall(first.api, 5).get('c1')
+        expect(packed).toBe(responseOutputsByCall(first.api, 4).get('c1'))
+        const resumed = await setup(true)
+        try {
+          resumed.session.adopt(crash)
+          resumed.api.script({ text: 'resumed' })
+          await sendText(resumed, 'continue')
+          expect(responseOutputsByCall(resumed.api, 0).get('c1')).toBe(packed)
+        } finally {
+          await resumed.host.close()
+        }
+      } finally {
+        unsubscribe()
+        await first.host.close()
+      }
+    },
+  )
+
+  it('keeps the ledger and sticky placeholders across a save and resume', async () => {
     const first = await setup(true)
     await readThenAsk(first)
     const saved = ledgerOf(first.events).at(-1) ?? 0
     expect(saved).toBeGreaterThan(0)
     const stored = reloaded(first.session.snapshot())
     expect(stored.packedTokensAvoided).toBe(saved)
+    expect(stored.packedCallIds).toEqual(['c1'])
     await first.host.close()
 
     const resumed = await setup(true)
     resumed.session.adopt(stored)
     resumed.api.script({ text: 'back' })
     await sendText(resumed, 'still there?')
-    // The total carries on; the output rides whole again after the resume.
-    expect(ledgerOf(resumed.events).at(-1)).toBe(saved)
-    const full = responseOutputsByCall(resumed.api, 0).get('c1') ?? ''
-    expect(full).toContain('line 399')
-    expect(full).not.toContain('Packed output')
-    expect(resumed.session.snapshot().packedTokensAvoided).toBe(saved)
+    // The first resumed request repeats the exact placeholder and adds its savings.
+    const packed = responseOutputsByCall(first.api, 3).get('c1') ?? ''
+    const full = responseOutputsByCall(first.api, 1).get('c1') ?? ''
+    expect(responseOutputsByCall(resumed.api, 0).get('c1')).toBe(packed)
+    const total = saved + estimatePackTokens(full.length) - estimatePackTokens(packed.length)
+    expect(ledgerOf(resumed.events).at(-1)).toBe(total)
+    expect(resumed.session.snapshot().packedTokensAvoided).toBe(total)
     await resumed.host.close()
   })
 
   it('resumes a session saved before the ledger was kept at zero', async () => {
     const first = await setup(true)
     await readThenAsk(first)
-    const { packedTokensAvoided: _kept, ...older } = first.session.snapshot()
+    const { packedTokensAvoided: _kept, packedCallIds: _ids, ...older } = first.session.snapshot()
     await first.host.close()
     const resumed = await setup(true)
     resumed.session.adopt(reloaded(older))
@@ -430,6 +595,17 @@ describe('observation packing on the host', () => {
     await sendText(resumed, 'still there?')
     expect(ledgerOf(resumed.events).at(-1)).toBe(0)
     await resumed.host.close()
+  })
+
+  it('drops stale sticky ids even while a resumed window has packing off', async () => {
+    const source = await setup(true)
+    await readThenAsk(source)
+    const plain = await setup(false)
+    plain.session.adopt(
+      reloaded({ ...source.session.snapshot(), packedCallIds: ['c1', 'missing'] }),
+    )
+    expect(plain.session.snapshot().packedCallIds).toEqual(['c1'])
+    await Promise.all([source.host.close(), plain.host.close()])
   })
 
   it('keeps a stored ledger through a window that does not pack', async () => {
@@ -443,6 +619,7 @@ describe('observation packing on the host', () => {
     await sendText(plain, 'still there?')
     expect(ledgerOf(plain.events).every((value) => value === undefined)).toBe(true)
     expect(plain.session.snapshot().packedTokensAvoided).toBe(stored.packedTokensAvoided)
+    expect(plain.session.snapshot().packedCallIds).toEqual(stored.packedCallIds)
     await plain.host.close()
   })
 
@@ -465,8 +642,8 @@ describe('observation packing on the host', () => {
       expect(resumed.session.snapshot().packedTokensAvoided).toBe(0)
       resumed.api.script({ text: 'back' })
       await sendText(resumed, 'still there?')
-      expect(ledgerOf(resumed.events).at(-1)).toBe(0)
-      expect(responseOutputsByCall(resumed.api, 0).get('c1')).toContain('line 399')
+      expect(ledgerOf(resumed.events).at(-1)).toBeGreaterThan(0)
+      expect(responseOutputsByCall(resumed.api, 0).get('c1')).toContain('Packed output')
       await resumed.host.close()
     },
   )

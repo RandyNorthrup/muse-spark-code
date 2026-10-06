@@ -489,9 +489,16 @@ export function encodeChatRequest(
     })
   }
 
+  // A trailing developer message is request-only progress (M101), so the
+  // rolling marker belongs to the preceding historical native message.
+  const suffix = body.input.at(-1)
   const request: ChatCompletionRequest = {
     model,
-    messages: markBreakpoints(messages, options?.cacheBreakpoints ?? 'none'),
+    messages: markBreakpoints(
+      messages,
+      options?.cacheBreakpoints ?? 'none',
+      suffix?.type === 'message' && suffix.role === 'developer',
+    ),
     ...(nativeTools.length > 0 && {
       tools: nativeTools,
       ...(quirks.toolChoice !== 'omit' && { tool_choice: 'auto' as const }),
@@ -1290,17 +1297,19 @@ export function decodeChatStream(
 function markBreakpoints(
   messages: readonly ChatMessage[],
   mode: ChatBreakpoints,
+  hasRequestSuffix: boolean,
 ): readonly ChatMessage[] {
   if (mode === 'none') {
     return messages
   }
   const lastTextIndex = messages.findLastIndex(
-    (message) =>
-      (typeof message.content === 'string' && message.content !== '') ||
-      (Array.isArray(message.content) &&
-        message.content.some(
-          (part: ChatTextPart | ChatImagePart) => part.type === 'text' && part.text !== '',
-        )),
+    (message, index) =>
+      (!hasRequestSuffix || index < messages.length - 1) &&
+      ((typeof message.content === 'string' && message.content !== '') ||
+        (Array.isArray(message.content) &&
+          message.content.some(
+            (part: ChatTextPart | ChatImagePart) => part.type === 'text' && part.text !== '',
+          ))),
   )
   return messages.map((message, index) => {
     if (message.role === 'user' && typeof message.content !== 'string') {

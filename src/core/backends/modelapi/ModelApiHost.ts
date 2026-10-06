@@ -65,7 +65,6 @@ import {
   HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
   MCP_ELICITATION_TIMEOUT_MS,
-  ISO_DATE_LENGTH,
   MAX_ENCODED_MEDIA_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MEMORY_INDEX_FILE,
@@ -201,9 +200,7 @@ import {
 } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
-import type { ModelCapabilities } from '../../providers/capabilities'
 import type { ModelRow } from '../../providers/modelFilters'
-import type { FormatQuirks } from '../../providers/presets'
 import { textFileInput } from '../../textAttachment'
 import { withDeadline } from '../../timeouts'
 import { isProtectedPath } from '../../protectedPaths'
@@ -269,6 +266,7 @@ import {
   applyGoalCommand,
   type GoalContext,
   goalInstructions,
+  goalProgress,
   goalObjectiveProblem,
   isGoalActive,
   runGoalTool,
@@ -276,7 +274,7 @@ import {
   withTokensUsed,
 } from './goals'
 import type { GoalRecord } from './goalRecord'
-import { type EnvironmentFacts, instructionsFor } from './instructions'
+import { type EnvironmentFacts, instructionsFor, localPromptDate } from './instructions'
 import {
   dispatchHooks,
   matchingHooks,
@@ -327,7 +325,9 @@ import {
   type FileChangedThrottle,
 } from './extensionHooks'
 import { type ImagePlan, imageUseRequest, prepareImageCall, runImageCall } from './imageGeneration'
-import { promptCacheKey } from './promptCache'
+import { cacheMissTokens, promptCacheKey } from './promptCache'
+import type { ModelCapabilities } from '../../providers/capabilities'
+import type { FormatQuirks } from '../../providers/presets'
 import {
   isReviewerRole,
   isReviewerTool,
@@ -551,6 +551,13 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly contextModel?: ((modelId: string) => ContextModel | undefined) | undefined
   /** Classified engine event for the later C2 recovery; this lane never retries overflow. */
   readonly onContextOverflow?: ((event: ContextOverflowEvent) => void) | undefined
+  /** Selected M95 model and preset records; unknown BYO records fail closed. */
+  readonly modelFacts?: (modelId: string) =>
+    | {
+        readonly capabilities: ModelCapabilities
+        readonly quirks: FormatQuirks
+      }
+    | undefined
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly io: ToolIo
@@ -2178,6 +2185,7 @@ export class ModelApiSession implements AgentSession {
    * carries it on instead.
    */
   private restoredPackedTokens: number | undefined
+  private restoredPackedCallIds: readonly string[] | undefined
   private mediaNoticeSent = false
   /**
    * The PDFs and images `read_file` read this round (M54): they follow the
@@ -2200,6 +2208,8 @@ export class ModelApiSession implements AgentSession {
   private goalCommandRevision = 0
   /** Model calls since the goal last moved: the step probe's count (D38). */
   private goalSteps = 0
+  /** Local date frozen with the session, across resume and fork (M101). */
+  private promptDate: string
   private scheduleTimer: ReturnType<typeof setInterval> | undefined
   private usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
   /**
@@ -2230,6 +2240,7 @@ export class ModelApiSession implements AgentSession {
   private sendingModelId: string | undefined
   private sendingContextModel: ContextModel | undefined
   private isSendingCompaction = false
+  private previousCacheUsage: { readonly modelId: string; readonly inputTokens: number } | undefined
   /** Turns and compactions still running, by id: a closing window waits for them to save (M82). */
   private readonly unsettled = new Map<number, Promise<void>>()
   private workCount = 0
@@ -2316,7 +2327,9 @@ export class ModelApiSession implements AgentSession {
         deps.log.warn(`Workspace context: ${message}`)
       },
     })
-    this.createdAt = new Date(deps.now()).toISOString()
+    const startedAt = deps.now()
+    this.promptDate = localPromptDate(startedAt)
+    this.createdAt = new Date(startedAt).toISOString()
     this.lastActivityAt = this.createdAt
     if (deps.store !== undefined && deps.scheduleStore !== undefined) {
       this.schedules = {
@@ -3207,10 +3220,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** The agent's own instructions and tools, or the Reviewer's. */
-  private promptAndTools(
-    today: string,
-    hasPackedRecall: boolean,
-  ): {
+  private promptAndTools(today: string): {
     readonly instructions: string
     readonly tools: readonly ToolDefinition[]
   } {
@@ -3233,7 +3243,7 @@ export class ModelApiSession implements AgentSession {
     const shell = shellToolFor(this.deps.platform)
     const flags = this.toolFlags()
     const { hasShell, hasMemory } = flags
-    const goalSection = goalInstructions(this.goal, this.goalSteps)
+    const goalSection = goalInstructions(this.goal)
     const repoMap = this.promptRepoMap()
     const role = this.agentRole()
     return {
@@ -3266,7 +3276,7 @@ export class ModelApiSession implements AgentSession {
         // A custom agent's own prompt runs as the child's role (M76).
         ...(role !== undefined && { agent: role }),
       }),
-      tools: this.tools(hasShell, flags.hasSkills, hasMemory, this.isSubagent, hasPackedRecall),
+      tools: this.tools(hasShell, flags.hasSkills, hasMemory, this.isSubagent),
     }
   }
 
@@ -3276,19 +3286,25 @@ export class ModelApiSession implements AgentSession {
     // Packing projects per request only: the replay keeps the originals, so
     // a later request (or a restore) packs from the full outputs again.
     // Reviewer tools cannot recall packed output: retain the full observations.
-    const input = this.isReviewing() ? fitted : (this.packing?.project(fitted) ?? fitted)
+    const projected =
+      this.isReviewing() || !this.canPack() ? fitted : (this.packing?.project(fitted) ?? fitted)
+    const input = [...projected]
     if (this.budget.omitted && !this.mediaNoticeSent) {
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.olderMediaOmitted })
       this.mediaNoticeSent = true
     }
-    const today = new Date(this.deps.now()).toISOString().slice(0, ISO_DATE_LENGTH)
+    const progress = this.isReviewing() ? undefined : goalProgress(this.goal, this.goalSteps)
+    if (progress !== undefined) {
+      input.push({
+        type: 'message',
+        role: 'developer',
+        content: [{ type: 'input_text', text: progress }],
+      })
+    }
     return this.keyed({
       model: this.modelId,
       input,
-      ...this.promptAndTools(
-        today,
-        input.some((item) => this.packing?.isPlaceholder(item) === true),
-      ),
+      ...this.promptAndTools(this.promptDate),
       tool_choice: 'auto',
       reasoning: {
         effort: this.effort === THINKING_OFF_EFFORT ? MODEL_API_EFFORT_OFF : this.effort,
@@ -3377,13 +3393,21 @@ export class ModelApiSession implements AgentSession {
     return this.canRunShell() || allowed?.includes(VERIFY_TOOLS.runChecks) === true
   }
 
+  /** Packing needs the selected model's tool-calling capability for recall. */
+  private canPack(): boolean {
+    return (
+      this.packing !== undefined &&
+      (this.deps.modelFacts?.(this.modelId)?.capabilities.toolCalling ??
+        modelApiPaidTier(this.modelId) !== undefined)
+    )
+  }
+
   /** In-process, IDE, MCP and paid search tools offered to this request. */
   private tools(
     hasShell: boolean,
     hasSkills: boolean,
     hasMemory: boolean,
     isSubagent = this.isSubagent,
-    hasPackedRecall = false,
   ): readonly ToolDefinition[] {
     const own = toolDefinitions(this.deps.platform, {
       hasShell,
@@ -3394,7 +3418,7 @@ export class ModelApiSession implements AgentSession {
       hasSubagents: !isSubagent && this.deps.isPaidFeatureOn('subagents'),
       isSubagent,
       hasMemory,
-      hasPackedRecall,
+      hasPackedRecall: this.canPack(),
       checks: this.checkCommands(),
       // Trusted workspaces only, as the shell (M69).
       hasWebFetch: this.isWebFetchOffered(hasShell),
@@ -3848,6 +3872,20 @@ export class ModelApiSession implements AgentSession {
     const sentModelId = this.sendingModelId ?? this.modelId
     if (!this.isSendingCompaction && this.compactionPrefix?.body.model === sentModelId) {
       this.compactionPrefix.contextTokens = usage.input_tokens + usage.output_tokens
+    }
+    const fields =
+      this.deps.modelFacts?.(sentModelId)?.quirks.cachedUsageFields ??
+      (modelApiPaidTier(sentModelId) === undefined ? [] : ['input_tokens_details.cached_tokens'])
+    const previous = this.previousCacheUsage
+    const missed = cacheMissTokens(
+      previous?.modelId === sentModelId ? previous.inputTokens : undefined,
+      billable.inputTokens,
+      billable.cachedTokens,
+      fields,
+    )
+    this.previousCacheUsage = { modelId: sentModelId, inputTokens: billable.inputTokens }
+    if (missed !== undefined) {
+      this.deps.log.warn(fill(UI_TEXT.promptCacheMiss, { tokens: missed }))
     }
     const hasKnownPrice = modelApiPaidTier(sentModelId) !== undefined
     const costUsd = estimateCostUsd(billable, sentModelId)
@@ -4385,7 +4423,7 @@ export class ModelApiSession implements AgentSession {
         throw new ContextOverflowError(overflow, body.model, model?.contextTokens)
       }
       this.markReadFileMediaDelivered(turnId, body.input)
-      wasFitted = this.commitFittedReplay(requestReplay, body.input)
+      wasFitted = this.commitFittedReplay(requestReplay, body.input.slice(0, requestReplay.length))
       this.markOutputMediaDelivered(requestReplay, body.input)
       calls = this.adoptOutput(turnId, final, open, chargedGoalId)
     } catch (error: unknown) {
@@ -5658,7 +5696,7 @@ export class ModelApiSession implements AgentSession {
    * it anyway is told so, never run.
    */
   private recallPacked(call: FunctionCallItem): ToolOutcome {
-    return this.packing === undefined
+    return !this.canPack() || this.packing === undefined
       ? toolFailure(`unknown tool ${call.name}`)
       : this.packing.recall(call.arguments)
   }
@@ -12629,6 +12667,14 @@ export class ModelApiSession implements AgentSession {
       ? { budgetIsFreshFork: true, budgetSpentUsd: 0 }
       : {}
     const packedTokensAvoided = this.packing?.savings() ?? this.restoredPackedTokens
+    const replayOutputIds = new Set(
+      this.replay.flatMap(({ item }) =>
+        item.type === 'function_call_output' ? [item.call_id] : [],
+      ),
+    )
+    const packedCallIds = (this.packing?.packedCallIds() ?? this.restoredPackedCallIds)?.filter(
+      (id) => replayOutputIds.has(id),
+    )
     return {
       version: STORED_SESSION_VERSION,
       sessionId: this.sessionId,
@@ -12659,6 +12705,7 @@ export class ModelApiSession implements AgentSession {
       }),
       ...(this.name !== undefined && { name: this.name }),
       createdAt: this.createdAt,
+      promptDate: this.promptDate,
       lastActivityAt: this.lastActivityAt,
       turnIds: [...this.turnIds],
       ...(this.compactedThroughTurnId !== undefined && {
@@ -12676,6 +12723,7 @@ export class ModelApiSession implements AgentSession {
       ...freshFork,
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(this.hookTokensAdded > 0 && { hookTokensAdded: this.hookTokensAdded }),
+      ...(packedCallIds !== undefined && { packedCallIds }),
       ...(this.spawnCommands.size > 0 && { spawnCommands: Object.fromEntries(this.spawnCommands) }),
       ...(this.pendingChildResults.length > 0 && {
         pendingChildResults: this.pendingChildResults.map((pending) => storedPending(pending)),
@@ -12733,6 +12781,7 @@ export class ModelApiSession implements AgentSession {
     this.forkedFrom = stored.forkedFrom
     this.imported = stored.imported === true
     this.createdAt = stored.createdAt
+    this.promptDate = stored.promptDate ?? localPromptDate(Date.parse(stored.createdAt))
     this.lastActivityAt = stored.lastActivityAt
     this.turnCount = stored.turnIds.length
     this.usage = { ...stored.usage }
@@ -12743,6 +12792,11 @@ export class ModelApiSession implements AgentSession {
     this.restoredPackedTokens = stored.packedTokensAvoided
     this.hookTokensAdded = stored.hookTokensAdded ?? 0
     this.packing?.restoreSavings(stored.packedTokensAvoided ?? 0)
+    this.restoredPackedCallIds = stored.packedCallIds
+    this.packing?.restorePackedCallIds(
+      stored.packedCallIds ?? [],
+      this.replay.map((entry) => entry.item),
+    )
     this.status = IDLE
     this.pendingChildResults.push(
       ...(stored.pendingChildResults ?? []).map((stored) => pendingFromStored(stored)),
@@ -12829,6 +12883,17 @@ export class ModelApiSession implements AgentSession {
     const kept = new Set(completed.slice(0, cut + 1))
     kept.add(COMPACTION_TURN_ID)
     target.replay.push(...this.replay.filter((entry) => kept.has(entry.turnId)))
+    const packedIds = this.packing?.packedCallIds() ?? this.restoredPackedCallIds ?? []
+    const keptOutputIds = new Set(
+      target.replay.flatMap(({ item }) =>
+        item.type === 'function_call_output' ? [item.call_id] : [],
+      ),
+    )
+    target.restoredPackedCallIds = packedIds.filter((id) => keptOutputIds.has(id))
+    target.packing?.restorePackedCallIds(
+      target.restoredPackedCallIds,
+      target.replay.map((entry) => entry.item),
+    )
     const retained = this.transcript.filter((entry) => kept.has(entry.turnId))
     target.transcript.push(...withoutRunning(retained))
     target.turnIds.push(...completed.slice(0, cut + 1))
@@ -12867,6 +12932,7 @@ export class ModelApiSession implements AgentSession {
     // to cut, so a fork from an earlier turn gets today's goal too.
     target.goal = target.isSideChat ? undefined : this.goal
     // The prompt's repo map goes with the fork (M67), so it is not made again.
+    target.promptDate = this.promptDate
     target.repoMapText = this.repoMapText
     target.repoMapTries = this.repoMapTries
     for (const child of this.children.values()) {
@@ -13149,10 +13215,23 @@ export class ModelApiHost implements AgentHost {
     if (last === undefined) {
       return isStrict ? Promise.reject(new Error(UI_TEXT.historyUnavailable)) : Promise.resolve()
     }
+    // Keep newly sticky ids even while replay must stay at its last safe
+    // boundary. An original absent from that boundary cannot be recalled
+    // after a crash, so its id must not be persisted here.
+    const stickyIds = new Set([...(last.packedCallIds ?? []), ...(snapshot.packedCallIds ?? [])])
+    const packedCallIds =
+      last.packedCallIds === undefined && snapshot.packedCallIds === undefined
+        ? undefined
+        : last.replay.flatMap(({ item }) =>
+            item.type === 'function_call_output' && stickyIds.has(item.call_id)
+              ? [item.call_id]
+              : [],
+          )
     if (
       !isStrict &&
       last.budgetSpentUsd === snapshot.budgetSpentUsd &&
-      JSON.stringify(last.usage) === JSON.stringify(snapshot.usage)
+      JSON.stringify(last.usage) === JSON.stringify(snapshot.usage) &&
+      JSON.stringify(last.packedCallIds) === JSON.stringify(packedCallIds)
     ) {
       return Promise.resolve()
     }
@@ -13161,6 +13240,7 @@ export class ModelApiHost implements AgentHost {
       {
         ...saved,
         usage: snapshot.usage,
+        ...(packedCallIds !== undefined && { packedCallIds }),
         ...(snapshot.budgetSpentUsd !== undefined && { budgetSpentUsd: snapshot.budgetSpentUsd }),
       },
       store,

@@ -659,6 +659,8 @@
   "browserCheckLeaked": "페이지가 검사로 차단할 수 없는 방식으로 이 컴퓨터 밖에 도달했거나 도달하려고 해서 브라우저 검사를 중지했으며 아무것도 반환하지 않았습니다.",
   "browserCheckRestrictedMode": "제한 모드에서는 브라우저 검사가 꺼져 있습니다. 사용하려면 작업 영역을 신뢰하세요.",
   "packRecalled": "패킹된 출력 {id}에서 문자 {start}~{end}(전체 {total}자)를 다시 불러왔습니다",
+  "packRecallNotFound": "압축된 출력 {id}의 문자 위치 {offset} 이후에서 정확히 일치하는 문자열을 찾지 못했습니다.",
+  "promptCacheMiss": "프롬프트 캐시에서 재사용 가능한 입력 토큰 {tokens}개를 재사용하지 못했습니다.",
   "packRecallInvalid": "다시 불러오기 요청 형식이 잘못되어 아무것도 다시 읽지 않았습니다.",
   "packRecallUnknownId": "이 대화에는 ID가 {id}인 패킹된 출력이 없어 아무것도 다시 읽지 않았습니다.",
   "packRecallBadOffset": "오프셋이 패킹된 출력 {id}의 문자 위치(0~{last})가 아니어서 아무것도 다시 읽지 않았습니다.",

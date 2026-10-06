@@ -458,7 +458,26 @@ export function encodeAnthropicRequest(
       }
     }
   }
-  for (const item of body.input) {
+  // A trailing developer item is a request-only suffix (goal progress in
+  // M101). Keep its text in a separate native block even when the preceding
+  // user message would otherwise concatenate, and cache only the prefix.
+  let cacheBoundary: { messageCount: number; lastBlockCount: number } | undefined
+  for (const [index, item] of body.input.entries()) {
+    if (index === body.input.length - 1 && item.type === 'message' && item.role === 'developer') {
+      flushAssistant()
+      const last = messages.at(-1)
+      if (last !== undefined && typeof last.content === 'string') {
+        messages[messages.length - 1] = {
+          role: last.role,
+          content: [{ type: 'text', text: last.content }],
+        }
+      }
+      const content = messages.at(-1)?.content
+      cacheBoundary = {
+        messageCount: messages.length,
+        lastBlockCount: Array.isArray(content) ? content.length : 0,
+      }
+    }
     encodeItem(item)
   }
   flushAssistant()
@@ -489,8 +508,13 @@ export function encodeAnthropicRequest(
   }))
   // Signed thinking cannot carry cache_control; it is replayed byte-exact.
   // Select the final eligible block, without leaving old rolling markers.
-  for (const message of nativeMessages.toReversed()) {
-    const index = message.content.findLastIndex(
+  const cacheable = nativeMessages.slice(0, cacheBoundary?.messageCount)
+  for (const message of cacheable.toReversed()) {
+    const content =
+      cacheBoundary !== undefined && message === cacheable.at(-1)
+        ? message.content.slice(0, cacheBoundary.lastBlockCount)
+        : message.content
+    const index = content.findLastIndex(
       (block) => block.type !== 'thinking' && block.type !== 'redacted_thinking',
     )
     const last = message.content[index]

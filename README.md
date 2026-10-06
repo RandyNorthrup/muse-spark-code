@@ -1758,17 +1758,24 @@ panel cannot present an authoritative native job list or direct cancel.
 
 ## Observation packing (Model API)
 
-On by default (`museSpark.modelApiObservationPacking`, machine-scoped).
-Every request of a Model API conversation carries the tool outputs before
+In the panel, on by default (`museSpark.modelApiObservationPacking`, machine-scoped).
+ACP and headless Model API conversations enable the same packing and literal
+recall by default for tool-capable models. Every request of a Model API conversation carries the tool outputs before
 it. With packing on, a tool output over 8,000 characters is sent whole for
 its first two requests, then as a short placeholder: its id, its size, and
 its first and last lines. The placeholder is the same text on every later
 request, so the prompt cache breaks once per output. When the model needs
 more, it calls `recall_output` with the id and a character offset and reads
-the original back 4,000 characters at a time; each page names the tool that
-returned it and is marked as untrusted tool data between fresh markers, as
+the original back 4,000 characters at a time. It can also pass `search` to
+find a case-sensitive literal string at or after the offset; each page starts
+at the first match. The tool is declared throughout a packing conversation,
+and packed outputs keep the same placeholders after resume, fork or rewind.
+Each page names the tool that returned it and is marked as untrusted tool data between fresh markers, as
 a fetched page is. The conversation keeps every output whole, and the
-transcript shows it as it was.
+transcript shows it as it was. Goal progress travels at the end of each
+request, outside the cached instructions. The prompt date is the local date
+at session start and remains fixed when the conversation is reopened. Cache
+miss diagnostics appear only in the log; they trigger no extra model call.
 
 - **Measured first.** It got its setting after the paired evaluation (M75)
   held the capability floors with it on: all twelve tasks passed on both
@@ -1784,7 +1791,9 @@ transcript shows it as it was.
   any other.
 - A conversation reads the setting when it starts or is reopened, and
   keeps it for its life; a child task never packs. The Muse Code backend
-  has no hook for this, and the ACP agent does not pack.
+  has no hook for this. The ACP agent and headless runtime share the same
+  packing engine and `recall_output`, including literal search; they have no
+  VS Code setting to read.
 
 ## Checking edits
 

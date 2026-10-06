@@ -269,6 +269,45 @@ describe('encodeGeminiRequest history', () => {
     content: [{ type: 'output_text', text: 'It is noon UTC.' }],
   }
 
+  it.each([
+    { after: 'user', input: TOOL_BODY.input },
+    { after: 'assistant', input: [...TOOL_BODY.input, completedAnswer] },
+    { after: 'tool result', input: replay.input },
+    { after: 'no history', input: [] },
+  ])('keeps progress as trailing user context after $after with a stable prefix', ({ input }) => {
+    const encode = (progress: string) =>
+      encodeGeminiRequest(
+        {
+          ...TOOL_BODY,
+          input: [
+            ...input,
+            {
+              type: 'message',
+              role: 'developer',
+              content: [{ type: 'input_text', text: progress }],
+            },
+          ],
+        },
+        'gemini-3.5-flash-lite',
+      ).body
+    const first = encode('Goal progress: 10%')
+    const next = encode('Goal progress: 20%')
+    const contents = first['contents']
+    if (!Array.isArray(contents)) throw new Error('missing contents')
+    expect(contents.at(-1)).toMatchObject({ role: 'user' })
+    const last: unknown = contents.at(-1)
+    if (!isRecord(last) || !Array.isArray(last['parts'])) throw new Error('missing parts')
+    expect(last['parts'].at(-1)).toEqual({ text: 'Goal progress: 10%' })
+    expect(first['systemInstruction']).toEqual({ parts: [{ text: TOOL_BODY.instructions }] })
+    expect(JSON.stringify(next)).toBe(JSON.stringify(first).replace('10%', '20%'))
+    // Every historical part remains in place; the transient part is appended.
+    last['parts'].pop()
+    if (last['parts'].length === 0) contents.pop()
+    expect(contents).toEqual(
+      encodeGeminiRequest({ ...TOOL_BODY, input }, 'gemini-3.5-flash-lite').body['contents'],
+    )
+  })
+
   it('replays the signature in its exact part, the call and the JSON result', () => {
     const request = encodeGeminiRequest(replay, 'gemini-3.5-flash-lite')
     expect(JSON.stringify(request.body)).toBe(requestBytes('tool-loop'))

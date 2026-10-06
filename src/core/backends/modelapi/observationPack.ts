@@ -35,19 +35,30 @@ import {
 import { fill } from '../../../shared/l10n/text'
 import type { FunctionToolDefinition, InputItem } from './schemas'
 
-const recallOutputArgs = z.object({ id: z.string(), offset: z.optional(z.number()) })
+const recallOutputArgs = z.object({
+  id: z.string(),
+  offset: z.optional(z.number()),
+  search: z.optional(z.string().check(z.minLength(1), z.maxLength(OBS_PACK_PAGE_CHARS))),
+})
 
 /** `recall_output`, offered only while packing runs. */
 export const RECALL_TOOL_DEFINITION: FunctionToolDefinition = {
   type: 'function',
   name: MODEL_API_TOOLS.recallOutput,
   description:
-    'Read back a packed tool output by its id, one page at a time. A packed output names its id; pass it with a character offset (0 for the first page).',
+    'Read back a packed tool output by its id, one page at a time. A packed output names its id; pass it with a character offset (0 for the first page), or search for a case-sensitive literal string at or after that offset.',
   parameters: {
     type: 'object',
     properties: {
       id: { type: 'string', description: 'The packed output id from its placeholder' },
       offset: { type: 'integer', description: 'Characters to skip; 0 reads from the start' },
+      search: {
+        type: 'string',
+        minLength: 1,
+        maxLength: OBS_PACK_PAGE_CHARS,
+        description:
+          'Case-sensitive literal text to find at or after offset; the page starts at the first match',
+      },
     },
     required: ['id'],
     additionalProperties: false,
@@ -265,12 +276,25 @@ export class ObservationPack {
   }
 
   /**
-   * A resumed session's ledger (its stored total) carried on; the outputs
-   * and their send counts start fresh, as the replay packs again from the
-   * whole outputs.
+   * A resumed session's ledger (its stored total) carried on. Sticky ids
+   * restore independently from the originals in its replay (M101).
    */
   public restoreSavings(total: number): void {
     this.tokensAvoided = total
+  }
+
+  /** Sticky swaps, kept with the replay's originals across resume and fork. */
+  public packedCallIds(): string[] {
+    return this.ids.filter((id) => this.outputs.get(id)?.isPacked === true)
+  }
+
+  /** Restore only ids whose packable original survives this replay or fork cut. */
+  public restorePackedCallIds(ids: readonly string[], input: readonly InputItem[]): void {
+    this.project(input)
+    const kept = new Set(ids)
+    for (const [id, entry] of this.outputs) {
+      entry.isPacked = kept.has(id)
+    }
   }
 
   /** A compaction dropped the originals from the replay: forget them, keep the ledger. */
@@ -320,18 +344,27 @@ export class ObservationPack {
         fill(UI_TEXT.packRecallBadOffset, { id, last }),
       )
     }
+    const found =
+      parsed.data.search === undefined ? offset : entry.text.indexOf(parsed.data.search, offset)
+    if (found === -1) {
+      return failure(
+        fill(MODEL_API_MODEL_TEXT.packSearchNotFound, { id, offset: String(offset) }),
+        fill(UI_TEXT.packRecallNotFound, { id, offset }),
+      )
+    }
+    const start = packBoundary(entry.text, found)
     const total = entry.text.length
-    const end = packBoundary(entry.text, Math.min(offset + OBS_PACK_PAGE_CHARS, total))
+    const end = packBoundary(entry.text, Math.min(start + OBS_PACK_PAGE_CHARS, total))
     // The slice exactly as the tool returned it, never altered: the frame
     // around it is the store's own, its markers fresh for this page.
-    const page = entry.text.slice(offset, end)
+    const page = entry.text.slice(start, end)
     const pageFacts = {
       id,
       source:
         entry.tool === undefined
           ? MODEL_API_MODEL_TEXT.packSourceUnknown
           : fill(MODEL_API_MODEL_TEXT.packSourceTool, { tool: entry.tool }),
-      start: String(offset),
+      start: String(start),
       end: String(end),
       total: String(total),
     }
@@ -348,7 +381,7 @@ export class ObservationPack {
         page,
         fill(MODEL_API_MODEL_TEXT.packRecalledClose, { marker }),
       ].join('\n'),
-      visibleOutput: `${fill(UI_TEXT.packRecalled, { id, start: offset, end, total })}\n${page}`,
+      visibleOutput: `${fill(UI_TEXT.packRecalled, { id, start, end, total })}\n${page}`,
     }
   }
 }

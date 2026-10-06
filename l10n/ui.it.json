@@ -693,6 +693,8 @@
   "browserCheckLeaked": "La pagina ha raggiunto, o ha cercato di raggiungere, l’esterno di questo computer in un modo che il controllo non può bloccare, quindi il controllo nel browser è stato interrotto e non ha restituito nulla.",
   "browserCheckRestrictedMode": "Il controllo nel browser è disattivato in modalità con restrizioni. Considera attendibile l’area di lavoro per usarlo.",
   "packRecalled": "Recuperati i caratteri da {start} a {end} su {total} dall’output impacchettato {id}",
+  "packRecallNotFound": "Nessuna corrispondenza letterale nell’output compattato {id} a partire dal carattere {offset}.",
+  "promptCacheMiss": "La cache del prompt non ha riutilizzato {tokens} token di input riutilizzabili.",
   "packRecallInvalid": "La richiesta di recupero non era valida, quindi non è stato riletto nulla.",
   "packRecallUnknownId": "Nessun output impacchettato di questa conversazione ha l’ID {id}, quindi non è stato riletto nulla.",
   "packRecallBadOffset": "L’offset non è una posizione di carattere nell’output impacchettato {id} (da 0 a {last}), quindi non è stato riletto nulla.",

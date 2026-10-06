@@ -693,6 +693,8 @@
   "browserCheckLeaked": "La página llegó, o intentó llegar, fuera de este equipo de una forma que la comprobación no puede bloquear, así que la comprobación en el navegador se detuvo y no devolvió nada.",
   "browserCheckRestrictedMode": "La comprobación en el navegador está desactivada en el modo restringido. Confíe en el área de trabajo para usarla.",
   "packRecalled": "Recuperados los caracteres {start} a {end} de {total} de la salida empaquetada {id}",
+  "packRecallNotFound": "No se encontró ninguna coincidencia literal en la salida empaquetada {id} a partir del carácter {offset}.",
+  "promptCacheMiss": "La caché del prompt no reutilizó {tokens} tokens de entrada reutilizables.",
   "packRecallInvalid": "La solicitud de recuperación no era válida, así que no se leyó nada.",
   "packRecallUnknownId": "Ninguna salida empaquetada de esta conversación tiene el id {id}, así que no se leyó nada.",
   "packRecallBadOffset": "El desplazamiento no es una posición de carácter en la salida empaquetada {id} (de 0 a {last}), así que no se leyó nada.",

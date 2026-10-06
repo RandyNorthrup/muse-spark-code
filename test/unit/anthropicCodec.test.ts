@@ -227,6 +227,74 @@ function streamOf(
   return frames
 }
 
+describe('M101 request-only suffix breakpoint', () => {
+  it.each(['user', 'assistant'] as const)('caches before goal progress after %s', (role) => {
+    const body = canonicalBody({
+      instructions: 'Fixed rules and objective.',
+      input: [
+        {
+          type: 'message',
+          role,
+          content: [
+            { type: role === 'user' ? 'input_text' : 'output_text', text: 'Stable history.' },
+          ],
+        },
+        {
+          type: 'message',
+          role: 'developer',
+          content: [{ type: 'input_text', text: '# Session goal progress\n\n- Progress: 50%' }],
+        },
+      ],
+    })
+    const first = encodeAnthropicRequest(body, BASE_OPTIONS)
+    if (role === 'user') {
+      expect(encodedText(body)).toBe(goldenBytes('goal-progress'))
+    }
+    expect(first.body.messages[0]?.content).toEqual([
+      { type: 'text', text: 'Stable history.', cache_control: { type: 'ephemeral', ttl: '5m' } },
+      ...(role === 'user'
+        ? [{ type: 'text', text: '# Session goal progress\n\n- Progress: 50%' }]
+        : []),
+    ])
+    const changed = encodeAnthropicRequest(
+      {
+        ...body,
+        input: [
+          ...body.input.slice(0, -1),
+          {
+            type: 'message',
+            role: 'developer',
+            content: [{ type: 'input_text', text: '# Session goal progress\n\n- Progress: 60%' }],
+          },
+        ],
+      },
+      BASE_OPTIONS,
+    )
+    expect(changed.body.system).toEqual(first.body.system)
+    expect(changed.body.messages[0]?.content[0]).toEqual(first.body.messages[0]?.content[0])
+    expect(JSON.stringify(changed.body.messages.at(-1))).toContain('- Progress: 60%')
+    expect(JSON.stringify(first.body.messages.at(-1))).toContain('- Progress: 50%')
+  })
+
+  it('keeps only the system breakpoint when the suffix has no history before it', () => {
+    const native = encodeAnthropicRequest(
+      canonicalBody({
+        instructions: 'Fixed.',
+        input: [
+          {
+            type: 'message',
+            role: 'developer',
+            content: [{ type: 'input_text', text: '# Session goal progress' }],
+          },
+        ],
+      }),
+      BASE_OPTIONS,
+    )
+    expect(native.body.system?.[0]).toHaveProperty('cache_control')
+    expect(JSON.stringify(native.body.messages)).not.toContain('cache_control')
+  })
+})
+
 describe('anthropic codec goldens (checked-in request bytes)', () => {
   it('encodes a first turn with a system breakpoint and adaptive thinking', () => {
     expect(encodedText(timeQuestionBody([]))).toBe(goldenBytes('first-turn'))

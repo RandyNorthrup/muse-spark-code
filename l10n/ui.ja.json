@@ -659,6 +659,8 @@
   "browserCheckLeaked": "ページが、チェックではブロックできない方法でこのコンピューター外に到達した (または到達しようとした) ため、ブラウザー チェックを停止しました。何も返していません。",
   "browserCheckRestrictedMode": "制限モードではブラウザー チェックはオフです。使用するにはワークスペースを信頼してください。",
   "packRecalled": "パック済み出力 {id} の文字 {start}～{end}（全 {total} 文字）を呼び戻しました",
+  "packRecallNotFound": "圧縮された出力 {id} の文字位置 {offset} 以降に完全一致する文字列が見つかりませんでした。",
+  "promptCacheMiss": "プロンプトキャッシュで再利用可能な入力トークン {tokens} 個が再利用されませんでした。",
   "packRecallInvalid": "呼び戻し要求の形式が正しくないため、何も読み戻されませんでした。",
   "packRecallUnknownId": "この会話に ID {id} のパック済み出力はないため、何も読み戻されませんでした。",
   "packRecallBadOffset": "オフセットがパック済み出力 {id} の文字位置（0～{last}）ではないため、何も読み戻されませんでした。",

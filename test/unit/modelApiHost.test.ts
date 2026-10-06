@@ -455,6 +455,7 @@ function setup(
     verify?: ModelApiHostDeps['verify']
     /** Every directory the context loaders list, in order (M76). */
     onListDirectory?: (directory: string) => void
+    now?: () => number
   } = {},
 ) {
   const currentBudgetCap = (): number =>
@@ -522,10 +523,12 @@ function setup(
         ids += 1
         return `id${String(ids)}`
       }),
-    now: () => {
-      clock += 1000
-      return clock
-    },
+    now:
+      options.now ??
+      (() => {
+        clock += 1000
+        return clock
+      }),
     log,
     personalSkillsRoot: options.personalSkillsRoot,
     bundledSkills: options.bundledSkills,
@@ -7252,6 +7255,7 @@ describe('ModelApiSession: environment (M12)', () => {
   it('describes the environment once per session and puts the date and git facts in the prompt', async () => {
     let calls = 0
     const t = setup({
+      now: () => new Date(1970, 0, 1, 12).getTime(),
       describeEnvironment: () => {
         calls += 1
         return Promise.resolve({
@@ -12447,7 +12451,8 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     )
     expect(instructionsOf(t, 0)).not.toContain('# Session goal')
     expect(instructionsOf(t, 1)).toContain('- Objective: Ship it')
-    expect(instructionsOf(t, 2)).toContain('- Current work: Tests')
+    expect(JSON.stringify(t.api.responseBodies()[2]?.['input'])).toContain('- Current work: Tests')
+    expect(instructionsOf(t, 2)).toBe(instructionsOf(t, 1))
     expect(session.history().goal).toMatchObject({ objective: 'Ship it', percentComplete: 50 })
   })
 

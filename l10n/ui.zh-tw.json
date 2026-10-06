@@ -659,6 +659,8 @@
   "browserCheckLeaked": "頁面以檢查無法封鎖的方式到達或試圖到達本電腦以外，因此瀏覽器檢查已停止，未傳回任何內容。",
   "browserCheckRestrictedMode": "限制模式下瀏覽器檢查已關閉。信任此工作區即可使用。",
   "packRecalled": "已從打包輸出 {id} 調回第 {start} 至 {end} 個字元（共 {total} 個）",
+  "packRecallNotFound": "在封裝輸出 {id} 中，從字元位置 {offset} 開始未找到完全相符的文字。",
+  "promptCacheMiss": "提示快取未重複使用 {tokens} 個可重複使用的輸入權杖。",
   "packRecallInvalid": "調回要求格式有誤，因此未讀回任何內容。",
   "packRecallUnknownId": "此對話中沒有 ID 為 {id} 的打包輸出，因此未讀回任何內容。",
   "packRecallBadOffset": "該位移不是打包輸出 {id} 中的字元位置（0 至 {last}），因此未讀回任何內容。",

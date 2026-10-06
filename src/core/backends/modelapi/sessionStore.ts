@@ -105,6 +105,8 @@ export interface StoredSession {
   readonly agent?: AgentRuntime
   readonly name?: string
   readonly createdAt: string
+  /** Local calendar date frozen at session start (M101); absent on older files. */
+  readonly promptDate?: string
   readonly lastActivityAt: string
   readonly turnIds: readonly string[]
   /** Last completed turn covered by the accepted compaction summary (M53). */
@@ -130,6 +132,8 @@ export interface StoredSession {
    */
   readonly packedTokensAvoided?: number
   readonly hookTokensAdded?: number
+  /** Sticky packing swaps (M101), with originals retained in replay; absent on old files. */
+  readonly packedCallIds?: readonly string[]
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
@@ -255,6 +259,7 @@ const storedSessionFields = {
   ),
   name: z.optional(z.string()),
   createdAt: z.string(),
+  promptDate: z.optional(z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/))),
   lastActivityAt: z.string(),
   turnIds: z.array(z.string()),
   compactedThroughTurnId: z.optional(z.string()),
@@ -293,6 +298,7 @@ const storedSessionFields = {
   // corrupt value is dropped before validation (withoutCorruptEstimate).
   packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
   hookTokensAdded: z.optional(z.int().check(z.nonnegative())),
+  packedCallIds: z.optional(z.array(z.string())),
 } as const
 
 export const storedSessionSchema = z.object({
@@ -382,6 +388,8 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     agent,
     packedTokensAvoided,
     hookTokensAdded,
+    packedCallIds,
+    promptDate,
     ...rest
   } = result.data
   const replay = rest.replay.map(({ backgroundTaskId, userMessageId, ...entry }) => ({
@@ -444,6 +452,8 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(agent !== undefined && { agent }),
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(hookTokensAdded !== undefined && { hookTokensAdded }),
+      ...(packedCallIds !== undefined && { packedCallIds }),
+      ...(promptDate !== undefined && { promptDate }),
     },
   }
 }

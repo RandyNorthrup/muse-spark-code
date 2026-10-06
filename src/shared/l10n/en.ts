@@ -1164,6 +1164,8 @@ export const EN = {
   // Observation packing (M73): a recall_output row's heading above the
   // recalled text (shown as it was), and why a recall read nothing back.
   packRecalled: 'Recalled characters {start} to {end} of {total} from packed output {id}',
+  packRecallNotFound: 'No literal match in packed output {id} from character {offset}.',
+  promptCacheMiss: 'Prompt cache missed {tokens} reusable input tokens.',
   packRecallInvalid: 'The recall request was malformed, so nothing was read back.',
   packRecallUnknownId:
     'No packed output in this conversation has the id {id}, so nothing was read back.',

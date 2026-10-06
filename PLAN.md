@@ -20073,6 +20073,33 @@ receipts remain the lead's checks under the rig brief.
   - [ ] Lane E's live counts and cached-token results
   - [ ] Provider × item table complete; full gate green
 
+**Lane A status (2026-10-05, Kubuntu):** Items 1, 2+22, 7, 16 and 17
+are implemented in their owned regions: request-only goal progress and native
+Anthropic breakpoint exclusion, stable capability-gated recall with literal
+search, sticky ids across resume/fork/rewind, a persisted local session date,
+and log-only capability-gated cache diagnostics. Twenty red drills restore
+byte-exact; deliberate golden changes, the provider matrix and production
+byte deltas are in `docs/certification/m101-a.md`. Owning suites, all five compiler projects and static/bundle gates pass;
+the complete 282-file importing sweep has five reproducible pre-existing
+UI failures, recorded in §7 and the certification. Integration must supply the new `modelFacts` callback from M95's
+pending host registry seam and reconcile this base's off-by-default panel manifest with
+D81.6. FIXM101A repairs the separate Chat/OpenRouter breakpoints and Gemini
+context role, preserves pending-approval sticky ids, and enables shared packing
+in ACP/headless; its six additional red drills are recorded below. The
+remaining integration owners' files stay untouched; full quality and live M75/cache receipts
+are delegated by the rig brief to the integrator and Lane E.
+
+**FIXM101A review repair scope (2026-10-05).** Repair all three RVM101A
+P2s with minimal codec hunks: Gemini maps developer context to a trailing
+user-role part; Chat/OpenRouter excludes the trailing progress item from both
+rolling cache modes; pending-tool persistence merges newly sticky packed ids
+only for outputs retained in its safe replay and compares those ids before
+skipping a save. Add a Manual-mode crash/resume regression. Under the owner's
+all-editors rule, enable the same shared packing and literal `recall_output`
+in the ACP/headless runtime (no VS Code setting is available there). Tests,
+byte-exact red drills and named integration residuals go in
+`docs/certification/m101-a.md` and §9. No dependency, gate or paid-call change.
+
 ### M95 K repair residuals (2026-10-05)
 
 - **K22 resolved:** final comparable activation is 608,089 bytes against
@@ -20954,6 +20981,34 @@ unchanged gate on the integrated tree. No gate is disabled or weakened, and
 this lane does not claim all gates or full quality green. See §9 and the
 S/C certification records.
 | SAST | `node scripts/sast.mjs` (`npm run security:sast`): `semgrep scan --config auto --error --jobs 1`, with semgrep found on PATH or, failing that, in a Python's user Scripts folder | M2 ✓ locally (pip-installed on Windows 2026-09-22, its Scripts folder added to the user PATH) and in the CI `sast` job. M26: CI pins semgrep 1.177.0 (`.github/semgrep/requirements.txt`, Dependabot pip). |
+
+**M101-A gate boundary (2026-10-05).** The rig brief requires owning and
+importing suites in batches of at most three, all static gates and production
+caps directly on Kubuntu. It prohibits a full `npm run quality` and integration
+merges here. The integrator owns full quality on the combined tree; no gate,
+threshold, exemption or ignore is changed. Receipts: `docs/certification/m101-a.md`.
+
+**M101-A untouched UI-test deferral (2026-10-05).** The complete scoped
+282-file sweep reports 6,367 passed, five failed and 29 existing platform
+skips. Four `ChatViewProvider.test.ts` / `chatPanel.test.ts` assertions expect
+`<script nonce=`, while the base's `src/host/html.ts` emits `<script
+type="module" nonce=`. One `handoffDialog.test.tsx` case expects the base's
+lazy Account & usage dialog synchronously. All four files match `60bf96aa`
+byte-exact; a three-file rerun with the base English table reproduces all
+five failures, followed by exact SHA-256 restoration of Lane A's English
+source. These UI-owned files are outside the lane's edit authorization.
+Keep the gate failing and assigned to integration; no assertion, ignore,
+timeout or threshold is weakened. Owning suites, five-project typecheck,
+static gates and production caps pass. Receipts: `docs/certification/m101-a.md`.
+
+**M101-A untouched package-fixture deferral (2026-10-05).** The fake-only
+exec/ACP/launcher run reports 23 passed, 22 failed and six launcher rows not
+reached after its package hook fails. Base packaging scripts already require
+`validation.js`; both base package fixtures omit it. The scripts and tests
+match `60bf96aa` byte-exact. ACP and built exec conversations pass; the
+separate fake CLI/account/README batch passes all 41 tests. The fixture repair
+belongs to integration, outside Lane A. No test is filtered or weakened, and
+no failed package rows are claimed green. Receipts: `docs/certification/m101-a.md`.
 
 ### M98 — Muse Judge: a calibrated judge for any agent (D77, phase 1 integration)
 
@@ -21926,6 +21981,23 @@ before a repaired one loads (2026-09-30).
   while the codec is unwired; the owner's counted step-13 live receipts
   remain required before release. This lane is explicitly forbidden from
   making paid/live calls.
+
+- **FIXM101A assigned findings (2026-10-05):** all three RVM101A P2s and
+  the ACP/headless packing gap are repaired with regressions and six
+  byte-exact red drills; no assigned P2/P3 is left. Acceptance residuals:
+  **FIXM101A-MODEL-FACTS** — the production BYO host must supply selected-model
+  facts from the pending registry seam; unknown BYO records currently refuse
+  packing/recall and diagnostics, so this is safe until composition is wired
+  and tested by integration. **FIXM101A-PANEL-DEFAULT** — the panel's manifest
+  and constants still default packing off on this base; correctness is
+  unchanged while the optimization stays off, and the integrator must
+  reconcile them with D81.6 (ACP/headless now enable packing).
+  **FIXM101A-RELEASE-GATES** — full quality/coverage, packaged editor matrix
+  and live M75/cache receipts are the integrator/Lane E's work. The existing
+  five UI and package-fixture failures in §7 stay visible; scoped offline
+  checks cannot certify release. Follow-up: repair the fixtures/UI, gate the
+  combined tree and collect counted live receipts before acceptance. No live
+  or paid call, dependency, suppression or gate change in this repair.
 
 ## 10. Definition of done and release records
 
