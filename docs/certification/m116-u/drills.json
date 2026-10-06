@@ -317,5 +317,71 @@
     "before": "693a03de975d9dc2b49740dc25839bfca00ea8b81705d2fd5a56d110dcdcb4d2",
     "restored": "693a03de975d9dc2b49740dc25839bfca00ea8b81705d2fd5a56d110dcdcb4d2",
     "observed": "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > places transcript failure notes before informational progress"
+  },
+  {
+    "id": "reason-bound",
+    "file": "src/runtime/playbook/command.ts",
+    "mutation": "z.maxLength(REVIEW_FINDING_TEXT_MAX_CHARS) -> z.maxLength(REVIEW_FINDING_TEXT_MAX_CHARS + 1)",
+    "test": "test/unit/playbookCommand.test.ts",
+    "name": "bounds disable reasons and journal snapshots before presentation",
+    "exit": 1,
+    "before": "1c411ed72af6f514602c8c2887cc3995f9e1d901ab1de5eed9d0c35ecaa61bec",
+    "restored": "1c411ed72af6f514602c8c2887cc3995f9e1d901ab1de5eed9d0c35ecaa61bec",
+    "observed": "FAIL  test/unit/playbookCommand.test.ts > M116 CLI and shared settings adapter > bounds disable reasons and journal snapshots before presentation"
+  },
+  {
+    "id": "journal-bound",
+    "file": "src/runtime/playbook/command.ts",
+    "mutation": "z.maxLength(PLAYBOOK_RECORD_MAX) -> z.maxLength(PLAYBOOK_RECORD_MAX + 1)",
+    "test": "test/unit/playbookCommand.test.ts",
+    "name": "bounds disable reasons and journal snapshots before presentation",
+    "exit": 1,
+    "before": "1c411ed72af6f514602c8c2887cc3995f9e1d901ab1de5eed9d0c35ecaa61bec",
+    "restored": "1c411ed72af6f514602c8c2887cc3995f9e1d901ab1de5eed9d0c35ecaa61bec",
+    "observed": "FAIL  test/unit/playbookCommand.test.ts > M116 CLI and shared settings adapter > bounds disable reasons and journal snapshots before presentation"
+  },
+  {
+    "id": "deadline-type",
+    "file": "src/webview/playbook/bridge.ts",
+    "mutation": "z.int().check(z.gte(1)).parse(timeoutMs) -> z.number().parse(timeoutMs)",
+    "test": "test/unit/PlaybookPanel.test.tsx",
+    "name": "requires a positive integer transport deadline",
+    "exit": 1,
+    "before": "1983cb7be201bd012f074f69ea874c0d249bd0d0d045409caa66f7685cf57514",
+    "restored": "1983cb7be201bd012f074f69ea874c0d249bd0d0d045409caa66f7685cf57514",
+    "observed": "FAIL  test/unit/PlaybookPanel.test.tsx > shared playbook postMessage boundary > requires a positive integer transport deadline"
+  },
+  {
+    "id": "request-id-type",
+    "file": "src/webview/playbook/bridge.ts",
+    "mutation": "requestId = z.int().check(z.gte(1)) -> requestId = z.number()",
+    "test": "test/unit/PlaybookPanel.test.tsx",
+    "name": "requires a positive integer protocol correlation id",
+    "exit": 1,
+    "before": "1983cb7be201bd012f074f69ea874c0d249bd0d0d045409caa66f7685cf57514",
+    "restored": "1983cb7be201bd012f074f69ea874c0d249bd0d0d045409caa66f7685cf57514",
+    "observed": "FAIL  test/unit/PlaybookPanel.test.tsx > shared playbook postMessage boundary > requires a positive integer protocol correlation id"
+  },
+  {
+    "id": "late-settings-write",
+    "file": "src/webview/playbook/PlaybookPanel.tsx",
+    "mutation": "if (activePort.current === port) setData({ port, snapshot: next }) -> setData({ port, snapshot: next })",
+    "test": "test/unit/PlaybookPanel.test.tsx",
+    "name": "ignores a late settings write after a workspace change",
+    "exit": 1,
+    "before": "5804949f9c5e73a4e574263fad7bef27bbea9feeb53bef1c3f00a8147ef0bf59",
+    "restored": "5804949f9c5e73a4e574263fad7bef27bbea9feeb53bef1c3f00a8147ef0bf59",
+    "observed": "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > ignores a late settings write after a workspace change"
+  },
+  {
+    "id": "post-failure",
+    "file": "src/webview/playbook/bridge.ts",
+    "mutation": "pending.delete(id)\n        fail()\n      }\n    }) -> pending.delete(id)\n        reject(new Error(\"private transport detail\"))\n      }\n    })",
+    "test": "test/unit/PlaybookPanel.test.tsx",
+    "name": "scrubs a failed post and releases its pending request",
+    "exit": 1,
+    "before": "1983cb7be201bd012f074f69ea874c0d249bd0d0d045409caa66f7685cf57514",
+    "restored": "1983cb7be201bd012f074f69ea874c0d249bd0d0d045409caa66f7685cf57514",
+    "observed": "FAIL  test/unit/PlaybookPanel.test.tsx > shared playbook postMessage boundary > scrubs a failed post and releases its pending request"
   }
 ]

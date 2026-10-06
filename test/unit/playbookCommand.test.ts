@@ -15,6 +15,7 @@ import {
   playbookText,
 } from '../../src/runtime/playbook/text'
 import { EN } from '../../src/shared/l10n/en'
+import { PLAYBOOK_RECORD_MAX, REVIEW_FINDING_TEXT_MAX_CHARS } from '../../src/shared/constants'
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { formatDateTime, plural, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import { loadUiTable } from '../../src/host/l10n'
@@ -120,6 +121,28 @@ describe('M116 CLI and shared settings adapter', () => {
       changedPlaybookSettings(port.snapshot().settings, { patchRoundsMax: 1 }, 'owner', 0)
         .patchRoundsMax,
     ).toBe(1)
+  })
+
+  it('bounds disable reasons and journal snapshots before presentation', async () => {
+    expect(
+      playbookChangeSchema.safeParse({
+        rule: 'offload',
+        enabled: false,
+        reason: 'r'.repeat(REVIEW_FINDING_TEXT_MAX_CHARS + 1),
+      }).success,
+    ).toBe(false)
+    const snapshot = surfaceSnapshot()
+    const note = surfacePriorityNotes()[0]
+    if (note === undefined) throw new Error('missing bounded-record fixture')
+    snapshot.records = Array.from({ length: PLAYBOOK_RECORD_MAX + 1 }, () => ({
+      kind: 'note',
+      value: note,
+    }))
+    const port = { read: () => Promise.resolve(snapshot), change: () => Promise.resolve(snapshot) }
+    expect(await runPlaybookCommand({ view: 'record' }, port)).toEqual({
+      ok: false,
+      text: UI_TEXT.playbookUnavailable,
+    })
   })
 
   it('fails loudly for unavailable, malformed or failed journal reads and writes', async () => {

@@ -28,7 +28,7 @@ function offloadReasonInput() {
 }
 
 async function submitOffloadMaintenance(port: ReturnType<typeof surfacePort>) {
-  render(<PlaybookPanel port={port} />)
+  const mounted = render(<PlaybookPanel port={port} />)
   await screen.findByText(/workspace-panel/u)
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.playbookSettings }))
   const input = offloadReasonInput()
@@ -36,6 +36,7 @@ async function submitOffloadMaintenance(port: ReturnType<typeof surfacePort>) {
   const form = input.closest('form')
   if (form === null) throw new Error('missing settings form')
   fireEvent.submit(form)
+  return mounted
 }
 
 describe('M116 shared playbook surfaces', () => {
@@ -140,6 +141,24 @@ describe('M116 shared playbook surfaces', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(UI_TEXT.playbookUnavailable)
   })
 
+  it('ignores a late settings write after a workspace change', async () => {
+    const saving = Promise.withResolvers<unknown>()
+    const first = surfacePort()
+    vi.spyOn(first, 'change').mockImplementation(() => saving.promise)
+    const { rerender } = await submitOffloadMaintenance(first)
+    const snapshot = surfaceSnapshot()
+    snapshot.settings.teamId = 'next-workspace'
+    const second = surfacePort(snapshot)
+    rerender(<PlaybookPanel port={second} />)
+    await screen.findByText(/next-workspace/u)
+    await act(async () => {
+      saving.resolve(first.snapshot())
+      await saving.promise
+    })
+    expect(screen.getByText(/next-workspace/u)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('keeps notes and strike outcomes distinguishable as text without colour', () => {
     const snapshot = surfaceSnapshot()
     snapshot.records.push(surfaceRound(1))
@@ -178,6 +197,32 @@ describe('M116 shared playbook surfaces', () => {
 })
 
 describe('shared playbook postMessage boundary', () => {
+  it('requires a positive integer transport deadline', () => {
+    for (const deadline of [0, -1, 1.5, NaN])
+      expect(() => createPlaybookBridge(window, vi.fn(), deadline)).toThrow()
+  })
+
+  it('requires a positive integer protocol correlation id', () => {
+    for (const requestId of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])
+      expect(playbookRequestSchema.safeParse({ type: 'playbookRead', requestId }).success).toBe(
+        false,
+      )
+  })
+
+  it('scrubs a failed post and releases its pending request', async () => {
+    vi.useFakeTimers()
+    const bridge = createPlaybookBridge(
+      window,
+      () => {
+        throw new Error('private transport detail')
+      },
+      1000,
+    )
+    await expect(bridge.read()).rejects.toThrow(UI_TEXT.playbookUnavailable)
+    expect(vi.getTimerCount()).toBe(0)
+    bridge.dispose()
+  })
+
   it('validates and correlates replies, rejecting unavailable responses', async () => {
     const sent: unknown[] = []
     const bridge = createPlaybookBridge(
