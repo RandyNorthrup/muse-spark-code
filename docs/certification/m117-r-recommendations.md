@@ -428,5 +428,13 @@ No finding is deferred. The existing shipping/docs/source bindings remain
 the named handoffs; no new owner decision is needed.
 
 The worktree's unchanged `.husky/_/pre-commit` exists and `core.hooksPath`
-resolves to `.husky/_`. Explicit staging and the required co-author footer
-are used; the actual commit/hook receipt is recorded after the commit.
+resolves to `.husky/_`. Implementation commit:
+`b00b2765daf6ca1130d9018e4363bfd95e24f827`.
+The unchanged hook ran lint-staged ESLint/Prettier on all four TypeScript
+files and Prettier on PLAN and this certificate, then Gitleaks scanned
+approximately 27,824 staged bytes and reported no leaks. Explicit staging,
+hooks enabled and the required co-author footer were used. All four source
+and test SHA-256 values matched their pre-commit values after the hooks;
+the implementation worktree was clean. This receipt changes documentation
+only; no source or test changed after final validation. No merge, rebase or
+push occurred.
