@@ -50,10 +50,14 @@ import {
 } from './ToolBodies'
 import { verifySummaryText } from '../../shared/verifyText'
 import { ThenRunBlock, VerifyBody } from './VerifyParts'
+import type { PlaybookWhyNote } from '../../shared/playbook'
+import { DeferredPlaybookNotes } from '../playbook/DeferredPlaybook'
 
 type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
 
 export interface ToolRowProps {
+  /** I supplies the policy's notes for this step; no model text is involved. */
+  readonly playbookNotes?: readonly PlaybookWhyNote[]
   readonly entry: ToolEntry
   readonly isRunning: boolean
   readonly patchPage: OutputPage | undefined
@@ -360,6 +364,7 @@ function imagePathsOf(entry: ToolEntry, imagePath: string | undefined): readonly
 }
 
 function ToolRowView({
+  playbookNotes,
   entry,
   isRunning,
   patchPage,
@@ -664,6 +669,9 @@ function ToolRowView({
         <div className="tool-outcome" dir="auto">
           {questionOutcomeText(entry.questionOutcome)}
         </div>
+      )}
+      {playbookNotes === undefined || playbookNotes.length === 0 ? null : (
+        <DeferredPlaybookNotes notes={playbookNotes} />
       )}
       {menu.menu}
       {quoteMenu}

@@ -12,6 +12,8 @@
 
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
+import { acpPlaybook } from './playbook'
+import type { PlaybookSurfacePort } from '../runtime/playbook/command'
 import {
   agent as acpAgent,
   type AgentApp,
@@ -129,6 +131,8 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  /** I binds P's durable, authorized workspace/team adapter. */
+  readonly playbookFor?: (cwd: string, sessionId: string) => PlaybookSurfacePort
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -314,15 +318,29 @@ class AcpSession {
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
       observeError(this.deps, 'skillsUnavailable')
-      return
+      if (this.deps.playbookFor === undefined) return
+      this.skills = []
     }
     this.send({
       sessionUpdate: 'available_commands_update',
-      availableCommands: this.skills.map((skill) => ({
-        name: skill.selector,
-        description: skill.description === '' ? skill.displayName : skill.description,
-        input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
-      })),
+      availableCommands: [
+        ...(this.deps.playbookFor === undefined
+          ? []
+          : [
+              {
+                name: 'playbook',
+                description: UI_TEXT.playbookHelpDescription,
+                input: { hint: 'status|record|settings' },
+              },
+            ]),
+        ...this.skills
+          .filter((skill) => this.deps.playbookFor === undefined || skill.selector !== 'playbook')
+          .map((skill) => ({
+            name: skill.selector,
+            description: skill.description === '' ? skill.displayName : skill.description,
+            input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
+          })),
+      ],
     })
   }
 
@@ -828,8 +846,10 @@ class AcpSession {
     }
     const preparing: PreparingPrompt = { isCancelled: false }
     this.preparing = preparing
+    let local: Awaited<ReturnType<typeof acpPlaybook>>
     try {
-      await this.announceCommands()
+      local = await acpPlaybook(blocks, () => this.deps.playbookFor?.(this.cwd, this.sessionId))
+      if (local === undefined) await this.announceCommands()
     } finally {
       this.preparing = undefined
     }
@@ -839,6 +859,14 @@ class AcpSession {
     if (preparing.isCancelled) {
       await this.outbox
       return 'cancelled'
+    }
+    if (local !== undefined) {
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: local.text },
+      })
+      await this.outbox
+      return 'end_turn'
     }
     // Outcomes are values: a host exit before turn/start answers must not
     // reject a promise that the prompt has not yet reached (Node would exit).
