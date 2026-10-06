@@ -5,13 +5,14 @@ import { tmpdir } from 'node:os'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import * as z from 'zod/mini'
-import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
 import { createScheduleStore, scheduleStorageHash } from '../../src/core/schedules/store'
 import {
   SCHEDULE_FS_RETRY_ATTEMPTS,
   SCHEDULE_JOURNAL_MAX_OPS,
   SCHEDULE_LEASE_EXPIRES_MS,
+  SCHEDULE_LEASE_HEARTBEAT_MS,
 } from '../../src/shared/constants'
 import { scheduleStateFile } from './helpers/schedules/storage'
 import { fakeSchedule } from './helpers/schedules/fixtures'
@@ -31,6 +32,19 @@ const root = mkdtempSync(path.join(tmpdir(), 'muse-m115-locks-'))
 const exec = promisify(execFile)
 const actualDisk = await vi.importActual<typeof disk>('node:fs/promises')
 afterAll(() => removeFolder(root))
+beforeEach(() => {
+  const interval = globalThis.setInterval
+  vi.spyOn(globalThis, 'setInterval').mockImplementation((callback, ms, ...args) => {
+    if (ms !== SCHEDULE_LEASE_HEARTBEAT_MS) return interval(callback, ms, ...args)
+    // Produce one real pulse, then simulate the suspended process used by the
+    // takeover/old-pulse regressions without a two-second setup in every case.
+    const timer = interval(() => {
+      clearInterval(timer)
+      callback(...args)
+    }, 20)
+    return timer
+  })
+})
 afterEach(() => {
   vi.restoreAllMocks()
   vi.mocked(disk.link).mockReset().mockImplementation(actualDisk.link)
@@ -40,6 +54,15 @@ afterEach(() => {
 })
 function locked() {
   return Object.assign(new Error('injected lock'), { code: 'EPERM' })
+}
+async function fillJournal(directory: string, fs: ReturnType<typeof createNodeScheduleFs>) {
+  const state = await scheduleStateFile(fs)
+  const folder = path.dirname(path.join(directory, state))
+  for (let revision = 1; revision < SCHEDULE_JOURNAL_MAX_OPS; revision += 1)
+    await actualDisk.writeFile(
+      path.join(folder, `${String(revision)}.json`),
+      JSON.stringify({ revision, changes: [] }),
+    )
 }
 async function handle(file: string, name: string) {
   // FileShare.Read allows committed bytes to remain readable while denying
@@ -94,6 +117,28 @@ try {
 }
 
 describe('native schedule publication and leases', () => {
+  it.each(['pid', 'start'] as const)(
+    'refuses a token-matched heartbeat with a different %s',
+    async (field) => {
+      const fs = createNodeScheduleFs(path.join(root, `pulse-${field}`))
+      const key = `pulse-${field}`
+      const file = `leases/${scheduleStorageHash(key)}.json`
+      const owner = {
+        pid: process.pid,
+        start: 1,
+        token: '11111111-1111-4111-8111-111111111111',
+        heartbeat: Date.now() - SCHEDULE_LEASE_EXPIRES_MS - 1,
+      }
+      await fs.publish(file, JSON.stringify(owner))
+      await fs.publish(
+        `${file}.${owner.token}.heartbeat`,
+        JSON.stringify({ ...owner, [field]: owner[field] + 1 }),
+      )
+      await expect(fs.lock(key, () => Promise.resolve('invalid pulse acquired'))).rejects.toThrow(
+        'OwnershipLost',
+      )
+    },
+  )
   it('retries transient lease reads and bounds persistent read failures', async () => {
     const fs = createNodeScheduleFs(path.join(root, 'read-retry'))
     await fs.publish('leases/read.json', 'committed lease')
@@ -146,24 +191,15 @@ describe('native schedule publication and leases', () => {
     const cleaned = await disk.readdir(path.join(directory, 'data'))
     expect(cleaned.some((name) => name.endsWith('.tmp'))).toBe(false)
   })
-  it('retries acquisition when a competing release removes the destination during EEXIST identity checking', async () => {
-    const directory = path.join(root, 'release-race')
-    const fs = createNodeScheduleFs(directory)
-    const file = `leases/${scheduleStorageHash('release-race')}.json`
-    await fs.publish(
-      file,
-      JSON.stringify({
-        pid: process.pid,
-        start: 1,
-        token: '11111111-1111-4111-8111-111111111111',
-        heartbeat: Date.now(),
-      }),
-    )
+  it('recognizes EEXIST after a competing release removes the exclusive destination', async () => {
+    const fs = createNodeScheduleFs(path.join(root, 'release-race'))
+    await fs.publish('data/race.json', 'old')
     vi.mocked(disk.link).mockImplementationOnce(async (_source, destination) => {
       await actualDisk.unlink(destination)
-      throw Object.assign(new Error('competing lease released'), { code: 'EEXIST' })
+      throw Object.assign(new Error('competing release'), { code: 'EEXIST' })
     })
-    expect(await fs.lock('release-race', () => Promise.resolve('acquired'))).toBe('acquired')
+    expect(await fs.publish('data/race.json', 'new')).toBe(false)
+    expect(await fs.publish('data/race.json', 'new')).toBe(true)
   })
   it('bounds persistent publication and activation errors while preserving the prior committed bytes', async () => {
     const fs = createNodeScheduleFs(path.join(root, 'persistent'))
@@ -194,12 +230,7 @@ describe('native schedule publication and leases', () => {
     expect(await fs.read(`leases/${scheduleStorageHash(key)}.json`)).toBeUndefined()
     failures = SCHEDULE_FS_RETRY_ATTEMPTS
     expect(await fs.lock(key, () => Promise.resolve('retained result'))).toBe('retained result')
-    const bytes = await fs.read(`leases/${scheduleStorageHash(key)}.json`)
-    const old = z
-      .object({ pid: z.number(), heartbeat: z.number() })
-      .parse(JSON.parse(bytes ?? 'null'))
-    expect(old.pid).toBe(process.pid)
-    vi.spyOn(Date, 'now').mockReturnValue(old.heartbeat + SCHEDULE_LEASE_EXPIRES_MS + 1)
+    // Hint cleanup is not authority: the immutable release permits immediate acquisition.
     expect(await createNodeScheduleFs(directory).lock(key, () => Promise.resolve('repaired'))).toBe(
       'repaired',
     )
@@ -245,49 +276,68 @@ describe('native schedule publication and leases', () => {
     })
     expect(await fs.read('data/current.json')).toBe('new owner')
   })
-  it('refuses a stale takeover observation when the owner renews before removal', async () => {
+  it('does not unlink a replacement lease when a takeover races release and acquisition', async () => {
     const directory = path.join(root, 'renewal')
     const fs = createNodeScheduleFs(directory)
-    const file = `leases/${scheduleStorageHash('renewal')}.json`
-    const owner = {
-      pid: process.pid,
-      start: 1,
-      token: '11111111-1111-4111-8111-111111111111',
-      heartbeat: Date.now() - SCHEDULE_LEASE_EXPIRES_MS - 1,
-    }
-    await fs.publish(file, JSON.stringify(owner))
-    const pulse = `${file}.${owner.token}.heartbeat`
-    const checked = Promise.withResolvers<undefined>()
-    const main = path.join(directory, file)
-    let removals = 0
-    let isRenewed = false
+    const key = 'renewal'
+    const entered = Promise.withResolvers<undefined>()
+    const releaseOld = Promise.withResolvers<undefined>()
+    const pauseTakeover = Promise.withResolvers<undefined>()
+    const resumeTakeover = Promise.withResolvers<undefined>()
+    const releaseReplacement = Promise.withResolvers<undefined>()
+    const replacementEntered = Promise.withResolvers<undefined>()
+    const old = fs.lock(key, async () => {
+      entered.resolve(undefined)
+      await releaseOld.promise
+    })
+    await entered.promise
+    const file = `leases/${scheduleStorageHash(key)}.json`
+    const bytes = await fs.read(file)
+    const owner = z
+      .object({ token: z.string(), heartbeat: z.number() })
+      .parse(JSON.parse(bytes ?? 'null'))
+    await fs.publish(
+      `${file}.${owner.token}.heartbeat`,
+      JSON.stringify({
+        ...JSON.parse(bytes ?? 'null'),
+        heartbeat: owner.heartbeat - SCHEDULE_LEASE_EXPIRES_MS - 1,
+      }),
+    )
+    let hasPaused = false
     vi.mocked(disk.link).mockImplementation(async (...args) => {
-      if (!isRenewed && String(args[1]).endsWith('.takeover')) {
-        isRenewed = true
-        await fs.replace(pulse, JSON.stringify({ ...owner, heartbeat: Date.now() }))
+      const name = String(args[1]).replaceAll('\\', '/')
+      if (!hasPaused && name.includes('/leaseFences/') && name.endsWith('/1.json')) {
+        hasPaused = true
+        pauseTakeover.resolve(undefined)
+        await resumeTakeover.promise
       }
       await actualDisk.link(...args)
     })
-    vi.mocked(disk.unlink).mockImplementation(async (input) => {
-      if (String(input) === main) {
-        removals += 1
-        throw new Error('renewed owner must not be removed')
-      }
-      await actualDisk.unlink(input)
-      if (String(input).endsWith('.takeover')) checked.resolve(undefined)
+    let hasTakeoverEntered = false
+    const taker = createNodeScheduleFs(directory).lock(key, () => {
+      hasTakeoverEntered = true
+      return Promise.resolve()
     })
-    const result = Promise.allSettled([
-      fs.lock('renewal', () => Promise.resolve('acquired after release')),
-    ])
+    await pauseTakeover.promise
+    releaseOld.resolve(undefined)
+    await old
+    const replacement = createNodeScheduleFs(directory).lock(key, async (guard) => {
+      replacementEntered.resolve(undefined)
+      await releaseReplacement.promise
+      await guard()
+    })
+    await replacementEntered.promise
+    resumeTakeover.resolve(undefined)
     try {
-      await checked.promise
-      expect(removals).toBe(0)
-      expect(await fs.read(file)).toBe(JSON.stringify(owner))
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(hasTakeoverEntered).toBe(false)
     } finally {
-      await actualDisk.unlink(main)
-      vi.mocked(disk.unlink).mockImplementation(actualDisk.unlink)
+      releaseReplacement.resolve(undefined)
+      resumeTakeover.resolve(undefined)
     }
-    expect(await result).toEqual([{ status: 'fulfilled', value: 'acquired after release' }])
+    await replacement
+    await taker
+    expect(hasTakeoverEntered).toBe(true)
   })
   it('expires an unchanged live-owner heartbeat despite wall-clock rollback', async () => {
     const directory = path.join(root, 'rollback')
@@ -315,12 +365,21 @@ describe('native schedule publication and leases', () => {
     const file = `leases/${scheduleStorageHash('heartbeat-race')}.json`
     const entered = Promise.withResolvers<undefined>()
     const resumeRename = Promise.withResolvers<undefined>()
+    const renameFinished = Promise.withResolvers<undefined>()
     const resumeWork = Promise.withResolvers<undefined>()
+    let pausedDestination: string | undefined
     const original = actualDisk.rename
-    vi.mocked(disk.rename).mockImplementationOnce(async (...args) => {
-      entered.resolve(undefined)
-      await resumeRename.promise
-      await original(...args)
+    vi.mocked(disk.rename).mockImplementation(async (...args) => {
+      if (pausedDestination === undefined && String(args[1]).endsWith('.heartbeat')) {
+        pausedDestination = String(args[1])
+        entered.resolve(undefined)
+        await resumeRename.promise
+      }
+      try {
+        await original(...args)
+      } finally {
+        if (String(args[1]) === pausedDestination) renameFinished.resolve(undefined)
+      }
     })
     const old = fs.lock('heartbeat-race', async () => {
       await resumeWork.promise
@@ -341,12 +400,10 @@ describe('native schedule publication and leases', () => {
       await createNodeScheduleFs(directory).lock('heartbeat-race', async () => {
         const replacement = await fs.read(file)
         resumeRename.resolve(undefined)
-        await vi.waitFor(async () => {
-          const current = z
-            .object({ heartbeat: z.number() })
-            .parse(JSON.parse((await fs.read(pulse)) ?? 'null'))
-          expect(current.heartbeat).toBeGreaterThan(Date.now() - SCHEDULE_LEASE_EXPIRES_MS)
-        })
+        // Windows may refuse the old rename transiently; its retry then sees
+        // ownership loss. Completion of the syscall proves the race occurred
+        // without requiring that stale pulse to be successfully published.
+        await renameFinished.promise
         expect(await fs.read(file)).toBe(replacement)
       })
     } finally {
@@ -365,11 +422,8 @@ describe('native schedule publication and leases', () => {
     const store = createScheduleStore(fs)
     const job = fakeSchedule()
     await store.create(job)
-    for (let index = 0; index < SCHEDULE_JOURNAL_MAX_OPS - 1; index += 1) {
-      const [current] = await store.list(job.workspaceKey)
-      await store.update({ ...current!, name: `revision ${String(index)}` })
-    }
     const [before] = await store.list(job.workspaceKey)
+    await fillJournal(directory, fs)
     const release = await handle(
       path.join(directory, job.workspaceKey, 'index/current.json'),
       'pointer',
@@ -398,10 +452,9 @@ describe('native schedule publication and leases', () => {
     const old = await scheduleStateFile(fs)
     const release = await handle(path.join(directory, old), 'retirement')
     try {
-      for (let index = 0; index <= SCHEDULE_JOURNAL_MAX_OPS; index += 1) {
-        const [current] = await store.list(job.workspaceKey)
-        expect(await store.update({ ...current!, name: `changed ${String(index)}` })).toBe(true)
-      }
+      const [current] = await store.list(job.workspaceKey)
+      await fillJournal(directory, fs)
+      expect(await store.update({ ...current!, name: 'changed' })).toBe(true)
       expect(await scheduleStateFile(fs)).not.toBe(old)
       if (process.platform === 'win32') expect(await fs.read(old)).toBeDefined()
     } finally {

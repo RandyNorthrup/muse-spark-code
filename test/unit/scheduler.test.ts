@@ -1,7 +1,5 @@
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
-import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
+import { setTimeout as delay } from 'node:timers/promises'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createScheduler,
   type ScheduleClockReading,
@@ -9,14 +7,12 @@ import {
 } from '../../src/core/schedules/scheduler'
 import { createScheduleStore, type ScheduleRunIntent } from '../../src/core/schedules/store'
 import { validateScheduleSettlement } from '../../src/core/schedules/fireRecord'
-import {
-  createNodeScheduleFs,
-  createNodeScheduleQueue,
-} from '../../src/runtime/schedules/nodeScheduleFs'
+import { MemoryScheduleFs } from './helpers/schedules/storage'
 import {
   SCHEDULE_MIN_INTERVAL_MS,
   SCHEDULE_PAUSE_AFTER_FAILURES,
   SCHEDULE_POLL_INTERVAL_MS,
+  SCHEDULE_QUEUE_COALESCE_MS,
 } from '../../src/shared/constants'
 import {
   scheduleFireRecordSchema,
@@ -26,10 +22,6 @@ import {
 import { FakeScheduleClock } from './helpers/schedules/clock'
 import { FakeScheduleHost } from './helpers/schedules/host'
 import { fakeSchedule } from './helpers/schedules/fixtures'
-import { removeFolder } from './helpers/temporaryFolders'
-
-const root = mkdtempSync(path.join(tmpdir(), 'muse-m115-scheduler-'))
-afterAll(() => removeFolder(root))
 afterEach(() => {
   vi.useRealTimers()
 })
@@ -87,14 +79,21 @@ function settled(
     outcome,
   )
 }
-async function fixture(name: string, jobs: readonly ScheduleV2[] = [fakeSchedule()]) {
-  const directory = path.join(root, name)
-  const store = createScheduleStore(createNodeScheduleFs(directory))
+async function fixture(_name: string, jobs: readonly ScheduleV2[] = [fakeSchedule()]) {
+  const fs = new MemoryScheduleFs()
+  const store = createScheduleStore(fs)
   for (const job of jobs) await store.create(job)
   const clock = new FakeScheduleClock(fakeSchedule().nextFireAtMs!)
   const host = new FakeScheduleHost(clock)
   host.workspaces.add('workspace-1')
-  const queue = createNodeScheduleQueue(directory)
+  const queue = {
+    serialize: async (key: string, work: () => Promise<void>) => {
+      await delay(SCHEDULE_QUEUE_COALESCE_MS)
+      await fs.lock(key, async () => {
+        await work()
+      })
+    },
+  }
   const failureSettlement = vi.fn((intent: ScheduleRunIntent, _error: unknown) =>
     Promise.resolve({
       ...fireOf(intent, clock.now(), 'failed'),
@@ -585,17 +584,18 @@ describe('M115 host-neutral scheduler', () => {
     expect(host.deliveries).toHaveLength(1)
     expect(host.deliveries[0]?.occurrenceMs).toBeGreaterThan(clock.now())
   })
-  it('records a skipped, unspent run when ownership or pause changes just after the durable claim', async () => {
-    for (const change of [
-      'ownership',
-      'pause',
-      'remove',
-      'expiry',
-      'trigger',
-      'zone',
-      'target',
-      'delivery',
-    ] as const) {
+  it.each([
+    'ownership',
+    'pause',
+    'remove',
+    'expiry',
+    'trigger',
+    'zone',
+    'target',
+    'delivery',
+  ] as const)(
+    'records a skipped, unspent run when %s changes just after the durable claim',
+    async (change) => {
       const { deps, host, scheduler, store } = await fixture(`claimed-${change}`)
       const original = store.advance.bind(store)
       vi.spyOn(deps.runs, 'advance').mockImplementation(async (intent) => {
@@ -627,8 +627,8 @@ describe('M115 host-neutral scheduler', () => {
         outcome: 'skipped',
         cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
       })
-    }
-  })
+    },
+  )
   it('delivers a definitely unsent crashed intent once without recounting', async () => {
     const { store, deps, scheduler, host } = await fixture('recover')
     const [job] = await store.list('workspace-1')
@@ -741,10 +741,10 @@ describe('M115 host-neutral scheduler', () => {
     const handle = scheduler.start(() => ['workspace-1'], onError)
     await vi.advanceTimersByTimeAsync(0)
     expect(onError).toHaveBeenCalledTimes(1)
-    expect(poll).not.toHaveBeenCalled()
+    expect(poll).toHaveBeenCalledTimes(1)
     await vi.advanceTimersByTimeAsync(SCHEDULE_POLL_INTERVAL_MS)
     expect(recover).toHaveBeenCalledTimes(2)
-    expect(poll).toHaveBeenCalledTimes(1)
+    expect(poll).toHaveBeenCalledTimes(2)
     handle.dispose()
   })
 })

@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Repair M115's internal schedule takeover fencing, target fairness, isolated
+  recovery, interrupted migration copies and atomic removal. The owning
+  regression cases use default deadlines, with a named deadline only for
+  the deliberate 10,000-fire storage workload.
+
 - Redesign M115's internal schedule storage with bounded generation journals,
   retained identity fences, recoverable leases and a durable delivery outbox.
   Reconciliation preserves unsent work and uncertain paid settlements, orders

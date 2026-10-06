@@ -282,12 +282,13 @@ describe('M115 durable shared store', () => {
         await vi.waitFor(
           async () => {
             await fs.replace(
-              `leases/${scheduleStorageHash(`target:${key}`)}.json`,
+              `leaseFences/${scheduleStorageHash(`target:${key}`)}/0/0.json`,
               JSON.stringify({
                 pid: process.pid,
                 start: 0,
                 token: '00000000-0000-4000-8000-000000000000',
                 heartbeat: Date.now(),
+                fencingToken: 0,
               }),
             )
           },
@@ -347,6 +348,7 @@ describe('M115 durable shared store', () => {
     const claimDirectory = path.join(root, 'claim-boundaries')
     const claims = createNodeScheduleFs(claimDirectory)
     const claimStore = createScheduleStore(claims)
+    await claimStore.create(job)
     const intent = { schedule: job, runId: 'schedule-1:1', occurrenceMs: 1, advancesTime: false }
     await claimStore.admit(intent)
     const hash = scheduleStorageHash(intent.runId)
@@ -558,6 +560,7 @@ describe('M115 durable shared store', () => {
   })
   it('refuses more than the bounded pending outbox without changing committed state', async () => {
     const fs = new MemoryScheduleFs()
+    const store = createScheduleStore(fs)
     const job = fakeSchedule()
     await seedScheduleIndex(fs, [job])
     const file = await scheduleStateFile(fs)
@@ -586,7 +589,7 @@ describe('M115 durable shared store', () => {
         },
       }),
     )
-    const before = fs.bytes()
+    const before = await store.pending(job.workspaceKey)
     await expect(
       createScheduleStore(fs).admit({
         runId: `${job.id}:overflow`,
@@ -595,7 +598,7 @@ describe('M115 durable shared store', () => {
         advancesTime: false,
       }),
     ).rejects.toThrow('OutboxLimit')
-    expect(fs.bytes()).toBe(before)
+    expect(await store.pending(job.workspaceKey)).toEqual(before)
   })
   it.each(['__proto__', 'constructor', 'prototype'])(
     'refuses the reserved map identifier %s before any write',

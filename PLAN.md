@@ -6844,6 +6844,19 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM115S — RVM115S2 repairs (2026-10-06)
+
+Fix all six P2 findings in this lane: monotonic journal fencing acquired
+through the same revision CAS as commits; lease release/takeover without
+removing a replacement owner's authority; round-robin reconciliation across
+targets with bounded attempts; isolated recovery errors that preserve due
+planning; resumable pending-copy migration including late v1 receipts and
+partial reservations; removal and its timestamp in one journal transaction.
+Strengthen the five slow cases, use default final test deadlines, and record
+each failing regression/control and byte-exact restoration in m115-s.md.
+Owning tests and scoped gates run on win11; aggregate quality stays with the
+lead. No merge, push, dependency, paid call, or guard relaxation.
+
 ### REDM115S — Bounded schedule storage and reconciled delivery (2026-10-06)
 
 Implement the lead's replacement for the reviewed S lane, against D95/M115
@@ -19651,6 +19664,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM115S review scope.** All six RVM115S2 P2 findings are fixed; none
+  is deferred. Core/runtime tests do not certify U/D's durable target ledger
+  or W's shipping editor bindings and full platform quality matrix. Blocked
+  recovery diagnostics are instance-local while intents remain durable;
+  U/D/W bind the status to existing surfaces. Native lease token records and
+  generation epochs retain small, prompt-free metadata linear in acquisitions
+  and compactions. The memory benchmark excludes native lease metadata and
+  filesystem allocation/locked retirement debt. These scope limits and the
+  corrected default-deadline evidence are in `docs/certification/m115-s.md`.
 
 - **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
   none is deferred. These are unshipped internal schedule contracts, not

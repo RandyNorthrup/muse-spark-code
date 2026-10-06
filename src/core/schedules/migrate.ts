@@ -13,6 +13,8 @@ export const scheduleMigrationReceiptSchema = z.strictObject({
   targetHash: z.string(),
   copiedFireCount: z.int().check(z.gte(0)),
   copiedNextFireAtMs: z.optional(z.int().check(z.gte(0))),
+  pendingCopy: z.optional(z.boolean()),
+  pendingCopyHash: z.optional(z.string()),
 })
 type MigrationReceipt = z.infer<typeof scheduleMigrationReceiptSchema>
 export interface ScheduleMigrationJournalPort {
@@ -115,7 +117,9 @@ export async function migrateSchedules(
       if (existing === undefined) {
         if (
           receipt !== undefined &&
-          (receipt.targetHash !== hash(mapped) || receipt.targetRevision !== 0)
+          (receipt.targetRevision !== 0 ||
+            receipt.targetId !== mapped.id ||
+            receipt.sourceJobFingerprint !== (entry.jobFingerprint ?? hash(entry.job)))
         )
           throw new Error('scheduleMigrationVerificationFailed')
         // Receipt precedes copy, so a crash after create can recognize its own
@@ -128,6 +132,8 @@ export async function migrateSchedules(
           targetRevision: mapped.revision,
           targetHash: hash(mapped),
           copiedFireCount: mapped.fireCount,
+          pendingCopy: true,
+          pendingCopyHash: receipt?.pendingCopyHash ?? receipt?.targetHash ?? hash(mapped),
           ...(mapped.nextFireAtMs !== undefined && { copiedNextFireAtMs: mapped.nextFireAtMs }),
         })
         await store.create(mapped)
@@ -167,6 +173,8 @@ export async function migrateSchedules(
         (reopened.revision === verified.targetRevision && hash(reopened) !== verified.targetHash)
       )
         throw new Error('scheduleMigrationVerificationFailed')
+      if (verified.pendingCopy)
+        await store.saveMigrationReceipt(workspaceKey, { ...verified, pendingCopy: false })
       await source.removeVerified(entry)
       await store.completeMigration(workspaceKey, sourceId)
       migrated += 1

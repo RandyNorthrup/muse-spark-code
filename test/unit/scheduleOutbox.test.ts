@@ -6,6 +6,7 @@ import {
   createScheduleStore,
   scheduleStorageHash,
   type ScheduleRunIntent,
+  type ScheduleRunJournalPort,
 } from '../../src/core/schedules/store'
 import {
   SCHEDULE_MIN_INTERVAL_MS,
@@ -21,6 +22,7 @@ import { MemoryScheduleFs, scheduleStateFile } from './helpers/schedules/storage
 import { fakeSchedule } from './helpers/schedules/fixtures'
 import { FakeScheduleClock } from './helpers/schedules/clock'
 import { FakeScheduleHost } from './helpers/schedules/host'
+import { FakeScheduleDisk } from './helpers/schedules/store'
 
 async function fixture() {
   const fs = new MemoryScheduleFs()
@@ -63,6 +65,63 @@ async function fixture() {
   }
   return { fs, store, host, clock, job, intent, deps, scheduler: createScheduler(deps) }
 }
+// Scheduling bounds/order are exercised without repeatedly parsing the entire
+// production journal; the other outbox cases own durable publication cuts.
+async function dispatchFixture() {
+  const disk = new FakeScheduleDisk()
+  const store = disk.client()
+  const job = fakeSchedule()
+  await store.create(job)
+  const clock = new FakeScheduleClock(job.nextFireAtMs!)
+  const host = new FakeScheduleHost(clock)
+  host.workspaces.add(job.workspaceKey)
+  const entries = new Map<string, ScheduleRunIntent>()
+  const runs: ScheduleRunJournalPort = {
+    admit: (intent) => {
+      entries.set(intent.runId, intent)
+      return Promise.resolve(true)
+    },
+    advance: () => Promise.resolve(true),
+    pending: () =>
+      Promise.resolve(
+        Array.from(entries, ([, intent]) => intent).toSorted(
+          (a, b) =>
+            a.schedule.createdAtMs - b.schedule.createdAtMs ||
+            a.schedule.id.localeCompare(b.schedule.id) ||
+            a.runId.localeCompare(b.runId),
+        ),
+      ),
+    abandoned: () => Promise.resolve([]),
+    acknowledge: () => Promise.resolve(),
+    acknowledged: () => Promise.resolve(undefined),
+    maintain: () => Promise.resolve(),
+  }
+  const record = store.record.bind(store)
+  vi.spyOn(store, 'record').mockImplementation(async (fire) => {
+    await record(fire)
+    entries.delete(fire.runId)
+  })
+  const scheduler = createScheduler({
+    store,
+    runs,
+    host,
+    queue: {
+      serialize: async (_key, work) => {
+        await work()
+      },
+    },
+    time: { plan: () => ({ missed: false }) },
+    deferEvent: () => Promise.resolve(),
+    failureSettlement: (intent) => Promise.resolve(fireOf(intent, host.now(), 'failed')),
+  })
+  const intent = {
+    schedule: job,
+    runId: `${job.id}:1`,
+    occurrenceMs: job.nextFireAtMs!,
+    advancesTime: false,
+  }
+  return { store, host, scheduler, job, entries, intent }
+}
 function fireOf(
   intent: ScheduleRunIntent,
   now: number,
@@ -101,7 +160,12 @@ function failNextDelta(fs: MemoryScheduleFs, workspaceKey: string, message: stri
   const publish = fs.publish.bind(fs)
   let isFailed = false
   vi.spyOn(fs, 'publish').mockImplementation(async (file, content, guard) => {
-    if (!isFailed && file.startsWith(`${workspaceKey}/index/`) && /\/\d+\.json$/.test(file)) {
+    if (
+      !isFailed &&
+      file.startsWith(`${workspaceKey}/index/`) &&
+      /\/\d+\.json$/.test(file) &&
+      !content.includes('"changes":[]')
+    ) {
       isFailed = true
       throw new Error(message)
     }
@@ -382,7 +446,7 @@ describe('schedule outbox reconciliation', () => {
     expect(await store.advance(newer)).toBe(true)
   })
   it('bounds reconciliation work across many targets per poll', async () => {
-    const { store, scheduler, host, job, intent } = await fixture()
+    const { store, scheduler, host, job, intent, entries } = await dispatchFixture()
     for (let index = 0; index < SCHEDULE_RECONCILE_MAX_RUNS + 1; index += 1) {
       const schedule = fakeSchedule({
         id: `extra-${String(index)}`,
@@ -393,11 +457,105 @@ describe('schedule outbox reconciliation', () => {
         },
       })
       await store.create(schedule)
-      await store.admit({ ...intent, schedule, runId: `${schedule.id}:1`, advancesTime: false })
+      const runId = `${schedule.id}:1`
+      entries.set(runId, { ...intent, schedule, runId, advancesTime: false })
     }
     await scheduler.recover(job.workspaceKey)
     expect(host.deliveries).toHaveLength(SCHEDULE_RECONCILE_MAX_RUNS)
-    expect(await store.pending(job.workspaceKey)).toHaveLength(1)
+    expect(entries.size).toBe(1)
+  })
+  it('round-robins past a blocked old target and reaches every independent target', async () => {
+    const { store, scheduler, host, job, intent, entries } = await dispatchFixture()
+    for (let index = 0; index < SCHEDULE_RECONCILE_MAX_RUNS; index += 1) {
+      const runId = `${job.id}:blocked-${String(index).padStart(2, '0')}`
+      entries.set(runId, { ...intent, runId, advancesTime: false })
+    }
+    const blockedId = `${job.id}:blocked-00`
+    host.ledger.set(blockedId, { status: 'admitted' })
+    for (let index = 0; index < SCHEDULE_RECONCILE_MAX_RUNS + 1; index += 1) {
+      const schedule = fakeSchedule({
+        id: `healthy-${String(index)}`,
+        createdAtMs: job.createdAtMs + 1,
+        target: {
+          kind: 'conversation',
+          backend: 'modelApi',
+          sessionId: `healthy-${String(index)}`,
+        },
+      })
+      await store.create(schedule)
+      const runId = `${schedule.id}:1`
+      entries.set(runId, { ...intent, schedule, runId, advancesTime: false })
+    }
+    for (let poll = 0; poll < 3; poll += 1) await scheduler.recover(job.workspaceKey)
+    expect(host.deliveries).toHaveLength(SCHEDULE_RECONCILE_MAX_RUNS + 1)
+    expect(new Set(host.deliveries.map((item) => item.schedule.id)).size).toBe(
+      SCHEDULE_RECONCILE_MAX_RUNS + 1,
+    )
+    expect(entries.size).toBe(SCHEDULE_RECONCILE_MAX_RUNS)
+    expect(scheduler.blockedRuns()).toContainEqual({
+      runId: blockedId,
+      status: 'blocked',
+      reason: 'targetPending',
+    })
+  })
+  it('plans healthy due schedules on every tick while one recovery ledger fails', async () => {
+    const { fs, store, deps, host, job, intent } = await fixture()
+    const healthy = fakeSchedule({
+      id: 'healthy-due',
+      target: { kind: 'conversation', backend: 'modelApi', sessionId: 'healthy' },
+    })
+    await store.create(healthy)
+    await store.admit({ ...intent, advancesTime: false })
+    const lookup = host.lookupRun.bind(host)
+    vi.spyOn(host, 'lookupRun').mockImplementation(async (runId) => {
+      if (runId === intent.runId) throw new Error('ledger unavailable')
+      return await lookup(runId)
+    })
+    const plan = vi.fn(deps.time.plan)
+    const scheduler = createScheduler({
+      ...deps,
+      time: { plan },
+      queue: {
+        serialize: async (key, work) => {
+          await fs.lock(key, async () => {
+            await work()
+          })
+        },
+      },
+    })
+    vi.useFakeTimers()
+    const errors = vi.fn()
+    const timer = scheduler.start(() => [job.workspaceKey], errors)
+    try {
+      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(SCHEDULE_POLL_INTERVAL_MS)
+      expect(plan.mock.calls.filter(([schedule]) => schedule.id === healthy.id)).toHaveLength(2)
+      expect(host.deliveries.map((item) => item.schedule.id)).toEqual([healthy.id])
+      expect(scheduler.blockedRuns()).toContainEqual({
+        runId: intent.runId,
+        status: 'blocked',
+        reason: 'recoveryFailed',
+      })
+      expect(errors).toHaveBeenCalled()
+    } finally {
+      timer.dispose()
+      vi.useRealTimers()
+    }
+  })
+  it('rolls back failed removal and keeps the listed schedule usable after reopening', async () => {
+    const { fs, store, job, intent } = await fixture()
+    failNextDelta(fs, job.workspaceKey, 'removal publication failed')
+    await expect(store.remove(job.workspaceKey, job.id)).rejects.toThrow(
+      'removal publication failed',
+    )
+    const reopened = createScheduleStore(fs)
+    expect(await reopened.list(job.workspaceKey)).toEqual([job])
+    expect(await reopened.claim(`${job.id}:fresh-claim`)).toBe(true)
+    expect(await reopened.admit(intent)).toBe(true)
+    expect(await reopened.advance(intent)).toBe(true)
+    expect(await reopened.remove(job.workspaceKey, job.id)).toBe(true)
+    expect(await reopened.claim(`${job.id}:removed-claim`)).toBe(false)
+    expect(await reopened.admit({ ...intent, runId: `${job.id}:removed-admit` })).toBe(false)
   })
   it('rereads creation priority when an older entry arrives between two settlements', async () => {
     const { store, host, deps, job, intent, scheduler } = await fixture()
@@ -467,13 +625,13 @@ describe('schedule outbox reconciliation', () => {
     expect(finished?.nextFireAtMs).toBe(newer.nextFireAtMs)
   })
   it('validates a settlement against its retained intent before any audit or queue mutation', async () => {
-    const { fs, store, intent, job, host } = await fixture()
+    const { store, intent, job, host } = await fixture()
     await store.admit(intent)
-    const before = fs.bytes()
+    const before = await store.list(job.workspaceKey)
     await expect(
       store.record({ ...fireOf(intent, host.now()), occurrenceMs: intent.occurrenceMs + 1 }),
     ).rejects.toThrow('IdentityMismatch')
-    expect(fs.bytes()).toBe(before)
+    expect(await store.list(job.workspaceKey)).toEqual(before)
     expect(await store.pending(job.workspaceKey)).toHaveLength(1)
   })
   it('keeps declined-run chronology distinct when an after-N limit is raised during clock rollback', async () => {

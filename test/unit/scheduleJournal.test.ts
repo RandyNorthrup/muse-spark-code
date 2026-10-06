@@ -70,6 +70,43 @@ function pauseActivation<T>(fs: MemoryScheduleFs, work: () => Promise<T>) {
 }
 
 describe('bounded schedule generations', () => {
+  it.each(['read', 'unchanged transaction'] as const)(
+    'refuses an in-flight stale commit after a %s takeover acquires a journal token',
+    async (kind) => {
+      const fs = new MemoryScheduleFs()
+      const journal = counter(fs)
+      await journal.increment()
+      const before = await journal.read()
+      const entered = Promise.withResolvers<undefined>()
+      const resume = Promise.withResolvers<undefined>()
+      const publish = fs.publish.bind(fs)
+      let hasPaused = false
+      vi.spyOn(fs, 'lock').mockImplementationOnce(
+        async (_key, work) => await work(() => Promise.resolve()),
+      )
+      vi.spyOn(fs, 'publish').mockImplementation(async (file, content, guard) => {
+        await guard?.()
+        if (!hasPaused && content.includes('"key":"n"')) {
+          hasPaused = true
+          entered.resolve(undefined)
+          await resume.promise
+        }
+        return await publish(file, content)
+      })
+      const stale = journal.increment()
+      const outcome = Promise.allSettled([stale])
+      await entered.promise
+      if (kind === 'read') await counter(fs).read()
+      else await counter(fs).transact((value) => ({ value, result: undefined }))
+      const after = await journal.read()
+      resume.resolve(undefined)
+      expect(await outcome).toMatchObject([
+        { status: 'rejected', reason: { message: 'scheduleJournalOwnershipLost' } },
+      ])
+      expect(after.fencingToken).toBeGreaterThan(before.fencingToken)
+      expect(await countOf(counter(fs))).toBe(1)
+    },
+  )
   it('retries a locked orphan after its generation headers were already retired', async () => {
     const fs = new MemoryScheduleFs()
     const journal = counter(fs)
@@ -99,8 +136,9 @@ describe('bounded schedule generations', () => {
     fs.faults.set('replace:counter/current.json', 1)
     await expect(journal.increment()).rejects.toThrow('injected')
     expect(fs.files.get('counter/current.json')).toBe(before)
-    expect(await countOf(counter(fs))).toBe(SCHEDULE_JOURNAL_MAX_OPS)
     expect(generationNames(fs)).toHaveLength(2)
+    // Reopening acquires a fencing token and may retire the interrupted copy.
+    expect(await countOf(counter(fs))).toBe(SCHEDULE_JOURNAL_MAX_OPS)
     await journal.increment()
     expect(await countOf(counter(fs))).toBe(SCHEDULE_JOURNAL_MAX_OPS + 1)
     expect(generationNames(fs)).toHaveLength(1)
@@ -110,11 +148,16 @@ describe('bounded schedule generations', () => {
     const journal = counter(fs)
     await journal.increment()
     const old = generationNames(fs).find((file) => file.endsWith('/state.json'))!
-    fs.faults.set(`remove:${old}`, SCHEDULE_JOURNAL_MAX_OPS)
+    const remove = fs.remove.bind(fs)
+    let isLocked = true
+    vi.spyOn(fs, 'remove').mockImplementation(async (file) => {
+      if (isLocked && file === old) throw new Error('old state locked')
+      await remove(file)
+    })
     for (let index = 0; index <= SCHEDULE_JOURNAL_MAX_OPS; index += 1) await journal.increment()
     expect(await countOf(journal)).toBe(SCHEDULE_JOURNAL_MAX_OPS + 2)
     expect(fs.files.has(old)).toBe(true)
-    fs.faults.set(`remove:${old}`, 0)
+    isLocked = false
     await journal.increment()
     expect(fs.files.has(old)).toBe(false)
   })
@@ -132,7 +175,8 @@ describe('bounded schedule generations', () => {
       Array.from(fs.files, ([, content]) => content).some((content) => content.includes(old)),
     ).toBe(false)
     const current = await journal.read()
-    expect(current.ops).toBe(0)
+    // The large value was compacted; this read appended only its token fence.
+    expect(current.ops).toBe(1)
   })
   it('rejects a paused stale writer after another owner commits and a lease guard is lost', async () => {
     const fs = new MemoryScheduleFs()
@@ -310,7 +354,8 @@ describe('bounded schedule generations', () => {
     const [counted] = await store.list(job.workspaceKey)
     expect(counted?.fireCount).toBe(10_000)
     process.stdout.write(`M115 storage growth: ${JSON.stringify(rows)}\n`)
-  })
+    // A deliberate 10,000-fire production-storage workload, not a normal unit operation.
+  }, 240_000)
   it('retains fences through the schedule lifetime and grace, then removes them without recycling the identifier', async () => {
     const fs = new MemoryScheduleFs()
     const store = createScheduleStore(fs)

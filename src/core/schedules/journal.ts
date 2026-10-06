@@ -16,7 +16,16 @@ export interface ScheduleFsPort {
   /** Complete, synced bytes and atomic replacement; old bytes survive failure. */
   replace(file: string, content: string, guard?: () => Promise<void>): Promise<void>
   remove(file: string, canRetryTransient?: boolean): Promise<void>
-  lock<T>(key: string, work: (guard: () => Promise<void>) => Promise<T>): Promise<T>
+  lock<T>(key: string, work: (guard: ScheduleLeaseGuard) => Promise<T>): Promise<T>
+}
+export interface ScheduleLeaseGuard {
+  (): Promise<void>
+  readonly fencingToken?: number
+}
+export function newestScheduleSlots(names: readonly string[], pattern: RegExp): string[] {
+  return names
+    .filter((name) => pattern.test(name))
+    .toSorted((a, b) => Number.parseInt(b) - Number.parseInt(a))
 }
 
 /** Stored corruption must not quote private prompts or event contents. */
@@ -34,7 +43,11 @@ const pointerSchema = z.strictObject({
   revision: revisionSchema,
   epoch: revisionSchema,
 })
-const envelopeSchema = z.strictObject({ revision: revisionSchema, value: z.unknown() })
+const envelopeSchema = z.strictObject({
+  revision: revisionSchema,
+  value: z.unknown(),
+  fencingToken: z.optional(revisionSchema),
+})
 const changeSchema = z.strictObject({
   collection: z.string(),
   key: z.string(),
@@ -44,6 +57,7 @@ const deltaSchema = z.strictObject({
   revision: revisionSchema,
   changes: z.array(changeSchema),
   sealed: z.optional(z.boolean()),
+  fencingToken: z.optional(revisionSchema),
 })
 type Collections = Record<string, Record<string, unknown>>
 
@@ -75,14 +89,10 @@ export function createScheduleJournal<T extends Collections>(
     // the newest segment is read. A mutable pointer is a hint; a paused stale
     // rename cannot supersede the exclusive epoch's committed generation.
     const folders = await fs.names(fences)
-    const segments = folders
-      .filter((name) => /^\d+$/.test(name))
-      .toSorted((a, b) => Number(b) - Number(a))
+    const segments = newestScheduleSlots(folders, /^\d+$/)
     for (const segment of segments) {
       const entries = await fs.names(`${fences}/${segment}`)
-      const names = entries
-        .filter((name) => /^\d+\.json$/.test(name))
-        .toSorted((a, b) => Number.parseInt(b) - Number.parseInt(a))
+      const names = newestScheduleSlots(entries, /^\d+\.json$/)
       const name = names[0]
       if (name === undefined) continue
       const bytes = await fs.read(`${fences}/${segment}/${name}`)
@@ -112,6 +122,7 @@ export function createScheduleJournal<T extends Collections>(
         generation: undefined,
         epoch: -1,
         sealed: false,
+        fencingToken: 0,
       }
     }
     const folder = `${directory}/${active.generation}`
@@ -124,6 +135,7 @@ export function createScheduleJournal<T extends Collections>(
     let bytes = 0
     let ops = 0
     let isSealed = false
+    let fencingToken = snapshot.fencingToken ?? 0
     const entries = await fs.names(folder)
     const names = entries
       .filter((name) => /^\d+\.json$/.test(name))
@@ -146,6 +158,10 @@ export function createScheduleJournal<T extends Collections>(
         else Reflect.deleteProperty(collection, change.key)
       }
       revision = delta.revision
+      if (delta.fencingToken !== undefined) {
+        if (delta.fencingToken < fencingToken) throw new Error('scheduleJournalOwnershipLost')
+        fencingToken = delta.fencingToken
+      }
       bytes += Buffer.byteLength(deltaContent)
       ops += 1
       isSealed = delta.sealed === true
@@ -160,6 +176,7 @@ export function createScheduleJournal<T extends Collections>(
       generation: active.generation,
       epoch: active.epoch,
       sealed: isSealed,
+      fencingToken,
     }
   }
   const retire = async (keep: string, revision: number, guard: () => Promise<void>) => {
@@ -194,11 +211,17 @@ export function createScheduleJournal<T extends Collections>(
     current: Awaited<ReturnType<typeof read>>,
     input: T,
     guard: () => Promise<void>,
+    fencingToken = current.fencingToken,
+    isReadOnly = false,
   ) => {
     const value = parse(input)
     let state = current
     let revision = revisionSchema.parse(state.revision + 1)
-    let content = JSON.stringify({ revision, changes: difference(state.value, value) })
+    let content = JSON.stringify({
+      revision,
+      fencingToken,
+      changes: difference(state.value, value),
+    })
     const isLarge =
       Buffer.byteLength(content) + SCHEDULE_JOURNAL_SEAL_MAX_BYTES > SCHEDULE_JOURNAL_MAX_BYTES
     if (
@@ -236,12 +259,22 @@ export function createScheduleJournal<T extends Collections>(
         `${directory}/${generation}/state.json`,
         JSON.stringify({
           revision: baseRevision,
+          fencingToken:
+            isLarge || state.generation === undefined ? fencingToken : state.fencingToken,
           value: isLarge || state.generation === undefined ? value : state.value,
         }),
         guard,
       )
       const activation = JSON.stringify({ generation, revision: baseRevision, epoch })
-      await fs.replace(pointerFile, activation, guard)
+      try {
+        await fs.replace(pointerFile, activation, guard)
+      } catch (error: unknown) {
+        // Read-only fencing preserves exactly the committed value. Its epoch
+        // CAS can advance authority while a Windows handle blocks the hint;
+        // an actual state mutation still requires successful activation.
+        if (!isReadOnly) throw error
+        await guard()
+      }
       if (
         !(await fs.publish(
           `${fences}/${String(Math.floor(epoch / SCHEDULE_JOURNAL_MAX_OPS))}/${String(epoch)}.json`,
@@ -255,7 +288,7 @@ export function createScheduleJournal<T extends Collections>(
       if (isLarge || state.generation === undefined) return
       state = { ...state, generation, epoch, ops: 0, bytes: 0, sealed: false }
       revision = revisionSchema.parse(state.revision + 1)
-      content = JSON.stringify({ revision, changes: difference(state.value, value) })
+      content = JSON.stringify({ revision, fencingToken, changes: difference(state.value, value) })
     }
     if (
       !(await fs.publish(
@@ -267,8 +300,27 @@ export function createScheduleJournal<T extends Collections>(
       throw new Error('scheduleJournalOwnershipLost')
     await retire(state.generation, state.revision, guard)
   }
+  const acquire = async (guard: ScheduleLeaseGuard, isReadOnly = false) => {
+    let current = await read()
+    const fencingToken = revisionSchema.parse(
+      Math.max(current.fencingToken + 1, guard.fencingToken ?? 0),
+    )
+    // Acquisition and every commit compete for the SAME immutable next
+    // revision slot. Read-only takeover also occupies a suspended writer's
+    // CAS slot, even when the new holder has no state mutation to make.
+    if (current.generation !== undefined) {
+      await commit(current, current.value, guard, fencingToken, isReadOnly)
+      current = await read()
+      if (current.fencingToken !== fencingToken) throw new Error('scheduleJournalOwnershipLost')
+    }
+    return { current, fencingToken }
+  }
   return {
-    read: async () => await fs.lock(directory, async () => await read()),
+    read: async () =>
+      await fs.lock(directory, async (guard) => {
+        const { current } = await acquire(guard, true)
+        return current
+      }),
     async transact<R>(
       work: (
         value: T,
@@ -276,10 +328,10 @@ export function createScheduleJournal<T extends Collections>(
       ) => Promise<{ value: T; result: R }> | { value: T; result: R },
     ): Promise<R> {
       return await fs.lock(directory, async (guard) => {
-        const current = await read()
+        const { current, fencingToken } = await acquire(guard)
         const next = await work(structuredClone(current.value), current.revision)
         if (JSON.stringify(current.value) !== JSON.stringify(next.value))
-          await commit(current, next.value, guard)
+          await commit(current, next.value, guard, fencingToken)
         return next.result
       })
     },

@@ -93,6 +93,8 @@ const reservationSchema = z.strictObject({
   workspaceKey: identifier,
   creationHash: z.string(),
   removedAtMs: z.optional(z.int().check(z.gte(0))),
+  migrationSourceId: z.optional(z.string()),
+  migrationSourceJobFingerprint: z.optional(z.string()),
 })
 export interface ScheduleRunJournalPort {
   admit(intent: ScheduleRunIntent): Promise<boolean>
@@ -235,7 +237,6 @@ export function createScheduleStore(
         workspaceKey: schedule.workspaceKey,
         creationHash: scheduleStorageHash(JSON.stringify(schedule)),
       }
-      await immutable(file, JSON.stringify(reservation), 'scheduleIdentifierAlreadyIssued')
       await index(schedule.workspaceKey).transact(async (value) => {
         if (
           value.schedules[schedule.id] !== undefined ||
@@ -244,6 +245,28 @@ export function createScheduleStore(
           throw new Error('scheduleIdentifierAlreadyIssued')
         if (Object.keys(value.schedules).length >= SCHEDULE_MAX_PER_WORKSPACE)
           throw new Error('scheduleWorkspaceLimit')
+        const previous = await read(file, (raw) => reservationSchema.parse(raw))
+        const copy = Object.values(value.migrations).find(
+          (receipt) => receipt.pendingCopy && receipt.targetId === schedule.id,
+        )
+        const reserved = {
+          ...reservation,
+          ...(copy !== undefined && {
+            migrationSourceId: copy.sourceId,
+            migrationSourceJobFingerprint: copy.sourceJobFingerprint,
+          }),
+        }
+        if (
+          previous?.id === schedule.id &&
+          previous.removedAtMs === undefined &&
+          previous.workspaceKey === schedule.workspaceKey &&
+          copy?.targetHash === reservation.creationHash &&
+          (copy.pendingCopyHash === previous.creationHash ||
+            (previous.migrationSourceId === copy.sourceId &&
+              previous.migrationSourceJobFingerprint === copy.sourceJobFingerprint))
+        )
+          await fs.replace(file, JSON.stringify(reserved))
+        else await immutable(file, JSON.stringify(reserved), 'scheduleIdentifierAlreadyIssued')
         value.schedules[schedule.id] = schedule
         return { value, result: undefined }
       })
@@ -275,14 +298,10 @@ export function createScheduleStore(
     },
     async remove(workspaceKey, id) {
       identifier.parse(id)
-      return await index(workspaceKey).transact(async (value) => {
+      return await index(workspaceKey).transact((value) => {
         if (value.schedules[id] === undefined) return { value, result: false }
-        // The tombstone is tiny and permanent; it contains no old action/prompt.
-        const file = `identifiers/${scheduleStorageHash(id)}.json`
-        const reservation = await read(file, (raw) => reservationSchema.parse(raw))
-        if (reservation === undefined) throw new Error('scheduleIdentifierMissing')
-        await fs.replace(file, JSON.stringify({ ...reservation, removedAtMs: Date.now() }))
-        await fs.publish(`${file}.committed`, '')
+        // Removal and its timestamp commit in the same journal CAS. The
+        // identifier tombstone is materialized by maintenance after commit.
         Reflect.deleteProperty(value.schedules, id)
         Reflect.deleteProperty(value.outcomes, id)
         value.retirements[id] = Date.now()
@@ -298,6 +317,10 @@ export function createScheduleStore(
       const reservation = await read(`identifiers/${scheduleStorageHash(id)}.json`, (raw) =>
         reservationSchema.parse(raw),
       )
+      if (reservation !== undefined) {
+        const current = await index(reservation.workspaceKey).read()
+        if (current.value.schedules[id] === undefined) return false
+      }
       return (
         reservation?.removedAtMs === undefined &&
         (await fs.publish(
@@ -314,6 +337,7 @@ export function createScheduleStore(
           (raw) => reservationSchema.parse(raw),
         )
         if (reservation?.removedAtMs !== undefined) return { value, result: false }
+        if (value.schedules[intent.schedule.id] === undefined) return { value, result: false }
         if (
           value.pending[intent.runId] !== undefined ||
           (await fs.read(`${fenceFolder(intent.runId)}.json`)) !== undefined
@@ -603,6 +627,11 @@ export function createScheduleStore(
         await trimAudit(workspaceKey, now)
         let remaining = SCHEDULE_RECONCILE_MAX_RUNS
         for (const [id, atMs] of Object.entries(value.retirements)) {
+          const file = `identifiers/${scheduleStorageHash(id)}.json`
+          const reservation = await read(file, (raw) => reservationSchema.parse(raw))
+          if (reservation === undefined) throw new Error('scheduleIdentifierMissing')
+          await fs.replace(file, JSON.stringify({ ...reservation, removedAtMs: atMs }))
+          await fs.publish(`${file}.committed`, '')
           if (
             now - atMs < SCHEDULE_FENCE_GRACE_MS ||
             Object.keys(value.finalizations).some((runId) => runId.startsWith(`${id}:`)) ||

@@ -87,6 +87,8 @@ export function createScheduler(deps: SchedulerDeps) {
   const readings = new Map<string, ScheduleClockReading>()
   const pending = new Set<string>()
   const knownSettlements = new Map<string, ScheduleFireRecord>()
+  const targetCursors = new Map<string, string>()
+  const blocked = new Map<string, 'targetPending' | 'recoveryFailed'>()
   const clock = (workspaceKey: string): ScheduleClockReading => {
     const nowMs = deps.host.now()
     const monotonicMs = deps.host.monotonicNow()
@@ -246,19 +248,46 @@ export function createScheduler(deps: SchedulerDeps) {
       )
         knownSettlements.delete(runId)
     }
-    const candidates = outstanding
-      .filter((intent) => !pending.has(intent.runId))
-      .slice(0, SCHEDULE_RECONCILE_MAX_RUNS)
+    for (const runId of blocked.keys()) {
+      if (outstanding.every((intent) => intent.runId !== runId)) blocked.delete(runId)
+    }
     const groups = new Map<string, ScheduleRunIntent[]>()
-    for (const intent of candidates) {
+    for (const intent of outstanding) {
       if (pending.has(intent.runId)) continue
-      pending.add(intent.runId)
       const key = intent.schedule.parallel ? `run:${intent.runId}` : targetKey(intent.schedule)
       const group = groups.get(key) ?? []
       group.push(intent)
       groups.set(key, group)
     }
-    const work = Array.from(groups, async ([key, group]) => {
+    // Allocate attempts over targets before selecting runs. Continue after the
+    // last visited target next slice, even when the oldest head stays blocked.
+    const cursorKey = JSON.stringify(workspaces)
+    const keys = Array.from(groups, ([key]) => key).toSorted((a, b) => {
+      if (a === b) return 0
+      return a < b ? -1 : 1
+    })
+    const last = targetCursors.get(cursorKey)
+    const start = last === undefined ? 0 : keys.findIndex((key) => key > last)
+    const orderedKeys = [...keys.slice(Math.max(0, start)), ...keys.slice(0, Math.max(0, start))]
+    const selected = new Map<string, ScheduleRunIntent[]>()
+    let remaining = SCHEDULE_RECONCILE_MAX_RUNS
+    for (let round = 0; remaining > 0; round += 1) {
+      let hasWork = false
+      for (const key of orderedKeys) {
+        if (remaining === 0) continue
+        const intent = groups.get(key)?.[round]
+        if (intent === undefined) continue
+        hasWork = true
+        const group = selected.get(key) ?? []
+        group.push(intent)
+        selected.set(key, group)
+        pending.add(intent.runId)
+        targetCursors.set(cursorKey, key)
+        remaining -= 1
+      }
+      if (!hasWork) break
+    }
+    const work = Array.from(selected, async ([key, group]) => {
       try {
         await deps.queue.serialize(key, async () => {
           // Pop from the shared queue, not the caller's original singleton or
@@ -273,11 +302,20 @@ export function createScheduler(deps: SchedulerDeps) {
                 key,
             )
             if (intent === undefined) break
-            await execute(intent)
+            try {
+              await execute(intent)
+              blocked.delete(intent.runId)
+            } catch (error: unknown) {
+              blocked.set(intent.runId, 'recoveryFailed')
+              throw error
+            }
             // An admitted but unfinished target entry keeps the head of this
             // serial queue. Do not let the next batch overtake its settlement.
             const retained = await deps.runs.pending(intent.schedule.workspaceKey)
-            if (retained.some((entry) => entry.runId === intent.runId)) break
+            if (retained.some((entry) => entry.runId === intent.runId)) {
+              blocked.set(intent.runId, 'targetPending')
+              break
+            }
           }
         })
       } finally {
@@ -326,6 +364,13 @@ export function createScheduler(deps: SchedulerDeps) {
     return { kind: 'accepted' as const, id }
   }
   const scheduler = {
+    blockedRuns() {
+      return Array.from(blocked, ([runId, reason]) => ({
+        runId,
+        status: 'blocked' as const,
+        reason,
+      }))
+    },
     async poll(workspaceKey: string): Promise<void> {
       if (!deps.host.holds(workspaceKey)) return
       const reading = clock(workspaceKey)
@@ -426,6 +471,9 @@ export function createScheduler(deps: SchedulerDeps) {
           if (!deps.host.holds(workspace)) continue
           void scheduler
             .recover(workspace)
+            .catch((error: unknown) => {
+              onError(error)
+            })
             .then(async () => {
               if (!isDisposed) await scheduler.poll(workspace)
             })

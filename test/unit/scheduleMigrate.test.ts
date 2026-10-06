@@ -3,7 +3,7 @@ import { readFile, stat, utimes, writeFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import { createScheduleStore } from '../../src/core/schedules/store'
+import { createScheduleStore, scheduleStorageHash } from '../../src/core/schedules/store'
 import { migrateSchedules } from '../../src/core/schedules/migrate'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
 import {
@@ -15,6 +15,7 @@ import { scheduleV1ToV2 } from '../../src/shared/scheduleV2'
 import { fakeV1Schedule } from './helpers/schedules/fixtures'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
+import { MemoryScheduleFs } from './helpers/schedules/storage'
 
 const root = mkdtempSync(path.join(tmpdir(), 'muse-m115-migration-'))
 afterAll(() => removeFolder(root))
@@ -37,6 +38,98 @@ async function fixture(name: string) {
 }
 
 describe('M115 verified M52 migration', () => {
+  it('resumes a pending copy whose legacy reservation lacks migration metadata', async () => {
+    const fs = new MemoryScheduleFs()
+    const store = createScheduleStore(fs)
+    const job = fakeV1Schedule()
+    const mapped = scheduleV1ToV2(job, 'workspace-1', 'UTC')
+    const targetHash = scheduleStorageHash(JSON.stringify(mapped))
+    const entry = { job, fingerprint: 'source', jobFingerprint: 'stable', occurrences: [] }
+    await store.saveMigrationReceipt('workspace-1', {
+      sourceId: `workspace-1:${job.id}`,
+      sourceFingerprint: entry.fingerprint,
+      sourceJobFingerprint: entry.jobFingerprint,
+      targetId: job.id,
+      targetRevision: 0,
+      targetHash,
+      copiedFireCount: mapped.fireCount,
+      pendingCopy: true,
+    })
+    await fs.publish(
+      `identifiers/${scheduleStorageHash(job.id)}.json`,
+      JSON.stringify({
+        id: job.id,
+        workspaceKey: 'workspace-1',
+        creationHash: targetHash,
+      }),
+    )
+    const source = {
+      freeze: () => Promise.resolve([entry]),
+      removeVerified: vi.fn(() => Promise.resolve()),
+    }
+    expect(await migrateSchedules(source, store, 'workspace-1', 'UTC')).toBe(1)
+    expect(await store.list('workspace-1')).toEqual([mapped])
+    expect(source.removeVerified).toHaveBeenCalledOnce()
+  })
+  it.each(['before reservation', 'after reservation'] as const)(
+    'resumes a pending migration copy %s and merges a late v1 receipt exactly once',
+    async (cut) => {
+      const fs = new MemoryScheduleFs()
+      const store = createScheduleStore(fs)
+      const job = fakeV1Schedule()
+      const first = { job, occurrences: [], fingerprint: 'first', jobFingerprint: 'stable-job' }
+      const freeze = vi.fn().mockResolvedValue([first])
+      const removeVerified = vi.fn(() => Promise.resolve())
+      const source = { freeze, removeVerified }
+      if (cut === 'before reservation')
+        vi.spyOn(store, 'create').mockRejectedValueOnce(new Error('copy interrupted'))
+      else {
+        const publish = fs.publish.bind(fs)
+        let isFailed = false
+        vi.spyOn(fs, 'publish').mockImplementation(async (file, content, guard) => {
+          if (
+            !isFailed &&
+            /\/\d+\.json$/.test(file) &&
+            file.startsWith('workspace-1/index/') &&
+            !content.includes('"changes":[]')
+          ) {
+            isFailed = true
+            throw new Error('copy interrupted')
+          }
+          return await publish(file, content, guard)
+        })
+      }
+      await expect(migrateSchedules(source, store, 'workspace-1', 'UTC')).rejects.toThrow(
+        'copy interrupted',
+      )
+      expect(await store.list('workspace-1')).toEqual([])
+      expect(await store.migrationReceipt('workspace-1', `workspace-1:${job.id}`)).toMatchObject({
+        pendingCopy: true,
+      })
+      expect(removeVerified).not.toHaveBeenCalled()
+      const recovered = {
+        ...job,
+        fireCount: job.fireCount + 1,
+        nextFireAtMs: job.nextFireAtMs + SCHEDULE_MIN_INTERVAL_MS,
+      }
+      const late = {
+        ...first,
+        job: recovered,
+        occurrences: [job.nextFireAtMs],
+        fingerprint: 'late-receipt',
+      }
+      freeze.mockResolvedValue([late])
+      const reopened = createScheduleStore(fs)
+      expect(await migrateSchedules(source, reopened, 'workspace-1', 'UTC')).toBe(1)
+      expect(await reopened.list('workspace-1')).toEqual([
+        scheduleV1ToV2(recovered, 'workspace-1', 'UTC'),
+      ])
+      expect(await reopened.claim(`${job.id}:${String(job.nextFireAtMs)}`)).toBe(false)
+      expect(await migrateSchedules(source, reopened, 'workspace-1', 'UTC')).toBe(1)
+      const [counted] = await reopened.list('workspace-1')
+      expect(counted?.fireCount).toBe(recovered.fireCount)
+    },
+  )
   it('reconciles a raced v1 receipt after copy while preserving a later v2 authority edit', async () => {
     const { job, directory, store, source } = await fixture('raced-copy')
     const remove = vi.spyOn(source, 'removeVerified').mockImplementationOnce(async (entry) => {
