@@ -32,6 +32,7 @@ export type UsageCommand =
     }
 
 export interface ServeOptions {
+  readonly usageHistory?: boolean
   /** Which account pays; chosen here, never guessed (D62). */
   readonly backend: AcpBackendKind
   /** A folder's rules, skills and memory load (D13's flag, as Muse Code takes it). */
@@ -88,6 +89,7 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  if (argv[0] === '--usage') return parseUsage(['--json', ...argv.slice(1)])
   if (argv[0] === 'usage') return parseUsage(argv.slice(1))
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   let parsed: ReturnType<typeof parseCommandLineStrictly>
@@ -112,6 +114,8 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     return invalid(`--shell-sandbox ${shellSandbox}`)
   }
   const paidFeatures = paidFeaturesOf(values)
+  if (values['usage-history'] !== undefined && !['on', 'off'].includes(values['usage-history']))
+    return invalid('--usage-history')
   const [firstPaid] = paidFeatures
   if (firstPaid !== undefined && backend !== 'modelApi') {
     return {
@@ -120,6 +124,9 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     }
   }
   const options: ServeOptions = {
+    ...(values['usage-history'] !== undefined && {
+      usageHistory: values['usage-history'] === 'on',
+    }),
     backend,
     trustWorkspace: values['trust-workspace'] === true,
     museBinary: values['muse-binary'] ?? SETTING_DEFAULTS.museBinaryPath,
@@ -294,6 +301,7 @@ function parseCommandLineStrictly(argv: readonly string[]) {
     strict: true,
     options: {
       backend: { type: 'string' },
+      'usage-history': { type: 'string' },
       'trust-workspace': { type: 'boolean' },
       'muse-binary': { type: 'string' },
       'shell-sandbox': { type: 'string' },

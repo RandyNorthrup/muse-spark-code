@@ -108,7 +108,10 @@ them, the milestone plan, and the certification checklist.
 12. **Anything that costs money is opt in and loud** (the owner's rule,
     PLAN.md D30, D34). A paid call runs only while `PaidFeatureGate.isOn`
     (`src/core/paid/paidFeatures.ts`) says so: its setting on, machine-scoped
-    and off by default, and its price accepted in the confirmation. It is
+    and available by default on interactive Model API (D78), with consent
+    naming its price and the shared daily budget before spending. Existing
+    explicit false settings remain off; explicit OFF-to-ON changes still
+    confirm the price. ACP/headless defaults and Muse Code opt-ins are unchanged. It is
     named in the composer's badge, shown as its own row marked paid
     (`paid` on the item), counted in `PaidUsage` for Account & usage, and
     billed to the Model API key: offered on the Model API backend, and on
@@ -160,14 +163,25 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       the first fetch),
                       the Auto reviewer on Muse Code (dist/museCodeReviewer.js,
                       loaded on the first review),
+                      What's New after an update (whatsNew/: the check and
+                      claim at activation; the page in dist/whatsNew.js,
+                      loaded on the first page or notice, its content
+                      dist/whatsNew.json made from CHANGELOG.md by the build),
                       the search worker and web fetch's page converter worker
                       (dist/pageWorker.js, started for each page), the
+                      browser check's processes (the verified pinned runtime
+                      only, behind its own proxy; no system browser, no
+                      policy reads) and bundle entry (dist/browserCheck.js,
+                      loaded on the first check), its runtime's acquisition
+                      and verification (dist/browserRuntime.js: the pin,
+                      download, bounded ZIP reader, store; loaded only to
+                      prepare a runtime) and the runtime's consent and command,
                       bundled skills' Muse Code installer (skills/,
                       dist/bundledSkills.js, loaded on first use),
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web
-                      fetch), VS Code's language services, the MCP servers'
+                      fetch, browser check), VS Code's language services, the MCP servers'
                       spawner, the network posture, web fetch's pinned
                       transport and the verify loop's editor side: settled
                       diagnostics, format on edit and turn checkpoints' shadow repository)
@@ -177,8 +191,9 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       memory, export, worktrees, usage,
                       dictation, Muse Voice, the paid gate, network failures,
                       code intelligence and the repo map, web fetch's
-                      public-address checks and HTML converter, review (its
-                      git material, prompt and Plan-mode hold), the verify
+                      public-address checks and HTML converter, the browser
+                      check's address rule, managed-policy check, CDP pipe
+                      and run, review (its git material, prompt and Plan-mode hold), the verify
                       loop's check commands, diagnostics report and the files
                       it never opens because tools run them, the checkpoint
                       restore plan, the paired efficiency evaluation,
@@ -232,7 +247,8 @@ scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
                       notices, audit, PSScriptAnalyzer, semgrep, accessibility,
                       localization and host API gates; theme capture, the
                       pseudo-locale, harness screenshots, image rendering,
-                      changelog notes, VS Code versions for CI, the ACP
+                      changelog notes, What's New's content (lib/), VS Code
+                      versions for CI, the ACP
                       agent's package
 docs/certification/   per-milestone gate-fire records and screenshots
 docs/ide-compatibility.md, docs/ide-compatibility/

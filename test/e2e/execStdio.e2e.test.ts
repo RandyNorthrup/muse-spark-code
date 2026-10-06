@@ -166,6 +166,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     }
     const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
     expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
+    expect(existsSync(path.join(stage, 'dist', 'validation.js'))).toBe(true)
     expect(existsSync(path.join(stage, 'dist', 'exec-test-launcher.js'))).toBe(false)
   })
 

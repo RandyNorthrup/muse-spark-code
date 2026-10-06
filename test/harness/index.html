@@ -15,8 +15,9 @@
     <script>
       // `?bundle=models` loads the Models & Agents panel's own bundle
       // (M95) instead of the chat's, with its own stylesheet.
-      const harnessBundle =
-        new URLSearchParams(location.search).get('bundle') === 'models' ? 'models' : 'main'
+      const requestedBundle = new URLSearchParams(location.search).get('bundle')
+      const harnessBundle = ['models', 'usage'].includes(requestedBundle) ? requestedBundle : 'main'
+      if (harnessBundle === 'usage') document.write('<script src="/usage-harness.js"><\/script>')
       if (harnessBundle === 'models') {
         document.documentElement.classList.add('models-harness')
       }
@@ -57,6 +58,23 @@
           element.id = 'muse-l10n'
           element.textContent = JSON.stringify({ locale, table })
           document.head.append(element)
+          if (harnessBundle === 'usage') {
+            const usageUrl = isPseudo ? 'l10n/usage.pseudo.json' : `../../l10n/usage.${lang}.json`
+            const usageRequest = new XMLHttpRequest()
+            usageRequest.open('GET', usageUrl, false)
+            usageRequest.send()
+            if (usageRequest.status !== 200)
+              throw new Error(`${usageUrl}: HTTP ${usageRequest.status}`)
+            const usageElement = document.createElement('script')
+            usageElement.type = 'application/json'
+            usageElement.id = 'muse-usage-l10n'
+            usageElement.textContent = JSON.stringify({
+              type: 'usage/table',
+              locale,
+              table: JSON.parse(usageRequest.responseText),
+            })
+            document.head.append(usageElement)
+          }
           document.documentElement.lang = locale
           return { lang, table }
         } catch (error) {
@@ -439,6 +457,17 @@
           outbox.push(message)
           document.title = `harness: ${message.type}`
           switch (message.type) {
+            case 'usage/ready':
+            case 'usage/query':
+            case 'usage/refresh': {
+              const name = scenarioName.replace('usage-page-', '')
+              const state = museUsageHarness.usageStateFor(
+                name === 'narrow' ? 'nine-providers' : name,
+              )
+              if (message.query !== undefined) state.query = message.query
+              send({ type: 'usage/state', state })
+              break
+            }
             case 'tasksReady': {
               send({
                 type: 'tasksState',
@@ -467,7 +496,7 @@
                   'Type /model to pick the right tool for the job.',
                 composerPlaceholder:
                   harnessL10n.table?.composerPlaceholder ??
-                  'ctrl esc (ctrl alt esc on Windows) to focus or unfocus Muse',
+                  'ctrl esc (cmd esc on macOS, ctrl alt esc on Windows) to focus or unfocus Muse',
                 settings,
               })
               // M25: first, the session and turn the host holds for this surface.
@@ -2985,13 +3014,15 @@
         },
         'agents-details': () => {
           steps.agents()
-          later(600, () => document.querySelector('.agent-node-clickable').click())
+          whenFound('.agent-node-clickable', (node) => node.click())
         },
         'agents-result': () => {
           window.harnessBackend = 'modelApi'
           send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
           steps.agents()
-          later(600, () => document.querySelectorAll('.agent-node-clickable')[1].click())
+          whenFound('.agent-node-clickable', () =>
+            document.querySelectorAll('.agent-node-clickable')[1].click(),
+          )
         },
         'agents-closed': () => {
           window.harnessBackend = 'modelApi'
@@ -3010,7 +3041,9 @@
               },
             }),
           )
-          later(600, () => document.querySelectorAll('.agent-node-clickable')[1].click())
+          whenFound('.agent-node-clickable', () =>
+            document.querySelectorAll('.agent-node-clickable')[1].click(),
+          )
         },
         'agents-off': () => {
           send({
@@ -3728,8 +3761,7 @@
         // --- M25: the keyboard stays in the search box through Show archived ---
         'history-archived': () => {
           click('Session history')
-          later(300, () => {
-            const toggle = document.querySelector('.history-toggle input')
+          whenFound('.history-toggle input', (toggle) => {
             toggle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
             toggle.click()
             later(100, () => {
@@ -5123,6 +5155,10 @@
         // The "/" list for "/co", rendered with its options (M87's tips too).
         'slash-commands': () => document.querySelector('.slash-menu [role="option"]') !== null,
         'slash-tips': () => document.querySelector('.slash-menu [role="option"]') !== null,
+        'agents-details': () => document.querySelector('.agent-details') !== null,
+        'agents-result': () => document.querySelector('.agent-details') !== null,
+        'agents-closed': () => document.querySelector('.agent-details') !== null,
+        'history-archived': () => document.querySelector('.history-toggle input:checked') !== null,
       }
       const nextFrame = () =>
         new Promise((resolve) => {
@@ -5148,7 +5184,11 @@
               later(Math.max(0, deadline - performance.now()), resolve)
             }),
           ])
-        const isReady = SCENARIO_READY[name] ?? (() => true)
+        const scenarioReady = name.startsWith('usage-page-')
+          ? () => document.querySelector('.usage-page[aria-busy="false"]') !== null
+          : (SCENARIO_READY[name] ?? (() => true))
+        const isReady = () =>
+          document.querySelector('[data-deferred-loading]') === null && scenarioReady()
         for (;;) {
           if (isReady()) {
             await byDeadline(document.fonts.ready)

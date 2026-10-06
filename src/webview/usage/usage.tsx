@@ -13,6 +13,7 @@ import type { NativeUsagePort } from '../hostBridges/usageBridge'
 import { installUsageTable } from './installUsageTable'
 import { UsageApp } from './UsageApp'
 import './usage.css'
+import { companionUsagePort } from './companion'
 
 declare global {
   interface Window {
@@ -92,7 +93,10 @@ if (tableElement !== null) {
   }
 }
 try {
-  const { http, jcef, webView2, swt } = window.museUsageHostPorts ?? {}
+  const { jcef, webView2, swt, http: suppliedHttp } = window.museUsageHostPorts ?? {}
+  const http =
+    suppliedHttp ??
+    (document.body.dataset['hostBridge'] === 'http' ? companionUsagePort() : undefined)
   const create = hostBridgeFactory(window, {
     ...(http !== undefined && { http: () => httpHostBridge(http) }),
     ...(jcef !== undefined && { jcef: () => jcefHostBridge(jcef) }),

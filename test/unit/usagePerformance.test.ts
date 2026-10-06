@@ -32,7 +32,7 @@ describe('usage at the M102 history scale', () => {
     await writeFile(
       path.join(folder, 'm102-s-performance.json'),
       JSON.stringify({
-        rig: 'macmini',
+        rig: process.platform === 'win32' ? 'win11' : process.platform,
         records: records.length,
         warmMs,
         targetRig: 'kubuntu',

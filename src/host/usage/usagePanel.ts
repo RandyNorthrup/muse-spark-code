@@ -54,7 +54,7 @@ export class UsagePanel implements vscode.Disposable {
     }
     // The usage entry reads this inert data block before rendering. Keeping it
     // in the document needs no fetch or change to buildWebviewHtml's policy.
-    const usageTable = JSON.stringify(this.deps.usageTable)
+    const usageTable = JSON.stringify({ type: 'usage/table', ...this.deps.usageTable })
       .replaceAll('<', String.raw`\u003c`)
       .replaceAll('\u{2028}', String.raw`\u2028`)
       .replaceAll('\u{2029}', String.raw`\u2029`)

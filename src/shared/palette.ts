@@ -76,6 +76,8 @@ export type PaletteAction =
   /** "Open share file…" (M84): a portable JSON file read-only in the panel. */
   | { readonly type: 'openShareFile' }
   | { readonly type: 'openLog' }
+  /** "What's New" (M99): the release notes of this version in an editor tab. */
+  | { readonly type: 'showWhatsNew' }
   | { readonly type: 'openExternal'; readonly url: string }
   | { readonly type: 'setPaidFeature'; readonly feature: PaidFeature; readonly isOn: boolean }
   /** `/review ` in the prompt, for what to review (M70). */
@@ -650,6 +652,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       title: UI_TEXT.groupSupport,
       items: [
         { id: 'log', label: UI_TEXT.openLog, action: { type: 'openLog' } },
+        { id: 'whatsNew', label: UI_TEXT.whatsNewOpen, action: { type: 'showWhatsNew' } },
         {
           id: 'issue',
           label: UI_TEXT.reportIssue,

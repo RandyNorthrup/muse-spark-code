@@ -26,7 +26,9 @@ export function httpHostBridge(port: HttpUsagePort): HostBridge {
         await previous
         try {
           const reply = await port.request(request)
-          deliverUsageReply(messages, reply)
+          if (Array.isArray(reply))
+            for (const message of reply) deliverUsageReply(messages, message)
+          else deliverUsageReply(messages, reply)
         } catch {
           deliverUsageReply(messages, { type: 'usage/error', code: 'readFailed' })
         }

@@ -13,7 +13,7 @@ export interface UsageCliPorts {
   readonly usage: UsageAccess
   readonly openPage: () => Promise<string>
   readonly openBrowser: (url: string) => Promise<void>
-  readonly input: AsyncIterable<string>
+  readonly input: AsyncIterable<string> | Iterable<string>
   readonly print: (text: string) => Promise<void>
   readonly writeFile: (file: string, content: string) => Promise<void>
   /** Native plugins supply host actions through their own editor adapter. */

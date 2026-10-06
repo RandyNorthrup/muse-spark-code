@@ -52,6 +52,10 @@ beforeEach(async () => {
     path.join(root, 'src/shared/constants.ts'),
     path.join(fixture.root, 'src/shared/constants.ts'),
   )
+  cpSync(
+    path.join(root, 'src/shared/browserCheckConstants.ts'),
+    path.join(fixture.root, 'src/shared/browserCheckConstants.ts'),
+  )
   cpSync(path.join(root, 'l10n'), path.join(fixture.root, 'l10n'), { recursive: true })
   const { TABLE_LOCALES } = await loadL10n(root)
   const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))

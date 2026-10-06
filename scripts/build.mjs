@@ -2,14 +2,20 @@
 // Bundles the extension host entry, the Model API backend, the review, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
+// browser check (M81, loaded on the first check), its runtime acquisition
+// (M81 A1, loaded when a runtime is prepared or verified),
 // import from other agents (M83: the scan, the converters, the file access and
 // smol-toml, loaded on the first import), the bundled skills installer (M89:
 // the copy and links for Muse Code, loaded on the first install, removal or
 // offer), code intelligence's `ide` answers (M67, loaded on the first call),
 // voice's drivers (M9/M35, loaded on the first recording), the window's web
 // fetch (M69, loaded on the first fetch) and the Auto reviewer on Muse Code
-// (M90, loaded on the first review), the webview, and
-// (in dev mode) the integration tests with esbuild.
+// (M90, loaded on the first review), What's New (M99: the page's renderer,
+// content schema and tab, loaded on the first page or notice), the webview,
+// What's New's page script, and (in dev mode) the integration tests with
+// esbuild. It first writes What's New's content, dist/whatsNew.json, from
+// CHANGELOG.md (scripts/lib/whatsNewContent.mjs); a Try it naming a command
+// or setting the manifest does not contribute fails the build.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
 //   node scripts/build.mjs --watch       rebuild on change (extension + webview)
@@ -43,8 +49,15 @@
 
 import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { createRequire } from 'node:module'
+import { gzipSync } from 'node:zlib'
+import { Buffer } from 'node:buffer'
 import * as esbuild from 'esbuild'
 import { copyCatalogToDist } from './sync-provider-catalog.mjs'
+import {
+  CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
+  writeWhatsNewContent,
+} from './lib/whatsNewContent.mjs'
 
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
@@ -76,6 +89,12 @@ const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
+// The browser check's own bundle (M81): the pipe, the run, the browser's processes.
+const BROWSER_CHECK_ENTRY = 'src/host/browser/browserCheckEntry.ts'
+const BROWSER_CHECK_OUTFILE = 'dist/browserCheck.js'
+// The runtime's acquisition (M81 A1): the pin, the download, the ZIP reader, the store.
+const BROWSER_RUNTIME_ENTRY = 'src/host/browser/browserRuntimeEntry.ts'
+const BROWSER_RUNTIME_OUTFILE = 'dist/browserRuntime.js'
 const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
 const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
 const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
@@ -86,6 +105,11 @@ const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
 const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
+const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
+const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
+const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
+const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
+const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -95,6 +119,8 @@ const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 const MODELS_WEBVIEW_ENTRY = 'src/webview/models/models.tsx'
 const USAGE_WEBVIEW_ENTRY = 'src/webview/usage/usage.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
+const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
+const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
@@ -258,6 +284,20 @@ const museCodeReviewerOptions = {
   outfile: MUSE_CODE_REVIEWER_OUTFILE,
 }
 
+// What's New's tab uses `vscode` (the webview panel, openExternal, the
+// commands), which the host provides, as for the import.
+/** @type {import('esbuild').BuildOptions} */
+const whatsNewOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [WHATS_NEW_ENTRY],
+  outfile: WHATS_NEW_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const modelsPanelOptions = {
   ...common,
@@ -268,6 +308,21 @@ const modelsPanelOptions = {
   external: ['vscode'],
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+const usageServiceOptions = {
+  ...modelApiOptions,
+  entryPoints: [USAGE_SERVICE_ENTRY],
+  outfile: 'dist/usageService.js',
+}
+const usageCompanionOptions = {
+  ...modelApiOptions,
+  entryPoints: [USAGE_COMPANION_ENTRY],
+  outfile: 'dist/usageCompanion.js',
+}
+const usagePanelOptions = {
+  ...hostOptions,
+  entryPoints: [USAGE_PANEL_ENTRY],
+  outfile: 'dist/usagePanel.js',
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -310,6 +365,28 @@ const checkpointStoreOptions = {
   plugins: [sharedUiText, sharedValidation],
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const browserCheckOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [BROWSER_CHECK_ENTRY],
+  outfile: BROWSER_CHECK_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const browserRuntimeOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [BROWSER_RUNTIME_ENTRY],
+  outfile: BROWSER_RUNTIME_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -376,6 +453,16 @@ const usageWebviewOptions = {
   splitting: false,
 }
 
+// What's New's page script and stylesheet (M99): dist/webview/whatsNew.js
+// and whatsNew.css, beside the panel's, loaded by that page alone.
+/** @type {import('esbuild').BuildOptions} */
+const whatsNewPageOptions = {
+  ...webviewOptions,
+  format: 'iife',
+  splitting: false,
+  entryPoints: { [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY },
+}
+
 function listIntegrationTests() {
   return readdirSync(INTEGRATION_TEST_DIR, { recursive: true })
     .map(String)
@@ -403,6 +490,11 @@ function reportSize(path) {
 copyCatalogToDist()
 rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
 rmSync(path.join(METAFILE_DIR, 'modelsWebview.json'), { force: true })
+// Content-hashed chunks from an earlier build must never enter a package.
+const whatsNewContent = writeWhatsNewContent()
+console.log(
+  `What's New: ${String(whatsNewContent.releases)} releases from CHANGELOG.md into ${WHATS_NEW_CONTENT_OUTFILE}`,
+)
 
 if (isWatch) {
   const contexts = await Promise.all([
@@ -421,12 +513,19 @@ if (isWatch) {
     esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
+    esbuild.context(usageServiceOptions),
+    esbuild.context(usageCompanionOptions),
+    esbuild.context(usagePanelOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(validationOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
     esbuild.context(usageWebviewOptions),
+    esbuild.context(whatsNewOptions),
+    esbuild.context(browserCheckOptions),
+    esbuild.context(browserRuntimeOptions),
+    esbuild.context(whatsNewPageOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -448,11 +547,18 @@ if (isWatch) {
     webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     modelsPanel: esbuild.build(modelsPanelOptions),
+    usageService: esbuild.build(usageServiceOptions),
+    usageCompanion: esbuild.build(usageCompanionOptions),
+    usagePanel: esbuild.build(usagePanelOptions),
     uiText: esbuild.build(uiTextOptions),
     validation: esbuild.build(validationOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview,
+    whatsNew: esbuild.build(whatsNewOptions),
+    browserCheck: esbuild.build(browserCheckOptions),
+    browserRuntime: esbuild.build(browserRuntimeOptions),
+    whatsNewPage: esbuild.build(whatsNewPageOptions),
   }
   const acp = esbuild.build(acpOptions)
   const builds = [...Object.values(shipped), acp]
@@ -461,9 +567,25 @@ if (isWatch) {
   }
   await Promise.all(builds)
   if (isProduction) {
+    // Only Node's shared fallback is compressed. Installed-language tables
+    // and browser fallbacks retain their normal loading and representation.
+    const requireBuild = createRequire(import.meta.url)
+    const { EN } = requireBuild(path.resolve(UI_TEXT_OUTFILE))
+    const encoded = gzipSync(JSON.stringify(EN)).toString('base64')
+    const packed = `module.exports={EN:JSON.parse(require('node:zlib').gunzipSync(Buffer.from('${encoded}','base64')).toString('utf8'))};\n`
+    writeFileSync(UI_TEXT_OUTFILE, packed)
+    const result = await shipped.uiText
+    result.metafile.outputs[UI_TEXT_OUTFILE].bytes = Buffer.byteLength(packed)
+  }
+  if (isProduction) {
     mkdirSync(METAFILE_DIR, { recursive: true })
     for (const [name, build] of Object.entries(shipped)) {
       const result = await build
+      if (name === 'webview')
+        writeFileSync(
+          path.join(METAFILE_DIR, 'usageWebview.json'),
+          JSON.stringify(result[1].metafile),
+        )
       const metafile =
         name === 'webview'
           ? {
@@ -493,8 +615,15 @@ if (isWatch) {
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
+  reportSize('dist/usageService.js')
+  reportSize('dist/usageCompanion.js')
+  reportSize('dist/usagePanel.js')
   reportSize(UI_TEXT_OUTFILE)
   reportSize(VALIDATION_OUTFILE)
+  reportSize(WHATS_NEW_OUTFILE)
+  reportSize(WHATS_NEW_CONTENT_OUTFILE)
+  reportSize(BROWSER_CHECK_OUTFILE)
+  reportSize(BROWSER_RUNTIME_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))
@@ -504,5 +633,7 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, 'usage.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'usage.css'))
   reportSize(PROVIDER_CATALOG_OUTFILE)
+  reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
+  reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)
 }

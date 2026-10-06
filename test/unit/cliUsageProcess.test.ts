@@ -268,12 +268,21 @@ describe('built CLI usage routes', () => {
         expect(readFileSync(closed, 'utf8')).toBe(end)
         expect(readFileSync(ownStop, 'utf8')).toBe(end)
         // Neither a foreground handler nor its earlier exit owns the companion.
-        if (end === 'idle')
+        // A Windows job can terminate detached descendants when the simulated
+        // Linux parent exits. The real Linux lifetime assertion stays on POSIX.
+        if (end === 'idle' && process.platform !== 'win32')
           expect(() => process.kill(Number(readFileSync(pidFile, 'utf8')), 0)).not.toThrow()
+        else if (end === 'idle') expect(existsSync(pidFile)).toBe(true)
         else expect(existsSync(exited)).toBe(true)
       } finally {
         if (existsSync(pidFile)) {
-          if (!existsSync(exited)) process.kill(Number(readFileSync(pidFile, 'utf8')))
+          if (!existsSync(exited)) {
+            try {
+              process.kill(Number(readFileSync(pidFile, 'utf8')))
+            } catch (error: unknown) {
+              expect(error).toHaveProperty('code', 'ESRCH')
+            }
+          }
           rmSync(pidFile)
         }
         if (existsSync(closed)) rmSync(closed)

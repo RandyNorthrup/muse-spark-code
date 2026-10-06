@@ -123,6 +123,7 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  readonly onClientName?: (name: string) => void
   /** Shared journal/service, required lazily on the local /usage command. */
   readonly usage?: Pick<UsageAdapter, 'access' | 'openPage'>
   readonly backend: AcpBackend
@@ -1300,7 +1301,10 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
     state.askPaidUse(sessionId, request, canRemember),
   )
   return acpAgent({ name: ACP_AGENT_NAME })
-    .onRequest('initialize', (context) => state.initialize(context.params.clientCapabilities))
+    .onRequest('initialize', (context) => {
+      deps.onClientName?.(context.params.clientInfo?.name ?? 'ACP')
+      return state.initialize(context.params.clientCapabilities)
+    })
     .onRequest('authenticate', () => state.authenticate())
     .onRequest('session/new', (context) =>
       state.newSession(context.params.cwd, context.params.mcpServers, context.client),

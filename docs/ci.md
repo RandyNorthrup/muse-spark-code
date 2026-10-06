@@ -2,9 +2,10 @@
 
 M80 integration guide, 2026-10-02. All four implementation lanes (A contracts,
 B engine and CLI, C Action, D packaging and docs) are integrated, and their
-fake-only tests pass on Linux, macOS and Windows. The live receipt LA passed on
-2026-10-05 for main at `30de7c89`, using the unsigned candidate package. The
-hosted `action-check.yml` matrix, the live receipt L, and after release LR are
+fake-only tests pass on Linux, macOS and Windows. The hosted `action-check.yml`
+matrix (W, fake-only) runs and passes on same-repository pull requests. The live
+receipt LA passed on 2026-10-05 for main at `30de7c89`, using the unsigned
+candidate package. The live receipt L, and LR now that 0.12.0 is released, are
 still open, so this page does not claim certified headless or Action support,
 nor npm-registry Action support. Command receipts and precise claim limits live in
 [m80.md](certification/m80.md).
@@ -65,8 +66,12 @@ Every resource, including random markers and the model's untrusted-data lead,
 fits 65,536 characters, split at code-point boundaries. CLI rejects oversize
 input rather than truncating; Action diff/metadata truncation is disclosed.
 
-Trust and dangerous skip flags are refused. Plan denies edits; acceptEdits allows
-ordinary confined writes, denies protected writes, and records every denial.
+Trust and dangerous skip flags are refused. Plan refuses edits, commands and
+paid calls by policy, without an approval request, so those refusals are not
+listed in denials and do not trip --fail-on-denial. On the Model API,
+acceptEdits allows ordinary confined writes, denies protected writes, and
+records each approval it denies (on Muse Code, acceptEdits is Manual and Muse
+Code writes workspace files without an approval request).
 Questions are declined, tool errors alone do not stop a run, and ordinary
 approval requests select reject_once (or cancel if unavailable). Model/effort
 validation closes a newly created session before usage/2. Too-small valid budget
@@ -89,8 +94,8 @@ is refusal/5 before any billable request, naming the model's minimum.
 | 130  | cancelled                           | SIGINT.                                                                                                                                                |
 | 143  | cancelled                           | SIGTERM.                                                                                                                                               |
 
-First latched stop wins. Otherwise auth failure precedes incomplete response/EOF,
-then backend/HTTP/transport failure, then completed-with-unverified-accounting.
+First latched stop wins. Otherwise auth failure precedes backend/HTTP/transport
+failure, then incomplete response/EOF, then completed-with-unverified-accounting.
 Only the latest clean completed response with valid priced settlement plus ACP
 end_turn authorizes Model API success. An observed terminal followed by transport
 loss remains cut short. Muse Code requires its tap terminal exactly completed.
@@ -137,8 +142,8 @@ event variant against a structural mirror of the event schema, parity-tested.
 | questionsDeclined                                           | Nonnegative integer.                                                                                                                                                                                                                      |
 | inputs                                                      | {name,bytes,chunks,complete} rows. CLI inputs are complete; Action truncation is separately disclosed.                                                                                                                                    |
 | usage.requests                                              | Admitted billable attempts; null on Muse Code.                                                                                                                                                                                            |
-| usage.inputTokens/outputTokens/cachedTokens/reasoningTokens | Sum valid per-response usage only; null when unavailable. Muse Code uses the latest cumulative snapshot, never a sum.                                                                                                                     |
-| usage.costUsd                                               | {settled,uncertain,reserved,total,isUpperBound}, or null on Muse Code. total includes retained full reservations. isUpperBound iff uncertainty, pending reservations or forced exit.                                                      |
+| usage.inputTokens/outputTokens/cachedTokens/reasoningTokens | Sum valid per-response usage only; 0 on Model API when no response had valid usage, null on Muse Code without a snapshot. Muse Code uses the latest cumulative snapshot, never a sum.                                                     |
+| usage.costUsd                                               | {settled,uncertain,reserved,total,isUpperBound}, or null on Muse Code. total includes retained full reservations. isUpperBound iff uncertainty, a pending reservation or any latched stop.                                                |
 | usage.paid                                                  | {imageAttempts,imagesReturned,imagesRefunded,imagesUncertain,settledUsd,uncertainUsd}. Zero on Muse Code.                                                                                                                                 |
 | ledger                                                      | {capUsd,breach,refusal,lastResponse}, or null on Muse Code. lastResponse carries n, terminal, incompleteReason, endedWithoutTerminal, httpStatus, transportError, usage (valid/missing/invalid) and settlement (priced/full-reservation). |
 | limits                                                      | {budgetUsd:number\|null,maxRequests:number\|null,timeoutSeconds:number}.                                                                                                                                                                  |
@@ -234,9 +239,11 @@ An unknown earlier request plus retry keeps both liabilities. Upward micro-USD
 rounding may refuse an otherwise sub-micro fit; it never enlarges supplied cap.
 Cost output converts these integers, and total=settled+uncertain+reserved.
 
-The fetch adapter returns headers promptly and passes bytes unchanged through a
-bounded streaming observer with backpressure. Response total cap is 32 MiB;
-frame/feed caps 16 MiB. It does not buffer a whole response before returning.
+For /v1/responses the fetch adapter returns headers promptly and passes bytes
+unchanged through a bounded streaming observer with backpressure, never
+buffering a whole response before returning; an image response is read whole
+(at most 32 MiB) and checked before it is returned. Response total cap is
+32 MiB; frame/feed caps 16 MiB.
 The real client's **five-minute idle interval** tracks progress, not total run
 length. Clean EOF drains observer settlement before final classification;
 downstream cancel/upstream error settles full liability exactly once. There is
@@ -261,7 +268,11 @@ replaces the latest response completion/accounting record.
 
 Scanner reads exact bounded staged bytes locally, valid UTF-8, at most 16 MiB.
 It prints only a localized count, never matches, excerpts or a path. Exits:
-0 clean, 10 secrets found, 2 unreadable/oversize/invalid-key/cancelled/error.
+0 clean, 10 secrets found, 2 unreadable/oversize/invalid-key/cancelled/error;
+On POSIX, a repeated signal forces the earliest latched stop code: 130/143
+if a signal came first, or 6 if the deadline had already latched timeout.
+An earlier non-signal stop keeps its own code. Windows forced process exit
+is 1; a delivered result retains its logical first-stop code.
 Its 30-second deadline includes key reading and output flush. Private key stdin
 stops at LF, clears references in finally and never touches an OS keyring.
 The scanner's protection covers known patterns/exact literal only.
@@ -314,7 +325,9 @@ No missing result invents successful exit. Apply requires mode=prepare|push and
 artifact-name, defaults github-token to github.token and path to '.', outputs
 ready=true only after verified apply, commit-sha only after successful push.
 
-Same-repo OWNER/MEMBER/COLLABORATOR only; agreeing API head/open state required.
+Same-repo only; a pull request author or commenter must be
+OWNER/MEMBER/COLLABORATOR (workflow_dispatch, which needs write access, is not
+association-checked); agreeing API head/open state required.
 Reject fork, bot, pull_request_target, other events, unsupported PR actions,
 non-created or unprefixed comments, issues without PR, over-4000-character tasks,
 invalid dispatch PR, changed head and public self-hosted. Review cannot enable
@@ -371,44 +384,47 @@ require its sole unambiguous URI SAN to equal
 `https://github.com/RandyNorthrup/muse-spark-code/.github/workflows/release.yml@refs/tags/v<version>`.
 Signature-only, absent provenance, wrong predicate/digest/SAN or substituting a
 separately fetched bundle fails closed. Canonical bin must stay within package.
-Release npm job alone gets id-token:write and publishes with --provenance.
+The GitHub Release job (asset attestations) and the npm job get id-token:write;
+only the npm job publishes, with --provenance.
 LR remains required before registry installation is called supported.
 
 ## Launcher bounds, cancellation and publication
 
 One owner covers input diff, exec, extraction, patch Git, scanner and publication.
-Apply owns its isolated download/checkout/apply/commit/push lifecycle. Pre-run
-steps have bounded owners of their own; no process spans composite steps.
+Apply owns its isolated artifact-validation/checkout/apply/commit/push
+lifecycle; the download step runs before it. The gate, install and checkout
+steps have bounded owners of their own; the tools and input-staging steps have
+no owner or bound; no process spans composite steps.
 
-| Constant                      |      Value | Bound                                                      |
-| ----------------------------- | ---------: | ---------------------------------------------------------- |
-| ACTION_GATE_MS                |  30,000 ms | API gate phase.                                            |
-| ACTION_INSTALL_MS             | 300,000 ms | Install plus verifier.                                     |
-| ACTION_CHECKOUT_MS            | 120,000 ms | Entire initial checkout phase.                             |
-| ACTION_INPUT_MS               |  30,000 ms | Metadata plus diff.                                        |
-| ACTION_EXEC_OVERHEAD_MS       |  10,000 ms | Exec phase wall limit = exec timeout + this.               |
-| ACTION_GIT_MS                 |  30,000 ms | One local Git child; total patch generation also 30 s.     |
-| ACTION_SCAN_MS                |  30,000 ms | Scanner including key stdin/body/output.                   |
-| ACTION_EXTRACT_MS             |  10,000 ms | Event/result extraction.                                   |
-| ACTION_PUBLISH_MS             |  10,000 ms | Atomic result/patch/manifest publication and outputs.      |
-| ACTION_DOWNLOAD_MS            |  60,000 ms | Apply artifact validation after download.                  |
-| ACTION_APPLY_MS               | 180,000 ms | Apply owner total, excluding caller's tests.               |
-| ACTION_PUSH_MS                |  60,000 ms | Push network child within apply total.                     |
-| ACTION_STOP_GRACE_MS          |   5,000 ms | Exact signal forwarding, waiting.                          |
-| ACTION_KILL_AFTER_MS          |   7,000 ms | Grace + 2 s; force-kill current child.                     |
-| ACTION_REAP_MS                |   2,000 ms | Bounded wait after force-kill before wrapper error exit.   |
-| ACTION_CLEANUP_MS             |   5,000 ms | Bounded staging/key-reference final cleanup.               |
-| ACTION_STDERR_MAX_BYTES       |  1,048,576 | Per phase; stream through redaction; overflow stops phase. |
-| ACTION_CHILD_STDOUT_MAX_BYTES | 16,777,216 | Git/install/verifier/download; overflow stops phase.       |
-| ACTION_EVENTS_MAX_BYTES       | 67,108,864 | Exec JSONL; capped while streaming to events file.         |
-| ACTION_RESULT_MAX_BYTES       | 16,777,216 | One parsed result/final publication.                       |
-| ACTION_PATCH_MAX_BYTES        | 16,777,216 | Exact Git patch and scanner file.                          |
-| ACTION_SCAN_STDOUT_MAX_BYTES  |     65,536 | Scanner's counts-only output.                              |
-| ACTION_COMMENT_MAX_CHARS      |     60,000 | Redacted comment.                                          |
-| ACTION_META_MAX_BYTES         |     65,536 | PR metadata.                                               |
-| ACTION_TASK_MAX_CHARS         |      4,000 | Collaborator task.                                         |
-| ACTION_DEFAULT_MAX_DIFF_BYTES |    262,144 | Input default; maximum 1,048,576.                          |
-| ACTION_W_BUDGET_USD           |       1.00 | W test fixture cap.                                        |
+| Constant                      |      Value | Bound                                                                     |
+| ----------------------------- | ---------: | ------------------------------------------------------------------------- |
+| ACTION_GATE_MS                |  30,000 ms | API gate phase.                                                           |
+| ACTION_INSTALL_MS             | 300,000 ms | Install plus verifier.                                                    |
+| ACTION_CHECKOUT_MS            | 120,000 ms | Entire initial checkout phase.                                            |
+| ACTION_INPUT_MS               |  30,000 ms | Run step input read, then diff plus prompt rendering.                     |
+| ACTION_EXEC_OVERHEAD_MS       |  10,000 ms | Exec phase wall limit = exec timeout + this.                              |
+| ACTION_GIT_MS                 |  30,000 ms | One local Git child; total patch generation also 30 s.                    |
+| ACTION_SCAN_MS                |  30,000 ms | Scanner including key stdin/body/output.                                  |
+| ACTION_EXTRACT_MS             |  10,000 ms | Event/result extraction.                                                  |
+| ACTION_PUBLISH_MS             |  10,000 ms | Atomic patch/manifest publication and outputs/summary.                    |
+| ACTION_DOWNLOAD_MS            |  60,000 ms | Apply artifact validation after download.                                 |
+| ACTION_APPLY_MS               | 180,000 ms | Apply owner total, excluding caller's tests.                              |
+| ACTION_PUSH_MS                |  60,000 ms | Push network child within apply total.                                    |
+| ACTION_STOP_GRACE_MS          |   5,000 ms | Exact signal forwarding, waiting.                                         |
+| ACTION_KILL_AFTER_MS          |   7,000 ms | Grace + 2 s; force-kill current child.                                    |
+| ACTION_REAP_MS                |   2,000 ms | Bounded wait after force-kill before wrapper error exit.                  |
+| ACTION_CLEANUP_MS             |   5,000 ms | Bounded staging/key-reference final cleanup.                              |
+| ACTION_STDERR_MAX_BYTES       |  1,048,576 | Per child, buffered (exec redacted after exit); overflow stops the owner. |
+| ACTION_CHILD_STDOUT_MAX_BYTES | 16,777,216 | Git/install/verifier/download; overflow stops the owner.                  |
+| ACTION_EVENTS_MAX_BYTES       | 67,108,864 | Exec JSONL; capped while streaming to events file.                        |
+| ACTION_RESULT_MAX_BYTES       | 16,777,216 | One parsed result/final publication.                                      |
+| ACTION_PATCH_MAX_BYTES        | 16,777,216 | Exact Git patch and scanner file.                                         |
+| ACTION_SCAN_STDOUT_MAX_BYTES  |     65,536 | Scanner's counts-only output.                                             |
+| ACTION_COMMENT_MAX_CHARS      |     60,000 | Redacted comment.                                                         |
+| ACTION_META_MAX_BYTES         |     65,536 | PR metadata.                                                              |
+| ACTION_TASK_MAX_CHARS         |      4,000 | Collaborator task.                                                        |
+| ACTION_DEFAULT_MAX_DIFF_BYTES |    262,144 | Input default; maximum 1,048,576.                                         |
+| ACTION_W_BUDGET_USD           |       1.00 | W test fixture cap.                                                       |
 
 The pinned download-artifact step runs before the apply owner exists, so its
 transfer is bounded only by the caller job's `timeout-minutes` (the recipes set
@@ -453,7 +469,8 @@ model/requests/settled+uncertain cost/returned+uncertain images/run link and
 fix artifact/withholding notice. The notice lists changed files up to 4,000
 characters, then counts the rest, so the 60,000-character cap holds. Failures
 remain in summary. Apply prepare
-validates exact digest/current-run/repo/PR/head, checks out that head, applies
+validates exact digest/current-run/artifact name, checks out the manifest's
+head (only push re-reads the PR), applies
 --index, then permits caller's secret-free tests. Push rechecks current open PR
 same repo/exact head, applies/commits with hooks/signers disabled and pushes
 with exact force-with-lease. No repository script runs in privileged push.
@@ -625,3 +642,11 @@ ran none of L/LA/LR, read no real credential and called no model.
   eligible diagnostics, review separately; do not bypass scanner or apply guard.
 - Registry refusal: require genuine release provenance and exact identity; a
   candidate digest or separately fetched attestation cannot satisfy LR.
+
+### Reading local usage
+
+`muse-spark-code-acp --usage` (or `usage --json`) reads the same versioned local
+journal and checked page totals as the interactive page. It makes no model
+request. Headless executions record settled calls through the shared writer;
+usage files contain no prompts, paths, keys or key digests. This does not change
+M80's pending hosted/live certification or paid admission policy.

@@ -7,6 +7,8 @@ import path from 'node:path'
 import { agentDataFolder } from '../../runtime/dataFolder'
 import { lazyUsageAdapter } from '../../runtime/usage/usageAdapter'
 import { SETTINGS_SECTION, USAGE_FOLDER, USAGE_HISTORY_DAYS_DEFAULT } from '../../shared/constants'
+import { createPaidDailyBudget } from '../paid/paidDailyBudget'
+import type { UsageAccessDeps } from '../../runtime/usage/usageAdapter'
 
 export interface UsagePanelHostDeps extends Omit<
   UsagePanelDeps,
@@ -14,6 +16,15 @@ export interface UsagePanelHostDeps extends Omit<
 > {
   /** Tests and native composition can inject the shared service explicitly. */
   readonly service?: Pick<UsagePanelDeps, 'usage' | 'journalFolder'>
+  readonly live?: UsageAccessDeps['live']
+  readonly beforeRead?: UsageAccessDeps['beforeRead']
+}
+
+export function createUsageBudget(
+  deps: Parameters<typeof createPaidDailyBudget>[0] & Pick<UsagePanelDeps, 'l10n'>,
+) {
+  setUiText(deps.l10n.table, deps.l10n.locale)
+  return createPaidDailyBudget(deps)
 }
 
 export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsagePanel> {
@@ -42,6 +53,8 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
       locale: deps.l10n.locale,
       uiText: deps.l10n.table,
       log: deps.log,
+      ...(deps.beforeRead !== undefined && { beforeRead: deps.beforeRead }),
+      ...(deps.live !== undefined && { live: deps.live }),
       historySettings: () => {
         const config = vscode.workspace.getConfiguration(SETTINGS_SECTION)
         return {

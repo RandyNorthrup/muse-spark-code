@@ -1,3 +1,4 @@
+import { MspError } from '@muse-code/sdk'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import {
@@ -72,7 +73,8 @@ import {
   type GoalCommandVerb,
   UI_TEXT,
 } from '../../src/shared/constants'
-import { fill, formatBytes, plural } from '../../src/shared/l10n/text'
+import { fill, formatBytes, plural, setUiText } from '../../src/shared/l10n/text'
+import { EN } from '../../src/shared/l10n/en'
 import { approvalModeFor } from '../../src/shared/permissionModes'
 import { textFileDisplay } from '../../src/shared/textFileDisplay'
 import { planFileName, planLogName, planSlug, planTitle } from '../../src/core/plans/planDocument'
@@ -101,6 +103,7 @@ import {
   ledgerFault,
   RACE_APPROVAL_ID,
   raceRequested,
+  raceUpdated,
   REPLAY_FAULT_MESSAGE,
   replayFault,
 } from './helpers/stageRaceCapture'
@@ -341,7 +344,8 @@ function setup(
     isRemoteWindow?: boolean
     confirmsRemoteBypass?: boolean
     platform?: NodeJS.Platform
-    userProfileDir?: string
+    /** The window’s once-per-window claim for the sandbox-off warning. */
+    shouldWarnSandboxOff?: () => boolean
     editorContext?: EditorContext
     isAutosaveEnabled?: boolean
     /** The verify loop's note to Muse Code (M68). */
@@ -732,8 +736,15 @@ function setup(
     },
     onSandboxUnavailable,
     platform: options.platform ?? 'linux',
-    userProfileDir: options.userProfileDir,
-    shellSandbox: () => options.shellSandbox ?? { isSandboxed: true, reason: 'default' },
+    shellSandbox: () =>
+      options.shellSandbox ?? {
+        isSandboxed: true,
+        reason: 'default',
+        isUnsupportedWorkspace: false,
+      },
+    ...(options.shouldWarnSandboxOff !== undefined && {
+      shouldWarnSandboxOff: options.shouldWarnSandboxOff,
+    }),
     editorContext: () => options.editorContext,
     isAutosaveEnabled: () => options.isAutosaveEnabled ?? false,
     ...(options.verifyGuidance !== undefined && { verifyGuidance: options.verifyGuidance }),
@@ -1353,6 +1364,66 @@ describe('ConversationController.sendMessage', () => {
       text: expect.stringContaining('not adjustable') as string,
     })
     expect(t.surface.posted.at(-1)).toMatchObject({ type: 'turnAccepted' })
+  })
+
+  // M92e (PLAN.md D71): the secret is built at runtime, never as a literal.
+  it('keeps an accepted secret prompt redacted on history replay and Markdown export (RVM92E P1)', async () => {
+    const t = withHistory()
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const text = `use ${secret}`
+    await t.controller.handle({
+      type: 'sendMessage',
+      localId: 'l1',
+      text,
+      attachmentIds: [],
+      secretAccepted: true,
+    })
+    t.server.notify('turn/completed', { sessionId: 's1', turnId: 't1', terminal: 'completed' })
+    await settle()
+    serveHistoryItems(t, [historyUserItem('u1', 't1', text)])
+    await t.controller.handle({ type: 'clearConversation' })
+    await t.controller.handle({ type: 'resumeSession', sessionId: 's1' })
+    const replay = t.surface.posted.findLast((message) => message.type === 'historyLoaded')
+    expect(JSON.stringify(replay).includes(secret)).toBe(false)
+    expect(replay?.type === 'historyLoaded' && replay.items[0]?.text === 'use [redacted]').toBe(
+      true,
+    )
+    // Raw accepted text remains only in the backend history needed to resume.
+    const history = await t.host.readSession('s1')
+    expect(history.items[0]?.text === text).toBe(true)
+    await t.controller.handle({ type: 'exportConversation', format: 'markdown' })
+    expect(t.exported.markdown).toHaveLength(1)
+    expect(JSON.stringify(t.exported.markdown).includes(secret)).toBe(false)
+    t.controller.dispose()
+  })
+
+  it('holds a prompt with a detected secret, and sends it on once accepted', async () => {
+    const t = setup()
+    const secret = `sk-${'k'.repeat(24)}`
+    const text = `deploy with ${secret} now`
+    await t.send('l1', text)
+    await settle()
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'secretPromptDetected',
+      localId: 'l1',
+      redactedText: 'deploy with [redacted] now',
+    })
+    await t.controller.handle({
+      type: 'sendMessage',
+      localId: 'l2',
+      text,
+      attachmentIds: [],
+      secretAccepted: true,
+    })
+    await settle()
+    expect(t.server.requestsFor('turn/start')[0]?.params).toMatchObject({
+      input: [{ type: 'text', text }, NOTE],
+    })
+    expect(t.surface.posted.at(-1)).toMatchObject({ type: 'turnAccepted', localId: 'l2' })
+    // The panel never saw the raw value; the turn carries it to the model.
+    expect(JSON.stringify(t.surface.posted)).not.toContain(secret)
   })
 })
 
@@ -2523,8 +2594,10 @@ describe('ConversationController: transcript actions (M4)', () => {
       level: 'warning',
       text: `${UI_TEXT.outputLoadFailed}: missing. ${UI_TEXT.outputLoadRetry}`,
     })
-    // What the panel said is in the log too (M39).
-    expect(t.log.warn).toHaveBeenCalledWith(expect.stringMatching(/^Shown in the panel: .*missing/))
+    // The panel keeps the detail; the CLI log names the failure by kind/code.
+    expect(t.log.warn).toHaveBeenCalledWith(
+      'Shown in the panel: commandRejected (MSP error -32000)',
+    )
   })
 
   it('joins an output read in flight instead of sending it again (D26)', async () => {
@@ -2572,7 +2645,7 @@ describe('ConversationController: transcript actions (M4)', () => {
     }
     expect(notices()).toHaveLength(before + 1)
     expect(t.log.warn).toHaveBeenCalledWith(
-      `${UI_TEXT.outputLoadFailed}: busy (item g; said once in the panel)`,
+      'commandRejected (MSP error -32000) (item g; said once in the panel)',
     )
     // A read that succeeds lets the next failure be said again.
     t.server.handle('item/readOutput', (params) => ({
@@ -2631,6 +2704,29 @@ describe('ConversationController: transcript actions (M4)', () => {
       level: 'error',
       text: 'That did not work (the Muse Spark log has the details): clipboard busy',
     })
+  })
+
+  it('keeps an uncaught MSP failure and its stack out of the action log', async () => {
+    const t = setup()
+    t.server.handle('model/list', () => {
+      throw new Error('failed for alice@example.test /Users/alice/private-project')
+    })
+    const controller = new ConversationController({
+      ...t.deps,
+      copyText: async () => {
+        await t.host.listModels()
+      },
+    })
+    try {
+      await controller.handle({ type: 'copyText', text: 'x' })
+      const lines = t.log.error.mock.calls.map(([line]) => String(line)).join('\n')
+      expect(lines).toContain('copyText failed:')
+      expect(lines).toContain('MSP error')
+      expect(lines).not.toContain('alice@example.test')
+      expect(lines).not.toContain('/Users/alice/private-project')
+    } finally {
+      controller.dispose()
+    }
   })
 
   it('copies and inserts code, explaining when no editor is open', async () => {
@@ -2693,6 +2789,21 @@ describe('ConversationController: transcript actions (M4)', () => {
     expect(t.onSandboxUnavailable).toHaveBeenCalledTimes(1)
   })
 
+  // Captured 2026-10-04 on a fresh 1.4.2 setup (musecode-write-asks.md): the
+  // sandbox is set up, but its read-access worker still holds the lock.
+  it('says the sandbox is still preparing, and offers no setup, when the lock timed out', async () => {
+    const failureReason = String.raw`windows_elevated unified exec session launcher unavailable: sandbox enforcement unavailable: Windows sandbox setup unavailable: admit deny-read state C:\Users\dev\.local\share\muse\windows-sandbox/deny_read_acl_state.json: Windows sandbox ACL update failed for C:\Users\dev\.local\share\muse\windows-sandbox: ACL publication lock Global\TbhWindowsSandboxAclPublication: timed out: owner S-1-5-21-1-2-3-1001: wait timed out after 120000 ms`
+    const item = { itemId: 'c1', kind: 'toolCall', status: 'failed', tool: 'powershell' }
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.notify('item/completed', { sessionId: 's1', item: { ...item, failureReason } })
+    await settle()
+    expect(t.surface.posted.filter((m) => m.type === 'notice')).toEqual([
+      { type: 'notice', level: 'warning', text: UI_TEXT.sandboxPreparingNotice },
+    ])
+    expect(t.onSandboxUnavailable).not.toHaveBeenCalled()
+  })
+
   it('leaves other tool failures to the transcript', async () => {
     const t = setup()
     await t.send('l1', 'hi')
@@ -2711,14 +2822,12 @@ describe('ConversationController: transcript actions (M4)', () => {
     expect(t.onSandboxUnavailable).not.toHaveBeenCalled()
   })
 
-  it('warns once per session when the sandbox is forced on for a profile workspace', async () => {
-    // Every Muse Code version is affected so far (1.3.0 and 1.4.0, #26), so
-    // the warning no longer looks at the version the fake server reports.
+  it('warns once per session when the sandbox is forced on where it may not run commands', async () => {
+    // #26 (1.3.0 and 1.4.0; 1.4.2 on a fresh setup); the posture says so.
     const t = setup({
       platform: 'win32',
-      userProfileDir: String.raw`C:\Users\randy`,
       workspaceRoot: String.raw`c:\users\RANDY\Coding\project`,
-      shellSandbox: { isSandboxed: true, reason: 'setting' },
+      shellSandbox: { isSandboxed: true, reason: 'setting', isUnsupportedWorkspace: true },
     })
     await t.send('l1', 'hi')
     await t.send('l2', 'again')
@@ -2728,47 +2837,83 @@ describe('ConversationController: transcript actions (M4)', () => {
     expect(notices).toHaveLength(1)
     expect(notices[0]).toMatchObject({
       level: 'warning',
-      text: expect.stringContaining('shell commands will start in the PowerShell folder') as string,
+      text: expect.stringContaining('can start in the PowerShell folder') as string,
     })
   })
 
-  it('explains once when auto turned the sandbox off for a profile workspace', async () => {
+  // musecode-write-asks: without the sandbox Muse Code's file tools write
+  // anywhere without asking, in every mode (Meta's permissions page; probed
+  // 2026-10-04), so the panel says so whatever turned the sandbox off.
+  it('warns that the file tools can write anywhere when auto turned the sandbox off', async () => {
     const t = setup({
       platform: 'win32',
-      userProfileDir: String.raw`C:\Users\randy`,
       workspaceRoot: String.raw`C:\Users\randy\project`,
-      shellSandbox: { isSandboxed: false, reason: 'profileWorkspace' },
+      shellSandbox: {
+        isSandboxed: false,
+        reason: 'profileWorkspace',
+        isUnsupportedWorkspace: true,
+      },
     })
     await t.send('l1', 'hi')
     const notices = t.surface.posted.filter((m) => m.type === 'notice')
-    expect(notices).toHaveLength(1)
-    expect(notices[0]).toMatchObject({
-      level: 'info',
-      text: expect.stringContaining('runs shell commands without the sandbox') as string,
-    })
+    expect(notices).toEqual([
+      { type: 'notice', level: 'warning', text: UI_TEXT.sandboxOffProfileWarning },
+    ])
+    expect(UI_TEXT.sandboxOffProfileWarning).toContain('without asking in any mode, Plan included')
+    expect(UI_TEXT.sandboxOffProfileWarning).toContain(
+      'outside your user profile keeps the sandbox',
+    )
   })
 
-  it('says nothing when the user chose off, or when the sandbox is on and works', async () => {
-    const off = setup({
+  it('warns the same way when the user chose off', async () => {
+    const t = setup({
       platform: 'win32',
-      userProfileDir: String.raw`C:\Users\randy`,
-      workspaceRoot: String.raw`C:\Users\randy\project`,
-      shellSandbox: { isSandboxed: false, reason: 'setting' },
+      workspaceRoot: String.raw`C:\src\project`,
+      shellSandbox: { isSandboxed: false, reason: 'setting', isUnsupportedWorkspace: false },
     })
-    await off.send('l1', 'hi')
-    expect(off.surface.posted.filter((m) => m.type === 'notice')).toHaveLength(0)
+    await t.send('l1', 'hi')
+    expect(t.surface.posted.filter((m) => m.type === 'notice')).toEqual([
+      { type: 'notice', level: 'warning', text: UI_TEXT.sandboxOffSettingWarning },
+    ])
+    expect(UI_TEXT.sandboxOffSettingWarning).toContain('outside this workspace too, without asking')
   })
 
-  it('stays quiet for a workspace outside the profile and off Windows', async () => {
+  it('warns once per window: the window claims the warning for its first conversation', async () => {
+    let hasShown = false
+    const shouldWarnSandboxOff = () => {
+      const isFirst = !hasShown
+      hasShown = true
+      return isFirst
+    }
+    const off = { isSandboxed: false, reason: 'setting', isUnsupportedWorkspace: false } as const
+    const first = setup({ shellSandbox: off, shouldWarnSandboxOff })
+    const second = setup({ shellSandbox: off, shouldWarnSandboxOff })
+    await first.send('l1', 'hi')
+    await first.send('l2', 'again')
+    await second.send('l1', 'hi')
+    const warnings = (t: typeof first) =>
+      t.surface.posted.filter(
+        (m) => m.type === 'notice' && m.text === UI_TEXT.sandboxOffSettingWarning,
+      )
+    expect(warnings(first)).toHaveLength(1)
+    expect(warnings(second)).toHaveLength(0)
+  })
+
+  it('stays quiet where the sandbox runs: outside the profile, off Windows, or forced on outside the profile', async () => {
     const outside = setup({
       platform: 'win32',
-      userProfileDir: String.raw`C:\Users\randy`,
       workspaceRoot: String.raw`C:\src\project`,
     })
     await outside.send('l1', 'hi')
     const posix = setup({ platform: 'darwin', workspaceRoot: '/Users/randy/project' })
     await posix.send('l1', 'hi')
-    for (const t of [outside, posix]) {
+    const forced = setup({
+      platform: 'win32',
+      workspaceRoot: String.raw`C:\src\project`,
+      shellSandbox: { isSandboxed: true, reason: 'setting', isUnsupportedWorkspace: false },
+    })
+    await forced.send('l1', 'hi')
+    for (const t of [outside, posix, forced]) {
       expect(t.surface.posted.filter((m) => m.type === 'notice')).toHaveLength(0)
     }
   })
@@ -3473,7 +3618,7 @@ describe('ConversationController: other messages', () => {
     expect(t.auth.calls.some((call) => call.startsWith('error:'))).toBe(false)
     // A turn ended here gets its end line too (the review of PR #20).
     expect(t.log.info).toHaveBeenCalledWith(
-      'Turn t1 failed: Muse Code stopped unexpectedly (Muse Code failed with an unhandled error (exit 1)) after 0 ms',
+      'Turn t1 failed: a line of 82 characters (not logged: it may name a path or an account) after 0 ms',
     )
     t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
     await t.send('l2', 'again')
@@ -5515,10 +5660,379 @@ describe('ConversationController: backends and tiers (M7)', () => {
     ])
   })
 
+  it('redacts secret-shaped MSP errors in the log and the notice', async () => {
+    const t = setup()
+    const secret = `ghp_${'a'.repeat(36)}`
+    // Before the first send: the attach-time skill load shares the failing
+    // call, so the log line is recorded no matter when the panel re-lists.
+    t.server.handle('skill/list', () => {
+      throw new Error(`catalog unavailable: ${secret}`)
+    })
+    await t.send('l1', 'hi')
+    await t.controller.handle({ type: 'listSkills' })
+    const warnings = t.log.warn.mock.calls.map(([line]) => String(line))
+    expect(warnings.some((line) => line.includes('skill/list failed'))).toBe(true)
+    expect(warnings.join('\n')).not.toContain(secret)
+    expect(warnings.join('\n')).toContain('MSP error')
+    t.server.handle('session/setModel', () => {
+      throw new Error(`switch refused: ${secret}`)
+    })
+    await t.controller.handle({ type: 'setModel', modelId: 'nope' })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'notice',
+      level: 'error',
+      text: expect.stringContaining('[redacted]') as string,
+    })
+    expect(String((t.surface.posted.at(-1) as { text?: unknown }).text)).not.toContain(secret)
+  })
+
+  it('blocks a confirmed contributor model once the workspace turns confidential', async () => {
+    const options = { confirmsContributor: true, isConfidentialWorkspace: false }
+    const t = setup(options)
+    await t.send('l1', 'hi')
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    expect(t.contributorPrompts).toEqual(['muse-spark-1.3-contributor'])
+    expect(t.server.requestsFor('session/setModel')).toHaveLength(1)
+    options.isConfidentialWorkspace = true
+    t.surface.posted.length = 0
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    expect(t.contributorPrompts).toEqual(['muse-spark-1.3-contributor'])
+    expect(t.server.requestsFor('session/setModel')).toHaveLength(1)
+    expect(t.surface.posted).toEqual([
+      {
+        type: 'notice',
+        level: 'warning',
+        text: 'Contributor-tier models are blocked in this workspace (museSpark.confidentialWorkspace).',
+      },
+      expect.objectContaining({ type: 'sessionInfo' }),
+    ])
+    options.isConfidentialWorkspace = false
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    expect(t.contributorPrompts).toEqual(['muse-spark-1.3-contributor'])
+    expect(t.server.requestsFor('session/setModel')).toHaveLength(2)
+  })
+
+  it.each([false, true])(
+    'refuses contributor dispatch after confidential turns on (running=%s)',
+    async (running) => {
+      const options = { isConfidentialWorkspace: false }
+      const t = setup(options)
+      await t.send('first', 'public')
+      await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+      if (!running) t.finishTurn()
+      await settle()
+      const before =
+        t.server.requestsFor('turn/start').length + t.server.requestsFor('turn/steer').length
+      options.isConfidentialWorkspace = true
+      await t.send('private', 'private source')
+      expect(
+        t.server.requestsFor('turn/start').length + t.server.requestsFor('turn/steer').length,
+      ).toBe(before)
+      expect(t.surface.posted).toContainEqual(
+        expect.objectContaining({
+          type: 'sendFailed',
+          localId: 'private',
+          reason: UI_TEXT.contributorBlocked,
+        }),
+      )
+    },
+  )
+
+  it('refuses a contributor confirmation that became confidential while awaiting', async () => {
+    const options = { isConfidentialWorkspace: false }
+    const t = setup(options)
+    await t.send('first', 'public')
+    let confirmations = 0
+    const controller = new ConversationController({
+      ...t.deps,
+      confirmContributor: () => {
+        confirmations += 1
+        if (confirmations === 1) options.isConfidentialWorkspace = true
+        return Promise.resolve(true)
+      },
+    })
+    try {
+      await controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'private',
+        text: 'private',
+        attachmentIds: [],
+      })
+      expect(t.server.requestsFor('session/setModel')).toHaveLength(0)
+      expect(t.server.requestsFor('session/start').at(-1)?.params).toMatchObject({
+        modelId: 'muse-spark-1.3',
+      })
+      options.isConfidentialWorkspace = false
+      await controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+      expect(confirmations).toBe(2)
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('keeps account and profile text out of MSP failure logs', async () => {
+    const t = setup()
+    const privateText = 'alice@example.test /Users/alice/private-project'
+    t.server.handle('skill/list', () => {
+      throw new Error(`catalog unavailable for ${privateText}`)
+    })
+    await t.send('first', 'public')
+    await t.controller.handle({ type: 'listSkills' })
+    const logs = t.log.warn.mock.calls.map(([line]) => String(line)).join('\n')
+    expect(logs).toContain('skill/list failed')
+    expect(logs).not.toContain('alice@example.test')
+    expect(logs).not.toContain('/Users/alice/private-project')
+  })
+
+  it('redacts asynchronous failed-turn reasons before the panel saves them', async () => {
+    const t = setup()
+    const secret = `ghp_${'a'.repeat(36)}`
+    await t.send('first', 'public')
+    t.server.notify('turn/completed', {
+      sessionId: 's1',
+      turnId: 't1',
+      terminal: 'failed',
+      reason: `failed: ${secret}`,
+    })
+    await settle()
+    const failure = agentEvents(t).findLast((event) => event.type === 'turnCompleted')
+    expect(failure).toMatchObject({ type: 'turnCompleted', reason: 'failed: [redacted]' })
+    expect(JSON.stringify(failure)).not.toContain(secret)
+  })
+
+  it('retires and cancels a contributor session on the configuration change', async () => {
+    const options = { isConfidentialWorkspace: false }
+    const t = setup(options)
+    await t.send('first', 'public')
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    options.isConfidentialWorkspace = true
+    t.controller.confidentialWorkspaceChanged()
+    await settle()
+    expect(t.server.requestsFor('turn/cancel')).toHaveLength(1)
+    await t.send('private', 'private source')
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(0)
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    options.isConfidentialWorkspace = false
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    expect(t.contributorPrompts).toHaveLength(1)
+  })
+
+  it('rechecks confidentiality after autosave before steering an existing session', async () => {
+    const options = { isConfidentialWorkspace: false, isAutosaveEnabled: true }
+    const t = setup(options)
+    await t.send('first', 'public')
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    t.saveAll.mockImplementationOnce(() => {
+      options.isConfidentialWorkspace = true
+      return Promise.resolve()
+    })
+    await t.send('private', 'private source')
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(0)
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+  })
+
+  it.each(['resume', 'start'])(
+    'rechecks confidentiality before %s after host setup',
+    async (action) => {
+      const options = { isConfidentialWorkspace: false }
+      const t = setup(options)
+      const controller = new ConversationController({
+        ...t.deps,
+        ensureHost: () => {
+          options.isConfidentialWorkspace = true
+          return Promise.resolve(t.host)
+        },
+      })
+      try {
+        await controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+        await controller.handle(
+          action === 'resume'
+            ? { type: 'resumeSession', sessionId: 'old' }
+            : {
+                type: 'sendMessage',
+                localId: 'private',
+                text: 'private startup',
+                attachmentIds: [],
+              },
+        )
+        expect(
+          t.server.requestsFor(action === 'resume' ? 'session/resume' : 'session/start'),
+        ).toHaveLength(0)
+        expect(JSON.stringify(t.surface.posted)).toContain(UI_TEXT.contributorBlocked)
+      } finally {
+        controller.dispose()
+      }
+    },
+  )
+
+  it('redacts raw backend diagnostic events at the panel boundary', async () => {
+    const t = setup()
+    const start = t.host.startSession.bind(t.host)
+    let emit: SessionEventListener | undefined
+    vi.spyOn(t.host, 'startSession').mockImplementation(async (options) => {
+      const session = await start(options)
+      const subscribe = session.onEvent.bind(session)
+      vi.spyOn(session, 'onEvent').mockImplementation((listener) => {
+        emit = listener
+        return subscribe(listener)
+      })
+      return session
+    })
+    await t.send('first', 'public')
+    const secret = `ghp_${'a'.repeat(36)}`
+    expect(emit).toBeDefined()
+    emit?.({ type: 'backendNotice', level: 'error', text: `notice: ${secret}` })
+    emit?.({ type: 'turnCompleted', turnId: 't1', terminal: 'failed', reason: `failed: ${secret}` })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'error',
+      text: 'notice: [redacted]',
+    })
+    expect(agentEvents(t)).toContainEqual(
+      expect.objectContaining({ type: 'turnCompleted', reason: 'failed: [redacted]' }),
+    )
+    expect(JSON.stringify(agentEvents(t))).not.toContain(secret)
+  })
+
+  it('redacts Model API asynchronous failure before subscribers and panel persistence', async () => {
+    const t = setup()
+    const secret = `ghp_${'a'.repeat(36)}`
+    const { api, host, controller } = modelApiController(t)
+    api.script({ failed: { code: 'invalid_request_error', message: `provider failed: ${secret}` } })
+    const events: Parameters<SessionEventListener>[0][] = []
+    const start = host.startSession.bind(host)
+    vi.spyOn(host, 'startSession').mockImplementation(async (options) => {
+      const session = await start(options)
+      session.onEvent((event) => {
+        events.push(event)
+      })
+      return session
+    })
+    try {
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'first',
+        text: 'public',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(events.some((event) => event.type === 'turnCompleted')).toBe(true)
+      })
+      const diagnostic = events.find((event) => event.type === 'turnCompleted')
+      expect(diagnostic).toMatchObject({ reason: expect.stringContaining('[redacted]') })
+      expect(JSON.stringify(events)).not.toContain(secret)
+      expect(JSON.stringify(agentEvents(t))).not.toContain(secret)
+    } finally {
+      controller.dispose()
+      await host.close()
+    }
+  })
+
+  it('rejects a prepared queued text-file send after confidential turns on during autosave', async () => {
+    const options = {
+      isConfidentialWorkspace: false,
+      isAutosaveEnabled: true,
+      indexed: ['notes.txt'],
+    }
+    const t = setup(options)
+    await t.send('first', 'public')
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    t.setPicked([{ name: 'notes.txt', fsPath: '/ws/notes.txt', relativePath: 'notes.txt' }])
+    await t.controller.handle({ type: 'pickFile' })
+    t.saveAll.mockImplementationOnce(() => {
+      options.isConfidentialWorkspace = true
+      return Promise.resolve()
+    })
+    await t.send('private', 'private file', ['att-1'])
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(0)
+  })
+
+  it('uses the successfully selected standard model after leaving a contributor session', async () => {
+    const options = { isConfidentialWorkspace: false }
+    const t = setup(options)
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    await t.send('first', 'public')
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3' })
+    options.isConfidentialWorkspace = true
+    await t.send('private', 'private source on standard')
+    expect(
+      t.server.requestsFor('turn/start').length + t.server.requestsFor('turn/steer').length,
+    ).toBe(2)
+  })
+
+  it('keeps account and profile text out of asynchronous CLI failure logs', async () => {
+    const t = setup()
+    await t.send('first', 'public')
+    t.server.notify('turn/completed', {
+      sessionId: 's1',
+      turnId: 't1',
+      terminal: 'failed',
+      reason: 'failed for alice@example.test /Users/alice/private-project',
+    })
+    await settle()
+    const lines = t.log.info.mock.calls.map(([line]) => String(line)).join('\n')
+    expect(lines).toContain('Turn t1 failed')
+    expect(lines).toContain('not logged')
+    expect(lines).not.toContain('alice@example.test')
+    expect(lines).not.toContain('/Users/alice/private-project')
+  })
+
+  it('rechecks confidentiality after a refused steer before falling back to a new turn', async () => {
+    const options = { isConfidentialWorkspace: false }
+    const t = setup(options)
+    await t.send('first', 'public')
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    const refuse = rejectionFor('invalid_target')
+    t.server.handle('turn/steer', () => {
+      options.isConfidentialWorkspace = true
+      return refuse()
+    })
+    await t.send('private', 'private source')
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(1)
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+  })
+
+  it('rechecks confidentiality after the model guard resolves before session/setModel', async () => {
+    const t = setup()
+    let isConfidential = false
+    let isConfirmed = false
+    let hasScheduled = false
+    const controller = new ConversationController({
+      ...t.deps,
+      confirmContributor: () => {
+        isConfirmed = true
+        return Promise.resolve(true)
+      },
+      isConfidentialWorkspace: () => {
+        if (isConfirmed && !hasScheduled) {
+          hasScheduled = true
+          queueMicrotask(() => {
+            isConfidential = true
+          })
+        }
+        return isConfidential
+      },
+    })
+    try {
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'first',
+        text: 'public',
+        attachmentIds: [],
+      })
+      await controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+      expect(t.server.requestsFor('session/setModel')).toHaveLength(0)
+    } finally {
+      controller.dispose()
+    }
+  })
+
   it('explains the Model API backend once per session instead of the sandbox notice', async () => {
     const t = setup({
       platform: 'win32',
-      userProfileDir: String.raw`C:\Users\r`,
       workspaceRoot: String.raw`C:\Users\r\ws`,
     })
     const { api, controller } = modelApiController(t, {
@@ -5590,6 +6104,24 @@ describe('ConversationController: voice dictation (M9)', () => {
     await t.controller.handle({ type: 'dictation', action: 'start' })
     expect(t.surface.posted).toEqual([unavailable])
   })
+
+  it.each(['error frame', 'close reason'])(
+    'redacts voice failure %s at the notice boundary',
+    async (source) => {
+      const { setup: dictation, driver } = fakeDictation()
+      const t = setup({ dictation })
+      const secret = `ghp_${'a'.repeat(36)}`
+      await t.controller.handle({ type: 'dictation', action: 'start' })
+      driver.listener?.onError(`${source}: ${secret}`)
+      const notice = t.surface.posted.findLast((message) => message.type === 'notice')
+      expect(notice).toMatchObject({
+        type: 'notice',
+        text: `Voice dictation failed: ${source}: [redacted]`,
+      })
+      expect(JSON.stringify(notice)).not.toContain(secret)
+      expect(JSON.stringify(t.log.error.mock.calls)).not.toContain(secret)
+    },
+  )
 
   it('creates the driver on the first press, relays status, inserts phrases with a space, and reports errors', async () => {
     const { setup: dictation, driver } = fakeDictation()
@@ -6193,6 +6725,38 @@ describe('ConversationController: permission hardening (D24)', () => {
     })
   })
 
+  // M92e (PLAN.md D71): the secret is built at runtime, never as a literal.
+  it('scrubs a secret shell command off the approval card', async () => {
+    const t = setup({ hasApprovalUi: true })
+    await t.send('l1', 'hi')
+    const secret = `sk-${'k'.repeat(24)}`
+    const command = `deploy --token ${secret}`
+    requestApproval(t, 'a1', {
+      toolName: 'bash',
+      rawArgs: JSON.stringify({ command }),
+      subject: { kind: 'shell', command },
+      availableChoices: [
+        { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+        {
+          choiceId: 'allow_session',
+          label: `Always allow: ${command}`,
+          decision: 'approvedPolicyAmendment',
+          scope: 'session',
+        },
+        { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
+      ],
+    })
+    await settle()
+    const cards = agentEvents(t).filter((event) => event.type === 'approvalRequested')
+    expect(cards).toHaveLength(1)
+    expect(cards[0]).toMatchObject({
+      subject: { kind: 'shell', command: 'deploy --token [redacted]' },
+      note: UI_TEXT.approvalSecretNote,
+      availableChoices: [{ choiceId: 'allow_once' }, { choiceId: 'abort' }],
+    })
+    expect(JSON.stringify(t.surface.posted)).not.toContain(secret)
+  })
+
   it('answers a plain file-write approval itself in Edit automatically, labelled so', async () => {
     const t = setup({ hasApprovalUi: true, initialPermissionMode: 'acceptEdits' })
     t.server.handle('approval/decide', (params) => ({
@@ -6464,7 +7028,10 @@ describe('ConversationController: permission hardening (D24)', () => {
     await vi.waitFor(() => {
       expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
     })
-    expect(String(t.log.warn.mock.calls.at(-1)?.[0])).toContain('stale requirement')
+    expect(String(t.log.warn.mock.calls.at(-1)?.[0])).toContain(
+      'commandRejected (MSP error -32000)',
+    )
+    expect(String(t.log.warn.mock.calls.at(-1)?.[0])).not.toContain('stale requirement')
   })
 
   it('drops a conversation out of Bypass when the setting is turned off', async () => {
@@ -13575,6 +14142,41 @@ function heldAnswer() {
 }
 
 describe('ConversationController: queued messages (M87, PLAN.md D66)', () => {
+  it('redacts queued-edit refusal text at the panel boundary', async () => {
+    const { t } = await queuedL1(() => Promise.resolve({ status: 'tooLate' }))
+    const secret = `ghp_${'a'.repeat(36)}`
+    // Inject raw diagnostic text through the installed table, bypassing
+    // error formatting so the host-to-panel boundary is tested on its own.
+    setUiText({ ...EN, queuedTooLate: `refused: ${secret}` }, 'en')
+    try {
+      await withdraw(t, 'l1', 'tq')
+      expect(t.surface.posted.at(-1)).toEqual(withdrawRefusal('l1', 'refused: [redacted]'))
+      expect(JSON.stringify(t.surface.posted)).not.toContain(secret)
+    } finally {
+      setUiText(EN, 'en')
+    }
+  })
+
+  it('redacts a failed queued edit and keeps MSP account text out of its log', async () => {
+    const secret = `ghp_${'a'.repeat(36)}`
+    const { t } = await queuedL1(() =>
+      Promise.reject(
+        new MspError({
+          code: -32_603,
+          message: `alice@example.test /Users/alice ${secret}`,
+          data: { kind: 'internal' },
+        }),
+      ),
+    )
+    await withdraw(t, 'l1', 'tq')
+    expect(t.surface.posted.at(-1)).toEqual(
+      withdrawRefusal('l1', 'alice@example.test /Users/alice [redacted]'),
+    )
+    expect(logLines(t.log).join('\n')).not.toContain(secret)
+    expect(logLines(t.log).join('\n')).not.toContain('alice@example.test')
+    expect(logLines(t.log).join('\n')).not.toContain('/Users/alice')
+  })
+
   it('tells the panel what became of each message: started, steered or queued', async () => {
     const t = setup()
     await steeredIntoRunning(t)
@@ -13914,6 +14516,23 @@ describe('ConversationController: the tasks tab (M87, PLAN.md D66)', () => {
     expect(tab.calls.at(-1)).toMatchObject({ call: 'update' })
   })
 
+  it('redacts a Tasks-tab failure before it reaches the panel and log', async () => {
+    const tab = fakeTasksTab()
+    const secret = `ghp_${'a'.repeat(36)}`
+    tab.port.open = () => {
+      throw new Error(`cannot open: ${secret}`)
+    }
+    const t = setup({ tasksTab: tab.port })
+    await t.controller.handle(OPEN_TASKS_TAB)
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'error',
+      text: `${fill(UI_TEXT.hostActionFailed, { action: 'openTasksTab' })}: cannot open: [redacted]`,
+    })
+    expect(logLines(t.log).join('\n')).not.toContain(secret)
+    expect(logLines(t.log).join('\n')).toContain('[redacted]')
+  })
+
   it('says it could not open where the host has no tabs, or the tab failed', async () => {
     const failed = fill(UI_TEXT.hostActionFailed, { action: 'openTasksTab' })
     const t = setup()
@@ -14077,6 +14696,31 @@ describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D
         }),
       })
     })
+  })
+
+  it('scrubs a secret introduced while the reviewer holds the captured approval (RVM92E P1)', async () => {
+    const t = reviewed()
+    await asked(t)
+    await vi.waitFor(() => {
+      expect(sideTurns(t)).toHaveLength(1)
+    })
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const command = `echo ${secret}`
+    t.server.notify('approval/updated', {
+      ...raceUpdated('s1', 1),
+      subject: { kind: 'shell', command },
+    })
+    await vi.waitFor(() => {
+      expect(cards(t)).toHaveLength(1)
+    })
+    const card = cards(t)[0]
+    expect(JSON.stringify(card).includes(secret)).toBe(false)
+    expect(card).toMatchObject({ note: UI_TEXT.approvalSecretNote })
+    expect(card?.availableChoices.map((choice) => choice.choiceId)).toEqual(['allow_once', 'abort'])
+    sideReplies(t, CAPTURED_REPLY)
+    await settle()
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    t.controller.dispose()
   })
 
   it('shows the card with the reviewer’s reason when it asks', async () => {

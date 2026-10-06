@@ -62,15 +62,27 @@ const claimFlagsSchema = z.object({
 })
 type ClaimFlags = z.infer<typeof claimFlagsSchema>
 
-export interface SessionBudgetJournalDeps {
+export type SessionBudgetJournalDeps = {
   readonly directory: string
-  /** Reads the authoritative session file without its journal projection. */
-  readonly loadSession: (sessionId: string) => Promise<StoredSession | undefined>
   readonly sleep: (ms: number) => Promise<void>
   readonly rename?: (from: string, to: string) => Promise<void>
-}
+} & (
+  | {
+      /** Reads the authoritative session file without its journal projection. */
+      readonly loadSession: (sessionId: string) => Promise<StoredSession | undefined>
+    }
+  | {
+      /** D78: an independent new daily scope has no earlier session history. */
+      readonly initialBudget: () => Promise<SessionBudgetTotal>
+    }
+)
 
 interface ProjectedSessionBudgetJournal extends SessionBudgetJournal {
+  /** A usage view must never seed an unopened budget ledger. */
+  readExisting(
+    sessionId: string,
+    accountId: string,
+  ): Promise<(SessionBudgetTotal & { readonly uncertainUsd?: number }) | undefined>
   /** Existing journal data owns this field; an unopened journal leaves a snapshot alone. */
   project(session: StoredSession): Promise<StoredSession>
 }
@@ -181,21 +193,31 @@ function readClaim(scope: Scope, seed: Seed, claimId: string): Claim {
   }
 }
 
-function totalFor(scope: Scope): SessionBudgetTotal {
+function totalFor(
+  scope: Scope,
+  isUsageView = false,
+): SessionBudgetTotal & { readonly uncertainUsd?: number } {
   try {
     const seed = readSeed(scope)
     let spentUsd = seed.spentUsd
     let hasUnknownHistoricalFees = seed.hasUnknownHistoricalFees
+    let uncertainUsd = 0
     const claimIds = readdirSync(path.join(scope.directory, CLAIMS_DIRECTORY))
     for (const claimId of claimIds) {
       const claim = readClaim(scope, seed, claimId)
       spentUsd += claim.settledUsd ?? claim.reservedUsd
+      if (claim.settledUsd === undefined || claim.hasUnknownCost === true)
+        uncertainUsd += claim.settledUsd ?? claim.reservedUsd
       hasUnknownHistoricalFees ||=
         claim.hasUnknownCost === true ||
         (claim.isUnbounded === true && claim.settledUsd === undefined)
     }
     assertCost(spentUsd)
-    return { spentUsd, hasUnknownHistoricalFees }
+    return {
+      spentUsd,
+      hasUnknownHistoricalFees,
+      ...(isUsageView && uncertainUsd > 0 && { uncertainUsd }),
+    }
   } catch (error: unknown) {
     throw unavailable(error)
   }
@@ -231,10 +253,18 @@ export function createSessionBudgetJournal(
       // An existing intent never grants another writer the right to seed.
       return readSeed(scope)
     }
-    const session = await deps.loadSession(scope.sessionId)
-    if (session?.sessionId !== scope.sessionId || session.accountId !== scope.accountId) {
-      throw unavailable()
+    const loadBudget = async (shouldCheckHistory = true): Promise<SessionBudgetTotal> => {
+      if ('initialBudget' in deps) return await deps.initialBudget()
+      const session = await deps.loadSession(scope.sessionId)
+      if (session?.sessionId !== scope.sessionId || session.accountId !== scope.accountId)
+        throw unavailable()
+      return {
+        spentUsd: session.budgetSpentUsd ?? 0,
+        hasUnknownHistoricalFees: shouldCheckHistory && hasUnknownHistory(session),
+      }
     }
+    // As before: validate ownership first; history failures retain the intent.
+    await loadBudget(false)
     try {
       await mkdir(path.dirname(scope.intent), { recursive: true })
       await mkdir(scope.intent)
@@ -247,14 +277,11 @@ export function createSessionBudgetJournal(
     try {
       // Only the intent creator reaches this path. A crash leaves the
       // intent behind and future readers refuse, rather than resetting spend.
-      const fresh = await deps.loadSession(scope.sessionId)
-      if (fresh?.sessionId !== scope.sessionId || fresh.accountId !== scope.accountId) {
-        throw unavailable()
-      }
+      const fresh = await loadBudget()
       await mkdir(path.dirname(scope.directory), { recursive: true })
       await mkdir(scope.directory)
       await mkdir(path.join(scope.directory, CLAIMS_DIRECTORY))
-      const spentUsd = fresh.budgetSpentUsd ?? 0
+      const spentUsd = fresh.spentUsd
       assertCost(spentUsd)
       const seed: Seed = {
         version: 1,
@@ -262,7 +289,7 @@ export function createSessionBudgetJournal(
         sessionId: scope.sessionId,
         accountId: scope.accountId,
         spentUsd,
-        hasUnknownHistoricalFees: hasUnknownHistory(fresh),
+        hasUnknownHistoricalFees: fresh.hasUnknownHistoricalFees,
       }
       await writeFileAtomically(
         path.join(scope.directory, SEED_FILE),
@@ -433,6 +460,11 @@ export function createSessionBudgetJournal(
   }
 
   return {
+    async readExisting(sessionId, accountId) {
+      const scope = scopeFor(sessionId, accountId)
+      if (!(await isPresent(scope.intent)) && !(await isPresent(scope.directory))) return
+      return totalFor(scope, true)
+    },
     async read(sessionId, accountId) {
       const scope = scopeFor(sessionId, accountId)
       await ensure(scope)

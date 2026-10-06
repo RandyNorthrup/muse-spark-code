@@ -13,10 +13,13 @@ import {
 // `ModelApiError`. `fetch`, the clock and the key are injected.
 
 import { createHash } from 'node:crypto'
+import type { PaidFeature } from '../../../shared/constants'
+import type { SessionBudgetClaim } from './sessionBudget'
 
 import {
   MODEL_API_MAX_RETRIES,
   HTTP_TOO_MANY_REQUESTS,
+  HTTP_STATUS,
   IMAGE_REQUEST_TIMEOUT_MS,
   MODEL_API_RETRY_BASE_MS,
   MODEL_API_RETRY_JITTER_MS,
@@ -49,8 +52,16 @@ import {
   streamEventSchema,
 } from './schemas'
 import { parseSse } from './sse'
+import { estimateCostUsd } from '../../usage/insights'
 
 export interface ModelApiClientDeps {
+  /** Interactive VS Code extras only; ACP/headless clients omit this port. */
+  readonly reservePaidRequest?: (
+    body: CreateResponseBody | CreateImageBody,
+    feature: PaidFeature,
+    estimatedInputTokens?: number,
+    signal?: AbortSignal,
+  ) => Promise<SessionBudgetClaim | undefined>
   readonly fetch: typeof fetch
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */
@@ -196,6 +207,8 @@ export function rateLimitHeaders(headers: Headers): UsageHeaders {
 }
 
 export interface ResponseAttemptGuard {
+  readonly paidFeature?: PaidFeature
+  readonly paidEstimatedInputTokens?: number
   (keyDigest: string | undefined): void
   /** After every final fence and request build, adjacent to the actual fetch call. */
   readonly onRequestStarted?: () => void
@@ -295,6 +308,10 @@ export class ModelApiClient {
        * so it is not.
        */
       readonly retries?: 'all' | 'rateLimitOnly'
+      readonly paid?: {
+        readonly claim: SessionBudgetClaim
+        isSent: boolean
+      }
     },
     signal: AbortSignal | undefined,
     onRetry?: (notice: RetryNotice) => void,
@@ -302,7 +319,7 @@ export class ModelApiClient {
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
   ): Promise<Response> {
-    const isRateLimitOnly = init.retries === 'rateLimitOnly'
+    const isRateLimitOnly = init.retries === 'rateLimitOnly' || init.paid !== undefined
     const fixedHeaders =
       admitAttempt === undefined && confirmed === undefined ? await this.headers() : undefined
     const url = `${this.deps.baseUrl}${path}`
@@ -345,6 +362,10 @@ export class ModelApiClient {
       }
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.
+      if (init.paid !== undefined) {
+        if (init.paid.isSent) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+        init.paid.claim.check(0)
+      }
       admitAttempt?.(credentials.keyDigest)
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
@@ -361,6 +382,7 @@ export class ModelApiClient {
       }
       confirmed?.onRequestStarted()
       admitAttempt?.onRequestStarted?.()
+      if (init.paid !== undefined) init.paid.isSent = true
       let response: Response
       try {
         response = await this.deps.fetch(url, requestInit)
@@ -400,6 +422,11 @@ export class ModelApiClient {
         rateLimited: response.status === HTTP_TOO_MANY_REQUESTS,
       })
       const failure = await describeFailure(response)
+      if (
+        init.paid !== undefined &&
+        (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
+      )
+        init.paid.isSent = false
       const isRetryable = isRateLimitOnly
         ? response.status === HTTP_TOO_MANY_REQUESTS
         : MODEL_API_RETRYABLE_STATUSES.has(response.status)
@@ -424,15 +451,36 @@ export class ModelApiClient {
     signal: AbortSignal,
     admitAttempt?: ResponseAttemptGuard,
   ): Promise<ImagesResponse> {
-    const response = await this.request(
-      path,
-      { method: 'POST', body, accept: JSON_MEDIA_TYPE, retries: 'rateLimitOnly' },
-      AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)]),
-      undefined,
-      undefined,
-      admitAttempt,
-    )
-    return imagesResponseSchema.parse(await response.json())
+    const active = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
+    const claim = await this.deps.reservePaidRequest?.(body, 'imageGeneration', undefined, active)
+    const paid = claim === undefined ? undefined : { claim, isSent: false }
+    try {
+      const response = await this.request(
+        path,
+        {
+          method: 'POST',
+          body,
+          accept: JSON_MEDIA_TYPE,
+          retries: 'rateLimitOnly',
+          ...(paid !== undefined && { paid }),
+        },
+        active,
+        undefined,
+        undefined,
+        admitAttempt,
+      )
+      const result = imagesResponseSchema.parse(await response.json())
+      // The request asks for exactly one image; retain its flat fee on any ambiguous result.
+      if (claim !== undefined) await claim.settle(result.data.length === 0 ? 0 : claim.reservedUsd)
+      return result
+    } finally {
+      if (paid?.isSent === false) await paid.claim.settle(0)
+    }
+  }
+
+  /** Whether interactive extras have a finite daily admission port (D78). */
+  public get hasPaidDailyBudget(): boolean {
+    return this.deps.reservePaidRequest !== undefined
   }
 
   /** Bind a one-use child consent to the stored key without retaining it. */
@@ -533,86 +581,141 @@ export class ModelApiClient {
       }
     }
     const observationStartedAt = this.deps.now()
-    const response = await within(
-      this.request(
-        '/responses',
-        { method: 'POST', body, accept: EVENT_STREAM_MEDIA_TYPE },
-        AbortSignal.any([signal, stall.signal]),
-        onRetry,
-        budget,
-        admitAttempt,
-        confirmed,
-      ),
-    )
-    if (response.body === null) {
-      throw new ModelApiError('The response had no body', response.status, undefined, undefined)
-    }
     let hasFirstToken = false
-    const frames = parseSse(response.body)[Symbol.asyncIterator]()
+    let feature = admitAttempt?.paidFeature
+    if (feature === undefined && confirmed !== undefined) feature = 'scheduledPrompts'
+    if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search'))
+      feature = 'webSearch'
+    const claim =
+      feature === undefined
+        ? undefined
+        : await this.deps.reservePaidRequest?.(
+            body,
+            feature,
+            admitAttempt?.paidEstimatedInputTokens,
+            signal,
+          )
+    const paid = claim === undefined ? undefined : { claim, isSent: false }
     try {
-      for (;;) {
-        const next = await within(frames.next())
-        if (next.done === true) {
-          return
-        }
-        const frame = next.value
-        // OpenAI-style streams end with `data: [DONE]`; a keep-alive may carry no
-        // data. Neither is an event (D26).
-        if (frame.data.trim() === '' || frame.data === SSE_DONE_SENTINEL) {
-          continue
-        }
-        let json: unknown
-        try {
-          json = JSON.parse(frame.data)
-        } catch {
-          throw new ModelApiError(
-            // Its length, not its text: the frame is model output, and this
-            // message becomes the failed turn's reason in the log (M39).
-            `Malformed stream frame (${String(frame.data.length)} characters)`,
-            response.status,
-            undefined,
-            undefined,
-          )
-        }
-        const known = streamEventSchema.safeParse(json)
-        if (known.success) {
-          if (
-            !hasFirstToken &&
-            [
-              'response.output_text.delta',
-              'response.reasoning_summary_text.delta',
-              'response.function_call_arguments.delta',
-            ].includes(known.data.type)
-          ) {
-            hasFirstToken = true
-            this.observe(admitAttempt, {
-              firstTokenMs: Math.max(0, this.deps.now() - observationStartedAt),
-            })
+      const response = await within(
+        this.request(
+          '/responses',
+          {
+            method: 'POST',
+            body,
+            accept: EVENT_STREAM_MEDIA_TYPE,
+            ...(paid !== undefined && { paid }),
+          },
+          AbortSignal.any([signal, stall.signal]),
+          onRetry,
+          budget,
+          admitAttempt,
+          confirmed,
+        ),
+      )
+      if (response.body === null) {
+        throw new ModelApiError('The response had no body', response.status, undefined, undefined)
+      }
+      const frames = parseSse(response.body)[Symbol.asyncIterator]()
+      try {
+        for (;;) {
+          const next = await within(frames.next())
+          if (next.done === true) {
+            return
           }
-          yield known.data
-          continue
+          const frame = next.value
+          // OpenAI-style streams end with `data: [DONE]`; a keep-alive may carry no
+          // data. Neither is an event (D26).
+          if (frame.data.trim() === '' || frame.data === SSE_DONE_SENTINEL) {
+            continue
+          }
+          let json: unknown
+          try {
+            json = JSON.parse(frame.data)
+          } catch {
+            throw new ModelApiError(
+              // Its length, not its text: the frame is model output, and this
+              // message becomes the failed turn's reason in the log (M39).
+              `Malformed stream frame (${String(frame.data.length)} characters)`,
+              response.status,
+              undefined,
+              undefined,
+            )
+          }
+          const known = streamEventSchema.safeParse(json)
+          if (known.success) {
+            if (
+              !hasFirstToken &&
+              [
+                'response.output_text.delta',
+                'response.reasoning_summary_text.delta',
+                'response.function_call_arguments.delta',
+              ].includes(known.data.type)
+            ) {
+              hasFirstToken = true
+              this.observe(admitAttempt, {
+                firstTokenMs: Math.max(0, this.deps.now() - observationStartedAt),
+              })
+            }
+            if (
+              claim !== undefined &&
+              ['response.completed', 'response.incomplete', 'response.failed'].includes(
+                known.data.type,
+              ) &&
+              'response' in known.data
+            ) {
+              const usage = known.data.response.usage
+              const cached = usage?.input_tokens_details?.cached_tokens ?? 0
+              if (
+                usage !== null &&
+                usage !== undefined &&
+                Number.isSafeInteger(usage.input_tokens) &&
+                usage.input_tokens >= 0 &&
+                Number.isSafeInteger(usage.output_tokens) &&
+                usage.output_tokens >= 0 &&
+                Number.isSafeInteger(cached) &&
+                cached >= 0 &&
+                cached <= usage.input_tokens
+              ) {
+                await claim.settle(
+                  estimateCostUsd(
+                    {
+                      inputTokens: usage.input_tokens,
+                      outputTokens: usage.output_tokens,
+                      cachedTokens: cached,
+                    },
+                    body.model,
+                  ),
+                )
+              }
+            }
+            yield known.data
+            continue
+          }
+          const typed = eventTypeSchema.safeParse(json)
+          if (!typed.success) {
+            throw new ModelApiError(
+              'Stream frame without a type',
+              response.status,
+              undefined,
+              undefined,
+            )
+          }
+          // Once a type, not once a frame (M39).
+          if (this.ignoredEventTypes.has(typed.data.type)) {
+            continue
+          }
+          this.ignoredEventTypes.add(typed.data.type)
+          this.deps.log.info(`Model API stream events of type ${typed.data.type} are ignored`)
         }
-        const typed = eventTypeSchema.safeParse(json)
-        if (!typed.success) {
-          throw new ModelApiError(
-            'Stream frame without a type',
-            response.status,
-            undefined,
-            undefined,
-          )
-        }
-        // Once a type, not once a frame (M39).
-        if (this.ignoredEventTypes.has(typed.data.type)) {
-          continue
-        }
-        this.ignoredEventTypes.add(typed.data.type)
-        this.deps.log.info(`Model API stream events of type ${typed.data.type} are ignored`)
+      } finally {
+        // An early end (a malformed frame, a stall, the caller stopping)
+        // closes the parser, which releases the response body (the review of
+        // PR #20). Not awaited: after a stall its last read may never settle.
+        void frames.return(undefined).catch(ignoreClosingError)
       }
     } finally {
-      // An early end (a malformed frame, a stall, the caller stopping)
-      // closes the parser, which releases the response body (the review of
-      // PR #20). Not awaited: after a stall its last read may never settle.
-      void frames.return(undefined).catch(ignoreClosingError)
+      if (paid?.isSent === false) await paid.claim.settle(0)
     }
   }
 }

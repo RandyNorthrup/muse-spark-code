@@ -1,3 +1,4 @@
+import { redactDiagnosticEvent } from '../../redact'
 // Maps Muse Session Protocol notifications onto backend-agnostic AgentEvents.
 // Pure and total: an unknown method is `UNKNOWN_METHOD` and params that fail
 // their schema are `MALFORMED_PARAMS`, and the caller decides how loudly to
@@ -16,6 +17,7 @@ import {
   todoItemSchema,
 } from '../../../shared/agentEvents'
 import { UI_TEXT } from '../../../shared/constants'
+import { isProtectedFileAccess } from '../../protectedPaths'
 import { toSessionGoal, toSnapshot, wireGoalSchema, wireItemSchema } from './sessionRecords'
 
 export type MappedNotification =
@@ -28,6 +30,29 @@ export const MALFORMED_PARAMS = 'malformed'
 export type MapOutcome = MappedNotification | typeof UNKNOWN_METHOD | typeof MALFORMED_PARAMS
 
 const ALREADY_TERMINAL = 'alreadyTerminal'
+const ONCE_SCOPE = 'once'
+// MSP's approving decisions: `approved`, `approvedPolicyAmendment`, …
+const APPROVING_DECISION_PREFIX = 'approved'
+
+type WireChoice = z.infer<typeof approvalChoiceSchema>
+
+/**
+ * A file write the extension's list protects (D24, 2026-10-04) offers no
+ * approval that outlasts it: "Always allow" would be a rule Muse Code
+ * answers later writes by, without a card. Allow once and every refusal
+ * stay, as Muse Code offers for its own protected writes.
+ */
+function choicesFor(
+  subject: z.infer<typeof approvalSubjectSchema>,
+  choices: WireChoice[],
+): WireChoice[] {
+  return isProtectedFileAccess(subject)
+    ? choices.filter(
+        (choice) =>
+          choice.scope === ONCE_SCOPE || !choice.decision.startsWith(APPROVING_DECISION_PREFIX),
+      )
+    : choices
+}
 
 export interface WireNotification {
   readonly method: string
@@ -158,7 +183,7 @@ function isMappedMethod(method: string): method is MappedMethod {
 /** The default delta field when the host omits one. */
 const DEFAULT_DELTA_FIELD = 'text'
 
-export function mapNotification(notification: WireNotification): MapOutcome {
+function rawNotification(notification: WireNotification): MapOutcome {
   const { method } = notification
   if (!isMappedMethod(method)) {
     return UNKNOWN_METHOD
@@ -302,9 +327,11 @@ export function mapNotification(notification: WireNotification): MapOutcome {
           rawArgs: p.rawArgs,
           requirementId: p.currentRequirementId,
           subject: p.subject,
-          availableChoices: p.availableChoices,
+          availableChoices: choicesFor(p.subject, p.availableChoices),
           isJudgeEscalated: p.judgeEscalated,
-          isProtectedWrite: p.protectedWrite,
+          // Muse Code's own flag, or the extension's list (a Muse Code file
+          // write it does not flag).
+          isProtectedWrite: p.protectedWrite || isProtectedFileAccess(p.subject),
           ...(p.turnId !== undefined && { turnId: p.turnId }),
         },
       }
@@ -322,7 +349,7 @@ export function mapNotification(notification: WireNotification): MapOutcome {
           approvalId: p.approvalId,
           requirementId: p.currentRequirementId,
           subject: p.subject,
-          availableChoices: p.availableChoices,
+          availableChoices: choicesFor(p.subject, p.availableChoices),
         },
       }
     }
@@ -389,4 +416,12 @@ export function mapNotification(notification: WireNotification): MapOutcome {
       }
     }
   }
+}
+
+/** Diagnostic events are safe before any backend subscriber sees them. */
+export function mapNotification(notification: WireNotification): MapOutcome {
+  const mapped = rawNotification(notification)
+  return typeof mapped === 'string' || !('event' in mapped)
+    ? mapped
+    : { ...mapped, event: redactDiagnosticEvent(mapped.event) }
 }

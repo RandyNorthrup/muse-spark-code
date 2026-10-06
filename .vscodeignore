@@ -6,6 +6,8 @@
 !dist/reviewer.js
 !dist/planMarkdown.js
 !dist/checkpointStore.js
+!dist/browserCheck.js
+!dist/browserRuntime.js
 !dist/review.js
 !dist/agentImport.js
 !dist/bundledSkills.js
@@ -14,6 +16,11 @@
 !dist/webFetch.js
 !dist/museCodeReviewer.js
 !dist/modelsPanel.js
+!dist/usageService.js
+!dist/usageCompanion.js
+!dist/usagePanel.js
+!dist/whatsNew.js
+!dist/whatsNew.json
 !dist/uiText.js
 !dist/validation.js
 !dist/searchWorker.js
@@ -23,7 +30,11 @@
 !dist/webview/main.css
 !dist/webview/models.js
 !dist/webview/models.css
+!dist/webview/usage.js
+!dist/webview/usage.css
 !dist/providerCatalog.json
+!dist/webview/whatsNew.js
+!dist/webview/whatsNew.css
 !media/icon.svg
 !media/icon.png
 !resources/walkthrough/**
@@ -37,6 +48,7 @@
 !package.nls.json
 !package.nls.*.json
 !l10n/ui.*.json
+!l10n/usage.*.json
 !README.md
 !CHANGELOG.md
 !LICENSE
@@ -45,3 +57,4 @@
 !vendor/high-quality-projects-skill/**
 !vendor/models-dev/LICENSE
 !vendor/models-dev/VENDOR.json
+!first-party-skills/**

@@ -5,7 +5,7 @@
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
 import { spawn } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { open, readFile } from 'node:fs/promises'
 import { writeFile } from 'node:fs/promises'
@@ -51,6 +51,14 @@ import { runProgram } from '../host/processTree'
 import { agentDataFolder } from './dataFolder'
 import { lazyUsageAdapter, usageCompanionUrl } from './usage/usageAdapter'
 import type { UsageAdapter } from './usage/usageAdapter'
+import {
+  createUsageRecording,
+  isUsageWriterBundle,
+  type UsageRecording,
+} from '../core/usage/recording'
+import { requireFile } from '../host/lazyBundle'
+import { MuseCodeHost } from '../core/backends/musecode/MuseCodeHost'
+import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
 
 const EXIT_FAILED = 1
 // Credential variables leave the agent's own environment before anything
@@ -200,7 +208,7 @@ function runtimeFor(options: ServeOptions, log: Logger) {
   })
 }
 
-function usageFor(log: Logger): UsageAdapter {
+function usageFor(log: Logger, recording?: UsageRecording): UsageAdapter {
   return lazyUsageAdapter({
     dataFolder: agentDataFolder({
       platform: process.platform,
@@ -212,6 +220,14 @@ function usageFor(log: Logger): UsageAdapter {
     locale: uiLocale(),
     uiText: UI_TEXT,
     log,
+    ...(recording !== undefined && {
+      beforeRead: () => recording.flush(),
+      live: {
+        readBudgets: () => Promise.resolve([]),
+        readLiveLimits: () => Promise.resolve(recording.limits?.() ?? []),
+        providerConsoles: () => [],
+      },
+    }),
   })
 }
 
@@ -248,43 +264,82 @@ async function openUsageBrowser(input: string): Promise<void> {
 }
 
 async function serve(options: ServeOptions, log: Logger): Promise<number> {
-  const runtime = runtimeFor(options, log)
-  const usage = usageFor(log)
-  // A proxy the Model API backend's requests will not use is said at once (Q66).
-  const proxyWarning = envProxyWarning({
-    backend: options.backend,
-    platform: process.platform,
-    env: process.env,
-    execArgv: process.execArgv,
-    nodeVersion: process.version,
-  })
-  if (proxyWarning !== undefined) {
-    log.warn(proxyWarning)
-  }
-  // "Allow always" lapses for a paid feature started without its flag (M58).
-  await runtime.forgetUnflaggedGrants()
-  const agent = createAcpAgent({
-    backend: runtime.backend,
-    version: packageVersion(),
-    options: {
-      canBypass: options.canBypass,
-      allowsContributorModels: options.allowsContributorModels,
-      initialMode: SETTING_DEFAULTS.initialPermissionMode,
-    },
-    signIn: signInMethod(options),
-    defaultCwd: process.cwd(),
-    paid: runtime.paid,
+  let clientName = 'ACP'
+  const recording = createUsageRecording({
+    client: () => clientName,
+    now: Date.now,
+    newId: randomUUID,
+    isEnabled: () => options.usageHistory ?? true,
     log,
-    usage,
+    writer: async (onWriteError) => {
+      const bundle = requireFile(path.join(distDir, 'usageService.js'))
+      if (!isUsageWriterBundle(bundle)) throw new Error(UI_TEXT.actionFailed)
+      return await bundle.createUsageWriter({
+        dataFolder: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        writerId: randomUUID(),
+        now: Date.now,
+        isEnabled: () => options.usageHistory ?? true,
+        onWriteError,
+      })
+    },
   })
-  const connection = agent.connect(
-    ndJsonStream(Writable.toWeb(process.stdout), webReadable(process.stdin)),
-  )
-  log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
-  await connection.closed
-  await usage.dispose()
-  await runtime.close()
-  return 0
+  const previousModel = ModelApiBackendManager.usageRecording
+  const previousMuse = MuseCodeHost.usageRecording
+  ModelApiBackendManager.usageRecording = recording
+  MuseCodeHost.usageRecording = recording
+  try {
+    const runtime = runtimeFor(options, log)
+    const usage = usageFor(log, recording)
+    // A proxy the Model API backend's requests will not use is said at once (Q66).
+    const proxyWarning = envProxyWarning({
+      backend: options.backend,
+      platform: process.platform,
+      env: process.env,
+      execArgv: process.execArgv,
+      nodeVersion: process.version,
+    })
+    if (proxyWarning !== undefined) {
+      log.warn(proxyWarning)
+    }
+    // "Allow always" lapses for a paid feature started without its flag (M58).
+    await runtime.forgetUnflaggedGrants()
+    const agent = createAcpAgent({
+      onClientName: (name) => {
+        clientName = name
+      },
+      backend: runtime.backend,
+      version: packageVersion(),
+      options: {
+        canBypass: options.canBypass,
+        allowsContributorModels: options.allowsContributorModels,
+        initialMode: SETTING_DEFAULTS.initialPermissionMode,
+      },
+      signIn: signInMethod(options),
+      defaultCwd: process.cwd(),
+      paid: runtime.paid,
+      log,
+      usage,
+    })
+    const connection = agent.connect(
+      ndJsonStream(Writable.toWeb(process.stdout), webReadable(process.stdin)),
+    )
+    log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
+    try {
+      await connection.closed
+    } finally {
+      await usage.dispose()
+      await runtime.close()
+    }
+    return 0
+  } finally {
+    await recording.flush()
+    ModelApiBackendManager.usageRecording = previousModel
+    MuseCodeHost.usageRecording = previousMuse
+  }
 }
 
 function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
@@ -423,13 +478,16 @@ async function main(): Promise<number> {
   switch (command.command) {
     case 'usage': {
       const usage = usageFor(log)
-      const lines = createInterface({ input: process.stdin, crlfDelay: Infinity })
+      const lines =
+        command.options.action === 'stdio'
+          ? createInterface({ input: process.stdin, crlfDelay: Infinity })
+          : undefined
       let isPageOpen = false
       try {
         const result = await usage.runCommand(command.options, {
           usage: usage.access(),
           openPage: () => usage.openPage(),
-          input: lines,
+          input: lines ?? [],
           openBrowser: openUsageBrowser,
           print: (text) =>
             new Promise<void>((resolve, reject) => {
@@ -444,7 +502,7 @@ async function main(): Promise<number> {
         isPageOpen = command.options.action === 'open'
         return result
       } finally {
-        lines.close()
+        lines?.close()
         // An open page's companion owns its 30-minute idle lifetime. Other
         // commands leave no server behind; ACP closes its server on disconnect.
         if (!isPageOpen) await usage.dispose()

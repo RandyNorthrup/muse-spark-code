@@ -1,6 +1,7 @@
 import type { UsageRecording } from '../../src/core/usage/recording'
 import { watchSessionTurns } from './helpers/sessionTurns'
 import { describe, expect, it, vi } from 'vitest'
+import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { SessionStore } from '../../src/core/backends/modelapi/sessionStore'
 import {
   ModelApiBackendManager,
@@ -85,7 +86,7 @@ function managerOn(
   extra: Partial<
     Pick<
       ModelApiBackendManagerDeps,
-      'createMcpServers' | 'ideTools' | 'isObservationPackingOn' | 'newId'
+      'createMcpServers' | 'ideTools' | 'isObservationPackingOn' | 'newId' | 'browserCheck'
     >
   > = {},
 ) {
@@ -117,6 +118,49 @@ function manager(workspaceRoot: string | undefined) {
 }
 
 describe('ModelApiBackendManager', () => {
+  it('offers the window browser check only to the window host, never a best-of-N attempt (M81)', async () => {
+    const check = vi.fn<NonNullable<ModelApiBackendManagerDeps['browserCheck']>['check']>(() =>
+      Promise.resolve({ ok: false, failure: { kind: 'runtimeMissing' } }),
+    )
+    const m = managerOn('/ws', undefined, new FakeLogOutputChannel(), undefined, {
+      browserCheck: { check, extraHosts: () => [], isOffered: () => true },
+    })
+    const windowHost = await m.manager.ensureHost()
+    const parent = await windowHost.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'allowAll',
+    })
+    m.api.script({ text: 'parent' })
+    await parent.sendTurn([{ type: 'text', text: 'hello' }])
+    await vi.waitFor(() => {
+      expect(m.api.responseBodies()).toHaveLength(1)
+    })
+    expect(JSON.stringify(m.api.responseBodies()[0])).toContain('browser_check')
+    const attemptHost = await m.manager.buildAttemptHost('/trial', () => undefined)
+    const attempt = await attemptHost.startSession({
+      workspaceRoot: '/trial',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'allowAll',
+    })
+    const events: AgentEvent[] = []
+    attempt.onEvent((event) => {
+      events.push(event)
+    })
+    m.api.script(
+      { calls: [{ name: 'browser_check', arguments: '{"url":"http://localhost:3000/"}' }] },
+      { text: 'done' },
+    )
+    await attempt.sendTurn([{ type: 'text', text: 'check' }])
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === 'turnCompleted')).toBe(true)
+    })
+    expect(JSON.stringify(m.api.responseBodies()[1])).not.toContain('browser_check')
+    expect(check).not.toHaveBeenCalled()
+    await attemptHost.close()
+    await m.manager.dispose()
+  })
+
   it('holds a manual revert across lazy startup and a same-id replacement without creating an own round', async () => {
     const m = manager('/ws')
     const entered = Promise.withResolvers<undefined>()

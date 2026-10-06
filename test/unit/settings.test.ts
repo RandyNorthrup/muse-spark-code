@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { permissionSettingsOf, readSettings, toSettingsSnapshot } from '../../src/host/settings'
 import { SETTING_DEFAULTS } from '../../src/shared/constants'
@@ -10,6 +11,51 @@ function retentionOf(value: unknown): number {
 }
 
 describe('readSettings', () => {
+  it('documents Best-of-N default availability consistently with the manifest and fallback', () => {
+    const readme = readFileSync('README.md', 'utf8')
+    expect(SETTING_DEFAULTS.modelApiBestOfN).toBe(true)
+    expect(/Best-of-N \(Model API, paid, available by\s+default\)/.test(readme)).toBe(true)
+    expect(/Best-of-N \(Model API, paid, off by\s+default/.test(readme)).toBe(false)
+  })
+
+  it('enables D78 enhancements and respects each explicit false', () => {
+    const keys = [
+      'modelApiObservationPacking',
+      'modelApiHooks',
+      'modelApiReplyUsage',
+      'modelApiWebSearch',
+      'modelApiImageGeneration',
+      'modelApiVoice',
+      'modelApiAutoReviewer',
+      'modelApiSubagents',
+      'modelApiScheduledPrompts',
+      'modelApiBestOfN',
+    ] as const
+    const log = new FakeLogOutputChannel()
+    const defaults = readSettings(fakeSettingsSource({}), log)
+    expect(keys).toHaveLength(10)
+    for (const key of keys) {
+      expect(defaults[key], key).toBe(true)
+      expect(readSettings(fakeSettingsSource({ [key]: false }), log)[key], key).toBe(false)
+    }
+    expect(defaults.modelApiRepoMap).toBe(false)
+    expect(defaults.paidDailyBudgetUsd).toBe(5)
+    expect(defaults.dictationEngine).toBe('system')
+  })
+
+  it('validates the daily budget bounds and defaults invalid values to five dollars', () => {
+    const log = new FakeLogOutputChannel()
+    for (const value of [0.5, 5, 500]) {
+      expect(
+        readSettings(fakeSettingsSource({ paidDailyBudgetUsd: value }), log).paidDailyBudgetUsd,
+      ).toBe(value)
+    }
+    for (const value of [0, 0.49, 500.01, NaN, '5']) {
+      expect(
+        readSettings(fakeSettingsSource({ paidDailyBudgetUsd: value }), log).paidDailyBudgetUsd,
+      ).toBe(5)
+    }
+  })
   it('returns the documented defaults when nothing is configured', () => {
     const log = new FakeLogOutputChannel()
     expect(readSettings(fakeSettingsSource({}), log)).toEqual(SETTING_DEFAULTS)
@@ -37,6 +83,7 @@ describe('readSettings', () => {
         modelApiAutoReviewer: true,
         modelApiObservationPacking: true,
         museCodeAutoReviewer: false,
+        showWhatsNewOnUpdate: false,
       }),
       new FakeLogOutputChannel(),
     )
@@ -52,6 +99,9 @@ describe('readSettings', () => {
     expect(settings.museCodeAutoReviewer).toBe(false)
     expect(SETTING_DEFAULTS.museCodeAutoReviewer).toBe(true)
     expect(toSettingsSnapshot(settings).museCodeAutoReviewer).toBe(false)
+    // M99: What's New after an update, on by default, off when the user says so.
+    expect(settings.showWhatsNewOnUpdate).toBe(false)
+    expect(SETTING_DEFAULTS.showWhatsNewOnUpdate).toBe(true)
     // M56 (PLAN.md D43).
     expect(settings.sandboxNetwork).toBe('restricted')
     expect(settings.modelApiPromptCacheRetention).toBe('24h')
@@ -64,9 +114,9 @@ describe('readSettings', () => {
     expect(settings.backend).toBe('modelApi')
     expect(settings.suggestedProvider).toBe('openrouter')
     expect(settings.modelApiHooks).toBe(true)
-    // M73: observation packing, off by default.
+    // D78: observation packing is on by default.
     expect(settings.modelApiObservationPacking).toBe(true)
-    expect(SETTING_DEFAULTS.modelApiObservationPacking).toBe(false)
+    expect(SETTING_DEFAULTS.modelApiObservationPacking).toBe(true)
   })
 
   it('reads the retention period as a whole number of days, 0 keeping for ever (D26)', () => {
@@ -168,6 +218,46 @@ describe('readSettings', () => {
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('each check needs a name of its own')
   })
 
+  // M81 (PLAN.md D49): only plain hosts widen the browser check.
+  it('reads the hosts the browser check may reach, and refuses a list with one that is not a plain host', () => {
+    const valid = readSettings(
+      fakeSettingsSource({ browserCheckExtraHosts: ['dev.example.com', '192.168.1.20', '::1'] }),
+      new FakeLogOutputChannel(),
+    )
+    expect(valid.browserCheckExtraHosts).toEqual(['dev.example.com', '192.168.1.20', '::1'])
+    for (const bad of [['dev.example.com', '*.example.com'], ['a;b'], ['example.com:8080'], ['']]) {
+      const log = new FakeLogOutputChannel()
+      const invalid = readSettings(fakeSettingsSource({ browserCheckExtraHosts: bad }), log)
+      expect(invalid.browserCheckExtraHosts, JSON.stringify(bad)).toEqual([])
+      expect(String(log.warn.mock.calls[0]?.[0])).toContain('museSpark.browserCheckExtraHosts')
+    }
+    const tooMany = Array.from({ length: 33 }, (_, index) => `h${String(index)}.example`)
+    expect(
+      readSettings(
+        fakeSettingsSource({ browserCheckExtraHosts: tooMany }),
+        new FakeLogOutputChannel(),
+      ).browserCheckExtraHosts,
+    ).toEqual([])
+  })
+
+  // M81 A1: ask before the runtime is downloaded unless the user chose otherwise.
+  it('reads how the browser check gets its runtime: ask by default, download or off, nothing else', () => {
+    expect(
+      readSettings(fakeSettingsSource({}), new FakeLogOutputChannel()).browserCheckRuntime,
+    ).toBe('ask')
+    for (const mode of ['ask', 'download', 'off'] as const) {
+      expect(
+        readSettings(fakeSettingsSource({ browserCheckRuntime: mode }), new FakeLogOutputChannel())
+          .browserCheckRuntime,
+      ).toBe(mode)
+    }
+    const log = new FakeLogOutputChannel()
+    expect(
+      readSettings(fakeSettingsSource({ browserCheckRuntime: 'always' }), log).browserCheckRuntime,
+    ).toBe('ask')
+    expect(String(log.warn.mock.calls[0]?.[0])).toContain('museSpark.browserCheckRuntime')
+  })
+
   // M39: the settings are read about seven times a message.
   it('warns about an invalid value once, and again when it changes', () => {
     const log = new FakeLogOutputChannel()
@@ -199,7 +289,7 @@ describe('toSettingsSnapshot', () => {
     expect(snapshot).not.toHaveProperty('modelApiHooks')
     expect(snapshot).not.toHaveProperty('notifyOnBackgroundTurn')
     expect(snapshot).not.toHaveProperty('modelApiSessionBudgetUsd')
-    expect(snapshot.modelApiReplyUsage).toBe(false)
+    expect(snapshot.modelApiReplyUsage).toBe(true)
     expect(snapshot.preferredLocation).toBe(SETTING_DEFAULTS.preferredLocation)
   })
 })

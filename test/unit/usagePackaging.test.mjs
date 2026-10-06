@@ -32,6 +32,7 @@ function fixture() {
   for (const bundle of [
     'acp',
     'modelApi',
+    'providers',
     'reviewer',
     'uiText',
     'validation',
@@ -97,7 +98,7 @@ describe('usage assets in the ACP package', () => {
     const result = f.run()
     expect(result.status, result.stderr).toBe(0)
     const tarball = path.join(f.root, 'dist', 'muse-spark-code-acp-0.0.0-test.tgz')
-    const files = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf8' }).split('\n')
+    const files = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf8' }).split(/\r?\n/u)
     for (const file of [
       'dist/usageService.js',
       'dist/usageCompanion.js',

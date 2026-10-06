@@ -6,6 +6,31 @@ tag's source tree; otherwise it runs the reusable build and its platform gates.
 The owner/lead performs publication; implementation
 lanes do not push, tag, release, or call paid services.
 
+## Writing the Highlights block
+
+Users see each release in What's New (PLAN.md D79, M99): after an update the
+extension opens a page with every new release's Highlights and full notes,
+built from `CHANGELOG.md` at build time. Before the release PR bumps
+`package.json`:
+
+1. Rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` (and start a new,
+   empty `## [Unreleased]` above it).
+2. Give the section a `### Highlights` list first, before `### Added`: 3 to
+   5 bullets (at most 5), each one sentence or two a user can act on, in the
+   form `- **What it is.** What it does for you.`
+3. Where a highlight has something to try, end its bullet with
+   `<!-- try: command museSpark.<id> -->` or
+   `<!-- try: setting museSpark.<key> -->`. The page shows a **Try it** (or
+   **Open the setting**) button; GitHub, the Marketplace and VS Code's
+   changelog tab show nothing. The id must be a command or setting
+   `package.json` contributes, or `npm run build` fails.
+4. A patch release of fixes only may leave Highlights out: users then get a
+   quiet notification instead of the page. A minor or major release
+   (`X.Y.0`) without Highlights fails `test/unit/changelogVersion.test.ts`,
+   as does a release with more than 5.
+
+The notes stay English; the page's own words are translated.
+
 ## Choosing the release build
 
 Tag/manifest and `main` ancestry checks still run first. The lookup considers
@@ -60,7 +85,7 @@ for the package (see [npm trusted publishing](#npm-trusted-publishing)). From
 GitHub also carries `SHA256SUMS` (the standard `sha256sum` format) and two
 CycloneDX inventories: `muse-spark-code.cdx.json` and
 `muse-spark-code-acp.cdx.json`. `SHA256SUMS` lists every asset: both
-packages, both inventories and, once M80 lands, its schemas. Pinned
+packages, both inventories and the `docs/schemas/*.json` schemas. Pinned
 `actions/attest-build-provenance` attests every file `SHA256SUMS` lists. The release
 job alone receives `attestations: write`; it and the npm job receive
 `id-token: write`. npm publishes by trusted publishing: the job installs npm
@@ -87,8 +112,9 @@ Windows, but forwards MCP servers to Muse Code; it does not run the extension's
 ## Outcomes and bounded retries
 
 The final summary lists GitHub Release, Marketplace, Open VSX and npm as
-`published`, `skipped-no-secret`, or `failed`. Each registry job explicitly
-reports missing secrets; a failed, blocked, cancelled, or missing-output job is
+`published`, `skipped-no-secret`, or `failed`. The Marketplace and Open VSX
+jobs explicitly report a missing secret; the npm job uses no secret, so it is
+`published` or `failed`. A failed, blocked, cancelled, or missing-output job is
 a failure. Any failed channel fails the aggregate job. A successful workflow
 with skipped secrets is not proof that every channel published.
 
@@ -168,7 +194,7 @@ else.
 | GitHub published; Open VSX failed; other registries published or skipped    | Fix `OVSX_PAT`/namespace permissions/transport; rerun failed jobs. Namespace lookup/create and publishing have bounded network retries; an existing version requires the file hash match.                                                                                                         |
 | GitHub published; npm failed; other registries published or skipped         | Check the package's trusted publisher (below) and the job's `id-token: write`; rerun failed jobs. A prior successful upload requires matching `dist.integrity`.                                                                                                                                   |
 | Several registries failed                                                   | Fix each cause and rerun failed jobs together; successful channels remain published and the final summary covers all four.                                                                                                                                                                        |
-| A registry says `skipped-no-secret`                                         | Add its token in the tag-only `marketplace` environment, then rerun that specific registry job via its job ID in the Actions API (or owner tooling that supports rerunning a job); rerun the summary after the job completes. Rerunning only failed jobs will not rerun a successful skipped job. |
+| Marketplace or Open VSX says `skipped-no-secret`                            | Add its token in the tag-only `marketplace` environment, then rerun that specific registry job via its job ID in the Actions API (or owner tooling that supports rerunning a job); rerun the summary after the job completes. Rerunning only failed jobs will not rerun a successful skipped job. |
 | Hash/integrity mismatch, or original artifacts expired                      | Stop. Identify which bytes were published. Issue a new version after owner review; never move the version tag or overwrite registry bytes.                                                                                                                                                        |
 
 For example, the owner can rerun one successful-but-skipped registry job using
@@ -183,8 +209,10 @@ Set up on 2026-10-04 in the package's npm settings (`muse-spark-code-acp` →
 Settings → Trusted Publisher): GitHub Actions, `RandyNorthrup/muse-spark-code`,
 workflow `release.yml`, environment `marketplace`, allowed actions `npm
 publish` (and `npm stage publish`, always allowed). A run of any other
-workflow, branch environment or repository cannot publish. The release job
-needs no npm secret, so there is no token to expire, leak or hit `EOTP`.
+workflow, branch environment or repository cannot publish. The npm job reads
+no npm secret, so it has no token to expire, leak or hit `EOTP`. The
+`marketplace` environment still holds the unused `NPM_TOKEN` from the 0.11.0
+recovery; deleting it leaves no npm token stored.
 
 If the npm job fails: confirm the trusted publisher still lists exactly those
 values (changing any of them needs a new connection, which needs the owner's
@@ -207,13 +235,18 @@ tags remain unsigned: the workflow verifies version and `main` ancestry and
 records package provenance, but these checks are not signed-tag verification.
 Decisions are recorded in `PLAN.md` §8.
 
-The workflow carries M80 hooks. If `docs/schemas/*.json` exists at the release
+M80 is implemented, and both hooks are live: 0.12.0 uploaded the schemas and
+created `v0`. If `docs/schemas/*.json` exists at the release
 commit, its schemas are uploaded as additional GitHub Release assets with the
 same verify-before-upload behavior, listed in `SHA256SUMS` and attested like the
 packages. If `action/action.yml` exists, the final summary job
 moves the unsigned `v0` major tag only after all four channels published. It
 does not move after a missing-secret skip or a failure, and an older rerun
 cannot move it backwards to an ancestor. Divergent history requires review.
+The `release tags` ruleset (`refs/tags/v*`: deletion, non-fast-forward and
+update blocked, only the Admin role may bypass) also covers `v0`, so the
+job's update of `v0` with `GITHUB_TOKEN` is refused until `v0` is left out of
+the ruleset or the job may bypass it; 0.12.0 only created the tag.
 
 The owner's 0.12.1 observation (Release run `37225339230`) found HTTP 422 on
 updating `v0`: the `release tags` ruleset (`23893754`) covers `refs/tags/v*`,
@@ -244,7 +277,7 @@ The certification record distinguishes the dry script exercises from live
 publication. On the first release after this change, the lead must watch the
 attestations of every `SHA256SUMS` entry, npm provenance, actual registry duplicate-error
 wording, gallery gzip/byte identity, and the final channel summary. Verify
-downloaded `SHA256SUMS` and both SBOM assets against the original run. After
-M80 lands, verify its schema upload and major-tag update on a fully published
-release, then hold it on a skipped/failed channel. No live release was run by
-this lane.
+downloaded `SHA256SUMS` and both SBOM assets against the original run.
+Verify the schema upload and major-tag update on a fully published release,
+then hold it on a skipped/failed channel. 0.11.0 and 0.12.0 have run this
+workflow live; 0.12.0 was published by a manual run on its tag.

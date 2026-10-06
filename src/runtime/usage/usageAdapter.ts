@@ -12,6 +12,7 @@ import type {
 } from '../../shared/usagePage'
 import { lazyBundleLoader } from '../../host/lazyBundle'
 import type { runUsageCommand } from './usageCli'
+import type { UsageServiceDeps } from '../../core/usage/usageService'
 
 export interface UsagePagePorts {
   readonly post: (message: UsageServiceToPageMessage) => void
@@ -42,6 +43,7 @@ export interface UsageAccess {
     section: UsageSection,
   ) => string
   readonly export: (query: UsageQuery, format: UsageExportFormat) => Promise<string>
+  readonly setHistory?: (isEnabled: boolean) => Promise<void>
 }
 
 export interface UsageAccessDeps {
@@ -52,6 +54,9 @@ export interface UsageAccessDeps {
   readonly uiText: UiText
   readonly log: CoreLogger
   readonly historySettings?: () => { readonly enabled: boolean; readonly days: number }
+  readonly beforeRead?: () => Promise<void>
+  readonly live?: Pick<UsageServiceDeps, 'readBudgets' | 'readLiveLimits' | 'providerConsoles'> &
+    Partial<Pick<UsageServiceDeps, 'readModelPrice' | 'priceUnpriced' | 'readAttempts'>>
 }
 
 interface UsageServiceBundle {
@@ -63,8 +68,11 @@ interface UsageCompanionBundle {
     readonly usage: UsageAccess
     readonly assetsFolder: string
     readonly locale: string
+    readonly uiText: UiText
+    readonly log: CoreLogger
   }) => Promise<{
     readonly url: string
+    readonly launchUrl?: () => string
     readonly close: () => Promise<void>
     /** Resolves on idle shutdown too, so another command never reuses a dead URL. */
     readonly closed: Promise<void>
@@ -107,7 +115,7 @@ export function usageCompanionUrl(input: string): string {
     url.password !== '' ||
     url.pathname !== '/' ||
     url.search !== '' ||
-    !/^#[\da-f]{64}$/iu.test(url.hash)
+    !/^#(?:k=)?[\da-f]{64}$/iu.test(url.hash)
   ) {
     throw new Error(UI_TEXT.actionFailed)
   }
@@ -154,6 +162,8 @@ export function lazyUsageAdapter(
           usage: (access ??= service().createUsageAccess(deps)),
           assetsFolder: path.join(deps.packageRoot, 'dist', 'webview'),
           locale: deps.locale,
+          uiText: deps.uiText,
+          log: deps.log,
         })
         page = started
         void observeClose(started)
@@ -161,7 +171,7 @@ export function lazyUsageAdapter(
       const current = page
       try {
         const server = await current
-        return usageCompanionUrl(server.url)
+        return usageCompanionUrl(server.launchUrl?.() ?? server.url)
       } catch (error: unknown) {
         if (page === current) page = undefined
         try {

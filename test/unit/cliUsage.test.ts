@@ -33,6 +33,21 @@ function fixture() {
 }
 
 describe('usage command line', () => {
+  it('uses checked JSON for root --usage and validates the standalone history flag', () => {
+    expect(parseCommandLine(['--usage'])).toEqual({
+      command: 'usage',
+      options: command(['--json']),
+    })
+    expect(parseCommandLine(['--usage-history=off'])).toMatchObject({
+      command: 'serve',
+      options: { usageHistory: false },
+    })
+    expect(parseCommandLine(['--usage-history=on'])).toMatchObject({
+      command: 'serve',
+      options: { usageHistory: true },
+    })
+    expect(parseCommandLine(['--usage-history=maybe'])).toMatchObject({ command: 'invalid' })
+  })
   it('parses all editor routes and keeps the existing default launch', () => {
     expect(parseCommandLine([])).toMatchObject({ command: 'serve' })
     expect(command([])).toEqual({

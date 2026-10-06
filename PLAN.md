@@ -193,6 +193,18 @@ deprecated). Webview controls are hand-built on VS Code CSS theme variables.
 - Contributor-tier models are opt-in behind a dialog quoting Meta's training
   wording; off by default; blocked when the workspace setting
   `museSpark.confidentialWorkspace` is true.
+  RVAUDIT round 2 (2026-10-04): enforce this at each send, steer, review,
+  queued/timed dispatch and resume, after pending confirmations and setup;
+  configuration changes retire contributor sessions. Diagnostic events and
+  notices use the shared redactor at the panel boundary, with backend failure
+  reasons redacted before stream/storage; MCP details use the same redactor.
+  CLI log failures use fixed-word helpers, including skill activation output.
+  Acceptance and rig red drills: `docs/certification/docs-truth-audit-0120.md`.
+  PR #116 integration with M87 (2026-10-04): retain both confidentiality
+  admission and in-flight revert guards, and extend the same panel boundary
+  to queued-edit refusal reasons. Tasks-tab failures continue through its
+  notice branch. Regression and merge receipts stay in that certification
+  record; regenerate screenshots and the host API inventory from this tree.
 - Secret scanning (gitleaks) in pre-commit and CI; `npm audit --audit-level=high`
   in `security:audit`; semgrep locally in `security:sast` (part of `npm run
 quality`) and as a CI job.
@@ -284,6 +296,50 @@ M70c also keeps `dist/review.js` lazy with its 50 KiB cap and checks its shared
 table import. Current M70c build: extension 522.6/600 KiB, Model API 331.9/400,
 review 41.0/50, checkpoint store 113.3/225, UI text 77.5/100, ACP 711.8/850;
 focused proof in `docs/certification/m70.md`.
+
+**Amendment (M81, 2026-10-01): the browser check is a bundle of its own.**
+On the release candidate `dist/extension.js` was 592.3 KiB of its 600 and
+`dist/modelApi.js` 398.7 of its 400. The browser check's runner (the CDP
+pipe, the run, its processes, 37.8 KiB with the zod/mini it parses with)
+loads from `dist/browserCheck.js` on the first check, through the checkpoint
+store's loader pattern; activation keeps the loader, the `ide` tool and the
+modal, and the Model API bundle the tool's definition, placement and text.
+It uses the shared English table like the other Node bundles, and the split
+gate keeps the runner out of the other three. With the shared table and M81:
+extension 529.6, Model API 335.6, checkpoint store 122.1, ACP agent 719.0,
+English table 74.7 KiB ([`docs/certification/m81.md`](docs/certification/m81.md)).
+After the RV81 fixes (the policy reads, the target watch, the bounds) the
+browser bundle is 44.5 KiB of its unchanged 50, extension 531.2, Model API
+336.8.
+
+**Amendment (M81 A1, 2026-10-02): the runtime's acquisition is a second
+lazy bundle.** Design spec v4 §9.1 holds `dist/browserCheck.js` at its 50
+KiB with the owned proxy, the canaries and the two lifetimes (49.8 KiB),
+and moves the runtime's acquisition (the pin's schema, the download, the
+bounded ZIP reader, hashing, staging and publication) into
+`dist/browserRuntime.js`, required by the activation bundle's adapter only
+when a runtime is prepared or verified, for a check and for the Download
+command alike. Measured 37.2 KiB minified; its cap is
+25 × ceil(1.15 × 37.2 / 25) = 50 KiB. The split gate requires the
+acquisition modules in that bundle and in no other, and neither browser
+bundle may carry or load the English table (both return closed failures
+only). To fit, the browser check's tunables that `constants.ts` declared
+with initializers esbuild cannot drop moved to
+`src/shared/browserCheckConstants.ts` (no imports), which `constants.ts`
+re-exports: one source of truth still, imported directly by the browser
+modules.
+
+**Amendment (M81 A1 review round 1, 2026-10-02): `dist/browserCheck.js`
+gets the repo's rule.** The round's fixes (each canary phase on fixture
+ports of its own, the admitted-CONNECT record, the loopback-aware negative
+probes, the upstream answer's head bound, lifetime ends keeping their kind)
+built it to 50.5 KiB (51,671 bytes), over the 50 KiB spec v4 §9.1 had held
+it to. No module in it is off the check's path (the pipe, the run, the
+proxy, the canaries, the page and the processes, the leftover sweep
+included, all run on every check), so there was no honest split; the cap
+is set by the rule: 25 × ceil(1.15 × 50.5 / 25) = 75 KiB. No code was
+minified or moved to fit ([`docs/certification/m81.md`](docs/certification/m81.md),
+"v4 A1: review round 1").
 
 **Amendment (M57, 2026-09-27): the Model API backend is a bundle of its own.**
 At 0.9.0 `dist/extension.js` was 596.8 KiB of its 600 KiB, and
@@ -576,6 +632,21 @@ Manual / Edit automatically / Auto to `denyUnmatched` (M2 behaviour) and only
 Plan and Bypass differ. Flipping the constant is an M4 change with its own
 live verification of each mode.
 
+**Correction (2026-10-04, musecode-write-asks).** The Plan row above did
+not hold either. `denyUnmatched` denies what no rule matches, and Muse
+Code's own profile allows file-tool writes, so Plan on Muse Code refuses
+commands and protected writes (`.git`, `.muse`, `.agents`: raised, then
+`resolvedBy: policy`) but its `write_file` and `edit_file` still write
+without asking: inside the workspace with the sandbox, anywhere without it
+(forced tool calls through a loopback stand-in for the provider, 0 model
+calls, docs/certification/musecode-write-asks.md). Meta's permissions page
+says in-workspace `write_file` and `edit_file` writes "still pass in any
+mode". MSP cannot select Muse Code's Read-only profile (1.4.2 has no
+`session/setPermissionProfile`; the `next` SDK site lists one,
+experimental and select-only; our #43 asks for it). The Modes menu and the
+README now say what Plan does on Muse Code instead of "plans before
+editing".
+
 **Correction (2026-10-03, D69).** The Auto row above did not hold under
 `muse serve`: the LLM approval judge `muse --help` names runs only in the
 CLI's interactive and `exec` commands, so serve's `onRequest` skips only the
@@ -748,6 +819,81 @@ setting drops the host so the next message respawns it (a notice says so).
 Caveat from the CLI docs, kept in the README: without the sandbox Muse
 Code's file tools may write outside the workspace, so the approval modes
 matter more.
+
+**Update (2026-10-04, musecode-write-asks).** A live check by the
+protect-agent-folders lane found Muse Code 1.4.2, in Manual with the
+sandbox off, writing `.claude/settings.json` and a file outside the
+workspace without any approval. The findings, with forced tool calls
+through a loopback stand-in for the provider (0 model calls) and Meta's
+docs (docs/certification/musecode-write-asks.md):
+
+- The caveat understated it. Meta's permissions page: `--disable-sandbox`
+  "also removes workspace confinement from the file tools, so write_file
+  and edit_file can write anywhere on the filesystem", and Muse Code asks
+  for none of those writes, in Manual, Auto or Plan. With the sandbox they
+  fail ("absolute path is outside the workspace"), a temp-folder target
+  included. Either way only `.git`, `.muse` and `.agents` ask; in-workspace
+  writes "still pass in any mode", so `.claude/settings.json` is written
+  unasked with or without the sandbox. "Approval prompts still apply", the
+  old notice's line, was true only for commands.
+- Nothing lets a client add ask rules. MSP is "select, never create"
+  (`session/start.config` admits only `mcpServers`; the experimental
+  `session/setPermissionProfile` on the `next` site says "there is no
+  inline-rule member and none may be added"); `muse serve` takes posture
+  flags only (no `--permission-profile`, no `--approval-judge`); the
+  documented settings key is `permissions.default_profile` (built-in
+  profiles; custom ones are undocumented, and the binary's own startup text
+  says that without the sandbox "permission-profile filesystem …
+  restrictions remain recorded but are not enforced"); managed policy
+  (`execution.permission_profiles`, `execution.tool_rules`) is a
+  machine-wide administrator plane; hooks (a PreToolUse block) live in the
+  user's settings file, a managed hooks file or the repository's
+  `.muse/hooks.json`. The extension writes none of those (D17: it never
+  writes the CLI's settings).
+- #26 is not reliably fixed in 1.4.2-R4684.1, so the sandbox cannot stay
+  on for a profile workspace. On the owner's machine a sandboxed
+  `powershell` call in a workspace under `C:\Users\<user>` (and under
+  `%TEMP%`) printed the workspace as its location in about 5 s. On the
+  freshly set-up Windows 11 rig, in the interactive session, the same call
+  first failed with "ACL publication lock
+  Global\TbhWindowsSandboxAclPublication: timed out … after 120000 ms":
+  Muse Code's background read worker (1.4.0's "Root:Read … through an
+  optional background worker") held that lock for about 70 minutes while it
+  granted the sandbox group read access to the profile's top-level entries,
+  ending "refresh-partial". After it ended, the call in a profile workspace
+  never finished, twice (8 minutes each); a workspace outside the profile
+  (`C:\mcwrite-probe-ws`) ran in place throughout. (Runs over SSH, session
+  0, hung or failed with "The pipe has been ended" and are not counted.)
+
+Decisions (the lead's brief: keep the sandbox on wherever it can work,
+warn honestly where it cannot):
+
+- **`auto` stays as it was.** A version gate (keep the sandbox for 1.4.2 in
+  a profile workspace) was built and drilled, then dropped on the rig's
+  evidence: it would leave fresh setups with commands that hang without a
+  message. The sandbox stays on everywhere else, as before; no rule or
+  setting of Muse Code can narrow the switch-off to a precise exception.
+  The extension changes no ACL.
+- **The sandbox-off warning.** Whenever the host runs without the sandbox,
+  for either reason, the first Muse Code conversation of the window gets a
+  warning: the file tools can write anywhere the account can, without
+  asking in any mode, Plan included; commands run as the user with the
+  user's network; approval still covers commands and `.git`, `.muse`,
+  `.agents`; a workspace outside the profile keeps the sandbox. The
+  posture carries `isUnsupportedWorkspace`, and the wrong-folder warning
+  (now "may start in the PowerShell folder … or never finish") stays for
+  `muse` forced in a profile workspace.
+- **The preparing notice.** A shell failure carrying the lock text says
+  the sandbox is still being prepared and to try again later, and offers no
+  setup (the setup has run).
+- **Diagnostics** adds `muse code file writes:` (workspace only, or
+  anywhere without asking).
+- **Upstream** (draft 07): ask before file-tool writes outside the
+  workspace roots when the shell sandbox is off (or keep the file tools'
+  confinement independent of the shell sandbox), let a client select the
+  Read-only profile for Plan (#43), protect other agents' configuration
+  folders or let users name protected paths; and, on #26, the 1.4.2
+  results above.
 
 ### D8 — Attachments live in the host; images are validated by header parsing
 
@@ -3101,27 +3247,28 @@ after wave 5's others because it waits for PR #32, and D50's M85 comes
 last, after M73, M75, M76 and M78 that it builds on, and after the
 owner's TypeSafe key for its capture.
 
-| Wave                       | Milestone | What                                                                                                                   | Backends                              | Who has it                              | Size |
-| -------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | --------------------------------------- | ---- |
-| 1 Correct code             | M68       | Verify loop: diagnostics after edits, format on edit, check commands, edit-then-run                                    | API full; MC diagnostics and guidance | OpenCode, Aider, Crush, SoL-Pi          | M    |
-|                            | M67       | Code intelligence tools from VS Code's language services, and a repo map                                               | both (MC through `ide`)               | Aider, OpenCode, Zed, Claude Code (LSP) | M    |
-|                            | M69       | Web fetch (folds in M44b)                                                                                              | API native; MC through `ide`          | Claude Code, Codex, OpenCode            | S    |
-| 2 Review and ship          | M70       | Review: `/review` presets, a review pane with per-hunk accept/reject and line comments to the agent, a security preset | both                                  | Codex, Zed, Kilo, T3 Code, Claude Code  | L    |
-|                            | M71       | Git and PRs: commit message, commit, push, open a PR, PR status per conversation, a conversation in a worktree         | both                                  | T3 Code, OpenCode, Codex, Claude Code   | M    |
-|                            | M72       | Turn checkpoints with untracked files; restore files, conversation, or both; redo                                      | both                                  | T3 Code, Cline, Gemini CLI, OpenCode    | M    |
-| 3 Long tasks, fewer tokens | M75       | Paired efficiency evaluation with capability floors and held-out tasks, built first                                    | API                                   | SoL-Pi, Claude Code plugin evals        | M    |
-|                            | M73       | Observation packing with `recall_output`, and a savings ledger, once its M75 run passes                                | API                                   | SoL-Pi                                  | S    |
-|                            | M74       | Automatic compaction when a todo item completes, a memory flush before compaction, `/handoff` to a new conversation    | API                                   | SoL-Pi, OpenClaw, Amp                   | M    |
-| 4 More agents, safely      | M77       | Session board across conversations and worktrees; best-of-N with diff comparison                                       | both (best-of-N on API)               | Cursor, Kilo, T3 Code, Codex, Zed       | L    |
-|                            | M79       | Plans as files: save the approved plan, implement it in a fresh context                                                | both                                  | Codex, Factory, Cline                   | S    |
-|                            | M76       | Custom agents in Markdown; built-in Explore and Second-opinion agents, and M70's Reviewer in the same format           | API; MC reads its own                 | Claude Code, Codex, OpenCode, Amp       | M    |
-|                            | M78       | Auto made safe: command rules with tests, permission profiles, an Auto reviewer                                        | API                                   | Codex, OpenCode, Gemini CLI             | M    |
-| 5 Connect                  | M81       | Browser check: open the dev server, screenshot and console back to the model                                           | API; MC through `ide`                 | Cursor, Codex, Claude Code              | M    |
-|                            | M82       | Notifications, usage per reply, a session budget cap, cache savings                                                    | both (cost and cache on API)          | Claude Code, OpenClaw, T3 Code, Codex   | S    |
-|                            | M83       | Import from Claude Code, Codex and Cursor: MCP servers, hooks, agents, commands (extends M30)                          | both                                  | Codex `/import`, Junie                  | S    |
-|                            | M84       | Session export and import as JSON, and a local share file                                                              | both (import resumes on API)          | OpenCode, Codex, Amp                    | S    |
-|                            | M80       | Headless run and a GitHub Action for review and fix, through the ACP agent's package                                   | API; MC                               | Codex, Claude Code, OpenCode            | M    |
-| 6 Experimental (D50)       | M85       | TypeSafe assist: skill and agent suggestion, an advisory Auto risk score, relevance and grading once measured          | API                                   | TypeSafe cookbook                       | M    |
+| Wave                       | Milestone | What                                                                                                                                       | Backends                              | Who has it                              | Size |
+| -------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- | --------------------------------------- | ---- |
+| 1 Correct code             | M68       | Verify loop: diagnostics after edits, format on edit, check commands, edit-then-run                                                        | API full; MC diagnostics and guidance | OpenCode, Aider, Crush, SoL-Pi          | M    |
+|                            | M67       | Code intelligence tools from VS Code's language services, and a repo map                                                                   | both (MC through `ide`)               | Aider, OpenCode, Zed, Claude Code (LSP) | M    |
+|                            | M69       | Web fetch (folds in M44b)                                                                                                                  | API native; MC through `ide`          | Claude Code, Codex, OpenCode            | S    |
+| 2 Review and ship          | M70       | Review: `/review` presets, a review pane with per-hunk accept/reject and line comments to the agent, a security preset                     | both                                  | Codex, Zed, Kilo, T3 Code, Claude Code  | L    |
+|                            | M71       | Git and PRs: commit message, commit, push, open a PR, PR status per conversation, a conversation in a worktree                             | both                                  | T3 Code, OpenCode, Codex, Claude Code   | M    |
+|                            | M72       | Turn checkpoints with untracked files; restore files, conversation, or both; redo                                                          | both                                  | T3 Code, Cline, Gemini CLI, OpenCode    | M    |
+| 3 Long tasks, fewer tokens | M75       | Paired efficiency evaluation with capability floors and held-out tasks, built first                                                        | API                                   | SoL-Pi, Claude Code plugin evals        | M    |
+|                            | M73       | Observation packing with `recall_output`, and a savings ledger, once its M75 run passes                                                    | API                                   | SoL-Pi                                  | S    |
+|                            | M74       | Automatic compaction when a todo item completes, a memory flush before compaction, `/handoff` to a new conversation                        | API                                   | SoL-Pi, OpenClaw, Amp                   | M    |
+| 4 More agents, safely      | M77       | Session board across conversations and worktrees; best-of-N with diff comparison                                                           | both (best-of-N on API)               | Cursor, Kilo, T3 Code, Codex, Zed       | L    |
+|                            | M79       | Plans as files: save the approved plan, implement it in a fresh context                                                                    | both                                  | Codex, Factory, Cline                   | S    |
+|                            | M76       | Custom agents in Markdown; built-in Explore and Second-opinion agents, and M70's Reviewer in the same format                               | API; MC reads its own                 | Claude Code, Codex, OpenCode, Amp       | M    |
+|                            | M78       | Auto made safe: command rules with tests, permission profiles, an Auto reviewer                                                            | API                                   | Codex, OpenCode, Gemini CLI             | M    |
+| 5 Connect                  | M81       | Browser check: open the dev server, screenshot and console back to the model                                                               | API; MC through `ide`                 | Cursor, Codex, Claude Code              | M    |
+|                            | M82       | Notifications, usage per reply, a session budget cap, cache savings                                                                        | both (cost and cache on API)          | Claude Code, OpenClaw, T3 Code, Codex   | S    |
+|                            | M83       | Import from Claude Code, Codex and Cursor: MCP servers, hooks, agents, commands (extends M30)                                              | both                                  | Codex `/import`, Junie                  | S    |
+|                            | M84       | Session export and import as JSON, and a local share file                                                                                  | both (import resumes on API)          | OpenCode, Codex, Amp                    | S    |
+|                            | M80       | Headless run and a GitHub Action for review and fix, through the ACP agent's package                                                       | API; MC                               | Codex, Claude Code, OpenCode            | M    |
+| 6 Experimental (D50)       | M85       | TypeSafe assist: skill and agent suggestion, an advisory Auto risk score, relevance and grading once measured                              | API                                   | TypeSafe cookbook                       | M    |
+| 7 Security hardening       | M92       | Muse Gadgets SDK tokens (`mgst_…`) redacted from logs and transcripts and counted by `scan-secrets` (lane M92a; owner-approved 2026-10-04) | both (log, export, headless scan)     | muse-gadget-sdk installer pattern       | S    |
 
 **Not taken.**
 
@@ -4413,6 +4560,72 @@ on the package's shared `scripts/` (Bash, PowerShell and Python helpers),
 - **Requirements stay the package's.** The delivery helpers need Python 3;
   the README says so, and a missing Python is the script's own error.
 
+### D78 — Enhancements available out of the box (owner, 2026-10-04)
+
+The owner chose: "On, ask once first — active out of the box and visible.
+Before the first charge it asks once (Allow / Allow always / Not now)
+showing the price and a daily budget. Nothing is spent without that one yes."
+This supersedes D48's off-by-default clause for interactive VS Code Model
+API extras. It preserves paid badges, rows, tally, revocable per-workspace
+"always", and paid-use consent in Bypass. Allow once still authorizes one
+use; subsequent uses ask unless "always" was chosen. Existing explicit
+false settings remain false. Default-on availability needs no startup price
+dialog; an explicit OFF-to-ON change still confirms its price.
+
+Observation packing (M73's passing M75 run), hooks (inert without a file,
+trusted workspace only), and reply usage default on. Web search, images,
+Muse Voice availability, Auto reviewer, subagents, schedules and best-of-N
+default on for Model API. Free OS dictation remains the selected engine.
+Best-of-N stays an explicit separate action: an ordinary turn runs one
+model; no setting multiplies every turn's cost.
+
+Interactive extras share `museSpark.paidDailyBudgetUsd`, machine scoped,
+USD 5 by default, USD 0.50–500. Reuse M82's durable claim journal under
+global extension storage, one local-calendar-day scope across windows and
+keys. Reserve before dispatch; recheck synchronously at send; settle known
+usage, refund known nonsends, retain uncertain liability. Unreadable or
+incomplete storage refuses spending. At the cap offer raise for today or
+stop until tomorrow; a raise is shared on disk and expires with the day.
+M94 Tab's USD 1/day ledger remains independent; Tab does not enter this
+extras journal. M94 is not present in this lane's base tree.
+
+M82 already refuses hosted search and Muse Voice under a finite cap: no
+captured hard query bound or billed-duration receipt exists. Preserve those
+refusals under the daily cap rather than inventing a wire limit. Availability
+is visible, but those two transports remain refused pending verified bounds.
+Muse Code's existing explicit paid opt-ins, confidential-workspace policy,
+ACP flags and headless explicit flag plus hard budget remain unchanged.
+
+No request prefix, tool description or golden fixture changes are authorized.
+Packing stays request-local and sticky; hooks-off bodies must stay exact.
+M91 is absent from this base; run its golden requests after lead integration.
+No live evaluation is authorized. Q11 repo-map default stays off: next run
+must add a repo-map-only M75 arm versus baseline on the same twelve paired
+tasks, seven accept and five held-out (floors 6/7 and 4/5 on both arms),
+`muse-spark-1.3-contributor`, fixed 1,024-token map, identical other flags,
+and the existing USD 0.50 bound. Record input/cache/output tokens, total
+cost, latency and engagement before deciding whether to flip Q11.
+
+DEFAULTS acceptance: manifest and fallback defaults agree; explicit false
+survives; trusted hooks only; first-use consent precedes fetch; daily claims
+refuse over-cap, corrupt storage and concurrent overspend; price and daily
+cap are localized; request bodies and single-model turns remain unchanged.
+Reuse `paidFeatures`, `paidConsent`, `sessionBudgetJournal` and the final
+HTTP admission guard. Evidence: `docs/certification/defaults.md`.
+
+FIXDEF review follow-up (2026-10-04): a committed daily Stop must survive
+every pending raise, including a delayed atomic replacement. Use a separate
+monotonic day marker; never remove it when raising the numeric cap. Pass the
+request's cancellation through daily admission, refund nonsends, and reject
+late dialog answers/publications. Offer packed recall only when the request
+contains a packed observation, preserving unused packing's whole request and
+cache key. Keep setting state separate from backend availability so changing
+backends cannot withdraw accepted prices or workspace grants. Correct the
+Best-of-N overview. Each finding needs a Kubuntu regression/red drill.
+Search's proposed one-search bound and voice's proposed 180-second bound
+require verified server/billing contracts, not invented wire fields or a
+recorder timer alone; live calls remain outside this lane's authorization.
+
 ### D69 — Auto on Muse Code: an extension-side reviewer (M90, 2026-10-03)
 
 The owner reported clicking as many approvals in Auto as in Manual on the
@@ -5376,6 +5589,547 @@ every line of ours it cites, is `docs/research/pi-solpi-2026-10-05.md`.
    is corrected. So the packing items (2, 4, 7, 18, 22) reach every Model API
    user.
 
+### D79 — What's New after an update (M99, 2026-10-04)
+
+The owner asked (2026-10-04): "after the app updates it opens a whats new/
+changelog in whatever editor so the users can take advantage of any changes
+we make". His standing ruling: enhancements are on by default.
+
+- **When it shows.** On activation the running version is compared, by
+  semver precedence (prereleases included), with the newest version What's
+  New ran for (`globalState` key `museSpark.whatsNewLastSeenVersion`,
+  registered with `setKeysForSync`, so a page seen on one machine is not
+  shown again on another).
+  - No stored version and no sign of earlier use: a fresh install. The
+    version is recorded and nothing shows; the walkthrough and onboarding
+    cover new users.
+  - No stored version but signs of earlier use (any stored global key, a
+    remembered last session in the workspace, or the extension's global
+    storage folder, all read before activation writes anything): an upgrade
+    from a version before this feature. Without this, everyone updating to
+    the release that brings What's New would be taken for a new user and
+    never see it. Its page starts at the newest release with Highlights.
+  - A newer version: an upgrade, shown once. The same version or an older one
+    (a downgrade): nothing, and the newer record stays, so going back up shows
+    nothing again.
+  - It shows on the extension's first activation after the update (its view,
+    a command, a restored tab). The manifest gains no `onStartupFinished`:
+    activating the 550 KiB bundle in every window to announce an update is not
+    worth the startup cost.
+- **One window.** Several windows activate together after an update. The
+  window whose exclusive create (`open(…, 'wx')`) of
+  `<global storage>/whats-new/<version>.claim` succeeds shows it; the others
+  see the file and stay quiet. Chosen over a claim in `globalState` re-read
+  after a delay: the file system's exclusive create is atomic on one machine,
+  while `globalState`'s propagation between windows has no ordering guarantee
+  (two windows can each read the other's claim last, and neither shows it).
+  A claim that cannot be written (read-only storage) lets that window show
+  it, logged: a second tab is better than none. Keep the zero-byte claims of
+  other versions: an older window must not delete a newer window's claim
+  (nor a newer one delete an older window's still-active claim), allowing
+  another activation to show that version a second time.
+- **When in the window.** Some seconds after activation
+  (`WHATS_NEW_SETTLE_MS`), and then only while no conversation runs a turn
+  and no document was edited for `WHATS_NEW_QUIET_MS` (checked every
+  `WHATS_NEW_IDLE_POLL_MS`). The tab opens with `preserveFocus`, so the
+  keyboard stays where it was. A pending notification's answer is ignored
+  after disposal, so it cannot reopen a tab or write settings in that window.
+- **Page or notice (the rule).** An update whose releases (every one after
+  the version updated from, up to the running one) include one with a
+  `### Highlights` list opens the page. Otherwise (a patch of fixes only) a
+  quiet notification, "Muse Spark Code updated to x.y.z", offers **What's
+  New** (the page for those releases) and **Don't show again** (the setting
+  off). The choice is by content, not by version arithmetic; the changelog
+  guard below makes every minor or major release carry Highlights.
+- **What it shows.** A webview editor tab, "What's New in Muse Spark Code":
+  every fork the compatibility docs list has webviews, where
+  `markdown.showPreview` is not universal. For each release, newest first:
+  its Highlights (each may carry a **Try it** button) and then its shipped notes.
+  The footer links the full CHANGELOG and the README on GitHub and carries a
+  **Don't show on updates** box bound to the setting.
+- **Try it.** A Highlight ends with `<!-- try: command <id> -->` or
+  `<!-- try: setting <id> -->` (an HTML comment: invisible on GitHub, the
+  Marketplace and VS Code's changelog tab). The build fails on an id the
+  manifest does not contribute, in `[Unreleased]` too (so the change that
+  adds one fails, not the release); the page renders a button only for a
+  command in `COMMAND_IDS` or a setting in `SETTING_DEFAULTS`. The page sends
+  an index into the host's list of the buttons it rendered, never an id, so
+  nothing else can run. (A second check at click time was dropped in review:
+  that list holds only allowed entries, so it could never fire, and its red
+  drill proved it.)
+- **Content.** Built at build time from CHANGELOG.md
+  (`scripts/lib/whatsNewContent.mjs`, mdast with GFM) into
+  `dist/whatsNew.json`: released sections only (`[Unreleased]` never), as a
+  tree of text-only parts read through a zod schema before use. Raw HTML never
+  becomes markup (comments are dropped, other tags kept as their literal
+  text); pictures are their alt text; relative links point at the repository;
+  links with a scheme other than http or https are kept as text. The build
+  validates every release and `[Unreleased]`, but ships full notes for only
+  the newest two releases (`FULL_NOTES_RELEASES`, build-time constant in the
+  generator). Eight releases measured 177,802 bytes; two cover the current
+  release and its immediate predecessor within a hard 40 KiB raw content
+  budget. If neither has Highlights, retain the newest earlier Highlights
+  with its notes omitted. Older upgrades still have those Highlights and
+  the full-changelog link; older details live at that link. The size gate
+  rejects both missing content and content one byte over the budget.
+- **Security.** Strict CSP (`default-src 'none'`, the stylesheet from the
+  webview origin, one script by nonce, no inline style); every piece of text
+  escaped on the host; links carry their address for keyboards and screen
+  readers, but the page sends their index and the host opens its own copy
+  through `vscode.env.openExternal`.
+- **Setting and command.** `museSpark.showWhatsNewOnUpdate` (boolean,
+  default `true`, machine-scoped: the manifest test allows only machine or
+  window scope, and a page that opens by itself is the user's choice, never a
+  repository's). **Muse Spark: What's New** opens the current version's page
+  at any time (back to the newest release with Highlights), and the panel's
+  palette lists it under Support.
+- **Light.** The renderer, schema and tab are `dist/whatsNew.js` (D6, ≤ 50
+  KiB), required on the first page or notice; the page script is
+  `dist/webview/whatsNew.js` (≤ 25 KiB) with no package and no display
+  table. Activation carries only the version check, the claim and the loader.
+- **Language.** The page's own words are in all 14 tables; the release notes
+  stay English (CHANGELOG.md is written in English), marked `lang="en"`, and
+  a line says so in other languages.
+- **Release process.** A minor or major release's CHANGELOG section must
+  carry `### Highlights` with 1 to 5 bullets (3 to 5 recommended), and no
+  release being made may have more than 5; the changelog-version test fails
+  otherwise (`docs/RELEASING.md`). Older releases are taken as written
+  (0.10.0 has ten).
+
+### D70 — (reserved for M91 hooks; on another branch, 2026-10-04)
+
+### D71 — Muse Gadgets: help build them, never become one (M92, 2026-10-04)
+
+The owner asked whether Meta's Muse Gadgets (gadgets.muse.ai,
+github.com/facebookincubator/muse-gadget-sdk, Apache 2.0) belong in the
+extension "to make programming and working with devices easier", and approved
+the scope below on 2026-10-04.
+
+**What the SDK is (checked 2026-10-04):**
+
+- **ESP32 SDK:** firmware on ESP-IDF 6.0.1 for about 17 boards. Build with
+  `idf.py build`; flash and watch with `idf.py -p <port> flash monitor`
+  (Ctrl-] ends the monitor), or `tools/board.sh BOARD …`. The per-user SDK
+  token is set in menuconfig as `CONFIG_GADGET_SDK_TOKEN`, which lands in
+  `sdkconfig` and is compiled into the firmware. Pairing goes over BLE with
+  the Muse phone app; after that the device reaches Muse's cloud over Wi-Fi.
+- **Linux SDK:** a Python service (`/opt/musegadget`) installed with
+  `install.sh --sdk-token mgst_…`. It gives the Muse assistant `system.run`,
+  `file.read`, `file.write` and `device.health` on that machine, with the
+  installing account's rights. `musegadget send-user-msg "…"` posts to the
+  user's Muse chat.
+- **Built for coding agents already:** each SDK folder ships an `AGENTS.md`
+  (setup, build, flash), and `skills/` holds 50+ community `SKILL.md` device
+  skills.
+- **The token** matches `^mgst_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$` (the
+  installer's own check).
+
+**Decisions:**
+
+- **No re-implementation.** In a trusted clone of the SDK, Muse Code already
+  reads its `AGENTS.md`. The extension adds only what that file can't give.
+- **Tokens are secrets.** `mgst_` tokens join the shared redaction table, and
+  so the logs, transcripts and `scan-secrets` (M92a). Every existing secret
+  warning covers them too.
+- **Device commands are bounded.** A monitor never exits by itself. The shell
+  tool's `timeout_ms` (≤ `SHELL_MAX_TIMEOUT_MS`) must return the output it
+  captured, with `isTimedOut`, and must end the whole process tree on all three
+  OSes, so that "flash, then capture N seconds of serial output" is one tool
+  call (M92b). A dedicated device tool is added only if that proof fails.
+- **Optional bundled skill.** A `muse_gadgets` skill (D68's bundled source) for
+  gadget work outside the SDK repo:
+  - Windows specifics: COM ports, `export.ps1`;
+  - the bounded-monitor pattern;
+  - token handling: the user types the token into menuconfig or the installer
+    in their own terminal, never into chat;
+  - a pointer to the SDK's `AGENTS.md`.
+
+  It is off unless `museSpark.bundledSkills` is on, like D68's. The skill is
+  first-party, so it does not live in the vendored package: `VENDOR.json`
+  pins the third-party bytes and the sync script owns that folder, so the
+  extension reads a small `first-party-skills/` folder beside `vendor/` as a
+  second `bundled` root through the same bounded loader (lowest precedence,
+  shadowed by a project or personal skill with the same id, same setting).
+  The Muse Code installer is unchanged: it copies the vendored package only.
+
+- **Phone ping as a recipe, not a feature.** The docs show a `Stop` or
+  `Notification` hook that runs `musegadget send-user-msg` (M91's events).
+  The extension ships no gadget code.
+- **Never a gadget.** The extension never installs, configures or recommends
+  the Linux gadget service on a development machine. That service lets the
+  cloud assistant run any command there; README and the skill say so.
+
+### D83 — Makers: boards, firmware and machines, with a human at every actuation (M103, 2026-10-05)
+
+The owner asked (2026-10-05): "is there anything we can include that will
+make this harness have useful features for creators and tinkerers ie people
+who program raspberry pi or esp32 or like robotics and cncs and 3d printers
+etc?" The research, its sources and the ranked list are in
+`docs/research/makers-2026-10-05.md` (this draft, once landed).
+
+Physical machines can injure people and start fires. A model is wrong
+sometimes, and a prompt in a datasheet, a README or a fetched page can steer
+it. These decisions keep every physical effect behind a person who sees
+exactly what will be sent.
+
+1. **Help with the work; the user's hand moves the machine.** The extension
+   helps write, build, flash, simulate and read devices and machines. It is
+   not a print host or a G-code sender: OctoPrint, Mainsail/Fluidd, CNCjs,
+   UGS and FluidNC's WebUI stay the user's tools for running jobs.
+2. **Six action classes, and stop,** decided by our code, never by the
+   model or a server's own hint:
+   - _offline_: edit, build, simulate, render, ERC/DRC, G-code analysis —
+     ordinary tools and checks;
+   - _observe_: list ports (opens nothing), read a registered machine's
+     status over its HTTP API, ROS 2 introspection, `vcgencmd`, `gpioinfo`;
+   - _connect_: open a serial port (it may reset the board), mount a device
+     file system;
+   - _program_: flash, upload, erase, OTA update, write files to a
+     development board, reset a development board (a microcontroller, not a
+     printer's or CNC's controller, whose restarts and settings are
+     _refused_ below);
+   - _actuate_: anything else sent to a machine — motion, homing, probing,
+     jogging, heaters, spindle, laser, fans, pumps, relays, power, starting,
+     pausing or cancelling a job (Klipper's `PAUSE` and `CANCEL_PRINT` are
+     macros that move the toolhead), ROS motion topics, actions and
+     services, `gpioset`. A command or macro the classifier does not know is
+     _actuate_ (fail closed).
+   - _refused_: what the model may never send, even with approval. The user
+     does these in their own tools:
+     - firmware updates and factory resets (M997, M502);
+     - saved settings (M500, `SAVE_CONFIG`, GRBL `$` writes, `$RST`, `$N`);
+     - restarts and host shutdown (`FIRMWARE_RESTART`, `RESTART`,
+       Moonraker `/machine/shutdown|reboot`);
+     - power and pins (M80/M81, M42);
+     - autotune (M303);
+     - GRBL `$X` (alarm unlock);
+     - uploads into Moonraker's `root=config`;
+     - the irreversible chip operations of D83.4.
+   - _stop_ is not a class the model can compose: it is the machine's own
+     fixed stop sequence (D83.5).
+3. **Connect, program and actuate ask every time, in every mode.** The maker
+   engine asks from inside the tool, through its host's approval surface
+   (D83.16): in VS Code a native modal (the M69 pattern), in an ACP client
+   its permission prompt, in the companion page and the native plugins the
+   shared dialog. So it asks under any backend mode, Muse Code's Bypass
+   included. The approval names the target (port, VID:PID and USB serial, or
+   the machine's name and address and what it reports itself as), shows the
+   exact payload (bytes as hex where not printable; up to
+   `MACHINE_SEND_MAX_LINES` lines, more opens the payload read-only before
+   asking again), the analysis (bounds, maximum temperature and feed against
+   the limits, unknown commands), and warns that opening a port may reset the
+   board. It offers **Send once** and **Reject** only (closing it rejects).
+   No session rule, allow rule, "always", Auto reviewer or hook answers it.
+   **Approval comes only from the host's own UI:** a token, a `confirm`
+   flag or any value in a tool's arguments or results is never approval,
+   because the model can read it and set it (§2.11: ugs-mcp hands its token
+   to the model).
+   An unanswered modal expires as Reject after `MACHINE_APPROVAL_TTL_MS`;
+   the machine's state is read again just before sending, and any change
+   since the modal opened (a print started, a different board on the port)
+   asks again.
+4. **The shell and MCP cannot go around it.** A guard table
+   (`src/core/maker/guard/`, one table like M92e's secret table) recognises
+   flashing, uploading, device writes and machine API calls in shell
+   commands (§6 lane G lists them) and settles them `hardwareDetected`:
+   asked in every mode, Bypass included, with no session choice, never the
+   reviewer, never a hook's allow; Plan refuses them. Irreversible operations
+   (eFuse burns, secure-boot and flash-encryption key burns, AVR fuse and lock
+   writes, STM32 read-out protection level 2, RP2350 OTP writes) are refused
+   in every mode: the reply gives the user the command to run in their own
+   terminal. MCP servers the user marks physical
+   (`museSpark.physicalMcpServers`, machine scope; a workspace can add a name,
+   never remove one) and known hardware servers ask like D83.3. The table
+   cannot recognise every program that can reach a port, so in a workspace
+   with the hardware switch on: Bypass is unavailable on both backends (on
+   Muse Code the CLI emits no approval under Bypass, RVM92E-BYPASS-MUSE), the
+   Auto reviewer does not answer shell commands, and README says plainly that
+   a program the model wrote can reach a device once the user lets it run.
+5. **Stop is always one click away and never asks.** While a machine is
+   registered, **Stop machine** is in the panel, the status bar and the
+   command palette with a keybinding no OS or VS Code default uses. It sends
+   the machine's own stop, out of band:
+   - Moonraker: `POST /printer/emergency_stop`, never M112 through
+     `gcode/script`, which queues behind earlier G-code;
+   - OctoPrint: M112 through its emergency parser, which sends it out of
+     band;
+   - Marlin over serial: M112 or M410, immediate only where M115 reports
+     `EMERGENCY_PARSER`; otherwise the panel says the printer's own switch
+     is the immediate stop;
+   - GRBL: feed hold `!`, jog cancel 0x85, then soft reset 0x18 (grblHAL's
+     0x19 where present), with a warning when `$N` startup lines hold
+     motion.
+
+   It stops any stream the extension started and needs no approval. The turn's Stop also stops streams. The model may call
+   `machine_stop` without approval. README and the skill say a software stop
+   is not an emergency stop: a machine needs its own physical E-stop
+   (ISO 13850, IEC 60204-1).
+
+6. **Limits come from the machine and the user, never the model.** Travel,
+   temperature and feed limits are the smaller of what the machine reports
+   (Moonraker's parsed `configfile`, GRBL `$$`, FluidNC's config, Marlin's
+   `M503`) and the limits the user entered when registering it. A command
+   outside them is refused without asking. With no limits, only stop and
+   observe work. Travel limits count only on a homed machine (Klipper
+   `homed_axes`, GRBL not in alarm with `$20` and `$22` on, FluidNC
+   `soft_limits` true, which is off by default): an unhomed machine or one
+   without soft limits gets no model-proposed motion. Moonraker keys have no
+   roles, so these checks are ours. OctoPrint's wizard offers a key from its
+   "Read-only Access" group first, through the appkeys flow (the user
+   approves in OctoPrint's UI and never pastes a key).
+7. **Dry run first.** G-code is analysed locally before any modal; the
+   simulators (QEMU, Renode, Wokwi, a virtual Klipper, Gazebo) are the first
+   target for firmware and robot work, and the skill says so. CNC and laser
+   machines get no model-proposed motion or firing in this delivery
+   (status, settings read, alarms, stop only); printers get short approved
+   G-code. Widening that is a later owner decision after field use.
+8. **Never unattended.** Connect, program and actuate are refused, not
+   asked, in subagents, team workers, best-of-N candidates, M100 remote
+   lanes, headless `exec` and CI. Timed sends, loops and goals still meet the
+   approval, which expires. In the ACP agent device tools exist only with
+   `--hardware`, and each action is the editor's permission prompt with
+   allow-once and reject-once only (or the companion page's dialog when the
+   client has no prompt). Headless `exec` on a Raspberry Pi gets every
+   offline and observe tool (build, test, simulate, list ports, read a
+   registered machine's status over HTTP); opening a serial port is a
+   _connect_ action, so serial reads are not among them. A hard allowlist for headless
+   hardware-in-the-loop runs is a separate decision (Q-M103f).
+9. **Off until the user turns it on, per workspace, with a reason.** Device
+   tools, serial, machine status and sends need **Enable hardware for this
+   workspace** (in VS Code a command; in the runtime `hardware enable`, or
+   `/hardware` in an ACP client): a trusted workspace, a reason the user
+   types (kept in the device log), stored by the host outside the
+   repository (VS Code's `workspaceState`; the runtime's data folder, keyed
+   like its paid grants), revocable, and never set by a repository file.
+   Machines (kind, address, API key, limits) are added by a command into
+   machine-scoped storage, the key in the host's secret store (SecretStorage,
+   or the OS credential store for the runtime); a workspace may only name
+   which registered machines it uses. Plain HTTP to
+   a private address is allowed only for a registered machine, with a
+   warning that the key crosses the LAN unencrypted; public, link-local and
+   metadata addresses are refused, and every request checks the resolved
+   address again (D74's checks). The guard (D83.4), the skills, detection,
+   the analyser and the offline tools are on by default.
+10. **Flash the board that is meant.** Before a _program_ action the card
+    shows the port's identity next to the project's target (PlatformIO
+    `board`, `CONFIG_IDF_TARGET`, the FQBN); a known mismatch (a Pico's
+    2E8A on the port of an ESP32 project) is refused with the reason.
+11. **Everything sent is logged.** An append-only, size-capped JSONL device
+    log in the host's per-workspace storage (outside the repository): time,
+    machine, class, payload (redacted) and its SHA-256, the approval, the
+    outcome. **Open device log** shows it. It never reaches the model or an
+    export unless the user chooses.
+12. **Multi-vendor, by capability (D81.2).** Skills and the guard are on for
+    every provider; tools only on tool-calling models; photo review and
+    render feedback only where `capabilities.vision`; PDFs where the
+    provider takes them. Nothing is withheld because one vendor's model
+    lacks it.
+13. **No native modules, no startup growth.** Platform tools first
+    (`pio`, `arduino-cli`, `idf.py`, `mpremote`, `esptool`), then our
+    fallback: on Windows a C# helper compiled on first use by `jobBuild`
+    (`System.IO.Ports` in .NET Framework's `System.dll`), on Linux and macOS
+    pyserial where present, else `stty` with reads through a killable child
+    process (never `fs.read` on a device in the host), under the existing
+    process-tree kill. All maker code is in lazy bundles: the portable
+    engine `dist/maker.js` (the extension and the ACP package), the VS Code
+    adapter's few loaders, and the webview's lazy maker chunks and preview
+    page. Activation and the webview's startup bundle gain nothing (D6).
+    OpenSCAD, KiCad and the toolchains are the user's installs; nothing GPL
+    is bundled.
+14. **Privacy.** The device log, machine list and keys stay on the machine.
+    Wokwi runs in Wokwi's cloud with the user's own token (§2.5): the skill
+    and README say what leaves the machine; QEMU and Renode stay local.
+    Secrets:
+    - Wokwi CI tokens (`wok_`, 44 characters) join the one shared redaction
+      table, as M92a's `mgst_` did.
+    - Machine keys are redacted by value.
+    - The skills tell the model never to print or commit `secrets.h`,
+      `settings.toml`, ESPHome `secrets.yaml` or `sdkconfig` Wi-Fi values.
+15. **Amends D71.** The Muse Code bundled-skill installer also copies the
+    first-party skills (marked, removable, same setting), so `muse_gadgets`
+    and the maker skills reach Muse Code too.
+16. **One maker engine for every editor (owner, 2026-10-05: "all of the
+    editors should have equivalent functionality even if we need to develop
+    it ourselves").**
+    - **The engine is portable.** Every maker feature lives in
+      `src/core/maker/**`, which imports no `vscode` and is on M60's portable
+      list: the guard, detection, ports and serial, flash identity, machines,
+      the G-code analyser, CAD and EDA runners, the device log, the lease and
+      the approval rules. It is built as `dist/maker.js`, which the
+      extension loads lazily and the ACP agent's package ships (as
+      `dist/modelApi.js` is today, D6).
+    - **Hosts implement one port.** `MakerHost` is the only seam:
+      - `confirm(request)`;
+      - `notify`;
+      - `stopControls(machines)`;
+      - `openPreview`;
+      - `storage` (workspace and machine);
+      - `secrets`;
+      - `isTrusted`;
+      - an optional `serialProvider`, for a host that already owns the
+        device connection (Thonny's backend, D83.17), so the engine goes
+        through it and never opens the port a second time.
+
+      There are three implementations:
+      - VS Code (`src/host/maker/`): native modal, status bar, SecretStorage,
+        `workspaceState`;
+      - the runtime (`src/runtime/maker/`): the ACP permission prompt or the
+        companion page, its data folder, the OS credential store (D61);
+      - the native plugins (M64, M65): they run the runtime and supply only
+        the dialog and toolbar through the shared protocol.
+
+    - **The engine decides; surfaces only display.** It mints each approval
+      request:
+      - an id;
+      - the payload's SHA-256;
+      - the target's identity;
+      - an expiry.
+
+      It accepts only an answer that echoes the id and digest before the
+      expiry, so no surface can widen, reuse or extend an approval.
+
+    - **The UI is shared React.** These live in `src/webview/maker/**`,
+      lazily loaded chunks behind M61's `HostBridge`:
+      - the approval dialog (for surfaces without a native one);
+      - the Stop chip;
+      - the device panel, machine wizard and device log view;
+      - the STL viewer.
+
+      They render the same in a VS Code webview, JCEF, WebView2, SWT's
+      browser and the companion page.
+
+    - **Editors without a webview get the companion page.** It is the shared
+      React UI, served by our runtime on loopback (`127.0.0.1`, random port,
+      a per-launch token, Host and Origin checks, the panel's CSP), opened in
+      the user's browser. On a Raspberry Pi it is reached through `ssh -L`.
+      It never listens on a LAN address.
+    - **Muse Code in the runtime.** When the ACP agent runs Muse Code, the
+      runtime serves the maker tools to `muse serve` from its own loopback
+      MCP server, as the extension's `ide` server does. Without that, ACP on
+      Muse Code would have no device tools.
+    - **Stop in every editor:**
+      - the panel or companion page;
+      - the editor's toolbar or command where it has one;
+      - `/stop-machine` among the ACP agent's commands;
+      - `muse-spark-code-acp stop-machine [--all]` from any terminal.
+
+      The CLI stop reaches the port's holder over an owner-only local socket
+      (named pipe on Windows), and the machine's own API directly for HTTP
+      machines.
+
+      A stop never waits behind a running turn. ACP slash commands arrive
+      as ordinary prompts (https://agentclientprotocol.com/protocol/slash-commands),
+      so `/stop-machine` serves only between turns. During a turn:
+      - the client's cancel (`session/cancel`) ends every stream the agent
+        started;
+      - the companion page's button and the CLI command send the machine's
+        stop.
+
+    - **The approval through ACP.** It is `session/request_permission`
+      offering only `allow_once` and `reject_once` of the four kinds
+      (https://agentclientprotocol.com/protocol/tool-calls), with the exact
+      payload as the tool call's text content.
+    - **What cannot be equal is said, not hidden.** Ports are the machine's
+      the engine runs on. In a cloud workspace (Codespaces, code-server,
+      Che, Firebase Studio) there is no USB, so simulators and offline tools
+      only. The matrix below records each editor's surfaces, and README
+      carries it.
+
+**Editor matrix (maker features).** "Engine" is where `dist/maker.js` runs;
+"Approval" the surface that shows D83.3's request; "Preview" where the
+device panel, log and STL viewer render.
+
+| Editor                                                                                                   | Route                                                                                                                        | Engine                | Approval                                                         | Stop                                                              | Panel, log, preview                   | Ports and machines                                                                                                        | When                                               |
+| -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| VS Code, VSCodium, Cursor, Devin Desktop (Windsurf), Kiro, Positron                                      | the extension                                                                                                                | extension host        | native modal                                                     | panel chip, status bar, palette, keybinding                       | shared React panel and preview tab    | this machine                                                                                                              | now (M103)                                         |
+| Remote-SSH, Dev Containers, WSL                                                                          | the extension on the remote                                                                                                  | remote extension host | native modal (UI side)                                           | as above                                                          | as above                              | the remote's (a Pi over Remote-SSH: its USB and GPIO)                                                                     | now; Pi rows need hardware                         |
+| code-server, Codespaces, Che, Firebase Studio                                                            | the extension in the cloud host                                                                                              | cloud host            | native modal                                                     | as above                                                          | as above                              | none (no USB): simulators, offline tools, registered machines only if the host can reach them                             | now, offline tools and simulators only             |
+| Eclipse Theia                                                                                            | the extension                                                                                                                | Theia's plugin host   | Theia's modal (qualified in M62b)                                | as above                                                          | as above                              | this machine                                                                                                              | now, after its M62b checks                         |
+| **Arduino IDE 2.3.x** (Theia 1.57, API 1.96, Node 20.14, Chromium 124)                                   | a second VSIX build, side-loaded into `~/.arduinoIDE/plugins/`                                                               | the IDE's plugin host | native modal                                                     | as VS Code                                                        | shared React panel                    | this machine; board, FQBN and port from the IDE's board API; the IDE's Serial Monitor holds the port (lease reports busy) | M103f                                              |
+| PlatformIO IDE (VS Code family)                                                                          | the extension beside it                                                                                                      | extension host        | native modal                                                     | as VS Code                                                        | as VS Code                            | this machine; `pio` found under `~/.platformio/penv`                                                                      | now (M103)                                         |
+| PlatformIO in CLion                                                                                      | ACP (bundled PlatformIO)                                                                                                     | agent process         | ACP permission prompt                                            | client cancel; companion page; CLI                                | companion page (JCEF plugin with M64) | this machine                                                                                                              | now (M103)                                         |
+| **Thonny 5**                                                                                             | `thonnycontrib.muse_spark` plugin (Tk menu and status) + runtime + companion page                                            | runtime               | companion dialog (the plugin raises it)                          | plugin's Stop menu item and toolbar button; companion page; CLI   | companion page                        | through Thonny's own connection (the plugin is the host's serial provider), never a second open                           | M103f                                              |
+| **Espressif-IDE 4.x, STM32CubeIDE 2.x, MCUXpresso IDE**                                                  | our Eclipse plugin (M65), SWT Browser forced to Edge on Windows; until then the beta Eclipse ACP Connector for Espressif-IDE | runtime               | plugin dialog or shared dialog                                   | toolbar action, panel chip; CLI                                   | shared React in the SWT Browser       | this machine                                                                                                              | with M65 (connector route now, Espressif-IDE only) |
+| ST, NXP and Espressif VS Code extensions                                                                 | the extension beside them                                                                                                    | extension host        | native modal                                                     | as VS Code                                                        | as VS Code                            | this machine                                                                                                              | now (M103)                                         |
+| Mu (archived), code.circuitpython.org (web app)                                                          | the companion page beside it                                                                                                 | runtime               | companion dialog                                                 | companion page; CLI                                               | companion page                        | this machine; the web editor holds the port while connected                                                               | now (M103), lease only                             |
+| Arduino App Lab                                                                                          | not reachable (MCP-only Agentic Mode, closed provider list)                                                                  | —                     | —                                                                | —                                                                 | —                                     | —                                                                                                                         | —                                                  |
+| JetBrains IDEs through ACP (AI Assistant 2025.3+, CLion 2026.1)                                          | ACP agent via `~/.jetbrains/acp.json`; the registry once the agent offers Agent Auth or Terminal Auth (no WSL)               | agent process         | ACP permission prompt                                            | client cancel; companion page; CLI `stop-machine`                 | companion page                        | this machine                                                                                                              | now (M103), per product qualified                  |
+| JetBrains native plugin (JCEF)                                                                           | plugin + runtime                                                                                                             | runtime               | plugin dialog or shared dialog                                   | toolbar action and shortcut, panel chip                           | shared React in JCEF                  | this machine                                                                                                              | with M64                                           |
+| Visual Studio (WebView2)                                                                                 | plugin + runtime                                                                                                             | runtime               | plugin dialog or shared dialog                                   | toolbar command, panel chip                                       | shared React in WebView2              | this machine                                                                                                              | with M64                                           |
+| Zed, Neovim (CodeCompanion), Emacs (agent-shell), JupyterLab (Jupyter AI), Sublime, Xcode 27, Qt Creator | ACP agent                                                                                                                    | agent process         | the client's permission prompt (companion dialog if it has none) | client cancel; `/stop-machine` between turns; companion page; CLI | companion page                        | where the client runs the agent                                                                                           | now (M103)                                         |
+| Headless `exec` (CI, a Pi)                                                                               | CLI                                                                                                                          | agent process         | none: connect, program and actuate refused                       | CLI `stop-machine`                                                | —                                     | this machine; offline and observe only                                                                                    | now (M103); allowlist is Q-M103f                   |
+| A Pi over plain SSH                                                                                      | ACP agent in Neovim/Emacs on the Pi, or the companion page through `ssh -L`                                                  | the Pi                | prompt or companion dialog                                       | CLI on the Pi; companion page                                     | companion page in the PC's browser    | the Pi's USB and GPIO                                                                                                     | now (M103); 64-bit OS for Muse Code                |
+
+17. **One holder per port or machine.** A port or machine is leased to one
+    conversation at a time, across windows, editors and the ACP agent on the
+    same computer. The lease is a lock file in the per-user data folder that
+    names the holder's owner-only socket, so the CLI stop can reach the
+    holder. A second claimant is told who holds it. A port already held by
+    another program (an IDE's serial monitor, a slicer) is reported busy,
+    never taken. Embedder's "exclusive hardware lease" is the precedent
+    (https://embedder.com/).
+
+---
+
+### D84 — Equal functionality in every editor (2026-10-05)
+
+The owner (2026-10-05): "i feel like you are still focusing very hard on vs
+code rather than treating all the editors equally; all of the editors should
+have equivalent functionality even if we need to develop it ourselves".
+
+- **Parity, not tiers.** This supersedes D60's "integration type" tiers and
+  D62's "the editor's own chat is the interface" as the product promise.
+  - Every editor gets the full Muse panel and every feature in the
+    registry, through native APIs where the host has them and through our
+    own implementation where it does not.
+  - ACP stays, as a second view of the same sessions, and as the route for
+    clients we do not ship a shim for.
+  - D60's status ladder (Planned → Prototype → Preview → Supported) still
+    applies. **Supported now means every registry row is W** with evidence.
+    An exception is allowed only where the host makes a capability
+    impossible; it is named, given an equivalent in our panel, and gets an
+    upstream request (the owner files Zed's, since Zed refuses agent-written
+    contributions).
+- **One controller, one UI, one contract.**
+  - The `ConversationController` and every panel feature run in VS Code's
+    extension host and in the standalone runtime
+    (`muse-spark-code-acp panel`).
+  - The React UI runs behind three bridges: VS Code, embedded and
+    companion.
+  - The editor-services contract is **MHP v1** (`src/shared/hostApi/`).
+    VS Code implements it in-process first, and its behaviour does not
+    change.
+  - The ACP agent's sessions move onto the controller.
+- **The routes:**
+  - **Embedded native plugins:** JetBrains (with Android Studio), Visual
+    Studio and Eclipse (with Espressif IDE).
+  - **A loopback companion panel**, paired with ACP and a thin shim: Zed,
+    Xcode (a signed WKWebView container app with XcodeKit commands), Qt
+    Creator (Lua), Neovim (Lua), Emacs (elisp, in an xwidget where built)
+    and Sublime (Python).
+  - **Tab completions** through each host's completion API, an LSP 3.18
+    `inlineCompletion` server, Zed's OpenAI-compatible provider, or an
+    Invoke command.
+  - **Code intelligence and diagnostics** through each host's API, or the
+    runtime's LSP broker.
+- **Rulings carried.**
+  - Rule 8: the key stays in the runtime's OS store and is entered only
+    through `auth set`. There is no `secrets/*` in MHP, and the key never
+    reaches the UI or the companion.
+  - Rule 12: our popup and the shared ledger in every editor. The ACP
+    launch flags become per-session options, still asked at each use.
+  - Rule 7: zod on MHP and on the companion.
+  - The companion follows M98's loopback guard, adapted for a browser
+    (§3.8 of the research).
+  - Nothing is installed unasked: Node and the language servers are found
+    or downloaded only with consent and a pinned SHA-256.
+- **Merge-gate rule.** `check:editor-matrix` in `quality:gates`, with
+  AGENTS.md rule 14: a feature PR updates the feature × editor registry.
+- **Order.** Foundation first (M104a). Then the three native plugins and the
+  companion-paired hosts in parallel (M104b–e), distribution (M104f), and
+  qualification (M104g). The research is
+  `docs/certification/m104-research.md` (this file, moved in).
+
 ## 3. Open questions (need the owner)
 
 - **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
@@ -5730,6 +6484,24 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### TRAIN13B — Release-train size recovery and complete Kubuntu gate (2026-10-05)
+
+- [x] Confirm both checkpoint test files pass in the cleared normal temporary directory.
+- [x] Defer Account & usage, Agent map, best-of-N, board, history and review UI until opened, with accessible loading/cancellation, ESM chunks and startup-transitive size/split/packaging guards. Keep the 900 KiB startup cap and at least 20 KiB headroom.
+- [x] Share the Node bundles’ used zod/mini exports in one guarded runtime beside uiText; browser and integration builds retain their inline parser. Ship that runtime in the VSIX and both ACP packages. Keep every existing cap; give only the new measured artifact its D6 measured-plus-15%-rounded-to-25-KiB cap.
+- [x] Stage the VSIX in the worktree, minify its JSON without changing source tables, check shipped localization bytes, and use a concise marketplace README linking the complete repository guide. Ship Unreleased and the newest two released changelog sections with a full-history link; retain the complete source changelog. Preserve privacy, skills, helpers and every runtime feature. Test exclusions against actual package collection.
+- [x] Measure with the real universal helper extracted from the 0.12.1 release asset (119,342 compressed bytes), then run full quality and the unchanged VSIX gate. Drill new guards, restore byte-exact, update train certification/result and the reviewable PR description. Local hook-on commits only; no merge, push, paid or live model call. The specific brief authorizes full quality and read-only release-asset retrieval despite common.md’s ordinary lane limits.
+
+### DEFAULTS — Available enhancements and interactive daily paid admission (D78)
+
+Scope and acceptance are in D78. The existing paid gate and consent remain
+canonical; the daily adapter reuses M82's journal, while the final HTTP
+guard reserves and settles only interactive extras. No new dependency,
+wire shape or prompt text. Separate `dictationEngine` selection preserves
+the free system default. Test/quality evidence lives in
+`docs/certification/defaults.md`. M91 golden fixtures and M94 Tab are not
+in this base; their integrated-tree proof remains the lead's next step.
 
 Every milestone carries the same certification checklist (§6.0) plus its own
 acceptance criteria. **A milestone is not complete until its checklist passes.**
@@ -12540,15 +13312,119 @@ the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
 
 ### M81 — Browser check (D49)
 
+**Status 2026-10-02: lane A1 of design spec v4 built on
+`feature/m81-browser`** (`docs/certification/m81.md`, "v4: lane A1"). The
+owner reversed "no bundled browser": the check runs Google's Chrome for
+Testing headless shell, pinned per release, behind an owned proxy (D-B1(b)).
+Built: the closed failure union (lead ruling v4-M1, first commit); the
+proxy boundary (plain HTTP to implicit loopback or explicit hosts, CONNECT
+only to explicit hosts, auth stripping, bounds); the resolver map; the
+canaries in three phases with the restart tripwire; the two lifetimes
+(preparation 15 minutes, check 60 seconds); the runtime store in
+`dist/browserRuntime.js` (pin, consent from the host, download, bounded ZIP,
+hashes, receipt, publication, verified winner, per-check recheck); the
+`browserCheckRuntime` setting and the Download command; release and weekly
+pin checks. Captured on the Kubuntu, Mac mini (Intel) and Win11 rigs,
+including the forced network-service restart; drilled guard by guard.
+Open, the lead's: A2 (Linux namespace, a later lane); the disposable-CI
+controls of spec §7 (planted policy, synthetic identities, mTLS, DoH, the
+G2 N/N calibration, Windows ambient-auth calibration); a mac-arm64 run (the
+Mac mini is Intel); the Download command's VS Code UI run; the aggregate
+quality gate on the final tree. The record that follows is the superseded
+system-browser design, kept as history.
+
+Review fix 2026-10-04: folder cleanup survives cancellation during creation.
+
+**Status 2026-10-01 (superseded by A1): built and certified** (`docs/certification/m81.md`),
+ported from the 2026-09-28 draft (`b51c5f4c`) and largely rebuilt on the
+release candidate; the independent review RV81 (one P1, four P2) fixed the
+same day, each with a test and a red drill. Decisions taken while building:
+
+- **Two blocks beyond loopback, and a watch.** The Fetch domain is enabled
+  on the browser target, not the page, so it pauses every request of every
+  target (the page, frames in other processes, dedicated and service
+  workers, each redirect leg; probed on Chrome 150, Edge 154 and the
+  154 headless shell), and fails each one that is not http(s) to an
+  allowed host. What Fetch cannot see (a WebSocket handshake, a
+  preconnect, the browser's own traffic) goes to a proxy that does not
+  exist (`--proxy-server=http://127.0.0.1:9`), bypassed only for
+  loopback and the allowed hosts; `<-loopback>` removes Chrome's implicit
+  bypass, which includes link-local 169.254.0.0/16. WebRTC may not send
+  UDP outside the proxy. Every target is watched (RV81): the browser and
+  each target it attaches auto-attach every target they start
+  (`waitForDebuggerOnStart`, flattened), and each is held until its
+  Network events (and Fetch, where it has the domain; a worker does not)
+  are on; one whose watch cannot be set up, or one past
+  `BROWSER_CHECK_MAX_TARGETS` (64), is never let run. A WebSocket or
+  WebTransport beyond the allowed hosts from any of them, or any answer
+  from beyond (a response, a redirect), stops the check and returns
+  nothing from the page.
+- **Refused under a managed proxy policy (RV81).** Mandatory policy
+  outranks the command line, so before any browser starts the check reads
+  where Chrome and Edge keep it (Windows: HKLM and HKCU
+  `SOFTWARE\Policies\Google\Chrome` and `…\Microsoft\Edge`, both registry
+  views, through `reg.exe`; Linux: every file in the Chrome, Chromium and
+  Edge `managed` folders; macOS: the machine's and the user's forced
+  preferences in `/Library/Managed Preferences`, through `plutil`), and
+  refuses with a translated reason, starting nothing, if any policy named
+  Proxy… or a cloud management enrollment token (also its token file on
+  Linux and macOS) is there, or if a location that exists cannot be read.
+  Recommended policy ranks below the command line and is not read. Every
+  location is read for both browsers, whichever was found.
+- **One modal, one scope (RV81).** On Muse Code an open modal is shared
+  only by a call of the same URL and the same widening and allowed hosts,
+  and the setting is read again after the answer: a call whose scope
+  changed meanwhile opens nothing.
+- **An ended check sends nothing more (RV81).** A deadline, a Stop, a leak
+  or a dead pipe closes the CDP connection at once, rejecting every call
+  still waiting, before the browser's kill is awaited; each step checks
+  the connection first.
+- **Bounds on what the page controls (RV81).** A CDP message's whole
+  length is checked against 32 MiB before it is joined or parsed; the URLs
+  of requests in flight are kept per session, cut to 500 characters,
+  dropped when the request finishes or fails, and at most
+  `BROWSER_CHECK_MAX_TRACKED_REQUESTS` (512) at once.
+- **Names are never looked up.** Loopback is `localhost`, 127.0.0.0/8 or
+  `[::1]` as the URL parser writes them; any other name, including one
+  that resolves to loopback, is beyond loopback until the user widens it.
+  The draft's DNS recheck is dropped: it sent page-chosen names to the
+  resolver and raced the request.
+- **Widening.** The machine-scoped `museSpark.browserCheckExtraHosts`
+  takes plain host names or addresses only (no port, path, wildcard or
+  list separator, since each also goes into the proxy bypass list). A
+  card widens one call: on the Model API a host beyond loopback and the
+  setting always gets a card, Bypass included, unless the user chose
+  "Always allow" for that host on one in this session; on Muse Code the
+  extension's modal names the host. Plan and Restricted Mode refuse the
+  check; it is a `network` tool, judged per host like web fetch.
+- **The screenshot** reaches the Model API model as `read_file`'s images
+  do (D47: a user message after the round), not as function output.
+  Muse Code gets text only until a capture shows otherwise (rule 13).
+- **Lifetime.** A check that ends by itself asks the browser to close,
+  then kills it; a deadline, a Stop, a leak or the window closing kills it
+  at once with everything it started (`processTree.killTree`). When the
+  window itself dies, the browser exits with its pipe (drilled on Linux
+  and Windows).
+- **Its own bundle**, `dist/browserCheck.js` (D6 amendment), and the shared
+  English table (`dist/uiText.js`) taken in as its prerequisite.
+- **Left out:** console errors of frames in other processes and of
+  workers (their requests are gated, and their failed ones listed); a
+  bundled browser.
+
 - **Goal.** The model sees its web change working.
 - **Scope.**
-  - A tool that opens a local URL in a headless browser: the system
-    Chrome or Edge over CDP, with no bundled browser.
+  - A tool that opens a local URL in a headless browser over CDP:
+    amended 2026-10-02 (design spec v4, the owner's decision reversing "no
+    bundled browser"), Google's Chrome for Testing headless shell pinned
+    per release and downloaded after consent, not the system Chrome or
+    Edge.
     - CDP over `--remote-debugging-pipe`, never an open port, and a
-      temporary profile, never the user's.
-    - Requests to anything but loopback are blocked, so a page cannot
-      reach the intranet or a metadata address and hand back what it
-      found.
+      fresh private profile, never the user's.
+    - All traffic goes to the check's own proxy, which passes plain HTTP
+      to loopback and widened hosts only, so a page cannot reach the
+      intranet or a metadata address and hand back what it found;
+      `https`/WebSocket tunnels only to a widened host (opaque: residual
+      in §9).
   - It returns a screenshot (image input), the console errors and failed
     requests.
   - It can click or type through a small action list.
@@ -12560,9 +13436,15 @@ the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
   gets the console and failed requests as text.
 - **Acceptance.** No debugging port is opened; a request beyond loopback
   is blocked unless the user widened it; the user's profile is never used.
+  A1 (spec v4): the runtime is the pin's, verified; every canary phase
+  holds or the check refuses; a network-service restart refuses; open
+  until captured on disposable CI: spec §7's unsafe positive controls.
 - **Tests.** A local fixture page with a console error and a failed
-  request; drills for the loopback block and the pipe.
-- **Size.** M.
+  request; drills for the loopback block and the pipe. A1: the proxy, the
+  canaries, the lifetimes, the store and ZIP reader on real folders, the
+  live suite on the pinned runtime, one red drill per guard
+  (`docs/certification/m81.md`).
+- **Size.** M (A1: L).
 
 ### M82 — Awareness and budgets (D49)
 
@@ -15879,6 +16761,24 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M102 — Usage & cost in every editor (D82)
 
+**M102INT composition (2026-10-05, win11).** W joins E, S, L, U and R on
+J's repaired journal, then M104 C's shared loopback server. Usage uses C's
+single-use launch code, independent in-memory bearer per window and fetched
+event stream; the separate S server is retired. The adapter connects J's
+validated rollups to S's aggregates and formatter and loads all page code
+lazily. The CLI also accepts `--usage` for the JSON export. The combined
+release train exceeds activation and English fallback caps before wiring:
+trace-log readers move behind the existing service entry; the Node-only
+English artifact is compressed at build time and reconstructed losslessly by
+Node's built-in zlib. Browser fallback and installed tables retain their
+existing representation. No existing cap, lint rule or threshold rises.
+The new lazy bundle budgets follow D6's measured +15%, rounded-up rule:
+service 100 KiB, companion 50 KiB, host panel 75 KiB (including the lazy daily
+budget), page JavaScript 525 KiB and page CSS 25 KiB. These are initial budgets
+for new artifacts; every existing budget stays unchanged.
+Acceptance and the exact composed gate receipts live in
+`docs/certification/m102.md`; U/R review repairs remain their reviewers' work.
+
 - **Review repair FIXM102E (RVM102E, 2026-10-05).** Cancel an outstanding
   ACP usage URL elicitation without waiting for the client, tell the client to
   abandon it and return `stopReason: cancelled`, then accept another prompt.
@@ -16201,7 +17101,661 @@ No new dependency or editor-specific behavior; all shared journal consumers
 receive these fixes. Full quality and combined editor wiring remain lead/W work
 as required by the rig brief; do not run full quality or merge in this lane.
 
+### M99 — What's New after an update (D79)
+
+**Status 2026-10-04: built on `feature/m99-whats-new`; record in
+`docs/certification/m99.md`.** Activation's side is
+`src/host/whatsNew/whatsNew.ts` (the check, the claim, the wait for a quiet
+window, the loader) over `src/core/whatsNew/whatsNewVersions.ts` (semver,
+the install or upgrade decision, the releases a page shows, page or notice).
+`dist/whatsNew.js` is `whatsNewEntry.ts`, `whatsNewPanel.ts` (the tab and
+its messages) and `whatsNewHtml.ts` (the page, the Try it allow list) over
+`src/core/whatsNew/whatsNewContent.ts` (the schema).
+
+- **Goal.** After an update the user sees what changed and can try it, once,
+  in one window, without losing focus or interrupting a turn.
+- **Scope.** D79: the content generator in `npm run build`; the update
+  check, claim and timing; the page, its script and stylesheet; the setting,
+  the command and the palette item; the changelog guard; strings in all 14
+  tables; README, RELEASING, CHANGELOG (with this release's Highlights), the
+  host API record, this plan and `docs/certification/m99.md`.
+- **Acceptance.**
+  1. A fresh install records its version and shows nothing.
+  2. An upgrade shows the page once, in the background, after the window
+     settles; the next activation of that version shows nothing.
+  3. Of several windows activating together, exactly one shows it.
+  4. The same version or a downgrade shows nothing, keeping the newer record.
+  5. The setting off shows nothing (the version is still recorded).
+  6. A fixes-only patch shows the notification; **What's New** opens the
+     page, **Don't show again** turns the setting off.
+  7. Nothing shows while a turn runs or within `WHATS_NEW_QUIET_MS` of an
+     edit.
+  8. A Try it for a command or setting the extension does not contribute
+     fails the build, is never rendered, and is refused if asked for.
+  9. The page has its CSP with the load's nonce, escapes the notes, and opens
+     links through `openExternal` from the host's own list.
+  10. `dist/whatsNew.js` and the page script are not in `dist/extension.js`;
+      the page script carries no package or display table.
+  11. The generator keeps released sections only (`[Unreleased]` excluded)
+      and splits them at their headings.
+  12. A minor release without Highlights fails the changelog test.
+  13. The shipped content keeps only the newest two releases' full notes,
+      plus the newest earlier Highlights when needed; upgrades from before
+      that window still show Highlights and the full-changelog link.
+      `dist/whatsNew.json` has a hard 40 KiB raw budget, red-drilled, and the
+      packaged VSIX is compared with main `bf77aabe` on the same rig.
+- **Tests.** `whatsNewVersions`, `whatsNewContent` (the generator),
+  `whatsNewHtml` (with axe in jsdom), `whatsNewPanel`, `whatsNew`,
+  `whatsNewPage`, `whatsNewBundle` (the shipped bundle against a stand-in
+  `vscode`), `changelogVersion`, `manifest`, `settings`, `App`; each guard
+  red-drilled on a rig.
+- **Gates.** The full quality gate; D6 budgets with the two new rows; the
+  bundle-split gate's new entries; check-l10n; host API.
+- **Certification checklist.**
+  - [x] Acceptance 1–12 with tests and drills (`docs/certification/m99.md`).
+  - [x] Strings in all 14 tables (check-l10n 0 problems).
+  - [x] Full quality gate on Kubuntu at `b23e1181`, exit 0 (m99.md).
+  - [x] Acceptance 13 and FIXM99 review fixes at `696ec15d`: JSON 34,410
+        bytes, hard 40 KiB cap, 282 targeted tests passed, drills fired
+        (win11; m99.md).
+  - [x] Local Windows VSIX 2,102,696 bytes, within 2200 KiB, +36,468 bytes
+        versus main `bf77aabe` on the same rig (without the macOS helper).
+  - [ ] Universal VSIX within its 2200 KiB budget (hosted CI package job).
+
+### M92 — Muse Gadgets support (D71)
+
+- **Goal.** Firmware and device work with Muse Spark Code is safe, with tokens
+  never leaked, and practical, with bounded flash and monitor runs, without
+  duplicating the SDK's own agent guide.
+- **Scope.**
+  - **M92a, tokens:** `src/core/redact.ts` and its consumers; the existing
+    secret warnings; tests; CHANGELOG Security; README, SECURITY.md and
+    PRIVACY where they list secret kinds.
+  - **M92b, bounded runs:** a proof, on Windows, macOS and Linux with fakes,
+    that a timed-out shell command returns its captured output and leaves no
+    process behind (a fake never-ending "monitor" that prints, then sleeps,
+    with a child process). Fix the shell tool only where the proof fails.
+  - **M92c, skill:** `muse_gadgets` in the bundled source (D68's vendor
+    layout, or a first-party folder beside it), the model-facing text, and
+    strings in all 14 tables if any UI names it.
+  - **M92d, docs:** a README "Muse Gadgets" section (what helps, the phone-ping
+    hook recipe after M91, and the never-a-gadget warning); CHANGELOG; this
+    plan.
+  - **M92e, secret guards (lead decision 2026-10-05, approved scope "robust
+    and feature rich"):** the M92a lane found no prompt, commit or shell
+    secret warning anywhere, so M92e builds the three asked-for guards on the
+    ONE shared detection table (`src/core/redact.ts`, no second pattern
+    list):
+    - a prompt holding a detected secret is held before sending: the panel
+      shows a dialog (Send anyway / Edit) and the transcript card carries the
+      redacted text. The host scans a plain composer send, posts
+      `secretPromptDetected` with the redacted text instead of starting the
+      turn, and only sends on with an explicit `secretAccepted` re-post. The
+      browser scans through the same pure table in `src/shared/redact.ts`
+      without importing host or core code. The session store keeps the raw text once the user
+      accepts (resume needs it); the panel transcript, extension logs and
+      extension-rendered exports never hold it. Native CLI session logs
+      remain raw backend records, as the export guide states. Slash-command, review, goal, handoff, loop and
+      `!`-command sends are out of scope: only the plain-message path warns.
+    - the commit guard is skipped: no commit-writing path exists. `git.ts`
+      only runs git, best-of-N snapshots with `write-tree` explicitly without
+      a commit, and review only reads messages and diffs. The user commits
+      outside the extension by definition; a `git commit` the agent proposes
+      as a shell command meets the shell guard.
+    - a shell command holding a detected secret requires explicit approval
+      before execution on the Model API backend: the engine settles it `secretDetected` (no allow-rule or session-rule
+      auto-allow, no Auto reviewer, no session choice, no hook auto-allow),
+      and the controller scrubs every approval card before the panel (the
+      value shown redacted, a secret note, all non-once approve choices
+      dropped) on both backends. The Auto reviewer on Muse Code never sees
+      one (`isReviewableApproval` excludes them). An explicit user approval
+      still runs the command as proposed. Model API Bypass asks too. Muse
+      Code Bypass can execute without an approval event; see the named §9
+      residual, RVM92E-BYPASS-MUSE.
+- **RVM92E corrections (2026-10-04, FIXM92E).** Fix all four P1s and
+  the prompt concurrency, explicit resend and approval-note P2s with failing
+  regressions and byte-exact red drills. The pure shared detection table must
+  also run before the browser creates a user card and when it replays history;
+  place its existing implementation in `src/shared/redact.ts`, keeping the
+  `src/core/redact.ts` entry for existing consumers. Persist redacted draft
+  recovery and redact Markdown content and its filename. Keep all pending
+  sends by local id; Send anyway sends the held text, attachments and reference
+  without consuming a newer composer draft. Scrub every reviewer fallback,
+  redact whole stage lines and omit standing-prefix metadata, remove every
+  non-once approve choice, and propagate update notes. Model API secret shell
+  calls ask in Bypass too, while forbids and denied modes still deny.
+  Muse Code Bypass cannot be intercepted when the CLI sends no approval;
+  record that named redesign residual in §9 and narrow the public claim.
+  The duplication gate also exposes copied M92 secret-dialog boot setup;
+  replace that owned test setup with an initialized UI store, preserving all
+  assertions and the zero-duplication threshold.
+- **Acceptance.**
+  1. A valid `mgst_` token is redacted everywhere the shared table applies, and
+     `scan-secrets` counts it. Near-misses (wrong last character or length,
+     embedded in a word, hyphen-glued overlength runs) are not matched as
+     gadget tokens.
+  2. A shell command with `timeout_ms` that never exits returns its captured
+     output with `isTimedOut: true`, and its process tree is gone afterwards,
+     on all three OSes.
+  3. With bundled skills on, `/muse_gadgets` is listed and loads; with them
+     off, it isn't.
+  4. README states what the extension does and doesn't do with gadgets, with
+     the security warning.
+  5. A prompt holding a detected secret warns before sending (Send anyway /
+     Edit); the transcript card shows the redacted text either way.
+  6. A shell command holding a detected secret shows its card with the value
+     redacted and a secret note and offers no standing approve choice. On
+     Model API it is never auto-approved by an allow rule, a session rule,
+     a hook or the Auto reviewer; on Muse Code every emitted approval is
+     scrubbed and excluded from the reviewer (CLI admission residual in §9).
+- **Tests.** Unit tests for each item, each red-drilled. M92b's process-tree
+  proof runs on the three rigs (targeted files only). No hardware, network or
+  model call is needed.
+- **Gates.** The full quality gate, check-l10n, host-API, VSIX size.
+- **Security.** A token never appears in a fixture literal (fixtures are built
+  at runtime). The skill tells the user to enter tokens themselves. Nothing
+  installs or talks to gadget services. M92e adds no pattern list: every
+  guard reads the one shared table.
+- **Certification checklist.**
+  - [x] M92a: redaction, consumers and warnings, with drills
+        (`docs/certification/m92.md`)
+  - [x] M92b: bounded-run proof (Windows here, macOS/Linux on the rigs;
+        no shell fix needed)
+  - [x] M92c: bundled skill listed, loaded and toggled
+  - [x] M92d: README, CHANGELOG and this record (the phone-ping hook
+        recipe waits on M91)
+  - [x] M92e: prompt and shell secret guards, with drills
+        (`docs/certification/m92.md`); the commit guard skipped, no
+        commit-writing path exists
+
+### M103 — Makers: boards, firmware and machines (D83)
+
+**Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
+authorization: "any recommendation you come up with you are authorized").**
+(a) Plain HTTP on the LAN only for a machine the user registered by command,
+with the warning; model servers keep D74. (b) Model-proposed actuation for
+3D printers only, each send approved; CNC, lasers and robots get read-only
+status and Stop. (c) The Auto reviewer never answers shell commands in a
+hardware workspace. (d) Certify on fakes and simulators, plus the owner's
+Raspberry Pi and ESP32 in a supervised session (2026-10-05 evening). (e)
+Wokwi only with the user's own `WOKWI_CLI_TOKEN`, never on by itself. (f)
+Headless hardware-in-the-loop is built, but only from an allowlist file the
+user writes (device identity, action, payload digest, limits, expiry), never
+the model; every run's log is kept. (g) The companion page is the whole
+panel (M104); M103's maker pages are built on the same server and bridge.
+(h) Publishing accounts (PyPI, ACP registry, Eclipse update site) are the
+owner's; release assets and install docs ship meanwhile.
+
+**Status 2026-10-05: planned.** Sub-milestones land in order a → f; a's
+guard ships first and alone if the others slip, because it closes H1–H5 for
+every user.
+
+- **Goal.** Makers get skills, detection, simulation and offline tools that
+  work out of the box, and device and machine access that never moves,
+  heats, powers or flashes anything without a person approving exactly what
+  is sent.
+- **Depends on.** M92 (bounded runs, first-party skills, the secret-guard
+  settle), M68 (check commands), M69 (the in-tool modal), M89 (the
+  installer), M91 (hooks: their allow must not answer a device action), M95
+  (capability records) for D83.12, M96/M100 only for the refusals in D83.8.
+  For D83.16: M60's portable list and host API record, M61's `HostBridge`,
+  M63's ACP agent and package. The JetBrains, Visual Studio and Eclipse
+  surfaces arrive with M64 and M65; M103 freezes the protocol they
+  implement, so they need no maker code of their own beyond a dialog and a
+  toolbar action.
+- **Scope.** D83: the guard table and settle on both backends and in the ACP
+  agent and headless; the hardware switch, device log and machine registry;
+  detection and catalogue gating; the maker skills and the installer
+  change; the device list, flash identity check and irreversible refusals;
+  the G-code analyser; simulator and EDA check presets; the OpenSCAD tool
+  and STL preview; the serial tool and helpers; printer status, send and
+  stop; GRBL/FluidNC status and stop; physical MCP marking; the arm64 CI job
+  and the Pi, local-model and simulator guides; D83.16's portable engine,
+  `MakerHost` port and protocol, the VS Code adapter, the runtime's maker
+  host with its CLI subcommands, loopback MCP tool server and companion
+  page, the ACP prompts and commands, and the shared React maker views;
+  strings in all 14 tables;
+  README (a Makers section with the safety box), SECURITY, PRIVACY,
+  CHANGELOG, this plan, `docs/research/makers-2026-10-05.md`,
+  `docs/certification/m103*.md`.
+
+**Lanes and file ownership.** One integration branch
+(`feature/m103-makers`). Sub-milestone **f** is the maker editors (lanes A
+and T, and the Eclipse and JetBrains qualification rows); the owner has
+authorised plugins and bridges for every editor. New code lives in new folders split by lane, so
+lanes touch shared files only in their named regions (M87's region rules for
+`constants.ts`, `en.ts`, styles and the harness). Order:
+
+1. Lanes 0 and I first (about a day): the strings and the frozen
+   interfaces.
+2. Then up to six lanes in parallel against fakes of I's ports:
+   - core lanes G, D, S, P and M;
+   - surface lane U.
+3. Then V and R, the host adapters, which may overlap with step 2 once I is
+   frozen.
+4. W last.
+
+Everything a lane builds in `src/core/maker/**` is portable: no `vscode`
+import, and it goes on M60's portable list. The only VS Code code is lane V.
+
+| Lane                           | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Strings                      | `src/shared/l10n/en.ts` (maker region), the 14 `l10n/ui.*.json`, `package.nls*.json` (commands, settings).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| I Interfaces (first)           | `src/core/maker/ports.ts`: the `MakerHost` port (`confirm`, `notify`, `stopControls`, `openPreview`, `storage`, `secrets`, `isTrusted`), `ApprovalRequest` (id, digest, target identity, expiry) and the answer check. `src/shared/makerProtocol.ts`: zod messages between the engine and any surface (webview, companion page, native plugin). The constants region. Tests for the answer check (a stale, mismatched or replayed answer is refused).                                                                                                                                                                                                                                                                                                                                                                  |
+| G Guard (a)                    | New `src/core/maker/guard/`: `hardwareCommands.ts` (the table below, both esptool spellings) and `actionClass.ts`. `src/core/agent/approvalHardware.ts` (Muse Code approvals, like `approvalSecrets.ts`). In `src/core/backends/modelapi/permissions.ts`, the `hardwareDetected` settle and the `device` class. The settled-ask list in `ModelApiHost.ts` (`askApproval`). `isReviewableApproval` in `approvalRules.ts`. The Bypass refusal in `src/shared/permissionModes.ts`. The subagent, worker, best-of-N, remote-lane and headless refusals at their call sites (one line each). Tests: `hardwareCommands.test.ts`, maker cases in `permissions.test.ts`, `approvalHardware.test.ts`, exec cases.                                                                                                               |
+| S Skills (a)                   | New `first-party-skills/maker_*/**`: each `SKILL.md` plus topic files read on demand. The installer change in `src/host/skills/bundledSkillsInstall.ts` (the first-party folder copied and marked). `.vscodeignore` if needed. Tests: `bundledSkillsInstall.test.ts`, and a skill lint test (front matter, ids, links, no secrets, every recipe command on the recipe-check list).                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| D Detection and presets (a, b) | New `src/core/maker/detect/`: `projectKinds.ts` (markers → kinds, bounded file reads), `checkPresets.ts`, and `onPi.ts` (facts from `/proc/device-tree/model`, `vcgencmd`). The catalogue gate in `src/core/context/skills.ts`. A `presetsOffered` event the hosts render. Tests over fixture workspaces.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| P Ports, serial, lease (a, c)  | New `src/core/maker/serial/`: port-list parsers per OS (CIM, sysfs and `by-id`, `ioreg`, `pio`/`arduino-cli` JSON), the VID:PID table, the session over helpers (the pyserial script, `stty` plus a killable reader child, the platform-tool adapters), and framing. `src/core/maker/lease.ts`: one holder per port or machine, through a lock file in the per-user data folder that names the holder's owner-only socket or pipe. `src/core/maker/flashIdentity.ts`. New `native/windows/MuseSparkSerial.cs` with its `JobBuild` entry (`jobBuild.ts` is already portable), and `native/posix/serial.py`. Tests: socat pairs on the rigs, a fake helper, parser fixtures.                                                                                                                                             |
+| M Machines and G-code (b, d)   | New `src/core/maker/gcode/`: tokenizer, analyser, Klipper macro and Marlin/GRBL dialect tables, limits check. New `src/core/maker/machines/`: Moonraker, OctoPrint, PrusaLink, GRBL/FluidNC and Marlin adapters behind one `Machine` interface; limits readers; stop sequences. New `src/core/maker/registry.ts`: machine records with no secrets; the LAN address rule over `endpointPolicy.ts`'s classifier; keys through `MakerHost.secrets`. New `src/core/maker/deviceLog.ts`. New `src/core/maker/cad.ts` (OpenSCAD and `kicad-cli` runners, the STL bounds and size check). Tests against fake Moonraker, OctoPrint and GRBL servers.                                                                                                                                                                           |
+| U Shared UI (a, b, d)          | New `src/webview/maker/**`, all lazy chunks: the approval dialog (surfaces without a native one), the Stop chip, the device panel, the machine wizard, the device log view, and the STL viewer (in-house WebGL, ≤ 25 KiB, its own page entry). Each speaks only `makerProtocol.ts` through `HostBridge`. The panel's mount points in their component regions. Harness scenes, and axe on every new view.                                                                                                                                                                                                                                                                                                                                                                                                               |
+| V VS Code adapter              | New `src/host/maker/`: `vscodeMakerHost.ts` (native modal, notifications, status bar Stop, SecretStorage, `workspaceState`/`globalState`, trust), `makerPreviewPanel.ts` (the webview tab for the preview page), the hardware-switch and machine commands, and the `ide` server's maker tools (`src/host/ide/makerTools.ts`). Tests with the `vscode` mock.                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| R Runtime, ACP, companion      | New `src/runtime/maker/`: `runtimeMakerHost.ts` (data folder, the OS credential store via `keyStore.ts`, workspace grants keyed like the ACP agent's paid grants); the CLI subcommands `hardware enable\|disable\|status`, `machines add\|list\|remove` and `stop-machine [--all]` (keys only from stdin, rule 8); a loopback MCP tool server for Muse Code (`muse serve` gets the maker tools as the extension's `ide` server gives them); the companion server (loopback, token, Host/Origin checks, CSP, serving the shared panel's maker pages). In `src/acp/maker.ts`: permission prompts with allow-once and reject-once only, the `/stop-machine`, `/hardware` and `/machines` commands, and `--hardware`. Tests over stdio against the fake CLI, and companion-server tests (token, Origin, LAN bind refused). |
+| W Wiring (last)                | The esbuild entries `dist/maker.js` (portable; added to the ACP package beside `dist/modelApi.js`), the preview page, and the webview's maker chunks. Their budgets in `scripts/check-bundle-size.mjs` and the split guard. The tool-definitions region in `tools.ts` (`hasDevices`, `hasCad`, `hasGcode`). The command region in `src/extension.ts` (loaders only). `package.json` (commands, settings, keybinding). The M60 portable list and the host API record. README (with the editor matrix), SECURITY, PRIVACY, CHANGELOG, PLAN, `docs/research/makers-2026-10-05.md`, `docs/certification/m103.md`, `docs/ide-compatibility/hosts.md` rows. The arm64 CI job in `.github/workflows/`. The full gate.                                                                                                         |
+| A Arduino IDE build (f)        | A second VSIX build: `engines.vscode ^1.96.0`, host `node20.14`, webview `chrome124` (`scripts/build.mjs` variant, `scripts/package-arduino.mjs`). A typecheck job against `@types/vscode` 1.96. Reading the IDE's board API (`vscode-arduino-api`) when present. The Arduino IDE row in `hosts.yml`: install into `~/.arduinoIDE/plugins/` and run the integration tests. Install docs.                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| T Thonny plugin (f)            | New `integrations/thonny/` (Python package `thonnycontrib.muse_spark`, Apache-2.0 or MIT like the repository): menu items (Open Muse Spark, Stop machine), starting and stopping the runtime, opening the companion page, and the serial-provider bridge (Thonny's `get_runner()` behind the runtime's owner-only socket). Python tests against a fake runner; a PyPI release job (owner's token, Q-M103h).                                                                                                                                                                                                                                                                                                                                                                                                            |
+| E Evidence (after W)           | The rig runs, the ACP clients (Zed, Neovim, Emacs, JupyterLab, CLion) through the device flows against fakes, Arduino IDE 2 and Thonny on a rig, and the one live capture (below). No source files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+
+**Lane G's table (initial; each row and each near-miss is a fixture).**
+esptool v5 uses dashes (`write-flash`) and keeps the underscore forms
+(`write_flash`) with a warning; both spellings are rows.
+
+| Class                                   | Shell patterns (any OS, after `commandShape` splitting)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Near-misses that stay ordinary                                                                                                                                                       |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| program                                 | `pio`/`platformio` `run` with `-t`/`--target` `upload`, `uploadfs` or `erase`; `pio test` without `--without-uploading`. `idf.py … flash`, `app-flash`, `erase-flash`, `dfu-flash`. `esptool` `write-flash`, `erase-flash`, `erase-region`. `arduino-cli upload`, `burn-bootloader`. `avrdude -U flash:w`/`eeprom:w`. `picotool load`/`reboot`. `mpremote` `cp`/`fs cp` to `:`, `rm :`, `run`, `exec`, `mount`, `reset`. `ampy put`/`rm`/`run`. `dfu-util -D`. `st-flash write`. `openocd … program`. `nrfjprog --program`/`--recover`. `esphome run`/`upload`. `espota.py`. `west flash`. A copy to a mounted `CIRCUITPY` or `RPI-RP2` volume. An HTTP `PUT`/`DELETE`/`MOVE` to a CircuitPython `/fs/`.                                                                                                                                | `pio run`, `pio test -e native`, `idf.py build`/`menuconfig`/`qemu …`, `arduino-cli compile`, `esptool merge-bin`/`image-info`, `espsecure …` (local files), `mpremote connect list` |
+| connect                                 | `pio device monitor`, `pio run -t monitor`, `idf.py monitor`, `arduino-cli monitor`, `mpremote` (bare, `repl`, `connect <port>`), `screen`/`minicom`/`picocom`/`cu` on a device, `stty -F`/`-f` on a device, `cat` of a device, `python -m serial.tools.miniterm`, `esptool` `chip-id`/`read-mac`/`flash-id`, `picotool info`, any open of a port at 1200 baud (it reboots CircuitPython and Arduino-class boards into their bootloader)                                                                                                                                                                                                                                                                                                                                                                                                | `pio device list`, `arduino-cli board list`, `python -m serial.tools.list_ports`, `ls /dev/serial/by-id`                                                                             |
+| actuate                                 | A write to a serial device node (`> /dev/tty*`, `> /dev/cu.*`, `> COMn`, `Set-Content -Path COMn`, `.Write(` on `System.IO.Ports`). `gpioset`, `pinctrl set`/`op`, `raspi-gpio set`. `ros2 topic pub`, `ros2 action send_goal`, `ros2 service call`. HTTP that changes a printer or CNC by `curl`, `wget`, `Invoke-WebRequest`, `Invoke-RestMethod` or `http`, over TCP or Moonraker's unix socket (`--unix-socket …moonraker.sock`, which skips auth): Moonraker `/printer/gcode/script`, `/printer/print/*`, `/machine/device_power/*`, `/server/files/upload` with `print=true`; OctoPrint `/api/printer/*` POST, `/api/job` POST, `/api/files` upload with `print=true`, `/api/connection` POST; PrusaLink `/api/v1/job/*` PUT/DELETE and file PUT with `Print-After-Upload`; FluidNC `/command`; a CNCjs socket `command`/`write`. | `curl …/printer/objects/query`, `GET /printer/info`, `GET /api/printer`, `GET /api/v1/status`, `ros2 topic echo`, `ros2 bag info`, `gpioinfo`, `gpiodetect`, `vcgencmd`              |
+| refused (irreversible, or machine-side) | `espefuse` `burn-efuse`/`burn_efuse`, `burn-key`, `burn-key-digest`, `burn-block-data`, `burn-bit`, `write-protect-efuse`, `read-protect-efuse`, `set-flash-voltage`. `avrdude -U lfuse:w`/`hfuse:w`/`efuse:w`/`lock:w`. `STM32_Programmer_CLI … -ob RDP=0xCC` (level 2). `picotool otp set`/`otp load`. Machine-side refusals (D83.2), so the shell cannot do what the tools refuse: Moonraker `/printer/restart`, `/printer/firmware_restart`, `/machine/shutdown\|reboot\|services/*`, uploads with `root=config`; G-code or HTTP carrying M997, M502, M500, `SAVE_CONFIG`, M80/M81, M42, M303; GRBL `$X`, `$RST`, `$N…=`, `$<n>=` writes.                                                                                                                                                                                           | `espefuse summary`/`dump`, `picotool otp list`/`get`                                                                                                                                 |
+
+Lane G records each row's source (the tool's own documentation) in its
+certification file. A row it cannot confirm there stays out and is listed
+as such, never guessed in. Stop endpoints and stop bytes (`/printer/emergency_stop`,
+`M112`, GRBL `!` and 0x18) are never blocked or asked in the shell; they are
+logged.
+
+- **Acceptance.**
+  1. **Guard, Model API.** Every row of lane G's table asks in Manual, Edit
+     automatically, Auto and Bypass, with no session choice; an allow rule, a
+     session rule, a hook's allow and the Auto reviewer never answer it; Plan
+     refuses it; every near-miss is judged as today. Refused rows are denied
+     in every mode with the run-it-yourself reply.
+  2. **Guard, Muse Code (fake CLI).** A guarded approval is scrubbed of
+     standing choices and never reaches the reviewer. In a hardware workspace
+     Bypass is not offered on either backend, an existing Bypass session
+     drops to Auto with a notice, and the Auto reviewer answers no shell
+     command. Lane E's capture records which table rows Muse Code's own Auto
+     skip lets through without an approval; if any, Auto is capped to Manual
+     in hardware workspaces on Muse Code and the README says why.
+  3. **Unattended.** In a subagent, a team worker, a best-of-N candidate,
+     headless `exec` and an M100 remote lane a guarded command and every
+     device tool are refused, not asked; a timed send meets the modal, which
+     expires as Reject.
+  4. **Switch.** Off: no device tool is offered (request bytes and goldens
+     identical to the base); untrusted: refused; a `museSpark.*` workspace or
+     folder setting cannot turn it on; enabling asks for a reason, which the
+     device log records; revoking removes the tools at the next request.
+  5. **Detection.** Fixture workspaces (PlatformIO, ESP-IDF, Arduino CLI,
+     MicroPython, CircuitPython incl. a CIRCUITPY root, Pico SDK, Zephyr,
+     ESPHome, ROS 2, Klipper config, Marlin, G-code, OpenSCAD, CadQuery,
+     KiCad, Wokwi) give the right kinds, skills and presets; a workspace
+     without a marker sends byte-identical requests and catalogue; detection
+     reads at most `MAKER_DETECT_MAX_FILES` names and `MAKER_DETECT_MAX_BYTES`
+     per sniffed file.
+  6. **CIRCUITPY and machine config (H2).** A CIRCUITPY workspace root, a
+     Klipper config folder and a Marlin `Configuration*.h` are detected; on
+     the Model API an edit there asks in every mode but Plan with the safety
+     keys highlighted (`max_temp`, `min_temp`, `verify_heater`, thermal
+     protection, position limits); on Muse Code the panel shows a notice that
+     the CLI edits without asking and suggests a working copy plus an
+     approved deploy (the stated residual).
+  7. **Device list.** Fixtures of Windows CIM output, Linux sysfs and
+     `/dev/serial/by-id`, and macOS `ioreg` give port, VID:PID, serial and a
+     board guess; nothing opens a port (asserted by the fake).
+  8. **Flash identity.** A known mismatch is refused; an unknown identity is
+     shown as unknown on the card; a match is shown.
+  9. **Serial.** On socat pairs (Kubuntu, Mac mini) and the fake helper (all
+     OSes; com0com if installable on the Win11 VM): a bounded read returns
+     the bytes and leaves no process; a write shows exact bytes (hex for
+     non-printables) and sends only after Send once; connect warns about
+     resets; every action is logged.
+  10. **Printer status and send (fake Moonraker and OctoPrint servers).**
+      Status reads need no modal; a send is analysed, refused without asking
+      when outside limits or with unknown limits, asks with the exact lines
+      otherwise, expires, and asks again when the state changed; plain HTTP
+      to a registered private address works, to an unregistered or public
+      address is refused, and a name that later resolves elsewhere is
+      refused.
+  11. **Stop.** Stop machine sends each kind's stop sequence with no
+      approval, within `MACHINE_STOP_DEADLINE_MS`, from the panel, the status
+      bar, the palette and the keybinding; the turn's Stop ends a stream; the
+      model's `machine_stop` needs no approval and is logged.
+  12. **CNC/laser.** On a fake GRBL over a pty (grbl-sim where it builds): `?` status and
+      `$$` parse; any motion, spindle or laser command from the model is
+      refused; stop sends `!` then 0x18.
+  13. **G-code analyser.** Fixtures (absolute/relative, mm/inch, arcs,
+      Klipper macros, Marlin and GRBL dialects, unknown commands) give the
+      expected bounds, maximum temperatures and feeds, and classes.
+  14. **CAD and EDA.** A fake `openscad` produces STL and PNG; the preview
+      tab opens with its CSP and passes axe; malformed or oversize STL is
+      refused; the PNG goes back only to vision models. `kicad-cli` JSON
+      captured on a rig becomes the check summary.
+  15. **ACP.** Device tools appear only with `--hardware`; each action's
+      permission prompt offers only allow once and reject once.
+  16. **Installer.** Install for Muse Code copies and marks the first-party
+      skills; Remove deletes only what it marked.
+  17. **Budgets.** `dist/extension.js` and the webview's startup bundle do
+      not grow over the base (D6). `dist/maker.js`, the preview page and the
+      webview's maker chunks are lazy and under their new budgets (measured
+      - 15 %, rounded up to 25 KiB). The VSIX and the ACP tarball are within
+        their budgets.
+  18. **Portable engine.** `src/core/maker/**` is on M60's portable list and
+      the gate fails a `vscode` import there, red-drilled. The same
+      `dist/maker.js` loads in the extension host and in the ACP agent's
+      package.
+  19. **Every surface, one decision.** The same approval request is shown by
+      the VS Code modal, an ACP permission prompt and the companion page's
+      dialog. Each test drives a surface that answers late, with a wrong
+      digest, twice, or for another request; the engine refuses all of them
+      and sends nothing.
+  20. **ACP on both backends.** With `--hardware`, the device tools exist on
+      the Model API backend (in process) and on Muse Code (the runtime's
+      loopback MCP server, fake CLI). `/stop-machine` stops between turns.
+      During a turn, `session/cancel` ends the agent's streams, and
+      `muse-spark-code-acp stop-machine` from a second terminal stops a port
+      held by the agent (through the lease socket) and an HTTP machine
+      directly.
+  21. **Companion page.** It binds loopback only and refuses a LAN address.
+      It refuses requests without the token or with a foreign Origin or
+      Host. It renders the maker views under its own `HostBridge` and passes
+      axe in the harness.
+  22. **Editor matrix.** Every "now" row of the matrix in D83.16 has its
+      flows run against fakes (VS Code family in CI, the ACP clients in
+      `hosts.yml`), recorded in `docs/ide-compatibility/hosts.md`. The rows
+      that wait name the milestone they wait for.
+  23. **Lease.** A second conversation, window or agent asking for a port or
+      machine that another holds is told who holds it and gets nothing. A
+      holder that died leaves a lock the next claim proves stale (no
+      process, no socket) before taking it. A platform tool already holding
+      the port (an IDE's serial monitor) is reported as busy, never fought
+      over.
+  24. **Stop paths.** Against the fakes:
+      - Moonraker's Stop is `POST /printer/emergency_stop` and never
+        `gcode/script` (a drill swaps it and fails);
+      - GRBL's is `!`, 0x85, 0x18 as bytes ahead of any queued line;
+      - Marlin without `EMERGENCY_PARSER` shows the switch notice.
+
+      Klipper `PAUSE`/`CANCEL_PRINT` and OctoPrint job pause or cancel ask
+      as _actuate_. The refused set (D83.2) is refused with the reason,
+      approval or not.
+
+  25. **Approval is the host's.** A tool argument or result carrying a
+      `confirm`, a token or an approval id never counts. A fake MCP server
+      that hands the model a token gets its call asked by our surface all
+      the same.
+  26. **Homing.** An unhomed Klipper fake, GRBL in alarm, or FluidNC with
+      `soft_limits: false` refuses model motion with the reason, and allows
+      stop and status.
+  27. **Maker editors (f).**
+      - The Arduino IDE build loads in Arduino IDE 2.3.10 (Linux, CI or
+        Kubuntu) and runs the integration tests.
+      - The Thonny plugin starts the runtime, opens the companion page, and
+        routes a device read through a fake Thonny runner without opening
+        the port.
+      - The Eclipse rows wait for M65; the beta ACP Connector route for
+        Espressif-IDE is recorded if it installs.
+      - CLion 2026.1 runs the ACP flows against fakes.
+- **Tests.** Unit tests per lane with a red drill for every guard row and
+  every refusal, recorded in `docs/certification/m103-<lane>.md`; fake CLI
+  e2e for the Muse Code paths; fake machine servers in `test/unit/helpers`;
+  socat-pair serial tests on Kubuntu and the Mac mini; the Windows helper on
+  the host and the Win11 VM; the ACP package on the arm64 CI runner. No
+  hardware is needed for the gate.
+- **Gates.** The full quality gate, check-l10n, host API record, bundle
+  budgets and the split guard, VSIX size, test:a11y (the preview page), the
+  PSScriptAnalyzer gate if a PowerShell helper is added, semgrep.
+- **Security and physical safety.** D83.3–D83.11 are the rules. No
+  credential in a fixture (built at run time, M92's rule); machine keys in
+  SecretStorage only and redacted by value; the guard table and redaction
+  table are each the one shared table; no listener, no discovery, no port
+  scan, no network access from a workspace file; the preview page has
+  `default-src 'none'` and no network.
+- **Docs.** README "Makers" section (what works per backend and provider,
+  the switch, the stop, the safety box with the physical E-stop sentence,
+  simulator and Pi guides, the CIRCUITPY and Muse Code edit notice),
+  SECURITY (device classes and the residuals), PRIVACY (device log, machine
+  list, Wokwi), CHANGELOG, this plan, the research report, certification.
+- **Size.** XL across a–f; a is M.
+- **Certification checklist.**
+  - [ ] M103a: guard (both backends, ACP, headless), switch, log, detection,
+        skills and installer, device list, flash identity — with drills
+  - [ ] M103b: G-code analyser, simulator and EDA presets, OpenSCAD tool and
+        preview, photo review gating — with drills
+  - [ ] M103c: serial tool on socat pairs, the Windows helper, resets
+        documented — with drills
+  - [ ] M103d: machine registry and LAN rule, printer status/send/stop,
+        GRBL status/stop, physical MCP marking — with drills against the
+        fakes and the virtual Klipper and OctoPrint virtual printer
+  - [ ] M103e: arm64 CI job green, Pi and local-model guides run as written
+  - [ ] M103f: Arduino IDE 2 build loaded and tested; Thonny plugin with
+        drills; CLion ACP row; Eclipse vendor IDE rows with M65 (or named
+        as waiting)
+  - [ ] Stop paths, refused set, host-only approval and homing drills
+        (acceptance 24–26)
+  - [ ] D83.16: the portable engine in the extension and the ACP package;
+        approval surfaces (VS Code modal, ACP prompt, companion dialog)
+        with drills; the runtime's MCP tool server on Muse Code; CLI and ACP
+        stop; the companion page; the editor matrix's "now" rows recorded in
+        `docs/ide-compatibility/hosts.md`
+  - [ ] Lane E's live capture (Muse Code Auto skip) with its call count
+  - [ ] The owner-hardware items in §7, or each named as open
+  - [ ] Strings in all 14 tables; full gate green; budgets measured
+
+---
+
+### M104 — Every editor, every feature (D84)
+
+Lane C review remediation (FIXM104C, 2026-10-05): replace host-wide cookies
+with one-use fragment launch codes exchanged for independent per-window
+bearers held only in page memory. Every privileged request, including the
+fetch-based event stream, carries Authorization and retains exact Host/Origin,
+Fetch-Metadata and CSP checks. Packaged assets require the bearer too.
+Regression coverage must prove no credential reaches another loopback service,
+two windows have independent streams, two runtimes cannot overwrite credentials,
+and rejected launches show localized accessible reopen guidance. Evidence and
+byte-exact red drills belong in `docs/certification/m104-c.md`.
+
+**M104 is split** because it is large: a foundation and seven parallel
+parts. All of them build against the MHP v1 contract frozen at the end of
+lane A's first step.
+
+| Milestone | Delivers                                                                                                                                  | Depends on                                   |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| M104a     | MHP v1; the VS Code adapter refactor; the runtime `panel` mode; UI bridges, tokens and fallbacks; the companion server; the registry gate | M95, M96c, M98 merged (or rebased onto them) |
+| M104b     | JetBrains plugin (IntelliJ-based IDEs and Android Studio)                                                                                 | M104a contract freeze                        |
+| M104c     | Visual Studio extension                                                                                                                   | M104a contract freeze                        |
+| M104d     | Eclipse plugin (with Espressif IDE)                                                                                                       | M104a contract freeze                        |
+| M104e     | ACP on the controller, plus the shims: Zed, Xcode app, Qt Creator, Neovim, Emacs, Sublime; LSP broker; `lsp` server                       | M104a contract freeze; companion server      |
+| M104f     | Distribution: the release workflow for every channel; signing; registries                                                                 | M104b–e artifacts                            |
+| M104g     | Qualification: the conformance suite green per editor; Arduino IDE 2 and the remaining VS Code-family rows                                | all                                          |
+| M104h     | Docs and certification (runs throughout)                                                                                                  | —                                            |
+
+- **Goal.** Every feature in the registry (F1–F56, and every one added
+  later) works in every editor in §1.3, through the editor's own APIs or
+  our own implementation. Every future feature lands in all of them in the
+  PR that adds it.
+- **Depends on.**
+  - D84.
+  - The M60 gate and the M61 steps.
+  - M98's `tokenFile.ts` and its serve guard (merged, or this milestone
+    takes ownership of a copy).
+  - M95 (providers) and M96c (Traffic), so their webviews join the bridge
+    at once.
+  - Toolchains on the rigs, all installs authorised:
+    - Kubuntu: JDK 21 and 25, Gradle 9, Maven 3.9.9, Tycho 5.0.4, Xvfb,
+      Neovim 0.12, Emacs 29 and 30, Sublime build 4205 or later, Qt
+      Creator 20;
+    - Win11 VM: VS 2022 (17.14) and VS 2026 with the VSSDK workload;
+    - Mac mini: Xcode 26.6 and 27.
+- **Lanes and file ownership.** One integration branch, `feature/m104`.
+  Lane 0 lands the contract skeleton (one day). Then lanes A–J run in
+  parallel, and the lead integrates.
+
+| Lane     | Items                                                                                                                                                                                                                                                                            | Files it owns                                                                                                                                                     | Its regions in shared files                                                      | Starts                      |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------- |
+| 0 (lead) | MHP v1 skeleton: method table, zod schemas, capability names, error codes, version range; feature registry skeleton (F1–F56)                                                                                                                                                     | `src/shared/hostApi/**`, `src/shared/hostApi/features.ts`                                                                                                         | `src/shared/constants.ts` (MHP block)                                            | day 0                       |
+| A        | VS Code adapter: `HostServices` implemented with `vscode`; `extension.ts` composes from it; the 24 `vscode` files moved to `src/host/vscode/**`; behaviour unchanged                                                                                                             | `src/host/vscode/**`, `src/host/compose/**`, `src/extension.ts`                                                                                                   | `scripts/check-host-api.mjs` (new allowed roots)                                 | after 0                     |
+| B        | Runtime panel: `panel --stdio` and `--companion`; controller registry; ACP sessions on the controller (re-basing `src/acp/agent.ts` on the registry); settings and storage stores                                                                                                | `src/runtime/panel/**`, `src/runtime/settingsStore.ts`, `src/acp/**`                                                                                              | `src/runtime/main.ts`, `src/runtime/cliArgs.ts` (the `panel` and `lsp` commands) | after 0                     |
+| C        | Companion server: launch code, memory bearer, Host/Origin/Fetch-Metadata guard, SSE, CSP, static assets, idle exit; shared token-file module                                                                                                                                     | `src/runtime/companion/**`, `src/runtime/tokenFile.ts` (moved from `judge/`, coordinated with the M98 owner)                                                      | —                                                                                | after 0                     |
+| D        | UI: the three bridges; `main.tsx`, Tasks and What's New on the bridge; `--muse-*` tokens (M61.3); React fallbacks (Confirm, Picker, Input, Toasts, StatusStrip, SettingsPage, Walkthrough, DiffPage, TerminalOutput); manager pages for skills, MCP, hooks, memory and worktrees | `src/webview/bridges/**`, `src/webview/fallbacks/**`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts`, `src/webview/tokens.css`, `src/host/ui/pageHtml.ts` | `src/webview/styles.css` (variables only), `l10n/*` (new keys, all 15 tables)    | after 0                     |
+| E        | JetBrains plugin (M104b)                                                                                                                                                                                                                                                         | `hosts/jetbrains/**`                                                                                                                                              | —                                                                                | after the contract freeze   |
+| F        | Visual Studio extension (M104c)                                                                                                                                                                                                                                                  | `hosts/visualstudio/**`                                                                                                                                           | —                                                                                | after the contract freeze   |
+| G        | Eclipse plugin (M104d)                                                                                                                                                                                                                                                           | `hosts/eclipse/**`                                                                                                                                                | —                                                                                | after the contract freeze   |
+| H        | Shims and editor routes (M104e): Zed extension, Xcode app and XcodeKit, Qt Creator Lua, `muse.nvim`, `muse-spark.el`, Sublime package; the LSP broker and the `lsp` server; the Zed completions endpoint                                                                         | `hosts/{zed,xcode,qtcreator,neovim,emacs,sublime}/**`, `src/runtime/lsp/**`, `src/runtime/tabServe.ts`                                                            | —                                                                                | after lane C's first commit |
+| I        | Distribution and CI (M104f): `hosts-native.yml` (path-filtered on PRs, weekly full), release jobs per channel, packaging scripts, the Node runtime pin manifest, the conformance runner                                                                                          | `.github/workflows/hosts-native.yml`, `scripts/package-hosts/**`, `src/runtime/nodeRuntime.json`, `test/hostApi/**`                                               | `.github/workflows/release.yml` (new jobs after `npm`), `package.json` scripts   | after 0                     |
+| J        | Docs (M104h): README "Every editor", `docs/ide-compatibility/{hosts,matrix,host-api-v1}.md`, `docs/acp.md`, CONTRIBUTING, AGENTS.md rule 14, CHANGELOG, PLAN, certification                                                                                                      | `docs/ide-compatibility/**`, `docs/certification/m104*.md`                                                                                                        | README, AGENTS.md, CHANGELOG, PLAN (M104 and D84 only)                           | throughout                  |
+
+- **Acceptance (all with fakes, no model calls).** Fakes: the fake Muse Code
+  CLI and the fake Model API server.
+  1. **VS Code unchanged.** Every existing gate and integration test passes,
+     and the harness screenshots are pixel-identical before and after lanes
+     A and D. The host API record lists only `src/host/vscode/**` and
+     `src/extension.ts` as importing `vscode`.
+  2. **MHP conformance.** The scenario suite passes against:
+     - (a) the in-process VS Code adapter;
+     - (b) a fake host in `test/hostApi/fakeHost.ts`;
+     - (c) each native plugin, in its own headless harness: IntelliJ's
+       `BasePlatformTestCase` and `HeavyPlatformTestCase` plus the
+       Starter/Driver UI tests, plus `CodeInsightTestFixture.testInlineCompletion`;
+       the VS experimental instance, with `[IdeFact]` tests pinned (the
+       harness is archived upstream, so hosted-runner reliability is measured
+       before it gates); tycho-surefire
+       with the UI harness under Xvfb; headless Neovim with plenary; Emacs
+       batch ERT; Sublime UnitTesting; Qt Creator Lua tests; XCTest.
+     - The scenarios cover:
+       - a conversation;
+       - an approval allowed, denied and cancelled;
+       - a dirty-buffer edit refused, and an edit applied once with one
+         undo;
+       - a diff reviewed hunk by hunk;
+       - diagnostics read by the verify loop;
+       - a checkpoint restore;
+       - the paid popup (Allow once, Always, Deny) and the budget limit;
+       - a Tab completion accepted;
+       - settings changed and seen;
+       - a session resumed after a reload.
+  3. **Matrix.** Every row is W for every editor's adapter in the registry,
+     or an exception is recorded with an approved reason and an equivalent.
+  4. **Companion security.** These are refused:
+     - a wrong `Host`;
+     - a foreign `Origin`, including a Playwright page served from another
+       port that tries a form POST, a fetch, an EventSource and a WebSocket;
+     - a missing bearer or a missing custom header;
+     - a replayed launch code;
+     - a non-loopback bind;
+     - an over-cap body.
+       Also: no CORS header in any response, and the CSP present on every
+       page.
+  5. **ACP.** M63's acceptance re-runs unchanged on the controller-based
+     agent, and the new slash commands, boolean options and `fs/*` routing
+     are tested against the SDK client. In Zed, Neovim and Emacs (hosts.yml)
+     a `/panel` command opens the same session in the companion.
+  6. **Rule 8 drills.** The key is absent from every MHP frame, every
+     companion response, the logs and every child environment, checked by
+     a grep test.
+- **Tests.**
+  - Unit tests: MHP schemas (round trip, rejection), capability selection
+    and fallback, the registry gate, the companion guard (each header case),
+    the launch-code lifecycle, the bridges, the token mapping, every React
+    fallback (including axe), the LSP broker against a fake LSP server, the
+    `lsp` server's `inlineCompletion`, and the Node runtime pin's checksum.
+  - Per plugin: unit tests in its own language (JUnit 5, MSTest or xUnit,
+    JUnit with Tycho, busted or plenary, ERT, Python `unittest`, XCTest).
+  - Integration: `test/e2e` drives `panel --stdio` with the fake host, and
+    `--companion` with Playwright.
+- **Gates.**
+  - New: `check:editor-matrix`; the tightened M60 import gate; the MHP
+    schema snapshot (a breaking change needs a version bump); Plugin
+    Verifier for the declared IDE range (IC, IU, PC, WS, GO, CL, RR, RD,
+    AS); `verifyPlugin`; ktlint and detekt; `dotnet format` and analyzers;
+    Checkstyle or SpotBugs for Eclipse; luacheck and stylua; `package-lint`
+    and checkdoc; ruff for the Sublime package; SwiftLint; actionlint for
+    the new workflows.
+  - Every new gate gets a red drill (CLAUDE.md), recorded in
+    `docs/certification/m104*.md`.
+  - D6 bundle budgets: the runtime `panel` entry is new (measured plus 15%).
+    The VSIX budget does not grow, because the plugins carry the bundle and
+    the VSIX does not.
+- **Security.**
+  - Covered by §3.8: the companion guard, launch codes, CSP, rule 8 (no key
+    over MHP, the UI or the companion), and rule 12 (decision in the
+    runtime).
+  - Node and language-server downloads only with consent and a pinned
+    SHA-256.
+  - The plugins never spawn with the key in their environment, and the
+    runtime strips credential variables as today
+    (`credentialVariables.ts`).
+  - JCEF, WebView2 and SWT pages get the same CSP and no remote origins:
+    `JBCefBrowser` with no devtools in release builds, WebView2 with
+    `AreDevToolsEnabled=false` and `AreDefaultContextMenusEnabled=false`,
+    and navigation outside the asset scheme blocked.
+  - PLAN §9 records the residual risks for same-user processes.
+- **Docs.**
+  - README: an "Every editor" section, plus install sections per editor.
+  - `docs/ide-compatibility/matrix.md` (generated), `hosts.md` (routes and
+    statuses updated: Xcode ACP from 26.6, Qt Creator's built-in client) and
+    `host-api-v1.md` (generated from the schemas).
+  - `docs/acp.md` (`/panel`, the options, `fs/*`), CONTRIBUTING (the
+    toolchains, how to run each harness), AGENTS.md rule 14, CHANGELOG, and
+    PLAN D84, M104 and §8/§9 rows.
+- **Size.** L overall. Rough sizes:
+  - M104a, 9–12k lines of TypeScript including tests (A about 3k of moves,
+    B 3k, C 1.5k, D 3k);
+  - JetBrains 7–9k Kotlin;
+  - Visual Studio 6–8k C#;
+  - Eclipse 6–8k Java;
+  - shims 1–2.5k each;
+  - LSP broker 2k;
+  - workflows and packaging 1.5k.
+    With 8–10 lanes in parallel, the critical path is lane A plus one plugin
+    (M104b).
+- **Certification checklist** (§6.0, plus):
+  - [ ] Lane 0's contract is frozen and versioned (`mhp/1.0.0`), with a
+        schema snapshot committed.
+  - [ ] VS Code is pixel-identical (harness) and every integration test
+        passes.
+  - [ ] Conformance is green per adapter, with a receipt per editor and
+        version, filed in `docs/certification/m104-<host>.md`.
+  - [ ] `matrix.md` is generated, and each editor's status is moved only on
+        that evidence.
+  - [ ] Companion security tests pass, including the Playwright
+        cross-origin drill.
+  - [ ] Red drills for `check:editor-matrix`, the tightened import gate,
+        the schema snapshot and the companion guard.
+  - [ ] Rule 8 grep tests and rule 12 popup tests pass in every host.
+  - [ ] Every artifact is built from one tag and attached to the GitHub
+        Release. Registry publishes run where the owner's accounts exist, and
+        each one missing is listed at the top of the report (loud failures).
+  - [ ] No live or paid call. Any live smoke follows CLAUDE.md: state the
+        count first, use an empty workspace, count from the trace log.
+  - [ ] Codex review in one pass per lane class before push.
+
+---
+
 ## 7. Gates
+
+**M102INT local gate scope and deferral (2026-10-05, Win11).** The rig brief
+requires composed lane tests (at most three files per run), types, scoped lint
+and format, plain knip, duplication, localization, cycles, host API and all
+build/package caps; it explicitly forbids full quality here. The three-call
+real-host fixture, shared totals, JSON export and bearer companion pass. The
+Linux foreground opener lifetime case times out on Win11 after two repairs
+(cleanup of an already-dead supervised child; no stdin reader for non-stdio
+commands). Under the common two-fix stop rule this path is deferred to the
+lead/POSIX rig, with its failed receipt retained; it is not skipped and no
+timeout rises. The earlier isolated Kubuntu E receipt remains separate from
+this composed Win11 result. Native-editor installs, universal-helper VSIX,
+Kubuntu first-render timing, hosted CI/full quality and incoming U/R review
+repairs remain final certification work, not local passes. Exact receipts
+and acceptance rows are in `docs/certification/m102.md`.
 
 **FIXM102J scoped repair receipt (2026-10-05).** The five owned test files
 pass 71/71, all five TypeScript projects pass, and owned-file ESLint/Prettier,
@@ -16569,6 +18123,12 @@ Blocker for the owner: GitHub's documentation offers merge queues only in
 organization-owned repositories, and this one is user-owned. Until that is
 settled, PRs keep the full tier and no check is weaker than before. Record:
 `docs/certification/ciflow.md`.
+
+**FIXM92E lane boundary (2026-10-04).** The rig brief and shared lane
+rules prohibit aggregate quality/full unit runs and merging in this worktree.
+Use focused owning tests and the required static gates/build, with hooks on;
+full quality, coverage, cross-platform and hosted checks remain the lead's
+integration gate. No gate configuration changes.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
@@ -16955,6 +18515,14 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | `src/runtime/main.ts`, `exitHeadless`                        | `eslint-disable-next-line unicorn/no-process-exit`   | A standalone headless command owns its process. It must end within the deadline/grace/force bounds even if a pipe or late backend setup never closes, including usage errors. Writes remain async and bounded before exit.                                                                                                                                                                                                                                                                                                                                             | 2026-10-02 |
 | `src/runtime/exec/execClient.ts`, constructor session router | Reflection of SDK 1.4.0's private `builder.handlers` | The SDK's constructor-installed session router validates a closed union before custom notification parsers, dropping future variants. This headless instance uses `request()` and no active-session helpers; remove only its single constructor handler after validating the exact descriptor `client-session-update-router`. The SDK's original builder and public handler/request/connection APIs remain in use. Structural checking fails closed if this pinned seam changes; real JSON-RPC and real-engine tests cover it. No dependency or SDK source is patched. | 2026-10-02 |
 
+**M81 accepted residuals (lead decision, 2026-10-04).** The §7 positive
+controls that change a test machine (planted Chrome policies including G8 DoH,
+G11's synthetic client certificate and test CA, G5/G6's synthetic Windows and
+GSSAPI sign-ins, G4's permissive-proxy control, and G2/G9/G10/G12's reference
+positives) are not built: a safety classifier stopped them, and they are not
+routed around it. Each guard is isolated by its unit and live drills; only the
+real-machine calibration is missing. Details: `docs/certification/m81.md`.
+
 **REL signing decisions (2026-10-02).** The extension relies on the VS Code
 Marketplace's signing of published extensions and does not self-sign the VSIX:
 no new signing credentials or alternate package bytes. GitHub/Open VSX assets
@@ -16993,25 +18561,30 @@ before a repaired one loads (2026-09-30).
 | `src/host/skills/bundledSkills.ts`              | `value is BundledSkillsBundle` (`isBundledSkillsBundle`, a type predicate) | M89: `require` of `dist/bundledSkills.js` returns `unknown`; the guard checks that `bundledSkillsStatus`, `installBundledSkills` and `removeBundledSkills` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `bundledSkillsInstall.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, installs and removes through it, and refuses a malformed module. | 2026-10-03 |
 | `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                    | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                                  | 2026-09-30 |
 
-| File                                        | Construct                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
-| ------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/backend/toolIo.ts`                | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)        | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
-| `src/host/backend/searchWorker.ts`          | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)        | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
-| `src/host/voice/dictationHost.ts`           | `nosemgrep` on two `spawn` calls (`detect-child-process`)                 | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
-| `native/darwin/Dictation.swift`             | `unsafeBitCast(symbol, to: SetDisclaim.self)`                             | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
-| `src/host/backend/shellJob.ts`              | `catch { }` in the join statement each Windows command starts with        | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                                           | 2026-09-23 |
-| `test/unit/App.test.tsx`                    | `as unknown as Selection` (four stubs)                                    | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
-| `scripts/capture-themes.mjs`                | `nosemgrep` on `spawn` (`detect-child-process`)                           | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
-| `scripts/sast.mjs`                          | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)             | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
-| `src/host/backend/mcpProcess.ts`            | `nosemgrep` on `spawn` (`detect-child-process`)                           | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                   | 2026-09-25 |
-| `src/host/backend/mcpJobLaunch.ts`          | `nosemgrep` on `spawn` (`detect-child-process`)                           | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`). | 2026-09-26 |
-| `test/unit/helpers/fakeMcpOrphan.mjs`       | `nosemgrep` on `spawn` (`detect-child-process`)                           | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                              | 2026-09-25 |
-| `src/host/backend/modelApiBundle.ts`        | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)          | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                        | 2026-09-27 |
-| `src/host/codeIntel/languageServices.ts`    | `Reflect.get(edit, '_allEntries')`, an undocumented member                | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                     | 2026-09-28 |
-| `src/runtime/main.ts`                       | `nosemgrep` on `spawn` (`detect-child-process`)                           | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
-| `src/webview/components/HeartbeatTrace.tsx` | `eslint-disable-next-line unicorn/prefer-path2d` on the tick segment path | The beam draws a new 0.5 px segment at its current position every 6 ms tick; a reused `Path2D` would freeze the beam at its first segment. The suppression covers only this `beginPath`, with the reason inline.                                                                                                                                                                                                                                                                                                                                                                       | 2026-10-04 |
-| -------------------------------------       | ------------------------------------------------------------------        | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/verifyEditor.test.ts`            | `as unknown as` on five `vscode` stubs                                    | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
+| File                                        | Construct                                                                    | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
+| ------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/backend/toolIo.ts`                | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)           | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
+| `src/host/backend/searchWorker.ts`          | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)           | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
+| `src/host/voice/dictationHost.ts`           | `nosemgrep` on two `spawn` calls (`detect-child-process`)                    | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
+| `native/darwin/Dictation.swift`             | `unsafeBitCast(symbol, to: SetDisclaim.self)`                                | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
+| `src/host/backend/shellJob.ts`              | `catch { }` in the join statement each Windows command starts with           | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                                           | 2026-09-23 |
+| `test/unit/App.test.tsx`                    | `as unknown as Selection` (four stubs)                                       | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
+| `scripts/capture-themes.mjs`                | `nosemgrep` on `spawn` (`detect-child-process`)                              | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
+| `scripts/sast.mjs`                          | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)                | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
+| `src/host/backend/mcpProcess.ts`            | `nosemgrep` on `spawn` (`detect-child-process`)                              | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                   | 2026-09-25 |
+| `src/host/backend/mcpJobLaunch.ts`          | `nosemgrep` on `spawn` (`detect-child-process`)                              | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`). | 2026-09-26 |
+| `test/unit/helpers/fakeMcpOrphan.mjs`       | `nosemgrep` on `spawn` (`detect-child-process`)                              | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                              | 2026-09-25 |
+| `src/host/backend/modelApiBundle.ts`        | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)             | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                        | 2026-09-27 |
+| `src/host/codeIntel/languageServices.ts`    | `Reflect.get(edit, '_allEntries')`, an undocumented member                   | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                     | 2026-09-28 |
+| `src/runtime/main.ts`                       | `nosemgrep` on `spawn` (`detect-child-process`)                              | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
+| `src/webview/components/HeartbeatTrace.tsx` | `eslint-disable-next-line unicorn/prefer-path2d` on the tick segment path    | The beam draws a new 0.5 px segment at its current position every 6 ms tick; a reused `Path2D` would freeze the beam at its first segment. The suppression covers only this `beginPath`, with the reason inline.                                                                                                                                                                                                                                                                                                                                                                       | 2026-10-04 |
+| -------------------------------------       | ------------------------------------------------------------------           | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/verifyEditor.test.ts`            | `as unknown as` on five `vscode` stubs                                       | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
+| `src/core/browser/canaries.ts`              | `nosemgrep` on a plain WebSocket URL (`detect-insecure-websocket`)           | Canary C2 (M81 A1, design spec v4 §7): the probe page opens a plain WebSocket to a reserved `.invalid` nonce name so that its CONNECT can be seen refused at the check's own proxy; it never connects and nothing is sent over it. Canary C5w (review round 1): a plain WebSocket to a loopback host the user did not widen, at the phase's own fixture port, refused the same way.                                                                                                                                                                                                    | 2026-10-02 |
+| `src/host/browser/browserProcess.ts`        | `nosemgrep` on `spawn` (`detect-child-process`)                              | The browser check (M81 A1, D49) starts only the pinned Chrome for Testing headless shell at the absolute path the runtime bundle verified against `browserRuntime.json` in the extension's own storage (never PATH, a system browser or a workspace file), its identity read again just before, as an argument array with no shell: the fixed flags of `BROWSER_LAUNCH_FLAGS`, the check's own proxy endpoint and profile, and a projected environment. The model's URL and steps go over the CDP pipe, never on the command line.                                                     | 2026-10-02 |
+| `src/host/browser/browserProcess.ts`        | `nosemgrep` on `execFile` (`detect-child-process`)                           | The tree kill of the check's own browser on Windows: `taskkill.exe` by its absolute path under `SystemRoot` with `/PID <the browser's pid> /T /F`, an argument array, no shell. POSIX kills the browser's own process group instead.                                                                                                                                                                                                                                                                                                                                                   | 2026-10-02 |
+| `src/host/browser/browserChecks.ts`         | `value is BrowserCheckBundle` (`isBrowserCheckBundle`, a type predicate)     | `require` of `dist/browserCheck.js` returns `unknown`; the guard checks that `runBrowserCheck` is a function, not its parameter and result types. Entry, loader and package come from one source tree and one `npm run build` (M81, the checkpoint store's pattern); the real runner is exercised against real browsers by `browserCheckLive.test.ts`, and a missing or malformed bundle refuses the check and is read again later.                                                                                                                                                    | 2026-10-01 |
+| `src/host/browser/browserChecks.ts`         | `value is BrowserRuntimeBundle` (`isBrowserRuntimeBundle`, a type predicate) | `require` of `dist/browserRuntime.js` returns `unknown`; the guard checks that `prepareRuntime` is a function. The same build, pattern and refusal as the check's bundle (M81 A1); the real store is exercised end to end by `runtimeStore.test.ts` on real folders and by the rigs' runs of the built bundles.                                                                                                                                                                                                                                                                        | 2026-10-02 |
 
 | File                             | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
 | -------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -17233,6 +18806,22 @@ before a repaired one loads (2026-09-30).
   auto-approves outside the mode the user selected; the one automatic answer
   is "Edit automatically" allowing a plain file write once (D24), never a
   protected write, an escalation or a command.
+- Muse Code's unasked file writes (musecode-write-asks, D12 update). Muse
+  Code 1.4.2 raises an approval only for file writes to `.git`, `.muse` and
+  `.agents`; every other file-tool write runs without one in every mode,
+  Plan included, and without the sandbox that reaches any path the user can
+  write. The extension cannot add rules over MSP and does not write Muse
+  Code's settings or the repository's hooks file to add a PreToolUse block.
+  Mitigations: the sandbox stays on wherever it works (every workspace but
+  a Windows profile one, #26), the panel warns once per window when it is
+  off, Diagnostics says where the file tools can write, and the docs say
+  what Plan does on Muse Code and that a workspace outside the profile
+  keeps the sandbox. Residual, accepted until Muse Code changes: in the
+  workspace, a prompt-injected turn can write other agents' configuration
+  (`.claude/settings.json`) unasked in any mode; with the sandbox off
+  (`off`, or `auto` in a Windows profile workspace, which is most Windows
+  workspaces) it can write anywhere the user can, the Auto reviewer's
+  Plan-mode side session included before its cancellation lands.
 - The Model API backend (M7) executes tools in-process. The controls (D24):
   path confinement by canonical path (links and junctions resolved, Windows
   reinterpreted names refused), protected writes that always ask, per-call
@@ -17241,9 +18830,70 @@ before a repaired one loads (2026-09-30).
   confirmed once in a remote window. Residual risk: a file swapped for a link
   between the check and the write (a local attacker already inside the
   workspace); the check runs immediately before each operation.
+- Other coding agents' folders and files (2026-10-04,
+  `docs/certification/protect-agent-folders.md`): `.claude`, `.codex`,
+  `.cursor`, `.gemini`, `.github/hooks`, `.github/copilot`, `.devin`,
+  `.windsurf`, `.kiro`, `.clinerules`, `.amp`, `.opencode`, `.continue` and
+  `.roo` hold hooks, MCP servers, plugins and settings that those agents
+  run outside our approvals, and `.mcp.json`, `opencode.json` and
+  `opencode.jsonc` name MCP servers they start, so all are protected writes
+  (D24) like `.muse`. The instruction files (`AGENTS.md`, `CLAUDE.md`,
+  `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.roomodes`,
+  `.clinerules`, `.github/copilot-instructions.md`) run nothing, but they
+  are protected too: they steer the next agent that reads them, so an
+  instruction a prompt injection plants there persists after the
+  conversation (prompt-injection persistence). Roo Code's and Continue's
+  paths are from their documentation (Roo: `.roomodes` at the root,
+  `.roo/rules*`, `.roo/mcp.json`; Continue: `.continue/rules`,
+  `.continue/mcpServers`; both start stdio MCP servers as local commands).
+  Residual risks: (1) a shell command, an MCP tool or a Best-of-N attempt in
+  its own worktree can still write there; the extension does not parse
+  commands for paths, so the command's own card (every mode but Bypass,
+  unless a rule or the Auto reviewer allows it) is the control; (2) on Muse
+  Code the CLI decides which writes ask. The extension judges every Muse
+  Code `fileAccess` write it is asked about by the same list, on the
+  absolute path Muse Code names (captured 2026-10-04: `\\?\C:\…\.muse\hooks.json`),
+  so one outside the workspace counts too: it is shown as protected, Edit
+  automatically and the M90 reviewer never answer it, and its card drops
+  Muse Code's standing "Always allow" choices. A workspace inside a
+  protected folder makes every such write ask, which only asks more. What
+  Muse Code writes without asking never reaches the extension: the same
+  capture, with the sandbox off (the extension's posture for a workspace
+  under the user's profile) and in Manual, wrote `.claude/settings.json`
+  and a file outside the workspace with no approval. That is Muse Code's
+  policy, to be raised upstream; (3)
+  names matched by pattern rather than exactly are not protected: Roo's
+  `.roorules-<mode>` fallback and Copilot's
+  `.github/instructions/*.instructions.md`.
 - Programs are started by absolute path (D24): git, bash and PowerShell from
   absolute `PATH` entries, the CLI from its install layout or an absolute
   `museBinaryPath`; git never runs in Restricted Mode.
+- The browser check (M81 A1, D49; design spec v4) runs the page's own code
+  in Google's Chrome for Testing headless shell, the version this release
+  pins, downloaded only after consent, verified by length and SHA-256 with a
+  bounded ZIP reader and checked again before each check, over the
+  debugging pipe, in a fresh private profile. Its traffic goes to the
+  check's own proxy on 127.0.0.1 (the command line's, Chrome's implicit
+  loopback bypass subtracted, and the private context's): plain HTTP only to
+  loopback or a widened host, sign-in challenges and credentials stripped
+  both ways, CONNECT only to a widened host. The browser's resolver rule
+  fails every name but the loopback literals (traced on Linux: no query for
+  a page's, an ICE server's or a `.local` name; the same names queried with
+  the rule removed). The check's canaries, in default, page and audit
+  phases, must show the route, the stripping, WebRTC and WebTransport held,
+  and a network-service restart refuses the check. Residual risk: `https`
+  and WebSocket tunnels to a widened host are opaque to the proxy, and the
+  site there may use the machine's account (Windows integrated sign-in
+  especially); this is the browser's own construction checked at runtime,
+  not an OS or kernel boundary (A2, a Linux namespace, is a later lane);
+  the network service runs with the pin's own sandbox settings. A window
+  that dies mid-check leaves its check folder under the extension's
+  storage, swept by a later check once its owner process is gone. The page
+  runs as any page in a browser does; the check does not make the user's
+  dev server safer.
+- The `ide` server's browser check widens to a host beyond loopback only
+  with the user's answer in the extension's modal; a Model API check only
+  with a card for that host (Bypass included) or an "always" chosen on one.
 - Ending a stopped command on Windows (M27): each command runs in a job
   object, so everything it starts ends with it. Residual risk where no job
   can be made (Constrained Language Mode, which forbids `Add-Type`; the log

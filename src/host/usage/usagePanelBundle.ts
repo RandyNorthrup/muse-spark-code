@@ -1,7 +1,19 @@
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
-import type { createUsagePanel } from './usagePanelEntry'
+import type { createUsagePanel, createUsageBudget } from './usagePanelEntry'
+
+export interface UsageBudgetBundle {
+  readonly createUsageBudget: typeof createUsageBudget
+}
+export function isUsageBudgetBundle(value: unknown): value is UsageBudgetBundle {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'createUsageBudget' in value &&
+    typeof value.createUsageBudget === 'function'
+  )
+}
 
 interface UsagePanelBundle {
   readonly createUsagePanel: typeof createUsagePanel

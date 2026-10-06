@@ -3,8 +3,9 @@ import type { UsageRecord } from '../../shared/usageJournal'
 // The paid Model API features (M33–M35, PLAN.md D30), "opt in and loud":
 // which are on, and what this window has used of them.
 //
-// A feature is on only when its setting is on AND the user accepted its
-// price in the confirmation; each use then asks again (paidConsent.ts, M58). Turning the setting on anywhere (the palette,
+// D78: a default-on setting offers an interactive Model API feature; every
+// paid use still needs paidConsent.ts and final budget admission. Explicit
+// opt-ins require the accepted price. Turning the setting on in the palette,
 // the Settings editor, settings.json) asks once, naming the price; a
 // declined confirmation turns the setting back off, and turning the setting
 // off forgets the acceptance, so the next time asks again. The confirmation
@@ -33,6 +34,10 @@ import { estimateCostUsd } from '../usage/insights'
 export interface PaidFeatureGateDeps {
   /** Whether the feature's `museSpark.*` setting is on. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
+  /** Backend availability never changes the user's setting or accepted price. */
+  readonly isAvailable?: (feature: PaidFeature) => boolean
+  /** D78: an unconfigured default offers the feature; use still requires consent. */
+  readonly isDefaultOn?: (feature: PaidFeature) => boolean
   /** Writes the feature's setting in the user's settings. */
   readonly setSetting: (feature: PaidFeature, isOn: boolean) => Promise<void>
   /** The features whose price the user accepted (the extension's own global state). */
@@ -90,9 +95,13 @@ export class PaidFeatureGate {
     this.notify()
   }
 
-  /** Whether the feature may be used: setting on and price accepted. */
+  /** Availability only: paidConsent and the request boundary authorize spending. */
   public isOn(feature: PaidFeature): boolean {
-    return this.deps.isSettingOn(feature) && this.deps.readAccepted().has(feature)
+    return (
+      this.deps.isSettingOn(feature) &&
+      this.deps.isAvailable?.(feature) !== false &&
+      (this.deps.isDefaultOn?.(feature) === true || this.deps.readAccepted().has(feature))
+    )
   }
 
   /** The features that are on, in their fixed order. */
@@ -121,7 +130,12 @@ export class PaidFeatureGate {
       if (!isSettingOn && isAccepted) {
         await this.setAccepted(feature, false)
         this.deps.log.info(`Paid feature ${feature} turned off`)
-      } else if (isSettingOn && !isAccepted && !this.asking.has(feature)) {
+      } else if (
+        isSettingOn &&
+        !isAccepted &&
+        !this.asking.has(feature) &&
+        this.deps.isDefaultOn?.(feature) !== true
+      ) {
         pending.push(feature)
       }
     }

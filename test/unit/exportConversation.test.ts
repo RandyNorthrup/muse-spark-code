@@ -67,6 +67,19 @@ function userItem(text: string): ItemSnapshot {
 }
 
 describe('exportConversation', () => {
+  it('redacts accepted prompt secrets from Markdown content and filenames on either backend (RVM92E P1)', async () => {
+    const secret = `mgst_${'A'.repeat(42)}A`
+    for (const kind of ['museCode', 'modelApi'] as const) {
+      const t = fakes(kind, { items: [userItem(`use ${secret}`)] })
+      expect(await exportConversation(t.host, t.session, 'markdown', NOW, t.exports)).toBe(
+        'exported',
+      )
+      expect(JSON.stringify(t.markdown).includes(secret)).toBe(false)
+      expect(t.markdown[0]?.[0]).toBe('muse-use-redacted-2026-09-24.md')
+      expect(t.markdown[0]?.[1]).toContain('use [redacted]')
+    }
+  })
+
   it('refuses the session log on the Model API backend without reading anything', async () => {
     const t = fakes('modelApi', {})
     expect(await exportConversation(t.host, t.session, 'sessionLog', NOW, t.exports)).toBe(

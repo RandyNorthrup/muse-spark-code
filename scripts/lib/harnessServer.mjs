@@ -7,18 +7,34 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { chromium } from 'playwright-core'
+import { build } from 'esbuild'
 
 export const LOOPBACK = '127.0.0.1'
 export const HARNESS_PATH = 'test/harness/index.html'
 // The bundle a scenario plays in: the Models & Agents panel's own
 // (`?bundle=models`, M95 lane M) for its scenarios, the chat's otherwise.
 export function bundleFor(scenario) {
+  if (scenario.startsWith('usage-page-')) return 'usage'
   return scenario !== 'models-byo' && scenario.startsWith('models-') ? 'models' : 'main'
 }
 // Real time for one page; a hung browser fails rather than producing an empty result.
 export const PAGE_TIMEOUT_MS = 120_000
 // Every `?scenario=` test/harness/index.html plays.
 export const SCENARIOS = [
+  ...[
+    'empty',
+    'history-off',
+    'one-provider',
+    'nine-providers',
+    'plan-only',
+    'local-only',
+    'stale',
+    'over-limit',
+    'newer-version',
+    'long-german',
+    'long-russian',
+    'narrow',
+  ].map((name) => `usage-page-${name}`),
   'empty',
   'signin',
   'signin-nocli',
@@ -201,9 +217,23 @@ const CONTENT_TYPES = {
 }
 
 /** Serves `repoRoot` on an unused loopback port: `{ server, port }`. */
-export function serveRepo(repoRoot) {
+export async function serveRepo(repoRoot) {
+  const fixture = await build({
+    entryPoints: [path.join(repoRoot, 'test/unit/helpers/usageFixtures.ts')],
+    outfile: path.join(repoRoot, 'temp/harness-usage.js'),
+    bundle: true,
+    platform: 'browser',
+    format: 'iife',
+    globalName: 'museUsageHarness',
+    write: false,
+  })
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', `http://${LOOPBACK}`)
+    if (url.pathname === '/usage-harness.js') {
+      response.writeHead(200, { 'content-type': 'text/javascript' })
+      response.end(fixture.outputFiles[0].contents)
+      return
+    }
     const target = path.resolve(repoRoot, `.${decodeURIComponent(url.pathname)}`)
     if (!target.startsWith(repoRoot)) {
       response.writeHead(403).end()
@@ -234,6 +264,7 @@ export function serveRepo(repoRoot) {
  * scrollbars headless Chrome otherwise hides, as its check measures one.
  */
 export const SIZED_SCENARIOS = {
+  'usage-page-narrow': { width: 320, ready: '.usage-page[aria-busy="false"]' },
   'share-narrow': { width: 320, ready: '[role="dialog"]' },
   'chat-menu-narrow': { width: 320, ready: '[role="menu"]' },
   'chat-tool-menu-narrow': { width: 320, ready: '[role="menu"]' },

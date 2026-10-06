@@ -31,6 +31,7 @@ export interface UsageWriter {
 }
 
 export interface UsageRecording {
+  readonly limits?: () => readonly UsageLimitSnapshot[]
   note(usage: Partial<Usage> | undefined, context: RecordedCall): void
   limit(
     context: Omit<
@@ -44,7 +45,7 @@ export interface UsageRecording {
 }
 
 export interface UsageRecordingOptions {
-  readonly client: string
+  readonly client: string | (() => string)
   readonly now: () => number
   readonly newId: () => string
   readonly isEnabled: () => boolean
@@ -67,6 +68,8 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
   let pending = Promise.resolve()
   let hasLogged = false
   const lastHeaders = new Map<string, string>()
+  const liveLimits = new Map<string, UsageLimitSnapshot>()
+  const client = () => (typeof options.client === 'function' ? options.client() : options.client)
   const report = () => {
     if (hasLogged) return
     hasLogged = true
@@ -89,15 +92,21 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
     })()
   }
   return {
+    limits: () => {
+      const entries: UsageLimitSnapshot[] = []
+      liveLimits.forEach((entry) => {
+        entries.push(entry)
+      })
+      return entries
+    },
     note(usage, context) {
       const at = options.now()
       const id = options.newId()
       queue((journal) => {
-        journal.noteUsage(usage, { ...context, at, id, client: options.client })
+        journal.noteUsage(usage, { ...context, at, id, client: client() })
       })
     },
     limit(context, isForced = false) {
-      if (!options.isEnabled()) return
       if (context.source === 'headers') {
         const encoded = JSON.stringify(context.raw)
         if (!isForced && lastHeaders.get(context.provider) === encoded) return
@@ -112,8 +121,9 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         at,
         day: localUsageDay(at),
         timezoneOffsetMins: new Date(at).getTimezoneOffset(),
-        client: options.client,
+        client: client(),
       }
+      liveLimits.set(`${context.provider}/${context.source}`, entry)
       queue((journal) => {
         journal.append(entry)
       })

@@ -32,6 +32,10 @@ const METAFILE_DIR = path.join('dist', 'meta')
 const ACP_METAFILES = [
   path.join('dist', 'meta-acp', 'acp.json'),
   path.join(METAFILE_DIR, 'modelApi.json'),
+  path.join(METAFILE_DIR, 'providers.json'),
+  path.join(METAFILE_DIR, 'usageService.json'),
+  path.join(METAFILE_DIR, 'usageCompanion.json'),
+  path.join(METAFILE_DIR, 'usageWebview.json'),
   path.join(METAFILE_DIR, 'validation.json'),
   path.join(METAFILE_DIR, 'reviewer.json'),
   path.join(METAFILE_DIR, 'searchWorker.json'),

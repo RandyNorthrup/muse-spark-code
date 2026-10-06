@@ -68,6 +68,7 @@ describe('UsagePanel', () => {
     })
     expect(tab.webview.html).toContain('/usage.js')
     expect(tab.webview.html).toContain('/usage.css')
+    expect(tab.webview.html).toContain('id="muse-usage-l10n">{"type":"usage/table"')
     expect(tab.webview.html).toContain("default-src 'none'")
     expect(tab.webview.html).toContain("script-src 'nonce-")
     const policy = /http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(
@@ -233,7 +234,9 @@ describe('UsagePanel', () => {
     panel.open()
     const tab: unknown = window.createWebviewPanel.mock.results[0]?.value
     if (!(tab instanceof FakeWebviewPanel)) throw new TypeError('expected localized tab')
-    expect(tab.webview.html).toContain('id="muse-usage-l10n">{"locale":"de","table":')
+    expect(tab.webview.html).toContain(
+      'id="muse-usage-l10n">{"type":"usage/table","locale":"de","table":',
+    )
     panel.dispose()
   })
 
@@ -318,7 +321,7 @@ describe('UsagePanel', () => {
     expect(json).not.toContain('<')
     expect(json).not.toContain('\u{2028}')
     expect(json).not.toContain('\u{2029}')
-    expect(JSON.parse(json ?? 'null')).toEqual(usageTable)
+    expect(JSON.parse(json ?? 'null')).toEqual({ type: 'usage/table', ...usageTable })
     expect(tab.webview.html).not.toContain('<script>alert(1)')
     panel.dispose()
   })

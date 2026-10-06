@@ -201,7 +201,11 @@ export function exportUsageSummaryCsv(input: UsagePageState): string {
     ),
   ])
 }
-export function exportUsageJson(journal: UsageJournalRead, input: UsageExportRange): string {
+export function exportUsageJson(
+  journal: UsageJournalRead,
+  input: UsageExportRange,
+  state?: UsagePageState,
+): string {
   const range = usageExportRangeSchema.parse(input)
   return `${JSON.stringify(
     {
@@ -220,6 +224,7 @@ export function exportUsageJson(journal: UsageJournalRead, input: UsageExportRan
       newerVersionFiles: journal.newerVersionFiles,
       tornLines: journal.tornLines,
       invalidLines: journal.invalidLines,
+      ...(state !== undefined && { state: usagePageStateSchema.parse(state) }),
     },
     null,
     2,
