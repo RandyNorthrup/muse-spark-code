@@ -2670,7 +2670,7 @@
       "agentCreation": "Permission par défaut des agents pour créer des planifications : demander, toujours dans les limites ou jamais. Demander par défaut."
     },
     "runtime": {
-      "usage": "Utilisation: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "usage": "Utilisation: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Codes de sortie : 0 réussite, 1 refus, 2 erreur d’utilisation, 3 avertissement de nettoyage.",
       "accepted": "Demande de planification acceptée",
       "empty": "Aucune planification ni exécution à venir.",
       "unavailable": "Les planifications sont indisponibles sur cet hôte. La connexion au planificateur du runtime est requise.",
@@ -2678,7 +2678,11 @@
       "invalidResponse": "Le planificateur a renvoyé une réponse non valide.",
       "consentRequired": "La planification en arrière-plan nécessite votre Oui explicite.",
       "backgroundUnavailable": "La planification en arrière-plan est indisponible sur cet hôte.",
-      "backgroundRearmUnavailable": "Ce réveil launchd ne peut pas reconfigurer sa propre entrée. Un processus auxiliaire externe est nécessaire pour la reprogrammer."
+      "backgroundRearmUnavailable": "Ce réveil launchd ne peut pas reconfigurer sa propre entrée. Un processus auxiliaire externe est nécessaire pour la reprogrammer.",
+      "unsafeLauncher": "Chemin non sûr du lanceur de tâches planifiées : {path}",
+      "paidAuthorizationRequired": "Les tâches payantes nécessitent --scheduled-prompts et un --max-budget-usd explicite couvrant les deux plafonds de dépenses.",
+      "cleanupFailed": "La demande de planification est terminée, mais le nettoyage a échoué. Conservez l’identifiant accepté ; le code de sortie 3 indique que le nettoyage nécessite une intervention.",
+      "hostUnavailable": "Le service de planification n’a pas pu démarrer pour cet espace de travail. Les commandes de planification sont indisponibles ; le chat habituel reste disponible."
     }
   }
 }

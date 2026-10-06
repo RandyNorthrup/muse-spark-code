@@ -7,10 +7,12 @@ import { scheduleViewV2Of } from '../../src/shared/scheduleV2'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 import { FakeScheduleBackground } from './helpers/schedules/background'
 import { fakeScheduleDraft, transientBackgroundConsent } from './helpers/schedules/runtimeFixtures'
+import type { ScheduleCallerContext } from '../../src/runtime/schedules/args'
+import { unsafeScheduleLauncher } from '../../src/runtime/schedules/registration'
 
 const CWD = '/workspace/schedules',
   KEY = workspaceKey(CWD)
-function setup() {
+function setup(caller?: ScheduleCallerContext) {
   const entry = new FakeScheduleBackground()
   const background = new ScheduleBackgroundCoordinator({
     entry,
@@ -25,8 +27,15 @@ function setup() {
   const askBackground = vi.fn().mockResolvedValue({ choice: 'notNow', decidedAtMs: 1000 }),
     notice = vi.fn()
   return {
-    surface: new ScheduleSurface({ request, background, askBackground, notice }),
+    surface: new ScheduleSurface({
+      request,
+      background,
+      askBackground,
+      notice,
+      ...(caller !== undefined && { caller: () => caller }),
+    }),
     entry,
+    background,
     request,
     askBackground,
     notice,
@@ -43,6 +52,57 @@ const frame = (request: unknown) => ({
   request,
 })
 describe('shared schedules channel', () => {
+  it('names the unsafe launcher path in background failures without losing a committed creation id', async () => {
+    const { surface, request, background, notice } = setup()
+    const failure = unsafeScheduleLauncher('/unsafe/ancestor')
+    vi.spyOn(background, 'reconcile').mockRejectedValue(failure)
+    request.mockResolvedValue({ kind: 'accepted', id: 'committed-1' })
+    expect(
+      await surface.request(
+        { method: 'schedules/create', workspaceKey: KEY, draft: fakeScheduleDraft() },
+        KEY,
+      ),
+    ).toEqual({ kind: 'accepted', id: 'committed-1' })
+    expect(notice).toHaveBeenCalledWith(failure.message)
+    vi.spyOn(background, 'decide').mockRejectedValue(failure)
+    expect(
+      await surface.request(
+        { method: 'schedules/background', consent: { choice: 'yes', decidedAtMs: 1000 } },
+        KEY,
+      ),
+    ).toEqual({ kind: 'refused', reason: failure.message })
+  })
+  it('uses the same paid admission for interactive editor requests and forwards trusted host context', async () => {
+    const value = fakeScheduleDraft()
+    const draft = { ...value, paidCapUsd: 1, grant: { ...value.grant, paidCapUsd: 1 } }
+    const request = frame({ method: 'schedules/create', workspaceKey: KEY, draft })
+    for (const authorization of [
+      { scheduledPrompts: false, maxBudgetUsd: 1 },
+      { scheduledPrompts: true },
+      { scheduledPrompts: true, maxBudgetUsd: NaN },
+    ]) {
+      const s = setup({ source: 'interactive', isInteractive: true, ...authorization })
+      expect(await responseOf(s.surface, request)).toEqual({
+        kind: 'refused',
+        reason: UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired,
+      })
+      expect(s.request).not.toHaveBeenCalled()
+    }
+    const caller = {
+      source: 'interactive' as const,
+      isInteractive: true,
+      scheduledPrompts: true,
+      maxBudgetUsd: 1,
+    }
+    const s = setup(caller)
+    s.request.mockResolvedValue({ kind: 'accepted', id: 'paid-1' })
+    expect(await responseOf(s.surface, request)).toEqual({ kind: 'accepted', id: 'paid-1' })
+    expect(s.request).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'schedules/create' }),
+      caller,
+    )
+    expect(s.askBackground).toHaveBeenCalledOnce()
+  })
   it.each(['companion', 'JCEF', 'WebView2', 'SWT', 'TUI', 'desktop'])(
     'preserves the version and request id on the %s fake bridge',
     async () => {

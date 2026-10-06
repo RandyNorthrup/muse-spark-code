@@ -18,7 +18,11 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
-import { parseScheduleCommand, type ScheduleCommandOptions } from './schedules/args'
+import {
+  parseScheduleCommand,
+  scheduleBudgetUsd,
+  type ScheduleCommandOptions,
+} from './schedules/args'
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */
@@ -34,6 +38,8 @@ export interface ServeOptions {
   readonly paidFeatures: readonly AcpPaidFeature[]
   /** The finest log detail on stderr. */
   readonly isVerbose: boolean
+  readonly scheduledPrompts?: boolean
+  readonly maxBudgetUsd?: number
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
@@ -127,6 +133,10 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
       reason: fill(UI_TEXT.acpPaidNeedsModelApi, { argument: `--${ACP_PAID_FLAGS[firstPaid]}` }),
     }
   }
+  const budget =
+    values['max-budget-usd'] === undefined ? undefined : scheduleBudgetUsd(values['max-budget-usd'])
+  if (budget === undefined && values['max-budget-usd'] !== undefined)
+    return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage }
   const options: ServeOptions = {
     backend,
     trustWorkspace: values['trust-workspace'] === true,
@@ -136,6 +146,10 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     allowsContributorModels: values['allow-contributor-models'] === true,
     paidFeatures,
     isVerbose: values.verbose === true,
+    ...(values['scheduled-prompts'] !== undefined && {
+      scheduledPrompts: values['scheduled-prompts'],
+    }),
+    ...(budget !== undefined && { maxBudgetUsd: budget }),
   }
   const [first, second, ...rest] = positionals
   if (first === 'setup' && second === undefined) {
@@ -267,6 +281,8 @@ function parseCommandLineStrictly(argv: readonly string[]) {
       'allow-contributor-models': { type: 'boolean' },
       [ACP_PAID_FLAGS.webSearch]: { type: 'boolean' },
       [ACP_PAID_FLAGS.imageGeneration]: { type: 'boolean' },
+      'scheduled-prompts': { type: 'boolean' },
+      'max-budget-usd': { type: 'string' },
       verbose: { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },

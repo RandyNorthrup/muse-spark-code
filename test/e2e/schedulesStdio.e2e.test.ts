@@ -47,7 +47,6 @@ describe('schedule CLI process boundary', () => {
   it('returns a stable JSON refusal when the real scheduler bundle is absent', () => {
     for (const args of [
       ['schedule', 'list', '--json'],
-      ['schedule', 'run-due', '--json'],
       ['schedule', 'background', 'off', '--json'],
     ]) {
       const result = run(args)
@@ -64,7 +63,7 @@ describe('schedule CLI process boundary', () => {
     expect(run(['schedule', 'run-due', '--cwd', directory]).status).toBe(2)
     expect(run(['schedule', 'background', 'off', '--cwd', directory]).status).toBe(2)
   })
-  it('reports cleanup failure as one refusal without printing a preceding success', async () => {
+  it('preserves a committed accepted id on stdout and reports cleanup separately with exit 3', async () => {
     const bundle = path.join(directory, 'dist', 'schedules.js')
     await writeFile(
       bundle,
@@ -76,14 +75,15 @@ describe('schedule CLI process boundary', () => {
       })`,
     )
     try {
-      const result = run(['schedule', 'list', '--json'])
-      expect(result.status).toBe(1)
+      const result = run(['schedule', 'add', '--draft', '{}', '--json'])
+      expect(result.status).toBe(3)
       expect(JSON.parse(result.stdout)).toEqual({
-        kind: 'refused',
-        reason: UI_TEXT.scheduleV2.runtime.unavailable,
+        kind: 'accepted',
+        id: 'fake-accepted',
       })
+      expect(result.stderr).toContain(UI_TEXT.scheduleV2.runtime.cleanupFailed)
       expect(result.stdout + result.stderr).not.toContain('private cleanup detail')
-      expect(result.stdout).not.toContain('fake-accepted')
+      expect(result.stdout).toContain('fake-accepted')
     } finally {
       await rm(bundle)
     }

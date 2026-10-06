@@ -2766,7 +2766,7 @@
       "agentCreation": "Výchozí oprávnění agentů vytvářet plány: zeptat se, vždy v rámci limitů nebo nikdy. Ve výchozím stavu se zeptat."
     },
     "runtime": {
-      "usage": "Použití: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "usage": "Použití: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Návratové kódy: 0 úspěch, 1 odmítnutí, 2 nesprávné použití, 3 upozornění na úklid.",
       "accepted": "Požadavek na plán přijat",
       "empty": "Žádné plány ani nadcházející spuštění.",
       "unavailable": "Plány nejsou na tomto hostiteli dostupné. Je nutné připojení plánovače běhového prostředí.",
@@ -2774,7 +2774,11 @@
       "invalidResponse": "Plánovač vrátil neplatnou odpověď.",
       "consentRequired": "Plánování na pozadí vyžaduje vaše výslovné Ano.",
       "backgroundUnavailable": "Plánování na pozadí není na tomto hostiteli dostupné.",
-      "backgroundRearmUnavailable": "Toto probuzení launchd nemůže upravit vlastní položku. Je nutný externí pomocník pro opětovné nastavení."
+      "backgroundRearmUnavailable": "Toto probuzení launchd nemůže upravit vlastní položku. Je nutný externí pomocník pro opětovné nastavení.",
+      "unsafeLauncher": "Nebezpečná cesta ke spouštěči plánů: {path}",
+      "paidAuthorizationRequired": "Placené plány vyžadují --scheduled-prompts a výslovné --max-budget-usd pokrývající oba finanční limity.",
+      "cleanupFailed": "Požadavek na plán byl dokončen, ale úklid selhal. Uchovejte přijaté ID; návratový kód 3 znamená, že úklid vyžaduje pozornost.",
+      "hostUnavailable": "Hostitel plánů se pro tento pracovní prostor nespustil. Ovládání plánů není dostupné; běžný chat zůstává dostupný."
     }
   }
 }

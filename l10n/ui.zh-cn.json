@@ -2478,7 +2478,7 @@
       "agentCreation": "代理创建日程的默认权限：询问、在上限内始终允许或永不允许。默认询问。"
     },
     "runtime": {
-      "usage": "用法: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "usage": "用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 退出代码：0 成功，1 拒绝，2 用法错误，3 清理警告。",
       "accepted": "已接受计划请求",
       "empty": "没有计划或即将运行的任务。",
       "unavailable": "此主机无法使用计划任务。需要连接运行时调度器。",
@@ -2486,7 +2486,11 @@
       "invalidResponse": "调度器返回了无效响应。",
       "consentRequired": "后台计划需要您明确选择“是”。",
       "backgroundUnavailable": "此主机无法使用后台计划。",
-      "backgroundRearmUnavailable": "此 launchd 唤醒进程无法重新配置自身的条目。需要外部辅助进程来安排下一次唤醒。"
+      "backgroundRearmUnavailable": "此 launchd 唤醒进程无法重新配置自身的条目。需要外部辅助进程来安排下一次唤醒。",
+      "unsafeLauncher": "不安全的计划启动程序路径：{path}",
+      "paidAuthorizationRequired": "付费计划需要 --scheduled-prompts 和明确指定的 --max-budget-usd，预算必须涵盖两项费用上限。",
+      "cleanupFailed": "计划请求已完成，但清理失败。请保留已接受的 ID；退出代码 3 表示清理需要处理。",
+      "hostUnavailable": "无法为此工作区启动计划服务。计划控制不可用；普通聊天仍可使用。"
     }
   }
 }

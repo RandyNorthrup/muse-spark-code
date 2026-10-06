@@ -20,7 +20,7 @@ export const EN = {
   scheduleV2: {
     runtime: {
       usage:
-        'Usage: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]',
+        'Usage: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]. Exit codes: 0 success, 1 refusal, 2 usage, 3 cleanup warning.',
       accepted: 'Schedule request accepted',
       empty: 'No schedules or upcoming fires.',
       unavailable:
@@ -29,6 +29,13 @@ export const EN = {
       invalidResponse: 'The scheduler returned an invalid response.',
       consentRequired: 'Background scheduling requires your explicit Yes.',
       backgroundUnavailable: 'Background scheduling is unavailable on this host.',
+      unsafeLauncher: 'Unsafe schedule launcher path: {path}',
+      paidAuthorizationRequired:
+        'Paid schedules require --scheduled-prompts and an explicit --max-budget-usd covering both paid caps.',
+      cleanupFailed:
+        'Schedule request finished, but cleanup failed. Keep the accepted id; exit code 3 means cleanup needs attention.',
+      hostUnavailable:
+        'The schedule host could not start for this workspace. Schedule controls are unavailable; ordinary chat remains available.',
       backgroundRearmUnavailable:
         'This launchd wake cannot reconfigure its own entry. An external rearm helper is required.',
     },

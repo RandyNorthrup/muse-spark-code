@@ -29,6 +29,7 @@ describe('ACP schedule adapter', () => {
     for (const text of [
       '/schedule list --cwd /other',
       '/schedule run-due',
+      '/schedule background-maintain',
       '/schedule remove',
       '/schedule background on',
     ])

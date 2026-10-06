@@ -7,6 +7,29 @@ import {
   SCHEDULE_MIN_INTERVAL_MS,
   UI_TEXT,
 } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
+
+class UnsafeScheduleLauncherError extends Error {
+  override name = 'UnsafeScheduleLauncherError'
+  constructor(file: string) {
+    super(fill(UI_TEXT.scheduleV2.runtime.unsafeLauncher, { path: file }))
+  }
+}
+
+export function unsafeScheduleLauncher(file: string): Error {
+  return new UnsafeScheduleLauncherError(file)
+}
+
+export function scheduleLauncherReason(value: unknown): string | undefined {
+  return typeof value === 'object' &&
+    value !== null &&
+    'name' in value &&
+    value.name === 'UnsafeScheduleLauncherError' &&
+    'message' in value &&
+    typeof value.message === 'string'
+    ? value.message
+    : undefined
+}
 
 export interface BackgroundRegistrationInput {
   readonly platform: NodeJS.Platform
@@ -15,6 +38,7 @@ export interface BackgroundRegistrationInput {
   readonly executable: string
   readonly agentFile: string
   readonly uid: number
+  readonly effectiveUid?: number
   readonly windowsUserId?: string
   readonly nowMs: number
   readonly nextWakeAtMs: number
@@ -65,12 +89,14 @@ export function backgroundRegistration(input: BackgroundRegistrationInput): Back
     /[\p{Cc}]/u.test(input.executable + input.agentFile + input.homeDir + input.dataDir) ||
     !Number.isSafeInteger(input.uid) ||
     input.uid < 0 ||
+    (input.platform !== 'win32' && (input.uid === 0 || input.effectiveUid === 0)) ||
     !Number.isSafeInteger(input.nowMs) ||
     input.nowMs < 0 ||
     !Number.isSafeInteger(input.nextWakeAtMs) ||
     input.nextWakeAtMs <= input.nowMs ||
     !Number.isFinite(new Date(input.nextWakeAtMs).getTime()) ||
-    (input.platform === 'win32' && !/^S-1-\d+(?:-\d+)+$/.test(input.windowsUserId ?? ''))
+    (input.platform === 'win32' &&
+      !/^S-1-(?:5-21|12-1)-\d+(?:-\d+)+$/.test(input.windowsUserId ?? ''))
   )
     throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
   const id = backgroundRegistrationId(input.homeDir)

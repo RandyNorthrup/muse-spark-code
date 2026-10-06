@@ -150,6 +150,10 @@ function harness(options: HarnessOptions = {}): Harness {
   }
 }
 
+function scheduleReleaseHarness(release: () => Promise<void>): Harness {
+  return harness({ schedules: { run: vi.fn(), holdWorkspace: vi.fn().mockResolvedValue(release) } })
+}
+
 /** Lets the agent act on what it just received, before a test checks it did nothing. */
 async function settled(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, WAIT_MS / 10))
@@ -657,9 +661,7 @@ describe('the ACP agent (M63)', () => {
     const release = vi
       .fn<() => Promise<void>>()
       .mockRejectedValue(new Error('Private watcher failure'))
-    const h = harness({
-      schedules: { run: vi.fn(), holdWorkspace: vi.fn().mockResolvedValue(release) },
-    })
+    const h = scheduleReleaseHarness(release)
     await h.run(async (client) => {
       const { sessionId, session, response } = await running(h, client)
       await client.request('session/close', { sessionId })
@@ -668,6 +670,55 @@ describe('the ACP agent (M63)', () => {
       expect(session.cancel).toHaveBeenCalledOnce()
       expect(session.dispose).toHaveBeenCalledOnce()
       expect(h.log.warn).toHaveBeenCalledWith('ACP schedule workspace release failed')
+    })
+  })
+
+  it('starts Stop independently and bounds pending schedule teardown', async () => {
+    const held = Promise.withResolvers<undefined>()
+    const release = vi.fn<() => Promise<void>>().mockReturnValue(held.promise)
+    const h = scheduleReleaseHarness(release)
+    await h.run(async (client) => {
+      const { sessionId, session, response } = await running(h, client)
+      const closing = client.request('session/close', { sessionId })
+      expect(await response).toEqual({ stopReason: 'cancelled' })
+      await until(() => release.mock.calls.length === 1)
+      expect(session.cancel).toHaveBeenCalledOnce()
+      await until(() => session.dispose.mock.calls.length === 1)
+      await closing
+      expect(h.log.warn).toHaveBeenCalledWith('ACP schedule workspace release failed')
+    })
+  })
+
+  it('reports schedule host startup failure and refuses controls while ordinary ACP continues', async () => {
+    const run = vi.fn<AcpSchedulePort['run']>()
+    const h = harness({
+      schedules: {
+        run,
+        holdWorkspace: vi.fn().mockRejectedValue(new Error('private watcher detail')),
+      },
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await client.request('session/prompt', {
+        sessionId,
+        prompt: [{ type: 'text', text: '/schedule list' }],
+      })
+      expect(run).not.toHaveBeenCalled()
+      expect(h.log.warn).toHaveBeenCalledWith('ACP schedule workspace startup failed')
+      for (const text of [
+        UI_TEXT.scheduleV2.runtime.hostUnavailable,
+        UI_TEXT.scheduleV2.runtime.unavailable,
+      ])
+        expect(h.updates).toContainEqual({
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text },
+        })
+      const response = prompt(client, sessionId)
+      const session = h.host.sessions[0]!
+      await until(() => session.sendTurn.mock.calls.length === 1)
+      session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+      expect(await response).toEqual({ stopReason: 'end_turn' })
+      expect(JSON.stringify(h.updates)).not.toContain('private watcher detail')
     })
   })
 

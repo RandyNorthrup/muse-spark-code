@@ -2670,7 +2670,7 @@
       "agentCreation": "Permiso predeterminado para que los agentes creen programaciones: preguntar, siempre dentro de los límites o nunca. Preguntar por defecto."
     },
     "runtime": {
-      "usage": "Uso: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "usage": "Uso: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Códigos de salida: 0 éxito, 1 rechazo, 2 uso incorrecto, 3 advertencia de limpieza.",
       "accepted": "Solicitud de programación aceptada",
       "empty": "No hay programaciones ni ejecuciones próximas.",
       "unavailable": "Las programaciones no están disponibles en este host. Se requiere la conexión con el programador del entorno de ejecución.",
@@ -2678,7 +2678,11 @@
       "invalidResponse": "El programador devolvió una respuesta no válida.",
       "consentRequired": "La programación en segundo plano requiere que responda Sí explícitamente.",
       "backgroundUnavailable": "La programación en segundo plano no está disponible en este host.",
-      "backgroundRearmUnavailable": "Esta activación de launchd no puede reconfigurar su propia entrada. Se requiere un proceso auxiliar externo para volver a programarla."
+      "backgroundRearmUnavailable": "Esta activación de launchd no puede reconfigurar su propia entrada. Se requiere un proceso auxiliar externo para volver a programarla.",
+      "unsafeLauncher": "Ruta insegura del lanzador de tareas programadas: {path}",
+      "paidAuthorizationRequired": "Las tareas de pago requieren --scheduled-prompts y un --max-budget-usd explícito que cubra ambos límites de gasto.",
+      "cleanupFailed": "La solicitud de programación terminó, pero la limpieza falló. Conserve el ID aceptado; el código de salida 3 indica que la limpieza necesita atención.",
+      "hostUnavailable": "No se pudo iniciar el servicio de programación en este espacio de trabajo. Los controles no están disponibles; el chat habitual sigue disponible."
     }
   }
 }

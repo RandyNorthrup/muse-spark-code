@@ -59,6 +59,7 @@ import {
   DEFAULT_EFFORT,
   type EffortLevel,
   MSP_REQUESTED_CAPABILITIES,
+  SCHEDULE_ACP_RELEASE_TIMEOUT_MS,
   type PermissionMode,
   UI_TEXT,
 } from '../shared/constants'
@@ -116,6 +117,10 @@ export interface AcpAgentOptions {
   /** Contributor-tier models are listed (`--allow-contributor-models`). */
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
+  readonly scheduleAuthorization?: {
+    readonly scheduledPrompts: boolean
+    readonly maxBudgetUsd?: number
+  }
 }
 
 /** How the user signs in to the chosen backend (D61, D62). */
@@ -236,6 +241,7 @@ class AcpSession {
   private skills: readonly SkillSummary[] = []
   private areCommandsAnnounced = false
   private releaseSchedules: (() => Promise<void>) | undefined
+  private isScheduleHostAvailable = true
   private effort: EffortLevel = DEFAULT_EFFORT
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
@@ -848,12 +854,13 @@ class AcpSession {
       await this.announceCommands()
       if (/^\/schedule(?:\s|$)/.test(parsed.displayText)) {
         const result =
-          this.deps.schedules === undefined
+          this.deps.schedules === undefined || !this.isScheduleHostAvailable
             ? UI_TEXT.scheduleV2.runtime.unavailable
             : await this.deps.schedules.run(parsed.displayText, {
                 cwd: this.cwd,
                 sessionId: this.sessionId,
                 backend: this.deps.backend.kind,
+                ...this.deps.options.scheduleAuthorization,
               })
         if (preparing.isCancelled) return 'cancelled'
         if ('error' in preparing) throw preparing.error
@@ -948,9 +955,19 @@ class AcpSession {
   }
 
   public async holdSchedules(): Promise<void> {
-    const release = await this.deps.schedules?.holdWorkspace?.(this.cwd)
-    if (this.isDisposed) await release?.()
-    else this.releaseSchedules = release
+    try {
+      const release = await this.deps.schedules?.holdWorkspace?.(this.cwd)
+      if (this.isDisposed) await release?.()
+      else this.releaseSchedules = release
+    } catch {
+      this.isScheduleHostAvailable = false
+      this.deps.log.warn('ACP schedule workspace startup failed')
+      observeError(this.deps, 'scheduleHostStartFailed')
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: UI_TEXT.scheduleV2.runtime.hostUnavailable },
+      })
+    }
   }
 
   /**
@@ -976,23 +993,39 @@ class AcpSession {
     this.unsubscribe()
     const releaseSchedules = this.releaseSchedules
     this.releaseSchedules = undefined
-    try {
-      await releaseSchedules?.()
-    } catch {
-      this.deps.log.warn('ACP schedule workspace release failed')
-      observeError(this.deps, 'scheduleReleaseFailed')
-    }
-    if (wasRunning) {
-      // Stopped once its start is answered, even a start that failed: one
-      // past its deadline (Muse Code's `turn/start`) may still start.
-      try {
-        await this.starting
-      } catch {
-        // The prompt that started it has already ended cancelled.
+    // Start Stop first, independently of the optional workspace watcher.
+    const stop = (async () => {
+      if (wasRunning) {
+        try {
+          await this.starting
+        } catch {
+          // The prompt that started it has already ended cancelled.
+        }
+        await this.cancelTurn()
       }
-      await this.cancelTurn()
-    }
-    this.session.dispose()
+      this.session.dispose()
+    })()
+    let deadline: ReturnType<typeof setTimeout> | undefined
+    const cleanup = (async () => {
+      try {
+        await Promise.race([
+          (async () => {
+            await releaseSchedules?.()
+          })(),
+          new Promise<never>((_resolve, reject) => {
+            deadline = setTimeout(() => {
+              reject(new Error(UI_TEXT.scheduleV2.runtime.unavailable))
+            }, SCHEDULE_ACP_RELEASE_TIMEOUT_MS)
+          }),
+        ])
+      } catch {
+        this.deps.log.warn('ACP schedule workspace release failed')
+        observeError(this.deps, 'scheduleReleaseFailed')
+      } finally {
+        clearTimeout(deadline)
+      }
+    })()
+    await Promise.all([stop, cleanup])
   }
 }
 

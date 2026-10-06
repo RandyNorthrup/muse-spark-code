@@ -119,4 +119,26 @@ describe('schedule background consent', () => {
     await expect(coordinator.status()).rejects.toThrow()
     expect(entry.registrations).toEqual([])
   })
+  it('waits for the existing consent mutation lock before a wake crosses its barrier', async () => {
+    const { coordinator, entry } = setup()
+    const held = Promise.withResolvers<undefined>(),
+      entered = Promise.withResolvers<undefined>()
+    vi.spyOn(entry, 'register').mockImplementation(() => {
+      entered.resolve(undefined)
+      return held.promise
+    })
+    const mutation = coordinator.decide({ choice: 'yes', decidedAtMs: 1000 })
+    await entered.promise
+    let hasCrossed = false
+    const barrier = (async () => {
+      await coordinator.wakeBarrier()
+      hasCrossed = true
+    })()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(hasCrossed).toBe(false)
+    held.resolve(undefined)
+    await Promise.all([mutation, barrier])
+    expect(hasCrossed).toBe(true)
+  })
 })

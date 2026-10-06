@@ -2478,7 +2478,7 @@
       "agentCreation": "エージェントによるスケジュール作成の既定の権限：確認、上限内で常に許可、または許可しない。既定では確認します。"
     },
     "runtime": {
-      "usage": "使用法: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "usage": "使用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 終了コード: 0 成功、1 拒否、2 使用方法の誤り、3 後処理の警告。",
       "accepted": "スケジュール要求を受け付けました",
       "empty": "スケジュールや今後の実行はありません。",
       "unavailable": "このホストではスケジュールを利用できません。ランタイムのスケジューラーとの接続が必要です。",
@@ -2486,7 +2486,11 @@
       "invalidResponse": "スケジューラーが無効な応答を返しました。",
       "consentRequired": "バックグラウンド実行には、明示的に「はい」と答える必要があります。",
       "backgroundUnavailable": "このホストではバックグラウンド実行を利用できません。",
-      "backgroundRearmUnavailable": "このlaunchd起動処理は自身の登録を再設定できません。次の起動を設定する外部ヘルパーが必要です。"
+      "backgroundRearmUnavailable": "このlaunchd起動処理は自身の登録を再設定できません。次の起動を設定する外部ヘルパーが必要です。",
+      "unsafeLauncher": "安全でないスケジュール起動プログラムのパス: {path}",
+      "paidAuthorizationRequired": "有料スケジュールには --scheduled-prompts と、両方の料金上限を満たす明示的な --max-budget-usd が必要です。",
+      "cleanupFailed": "スケジュール要求は完了しましたが、後処理に失敗しました。受理された ID を保存してください。終了コード 3 は後処理への対応が必要であることを示します。",
+      "hostUnavailable": "このワークスペースのスケジュールホストを起動できませんでした。スケジュール操作は利用できませんが、通常のチャットは引き続き利用できます。"
     }
   }
 }

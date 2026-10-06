@@ -1,4 +1,5 @@
 import path from 'node:path'
+import process from 'node:process'
 import * as z from 'zod/mini'
 import { UI_TEXT } from '../../shared/constants'
 import {
@@ -12,6 +13,8 @@ import {
 } from './registration'
 
 export interface BackgroundFilePort {
+  trustedPath(file: string, platform: NodeJS.Platform, uid: number): Promise<string>
+  waitForWake(dataDir: string): Promise<void>
   read(file: string): Promise<string | undefined>
   write(file: string, text: string, encoding?: 'utf16le'): Promise<void>
   remove(file: string): Promise<void>
@@ -67,12 +70,18 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
   }
   private async windowsOwnerId(): Promise<string> {
     const script =
-      "$ErrorActionPreference = 'Stop'; ConvertTo-Json -Compress -InputObject ([Security.Principal.WindowsIdentity]::GetCurrent().User.Value)"
+      "$ErrorActionPreference = 'Stop'; $identity = [Security.Principal.WindowsIdentity]::GetCurrent(); $principal = [Security.Principal.WindowsPrincipal]::new($identity); ConvertTo-Json -Compress -InputObject @{ sid = $identity.User.Value; elevated = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator); service = $identity.IsSystem -or ($identity.Groups.Value -contains 'S-1-5-6') }"
     const input = await this.powershellJson(script)
-    return z
-      .string()
-      .check(z.regex(/^S-1-\d+(?:-\d+)+$/))
+    const identity = z
+      .strictObject({
+        sid: z.string().check(z.regex(/^S-1-(?:5-21|12-1)-\d+(?:-\d+)+$/)),
+        elevated: z.boolean(),
+        service: z.boolean(),
+      })
       .parse(input)
+    if (identity.elevated || identity.service)
+      throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
+    return identity.sid
   }
   private async isRegistered(): Promise<boolean> {
     switch (this.deps.platform) {
@@ -104,6 +113,17 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
       }
     }
   }
+  private async assertLaunchdIdle(): Promise<void> {
+    // A newly starting wake may not have published its lock yet. Protect it too.
+    const result = await this.deps.run('launchctl', [
+      'print',
+      `gui/${String(this.deps.uid)}/${this.id}`,
+    ])
+    if (result.exitCode !== 0 && !result.stderr.includes('Could not find service'))
+      throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+    if (/^\s*(?:pid\s*=\s*[1-9]\d*|state\s*=\s*running)\s*$/m.test(result.stdout))
+      throw new Error(UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable)
+  }
   async status(): Promise<{ registered: boolean; nextWakeAtMs?: number }> {
     if (!(await this.isRegistered())) return { registered: false }
     const stored = await this.deps.files.read(this.stateFile)
@@ -119,9 +139,28 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
       throw new Error(UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable)
     const consent = scheduleBackgroundConsentSchema.parse(input)
     if (consent.choice !== 'yes') throw new Error(UI_TEXT.scheduleV2.runtime.consentRequired)
+    const effectiveUid =
+      this.deps.effectiveUid ??
+      (this.deps.platform === process.platform ? process.geteuid?.() : this.deps.uid)
+    if ((effectiveUid === 0 || this.deps.uid === 0) && this.deps.platform !== 'win32')
+      throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
+    if (this.deps.platform === 'darwin') {
+      await this.deps.files.waitForWake(this.deps.dataDir)
+      await this.assertLaunchdIdle()
+    }
     const registration = backgroundRegistration({
       ...this.deps,
       ...(this.deps.platform === 'win32' && { windowsUserId: await this.windowsOwnerId() }),
+      executable: await this.deps.files.trustedPath(
+        this.deps.executable,
+        this.deps.platform,
+        this.deps.uid,
+      ),
+      agentFile: await this.deps.files.trustedPath(
+        this.deps.agentFile,
+        this.deps.platform,
+        this.deps.uid,
+      ),
       nowMs: this.deps.now(),
       nextWakeAtMs,
     })
@@ -142,6 +181,7 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
         break
       }
       case 'darwin': {
+        await this.assertLaunchdIdle()
         if (await this.isRegistered())
           await this.succeeded('launchctl', ['bootout', `${registration.domain}/${this.id}`])
         await this.succeeded('launchctl', ['bootstrap', registration.domain, firstFile.path])
@@ -167,7 +207,23 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
   async remove(): Promise<void> {
     if (this.deps.platform === 'darwin' && this.deps.isWakeProcess)
       throw new Error(UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable)
-    if (await this.isRegistered()) {
+    if (this.deps.platform === 'darwin') {
+      await this.deps.files.waitForWake(this.deps.dataDir)
+      await this.assertLaunchdIdle()
+    }
+    if (this.deps.platform === 'linux') {
+      // Disabled does not mean inactive: stop both units before unlinking either.
+      for (const operation of ['stop', 'disable']) {
+        const result = await this.deps.run('systemctl', [
+          '--user',
+          operation,
+          `${this.id}.timer`,
+          `${this.id}.service`,
+        ])
+        if (result.exitCode !== 0 && !/not (?:loaded|found)|does not exist/.test(result.stderr))
+          throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+      }
+    } else if (await this.isRegistered()) {
       switch (this.deps.platform) {
         case 'win32': {
           await this.succeeded('schtasks.exe', ['/Delete', '/TN', this.id, '/F'])
@@ -177,10 +233,6 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
           await this.succeeded('launchctl', ['bootout', `gui/${String(this.deps.uid)}/${this.id}`])
           break
         }
-        case 'linux': {
-          await this.succeeded('systemctl', ['--user', 'disable', '--now', `${this.id}.timer`])
-          break
-        }
         default: {
           throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
         }
@@ -188,7 +240,18 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
       if (await this.isRegistered()) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
     }
     for (const file of [...this.paths, this.stateFile]) await this.deps.files.remove(file)
-    if (this.deps.platform === 'linux')
-      await this.succeeded('systemctl', ['--user', 'daemon-reload'])
+    if (this.deps.platform !== 'linux') {
+      return
+    }
+
+    await this.succeeded('systemctl', ['--user', 'daemon-reload'])
+    for (const unit of [`${this.id}.timer`, `${this.id}.service`]) {
+      const result = await this.deps.run('systemctl', ['--user', 'is-active', unit])
+      if (!['inactive', 'unknown'].includes(result.stdout.trim()) || result.exitCode === 0)
+        throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+      const enabled = await this.deps.run('systemctl', ['--user', 'is-enabled', unit])
+      if (enabled.stdout.trim() !== 'not-found' || enabled.exitCode === 0)
+        throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+    }
   }
 }

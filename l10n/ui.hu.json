@@ -2574,7 +2574,7 @@
       "agentCreation": "Az ügynökök ütemezéslétrehozási alapengedélye: kérdezzen, mindig a korlátokon belül vagy soha. Alapértelmezetten kérdezzen."
     },
     "runtime": {
-      "usage": "Használat: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "usage": "Használat: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Kilépési kódok: 0 siker, 1 elutasítás, 2 használati hiba, 3 takarítási figyelmeztetés.",
       "accepted": "Ütemezési kérés elfogadva",
       "empty": "Nincsenek ütemezések vagy közelgő futtatások.",
       "unavailable": "Ezen a gazdagépen az ütemezések nem érhetők el. A futtatókörnyezet ütemezőjének csatlakoztatása szükséges.",
@@ -2582,7 +2582,11 @@
       "invalidResponse": "Az ütemező érvénytelen választ adott.",
       "consentRequired": "A háttérben történő ütemezéshez kifejezett Igen válasz szükséges.",
       "backgroundUnavailable": "A háttérben történő ütemezés ezen a gazdagépen nem érhető el.",
-      "backgroundRearmUnavailable": "Ez a launchd-ébresztés nem módosíthatja a saját bejegyzését. Az újbóli ütemezéshez külső segédfolyamat szükséges."
+      "backgroundRearmUnavailable": "Ez a launchd-ébresztés nem módosíthatja a saját bejegyzését. Az újbóli ütemezéshez külső segédfolyamat szükséges.",
+      "unsafeLauncher": "Nem biztonságos ütemezőindító elérési út: {path}",
+      "paidAuthorizationRequired": "A fizetős ütemezésekhez --scheduled-prompts és mindkét költségkorlátot fedező, kifejezett --max-budget-usd szükséges.",
+      "cleanupFailed": "Az ütemezési kérés befejeződött, de a takarítás sikertelen. Őrizze meg az elfogadott azonosítót; a 3-as kilépési kód takarítási problémát jelez.",
+      "hostUnavailable": "Az ütemező gazdafolyamata nem indult el ehhez a munkaterülethez. Az ütemezési vezérlők nem érhetők el; a szokásos csevegés továbbra is elérhető."
     }
   }
 }

@@ -1,8 +1,13 @@
 import { UI_TEXT } from '../../shared/constants'
 import { workspaceKey } from '../dataFolder'
 import { acpSchedules, type AcpScheduleContext } from '../../acp/schedules'
-import { runScheduleCommand, type ScheduleControlPort, type ScheduleCommandResult } from './command'
-import type { ScheduleCommandOptions } from './args'
+import {
+  runScheduleCommand,
+  settleScheduleCommand,
+  type ScheduleControlPort,
+  type ScheduleCommandResult,
+} from './command'
+import type { ScheduleCommandOptions, ScheduleCallerContext } from './args'
 import type { RuntimeSchedulesBinding } from './binding'
 import type { RuntimeScheduleHost } from './host'
 import type { ScheduleBackgroundCoordinator } from './background'
@@ -10,7 +15,7 @@ import type { ScheduleSurface } from './surface'
 
 export interface ScheduleRuntimeDeps {
   /** S supplies a scoped control, with a real close for that invocation. */
-  readonly controlFor: (cwd: string) => Promise<ScheduleControlPort>
+  readonly controlFor: (cwd: string, caller: ScheduleCallerContext) => Promise<ScheduleControlPort>
   readonly host: RuntimeScheduleHost
   readonly surface: ScheduleSurface
   readonly background: ScheduleBackgroundCoordinator
@@ -19,6 +24,7 @@ export interface ScheduleRuntimeDeps {
   /** S's validated persisted workspace registry, never an untrusted event path. */
   readonly dueWorkspaces: () => Promise<readonly string[]>
   readonly close: () => Promise<void>
+  readonly platform?: NodeJS.Platform
 }
 
 /** Concrete glue over the injected S/U/D engine, never a second scheduler. */
@@ -26,22 +32,35 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
   private readonly leases = new Set<() => Promise<void>>()
   private readonly acp
   private closed = false
+  private isMacWake = false
   constructor(private readonly deps: ScheduleRuntimeDeps) {
-    this.acp = acpSchedules((context) => this.control(context.cwd))
+    this.acp = acpSchedules((context) =>
+      this.control(context.cwd, {
+        ...context,
+        source: 'acp',
+        isInteractive: true,
+        scheduledPrompts: context.scheduledPrompts === true,
+      }),
+    )
   }
   private assertOpen(): void {
     if (this.closed) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
   }
-  private async control(cwd: string): Promise<ScheduleControlPort> {
+  private async control(cwd: string, caller: ScheduleCallerContext): Promise<ScheduleControlPort> {
     this.assertOpen()
-    const control = await this.deps.controlFor(cwd)
+    const control = await this.deps.controlFor(cwd, caller)
     if (this.closed) {
       await control.close()
       this.assertOpen()
     }
     return {
       request: (input) =>
-        this.deps.surface.request(input, workspaceKey(cwd), (request) => control.request(request)),
+        this.deps.surface.request(
+          input,
+          workspaceKey(cwd),
+          (request, context) => control.request(request, context),
+          caller,
+        ),
       runDue: async () => {
         const releases: (() => Promise<void>)[] = []
         const failures: unknown[] = []
@@ -62,13 +81,24 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
       close: () => control.close(),
     }
   }
-  async command(options: ScheduleCommandOptions, cwd: string): Promise<ScheduleCommandResult> {
-    const control = await this.control(cwd)
-    try {
-      return await runScheduleCommand(options, cwd, control)
-    } finally {
-      if (options.operation === 'run-due') await this.close()
-    }
+  async command(
+    options: ScheduleCommandOptions,
+    cwd: string,
+    isInteractive = false,
+  ): Promise<ScheduleCommandResult> {
+    this.isMacWake =
+      options.operation === 'run-due' && (this.deps.platform ?? process.platform) === 'darwin'
+    if (this.isMacWake) await this.deps.background.wakeBarrier()
+    const control = await this.control(cwd, {
+      source: 'cli',
+      isInteractive,
+      scheduledPrompts: options.scheduledPrompts === true,
+      ...(options.maxBudgetUsd !== undefined && { maxBudgetUsd: options.maxBudgetUsd }),
+    })
+    return await settleScheduleCommand(
+      () => runScheduleCommand(options, cwd, control),
+      () => (options.operation === 'run-due' ? this.close() : Promise.resolve()),
+    )
   }
   async run(text: string, context: AcpScheduleContext): Promise<string> {
     this.assertOpen()
@@ -110,7 +140,7 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
       try {
         await this.deps.close()
       } finally {
-        await this.deps.background.reconcile()
+        if (!this.isMacWake) await this.deps.background.reconcile()
       }
     }
   }

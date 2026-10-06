@@ -15,11 +15,29 @@ export interface ScheduleCommandOptions {
     | 'run-due'
     | 'background-off'
     | 'background-status'
+    | 'background-maintain'
   readonly cwd?: string
   readonly isJson: boolean
   readonly id?: string
   readonly draft?: string
   readonly hours?: string
+  readonly scheduledPrompts?: boolean
+  readonly maxBudgetUsd?: number
+}
+
+/** Trusted host metadata, never read from a schedule draft or transport frame. */
+export interface ScheduleCallerContext {
+  readonly source: 'cli' | 'acp' | 'interactive'
+  readonly isInteractive: boolean
+  readonly scheduledPrompts: boolean
+  readonly maxBudgetUsd?: number
+  readonly sessionId?: string
+  readonly backend?: 'museCode' | 'modelApi'
+}
+
+export function scheduleBudgetUsd(value: string): number | undefined {
+  const amount = Number(value)
+  return /^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value) && Number.isFinite(amount) ? amount : undefined
 }
 
 export type ScheduleCommandParse =
@@ -41,6 +59,8 @@ export function parseScheduleCommand(argv: readonly string[]): ScheduleCommandPa
         json: { type: 'boolean' },
         draft: { type: 'string' },
         hours: { type: 'string' },
+        'scheduled-prompts': { type: 'boolean' },
+        'max-budget-usd': { type: 'string' },
       },
     })
     const [operation, argument, ...extra] = positionals
@@ -50,13 +70,31 @@ export function parseScheduleCommand(argv: readonly string[]): ScheduleCommandPa
       ...(values.cwd !== undefined && { cwd: values.cwd }),
     }
     if (operation === 'add') {
+      const budget =
+        values['max-budget-usd'] === undefined
+          ? undefined
+          : scheduleBudgetUsd(values['max-budget-usd'])
+      if (budget === undefined && values['max-budget-usd'] !== undefined) return refused()
       return argument !== undefined ||
         values.draft === undefined ||
         values.draft === '' ||
         values.hours !== undefined
         ? refused()
-        : { ok: true, options: { ...common, operation, draft: values.draft } }
+        : {
+            ok: true,
+            options: {
+              ...common,
+              operation,
+              draft: values.draft,
+              ...(values['scheduled-prompts'] !== undefined && {
+                scheduledPrompts: values['scheduled-prompts'],
+              }),
+              ...(budget !== undefined && { maxBudgetUsd: budget }),
+            },
+          }
     }
+    if (values['scheduled-prompts'] !== undefined || values['max-budget-usd'] !== undefined)
+      return refused()
     if (values.draft !== undefined) return refused()
     if (operation === 'timeline') {
       if (
@@ -86,12 +124,14 @@ export function parseScheduleCommand(argv: readonly string[]): ScheduleCommandPa
         },
       }
     }
-    if (operation === 'list' || operation === 'run-due') {
-      return argument !== undefined || (operation === 'run-due' && values.cwd !== undefined)
-        ? refused()
-        : { ok: true, options: { ...common, operation } }
-    }
     switch (operation) {
+      case 'list':
+      case 'run-due':
+      case 'background-maintain': {
+        return argument !== undefined || (operation !== 'list' && values.cwd !== undefined)
+          ? refused()
+          : { ok: true, options: { ...common, operation } }
+      }
       case 'remove':
       case 'run-now':
       case 'pause':

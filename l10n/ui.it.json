@@ -2670,7 +2670,7 @@
       "agentCreation": "Permesso predefinito degli agenti per creare pianificazioni: chiedi, sempre entro i limiti o mai. Chiedi per impostazione predefinita."
     },
     "runtime": {
-      "usage": "Uso: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "usage": "Uso: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Codici di uscita: 0 successo, 1 rifiuto, 2 uso errato, 3 avviso di pulizia.",
       "accepted": "Richiesta di pianificazione accettata",
       "empty": "Nessuna pianificazione o esecuzione imminente.",
       "unavailable": "Le pianificazioni non sono disponibili su questo host. È necessario il collegamento al pianificatore del runtime.",
@@ -2678,7 +2678,11 @@
       "invalidResponse": "Il pianificatore ha restituito una risposta non valida.",
       "consentRequired": "La pianificazione in background richiede un Sì esplicito.",
       "backgroundUnavailable": "La pianificazione in background non è disponibile su questo host.",
-      "backgroundRearmUnavailable": "Questa attivazione di launchd non può riconfigurare la propria voce. È necessario un processo ausiliario esterno per riprogrammarla."
+      "backgroundRearmUnavailable": "Questa attivazione di launchd non può riconfigurare la propria voce. È necessario un processo ausiliario esterno per riprogrammarla.",
+      "unsafeLauncher": "Percorso non sicuro dell’avviatore delle pianificazioni: {path}",
+      "paidAuthorizationRequired": "Le pianificazioni a pagamento richiedono --scheduled-prompts e un --max-budget-usd esplicito che copra entrambi i limiti di spesa.",
+      "cleanupFailed": "La richiesta di pianificazione è terminata, ma la pulizia non è riuscita. Conserva l’ID accettato; il codice di uscita 3 indica che la pulizia richiede attenzione.",
+      "hostUnavailable": "Il servizio di pianificazione non è stato avviato per questo spazio di lavoro. I controlli non sono disponibili; la chat ordinaria resta disponibile."
     }
   }
 }

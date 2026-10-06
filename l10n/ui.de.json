@@ -2574,7 +2574,7 @@
       "agentCreation": "Standardberechtigung für Agenten zum Erstellen von Zeitplänen: fragen, immer innerhalb der Grenzen oder nie. Standardmäßig fragen."
     },
     "runtime": {
-      "usage": "Verwendung: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "usage": "Verwendung: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Exitcodes: 0 Erfolg, 1 Ablehnung, 2 Aufruffehler, 3 Bereinigungswarnung.",
       "accepted": "Zeitplananfrage angenommen",
       "empty": "Keine Zeitpläne oder bevorstehenden Ausführungen.",
       "unavailable": "Zeitpläne sind auf diesem Host nicht verfügbar. Die Anbindung an den Laufzeitplaner ist erforderlich.",
@@ -2582,7 +2582,11 @@
       "invalidResponse": "Der Planer hat eine ungültige Antwort zurückgegeben.",
       "consentRequired": "Die Hintergrundplanung erfordert Ihr ausdrückliches Ja.",
       "backgroundUnavailable": "Hintergrundplanung ist auf diesem Host nicht verfügbar.",
-      "backgroundRearmUnavailable": "Dieser launchd-Aufruf kann seinen eigenen Eintrag nicht neu konfigurieren. Dafür ist ein externer Hilfsprozess erforderlich."
+      "backgroundRearmUnavailable": "Dieser launchd-Aufruf kann seinen eigenen Eintrag nicht neu konfigurieren. Dafür ist ein externer Hilfsprozess erforderlich.",
+      "unsafeLauncher": "Unsicherer Pfad zum Zeitplanstarter: {path}",
+      "paidAuthorizationRequired": "Kostenpflichtige Zeitpläne erfordern --scheduled-prompts und ein ausdrückliches --max-budget-usd, das beide Kostenlimits abdeckt.",
+      "cleanupFailed": "Die Zeitplananfrage wurde abgeschlossen, aber die Bereinigung ist fehlgeschlagen. Behalten Sie die bestätigte ID; Exitcode 3 bedeutet, dass die Bereinigung Aufmerksamkeit erfordert.",
+      "hostUnavailable": "Der Zeitplanhost konnte für diesen Arbeitsbereich nicht starten. Die Zeitplansteuerung ist nicht verfügbar; der normale Chat bleibt verfügbar."
     }
   }
 }

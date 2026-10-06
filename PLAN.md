@@ -6844,6 +6844,20 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM115X — Repair runtime schedule review findings (2026-10-06)
+
+Repair RVM115X's P1 launcher trust and seven P2 findings in X's adapters:
+canonical launcher/script existence and owner/ancestor permissions at registration
+and wake; privileged identity refusal; explicit paid flag and budget with caller
+context through the common surface; independent bounded schedule teardown after
+Stop starts; accepted-id preservation with separate cleanup warning/exit status;
+unconditional verified Linux timer/service removal; active-wake protection and
+after-exit macOS maintenance; visible ACP schedule-host startup failure.
+Use fake OS ports only, no dependency or broader guard, default test deadlines,
+one failing regression and byte-exact restored drill per fix. Record any named
+residual in §9 and `docs/certification/m115-x.md`. The rig brief reserves aggregate
+quality for W/lead; no branch merge, push or real OS registration is authorized.
+
 ### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
 
 Repair all six RVM115L0 P2 findings before M115's wave lanes bind the
@@ -19468,6 +19482,14 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
+FIXM115X (2026-10-06) follows the rig brief's prohibition on aggregate quality:
+the lane runs complete owned test files, typechecks, changed-file lint/format,
+localization, deadcode, duplication and production build checks. Full quality
+remains W/lead's required integration gate. `check:host-api` exposes the named
+generated-record drift; W owns regeneration. The feature catalogue/reference
+generator is absent on this base, so its gate and shipping documentation are
+also W handoffs. No gate configuration, rule or threshold is weakened.
+
 ## 8. Escape hatches register
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
@@ -19592,6 +19614,38 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM115X review repair.** RVM115X's P1 and all seven P2 findings are
+  repaired in the internal adapters; no review finding is deferred. Paid
+  creation requires trusted caller metadata with the explicit flag and a hard
+  budget covering both caps before engine admission. The same surface serves
+  editor, CLI and ACP requests. Native creation and wakes verify the canonical
+  launcher/script and every named/resolved ancestor's owner and permissions;
+  root, effective root, Windows service identities and elevated tokens refuse.
+  macOS wakes publish PID/start-identity locks and cross the shared consent
+  mutation lock before engine startup, then queue a detached helper only
+  after settlement; that helper waits for kernel exit
+  before reconciliation. Busy/unknown states and bounded retry failures refuse
+  mutation. The scheduling user and trusted OS owners can still change their
+  own installation; this is the explicit trust boundary, not code signing.
+- **FIXM115X-OS-RECEIPTS.** This repair authorizes no real OS entries. Linux's
+  disabled-but-active removal and macOS's running-wake/rearm receipts use fake
+  platform ports. Windows ACL policy uses real native ACL operations on fake
+  security descriptors; the rig itself is elevated and must refuse creation.
+  Safe for now: the shipping factory remains unbound and every unsafe/unknown
+  native state refuses. Follow-up: W runs exact packaged native receipts on
+  Linux, macOS and a normal Windows identity before claiming support.
+- **FIXM115X-W-BINDINGS-HELPREF.** This base has no feature catalogue/reference
+  generator or real schedules bundle. X supplies CLI help (paid flags and
+  exit 3), caller metadata, wake locks and the internal `background-maintain`
+  command. Safe for now: missing bindings explicitly refuse; no manifest or
+  shipping support is added. Follow-up: W binds the shared editor caller's
+  actual gate/budget, S/U consent and settlement, the same per-user data folder
+  in every host, and the helper's ordinary non-wake native adapter; publishes
+  README/ACP/reference entries and regenerates the host API record, then runs
+  aggregate quality and platform certification. After-exit retries are bounded
+  to five minutes; a crashed wake, failed helper or longer exit needs the next
+  editor/CLI reconciliation and never authorizes unloading a live wake.
 
 - **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
   none is deferred. These are unshipped internal schedule contracts, not

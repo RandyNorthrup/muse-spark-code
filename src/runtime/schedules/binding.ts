@@ -9,7 +9,11 @@ import type { ScheduleCommandResult } from './command'
 import type { AcpSchedulePort } from '../../acp/schedules'
 
 export interface RuntimeSchedulesBinding extends AcpSchedulePort {
-  command(options: ScheduleCommandOptions, cwd: string): Promise<ScheduleCommandResult>
+  command(
+    options: ScheduleCommandOptions,
+    cwd: string,
+    isInteractive?: boolean,
+  ): Promise<ScheduleCommandResult>
   /** ACP/native/companion workspace lifetime; S binds the polling engine here. */
   holdWorkspace(cwd: string): Promise<() => Promise<void>>
   close(): Promise<void>

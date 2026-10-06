@@ -7,6 +7,8 @@ export interface AcpScheduleContext {
   readonly cwd: string
   readonly sessionId: string
   readonly backend: 'museCode' | 'modelApi'
+  readonly scheduledPrompts?: boolean
+  readonly maxBudgetUsd?: number
 }
 export interface AcpSchedulePort {
   run(text: string, context: AcpScheduleContext): Promise<string>
@@ -24,7 +26,12 @@ export function acpSchedules(
       const ordinaryArgs = tail === '' ? ['list'] : tail.split(/\s+/)
       const argv = draft === null ? ordinaryArgs : ['add', '--draft', draft[1] ?? '']
       const parsed = parseScheduleCommand(argv)
-      if (!parsed.ok || parsed.options.cwd !== undefined || parsed.options.operation === 'run-due')
+      if (
+        !parsed.ok ||
+        parsed.options.cwd !== undefined ||
+        parsed.options.operation === 'run-due' ||
+        parsed.options.operation === 'background-maintain'
+      )
         return UI_TEXT.scheduleV2.runtime.usage
       const control = await controlFor(context)
       const result = await runScheduleCommand(parsed.options, context.cwd, control)

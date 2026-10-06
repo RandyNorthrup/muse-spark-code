@@ -81,9 +81,14 @@ describe('one-shot OS schedule manifests', () => {
         { nextWakeAtMs: Number.MAX_SAFE_INTEGER },
         { uid: 1.5 },
         { uid: -1 },
+        ...(platform === 'win32' ? [] : [{ uid: 0 }, { effectiveUid: 0 }]),
         { nowMs: NaN },
         { nowMs: -1 },
-        ...(platform === 'win32' ? [{ windowsUserId: 'not-a-sid' }] : []),
+        ...(platform === 'win32'
+          ? ['not-a-sid', 'S-1-5-18', 'S-1-5-19', 'S-1-5-20', 'S-1-5-80-1-2'].map(
+              (windowsUserId) => ({ windowsUserId }),
+            )
+          : []),
         { platform: 'freebsd' as const },
       ])
         expect(() => backgroundRegistration({ ...base, ...changed })).toThrow(

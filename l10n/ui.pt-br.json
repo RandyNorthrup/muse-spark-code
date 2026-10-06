@@ -2670,7 +2670,7 @@
       "agentCreation": "Permissão padrão para agentes criarem agendamentos: perguntar, sempre dentro dos limites ou nunca. Perguntar por padrão."
     },
     "runtime": {
-      "usage": "Uso: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "usage": "Uso: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Códigos de saída: 0 sucesso, 1 recusa, 2 uso incorreto, 3 aviso de limpeza.",
       "accepted": "Solicitação de agendamento aceita",
       "empty": "Nenhum agendamento ou execução próxima.",
       "unavailable": "Os agendamentos não estão disponíveis neste host. É necessária a conexão com o agendador do ambiente de execução.",
@@ -2678,7 +2678,11 @@
       "invalidResponse": "O agendador retornou uma resposta inválida.",
       "consentRequired": "O agendamento em segundo plano exige seu Sim explícito.",
       "backgroundUnavailable": "O agendamento em segundo plano não está disponível neste host.",
-      "backgroundRearmUnavailable": "Esta ativação do launchd não pode reconfigurar sua própria entrada. É necessário um processo auxiliar externo para reagendá-la."
+      "backgroundRearmUnavailable": "Esta ativação do launchd não pode reconfigurar sua própria entrada. É necessário um processo auxiliar externo para reagendá-la.",
+      "unsafeLauncher": "Caminho inseguro do inicializador de agendamentos: {path}",
+      "paidAuthorizationRequired": "Agendamentos pagos exigem --scheduled-prompts e um --max-budget-usd explícito que cubra ambos os limites de gasto.",
+      "cleanupFailed": "A solicitação de agendamento terminou, mas a limpeza falhou. Guarde o ID aceito; o código de saída 3 indica que a limpeza requer atenção.",
+      "hostUnavailable": "Não foi possível iniciar o serviço de agendamento neste espaço de trabalho. Os controles estão indisponíveis; o chat comum continua disponível."
     }
   }
 }

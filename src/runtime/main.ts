@@ -60,6 +60,12 @@ import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { uiLocale } from '../shared/l10n/text'
 import { runtimeSchedulesBinding } from './schedules/binding'
+import {
+  verifyScheduleWake,
+  beginScheduleWake,
+  waitForScheduleWake,
+} from './schedules/nodeBackgroundIo'
+import { settleScheduleCommand } from './schedules/command'
 
 const EXIT_FAILED = 1
 // The Model API key variable Muse Code reads; the report says only whether it was set.
@@ -331,12 +337,8 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   const agent = createAcpAgent({
     schedules: {
       async holdWorkspace(cwd) {
-        try {
-          loadedSchedules ??= await loadSchedules()
-          return await loadedSchedules.holdWorkspace(cwd)
-        } catch {
-          return
-        }
+        loadedSchedules ??= await loadSchedules()
+        return await loadedSchedules.holdWorkspace(cwd)
       },
       async run(text, context) {
         try {
@@ -353,6 +355,10 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       canBypass: options.canBypass,
       allowsContributorModels: options.allowsContributorModels,
       initialMode: SETTING_DEFAULTS.initialPermissionMode,
+      scheduleAuthorization: {
+        scheduledPrompts: options.scheduledPrompts === true,
+        ...(options.maxBudgetUsd !== undefined && { maxBudgetUsd: options.maxBudgetUsd }),
+      },
     },
     signIn: signInMethod(options),
     defaultCwd: process.cwd(),
@@ -520,18 +526,52 @@ async function main(): Promise<number> {
   switch (command.command) {
     case 'schedule': {
       const load = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+      let afterWake: (() => Promise<void>) | undefined
       try {
-        const binding = await load()
-        let result
-        try {
-          result = await binding.command(
-            command.options,
-            path.resolve(command.options.cwd ?? process.cwd()),
-          )
-        } finally {
-          await binding.close()
+        if (
+          command.options.operation === 'run-due' ||
+          command.options.operation === 'background-maintain'
+        ) {
+          try {
+            await verifyScheduleWake(process.execPath, __filename)
+            if (process.platform === 'darwin') {
+              const dataDir = agentDataFolder({
+                platform: process.platform,
+                env: process.env,
+                homeDir: homedir(),
+              })
+              if (command.options.operation === 'run-due')
+                afterWake = await beginScheduleWake(dataDir, process.execPath, __filename)
+              else await waitForScheduleWake(dataDir)
+            }
+          } catch (error: unknown) {
+            const reason =
+              error instanceof Error ? error.message : UI_TEXT.scheduleV2.runtime.invalidRequest
+            writeLine(
+              command.options.isJson ? process.stdout : process.stderr,
+              command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
+            )
+            return EXIT_FAILED
+          }
         }
+        const binding = await load()
+        const result = await settleScheduleCommand(
+          () =>
+            binding.command(
+              command.options,
+              path.resolve(command.options.cwd ?? process.cwd()),
+              process.stdin.isTTY,
+            ),
+          async () => {
+            try {
+              await binding.close()
+            } finally {
+              await afterWake?.()
+            }
+          },
+        )
         writeLine(process.stdout, result.output)
+        if (result.warning !== undefined) writeLine(process.stderr, result.warning)
         return result.exitCode
       } catch {
         const reason = UI_TEXT.scheduleV2.runtime.unavailable

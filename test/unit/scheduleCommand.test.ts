@@ -13,6 +13,44 @@ function control() {
   return fakeRuntimeScheduleControl({ kind: 'accepted', id: 'schedule-1' })
 }
 describe('schedule terminal commands', () => {
+  it('parses explicit paid creation flags for CLI and ACP launch and rejects malformed budgets', () => {
+    expect(
+      parseScheduleCommand([
+        'add',
+        '--draft',
+        '{}',
+        '--scheduled-prompts',
+        '--max-budget-usd',
+        '1.25',
+      ]),
+    ).toMatchObject({ ok: true, options: { scheduledPrompts: true, maxBudgetUsd: 1.25 } })
+    expect(parseCommandLine(['--scheduled-prompts', '--max-budget-usd', '1.25'])).toMatchObject({
+      command: 'serve',
+      options: { scheduledPrompts: true, maxBudgetUsd: 1.25 },
+    })
+    for (const value of ['', '-1', 'NaN', 'Infinity', '1e4', ' 1', '0x10']) {
+      expect(parseScheduleCommand(['add', '--draft', '{}', '--max-budget-usd', value]).ok).toBe(
+        false,
+      )
+      expect(parseCommandLine(['--max-budget-usd', value]).command).toBe('invalid')
+    }
+    expect(parseScheduleCommand(['list', '--scheduled-prompts']).ok).toBe(false)
+  })
+  it('keeps the accepted id when scoped control cleanup fails', async () => {
+    const c = control()
+    c.close.mockRejectedValue(new Error('private cleanup detail'))
+    expect(
+      await runScheduleCommand(
+        { operation: 'add', isJson: true, draft: JSON.stringify(fakeScheduleDraft()) },
+        CWD,
+        c,
+      ),
+    ).toEqual({
+      exitCode: 3,
+      output: '{"kind":"accepted","id":"schedule-1"}',
+      warning: UI_TEXT.scheduleV2.runtime.cleanupFailed,
+    })
+  })
   it.each(['remove', 'run-now', 'pause', 'resume', 'fire'])(
     'routes %s with a validated id and workspace',
     async (operation) => {

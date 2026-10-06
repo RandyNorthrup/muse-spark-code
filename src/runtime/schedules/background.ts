@@ -29,6 +29,12 @@ export class ScheduleBackgroundCoordinator {
     if (next === undefined) await this.deps.entry.remove()
     else await this.deps.entry.register(next, consent)
   }
+  /** The CLI published its wake marker first. A mutator already holding this
+   * lock must finish before the wake starts an engine; later mutators see the
+   * marker and wait for kernel exit. Never hold the consent lock across a turn. */
+  async wakeBarrier(): Promise<void> {
+    await this.deps.consent.exclusive(() => Promise.resolve())
+  }
   async firstSchedule(ask: () => Promise<unknown>): Promise<void> {
     await this.deps.consent.exclusive(async (current, save) => {
       if (current !== undefined) return

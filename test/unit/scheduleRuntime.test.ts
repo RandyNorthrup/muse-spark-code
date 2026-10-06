@@ -4,14 +4,16 @@ import { RuntimeScheduleHost } from '../../src/runtime/schedules/host'
 import { ScheduleSurface } from '../../src/runtime/schedules/surface'
 import { ScheduleBackgroundCoordinator } from '../../src/runtime/schedules/background'
 import { workspaceKey } from '../../src/runtime/dataFolder'
+import { UI_TEXT } from '../../src/shared/constants'
 import { FakeScheduleBackground } from './helpers/schedules/background'
 import type { ScheduleControlPort } from '../../src/runtime/schedules/command'
 import {
   fakeRuntimeScheduleControl,
+  fakeScheduleDraft,
   transientBackgroundConsent,
 } from './helpers/schedules/runtimeFixtures'
 
-function setup() {
+function setup(platform?: NodeJS.Platform) {
   const control = fakeRuntimeScheduleControl()
   const host = new RuntimeScheduleHost({ deliver: vi.fn() }),
     entry = new FakeScheduleBackground()
@@ -46,10 +48,107 @@ function setup() {
     watchWorkspace,
     dueWorkspaces,
     close,
+    ...(platform !== undefined && { platform }),
   })
-  return { runtime, control, controlFor, host, unwatch, watchWorkspace, close, entry, reconcile }
+  return {
+    runtime,
+    control,
+    controlFor,
+    host,
+    unwatch,
+    watchWorkspace,
+    close,
+    entry,
+    reconcile,
+    background,
+  }
 }
 describe('schedule runtime lifecycle', () => {
+  it('blocks macOS engine startup behind a mutator that already holds the shared consent lock', async () => {
+    const { runtime, control, controlFor, background } = setup('darwin')
+    const held = Promise.withResolvers<undefined>()
+    const barrier = vi.spyOn(background, 'wakeBarrier').mockReturnValue(held.promise)
+    const command = runtime.command({ operation: 'run-due', isJson: true }, '/launcher')
+    await Promise.resolve()
+    expect(barrier).toHaveBeenCalledOnce()
+    expect(controlFor).not.toHaveBeenCalled()
+    expect(control.runDue).not.toHaveBeenCalled()
+    held.resolve(undefined)
+    expect(await command).toMatchObject({ exitCode: 0 })
+  })
+  it('leaves macOS wake rearm to the independent after-exit helper after engine settlement', async () => {
+    const { runtime, control, close, reconcile } = setup('darwin')
+    expect(
+      await runtime.command({ operation: 'run-due', isJson: true }, '/launcher'),
+    ).toMatchObject({ exitCode: 0 })
+    expect(control.runDue).toHaveBeenCalledOnce()
+    expect(close).toHaveBeenCalledOnce()
+    expect(reconcile).not.toHaveBeenCalled()
+  })
+  it.each(['cli', 'acp'] as const)(
+    'requires both explicit paid conditions on %s and forwards caller context',
+    async (source) => {
+      const { runtime, control, controlFor } = setup()
+      vi.mocked(control.request).mockResolvedValue({ kind: 'accepted', id: 'paid-1' })
+      const value = fakeScheduleDraft()
+      const draft = JSON.stringify({
+        ...value,
+        paidCapUsd: 1,
+        grant: { ...value.grant, paidCapUsd: 1 },
+      })
+      for (const authorization of [
+        {},
+        { maxBudgetUsd: 1 },
+        { scheduledPrompts: true },
+        { scheduledPrompts: true, maxBudgetUsd: 0 },
+        { scheduledPrompts: true, maxBudgetUsd: 0.5 },
+      ]) {
+        let result: string
+        if (source === 'cli') {
+          const command = await runtime.command(
+            { operation: 'add', isJson: true, draft, ...authorization },
+            '/one',
+          )
+          result = command.output
+        } else {
+          result = await runtime.run(`/schedule add ${draft}`, {
+            cwd: '/one',
+            sessionId: 'session-1',
+            backend: 'modelApi',
+            ...authorization,
+          })
+        }
+        expect(result).toContain(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
+        expect(control.request).not.toHaveBeenCalled()
+      }
+      const authorization = { scheduledPrompts: true, maxBudgetUsd: 1 }
+      if (source === 'cli')
+        await runtime.command(
+          { operation: 'add', isJson: true, draft, ...authorization },
+          '/one',
+          false,
+        )
+      else
+        await runtime.run(`/schedule add ${draft}`, {
+          cwd: '/one',
+          sessionId: 'session-1',
+          backend: 'modelApi',
+          ...authorization,
+        })
+      const caller = {
+        source,
+        isInteractive: source === 'acp',
+        ...authorization,
+        ...(source === 'acp' && { cwd: '/one', sessionId: 'session-1', backend: 'modelApi' }),
+      }
+      expect(controlFor).toHaveBeenLastCalledWith('/one', caller)
+      expect(control.request).toHaveBeenLastCalledWith(
+        expect.objectContaining({ method: 'schedules/create' }),
+        caller,
+      )
+      await runtime.close()
+    },
+  )
   it('hosts persisted due workspaces before firing, settles, closes resources and removes a spent wake', async () => {
     const { runtime, control, host, unwatch, close, reconcile } = setup()
     vi.mocked(control.runDue).mockImplementation(() => {
@@ -98,10 +197,20 @@ describe('schedule runtime lifecycle', () => {
       sessionId: 'session-1',
       backend: 'museCode',
     })
-    expect(control.request).toHaveBeenCalledWith({
-      method: 'schedules/list',
-      workspaceKey: workspaceKey('/one'),
-    })
+    expect(control.request).toHaveBeenCalledWith(
+      {
+        method: 'schedules/list',
+        workspaceKey: workspaceKey('/one'),
+      },
+      {
+        cwd: '/one',
+        sessionId: 'session-1',
+        backend: 'museCode',
+        source: 'acp',
+        isInteractive: true,
+        scheduledPrompts: false,
+      },
+    )
     expect(control.runDue).not.toHaveBeenCalled()
     expect(control.close).toHaveBeenCalledOnce()
     expect(close).not.toHaveBeenCalled()

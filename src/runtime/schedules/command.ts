@@ -3,14 +3,19 @@ import {
   scheduleResponseSchema,
   type ScheduleRequest,
 } from '../../shared/scheduleV2'
-import { SCHEDULE_TIMELINE_HOURS, UI_TEXT } from '../../shared/constants'
+import {
+  SCHEDULE_CLEANUP_EXIT_CODE,
+  SCHEDULE_TIMELINE_HOURS,
+  UI_TEXT,
+} from '../../shared/constants'
 import { formatDateTime, formatNumber } from '../../shared/l10n/text'
 import { workspaceKey } from '../dataFolder'
-import type { ScheduleCommandOptions } from './args'
+import type { ScheduleCommandOptions, ScheduleCallerContext } from './args'
+import { scheduleLauncherReason } from './registration'
 
 /** S supplies admission, claims and final settlement; X never dispatches a turn itself. */
 export interface ScheduleControlPort {
-  request(request: ScheduleRequest): Promise<unknown>
+  request(request: ScheduleRequest, caller?: ScheduleCallerContext): Promise<unknown>
   runDue(): Promise<void>
   close(): Promise<void>
 }
@@ -18,6 +23,35 @@ export interface ScheduleControlPort {
 export interface ScheduleCommandResult {
   readonly exitCode: number
   readonly output: string
+  readonly warning?: string
+}
+
+/** Cleanup cannot erase a command's committed acknowledgement. */
+export async function settleScheduleCommand(
+  work: () => Promise<ScheduleCommandResult>,
+  close: () => Promise<void>,
+): Promise<ScheduleCommandResult> {
+  let result: ScheduleCommandResult | undefined
+  try {
+    result = await work()
+  } finally {
+    try {
+      await close()
+    } catch (error: unknown) {
+      if (result !== undefined) {
+        const reason = scheduleLauncherReason(error)
+        result = {
+          ...result,
+          exitCode: SCHEDULE_CLEANUP_EXIT_CODE,
+          warning:
+            reason === undefined
+              ? UI_TEXT.scheduleV2.runtime.cleanupFailed
+              : `${UI_TEXT.scheduleV2.runtime.cleanupFailed}: ${reason}`,
+        }
+      }
+    }
+  }
+  return result
 }
 
 function requestOf(options: ScheduleCommandOptions, cwd: string): ScheduleRequest {
@@ -45,6 +79,9 @@ function requestOf(options: ScheduleCommandOptions, cwd: string): ScheduleReques
     }
     case 'run-due': {
       throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
+    }
+    case 'background-maintain': {
+      return { method: 'schedules/backgroundStatus' }
     }
     default: {
       const suffix = options.operation === 'run-now' ? 'runNow' : options.operation
@@ -121,6 +158,17 @@ export async function runScheduleCommand(
   cwd: string,
   control: ScheduleControlPort,
 ): Promise<ScheduleCommandResult> {
+  return await settleScheduleCommand(
+    () => executeScheduleCommand(options, cwd, control),
+    () => control.close(),
+  )
+}
+
+async function executeScheduleCommand(
+  options: ScheduleCommandOptions,
+  cwd: string,
+  control: ScheduleControlPort,
+): Promise<ScheduleCommandResult> {
   let response: unknown
   try {
     if (options.operation === 'run-due') {
@@ -143,8 +191,6 @@ export async function runScheduleCommand(
     }
   } catch {
     return failure(options, UI_TEXT.scheduleV2.runtime.unavailable)
-  } finally {
-    await control.close()
   }
 }
 

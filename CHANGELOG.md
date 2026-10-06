@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Harden the internal M115 schedule adapters after review: verify canonical
+  launcher permissions at registration and wake, reject privileged identities,
+  require explicit paid authorization and budget, start ACP Stop independently
+  of bounded schedule teardown, preserve accepted IDs through cleanup failures,
+  stop disabled Linux units, protect macOS wakes with after-exit maintenance,
+  and report unavailable ACP schedule hosts. Production wiring remains M115 W's
+  integration work; these adapters are not yet a shipped scheduler.
+
 - Correct M115's internal schedule contracts before implementation: stale
   whole-record updates cannot restore revoked grants, crash-receipt migration
   accepts fractional filesystem times, repeated fake approval requests remain

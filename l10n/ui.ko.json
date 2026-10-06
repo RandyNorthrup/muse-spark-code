@@ -2478,7 +2478,7 @@
       "agentCreation": "에이전트의 일정 생성 기본 권한: 묻기, 한도 내 항상 허용 또는 허용 안 함. 기본적으로 묻습니다."
     },
     "runtime": {
-      "usage": "사용법: schedule add --draft <JSON> | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]",
+      "usage": "사용법: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 종료 코드: 0 성공, 1 거부, 2 사용 오류, 3 정리 경고.",
       "accepted": "일정 요청을 수락했습니다",
       "empty": "일정이나 예정된 실행이 없습니다.",
       "unavailable": "이 호스트에서는 일정을 사용할 수 없습니다. 런타임 스케줄러 연결이 필요합니다.",
@@ -2486,7 +2486,11 @@
       "invalidResponse": "스케줄러가 잘못된 응답을 반환했습니다.",
       "consentRequired": "백그라운드 일정 실행에는 명시적으로 예를 선택해야 합니다.",
       "backgroundUnavailable": "이 호스트에서는 백그라운드 일정 실행을 사용할 수 없습니다.",
-      "backgroundRearmUnavailable": "이 launchd 실행은 자신의 항목을 다시 구성할 수 없습니다. 다음 실행을 설정할 외부 도우미가 필요합니다."
+      "backgroundRearmUnavailable": "이 launchd 실행은 자신의 항목을 다시 구성할 수 없습니다. 다음 실행을 설정할 외부 도우미가 필요합니다.",
+      "unsafeLauncher": "안전하지 않은 예약 실행기 경로: {path}",
+      "paidAuthorizationRequired": "유료 예약에는 --scheduled-prompts와 두 요금 한도를 모두 충족하는 명시적 --max-budget-usd가 필요합니다.",
+      "cleanupFailed": "예약 요청은 완료되었지만 정리에 실패했습니다. 승인된 ID를 보관하세요. 종료 코드 3은 정리에 주의가 필요함을 뜻합니다.",
+      "hostUnavailable": "이 작업 영역의 예약 호스트를 시작하지 못했습니다. 예약 제어는 사용할 수 없지만 일반 채팅은 계속 사용할 수 있습니다."
     }
   }
 }
