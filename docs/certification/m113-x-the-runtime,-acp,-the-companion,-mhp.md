@@ -265,3 +265,51 @@ The shared README/CHANGELOG/featureCatalog update is the existing W-owned
 `M113-X-help-docs` handoff, now amended above with the exact four repairs.
 The lane brief confines changes to X's files, so those shared files remain
 with W. PLAN's M113 scope, §7 and §9 record this review and its boundaries.
+
+### Final repair checks and commits
+
+Implementation commit **`00d3b2deb`** ran the real pre-commit hook:
+lint-staged's ESLint/Prettier and staged gitleaks both passed. The worktree's
+`core.hooksPath` is `.husky/_` and its pre-commit shim exists. The final
+follow-up contains only the duplicate-test setup cleanup and these receipts,
+also committed with hooks enabled and explicit paths.
+
+All five `npm run typecheck` projects passed; after the final test-only
+cleanup, `typecheck:unit` passed again. Changed-source ESLint and all
+changed-file Prettier checks passed. Plain `npm run deadcode` passed.
+`npx jscpd` initially caught one 97-token clone in the new ACP test setup;
+using the existing typed spy's `mockResolvedValue` and direct session lookup
+removed it, and the final gate found **zero clones**. The test remains
+independent with the same assertions and name. Its complete six-case file
+passed, the separator drill was repeated and exited 1 with that regression
+failing, and the restored complete file passed 6/6 at the repository timeout.
+Source restoration still matches
+`26314be9615dbcde01f1bd6834624918dc58edce307d098e62e4560677c19337`.
+These are eight distinct guard drills, nine successful mutation executions.
+Logs: `duplication-final.log`, `final-acp-restored.log`,
+`slash-separators-final.log` and `.json` under `temp/m113x-fix/`.
+
+Reference freshness passed (53 features, 44 commands, 59 settings, 26 slash
+commands, 118 CLI entries), and report-schema freshness passed. Localization
+reproduced the **same seven unused manifest keys**, with all fourteen
+tables present; host API freshness reproduced **only the existing crypto
+46 → 47 and util 5 → 6 count differences**, with the API inventory unchanged.
+Both exit 1, remain the W-owned handoffs above and have no new failure or
+ignore. Aggregate `npm run quality` remains reserved for the lead under the
+rig/common instructions and PLAN §7; it was not run or weakened here.
+
+`npm run build` exited 0: extension **439.5/600 KiB**, Model API
+**446.9/475 KiB**, ACP **825.1/850 KiB**, webview main **359.0 KiB**,
+deferred JavaScript **50.0/50 KiB**. All existing size, split, host-global
+and notice guards passed. No cap was raised. Log: `temp/m113x-fix/build.log`.
+
+As already recorded for this base, the normal build does not emit the
+W-owned reporting entry. A separate production-equivalent Node 20.18,
+minified component build with shared English/wire and inline report
+validation produced **96,414 bytes (94.2 KiB)**. Both factories loaded;
+its normalized metafile paths include **zero** backend, paid-engine or
+host-adapter inputs. The supplemental ignored `dist/reporting.js` is a
+component proof, not standard-build registration or complete-package
+certification. Logs: `temp/m113x-fix/reporting-build.log` and
+`reporting.meta.json`. Existing source/history/host and W integration
+handoffs remain open; none of RVM113X's four findings remains open.

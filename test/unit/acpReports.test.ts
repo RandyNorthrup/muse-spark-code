@@ -123,13 +123,12 @@ describe('ACP deterministic reports', () => {
   })
 
   it('intercepts CR, LF, CRLF, tab, space and NBSP report separators without model dispatch', async () => {
-    const execute = vi.fn<AcpReportsPort['execute']>(() =>
-      Promise.resolve({ code: 0, text: '# Report\n' }),
-    )
+    const execute = vi.fn<AcpReportsPort['execute']>()
+    execute.mockResolvedValue({ code: 0, text: '# Report\n' })
     const h = reportsAgent({ format: 'md', execute })
     await h.run(async (client) => {
       const { sessionId } = await newSession(client)
-      const session = h.host.sessions[0]
+      const session = h.host.sessions.at(0)
       if (session === undefined) throw new Error('Expected fake session')
       // A dispatch regression fails immediately rather than leaving a fake turn pending.
       session.sendTurn.mockRejectedValue(new Error('Unexpected report model dispatch'))
