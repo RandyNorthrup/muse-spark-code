@@ -52,9 +52,18 @@ export function ChartFrame({
   readonly rowHeading?: string
   readonly points: readonly ChartPoint[]
   readonly format: (value: number | undefined) => string
-  readonly children: (active: number) => ReactNode
+  readonly children: (active: number, pattern: (colour: string) => string) => ReactNode
 }) {
   const id = useId()
+  const patterns = {
+    blue: 'M0 2H4',
+    purple: 'M2 0V4',
+    orange: 'M0 4L4 0',
+    green: 'M0 0L4 4',
+    yellow: 'M0 0L4 4M0 4L4 0',
+    red: 'M1 2H3',
+    other: 'M0 2H4M2 0V4',
+  }
   const [selected, setSelected] = useState(0)
   const active = Math.min(selected, Math.max(0, points.length - 1))
   const point = points[active]
@@ -108,7 +117,23 @@ export function ChartFrame({
           setSelected(next)
         }}
       >
-        {children(active)}
+        <defs>
+          {Object.entries(patterns).map(([colour, path]) => (
+            <pattern
+              key={colour}
+              id={`${id}-${colour}`}
+              className={`usage-series-${colour}`}
+              width={2 * 2}
+              height={2 * 2}
+              patternUnits="userSpaceOnUse"
+            >
+              <rect className="usage-pattern-base" width={2 * 2} height={2 * 2} />
+              <path className="usage-pattern-halo" d={path} />
+              <path className="usage-pattern-cue" d={path} />
+            </pattern>
+          ))}
+        </defs>
+        {children(active, (colour) => `url(#${id}-${colour})`)}
       </svg>
       <p id={`${id}-bucket`} role="status">
         {description}

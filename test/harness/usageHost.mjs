@@ -11,7 +11,10 @@ const messages = new globalThis.EventTarget()
 const posted = []
 const errors = []
 view.usageHarness = { posted, errors }
-const current = { state: usageStateFor(scenario), saved: undefined }
+view.usageHarness.failNextSend = () => {
+  current.shouldFailNextSend = true
+}
+const current = { state: usageStateFor(scenario), saved: undefined, shouldFailNextSend: false }
 view.usageHarness.addAccount = () => {
   current.state.limits.push({
     ...current.state.limits[0],
@@ -104,6 +107,10 @@ function answer(input) {
   return { type: 'usage/state', state: current.state }
 }
 function sendNative(input) {
+  if (current.shouldFailNextSend) {
+    current.shouldFailNextSend = false
+    throw new Error('Private native transport detail')
+  }
   const data = answer(typeof input === 'string' ? JSON.parse(input) : input)
   globalThis.queueMicrotask(() => {
     messages.dispatchEvent(

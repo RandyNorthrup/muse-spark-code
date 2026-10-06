@@ -16960,6 +16960,14 @@ Acceptance and the exact composed gate receipts live in
   request body, paid admission rule or gate changes; integrated quality stays
   with the lead.
 
+- **RVM102U correction lane (2026-10-05).** Repair all four P2 findings in
+  the shared page: preserve custom-date input identity while synchronizing
+  host ranges, contain action transport failures with localized recovery,
+  give every chart series a non-color cue and a contrasting theme-token
+  boundary, and position provider observations by elapsed time. Add failing
+  regressions and byte-exact red-drill receipts in
+  `docs/certification/m102-u.md`; no dependency or gate change. These shared
+  React changes reach every D82 page bridge and companion editor route.
 - **Goal.** One local history of every model call, whichever editor or backend
   made it, and one page that shows cost, tokens in and out, time, rate and plan
   limits, and budgets. The page has charts, a table behind every chart, export
@@ -18711,6 +18719,16 @@ before a repaired one loads (2026-09-30).
   legacy records whose wakes cannot be reconstructed. Never infer or rewrite
   historical spend.
 
+- **FIXM102U / RVM102U (2026-10-05).** All four assigned P2 findings are
+  repaired in the shared page with regressions and byte-exact failure drills
+  (`docs/certification/m102-u.md`); no review finding is deferred.
+  **M102-U-INTEGRATION** remains the existing lane dependency: L supplies
+  fourteen usage translations, E/W wires the dialog and manifest, and W
+  registers the new entry/harness roots and regenerates the host API record.
+  Safe scope for now is the isolated, fake-transport page verification;
+  M102INT must pass the unchanged combined gates and installed-editor checks
+  before claiming the complete feature certified. No paid/live calls,
+  network operation or portable-boundary exception is introduced here.
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate
   failure drills in `docs/certification/m95-p.md`; no assigned finding is

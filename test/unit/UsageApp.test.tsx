@@ -185,6 +185,112 @@ describe('UsageApp', () => {
     expect(host.post).toHaveBeenCalledTimes(1)
   })
 
+  it('preserves custom-date input identity and focus across consecutive valid edits and host replies', () => {
+    const state = usageStateFor('one-provider', NOW)
+    state.query = {
+      range: 'custom',
+      from: '2026-10-01',
+      to: '2026-10-05',
+      groupBy: 'provider',
+      metric: 'cost',
+    }
+    const { host, send } = setup(state)
+    for (const [label, dates] of [
+      ['From', ['2026-10-02', '2026-10-03']],
+      ['To', ['2026-10-06', '2026-10-07']],
+    ] as const) {
+      const input = screen.getByLabelText(label)
+      input.focus()
+      for (const value of dates) {
+        fireEvent.change(input, { target: { value } })
+        expect(screen.getByLabelText(label)).toBe(input)
+        expect(input).toHaveFocus()
+        const message = vi.mocked(host.post).mock.calls.at(-1)?.[0]
+        if (message?.type !== 'usage/query') throw new Error('Missing custom query')
+        expect(message.query[label === 'From' ? 'from' : 'to']).toBe(value)
+        send({ type: 'usage/state', state: { ...state, query: message.query } })
+        expect(input).toHaveFocus()
+      }
+    }
+  })
+
+  it('synchronizes changed host ranges without overwriting incomplete local date drafts', () => {
+    const { state, send } = setup()
+    const query = {
+      ...state.query,
+      range: 'custom',
+      from: '2026-10-01',
+      to: '2026-10-05',
+    } as const
+    send({ type: 'usage/state', state: { ...state, query } })
+    const input = screen.getByLabelText('From')
+    fireEvent.change(input, { target: { value: '' } })
+    send({ type: 'usage/state', state: { ...state, query } })
+    expect(input).toHaveValue('')
+    send({
+      type: 'usage/state',
+      state: { ...state, query: { ...query, from: '2026-10-02' } },
+    })
+    expect(screen.getByLabelText('From')).toBe(input)
+    expect(input).toHaveValue('2026-10-02')
+    send({ type: 'usage/state', state })
+    expect(screen.getByRole('radio', { name: 'Today' })).toBeChecked()
+    expect(screen.queryByLabelText('From')).toBeNull()
+  })
+
+  it('recovers from native action send failures with localized text, cleared busy state and retry', () => {
+    const { host, send, state } = setup()
+    send({
+      type: 'usage/table',
+      locale: 'de',
+      table: { ...USAGE_EN, readFailed: 'Der Nutzungsverlauf konnte nicht gelesen werden.' },
+    })
+    for (const label of ['Refresh', 'Usage settings']) {
+      vi.mocked(host.post).mockImplementationOnce(() => {
+        throw new Error('Private native transport detail')
+      })
+      expect(() => fireEvent.click(screen.getByRole('button', { name: label }))).not.toThrow()
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Der Nutzungsverlauf konnte nicht gelesen werden.',
+      )
+      expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false')
+      expect(screen.getByRole('button', { name: 'Refresh' })).not.toBeDisabled()
+      expect(screen.queryByText(/Private native transport detail/)).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+      expect(host.post).toHaveBeenLastCalledWith({ type: 'usage/refresh' })
+      send({ type: 'usage/state', state })
+      expect(screen.queryByRole('alert')).toBeNull()
+    }
+  })
+
+  it('drops failed action correlations and accepts the current host query after retrying a failed query send', () => {
+    const { host, send, state } = setup()
+    vi.mocked(host.post).mockImplementationOnce(() => {
+      throw new Error('Native send failed')
+    })
+    fireEvent.click(screen.getByRole('radio', { name: '7 days' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(USAGE_EN.readFailed)
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    send({ type: 'usage/state', state })
+    expect(screen.getByRole('radio', { name: 'Today' })).toBeChecked()
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false')
+    for (const action of ['export', 'deleteHistory'] as const) {
+      vi.mocked(host.post).mockImplementationOnce(() => {
+        throw new Error('Native send failed')
+      })
+      if (action === 'export') {
+        fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Versioned JSON' }))
+      } else fireEvent.click(screen.getByRole('button', { name: 'Delete usage history…' }))
+      const message = vi.mocked(host.post).mock.calls.at(-1)?.[0]
+      if (message === undefined || !('requestId' in message)) throw new Error('Missing action')
+      send({ type: 'usage/result', requestId: message.requestId, action, outcome: 'completed' })
+      expect(screen.queryByText(USAGE_EN.exportComplete)).toBeNull()
+      expect(screen.queryByText(USAGE_EN.deleteComplete)).toBeNull()
+      expect(screen.getByRole('alert')).toHaveTextContent(USAGE_EN.readFailed)
+    }
+  })
+
   it('exports each format with the exact query and correlates results without inventing grants', () => {
     const { host, state, send } = setup()
     for (const [name, format] of [

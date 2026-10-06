@@ -18,9 +18,12 @@ export function StepLines({ snapshots }: { readonly snapshots: readonly UsageLim
     label: window.label ?? window.id,
     colour: CHART_PALETTE[index] ?? 'other',
   }))
+  const first = sorted[0]?.observedAt ?? 0
+  const span = (sorted.at(-1)?.observedAt ?? first) - first
   const points = sorted.map((snapshot) => ({
     id: snapshot.id,
     label: formatDateTime(snapshot.observedAt),
+    x: span === 0 ? 0 : ((snapshot.observedAt - first) / span) * 100,
     values: windows.map(
       (window) => snapshot.windows.find((candidate) => candidate.id === window.id)?.usedPercent,
     ),
@@ -43,14 +46,14 @@ export function StepLines({ snapshots }: { readonly snapshots: readonly UsageLim
       points={points}
       format={(value) => (value === undefined ? USAGE_TEXT.unknown : formatPercent(value))}
     >
-      {(active) => (
+      {(active, pattern) => (
         <>
           {series.map((item, seriesIndex) => {
             // Missing snapshots and resets start a new segment, never a made-up continuation.
             const segments: string[] = []
             let segment = ''
             let previous: number | undefined
-            for (const [index, point] of points.entries()) {
+            for (const point of points) {
               const value = point.values[seriesIndex]
               if (value === undefined) {
                 if (segment !== '') segments.push(segment)
@@ -58,7 +61,7 @@ export function StepLines({ snapshots }: { readonly snapshots: readonly UsageLim
                 previous = undefined
                 continue
               }
-              const x = (index * 100) / Math.max(1, points.length - 1)
+              const x = point.x
               const y = 100 - (value / max) * 100
               if (previous !== undefined && value >= previous)
                 segment += ` ${String(x)},${String(100 - (previous / max) * 100)}`
@@ -79,13 +82,14 @@ export function StepLines({ snapshots }: { readonly snapshots: readonly UsageLim
                     points={coordinates.trim()}
                   />
                 ))}
-                {points.map((point, index) => {
+                {points.map((point) => {
                   const value = point.values[seriesIndex]
                   return value === undefined ? null : (
                     <circle
                       key={point.id}
                       className={`usage-series-${item.colour}`}
-                      cx={(index * 100) / Math.max(1, points.length - 1)}
+                      fill={pattern(item.colour)}
+                      cx={point.x}
                       cy={100 - (value / max) * 100}
                       r={2}
                     />
@@ -96,8 +100,8 @@ export function StepLines({ snapshots }: { readonly snapshots: readonly UsageLim
           })}
           <line
             className="usage-chart-active"
-            x1={(active * 100) / Math.max(1, points.length - 1)}
-            x2={(active * 100) / Math.max(1, points.length - 1)}
+            x1={points[active]?.x ?? 0}
+            x2={points[active]?.x ?? 0}
             y1={0}
             y2={100}
           />

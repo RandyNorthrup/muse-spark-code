@@ -104,6 +104,39 @@ describe('usage charts', () => {
       expect(within(table).getAllByRole('row', { hidden: true }).length).toBeGreaterThan(1)
     },
   )
+  it.each([StackedColumns, MirroredColumns, ShareBar])(
+    'gives every column/share series a distinct non-color pattern linked to this chart',
+    (Chart) => {
+      const { container } = render(<Chart state={usageStateFor('nine-providers')} />)
+      const marks = [...container.querySelectorAll(':scope svg rect[class*="usage-series-"]')]
+      expect(marks.length).toBeGreaterThan(0)
+      const paths = new Map<string, string>()
+      for (const mark of marks) {
+        const fill = mark.getAttribute('fill')
+        expect(fill).toMatch(/^url\(#.+\)$/)
+        const patternId = fill!.slice('url(#'.length, -1)
+        const pattern = document.querySelector(`[id="${CSS.escape(patternId)}"]`)
+        expect(pattern?.tagName).toBe('pattern')
+        expect(pattern?.closest('figure')).toBe(mark.closest('figure'))
+        const colour = mark.getAttribute('class')!
+        expect(pattern).toHaveAttribute('class', colour)
+        paths.set(colour, pattern!.querySelector('path')!.getAttribute('d')!)
+        expect(container.querySelector(`.usage-swatch.${colour}`)).not.toBeNull()
+      }
+      expect(new Set(paths.values()).size).toBe(paths.size)
+    },
+  )
+  it('keeps pattern references unique when multiple charts share the document', () => {
+    const state = usageStateFor('nine-providers')
+    const { container } = render(
+      <>
+        <StackedColumns state={state} />
+        <ShareBar state={state} />
+      </>,
+    )
+    const ids = [...container.querySelectorAll('pattern')].map((pattern) => pattern.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
   it('breaks step lines at a reset or unknown snapshot and preserves reported percentages above 100', () => {
     const snapshot = usageStateFor().limits[0]!
     const snapshots = [130, 20, undefined, 40].map((usedPercent, index) => ({
@@ -119,6 +152,52 @@ describe('usage charts', () => {
     expect(screen.getByRole('table', { hidden: true })).toHaveTextContent('130%')
     expect(screen.getByRole('table', { hidden: true })).toHaveTextContent('Unknown')
     expect(container.querySelector('[style]')).toBeNull()
+  })
+  it('spaces provider-limit marks, step segments and keyboard selection by elapsed observation time', () => {
+    const snapshot = usageStateFor().limits[0]!
+    const snapshots = [60, 0, 1].map((minutes) => ({
+      ...snapshot,
+      id: `at-${String(minutes)}`,
+      observedAt: snapshot.observedAt + minutes * 60_000,
+      windows: [{ ...snapshot.windows[0]!, usedPercent: minutes + 10 }],
+    }))
+    const { container } = render(<StepLines snapshots={snapshots} />)
+    const xs = [...container.querySelectorAll('circle')].map((mark) =>
+      Number(mark.getAttribute('cx')),
+    )
+    expect(xs).toEqual([0, 100 / 60, 100])
+    const coordinates = container.querySelector('polyline')!.getAttribute('points')!
+    expect(coordinates.split(' ').map((pair) => Number(pair.split(',', 1)[0]))).toEqual([
+      0,
+      100 / 60,
+      100 / 60,
+      100,
+      100,
+    ])
+    const active = container.querySelector('.usage-chart-active')!
+    const chart = screen.getByRole('img')
+    fireEvent.keyDown(chart, { key: 'ArrowRight' })
+    expect(Number(active.getAttribute('x1'))).toBeCloseTo(100 / 60)
+    expect(active.getAttribute('x2')).toBe(active.getAttribute('x1'))
+    fireEvent.keyDown(chart, { key: 'End' })
+    expect(active).toHaveAttribute('x1', '100')
+    fireEvent.keyDown(chart, { key: 'Home' })
+    expect(active).toHaveAttribute('x1', '0')
+  })
+  it('keeps coincident and single provider observations at the same finite time coordinate', () => {
+    const snapshot = usageStateFor().limits[0]!
+    const { container, rerender } = render(
+      <StepLines snapshots={[snapshot, { ...snapshot, id: 'same-time' }]} />,
+    )
+    for (const mark of container.querySelectorAll('circle')) expect(mark).toHaveAttribute('cx', '0')
+    fireEvent.keyDown(screen.getByRole('img'), { key: 'End' })
+    expect(container.querySelector('.usage-chart-active')).toHaveAttribute('x1', '0')
+    rerender(<StepLines snapshots={[snapshot]} />)
+    expect(container.querySelector('circle')).toHaveAttribute('cx', '0')
+    rerender(<StepLines snapshots={[]} />)
+    expect(container.querySelector('circle')).toBeNull()
+    expect(container.querySelector('.usage-chart-active')).toHaveAttribute('x1', '0')
+    expect(container.querySelector('.usage-chart-active')).toHaveAttribute('x2', '0')
   })
   it('keeps cache and reasoning overlays inside their totals and draws no absent total', () => {
     const state = usageStateFor('one-provider')
