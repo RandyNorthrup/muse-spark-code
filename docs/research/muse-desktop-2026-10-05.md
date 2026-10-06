@@ -198,6 +198,33 @@ and checks that Orca reads both and moves focus into both. If GTK fails and
 Quickshell passes, M111 switches to Quickshell before lanes SH1 and SH2
 start; the token, string and AT-SPI gates are written for either.
 
+**Changed 2026-10-06 (the lead; D91's amendment to decision 4).** The shell's
+surfaces (the bar, the launcher overlay, notifications and the OSD, the lock
+screen and the greeter) move to **our own Qt 6 Quick (QML) application**, with
+LayerShellQt for the layer-shell surfaces. Electron stays for the workbench,
+Hyprland stays the compositor, and the compositor port is unchanged.
+
+- **Why:** the owner's polish brief (D94: rounded corners, shadows,
+  translucency, restrained animation) suits Qt Quick's GPU scene graph better
+  than GTK 4's CSS, and polished Hyprland shells are commonly written in QML.
+- **Not Quickshell:** it is read as a reference only (its services and its
+  session-lock implementation); no dependency is taken.
+- **What the packages say:** Debian 13 packages LayerShellQt 6.3.4
+  (`layer-shell-qt`, the library under LGPL-2.0-or-later); Qt's own licensing
+  page (Qt 6.12, read 2026-10-06) lists the GPL-only modules, which we avoid:
+  Qt Qml Compiler, Qt Quick Timeline, Qt Lottie Animation, Qt Virtual
+  Keyboard, Qt Wayland Compositor, Qt Quick 3D, Qt Graphs and the others it
+  names. Qt's tools are GPL-3.0 with the Qt GPL exception 1.0. Lane 0 re-reads
+  the page for the Qt version Debian 13 ships and records each module used.
+- **Spike S2 changes accordingly:** a LayerShellQt popup and a Qt Quick
+  session-lock surface under the pinned Hyprland with Orca running; Orca must
+  read both and move focus into both. If it cannot, the lead decides again
+  before SH1 starts, with GTK 4 (the table above) as the fallback.
+- **Session lock:** LayerShellQt covers layer-shell only; ext-session-lock-v1
+  is our own Qt Wayland client extension, generated from the protocol's XML.
+- **Greeter:** greetd with our Qt Quick greeter; SDDM theming is the
+  documented fallback.
+
 ## 4. The main app's runtime
 
 | Option                                      | Engine               | For                                                                                                                                                                                                                                | Against                                                                                                                                                                                                                                      |
@@ -558,6 +585,10 @@ serves, never into the user's files.
 - `check:tokens` fails on a stale output and on any pair below WCAG 2.2 AA in
   any mode: 4.5:1 for text, 3:1 for large text, UI components and focus
   indicators.
+- **Changed 2026-10-06:** the token source and its web generators move to
+  D94 (M114 lane 0), which every surface consumes; M111's lane TH generates
+  only the desktop's outputs from it (the QML theme in place of GTK CSS,
+  Hyprland, Plymouth, GRUB, the pointer and icon palettes, the wallpapers).
 
 ### 13.3 Components to design
 
@@ -762,6 +793,13 @@ anything ships, and recorded as D6-style budgets.
 
 `cargo deny` enforces the Rust side: MIT, Apache-2.0, BSD, ISC, Zlib and
 Unicode for linked crates; anything else needs a PLAN record.
+
+**Changed 2026-10-06 (§3's note).** The shell's surfaces are Qt 6 Quick, so
+the GTK rows above apply only to the fallback. Added: Qt 6 (Core, Gui, DBus,
+Network, Qml, Quick, Quick Controls, Quick Shapes, Svg, Wayland Client),
+LGPL-3.0, dynamically linked from Debian's packages, with the source offer
+recorded beside the image's source packages; LayerShellQt, LGPL-2.0-or-later;
+Quickshell stays reference only. No GPL-only Qt module is linked.
 
 ## 18. The installer
 
