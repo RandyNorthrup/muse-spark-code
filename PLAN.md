@@ -18394,6 +18394,18 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM112A (2026-10-06, RVM112A).** Repair all six ACP findings in lane A:
+Stop dispatches cancellation without waiting on question storage; late forms
+wait for the registry's open transition; a failed deferral explicitly cancels
+the waiting backend question; refused steers recheck session ownership before
+queuing; idle answers acknowledge durable queuing until delivery; question
+handling loads on first question/command. The last repair includes its own
+build, split, package and graph-entry registration, keeping every existing
+cap and guard. Each finding gets a failing regression and byte-restored red
+drill in `docs/certification/m112-a.md`. The rig/shared rules delegate full
+quality and Q/U integration to the lead; this lane runs its focused suites
+and required static/build checks without merging, pushing or paid calls.
+
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
 test files, deliberate failures, typecheck, scoped lint/format, deadcode,
@@ -19487,6 +19499,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
+| Location                                       | Escape hatch                                               | Reason                                                                                                                                                                                                                                                   |
+| ---------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/acp/questionDeferralBundle.ts` (FIXM112A) | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller. |
+
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
@@ -19620,6 +19636,19 @@ before a repaired one loads (2026-09-30).
   inventory and runtime/editor binding handoffs remain integration work on
   this frozen Q base; full quality and cross-platform/live receipts stay with
   the lead, with no new guard exception or dependency here.
+- **FIXM112A-Q-RUNTIME (inherited integration handoff, 2026-10-06).** All six
+  RVM112A findings are fixed with regressions and byte-restored drills in
+  `docs/certification/m112-a.md`; none is deferred. Lane A meets the ACP
+  additive target (1.81 KiB) by loading `acpQuestions.js` on first use, with
+  a separate 25 KiB ceiling and the existing ACP 850 KiB cap unchanged.
+  This base still lacks Q's backend `deferQuestions`, durable registry/queue
+  and runtime/exec bindings; typecheck and the eight frozen model-text
+  reader checks therefore remain red. Safe for now: this is an unmerged
+  integration lane, with no production no-op binding or shipping-ready claim.
+  Follow-up: Q/lead bind the real registry, run integrated goldens/e2e/full
+  quality, remeasure Q/U/A growth, and collect the installed-editor and
+  authorized live receipts. HELPREF/M104 bindings remain the named handoffs
+  in the same certification record; this repair adds no command or setting.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

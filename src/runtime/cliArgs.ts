@@ -18,6 +18,7 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
+import { questionDeferSeconds } from '../shared/questionDeadline'
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */
@@ -33,6 +34,8 @@ export interface ServeOptions {
   readonly paidFeatures: readonly AcpPaidFeature[]
   /** The finest log detail on stderr. */
   readonly isVerbose: boolean
+  /** Interactive ACP questions; no forms still defer at once. */
+  readonly questionsDeferAfterSeconds?: number
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
@@ -112,6 +115,14 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     return invalid(`--shell-sandbox ${shellSandbox}`)
   }
   const paidFeatures = paidFeaturesOf(values)
+  const rawSeconds = values['questions-defer-after']
+  const questionsDeferAfterSeconds =
+    rawSeconds === undefined ? questionDeferSeconds() : questionDeferSeconds(Number(rawSeconds))
+  if (
+    questionsDeferAfterSeconds === undefined ||
+    (rawSeconds !== undefined && !/^\d+$/.test(rawSeconds))
+  )
+    return invalid(`--questions-defer-after ${rawSeconds ?? ''}`)
   const [firstPaid] = paidFeatures
   if (firstPaid !== undefined && backend !== 'modelApi') {
     return {
@@ -128,6 +139,7 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     allowsContributorModels: values['allow-contributor-models'] === true,
     paidFeatures,
     isVerbose: values.verbose === true,
+    questionsDeferAfterSeconds,
   }
   const [first, second, ...rest] = positionals
   if (first === 'setup' && second === undefined) {
@@ -260,6 +272,7 @@ function parseCommandLineStrictly(argv: readonly string[]) {
       [ACP_PAID_FLAGS.webSearch]: { type: 'boolean' },
       [ACP_PAID_FLAGS.imageGeneration]: { type: 'boolean' },
       verbose: { type: 'boolean' },
+      'questions-defer-after': { type: 'string' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
     },

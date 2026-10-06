@@ -140,6 +140,7 @@ const DEFAULTS: ServeOptions = {
   allowsContributorModels: false,
   paidFeatures: [],
   isVerbose: false,
+  questionsDeferAfterSeconds: 60,
 }
 
 function fakeKeyring() {
@@ -234,6 +235,7 @@ describe('parseCommandLine', () => {
         allowsContributorModels: true,
         paidFeatures: ['webSearch', 'imageGeneration'],
         isVerbose: true,
+        questionsDeferAfterSeconds: 60,
       },
     })
   })

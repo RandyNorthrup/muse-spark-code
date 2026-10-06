@@ -950,7 +950,7 @@ const validationExports = new Set(
 const nodeMetafiles = readdirSync('dist/meta')
   .filter((name) => !['validation.json', 'webview.json', 'whatsNewPage.json'].includes(name))
   .map((name) => `dist/meta/${name}`)
-nodeMetafiles.push('dist/meta-acp/acp.json')
+nodeMetafiles.push('dist/meta-acp/acp.json', 'dist/meta-acp/acpQuestions.json')
 const validationReaders = new Set()
 for (const file of nodeMetafiles) {
   const meta = JSON.parse(readFileSync(file, 'utf8'))

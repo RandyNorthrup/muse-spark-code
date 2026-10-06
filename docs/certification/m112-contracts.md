@@ -109,7 +109,10 @@ clarification policy. Q must drive 60/0/5→10 from the machine setting, keep ap
 this path, expire the 21st open card, coalesce waiting/reasked cards by key,
 retain drafts under deferral, deliver late answers through existing
 `submit`, queue idle dismissals before the next user message, and implement
-bounded reminders and session removal. The fixed late-answer template
+bounded reminders and session removal. Scheduled/unattended turns defer at
+once, even when the interactive setting is 0 (D92.8 as amended by D95);
+they never start the interactive clock. Q must cover both 60 and 0 in its
+scheduled-turn fake tests. The fixed late-answer template
 expects `{ id, question, answer }`; truncate the question text to 2,000
 characters and format `answer` exactly as today's `questionResultText`
 (`Answers:\n` plus JSON, or the existing clarification lead plus text).

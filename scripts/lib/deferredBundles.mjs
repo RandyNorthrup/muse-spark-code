@@ -71,6 +71,13 @@ export const DEFERRED = [
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
   {
+    output: 'dist/acpQuestions.js',
+    metafile: 'dist/meta-acp/acpQuestions.json',
+    use: 'the first ACP question or question command',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: ['src/acp/questionDeferralEntry.ts', 'src/acp/questionDeferral.ts'],
+  },
+  {
     output: 'dist/conversation.js',
     metafile: 'dist/meta/conversation.json',
     use: 'the first chat surface',
@@ -228,9 +235,11 @@ export function checkDeferredBundles(inputsOf) {
   const problems = []
   for (const bundle of [...DEFERRED, ...ON_FIRST_USE]) {
     const inputs = inputsOf(bundle)
-    const parents = DEFERRED.includes(bundle)
-      ? [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]
-      : [BUNDLES.activation]
+    const parents =
+      bundle.parents ??
+      (DEFERRED.includes(bundle)
+        ? [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]
+        : [BUNDLES.activation])
     for (const file of bundle.files) {
       for (const parent of parents) {
         if (inputsOf(parent).has(file)) {

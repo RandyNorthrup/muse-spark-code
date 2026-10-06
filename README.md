@@ -476,6 +476,48 @@ Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
 the extension, and Zed, Emacs (agent-shell), Neovim (CodeCompanion) and
 JupyterLab (Jupyter AI) with the agent.
 
+## Questions
+
+M112 is pending integration; [lane A's certification](docs/certification/m112-a.md)
+records the ACP implementation and the remaining bindings and editor checks.
+The integrated panel pins agent questions in the attention dock above the
+composer, after approvals, and keeps the same card in the transcript. After
+one minute Muse continues work that does not depend on the answer. The card
+becomes an **Open question**, still answerable from its row or the open-question
+chip. A card with focus or a draft stays expanded. **Dismiss** closes an open
+question without guessing an answer. Approvals still wait for your decision;
+MCP forms keep their five-minute expiry and cannot be answered after expiry.
+
+**Next open question** and **Previous open question** cycle through the open
+cards. In a focused VS Code chat their keys are Ctrl+Alt+J and
+Ctrl+Alt+Shift+J (Cmd+Option+J and Cmd+Option+Shift+J on macOS). The view badge,
+tab title and History marker show the count. Native editors use their own
+bindings: these keys conflict with defaults in JetBrains and Visual Studio.
+
+`museSpark.questions.deferAfterSeconds` is machine-scoped: 60 by default,
+0 to wait indefinitely, otherwise 10–3600 seconds (1–9 are read as 10).
+A workspace setting cannot change it. Open questions survive a reload and
+resume, with at most 20 open per session and two reminders per question.
+A late answer is your own message in the current mode and approves nothing.
+In the panel it steers a running turn or starts a new one, billed normally.
+
+In ACP, a client with forms gets a form that the agent withdraws at the
+deadline. A client without forms gets the text and immediate deferral,
+including with a deadline of 0. `/questions` lists open questions;
+`/answer <n> <text>` answers one by its displayed number. A late form answer
+or `/answer` steers a running prompt, or is kept before your next message
+when idle. It is announced as queued until the next prompt sends it. Stop
+cancels the backend without waiting for question storage. The agent announces
+these commands alongside skills. Configure
+its deadline with `--questions-defer-after <seconds>`; the default and limits
+match the setting. [The ACP guide](docs/acp.md#questions) explains the details.
+
+Headless `exec` still declines questions immediately, reports
+`question_declined`, and starts no question clock. Best-of-N, worktree
+conversations and the evaluation keep their immediate cancellation or
+clarification. Scheduled/unattended prompts defer at once and keep the
+question open, even when interactive deferral is disabled.
+
 ## Permission modes
 
 | Mode                   | Model API backend                                                                                                                                                                                       | Muse Code backend                                                                                                                                                          |
