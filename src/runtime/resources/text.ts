@@ -1,4 +1,9 @@
-import { RESOURCE_GIB_BYTES, UI_TEXT } from '../../shared/constants'
+import {
+  RESOURCE_CRITICAL_CPU_PERCENT,
+  RESOURCE_CRITICAL_MEMORY_FLOOR_FRACTION,
+  RESOURCE_GIB_BYTES,
+  UI_TEXT,
+} from '../../shared/constants'
 import {
   fill,
   formatBytes,
@@ -87,10 +92,13 @@ export function resourceNoticeText(event: ResourceEvent, status: ResourceStatus)
       sample?.memoryAvailableBytes != null &&
       sample.memoryTotalBytes !== null &&
       sample.memoryAvailableBytes <
-        resourceMemoryFloorBytes(status.settings, sample.memoryTotalBytes) / 2)
+        resourceMemoryFloorBytes(status.settings, sample.memoryTotalBytes) *
+          RESOURCE_CRITICAL_MEMORY_FLOOR_FRACTION)
   let metric = UI_TEXT.resourceCpu
   let reading = percentage(sample?.cpuPercent)
-  let threshold = percentage(status.settings.cpuMaxPercent)
+  let threshold = percentage(
+    reason === 'critical' ? RESOURCE_CRITICAL_CPU_PERCENT : status.settings.cpuMaxPercent,
+  )
   switch (reason) {
     case 'memoryUsed': {
       metric = UI_TEXT.resourceMemory
@@ -123,7 +131,10 @@ export function resourceNoticeText(event: ResourceEvent, status: ResourceStatus)
     threshold =
       sample?.memoryTotalBytes == null
         ? UI_TEXT.resourceUnknown
-        : formatBytes(resourceMemoryFloorBytes(status.settings, sample.memoryTotalBytes))
+        : formatBytes(
+            resourceMemoryFloorBytes(status.settings, sample.memoryTotalBytes) *
+              (reason === 'critical' ? RESOURCE_CRITICAL_MEMORY_FLOOR_FRACTION : 1),
+          )
   }
   return [fill(UI_TEXT.resourcePauseNotice, { metric, reading, threshold }), ...details].join('\n')
 }

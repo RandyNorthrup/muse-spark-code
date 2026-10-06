@@ -14,6 +14,7 @@ import type { RuntimeResources, RuntimeResourceNotice } from '../../src/runtime/
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   RESOURCE_FOREGROUND_WAIT_MS,
+  RESOURCE_GIB_BYTES,
   RESOURCE_OVERRIDE_MS,
   RESOURCE_SAMPLE_MS,
   UI_TEXT,
@@ -23,6 +24,7 @@ import {
   resourceSettingsSchema,
   resourceStatusSchema,
 } from '../../src/shared/resources'
+import { fill, formatBytes, formatPercent } from '../../src/shared/l10n/text'
 import { FakeResourceMachine, runtimeResources } from './helpers/resources/runtime'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -454,6 +456,8 @@ describe('machine files and lazy runtime facade', () => {
     loadBundle.mockImplementationOnce(() => {
       throw new Error('absent')
     })
+    const invalidModules = [null, 2, {}, { createResources: false }]
+    for (const invalid of invalidModules) loadBundle.mockReturnValueOnce(invalid)
     const facade = lazyRuntimeResources({
       machineDir: '/machine',
       distDir: '/dist',
@@ -471,10 +475,11 @@ describe('machine files and lazy runtime facade', () => {
     unsubscribe()
     expect(loadBundle).not.toHaveBeenCalled()
     expect(sampler.sample).not.toHaveBeenCalled()
-    await expect(facade.status()).rejects.toThrow(UI_TEXT.resourceUnavailable)
+    for (let attempt = 0; attempt < invalidModules.length + 1; attempt++)
+      await expect(facade.status()).rejects.toThrow(UI_TEXT.resourceUnavailable)
     await Promise.all([facade.status(), facade.command('status', false)])
     expect(factory).toHaveBeenCalledTimes(1)
-    expect(loadBundle).toHaveBeenCalledTimes(2)
+    expect(loadBundle).toHaveBeenCalledTimes(invalidModules.length + 2)
     expect(subscribe).not.toHaveBeenCalled()
     facade.dispose()
     await expect(facade.status()).rejects.toThrow(UI_TEXT.resourceUnavailable)
@@ -525,6 +530,56 @@ describe('machine files and lazy runtime facade', () => {
     ).toContain(`CPU use is ${UI_TEXT.resourceUnknown}`)
     expect(text).not.toMatch(/:\s*0%/)
     expect(resourceHistoryText([])).toBe(UI_TEXT.resourceHistory)
+  })
+
+  it('names the actual critical threshold, including a CPU limit higher than the emergency limit', async () => {
+    const { host, reading } = await setup()
+    reading.memoryAvailableBytes = 1
+    const status = await host.status()
+    const event = {
+      type: 'levelChanged',
+      atMs: 0,
+      from: 'normal',
+      to: 'pause',
+      reason: 'critical',
+    } as const
+    expect(resourceNoticeText(event, status)).toContain(
+      fill(UI_TEXT.resourcePauseNotice, {
+        metric: UI_TEXT.resourceAvailableMemory,
+        reading: formatBytes(1),
+        threshold: formatBytes(RESOURCE_GIB_BYTES),
+      }),
+    )
+    const cpu = resourceStatusSchema.parse({
+      ...status,
+      settings: { ...status.settings, cpuMaxPercent: 100 },
+      sample: { ...status.sample, cpuPercent: 97, memoryAvailableBytes: 2 * RESOURCE_GIB_BYTES },
+    })
+    expect(resourceNoticeText(event, cpu)).toContain(
+      fill(UI_TEXT.resourcePauseNotice, {
+        metric: UI_TEXT.resourceCpu,
+        reading: formatPercent(97),
+        threshold: formatPercent(97),
+      }),
+    )
+    const optional = resourceStatusSchema.parse({
+      ...status,
+      settings: { ...status.settings, gpuMaxPercent: 80, diskBusyMaxPercent: 80 },
+    })
+    for (const [reason, metric, value, threshold] of [
+      ['memoryUsed', UI_TEXT.resourceMemory, formatPercent(40), formatPercent(90)],
+      ['gpu', UI_TEXT.resourceGpu, UI_TEXT.resourceUnknown, formatPercent(80)],
+      ['disk', UI_TEXT.resourceDisk, UI_TEXT.resourceUnknown, formatPercent(80)],
+      [
+        'memoryFree',
+        UI_TEXT.resourceAvailableMemory,
+        formatBytes(1),
+        formatBytes(2 * RESOURCE_GIB_BYTES),
+      ],
+    ] as const)
+      expect(resourceNoticeText({ ...event, reason }, optional)).toContain(
+        fill(UI_TEXT.resourcePauseNotice, { metric, reading: value, threshold }),
+      )
   })
 
   it('shows deferral without inventing a trigger metric and retains every journal metric and work total', async () => {

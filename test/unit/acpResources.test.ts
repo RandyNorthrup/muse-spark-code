@@ -33,12 +33,6 @@ async function scene() {
     outcome: { outcome: 'cancelled' },
   }))
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-  const paid = new AcpPaidUse({
-    flagged: [],
-    canRemember: () => false,
-    grants: memoryPaidGrants(),
-    log,
-  })
   const agent = createAcpAgent({
     backend: {
       kind: 'museCode',
@@ -46,7 +40,12 @@ async function scene() {
       readiness: () => Promise.resolve({ state: 'ready' }),
     },
     resources: fixture.host,
-    paid,
+    paid: new AcpPaidUse({
+      flagged: [],
+      canRemember: () => false,
+      grants: memoryPaidGrants(),
+      log,
+    }),
     log,
     version: 'test',
     defaultCwd: process.cwd(),
@@ -84,6 +83,19 @@ async function scene() {
 
 function ask(client: acp.ClientContext, sessionId: string, text: string) {
   return client.request('session/prompt', { sessionId, prompt: [{ type: 'text', text }] })
+}
+
+async function finishOrdinaryTurn(
+  client: acp.ClientContext,
+  sessionId: string,
+  session: FakeAgentSession,
+) {
+  const pending = ask(client, sessionId, 'go')
+  await vi.waitFor(() => {
+    expect(session.sendTurn).toHaveBeenCalled()
+  })
+  session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+  await pending
 }
 
 describe('M107 H ACP resources', () => {
@@ -159,12 +171,7 @@ describe('M107 H ACP resources', () => {
     const s = await scene()
     await s.run(async (client, sessionId, session) => {
       session.listSkills.mockRejectedValueOnce(new Error('not available'))
-      const pending = ask(client, sessionId, 'go')
-      await vi.waitFor(() => {
-        expect(session.sendTurn).toHaveBeenCalled()
-      })
-      session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
-      await pending
+      await finishOrdinaryTurn(client, sessionId, session)
       const commands = s.updates.find(
         ({ update }) => update.sessionUpdate === 'available_commands_update',
       )?.update
@@ -183,12 +190,7 @@ describe('M107 H ACP resources', () => {
         description: `skill-${selector}`,
         argumentHint: undefined,
       }))
-      const pending = ask(client, sessionId, 'go')
-      await vi.waitFor(() => {
-        expect(session.sendTurn).toHaveBeenCalled()
-      })
-      session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
-      await pending
+      await finishOrdinaryTurn(client, sessionId, session)
       const commands = s.updates.find(
         ({ update }) => update.sessionUpdate === 'available_commands_update',
       )?.update
