@@ -172,20 +172,20 @@
   "exportPreviewFull": "Ohne Redigieren speichern…",
   "exportPreviewOpen": "Die redigierte Datei ist im Editor geöffnet. Bis Sie wählen, wird nichts geschrieben.",
   "exportPreviewMessages": {
-    "one": "{count} Nachricht in dieser Unterhaltung",
-    "other": "{count} Nachrichten in dieser Unterhaltung"
+    "other": "{count} Nachrichten in dieser Unterhaltung",
+    "one": "{count} Nachricht in dieser Unterhaltung"
   },
   "exportPreviewPaths": {
-    "one": "{count} Pfad entfernt",
-    "other": "{count} Pfade entfernt"
+    "other": "{count} Pfade entfernt",
+    "one": "{count} Pfad entfernt"
   },
   "exportPreviewAccounts": {
-    "one": "{count} Konto-ID entfernt",
-    "other": "{count} Konto-IDs entfernt"
+    "other": "{count} Konto-IDs entfernt",
+    "one": "{count} Konto-ID entfernt"
   },
   "exportPreviewSecrets": {
-    "one": "{count} Anmeldeinformation oder Schlüssel-Hash entfernt",
-    "other": "{count} Anmeldeinformationen oder Schlüssel-Hashes entfernt"
+    "other": "{count} Anmeldeinformationen oder Schlüssel-Hashes entfernt",
+    "one": "{count} Anmeldeinformation oder Schlüssel-Hash entfernt"
   },
   "exportPreviewKnownCredentials": "Bekannte Formen von Anmeldedaten (API-Schlüssel, Tokens, Passwörter, private Schlüssel) und der Schlüssel-Hash werden immer entfernt. Ein Geheimnis in anderer Form bleibt: Lesen Sie die Datei, bevor Sie sie weitergeben.",
   "exportTooLarge": "Diese Unterhaltung ist zu lang für eine Sitzungsexportdatei.",
@@ -221,8 +221,8 @@
   "mcpUnreadable": "Die Einstellungsdatei von Muse Code konnte nicht gelesen werden:",
   "mcpNone": "In {path} sind keine MCP-Server konfiguriert",
   "mcpCount": {
-    "one": "{count} MCP-Server in {path}",
-    "other": "{count} MCP-Server in {path}"
+    "other": "{count} MCP-Server in {path}",
+    "one": "{count} MCP-Server in {path}"
   },
   "mcpOptional": "optional",
   "mcpRequired": "erforderlich (Muse Code wird beendet, wenn er fehlschlägt)",
@@ -252,12 +252,12 @@
   "mcpStateNotStarted": "Startet mit Ihrer nächsten Nachricht",
   "mcpStateStarting": "Wird gestartet…",
   "mcpStateConnected": {
-    "one": "Verbunden: {count} Tool",
-    "other": "Verbunden: {count} Tools"
+    "other": "Verbunden: {count} Tools",
+    "one": "Verbunden: {count} Tool"
   },
   "mcpStateUnoffered": {
-    "one": "{count} weiteres nicht angeboten",
-    "other": "{count} weitere nicht angeboten"
+    "other": "{count} weitere nicht angeboten",
+    "one": "{count} weiteres nicht angeboten"
   },
   "mcpStateFailed": "Läuft nicht: {reason}",
   "mcpStateRestricted": "Nicht gestartet: Dieser Arbeitsbereich ist im eingeschränkten Modus",
@@ -288,8 +288,8 @@
   "hooksUserBlock": "settings.json › hooks",
   "hooksUserNone": "Keine in Ihren Einstellungen",
   "hooksUserCount": {
-    "one": "{count} Hook in Ihren Einstellungen",
-    "other": "{count} Hooks in Ihren Einstellungen"
+    "other": "{count} Hooks in Ihren Einstellungen",
+    "one": "{count} Hook in Ihren Einstellungen"
   },
   "hooksManaged": "Verwaltete Hooks",
   "hooksManagedKey": "managed_hooks_path",
@@ -302,8 +302,8 @@
   "memoryTitle": "Muse-Gedächtnis",
   "memoryNone": "Noch keine Gedächtnisnotizen für diesen Arbeitsbereich",
   "memoryCount": {
-    "one": "{count} Gedächtnisnotiz",
-    "other": "{count} Gedächtnisnotizen"
+    "other": "{count} Gedächtnisnotizen",
+    "one": "{count} Gedächtnisnotiz"
   },
   "memoryIndexDetail": "Der Index, den Muse zu Beginn jeder Sitzung liest",
   "memoryNewNote": "Neue Notiz…",
@@ -388,8 +388,8 @@
   "pdfLabel": "PDF",
   "toolReadPdf": "PDF `{path}` gelesen ({pages}, {bytes} Byte)",
   "toolReadPdfPages": {
-    "one": "{count} Seite",
-    "other": "{count} Seiten"
+    "other": "{count} Seiten",
+    "one": "{count} Seite"
   },
   "toolReadPdfPagesUnknown": "Seitenzahl unbekannt",
   "toolReadImage": "Bild `{path}` gelesen ({mediaType}, {width}×{height}, {bytes} Byte)",
@@ -446,12 +446,12 @@
   "thoughtFor": "{duration} nachgedacht",
   "thinkingNow": "Denkt nach",
   "addedLines": {
-    "one": "{count} Zeile hinzugefügt",
-    "other": "{count} Zeilen hinzugefügt"
+    "other": "{count} Zeilen hinzugefügt",
+    "one": "{count} Zeile hinzugefügt"
   },
   "removedLines": {
-    "one": "{count} Zeile entfernt",
-    "other": "{count} Zeilen entfernt"
+    "other": "{count} Zeilen entfernt",
+    "one": "{count} Zeile entfernt"
   },
   "modified": "Geändert",
   "inLabel": "EIN",
@@ -475,8 +475,8 @@
   "approvalDecided": "Entschieden",
   "approvalDockLabel": "Wartet auf Ihre Genehmigung",
   "approvalDockCount": {
-    "one": "Wartende Genehmigung: {count}",
-    "other": "Wartende Genehmigungen: {count}"
+    "other": "Wartende Genehmigungen: {count}",
+    "one": "Wartende Genehmigung: {count}"
   },
   "approvalDockedNote": "Wartet auf Ihre Genehmigung, in der Karte über dem Nachrichtenfeld",
   "questionSubmit": "Senden",
@@ -550,8 +550,8 @@
   "historyCurrent": "aktuell",
   "historyForkMark": "Abzweigung",
   "historyTurns": {
-    "one": "{count} Durchgang",
-    "other": "{count} Durchgänge"
+    "other": "{count} Durchgänge",
+    "one": "{count} Durchgang"
   },
   "resumeItem": "Fortsetzen",
   "resumeDetail": "Eine frühere Unterhaltung in diesem Arbeitsbereich auswählen",
@@ -564,8 +564,8 @@
   "forkAndRewind": "Unterhaltung abzweigen und Code zurücksetzen",
   "rewindNothing": "Nach dieser Nachricht gibt es keine Bearbeitungen zum Zurücksetzen.",
   "rewindDone": {
-    "one": "Code auf diese Nachricht zurückgesetzt ({count} Bearbeitung)",
-    "other": "Code auf diese Nachricht zurückgesetzt ({count} Bearbeitungen)"
+    "other": "Code auf diese Nachricht zurückgesetzt ({count} Bearbeitungen)",
+    "one": "Code auf diese Nachricht zurückgesetzt ({count} Bearbeitung)"
   },
   "forkedNotice": "In eine neue Unterhaltung abgezweigt.",
   "rewindImagesUnavailable": "Einige Bilder aus dieser Nachricht konnten nicht wiederhergestellt werden.",
@@ -724,8 +724,8 @@
   "plansItemDetail": "Gespeicherte Pläne in .agents/plans: einen öffnen oder umsetzen",
   "plansTitle": "Pläne",
   "plansCount": {
-    "one": "{count} gespeicherter Plan",
-    "other": "{count} gespeicherte Pläne"
+    "other": "{count} gespeicherte Pläne",
+    "one": "{count} gespeicherter Plan"
   },
   "plansNone": "Noch keine gespeicherten Pläne. Speichern Sie einen aus einer Antwort im Planungsmodus.",
   "plansFailed": "Die Pläne konnten nicht aufgelistet werden",
@@ -757,8 +757,8 @@
   "signedOutNotice": "Von Muse Spark abgemeldet.",
   "agentsPillTitle": "Agentenkarte anzeigen",
   "agentsCount": {
-    "one": "{count} Agent",
-    "other": "{count} Agenten"
+    "other": "{count} Agenten",
+    "one": "{count} Agent"
   },
   "backgroundTasksPillTitle": "Hintergrundaufgaben anzeigen",
   "agentMapTitle": "Agentenkarte",
@@ -766,13 +766,13 @@
   "agentMapEmpty": "Keine Subagenten in dieser Unterhaltung.",
   "agentStatuses": {
     "inProgress": "läuft",
-    "completed": "abgeschlossen",
-    "failed": "fehlgeschlagen",
-    "cancelled": "abgebrochen",
-    "interrupted": "unterbrochen",
-    "resultReady": "Ergebnis bereit",
     "queued": "in Warteschlange",
-    "closed": "geschlossen"
+    "resultReady": "Ergebnis bereit",
+    "failed": "fehlgeschlagen",
+    "closed": "geschlossen",
+    "interrupted": "unterbrochen",
+    "completed": "abgeschlossen",
+    "cancelled": "abgebrochen"
   },
   "agentTokens": "{tokens} Token",
   "agentContextTokens": "{tokens} Token im Kontext",
@@ -805,22 +805,22 @@
   },
   "workflowAgentsLabel": "Workflow-Agenten",
   "workflowChildStatuses": {
-    "scheduled": "in der Warteschlange",
     "started": "läuft",
     "usage": "läuft",
     "completed": "abgeschlossen",
+    "scheduled": "in der Warteschlange",
     "terminal": "beendet"
   },
   "workflowChildUntitled": "Agent {number}",
   "workflowAttempt": "Versuch {attempt}",
   "workflowsCount": {
-    "one": "{count} Workflow",
-    "other": "{count} Workflows"
+    "other": "{count} Workflows",
+    "one": "{count} Workflow"
   },
   "workflowsLabel": "Workflows",
   "workflowTriggerModes": {
-    "auto": "Die Workflows von Muse Code stehen auf \"auto\": Das Modell kann bei großen Aufgaben von sich aus einen Workflow starten und startet einen, wenn Sie darum bitten. Jeder Workflow-Agent führt eigene Modellaufrufe aus.",
     "explicit": "Die Workflows von Muse Code stehen auf \"explicit\": Das Modell startet einen Workflow nur, wenn Sie darum bitten.",
+    "auto": "Die Workflows von Muse Code stehen auf \"auto\": Das Modell kann bei großen Aufgaben von sich aus einen Workflow starten und startet einen, wenn Sie darum bitten. Jeder Workflow-Agent führt eigene Modellaufrufe aus.",
     "off": "Die Workflows von Muse Code sind ausgeschaltet (\"off\"): Das Modell hat kein Workflow-Tool."
   },
   "workflowTriggerOther": "Die Workflow-Einstellung von Muse Code ist {mode}.",
@@ -828,8 +828,8 @@
   "workflowLaunched": "Gestartet: Er läuft im Hintergrund und meldet sich in dieser Unterhaltung zurück.",
   "workflowScriptSaved": "Skript gespeichert unter {path}",
   "backgroundTasksCount": {
-    "one": "{count} Hintergrundaufgabe",
-    "other": "{count} Hintergrundaufgaben"
+    "other": "{count} Hintergrundaufgaben",
+    "one": "{count} Hintergrundaufgabe"
   },
   "backgroundTasksLabel": "Hintergrundaufgaben",
   "backgroundBadge": "Hintergrund",
@@ -863,12 +863,12 @@
   "usageInsightNoLogs": "Auf diesem Computer wurden noch keine Trace-Protokolle von Muse Code gefunden.",
   "usageInsightTotals": "{attempts} in {sessions}",
   "modelAttemptsCount": {
-    "one": "{count} Modellversuch",
-    "other": "{count} Modellversuche"
+    "other": "{count} Modellversuche",
+    "one": "{count} Modellversuch"
   },
   "sessionsCount": {
-    "one": "{count} Sitzung",
-    "other": "{count} Sitzungen"
+    "other": "{count} Sitzungen",
+    "one": "{count} Sitzung"
   },
   "durationNow": "jetzt",
   "contextCompactTitle": "Klicken, um jetzt zu komprimieren",
@@ -879,127 +879,128 @@
   "sandboxRestartNotice": "Eine Muse Code-Einstellung wurde geändert; Muse Code startet bei der nächsten Nachricht damit neu und setzt diese Unterhaltung fort.",
   "sandboxProfileNotice": "Dieser Arbeitsbereich liegt unter Ihrem Benutzerprofil, wo die Windows-Sandbox von Muse Code Befehle möglicherweise nicht ausführt: Sie können im PowerShell-Ordner statt im Projekt starten oder nie fertig werden. Das Lesen und Bearbeiten von Dateien ist nicht betroffen. In einem Arbeitsbereich außerhalb von C:\\Users laufen Befehle direkt dort.",
   "permissionModes": {
-    "manual": "Manuell",
     "acceptEdits": "Automatisch bearbeiten",
-    "plan": "Planen",
     "auto": "Auto",
+    "manual": "Manuell",
+    "plan": "Planen",
     "bypassPermissions": "Berechtigungen umgehen"
   },
   "permissionModeDetails": {
-    "manual": "Muse fragt vor dem Ausführen von Befehlen; Muse Code bearbeitet Dateien im Arbeitsbereich ohne Nachfrage",
     "acceptEdits": "In Muse Code dasselbe wie Manuell: Muse Code bearbeitet Dateien im Arbeitsbereich ohne Nachfrage und fragt vor dem Ausführen von Befehlen",
-    "plan": "Muse plant zuerst; Muse Code verweigert Befehle, aber seine Dateitools können Dateien weiterhin ohne Nachfrage bearbeiten",
     "auto": "Muse Code führt Befehle, die es für einfach hält, ohne Nachfrage aus und fragt vor allen anderen",
+    "manual": "Muse fragt vor dem Ausführen von Befehlen; Muse Code bearbeitet Dateien im Arbeitsbereich ohne Nachfrage",
+    "plan": "Muse plant zuerst; Muse Code verweigert Befehle, aber seine Dateitools können Dateien weiterhin ohne Nachfrage bearbeiten",
     "bypassPermissions": "Muse bearbeitet Dateien und führt Befehle ohne Nachfrage aus"
   },
   "museCodeReviewedAutoDetail": "Muse Code führt Befehle, die es für einfach hält, ohne Nachfrage aus; ein Prüfer kann manche anderen einmal erlauben, zu den übrigen werden Sie gefragt",
   "modelApiPermissionModeDetails": {
-    "manual": "Muse fragt vor jeder Bearbeitung und jedem Befehl nach einer Genehmigung",
+    "auto": "Muse bearbeitet Dateien ohne Nachfrage, außer geschützten Dateien, und fragt vor Befehlen",
     "acceptEdits": "Muse bearbeitet Dateien ohne Nachfrage und fragt vor dem Ausführen von Befehlen",
-    "plan": "Muse erkundet den Code und legt vor dem Bearbeiten einen Plan vor",
-    "auto": "Muse bearbeitet Dateien ohne Nachfrage, außer geschützten Dateien, und fragt vor Befehlen"
+    "manual": "Muse fragt vor jeder Bearbeitung und jedem Befehl nach einer Genehmigung",
+    "plan": "Muse erkundet den Code und legt vor dem Bearbeiten einen Plan vor"
   },
   "effortLevels": {
+    "high": "Hoch",
+    "medium": "Mittel",
+    "max": "Maximal",
     "minimal": "Minimal",
     "low": "Niedrig",
-    "medium": "Mittel",
-    "high": "Hoch",
-    "xhigh": "Sehr hoch",
-    "max": "Maximal"
+    "xhigh": "Sehr hoch"
   },
   "toolLabels": {
-    "write_file": "Schreiben",
-    "edit_file": "Bearbeiten",
-    "read_file": "Lesen",
-    "search": "Suchen",
-    "bash": "Bash",
-    "powershell": "PowerShell",
-    "request_user_input": "Frage",
-    "mcp__ide__getDiagnostics": "Diagnose",
-    "list_files": "Auflisten",
-    "ask_user": "Frage",
-    "todo_write": "Aufgaben",
-    "subagent_spawn": "Agent starten",
-    "subagent_wait": "Auf Agenten warten",
-    "subagent_status": "Agentenstatus",
-    "subagent_send_message": "Agent benachrichtigen",
-    "subagent_read_result": "Agentenergebnis",
-    "subagent_cancel": "Agent abbrechen",
-    "web_search": "Websuche",
-    "generate_image": "Bild",
-    "edit_image": "Bild bearbeiten",
-    "mcp__ide__generateImage": "Bild",
-    "mcp__ide__editImage": "Bild bearbeiten",
     "mcp__ide__webFetch": "Seite abrufen",
-    "browser_check": "Browserprüfung",
-    "mcp__ide__browserCheck": "Browserprüfung",
-    "read_memory": "Gedächtnis lesen",
-    "add_memory": "Im Gedächtnis speichern",
-    "edit_memory": "Gedächtnis bearbeiten",
-    "create_goal": "Ziel festlegen",
-    "get_goal": "Ziel prüfen",
-    "update_goal": "Ziel aktualisieren",
-    "report_progress": "Zielfortschritt",
-    "cron_create": "Prompt planen",
-    "cron_list": "Geplante Prompts",
-    "cron_delete": "Geplanten Prompt abbrechen",
-    "scheduled_prompt": "Geplanten Prompt ausführen",
-    "web_fetch": "Seite abrufen",
-    "work_stop": "Job beenden",
-    "work_status": "Jobstatus",
-    "powershell_input": "PowerShell-Eingabe",
-    "bash_input": "Bash-Eingabe",
-    "shell": "Shell",
-    "apply_patch": "Patch anwenden",
     "monitor": "Überwachen",
-    "artifact": "Artefakt",
-    "image_generation": "Bild",
-    "workflow": "Workflow",
-    "code_exec": "Code ausführen",
-    "code_wait": "Auf Code warten",
-    "tool_search": "Tools suchen",
-    "read_skill": "Skill",
-    "send_session_message": "Sitzung benachrichtigen",
-    "list_peer_sessions": "Andere Sitzungen",
-    "write_todos": "Aufgaben",
-    "update_plan": "Aufgaben",
-    "TodoWrite": "Aufgaben",
-    "snooze_reminder": "Erinnerung zurückstellen",
-    "submit_reminder_decision": "Erinnerung",
-    "submit_result": "Ergebnis",
-    "find_definition": "Definition",
-    "find_references": "Verweise",
-    "workspace_symbols": "Symbole",
-    "document_symbols": "Gliederung",
-    "hover": "Hover-Info",
+    "request_user_input": "Frage",
     "call_hierarchy": "Aufrufe",
-    "repo_map": "Repo-Karte",
-    "rename_symbol": "Umbenennen",
-    "mcp__ide__findDefinition": "Definition",
-    "mcp__ide__findReferences": "Verweise",
-    "mcp__ide__workspaceSymbols": "Symbole",
+    "write_file": "Schreiben",
+    "work_stop": "Job beenden",
+    "browser_check": "Browserprüfung",
+    "submit_result": "Ergebnis",
+    "bash_input": "Bash-Eingabe",
+    "apply_patch": "Patch anwenden",
+    "bash": "Bash",
+    "read_skill": "Skill",
+    "mcp__ide__getDiagnostics": "Diagnose",
     "mcp__ide__documentSymbols": "Gliederung",
-    "mcp__ide__hover": "Hover-Info",
+    "subagent_cancel": "Agent abbrechen",
+    "get_goal": "Ziel prüfen",
+    "TodoWrite": "Aufgaben",
+    "find_references": "Verweise",
+    "report_progress": "Zielfortschritt",
+    "find_definition": "Definition",
+    "workspace_symbols": "Symbole",
+    "add_memory": "Im Gedächtnis speichern",
+    "subagent_status": "Agentenstatus",
+    "cron_create": "Prompt planen",
     "mcp__ide__callHierarchy": "Aufrufe",
+    "send_session_message": "Sitzung benachrichtigen",
+    "todo_write": "Aufgaben",
+    "hover": "Hover-Info",
+    "subagent_read_result": "Agentenergebnis",
+    "edit_memory": "Gedächtnis bearbeiten",
+    "cron_delete": "Geplanten Prompt abbrechen",
+    "workflow": "Workflow",
+    "read_file": "Lesen",
+    "code_exec": "Code ausführen",
     "mcp__ide__repoMap": "Repo-Karte",
-    "mcp__ide__renameSymbol": "Umbenennen",
-    "auto_review": "Auto-Prüfung",
+    "shell": "Shell",
+    "search": "Suchen",
+    "edit_image": "Bild bearbeiten",
+    "snooze_reminder": "Erinnerung zurückstellen",
     "run_checks": "Prüfungen ausführen",
-    "verify_edits": "Änderungen prüfen"
+    "rename_symbol": "Umbenennen",
+    "ask_user": "Frage",
+    "subagent_send_message": "Agent benachrichtigen",
+    "tool_search": "Tools suchen",
+    "mcp__ide__renameSymbol": "Umbenennen",
+    "powershell_input": "PowerShell-Eingabe",
+    "subagent_spawn": "Agent starten",
+    "image_generation": "Bild",
+    "code_wait": "Auf Code warten",
+    "update_plan": "Aufgaben",
+    "mcp__ide__generateImage": "Bild",
+    "auto_review": "Auto-Prüfung",
+    "work_status": "Jobstatus",
+    "list_files": "Auflisten",
+    "artifact": "Artefakt",
+    "write_todos": "Aufgaben",
+    "cron_list": "Geplante Prompts",
+    "document_symbols": "Gliederung",
+    "judge": "Beurteiler",
+    "powershell": "PowerShell",
+    "mcp__ide__workspaceSymbols": "Symbole",
+    "read_memory": "Gedächtnis lesen",
+    "edit_file": "Bearbeiten",
+    "create_goal": "Ziel festlegen",
+    "submit_reminder_decision": "Erinnerung",
+    "mcp__ide__findDefinition": "Definition",
+    "scheduled_prompt": "Geplanten Prompt ausführen",
+    "subagent_wait": "Auf Agenten warten",
+    "repo_map": "Repo-Karte",
+    "mcp__ide__findReferences": "Verweise",
+    "mcp__ide__hover": "Hover-Info",
+    "verify_edits": "Änderungen prüfen",
+    "list_peer_sessions": "Andere Sitzungen",
+    "mcp__ide__browserCheck": "Browserprüfung",
+    "generate_image": "Bild",
+    "update_goal": "Ziel aktualisieren",
+    "web_fetch": "Seite abrufen",
+    "mcp__ide__editImage": "Bild bearbeiten",
+    "web_search": "Websuche"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
-    "personal_project": "Ihr Gedächtnis für dieses Projekt",
     "project": "Projektgedächtnis, mit dem Repository geteilt",
+    "personal_project": "Ihr Gedächtnis für dieses Projekt",
     "personal": "Ihr Gedächtnis für alle Projekte"
   },
   "goalStatuses": {
-    "active": "Aktiv",
     "paused": "Pausiert",
-    "complete": "Abgeschlossen",
+    "budget_limited": "Token-Budget aufgebraucht",
     "blocked": "Blockiert",
-    "usage_limited": "Nutzungslimit erreicht",
-    "budget_limited": "Token-Budget aufgebraucht"
+    "complete": "Abgeschlossen",
+    "active": "Aktiv",
+    "usage_limited": "Nutzungslimit erreicht"
   },
   "goalPercent": "{percent} erledigt",
   "goalProgress": "Zielfortschritt",
@@ -1042,8 +1043,8 @@
   "scheduleRepeats": "Wiederkehrend",
   "scheduleNextRun": "Nächste Ausführung: {date}",
   "scheduleFired": {
-    "one": "{count}-mal ausgeführt",
-    "other": "{count}-mal ausgeführt"
+    "other": "{count}-mal ausgeführt",
+    "one": "{count}-mal ausgeführt"
   },
   "scheduleNone": "Keine geplanten Prompts",
   "webNoResults": "Keine Ergebnisse",
@@ -1072,27 +1073,27 @@
   "toolImageFailed": "Das Bild konnte nicht angezeigt werden",
   "processExitCode": "Exitcode {code}",
   "skillScopes": {
-    "bundled": "integriert",
-    "user": "eigene",
     "project": "dieses Projekt",
-    "plugin": "Plug-in"
+    "bundled": "integriert",
+    "plugin": "Plug-in",
+    "user": "eigene"
   },
   "importNothingFrom": "Keine Skills zum Importieren aus {source}.",
   "importInstalledSummary": {
-    "one": "{count} importiert: {skills}",
-    "other": "{count} importiert: {skills}"
+    "other": "{count} importiert: {skills}",
+    "one": "{count} importiert: {skills}"
   },
   "importSkippedSummary": {
-    "one": "{count} übersprungen: {skills}",
-    "other": "{count} übersprungen: {skills}"
+    "other": "{count} übersprungen: {skills}",
+    "one": "{count} übersprungen: {skills}"
   },
   "importQuarantinedSummary": {
-    "one": "{count} unter Quarantäne gestellt: {skills}",
-    "other": "{count} unter Quarantäne gestellt: {skills}"
+    "other": "{count} unter Quarantäne gestellt: {skills}",
+    "one": "{count} unter Quarantäne gestellt: {skills}"
   },
   "importFailedSummary": {
-    "one": "{count} fehlgeschlagen: {skills}",
-    "other": "{count} fehlgeschlagen: {skills}"
+    "other": "{count} fehlgeschlagen: {skills}",
+    "one": "{count} fehlgeschlagen: {skills}"
   },
   "bundledSkillsOffer": "Muse Spark bringt die Skills {skills} mit. Für Muse Code installieren? Sie werden in Ihren Muse-Konfigurationsordner kopiert.",
   "bundledSkillsUpdateOffer": "Muse Spark bringt eine neuere Version seiner mitgelieferten Skills ({tag}) mit. Die Kopie aktualisieren, die Muse Code verwendet?",
@@ -1100,16 +1101,16 @@
   "bundledSkillsUpdate": "Aktualisieren",
   "bundledSkillsNotNow": "Nicht jetzt",
   "bundledSkillsInstalled": {
-    "one": "{count} mitgelieferter Skill ({tag}) für Muse Code installiert: {skills}",
-    "other": "{count} mitgelieferte Skills ({tag}) für Muse Code installiert: {skills}"
+    "other": "{count} mitgelieferte Skills ({tag}) für Muse Code installiert: {skills}",
+    "one": "{count} mitgelieferter Skill ({tag}) für Muse Code installiert: {skills}"
   },
   "bundledSkillsSkipped": {
-    "one": "{count} Skill ausgelassen, weil einer Ihrer eigenen Skills so heißt: {skills}",
-    "other": "{count} Skills ausgelassen, weil Ihre eigenen Skills so heißen: {skills}"
+    "other": "{count} Skills ausgelassen, weil Ihre eigenen Skills so heißen: {skills}",
+    "one": "{count} Skill ausgelassen, weil einer Ihrer eigenen Skills so heißt: {skills}"
   },
   "bundledSkillsRemoved": {
-    "one": "{count} mitgelieferter Skill aus Muse Code entfernt: {skills}",
-    "other": "{count} mitgelieferte Skills aus Muse Code entfernt: {skills}"
+    "other": "{count} mitgelieferte Skills aus Muse Code entfernt: {skills}",
+    "one": "{count} mitgelieferter Skill aus Muse Code entfernt: {skills}"
   },
   "bundledSkillsNothingToRemove": "Für Muse Code sind keine mitgelieferten Skills installiert, daher wurde nichts entfernt.",
   "bundledSkillsInstallFailed": "Die mitgelieferten Skills konnten nicht unter {folder} installiert werden: {reason}",
@@ -1155,8 +1156,8 @@
   "acpKeyCleared": "Der Schlüssel für die Meta Model API wurde aus dem Anmeldeinformationsspeicher dieses Computers entfernt.",
   "acpStoreUnavailable": "Der Anmeldeinformationsspeicher dieses Computers kann nicht verwendet werden ({reason}). Unter Linux benötigt der Agent einen laufenden, entsperrten Secret Service wie GNOME Keyring oder KWallet.",
   "acpStoreNames": {
-    "windows": "Windows-Anmeldeinformationsverwaltung",
     "macos": "macOS-Schlüsselbund",
+    "windows": "Windows-Anmeldeinformationsverwaltung",
     "linux": "Secret-Service-Schlüsselbund"
   },
   "acpNoModels": "Das Backend bietet kein Modell an, das dieser Agent verwenden darf.",
@@ -1165,7 +1166,7 @@
   "acpQuestionAsked": "Muse hat eine Frage; dieser Editor kann sie nicht als Formular anzeigen, antworten Sie daher in Ihrer nächsten Nachricht:",
   "acpUnknownArgument": "Unbekanntes Argument: {argument}",
   "acpPaidNeedsModelApi": "{argument} erfordert --backend modelApi: Kostenpflichtige Funktionen werden über einen Model-API-Schlüssel abgerechnet.",
-  "acpUsage": "Verwendung:\n  {command} [Optionen]              Das Agent Client Protocol über stdin und stdout bereitstellen\n  {command} [Optionen] login        In diesem Terminal bei Muse Code anmelden\n  {command} auth set|status|clear  Den Schlüssel für die Meta Model API speichern, prüfen oder entfernen\n  {command} exec [options] <prompt>  Einen Lauf ohne Oberfläche ausführen\n  {command} scan-secrets <file> [--key-stdin]  Mögliche Geheimnisse in einer Datei zählen (gibt nur die Anzahl aus)\nOptionen:\n  --backend museCode|modelApi      Wer bezahlt: Muse Code (Standard) oder der Model API-Schlüssel\n  --trust-workspace                Regeln, Skills und Speicher des Ordners laden\n  --muse-binary <Pfad>             Die auszuführende Muse Code-CLI\n  --shell-sandbox auto|muse|off    Die Shell-Sandbox von Muse Code\n  --allow-dangerously-skip-permissions  Den Modus „Berechtigungen umgehen“ anbieten\n  --allow-contributor-models       Modelle der Contributor-Stufe auflisten (Meta darf mit ihren Inhalten trainieren)\n  --web-search                     Kostenpflichtige Websuche anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --image-generation               Kostenpflichtige Bilderzeugung anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --verbose                        Jedes Detail auf stderr protokollieren\n  --help, --version",
+  "acpUsage": "Verwendung:\n  {command} [Optionen]              Das Agent Client Protocol über stdin und stdout bereitstellen\n  {command} [Optionen] login        In diesem Terminal bei Muse Code anmelden\n  {command} auth set|status|clear  Den Schlüssel für die Meta Model API speichern, prüfen oder entfernen\n  {command} exec [options] <prompt>  Einen Lauf ohne Oberfläche ausführen\n  {command} scan-secrets <file> [--key-stdin]  Mögliche Geheimnisse in einer Datei zählen (gibt nur die Anzahl aus)\n  {command} report [options]  Einen bereinigten Problembericht ausgeben (startet kein Backend, öffnet keinen Browser)\nOptionen:\n  --backend museCode|modelApi      Wer bezahlt: Muse Code (Standard) oder der Model API-Schlüssel\n  --trust-workspace                Regeln, Skills und Speicher des Ordners laden\n  --muse-binary <Pfad>             Die auszuführende Muse Code-CLI\n  --shell-sandbox auto|muse|off    Die Shell-Sandbox von Muse Code\n  --allow-dangerously-skip-permissions  Den Modus „Berechtigungen umgehen“ anbieten\n  --allow-contributor-models       Modelle der Contributor-Stufe auflisten (Meta darf mit ihren Inhalten trainieren)\n  --web-search                     Kostenpflichtige Websuche anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --image-generation               Kostenpflichtige Bilderzeugung anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --verbose                        Jedes Detail auf stderr protokollieren\n  --help, --version",
   "exportSessionLine": "Sitzung: `{id}`",
   "exportBackendLine": "Backend: {backend}",
   "exportModelLine": "Modell: {model}",
@@ -1181,17 +1182,17 @@
   "exportArgumentsLabel": "Argumente:",
   "exportOutputLabel": "Ausgabe:",
   "exportOutputStored": {
-    "one": "Die Ausgabe ({count} Byte) wird vom Backend gespeichert und ist nicht enthalten.",
-    "other": "Die Ausgabe ({count} Byte) wird vom Backend gespeichert und ist nicht enthalten."
+    "other": "Die Ausgabe ({count} Byte) wird vom Backend gespeichert und ist nicht enthalten.",
+    "one": "Die Ausgabe ({count} Byte) wird vom Backend gespeichert und ist nicht enthalten."
   },
   "exportFilesChanged": {
-    "one": "{count} Datei geändert: +{added} −{removed}.",
-    "other": "{count} Dateien geändert: +{added} −{removed}."
+    "other": "{count} Dateien geändert: +{added} −{removed}.",
+    "one": "{count} Datei geändert: +{added} −{removed}."
   },
   "exportFailure": "Fehlgeschlagen: {reason}",
   "exportImagesAttached": {
-    "one": "{count} Bild angehängt.",
-    "other": "{count} Bilder angehängt."
+    "other": "{count} Bilder angehängt.",
+    "one": "{count} Bild angehängt."
   },
   "insertReferenceNoEditor": "Öffnen Sie eine Datei in einem Editor, um einen Verweis darauf einzufügen.",
   "insertReferencePanelOpened": "Das Muse Spark-Panel wurde geöffnet. Drücken Sie erneut Alt+K, um den Verweis einzufügen.",
@@ -1207,51 +1208,51 @@
   "turnFailed": "Der Durchgang ist fehlgeschlagen.",
   "turnRetrying": "Versuch {attempt}/{maxAttempts} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s.",
   "usageWindowHours": {
-    "one": "{count}-Stunden-Zeitfenster",
-    "other": "{count}-Stunden-Zeitfenster"
+    "other": "{count}-Stunden-Zeitfenster",
+    "one": "{count}-Stunden-Zeitfenster"
   },
   "usageWindowMinutes": {
-    "one": "{count}-Minuten-Zeitfenster",
-    "other": "{count}-Minuten-Zeitfenster"
+    "other": "{count}-Minuten-Zeitfenster",
+    "one": "{count}-Minuten-Zeitfenster"
   },
   "statusVerbs": {
-    "thinking": "Denkt nach…",
     "working": "Arbeitet…",
+    "thinking": "Denkt nach…",
     "calculating": "Rechnet…",
     "composing": "Formuliert…"
   },
   "onboardingShortcuts": {
-    "focus": "Strg+Esc (Cmd+Esc unter macOS, Strg+Alt+Esc unter Windows)",
-    "palette": "/",
-    "cycleMode": "Umschalt+Tab",
-    "mentionSelection": "Alt+K",
-    "mentionFile": "@",
+    "shell": "!",
+    "moveToBackground": "Strg+B",
     "newTab": "Strg+Umschalt+Esc (Cmd+Umschalt+Esc unter macOS, Strg+Umschalt+Alt+Esc unter Windows)",
     "dictation": "Strg+D",
-    "shell": "!",
-    "moveToBackground": "Strg+B"
+    "focus": "Strg+Esc (Cmd+Esc unter macOS, Strg+Alt+Esc unter Windows)",
+    "mentionSelection": "Alt+K",
+    "palette": "/",
+    "mentionFile": "@",
+    "cycleMode": "Umschalt+Tab"
   },
   "onboardingTips": {
-    "focus": "setzt den Fokus von überall in VS Code auf Muse oder hebt ihn auf",
-    "palette": "öffnet die Aktionspalette: Modell, Aufwand, Berechtigungsmodus, Verlauf",
-    "cycleMode": "wechselt den Berechtigungsmodus, während das Eingabefeld den Fokus hat",
-    "mentionSelection": "fügt eine @-Erwähnung der Editorauswahl ein",
-    "mentionFile": "erwähnt eine Datei; ziehen Sie Dateien hierher, oder fügen Sie Bilder ein, um sie anzuhängen",
+    "shell": "am Anfang einer Nachricht führt sie als Shellbefehl im Arbeitsbereich aus; Muse sieht die Ausgabe",
+    "moveToBackground": "verschiebt einen laufenden Befehl in den Hintergrund, damit Muse weitermacht",
     "newTab": "öffnet eine Unterhaltung in einer neuen Editor-Registerkarte",
     "dictation": "nimmt Ihre Stimme in das Eingabefeld auf (tippen zum Umschalten, halten zum Sprechen)",
-    "shell": "am Anfang einer Nachricht führt sie als Shellbefehl im Arbeitsbereich aus; Muse sieht die Ausgabe",
-    "moveToBackground": "verschiebt einen laufenden Befehl in den Hintergrund, damit Muse weitermacht"
+    "focus": "setzt den Fokus von überall in VS Code auf Muse oder hebt ihn auf",
+    "mentionSelection": "fügt eine @-Erwähnung der Editorauswahl ein",
+    "palette": "öffnet die Aktionspalette: Modell, Aufwand, Berechtigungsmodus, Verlauf",
+    "mentionFile": "erwähnt eine Datei; ziehen Sie Dateien hierher, oder fügen Sie Bilder ein, um sie anzuhängen",
+    "cycleMode": "wechselt den Berechtigungsmodus, während das Eingabefeld den Fokus hat"
   },
   "dictationUnavailableRemote": "Die Spracheingabe ist in einem Remotefenster (SSH, WSL, Container, Tunnel oder Codespace) nicht verfügbar: Die Erweiterung läuft auf dem Remotecomputer, der das Mikrofon dieses Computers nicht hören kann. Öffnen Sie den Ordner in einem lokalen Fenster, um zu diktieren.",
   "dictationDarwinEarlyExit": "macOS hat das Diktierhilfsprogramm beendet, bevor es bereit war. Nach einer Berechtigungsabfrage hat macOS diese Berechtigung verweigert (für muse-dictate oder für die App, die es gestartet hat, falls das Hilfsprogramm nicht unter eigenem Namen fragen konnte); ganz ohne Abfrage hat macOS die Ausführung des Hilfsprogramms selbst verweigert, da es nicht notarisiert ist. Der Abschnitt „Voice dictation“ in der README erklärt beides.",
   "museLoginTerminalName": "Muse Code-Anmeldung",
   "museExitMeanings": {
-    "0": "Muse Code wurde beendet",
-    "1": "Muse Code ist mit einem unbehandelten Fehler fehlgeschlagen",
-    "2": "Muse Code hat seine Befehlszeile abgelehnt (ein Verwendungsfehler)",
+    "5": "dieser Muse Code-Build stellt die SDK-Schnittstelle, die die Erweiterung verwendet, nicht bereit; aktualisieren Sie Muse Code",
     "3": "Muse Code hat seine Konfiguration abgelehnt; prüfen Sie seine settings.json und museSpark.environmentVariables",
     "4": "ein anderer Muse Code-Client hält diese Sitzung; sie wird frei, sobald dieser Client beendet wird",
-    "5": "dieser Muse Code-Build stellt die SDK-Schnittstelle, die die Erweiterung verwendet, nicht bereit; aktualisieren Sie Muse Code"
+    "2": "Muse Code hat seine Befehlszeile abgelehnt (ein Verwendungsfehler)",
+    "0": "Muse Code wurde beendet",
+    "1": "Muse Code ist mit einem unbehandelten Fehler fehlgeschlagen"
   },
   "museExitedWithCode": "Muse Code wurde mit Code {code} beendet",
   "museExitMeaning": "{meaning} (Exitcode {code})",
@@ -1259,8 +1260,8 @@
   "museUnknownSignal": "ein unbekanntes Signal",
   "approvalImageSources": "Ausgehend von {paths}",
   "renameCardMore": {
-    "one": "{files} und {count} weitere Datei",
-    "other": "{files} und {count} weitere Dateien"
+    "other": "{files} und {count} weitere Dateien",
+    "one": "{files} und {count} weitere Datei"
   },
   "codeIntelNoService": "Für {path} hat kein Sprachdienst geantwortet, oder die Datei deklariert keine Symbole.",
   "codeIntelTimedOut": "Der Sprachdienst hat nicht innerhalb von {seconds} Sekunden geantwortet.",
@@ -1297,8 +1298,8 @@
   "paidBestOfNDetail": "{prompt}\n\n{price}\n\nAbrechnung über Ihren Model-API-Schlüssel. Die tatsächlichen Kosten hängen von den verwendeten Token ab. „Einmal zulassen“ gilt nur für diesen Durchlauf.",
   "paidConfirmBestOfN": "Der gleiche Prompt läuft in separaten Worktrees, jeweils über Ihren Model-API-Schlüssel abgerechnet. {price} Jeder Durchlauf erfordert in jedem Berechtigungsmodus eine Genehmigung, auch in Bypass, es sei denn, Sie lassen Best-of-N in diesem Arbeitsbereich immer zu. Die tatsächlichen Kosten hängen von den verwendeten Token ab; andere kostenpflichtige Tools kosten zusätzlich. Nur auf dem Model-API-Backend.",
   "usagePaidBestOfNAttempts": {
-    "one": "{count} Versuch",
-    "other": "{count} Versuche"
+    "other": "{count} Versuche",
+    "one": "{count} Versuch"
   },
   "usagePaidBestOfNIncluded": "Gemeldete Tokenschätzung: {cost}",
   "paidTeamWorkersName": "Team-Agenten",
@@ -1329,12 +1330,12 @@
   "boardStatusRunning": "Läuft",
   "boardStatusIdle": "Inaktiv",
   "boardAwaitingApproval": {
-    "one": "{count} wartende Genehmigung",
-    "other": "{count} wartende Genehmigungen"
+    "other": "{count} wartende Genehmigungen",
+    "one": "{count} wartende Genehmigung"
   },
   "boardChanges": {
-    "one": "{count} geänderte Datei",
-    "other": "{count} geänderte Dateien"
+    "other": "{count} geänderte Dateien",
+    "one": "{count} geänderte Datei"
   },
   "boardChangesUnknown": "Änderungen unbekannt",
   "boardStartBestOfN": "Best-of-N…",
@@ -1363,12 +1364,12 @@
   "bestOfNRunStatusCancelled": "Abgebrochen",
   "bestOfNCeilingReached": "am Anfragenlimit gestoppt",
   "bestOfNRequests": {
-    "one": "{count} Anfrage",
-    "other": "{count} Anfragen"
+    "other": "{count} Anfragen",
+    "one": "{count} Anfrage"
   },
   "bestOfNApprovalsDenied": {
-    "one": "{count} abgelehnte Genehmigung",
-    "other": "{count} abgelehnte Genehmigungen"
+    "other": "{count} abgelehnte Genehmigungen",
+    "one": "{count} abgelehnte Genehmigung"
   },
   "bestOfNAttemptFailed": "Fehlgeschlagen: {reason}",
   "bestOfNTakenMark": "Übernommen: {branch}",
@@ -1404,21 +1405,21 @@
   "usagePaidAlwaysNote": "In diesem Arbeitsbereich immer zugelassen, ohne Nachfrage: {features}.",
   "usagePaidAskAgain": "Jedes Mal wieder fragen",
   "usagePaidSearches": {
-    "one": "{count} Suche",
-    "other": "{count} Suchen"
+    "other": "{count} Suchen",
+    "one": "{count} Suche"
   },
   "usagePaidImages": {
-    "one": "{count} Bild",
-    "other": "{count} Bilder"
+    "other": "{count} Bilder",
+    "one": "{count} Bild"
   },
   "usagePaidAudio": "{duration} Audio",
   "usagePaidSubagentRequests": {
-    "one": "{count} Kindanfrage",
-    "other": "{count} Kindanfragen"
+    "other": "{count} Kindanfragen",
+    "one": "{count} Kindanfrage"
   },
   "usagePaidSubagentUnknown": {
-    "one": "Für {count} Anfrage liegen noch keine gemeldeten Kosten vor",
-    "other": "Für {count} Anfragen liegen noch keine gemeldeten Kosten vor"
+    "other": "Für {count} Anfragen liegen noch keine gemeldeten Kosten vor",
+    "one": "Für {count} Anfrage liegen noch keine gemeldeten Kosten vor"
   },
   "usagePaidSubagentSubset": "Die gemeldeten Kosten der Unteragenten sind in den Tokenkostenschätzungen ihrer übergeordneten Unterhaltungen enthalten. Sie werden nicht zur Summe der zusätzlichen kostenpflichtigen Funktionen addiert. Anfragen ohne gemeldete Nutzung können trotzdem berechnet werden.",
   "usagePaidExtraTotal": "Geschätzte Summe zusätzlicher kostenpflichtiger Funktionen",
@@ -1491,8 +1492,8 @@
   "paidScheduledPrice": "{input}/1 Mio. Eingabe-Token, {cached}/1 Mio. zwischengespeicherte Eingabe-Token, {output}/1 Mio. Ausgabe-Token",
   "paidConfirmScheduled": "Ein fälliger geplanter Prompt wartet darauf, dass Sie ihn ausführen. Jede Ausführung fragt vor jedem Model-API-Aufruf nach, es sei denn, Sie lassen geplante Ausführungen in diesem Arbeitsbereich immer zu. {price}. Abrechnung über Ihren Model-API-Schlüssel; der Gesamtbetrag hängt von den verwendeten Token ab.",
   "usagePaidScheduled": {
-    "one": "{count} geplante Ausführung",
-    "other": "{count} geplante Ausführungen"
+    "other": "{count} geplante Ausführungen",
+    "one": "{count} geplante Ausführung"
   },
   "usageScheduledIncluded": "Tokenkosten oben enthalten",
   "networkUntrustedCertificate": "Das Zertifikat des Servers ist nicht vertrauenswürdig. Wenn Ihr Netzwerk HTTPS prüft, installieren Sie sein Stammzertifikat im Zertifikatspeicher des Betriebssystems (VS Code liest ihn, solange http.systemCertificates eingeschaltet ist), oder schalten Sie http.systemCertificates aus und geben Sie die Datei des Stammzertifikats vor dem Start von VS Code in NODE_EXTRA_CA_CERTS an.",
@@ -1520,21 +1521,21 @@
   "restoreBothConfirmAction": "Wiederherstellen und zurückspulen",
   "rewindNotDone": "Die Unterhaltung wurde nicht zurückgespult.",
   "restoreDone": {
-    "one": "{count} Datei auf den Stand vor dieser Nachricht zurückgesetzt.",
-    "other": "{count} Dateien auf den Stand vor dieser Nachricht zurückgesetzt."
+    "other": "{count} Dateien auf den Stand vor dieser Nachricht zurückgesetzt.",
+    "one": "{count} Datei auf den Stand vor dieser Nachricht zurückgesetzt."
   },
   "restoreNothing": "Keine Datei musste wiederhergestellt werden.",
   "redoDone": {
-    "one": "{count} Datei wieder übernommen.",
-    "other": "{count} Dateien wieder übernommen."
+    "other": "{count} Dateien wieder übernommen.",
+    "one": "{count} Datei wieder übernommen."
   },
   "redoAction": "Wiederholen",
   "redoLabel": "Wiederholen: die von dieser Wiederherstellung ersetzten Dateien zurückholen",
   "redoGone": "Diese Wiederherstellung kann nicht mehr wiederholt werden.",
   "noticeRepeatBadge": "{count}×",
   "noticeRepeated": {
-    "one": "{count}-mal angezeigt",
-    "other": "{count}-mal angezeigt"
+    "other": "{count}-mal angezeigt",
+    "one": "{count}-mal angezeigt"
   },
   "restoreRefusedUnsaved": "Unverändert gelassen, mit ungespeicherten Änderungen: {files}",
   "restoreRefusedChanged": "Unverändert gelassen, inzwischen anderweitig geändert: {files}",
@@ -1544,8 +1545,8 @@
   "restoreRefusedNotKept": "Nicht wiederherstellbar, die frühere Version wurde nicht gespeichert: {files}",
   "restoreRefusedTooLarge": "Nicht wiederherstellbar, zu groß zum Speichern einer Kopie: {files}",
   "restoreUnchanged": {
-    "one": "Bereits wie zuvor: {count} Datei.",
-    "other": "Bereits wie zuvor: {count} Dateien."
+    "other": "Bereits wie zuvor: {count} Dateien.",
+    "one": "Bereits wie zuvor: {count} Datei."
   },
   "restoreWritesIncomplete": "Nichts wurde wiederhergestellt: Einige Bearbeitungen dieser Züge wurden nicht vollständig aufgezeichnet (Neuladen oder Absturz während der Bearbeitung oder deaktivierte Dateicheckpoints).",
   "restoreLegacyInRange": "Nichts wurde wiederhergestellt: Einige dieser Züge wurden von einer früheren Version aufgezeichnet und können von dieser Version nicht wiederhergestellt werden.",
@@ -1592,8 +1593,8 @@
   "reviewInstructionsTooLong": "Die Beschreibung, was überprüft werden soll, ist für eine Überprüfung zu lang; formulieren Sie sie kürzer.",
   "reviewTruncatedNotice": "Der Diff ist lang, daher wurde nur sein erster Teil mit der Überprüfung gesendet; den Rest der geänderten Dateien liest der Prüfer selbst.",
   "reviewPrivateLeftOut": {
-    "one": "{count} geänderte Datei, die Geheimnisse enthalten kann, wurde genannt, aber nicht zur Überprüfung gesendet.",
-    "other": "{count} geänderte Dateien, die Geheimnisse enthalten können, wurden genannt, aber nicht zur Überprüfung gesendet."
+    "other": "{count} geänderte Dateien, die Geheimnisse enthalten können, wurden genannt, aber nicht zur Überprüfung gesendet.",
+    "one": "{count} geänderte Datei, die Geheimnisse enthalten kann, wurde genannt, aber nicht zur Überprüfung gesendet."
   },
   "reviewPlanModeNotice": "Diese Überprüfung läuft im Modus „Planen“; Ihr bisheriger Berechtigungsmodus kehrt zurück, wenn sie endet. Muse Code wendet im Modus „Planen“ eigene Zulassungsregeln an, daher ist eine Überprüfung dort nicht strikt schreibgeschützt.",
   "reviewModeRestored": "Die Überprüfung ist beendet: Der Berechtigungsmodus ist wieder „{mode}“.",
@@ -1603,24 +1604,24 @@
   "reviewPaneLoading": "Änderungen werden gelesen…",
   "reviewPaneEmpty": "Diese Unterhaltung hat keine Dateien geändert.",
   "reviewPaneFiles": {
-    "one": "{count} Datei",
-    "other": "{count} Dateien"
+    "other": "{count} Dateien",
+    "one": "{count} Datei"
   },
   "reviewPaneHunks": {
-    "one": "{count} Änderung",
-    "other": "{count} Änderungen"
+    "other": "{count} Änderungen",
+    "one": "{count} Änderung"
   },
   "reviewPaneAccepted": {
-    "one": "{count} angenommen",
-    "other": "{count} angenommen"
+    "other": "{count} angenommen",
+    "one": "{count} angenommen"
   },
   "reviewPaneReverted": {
-    "one": "{count} rückgängig gemacht",
-    "other": "{count} rückgängig gemacht"
+    "other": "{count} rückgängig gemacht",
+    "one": "{count} rückgängig gemacht"
   },
   "reviewPaneOmitted": {
-    "one": "{count} Bearbeitung ist hier nicht aufgeführt (zu viele zum Anzeigen, oder ihre Änderung konnte nicht gelesen werden); ihr Eintrag in der Unterhaltung öffnet sie weiterhin.",
-    "other": "{count} Bearbeitungen sind hier nicht aufgeführt (zu viele zum Anzeigen, oder ihre Änderungen konnten nicht gelesen werden); ihre Einträge in der Unterhaltung öffnen sie weiterhin."
+    "other": "{count} Bearbeitungen sind hier nicht aufgeführt (zu viele zum Anzeigen, oder ihre Änderungen konnten nicht gelesen werden); ihre Einträge in der Unterhaltung öffnen sie weiterhin.",
+    "one": "{count} Bearbeitung ist hier nicht aufgeführt (zu viele zum Anzeigen, oder ihre Änderung konnte nicht gelesen werden); ihr Eintrag in der Unterhaltung öffnet sie weiterhin."
   },
   "reviewHunkLines": "Änderung {index}, Zeilen {start}–{end}",
   "reviewHunkLine": "Änderung {index}, Zeile {start}",
@@ -1646,41 +1647,41 @@
   "reviewAnnounceNotReverted": "{name} nicht rückgängig gemacht: {reason}",
   "reviewFindingsLabel": "Befunde der Überprüfung",
   "reviewFindingsHeading": {
-    "one": "{count} Befund",
-    "other": "{count} Befunde"
+    "other": "{count} Befunde",
+    "one": "{count} Befund"
   },
   "reviewNoFindings": "Die Überprüfung hat nichts Meldenswertes gefunden.",
   "reviewSeverities": {
-    "critical": "Kritisch",
     "high": "Hoch",
     "medium": "Mittel",
+    "info": "Hinweis",
     "low": "Niedrig",
-    "info": "Hinweis"
+    "critical": "Kritisch"
   },
   "reviewOpenFinding": "{location} öffnen",
   "verifyErrors": {
-    "one": "{count} Fehler",
-    "other": "{count} Fehler"
+    "other": "{count} Fehler",
+    "one": "{count} Fehler"
   },
   "verifyWarnings": {
-    "one": "{count} Warnung",
-    "other": "{count} Warnungen"
+    "other": "{count} Warnungen",
+    "one": "{count} Warnung"
   },
   "verifyClean": "Keine Fehler oder Warnungen",
   "checkOutcomes": {
-    "passed": "{name} bestanden",
     "failed": "{name} fehlgeschlagen",
-    "timedOut": "{name}: Zeitlimit überschritten",
+    "notRun": "{name} nicht ausgeführt",
     "cancelled": "{name} angehalten",
-    "notRun": "{name} nicht ausgeführt"
+    "timedOut": "{name}: Zeitlimit überschritten",
+    "passed": "{name} bestanden"
   },
   "checkSkips": {
+    "unsafePath": "ein Dateiname lässt sich nicht sicher übergeben",
+    "hookDenied": "ein Hook hat es abgelehnt",
+    "changed": "die Datei hat sich nach der Bearbeitung geändert",
     "rejected": "abgelehnt",
     "refused": "der Berechtigungsmodus lässt keine Shell-Befehle zu",
     "restricted": "Shell-Befehle sind im eingeschränkten Modus aus",
-    "unsafePath": "ein Dateiname lässt sich nicht sicher übergeben",
-    "changed": "die Datei hat sich nach der Bearbeitung geändert",
-    "hookDenied": "ein Hook hat es abgelehnt",
     "stopped": "die Prüfungen wurden nach wiederholt fehlgeschlagenen Runden angehalten"
   },
   "thenRunLabel": "Danach ausgeführt",
@@ -1688,13 +1689,13 @@
   "hookInputNoCommand": "Die geänderte Eingabe des Hooks nennt keinen Befehl.",
   "thenRunTimedOut": "Beim Zeitlimit angehalten",
   "checksStoppedNotice": {
-    "one": "Die Prüfungen schlugen auch nach {count} Korrekturrunde fehl und laufen bis zu Ihrer nächsten Nachricht nicht mehr automatisch.",
-    "other": "Die Prüfungen schlugen auch nach {count} Korrekturrunden in Folge fehl und laufen bis zu Ihrer nächsten Nachricht nicht mehr automatisch."
+    "other": "Die Prüfungen schlugen auch nach {count} Korrekturrunden in Folge fehl und laufen bis zu Ihrer nächsten Nachricht nicht mehr automatisch.",
+    "one": "Die Prüfungen schlugen auch nach {count} Korrekturrunde fehl und laufen bis zu Ihrer nächsten Nachricht nicht mehr automatisch."
   },
   "exportThenRunLabel": "Danach ausgeführt:",
   "verifyUnchecked": {
-    "one": "{count} Datei nicht geprüft",
-    "other": "{count} Dateien nicht geprüft"
+    "other": "{count} Dateien nicht geprüft",
+    "one": "{count} Datei nicht geprüft"
   },
   "thenRunNoExitCode": "Ohne Exitcode fehlgeschlagen",
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
@@ -1731,30 +1732,30 @@
   "execAccountingUnverified": "Die Antwortabrechnung konnte nicht geprüft werden.",
   "execMessageWithheld": "Nachricht zurückgehalten: Die Antwort wurde nicht abgeschlossen",
   "execStatus": {
-    "completed": "Abgeschlossen",
+    "auth_required": "Anmeldung erforderlich",
+    "internal": "Interner Fehler",
     "incomplete": "Unvollständig",
+    "backend_unavailable": "Backend nicht verfügbar",
+    "accounting_unverified": "Abrechnung ungeprüft",
+    "denied": "Verweigert",
     "failed": "Fehlgeschlagen",
-    "cancelled": "Abgebrochen",
     "timeout": "Zeitlimit erreicht",
     "budget_exceeded": "Budget überschritten",
+    "completed": "Abgeschlossen",
     "request_cap": "Anfragenlimit erreicht",
-    "denied": "Verweigert",
-    "auth_required": "Anmeldung erforderlich",
-    "backend_unavailable": "Backend nicht verfügbar",
-    "internal": "Interner Fehler",
-    "accounting_unverified": "Abrechnung ungeprüft"
+    "cancelled": "Abgebrochen"
   },
   "execTooManyFiles": {
-    "one": "Höchstens {count} Eingabedatei ist erlaubt.",
-    "other": "Höchstens {count} Eingabedateien sind erlaubt."
+    "other": "Höchstens {count} Eingabedateien sind erlaubt.",
+    "one": "Höchstens {count} Eingabedatei ist erlaubt."
   },
   "execRequestCapReached": {
-    "one": "Das Anfragenlimit von {count} Versuch wurde erreicht.",
-    "other": "Das Anfragenlimit von {count} Versuchen wurde erreicht."
+    "other": "Das Anfragenlimit von {count} Versuchen wurde erreicht.",
+    "one": "Das Anfragenlimit von {count} Versuch wurde erreicht."
   },
   "execScanMatches": {
-    "one": "{count} Geheimnis gefunden",
-    "other": "{count} Geheimnisse gefunden"
+    "other": "{count} Geheimnisse gefunden",
+    "one": "{count} Geheimnis gefunden"
   },
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
@@ -1781,8 +1782,8 @@
   "paidUseAutoReviewerTitle": "Den Auto-Prüfer diesen {tool}-Aufruf beurteilen lassen?",
   "paidUseAutoReviewerDetail": "{action}\n\nEin separater Aufruf von {model} beurteilt, ob die Aktion ohne Nachfrage ausgeführt werden darf. Abrechnung über Ihren Model-API-Schlüssel: {price}. Der Gesamtbetrag hängt von den verwendeten Token ab. Bei „Verweigern“ sehen Sie stattdessen die Genehmigungskarte.",
   "usagePaidAutoReviews": {
-    "one": "{count} Prüfung",
-    "other": "{count} Prüfungen"
+    "other": "{count} Prüfungen",
+    "one": "{count} Prüfung"
   },
   "commandRuleInvalid": "{setting}: Regel {index} ist ungültig und wird nicht angewendet ({detail}).",
   "commandRuleInvalidKept": "{setting}: Regel {index} ({pattern}) ist ungültig ({detail}). Sie fragt oder verbietet weiterhin nach ihrem Muster, da das nur verschärfen kann.",
@@ -1799,9 +1800,7 @@
   "redoNothing": "Es ist nichts mehr zurückzusetzen.",
   "childCheckpointFailed": "Der Unteragentenzug wurde nicht ausgeführt: Sein Dateikontrollpunkt konnte nicht erstellt werden oder die übernommene Aufzeichnungsentscheidung ist unbekannt.",
   "agentImportItem": "Aus anderen Agents importieren…",
-  "agentImportDetail": "MCP-Server, Hooks, Agents, Befehle und Regeln aus Claude Code, Codex oder Cursor übernehmen",
   "agentImportSourceTitle": "Importieren aus",
-  "agentImportSourceAll": "Alle drei",
   "agentImportSourceCursor": "Cursor",
   "agentImportPickTitle": "Was soll importiert werden",
   "agentImportPickPlaceholder": "Markierte Einträge werden vor dem Schreiben als Vorschau gezeigt",
@@ -2165,64 +2164,68 @@
   "messageSentAt": "Gesendet {time}",
   "messageReceivedAt": "Empfangen {time}",
   "paletteTips": {
-    "attachFile": "Eine Datei an Ihre nächste Nachricht anhängen.",
-    "mentionFile": "Eine Datei aus diesem Projekt in Ihrer Nachricht erwähnen.",
-    "clear": "Diese Unterhaltung leeren und eine neue beginnen.",
+    "paid:subagents": "Kostenpflichtige Unteragenten ein- oder ausschalten.",
     "resume": "Eine frühere Unterhaltung in diesem Arbeitsbereich auswählen.",
-    "continue:claude": "Unfertige Claude Code-Arbeit in dieser Unterhaltung fortführen.",
-    "continue:codex": "Unfertige Codex-Arbeit in dieser Unterhaltung fortführen.",
+    "importSession": "Eine exportierte Sitzungsdatei im Model-API-Backend fortsetzen.",
+    "hooks": "Woher die Hooks von Muse Code stammen.",
+    "exportJson": "Eine portable Datei, die Sie importieren oder teilen können.",
+    "docs": "Die Muse Code-Dokumentation öffnen.",
+    "signOut": "Bei Muse Spark auf diesem Computer abmelden.",
+    "loop": "Einen Prompt in dieser Model-API-Unterhaltung planen.",
+    "importSkills": "Ihre Skills aus Claude Code oder Codex in Muse Code kopieren.",
+    "agents": "Agentenkarte anzeigen.",
+    "logout": "Bei Muse Code abmelden.",
+    "usage": "Die Anzahl der Eingabe- und Ausgabetokens dieser Unterhaltung anzeigen.",
+    "reviewChanges": "Jede Bearbeitung dieser Unterhaltung annehmen oder zurücksetzen.",
+    "openShare": "Eine geteilte Sitzungsdatei schreibgeschützt lesen.",
+    "paid:voice": "Das kostenpflichtige Muse Voice ein- oder ausschalten.",
+    "clearCommand": "Diese Unterhaltung leeren und eine neue beginnen.",
+    "issue": "Problem melden.",
+    "reviewCommit": "Muse prüft einen kürzlichen Commit Ihrer Wahl.",
+    "accountUsage": "Abonnementnutzung, die Token dieser Unterhaltung, das Backend.",
     "plans": "Gespeicherte Pläne in .agents/plans: einen öffnen oder umsetzen.",
-    "newWorktree": "Ein neuer Branch in eigenem Ordner und Fenster; dieser Checkout bleibt unberührt.",
-    "removeWorktree": "Einen Worktree-Ordner löschen; sein Branch bleibt erhalten.",
-    "switchModel": "Das Modell für diese Unterhaltung wählen.",
-    "effort": "Wählen, wie viel Mühe Muse in jede Antwort steckt.",
-    "thinking": "Die Überlegungen hinter Antworten ein- oder ausblenden.",
-    "permissionMode": "Wählen, wie Muse fragt, bevor es handelt.",
-    "focusView": "Die Schritte außerhalb Ihres Fokus ausblenden.",
+    "backend": "Wählen, welches Backend diese Unterhaltung ausführt.",
+    "manageSkills": "Skills von Muse Code ein- oder ausschalten.",
+    "continue:claude": "Unfertige Claude Code-Arbeit in dieser Unterhaltung fortführen.",
     "ctrlEnter": "Nachrichten mit Strg+Eingabe statt Eingabe senden.",
     "importFromAgents": "MCP-Server, Hooks, Agents, Befehle und Regeln aus Claude Code, Codex oder Cursor übernehmen.",
-    "memory": "Die Notizen, die Muse für spätere Sitzungen aufbewahrt.",
-    "settings": "Einstellungen öffnen.",
-    "keybindings": "Tastenkombinationen.",
-    "accountUsage": "Abonnementnutzung, die Token dieser Unterhaltung, das Backend.",
-    "usage": "Die Anzahl der Eingabe- und Ausgabetokens dieser Unterhaltung anzeigen.",
-    "backend": "Wählen, welches Backend diese Unterhaltung ausführt.",
-    "signOut": "Bei Muse Spark auf diesem Computer abmelden.",
-    "agents": "Agentenkarte anzeigen.",
     "compact": "Die bisherige Unterhaltung zusammenfassen, um Kontext freizugeben.",
-    "handoff": "Diese Unterhaltung für eine neue zusammenfassen.",
     "goal": "Ein Ziel setzen, auf das Muse weiter hinarbeitet: /goal <Ziel>.",
-    "export": "Diese Unterhaltung als Markdown-Datei speichern.",
-    "exportJson": "Eine portable Datei, die Sie importieren oder teilen können.",
-    "openShare": "Eine geteilte Sitzungsdatei schreibgeschützt lesen.",
-    "clearCommand": "Diese Unterhaltung leeren und eine neue beginnen.",
-    "logout": "Bei Muse Code abmelden.",
-    "usageCommand": "Kontonutzung anzeigen.",
-    "costCommand": "Tokensummen dieser Unterhaltung anzeigen.",
-    "log": "Ausgabeprotokoll öffnen.",
-    "whatsNew": "Die wichtigsten Neuerungen und vollständigen Versionshinweise dieser Version öffnen.",
-    "issue": "Problem melden.",
-    "docs": "Die Muse Code-Dokumentation öffnen.",
-    "mcpServers": "Womit sich Muse Code verbindet; bei einem Server anmelden.",
-    "hooks": "Woher die Hooks von Muse Code stammen.",
-    "paid:imageGeneration": "Die kostenpflichtige Bilderzeugung ein- oder ausschalten.",
-    "paid:voice": "Das kostenpflichtige Muse Voice ein- oder ausschalten.",
-    "manageSkills": "Skills von Muse Code ein- oder ausschalten.",
-    "importSkills": "Ihre Skills aus Claude Code oder Codex in Muse Code kopieren.",
-    "exportLog": "Die vollständige JSON-Aufzeichnung dieser Unterhaltung von Muse Code.",
-    "paid:webSearch": "Die kostenpflichtige Websuche ein- oder ausschalten.",
-    "paid:subagents": "Kostenpflichtige Unteragenten ein- oder ausschalten.",
     "paid:scheduledPrompts": "Kostenpflichtige geplante Prompts ein- oder ausschalten.",
-    "paid:autoReviewer": "Den kostenpflichtigen Auto-Prüfer ein- oder ausschalten.",
-    "paid:bestOfN": "Kostenpflichtiges Best-of-N ein- oder ausschalten.",
-    "loop": "Einen Prompt in dieser Model-API-Unterhaltung planen.",
-    "importSession": "Eine exportierte Sitzungsdatei im Model-API-Backend fortsetzen.",
-    "review": "Muse Ihre Änderungen prüfen lassen, oder das, was Sie beschreiben.",
-    "reviewUncommitted": "Muse prüft Ihre bereitgestellten und nicht bereitgestellten Änderungen.",
+    "usageCommand": "Kontonutzung anzeigen.",
     "reviewBranch": "Muse prüft diesen Branch gegen einen Basis-Branch Ihrer Wahl.",
-    "reviewCommit": "Muse prüft einen kürzlichen Commit Ihrer Wahl.",
+    "mentionFile": "Eine Datei aus diesem Projekt in Ihrer Nachricht erwähnen.",
+    "paid:tab": "Kostenpflichtige Tab-Vervollständigungen ein- oder ausschalten.",
+    "log": "Ausgabeprotokoll öffnen.",
+    "removeWorktree": "Einen Worktree-Ordner löschen; sein Branch bleibt erhalten.",
+    "costCommand": "Tokensummen dieser Unterhaltung anzeigen.",
+    "thinking": "Die Überlegungen hinter Antworten ein- oder ausblenden.",
+    "paid:judge": "Kostenpflichtige Judge-Hinweise ein- oder ausschalten.",
+    "newWorktree": "Ein neuer Branch in eigenem Ordner und Fenster; dieser Checkout bleibt unberührt.",
+    "exportLog": "Die vollständige JSON-Aufzeichnung dieser Unterhaltung von Muse Code.",
+    "permissionMode": "Wählen, wie Muse fragt, bevor es handelt.",
+    "settings": "Einstellungen öffnen.",
+    "paid:webSearch": "Die kostenpflichtige Websuche ein- oder ausschalten.",
+    "paid:hookModels": "Kostenpflichtige Modell-Hooks ein- oder ausschalten.",
+    "paid:bestOfN": "Kostenpflichtiges Best-of-N ein- oder ausschalten.",
+    "handoff": "Diese Unterhaltung für eine neue zusammenfassen.",
+    "focusView": "Die Schritte außerhalb Ihres Fokus ausblenden.",
+    "export": "Diese Unterhaltung als Markdown-Datei speichern.",
+    "effort": "Wählen, wie viel Mühe Muse in jede Antwort steckt.",
+    "memory": "Die Notizen, die Muse für spätere Sitzungen aufbewahrt.",
+    "keybindings": "Tastenkombinationen.",
+    "paid:autoReviewer": "Den kostenpflichtigen Auto-Prüfer ein- oder ausschalten.",
+    "review": "Muse Ihre Änderungen prüfen lassen, oder das, was Sie beschreiben.",
+    "clear": "Diese Unterhaltung leeren und eine neue beginnen.",
+    "mcpServers": "Womit sich Muse Code verbindet; bei einem Server anmelden.",
+    "whatsNew": "Die wichtigsten Neuerungen und vollständigen Versionshinweise dieser Version öffnen.",
+    "paid:imageGeneration": "Die kostenpflichtige Bilderzeugung ein- oder ausschalten.",
+    "reviewUncommitted": "Muse prüft Ihre bereitgestellten und nicht bereitgestellten Änderungen.",
     "reviewSecurity": "Muse prüft Ihre nicht committeten Änderungen auf Sicherheitsprobleme.",
-    "reviewChanges": "Jede Bearbeitung dieser Unterhaltung annehmen oder zurücksetzen."
+    "hookRun": "Einen Ihrer Manual-Hooks aus spark-hooks.json jetzt ausführen.",
+    "switchModel": "Das Modell für diese Unterhaltung wählen.",
+    "continue:codex": "Unfertige Codex-Arbeit in dieser Unterhaltung fortführen.",
+    "attachFile": "Eine Datei an Ihre nächste Nachricht anhängen."
   },
   "paletteSkillTip": "Den Skill {name} ausführen.",
   "webFetchUnavailable": "Das Abrufen von Seiten konnte nicht geladen werden, daher wurde nichts abgerufen; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
@@ -2237,16 +2240,16 @@
   "browserRuntimeReady": "Der Browser der Browserprüfung {version} ist bereit.",
   "browserCheckDone": "{url} geprüft: {errors}, {failed}, {blocked}",
   "browserCheckConsoleErrors": {
-    "one": "{count} Konsolenfehler",
-    "other": "{count} Konsolenfehler"
+    "other": "{count} Konsolenfehler",
+    "one": "{count} Konsolenfehler"
   },
   "browserCheckFailedRequests": {
-    "one": "{count} fehlgeschlagene Anfrage",
-    "other": "{count} fehlgeschlagene Anfragen"
+    "other": "{count} fehlgeschlagene Anfragen",
+    "one": "{count} fehlgeschlagene Anfrage"
   },
   "browserCheckBlockedRequests": {
-    "one": "{count} Anfrage außerhalb dieses Computers blockiert",
-    "other": "{count} Anfragen außerhalb dieses Computers blockiert"
+    "other": "{count} Anfragen außerhalb dieses Computers blockiert",
+    "one": "{count} Anfrage außerhalb dieses Computers blockiert"
   },
   "browserCheckUrlRefused": "Geöffnet werden kann nur eine http://- oder https://-Adresse mit einem einfachen Hostnamen oder einer IP-Adresse und ohne Benutzername oder Passwort.",
   "browserCheckInvalidArguments": "Die Browserprüfung wurde mit ungültigen Argumenten angefordert, daher wurde nichts geöffnet.",
@@ -2296,45 +2299,45 @@
   "tasksTabEmpty": "Noch keine Aufgaben.",
   "tasksTabEnded": "Die Unterhaltung, zu der diese Liste gehört, wurde geschlossen.",
   "stepSummary": {
-    "edited": {
-      "one": "eine Datei bearbeitet",
-      "other": "{count} Dateien bearbeitet"
+    "ran": {
+      "other": "{count} Befehle ausgeführt",
+      "one": "einen Befehl ausgeführt"
     },
     "read": {
-      "one": "eine Datei gelesen",
-      "other": "{count} Dateien gelesen"
+      "other": "{count} Dateien gelesen",
+      "one": "eine Datei gelesen"
+    },
+    "edited": {
+      "other": "{count} Dateien bearbeitet",
+      "one": "eine Datei bearbeitet"
     },
     "searched": {
-      "one": "einen Ordner durchsucht",
-      "other": "{count} Ordner durchsucht"
-    },
-    "ran": {
-      "one": "einen Befehl ausgeführt",
-      "other": "{count} Befehle ausgeführt"
-    },
-    "fetched": {
-      "one": "eine Seite abgerufen",
-      "other": "{count} Seiten abgerufen"
+      "other": "{count} Ordner durchsucht",
+      "one": "einen Ordner durchsucht"
     },
     "searchedWeb": {
-      "one": "das Web durchsucht",
-      "other": "das Web {count} Mal durchsucht"
+      "other": "das Web {count} Mal durchsucht",
+      "one": "das Web durchsucht"
     },
-    "used": {
-      "one": "ein Tool verwendet",
-      "other": "{count} Tools verwendet"
+    "fetched": {
+      "other": "{count} Seiten abgerufen",
+      "one": "eine Seite abgerufen"
     },
     "failed": {
-      "one": "{count} fehlgeschlagen",
-      "other": "{count} fehlgeschlagen"
+      "other": "{count} fehlgeschlagen",
+      "one": "{count} fehlgeschlagen"
+    },
+    "used": {
+      "other": "{count} Tools verwendet",
+      "one": "ein Tool verwendet"
     }
   },
   "contextMeterLabel": "Kontext {percent} verwendet",
   "contextMeterOver": "Über dem Kontextfenster",
   "contextMeterUnderOne": "<1",
   "diffTallyFiles": {
-    "one": "{count} Datei geändert",
-    "other": "{count} Dateien geändert"
+    "other": "{count} Dateien geändert",
+    "one": "{count} Datei geändert"
   },
   "diffTallyLines": "+{added} −{removed}",
   "diffTallyLabel": "Änderungen in dieser Unterhaltung",
@@ -2578,5 +2581,384 @@
     "M": "Mittel",
     "L": "Groß",
     "XL": "Sehr groß"
-  }
+  },
+  "hooksSparkProject": "Erweiterungs-Hooks für dieses Projekt",
+  "hooksSparkProjectFile": ".muse/spark-hooks.json",
+  "hooksSparkProjectNone": "Dieser Arbeitsbereich hat keine .muse/spark-hooks.json.",
+  "hooksSparkUser": "Ihre Erweiterungs-Hooks",
+  "hooksSparkUserNone": "Sie haben keine spark-hooks.json.",
+  "hooksSparkCount": {
+    "one": "{count} Hook in {file}",
+    "other": "{count} Hooks in {file}"
+  },
+  "hooksSparkAbout": "Muse Code liest diese Datei nie. Sie enthält die Ereignisse, die nur diese Erweiterung ausführt, sowie aus anderen Agents importierte Hooks.",
+  "hooksBackendMuseCode": "Von Muse Code ausgeführt",
+  "hooksBackendBoth": "Von Muse Code ausgeführt und auf dem Model-API-Backend von diesem Fenster",
+  "hooksBackendSpark": "Von diesem Fenster ausgeführt: auf dem Model-API-Backend und für die Ereignisse, die die Erweiterung selbst verarbeitet, auf beiden Backends",
+  "hooksFormatModelApiOnly": "Hooks im Format eines anderen Agents laufen nur auf dem Model-API-Backend.",
+  "hooksFormatTag": "{format}-Format",
+  "hooksMuseEventRefused": "{event} ist ein Muse Code-Ereignis: Konfigurieren Sie es in .muse/hooks.json, damit es nur einmal ausgeführt wird.",
+  "hooksExtensionEventSkipped": "{event} wird nur aus spark-hooks.json ausgeführt; Muse Code überspringt es in dieser Datei.",
+  "hooksStopFailureNote": "Muse Code 1.4.2 führt keine StopFailure-Hooks aus; dieses Fenster führt sie auf dem Model-API-Backend aus.",
+  "hooksSessionForkNote": "Muse Code 1.4.2 akzeptiert SessionFork-Hooks, führt sie aber nie aus, daher führt auch dieses Fenster sie nicht aus.",
+  "hooksTabWaiting": "Wartet auf Inline-Vervollständigungen, die diese Erweiterung noch nicht hat, und wird daher nie ausgeführt.",
+  "hooksNotRunnable": "Hooks laufen nur in einem vertrauenswürdigen Arbeitsbereich, sobald museSpark.modelApiHooks eingeschaltet ist.",
+  "hookRefusedExpansion": "Ein Hook hat {name} abgelehnt: {reason}",
+  "hookRefusedModelSwitch": "Ein Hook hat das Modell bei {model} belassen: {reason}",
+  "hookRefusedTaskCreated": "Ein Hook hat die Aufgabe „{subject}“ abgelehnt: {reason}",
+  "hookRefusedTaskCompleted": "Ein Hook hat die Aufgabe „{subject}“ offen gehalten: {reason}",
+  "hookWorktreeCreateFailed": "Ein WorktreeCreate-Hook ist fehlgeschlagen, daher wurde dieser Versuch nicht ausgeführt: {reason}",
+  "hookTeammateKept": "Ein Hook hat {name} weiterarbeiten lassen: {reason}",
+  "hookFileChangedPaused": {
+    "one": "FileChanged-Hooks sind für eine Minute pausiert: Es kam mehr als {count} Änderung an.",
+    "other": "FileChanged-Hooks sind für eine Minute pausiert: Es kamen mehr als {count} Änderungen an."
+  },
+  "hookCorrectionRefused": "Der korrigierte Aufruf eines Hooks wurde abgelehnt: {reason}",
+  "hookCorrectionOtherTool": "er nennt ein anderes Tool",
+  "hookCorrectionOutside": "er greift über den Arbeitsbereich hinaus",
+  "hookCorrectionTooDeep": {
+    "one": "er überschritt das Limit von {count} Korrektur in Folge",
+    "other": "er überschritt das Limit von {count} Korrekturen in Folge"
+  },
+  "hookToolRemoved": "ein Hook hat dieses Tool für diesen Durchgang entfernt",
+  "hookMessageEdited": "Von einem Hook bearbeitet",
+  "hookMessageShowOriginal": "Original anzeigen",
+  "hookMessageShowEdited": "Version des Hooks anzeigen",
+  "setupHooksNone": "In spark-hooks.json sind keine Setup-Hooks konfiguriert.",
+  "setupHooksRan": {
+    "one": "{count} Setup-Hook ausgeführt.",
+    "other": "{count} Setup-Hooks ausgeführt."
+  },
+  "setupHooksFailed": "Ein Setup-Hook ist fehlgeschlagen: {reason}",
+  "manualHookPick": "Welchen Hook ausführen?",
+  "manualHookNone": "In spark-hooks.json sind keine Manual-Hooks konfiguriert.",
+  "manualHookNoneNamed": "Kein Manual-Hook heißt {name}.",
+  "manualHookDone": "Hook {name} ist abgeschlossen.",
+  "manualHookFailed": "Hook {name} ist fehlgeschlagen: {reason}",
+  "manualHookSlashDetail": "Einen Manual-Hook aus spark-hooks.json ausführen",
+  "extensionHooksUnavailable": "Die Erweiterungshooks konnten nicht geladen werden, daher wurde kein Hook ausgeführt; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
+  "shellDirectory": "In {path}",
+  "shellDirectoryReset": "Die Shell ist zum Stammverzeichnis des Arbeitsbereichs zurückgekehrt: {path} liegt außerhalb des Arbeitsbereichs.",
+  "elicitationTitle": "{server} bittet um Informationen",
+  "elicitationNote": "Ihre Antwort geht an {server}, nicht an Muse. Geben Sie nie ein Kennwort oder einen Schlüssel ein.",
+  "elicitationSend": "Senden",
+  "elicitationDecline": "Ablehnen",
+  "elicitationCancel": "Abbrechen",
+  "elicitationRequired": "Erforderlich",
+  "elicitationInvalid": "{field} entspricht nicht dem, was {server} verlangt hat.",
+  "elicitationDeclinedByHook": "Ein Hook hat diese Anfrage von {server} abgelehnt: {reason}",
+  "elicitationAnsweredByHook": "Einer Ihrer Hooks hat diese Anfrage von {server} beantwortet.",
+  "elicitationExpired": "Die Anfrage von {server} wartet nicht mehr.",
+  "hookHttpHostRefused": "Ein http-Hook wurde abgelehnt: {host} ist kein zugelassener Host.",
+  "hookHttpSchemeRefused": "Ein http-Hook wurde abgelehnt: Nur HTTPS ist zulässig.",
+  "hookHttpRedirectRefused": "Ein http-Hook wurde abgelehnt: Er hat auf {host} umgeleitet.",
+  "hookHttpProjectRefused": "Ein http-Hook in einer Projektdatei wurde abgelehnt: http-Hooks laufen nur aus Ihren eigenen Dateien.",
+  "hookHttpNetworkRefused": "Ein http-Hook wurde abgelehnt: Die Netzwerkeinstellung dieses Fensters blockiert das Netzwerk.",
+  "hookMcpToolMissing": "Ein mcp_tool-Hook wurde abgelehnt: {tool} ist kein Tool eines laufenden MCP-Servers.",
+  "hookModelMuseCodeNotice": "Hooks vom Typ prompt und agent nutzen jeweils einen kurzen Durchgang Ihres Muse-Abonnements, in einer verborgenen Nebensitzung, die im Verlauf nicht aufgeführt wird.",
+  "pluginStopped": "Das Plug-in {name} wurde beendet: {reason}",
+  "pluginApiUnavailable": "Das Plug-in {name} hat {api} aufgerufen, das der Plug-in-Host nicht anbietet, daher ist dieser Hook fehlgeschlagen.",
+  "hookAdapterUnreadable": "Ein Hook im {format}-Format hat eine Antwort gegeben, die dieses Fenster nicht lesen kann, daher zählt sie als Fehlschlag.",
+  "hookAdapterFailClosed": "Ein Schutz-Hook im {format}-Format ist fehlgeschlagen, daher wurde der Aufruf blockiert, so wie {format} selbst ihn blockieren würde.",
+  "hookOutputReplaced": "Ein Hook hat ersetzt, was das Modell von der Ausgabe dieses Werkzeugs sieht; die Zeile zeigt die echte Ausgabe.",
+  "pluginHooksNoJob": "Die Plugin-Hooks von Amp und OpenCode wurden nicht ausgeführt: Windows konnte den Job, der sie einschließt, nicht vorbereiten. Führen Sie „Plugin-Hooks erneut versuchen“ aus, um es noch einmal zu versuchen.",
+  "pluginHooksRetried": "Plugin-Hooks bereiten ihren Windows-Job beim nächsten Ausführen erneut vor.",
+  "reportCrashOffer": "Muse Spark Code wurde beim letzten Mal unerwartet beendet — Problem melden?",
+  "reportCrashAction": "Problem melden",
+  "reportCrashDismiss": "Nicht jetzt",
+  "reportThisAction": "Dies melden",
+  "reportTitle": "Problem melden",
+  "reportDescriptionLabel": "Was haben Sie getan, als es passiert ist?",
+  "reportIncludeFacts": "Supportdaten einschließen",
+  "reportIncludeEvents": "Letzte Ereignisse einschließen",
+  "reportPreviewLabel": "Vorschau",
+  "reportCopyAction": "Bericht kopieren",
+  "reportOpenIssueAction": "Issue-Seite öffnen",
+  "reportSaveAction": "In einer Datei speichern",
+  "reportVscodeReporterAction": "Den VS-Code-Problemreporter verwenden",
+  "reportCancelAction": "Abbrechen",
+  "reportCopied": "Der Bericht wurde in die Zwischenablage kopiert.",
+  "reportCopyFailed": "Der Bericht konnte nicht kopiert werden. Kopieren Sie ihn stattdessen aus der Vorschau.",
+  "reportSaved": "Der Bericht wurde gespeichert.",
+  "reportSaveFailed": "Der Bericht konnte nicht gespeichert werden.",
+  "reportBuildFailed": "Der Bericht konnte nicht erstellt werden.",
+  "reportUrlTooLong": "Der Bericht ist zu lang, um ihn in einer Browseradresse zu öffnen. Kopieren Sie ihn stattdessen und fügen Sie ihn in das neue Issue-Formular ein.",
+  "reportRecordingUnavailable": "Die Ereignisaufzeichnung war nicht verfügbar, daher enthält dieser Bericht keine letzten Ereignisse.",
+  "reportDescriptionWarning": "Prüfen Sie vor dem Teilen die bereinigte Vorschau. Ihre Beschreibung kann weiterhin vertrauliche Informationen offenlegen; geben Sie keine Passwörter oder Schlüssel an.",
+  "reportVscodeReporterNote": "Der VS-Code-Problemreporter fügt eigene Daten hinzu, sucht möglicherweise auf GitHub nach ähnlichen Issues und steuert Anmeldung und Übermittlung.",
+  "reportItemsLabel": "Was dieser Bericht enthält",
+  "reportRemoveItem": "{item} entfernen",
+  "reportFactsItem": "Supportdaten",
+  "reportEventItem": "{kind} · {age}",
+  "reportUpdating": "Vorschau wird aktualisiert…",
+  "reportStaleDraft": "Der Bericht hat sich beim Exportieren geändert. Die Vorschau unten ist aktuell — erneut exportieren.",
+  "reportIssueOpened": "Die Issue-Seite wurde im Browser geöffnet.",
+  "reportIssueOpenFailed": "Die Issue-Seite konnte nicht geöffnet werden. Kopieren Sie stattdessen den Bericht.",
+  "reportVscodeReporterOpened": "Der VS-Code-Problemreporter wurde geöffnet.",
+  "reportVscodeReporterFailed": "Der VS-Code-Problemreporter konnte nicht geöffnet werden.",
+  "usageAddedByHooks": "Durch Hooks hinzugefügt (Schätzung)",
+  "whatsNewStarGithub": "Gefällt Ihnen Muse Spark Code? Ein Stern auf GitHub hilft anderen, es zu entdecken.",
+  "reportUsage": "Verwendung:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Gibt den bereinigten Problembericht auf stdout aus oder schreibt ihn mit --out nach <file>.\n  Startet kein Backend, meldet sich nirgends an und öffnet keinen Browser.\nOptionen:\n  --out <file>         Den Bericht in eine Datei statt auf stdout schreiben\n  --description <text>  Was gerade geschah, in eigenen Worten\n  --no-facts           Die Support-Fakten weglassen\n  --no-events          Die letzten Ereignisse weglassen",
+  "acpUsageSetup": "  {command} --trust-workspace setup [--maintenance]  Die Setup-Hooks ausführen und beenden",
+  "paidHookModelName": "Modell-Hooks",
+  "paidHookModelTitle": "Diesen {event}-Hook das Modell fragen lassen?",
+  "paidHookModelDetail": "Ein {kind}-Hook fragt {model}, bevor er antwortet.\n\n{price}\n\nAbrechnung über Ihren Model-API-Schlüssel. Die tatsächlichen Kosten hängen von den verwendeten Token ab. „Einmal zulassen“ gilt nur für diese Ausführung des Hooks.",
+  "paidConfirmHookModel": "Hooks vom Typ prompt und agent fragen das Modell, bevor sie antworten; jede Ausführung wird über Ihren Model-API-Schlüssel abgerechnet. {price} Jede Ausführung erfordert in jedem Berechtigungsmodus eine Genehmigung, auch in Bypass, es sei denn, Sie lassen Modell-Hooks in diesem Arbeitsbereich immer zu. Die tatsächlichen Kosten hängen von den verwendeten Token ab. Sie können nur ablehnen, einschränken oder Kontext hinzufügen. Nur auf dem Model-API-Backend; auf Muse Code nutzen sie stattdessen einen Durchgang Ihres Abonnements.",
+  "usagePaidHookModelRuns": {
+    "one": "{count} Hook-Ausführung",
+    "other": "{count} Hook-Ausführungen"
+  },
+  "paidHookModelDailyBudget": "Gemeinsames Tagesbudget für kostenpflichtige Funktionen: {budget}.",
+  "hookModelPaidOff": "Modell-Hooks sind ausgeschaltet. Schalten Sie museSpark.modelApiHookModels ein, damit prompt- und agent-Hooks das Modell fragen können.",
+  "groupGit": "Git und Pull Requests",
+  "gitCommitItem": "Commit…",
+  "gitCommitItemDetail": "Die Änderungen in diesem Arbeitsbereich committen; eine Nachricht wird nur auf Ihre Anfrage verfasst",
+  "gitPushItem": "Pushen…",
+  "gitPushItemDetail": "Diesen Branch pushen; fragt immer nach, erzwingt nie",
+  "gitPullRequestItem": "Pull Request öffnen…",
+  "gitPullRequestItemDetail": "Auf GitHub, als Entwurf oder bereit, mit dieser Unterhaltung verknüpft",
+  "gitCheckoutItem": "Pull Request in einer Unterhaltung öffnen…",
+  "gitCheckoutItemDetail": "Einen Pull Request in eigenem Worktree und Fenster auschecken",
+  "gitRestricted": "Git und Pull Requests sind im eingeschränkten Modus nicht verfügbar: Git kann Programme ausführen, die die Konfiguration eines Repositorys angibt. Vertrauen Sie dem Arbeitsbereich, um sie zu verwenden.",
+  "gitHeld": "Git und Pull Requests warten, bis Sie diesem Worktree in der Karte oben vertrauen.",
+  "gitUnavailable": "Die Git-Integration von VS Code ist hier nicht verfügbar",
+  "gitExtensionMissing": "Die integrierte Git-Erweiterung von VS Code ist in diesem Fenster nicht verfügbar.",
+  "gitExtensionDisabled": "Die Git-Integration von VS Code ist ausgeschaltet (git.enabled).",
+  "gitNoRepository": "Dieser Arbeitsbereich liegt in keinem Git-Repository, das die Git-Integration von VS Code geöffnet hat.",
+  "gitNothingToCommit": "Es gibt nichts zu committen.",
+  "gitNothingStaged": "Nichts ist bereitgestellt. Aktivieren Sie „Nicht bereitgestellte Änderungen und neue Dateien einbeziehen“ oder stellen Sie zuerst Änderungen bereit.",
+  "gitCommitMessageEmpty": "Schreiben Sie zuerst eine Commit-Nachricht.",
+  "gitCredentialMasked": "Eine Zeichenfolge im Text, die wie Anmeldedaten aussieht, wurde maskiert. Prüfen Sie den Text und senden Sie ihn dann erneut.",
+  "gitCommitFailed": "Der Commit ist fehlgeschlagen",
+  "gitCommitted": "„{subject}“ auf {branch} committet",
+  "gitPushDetached": "HEAD ist losgelöst: Erstellen Sie zuerst einen Branch.",
+  "gitPushUnsafeName": "Der Name dieses Branches würde ändern, was Git pusht (er beginnt mit + oder - oder enthält einen Doppelpunkt oder ein Leerzeichen), daher wird er nicht gepusht.",
+  "gitPushBehind": "Dieser Branch liegt hinter seinem Upstream-Branch zurück. Führen Sie zuerst einen Pull aus: Muse Spark führt nie einen Force-Push aus.",
+  "gitPushUpToDate": "Der Branch ist auf dem Stand seines Upstream-Branches: Es gibt nichts zu pushen.",
+  "gitPushNoRemote": "Dieses Repository hat kein Remote-Repository, an das gepusht werden kann.",
+  "gitPushDeclined": "Es wurde nichts gepusht.",
+  "gitPushFailed": "Der Push ist fehlgeschlagen",
+  "gitPushed": "{branch} nach {remote} gepusht",
+  "gitPushConfirm": "{branch} nach {remote} pushen?",
+  "gitPushRemoteLine": "Remote-Repository: {remote} ({url})",
+  "gitPushNoUrl": "keine URL bekannt",
+  "gitPushBranchLine": "Branch: {branch} → {target}",
+  "gitPushFirstPush": "Ein erster Push: Der Branch wird dort erstellt und ab jetzt nachverfolgt.",
+  "gitPushCommits": {
+    "one": "{count} Commit wird gepusht.",
+    "other": "{count} Commits werden gepusht."
+  },
+  "gitPushNeverForce": "Nie ein Force-Push: Ein Branch, der abgewichen ist, wird abgelehnt.",
+  "gitPushAction": "Pushen",
+  "gitPickRemoteTitle": "Zu welchem Remote-Repository pushen?",
+  "gitPickRemotePlaceholder": "Dieser Branch hat noch keinen Upstream-Branch",
+  "gitHubOnly": "Pull Requests lassen sich nur auf github.com öffnen, und das Remote-Repository „{remote}“ liegt nicht dort.",
+  "gitHubSignInDeclined": "Die GitHub-Anmeldung wurde nicht erteilt, daher wurde nichts an GitHub gesendet.",
+  "gitHubFailed": "Die GitHub-Anfrage ist fehlgeschlagen",
+  "gitHubAnswered": "GitHub antwortete mit {status}",
+  "gitHubResponseInvalid": "GitHub hat eine Antwort in einem unerwarteten Format zurückgegeben.",
+  "gitHubCommitInvalid": "Keine Commit-ID: {sha}",
+  "gitDestinationBaseUnavailable": "Die Basisbranch des Zielrepositorys wurde nicht gefunden. Fügen Sie dessen Abruf-Remote hinzu und rufen Sie die Basisbranch ab. Versuchen Sie es dann erneut.",
+  "gitPullRequestExists": "Pull Request #{number} ist für diesen Branch bereits geöffnet; er ist jetzt mit dieser Unterhaltung verknüpft.",
+  "gitPullRequestOpened": "Pull Request #{number} geöffnet: {url}",
+  "gitDraftPullRequestOpened": "Pull Request #{number} als Entwurf geöffnet: {url}",
+  "gitTitleEmpty": "Geben Sie dem Pull Request einen Titel.",
+  "gitTextTooLong": "Der Titel oder die Beschreibung ist länger, als GitHub akzeptiert.",
+  "gitBaseInvalid": "Dieser Name des Basis-Branches würde für Git nicht nur diesen Branch bezeichnen.",
+  "gitBranchChanged": "Der Branch hat sich geändert, seit das Formular geöffnet wurde. Öffnen Sie das Formular erneut.",
+  "gitOpenPullRequestFirst": "Öffnen Sie zuerst das Pull-Request-Formular, damit der Entwurf seine Branches kennt.",
+  "gitDraftFailed": "Es kam kein Entwurf zurück; das Formular ist unverändert.",
+  "gitAskCommitMessage": "Schreiben Sie eine Commit-Nachricht für meine Änderungen.",
+  "gitAskPullRequest": "Schreiben Sie Titel und Beschreibung eines Pull Requests für diesen Branch.",
+  "gitCommitFormLabel": "Commit",
+  "gitCommitTitle": "Commit",
+  "gitOnBranch": "auf {branch}",
+  "gitChangeCounts": "{staged}, {unstaged}",
+  "gitStagedCount": {
+    "one": "{count} bereitgestellt",
+    "other": "{count} bereitgestellt"
+  },
+  "gitUnstagedCount": {
+    "one": "{count} nicht bereitgestellt",
+    "other": "{count} nicht bereitgestellt"
+  },
+  "gitFileStaged": "bereitgestellt",
+  "gitFileUnstaged": "nicht bereitgestellt",
+  "gitMoreFiles": {
+    "one": "und {count} weitere Datei",
+    "other": "und {count} weitere Dateien"
+  },
+  "gitMessageLabel": "Commit-Nachricht",
+  "gitIncludeUnstaged": "Nicht bereitgestellte Änderungen und neue Dateien einbeziehen",
+  "gitGenerate": "Mit Muse schreiben",
+  "gitGenerateTitle": "Fragt das Modell in dieser Unterhaltung, als Ihre eigene Nachricht",
+  "gitGenerating": "Wird geschrieben…",
+  "gitCommitAction": "Commit",
+  "gitCommitting": "Wird committet…",
+  "gitCancel": "Abbrechen",
+  "gitPullRequestFormLabel": "Pull Request",
+  "gitPrTitle": "Pull Request in {repository}",
+  "gitPrRemote": "Remote-Repository",
+  "gitPrHead": "Quell-Branch",
+  "gitPrBase": "Ziel-Branch",
+  "gitPrTitleLabel": "Titel",
+  "gitPrBodyLabel": "Beschreibung",
+  "gitPrDraft": "Als Entwurf öffnen",
+  "gitPrMasked": "Text, der wie Anmeldedaten aussieht, wird vor dem Senden maskiert.",
+  "gitPrCreate": "Pull Request erstellen",
+  "gitPrCreateDraft": "Pull Request als Entwurf erstellen",
+  "gitPrPushFirst": "Der Branch wird zuerst nach {remote} gepusht, als erster Push; Sie werden gefragt.",
+  "gitPrPushCommits": {
+    "one": "{count} Commit wird zuerst nach {remote} gepusht; Sie werden gefragt.",
+    "other": "{count} Commits werden zuerst nach {remote} gepusht; Sie werden gefragt."
+  },
+  "gitPrBehind": "Der Branch liegt hinter seinem Upstream-Branch zurück: Der Pull Request zeigt, was bereits gepusht ist.",
+  "gitPullRequestLabel": "Pull Request dieser Unterhaltung",
+  "gitPullRequestName": "#{number} {title}",
+  "gitStateOpen": "Offen",
+  "gitStateDraft": "Entwurf",
+  "gitStateMerged": "Zusammengeführt",
+  "gitStateClosed": "Geschlossen",
+  "gitChecksLine": "Prüfungen: {checks}",
+  "gitChecksNone": "keine gemeldet",
+  "gitChecksPassed": {
+    "one": "{count} bestanden",
+    "other": "{count} bestanden"
+  },
+  "gitChecksFailed": {
+    "one": "{count} fehlgeschlagen",
+    "other": "{count} fehlgeschlagen"
+  },
+  "gitChecksRunning": {
+    "one": "{count} läuft",
+    "other": "{count} laufen"
+  },
+  "gitChecksSkipped": {
+    "one": "{count} übersprungen",
+    "other": "{count} übersprungen"
+  },
+  "gitChecksCancelled": {
+    "one": "{count} abgebrochen",
+    "other": "{count} abgebrochen"
+  },
+  "gitChecksNotRead": {
+    "one": "{count} weitere nicht gelesen",
+    "other": "{count} weitere nicht gelesen"
+  },
+  "gitStatusNeedsSignIn": "Melden Sie sich bei GitHub an, um den Status zu sehen.",
+  "gitCheckedAt": "Stand: {time}",
+  "gitSignInGitHub": "Bei GitHub anmelden",
+  "gitRefresh": "Aktualisieren",
+  "gitOpenOnGitHub": "Auf GitHub öffnen",
+  "gitWorktreeBranch": "Worktree auf {branch}, aus {repository}",
+  "gitWorktreePullRequest": "Worktree von Pull Request #{number}, aus {repository}",
+  "worktreeHoldLabel": "Zurückgehaltener Pull-Request-Worktree",
+  "worktreeHoldTitle": "Code einer anderen Person: zurückgehalten, bis Sie ihm vertrauen",
+  "worktreeHoldPullRequest": "Pull Request #{number} von {author}: zurückgehalten, bis Sie ihm vertrauen",
+  "worktreeHoldDetail": "Diese Unterhaltung bleibt im Modus „Planen“, und die Projektregeln, Skills, Hooks und MCP-Server dieses Worktrees bleiben ausgeschaltet, bis Sie dem Worktree hier vertrauen. Das Vertrauen von VS Code selbst ändert daran nichts.",
+  "worktreeHoldRestricted": "VS Code hat diesen Ordner außerdem im eingeschränkten Modus geöffnet, der ebenfalls gilt.",
+  "worktreeHoldOtherExtensions": "Andere Erweiterungen folgen dem eigenen Arbeitsbereichsvertrauen von VS Code, das Muse Spark nicht herabsetzen kann.",
+  "worktreeTrustButton": "Diesem Worktree vertrauen…",
+  "worktreeTrustConfirm": "Dem Code in diesem Worktree vertrauen?",
+  "worktreeTrustPullRequest": "Pull Request #{number} von {author}.",
+  "worktreeTrustDetail": "Muse Spark lädt die Projektregeln, Skills, Hooks und MCP-Server dieses Worktrees, und die Unterhaltung kann den Modus „Planen“ verlassen. Sein Code kann dann über die Tools des Agenten ausgeführt werden, mit Nachfragen, wie es der Modus vorsieht.",
+  "worktreeTrustOtherExtensions": "Andere Erweiterungen folgen dem eigenen Arbeitsbereichsvertrauen von VS Code.",
+  "worktreeTrustAction": "Vertrauen",
+  "worktreeHeldPlanOnly": "Dieses Fenster zeigt den Pull Request einer anderen Person und wird zurückgehalten: Die Unterhaltung bleibt im Modus „Planen“, bis Sie dem Worktree in der Karte vertrauen.",
+  "worktreeHeldShell": "Zurückgehalten, bis Sie diesem Worktree in der Karte vertrauen: Vorher wird hier kein Befehl ausgeführt.",
+  "openPullRequestTitle": "Pull Request in einer Unterhaltung öffnen",
+  "openPullRequestPlaceholder": "Eine Nummer wie 51 oder die GitHub-Adresse des Pull Requests",
+  "openPullRequestInvalid": "Geben Sie eine Pull-Request-Nummer oder die github.com-Adresse ein.",
+  "openPullRequestNoRemote": "Es gibt kein GitHub-Remote-Repository, aus dem der Pull Request gelesen werden kann (upstream, das nachverfolgte, origin oder das einzige).",
+  "openPullRequestOtherRepository": "Kein Remote-Repository dieses Repositorys verweist auf {repository}.",
+  "openPullRequestConfirm": "Pull Request #{number} in einem neuen Fenster öffnen?",
+  "openPullRequestBy": "Von {author}",
+  "openPullRequestBranches": "Von {head} nach {base}",
+  "openPullRequestOwnDetail": "Ihr eigener Pull Request: an seinem Head-Commit in einem Worktree neben dem Repository ausgecheckt.",
+  "openPullRequestHeldDetail": "Eine andere Person hat ihn geschrieben: Er wird im eigenen Speicher von Muse Spark ausgecheckt, und das neue Fenster hält die Unterhaltung im Modus „Planen“, mit ausgeschalteten Projektregeln, Skills, Hooks und MCP-Servern dieses Worktrees, bis Sie ihm dort vertrauen.",
+  "openPullRequestUnfilteredDetail": "Git checkt ihn nicht aus: Seine Dateien werden genau so geschrieben, wie der Commit sie speichert, daher laufen kein Git-Filter, kein Hook und keine Umwandlung. LFS-Dateien bleiben Zeiger und Zeilenenden bleiben wie committet; Links werden zu Dateien mit ihrem Ziel, Submodule zu leeren Ordnern. Wenn Sie dem Worktree vertrauen, werden sie nicht neu geschrieben.",
+  "openPullRequestFiltersUnavailable": "Mit dieser Git-Version oder Konfiguration kann ein Pull Request nicht sicher ohne Repository-Programme ausgecheckt werden. Git 2.36 oder neuer ist erforderlich. Es wurde nichts ausgecheckt.",
+  "openPullRequestUnsafePath": "Der Pull Request enthält einen Pfad, den ein gehaltener Checkout nicht schreibt: {path}. Es wurde nichts ausgecheckt.",
+  "openPullRequestPathCollision": "{first} und {second} wären hier dieselbe Datei oder derselbe Ordner. Es wurde nichts ausgecheckt.",
+  "openPullRequestTooLarge": "Der Pull Request ist größer, als ein gehaltener Checkout schreibt (höchstens {files} Dateien und Ordner, insgesamt {size}). Es wurde nichts ausgecheckt.",
+  "openPullRequestUnreadable": "Git hat die Dateien des Pull Requests nicht so zurückgegeben, wie sein Baum sie auflistet.",
+  "openPullRequestAction": "Öffnen",
+  "openPullRequestExisting": "Pull Request #{number} ist bereits ausgecheckt. Beim Commit öffnen, an dem er ausgecheckt wurde?",
+  "openPullRequestFetchFailed": "Der Pull Request konnte nicht abgerufen werden",
+  "openPullRequestOpened": "Pull Request #{number} wurde in einem neuen Fenster geöffnet.",
+  "openPullRequestOpenedHeld": "Pull Request #{number} wurde in einem neuen Fenster geöffnet und wird zurückgehalten, bis Sie ihm dort vertrauen.",
+  "gitCommitConfirm": "Diese Änderungen committen?",
+  "gitOperationChanged": "Repository, Unterhaltung oder Vertrauensstatus haben sich geändert. Öffne das Formular erneut.",
+  "gitCommandConsequences": "Git kann Repository-Hooks, Signierprogramme oder Anmeldehelfer ausführen. Abbrechen stoppt spätere Schritte; ein bereits gestarteter Git- oder GitHub-Aufruf kann noch abgeschlossen werden.",
+  "agentImportSourceGemini": "Gemini CLI",
+  "agentImportSourceCopilot": "Copilot und VS Code",
+  "agentImportSourceWindsurf": "Windsurf",
+  "agentImportSourceKiro": "Kiro",
+  "agentImportSourceCline": "Cline",
+  "agentImportSourceAmp": "Amp",
+  "agentImportSourceOpenCode": "OpenCode",
+  "agentImportSourceEvery": "Alle",
+  "agentImportDetailEvery": "MCP-Server, Hooks, Agents, Befehle und Regeln aus Claude Code, Codex oder Cursor sowie Hooks und Plug-ins aus Gemini CLI, Copilot, Windsurf, Kiro, Cline, Amp und OpenCode übernehmen",
+  "agentImportKindPlugin": "Plug-in",
+  "agentImportSkippedWeaker": "könnte hier nicht so blockieren wie am Herkunftsort, der Schutz wäre also schwächer",
+  "agentImportSkippedChooses": "wählt einen Pfad, ein Modell oder ein Tool aus, was hier kein Hook darf",
+  "agentImportSkippedField": "setzt {field}, wofür es hier keine Entsprechung gibt",
+  "agentImportSkippedNotify": "das notify-Programm von Codex ist kein Hook, daher wird es aufgeführt, aber nicht konvertiert",
+  "agentImportSkippedNeedsMatcher": "FileChanged benötigt einen Matcher, der die zu überwachenden Dateien nennt",
+  "agentImportSkippedUnknownFormat": "seine Datei hat ein Format, das diese Version nicht liest",
+  "agentImportKeptWaiting": "behalten; wartet auf Inline-Vervollständigungen, die diese Erweiterung noch nicht hat",
+  "agentImportKiroTaskNote": "Kiro-Spec-Task-Trigger werden hier auf Todo-Einträgen ausgeführt",
+  "paidTabName": "Tab-Vervollständigungen",
+  "paidConfirmTab": "Tab-Vervollständigungen senden den Code um Ihren Cursor an Meta, während Sie tippen; abgerechnet über Ihren Model-API-Schlüssel. {price} Bei typischem Tippen sind das etwa 0,80 $ pro Stunde auf Standard und etwa 0,05 $ auf dem Contributor-Modell, begrenzt durch ein Tagesbudget, das Sie in den Einstellungen ändern können. Das Contributor-Modell ist günstiger, und Meta trainiert mit dem Code, der an es gesendet wird. Copilot, falls aktiviert, wird Vorrang eingeräumt: Automatische Tab-Vorschläge pausieren für seine Sprachen, es sei denn, Sie führen beides aus. Tab fragt vor seinem ersten Vorschlag einmal pro Fenster.",
+  "paidUseTabTitle": "Tab in diesem Fenster vorschlagen lassen?",
+  "paidUseTabDetail": "Tab sendet den Code um Ihren Cursor an Metas {model}-Modell; abgerechnet über Ihren Model-API-Schlüssel zum Preis von {price}. Das heutige Budget beträgt {budget}; ist es erreicht, pausiert Tab für den Rest des Tages. {training} „Einmal zulassen“ gilt für dieses Fenster, bis es geschlossen wird; „In diesem Arbeitsbereich immer zulassen“ fragt hier nie wieder; „Verweigern“ stellt Tab in diesem Fenster zurück.",
+  "tabTrainingContributor": "Das Contributor-Modell ist günstiger, und Meta trainiert mit dem Code, der an es gesendet wird.",
+  "tabStatusSpend": "Tab: {spend}",
+  "tabStatusTooltip": "Tab-Vervollständigungen ({model}). {requests} heute, {spend} vom {budget}-Tagesbudget.",
+  "tabStatusSnoozed": "Tab zurückgestellt ({left} übrig)",
+  "tabStatusBudget": "Tab-Tagesbudget erreicht",
+  "tabStatusNoKey": "Tab: kein Schlüssel",
+  "tabStatusUntrusted": "Tab aus: Arbeitsbereich nicht vertrauenswürdig",
+  "tabStatusLanguageOff": "Tab aus für {language}",
+  "tabStatusCopilot": "Tab: nur auf Aufruf, solange Copilot aktiv ist",
+  "tabStatusError": "Tab fehlgeschlagen ({kind})",
+  "tabMenuTurnOff": "Tab ausschalten",
+  "tabMenuSnoozeShort": "15 Minuten zurückstellen",
+  "tabMenuSnoozeLong": "Eine Stunde zurückstellen",
+  "tabMenuSnoozeRestart": "Bis zum Neustart zurückstellen",
+  "tabMenuLanguages": "Tab-Sprachen…",
+  "tabMenuMultiline": "Mehrzeilenmodus…",
+  "tabMenuUsage": "Konto und Nutzung",
+  "tabMenuCopilotOff": "Copilot-Vorschläge für {language} ausschalten",
+  "tabMenuRunBoth": "Beide ausführen",
+  "tabCopilotConfirmTitle": "Copilot-Vorschläge für {language} ausschalten?",
+  "tabCopilotConfirmDetail": "Tab wartet nicht mehr auf einen Aufruf in {language} und sendet eigene automatische Vorschläge, abgerechnet über Ihren Model-API-Schlüssel. Sie können die Vorschläge von Copilot jederzeit in den Einstellungen wieder einschalten.",
+  "usagePaidTabRequests": {
+    "one": "{count} Tab-Anfrage",
+    "other": "{count} Tab-Anfragen"
+  },
+  "usagePaidTabTokens": "{tokens} Token ({cached} zwischengespeichert)",
+  "usagePaidTabReported": "Gemeldete Tokenschätzung: {cost}",
+  "usagePaidTabCostToday": "Heute: {cost}",
+  "usagePaidTabCostWindow": "Dieses Fenster: {cost}",
+  "usagePaidTabBudget": "Tagesbudget: {budget}",
+  "tabMultilineAuto": "Automatisch",
+  "tabMultilineOnInvoke": "Nur bei Aufruf",
+  "tabMultilineNever": "Nur Kontext für eine Zeile",
+  "paidJudgeName": "Beurteiler",
+  "paidConfirmJudge": "Ihr eigenes Chatmodell beurteilt jede riskante Auto-Aktion, die keine Regel klärt, und kann nur zur Vorsicht raten: eine bereite Warnung macht aus einer Freigabe eine Nachfrage oder einen Hinweis auf der Genehmigungskarte. Jede Beurteilung wird Ihrem Model-API-Schlüssel zu den Tokenpreisen des Unterhaltungsmodells berechnet:\n{price}\nDer Beurteiler fragt einmal vor der ersten Berechnung nach und zeigt diese Preise und das gemeinsame Tagesbudget: {budget}. Beim Wechsel von einer kostenlosen zu einer kostenpflichtigen Quelle wird erneut gefragt. Auf Muse Code laufen dieselben Aufrufe stattdessen über Ihr Abonnement.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} Beurteilung",
+    "other": "{count} Beurteilungen"
+  },
+  "judgeCaution": "Muse Judge empfiehlt Vorsicht. Sie entscheiden; er kann diese Aktion nicht genehmigen.",
+  "judgeSubscriptionNotice": "Muse Judge verwendet Ihr Chatmodell über Ihr Muse-Abonnement und zählt gegen dessen Limits. Jeder Stapel nutzt eine neue isolierte Sitzung im Planmodus. Eine Schutzfunktion bricht die Sitzung bei einem Werkzeugelement ab, kann aber nicht beweisen, dass kein Werkzeug ausgeführt wurde. Er kann nur zur Vorsicht raten.",
+  "judgeStatusSame": "Gleiches Modell",
+  "judgeStatusOff": "Aus",
+  "judgeStatusUnavailable": "Aus: Quelle nicht verfügbar oder dauerhafte Erlaubnisregeln",
+  "judgeStatusConsent": "Warten auf Zustimmung vor der ersten Zahlung",
+  "judgeStatusDeclined": "Aus: kostenpflichtige Nutzung abgelehnt",
+  "judgeStatusSlow": "Standardmäßig aus: zu wenige Ergebnisse beim Urteil des Prüfers bereit",
+  "judgeStatusSubscription": "Abonnement",
+  "judgeStatusPaid": "Kostenpflichtig"
 }

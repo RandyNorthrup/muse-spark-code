@@ -1,6 +1,7 @@
 import { build } from 'esbuild'
 import { expect, it } from 'vitest'
-import { deferredCohort, deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
+import { deferredCohort, sharedWire } from '../../scripts/lib/deferredBundles.mjs'
+import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
 
 it('ordinary activation, backend and ACP graphs have no team runtime modules', async () => {
   const result = await build({
@@ -11,7 +12,7 @@ it('ordinary activation, backend and ACP graphs have no team runtime modules', a
     write: false,
     metafile: true,
     external: ['vscode', '@napi-rs/keyring'],
-    plugins: [deferredCohort, deferredTeamView],
+    plugins: [deferredCohort, sharedWire, deferredTeamView],
     logLevel: 'silent',
   })
   expect(

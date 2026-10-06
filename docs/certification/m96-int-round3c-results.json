@@ -1,0 +1,194 @@
+{
+  "status": "preflight green; full quality pending",
+  "rig": "macmini",
+  "base": "30105e49",
+  "wMerge": "9dcd95cc",
+  "dietMergeParent": "be00b172",
+  "D78": {
+    "failedBefore": 64,
+    "failedAfter": 0,
+    "decision": "D78 conditional recall, all 64 pre-D78 fixtures updated; exact raw request matcher unchanged",
+    "table": "m96-int-round3c-d78.json"
+  },
+  "checks": [
+    {
+      "name": "mcp",
+      "passed": 76,
+      "failed": 0,
+      "files": [
+        "test/unit/mcpPool.test.ts",
+        "test/unit/teamMcpBridge.test.ts",
+        "test/unit/teamMcpServer.test.ts"
+      ]
+    },
+    {
+      "name": "paid",
+      "passed": 45,
+      "failed": 0,
+      "files": [
+        "test/unit/paidConsent.test.ts",
+        "test/unit/paidHookModels.test.ts",
+        "test/unit/teamWorkersPaid.test.ts"
+      ]
+    },
+    {
+      "name": "package-team",
+      "passed": 51,
+      "failed": 0,
+      "files": [
+        "test/unit/teamActivationGraph.test.ts",
+        "test/unit/teamConstants.test.ts",
+        "test/unit/teamRuntimePackage.test.mjs"
+      ]
+    },
+    {
+      "name": "transcript",
+      "passed": 92,
+      "failed": 0,
+      "files": [
+        "test/unit/TeamCards.test.tsx",
+        "test/unit/Transcript.test.tsx",
+        "test/unit/reportProblemRows.test.tsx"
+      ]
+    },
+    {
+      "name": "browser",
+      "passed": 22,
+      "failed": 0,
+      "files": ["test/unit/teamHarness.test.mjs"]
+    },
+    {
+      "name": "package-units-green",
+      "passed": 59,
+      "failed": 0,
+      "files": [
+        "test/unit/compressedEnglish.test.mjs",
+        "test/unit/uiTextRegions.test.mjs",
+        "test/unit/vsixPackaging.test.mjs"
+      ]
+    },
+    {
+      "name": "d78-ui-startup-green",
+      "passed": 116,
+      "failed": 0,
+      "files": [
+        "test/unit/UsageDialog.test.tsx",
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/teamStartup.test.mjs"
+      ]
+    },
+    {
+      "name": "paid-merge-fix",
+      "passed": 50,
+      "failed": 0,
+      "files": [
+        "test/unit/paidFeatures.test.ts",
+        "test/unit/paidHookModels.test.ts",
+        "test/unit/judgeConsent.test.ts"
+      ]
+    }
+  ],
+  "drills": [
+    {
+      "source": "src/core/backends/modelapi/modelApiHost.ts",
+      "beforeSha256": "b45c69fcdad4c74eee07ef3bcc14d5563c21adf1b40099264966553f2f03af9b",
+      "restoredSha256": "b45c69fcdad4c74eee07ef3bcc14d5563c21adf1b40099264966553f2f03af9b",
+      "redFailed": 64,
+      "greenPassed": 69,
+      "redExit": 1,
+      "greenExit": 0
+    },
+    {
+      "file": "dist/meta/webview.json",
+      "beforeSha256": "a2f416f4f0166a51ad54bd025c277d509560f2771a9b08d7610996976f20a0f2",
+      "restoredSha256": "a2f416f4f0166a51ad54bd025c277d509560f2771a9b08d7610996976f20a0f2",
+      "redExit": 1,
+      "greenExit": 0,
+      "reason": "TeamTree omitted from separately budgeted closure"
+    },
+    {
+      "source": "dist/webview/chunks/TeamUi-XFPOB7VO.js",
+      "sha256": "a80278d8e955c75987bd263432dd9e5268d40dbadc87682b60c3c60dffe8677a",
+      "red": "teamHarness 23 size drill pads chunk by 900 KiB; gate exits 1 and names team UI",
+      "green": "same test checks exact SHA restoration, then gate exits 0"
+    }
+  ],
+  "windowsDependency": "REDWINI96 host proof, merged in round 3d; not certified on macmini",
+  "browserBytes": {
+    "startup": 875810,
+    "startupCap": 921600,
+    "teamUi": 16088,
+    "teamUiCap": 25600,
+    "ordinaryDeferred": 51098,
+    "ordinaryDeferredCap": 51200
+  },
+  "gates": {
+    "typecheckFiveProjects": 0,
+    "l10n": 0,
+    "hostApi": 0,
+    "bundleSplit": 0,
+    "notices": 0,
+    "lintOriginal": 1,
+    "lintRepairedPaths": 0,
+    "deadcode": 0,
+    "cycles": 0,
+    "duplication": 0,
+    "productionBuild": 0,
+    "bundleSize": 0,
+    "hostGlobals": 0
+  },
+  "packages": {
+    "helperless": {
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-packages-yb7snqm7/helperless-muse-spark-code-0.14.0.vsix",
+      "bytes": 2121414,
+      "sha256": "f0dcd7e7e789eba4006218d14cb5e2c0082bb90542d705471106011d89fd7db8",
+      "requiredFiles": {
+        "dist/team.js": true,
+        "dist/teamScheduler.js": true,
+        "dist/teamRunners.js": true,
+        "dist/runtime.bundles.json.br": true,
+        "native/runner/runner-helper.sh": true,
+        "native/runner/runner-helper.ps1": true
+      },
+      "macHelperPresent": false,
+      "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-XFPOB7VO.js"]
+    },
+    "universal": {
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-packages-yb7snqm7/universal-muse-spark-code-0.14.0.vsix",
+      "bytes": 2204233,
+      "sha256": "7315f8c0ea2562c8bdba1c02c860489ae477f1731394c79d822dd127619c1b61",
+      "requiredFiles": {
+        "dist/team.js": true,
+        "dist/teamScheduler.js": true,
+        "dist/teamRunners.js": true,
+        "dist/runtime.bundles.json.br": true,
+        "native/runner/runner-helper.sh": true,
+        "native/runner/runner-helper.ps1": true
+      },
+      "macHelperPresent": true,
+      "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-XFPOB7VO.js"]
+    },
+    "acp": {
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-packages-yb7snqm7/acp-muse-spark-code-acp-0.14.0.tgz",
+      "bytes": 1088885,
+      "sha256": "b0d44c8bf5310208455f08ceed90bde8c840b06e22354831aeadd4692867b9d8"
+    }
+  },
+  "nativeHelper": {
+    "provenance": "built locally from integrated Dictation.swift and package version 0.14.0",
+    "architectures": ["x86_64", "arm64"],
+    "bytes": 290816,
+    "sha256": "74193576f7c3a8291d5fae7debfebbb9d44ab4e40b0a765470fd35bca9e74bf0",
+    "disclaimCheck": "pending disclaimed request, SIGTERM ends parent and child, exit 143"
+  },
+  "packagedLoaderProof": {
+    "vsix": {
+      "passed": 37,
+      "failed": 0
+    },
+    "acp": {
+      "passed": 18,
+      "failed": 0
+    }
+  }
+}

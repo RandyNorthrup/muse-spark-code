@@ -22,6 +22,7 @@ import { withDeadline } from '../../../timeouts'
 import type { McpSettingsEntries } from '../../musecode/museConfigView'
 import type { FunctionToolDefinition } from '../schemas'
 import { McpConnection, McpTimeoutError, type McpTransport } from './connection'
+import type { ElicitationOutcome } from './elicitation'
 import {
   type McpCallOutcome,
   mcpCallOutcome,
@@ -90,6 +91,18 @@ export interface BridgeOfferedTool {
   readonly isReadOnly: boolean
 }
 
+/** A server's `elicitation/create`, answered with the form (M91, form mode only). */
+export interface McpElicitationRequest {
+  /** The server that asked, as the settings name it. */
+  readonly server: string
+  /** The request's params, parsed at the connection's boundary. */
+  readonly params: unknown
+  /** Ends when the connection closes or the waiting tool call stops. */
+  readonly signal: AbortSignal
+}
+
+export type McpElicitationHandler = (request: McpElicitationRequest) => Promise<ElicitationOutcome>
+
 /** What a Model API session needs of the MCP servers. */
 export interface McpToolSource {
   /** Starts them, once (again after the workspace was trusted); resolves when each has settled. */
@@ -98,9 +111,24 @@ export interface McpToolSource {
   /** The functions offered now: the connected servers' tools. */
   definitions(): readonly FunctionToolDefinition[]
   find(functionName: string): McpToolRef | undefined
-  /** Calls the tool; rejects on a Stop, a deadline, a JSON-RPC error or a lost server. */
-  call(functionName: string, argsJson: string, signal: AbortSignal): Promise<McpCallOutcome>
+  /**
+   * Calls the tool; rejects on a Stop, a deadline, a JSON-RPC error or a
+   * lost server. `onElicitation` answers that call's `elicitation/create`
+   * with its session; without it the pool's default handler answers.
+   */
+  call(
+    functionName: string,
+    argsJson: string,
+    signal: AbortSignal,
+    onElicitation?: McpElicitationHandler,
+  ): Promise<McpCallOutcome>
   close(): Promise<void>
+  /**
+   * Answers `elicitation/create` for servers connected afterwards (M91):
+   * the capability is declared at each connection's init, so it stays
+   * stable within the session. Absent, the client offers nothing.
+   */
+  setElicitationHandler?(handler: McpElicitationHandler | undefined): void
 }
 
 export interface McpPoolDeps {
@@ -166,6 +194,13 @@ export class McpServerPool implements McpToolSource {
   private starting: Promise<void> | undefined
   private isStartedTrusted = false
   private isClosed = false
+  private elicitationHandler: McpElicitationHandler | undefined
+  /**
+   * Sessions waiting on each server. The negotiated request names no tool
+   * call, so ambiguous overlapping routes are cancelled rather than sent
+   * to a different session.
+   */
+  private readonly elicitationRoutes = new Map<string, McpElicitationHandler[]>()
   /** A server that exited by itself can still have a Windows child to reap. */
   private readonly closing = new Set<Promise<void>>()
   private readonly byFunction = new Map<
@@ -283,6 +318,11 @@ export class McpServerPool implements McpToolSource {
       name: spec.name,
       clientVersion: this.deps.clientVersion,
       log: this.deps.log,
+      // Declared at init while the default handler stands, so the tool
+      // list stays stable within the session (M91 lane M).
+      ...(this.elicitationHandler !== undefined && {
+        elicitation: (request) => this.answerElicitation(spec.name, request),
+      }),
     })
     server.connection = connection
     connection.onClose((reason) => {
@@ -412,6 +452,27 @@ export class McpServerPool implements McpToolSource {
     return Object.fromEntries(Object.entries(args))
   }
 
+  /** Answers one server's `elicitation/create` only when the call belongs to one session. */
+  private async answerElicitation(
+    server: string,
+    request: { readonly params: unknown; readonly signal: AbortSignal },
+  ): Promise<ElicitationOutcome> {
+    const routes = this.elicitationRoutes.get(server)
+    if (routes !== undefined && routes.length > 1) {
+      this.deps.log.warn(`MCP server ${server} elicitation cancelled: overlapping tool calls`)
+      return { action: 'cancel' }
+    }
+    const route = routes?.at(-1) ?? this.elicitationHandler
+    if (route === undefined) {
+      throw new McpError('elicitation/create is not offered by this client')
+    }
+    return await route({ server, params: request.params, signal: request.signal })
+  }
+
+  public setElicitationHandler(handler: McpElicitationHandler | undefined): void {
+    this.elicitationHandler = handler
+  }
+
   public start(): Promise<void> {
     if (this.isClosed) {
       return Promise.resolve()
@@ -458,8 +519,9 @@ export class McpServerPool implements McpToolSource {
     functionName: string,
     argsJson: string,
     signal: AbortSignal,
+    onElicitation?: McpElicitationHandler,
   ): Promise<McpCallOutcome> {
-    return mcpCallOutcome(await this.callRaw(functionName, argsJson, signal))
+    return mcpCallOutcome(await this.callRaw(functionName, argsJson, signal, onElicitation))
   }
 
   /**
@@ -471,16 +533,40 @@ export class McpServerPool implements McpToolSource {
     functionName: string,
     argsJson: string,
     signal: AbortSignal,
+    onElicitation?: McpElicitationHandler,
   ): Promise<CallToolResult> {
     const found = this.byFunction.get(functionName)
     const connection = found?.server.connection
     if (found === undefined || connection === undefined) {
       throw new McpError(`${functionName} ${MODEL_API_MODEL_TEXT.mcpToolUnavailable}`)
     }
-    return await connection.callTool(found.offered.tool.name, this.parseCallArgs(argsJson), {
-      timeoutMs: found.server.spec.toolTimeoutMs,
-      signal,
-    })
+    const args = this.parseCallArgs(argsJson)
+    if (onElicitation !== undefined) {
+      const routes = this.elicitationRoutes.get(found.server.spec.name) ?? []
+      routes.push(onElicitation)
+      this.elicitationRoutes.set(found.server.spec.name, routes)
+    }
+    try {
+      const result = await connection.callTool(
+        found.offered.tool.name,
+        Object.fromEntries(Object.entries(args)),
+        { timeoutMs: found.server.spec.toolTimeoutMs, signal },
+      )
+      return result
+    } finally {
+      if (onElicitation !== undefined) {
+        const routes = this.elicitationRoutes.get(found.server.spec.name)
+        if (routes !== undefined) {
+          const index = routes.lastIndexOf(onElicitation)
+          if (index !== -1) {
+            routes.splice(index, 1)
+          }
+          if (routes.length === 0) {
+            this.elicitationRoutes.delete(found.server.spec.name)
+          }
+        }
+      }
+    }
   }
 
   /**

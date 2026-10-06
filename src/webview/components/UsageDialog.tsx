@@ -8,12 +8,13 @@
 // usage row, `/usage` and `/cost`; centred over the transcript with the
 // chat dimmed behind it.
 
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
 import {
   META_DASHBOARD_URL,
   MILLISECONDS_PER_SECOND,
   MODEL_API_PRICES_VERIFIED_ON,
   PAID_PRICES_VERIFIED_ON,
+  TAB_DAILY_BUDGET_DEFAULT_USD,
   type PaidFeature,
   UI_TEXT,
   USAGE_COUNTDOWN_REFRESH_MS,
@@ -41,12 +42,17 @@ import {
   type UsageInsights,
 } from '../../shared/usage'
 import { estimateCostUsd, formatUsd, percentOf } from '../../core/usage/insights'
-import type { TeamUsageFigures, TeamUsageSummary } from '../../shared/teamView'
+import type { TeamUsageSummary } from '../../shared/teamView'
 import type { ContextSummary, UsageReport, UsageSummary } from '../state/uiState'
 import type { UiState } from '../state/uiState'
 import type { SignInMethod } from '../../shared/protocol'
 import { formatDurationMs } from '../agentFormat'
 import { Modal } from './Modal'
+
+const TeamSection = lazy(async () => {
+  const module = await import('./TeamUi')
+  return { default: module.TeamSection }
+})
 
 export interface UsageDialogProps {
   /** undefined while the host has not answered `readUsage`. */
@@ -204,53 +210,51 @@ function TokensSection({
     usage !== undefined && costUsd !== undefined && modelId !== undefined
       ? cacheSavings(usage, costUsd, modelId)
       : undefined
+  const rows: readonly (readonly [string, string | undefined])[] = [
+    [UI_TEXT.usageInput, usage === undefined ? undefined : formatTokenWindow(usage.inputTokens)],
+    [UI_TEXT.usageOutput, usage === undefined ? undefined : formatTokenWindow(usage.outputTokens)],
+    [
+      UI_TEXT.usageCached,
+      usage?.cachedTokens === undefined ? undefined : formatTokenWindow(usage.cachedTokens),
+    ],
+    [
+      UI_TEXT.usageCacheHits,
+      usage?.cachedTokens === undefined
+        ? undefined
+        : formatPercent(percentOf(usage.cachedTokens, usage.inputTokens)),
+    ],
+    [UI_TEXT.usageContext, contextValue],
+    [
+      UI_TEXT.usagePackedAvoided,
+      usage?.packedTokensAvoided === undefined
+        ? undefined
+        : formatTokenWindow(usage.packedTokensAvoided),
+    ],
+    [
+      UI_TEXT.usageAddedByHooks,
+      usage?.hookTokensAdded === undefined ? undefined : formatTokenWindow(usage.hookTokensAdded),
+    ],
+    [UI_TEXT.usageCost, costUsd === undefined ? undefined : formatUsd(costUsd)],
+    [
+      UI_TEXT.usageCacheSavings,
+      savings === undefined
+        ? undefined
+        : fill(UI_TEXT.usageCacheSavingsValue, {
+            amount: formatUsd(savings.amount),
+            percent: formatPercent(savings.percent),
+          }),
+    ],
+  ]
   return (
     <>
       <dl className="usage-facts">
-        {usage !== undefined && (
-          <>
-            <dt>{UI_TEXT.usageInput}</dt>
-            <dd>{formatTokenWindow(usage.inputTokens)}</dd>
-            <dt>{UI_TEXT.usageOutput}</dt>
-            <dd>{formatTokenWindow(usage.outputTokens)}</dd>
-            {usage.cachedTokens === undefined ? null : (
-              <>
-                <dt>{UI_TEXT.usageCached}</dt>
-                <dd>{formatTokenWindow(usage.cachedTokens)}</dd>
-                <dt>{UI_TEXT.usageCacheHits}</dt>
-                <dd>{formatPercent(percentOf(usage.cachedTokens, usage.inputTokens))}</dd>
-              </>
-            )}
-          </>
-        )}
-        {contextValue !== undefined && (
-          <>
-            <dt>{UI_TEXT.usageContext}</dt>
-            <dd>{contextValue}</dd>
-          </>
-        )}
-        {usage?.packedTokensAvoided === undefined ? null : (
-          <>
-            <dt>{UI_TEXT.usagePackedAvoided}</dt>
-            <dd>{formatTokenWindow(usage.packedTokensAvoided)}</dd>
-          </>
-        )}
-        {costUsd !== undefined && (
-          <>
-            <dt>{UI_TEXT.usageCost}</dt>
-            <dd>{formatUsd(costUsd)}</dd>
-          </>
-        )}
-        {savings !== undefined && (
-          <>
-            <dt>{UI_TEXT.usageCacheSavings}</dt>
-            <dd>
-              {fill(UI_TEXT.usageCacheSavingsValue, {
-                amount: formatUsd(savings.amount),
-                percent: formatPercent(savings.percent),
-              })}
-            </dd>
-          </>
+        {rows.map(([label, value]) =>
+          value === undefined ? null : (
+            <Fragment key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </Fragment>
+          ),
         )}
       </dl>
       {costUsd === undefined ? null : (
@@ -264,35 +268,25 @@ function TokensSection({
 
 /** What this window used of one paid feature: "3 searches", "2 images", "1m 30s of audio". */
 function paidUseText(feature: PaidFeature, tally: PaidTally): string {
-  switch (feature) {
-    case 'webSearch': {
-      return plural(UI_TEXT.usagePaidSearches, tally.webSearches)
-    }
-    case 'imageGeneration': {
-      return plural(UI_TEXT.usagePaidImages, tally.images)
-    }
-    case 'voice': {
-      return fill(UI_TEXT.usagePaidAudio, {
-        duration: formatDurationMs(tally.voiceSeconds * MILLISECONDS_PER_SECOND),
-      })
-    }
-    case 'scheduledPrompts': {
-      return plural(UI_TEXT.usagePaidScheduled, tally.scheduledRuns)
-    }
-    case 'subagents': {
-      return plural(UI_TEXT.usagePaidSubagentRequests, tally.subagentRequests ?? 0)
-    }
-    case 'autoReviewer': {
-      return plural(UI_TEXT.usagePaidAutoReviews, tally.autoReviews ?? 0)
-    }
-    case 'bestOfN': {
-      return plural(UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts ?? 0)
-    }
-    // M96 lane A: the count row until lane U2 builds the Team section.
-    case 'teamWorkers': {
-      return plural(UI_TEXT.usagePaidTeamTasks, tally.teamWorkerRequests ?? 0)
-    }
+  if (feature === 'voice') {
+    return fill(UI_TEXT.usagePaidAudio, {
+      duration: formatDurationMs(tally.voiceSeconds * MILLISECONDS_PER_SECOND),
+    })
   }
+  const rows = {
+    webSearch: [UI_TEXT.usagePaidSearches, tally.webSearches],
+    imageGeneration: [UI_TEXT.usagePaidImages, tally.images],
+    scheduledPrompts: [UI_TEXT.usagePaidScheduled, tally.scheduledRuns],
+    subagents: [UI_TEXT.usagePaidSubagentRequests, tally.subagentRequests ?? 0],
+    autoReviewer: [UI_TEXT.usagePaidAutoReviews, tally.autoReviews ?? 0],
+    bestOfN: [UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts ?? 0],
+    teamWorkers: [UI_TEXT.usagePaidTeamTasks, tally.teamWorkerRequests ?? 0],
+    tab: [UI_TEXT.usagePaidTabRequests, tally.tabRequests ?? 0],
+    hookModels: [UI_TEXT.usagePaidHookModelRuns, tally.hookModelRuns ?? 0],
+    judge: [UI_TEXT.usagePaidJudgeCalls, tally.judgeCalls ?? 0],
+  } as const
+  const [forms, count] = rows[feature]
+  return plural(forms, count)
 }
 
 /**
@@ -351,6 +345,8 @@ function paidRowState(feature: PaidFeature, paid: PaidState): string {
 }
 
 function paidTokenTally(feature: PaidFeature, paid: PaidState) {
+  if (feature === 'judge')
+    return [paid.tally.judgeCalls, paid.tally.judgeUnknownRequests, paid.tally.judgeTokens]
   if (feature === 'autoReviewer') {
     return [
       paid.tally.autoReviews,
@@ -361,6 +357,13 @@ function paidTokenTally(feature: PaidFeature, paid: PaidState) {
   if (feature === 'bestOfN') {
     return [paid.tally.bestOfNRequests, paid.tally.bestOfNUnknownRequests, paid.tally.bestOfNTokens]
   }
+  if (feature === 'hookModels') {
+    return [
+      paid.tally.hookModelRuns,
+      paid.tally.hookModelUnknownRequests,
+      paid.tally.hookModelTokens,
+    ]
+  }
   return [
     paid.tally.subagentRequests,
     paid.tally.subagentUnknownRequests,
@@ -368,12 +371,67 @@ function paidTokenTally(feature: PaidFeature, paid: PaidState) {
   ]
 }
 
+/**
+ * The Tab row (M94 lane U, PLAN.md D73 acceptance 16): today's spend against
+ * the daily budget, the request count, and the on/off state. "Today" is the
+ * ledger's total for the local day across every window, shown once Tab has
+ * run in this window (the ledger is read by dist/tab.js); "This window" is
+ * this window's reported cost; the budget is the configured one (RVM94HU
+ * 23–24). While Tab is off and has never run here, the row says off with the
+ * budget instead of zeros that read as use. The facts wrap, as the other
+ * token rows do (RVM94HU 25).
+ */
+function TabRow({ paid }: { readonly paid: PaidState }) {
+  const state = paidRowState('tab', paid)
+  const requests = paid.tally.tabRequests ?? 0
+  const unknown = paid.tally.tabUnknownRequests ?? 0
+  const hasRun = requests > 0 || paid.features.includes('tab')
+  const cost = formatUsd(paidCostUsd('tab', paid.tally))
+  const todayUsd = paid.tab?.todayUsd
+  const budget = formatUsd(paid.tab?.budgetUsd ?? TAB_DAILY_BUDGET_DEFAULT_USD)
+  const windowText = fill(UI_TEXT.usagePaidTabCostWindow, { cost })
+  return (
+    <>
+      <dt>{`${paidFeatureName('tab')} (${state})`}</dt>
+      <dd className="usage-paid-child">
+        {hasRun ? (
+          <>
+            {`${paidUseText('tab', paid.tally)} · ${fill(UI_TEXT.usagePaidTabTokens, {
+              tokens: formatNumber(paid.tally.tabTokens ?? 0),
+              cached: formatNumber(paid.tally.tabCachedTokens ?? 0),
+            })} · ${fill(UI_TEXT.usagePaidTabReported, { cost })}`}
+            {unknown > 0 ? (
+              <p className="usage-row-meta">{plural(UI_TEXT.usagePaidSubagentUnknown, unknown)}</p>
+            ) : null}
+            <p className="usage-row-meta">
+              {todayUsd === undefined
+                ? windowText
+                : `${fill(UI_TEXT.usagePaidTabCostToday, { cost: formatUsd(todayUsd) })} · ${windowText}`}
+            </p>
+            <p className="usage-row-meta">{fill(UI_TEXT.usagePaidTabBudget, { budget })}</p>
+          </>
+        ) : (
+          <span className="usage-row-meta">{fill(UI_TEXT.usagePaidTabBudget, { budget })}</span>
+        )}
+      </dd>
+    </>
+  )
+}
+
 function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly paid: PaidState }) {
+  if (feature === 'tab') {
+    return <TabRow paid={paid} />
+  }
   const state = paidRowState(feature, paid)
   const isReview = feature === 'autoReviewer'
   const isAttempt = feature === 'bestOfN'
   const [requests = 0, unknown = 0, tokens = 0] = paidTokenTally(feature, paid)
-  const isTokenFeature = feature === 'subagents' || isReview || isAttempt
+  const isTokenFeature =
+    feature === 'subagents' ||
+    isReview ||
+    isAttempt ||
+    feature === 'hookModels' ||
+    feature === 'judge'
   const isEntirelyUnknown = isTokenFeature && requests > 0 && requests === unknown
   const cost = formatUsd(paidCostUsd(feature, paid.tally))
   let costDetail = cost
@@ -430,25 +488,22 @@ function AccountSection({
   const { account } = report
   const signIn = signInLabel(account?.signInMethod)
   const plan = planFor(report)
+  const rows: readonly (readonly [string, string | undefined])[] = [
+    [UI_TEXT.usageAuthMethod, signIn],
+    [UI_TEXT.usagePlan, plan],
+    [UI_TEXT.usageBackend, backendLabel(report.backend)],
+    [UI_TEXT.usageCliVersion, account?.cliVersion],
+    [UI_TEXT.usageModel, modelId],
+  ]
   return (
     <dl className="usage-facts">
-      <dt>{UI_TEXT.usageAuthMethod}</dt>
-      <dd>{signIn}</dd>
-      <dt>{UI_TEXT.usagePlan}</dt>
-      <dd>{plan}</dd>
-      <dt>{UI_TEXT.usageBackend}</dt>
-      <dd>{backendLabel(report.backend)}</dd>
-      {account?.cliVersion === undefined ? null : (
-        <>
-          <dt>{UI_TEXT.usageCliVersion}</dt>
-          <dd>{account.cliVersion}</dd>
-        </>
-      )}
-      {modelId === undefined ? null : (
-        <>
-          <dt>{UI_TEXT.usageModel}</dt>
-          <dd>{modelId}</dd>
-        </>
+      {rows.map(([label, value]) =>
+        value === undefined ? null : (
+          <Fragment key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </Fragment>
+        ),
       )}
     </dl>
   )
@@ -472,54 +527,6 @@ function InsightLine({ share, template }: { readonly share: number; readonly tem
         ),
       )}
     </li>
-  )
-}
-
-/**
- * The Usage Team section (M96 lane U2, PLAN.md D75): tasks, tokens and cost
- * today and in this window, per role and per entry, with key, subscription
- * and local apart, and estimated figures marked.
- */
-function teamFiguresText(figures: TeamUsageFigures): string {
-  return `${formatNumber(figures.tasks)} ${UI_TEXT.teamUsageTasks} · ${formatTokenWindow(figures.inputTokens + figures.outputTokens)} · ${formatUsd(figures.costUsd)}`
-}
-
-function TeamFigures({ figures }: { readonly figures: TeamUsageFigures }) {
-  return (
-    <dd>
-      {teamFiguresText(figures)}
-      {figures.estimated ? (
-        <>
-          {' '}
-          <span className="team-estimated">{UI_TEXT.teamEstimated}</span>
-        </>
-      ) : null}
-    </dd>
-  )
-}
-
-function TeamSection({ team }: { readonly team: TeamUsageSummary }) {
-  return (
-    <dl className="usage-facts">
-      <dt>{UI_TEXT.teamUsageToday}</dt>
-      <TeamFigures figures={team.today} />
-      <dt>{UI_TEXT.teamUsageWindow}</dt>
-      <TeamFigures figures={team.window} />
-      {team.byRole.map((row) => (
-        <Fragment key={`role-${row.roleId}`}>
-          <dt>{row.name}</dt>
-          <TeamFigures figures={row.figures} />
-        </Fragment>
-      ))}
-      {team.byEntry.map((row) => (
-        <Fragment key={`entry-${row.entryId}`}>
-          <dt>
-            {row.label} ({row.payKind})
-          </dt>
-          <TeamFigures figures={row.figures} />
-        </Fragment>
-      ))}
-    </dl>
   )
 }
 
@@ -650,7 +657,9 @@ export function UsageDialog({
         {team === undefined ? null : (
           <>
             <h3 className="usage-heading">{UI_TEXT.teamUsageTitle}</h3>
-            <TeamSection team={team} />
+            <Suspense fallback={null}>
+              <TeamSection team={team} />
+            </Suspense>
           </>
         )}
         <h3 className="usage-heading">{UI_TEXT.usageContributing}</h3>

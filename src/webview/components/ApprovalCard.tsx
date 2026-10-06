@@ -18,7 +18,7 @@ import { fill, templateParts } from '../../shared/l10n/text'
 import type { TeamWorkerLabel } from '../../shared/teamView'
 import type { PendingApproval } from '../state/uiState'
 const TeamWorkerLabelView = lazy(async () => {
-  const module = await import('./TeamCards')
+  const module = await import('./TeamUi')
   return { default: module.TeamWorkerLabel }
 })
 
@@ -166,6 +166,11 @@ export function ApprovalCard({ approval, toolName, worker, onDecide }: ApprovalC
           {approval.isProtectedWrite ? <span>{UI_TEXT.approvalProtectedWrite}</span> : null}
           {approval.isJudgeEscalated ? <span>{UI_TEXT.approvalJudgeEscalated}</span> : null}
         </div>
+      ) : null}
+      {approval.judgeCaution === true ? (
+        <p className="approval-note" dir="auto">
+          {UI_TEXT.judgeCaution}
+        </p>
       ) : null}
       {approval.note === undefined ? null : (
         <p className="approval-note" dir="auto">

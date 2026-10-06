@@ -1,0 +1,212 @@
+[
+  {
+    "id": "windsurf-pre_read_code-stdin-1",
+    "vendor": "windsurf",
+    "event": "pre_read_code",
+    "direction": "stdin",
+    "source": "hooks-parity/docs_devin_ai_desktop_cascade_hooks_md.out:159-164",
+    "raw": "{\n  \"agent_action_name\": \"pre_read_code\",\n  \"tool_info\": {\n    \"file_path\": \"/Users/yourname/project/file.py\"\n  }\n}",
+    "json": {
+      "agent_action_name": "pre_read_code",
+      "tool_info": {
+        "file_path": "/Users/yourname/project/file.py"
+      }
+    },
+    "note": "Doc omits the common fields (trajectory_id, execution_id, timestamp, model_name) \"for brevity\" (:148). file_path may be a directory (:167)."
+  },
+  {
+    "id": "windsurf-post_read_code-stdin-1",
+    "vendor": "windsurf",
+    "event": "post_read_code",
+    "direction": "stdin",
+    "source": "hooks-parity/docs_devin_ai_desktop_cascade_hooks_md.out:178-183",
+    "raw": "{\n  \"agent_action_name\": \"post_read_code\",\n  \"tool_info\": {\n    \"file_path\": \"/Users/yourname/project/file.py\"\n  }\n}",
+    "json": {
+      "agent_action_name": "post_read_code",
+      "tool_info": {
+        "file_path": "/Users/yourname/project/file.py"
+      }
+    },
+    "note": "Doc omits the common fields (trajectory_id, execution_id, timestamp, model_name) \"for brevity\" (:148). file_path may be a directory (:186)."
+  },
+  {
+    "id": "windsurf-pre_write_code-stdin-1",
+    "vendor": "windsurf",
+    "event": "pre_write_code",
+    "direction": "stdin",
+    "source": "hooks-parity/docs_devin_ai_desktop_cascade_hooks_md.out:197-208",
+    "raw": "{\n  \"agent_action_name\": \"pre_write_code\",\n  \"tool_info\": {\n    \"file_path\": \"/Users/yourname/project/file.py\",\n    \"edits\": [\n      {\n        \"old_string\": \"def old_function():\\n    pass\",\n        \"new_string\": \"def new_function():\\n    return True\"\n      }\n    ]\n  }\n}",
+    "json": {
+      "agent_action_name": "pre_write_code",
+      "tool_info": {
+        "file_path": "/Users/yourname/project/file.py",
+        "edits": [
+          {
+            "old_string": "def old_function():\n    pass",
+            "new_string": "def new_function():\n    return True"
+          }
+        ]
+      }
+    },
+    "note": "Doc omits the common fields (trajectory_id, execution_id, timestamp, model_name) \"for brevity\" (:148)."
+  },
+  {
+    "id": "windsurf-post_write_code-stdin-1",
+    "vendor": "windsurf",
+    "event": "post_write_code",
+    "direction": "stdin",
+    "source": "hooks-parity/docs_devin_ai_desktop_cascade_hooks_md.out:220-231",
+    "raw": "{\n  \"agent_action_name\": \"post_write_code\",\n  \"tool_info\": {\n    \"file_path\": \"/Users/yourname/project/file.py\",\n    \"edits\": [\n      {\n        \"old_string\": \"import os\",\n        \"new_string\": \"import os\\nimport sys\"\n      }\n    ]\n  }\n}",
+    "json": {
+      "agent_action_name": "post_write_code",
+      "tool_info": {
+        "file_path": "/Users/yourname/project/file.py",
+        "edits": [
+          {
+            "old_string": "import os",
+            "new_string": "import os\nimport sys"
+          }
+        ]
+      }
+    },
+    "note": "Doc omits the common fields (trajectory_id, execution_id, timestamp, model_name) \"for brevity\" (:148)."
+  },
+  {
+    "id": "windsurf-pre_run_command-stdin-1",
+    "vendor": "windsurf",
+    "event": "pre_run_command",
+    "direction": "stdin",
+    "source": "hooks-parity/docs_devin_ai_desktop_cascade_hooks_md.out:243-249",
+    "raw": "{\n  \"agent_action_name\": \"pre_run_command\",\n  \"tool_info\": {\n    \"command_line\": \"npm install package-name\",\n    \"cwd\": \"/Users/yourname/project\"\n  }\n}",
+    "json": {
+      "agent_action_name": "pre_run_command",
+      "tool_info": {
+        "command_line": "npm install package-name",
+        "cwd": "/Users/yourname/project"
+      }
+    },
+    "note": "Doc omits the common fields (trajectory_id, execution_id, timestamp, model_name) \"for brevity\" (:148)."
+  },
+  {
+    "id": "windsurf-post_run_command-stdin-1",
+    "vendor": "windsurf",
+    "event": "post_run_command",
+    "direction": "stdin",
+    "source": "hooks-parity/docs_devin_ai_desktop_cascade_hooks_md.out:261-267",
+    "raw": "{\n  \"agent_action_name\": \"post_run_command\",\n  \"tool_info\": {\n    \"command_line\": \"npm install package-name\",\n    \"cwd\": \"/Users/yourname/project\"\n  }\n}",
+    "json": {
+      "agent_action_name": "post_run_command",
+      "tool_info": {
+        "command_line": "npm install package-name",
+        "cwd": "/Users/yourname/project"
+      }
+    },
+    "note": "Doc omits the common fields (trajectory_id, execution_id, timestamp, model_name) \"for brevity\" (:148). No exit code or output field for the command is documented."
+  },
+  {
+    "id": "windsurf-pre_mcp_tool_use-stdin-1",
+    "vendor": "windsurf",
+    "event": "pre_mcp_tool_use",
+    "direction": "stdin",
+    "source": "hooks-parity/docs_devin_ai_desktop_cascade_hooks_md.out:279-291",
+    "raw": "{\n  \"agent_action_name\": \"pre_mcp_tool_use\",\n  \"tool_info\": {\n    \"mcp_server_name\": \"github\",\n    \"mcp_tool_arguments\": {\n      \"owner\": \"code-owner\",\n      \"repo\": \"my-cool-repo\",\n      \"title\": \"Bug report\",\n      \"body\": \"Description of the bug here\"\n    },\n    \"mcp_tool_name\": \"create_issue\"\n  }\n}",
+    "json": {
+      "agent_action_name": "pre_mcp_tool_use",
+      "tool_info": {
+        "mcp_server_name": "github",
+        "mcp_tool_arguments": {
+          "owner": "code-owner",
+          "repo": "my-cool-repo",
+          "title": "Bug report",
+          "body": "Description of the bug here"
+        },
+        "mcp_tool_name": "create_issue"
+      }
+    },
+    "note": "Doc omits the common fields (trajectory_id, execution_id, timestamp, model_name) \"for brevity\" (:148). mcp_tool_arguments is a JSON object, not a string."
+  },
+  {
+    "id": "windsurf-post_mcp_tool_use-stdin-1",
+    "vendor": "windsurf",
+    "event": "post_mcp_tool_use",
+    "direction": "stdin",
+    "source": "hooks-parity/docs_devin_ai_desktop_cascade_hooks_md.out:303-316",
+    "raw": "{\n  \"agent_action_name\": \"post_mcp_tool_use\",\n  \"tool_info\": {\n    \"mcp_result\": \"...\",\n    \"mcp_server_name\": \"github\",\n    \"mcp_tool_arguments\": {\n      \"owner\": \"code-owner\",\n      \"perPage\": 1,\n      \"repo\": \"my-cool-repo\",\n      \"sha\": \"main\"\n    },\n    \"mcp_tool_name\": \"list_commits\"\n  }\n}",
+    "json": {
+      "agent_action_name": "post_mcp_tool_use",
+      "tool_info": {
+        "mcp_result": "...",
+        "mcp_server_name": "github",
+        "mcp_tool_arguments": {
+          "owner": "code-owner",
+          "perPage": 1,
+          "repo": "my-cool-repo",
+          "sha": "main"
+        },
+        "mcp_tool_name": "list_commits"
+      }
+    },
+    "note": "Doc omits the common fields (trajectory_id, execution_id, timestamp, model_name) \"for brevity\" (:148). mcp_result is a string (\"...\") in the only example."
+  },
+  {
+    "id": "windsurf-pre_user_prompt-stdin-1",
+    "vendor": "windsurf",
+    "event": "pre_user_prompt",
+    "direction": "stdin",
+    "source": "hooks-parity/docs_devin_ai_desktop_cascade_hooks_md.out:328-333",
+    "raw": "{\n  \"agent_action_name\": \"pre_user_prompt\",\n  \"tool_info\": {\n    \"user_prompt\": \"can you run the echo hello command\"\n  }\n}",
+    "json": {
+      "agent_action_name": "pre_user_prompt",
+      "tool_info": {
+        "user_prompt": "can you run the echo hello command"
+      }
+    },
+    "note": "Doc omits the common fields (trajectory_id, execution_id, timestamp, model_name) \"for brevity\" (:148)."
+  },
+  {
+    "id": "windsurf-post_cascade_response-stdin-1",
+    "vendor": "windsurf",
+    "event": "post_cascade_response",
+    "direction": "stdin",
+    "source": "hooks-parity/docs_devin_ai_desktop_cascade_hooks_md.out:347-352",
+    "raw": "{\n  \"agent_action_name\": \"post_cascade_response\",\n  \"tool_info\": {\n    \"response\": \"### Planner Response\\n\\nI'll help you create that file.\\n\\n*Created file `/path/to/file.py`*\\n\\n### Planner Response\\n\\nThe file has been created successfully.\"\n  }\n}",
+    "json": {
+      "agent_action_name": "post_cascade_response",
+      "tool_info": {
+        "response": "### Planner Response\n\nI'll help you create that file.\n\n*Created file `/path/to/file.py`*\n\n### Planner Response\n\nThe file has been created successfully."
+      }
+    },
+    "note": "Doc omits the common fields (trajectory_id, execution_id, timestamp, model_name) \"for brevity\" (:148). Fires asynchronously (:340)."
+  },
+  {
+    "id": "windsurf-post_cascade_response_with_transcript-stdin-1",
+    "vendor": "windsurf",
+    "event": "post_cascade_response_with_transcript",
+    "direction": "stdin",
+    "source": "hooks-parity/docs_devin_ai_desktop_cascade_hooks_md.out:372-377",
+    "raw": "{\n  \"agent_action_name\": \"post_cascade_response_with_transcript\",\n  \"tool_info\": {\n    \"transcript_path\": \"/Users/yourname/.windsurf/transcripts/{trajectory_id}.jsonl\"\n  }\n}",
+    "json": {
+      "agent_action_name": "post_cascade_response_with_transcript",
+      "tool_info": {
+        "transcript_path": "/Users/yourname/.windsurf/transcripts/{trajectory_id}.jsonl"
+      }
+    },
+    "note": "Doc omits the common fields (trajectory_id, execution_id, timestamp, model_name) \"for brevity\" (:148). Fires asynchronously (:365). The transcript JSONL sample at :383-386 is file content, not stdin, so it is not a fixture."
+  },
+  {
+    "id": "windsurf-post_setup_worktree-stdin-1",
+    "vendor": "windsurf",
+    "event": "post_setup_worktree",
+    "direction": "stdin",
+    "source": "hooks-parity/docs_devin_ai_desktop_cascade_hooks_md.out:423-429",
+    "raw": "{\n  \"agent_action_name\": \"post_setup_worktree\",\n  \"tool_info\": {\n    \"worktree_path\": \"/Users/me/.windsurf/worktrees/my-repo/abmy-repo-c123\",\n    \"root_workspace_path\": \"/Users/me/projects/my-repo\"\n  }\n}",
+    "json": {
+      "agent_action_name": "post_setup_worktree",
+      "tool_info": {
+        "worktree_path": "/Users/me/.windsurf/worktrees/my-repo/abmy-repo-c123",
+        "root_workspace_path": "/Users/me/projects/my-repo"
+      }
+    },
+    "note": "Doc omits the common fields (trajectory_id, execution_id, timestamp, model_name) \"for brevity\" (:148). Also gets $ROOT_WORKSPACE_PATH env (:418); runs inside the worktree (:410)."
+  }
+]

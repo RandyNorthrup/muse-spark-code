@@ -34,7 +34,7 @@ import type { TeamTreeActions } from './TeamTree'
 import { teamTaskCount } from '../state/teamEntries'
 
 const TeamTree = lazy(async () => {
-  const module = await import('./TeamTree')
+  const module = await import('./TeamUi')
   return { default: module.TeamTree }
 })
 import { WorkflowRunView } from './WorkflowRun'

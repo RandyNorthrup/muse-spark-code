@@ -172,20 +172,20 @@
   "exportPreviewFull": "Mentés kitakarás nélkül…",
   "exportPreviewOpen": "A kitakart fájl meg van nyitva a szerkesztőben. Amíg nem választ, semmi sem íródik ki.",
   "exportPreviewMessages": {
-    "one": "{count} üzenet ebben a beszélgetésben",
-    "other": "{count} üzenet ebben a beszélgetésben"
+    "other": "{count} üzenet ebben a beszélgetésben",
+    "one": "{count} üzenet ebben a beszélgetésben"
   },
   "exportPreviewPaths": {
-    "one": "{count} útvonal kitakarva",
-    "other": "{count} útvonal kitakarva"
+    "other": "{count} útvonal kitakarva",
+    "one": "{count} útvonal kitakarva"
   },
   "exportPreviewAccounts": {
-    "one": "{count} fiókazonosító kitakarva",
-    "other": "{count} fiókazonosító kitakarva"
+    "other": "{count} fiókazonosító kitakarva",
+    "one": "{count} fiókazonosító kitakarva"
   },
   "exportPreviewSecrets": {
-    "one": "{count} hitelesítő adat vagy kulcskivonat eltávolítva",
-    "other": "{count} hitelesítő adat vagy kulcskivonat eltávolítva"
+    "other": "{count} hitelesítő adat vagy kulcskivonat eltávolítva",
+    "one": "{count} hitelesítő adat vagy kulcskivonat eltávolítva"
   },
   "exportPreviewKnownCredentials": "Az ismert formájú hitelesítő adatok (API-kulcsok, tokenek, jelszavak, privát kulcsok) és a kulcskivonat mindig törlődnek. Más formájú titok megmarad: megosztás előtt olvassa át a fájlt.",
   "exportTooLarge": "Ez a beszélgetés túl hosszú egy munkamenet-exportfájlhoz.",
@@ -221,8 +221,8 @@
   "mcpUnreadable": "A Muse Code beállításfájlja nem olvasható:",
   "mcpNone": "Nincs MCP-kiszolgáló konfigurálva itt: {path}",
   "mcpCount": {
-    "one": "{count} MCP-kiszolgáló itt: {path}",
-    "other": "{count} MCP-kiszolgáló itt: {path}"
+    "other": "{count} MCP-kiszolgáló itt: {path}",
+    "one": "{count} MCP-kiszolgáló itt: {path}"
   },
   "mcpOptional": "nem kötelező",
   "mcpRequired": "kötelező (a Muse Code leáll, ha hibára fut)",
@@ -252,12 +252,12 @@
   "mcpStateNotStarted": "A következő üzenetével indul",
   "mcpStateStarting": "Indítás…",
   "mcpStateConnected": {
-    "one": "Csatlakozva: {count} eszköz",
-    "other": "Csatlakozva: {count} eszköz"
+    "other": "Csatlakozva: {count} eszköz",
+    "one": "Csatlakozva: {count} eszköz"
   },
   "mcpStateUnoffered": {
-    "one": "további {count} nincs felkínálva",
-    "other": "további {count} nincs felkínálva"
+    "other": "további {count} nincs felkínálva",
+    "one": "további {count} nincs felkínálva"
   },
   "mcpStateFailed": "Nem fut: {reason}",
   "mcpStateRestricted": "Nem indult el: ez a munkaterület korlátozott módban van",
@@ -288,8 +288,8 @@
   "hooksUserBlock": "settings.json › hooks",
   "hooksUserNone": "Nincs a beállításaiban",
   "hooksUserCount": {
-    "one": "{count} hook a beállításaiban",
-    "other": "{count} hook a beállításaiban"
+    "other": "{count} hook a beállításaiban",
+    "one": "{count} hook a beállításaiban"
   },
   "hooksManaged": "Felügyelt hookok",
   "hooksManagedKey": "managed_hooks_path",
@@ -302,8 +302,8 @@
   "memoryTitle": "Muse-memória",
   "memoryNone": "Ehhez a munkaterülethez még nincsenek memóriajegyzetek",
   "memoryCount": {
-    "one": "{count} memóriajegyzet",
-    "other": "{count} memóriajegyzet"
+    "other": "{count} memóriajegyzet",
+    "one": "{count} memóriajegyzet"
   },
   "memoryIndexDetail": "Az index, amelyet a Muse minden munkamenet elején elolvas",
   "memoryNewNote": "Új jegyzet…",
@@ -388,8 +388,8 @@
   "pdfLabel": "PDF",
   "toolReadPdf": "PDF `{path}` beolvasva ({pages}, {bytes} bájt)",
   "toolReadPdfPages": {
-    "one": "{count} oldal",
-    "other": "{count} oldal"
+    "other": "{count} oldal",
+    "one": "{count} oldal"
   },
   "toolReadPdfPagesUnknown": "Az oldalszám ismeretlen",
   "toolReadImage": "Kép `{path}` beolvasva ({mediaType}, {width}×{height}, {bytes} bájt)",
@@ -446,12 +446,12 @@
   "thoughtFor": "Gondolkodási idő: {duration}",
   "thinkingNow": "Gondolkodik",
   "addedLines": {
-    "one": "{count} sor hozzáadva",
-    "other": "{count} sor hozzáadva"
+    "other": "{count} sor hozzáadva",
+    "one": "{count} sor hozzáadva"
   },
   "removedLines": {
-    "one": "{count} sor eltávolítva",
-    "other": "{count} sor eltávolítva"
+    "other": "{count} sor eltávolítva",
+    "one": "{count} sor eltávolítva"
   },
   "modified": "Módosítva",
   "inLabel": "BE",
@@ -475,8 +475,8 @@
   "approvalDecided": "Eldöntve",
   "approvalDockLabel": "Az Ön jóváhagyására vár",
   "approvalDockCount": {
-    "one": "Várakozó jóváhagyás: {count}",
-    "other": "Várakozó jóváhagyás: {count}"
+    "other": "Várakozó jóváhagyás: {count}",
+    "one": "Várakozó jóváhagyás: {count}"
   },
   "approvalDockedNote": "Az Ön jóváhagyására vár, az üzenetmező feletti kártyán",
   "questionSubmit": "Küldés",
@@ -550,8 +550,8 @@
   "historyCurrent": "aktuális",
   "historyForkMark": "elágazás",
   "historyTurns": {
-    "one": "{count} kör",
-    "other": "{count} kör"
+    "other": "{count} kör",
+    "one": "{count} kör"
   },
   "resumeItem": "Folytatás",
   "resumeDetail": "Egy korábbi beszélgetés kiválasztása ezen a munkaterületen",
@@ -564,8 +564,8 @@
   "forkAndRewind": "Beszélgetés elágaztatása és a kód visszaállítása",
   "rewindNothing": "Ezt az üzenetet követően nincs visszaállítható szerkesztés.",
   "rewindDone": {
-    "one": "Kód visszaállítva erre az üzenetre ({count} szerkesztés)",
-    "other": "Kód visszaállítva erre az üzenetre ({count} szerkesztés)"
+    "other": "Kód visszaállítva erre az üzenetre ({count} szerkesztés)",
+    "one": "Kód visszaállítva erre az üzenetre ({count} szerkesztés)"
   },
   "forkedNotice": "Elágaztatva egy új beszélgetésbe.",
   "rewindImagesUnavailable": "Az üzenet néhány képét nem sikerült visszaállítani.",
@@ -724,8 +724,8 @@
   "plansItemDetail": "Mentett tervek a .agents/plans mappában: nyisson meg vagy valósítson meg egyet",
   "plansTitle": "Tervek",
   "plansCount": {
-    "one": "{count} mentett terv",
-    "other": "{count} mentett terv"
+    "other": "{count} mentett terv",
+    "one": "{count} mentett terv"
   },
   "plansNone": "Még nincs mentett terv. Mentsen egyet egy Tervezés módban adott válaszból.",
   "plansFailed": "A terveket nem sikerült listázni",
@@ -757,8 +757,8 @@
   "signedOutNotice": "Kijelentkezett a Muse Sparkból.",
   "agentsPillTitle": "Az ügynöktérkép megjelenítése",
   "agentsCount": {
-    "one": "{count} ügynök",
-    "other": "{count} ügynök"
+    "other": "{count} ügynök",
+    "one": "{count} ügynök"
   },
   "backgroundTasksPillTitle": "A háttérfeladatok megjelenítése",
   "agentMapTitle": "Ügynöktérkép",
@@ -766,13 +766,13 @@
   "agentMapEmpty": "Ebben a beszélgetésben nincsenek alügynökök.",
   "agentStatuses": {
     "inProgress": "fut",
-    "completed": "befejezve",
-    "failed": "sikertelen",
-    "cancelled": "visszavonva",
-    "interrupted": "megszakítva",
-    "resultReady": "eredmény kész",
     "queued": "várakozik",
-    "closed": "lezárva"
+    "resultReady": "eredmény kész",
+    "failed": "sikertelen",
+    "closed": "lezárva",
+    "interrupted": "megszakítva",
+    "completed": "befejezve",
+    "cancelled": "visszavonva"
   },
   "agentTokens": "{tokens} token",
   "agentContextTokens": "{tokens} token a kontextusban",
@@ -805,22 +805,22 @@
   },
   "workflowAgentsLabel": "A munkafolyamat ügynökei",
   "workflowChildStatuses": {
-    "scheduled": "sorban áll",
     "started": "fut",
     "usage": "fut",
     "completed": "befejezve",
+    "scheduled": "sorban áll",
     "terminal": "véget ért"
   },
   "workflowChildUntitled": "{number}. ügynök",
   "workflowAttempt": "{attempt}. próbálkozás",
   "workflowsCount": {
-    "one": "{count} munkafolyamat",
-    "other": "{count} munkafolyamat"
+    "other": "{count} munkafolyamat",
+    "one": "{count} munkafolyamat"
   },
   "workflowsLabel": "Munkafolyamatok",
   "workflowTriggerModes": {
-    "auto": "A Muse Code munkafolyamatai \"auto\" módban vannak: nagyobb munkánál a modell magától is indíthat egyet, és indít egyet, ha kéri. Minden munkafolyamat-ügynök saját modellhívásokat végez.",
     "explicit": "A Muse Code munkafolyamatai \"explicit\" módban vannak: a modell csak akkor indít egyet, ha kéri.",
+    "auto": "A Muse Code munkafolyamatai \"auto\" módban vannak: nagyobb munkánál a modell magától is indíthat egyet, és indít egyet, ha kéri. Minden munkafolyamat-ügynök saját modellhívásokat végez.",
     "off": "A Muse Code munkafolyamatai ki vannak kapcsolva (\"off\"): a modellnek nincs munkafolyamat-eszköze."
   },
   "workflowTriggerOther": "A Muse Code munkafolyamat-beállítása: {mode}.",
@@ -828,8 +828,8 @@
   "workflowLaunched": "Elindítva: a háttérben fut, és ebbe a beszélgetésbe jelenti az eredményt.",
   "workflowScriptSaved": "A szkript mentési helye: {path}",
   "backgroundTasksCount": {
-    "one": "{count} háttérfeladat",
-    "other": "{count} háttérfeladat"
+    "other": "{count} háttérfeladat",
+    "one": "{count} háttérfeladat"
   },
   "backgroundTasksLabel": "Háttérfeladatok",
   "backgroundBadge": "háttér",
@@ -863,12 +863,12 @@
   "usageInsightNoLogs": "Ezen a gépen még nem találhatók Muse Code nyomkövetési naplók.",
   "usageInsightTotals": "{attempts}, {sessions} során",
   "modelAttemptsCount": {
-    "one": "{count} modellkísérlet",
-    "other": "{count} modellkísérlet"
+    "other": "{count} modellkísérlet",
+    "one": "{count} modellkísérlet"
   },
   "sessionsCount": {
-    "one": "{count} munkamenet",
-    "other": "{count} munkamenet"
+    "other": "{count} munkamenet",
+    "one": "{count} munkamenet"
   },
   "durationNow": "most",
   "contextCompactTitle": "Kattintson az azonnali tömörítéshez",
@@ -879,127 +879,128 @@
   "sandboxRestartNotice": "Egy Muse Code-beállítás megváltozott; a Muse Code a következő üzenetnél ezzel újraindul, és folytatja ezt a beszélgetést.",
   "sandboxProfileNotice": "Ez a munkaterület a felhasználói profilja alatt van, ahol a Muse Code Windows-homokozója esetleg nem futtatja a parancsokat: a projekt helyett a PowerShell mappájában indulhatnak, vagy soha nem fejeződnek be. A fájlok olvasását és szerkesztését ez nem érinti. A C:\\Users mappán kívüli munkaterületeken a parancsok helyben futnak.",
   "permissionModes": {
-    "manual": "Kézi",
     "acceptEdits": "Automatikus szerkesztés",
-    "plan": "Tervezés",
     "auto": "Automatikus",
+    "manual": "Kézi",
+    "plan": "Tervezés",
     "bypassPermissions": "Engedélyek megkerülése"
   },
   "permissionModeDetails": {
-    "manual": "A Muse parancsok futtatása előtt rákérdez; a Muse Code kérdezés nélkül szerkeszti a munkaterület fájljait",
     "acceptEdits": "A Muse Code-ban ugyanaz, mint a Kézi: a Muse Code kérdezés nélkül szerkeszti a munkaterület fájljait, a parancsok futtatása előtt pedig rákérdez",
-    "plan": "A Muse előbb tervez; a Muse Code elutasítja a parancsokat, de a fájleszközei továbbra is kérdezés nélkül szerkeszthetnek fájlokat",
     "auto": "A Muse Code kérdezés nélkül futtatja az általa egyszerűnek ítélt parancsokat, a többi előtt pedig rákérdez",
+    "manual": "A Muse parancsok futtatása előtt rákérdez; a Muse Code kérdezés nélkül szerkeszti a munkaterület fájljait",
+    "plan": "A Muse előbb tervez; a Muse Code elutasítja a parancsokat, de a fájleszközei továbbra is kérdezés nélkül szerkeszthetnek fájlokat",
     "bypassPermissions": "A Muse kérdezés nélkül szerkeszt fájlokat és futtat parancsokat"
   },
   "museCodeReviewedAutoDetail": "A Muse Code kérdezés nélkül futtatja az általa egyszerűnek ítélt parancsokat; egy ellenőrző néhány továbbit egyszer engedélyezhet, a többiről Önt kérdezi",
   "modelApiPermissionModeDetails": {
-    "manual": "A Muse minden szerkesztés és minden parancs előtt jóváhagyást kér",
+    "auto": "A Muse a védett fájlok kivételével kérdezés nélkül szerkeszti a fájlokat, a parancsok előtt pedig rákérdez",
     "acceptEdits": "A Muse kérdezés nélkül szerkeszti a fájlokat, a parancsok futtatása előtt pedig rákérdez",
-    "plan": "A Muse feltérképezi a kódot, és a szerkesztés előtt tervet mutat be",
-    "auto": "A Muse a védett fájlok kivételével kérdezés nélkül szerkeszti a fájlokat, a parancsok előtt pedig rákérdez"
+    "manual": "A Muse minden szerkesztés és minden parancs előtt jóváhagyást kér",
+    "plan": "A Muse feltérképezi a kódot, és a szerkesztés előtt tervet mutat be"
   },
   "effortLevels": {
+    "high": "Magas",
+    "medium": "Közepes",
+    "max": "Maximális",
     "minimal": "Minimális",
     "low": "Alacsony",
-    "medium": "Közepes",
-    "high": "Magas",
-    "xhigh": "Nagyon magas",
-    "max": "Maximális"
+    "xhigh": "Nagyon magas"
   },
   "toolLabels": {
-    "write_file": "Írás",
-    "edit_file": "Szerkesztés",
-    "read_file": "Olvasás",
-    "search": "Keresés",
-    "bash": "Bash",
-    "powershell": "PowerShell",
-    "request_user_input": "Kérdés",
-    "mcp__ide__getDiagnostics": "Diagnosztika",
-    "list_files": "Listázás",
-    "ask_user": "Kérdés",
-    "todo_write": "Feladatok",
-    "subagent_spawn": "Ügynök indítása",
-    "subagent_wait": "Várakozás ügynökökre",
-    "subagent_status": "Ügynök állapota",
-    "subagent_send_message": "Üzenet az ügynöknek",
-    "subagent_read_result": "Ügynök eredménye",
-    "subagent_cancel": "Ügynök leállítása",
-    "web_search": "Webes keresés",
-    "generate_image": "Kép",
-    "edit_image": "Kép szerkesztése",
-    "mcp__ide__generateImage": "Kép",
-    "mcp__ide__editImage": "Kép szerkesztése",
     "mcp__ide__webFetch": "Oldal lekérése",
-    "browser_check": "Böngészős ellenőrzés",
-    "mcp__ide__browserCheck": "Böngészős ellenőrzés",
-    "read_memory": "Memória olvasása",
-    "add_memory": "Mentés a memóriába",
-    "edit_memory": "Memória szerkesztése",
-    "create_goal": "Cél kitűzése",
-    "get_goal": "Cél ellenőrzése",
-    "update_goal": "Cél frissítése",
-    "report_progress": "Cél előrehaladása",
-    "cron_create": "Prompt ütemezése",
-    "cron_list": "Ütemezett promptok",
-    "cron_delete": "Ütemezett prompt visszavonása",
-    "scheduled_prompt": "Ütemezett prompt futtatása",
-    "web_fetch": "Oldal lekérése",
-    "work_stop": "Munka leállítása",
-    "work_status": "Munka állapota",
-    "powershell_input": "PowerShell-bemenet",
-    "bash_input": "Bash-bemenet",
-    "shell": "Shell",
-    "apply_patch": "Patch alkalmazása",
     "monitor": "Megfigyelés",
-    "artifact": "Összetevő",
-    "image_generation": "Kép",
-    "workflow": "Munkafolyamat",
-    "code_exec": "Kód futtatása",
-    "code_wait": "Várakozás a kódra",
-    "tool_search": "Eszközök keresése",
-    "read_skill": "Képesség",
-    "send_session_message": "Üzenet a munkamenetnek",
-    "list_peer_sessions": "Más munkamenetek",
-    "write_todos": "Feladatok",
-    "update_plan": "Feladatok",
-    "TodoWrite": "Feladatok",
-    "snooze_reminder": "Emlékeztető elhalasztása",
-    "submit_reminder_decision": "Emlékeztető",
-    "submit_result": "Eredmény",
-    "find_definition": "Definíció",
-    "find_references": "Hivatkozások",
-    "workspace_symbols": "Szimbólumok",
-    "document_symbols": "Vázlat",
-    "hover": "Súgó",
+    "request_user_input": "Kérdés",
     "call_hierarchy": "Hívások",
-    "repo_map": "Tárolótérkép",
-    "rename_symbol": "Átnevezés",
-    "mcp__ide__findDefinition": "Definíció",
-    "mcp__ide__findReferences": "Hivatkozások",
-    "mcp__ide__workspaceSymbols": "Szimbólumok",
+    "write_file": "Írás",
+    "work_stop": "Munka leállítása",
+    "browser_check": "Böngészős ellenőrzés",
+    "submit_result": "Eredmény",
+    "bash_input": "Bash-bemenet",
+    "apply_patch": "Patch alkalmazása",
+    "bash": "Bash",
+    "read_skill": "Képesség",
+    "mcp__ide__getDiagnostics": "Diagnosztika",
     "mcp__ide__documentSymbols": "Vázlat",
-    "mcp__ide__hover": "Súgó",
+    "subagent_cancel": "Ügynök leállítása",
+    "get_goal": "Cél ellenőrzése",
+    "TodoWrite": "Feladatok",
+    "find_references": "Hivatkozások",
+    "report_progress": "Cél előrehaladása",
+    "find_definition": "Definíció",
+    "workspace_symbols": "Szimbólumok",
+    "add_memory": "Mentés a memóriába",
+    "subagent_status": "Ügynök állapota",
+    "cron_create": "Prompt ütemezése",
     "mcp__ide__callHierarchy": "Hívások",
+    "send_session_message": "Üzenet a munkamenetnek",
+    "todo_write": "Feladatok",
+    "hover": "Súgó",
+    "subagent_read_result": "Ügynök eredménye",
+    "edit_memory": "Memória szerkesztése",
+    "cron_delete": "Ütemezett prompt visszavonása",
+    "workflow": "Munkafolyamat",
+    "read_file": "Olvasás",
+    "code_exec": "Kód futtatása",
     "mcp__ide__repoMap": "Tárolótérkép",
-    "mcp__ide__renameSymbol": "Átnevezés",
-    "auto_review": "Automatikus ellenőrzés",
+    "shell": "Shell",
+    "search": "Keresés",
+    "edit_image": "Kép szerkesztése",
+    "snooze_reminder": "Emlékeztető elhalasztása",
     "run_checks": "Ellenőrzések futtatása",
-    "verify_edits": "Szerkesztések ellenőrzése"
+    "rename_symbol": "Átnevezés",
+    "ask_user": "Kérdés",
+    "subagent_send_message": "Üzenet az ügynöknek",
+    "tool_search": "Eszközök keresése",
+    "mcp__ide__renameSymbol": "Átnevezés",
+    "powershell_input": "PowerShell-bemenet",
+    "subagent_spawn": "Ügynök indítása",
+    "image_generation": "Kép",
+    "code_wait": "Várakozás a kódra",
+    "update_plan": "Feladatok",
+    "mcp__ide__generateImage": "Kép",
+    "auto_review": "Automatikus ellenőrzés",
+    "work_status": "Munka állapota",
+    "list_files": "Listázás",
+    "artifact": "Összetevő",
+    "write_todos": "Feladatok",
+    "cron_list": "Ütemezett promptok",
+    "document_symbols": "Vázlat",
+    "judge": "Értékelő",
+    "powershell": "PowerShell",
+    "mcp__ide__workspaceSymbols": "Szimbólumok",
+    "read_memory": "Memória olvasása",
+    "edit_file": "Szerkesztés",
+    "create_goal": "Cél kitűzése",
+    "submit_reminder_decision": "Emlékeztető",
+    "mcp__ide__findDefinition": "Definíció",
+    "scheduled_prompt": "Ütemezett prompt futtatása",
+    "subagent_wait": "Várakozás ügynökökre",
+    "repo_map": "Tárolótérkép",
+    "mcp__ide__findReferences": "Hivatkozások",
+    "mcp__ide__hover": "Súgó",
+    "verify_edits": "Szerkesztések ellenőrzése",
+    "list_peer_sessions": "Más munkamenetek",
+    "mcp__ide__browserCheck": "Böngészős ellenőrzés",
+    "generate_image": "Kép",
+    "update_goal": "Cél frissítése",
+    "web_fetch": "Oldal lekérése",
+    "mcp__ide__editImage": "Kép szerkesztése",
+    "web_search": "Webes keresés"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
-    "personal_project": "Saját memória ehhez a projekthez",
     "project": "Projektmemória, az adattárral megosztva",
+    "personal_project": "Saját memória ehhez a projekthez",
     "personal": "Saját memória minden projekthez"
   },
   "goalStatuses": {
-    "active": "Aktív",
     "paused": "Szüneteltetve",
-    "complete": "Teljesítve",
+    "budget_limited": "A tokenkeret elfogyott",
     "blocked": "Akadályozva",
-    "usage_limited": "Elérte a használati korlátot",
-    "budget_limited": "A tokenkeret elfogyott"
+    "complete": "Teljesítve",
+    "active": "Aktív",
+    "usage_limited": "Elérte a használati korlátot"
   },
   "goalPercent": "{percent} kész",
   "goalProgress": "Cél előrehaladása",
@@ -1042,8 +1043,8 @@
   "scheduleRepeats": "Ismétlődik",
   "scheduleNextRun": "Következő futás: {date}",
   "scheduleFired": {
-    "one": "{count} alkalommal futott",
-    "other": "{count} alkalommal futott"
+    "other": "{count} alkalommal futott",
+    "one": "{count} alkalommal futott"
   },
   "scheduleNone": "Nincsenek ütemezett promptok",
   "webNoResults": "Nincs találat",
@@ -1072,27 +1073,27 @@
   "toolImageFailed": "A képet nem sikerült megjeleníteni",
   "processExitCode": "kilépési kód: {code}",
   "skillScopes": {
-    "bundled": "beépített",
-    "user": "saját",
     "project": "ez a projekt",
-    "plugin": "beépülő modul"
+    "bundled": "beépített",
+    "plugin": "beépülő modul",
+    "user": "saját"
   },
   "importNothingFrom": "Nincs importálható képesség innen: {source}.",
   "importInstalledSummary": {
-    "one": "Importálva ({count}): {skills}",
-    "other": "Importálva ({count}): {skills}"
+    "other": "Importálva ({count}): {skills}",
+    "one": "Importálva ({count}): {skills}"
   },
   "importSkippedSummary": {
-    "one": "Kihagyva ({count}): {skills}",
-    "other": "Kihagyva ({count}): {skills}"
+    "other": "Kihagyva ({count}): {skills}",
+    "one": "Kihagyva ({count}): {skills}"
   },
   "importQuarantinedSummary": {
-    "one": "Karanténba helyezve ({count}): {skills}",
-    "other": "Karanténba helyezve ({count}): {skills}"
+    "other": "Karanténba helyezve ({count}): {skills}",
+    "one": "Karanténba helyezve ({count}): {skills}"
   },
   "importFailedSummary": {
-    "one": "Sikertelen ({count}): {skills}",
-    "other": "Sikertelen ({count}): {skills}"
+    "other": "Sikertelen ({count}): {skills}",
+    "one": "Sikertelen ({count}): {skills}"
   },
   "bundledSkillsOffer": "A Muse Spark a következő képességekkel érkezik: {skills}. Telepíti őket a Muse Code számára? Az Ön Muse konfigurációs mappájába kerülnek.",
   "bundledSkillsUpdateOffer": "A Muse Spark a mellékelt képességek újabb kiadását hozza ({tag}). Frissíti a Muse Code által használt példányt?",
@@ -1100,16 +1101,16 @@
   "bundledSkillsUpdate": "Frissítés",
   "bundledSkillsNotNow": "Most nem",
   "bundledSkillsInstalled": {
-    "one": "{count} mellékelt képesség ({tag}) telepítve a Muse Code számára: {skills}",
-    "other": "{count} mellékelt képesség ({tag}) telepítve a Muse Code számára: {skills}"
+    "other": "{count} mellékelt képesség ({tag}) telepítve a Muse Code számára: {skills}",
+    "one": "{count} mellékelt képesség ({tag}) telepítve a Muse Code számára: {skills}"
   },
   "bundledSkillsSkipped": {
-    "one": "{count} képesség kimaradt, mert az egyik saját képességének is ez a neve: {skills}",
-    "other": "{count} képesség kimaradt, mert saját képességeinek is ezek a nevei: {skills}"
+    "other": "{count} képesség kimaradt, mert saját képességeinek is ezek a nevei: {skills}",
+    "one": "{count} képesség kimaradt, mert az egyik saját képességének is ez a neve: {skills}"
   },
   "bundledSkillsRemoved": {
-    "one": "{count} mellékelt képesség eltávolítva a Muse Code-ból: {skills}",
-    "other": "{count} mellékelt képesség eltávolítva a Muse Code-ból: {skills}"
+    "other": "{count} mellékelt képesség eltávolítva a Muse Code-ból: {skills}",
+    "one": "{count} mellékelt képesség eltávolítva a Muse Code-ból: {skills}"
   },
   "bundledSkillsNothingToRemove": "Nincs a Muse Code számára telepített mellékelt képesség, így semmi sem lett eltávolítva.",
   "bundledSkillsInstallFailed": "A mellékelt képességeket nem sikerült telepíteni ebbe a mappába ({folder}): {reason}",
@@ -1155,8 +1156,8 @@
   "acpKeyCleared": "A Meta Model API-kulcs törölve lett a számítógép hitelesítőadat-tárolójából.",
   "acpStoreUnavailable": "A számítógép hitelesítőadat-tárolója nem használható ({reason}). Linuxon az ügynöknek futó, feloldott Secret Service szolgáltatásra van szüksége, például GNOME Keyringre vagy KWalletre.",
   "acpStoreNames": {
-    "windows": "Windows Hitelesítőadat-kezelő",
     "macos": "macOS Kulcskarika",
+    "windows": "Windows Hitelesítőadat-kezelő",
     "linux": "Secret Service kulcstartó"
   },
   "acpNoModels": "A háttérrendszer nem kínál olyan modellt, amelyet ez az ügynök használhat.",
@@ -1165,7 +1166,7 @@
   "acpQuestionAsked": "Muse-nak kérdése van; ez a szerkesztő nem tudja űrlapként megjeleníteni, ezért a következő üzenetében válaszoljon:",
   "acpUnknownArgument": "Ismeretlen argumentum: {argument}",
   "acpPaidNeedsModelApi": "A(z) {argument} használatához --backend modelApi szükséges: a fizetős funkciókat egy Model API-kulcsra számlázzák.",
-  "acpUsage": "Használat:\n  {command} [kapcsolók]              Az Agent Client Protocol kiszolgálása stdin és stdout felett\n  {command} [kapcsolók] login        Bejelentkezés a Muse Code-ba ebben a terminálban\n  {command} auth set|status|clear  A Meta Model API-kulcs tárolása, ellenőrzése vagy törlése\n  {command} exec [options] <prompt>  Egy kör futtatása felület nélkül\n  {command} scan-secrets <file> [--key-stdin]  Valószínű titkok megszámolása egy fájlban (csak a számot írja ki)\nKapcsolók:\n  --backend museCode|modelApi      Ki fizet: a Muse Code (alapértelmezett) vagy a Model API-kulcs\n  --trust-workspace                A mappa szabályainak, képességeinek és memóriájának betöltése\n  --muse-binary <útvonal>             A futtatandó Muse Code parancssori eszköz\n  --shell-sandbox auto|muse|off    A Muse Code parancsértelmező-védőkörnyezete\n  --allow-dangerously-skip-permissions  A(z) „Engedélyek megkerülése” mód felkínálása\n  --allow-contributor-models       A közreműködői szintű modellek listázása (a Meta tanulhat a tartalmukból)\n  --web-search                     Fizetős webes keresés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --image-generation               Fizetős képkészítés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --verbose                        Minden részlet naplózása az stderr-re\n  --help, --version",
+  "acpUsage": "Használat:\n  {command} [kapcsolók]              Az Agent Client Protocol kiszolgálása stdin és stdout felett\n  {command} [kapcsolók] login        Bejelentkezés a Muse Code-ba ebben a terminálban\n  {command} auth set|status|clear  A Meta Model API-kulcs tárolása, ellenőrzése vagy törlése\n  {command} exec [options] <prompt>  Egy kör futtatása felület nélkül\n  {command} scan-secrets <file> [--key-stdin]  Valószínű titkok megszámolása egy fájlban (csak a számot írja ki)\n  {command} report [options]  Tisztított hibajelentés kiírása (nem indít backendet, nem nyit böngészőt)\nKapcsolók:\n  --backend museCode|modelApi      Ki fizet: a Muse Code (alapértelmezett) vagy a Model API-kulcs\n  --trust-workspace                A mappa szabályainak, képességeinek és memóriájának betöltése\n  --muse-binary <útvonal>             A futtatandó Muse Code parancssori eszköz\n  --shell-sandbox auto|muse|off    A Muse Code parancsértelmező-védőkörnyezete\n  --allow-dangerously-skip-permissions  A(z) „Engedélyek megkerülése” mód felkínálása\n  --allow-contributor-models       A közreműködői szintű modellek listázása (a Meta tanulhat a tartalmukból)\n  --web-search                     Fizetős webes keresés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --image-generation               Fizetős képkészítés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --verbose                        Minden részlet naplózása az stderr-re\n  --help, --version",
   "exportSessionLine": "Munkamenet: `{id}`",
   "exportBackendLine": "Háttérrendszer: {backend}",
   "exportModelLine": "Modell: {model}",
@@ -1181,17 +1182,17 @@
   "exportArgumentsLabel": "Argumentumok:",
   "exportOutputLabel": "Kimenet:",
   "exportOutputStored": {
-    "one": "A kimenetet ({count} bájt) a háttérrendszer tárolja, és nem része az exportnak.",
-    "other": "A kimenetet ({count} bájt) a háttérrendszer tárolja, és nem része az exportnak."
+    "other": "A kimenetet ({count} bájt) a háttérrendszer tárolja, és nem része az exportnak.",
+    "one": "A kimenetet ({count} bájt) a háttérrendszer tárolja, és nem része az exportnak."
   },
   "exportFilesChanged": {
-    "one": "{count} fájl módosult: +{added} −{removed}.",
-    "other": "{count} fájl módosult: +{added} −{removed}."
+    "other": "{count} fájl módosult: +{added} −{removed}.",
+    "one": "{count} fájl módosult: +{added} −{removed}."
   },
   "exportFailure": "Sikertelen: {reason}",
   "exportImagesAttached": {
-    "one": "{count} kép csatolva.",
-    "other": "{count} kép csatolva."
+    "other": "{count} kép csatolva.",
+    "one": "{count} kép csatolva."
   },
   "insertReferenceNoEditor": "Nyisson meg egy fájlt egy szerkesztőablakban, hogy hivatkozást szúrjon be rá.",
   "insertReferencePanelOpened": "A Muse Spark panel megnyílt. A hivatkozás beszúrásához nyomja meg újra az Alt+K billentyűkombinációt.",
@@ -1207,51 +1208,51 @@
   "turnFailed": "A kör sikertelen volt.",
   "turnRetrying": "{attempt}/{maxAttempts}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva.",
   "usageWindowHours": {
-    "one": "{count} órás időablak",
-    "other": "{count} órás időablak"
+    "other": "{count} órás időablak",
+    "one": "{count} órás időablak"
   },
   "usageWindowMinutes": {
-    "one": "{count} perces időablak",
-    "other": "{count} perces időablak"
+    "other": "{count} perces időablak",
+    "one": "{count} perces időablak"
   },
   "statusVerbs": {
-    "thinking": "Gondolkodik…",
     "working": "Dolgozik…",
+    "thinking": "Gondolkodik…",
     "calculating": "Számol…",
     "composing": "Fogalmaz…"
   },
   "onboardingShortcuts": {
-    "focus": "Ctrl+Esc (macOS-en Cmd+Esc, Windowson Ctrl+Alt+Esc)",
-    "palette": "/",
-    "cycleMode": "Shift+Tab",
-    "mentionSelection": "Alt+K",
-    "mentionFile": "@",
+    "shell": "!",
+    "moveToBackground": "Ctrl+B",
     "newTab": "Ctrl+Shift+Esc (macOS-en Cmd+Shift+Esc, Windowson Ctrl+Shift+Alt+Esc)",
     "dictation": "Ctrl+D",
-    "shell": "!",
-    "moveToBackground": "Ctrl+B"
+    "focus": "Ctrl+Esc (macOS-en Cmd+Esc, Windowson Ctrl+Alt+Esc)",
+    "mentionSelection": "Alt+K",
+    "palette": "/",
+    "mentionFile": "@",
+    "cycleMode": "Shift+Tab"
   },
   "onboardingTips": {
-    "focus": "a VS Code bármely pontjáról a Muse-ra viszi vagy onnan elviszi a fókuszt",
-    "palette": "megnyitja a műveletpalettát: modell, ráfordítás, engedélyezési mód, előzmények",
-    "cycleMode": "végigléptet az engedélyezési módokon, amíg a szövegmező fókuszban van",
-    "mentionSelection": "@-említést szúr be a szerkesztőablakban kijelölt részről",
-    "mentionFile": "megemlít egy fájlt; húzzon be fájlokat vagy illesszen be képeket a csatoláshoz",
+    "shell": "az üzenet elején shell-parancsként futtatja azt a munkaterületen; a Muse látja a kimenetét",
+    "moveToBackground": "a futó parancsot a háttérbe helyezi, hogy a Muse folytathassa",
     "newTab": "új szerkesztőablak-lapon nyit meg egy beszélgetést",
     "dictation": "a hangját a szövegmezőbe rögzíti (koppintás: be/ki, nyomva tartás: beszéd)",
-    "shell": "az üzenet elején shell-parancsként futtatja azt a munkaterületen; a Muse látja a kimenetét",
-    "moveToBackground": "a futó parancsot a háttérbe helyezi, hogy a Muse folytathassa"
+    "focus": "a VS Code bármely pontjáról a Muse-ra viszi vagy onnan elviszi a fókuszt",
+    "mentionSelection": "@-említést szúr be a szerkesztőablakban kijelölt részről",
+    "palette": "megnyitja a műveletpalettát: modell, ráfordítás, engedélyezési mód, előzmények",
+    "mentionFile": "megemlít egy fájlt; húzzon be fájlokat vagy illesszen be képeket a csatoláshoz",
+    "cycleMode": "végigléptet az engedélyezési módokon, amíg a szövegmező fókuszban van"
   },
   "dictationUnavailableRemote": "A hangalapú diktálás távoli ablakban (SSH, WSL, konténer, alagút vagy codespace) nem érhető el: a kiegészítő a távoli gépen fut, amely nem hallja ennek a számítógépnek a mikrofonját. A diktáláshoz nyissa meg a mappát helyi ablakban.",
   "dictationDarwinEarlyExit": "A macOS leállította a diktálási segédprogramot, mielőtt az elkészült volna. Ha volt engedélykérés, a macOS megtagadta az engedélyt (a muse-dictate-től, vagy az azt elindító alkalmazástól, ha a segédprogram nem kérhetett a saját nevében); ha egyáltalán nem volt engedélykérés, a macOS magának a segédprogramnak a futtatását tagadta meg, mert az nincs hitelesítve (notarizálva). A README „Voice dictation” szakasza mindkettőt elmagyarázza.",
   "museLoginTerminalName": "Muse Code-bejelentkezés",
   "museExitMeanings": {
-    "0": "A Muse Code leállt",
-    "1": "A Muse Code kezeletlen hibával leállt",
-    "2": "A Muse Code elutasította a parancssorát (használati hiba)",
+    "5": "ez a Muse Code-build nem szolgálja ki a kiegészítő által használt SDK-felületet; frissítse a Muse Code-ot",
     "3": "A Muse Code elutasította a konfigurációját; ellenőrizze a settings.json fájlját és a museSpark.environmentVariables beállítást",
     "4": "egy másik Muse Code-kliens foglalja ezt a munkamenetet; felszabadul, amint az a kliens kilép",
-    "5": "ez a Muse Code-build nem szolgálja ki a kiegészítő által használt SDK-felületet; frissítse a Muse Code-ot"
+    "2": "A Muse Code elutasította a parancssorát (használati hiba)",
+    "0": "A Muse Code leállt",
+    "1": "A Muse Code kezeletlen hibával leállt"
   },
   "museExitedWithCode": "A Muse Code kilépett, kilépési kód: {code}",
   "museExitMeaning": "{meaning} (kilépési kód: {code})",
@@ -1259,8 +1260,8 @@
   "museUnknownSignal": "egy ismeretlen jel",
   "approvalImageSources": "Kiindulópont: {paths}",
   "renameCardMore": {
-    "one": "{files} és még {count} fájl",
-    "other": "{files} és még {count} fájl"
+    "other": "{files} és még {count} fájl",
+    "one": "{files} és még {count} fájl"
   },
   "codeIntelNoService": "Egyetlen nyelvi szolgáltatás sem válaszolt erre: {path}, vagy a fájl nem deklarál szimbólumokat.",
   "codeIntelTimedOut": "A nyelvi szolgáltatás {seconds} másodpercen belül nem válaszolt.",
@@ -1297,8 +1298,8 @@
   "paidBestOfNDetail": "{prompt}\n\n{price}\n\nA díjat a Model API-kulcsára számlázzák. A tényleges költség a felhasznált tokenektől függ. Az „Engedélyezés egyszer” csak erre a futtatásra érvényes.",
   "paidConfirmBestOfN": "Ugyanaz a prompt külön munkafa-mappákban fut, mindegyik a Model API-kulcsára számlázva. {price} Minden futtatás jóváhagyást igényel minden engedélyezési módban, a Bypass módban is, hacsak nem engedélyezi mindig az N legjobbját ezen a munkaterületen. A tényleges költség a felhasznált tokenektől függ; a többi fizetős eszköz többe kerül. Csak a Model API háttérrendszeren.",
   "usagePaidBestOfNAttempts": {
-    "one": "{count} kísérlet",
-    "other": "{count} kísérlet"
+    "other": "{count} kísérlet",
+    "one": "{count} kísérlet"
   },
   "usagePaidBestOfNIncluded": "Jelentett tokenek becsült költsége: {cost}",
   "paidTeamWorkersName": "Csapatügynökök",
@@ -1329,12 +1330,12 @@
   "boardStatusRunning": "Fut",
   "boardStatusIdle": "Tétlen",
   "boardAwaitingApproval": {
-    "one": "{count} várakozó jóváhagyás",
-    "other": "{count} várakozó jóváhagyás"
+    "other": "{count} várakozó jóváhagyás",
+    "one": "{count} várakozó jóváhagyás"
   },
   "boardChanges": {
-    "one": "{count} módosított fájl",
-    "other": "{count} módosított fájl"
+    "other": "{count} módosított fájl",
+    "one": "{count} módosított fájl"
   },
   "boardChangesUnknown": "változások ismeretlenek",
   "boardStartBestOfN": "N legjobbja…",
@@ -1363,12 +1364,12 @@
   "bestOfNRunStatusCancelled": "Visszavonva",
   "bestOfNCeilingReached": "leállt a kéréskorlátnál",
   "bestOfNRequests": {
-    "one": "{count} kérés",
-    "other": "{count} kérés"
+    "other": "{count} kérés",
+    "one": "{count} kérés"
   },
   "bestOfNApprovalsDenied": {
-    "one": "{count} elutasított jóváhagyás",
-    "other": "{count} elutasított jóváhagyás"
+    "other": "{count} elutasított jóváhagyás",
+    "one": "{count} elutasított jóváhagyás"
   },
   "bestOfNAttemptFailed": "Sikertelen: {reason}",
   "bestOfNTakenMark": "Kiválasztva: {branch}",
@@ -1404,21 +1405,21 @@
   "usagePaidAlwaysNote": "Mindig engedélyezve ezen a munkaterületen, kérdés nélkül: {features}.",
   "usagePaidAskAgain": "Rákérdezés minden alkalommal",
   "usagePaidSearches": {
-    "one": "{count} keresés",
-    "other": "{count} keresés"
+    "other": "{count} keresés",
+    "one": "{count} keresés"
   },
   "usagePaidImages": {
-    "one": "{count} kép",
-    "other": "{count} kép"
+    "other": "{count} kép",
+    "one": "{count} kép"
   },
   "usagePaidAudio": "{duration} hanganyag",
   "usagePaidSubagentRequests": {
-    "one": "{count} alügynöki kérés",
-    "other": "{count} alügynöki kérés"
+    "other": "{count} alügynöki kérés",
+    "one": "{count} alügynöki kérés"
   },
   "usagePaidSubagentUnknown": {
-    "one": "{count} kérés költségét még nem jelentették",
-    "other": "{count} kérés költségét még nem jelentették"
+    "other": "{count} kérés költségét még nem jelentették",
+    "one": "{count} kérés költségét még nem jelentették"
   },
   "usagePaidSubagentSubset": "Az alügynökök jelentett költségeit a szülőbeszélgetéseik tokenköltség-becslései tartalmazzák. Ezeket nem adjuk hozzá a többi fizetős funkció összegéhez. A jelentett használat nélküli kérésekért is felszámíthatnak díjat.",
   "usagePaidExtraTotal": "A többi fizetős funkció becsült összköltsége",
@@ -1491,8 +1492,8 @@
   "paidScheduledPrice": "{input}/1 millió bemeneti token, {cached}/1 millió gyorsítótárazott bemeneti token, {output}/1 millió kimeneti token",
   "paidConfirmScheduled": "Az esedékes ütemezett prompt megvárja, hogy futtassa. Minden futtatás engedélyt kér bármilyen Model API-hívás előtt, hacsak nem engedélyezi mindig az ütemezett futtatásokat ezen a munkaterületen. {price}. A díj a Model API-kulcsára terhelődik; a végösszeg a felhasznált tokenektől függ.",
   "usagePaidScheduled": {
-    "one": "{count} ütemezett futtatás",
-    "other": "{count} ütemezett futtatás"
+    "other": "{count} ütemezett futtatás",
+    "one": "{count} ütemezett futtatás"
   },
   "usageScheduledIncluded": "a tokenek költsége fent szerepel",
   "networkUntrustedCertificate": "A kiszolgáló tanúsítványa nem megbízható. Ha a hálózata vizsgálja a HTTPS-forgalmat, telepítse a gyökértanúsítványát az operációs rendszer tanúsítványtárolójába (a VS Code onnan olvassa, amíg a http.systemCertificates be van kapcsolva), vagy kapcsolja ki a http.systemCertificates beállítást, és a VS Code indítása előtt adja meg a gyökértanúsítvány fájlját a NODE_EXTRA_CA_CERTS változóban.",
@@ -1520,21 +1521,21 @@
   "restoreBothConfirmAction": "Visszaállítás mindkettőre",
   "rewindNotDone": "A beszélgetés nem állt vissza.",
   "restoreDone": {
-    "one": "{count} fájl visszaállítva az üzenet előtti állapotra.",
-    "other": "{count} fájl visszaállítva az üzenet előtti állapotra."
+    "other": "{count} fájl visszaállítva az üzenet előtti állapotra.",
+    "one": "{count} fájl visszaállítva az üzenet előtti állapotra."
   },
   "restoreNothing": "Egy fájlt sem kellett visszaállítani.",
   "redoDone": {
-    "one": "{count} fájl visszahozva.",
-    "other": "{count} fájl visszahozva."
+    "other": "{count} fájl visszahozva.",
+    "one": "{count} fájl visszahozva."
   },
   "redoAction": "Újra",
   "redoLabel": "Újra: a visszaállítás által lecserélt fájlok visszahozása",
   "redoGone": "Ez a visszaállítás már nem ismételhető meg.",
   "noticeRepeatBadge": "{count}×",
   "noticeRepeated": {
-    "one": "Megjelenítve {count} alkalommal",
-    "other": "Megjelenítve {count} alkalommal"
+    "other": "Megjelenítve {count} alkalommal",
+    "one": "Megjelenítve {count} alkalommal"
   },
   "restoreRefusedUnsaved": "Változatlanul hagyva, mentetlen módosításokkal: {files}",
   "restoreRefusedChanged": "Változatlanul hagyva, közben mástól módosult: {files}",
@@ -1544,8 +1545,8 @@
   "restoreRefusedNotKept": "Nem állíthatók vissza, a korábbi verzió nem lett megőrizve: {files}",
   "restoreRefusedTooLarge": "Nem állíthatók vissza, túl nagyok egy másolat megőrzéséhez: {files}",
   "restoreUnchanged": {
-    "one": "Már a korábbi állapotban: {count} fájl.",
-    "other": "Már a korábbi állapotban: {count} fájl."
+    "other": "Már a korábbi állapotban: {count} fájl.",
+    "one": "Már a korábbi állapotban: {count} fájl."
   },
   "restoreWritesIncomplete": "Semmi sem lett visszaállítva: e fordulók egyes módosításai nem lettek teljesen rögzítve (újratöltés vagy összeomlás módosítás közben, vagy a fájlok ellenőrzőpontjai ki voltak kapcsolva).",
   "restoreLegacyInRange": "Semmi sem lett visszaállítva: e fordulók némelyikét egy korábbi verzió rögzítette, amelyből ez a verzió nem tud visszaállítani.",
@@ -1592,8 +1593,8 @@
   "reviewInstructionsTooLong": "Annak leírása, hogy mit kell áttekinteni, túl hosszú egyetlen áttekintéshez; fogalmazza meg röviden.",
   "reviewTruncatedNotice": "A diff hosszú, ezért csak az első része került az áttekintéshez; a módosított fájlok többi részét az áttekintő maga olvassa el.",
   "reviewPrivateLeftOut": {
-    "one": "{count} módosított fájl, amely titkos adatokat tartalmazhat, név szerint szerepel, de nem lett elküldve áttekintésre.",
-    "other": "{count} módosított fájl, amely titkos adatokat tartalmazhat, név szerint szerepel, de nem lett elküldve áttekintésre."
+    "other": "{count} módosított fájl, amely titkos adatokat tartalmazhat, név szerint szerepel, de nem lett elküldve áttekintésre.",
+    "one": "{count} módosított fájl, amely titkos adatokat tartalmazhat, név szerint szerepel, de nem lett elküldve áttekintésre."
   },
   "reviewPlanModeNotice": "Ez az áttekintés Tervezés módban fut, és a végén visszaáll a korábbi engedélyezési mód. A Muse Code Tervezés módban a saját engedélyezési szabályait alkalmazza, ezért az áttekintés ott nem feltétlenül végez csak olvasási műveleteket.",
   "reviewModeRestored": "Az áttekintés befejeződött: az engedélyezési mód ismét {mode}.",
@@ -1603,24 +1604,24 @@
   "reviewPaneLoading": "Módosítások beolvasása…",
   "reviewPaneEmpty": "Ez a beszélgetés nem módosított fájlokat.",
   "reviewPaneFiles": {
-    "one": "{count} fájl",
-    "other": "{count} fájl"
+    "other": "{count} fájl",
+    "one": "{count} fájl"
   },
   "reviewPaneHunks": {
-    "one": "{count} módosítás",
-    "other": "{count} módosítás"
+    "other": "{count} módosítás",
+    "one": "{count} módosítás"
   },
   "reviewPaneAccepted": {
-    "one": "{count} elfogadva",
-    "other": "{count} elfogadva"
+    "other": "{count} elfogadva",
+    "one": "{count} elfogadva"
   },
   "reviewPaneReverted": {
-    "one": "{count} visszaállítva",
-    "other": "{count} visszaállítva"
+    "other": "{count} visszaállítva",
+    "one": "{count} visszaállítva"
   },
   "reviewPaneOmitted": {
-    "one": "{count} szerkesztés nem szerepel itt (túl sok a megjelenítéshez, vagy a módosítása nem olvasható be); a beszélgetésben lévő sora továbbra is megnyitja.",
-    "other": "{count} szerkesztés nem szerepel itt (túl sok a megjelenítéshez, vagy a módosításaik nem olvashatók be); a beszélgetésben lévő soraik továbbra is megnyitják őket."
+    "other": "{count} szerkesztés nem szerepel itt (túl sok a megjelenítéshez, vagy a módosításaik nem olvashatók be); a beszélgetésben lévő soraik továbbra is megnyitják őket.",
+    "one": "{count} szerkesztés nem szerepel itt (túl sok a megjelenítéshez, vagy a módosítása nem olvasható be); a beszélgetésben lévő sora továbbra is megnyitja."
   },
   "reviewHunkLines": "{index}. módosítás, {start}–{end}. sor",
   "reviewHunkLine": "{index}. módosítás, {start}. sor",
@@ -1646,41 +1647,41 @@
   "reviewAnnounceNotReverted": "{name} nincs visszaállítva: {reason}",
   "reviewFindingsLabel": "Az áttekintés megállapításai",
   "reviewFindingsHeading": {
-    "one": "{count} megállapítás",
-    "other": "{count} megállapítás"
+    "other": "{count} megállapítás",
+    "one": "{count} megállapítás"
   },
   "reviewNoFindings": "Az áttekintés nem talált jelentenivalót.",
   "reviewSeverities": {
-    "critical": "Kritikus",
     "high": "Magas",
     "medium": "Közepes",
+    "info": "Tájékoztató",
     "low": "Alacsony",
-    "info": "Tájékoztató"
+    "critical": "Kritikus"
   },
   "reviewOpenFinding": "{location} megnyitása",
   "verifyErrors": {
-    "one": "{count} hiba",
-    "other": "{count} hiba"
+    "other": "{count} hiba",
+    "one": "{count} hiba"
   },
   "verifyWarnings": {
-    "one": "{count} figyelmeztetés",
-    "other": "{count} figyelmeztetés"
+    "other": "{count} figyelmeztetés",
+    "one": "{count} figyelmeztetés"
   },
   "verifyClean": "Nincs hiba vagy figyelmeztetés",
   "checkOutcomes": {
-    "passed": "{name}: sikeres",
     "failed": "{name}: sikertelen",
-    "timedOut": "{name}: időtúllépés",
+    "notRun": "{name}: nem futott",
     "cancelled": "{name}: leállítva",
-    "notRun": "{name}: nem futott"
+    "timedOut": "{name}: időtúllépés",
+    "passed": "{name}: sikeres"
   },
   "checkSkips": {
+    "unsafePath": "egy fájlnevet nem lehet biztonságosan átadni neki",
+    "hookDenied": "egy hook elutasította",
+    "changed": "a fájl a szerkesztés után megváltozott",
     "rejected": "elutasítva",
     "refused": "az engedélyezési mód nem enged shellparancsokat",
     "restricted": "a shellparancsok korlátozott módban ki vannak kapcsolva",
-    "unsafePath": "egy fájlnevet nem lehet biztonságosan átadni neki",
-    "changed": "a fájl a szerkesztés után megváltozott",
-    "hookDenied": "egy hook elutasította",
     "stopped": "az ellenőrzések leálltak, miután körről körre sikertelenek voltak"
   },
   "thenRunLabel": "Utána futtatva",
@@ -1688,13 +1689,13 @@
   "hookInputNoCommand": "A hook frissített bemenete nem nevez meg parancsot.",
   "thenRunTimedOut": "Az időkorlátnál leállítva",
   "checksStoppedNotice": {
-    "one": "Az ellenőrzések {count} javítási kör után is hibásak voltak, ezért a következő üzenetéig már nem futnak le automatikusan.",
-    "other": "Az ellenőrzések {count} egymást követő javítási kör után is hibásak voltak, ezért a következő üzenetéig már nem futnak le automatikusan."
+    "other": "Az ellenőrzések {count} egymást követő javítási kör után is hibásak voltak, ezért a következő üzenetéig már nem futnak le automatikusan.",
+    "one": "Az ellenőrzések {count} javítási kör után is hibásak voltak, ezért a következő üzenetéig már nem futnak le automatikusan."
   },
   "exportThenRunLabel": "Utána futtatva:",
   "verifyUnchecked": {
-    "one": "{count} fájl nincs ellenőrizve",
-    "other": "{count} fájl nincs ellenőrizve"
+    "other": "{count} fájl nincs ellenőrizve",
+    "one": "{count} fájl nincs ellenőrizve"
   },
   "thenRunNoExitCode": "Kilépési kód nélkül sikertelen",
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
@@ -1731,30 +1732,30 @@
   "execAccountingUnverified": "A válasz elszámolása nem ellenőrizhető.",
   "execMessageWithheld": "üzenet visszatartva: a válasz nem fejeződött be",
   "execStatus": {
-    "completed": "Befejezve",
+    "auth_required": "Hitelesítés szükséges",
+    "internal": "Belső hiba",
     "incomplete": "Hiányos",
+    "backend_unavailable": "Háttérszolgáltatás nem érhető el",
+    "accounting_unverified": "Elszámolás nincs ellenőrizve",
+    "denied": "Elutasítva",
     "failed": "Sikertelen",
-    "cancelled": "Megszakítva",
     "timeout": "Időtúllépés",
     "budget_exceeded": "Keret túllépve",
+    "completed": "Befejezve",
     "request_cap": "Kéréskorlát elérve",
-    "denied": "Elutasítva",
-    "auth_required": "Hitelesítés szükséges",
-    "backend_unavailable": "Háttérszolgáltatás nem érhető el",
-    "internal": "Belső hiba",
-    "accounting_unverified": "Elszámolás nincs ellenőrizve"
+    "cancelled": "Megszakítva"
   },
   "execTooManyFiles": {
-    "one": "Legfeljebb {count} bemeneti fájl engedélyezett.",
-    "other": "Legfeljebb {count} bemeneti fájl engedélyezett."
+    "other": "Legfeljebb {count} bemeneti fájl engedélyezett.",
+    "one": "Legfeljebb {count} bemeneti fájl engedélyezett."
   },
   "execRequestCapReached": {
-    "one": "A kérések elérték a(z) {count} próbás korlátot.",
-    "other": "A kérések elérték a(z) {count} próbás korlátot."
+    "other": "A kérések elérték a(z) {count} próbás korlátot.",
+    "one": "A kérések elérték a(z) {count} próbás korlátot."
   },
   "execScanMatches": {
-    "one": "{count} titkos adat található",
-    "other": "{count} titkos adat található"
+    "other": "{count} titkos adat található",
+    "one": "{count} titkos adat található"
   },
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
@@ -1781,8 +1782,8 @@
   "paidUseAutoReviewerTitle": "Értékelje az automatikus ellenőrző ezt a(z) {tool}-hívást?",
   "paidUseAutoReviewerDetail": "{action}\n\nEgy külön {model}-hívás értékeli, hogy a művelet futhat-e az Ön megkérdezése nélkül. A díj a Model API-kulcsára terhelődik: {price}. A végösszeg a felhasznált tokenektől függ. Megtagadás esetén inkább a jóváhagyási kártyát látja.",
   "usagePaidAutoReviews": {
-    "one": "{count} ellenőrzés",
-    "other": "{count} ellenőrzés"
+    "other": "{count} ellenőrzés",
+    "one": "{count} ellenőrzés"
   },
   "commandRuleInvalid": "{setting}: a(z) {index}. szabály érvénytelen, és nem lép életbe ({detail}).",
   "commandRuleInvalidKept": "{setting}: a(z) {index}. szabály ({pattern}) érvénytelen ({detail}). A mintája szerint továbbra is rákérdez vagy tilt, mert ez csak szigoríthat.",
@@ -1799,9 +1800,7 @@
   "redoNothing": "Nincs több visszateendő módosítás.",
   "childCheckpointFailed": "Az alügynök fordulója nem futott le: a fájlellenőrzőpontja nem hozható létre, vagy az örökölt rögzítési döntés ismeretlen.",
   "agentImportItem": "Importálás más ügynökökből…",
-  "agentImportDetail": "MCP-kiszolgálók, hookok, ügynökök, parancsok és szabályok másolása a Claude Code, a Codex vagy a Cursor közül",
   "agentImportSourceTitle": "Importálás innen",
-  "agentImportSourceAll": "Mindhárom",
   "agentImportSourceCursor": "Cursor",
   "agentImportPickTitle": "Mit kell importálni",
   "agentImportPickPlaceholder": "A bejelölt bejegyzések írás előtt előnézetben láthatók",
@@ -2165,64 +2164,68 @@
   "messageSentAt": "Elküldve {time}",
   "messageReceivedAt": "Fogadva {time}",
   "paletteTips": {
-    "attachFile": "Fájl csatolása a következő üzenethez.",
-    "mentionFile": "A projekt egyik fájljának megemlítése az üzenetben.",
-    "clear": "Törölje ezt a beszélgetést, és kezdjen újat.",
+    "paid:subagents": "Fizetős alügynökök be- vagy kikapcsolása.",
     "resume": "Egy korábbi beszélgetés kiválasztása ezen a munkaterületen.",
-    "continue:claude": "Befejezetlen Claude Code-munka folytatása ebben a beszélgetésben.",
-    "continue:codex": "Befejezetlen Codex-munka folytatása ebben a beszélgetésben.",
+    "importSession": "Exportált munkamenetfájl folytatása a Model API háttérrendszerben.",
+    "hooks": "Honnan származnak a Muse Code hookjai.",
+    "exportJson": "Hordozható fájl importáláshoz vagy megosztáshoz.",
+    "docs": "A Muse Code dokumentációjának megnyitása.",
+    "signOut": "Kijelentkezés a Muse Sparkból ezen a számítógépen.",
+    "loop": "Prompt ütemezése ebben a Model API-beszélgetésben.",
+    "importSkills": "Claude Code- vagy Codex-képességeinek átmásolása a Muse Code-ba.",
+    "agents": "Az ügynöktérkép megjelenítése.",
+    "logout": "Kijelentkezés a Muse Code-ból.",
+    "usage": "A beszélgetés bemeneti és kimeneti tokenszámának megjelenítése.",
+    "reviewChanges": "A beszélgetés minden szerkesztésének elfogadása vagy visszavonása.",
+    "openShare": "Megosztott munkamenetfájl olvasása, csak olvasható.",
+    "paid:voice": "Fizetős Muse Voice be- vagy kikapcsolása.",
+    "clearCommand": "Törölje ezt a beszélgetést, és kezdjen újat.",
+    "issue": "Hiba bejelentése.",
+    "reviewCommit": "A Muse átnéz egy választott friss commitot.",
+    "accountUsage": "Előfizetés-használat, a beszélgetés tokenjei, a háttérrendszer.",
     "plans": "Mentett tervek a .agents/plans mappában: nyisson meg vagy valósítson meg egyet.",
-    "newWorktree": "Új ág saját mappában és ablakban; ez a munkapéldány érintetlen marad.",
-    "removeWorktree": "Egy munkafa mappájának törlése; az ága megmarad.",
-    "switchModel": "A beszélgetés modelljének kiválasztása.",
-    "effort": "Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba.",
-    "thinking": "A válaszok mögötti gondolkodás megjelenítése vagy elrejtése.",
-    "permissionMode": "Válassza ki, hogyan kérdezzen a Muse, mielőtt cselekszik.",
-    "focusView": "A fókuszon kívüli lépések elrejtése.",
+    "backend": "Válassza ki, melyik háttérrendszer futtassa ezt a beszélgetést.",
+    "manageSkills": "A Muse Code képességeinek be- és kikapcsolása.",
+    "continue:claude": "Befejezetlen Claude Code-munka folytatása ebben a beszélgetésben.",
     "ctrlEnter": "Üzenetküldés Ctrl+Enterrel Enter helyett.",
     "importFromAgents": "MCP-kiszolgálók, hookok, ügynökök, parancsok és szabályok másolása a Claude Code, a Codex vagy a Cursor közül.",
-    "memory": "A jegyzetek, amelyeket a Muse a későbbi munkamenetekhez megőriz.",
-    "settings": "Beállítások megnyitása.",
-    "keybindings": "Billentyűparancsok.",
-    "accountUsage": "Előfizetés-használat, a beszélgetés tokenjei, a háttérrendszer.",
-    "usage": "A beszélgetés bemeneti és kimeneti tokenszámának megjelenítése.",
-    "backend": "Válassza ki, melyik háttérrendszer futtassa ezt a beszélgetést.",
-    "signOut": "Kijelentkezés a Muse Sparkból ezen a számítógépen.",
-    "agents": "Az ügynöktérkép megjelenítése.",
     "compact": "Foglalja össze az eddigi beszélgetést a kontextus felszabadításához.",
-    "handoff": "A beszélgetés összefoglalása egy újhoz.",
     "goal": "Cél kitűzése, amelyen a Muse tovább dolgozik: /goal <cél>.",
-    "export": "A beszélgetés mentése Markdown-fájlként.",
-    "exportJson": "Hordozható fájl importáláshoz vagy megosztáshoz.",
-    "openShare": "Megosztott munkamenetfájl olvasása, csak olvasható.",
-    "clearCommand": "Törölje ezt a beszélgetést, és kezdjen újat.",
-    "logout": "Kijelentkezés a Muse Code-ból.",
-    "usageCommand": "A fiókhasználat megjelenítése.",
-    "costCommand": "A beszélgetés tokenösszesítőinek megjelenítése.",
-    "log": "Kimeneti napló megnyitása.",
-    "whatsNew": "A verzió fő újdonságainak és teljes kiadási megjegyzéseinek megnyitása.",
-    "issue": "Hiba bejelentése.",
-    "docs": "A Muse Code dokumentációjának megnyitása.",
-    "mcpServers": "Amihez a Muse Code csatlakozik; bejelentkezés egy kiszolgálóra.",
-    "hooks": "Honnan származnak a Muse Code hookjai.",
-    "paid:imageGeneration": "Fizetős képgenerálás be- vagy kikapcsolása.",
-    "paid:voice": "Fizetős Muse Voice be- vagy kikapcsolása.",
-    "manageSkills": "A Muse Code képességeinek be- és kikapcsolása.",
-    "importSkills": "Claude Code- vagy Codex-képességeinek átmásolása a Muse Code-ba.",
-    "exportLog": "A Muse Code teljes JSON-rekordja erről a beszélgetésről.",
-    "paid:webSearch": "Fizetős webes keresés be- vagy kikapcsolása.",
-    "paid:subagents": "Fizetős alügynökök be- vagy kikapcsolása.",
     "paid:scheduledPrompts": "Fizetős ütemezett promptok be- vagy kikapcsolása.",
-    "paid:autoReviewer": "Fizetős automatikus ellenőrző be- vagy kikapcsolása.",
-    "paid:bestOfN": "Fizetős N legjobbja funkció be- vagy kikapcsolása.",
-    "loop": "Prompt ütemezése ebben a Model API-beszélgetésben.",
-    "importSession": "Exportált munkamenetfájl folytatása a Model API háttérrendszerben.",
-    "review": "A Muse átnézi a módosításait, vagy amit leír.",
-    "reviewUncommitted": "A Muse átnézi az előkészített és nem előkészített módosításokat.",
+    "usageCommand": "A fiókhasználat megjelenítése.",
     "reviewBranch": "A Muse átnézi ezt az ágat a választott alapághoz képest.",
-    "reviewCommit": "A Muse átnéz egy választott friss commitot.",
+    "mentionFile": "A projekt egyik fájljának megemlítése az üzenetben.",
+    "paid:tab": "A fizetős Tab-kiegészítések be- vagy kikapcsolása.",
+    "log": "Kimeneti napló megnyitása.",
+    "removeWorktree": "Egy munkafa mappájának törlése; az ága megmarad.",
+    "costCommand": "A beszélgetés tokenösszesítőinek megjelenítése.",
+    "thinking": "A válaszok mögötti gondolkodás megjelenítése vagy elrejtése.",
+    "paid:judge": "A Bíró fizetős tanácsainak be- vagy kikapcsolása.",
+    "newWorktree": "Új ág saját mappában és ablakban; ez a munkapéldány érintetlen marad.",
+    "exportLog": "A Muse Code teljes JSON-rekordja erről a beszélgetésről.",
+    "permissionMode": "Válassza ki, hogyan kérdezzen a Muse, mielőtt cselekszik.",
+    "settings": "Beállítások megnyitása.",
+    "paid:webSearch": "Fizetős webes keresés be- vagy kikapcsolása.",
+    "paid:hookModels": "Fizetős modellhookok be- vagy kikapcsolása.",
+    "paid:bestOfN": "Fizetős N legjobbja funkció be- vagy kikapcsolása.",
+    "handoff": "A beszélgetés összefoglalása egy újhoz.",
+    "focusView": "A fókuszon kívüli lépések elrejtése.",
+    "export": "A beszélgetés mentése Markdown-fájlként.",
+    "effort": "Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba.",
+    "memory": "A jegyzetek, amelyeket a Muse a későbbi munkamenetekhez megőriz.",
+    "keybindings": "Billentyűparancsok.",
+    "paid:autoReviewer": "Fizetős automatikus ellenőrző be- vagy kikapcsolása.",
+    "review": "A Muse átnézi a módosításait, vagy amit leír.",
+    "clear": "Törölje ezt a beszélgetést, és kezdjen újat.",
+    "mcpServers": "Amihez a Muse Code csatlakozik; bejelentkezés egy kiszolgálóra.",
+    "whatsNew": "A verzió fő újdonságainak és teljes kiadási megjegyzéseinek megnyitása.",
+    "paid:imageGeneration": "Fizetős képgenerálás be- vagy kikapcsolása.",
+    "reviewUncommitted": "A Muse átnézi az előkészített és nem előkészített módosításokat.",
     "reviewSecurity": "A Muse biztonsági hibákat keres a nem véglegesített módosításokban.",
-    "reviewChanges": "A beszélgetés minden szerkesztésének elfogadása vagy visszavonása."
+    "hookRun": "Az egyik Manual hook futtatása most a spark-hooks.json fájlból.",
+    "switchModel": "A beszélgetés modelljének kiválasztása.",
+    "continue:codex": "Befejezetlen Codex-munka folytatása ebben a beszélgetésben.",
+    "attachFile": "Fájl csatolása a következő üzenethez."
   },
   "paletteSkillTip": "A(z) {name} képesség futtatása.",
   "webFetchUnavailable": "Az oldalak lekérését nem sikerült betölteni, ezért semmit sem kért le; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
@@ -2237,16 +2240,16 @@
   "browserRuntimeReady": "A böngészős ellenőrzés böngészője ({version}) készen áll.",
   "browserCheckDone": "Ellenőrizve: {url} – {errors}, {failed}, {blocked}",
   "browserCheckConsoleErrors": {
-    "one": "{count} konzolhiba",
-    "other": "{count} konzolhiba"
+    "other": "{count} konzolhiba",
+    "one": "{count} konzolhiba"
   },
   "browserCheckFailedRequests": {
-    "one": "{count} sikertelen kérés",
-    "other": "{count} sikertelen kérés"
+    "other": "{count} sikertelen kérés",
+    "one": "{count} sikertelen kérés"
   },
   "browserCheckBlockedRequests": {
-    "one": "{count} letiltott kérés a számítógépen kívülre",
-    "other": "{count} letiltott kérés a számítógépen kívülre"
+    "other": "{count} letiltott kérés a számítógépen kívülre",
+    "one": "{count} letiltott kérés a számítógépen kívülre"
   },
   "browserCheckUrlRefused": "Csak egyszerű gazdagépnevet vagy IP-címet tartalmazó, felhasználónév és jelszó nélküli http:// vagy https:// cím nyitható meg.",
   "browserCheckInvalidArguments": "A böngészős ellenőrzést érvénytelen argumentumokkal kérték, ezért semmi sem nyílt meg.",
@@ -2296,45 +2299,45 @@
   "tasksTabEmpty": "Még nincsenek feladatok.",
   "tasksTabEnded": "A beszélgetés, amelyhez ez a lista tartozik, lezárult.",
   "stepSummary": {
-    "edited": {
-      "one": "szerkesztett egy fájlt",
-      "other": "szerkesztett {count} fájlt"
+    "ran": {
+      "other": "futtatott {count} parancsot",
+      "one": "futtatott egy parancsot"
     },
     "read": {
-      "one": "olvasott egy fájlt",
-      "other": "olvasott {count} fájlt"
+      "other": "olvasott {count} fájlt",
+      "one": "olvasott egy fájlt"
+    },
+    "edited": {
+      "other": "szerkesztett {count} fájlt",
+      "one": "szerkesztett egy fájlt"
     },
     "searched": {
-      "one": "keresett egy mappában",
-      "other": "keresett {count} mappában"
-    },
-    "ran": {
-      "one": "futtatott egy parancsot",
-      "other": "futtatott {count} parancsot"
-    },
-    "fetched": {
-      "one": "letöltött egy oldalt",
-      "other": "letöltött {count} oldalt"
+      "other": "keresett {count} mappában",
+      "one": "keresett egy mappában"
     },
     "searchedWeb": {
-      "one": "keresett a weben",
-      "other": "{count} keresés a weben"
+      "other": "{count} keresés a weben",
+      "one": "keresett a weben"
     },
-    "used": {
-      "one": "használt egy eszközt",
-      "other": "használt {count} eszközt"
+    "fetched": {
+      "other": "letöltött {count} oldalt",
+      "one": "letöltött egy oldalt"
     },
     "failed": {
-      "one": "{count} sikertelen",
-      "other": "{count} sikertelen"
+      "other": "{count} sikertelen",
+      "one": "{count} sikertelen"
+    },
+    "used": {
+      "other": "használt {count} eszközt",
+      "one": "használt egy eszközt"
     }
   },
   "contextMeterLabel": "Kontextus felhasználva: {percent}",
   "contextMeterOver": "A kontextusablak felett",
   "contextMeterUnderOne": "<1",
   "diffTallyFiles": {
-    "one": "{count} fájl módosítva",
-    "other": "{count} fájl módosítva"
+    "other": "{count} fájl módosítva",
+    "one": "{count} fájl módosítva"
   },
   "diffTallyLines": "+{added} −{removed}",
   "diffTallyLabel": "Változások ebben a beszélgetésben",
@@ -2578,5 +2581,384 @@
     "M": "Közepes",
     "L": "Nagy",
     "XL": "Nagyon nagy"
-  }
+  },
+  "hooksSparkProject": "Bővítményhookok ehhez a projekthez",
+  "hooksSparkProjectFile": ".muse/spark-hooks.json",
+  "hooksSparkProjectNone": "Ezen a munkaterületen nincs .muse/spark-hooks.json.",
+  "hooksSparkUser": "Saját bővítményhookok",
+  "hooksSparkUserNone": "Nincs spark-hooks.json fájlja.",
+  "hooksSparkCount": {
+    "one": "{count} hook itt: {file}",
+    "other": "{count} hook itt: {file}"
+  },
+  "hooksSparkAbout": "A Muse Code soha nem olvassa ezt a fájlt. Azokat az eseményeket tartalmazza, amelyeket csak ez a bővítmény futtat, valamint a más ügynökökből importált hookokat.",
+  "hooksBackendMuseCode": "A Muse Code futtatja",
+  "hooksBackendBoth": "A Muse Code futtatja, a Model API háttérrendszeren pedig ez az ablak",
+  "hooksBackendSpark": "Ez az ablak futtatja: a Model API háttérrendszeren, a bővítmény által kezelt eseményeknél pedig mindkét háttérrendszeren",
+  "hooksFormatModelApiOnly": "A más ügynök formátumában írt hookok csak a Model API háttérrendszeren futnak.",
+  "hooksFormatTag": "{format} formátum",
+  "hooksMuseEventRefused": "A(z) {event} Muse Code-esemény: a .muse/hooks.json fájlban állítsa be, hogy csak egyszer fusson.",
+  "hooksExtensionEventSkipped": "A(z) {event} csak a spark-hooks.json fájlból fut; ebben a fájlban a Muse Code kihagyja.",
+  "hooksStopFailureNote": "A Muse Code 1.4.2 nem futtat StopFailure hookokat; ez az ablak futtatja őket a Model API háttérrendszeren.",
+  "hooksSessionForkNote": "A Muse Code 1.4.2 elfogadja a SessionFork hookokat, de soha nem futtatja őket, ezért ez az ablak sem futtatja őket.",
+  "hooksTabWaiting": "A beágyazott kódkiegészítésekre vár, amelyek ebben a bővítményben még nincsenek, ezért soha nem fut.",
+  "hooksNotRunnable": "A hookok csak megbízható munkaterületen futnak, és csak ha a museSpark.modelApiHooks be van kapcsolva.",
+  "hookRefusedExpansion": "Egy hook elutasította a(z) {name} futtatását: {reason}",
+  "hookRefusedModelSwitch": "Egy hook a(z) {model} modellnél tartotta a beszélgetést: {reason}",
+  "hookRefusedTaskCreated": "Egy hook elutasította a(z) „{subject}” feladatot: {reason}",
+  "hookRefusedTaskCompleted": "Egy hook nyitva tartotta a(z) „{subject}” feladatot: {reason}",
+  "hookWorktreeCreateFailed": "Egy WorktreeCreate hook sikertelen volt, ezért ez a kísérlet nem futott le: {reason}",
+  "hookTeammateKept": "Egy hook tovább dolgoztatta a következőt: {name}. Indok: {reason}",
+  "hookFileChangedPaused": {
+    "one": "A FileChanged hookok egy percre szünetelnek: több mint {count} módosítás érkezett.",
+    "other": "A FileChanged hookok egy percre szünetelnek: több mint {count} módosítás érkezett."
+  },
+  "hookCorrectionRefused": "Egy hook javított hívása el lett utasítva: {reason}",
+  "hookCorrectionOtherTool": "másik eszközt nevez meg",
+  "hookCorrectionOutside": "a munkaterületen kívülre nyúlik",
+  "hookCorrectionTooDeep": {
+    "one": "túllépte az egymást követő {count} javítást",
+    "other": "túllépte az egymást követő {count} javítást"
+  },
+  "hookToolRemoved": "egy hook eltávolította ezt az eszközt ebből a körből",
+  "hookMessageEdited": "Egy hook szerkesztette",
+  "hookMessageShowOriginal": "Az eredeti megjelenítése",
+  "hookMessageShowEdited": "A hook változatának megjelenítése",
+  "setupHooksNone": "A spark-hooks.json fájlban nincsenek Setup hookok beállítva.",
+  "setupHooksRan": {
+    "one": "Lefutott {count} Setup hook.",
+    "other": "Lefutott {count} Setup hook."
+  },
+  "setupHooksFailed": "Egy Setup hook sikertelen volt: {reason}",
+  "manualHookPick": "Melyik hook fusson?",
+  "manualHookNone": "A spark-hooks.json fájlban nincsenek Manual hookok beállítva.",
+  "manualHookNoneNamed": "Nincs {name} nevű Manual hook beállítva.",
+  "manualHookDone": "A(z) {name} hook befejeződött.",
+  "manualHookFailed": "A(z) {name} hook sikertelen volt: {reason}",
+  "manualHookSlashDetail": "Manual hook futtatása a spark-hooks.json fájlból",
+  "extensionHooksUnavailable": "A bővítmény hookjait nem sikerült betölteni, ezért egy hook sem futott le; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
+  "shellDirectory": "Itt: {path}",
+  "shellDirectoryReset": "A parancshéj visszatért a munkaterület gyökeréhez: a(z) {path} a munkaterületen kívül esik.",
+  "elicitationTitle": "A(z) {server} információt kér",
+  "elicitationNote": "A válasza a(z) {server} kiszolgálónak megy, nem a Muse-nak. Soha ne adjon meg jelszót vagy kulcsot.",
+  "elicitationSend": "Küldés",
+  "elicitationDecline": "Elutasítás",
+  "elicitationCancel": "Mégse",
+  "elicitationRequired": "Kötelező",
+  "elicitationInvalid": "A(z) {field} mező nem felel meg annak, amit a(z) {server} kért.",
+  "elicitationDeclinedByHook": "Egy hook elutasította a(z) {server} kiszolgáló kérését: {reason}",
+  "elicitationAnsweredByHook": "Az egyik hookja megválaszolta a(z) {server} kiszolgáló kérését.",
+  "elicitationExpired": "A(z) {server} kiszolgáló kérése már nem vár válaszra.",
+  "hookHttpHostRefused": "Egy http hook el lett utasítva: a(z) {host} nem engedélyezett gazdagép.",
+  "hookHttpSchemeRefused": "Egy http hook el lett utasítva: csak a HTTPS engedélyezett.",
+  "hookHttpRedirectRefused": "Egy http hook el lett utasítva, mert átirányított a(z) {host} gazdagépre.",
+  "hookHttpProjectRefused": "Egy projektfájlban lévő http hook el lett utasítva: http hookok csak az Ön saját fájljaiból futnak.",
+  "hookHttpNetworkRefused": "Egy http hook el lett utasítva: ennek az ablaknak a hálózati beállítása letiltja a hálózatot.",
+  "hookMcpToolMissing": "Egy mcp_tool hook el lett utasítva: a(z) {tool} nem egy futó MCP-kiszolgáló eszköze.",
+  "hookModelMuseCodeNotice": "A prompt és agent hookok mindegyike egy rövid kört futtat a Muse-előfizetéséből, egy rejtett mellékmunkamenetben, amelyet az Előzmények nem listáz.",
+  "pluginStopped": "A(z) {name} beépülő modul leállt: {reason}",
+  "pluginApiUnavailable": "A(z) {name} beépülő modul meghívta a következőt: {api}, amelyet a beépülő modulok gazdafolyamata nem kínál, ezért ez a hook sikertelen volt.",
+  "hookAdapterUnreadable": "Egy {format} formátumú hook olyan választ adott, amelyet ez az ablak nem tud beolvasni, ezért hibának számít.",
+  "hookAdapterFailClosed": "Egy {format} formátumú védelmi hook sikertelen volt, ezért a hívás le lett tiltva, ahogy maga a(z) {format} is letiltaná.",
+  "hookOutputReplaced": "Egy hook lecserélte, amit a modell ennek az eszköznek a kimenetéből lát; a sor a valódi kimenetet mutatja.",
+  "pluginHooksNoJob": "Az Amp és OpenCode bővítményhookok nem futottak le: a Windows nem tudta előkészíteni az őket befoglaló feladatobjektumot. Az újrapróbáláshoz futtassa a „Bővítményhookok újrapróbálása” parancsot.",
+  "pluginHooksRetried": "A bővítményhookok a következő futáskor újra előkészítik a Windows-feladatobjektumukat.",
+  "reportCrashOffer": "A Muse Spark Code legutóbb váratlanul leállt — jelenti?",
+  "reportCrashAction": "Hiba jelentése",
+  "reportCrashDismiss": "Most nem",
+  "reportThisAction": "Ennek jelentése",
+  "reportTitle": "Hiba jelentése",
+  "reportDescriptionLabel": "Mit csinált éppen, amikor ez történt?",
+  "reportIncludeFacts": "Támogatási adatok belefoglalása",
+  "reportIncludeEvents": "Legutóbbi események belefoglalása",
+  "reportPreviewLabel": "Előnézet",
+  "reportCopyAction": "Jelentés másolása",
+  "reportOpenIssueAction": "Hibaoldal megnyitása",
+  "reportSaveAction": "Mentés fájlba",
+  "reportVscodeReporterAction": "A VS Code hibabejelentő használata",
+  "reportCancelAction": "Mégse",
+  "reportCopied": "A jelentés a vágólapra lett másolva.",
+  "reportCopyFailed": "A jelentést nem sikerült másolni. Másolja ki inkább az előnézetből.",
+  "reportSaved": "A jelentés mentve.",
+  "reportSaveFailed": "A jelentést nem sikerült menteni.",
+  "reportBuildFailed": "A jelentést nem sikerült összeállítani.",
+  "reportUrlTooLong": "A jelentés túl hosszú ahhoz, hogy böngészőcímben megnyíljon. Másolja ki, majd illessze be az új hiba űrlapjába.",
+  "reportRecordingUnavailable": "Az eseményrögzítés nem volt elérhető, ezért ez a jelentés nem tartalmaz legutóbbi eseményeket.",
+  "reportDescriptionWarning": "Megosztás előtt ellenőrizze az érzékeny adatoktól megtisztított előnézetet. A leírás továbbra is felfedhet bizalmas információkat; ne adjon meg jelszavakat vagy kulcsokat.",
+  "reportVscodeReporterNote": "A VS Code hibabejelentő saját adatokat ad hozzá, hasonló hibákra kereshet a GitHubon, valamint kezeli a bejelentkezést és a beküldést.",
+  "reportItemsLabel": "A jelentés tartalma",
+  "reportRemoveItem": "{item} eltávolítása",
+  "reportFactsItem": "Támogatási adatok",
+  "reportEventItem": "{kind} · {age}",
+  "reportUpdating": "Előnézet frissítése…",
+  "reportStaleDraft": "A jelentés exportálás közben megváltozott. Az alábbi előnézet aktuális — exportálja újra.",
+  "reportIssueOpened": "A hibajegy oldala megnyílt a böngészőben.",
+  "reportIssueOpenFailed": "A hibajegy oldalát nem sikerült megnyitni. Másolja ki inkább a jelentést.",
+  "reportVscodeReporterOpened": "A VS Code hibabejelentő megnyílt.",
+  "reportVscodeReporterFailed": "A VS Code hibabejelentőt nem sikerült megnyitni.",
+  "usageAddedByHooks": "Hookok által hozzáadva (becslés)",
+  "whatsNewStarGithub": "Tetszik a Muse Spark Code? Egy GitHub-csillag segít másoknak is felfedezni.",
+  "reportUsage": "Használat:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Kiírja a tisztított hibajelentést stdout-ra, vagy --out-tal <file>-ba írja.\n  Nem indít backendet, sehová sem jelentkezik be, és nem nyit böngészőt.\nKapcsolók:\n  --out <file>         A jelentés fájlba írása stdout helyett\n  --description <text>  Mi történt, saját szavakkal\n  --no-facts           A támogató tények kihagyása\n  --no-events          A legutóbbi események kihagyása",
+  "acpUsageSetup": "  {command} --trust-workspace setup [--maintenance]  A Setup hookok futtatása, majd kilépés",
+  "paidHookModelName": "Modellhookok",
+  "paidHookModelTitle": "Megkérdezheti ez a(z) {event} hook a modellt?",
+  "paidHookModelDetail": "Egy {kind} hook válaszadás előtt a(z) {model} modellhez fordul.\n\n{price}\n\nA díjat a Model API-kulcsára számlázzák. A tényleges költség a felhasznált tokenektől függ. Az „Engedélyezés egyszer” csak a hook ezen futtatására érvényes.",
+  "paidConfirmHookModel": "A prompt és agent hookok válaszadás előtt a modellhez fordulnak, és minden futtatást a Model API-kulcsára számláznak. {price} Minden futtatás jóváhagyást igényel minden engedélyezési módban, a Bypass módban is, hacsak nem engedélyezi mindig a modellhookokat ezen a munkaterületen. A tényleges költség a felhasznált tokenektől függ. Csak elutasíthatnak, szűkíthetnek vagy kontextust adhatnak hozzá. Csak a Model API háttérrendszeren; a Muse Code-on ehelyett az előfizetése egy körét használják.",
+  "usagePaidHookModelRuns": {
+    "one": "{count} hookfuttatás",
+    "other": "{count} hookfuttatás"
+  },
+  "paidHookModelDailyBudget": "A fizetős funkciók közös napi kerete: {budget}.",
+  "hookModelPaidOff": "A modellhookok ki vannak kapcsolva. Kapcsolja be a museSpark.modelApiHookModels beállítást, hogy a prompt és agent hookok kérdezhessenek a modelltől.",
+  "groupGit": "Git és pull requestek",
+  "gitCommitItem": "Véglegesítés…",
+  "gitCommitItemDetail": "A munkaterület módosításainak véglegesítése; üzenet csak akkor készül, ha kéri",
+  "gitPushItem": "Leküldés…",
+  "gitPushItemDetail": "Az ág leküldése; mindig rákérdez, soha nem kényszerít",
+  "gitPullRequestItem": "Pull request megnyitása…",
+  "gitPullRequestItemDetail": "A GitHubon, piszkozatként vagy készként, ehhez a beszélgetéshez kapcsolva",
+  "gitCheckoutItem": "Pull request megnyitása beszélgetésben…",
+  "gitCheckoutItemDetail": "Pull request kivétele saját munkafába és ablakba",
+  "gitRestricted": "A git és a pull requestek Korlátozott módban nem érhetők el: a git futtathat programokat, amelyeket egy adattár konfigurációja megad. A használatukhoz bízzon meg a munkaterületben.",
+  "gitHeld": "A git és a pull requestek várnak, amíg meg nem bízik ebben a munkafában a fenti kártyán.",
+  "gitUnavailable": "A VS Code Git-integrációja itt nem érhető el",
+  "gitExtensionMissing": "A VS Code beépített Git-kiegészítője ebben az ablakban nem érhető el.",
+  "gitExtensionDisabled": "A VS Code Git-integrációja ki van kapcsolva (git.enabled).",
+  "gitNoRepository": "Ez a munkaterület nincs olyan git-adattárban, amelyet a VS Code Git-integrációja megnyitott.",
+  "gitNothingToCommit": "Nincs mit véglegesíteni.",
+  "gitNothingStaged": "Semmi sincs előkészítve. Jelölje be „A nem előkészített módosítások és az új fájlok belefoglalása” lehetőséget, vagy előbb készítsen elő módosításokat.",
+  "gitCommitMessageEmpty": "Előbb írjon commitüzenetet.",
+  "gitCredentialMasked": "A szövegben egy hitelesítő adatnak látszó karakterlánc maszkolva lett. Ellenőrizze a szöveget, majd küldje el újra.",
+  "gitCommitFailed": "A véglegesítés sikertelen",
+  "gitCommitted": "„{subject}” véglegesítve a(z) {branch} ágon",
+  "gitPushDetached": "A HEAD le van választva: előbb hozzon létre egy ágat.",
+  "gitPushUnsafeName": "Az ág neve megváltoztatná, mit küld le a git (+ vagy - jellel kezdődik, vagy kettőspontot vagy szóközt tartalmaz), ezért nem lesz leküldve.",
+  "gitPushBehind": "Ez az ág le van maradva az upstream ágához képest. Előbb kérje le a változásokat (pull): a Muse Spark soha nem kényszerít leküldést.",
+  "gitPushUpToDate": "Az ág naprakész az upstream ágához képest: nincs mit leküldeni.",
+  "gitPushNoRemote": "Ennek az adattárnak nincs távoli adattára, ahová leküldhetne.",
+  "gitPushDeclined": "Semmi sem lett leküldve.",
+  "gitPushFailed": "A leküldés sikertelen",
+  "gitPushed": "A(z) {branch} ág leküldve ide: {remote}",
+  "gitPushConfirm": "Leküldi a(z) {branch} ágat ide: {remote}?",
+  "gitPushRemoteLine": "Távoli adattár: {remote} ({url})",
+  "gitPushNoUrl": "nincs ismert URL",
+  "gitPushBranchLine": "Ág: {branch} → {target}",
+  "gitPushFirstPush": "Első leküldés: az ág ott jön létre, és mostantól követve lesz.",
+  "gitPushCommits": {
+    "one": "{count} commit lesz leküldve.",
+    "other": "{count} commit lesz leküldve."
+  },
+  "gitPushNeverForce": "Soha nem kényszerít leküldést: az eltérő történetű ágat elutasítja.",
+  "gitPushAction": "Leküldés",
+  "gitPickRemoteTitle": "Melyik távoli adattárba küldje le?",
+  "gitPickRemotePlaceholder": "Ennek az ágnak még nincs upstream ága",
+  "gitHubOnly": "Pull requestet csak a github.com oldalon lehet nyitni, és a(z) „{remote}” távoli adattár nem ott van.",
+  "gitHubSignInDeclined": "A GitHub-bejelentkezés nem lett megadva, ezért semmi sem ment el a GitHubra.",
+  "gitHubFailed": "A GitHub-kérés sikertelen",
+  "gitHubAnswered": "A GitHub válasza: {status}",
+  "gitHubResponseInvalid": "A GitHub váratlan formátumú választ adott.",
+  "gitHubCommitInvalid": "Nem commitazonosító: {sha}",
+  "gitDestinationBaseUnavailable": "A céladattár alapága nem található. Adja hozzá a letöltési távoli adattárát, töltse le az alapágat, majd próbálja újra.",
+  "gitPullRequestExists": "A(z) #{number} pull request már nyitva van ehhez az ághoz; most ehhez a beszélgetéshez kapcsolódik.",
+  "gitPullRequestOpened": "A(z) #{number} pull request megnyitva: {url}",
+  "gitDraftPullRequestOpened": "A(z) #{number} piszkozat pull request megnyitva: {url}",
+  "gitTitleEmpty": "Adjon címet a pull requestnek.",
+  "gitTextTooLong": "A cím vagy a leírás hosszabb, mint amit a GitHub elfogad.",
+  "gitBaseInvalid": "Ez az alapág-név a git számára nem csak ezt az ágat jelentené.",
+  "gitBranchChanged": "Az ág megváltozott az űrlap megnyitása óta. Nyissa meg újra az űrlapot.",
+  "gitOpenPullRequestFirst": "Előbb nyissa meg a pull request űrlapját, hogy a piszkozat ismerje az ágait.",
+  "gitDraftFailed": "Nem érkezett piszkozat; az űrlap változatlan.",
+  "gitAskCommitMessage": "Írjon commitüzenetet a módosításaimhoz.",
+  "gitAskPullRequest": "Írja meg egy pull request címét és leírását ehhez az ághoz.",
+  "gitCommitFormLabel": "Véglegesítés",
+  "gitCommitTitle": "Véglegesítés",
+  "gitOnBranch": "a(z) {branch} ágon",
+  "gitChangeCounts": "{staged}, {unstaged}",
+  "gitStagedCount": {
+    "one": "{count} előkészítve",
+    "other": "{count} előkészítve"
+  },
+  "gitUnstagedCount": {
+    "one": "{count} nincs előkészítve",
+    "other": "{count} nincs előkészítve"
+  },
+  "gitFileStaged": "előkészítve",
+  "gitFileUnstaged": "nincs előkészítve",
+  "gitMoreFiles": {
+    "one": "és még {count} fájl",
+    "other": "és még {count} fájl"
+  },
+  "gitMessageLabel": "Commitüzenet",
+  "gitIncludeUnstaged": "A nem előkészített módosítások és az új fájlok belefoglalása",
+  "gitGenerate": "Megírás a Muse-zal",
+  "gitGenerateTitle": "Megkérdezi a modellt ebben a beszélgetésben, az Ön saját üzeneteként",
+  "gitGenerating": "Írás…",
+  "gitCommitAction": "Véglegesítés",
+  "gitCommitting": "Véglegesítés folyamatban…",
+  "gitCancel": "Mégse",
+  "gitPullRequestFormLabel": "Új pull request",
+  "gitPrTitle": "Pull request itt: {repository}",
+  "gitPrRemote": "Távoli adattár",
+  "gitPrHead": "Ág",
+  "gitPrBase": "Cél",
+  "gitPrTitleLabel": "Cím",
+  "gitPrBodyLabel": "Leírás",
+  "gitPrDraft": "Megnyitás piszkozatként",
+  "gitPrMasked": "A hitelesítő adatnak látszó szöveg maszkolva lesz, mielőtt bármi elküldésre kerülne.",
+  "gitPrCreate": "Pull request létrehozása",
+  "gitPrCreateDraft": "Piszkozat pull request létrehozása",
+  "gitPrPushFirst": "Az ág előbb a(z) {remote} távoli adattárba kerül, első leküldésként; a rendszer rákérdez.",
+  "gitPrPushCommits": {
+    "one": "Előbb {count} commit kerül a(z) {remote} távoli adattárba; a rendszer rákérdez.",
+    "other": "Előbb {count} commit kerül a(z) {remote} távoli adattárba; a rendszer rákérdez."
+  },
+  "gitPrBehind": "Az ág le van maradva az upstream ágához képest: a pull request azt mutatja, ami már le van küldve.",
+  "gitPullRequestLabel": "A beszélgetés pull requestje",
+  "gitPullRequestName": "#{number} {title}",
+  "gitStateOpen": "Nyitott",
+  "gitStateDraft": "Piszkozat",
+  "gitStateMerged": "Egyesítve",
+  "gitStateClosed": "Lezárva",
+  "gitChecksLine": "Ellenőrzések: {checks}",
+  "gitChecksNone": "nincs jelentett",
+  "gitChecksPassed": {
+    "one": "{count} sikeres",
+    "other": "{count} sikeres"
+  },
+  "gitChecksFailed": {
+    "one": "{count} sikertelen",
+    "other": "{count} sikertelen"
+  },
+  "gitChecksRunning": {
+    "one": "{count} fut",
+    "other": "{count} fut"
+  },
+  "gitChecksSkipped": {
+    "one": "{count} kihagyva",
+    "other": "{count} kihagyva"
+  },
+  "gitChecksCancelled": {
+    "one": "{count} megszakítva",
+    "other": "{count} megszakítva"
+  },
+  "gitChecksNotRead": {
+    "one": "további {count} nincs beolvasva",
+    "other": "további {count} nincs beolvasva"
+  },
+  "gitStatusNeedsSignIn": "Az állapot megtekintéséhez jelentkezzen be a GitHubra.",
+  "gitCheckedAt": "állapot: {time}",
+  "gitSignInGitHub": "Bejelentkezés a GitHubra",
+  "gitRefresh": "Frissítés",
+  "gitOpenOnGitHub": "Megnyitás a GitHubon",
+  "gitWorktreeBranch": "Munkafa a(z) {branch} ágon, forrás: {repository}",
+  "gitWorktreePullRequest": "A(z) #{number} pull request munkafája, forrás: {repository}",
+  "worktreeHoldLabel": "Visszatartott pull request-munkafa",
+  "worktreeHoldTitle": "Más kódja: visszatartva, amíg meg nem bízik benne",
+  "worktreeHoldPullRequest": "#{number} pull request ({author}): visszatartva, amíg meg nem bízik benne",
+  "worktreeHoldDetail": "Ez a beszélgetés Tervezés módban marad, és a munkafa projektszabályai, képességei, hookjai és MCP-kiszolgálói kikapcsolva maradnak, amíg itt meg nem bízik a munkafában. A VS Code saját megbízhatósági beállítása ezen nem változtat.",
+  "worktreeHoldRestricted": "A VS Code ezt a mappát Korlátozott módban is megnyitotta, ami szintén érvényes.",
+  "worktreeHoldOtherExtensions": "A többi kiegészítő a VS Code saját munkaterület-megbízhatóságát követi, amelyet a Muse Spark nem tud csökkenteni.",
+  "worktreeTrustButton": "Munkafa megjelölése megbízhatóként…",
+  "worktreeTrustConfirm": "Megbízik a munkafában lévő kódban?",
+  "worktreeTrustPullRequest": "#{number} pull request ({author}).",
+  "worktreeTrustDetail": "A Muse Spark betölti a munkafa projektszabályait, képességeit, hookjait és MCP-kiszolgálóit, és a beszélgetés kiléphet a Tervezés módból. A kódja ezután futhat az ügynök eszközein keresztül, a mód szerinti rákérdezéssel.",
+  "worktreeTrustOtherExtensions": "A többi kiegészítő a VS Code saját munkaterület-megbízhatóságát követi.",
+  "worktreeTrustAction": "Megbízom",
+  "worktreeHeldPlanOnly": "Ez az ablak valaki más pull requestjét tartalmazza, és vissza van tartva: a beszélgetés Tervezés módban marad, amíg meg nem bízik a munkafában a kártyán.",
+  "worktreeHeldShell": "Visszatartva, amíg meg nem bízik a munkafában a kártyán: addig itt nem fut parancs.",
+  "openPullRequestTitle": "Pull request megnyitása beszélgetésben",
+  "openPullRequestPlaceholder": "Egy szám, például 51, vagy a pull request GitHub-címe",
+  "openPullRequestInvalid": "Írja be a pull request számát vagy a github.com-címét.",
+  "openPullRequestNoRemote": "Nincs GitHub-os távoli adattár, ahonnan a pull request beolvasható lenne (upstream, a követett, origin vagy az egyetlen).",
+  "openPullRequestOtherRepository": "Ennek az adattárnak egyik távoli adattára sem mutat erre: {repository}.",
+  "openPullRequestConfirm": "Megnyitja a(z) #{number} pull requestet új ablakban?",
+  "openPullRequestBy": "Szerző: {author}",
+  "openPullRequestBranches": "Forrás: {head}, cél: {base}",
+  "openPullRequestOwnDetail": "Saját pull request: a legutóbbi commitjánál kivéve egy munkafába az adattár mellett.",
+  "openPullRequestHeldDetail": "Más írta: a Muse Spark saját tárhelyén lesz kivéve, és az új ablak Tervezés módban tartja a beszélgetést, a munkafa projektszabályai, képességei, hookjai és MCP-kiszolgálói kikapcsolva maradnak, amíg ott meg nem bízik benne.",
+  "openPullRequestUnfilteredDetail": "A Git nem veszi ki: a fájljai pontosan úgy íródnak ki, ahogy a commit tárolja őket, így semmilyen Git-szűrő, hook vagy konverzió nem fut. Az LFS-fájlok mutatók maradnak, a sorvégek a commit szerintiek; a hivatkozásokból a céljukat tartalmazó fájlok, az almodulokból üres mappák lesznek. A munkafa megbízhatóvá tétele nem írja át őket.",
+  "openPullRequestFiltersUnavailable": "A pull request biztonságos kinyerése nem tudja letiltani a tároló programjait ezzel a Git-verzióval vagy konfigurációval. Git 2.36 vagy újabb szükséges. Semmi nem lett kinyerve.",
+  "openPullRequestUnsafePath": "A pull request olyan útvonalat tartalmaz, amelyet a visszatartott kinyerés nem ír ki: {path}. Semmi nem lett kinyerve.",
+  "openPullRequestPathCollision": "{first} és {second} itt ugyanaz a fájl vagy mappa lenne. Semmi nem lett kinyerve.",
+  "openPullRequestTooLarge": "A pull request nagyobb annál, amit a visszatartott kinyerés kiír (legfeljebb {files} fájl és mappa, összesen {size}). Semmi nem lett kinyerve.",
+  "openPullRequestUnreadable": "A Git nem úgy adta vissza a pull request fájljait, ahogy a fája felsorolja őket.",
+  "openPullRequestAction": "Megnyitás",
+  "openPullRequestExisting": "A(z) #{number} pull request már ki van véve. Megnyitja annál a commitnál, amelynél ki lett véve?",
+  "openPullRequestFetchFailed": "A pull requestet nem sikerült lekérni",
+  "openPullRequestOpened": "A(z) #{number} pull request megnyílt új ablakban.",
+  "openPullRequestOpenedHeld": "A(z) #{number} pull request megnyílt új ablakban, visszatartva, amíg ott meg nem bízik benne.",
+  "gitCommitConfirm": "Véglegesíti ezeket a változtatásokat?",
+  "gitOperationChanged": "A tároló, a beszélgetés vagy a megbízhatóság megváltozott. Nyissa meg újra az űrlapot.",
+  "gitCommandConsequences": "A Git tárolóhookokat, aláíróprogramokat vagy hitelesítési segédprogramokat futtathat. A megszakítás leállítja a későbbi lépéseket; egy már elindított Git- vagy GitHub-hívás még befejeződhet.",
+  "agentImportSourceGemini": "Gemini CLI",
+  "agentImportSourceCopilot": "Copilot és VS Code",
+  "agentImportSourceWindsurf": "Windsurf",
+  "agentImportSourceKiro": "Kiro",
+  "agentImportSourceCline": "Cline",
+  "agentImportSourceAmp": "Amp",
+  "agentImportSourceOpenCode": "OpenCode",
+  "agentImportSourceEvery": "Mindegyik",
+  "agentImportDetailEvery": "MCP-kiszolgálók, hookok, ügynökök, parancsok és szabályok másolása a Claude Code, a Codex vagy a Cursor közül, valamint hookok és beépülő modulok másolása a Gemini CLI, a Copilot, a Windsurf, a Kiro, a Cline, az Amp és az OpenCode közül",
+  "agentImportKindPlugin": "Beépülő modul",
+  "agentImportSkippedWeaker": "itt nem tudna úgy blokkolni, mint a forrásánál, így a védelem gyengébb lenne",
+  "agentImportSkippedChooses": "útvonalat, modellt vagy eszközt választ, amit itt egyetlen hook sem tehet meg",
+  "agentImportSkippedField": "beállítja a(z) {field} mezőt, amelynek itt nincs megfelelője",
+  "agentImportSkippedNotify": "a Codex notify programja nem hook, ezért csak listázva van, nincs átalakítva",
+  "agentImportSkippedNeedsMatcher": "a FileChanged eseményhez illesztő (matcher) kell, amely megnevezi a figyelendő fájlokat",
+  "agentImportSkippedUnknownFormat": "a fájlja olyan formátumú, amelyet ez a verzió nem olvas",
+  "agentImportKeptWaiting": "megtartva; a beágyazott kódkiegészítésekre vár, amelyek ebben a bővítményben még nincsenek",
+  "agentImportKiroTaskNote": "A Kiro spec-feladatindítói itt a todo-elemeken futnak",
+  "paidTabName": "Tab-kiegészítések",
+  "paidConfirmTab": "A Tab-kiegészítések gépelés közben elküldik a kurzor körüli kódot a Metának, díjukat a Model API-kulcsára számlázzák. {price} Átlagos gépelési tempó mellett ez óránként körülbelül 0,80 $ Standard szinten és körülbelül 0,05 $ a közreműködői modellen, a beállításokban módosítható napi keret felső határáig. A közreműködői modell olcsóbb, és a Meta a neki elküldött kódon tanul. Ha a Copilot be van kapcsolva, az élvez elsőbbséget: mindkettő futtatása nélkül az ő nyelvein az automatikus Tab-javaslatok szünetelnek. A Tab az első javaslat előtt ablakonként egyszer kérdez.",
+  "paidUseTabTitle": "Javasolhat a Tab ebben az ablakban?",
+  "paidUseTabDetail": "A Tab elküldi a kurzor körüli kódot a Meta {model} modelljének, díja {price}, amelyet a Model API-kulcsára számláznak. A mai keret {budget}; ha ez kimerül, a Tab a nap hátralévő részében leáll. {training} Az „Engedélyezés egyszer” erre az ablakra érvényes annak bezárásáig; az „Engedélyezés mindig ezen a munkaterületen” itt többé nem kérdez; a „Megtagadás” szundiba teszi a Tabot ebben az ablakban.",
+  "tabTrainingContributor": "A közreműködői modell olcsóbb, és a Meta a neki elküldött kódon tanul.",
+  "tabStatusSpend": "Tab: {spend}",
+  "tabStatusTooltip": "Tab-kiegészítések ({model}). Ma: {requests}, a(z) {budget} napi keretből elköltve {spend}.",
+  "tabStatusSnoozed": "Tab szundiban ({left} múlva folytatódik)",
+  "tabStatusBudget": "A Tab napi kerete kimerült",
+  "tabStatusNoKey": "Tab: nincs kulcs",
+  "tabStatusUntrusted": "Tab kikapcsolva: nem megbízható munkaterület",
+  "tabStatusLanguageOff": "Tab kikapcsolva ehhez: {language}",
+  "tabStatusCopilot": "Tab: csak meghívásra, amíg a Copilot be van kapcsolva",
+  "tabStatusError": "Tab-hiba ({kind})",
+  "tabMenuTurnOff": "Tab kikapcsolása",
+  "tabMenuSnoozeShort": "Szundi 15 percre",
+  "tabMenuSnoozeLong": "Szundi egy órára",
+  "tabMenuSnoozeRestart": "Szundi újraindításig",
+  "tabMenuLanguages": "Tab-nyelvek…",
+  "tabMenuMultiline": "Többsoros mód…",
+  "tabMenuUsage": "Fiók és használat",
+  "tabMenuCopilotOff": "Copilot-javaslatok kikapcsolása ehhez: {language}",
+  "tabMenuRunBoth": "Mindkettő futtatása",
+  "tabCopilotConfirmTitle": "Kikapcsolja a Copilot-javaslatokat ehhez: {language}?",
+  "tabCopilotConfirmDetail": "A Tab többé nem vár meghívásra ebben: {language}, hanem elküldi a saját automatikus javaslatait a Model API-kulcsára számlázva. A Copilot-javaslatokat a beállításokban bármikor visszakapcsolhatja.",
+  "usagePaidTabRequests": {
+    "one": "{count} Tab-kérés",
+    "other": "{count} Tab-kérés"
+  },
+  "usagePaidTabTokens": "{tokens} token ({cached} gyorsítótárazott)",
+  "usagePaidTabReported": "Jelentett tokenek becsült költsége: {cost}",
+  "usagePaidTabCostToday": "Ma: {cost}",
+  "usagePaidTabCostWindow": "Ez az ablak: {cost}",
+  "usagePaidTabBudget": "Napi keret: {budget}",
+  "tabMultilineAuto": "Automatikus",
+  "tabMultilineOnInvoke": "Csak meghíváskor",
+  "tabMultilineNever": "Csak egysoros környezet",
+  "paidJudgeName": "Értékelő",
+  "paidConfirmJudge": "Saját csevegőmodellje értékel minden kockázatos Auto műveletet, amelyről egyetlen szabály sem dönt, és csak óvatosságot adhat hozzá: az elkészült figyelmeztetés az engedélyt kérdéssé alakítja, vagy megjegyzést fűz a jóváhagyási kártyához. Minden értékelés díja a Model API-kulcsára terhelődik a beszélgetés modelljének tokenáraival:\n{price}\nAz értékelő egyszer kér engedélyt az első díj felszámítása előtt, feltüntetve ezeket az árakat és a közös napi keretet: {budget}. Ingyenes forrásról fizetősre váltáskor újra engedélyt kér. A Muse Code rendszerben ugyanezek a hívások az előfizetését használják.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} értékelés",
+    "other": "{count} értékelés"
+  },
+  "judgeCaution": "A Muse Judge óvatosságot javasol. Ön dönt; nem hagyhatja jóvá ezt a műveletet.",
+  "judgeSubscriptionNotice": "A Muse Judge az Ön csevegési modelljét használja a Muse-előfizetésével, és beleszámít annak korlátjaiba. Minden köteg új, elkülönített munkamenetet használ Terv módban. Az eszközészlelési védelem megszakítja a munkamenetet, de nem bizonyíthatja, hogy egyetlen eszköz sem futott. Csak óvatosságot javasolhat.",
+  "judgeStatusSame": "Ugyanaz a modell",
+  "judgeStatusOff": "Kikapcsolva",
+  "judgeStatusUnavailable": "Kikapcsolva: a forrás nem elérhető vagy állandó engedélyezési szabályok vannak",
+  "judgeStatusConsent": "Hozzájárulásra vár az első díj előtt",
+  "judgeStatusDeclined": "Kikapcsolva: a fizetős használat elutasítva",
+  "judgeStatusSlow": "Alapértelmezetten kikapcsolva: túl kevés eredmény kész az ellenőr döntésekor",
+  "judgeStatusSubscription": "Előfizetés",
+  "judgeStatusPaid": "Fizetős"
 }

@@ -38,9 +38,10 @@ import { ExpandChevron, FileIcon, RewindIcon } from './icons'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
 import { QuestionCard, type QuestionCardProps } from './QuestionCard'
 const TeamWorkerLabel = lazy(async () => {
-  const module = await import('./TeamCards')
+  const module = await import('./TeamUi')
   return { default: module.TeamWorkerLabel }
 })
+import { ElicitationCard, type ElicitationCardProps } from './ElicitationCard'
 import { Clipped, DiffTable } from './ToolBlocks'
 import {
   GoalBody,
@@ -71,6 +72,9 @@ export interface ToolRowProps {
   readonly onAnswer: QuestionCardProps['onAnswer']
   readonly onCancelQuestion: QuestionCardProps['onCancel']
   readonly onClarifyQuestion: QuestionCardProps['onClarify']
+  readonly onAcceptElicitation: ElicitationCardProps['onAccept']
+  readonly onDeclineElicitation: ElicitationCardProps['onDecline']
+  readonly onCancelElicitation: ElicitationCardProps['onCancel']
   /** Edit review (M5): the stored patch of a completed edit-family item in the diff editor. */
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
   /**
@@ -368,6 +372,9 @@ function ToolRowView({
   onAnswer,
   onCancelQuestion,
   onClarifyQuestion,
+  onAcceptElicitation,
+  onDeclineElicitation,
+  onCancelElicitation,
   onOpenEditDiff,
   onRevertEdit,
   onOpenFile,
@@ -651,6 +658,15 @@ function ToolRowView({
           onAnswer={onAnswer}
           onCancel={onCancelQuestion}
           onClarify={onClarifyQuestion}
+        />
+      )}
+      {entry.elicitation === undefined ? null : (
+        <ElicitationCard
+          key={entry.elicitation.elicitationId}
+          form={entry.elicitation}
+          onAccept={onAcceptElicitation}
+          onDecline={onDeclineElicitation}
+          onCancel={onCancelElicitation}
         />
       )}
       {entry.questionOutcome === undefined ? null : (

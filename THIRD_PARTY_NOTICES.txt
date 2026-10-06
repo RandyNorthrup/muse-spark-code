@@ -2,11 +2,11 @@ THIRD-PARTY SOFTWARE NOTICES
 Muse Spark Code (Unofficial)
 
 The extension's bundles (dist/extension.js, dist/modelApi.js,
-dist/sessionBoard.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js,
-dist/planMarkdown.js, dist/checkpointStore.js,
-dist/review.js, dist/agentImport.js, dist/codeIntel.js, dist/voice.js, dist/webFetch.js,
+dist/sessionBoard.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js,
+dist/pluginHooks.js, dist/planMarkdown.js, dist/checkpointStore.js,
+dist/review.js, dist/agentImport.js, dist/conversationGit.js, dist/codeIntel.js, dist/voice.js, dist/webFetch.js,
 dist/museCodeReviewer.js, dist/browserCheck.js, dist/browserRuntime.js, dist/bundledSkills.js,
-dist/whatsNew.js, dist/uiText.js, dist/validation.js, dist/searchWorker.js, dist/pageWorker.js,
+dist/conversation.js, dist/whatsNew.js, dist/report.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js, dist/pageWorker.js,
 dist/webview/main.js, its ESM chunks, dist/webview/main.css, dist/webview/whatsNew.js and dist/webview/whatsNew.css)
 include code from the packages below, each under its own licence,
 reproduced here as the package ships it. The vendored

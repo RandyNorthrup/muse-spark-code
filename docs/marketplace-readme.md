@@ -20,34 +20,25 @@ Available on Windows, macOS and Linux, with English and 14 translated languages.
 Unofficial. Not affiliated with or endorsed by Meta. “Muse Spark” and “Muse
 Code” are Meta trademarks. You bring your own credentials.
 
-## What's new in 0.13.0
+[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-- **Browser checks on local web changes** (see [Browser check](https://github.com/RandyNorthrup/muse-spark-code#browser-check)).
-  The model can open your dev server, click or type, and read console errors
-  and failed requests through a verified, isolated headless browser that you
-  download once with **Muse Spark: Download Browser Check Runtime**. On the
-  Model API it also receives the page's screenshot.
-- **What's New after an update** (see
-  [What's New after an update](https://github.com/RandyNorthrup/muse-spark-code#whats-new-after-an-update)). After the
-  extension updates, the release's highlights and full notes open in an
-  editor tab once you are idle; a fixes-only patch shows a quiet notification
-  instead. Turn it off with `museSpark.showWhatsNewOnUpdate`.
-- **Enhancements available by default** (see
-  [What's on out of the box](https://github.com/RandyNorthrup/muse-spark-code#whats-on-out-of-the-box) and
-  [Paid features](https://github.com/RandyNorthrup/muse-spark-code#paid-features)). Model API extras are on out of the box for
-  the setup you chose. A paid extra asks before its first charge, showing the
-  price and the shared daily budget (`museSpark.paidDailyBudgetUsd`, $5 a day
-  by default). A setting you have turned off stays off.
-- **Muse Gadgets guidance and secret checks** (see
-  [Muse Gadgets](https://github.com/RandyNorthrup/muse-spark-code#muse-gadgets)). The bundled SDK skill covers ESP32 build,
-  flash and bounded serial monitoring. Detected tokens are redacted, a prompt
-  that contains a secret pauses for your decision, and a shell approval that
-  would expose one offers only one-time consent.
-- **Safer diagnostics and steadier Windows helpers** (see
-  [Privacy and security](https://github.com/RandyNorthrup/muse-spark-code#privacy-and-security)). Diagnostic notices redact
-  known secret shapes, confidential workspaces recheck contributor dispatch,
-  protected file approvals stay protected, and the Windows job helpers
-  compile directly with the .NET compiler.
+## What's new in 0.14.0
+
+- **Tab completions** (see [Tab completions](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)). Alt+\ invokes
+  ghost text. First-use consent names the model price and the separate
+  $1.00/day default hard budget; your stored Model API key pays on either backend.
+- **Git and pull requests** (see [Git and pull requests](https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests)).
+  Draft a commit or PR in the conversation, commit and push with confirmation,
+  and open a foreign PR in a held worktree until you confirm its trust card.
+- **Hooks and plugins** (see [Hooks](https://github.com/RandyNorthrup/muse-spark-code#hooks)). Import popular agent hook formats,
+  run Setup and Manual hooks on both backends, and use bounded Amp and OpenCode
+  plugins on the Model API backend. Hooks keep their permission and paid-use limits.
+- **Report a problem** (see [Reporting a problem](https://github.com/RandyNorthrup/muse-spark-code#reporting-a-problem)). Preview
+  the exact scrubbed report, remove items, then copy, save or open an issue.
+  The report is built locally and the extension sends nothing.
+- **Muse Judge phase 1** (see [Muse Judge](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)). The conversation model
+  can add uncalibrated caution to an approval; it cannot grant permission.
+  Model API Judge asks for paid-use consent and shares the durable daily budget.
 
 Earlier releases are in the
 [changelog](https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md).

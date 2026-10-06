@@ -4,9 +4,13 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { build } from 'esbuild'
 import { afterAll, describe, expect, it } from 'vitest'
-import { sharedValidation } from '../../scripts/lib/sharedValidation.mjs'
-import { deferredTeamView, deferredCohort } from '../../scripts/lib/deferredTeamView.mjs'
-import { sharedUiText } from './helpers/modelApiBundle'
+import {
+  sharedValidation,
+  sharedUiText,
+  sharedWire,
+  deferredCohort,
+} from '../../scripts/lib/deferredBundles.mjs'
+import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
 import { EN } from '../../src/shared/l10n/en'
 
@@ -34,7 +38,7 @@ describe('M96 production startup boundary', () => {
       write: false,
       metafile: true,
       external: ['vscode', '@napi-rs/keyring', './sessionBoardEntry.js', './reviewerEntry.js'],
-      plugins: [sharedUiText, sharedValidation, deferredCohort, deferredTeamView],
+      plugins: [sharedUiText, sharedValidation, deferredCohort, deferredTeamView, sharedWire],
       define: { 'process.env.NODE_ENV': '"production"' },
     })
     const inputs = Object.keys(result.metafile.inputs)

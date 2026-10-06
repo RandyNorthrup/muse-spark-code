@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   dispatchHooks,
+  HOOK_EVENTS,
   loadHookDefinitions,
   matchingHooks,
   parseHookAnswer,
@@ -498,5 +499,91 @@ describe('hook answer and dispatch (M51)', () => {
       gate.resolve(done)
     }
     await Promise.all(pending.map((gate) => gate.promise))
+  })
+})
+
+describe('Muse parity events (M91 lane R)', () => {
+  it('wires Interrupt and SessionFork beside the Muse Code events', () => {
+    expect(HOOK_EVENTS).toContain('Interrupt')
+    expect(HOOK_EVENTS).toContain('SessionFork')
+  })
+
+  it('accepts Interrupt only as async, as Muse Code 1.4.2 does (research run C)', () => {
+    const refused = parseHookConfig(
+      JSON.stringify({
+        hooks: { Interrupt: [{ hooks: [{ type: 'command', command: 'note' }] }] },
+      }),
+      'project',
+      'linux',
+    )
+    expect(refused.hooks).toEqual([])
+    expect(refused.warnings.join(' ')).toContain('Interrupt must be asynchronous')
+
+    const accepted = parseHookConfig(
+      JSON.stringify({
+        hooks: { Interrupt: [{ hooks: [{ type: 'command', command: 'note', async: true }] }] },
+      }),
+      'project',
+      'linux',
+    )
+    expect(accepted.warnings).toEqual([])
+    expect(accepted.hooks).toMatchObject([{ event: 'Interrupt', isAsync: true }])
+  })
+
+  it('accepts SessionFork only as sync and runs it with no matcher', () => {
+    const refused = parseHookConfig(
+      JSON.stringify({
+        hooks: { SessionFork: [{ hooks: [{ type: 'command', command: 'veto', async: true }] }] },
+      }),
+      'project',
+      'linux',
+    )
+    expect(refused.hooks).toEqual([])
+    expect(refused.warnings.join(' ')).toContain('SessionFork cannot be asynchronous')
+
+    const accepted = parseHookConfig(
+      JSON.stringify({
+        hooks: {
+          SessionFork: [{ matcher: 'some-tool', hooks: [{ type: 'command', command: 'veto' }] }],
+        },
+      }),
+      'project',
+      'linux',
+    )
+    expect(accepted.warnings).toEqual([])
+    expect(accepted.hooks).toMatchObject([{ event: 'SessionFork', isAsync: false }])
+    expect(matchingHooks(accepted.hooks, 'SessionFork', 'some-tool')).toHaveLength(1)
+  })
+
+  it('accepts updatedInput on PostToolUseFailure for the correction, refusing it elsewhere', () => {
+    expect(
+      parseHookAnswer(
+        'PostToolUseFailure',
+        0,
+        JSON.stringify({
+          hookSpecificOutput: {
+            hookEventName: 'PostToolUseFailure',
+            updatedInput: { command: 'echo fixed' },
+          },
+        }),
+        '',
+      ),
+    ).toMatchObject({ status: 'completed', updatedInput: { command: 'echo fixed' } })
+    for (const event of ['PostToolUse', 'Stop', 'Notification'] as const) {
+      expect(
+        parseHookAnswer(
+          event,
+          0,
+          JSON.stringify({
+            hookSpecificOutput: { hookEventName: event, updatedInput: { command: 'echo fixed' } },
+          }),
+          '',
+        ).status,
+      ).toBe('failed')
+    }
+  })
+
+  it('never lets an Interrupt answer block: exit 2 fails instead', () => {
+    expect(parseHookAnswer('Interrupt', 2, '', 'stop it').status).toBe('failed')
   })
 })

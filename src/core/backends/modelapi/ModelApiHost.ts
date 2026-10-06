@@ -7,10 +7,14 @@ import { redactDiagnosticEvent } from '../../redact'
 // Sessions live for the host's lifetime (this VS Code window).
 
 import { Buffer } from 'node:buffer'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdir, rm } from 'node:fs/promises'
+import { homedir, tmpdir } from 'node:os'
 import type {
   AgentEvent,
   ApprovalSubject,
+  ElicitationField,
+  ElicitationReply,
   ItemSnapshot,
   QuestionAnswer,
   TodoItem,
@@ -41,12 +45,15 @@ import {
   GOAL_STATUS,
   type GoalCommandVerb,
   HOOK_MAX_STOP_CONTINUATIONS,
+  HOOK_MODEL_READ_TOOLS,
   HOOK_NOTIFICATION_DELAY_MS,
+  HOOK_ON_FAILURE_MAX_DEPTH,
   HOOK_SESSION_END_TIMEOUT_MS,
   HTTP_STATUS,
   HTTP_TOO_MANY_REQUESTS,
   HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
+  MCP_ELICITATION_TIMEOUT_MS,
   ISO_DATE_LENGTH,
   MAX_ENCODED_MEDIA_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
@@ -184,8 +191,9 @@ import type { CoreLogger } from '../../logging'
 import { textFileInput } from '../../textAttachment'
 import { withDeadline } from '../../timeouts'
 import { isProtectedPath } from '../../protectedPaths'
+import { isSamePath } from '../../paths'
 import { ShellEntryError } from '../../shellResult'
-import { confineWorkspacePath } from '../../workspacePath'
+import { confineWorkspacePath, isBelow } from '../../workspacePath'
 import { pathModule } from '../../workspaceRoot'
 import { type CheckScope, type RunSnapshot, VerifyLedger } from './verifyLedger'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../verify/workspaceEdits'
@@ -202,6 +210,8 @@ import {
 import type { CheckAdmission } from '../../browser/browserRun'
 import { browserCheckOutcome, browserCheckRefused, browserCheckRestricted } from './browserCalls'
 import type { WebFetchFailure } from '../../web/fetchFailure'
+import type { JudgeAdvisory, JudgeFence } from '../../judge/use'
+import type { ModelApiJudgeConnection } from '../../judge/same/modelApiSource'
 import { approvalHost } from '../../web/hostName'
 import { checkPageUrl } from '../../web/pageUrl'
 import { IndexLineStoppedError, type MemoryStore } from '../../memory/memoryStore'
@@ -221,7 +231,15 @@ import {
 } from './codeIntelCalls'
 import type { PermissionSettings } from '../../permissionSettings'
 import { ReviewBreaker } from './autoReviewer'
-import type { reviewPaidCall as ReviewPaidCall } from './reviewerEntry'
+import type {
+  runHookModelTurn as RunHookModelTurn,
+  reviewPaidCall as ReviewPaidCall,
+} from './reviewerEntry'
+import type {
+  createForeignHookAdapter as CreateForeignHookAdapter,
+  PluginHostDeps,
+} from './foreignHooksEntry'
+import type * as HookRuntime from './hookRuntimeEntry'
 import {
   type ConfirmedModelRequest,
   MissingApiKeyError,
@@ -246,13 +264,17 @@ import { type EnvironmentFacts, instructionsFor } from './instructions'
 import {
   dispatchHooks,
   matchingHooks,
+  type ForeignDispatchContext,
+  type ForeignHookAdapter,
   type HookDefinition,
   type HookDispatch,
   type HookEvent,
+  type HookReplacement,
   toolMatcherNames,
 } from './hooks'
 import { postModelCallFields, preModelCallFields } from './modelCallHooks'
-import { ObservationPack } from './observationPack'
+import type { HookMcpOutcome, HookModelTurn, HookModelDailyBudget } from './hookHandlers'
+import { ObservationPack, estimatePackTokens } from './observationPack'
 import { nextScheduleFire } from './schedules'
 import {
   type BudgetBase,
@@ -267,6 +289,27 @@ import {
 import { uiLocale } from '../../../shared/l10n/text'
 import { estimateCostUsd, formatUsd } from '../../usage/insights'
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
+import {
+  afterAgentThoughtFields,
+  beforeToolSelectionFields,
+  createFileChangedThrottle,
+  emptyExtensionDispatch,
+  extensionHookPayload,
+  fileChangedFields,
+  instructionsLoadedFields,
+  isToolAllowedBySelection,
+  modelSwitchFields,
+  messageDisplayFields,
+  isFileChangedWatched,
+  permissionDeniedFields,
+  taskFields,
+  userPromptExpansionFields,
+  type ExtensionHookContext,
+  type ExtensionHookDefinition,
+  type ExtensionHookDispatch,
+  type ExtensionHookEvent,
+  type FileChangedThrottle,
+} from './extensionHooks'
 import { type ImagePlan, imageUseRequest, prepareImageCall, runImageCall } from './imageGeneration'
 import { promptCacheKey } from './promptCache'
 import {
@@ -277,7 +320,20 @@ import {
 } from './reviewer'
 import { MediaBudget } from './mediaBudget'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
-import type { McpPoolSnapshot, McpToolRef, McpToolSource } from './mcp/pool'
+import {
+  ALLOW_ELICITATION_SEAM,
+  describeElicitationForLog,
+  type ElicitationHookSeam,
+  elicitationFieldNames,
+  type ElicitationOutcome,
+} from './mcp/elicitation'
+import type {
+  McpElicitationHandler,
+  McpElicitationRequest,
+  McpPoolSnapshot,
+  McpToolRef,
+  McpToolSource,
+} from './mcp/pool'
 import { isMemoryTool, placeMemoryCall, runMemoryCall, type PlacedMemoryCall } from './memoryTools'
 
 import {
@@ -332,6 +388,8 @@ import {
   readSkillArgs,
   webFetchArgs,
   type ShellResult,
+  parseShellDirectoryReport,
+  shellDirectoryTrailer,
   shellOutcome,
   shellText,
   ShellTimeLimit,
@@ -416,9 +474,18 @@ export interface ModelApiPaidHooks {
   readonly noteSubagentUsage: (modelId: string, usage: SubagentUsage) => void
   /** One Auto reviewer call's tokens (M78): billed apart from the conversation. */
   readonly noteReviewerUsage: (modelId: string, usage: SubagentUsage) => void
+  /**
+   * One M91 prompt/agent hook run's tokens (D70): billed apart from the
+   * conversation, on the hookModels tally line. Optional until the host
+   * wires it: without it, runs are still counted, but no cost settles.
+   */
+  readonly noteHookModelUsage?: ((modelId: string, usage: SubagentUsage) => void) | undefined
+  readonly hookModelDailyBudget?: HookModelDailyBudget | undefined
 }
 
 export interface ModelApiHostDeps extends ModelApiPaidHooks {
+  /** M98: injected same-model source; all paid dispatch admitted by lane A. */
+  readonly judge?: JudgeAdvisory | undefined
   readonly client: ModelApiClient
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
@@ -466,6 +533,18 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
    * false packs nothing and offers no `recall_output`.
    */
   readonly observationPacking?: (() => boolean) | undefined
+  /**
+   * The shell keeps its directory between calls (M91 lane S, PLAN.md D70):
+   * `museSpark.modelApiShellKeepsDirectory`, read per shell call. Absent or
+   * false runs every call at the workspace root, as before.
+   */
+  readonly shellKeepsDirectory?: (() => boolean) | undefined
+  /**
+   * Where the shell's per-session side files live (M91 lane S): the
+   * extension's temp dir holds one file per session. Tests pass their own;
+   * the operating system's temp dir is the default.
+   */
+  readonly shellSidecarDir?: string | undefined
   /** A smaller replay cap for focused media-budget verification. */
   readonly mediaBudgetMaxEncodedChars?: number
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
@@ -476,12 +555,42 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly noteResponseUsage?: ((modelId: string, usage: SubagentUsage) => void) | undefined
   /** A fresh snapshot at each session start (M51); disabled means empty. */
   readonly loadHooks?: () => Promise<readonly HookDefinition[]>
+  /** The session's spark-hooks.json snapshot (M91 lane E); same gates, empty when disabled. */
+  readonly loadExtensionHooks?: () => Promise<readonly ExtensionHookDefinition[]>
   /** Machine hook opt-in is checked again for every dispatch. */
   readonly isHooksEnabled?: (() => boolean) | undefined
+  /**
+   * M91 http hooks (D70): `museSpark.hookHttpAllowedHosts`, read at every
+   * dispatch. Absent means empty: no http hook runs. Optional until the host
+   * wires the setting.
+   */
+  readonly hookHttpAllowedHosts?: (() => readonly string[]) | undefined
+  /** The workspace sandbox's network posture, re-read before each HTTP hook. */
+  readonly isHookNetworkAllowed?: (() => boolean) | undefined
+  /**
+   * Amp and OpenCode plugin hooks' host side (M91b): M51's allowlisted
+   * environment and the tree their children run in. Without it they are
+   * refused by their fail-closed rule.
+   */
+  readonly pluginHooks?:
+    (Pick<PluginHostDeps, 'containment'> & { readonly env: () => NodeJS.ProcessEnv }) | undefined
   /** Tests can shorten the six-second Notification delay without waiting. */
   readonly hookNotificationDelayMs?: number | undefined
+  /**
+   * Tests give an imported hook's regular-expression match a deadline a
+   * loaded rig cannot lapse; production keeps HOOK_MATCHER_TIMEOUT_MS.
+   */
+  readonly hookMatcherTimeoutMs?: number | undefined
+  /** Tests can shorten the elicitation form's wait without waiting. */
+  readonly elicitationTimeoutMs?: number | undefined
   /** The MCP servers of Muse Code's settings (M50, PLAN.md D42), closed with the host. */
   readonly mcpServers?: McpToolSource | undefined
+  /**
+   * The Elicitation and ElicitationResult hook runs (M91, PLAN.md D70).
+   * Lane E owns the dispatch; until it lands, the default proceeds every
+   * request to the form. Tests inject a fake here.
+   */
+  readonly elicitationHooks?: ElicitationHookSeam | undefined
   /**
    * The extension's own IDE tools (`getDiagnostics`), offered in process as
    * `mcp__ide__<tool>`, the names Muse Code sessions see them by (M50).
@@ -700,6 +809,7 @@ interface QueuedTurn {
    * no card for it, as Muse Code's goal turns have none (live 2026-09-25).
    */
   readonly isGoalWake: boolean
+  readonly isHookContinuation?: boolean
   /** The accepted user goal command this queued wake must still serve. */
   readonly goalCommandRevision?: number
   /** A `/review` (M70): the turn runs as the Reviewer, its prompt and read-only tools. */
@@ -733,6 +843,8 @@ interface ActiveTurn {
   checkpoint?: TurnCheckpoint | undefined
   /** It started a process, or one of the conversation's ran in the background (M86, spec 8). */
   ranProcesses: boolean
+  /** The terminal is selected; checkpoint cleanup cannot cancel this turn. */
+  isFinalizing?: boolean
 }
 
 interface HookToolResult {
@@ -799,6 +911,12 @@ type QuestionReply =
   | { readonly kind: 'answered'; readonly answers: readonly QuestionAnswer[] }
   | { readonly kind: 'cancelled' }
   | { readonly kind: 'clarified'; readonly text: string }
+
+/** How an elicitation form settled (M91 lane M): accept, decline or cancel. */
+type ElicitationContent =
+  | { readonly kind: 'accepted'; readonly content: Readonly<Record<string, unknown>> }
+  | { readonly kind: 'declined' }
+  | { readonly kind: 'cancelled' }
 
 /**
  * A tool's result. A shell call the user moved to the background (M46)
@@ -1017,6 +1135,8 @@ const FORWARDED_CHILD_EVENTS: ReadonlySet<AgentEvent['type']> = new Set([
   'approvalRequested',
   'approvalUpdated',
   'approvalResolved',
+  'elicitationRequested',
+  'elicitationSettled',
 ])
 const IDLE = 'idle'
 const RUNNING = 'running'
@@ -1037,6 +1157,7 @@ const TURN_RUNNING = 'a turn is running'
 // The description a `then_run` command's card and hooks see (M68).
 const THEN_RUN_DESCRIPTION = 'then_run: the command an edit runs right after it'
 const SUMMARY_FIELD_PREFIX = 'summary.'
+const EXPANDED_SLASH_NAME = /^\/([\w:-]+)/
 const TEXT_FIELD = 'text'
 const OUTPUT_TEXT = 'output_text'
 const COMMENTARY_PHASE = 'commentary'
@@ -1115,6 +1236,18 @@ class HookStoppedError extends Error {
   public constructor(message: string) {
     super(message)
     this.name = 'HookStoppedError'
+  }
+}
+
+/**
+ * A UserPromptSubmit block ends the turn cancelled with the hook's reason, as
+ * on Muse Code 1.4.2 (M91 capture run 5), so Interrupt fires for it. Other
+ * hook stops still fail the turn.
+ */
+class HookCancelledError extends Error {
+  public constructor(public readonly reason: string) {
+    super(reason)
+    this.name = 'HookCancelledError'
   }
 }
 
@@ -1248,6 +1381,32 @@ function childResultsTouched(children: readonly ChildRecord[]): TouchedFiles {
   return { names: [], complete: false, revisions: children.map((child) => child.policyRevision) }
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * What an edit-family call did, from its own patch document (M91 lane W):
+ * a file it created, or one it changed. Kiro's file triggers run by it
+ * (PostFileCreate, PostFileSave); undefined for a call with no patch.
+ */
+function fileOperationOf(outcome: ToolOutcome): ForeignDispatchContext['fileOperation'] {
+  const document = outcome.patch?.document
+  if (document === undefined) {
+    return undefined
+  }
+  try {
+    const parsed: unknown = JSON.parse(document)
+    const files = isPlainRecord(parsed) ? parsed['files'] : undefined
+    return Array.isArray(files) &&
+      files.some((file: unknown) => isPlainRecord(file) && file['created'] === true)
+      ? 'create'
+      : 'save'
+  } catch {
+    return 'save'
+  }
+}
+
 /** A subagent call refused: the model's reason, and the row's when it has one of its own. */
 function subagentFailure(reason: string, visibleReason?: string): ToolOutcome {
   const visible = visibleReason ?? UI_TEXT.agentControlFailed
@@ -1333,7 +1492,8 @@ function childTaskFailure(kind: ChildTaskRefusal): ToolOutcome {
 /** A refused tool call, with the user's answer when they gave one. */
 /** What the Auto reviewer made of an ask (M78): run the call, or show the card with why. */
 type ReviewedAsk =
-  { readonly decision: 'allow' } | { readonly decision: 'ask'; readonly note: string }
+  | { readonly decision: 'allow' }
+  | { readonly decision: 'ask'; readonly note: string | undefined; readonly judgeCaution?: boolean }
 
 /** Why a card asks beyond the mode, as the card says under the command (M78). */
 function cardNote(judgement: PermissionJudgement | undefined): string | undefined {
@@ -1358,6 +1518,11 @@ function refusedByRule(call: FunctionCallItem, judgement: PermissionJudgement): 
 /** A path the permission settings deny the file tools (M78). */
 function deniedPath(display: string): ToolOutcome {
   return toolFailure(`${display} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`)
+}
+
+/** A refused PostToolUseFailure correction names its reason for the model (M91). */
+function refusedCorrection(reason: string): { ok: false; reason: string } {
+  return { ok: false, reason: fill(UI_TEXT.hookCorrectionRefused, { reason }) }
 }
 
 /** A call the permission settings stopped allowing at its I/O (M78): the model's reason, the row's in the user's language. */
@@ -1596,6 +1761,28 @@ function commandOf(argsJson: string): string {
   return pick(parsedArguments(argsJson), 'command') ?? argsJson
 }
 
+/** A shell call's kept-directory tracking (M91 lane S, PLAN.md D70). */
+interface ShellDirectoryTracking {
+  /** False runs the user's command untouched at the workspace root, as before. */
+  readonly tracked: boolean
+  /** The arguments executeTool sees: the user's command plus the trailer when tracked. */
+  readonly argsJson: string
+  /** The command's start directory: the kept one when tracked. */
+  readonly cwd: string | undefined
+  /** The session's side file the trailer reports to. */
+  readonly sideFile: string
+  /** The report nonce this call's trailer writes. */
+  readonly sequence: number
+}
+
+// The shell's per-session side files under the temp dir (M91 lane S): one
+// `<session>.<object>.cwd` file per live session object, holding the last
+// call's sequence and final directory. A call whose trailer never ran leaves
+// a stale sequence, which reads back as "no report".
+const SHELL_SIDECAR_DIR = 'muse-spark-shell'
+/** What never names a side file: the rest of a session id is replaced. */
+const SIDECAR_UNSAFE = /[^A-Za-z0-9_-]/g
+
 /**
  * The paid feature a tool call bills (M34): its row is marked paid, and the
  * paid-use popup asks before it (M58). Undefined for every free tool.
@@ -1744,6 +1931,7 @@ function waitFor<T>(signal: AbortSignal, register: (pending: Pending<T>) => void
 }
 
 export class ModelApiSession implements AgentSession {
+  private lastJudgeBody: CreateResponseBody | undefined
   private readonly listeners = new Set<SessionEventListener>()
   private readonly replay: ReplayItem[] = []
   private readonly transcript: TranscriptItem[] = []
@@ -1769,6 +1957,27 @@ export class ModelApiSession implements AgentSession {
   private repoMapText: string | undefined
   private repoMapPolicy: PermissionPolicy['files'] | undefined
   private repoMapTries = 0
+  /**
+   * The shell's kept directory (M91 lane S, PLAN.md D70): the canonical
+   * absolute path the last shell call ended in, or undefined at the
+   * workspace root. Per session: a new session starts at the root, and a
+   * child task keeps its own. Never a path outside the workspace: one
+   * reported there resets to the root with a note to the model.
+   */
+  private keptShellDir: string | undefined
+  /** The shell call sequence, nonce for the session's side-file reports. */
+  private shellCallSequence = 0
+  /** The session's side-file folder, made on the first tracked call. */
+  private shellSidecarMade = false
+  /** The session's side file, removed when the session is disposed. */
+  private shellSidecarFile: string | undefined
+  /**
+   * This session object's side-file token (M91 lane S): two live surfaces on
+   * one session (PLAN.md D25) must not share a report file, even with the
+   * same session id and sequence.
+   */
+  private readonly shellSidecarToken = randomUUID()
+  private readonly judgeCardFences = new Map<string, JudgeFence>()
   private readonly pendingApprovals = new Map<string, Pending<ApprovalDecision>>()
   /** Live cards for a second surface joining while a decision is still pending. */
   private readonly pendingApprovalEvents = new Map<
@@ -1776,6 +1985,19 @@ export class ModelApiSession implements AgentSession {
     Extract<AgentEvent, { type: 'approvalRequested' }>
   >()
   private readonly pendingQuestions = new Map<string, Pending<QuestionReply>>()
+  /**
+   * Elicitation forms waiting on the user (M91 lane M): the fields the
+   * answer is validated against, and the server that asked, so a refusal
+   * can name the field without ever holding a value.
+   */
+  private readonly pendingElicitations = new Map<
+    string,
+    {
+      readonly pending: Pending<ElicitationContent>
+      readonly fields: readonly ElicitationField[]
+      readonly server: string
+    }
+  >()
   /**
    * Shell calls running in the foreground, by row: what moves each to the
    * background (M46, PLAN.md D39).
@@ -1846,6 +2068,9 @@ export class ModelApiSession implements AgentSession {
     this.deps.notePaidUse('subagents', 1)
   }
   private active: ActiveTurn | undefined
+  private readonly interruptedWork = new WeakSet<AbortController>()
+  /** Interrupt survives the turn's abort, but never the session's lifetime. */
+  private readonly interruptLifetime = new AbortController()
   /** Each file as the model last read or wrote it, for `write_file`'s check (D27). */
   private readonly seenFiles = new Map<string, string>()
   /** Each edited file's diagnostics at its last check, to say what changed (M68). */
@@ -1854,6 +2079,27 @@ export class ModelApiSession implements AgentSession {
   private readonly ledger = new VerifyLedger()
   /** Rename plans made for a call's PreToolUse hooks, which the call then writes (M67). */
   private readonly hookRenamePlans = new WeakMap<FunctionCallItem, Promise<RenamePlanResult>>()
+  /** The imported hooks' adapters, loaded on first use (M91 lane W). */
+  private foreignAdapter: Promise<ForeignHookAdapter | undefined> | undefined
+  /** A SubagentStop hook's documented replacement of this child's reply, by turn (M91). */
+  private readonly hookReplies = new Map<string, string>()
+  /** FileChanged's per-path quiet window and per-minute cap (M91 lane E). */
+  private readonly fileChangedThrottle: FileChangedThrottle = createFileChangedThrottle()
+  /**
+   * A BeforeToolSelection hook's narrowing for one turn (M91 lane E): the
+   * declared tool list never changes, admission refuses the rest. Keyed by
+   * turn so a stale narrowing cannot leak into the next turn.
+   */
+  private toolSelection:
+    { readonly turnId: string; readonly allowed: readonly string[] } | undefined
+  /**
+   * Consecutive TaskCreated/TaskCompleted refusals (M91 lane E): past
+   * `HOOK_MAX_STOP_CONTINUATIONS` the turn ends; no refused task is admitted.
+   */
+  private taskRefusals = 0
+  private readonly observedRules = new Set<string>()
+  private readonly teammateKeeps = new Map<string, number>()
+  private hookTokensAdded = 0
   /** Keeps each request within the page and encoded-media budgets (M54, PLAN.md D47). */
   private readonly budget: MediaBudget
   /** Packed tool outputs and the savings ledger (M73): undefined unless packing is on. */
@@ -1960,6 +2206,12 @@ export class ModelApiSession implements AgentSession {
     private readonly agent?: AgentRuntime,
     /** A child task whose role is `reviewer` (M70): every turn runs as the Reviewer. */
     private readonly isReviewerChild = false,
+    /**
+     * The session's spark-hooks.json snapshot (M91 lane E): same trust gate
+     * and opt-in as `hooks`, empty with the opt-in off. A child shares its
+     * parent's snapshot.
+     */
+    private readonly extensionHooks: readonly ExtensionHookDefinition[] = [],
   ) {
     this.workspaceEdits.add(this.ledger)
     this.modelId = modelId
@@ -2053,6 +2305,7 @@ export class ModelApiSession implements AgentSession {
 
   private appendHookContexts(turnId: string, contexts: readonly string[]): void {
     for (const context of contexts) {
+      this.hookTokensAdded += estimatePackTokens(context.length)
       this.replay.push({
         turnId,
         item: {
@@ -2062,11 +2315,69 @@ export class ModelApiSession implements AgentSession {
         },
       })
     }
+    if (contexts.length > 0) this.emitUsage()
   }
 
   /** The hooks that run for this session: none in a side chat or with the opt-in off (M51). */
   private enabledHooks(): readonly HookDefinition[] {
     return this.isSideChat || this.deps.isHooksEnabled?.() === false ? [] : this.hooks
+  }
+
+  /**
+   * Lane P's adapters for imported hooks (M91 lane W), from their own bundle
+   * (dist/foreignHooks.js, D6), loaded the first time this session runs a
+   * hook while it holds one. One per session: a Cursor stop script's loop
+   * count lives as long as the conversation. Undefined when the bundle cannot
+   * load: the imported hooks are then skipped, said in the log.
+   */
+  private async foreignHookAdapter(): Promise<ForeignHookAdapter | undefined> {
+    this.foreignAdapter ??= (async () => {
+      try {
+        const entry = await import('./foreignHooksEntry.js')
+        const exported: unknown = entry.createForeignHookAdapter
+        if (typeof exported !== 'function') throw new Error('Invalid hook adapter export')
+        const create: typeof CreateForeignHookAdapter = entry.createForeignHookAdapter
+        const plugins = this.deps.pluginHooks
+        return create({
+          workspaceRoot: this.deps.workspaceRoot,
+          platform: this.deps.platform,
+          io: this.deps.io,
+          homeDir: homedir(),
+          ...(this.deps.hookMatcherTimeoutMs !== undefined && {
+            matcherTimeoutMs: this.deps.hookMatcherTimeoutMs,
+          }),
+          ...(plugins !== undefined && {
+            plugins: {
+              env: plugins.env(),
+              containment: plugins.containment,
+              warn: (message: string) => {
+                this.deps.log.warn(`Model API hooks: ${message}`)
+              },
+              // A plugin child is a process the running turn started (M86).
+              onProcess: () => {
+                this.noteProcessRan()
+              },
+              now: () => this.deps.now(),
+            },
+          }),
+        })
+      } catch {
+        this.deps.log.warn('Model API hooks: the imported-hook adapters could not be loaded')
+        return
+      }
+    })()
+    return await this.foreignAdapter
+  }
+
+  /**
+   * The hook and MCP-form runtime (dist/hookRuntime.js, M91, D6): lane E's
+   * dispatcher, lane H's typed handlers and lane M's form checks, loaded the
+   * first time this session needs one. A bundle that cannot load rejects,
+   * and each caller fails its own safe way: a hook is skipped and logged, a
+   * form is refused, never accepted.
+   */
+  private async hookRuntime(): Promise<typeof HookRuntime> {
+    return await import('./hookRuntimeEntry.js')
   }
 
   /**
@@ -2112,10 +2423,16 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal | undefined,
     shouldReplayContext = true,
     shouldShowMessages = true,
+    foreignContext?: ForeignDispatchContext,
   ): Promise<HookDispatch> {
     const runHook = this.deps.io.runHook?.bind(this.deps.io)
+    const hooks = this.enabledHooks()
+    const adapter = hooks.some((hook) => hook.foreign !== undefined)
+      ? await this.foreignHookAdapter()
+      : undefined
+    const runHookHttp = this.deps.io.runHookHttp?.bind(this.deps.io)
     const result = await dispatchHooks(
-      this.enabledHooks(),
+      hooks,
       event,
       this.hookPayload(event, turnId, fields),
       matcher,
@@ -2132,6 +2449,67 @@ export class ModelApiSession implements AgentSession {
       (warning) => {
         this.deps.log.warn(`Model API hooks: ${warning}`)
       },
+      // M91 typed handlers (D70, lane H): the http POST over the host's
+      // pinned path when wired, the MCP tool call through its own approval
+      // path, the allowlist setting, and the trust posture re-checked at
+      // every run. Absent runners skip their handlers. The runner itself
+      // loads with the hook runtime on the first typed handler.
+      {
+        runTyped: async (...args) => {
+          const runtime = await this.hookRuntime()
+          return await runtime.runTypedHandler(...args)
+        },
+        ...(runHookHttp !== undefined && {
+          httpPost: async (url, payload, hookSignal) => {
+            this.noteProcessRan()
+            return await runHookHttp(url, payload, hookSignal)
+          },
+        }),
+        callMcpTool: async (server, tool, argsJson, hookSignal) => {
+          this.noteProcessRan()
+          return await this.runHookMcpTool(server, tool, argsJson, hookSignal)
+        },
+        runModelTurn: async (input, hookSignal) => {
+          this.noteProcessRan()
+          return await this.runHookModelTurn(
+            input.kind,
+            input.system,
+            input.user,
+            event,
+            hookSignal,
+          )
+        },
+        httpAllowlist: () => this.deps.hookHttpAllowedHosts?.() ?? [],
+        isNetworkAllowed: () =>
+          this.deps.isWorkspaceTrusted() && this.deps.isHookNetworkAllowed?.() === true,
+        isHookModelsOn: () => this.deps.isPaidFeatureOn('hookModels'),
+        allowsHookModelUse: (request) =>
+          this.deps.allowsPaidUse(
+            {
+              feature: 'hookModels',
+              event: request.event,
+              kind: request.kind,
+              modelId: request.modelId,
+              ...(this.deps.hookModelDailyBudget !== undefined && {
+                dailyBudgetUsd: this.deps.hookModelDailyBudget.capUsd(),
+              }),
+            },
+            false,
+            this.askingSessionId,
+          ),
+        noteHookModelRun: () => {
+          this.deps.notePaidUse('hookModels', 1)
+        },
+        noteHookModelUsage: this.deps.noteHookModelUsage,
+        modelId: this.modelId,
+      },
+      adapter,
+      foreignContext,
+      event === 'Interrupt'
+        ? (execution) => {
+            this.track(execution, false)
+          }
+        : undefined,
     )
     if (shouldShowMessages) {
       for (const message of result.messages) {
@@ -2144,6 +2522,164 @@ export class ModelApiSession implements AgentSession {
     return result
   }
 
+  /**
+   * Muse Code's Interrupt (1.4.0, captured in docs/certification/m91.md): an
+   * async-only observation fired when a running turn or compaction is
+   * cancelled, never on an idle close or after its terminal is selected.
+   * Session-owned async work survives the turn abort; answers apply nothing.
+   */
+  private fireInterrupt(): void {
+    const work = this.active?.abort ?? this.compacting
+    const turnId = this.active?.turnId ?? this.turnIds.at(-1)
+    if (
+      work === undefined ||
+      turnId === undefined ||
+      this.active?.isFinalizing === true ||
+      this.interruptedWork.has(work)
+    ) {
+      return
+    }
+    this.interruptedWork.add(work)
+    this.track(
+      this.runHooks(
+        'Interrupt',
+        turnId,
+        {},
+        undefined,
+        this.interruptLifetime.signal,
+        false,
+        false,
+      ),
+      false,
+    )
+  }
+
+  /** The extension hooks that run for this session: none in a side chat or with the opt-in off. */
+  private enabledExtensionHooks(): readonly ExtensionHookDefinition[] {
+    return this.isSideChat ||
+      !this.deps.isWorkspaceTrusted() ||
+      this.deps.isHooksEnabled?.() === false
+      ? []
+      : this.extensionHooks
+  }
+
+  private extensionHookContext(turnId: string | undefined): ExtensionHookContext {
+    return {
+      sessionId: this.sessionId,
+      workspaceRoot: this.deps.workspaceRoot,
+      modelId: this.modelId,
+      permissionMode: this.permissions.currentMode,
+      ...(turnId !== undefined && { turnId }),
+    }
+  }
+
+  /**
+   * Fire one extension event (M91 lane E). Hook context goes at the tail of
+   * the turn's replay only (SoL-Pi rule 2); without a turn there is nowhere
+   * for it, so it is dropped. Messages are shown as notices either way.
+   * Undefined when no extension hook is configured, so the hooks-off path
+   * stays byte-identical (SoL-Pi rule 7). A caller that places the contexts
+   * itself (AfterAgentThought's tail merge) passes `shouldReplayContexts` false, so
+   * each context is replayed exactly once.
+   */
+  private async fireExtensionHooks(
+    event: ExtensionHookEvent,
+    turnId: string | undefined,
+    fields: Readonly<Record<string, unknown>>,
+    matcherValue: string | undefined,
+    signal: AbortSignal | undefined,
+    shouldReplayContexts = true,
+  ): Promise<ExtensionHookDispatch | undefined> {
+    const hooks = this.enabledExtensionHooks()
+    if (hooks.length === 0) {
+      return undefined
+    }
+    let runtime: typeof HookRuntime
+    try {
+      runtime = await this.hookRuntime()
+    } catch {
+      this.deps.log.warn(
+        `Model API extension hooks: ${event}: the hook runtime could not be loaded; no hook ran`,
+      )
+      return emptyExtensionDispatch()
+    }
+    const runHook = this.deps.io.runHook?.bind(this.deps.io)
+    const result = await runtime.dispatchExtensionHooks({
+      hooks,
+      event,
+      payload: extensionHookPayload(event, this.extensionHookContext(turnId), fields),
+      matcherValue,
+      // A hook's command is a process the running turn started (M86).
+      io:
+        runHook === undefined
+          ? {}
+          : {
+              runHook: async (...args: Parameters<typeof runHook>) => {
+                this.noteProcessRan()
+                return await runHook(...args)
+              },
+            },
+      cwd: this.deps.workspaceRoot,
+      signal,
+      warn: (warning) => {
+        this.deps.log.warn(`Model API extension hooks: ${warning}`)
+      },
+      isAllowed: () => this.enabledExtensionHooks().length > 0 && !this.isDisposed,
+    })
+    for (const message of result.messages) {
+      this.emit({ type: 'backendNotice', level: 'info', text: message })
+    }
+    if (turnId !== undefined && shouldReplayContexts) {
+      this.appendHookContexts(turnId, result.contexts)
+    }
+    return result
+  }
+
+  /** A BeforeToolSelection narrowing for this turn, if a hook set one. */
+  private toolSelectionFor(turnId: string): readonly string[] | undefined {
+    return this.toolSelection?.turnId === turnId ? this.toolSelection.allowed : undefined
+  }
+
+  /**
+   * Narrow the offered tools for this request (M91 lane E): BeforeToolSelection
+   * sees the declared tools and answers a subset, enforced at call admission.
+   * The declared list never changes (SoL-Pi rule 1): a filtered declaration
+   * would lie to the next request's prefix check. A tool-less request has
+   * nothing to narrow, so hooks stay quiet and cannot clobber the turn.
+   */
+  private async selectToolsForTurn(
+    turnId: string,
+    body: CreateResponseBody,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const offered = body.tools.map((tool) => (tool.type === 'function' ? tool.name : tool.type))
+    if (offered.length === 0) {
+      return
+    }
+    this.toolSelection = undefined
+    const selected = await this.fireExtensionHooks(
+      'BeforeToolSelection',
+      turnId,
+      beforeToolSelectionFields(offered),
+      undefined,
+      signal,
+    )
+    const allowed = selected?.allowedTools
+    if (allowed === undefined) return
+    this.toolSelection = { turnId, allowed: allowed.filter((name) => offered.includes(name)) }
+    const blockedHosted = body.tools.find(
+      (tool) => tool.type !== 'function' && !allowed.includes(tool.type),
+    )
+    if (blockedHosted !== undefined)
+      throw new HookStoppedError(`${blockedHosted.type}: ${UI_TEXT.hookToolRemoved}`)
+    const removed = offered.filter((name) => !this.toolSelection?.allowed.includes(name))
+    if (removed.length > 0) {
+      this.appendHookContexts(turnId, [
+        `${MODEL_API_MODEL_TEXT.hookToolsUnavailable} ${removed.join(', ')}`,
+      ])
+    }
+  }
+
   /** Pre-call veto and context use the same boundary for turns and compaction. */
   private async beforeModelCall(
     turnId: string,
@@ -2153,6 +2689,7 @@ export class ModelApiSession implements AgentSession {
     step: number,
     signal: AbortSignal,
   ): Promise<void> {
+    await this.selectToolsForTurn(turnId, body, signal)
     const pre = await this.runHooks(
       'PreLLMCall',
       turnId,
@@ -3396,6 +3933,7 @@ export class ModelApiSession implements AgentSession {
       ...this.usage,
       modelId: this.modelId,
       ...(this.packing !== undefined && { packedTokensAvoided: this.packing.savings() }),
+      ...(this.hookTokensAdded > 0 && { hookTokensAdded: this.hookTokensAdded }),
     })
   }
 
@@ -3750,6 +4288,7 @@ export class ModelApiSession implements AgentSession {
     }
     await this.refreshBudgetSpend()
     const body = this.budgeted(this.body())
+    this.lastJudgeBody = body
     const reservation = this.sending(body)
     const requestReplay = [...this.replay]
     let final: ResponseObject | undefined
@@ -3793,6 +4332,10 @@ export class ModelApiSession implements AgentSession {
     if (wasFitted) {
       this.touch()
     }
+    // The finished reasoning blocks observe first: they completed before the
+    // response did (M91 lane E). Their context joins the tail ahead of the
+    // post-call context, oldest operation first.
+    const thoughtContexts = await this.noteThoughts(turnId, open, signal)
     const post = await this.runHooks(
       'PostLLMCall',
       turnId,
@@ -3812,7 +4355,39 @@ export class ModelApiSession implements AgentSession {
       this.skipCalls(turnId, calls, post.blockedReason)
       throw new HookStoppedError(post.blockedReason)
     }
-    return { calls, goalCommandRevision, postContexts: post.contexts }
+    return { calls, goalCommandRevision, postContexts: [...thoughtContexts, ...post.contexts] }
+  }
+
+  /**
+   * A finished reasoning block (M91 lane E): bounded and scrubbed like every
+   * hook preview, observation only. Fires once per completed block of a
+   * successful response; a failed attempt's partial thoughts stay silent. The
+   * contexts skip the fire-time replay and join the tail with the post-call
+   * context instead, so each is replayed exactly once.
+   */
+  private async noteThoughts(
+    turnId: string,
+    open: ReadonlyMap<string, OpenItem>,
+    signal: AbortSignal,
+  ): Promise<readonly string[]> {
+    const contexts: string[] = []
+    for (const entry of open.values()) {
+      if (entry.kind !== 'reasoning' || !entry.isCompleted) {
+        continue
+      }
+      const thought = await this.fireExtensionHooks(
+        'AfterAgentThought',
+        turnId,
+        afterAgentThoughtFields(entry.summary.join('\n')),
+        undefined,
+        signal,
+        false,
+      )
+      if (thought !== undefined) {
+        contexts.push(...thought.contexts)
+      }
+    }
+    return contexts
   }
 
   /**
@@ -3979,9 +4554,24 @@ export class ModelApiSession implements AgentSession {
     question: { readonly card: ApprovalSubject } | { readonly paid: PaidUseRequest },
     requiresUserApproval = false,
     judgement?: PermissionJudgement,
+    // A hook's own helper call (M91 mcp_tool): the judgement, the trust
+    // check and the card are the tool's own, but no hook fires for it and
+    // the Auto reviewer does not judge it, so a hook can never approve or
+    // review itself into a loop.
+    isHookHelperCall = false,
   ): Promise<ApprovalOutcome> {
     const canReview = judgement?.isReviewable !== false
-    const hook = await this.permissionRequestHook(call, signal)
+    const hook: HookDispatch = isHookHelperCall
+      ? {
+          blockedReason: undefined,
+          contexts: [],
+          messages: [],
+          updatedInput: undefined,
+          forceApproval: false,
+          stopReason: undefined,
+          approvalDecision: undefined,
+        }
+      : await this.permissionRequestHook(call, signal)
     if (hook.blockedReason !== undefined) {
       return { isApproved: false, feedback: hook.blockedReason, deniedByHook: true }
     }
@@ -3993,6 +4583,7 @@ export class ModelApiSession implements AgentSession {
       ((query.toolClass === 'shell' || query.toolClass === 'mcp') &&
         !this.deps.isWorkspaceTrusted())
     ) {
+      await this.notePermissionDenied(call.name, this.denialReason(call, judgement), signal)
       return { isApproved: false, feedback: undefined }
     }
     if ('paid' in question) {
@@ -4014,11 +4605,12 @@ export class ModelApiSession implements AgentSession {
       return { isApproved: true, feedback: undefined }
     }
     let review: ReviewedAsk | undefined
-    if (!requiresUserApproval && judgement.isReviewable) {
+    if (!requiresUserApproval && !isHookHelperCall && judgement.isReviewable) {
       review = await this.autoReview(call, query, signal)
       signal.throwIfAborted()
       judgement = this.permissions.judge(query, this.policy())
       if (judgement.verdict === 'deny' || !this.deps.isWorkspaceTrusted()) {
+        await this.notePermissionDenied(call.name, this.denialReason(call, judgement), signal)
         return { isApproved: false, feedback: undefined }
       }
       if (review?.decision === 'allow' && judgement.isReviewable) {
@@ -4045,6 +4637,7 @@ export class ModelApiSession implements AgentSession {
       availableChoices: [...choicesFor(call.name, query.command, judgement.hasSessionChoice)],
       isJudgeEscalated: requiresUserApproval || review !== undefined,
       isProtectedWrite: query.isProtected === true,
+      ...(review?.decision === 'ask' && review.judgeCaution === true && { judgeCaution: true }),
       ...(note !== undefined && { note }),
       ...(this.agent?.permissionMode !== undefined && {
         permissionMode: this.agent.permissionMode,
@@ -4052,13 +4645,32 @@ export class ModelApiSession implements AgentSession {
     }
     let decision: ApprovalDecision
     const stopNotifying = this.notifyWhileAsking(call, signal)
+    let caution: JudgeFence | undefined
     try {
       decision = await waitFor<ApprovalDecision>(signal, (pending) => {
         this.pendingApprovals.set(approvalId, pending)
         this.pendingApprovalEvents.set(approvalId, request)
         this.emit(request)
+        if (review !== undefined) {
+          return
+        }
+
+        caution = this.startJudge(call)
+        if (caution !== undefined) this.judgeCardFences.set(approvalId, caution)
+        caution?.card(() => {
+          if (
+            this.judgeCardFences.get(approvalId) !== caution ||
+            !this.pendingApprovals.has(approvalId) ||
+            signal.aborted
+          )
+            return
+          this.pendingApprovalEvents.set(approvalId, { ...request, judgeCaution: true })
+          this.emit({ type: 'approvalCaution', approvalId, requirementId: request.requirementId })
+        })
       })
     } finally {
+      caution?.discard()
+      this.judgeCardFences.delete(approvalId)
       this.pendingApprovalEvents.delete(approvalId)
       this.pendingApprovals.delete(approvalId)
       stopNotifying()
@@ -4093,6 +4705,15 @@ export class ModelApiSession implements AgentSession {
       decision: isApproved ? DECISION_APPROVED : DECISION_ABORT,
       resolvedBy: RESOLVED_BY_USER,
     })
+    if (!isApproved) {
+      await this.notePermissionDenied(
+        call.name,
+        (review !== undefined && review.decision !== 'allow' ? review.note : undefined) ??
+          decision.feedback ??
+          MODEL_API_MODEL_TEXT.toolRejectedByUser,
+        signal,
+      )
+    }
     return { isApproved, feedback: decision.feedback }
   }
 
@@ -4104,6 +4725,27 @@ export class ModelApiSession implements AgentSession {
    * before. A decline, an unreadable answer, a failure and the breaker all
    * come back as an ask with the reason; only the user's Stop throws.
    */
+  private paidModelObservers(turnId: string) {
+    return {
+      keyed: (request: Omit<CreateResponseBody, 'prompt_cache_key' | 'prompt_cache_retention'>) =>
+        this.keyed(request),
+      guard: (body: CreateResponseBody, budget: DirectResponseBudget) =>
+        this.responseAttemptGuard(body, budget),
+      isCountedUsage,
+      abortError: () => new AbortedError(),
+      isRefused: (error: unknown) =>
+        error instanceof ModelApiError &&
+        (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
+      emit: (event: AgentEvent) => {
+        this.emit(event)
+      },
+      record: (item: ItemSnapshot, isStarted: boolean) => {
+        if (isStarted) this.recordTranscript(turnId, item)
+        else this.rerecordTranscript(item)
+      },
+    }
+  }
+
   private async autoReview(
     call: FunctionCallItem,
     query: PermissionQuery,
@@ -4174,47 +4816,88 @@ export class ModelApiSession implements AgentSession {
     }
     if (!isCurrent()) return undefined
     const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
-    return await reviewPaidCall(
+    const caution = this.startJudge(call)
+    let outcome: ReviewedAsk
+    try {
+      outcome = await reviewPaidCall(
+        {
+          deps: this.deps,
+          table: UI_TEXT,
+          locale: uiLocale(),
+          breaker: this.reviewBreaker,
+          userRequest: this.lastUserText(),
+          recentCalls: this.recentCalls(turnId),
+          ...this.paidModelObservers(turnId),
+          keyed: (request) => this.keyed(request),
+          guard: (body, budget) => this.responseAttemptGuard(body, budget),
+          isCountedUsage,
+          abortError: () => new AbortedError(),
+          isRefused: (error) =>
+            error instanceof ModelApiError &&
+            (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
+          emit: (event) => {
+            this.emit(event)
+          },
+          record: (item, isStarted) => {
+            if (isStarted) this.recordTranscript(turnId, item)
+            else this.rerecordTranscript(item)
+          },
+        },
+        call.name,
+        action,
+        turnId,
+        signal,
+        {
+          modelId,
+          keyDigest,
+          isStillAllowed: () =>
+            isCurrent() &&
+            (budgetScope === undefined
+              ? this.deps.sessionBudgetUsd() === 0
+              : budgetScope.isStillAllowed(keyDigest)),
+          onRequestStarted: () => {
+            this.deps.notePaidUse('autoReviewer', 1)
+          },
+        },
+        budgetScope,
+        isCurrent,
+      )
+    } catch (error: unknown) {
+      caution?.discard()
+      throw error
+    }
+    const hasJudgeCaution = caution?.read() === 'caution'
+    return hasJudgeCaution
+      ? {
+          decision: 'ask',
+          note: outcome.decision === 'ask' ? outcome.note : undefined,
+          judgeCaution: true,
+        }
+      : outcome
+  }
+
+  private startJudge(call: FunctionCallItem): JudgeFence | undefined {
+    if (this.isSubagent || this.isSideChat || this.active === undefined) return undefined
+    let args: unknown
+    try {
+      args = JSON.parse(call.arguments)
+    } catch {
+      return undefined
+    }
+    return this.deps.judge?.start(
       {
-        deps: this.deps,
-        table: UI_TEXT,
-        locale: uiLocale(),
-        breaker: this.reviewBreaker,
+        backend: 'modelApi',
+        sessionId: this.sessionId,
+        turnId: this.active.turnId,
+        tool: call.name,
+        args,
+      },
+      JSON.stringify({
         userRequest: this.lastUserText(),
-        recentCalls: this.recentCalls(turnId),
-        keyed: (request) => this.keyed(request),
-        guard: (body, budget) => this.responseAttemptGuard(body, budget),
-        isCountedUsage,
-        abortError: () => new AbortedError(),
-        isRefused: (error) =>
-          error instanceof ModelApiError &&
-          (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
-        emit: (event) => {
-          this.emit(event)
-        },
-        record: (item, isStarted) => {
-          if (isStarted) this.recordTranscript(turnId, item)
-          else this.rerecordTranscript(item)
-        },
-      },
-      call.name,
-      action,
-      turnId,
-      signal,
-      {
-        modelId,
-        keyDigest,
-        isStillAllowed: () =>
-          isCurrent() &&
-          (budgetScope === undefined
-            ? this.deps.sessionBudgetUsd() === 0
-            : budgetScope.isStillAllowed(keyDigest)),
-        onRequestStarted: () => {
-          this.deps.notePaidUse('autoReviewer', 1)
-        },
-      },
-      budgetScope,
-      isCurrent,
+        recentCalls: this.recentCalls(this.active.turnId),
+        tool: call.name,
+        args,
+      }),
     )
   }
 
@@ -4319,7 +5002,188 @@ export class ModelApiSession implements AgentSession {
     return Promise.resolve()
   }
 
-  private writeTodos(call: FunctionCallItem): ToolOutcome {
+  /**
+   * One MCP server's `elicitation/create` during this session's tool call
+   * (M91 lane M, form mode only): the Elicitation hooks run first, then the
+   * form asks the user. Never auto-accepts, in any approval mode: without
+   * an answer there is no accept. A timeout, a stopped turn or a closed
+   * session settles it as a cancel. Values are validated against the
+   * server's schema and reach only the server's own result: they are never
+   * logged, and no event carries them.
+   */
+  private async runElicitation(
+    itemId: string,
+    request: McpElicitationRequest,
+  ): Promise<ElicitationOutcome> {
+    const { server, params, signal } = request
+    // Already parsed at the connection's boundary (rule 7); parsed again
+    // for use here. A refusal throws to the connection's error answer.
+    const forms = await this.hookRuntime()
+    const parsed = forms.parseElicitationParams(params)
+    const seam =
+      this.deps.isHooksEnabled?.() === false
+        ? ALLOW_ELICITATION_SEAM
+        : (this.deps.elicitationHooks ?? ALLOW_ELICITATION_SEAM)
+    const checked = forms.validateElicitationSchema(parsed.requestedSchema)
+    if (!checked.ok) {
+      this.deps.log.warn(`MCP server ${server} elicitation declined: ${checked.reason}`)
+      return await this.finishElicitation(server, [], 'decline')
+    }
+    const fields = checked.fields
+    const fieldNames = elicitationFieldNames(fields)
+    const isStopped = () => signal.aborted
+    if (isStopped() || this.pendingElicitations.size > 0) {
+      return await this.finishElicitation(server, fieldNames, 'cancel')
+    }
+    const verdict = await seam.fireElicitation({
+      server,
+      message: parsed.message,
+      fieldNames: [...fieldNames],
+      requiredNames: fields.filter((field) => field.required).map((field) => field.name),
+    })
+    if (isStopped() || this.pendingElicitations.size > 0) {
+      return await this.finishElicitation(server, fieldNames, 'cancel')
+    }
+    if (verdict.decision === 'decline' || verdict.decision === 'cancel') {
+      if (verdict.decision === 'decline' && verdict.reason !== undefined) {
+        this.emit({
+          type: 'backendNotice',
+          level: 'info',
+          text: fill(UI_TEXT.elicitationDeclinedByHook, { server, reason: verdict.reason }),
+        })
+      }
+      return await this.finishElicitation(server, fieldNames, verdict.decision)
+    }
+    if (verdict.decision === 'answer') {
+      if (verdict.source !== 'user') {
+        this.deps.log.warn(`MCP server ${server} elicitation: a project hook's answer is refused`)
+        return await this.finishElicitation(server, fieldNames, 'decline')
+      }
+      const values = verdict.values ?? {}
+      const answered = forms.validateElicitationValues(fields, values)
+      if (!answered.ok) {
+        this.deps.log.warn(
+          `MCP server ${server} elicitation: a hook's answer does not fit the schema and is refused`,
+        )
+        return await this.finishElicitation(server, fieldNames, 'decline')
+      }
+      this.emit({
+        type: 'backendNotice',
+        level: 'info',
+        text: fill(UI_TEXT.elicitationAnsweredByHook, { server }),
+      })
+      return await this.finishElicitation(server, fieldNames, 'accept', answered.content)
+    }
+    const elicitationId = this.deps.newId()
+    const reply = await this.waitForElicitation(
+      elicitationId,
+      server,
+      itemId,
+      parsed.message,
+      fields,
+      signal,
+    )
+    this.pendingElicitations.delete(elicitationId)
+    const refusalAction = reply.kind === 'declined' ? 'decline' : 'cancel'
+    const action = reply.kind === 'accepted' ? 'accept' : refusalAction
+    this.emit({ type: 'elicitationSettled', elicitationId, action })
+    return reply.kind === 'accepted'
+      ? await this.finishElicitation(server, fieldNames, 'accept', reply.content)
+      : await this.finishElicitation(server, fieldNames, action)
+  }
+
+  /**
+   * The form's wait: shown in the panel until it is answered, and in the
+   * ACP agent through its form path. Invalid answers are refused with the
+   * field named, and the wait goes on; the timeout and any stop cancel it.
+   */
+  private async waitForElicitation(
+    elicitationId: string,
+    server: string,
+    itemId: string,
+    message: string,
+    fields: readonly ElicitationField[],
+    signal: AbortSignal,
+  ): Promise<ElicitationContent> {
+    const timer = setTimeout(() => {
+      this.pendingElicitations.get(elicitationId)?.pending.resolve({ kind: 'cancelled' })
+    }, this.deps.elicitationTimeoutMs ?? MCP_ELICITATION_TIMEOUT_MS)
+    try {
+      // Pending before it is shown, as an approval card is: an answer given
+      // as the form arrives must find it (the live sweep, 2026-09-27).
+      return await waitFor<ElicitationContent>(signal, (pending) => {
+        this.pendingElicitations.set(elicitationId, { pending, fields, server })
+        this.emit({
+          type: 'elicitationRequested',
+          elicitationId,
+          server,
+          message,
+          fields: fields.map((field) => ({ ...field })),
+          itemId,
+        })
+      })
+    } catch {
+      return { kind: 'cancelled' }
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  /**
+   * The ElicitationResult hook run (observation) and the server's answer. A
+   * project hook sees the field names and the action only, never values.
+   */
+  private async finishElicitation(
+    server: string,
+    fieldNames: readonly string[],
+    action: ElicitationOutcome['action'],
+    content?: Readonly<Record<string, unknown>>,
+  ): Promise<ElicitationOutcome> {
+    const seam =
+      this.deps.isHooksEnabled?.() === false
+        ? ALLOW_ELICITATION_SEAM
+        : (this.deps.elicitationHooks ?? ALLOW_ELICITATION_SEAM)
+    await seam.fireElicitationResult({ server, fieldNames: [...fieldNames], action })
+    this.deps.log.info(describeElicitationForLog(server, fieldNames, action))
+    return action === 'accept' ? { action, content: { ...content } } : { action }
+  }
+
+  /** Settles a waiting elicitation form with `reply`. */
+  private async settleElicitationForm(
+    elicitationId: string,
+    reply: ElicitationReply,
+  ): Promise<void> {
+    const found = this.pendingElicitations.get(elicitationId)
+    if (found === undefined) {
+      throw new Error(UI_TEXT.elicitationExpired)
+    }
+    if (reply.kind !== 'accepted') {
+      found.pending.resolve(reply)
+      return
+    }
+    // Loaded already: the form's own schema was checked with it.
+    const { validateElicitationValues } = await this.hookRuntime()
+    const checked = validateElicitationValues(found.fields, reply.values)
+    if (!checked.ok) {
+      throw new Error(
+        fill(UI_TEXT.elicitationInvalid, { field: checked.refusal.field, server: found.server }),
+      )
+    }
+    found.pending.resolve({ kind: 'accepted', content: checked.content })
+  }
+
+  /**
+   * Replace the task list (M91 lane E): each added item runs TaskCreated,
+   * each newly completed one TaskCompleted, with the bounded subject and
+   * description. A refusal keeps the old list and tells the model why; after
+   * `HOOK_MAX_STOP_CONTINUATIONS` refusals in a row the turn ends, keeping the
+   * old list. A new user turn may try again, through every hook.
+   */
+  private async writeTodos(
+    call: FunctionCallItem,
+    turnId: string,
+    signal: AbortSignal,
+  ): Promise<ToolOutcome> {
     let raw: unknown
     try {
       raw = JSON.parse(call.arguments)
@@ -4331,10 +5195,119 @@ export class ModelApiSession implements AgentSession {
       const reason = 'invalid task list'
       return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
     }
-    this.todos = parsed.data.items
+    const previous = this.todos
+    const next = parsed.data.items
+    {
+      for (const item of next) {
+        const wasCompleted = previous.some(
+          (old) => old.text === item.text && old.status === 'completed',
+        )
+        const fields = taskFields({ subject: item.text, description: item.activeForm ?? '' })
+        if (previous.every((old) => old.text !== item.text)) {
+          const created = await this.fireExtensionHooks(
+            'TaskCreated',
+            turnId,
+            fields,
+            item.text,
+            signal,
+          )
+          if (created?.refusedReason !== undefined) {
+            return this.taskRefused('created', item.text, created.refusedReason)
+          }
+        }
+        if (wasCompleted || item.status !== 'completed') continue
+        const completed = await this.fireExtensionHooks(
+          'TaskCompleted',
+          turnId,
+          fields,
+          item.text,
+          signal,
+        )
+        if (completed?.refusedReason !== undefined) {
+          return this.taskRefused('completed', item.text, completed.refusedReason)
+        }
+      }
+      this.taskRefusals = 0
+    }
+    this.todos = next
     this.emit({ type: 'todoChanged', items: [...this.todos] })
     const summary = `${String(this.todos.length)} tasks`
     return { output: summary, visibleOutput: summary }
+  }
+
+  /** A refused task write: the old list stands, and the refusal counts toward the pause. */
+  private taskRefused(kind: 'created' | 'completed', subject: string, reason: string): ToolOutcome {
+    this.taskRefusals += 1
+    if (this.taskRefusals >= HOOK_MAX_STOP_CONTINUATIONS) {
+      this.deps.log.warn(
+        `Model API extension hooks: task continuation limit after ${String(this.taskRefusals)} refusals`,
+      )
+    }
+    const text = fill(
+      kind === 'created' ? UI_TEXT.hookRefusedTaskCreated : UI_TEXT.hookRefusedTaskCompleted,
+      { subject, reason },
+    )
+    return { output: `Error: ${text}`, visibleOutput: text, failureReason: text }
+  }
+
+  /**
+   * A skill part's expansion as the model receives it (M91 lane E): each
+   * resolved skill runs UserPromptExpansion, which can refuse with a visible
+   * reason. A refused expansion never reaches a model request: the appended
+   * user message is removed, as for a blocked prompt. Selectors nothing
+   * resolves go as typed, with no expansion and no hook.
+   */
+  private async expandSkillsForHooks(
+    turnId: string,
+    parts: readonly TurnPart[],
+    replayStart: number,
+    signal: AbortSignal,
+    displayText?: string,
+  ): Promise<void> {
+    for (const part of parts) {
+      if (part.type !== 'skill') {
+        continue
+      }
+      const skill = this.context.skill(part.selector)
+      if (skill === undefined) {
+        continue
+      }
+      const expanded = await this.fireExtensionHooks(
+        'UserPromptExpansion',
+        turnId,
+        userPromptExpansionFields({
+          trigger: 'skill',
+          name: part.selector,
+          expanded: skillInvocationText(skill, part.arguments),
+        }),
+        part.selector,
+        signal,
+      )
+      if (expanded?.refusedReason === undefined) {
+        continue
+      }
+      this.replay.splice(replayStart)
+      throw new HookStoppedError(
+        fill(UI_TEXT.hookRefusedExpansion, {
+          name: `/${part.selector}`,
+          reason: expanded.refusedReason,
+        }),
+      )
+    }
+    const slashName = displayText?.match(EXPANDED_SLASH_NAME)?.[1]
+    if (slashName === undefined || parts.some((part) => part.type === 'skill')) return
+    const expanded = await this.fireExtensionHooks(
+      'UserPromptExpansion',
+      turnId,
+      userPromptExpansionFields({ trigger: 'slash', name: slashName, expanded: typedText(parts) }),
+      slashName,
+      signal,
+    )
+    if (expanded?.refusedReason === undefined) return
+    this.replay.splice(replayStart)
+    throw new HookStoppedError(
+      fill(UI_TEXT.hookRefusedExpansion, { name: `/${slashName}`, reason: expanded.refusedReason }),
+    )
   }
 
   private contentParts(parts: readonly TurnPart[]): InputContentPart[] {
@@ -4558,7 +5531,11 @@ export class ModelApiSession implements AgentSession {
    * lives in Muse Code's own folder, and a bundled one (M89) in the
    * extension's, not the workspace.
    */
-  private async readSkill(call: FunctionCallItem): Promise<ToolOutcome> {
+  private async readSkill(
+    call: FunctionCallItem,
+    turnId: string,
+    signal: AbortSignal,
+  ): Promise<ToolOutcome> {
     const parsed = readSkillArgs.safeParse(argumentsOf(call))
     if (!parsed.success) {
       return toolFailure('invalid arguments: id is required')
@@ -4585,9 +5562,15 @@ export class ModelApiSession implements AgentSession {
       return toolFailure(file.reason)
     }
     const names = [file.relative, file.canonical]
-    return this.policy().files.isDenied(names)
-      ? deniedPath(file.relative)
-      : { ...loaded, touched: { names, complete: true } }
+    if (this.policy().files.isDenied(names)) return deniedPath(file.relative)
+    await this.fireExtensionHooks(
+      'InstructionsLoaded',
+      turnId,
+      instructionsLoadedFields(file.relative, 'skill'),
+      file.relative,
+      signal,
+    )
+    return { ...loaded, touched: { names, complete: true } }
   }
 
   /**
@@ -4764,8 +5747,16 @@ export class ModelApiSession implements AgentSession {
       : await confineWorkspacePath(this.deps.workspaceRoot, given, this.deps.platform, this.deps.io)
   }
 
-  /** A tool that named a path may have entered a directory with its own rules file. */
-  private async touchPath(call: FunctionCallItem): Promise<void> {
+  /**
+   * A tool that named a path may have entered a directory with its own rules
+   * file (M91 lane E): newly loaded rules run InstructionsLoaded, with the
+   * workspace-relative path and a reason, never content.
+   */
+  private async touchPath(
+    call: FunctionCallItem,
+    turnId: string,
+    signal: AbortSignal,
+  ): Promise<void> {
     const given = pick(argumentsOf(call), 'path')
     // A memory note's path is under its scope's root, not the workspace (M49).
     if (given === undefined || isMemoryTool(call.name)) {
@@ -4777,8 +5768,163 @@ export class ModelApiSession implements AgentSession {
       this.deps.platform,
       this.deps.io,
     )
-    if (resolved.ok) {
-      await this.context.touch(resolved.relative)
+    if (!resolved.ok) {
+      return
+    }
+    const isChanged = await this.context.touch(resolved.relative)
+    if (isChanged) {
+      await this.noteLoadedRules(turnId, 'touched-path', signal)
+    }
+  }
+
+  private async noteLoadedRules(
+    turnId: string,
+    reason: 'rules' | 'touched-path',
+    signal: AbortSignal,
+  ): Promise<void> {
+    for (const file of this.context.rulePaths()) {
+      if (this.observedRules.has(file)) continue
+      this.observedRules.add(file)
+      await this.fireExtensionHooks(
+        'InstructionsLoaded',
+        turnId,
+        instructionsLoadedFields(file, reason),
+        file,
+        signal,
+      )
+    }
+  }
+
+  /**
+   * A shell call's kept directory (M91 lane S, PLAN.md D70): where the
+   * command starts, and what executeTool runs. The user's command is wrapped
+   * after admission, so the approval card, the session rules and the hook
+   * payloads see exactly what the model wrote; the trailer only reports
+   * the final directory to the session's side file. `then_run` and
+   * `run_checks` never pass through here: they run at the workspace root.
+   */
+  private async beginShellDirectory(call: FunctionCallItem): Promise<ShellDirectoryTracking> {
+    const untracked = (): ShellDirectoryTracking => ({
+      tracked: false,
+      argsJson: call.arguments,
+      cwd: undefined,
+      sideFile: '',
+      sequence: 0,
+    })
+    if (this.deps.shellKeepsDirectory?.() !== true) {
+      return untracked()
+    }
+    const parsed = parsedArguments(call.arguments)
+    const command = pick(parsed, 'command')
+    if (command === undefined) {
+      // No command names none: executeTool refuses it, and nothing is tracked.
+      return untracked()
+    }
+    const p = pathModule(this.deps.platform)
+    const sideFile = p.join(
+      this.deps.shellSidecarDir ?? p.join(tmpdir(), SHELL_SIDECAR_DIR),
+      `${this.sessionId.replaceAll(SIDECAR_UNSAFE, '_')}.${this.shellSidecarToken}.cwd`,
+    )
+    if (!this.shellSidecarMade) {
+      try {
+        await mkdir(p.dirname(sideFile), { recursive: true })
+      } catch (error: unknown) {
+        // Nowhere to report to: the command still runs at the root, as before.
+        this.deps.log.warn(`The shell's directory tracking is off: ${describe(error)}`)
+        return untracked()
+      }
+      this.shellSidecarMade = true
+      this.shellSidecarFile = sideFile
+    }
+    const sequence = (this.shellCallSequence += 1)
+    return {
+      tracked: true,
+      argsJson: JSON.stringify({
+        ...parsed,
+        command: `${command}${shellDirectoryTrailer(this.deps.platform, sideFile, sequence)}`,
+      }),
+      cwd: this.keptShellDir ?? this.deps.workspaceRoot,
+      sideFile,
+      sequence,
+    }
+  }
+
+  /**
+   * Reads a tracked call's report back and moves the kept directory: the
+   * tail of a result whose directory is not the root names it
+   * (`UI_TEXT.shellDirectory`), and a directory outside the workspace
+   * resets to the root with a note to the model
+   * (`UI_TEXT.shellDirectoryReset`). A result at the root carries nothing:
+   * no earlier request bytes change (SoL-Pi rule 1). The CwdChanged hook
+   * point for lane E is the assignment to `keptShellDir` below: the old and
+   * new directories are both in hand here.
+   */
+  private async endShellDirectory(
+    tracking: ShellDirectoryTracking,
+    outcome: ToolOutcome,
+  ): Promise<ToolOutcome> {
+    if (!tracking.tracked) {
+      return outcome
+    }
+    let text: string | undefined
+    try {
+      text = await this.deps.io.readFile(tracking.sideFile)
+    } catch (error: unknown) {
+      this.deps.log.warn(`The shell's directory report could not be read: ${describe(error)}`)
+    }
+    const reported = parseShellDirectoryReport(text, tracking.sequence)
+    if (reported === undefined) {
+      // The trailer never ran: keep the previous directory, silently.
+      return outcome
+    }
+    const resolved = await this.resolveShellDirectory(reported)
+    this.keptShellDir = resolved.dir
+    if (resolved.tail === undefined) {
+      return outcome
+    }
+    return {
+      ...outcome,
+      output: outcome.output === '' ? resolved.tail : `${outcome.output}\n${resolved.tail}`,
+      visibleOutput:
+        outcome.visibleOutput === '' ? resolved.tail : `${outcome.visibleOutput}\n${resolved.tail}`,
+    }
+  }
+
+  /**
+   * A reported final directory, kept or refused (M91 lane S): the canonical
+   * forms of the root and the report, links and junctions resolved, decide
+   * (PLAN.md D24). The root itself keeps nothing; anything not below it
+   * resets with a note naming the canonical path when known.
+   */
+  private async resolveShellDirectory(
+    reported: string,
+  ): Promise<{ readonly dir: string | undefined; readonly tail: string | undefined }> {
+    const platform = this.deps.platform
+    const p = pathModule(platform)
+    if (!p.isAbsolute(reported)) {
+      return { dir: undefined, tail: fill(UI_TEXT.shellDirectoryReset, { path: reported }) }
+    }
+    let realTarget: string
+    let realRoot: string
+    try {
+      ;[realTarget, realRoot] = await Promise.all([
+        this.deps.io.realPath(reported),
+        this.deps.io.realPath(this.deps.workspaceRoot),
+      ])
+    } catch {
+      // The file system refuses to say: fail closed, back to the root.
+      return { dir: undefined, tail: fill(UI_TEXT.shellDirectoryReset, { path: reported }) }
+    }
+    if (isSamePath(realTarget, realRoot, platform)) {
+      return { dir: undefined, tail: undefined }
+    }
+    const relative = p.relative(realRoot, realTarget)
+    if (!isBelow(relative, p)) {
+      return { dir: undefined, tail: fill(UI_TEXT.shellDirectoryReset, { path: realTarget }) }
+    }
+    return {
+      dir: realTarget,
+      tail: fill(UI_TEXT.shellDirectory, { path: relative.split(p.sep).join('/') }),
     }
   }
 
@@ -4810,10 +5956,12 @@ export class ModelApiSession implements AgentSession {
     const limit = new ShellTimeLimit()
     let refusal: ToolOutcome | undefined
     const run = async (): Promise<ToolOutcome> => {
-      const outcome = await executeTool(call.name, call.arguments, {
+      const tracking = await this.beginShellDirectory(call)
+      const outcome = await executeTool(call.name, tracking.argsJson, {
         workspaceRoot: this.deps.workspaceRoot,
         platform: this.deps.platform,
         io: this.deps.io,
+        shellCwd: tracking.cwd,
         signal: stop.signal,
         limit,
         seen: this.seenFiles,
@@ -4824,7 +5972,7 @@ export class ModelApiSession implements AgentSession {
           if (refusal !== undefined) throw new AbortedError()
         },
       })
-      return refusal ?? outcome
+      return refusal ?? (await this.endShellDirectory(tracking, outcome))
     }
     const running = run()
     // Not `Promise.withResolvers`: VS Code 1.99 and 1.100 run Node 20 (PLAN.md M62).
@@ -4852,8 +6000,216 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /**
+   * An M91 mcp_tool handler's call (D70, lane H): the tool on its configured
+   * MCP server, through that tool's own approval path. The policy judgement,
+   * the trust check and the approval card are the tool's own; the helper
+   * call fires no hook and skips the Auto reviewer, so a hook can never
+   * approve or review itself into a loop. A colliding plain name that is not
+   * this server's tool is missing, never another server's tool.
+   */
+  private async runHookMcpTool(
+    server: string,
+    tool: string,
+    argsJson: string,
+    signal: AbortSignal,
+  ): Promise<HookMcpOutcome> {
+    const servers = this.deps.mcpServers
+    if (servers === undefined) {
+      return { kind: 'missing' }
+    }
+    const candidate = mcpFunctionName(server, tool, new Set())
+    const ref = servers.find(candidate)
+    if (ref?.server !== server || ref.tool !== tool) {
+      return { kind: 'missing' }
+    }
+    if (!this.deps.isWorkspaceTrusted()) {
+      return { kind: 'denied' }
+    }
+    const call: FunctionCallItem = {
+      type: 'function_call',
+      call_id: this.deps.newId(),
+      name: candidate,
+      arguments: argsJson,
+    }
+    const query: PermissionQuery = {
+      toolName: candidate,
+      toolClass: 'mcp',
+      isReadOnly: ref.isReadOnly,
+    }
+    const judgement = this.permissions.judge(query, this.policy())
+    if (judgement.verdict === 'deny') return { kind: 'denied' }
+    const approval =
+      judgement.verdict === 'allow'
+        ? { isApproved: true }
+        : await this.askApproval(
+            this.deps.newId(),
+            call,
+            signal,
+            query,
+            { card: { kind: 'tool', toolName: candidate } },
+            false,
+            undefined,
+            true,
+          )
+    if (!approval.isApproved) {
+      return { kind: 'denied' }
+    }
+    signal.throwIfAborted()
+    if (
+      !this.deps.isWorkspaceTrusted() ||
+      this.permissions.judge(query, this.policy()).verdict === 'deny'
+    ) {
+      return { kind: 'denied' }
+    }
+    const outcome = await servers.call(candidate, argsJson, signal)
+    return {
+      kind: 'called',
+      text: outcome.output,
+      isError: outcome.failureReason !== undefined,
+    }
+  }
+
+  /**
+   * An M91 agent handler's read-only tools (D70, lane H): read, grep, list
+   * and code intelligence. No writes, no shell, no web; rename is not
+   * offered. Whatever is off (code intelligence without the service) is
+   * simply absent.
+   */
+  private hookModelTools(): readonly FunctionToolDefinition[] {
+    return toolDefinitions(this.deps.platform, {
+      hasShell: false,
+      hasSkills: false,
+      isSubagent: true,
+      hasCodeIntel: this.deps.codeIntel !== undefined,
+    }).filter((tool) => HOOK_MODEL_READ_TOOLS.has(tool.name))
+  }
+
+  /** One read-only tool call of a hook's agent turn; any other name is refused. */
+  private fileToolContext(signal: AbortSignal) {
+    return {
+      workspaceRoot: this.deps.workspaceRoot,
+      platform: this.deps.platform,
+      io: this.toolWrites()?.io ?? this.deps.io,
+      signal,
+      seen: this.seenFiles,
+      files: this.policy().files,
+    }
+  }
+
+  private async executeHookModelTool(
+    name: string,
+    argsJson: string,
+    signal: AbortSignal,
+  ): Promise<string> {
+    if (!HOOK_MODEL_READ_TOOLS.has(name)) {
+      throw new Error(`the hook model call cannot use ${name}`)
+    }
+    const intelTool = codeIntelToolOf(name)
+    if (intelTool !== undefined && intelTool !== 'renameSymbol') {
+      if (this.deps.codeIntel === undefined) {
+        throw new Error(`the hook model call cannot use ${name}`)
+      }
+      const outcome = await this.readCode(
+        intelTool,
+        { type: 'function_call', call_id: this.deps.newId(), name, arguments: argsJson },
+        signal,
+      )
+      return outcome.output
+    }
+    const context = this.fileToolContext(signal)
+    const outcome = await executeTool(name, argsJson, {
+      ...context,
+      assertCanWrite: () => {
+        throw new AbortedError()
+      },
+    })
+    return outcome.output
+  }
+
+  /**
+   * An M91 prompt/agent handler's own model call (D70, lane H): one attempt,
+   * no retry, hooks off, on the hookModels tally line apart from the
+   * conversation. The paid gate and popup already allowed this run; the row
+   * keeps it loud.
+   */
+  private async runHookModelTurn(
+    kind: 'prompt' | 'agent',
+    system: string,
+    user: string,
+    event: string,
+    signal: AbortSignal,
+  ): Promise<HookModelTurn> {
+    const modelId = this.modelId
+    const active = this.active
+    const policy = this.policy()
+    const isCurrent = () =>
+      !this.isDisposed &&
+      !signal.aborted &&
+      this.active === active &&
+      this.modelId === modelId &&
+      this.deps.isWorkspaceTrusted() &&
+      this.deps.isPaidFeatureOn('hookModels') &&
+      this.policy() === policy
+    const [keyDigest, budgetScope] = await unlessStopped(
+      Promise.all([this.deps.client.currentKeyDigest(), this.ownedBudgetScope()]),
+      signal,
+    )
+    if (
+      !isCurrent() ||
+      (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) ||
+      budgetScope?.isStillAllowed(keyDigest) === false
+    ) {
+      throw new Error('the hook model call could not start')
+    }
+    let runHookModel: typeof RunHookModelTurn
+    try {
+      const entry = await import('./reviewerEntry.js')
+      if (typeof entry.runHookModelTurn !== 'function') {
+        throw new TypeError('Invalid hook model export')
+      }
+      runHookModel = entry.runHookModelTurn
+    } catch {
+      if (signal.aborted) throw new AbortedError()
+      this.deps.log.warn('The hook model bundle could not be loaded')
+      throw new Error('the hook model bundle could not be loaded')
+    }
+    if (!isCurrent()) throw new AbortedError()
+    // The run is tallied when the gate allowed it; the request observer below
+    // counts its attempts for the client's own budget, nothing more.
+    const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
+    return await runHookModel(
+      {
+        deps: this.deps,
+        tools: kind === 'agent' ? this.hookModelTools() : [],
+        executeReadOnlyTool: async (name, argsJson, toolSignal) =>
+          await this.executeHookModelTool(name, argsJson, toolSignal),
+        ...this.paidModelObservers(turnId),
+      },
+      { kind, system, user },
+      event,
+      turnId,
+      signal,
+      {
+        modelId,
+        keyDigest,
+        isStillAllowed: () =>
+          isCurrent() &&
+          (budgetScope === undefined
+            ? this.deps.sessionBudgetUsd() === 0
+            : budgetScope.isStillAllowed(keyDigest)),
+        onRequestStarted: () => {
+          // Hook runs are counted by the consenting dispatcher.
+        },
+      },
+      budgetScope,
+      isCurrent,
+    )
+  }
+
   /** The IDE tool in process, or the MCP server's tool over its connection (M50). */
   private async performExternal(
+    itemId: string,
     external: ExternalTool,
     call: FunctionCallItem,
     signal: AbortSignal,
@@ -4867,7 +6223,11 @@ export class ModelApiSession implements AgentSession {
       return toolFailure(`${call.name} ${MODEL_API_MODEL_TEXT.mcpToolUnavailable}`)
     }
     this.noteProcessRan()
-    const outcome = await servers.call(call.name, call.arguments, signal)
+    // This call's elicitations are answered in this session (M91 lane M),
+    // with the form under this tool's row. Never auto-accepted: the route
+    // only asks, in every approval mode.
+    const route: McpElicitationHandler = (request) => this.runElicitation(itemId, request)
+    const outcome = await servers.call(call.name, call.arguments, signal, route)
     return {
       output: outcome.output,
       visibleOutput: outcome.visibleOutput,
@@ -4926,7 +6286,23 @@ export class ModelApiSession implements AgentSession {
     this.replaceGoal(withTokensUsed(goal, spentTokens, this.deps.now()))
   }
 
-  private childEvent(child: ChildRecord, event: AgentEvent): void {
+  private childEvent(child: ChildRecord, event: AgentEvent, wasIdleChecked = false): void {
+    if (
+      !wasIdleChecked &&
+      event.type === 'turnCompleted' &&
+      event.terminal === COMPLETED &&
+      this.enabledExtensionHooks().some((hook) => hook.event === 'TeammateIdle')
+    ) {
+      void this.keepIdleChild(child)
+        .then((kept) => {
+          if (!kept) this.childEvent(child, event, true)
+        })
+        .catch(() => {
+          this.deps.log.warn('A background TeammateIdle hook failed')
+          this.childEvent(child, event, true)
+        })
+      return
+    }
     if (event.type === 'turnStarted') {
       child.chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
     } else if (event.type === 'tokenUsage') {
@@ -4985,8 +6361,9 @@ export class ModelApiSession implements AgentSession {
         (entry) => entry.turnId === event.turnId && entry.item.kind === 'agentMessage',
       )
       const isTaskRefusal = event.errorKind?.startsWith('subagent_') === true
+      const replied = child.session.hookReplyFor(event.turnId) ?? reply?.item.text
       const text =
-        (isTaskRefusal ? event.reason : (reply?.item.text ?? event.reason)) ??
+        (isTaskRefusal ? event.reason : (replied ?? event.reason)) ??
         MODEL_API_MODEL_TEXT.subagentNoReply
       const modelText = isTaskRefusal ? (modelChildFailure(event.errorKind, text) ?? text) : text
       child.result = {
@@ -5012,6 +6389,65 @@ export class ModelApiSession implements AgentSession {
     if (FORWARDED_CHILD_EVENTS.has(event.type)) {
       this.emit(event)
     }
+  }
+
+  /** A hidden continuation uses the original consent and its remaining request bound. */
+  private canContinueChild(child: ChildRecord, grant: ChildTaskGrant): boolean {
+    return (
+      !this.isDisposed &&
+      !this.isHostClosing() &&
+      child.state === 'running' &&
+      this.children.get(child.id) === child &&
+      child.session.childTaskGrant === grant &&
+      child.nextTaskGrant === undefined
+    )
+  }
+
+  private async keepIdleChild(child: ChildRecord): Promise<boolean> {
+    let siblings = 0
+    for (const other of this.children.values()) {
+      if (other === child || other.state !== 'running') continue
+      siblings += 1
+    }
+    const keeps = this.teammateKeeps.get(child.id) ?? 0
+    const grant = child.session.childTaskGrant
+    if (
+      siblings === 0 ||
+      grant === undefined ||
+      keeps >= HOOK_MAX_STOP_CONTINUATIONS ||
+      grant.remainingAttempts <= 0 ||
+      !this.canContinueChild(child, grant)
+    )
+      return false
+    const verdict = await this.fireExtensionHooks(
+      'TeammateIdle',
+      undefined,
+      { name: child.id, siblings_running: siblings },
+      child.id,
+      undefined,
+    )
+    if (verdict?.keepWorking !== true || !this.canContinueChild(child, grant)) return false
+    const keyDigest = await this.deps.client.currentKeyDigest()
+    if (
+      this.childGrantRefusal(grant, keyDigest, child.session.modelId) !== undefined ||
+      !this.canContinueChild(child, grant)
+    )
+      return false
+    this.teammateKeeps.set(child.id, keeps + 1)
+    const reason = verdict.keepReason ?? MODEL_API_MODEL_TEXT.hookTeammateContinue
+    await child.session.submitTurn(
+      [{ type: 'text', text: reason }],
+      undefined,
+      false,
+      undefined,
+      true,
+    )
+    this.emit({
+      type: 'backendNotice',
+      level: 'info',
+      text: fill(UI_TEXT.hookTeammateKept, { name: child.id, reason }),
+    })
+    return true
   }
 
   private installChildGrant(child: ChildRecord, grant: ChildTaskGrant): void {
@@ -5515,7 +6951,7 @@ export class ModelApiSession implements AgentSession {
     const query: PermissionQuery = { toolName: call.name, toolClass: 'spawn' }
     const judgement = this.judgementWithHook(query, shouldForceApproval)
     if (judgement.verdict === 'deny') {
-      return this.refused(call, judgement)
+      return await this.refused(call, judgement, signal)
     }
     const existing = this.existingSpawn(parsed.data)
     if (existing !== undefined) {
@@ -5541,7 +6977,7 @@ export class ModelApiSession implements AgentSession {
       current.verdict === 'deny' ||
       (judgement.verdict === 'allow' && current.verdict === 'ask')
     ) {
-      return this.refused(call, current)
+      return await this.refused(call, current, signal)
     }
     const admission = this.admitted(query, current)
     slot.admission = admission
@@ -5601,6 +7037,8 @@ export class ModelApiSession implements AgentSession {
             permissionMode: spawnAgent.permissionMode,
           },
       isReviewerRole(args.role),
+      // A subagent shares its parent's extension snapshot (M91 lane E).
+      this.extensionHooks,
     )
     child.childTaskGrant = grant
     child.topTurn = { checkpoint: this.active?.checkpoint }
@@ -6009,6 +7447,7 @@ export class ModelApiSession implements AgentSession {
     goalCommandRevision: number,
     isAllowed: CallAdmission,
     admission: Admission,
+    turnId: string,
     childGrant?: ChildTaskGrant,
     approvedTarget?: { readonly absolute: string; readonly checkedAbsolute: string },
     approvedImagePlan?: ImagePlan,
@@ -6028,7 +7467,7 @@ export class ModelApiSession implements AgentSession {
     }
     const external = this.externalTool(call.name)
     if (external !== undefined) {
-      return { outcome: await this.performExternal(external, call, signal) }
+      return { outcome: await this.performExternal(itemId, external, call, signal) }
     }
     if (isSubagentTool(call.name)) {
       return { outcome: await this.runSubagentTool(call, signal, childGrant) }
@@ -6038,10 +7477,10 @@ export class ModelApiSession implements AgentSession {
         return { outcome: await this.askUser(itemId, call, signal) }
       }
       case MODEL_API_TOOLS.todoWrite: {
-        return { outcome: this.writeTodos(call) }
+        return { outcome: await this.writeTodos(call, turnId, signal) }
       }
       case MODEL_API_TOOLS.readSkill: {
-        return { outcome: await this.readSkill(call) }
+        return { outcome: await this.readSkill(call, turnId, signal) }
       }
       case MODEL_API_TOOLS.recallOutput: {
         return { outcome: this.recallPacked(call) }
@@ -6087,12 +7526,7 @@ export class ModelApiSession implements AgentSession {
         const formatter = this.formatter(assertCanWrite)
         return {
           outcome: await executeTool(call.name, call.arguments, {
-            workspaceRoot: this.deps.workspaceRoot,
-            platform: this.deps.platform,
-            io: this.toolWrites()?.io ?? this.deps.io,
-            signal,
-            seen: this.seenFiles,
-            files: this.policy().files,
+            ...this.fileToolContext(signal),
             assertCanWrite,
             ...(approvedTarget !== undefined && { approvedTarget }),
             ...(formatter !== undefined && { formatter }),
@@ -6265,6 +7699,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     effects: HookEffects,
     isAllowed: () => boolean,
+    correctionsUsed = 0,
   ): Promise<CommandOutcome> {
     if (!this.deps.isWorkspaceTrusted()) {
       return { kind: 'skipped', skip: 'restricted' }
@@ -6280,6 +7715,12 @@ export class ModelApiSession implements AgentSession {
     if (!isCurrent()) return { kind: 'skipped', skip: 'refused' }
     const shell = shellToolFor(this.deps.platform)
     const turnId = this.active?.turnId
+    if (
+      turnId !== undefined &&
+      !isToolAllowedBySelection(shell.name, this.toolSelectionFor(turnId))
+    ) {
+      return { kind: 'skipped', skip: 'hookDenied', detail: UI_TEXT.hookToolRemoved }
+    }
     const toolUseId = this.deps.newId()
     const matcher = toolMatcherNames(shell.name)
     const pre = await this.runHooks(
@@ -6296,6 +7737,10 @@ export class ModelApiSession implements AgentSession {
     )
     if (!isCurrent()) return { kind: 'skipped', skip: 'refused' }
     effects.contexts.push(...pre.contexts)
+    if (pre.stopReason !== undefined) {
+      // An imported guard that ends the turn (Amp's tool.call `error`, M91b).
+      effects.stopReason ??= pre.stopReason
+    }
     if (pre.blockedReason !== undefined) {
       return { kind: 'skipped', skip: 'hookDenied', detail: pre.blockedReason }
     }
@@ -6371,6 +7816,47 @@ export class ModelApiSession implements AgentSession {
       effects.stopReason ??= post.stopReason
     } else if (post.blockedReason !== undefined) {
       effects.messages.push(post.blockedReason)
+    }
+    if (
+      ran.failureReason !== undefined &&
+      post.updatedInput !== undefined &&
+      post.stopReason === undefined &&
+      isCurrent()
+    ) {
+      const correction = await this.correctionFor(
+        {
+          type: 'function_call',
+          call_id: toolUseId,
+          name: shell.name,
+          arguments: JSON.stringify(input),
+        },
+        post.updatedInput,
+        correctionsUsed,
+        signal,
+      )
+      if (correction.ok) {
+        const args = argumentsOf(correction.call)
+        const command = pick(args, 'command')
+        if (command === undefined || command.trim() === '') {
+          effects.messages.push(refusedCorrection(UI_TEXT.hookInputNoCommand).reason)
+        } else {
+          return await this.runVerifyCommand(
+            itemId,
+            {
+              ...request,
+              line: command,
+              ruleCommand: command,
+              description: pick(args, 'description') ?? request.description,
+            },
+            signal,
+            effects,
+            isAllowed,
+            correctionsUsed + 1,
+          )
+        }
+      } else {
+        effects.messages.push(correction.reason)
+      }
     }
     return {
       kind: 'ran',
@@ -6684,7 +8170,7 @@ export class ModelApiSession implements AgentSession {
   ): Promise<CallResult | undefined> {
     const judgement = this.judgementWithHook(query, shouldForceApproval)
     if (judgement.verdict === 'deny') {
-      return this.refused(call, judgement)
+      return await this.refused(call, judgement, signal)
     }
     if (judgement.verdict === 'allow') {
       return undefined
@@ -6855,11 +8341,53 @@ export class ModelApiSession implements AgentSession {
       : { ...judged, isReviewable: false }
   }
 
-  /** A refused call: by a forbid rule (M78), or by the mode. */
-  private refused(call: FunctionCallItem, judgement: PermissionJudgement): CallResult {
+  /** A forbid rule's or the mode's outcome for a refused call (M78). */
+  private denialOutcome(call: FunctionCallItem, judgement: PermissionJudgement): ToolOutcome {
     return judgement.settledBy === 'forbidRule'
-      ? { outcome: refusedByRule(call, judgement), isRejected: true }
-      : this.refusedByMode(call)
+      ? refusedByRule(call, judgement)
+      : this.refusedByMode(call).outcome
+  }
+
+  private denialReason(call: FunctionCallItem, judgement: PermissionJudgement): string {
+    const outcome = this.denialOutcome(call, judgement)
+    return outcome.failureReason ?? outcome.output
+  }
+
+  /**
+   * A refused call: by a forbid rule (M78), or by the mode. Fires
+   * PermissionDenied as observation (M91 lane E), with the tool and the
+   * reason, never a retry.
+   */
+  private async refused(
+    call: FunctionCallItem,
+    judgement: PermissionJudgement,
+    signal: AbortSignal,
+  ): Promise<CallResult> {
+    const outcome = this.denialOutcome(call, judgement)
+    await this.notePermissionDenied(call.name, outcome.failureReason ?? outcome.output, signal)
+    return { outcome, isRejected: true }
+  }
+
+  /**
+   * PermissionDenied as observation: the tool when one was refused, the
+   * reason, no retry. The active turn, when one runs, takes the context at
+   * its tail.
+   */
+  private async notePermissionDenied(
+    toolName: string | undefined,
+    reason: string,
+    signal: AbortSignal,
+  ): Promise<void> {
+    await this.fireExtensionHooks(
+      'PermissionDenied',
+      this.active?.turnId,
+      permissionDeniedFields({
+        ...(toolName !== undefined && { toolName }),
+        reason,
+      }),
+      toolName,
+      signal,
+    )
   }
 
   private refusedByMode(call: FunctionCallItem): CallResult {
@@ -7552,7 +9080,7 @@ export class ModelApiSession implements AgentSession {
     }
     const judgement = this.judgementWithHook(query, shouldForceApproval, policy)
     if (judgement.verdict === 'deny') {
-      return this.refused(call, judgement)
+      return await this.refused(call, judgement, signal)
     }
     if (judgement.settledBy === 'allowRule') {
       // Said on the row, as a card's answer would be: the user's rule ran it.
@@ -7613,9 +9141,15 @@ export class ModelApiSession implements AgentSession {
       currentJudgement.verdict === 'deny' ||
       (verdict === 'allow' && currentJudgement.verdict === 'ask')
     ) {
-      return this.refused(call, currentJudgement)
+      return await this.refused(call, currentJudgement, signal)
     }
     if ((toolClass === 'shell' || toolClass === 'mcp') && !this.deps.isWorkspaceTrusted()) {
+      const modeOutcome = this.refusedByMode(call).outcome
+      await this.notePermissionDenied(
+        call.name,
+        modeOutcome.failureReason ?? modeOutcome.output,
+        signal,
+      )
       return this.refusedByMode(call)
     }
     const deniedNow =
@@ -7626,7 +9160,9 @@ export class ModelApiSession implements AgentSession {
             currentPolicy.files.isDenied([file.relative, file.canonical]),
           )
     if (deniedNow !== undefined) {
-      return { outcome: deniedPath(deniedNow.relative), isRejected: true }
+      const denied = deniedPath(deniedNow.relative)
+      await this.notePermissionDenied(call.name, denied.failureReason ?? denied.output, signal)
+      return { outcome: denied, isRejected: true }
     }
     // What the call's side effects and the dispatcher's fence judge again.
     const admission = this.admitted(query, currentJudgement)
@@ -7649,6 +9185,7 @@ export class ModelApiSession implements AgentSession {
         goalCommandRevision,
         isAllowed,
         admission,
+        turnId,
         childGrant,
         target?.ok === true ? target : undefined,
         approvedImagePlan,
@@ -7878,7 +9415,7 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     outcome: ToolOutcome,
     status: string,
-  ): void {
+  ): ReplayItem {
     const { itemId } = started
     const outputRef = outcome.patch === undefined ? undefined : `${OUTPUT_REF_PREFIX}${itemId}`
     if (outputRef !== undefined && outcome.patch !== undefined) {
@@ -7915,6 +9452,88 @@ export class ModelApiSession implements AgentSession {
     if (outcome.visibleFile !== undefined) {
       this.readFiles.push(outcome.visibleFile)
     }
+    return replay
+  }
+
+  /**
+   * A PostToolUseFailure hook's corrected call (Muse 1.4.0, M91 lane R): the
+   * same tool only, as a new call through PreToolUse, policy, path
+   * confinement and approval, bounded by HOOK_ON_FAILURE_MAX_DEPTH. A refusal
+   * names its reason for the model; the original failure stands.
+   */
+  private async correctionFor(
+    call: FunctionCallItem,
+    updatedInput: Record<string, unknown>,
+    correctionsUsed: number,
+    signal: AbortSignal,
+  ): Promise<{ ok: true; call: FunctionCallItem } | { ok: false; reason: string }> {
+    signal.throwIfAborted()
+    if (correctionsUsed >= HOOK_ON_FAILURE_MAX_DEPTH) {
+      return refusedCorrection(plural(UI_TEXT.hookCorrectionTooDeep, HOOK_ON_FAILURE_MAX_DEPTH))
+    }
+    const { tool_name: named, ...args } = updatedInput
+    // updatedInput replaces the arguments; only a tool_name restating this
+    // same tool may ride along. Anything else naming a tool is refused: the
+    // correction never switches tools.
+    if (named !== undefined && (typeof named !== 'string' || named !== call.name)) {
+      return refusedCorrection(UI_TEXT.hookCorrectionOtherTool)
+    }
+    const corrected: FunctionCallItem = { ...call, arguments: JSON.stringify(args) }
+    // The full path re-vets the corrected call, but a path outside the
+    // workspace is refused here with its reason instead of running at all. A
+    // memory note's path is under its scope's root, not the workspace.
+    if (isMemoryTool(call.name)) {
+      signal.throwIfAborted()
+      return { ok: true, call: corrected }
+    }
+    const target = await this.editTarget(corrected)
+    if (target !== undefined && !target.ok) {
+      return refusedCorrection(UI_TEXT.hookCorrectionOutside)
+    }
+    signal.throwIfAborted()
+    return { ok: true, call: corrected }
+  }
+
+  /**
+   * A corrected call supersedes its failed attempt: the row stays in History,
+   * but its output and trailing hook context leave replay so one call_id
+   * answers once, before any replacement context the model will read.
+   */
+  private supersedeReplayOutput(replay: ReplayItem, outcome: ToolOutcome): void {
+    const index = this.replay.indexOf(replay)
+    if (index !== -1) {
+      this.replay.splice(index)
+    }
+    this.pendingOutputMedia.delete(replay)
+    if (outcome.visibleFile === undefined) {
+      return
+    }
+    const queued = this.readFiles.lastIndexOf(outcome.visibleFile)
+    if (queued !== -1) {
+      this.readFiles.splice(queued, 1)
+    }
+  }
+
+  /**
+   * An imported PostToolUse hook's documented replacement of what the model
+   * sees (Cursor `updated_mcp_tool_output`, Copilot `modifiedResult`; M91
+   * lane W, D70 SoL-Pi rule 2). It replaces the call's replay output in
+   * place, before the next request is built, so packing archives what the
+   * model saw and `recall_output` returns those bytes. Anything the call had
+   * queued behind its output (an image, a read file) goes with it. The row
+   * keeps the real output, and a notice says the model saw the hook's.
+   */
+  private replaceOutput(replay: ReplayItem, outcome: ToolOutcome, value: HookReplacement['value']) {
+    const index = this.replay.indexOf(replay)
+    if (index === -1 || replay.item.type !== 'function_call_output') {
+      return
+    }
+    this.supersedeReplayOutput(replay, outcome)
+    this.replay.splice(index, 0, {
+      ...replay,
+      item: { ...replay.item, output: typeof value === 'string' ? value : JSON.stringify(value) },
+    })
+    this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.hookOutputReplaced })
   }
 
   /** Permission check, execution and the transcript row for one tool call. */
@@ -7923,21 +9542,41 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     signal: AbortSignal,
     goalCommandRevision: number,
+    correctionsUsed = 0,
   ): Promise<HookToolResult> {
     const itemId = this.deps.newId()
     const startedAt = this.deps.now()
-    const pre = await this.runHooks(
-      'PreToolUse',
-      turnId,
-      {
-        tool_name: call.name,
-        tool_input: await this.preToolInput(call, signal),
-        tool_use_id: itemId,
-      },
-      toolMatcherNames(call.name),
-      signal,
-      false,
-    )
+    // A BeforeToolSelection hook took this tool away for the turn: the call is
+    // refused at admission, before any PreToolUse hook sees it, while the
+    // declared tool list stays exactly as the model saw it (M91 lane E).
+    const selection = this.toolSelectionFor(turnId)
+    const selectionReason =
+      selection === undefined || isToolAllowedBySelection(call.name, selection)
+        ? undefined
+        : `${call.name}: ${UI_TEXT.hookToolRemoved}`
+    const pre: HookDispatch =
+      selectionReason === undefined
+        ? await this.runHooks(
+            'PreToolUse',
+            turnId,
+            {
+              tool_name: call.name,
+              tool_input: await this.preToolInput(call, signal),
+              tool_use_id: itemId,
+            },
+            toolMatcherNames(call.name),
+            signal,
+            false,
+          )
+        : {
+            blockedReason: selectionReason,
+            contexts: [],
+            messages: [],
+            updatedInput: undefined,
+            forceApproval: false,
+            stopReason: undefined,
+            approvalDecision: undefined,
+          }
     const effectiveCall: FunctionCallItem =
       pre.updatedInput === undefined
         ? call
@@ -7996,13 +9635,14 @@ export class ModelApiSession implements AgentSession {
     }
     // An MCP tool's `path` is its own business, not a workspace file it read.
     if (this.externalTool(effectiveCall.name) === undefined) {
-      await this.touchPath(effectiveCall)
+      await this.touchPath(effectiveCall, turnId, signal)
     }
     const { admission } = slot
     const { isRejected, running, hookEffects } = result
     // The one point every outcome crosses: no await from here to the model's
     // replay. A rejection brought nothing back and keeps its own words.
     let outcome = isRejected ? result.outcome : this.fencedOutcome(admission, result.outcome)
+    let attemptReplay: ReplayItem | undefined
     if (running === undefined) {
       if (!this.canQueueToolMedia(outcome)) {
         outcome = {
@@ -8015,20 +9655,21 @@ export class ModelApiSession implements AgentSession {
       if (outcome.failureReason !== undefined) {
         status = isRejected ? REJECTED : FAILED
       }
-      this.finishCall(turnId, started, effectiveCall, outcome, status)
+      attemptReplay = this.finishCall(turnId, started, effectiveCall, outcome, status)
+      if (
+        effectiveCall.name === MODEL_API_TOOLS.todoWrite &&
+        outcome.failureReason !== undefined &&
+        this.taskRefusals >= HOOK_MAX_STOP_CONTINUATIONS
+      ) {
+        throw new HookStoppedError(outcome.failureReason)
+      }
     } else {
       this.continueInBackground(turnId, started, effectiveCall, outcome, running, admission)
     }
-    for (const context of [...pre.contexts, ...(hookEffects?.contexts ?? [])]) {
-      this.replay.push({
-        turnId,
-        item: {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text: context }],
-        },
-      })
+    if (selectionReason !== undefined) {
+      await this.notePermissionDenied(call.name, selectionReason, signal)
     }
+    this.appendHookContexts(turnId, [...pre.contexts, ...(hookEffects?.contexts ?? [])])
     const post = await this.runHooks(
       outcome.failureReason === undefined ? 'PostToolUse' : 'PostToolUseFailure',
       turnId,
@@ -8049,7 +9690,17 @@ export class ModelApiSession implements AgentSession {
           },
       toolMatcherNames(effectiveCall.name),
       signal,
+      true,
+      true,
+      { fileOperation: fileOperationOf(outcome) },
     )
+    if (
+      attemptReplay !== undefined &&
+      outcome.failureReason === undefined &&
+      post.replacement?.target === 'toolResult'
+    ) {
+      this.replaceOutput(attemptReplay, outcome, post.replacement.value)
+    }
     const blocked = [
       ...(post.stopReason === undefined && post.blockedReason !== undefined
         ? [post.blockedReason]
@@ -8066,6 +9717,42 @@ export class ModelApiSession implements AgentSession {
         },
       })
     }
+    // A PostToolUseFailure hook's corrected call (Muse 1.4.0, M91): the same
+    // tool only, as a new call through the full path, bounded by
+    // HOOK_ON_FAILURE_MAX_DEPTH. A stop still stops: no corrected call runs
+    // after it. A backgrounded call is still running, so it is never
+    // corrected either.
+    if (
+      attemptReplay !== undefined &&
+      outcome.failureReason !== undefined &&
+      post.updatedInput !== undefined &&
+      post.stopReason === undefined
+    ) {
+      const correction = await this.correctionFor(
+        effectiveCall,
+        post.updatedInput,
+        correctionsUsed,
+        signal,
+      )
+      if (correction.ok) {
+        this.supersedeReplayOutput(attemptReplay, outcome)
+        return await this.runCall(
+          turnId,
+          correction.call,
+          signal,
+          goalCommandRevision,
+          correctionsUsed + 1,
+        )
+      }
+      this.replay.push({
+        turnId,
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: correction.reason }],
+        },
+      })
+    }
     return {
       record: {
         tool_name: effectiveCall.name,
@@ -8073,7 +9760,9 @@ export class ModelApiSession implements AgentSession {
         tool_use_id: itemId,
         tool_response: toolHookOutput(outcome.output),
       },
-      stopReason: post.stopReason ?? hookEffects?.stopReason,
+      // A PreToolUse stop (Amp's tool.call `error`, M91b) refused the call
+      // and ends the turn too.
+      stopReason: post.stopReason ?? hookEffects?.stopReason ?? pre.stopReason,
     }
   }
 
@@ -8267,7 +9956,7 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
-  private drainSteered(turn: ActiveTurn): void {
+  private async drainSteered(turn: ActiveTurn): Promise<void> {
     // What ended or ran meanwhile first (M46), then what the user added.
     this.settleNotes(turn.turnId)
     for (const { parts, userMessageId: itemId } of turn.steered.splice(0)) {
@@ -8278,6 +9967,7 @@ export class ModelApiSession implements AgentSession {
         this.ledger.resetForSteer()
       }
       const text = typedText(parts)
+      const replayStart = this.replay.length
       this.replay.push({
         turnId: turn.turnId,
         userMessageId: itemId,
@@ -8300,6 +9990,7 @@ export class ModelApiSession implements AgentSession {
         ...(attachments.length > 0 && { attachments }),
         recordedAt: this.recordedNow(),
       })
+      await this.expandSkillsForHooks(turn.turnId, parts, replayStart, turn.abort.signal)
       // It is in the request now (M87): an Edit can no longer take it back.
       if (!this.isSubagent) {
         this.emit({ type: 'messageAdmitted', userMessageId: itemId })
@@ -8545,9 +10236,7 @@ export class ModelApiSession implements AgentSession {
 
   /** What the checks' hooks added, after the verify note: their contexts, then their reasons. */
   private appendHookEffects(turnId: string, effects: HookEffects): void {
-    for (const text of [...effects.contexts, ...effects.messages]) {
-      this.replay.push({ turnId, item: noteItem(text) })
-    }
+    this.appendHookContexts(turnId, [...effects.contexts, ...effects.messages])
   }
 
   /**
@@ -8626,7 +10315,7 @@ export class ModelApiSession implements AgentSession {
       if (requiredBeforeRound !== undefined) {
         throw requiredBeforeRound
       }
-      this.drainSteered(turn)
+      await this.drainSteered(turn)
       this.drainGoalWake(turn)
       const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
       let streamed: StreamedCall
@@ -8688,6 +10377,15 @@ export class ModelApiSession implements AgentSession {
           const requiredAfterStopHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
           if (requiredAfterStopHook !== undefined) {
             throw requiredAfterStopHook
+          }
+          // An imported SubagentStop hook's documented replacement of the
+          // child's reply (Copilot `modifiedResponse`): what the parent reads.
+          if (this.isSubagent && stop.replacement?.target === 'subagentResponse') {
+            const { value } = stop.replacement
+            this.hookReplies.set(
+              turn.turnId,
+              typeof value === 'string' ? value : JSON.stringify(value),
+            )
           }
           if (stop.stopReason !== undefined) {
             return
@@ -8879,6 +10577,7 @@ export class ModelApiSession implements AgentSession {
     }
     // What a stopped turn left for its round is not checked in this one (M68).
     this.ledger.beginTurn()
+    this.taskRefusals = 0
     this.active = turn
     // A message of the user's puts them back in the loop: the Auto reviewer
     // may answer again (M78). A goal's wake is not one.
@@ -8924,12 +10623,7 @@ export class ModelApiSession implements AgentSession {
       for (const message of this.pendingHookMessages.splice(0)) {
         this.emit({ type: 'backendNotice', level: 'info', text: message })
       }
-      for (const context of this.pendingHookContexts.splice(0)) {
-        this.replay.push({
-          turnId: turn.turnId,
-          item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: context }] },
-        })
-      }
+      this.appendHookContexts(turn.turnId, this.pendingHookContexts.splice(0))
       if (this.hookStartStopReason !== undefined) {
         const stopReason = this.hookStartStopReason
         this.hookStartStopReason = undefined
@@ -8950,10 +10644,21 @@ export class ModelApiSession implements AgentSession {
       this.drainChildResults()
       if (queued.isGoalWake) {
         this.appendGoalWake(turn.turnId, queued.parts)
+      } else if (queued.isHookContinuation === true) {
+        this.appendHookContexts(turn.turnId, [typedText(queued.parts)])
       } else {
+        const replayStart = this.replay.length
         this.appendUserMessage(turn.turnId, queued.parts, queued.displayText, queued.userMessageId)
+        await this.expandSkillsForHooks(
+          turn.turnId,
+          queued.parts,
+          replayStart,
+          turn.abort.signal,
+          queued.displayText,
+        )
       }
-      if (!queued.isGoalWake) {
+      if (!queued.isGoalWake && queued.isHookContinuation !== true) {
+        await this.noteLoadedRules(turn.turnId, 'rules', turn.abort.signal)
         const replayBeforeSubmit = this.replay.length
         const submitted = await this.runHooks(
           'UserPromptSubmit',
@@ -8964,7 +10669,9 @@ export class ModelApiSession implements AgentSession {
         )
         if (submitted.blockedReason !== undefined) {
           // A rejected prompt stays visible in History, but never reaches a
-          // later model request through the replay (M51).
+          // later model request through the replay (M51). On Muse Code the
+          // turn ends cancelled with the hook's reason and Interrupt fires
+          // (M91 capture run 5), so this turn does the same.
           this.replay.splice(replayBeforeSubmit)
           const userIndex = this.replay.findLastIndex(
             (entry) =>
@@ -8975,7 +10682,8 @@ export class ModelApiSession implements AgentSession {
           if (userIndex !== -1) {
             this.replay.splice(userIndex, 1)
           }
-          throw new HookStoppedError(submitted.blockedReason)
+          this.fireInterrupt()
+          throw new HookCancelledError(submitted.blockedReason)
         }
         // Admitted: a user's message starts the verify loop afresh (M68). A
         // goal's wake carries on, and a parent model's message to a subagent
@@ -8990,8 +10698,14 @@ export class ModelApiSession implements AgentSession {
         !this.isReviewing() && (await this.webSearchConsent(turn.abort.signal))
       await this.loop(turn)
     } catch (error: unknown) {
-      if (turn.abort.signal.aborted) {
+      if (turn.abort.signal.aborted || error instanceof HookCancelledError) {
         terminal = CANCELLED
+        if (error instanceof HookCancelledError) {
+          reason = error.reason
+          // Fixed words only: the reason carries the hook's stderr, which the
+          // redactor would not catch (AGENTS.md rule 8).
+          this.deps.log.warn(`Model API turn ${turn.turnId} cancelled by a hook`)
+        }
       } else {
         terminal = FAILED
         reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
@@ -9025,6 +10739,7 @@ export class ModelApiSession implements AgentSession {
         }
       }
     }
+    turn.isFinalizing = true
     if (terminal !== COMPLETED) {
       this.dropUndeliveredMedia(turn.turnId)
     }
@@ -9042,6 +10757,7 @@ export class ModelApiSession implements AgentSession {
         `The turn checkpoint could not be ended: ${error instanceof Error ? error.name : 'unknown failure'}`,
       )
     }
+    this.deps.judge?.discardTurn(this.sessionId, turn.turnId)
     this.active = undefined
     this.status = IDLE
     this.turnCount += 1
@@ -9521,6 +11237,7 @@ export class ModelApiSession implements AgentSession {
     displayText: string | undefined,
     isReview: boolean,
     requestFor?: (turnId: string) => ConfirmedModelRequest,
+    isHookContinuation = false,
   ): Promise<TurnSubmission> {
     if (this.isDisposed) {
       return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
@@ -9538,6 +11255,7 @@ export class ModelApiSession implements AgentSession {
       displayText,
       userMessageId,
       isGoalWake: false,
+      ...(isHookContinuation && { isHookContinuation: true }),
       ...(isReview && { isReview }),
       ...(confirmedRequest !== undefined && { confirmedRequest }),
     }
@@ -9608,6 +11326,45 @@ export class ModelApiSession implements AgentSession {
 
   // --- AgentSession ---
 
+  /** A file changed outside the agent (M91 lane E): FileChanged, debounced and capped. */
+  private async noteFileChanged(
+    relativePath: string,
+    reason: 'external-edit' | 'watcher',
+  ): Promise<void> {
+    const hooks = this.enabledExtensionHooks()
+    if (
+      hooks.length === 0 ||
+      this.isDisposed ||
+      !isFileChangedWatched(hooks, relativePath) ||
+      isProtectedPath(relativePath) ||
+      relativePath.split('/').some((part) => part === '.git' || part === 'node_modules')
+    )
+      return
+    const listedFiles = await this.deps.io.listFiles()
+    if (!listedFiles.includes(relativePath)) return
+    const verdict = this.fileChangedThrottle.check(relativePath, this.deps.now())
+    if (verdict !== 'fire') {
+      if (verdict === 'capped') {
+        this.deps.log.warn(
+          `Model API extension hooks: FileChanged capped for ${relativePath}; resume in a minute`,
+        )
+      }
+      return
+    }
+    await this.fireExtensionHooks(
+      'FileChanged',
+      undefined,
+      fileChangedFields(relativePath, reason),
+      relativePath,
+      undefined,
+    )
+  }
+
+  /** A SubagentStop hook's replacement of this child's reply in a turn, if one asked (M91). */
+  public hookReplyFor(turnId: string): string | undefined {
+    return this.hookReplies.get(turnId)
+  }
+
   /** A proven host-origin write: aliases reread instead of retaining old fingerprints. */
   public noteExternalEdit(file: EditedFile): void {
     if (this.isDisposed) {
@@ -9615,6 +11372,38 @@ export class ModelApiSession implements AgentSession {
     }
     this.seenFiles.clear()
     this.ledger.noteEdit(file, [file.relative])
+    // FileChanged is observation only and never starts a turn (M91 lane E).
+    void this.noteFileChanged(file.relative, 'external-edit').catch((error: unknown) => {
+      this.deps.log.warn(`Model API extension hooks: FileChanged failed: ${describe(error)}`)
+    })
+  }
+
+  /**
+   * Fire one extension event from this session's snapshot outside any turn
+   * (M91 lane E): a Best-of-N worktree, an idling teammate, a message about
+   * to show. Hook context has no turn to join, so only the decision comes
+   * back; with the opt-in off, in a side chat, or after dispose, the
+   * dispatch is empty and the operation proceeds as before.
+   */
+  public async fireExtensionHook(
+    event: ExtensionHookEvent,
+    fields: Readonly<Record<string, unknown>>,
+    matcherValue?: string,
+  ): Promise<ExtensionHookDispatch> {
+    if (this.isDisposed) {
+      return emptyExtensionDispatch()
+    }
+    return (
+      (await this.fireExtensionHooks(
+        event,
+        undefined,
+        event === 'MessageDisplay' && typeof fields['message'] === 'string'
+          ? messageDisplayFields(fields['message'])
+          : fields,
+        matcherValue,
+        undefined,
+      )) ?? emptyExtensionDispatch()
+    )
   }
 
   /** SessionStart runs when the session opens; context enters its first turn. */
@@ -9750,6 +11539,7 @@ export class ModelApiSession implements AgentSession {
    * is ended with a reason instead of vanishing (D26).
    */
   public cancel(): Promise<void> {
+    this.deps.judge?.discardSession(this.sessionId)
     for (const dropped of this.queuedTurns.splice(0)) {
       this.emit({
         type: 'turnWithdrawn',
@@ -9757,7 +11547,10 @@ export class ModelApiSession implements AgentSession {
         reason: UI_TEXT.queuedTurnDropped,
       })
     }
-    if (this.active !== undefined || this.compacting !== undefined) {
+    const hasRunning =
+      (this.active !== undefined && this.active.isFinalizing !== true) ||
+      this.compacting !== undefined
+    if (hasRunning) {
       // Pause the goal Stop targeted now. A replacement accepted while an
       // aborted turn unwinds must remain active and get its own wake.
       this.pauseGoalAfterStop()
@@ -9766,17 +11559,52 @@ export class ModelApiSession implements AgentSession {
     if (this.compacting !== undefined) {
       this.compacting.abort()
     }
+    // Muse Code's Interrupt fires on a cancelled running turn or compaction,
+    // never on an idle close (M91, docs/certification/m91.md). Disposal and
+    // host close reach it through here.
+    if (hasRunning) {
+      this.fireInterrupt()
+    }
     return Promise.resolve()
   }
 
-  public setModel(modelId: string): Promise<void> {
+  /**
+   * Switch the model (M91 lane E): a PreModelSwitch hook can refuse, with a
+   * visible reason, and then the session stays on its model; a switch runs
+   * PostModelSwitch as observation. Model ids only, never prompts or keys.
+   */
+  public async setModel(modelId: string): Promise<void> {
+    const oldModel = this.modelId
+    const turnId = this.active?.turnId
+    const pre = await this.fireExtensionHooks(
+      'PreModelSwitch',
+      turnId,
+      modelSwitchFields({ oldModel, newModel: modelId }),
+      undefined,
+      undefined,
+    )
+    if (pre?.refusedReason !== undefined) {
+      this.emit({
+        type: 'backendNotice',
+        level: 'warning',
+        text: fill(UI_TEXT.hookRefusedModelSwitch, { model: oldModel, reason: pre.refusedReason }),
+      })
+      return
+    }
+    this.deps.judge?.discardSession(this.sessionId)
     this.modelId = modelId
     this.modelRevision += 1
     // Another model may count the same request differently (M82).
     this.budgetBase = undefined
     this.emit({ type: 'modelChanged', modelId })
     this.touch()
-    return Promise.resolve()
+    await this.fireExtensionHooks(
+      'PostModelSwitch',
+      turnId,
+      modelSwitchFields({ oldModel, newModel: modelId }),
+      undefined,
+      undefined,
+    )
   }
 
   public setReasoningEffort(reasoningEffort: string): Promise<void> {
@@ -9796,6 +11624,7 @@ export class ModelApiSession implements AgentSession {
     if (approvalMode === undefined) {
       return Promise.reject(new Error(`unknown approval mode ${mode}`))
     }
+    this.deps.judge?.discardSession(this.sessionId)
     // A custom agent's ceiling survives a session mode switch (M76 review):
     // the child re-narrows instead of running wider than its definition.
     this.permissions.setMode(
@@ -9826,9 +11655,11 @@ export class ModelApiSession implements AgentSession {
     return await compacting
   }
 
-  /** Resolves once this session's running turns and compactions, and its children's, have ended. */
+  /** Resolves after turns, compactions, Interrupt work and children's work end. */
   public async settled(): Promise<void> {
-    await Promise.all(this.unsettled.values())
+    while (this.unsettled.size > 0) {
+      await Promise.all(this.unsettled.values())
+    }
     await Promise.all(
       Array.from(this.children.values(), async (child) => {
         await child.session.settled()
@@ -9849,6 +11680,8 @@ export class ModelApiSession implements AgentSession {
     if (!isKnownChoice(decision.choiceId)) {
       return Promise.reject(new Error(`unknown choice ${decision.choiceId}`))
     }
+    this.judgeCardFences.get(decision.approvalId)?.discard()
+    this.judgeCardFences.delete(decision.approvalId)
     pending.resolve(decision)
     return Promise.resolve()
   }
@@ -9864,6 +11697,22 @@ export class ModelApiSession implements AgentSession {
   /** Decline the prompt (M16): the tool resolves with no answers and tells the model so. */
   public cancelQuestions(userInputId: string): Promise<void> {
     return this.settleQuestion(userInputId, { kind: 'cancelled' })
+  }
+
+  /**
+   * Settles an elicitation form (M91 lane M): accept with validated values,
+   * or decline or cancel. An answer outside the requested schema is refused,
+   * and the form stays open; answering a settled form reports it as gone.
+   */
+  public settleElicitation(elicitationId: string, reply: ElicitationReply): Promise<void> {
+    if (!this.pendingElicitations.has(elicitationId)) {
+      for (const child of this.children.values()) {
+        if (child.session.pendingElicitations.has(elicitationId)) {
+          return child.session.settleElicitation(elicitationId, reply)
+        }
+      }
+    }
+    return this.settleElicitationForm(elicitationId, reply)
   }
 
   /** Explain instead of choosing (M46): the tool returns the text, as Muse Code's clarify does. */
@@ -10194,12 +12043,26 @@ export class ModelApiSession implements AgentSession {
       return
     }
     this.isDisposed = true
+    if (this.shellSidecarFile !== undefined) {
+      // The session's side file goes with it; a tracked call still running
+      // reads back "no report" and keeps the previous directory.
+      const sideFile = this.shellSidecarFile
+      this.shellSidecarFile = undefined
+      void rm(sideFile, { force: true }).catch(() => {
+        // Best effort: the operating system cleans its own temp dir.
+      })
+    }
     this.workspaceEdits.delete(this.ledger)
     if (this.scheduleTimer !== undefined) {
       clearInterval(this.scheduleTimer)
       this.scheduleTimer = undefined
     }
     void this.cancel()
+    // Let this close's Interrupt enter before aborting its owned queue and
+    // processes. The handlers are tracked, so host close waits for cleanup.
+    queueMicrotask(() => {
+      this.interruptLifetime.abort()
+    })
     // Nothing is left running unwatched (M46): the background commands and
     // the user's own go with the session.
     for (const stop of [...this.backgroundShells.values(), ...this.userShells.values()]) {
@@ -10208,6 +12071,10 @@ export class ModelApiSession implements AgentSession {
     for (const child of this.children.values()) {
       child.session.disposeAll()
     }
+    // Plugin children still running for an imported hook end with it (M91b).
+    void this.foreignAdapter?.then((adapter) => {
+      adapter?.dispose?.()
+    })
     this.listeners.clear()
     this.onDispose()
   }
@@ -10312,6 +12179,7 @@ export class ModelApiSession implements AgentSession {
       ...(budgetSpentUsd > 0 && { budgetSpentUsd }),
       ...freshFork,
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
+      ...(this.hookTokensAdded > 0 && { hookTokensAdded: this.hookTokensAdded }),
       ...(this.spawnCommands.size > 0 && { spawnCommands: Object.fromEntries(this.spawnCommands) }),
       // M96 lane T: the declared delegation family, so a resumed
       // conversation keeps its declared set, with its `command_id` claims.
@@ -10385,6 +12253,7 @@ export class ModelApiSession implements AgentSession {
     // The packing ledger is a session total like the token counts: a
     // session saved before it was kept carries none, so it starts at zero.
     this.restoredPackedTokens = stored.packedTokensAvoided
+    this.hookTokensAdded = stored.hookTokensAdded ?? 0
     this.packing?.restoreSavings(stored.packedTokensAvoided ?? 0)
     this.status = IDLE
     this.pendingChildResults.push(
@@ -10423,6 +12292,7 @@ export class ModelApiSession implements AgentSession {
         // A custom agent's narrowed run survives the resume (M76 review).
         saved.session.agent,
         isReviewerRole(saved.role),
+        this.extensionHooks,
       )
       session.adopt(saved.session)
       session.topTurn = { checkpoint: undefined, recordsFiles: saved.checkpointRecording }
@@ -10544,6 +12414,7 @@ export class ModelApiSession implements AgentSession {
         // A custom agent's narrowed run survives the fork (M76 review).
         saved.agent,
         isReviewerRole(child.role),
+        target.extensionHooks,
       )
       session.adopt(saved)
       session.topTurn = { checkpoint: undefined, recordsFiles: child.session.inheritedRecording() }
@@ -10570,6 +12441,73 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /** Reads the actual main request; the side stream never enters this session's replay or tally. */
+  public judgeConnection(turnId: string, keyDigest: string): ModelApiJudgeConnection {
+    const readMainBody = (): CreateResponseBody => {
+      if (this.active?.turnId !== turnId || this.lastJudgeBody?.model !== this.modelId)
+        throw new Error('Judge source changed')
+      return this.lastJudgeBody
+    }
+    return {
+      keyDigest,
+      source: {
+        readMainBody,
+        keyPrefix: promptCacheKey,
+        prefixTokens: () => {
+          return
+        },
+      },
+      transport: {
+        send: async (body, signal, guard) => {
+          if (guard === undefined) throw new Error('Judge dispatch requires admission')
+          let final: ResponseObject | undefined
+          const stream = this.deps.client.streamResponse(
+            body,
+            signal,
+            undefined,
+            { retriesUsed: MODEL_API_MAX_RETRIES },
+            guard,
+          )
+          for await (const event of stream) {
+            if (event.type === 'response.completed') final = event.response
+          }
+          if (final?.status !== 'completed')
+            throw new Error('Judge stream has no completed response')
+          const text = final.output
+            .flatMap((item) =>
+              item.type === 'message' && 'content' in item
+                ? item.content.flatMap((part) =>
+                    part.type === 'output_text' && 'text' in part ? [part.text] : [],
+                  )
+                : [],
+            )
+            .join('')
+          const usage = final.usage
+          if (usage !== undefined && usage !== null && !isCountedUsage(usage))
+            throw new Error('Invalid Judge usage')
+          const cached = usage?.input_tokens_details?.cached_tokens
+          const reasoning = usage?.output_tokens_details?.reasoning_tokens
+          return {
+            text,
+            inputTokens: usage?.input_tokens,
+            outputTokens: usage?.output_tokens,
+            ...(usage !== undefined &&
+              usage !== null &&
+              cached !== undefined &&
+              reasoning !== undefined && {
+                usage: {
+                  inputTokens: usage.input_tokens,
+                  outputTokens: usage.output_tokens,
+                  cachedTokens: cached,
+                  reasoningTokens: reasoning,
+                },
+              }),
+          }
+        },
+      },
+    }
+  }
+
   /** Child transcripts are read through the host, not listed as conversations. */
   public childHistory(sessionId: string): SessionHistoryOutcome | undefined {
     for (const child of this.children.values()) {
@@ -10585,6 +12523,7 @@ export class ModelApiHost implements AgentHost {
   private isClosing = false
   private isVerifyDisposed = false
   private readonly sessions = new Map<string, ModelApiSession>()
+
   private readonly workspaceEdits: WorkspaceEdits
   /** Pinned at first use; a host cannot serve a different stored-key account. */
   private accountIdValue: string | undefined
@@ -10609,6 +12548,10 @@ export class ModelApiHost implements AgentHost {
 
   public constructor(private readonly deps: ModelApiHostDeps) {
     this.workspaceEdits = deps.workspaceEdits ?? new WorkspaceEdits()
+    // Elicitations outside any tool call have no session to ask: they are
+    // declined, and the pool declares the capability while this stands
+    // (M91 lane M). Each call carries its own session's route instead.
+    deps.mcpServers?.setElicitationHandler?.(() => Promise.resolve({ action: 'decline' as const }))
   }
 
   private async requireAccountId(): Promise<string> {
@@ -10801,6 +12744,7 @@ export class ModelApiHost implements AgentHost {
     hooks: readonly HookDefinition[] = [],
     hookStartSource: 'startup' | 'resume' | 'fork' = 'startup',
     isSideChat = false,
+    extensionHooks: readonly ExtensionHookDefinition[] = [],
   ): ModelApiSession {
     const session: ModelApiSession = new ModelApiSession(
       sessionId,
@@ -10828,6 +12772,9 @@ export class ModelApiHost implements AgentHost {
       hookStartSource,
       isSideChat,
       this.workspaceEdits,
+      undefined,
+      false,
+      extensionHooks,
     )
     this.sessions.set(sessionId, session)
     return session
@@ -10838,6 +12785,19 @@ export class ModelApiHost implements AgentHost {
       return (await this.deps.loadHooks?.()) ?? []
     } catch (error: unknown) {
       this.deps.log.warn(`Model API hooks could not load: ${describe(error)}`)
+      return []
+    }
+  }
+
+  /**
+   * The session's spark-hooks.json snapshot (M91 lane E): same gates as
+   * `sessionHooks`, empty with the opt-in off or when loading fails.
+   */
+  private async sessionExtensionHooks(): Promise<readonly ExtensionHookDefinition[]> {
+    try {
+      return (await this.deps.loadExtensionHooks?.()) ?? []
+    } catch (error: unknown) {
+      this.deps.log.warn(`Model API extension hooks could not load: ${describe(error)}`)
       return []
     }
   }
@@ -10876,6 +12836,7 @@ export class ModelApiHost implements AgentHost {
       throw new Error(UI_TEXT.sideChatSessionOnly)
     }
     const hooks = stored.sideChat === true ? [] : await this.sessionHooks()
+    const extensionHooks = stored.sideChat === true ? [] : await this.sessionExtensionHooks()
     // Loading the hooks may outlast a sign-out or the host closing: checked
     // again before the session exists and its SessionStart hook runs.
     await this.requireAccountId()
@@ -10896,6 +12857,7 @@ export class ModelApiHost implements AgentHost {
       hooks,
       'resume',
       stored.sideChat === true,
+      extensionHooks,
     )
     // The caller checks the account and the closing again after the
     // SessionStart hook; a hook that fails leaves no session behind.
@@ -10938,6 +12900,12 @@ export class ModelApiHost implements AgentHost {
    * model as untrusted data, and the session marked imported. The save
    * stamps the current key's digest, so only this key reopens it.
    */
+  public judgeConnection(sessionId: string, turnId: string): ModelApiJudgeConnection | undefined {
+    const session = this.sessions.get(sessionId)
+    if (session === undefined || this.accountIdValue === undefined) return
+    return session.judgeConnection(turnId, this.accountIdValue)
+  }
+
   public async importSession(
     doc: SessionExport,
     options: { readonly approvalMode: ApprovalMode; readonly modelId: string },
@@ -10951,6 +12919,7 @@ export class ModelApiHost implements AgentHost {
       now: new Date(this.deps.now()).toISOString(),
     })
     const hooks = await this.sessionHooks()
+    const extensionHooks = await this.sessionExtensionHooks()
     // Loading the hooks may outlast a sign-out or the host closing: both are
     // checked again before the session exists and its SessionStart hook runs
     // (RV84c C1), as every other opening checks them.
@@ -10963,6 +12932,7 @@ export class ModelApiHost implements AgentHost {
       hooks,
       'resume',
       false,
+      extensionHooks,
     )
     try {
       session.adopt(stored)
@@ -11040,6 +13010,7 @@ export class ModelApiHost implements AgentHost {
       throw new Error(`unknown approval mode ${options.approvalMode}`)
     }
     const hooks = options.sideChat === true ? [] : await this.sessionHooks()
+    const extensionHooks = options.sideChat === true ? [] : await this.sessionExtensionHooks()
     // Loading the hooks may outlast a sign-out or the host closing.
     await this.requireAccountId()
     this.refuseWhileClosing()
@@ -11050,6 +13021,7 @@ export class ModelApiHost implements AgentHost {
       hooks,
       'startup',
       options.sideChat === true,
+      extensionHooks,
     )
     try {
       await session.startHooks()
@@ -11177,8 +13149,10 @@ export class ModelApiHost implements AgentHost {
     const source = live ?? (await this.revive(sessionId))
     const isSideChat = options?.sideChat === true || source.record().sideChat === true
     let hooks: readonly HookDefinition[]
+    let extensionHooks: readonly ExtensionHookDefinition[]
     try {
       hooks = isSideChat ? [] : await this.sessionHooks()
+      extensionHooks = isSideChat ? [] : await this.sessionExtensionHooks()
       // Loading the hooks may outlast a sign-out or the host closing.
       await this.requireAccountId()
       this.refuseWhileClosing()
@@ -11195,6 +13169,7 @@ export class ModelApiHost implements AgentHost {
       hooks,
       'fork',
       isSideChat,
+      extensionHooks,
     )
     try {
       source.copyInto(fork, lastTurnId)

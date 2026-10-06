@@ -16,11 +16,13 @@
 // (D62) say the same.
 
 import { PAID_FEATURES, type PaidFeature, UI_TEXT } from '../../shared/constants'
-import { fill, formatNumber, uiLocale } from '../../shared/l10n/text'
+import { fill, formatNumber, formatUsd, uiLocale } from '../../shared/l10n/text'
 import {
   paidFeaturePrice,
   autoReviewPrice,
   bestOfNPrice,
+  modelApiPaidTier,
+  hookModelPrice,
   type PaidUseRequest,
   scheduledRunPrice,
   subagentTaskPrice,
@@ -41,6 +43,22 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
   readonly detail: string
 }> {
   switch (request.feature) {
+    case 'judge': {
+      const price = autoReviewPrice(request.modelId)
+      if (
+        price === undefined ||
+        !Number.isFinite(request.dailyBudgetUsd) ||
+        request.dailyBudgetUsd < 0
+      )
+        throw new Error('Judge use needs a verified tariff and daily budget')
+      return {
+        title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidJudgeName }),
+        detail: fill(UI_TEXT.paidConfirmJudge, {
+          price,
+          budget: formatUsd(request.dailyBudgetUsd, 2),
+        }),
+      }
+    }
     case 'webSearch': {
       return {
         title: UI_TEXT.paidUseWebSearchTitle,
@@ -113,12 +131,60 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
       const runtime = await paidTeamRuntime()
       return runtime.teamWorkerQuestion(request)
     }
+    case 'hookModels': {
+      return {
+        title: fill(UI_TEXT.paidHookModelTitle, { event: request.event }),
+        detail: fill(UI_TEXT.paidHookModelDetail, {
+          kind: request.kind,
+          model: request.modelId,
+          price:
+            request.dailyBudgetUsd === undefined
+              ? hookModelPrice(request.modelId)
+              : `${hookModelPrice(request.modelId)} ${fill(UI_TEXT.paidHookModelDailyBudget, { budget: formatUsd(request.dailyBudgetUsd, 2) })}`,
+        }),
+      }
+    }
+    case 'tab': {
+      // Tab bills the request's model per token (M94, PLAN.md D73): the
+      // popup names its rates, today's budget and the training note. An
+      // unpriced model has no rate to quote, so it never reaches a popup.
+      const tier = modelApiPaidTier(request.modelId)
+      if (tier === undefined) {
+        throw new Error(UI_TEXT.subagentTariffUnknown)
+      }
+      return {
+        title: UI_TEXT.paidUseTabTitle,
+        detail: fill(UI_TEXT.paidUseTabDetail, {
+          model: request.modelId,
+          price: scheduledRunPrice(request.modelId),
+          budget: formatUsd(request.budgetUsd, 2),
+          training: tier === 'contributor' ? UI_TEXT.tabTrainingContributor : '',
+        }),
+      }
+    }
   }
 }
 
 export interface PaidUseConsentDeps {
   /** Whether the feature may be used at all: its setting on and its price accepted. */
   readonly isOn: (feature: PaidFeature) => boolean
+  /**
+   * Features whose "Allow once" covers this window until it closes (Tab,
+   * M94 Q-M94a): kept in memory only, never stored, so nothing persists
+   * past the window. "Allow always" stays workspace-scoped for every
+   * feature, window-once ones included.
+   */
+  readonly windowOnceFeatures?: ReadonlySet<PaidFeature>
+  /**
+   * The feature's shared price-acceptance generation, as workspace grants
+   * are checked against (M58). A window-once grant holds only while the
+   * generation it was given under is current, so a price withdrawn and
+   * accepted again in another window makes this window ask again.
+   */
+  readonly windowOnceGeneration?: (feature: PaidFeature) => number
+  /** Judge defaults on; its first actual paid use accepts price in this same popup. */
+  readonly isJudgeEnabled?: (() => boolean) | undefined
+  readonly acceptJudgePrice?: (() => Promise<boolean>) | undefined
   /** A trusted workspace with a folder open: the only place "always" is offered and kept. */
   readonly canRemember: () => boolean
   /** The features allowed always in this workspace, still valid (the host drops lapsed ones). */
@@ -136,8 +202,35 @@ export interface PaidUseConsentDeps {
 
 export class PaidUseConsent {
   private readonly listeners = new Set<() => void>()
+  /**
+   * Window-once grants this instance gave, each with the price-acceptance
+   * generation it was given under: memory only, never stored.
+   */
+  private readonly windowOnce = new Map<PaidFeature, number | undefined>()
+  /**
+   * A window-once feature's first question while it is open: ordinary uses
+   * that arrive meanwhile share it and its answer instead of asking again.
+   */
+  private readonly pendingWindowOnce = new Map<PaidFeature, Promise<boolean>>()
 
   public constructor(private readonly deps: PaidUseConsentDeps) {}
+
+  /** Whether the feature's "Allow once" covers the window (Tab, M94 Q-M94a). */
+  private isWindowOnceFeature(feature: PaidFeature): boolean {
+    return this.deps.windowOnceFeatures?.has(feature) ?? false
+  }
+
+  /**
+   * Whether an "Allow once" for the feature covers this window: given here,
+   * under the price acceptance that is still current in every window.
+   */
+  private isWindowOnce(feature: PaidFeature): boolean {
+    return (
+      this.isWindowOnceFeature(feature) &&
+      this.windowOnce.has(feature) &&
+      this.windowOnce.get(feature) === this.deps.windowOnceGeneration?.(feature)
+    )
+  }
 
   private notify(): void {
     for (const listener of this.listeners) {
@@ -160,6 +253,48 @@ export class PaidUseConsent {
       )
       return false
     }
+  }
+
+  private isEnabled(feature: PaidFeature): boolean {
+    return feature === 'judge'
+      ? (this.deps.isJudgeEnabled?.() ?? this.deps.isOn(feature))
+      : this.deps.isOn(feature)
+  }
+
+  /** Asks in the popup now and keeps what the answer grants. */
+  private async decide(request: PaidUseRequest): Promise<boolean> {
+    const { feature } = request
+    const canRemember = this.deps.canRemember()
+    const answer = await this.deps.ask(request, canRemember)
+    if (answer === 'deny') {
+      this.deps.log.info(`Paid use of ${feature}: denied`)
+      return false
+    }
+    if (!this.isEnabled(feature)) {
+      this.deps.log.info(`Paid use of ${feature}: turned off while the popup was open`)
+      return false
+    }
+    if (
+      feature === 'judge' &&
+      this.deps.acceptJudgePrice !== undefined &&
+      (!(await this.deps.acceptJudgePrice()) || !this.isEnabled(feature))
+    )
+      return false
+    if (
+      answer === 'always' &&
+      canRemember &&
+      this.deps.canRemember() &&
+      (await this.remember(feature))
+    ) {
+      this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
+      this.notify()
+    } else if (answer === 'once' && this.isWindowOnceFeature(feature)) {
+      this.windowOnce.set(feature, this.deps.windowOnceGeneration?.(feature))
+      this.deps.log.info(`Paid use of ${feature}: allowed once in this window`)
+    } else {
+      this.deps.log.info(`Paid use of ${feature}: allowed once`)
+    }
+    return true
   }
 
   public onDidChange(listener: () => void): () => void {
@@ -188,11 +323,13 @@ export class PaidUseConsent {
    * Whether this use may be billed: allowed always here, or allowed in the
    * popup now. `requiresAsking` (a hook that demands a question) asks even when the
    * use is allowed always. A feature turned off while the popup was open is
-   * refused whatever the answer.
+   * refused whatever the answer. A window-once feature asks once per window:
+   * ordinary uses that arrive while its question is open wait for that
+   * answer; a use that requires asking still gets its own question.
    */
   public async allows(request: PaidUseRequest, requiresAsking = false): Promise<boolean> {
     const { feature } = request
-    if (!this.deps.isOn(feature)) {
+    if (!this.isEnabled(feature)) {
       return false
     }
     if (request.feature === 'teamWorkers') {
@@ -206,33 +343,48 @@ export class PaidUseConsent {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       return true
     }
-    const canRemember = this.deps.canRemember()
-    const answer = await this.deps.ask(request, canRemember)
-    if (answer === 'deny') {
-      this.deps.log.info(`Paid use of ${feature}: denied`)
-      return false
+    if (!requiresAsking && this.isWindowOnce(feature)) {
+      this.deps.log.info(`Paid use of ${feature}: allowed once in this window`)
+      return true
     }
-    if (!this.deps.isOn(feature)) {
-      this.deps.log.info(`Paid use of ${feature}: turned off while the popup was open`)
-      return false
+    if (requiresAsking || !this.isWindowOnceFeature(feature)) {
+      return await this.decide(request)
     }
-    if (
-      answer === 'always' &&
-      canRemember &&
-      this.deps.canRemember() &&
-      (await this.remember(feature))
-    ) {
-      this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
-      this.notify()
-    } else {
-      this.deps.log.info(`Paid use of ${feature}: allowed once`)
+    const pending = this.pendingWindowOnce.get(feature)
+    if (pending !== undefined) {
+      this.deps.log.info(`Paid use of ${feature}: waits for the question open in this window`)
+      return await pending
     }
-    return true
+    const decision = this.decide(request)
+    this.pendingWindowOnce.set(feature, decision)
+    try {
+      return await decision
+    } finally {
+      this.pendingWindowOnce.delete(feature)
+    }
   }
 
-  /** Account & usage's "Ask again": every feature asks again in this workspace. */
+  /**
+   * A price acceptance changed in this window (the host calls this from
+   * `writeAccepted`): this window's once was given under the old price, so
+   * it asks again. A change in another window shows through
+   * `windowOnceGeneration`.
+   */
+  public revokeWindowOnce(feature: PaidFeature): void {
+    if (this.windowOnce.delete(feature)) {
+      this.deps.log.info(`Paid use of ${feature} asks again in this window`)
+    }
+  }
+
+  /** Account & usage's "Ask again": every feature asks again here. */
   public async forget(): Promise<void> {
+    const hasWindowOnce = this.windowOnce.size > 0
+    this.windowOnce.clear()
     if (this.deps.readGrants().size === 0 && (this.deps.readTeamGrants?.().size ?? 0) === 0) {
+      if (hasWindowOnce) {
+        this.deps.log.info('Paid uses ask again in this window')
+        this.notify()
+      }
       return
     }
     await this.deps.writeGrants(new Set())

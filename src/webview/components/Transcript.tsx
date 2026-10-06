@@ -40,7 +40,7 @@ import {
   outputPageKey,
   type TranscriptEntry,
 } from '../state/uiState'
-import type { NoticeAction } from '../../shared/protocol'
+import type { NoticeAction, ReportEventRef } from '../../shared/protocol'
 import { splitForStreaming, splitOpenFence } from '../streamSplit'
 import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import { useCopiedFlag } from '../useCopiedFlag'
@@ -68,7 +68,7 @@ import { type GooeyItem, useRowMenu } from './GooeyMenu'
 import type { MenuPoint } from '../gooeyLayout'
 
 const TeamCard = lazy(async () => {
-  const module = await import('./TeamCards')
+  const module = await import('./TeamUi')
   return { default: module.TeamCard }
 })
 
@@ -94,6 +94,10 @@ export interface TranscriptProps {
   /** The question card's Cancel (M16), and its Explain instead (M46). */
   readonly onCancelQuestion: (userInputId: string) => void
   readonly onClarifyQuestion: ToolRowProps['onClarifyQuestion']
+  /** An elicitation form's Send, Decline and Cancel (M91 lane M). */
+  readonly onAcceptElicitation: ToolRowProps['onAcceptElicitation']
+  readonly onDeclineElicitation: ToolRowProps['onDeclineElicitation']
+  readonly onCancelElicitation: ToolRowProps['onCancelElicitation']
   /** A running command to the background, a task's Stop (M46). */
   readonly onMoveToBackground: ToolRowProps['onMoveToBackground']
   readonly onStopTask: ToolRowProps['onStopTask']
@@ -125,6 +129,12 @@ export interface TranscriptProps {
   readonly onRedo?: ((entryId: string, restoreId: string) => void) | undefined
   /** A Muse Code fault's way on (D26): Restart now, New conversation. */
   readonly onNoticeAction?: ((entryId: string, action: NoticeAction) => void) | undefined
+  /**
+   * "Report this" on a failure the host recorded (M93 lane W): hands the
+   * row's sanitized event reference to the report workflow, never its text.
+   * Rows offer it only while they carry a reference.
+   */
+  readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
   /** Why the menu offers no file restore (Restricted Mode, the setting), or none. */
   readonly restoreNote?: string | undefined
   /** Why the menu offers no conversation rewind (Muse Code on Windows, D26), or none. */
@@ -563,6 +573,29 @@ interface AssistantRowProps {
   readonly quoteMenu: ReactNode
 }
 
+/**
+ * A MessageDisplay hook's display-only rewrite (M91, PLAN.md D70): the panel
+ * marks it whenever the hook's version differs from the reply, outside the
+ * Markdown the hook wrote, so no hook can hide the marker. The original is
+ * one click away; copy, history and export always use the original.
+ */
+function HookEditedMarker({
+  isOriginalShown,
+  onToggle,
+}: {
+  readonly isOriginalShown: boolean
+  readonly onToggle: () => void
+}) {
+  return (
+    <div className="hook-edited" role="note">
+      <span>{UI_TEXT.hookMessageEdited}</span>
+      <button type="button" className="button-secondary" onClick={onToggle}>
+        {isOriginalShown ? UI_TEXT.hookMessageShowEdited : UI_TEXT.hookMessageShowOriginal}
+      </button>
+    </div>
+  )
+}
+
 /** "Save plan" and "Implement in a fresh conversation" under a Plan-mode reply (M79). */
 function PlanActions({
   entryId,
@@ -613,7 +646,12 @@ const AssistantRow = memo(function AssistantRow({
   onImplementPlan,
   quoteMenu,
 }: AssistantRowProps) {
-  const text = useDeferredValue(entry.text)
+  const [isOriginalShown, setOriginalShown] = useState(false)
+  const isHookEdited =
+    !entry.isStreaming && entry.displayText !== undefined && entry.displayText !== entry.text
+  const text = useDeferredValue(
+    isHookEdited && !isOriginalShown ? (entry.displayText ?? entry.text) : entry.text,
+  )
   const { head, tail } = entry.isStreaming ? splitForStreaming(text) : { head: '', tail: text }
   const { closed, open } = entry.isStreaming
     ? splitOpenFence(tail)
@@ -665,6 +703,14 @@ const AssistantRow = memo(function AssistantRow({
     >
       <span className="tool-dot tool-dot-muted" aria-hidden="true" />
       <div className="message-body" inert={menu.isOpen}>
+        {isHookEdited ? (
+          <HookEditedMarker
+            isOriginalShown={isOriginalShown}
+            onToggle={() => {
+              setOriginalShown((shown) => !shown)
+            }}
+          />
+        ) : null}
         {head === '' ? null : <MarkdownView text={head} {...actions} />}
         {closed === '' ? null : (
           // The reply a plan action would save is shown as its brief would read (M79).
@@ -781,8 +827,35 @@ const WorkflowRow = memo(function WorkflowRow({
   )
 })
 
+/**
+ * "Report this" on a recorded failure (M93): posts the row's sanitized event
+ * reference — which journal event it means, never its text. Nothing renders
+ * for a row without one, or without a handler.
+ */
+function ReportThisButton({
+  entry,
+  onReportProblem,
+}: {
+  readonly entry: { readonly id: string; readonly reportRef?: ReportEventRef | undefined }
+  readonly onReportProblem: ((entryId: string, ref: ReportEventRef) => void) | undefined
+}) {
+  const { reportRef } = entry
+  return onReportProblem === undefined || reportRef === undefined ? null : (
+    <button
+      type="button"
+      className="notice-action"
+      onClick={() => {
+        onReportProblem(entry.id, reportRef)
+      }}
+    >
+      {UI_TEXT.reportThisAction}
+    </button>
+  )
+}
+
 function OtherRow({
   entry,
+  onReportProblem,
 }: {
   readonly entry: Exclude<
     TranscriptEntry,
@@ -800,6 +873,7 @@ function OtherRow({
           | 'teamReport'
       }
   >
+  readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
 }) {
   switch (entry.kind) {
     case 'subagent': {
@@ -832,13 +906,19 @@ function OtherRow({
       )
     }
     case 'error': {
-      return <li className="message message-error-card">{entry.text}</li>
+      return (
+        <li className="message message-error-card">
+          {entry.text}
+          <ReportThisButton entry={entry} onReportProblem={onReportProblem} />
+        </li>
+      )
     }
     case 'notice': {
       return (
         <li className={`notice notice-${entry.level}`}>
           {entry.text}
           <RepeatCount count={entry.repeatCount} />
+          <ReportThisButton entry={entry} onReportProblem={onReportProblem} />
         </li>
       )
     }
@@ -932,10 +1012,12 @@ const ActionNotice = memo(function ActionNotice({
   entry,
   actions,
   onAction,
+  onReportProblem,
 }: {
   readonly entry: Extract<TranscriptEntry, { kind: 'notice' }>
   readonly actions: readonly NoticeAction[]
   readonly onAction: (entryId: string, action: NoticeAction) => void
+  readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
 }) {
   const spent = useRef(false)
   const [isSpent, setIsSpent] = useState(false)
@@ -961,6 +1043,7 @@ const ActionNotice = memo(function ActionNotice({
           {noticeActionLabel(action)}
         </button>
       ))}
+      <ReportThisButton entry={entry} onReportProblem={onReportProblem} />
     </li>
   )
 })
@@ -981,6 +1064,9 @@ function TranscriptList(props: TranscriptProps) {
     onAnswer,
     onCancelQuestion,
     onClarifyQuestion,
+    onAcceptElicitation,
+    onDeclineElicitation,
+    onCancelElicitation,
     onMoveToBackground,
     onStopTask,
     canStopUserShell,
@@ -999,6 +1085,7 @@ function TranscriptList(props: TranscriptProps) {
     onRestoreBoth,
     onRedo,
     onNoticeAction,
+    onReportProblem,
     restoreNote,
     conversationNote,
     activeTurnId,
@@ -1047,6 +1134,9 @@ function TranscriptList(props: TranscriptProps) {
         onAnswer={onAnswer}
         onCancelQuestion={onCancelQuestion}
         onClarifyQuestion={onClarifyQuestion}
+        onAcceptElicitation={onAcceptElicitation}
+        onDeclineElicitation={onDeclineElicitation}
+        onCancelElicitation={onCancelElicitation}
         onOpenEditDiff={onOpenEditDiff}
         onRevertEdit={onRevertEdit}
         onOpenFile={onOpenFile}
@@ -1145,7 +1235,7 @@ function TranscriptList(props: TranscriptProps) {
       case 'subagent':
       case 'item':
       case 'error': {
-        return <MemoOtherRow key={entry.id} entry={entry} />
+        return <MemoOtherRow key={entry.id} entry={entry} onReportProblem={onReportProblem} />
       }
       case 'notice': {
         if (onNoticeAction !== undefined && entry.actions !== undefined) {
@@ -1155,11 +1245,12 @@ function TranscriptList(props: TranscriptProps) {
               entry={entry}
               actions={entry.actions}
               onAction={onNoticeAction}
+              onReportProblem={onReportProblem}
             />
           )
         }
         return onRedo === undefined || entry.redoRestoreId === undefined ? (
-          <MemoOtherRow key={entry.id} entry={entry} />
+          <MemoOtherRow key={entry.id} entry={entry} onReportProblem={onReportProblem} />
         ) : (
           <RestoreNotice
             key={entry.id}

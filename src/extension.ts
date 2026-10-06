@@ -1,9 +1,12 @@
+import { isJudgeEngineOn } from './core/judge/engine'
+import { judgeWindowPort } from './host/judge/judgeBundle'
+import { storeErrorCode } from './host/backend/storeErrors'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
 import { execFile, type ExecFileException } from 'node:child_process'
-import { existsSync, readFileSync, statSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { homedir, hostname, userInfo } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
@@ -64,9 +67,11 @@ import {
   createToolIo,
   readPickedFile,
   toolImagePreviewIo,
+  hookEnvironment,
   terminalPlatform,
   withTerminalOverrides,
 } from './host/backend/toolIo'
+import { pluginContainment } from './host/backend/pluginContainment'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { createRevertIo } from './host/editor/revertIo'
 import { createVerifyEditor } from './host/editor/verifyEditor'
@@ -77,17 +82,20 @@ import { insertMentionReference } from './host/commands/insertMention'
 import { openMuseTerminal, type TerminalLaunchOptions } from './host/commands/openInTerminal'
 import { toggleInputFocus } from './host/commands/focusInput'
 import { toggleFocusView } from './host/commands/toggleFocusView'
-import {
+import type {
   ConversationController,
-  restartConversationBackends,
-  type FileAccess,
-  type PickedFile,
-  type SessionMemory,
+  ConversationReports,
+  FileAccess,
+  PickedFile,
+  SessionMemory,
 } from './host/conversation/conversationController'
+import { conversationLoader } from './host/conversation/conversationBundle'
+import { restartConversationBackends } from './host/conversation/conversationBackends'
 import { BackgroundNotifier } from './host/conversation/turnNotifications'
+import type { ReportDataSource } from './host/conversation/reportProblemHandler'
 import { canonicalPath } from './host/canonicalPath'
 import { loadToolImage } from './core/toolImages'
-import { ModelApiClient } from './core/backends/modelapi/client'
+import { modelApiClientLoader } from './host/backend/modelApiBundle'
 import { ideImageTools } from './host/ide/imageTools'
 import { ideWebFetchTools, isIdeWebFetchOffered, oneQuestionPerUrl } from './host/ide/webFetchTool'
 import { isWebFetchAllowed } from './host/web/webFetchConfirm'
@@ -104,6 +112,15 @@ import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
+import {
+  TAB_BUNDLE_FILE,
+  TAB_LEDGER_DIR,
+  TAB_SNOOZE_STATE_KEY,
+  type TabFilesExclude,
+  createTabActivation,
+  tabTextChangeEvent,
+  deferredRefresh,
+} from './host/tab/tabBundle'
 import { createCliFeatures } from './host/cliFeatures'
 import {
   bundledSkillsLoader,
@@ -115,12 +132,22 @@ import {
 import { hasClaimedVersion, createWhatsNew } from './host/whatsNew/whatsNew'
 import { createSessionTransferFiles } from './host/conversation/transferDialogs'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
+import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
+import {
+  conversationGitFactory,
+  conversationGitLoader,
+  gitFeaturesLoader,
+  openPullRequestInConversation,
+} from './host/git/conversationGitBundle'
+import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
 import { createMemoryFeatures } from './host/memoryFeatures'
 import { createPlanFiles, createPlanIo } from './host/planFeatures'
 import { planMarkdownLoader } from './host/planMarkdownBundle'
+import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensionHooksBundle'
+import type { ExtensionHookRunner } from './host/extensionHooksEntry'
 import { showPickOne } from './host/quickPick'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
 import {
@@ -134,6 +161,15 @@ import {
 import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
 import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/checkpointLocation'
 import { isProcessAlive } from './host/checkpoints/windowPresence'
+import { ReportRecorder } from './host/support/reportRecorder'
+import type * as RecorderBundle from './host/support/recorderEntry'
+import { vscodeReportEditorIo } from './host/support/reportEditorIo'
+import {
+  changedSettingNames,
+  extensionReportFacts,
+  manifestSettingNames,
+  reportScrubContext,
+} from './host/support/reportFacts'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
 import {
   liveFetch,
@@ -152,7 +188,7 @@ import { TasksPanel } from './host/views/tasksPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface } from './host/views/chatSurface'
 import type { WebviewHostContext } from './host/views/webviewSetup'
-import { loadUiTable } from './host/l10n'
+import { loadUiTable, readUiTableFile } from './host/l10n'
 import { createInsightsReader } from './host/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
@@ -175,6 +211,7 @@ import {
   COMMAND_IDS,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
+  EXTENSION_NAME,
   DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
   MODEL_API_BASE_URL,
@@ -182,6 +219,8 @@ import {
   REVIEW_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
   AGENT_IMPORT_BUNDLE_FILE,
+  CONVERSATION_GIT_BUNDLE_FILE,
+  CONVERSATION_BUNDLE_FILE,
   BUNDLED_SKILLS_BUNDLE_FILE,
   BUNDLED_SKILLS_SETTING,
   WHATS_NEW_BUNDLE_FILE,
@@ -195,7 +234,9 @@ import {
   WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
+  JUDGE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
+  EXTENSION_HOOKS_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
   CHECKPOINTS_DIR,
   TURN_CHECKPOINTS_SETTING,
@@ -224,13 +265,16 @@ import {
   SEARCH_WORKER_FILE,
   SETTINGS_SECTION,
   SHELL_SANDBOX_SETTING,
+  REPORT_ERROR_CODES,
+  REPORT_EXIT_CODE,
   UI_TEXT,
   VSCODE_COMMANDS,
   WALKTHROUGH_QUALIFIED_ID,
   WINDOWS_POWERSHELL_TERMINAL_PATH,
   WORKSPACE_STATE_KEYS,
+  TAB_CONTEXT_FILES,
 } from './shared/constants'
-import { fill, uiLocale } from './shared/l10n/text'
+import { fill, plural, uiLocale } from './shared/l10n/text'
 import { BACKEND_KINDS, type HostAction } from './shared/protocol'
 import type { AccountFacts } from './shared/usage'
 
@@ -491,28 +535,74 @@ function windowsJobHelper(
     : undefined
 }
 
-/** Set by `activate`: stops the hosts, their turns and their processes. */
-const lifecycle: { shutdown: (() => Promise<void>) | undefined } = { shutdown: undefined }
+/** `fsPath` as given and, when it exists, resolved through links (M71's hold reads both). */
+function pathSpellings(fsPath: string): readonly string[] {
+  try {
+    return [fsPath, realpathSync.native(fsPath)]
+  } catch {
+    // Not there yet (no pull request checked out anywhere): the given path is all there is.
+    return [fsPath]
+  }
+}
+
+/**
+ * Set by `activate`: stops the hosts, their turns and their processes; and
+ * the window's flight recorder (M93), whose marker a normal exit clears.
+ */
+const lifecycle: {
+  shutdown: (() => Promise<void>) | undefined
+  reports: ReportRecorder | undefined
+} = { shutdown: undefined, reports: undefined }
 
 /**
  * VS Code awaits this before the extension host exits (PLAN.md D25): running
  * turns are cancelled and `muse serve` is closed rather than left to the
- * process teardown, while the log channel is still open to say so.
+ * process teardown, while the log channel is still open to say so. Last, the
+ * flight recorder clears this activation's marker: only a window that never
+ * got here leaves one behind (M93, D72).
  */
 export async function deactivate(): Promise<void> {
   await lifecycle.shutdown?.()
   lifecycle.shutdown = undefined
+  await lifecycle.reports?.shutdown()
+  lifecycle.reports = undefined
+}
+
+/** `files.exclude` as Tab reads it: the switches and the `when` conditions (M94). */
+function tabFilesExcludeTable(value: unknown): TabFilesExclude {
+  const table: Record<string, boolean | { readonly when: string }> = {}
+  if (typeof value === 'object' && value !== null) {
+    const entries: [string, unknown][] = Object.entries(value)
+    for (const [glob, entry] of entries) {
+      if (typeof entry === 'boolean') {
+        table[glob] = entry
+      } else if (
+        typeof entry === 'object' &&
+        entry !== null &&
+        'when' in entry &&
+        typeof entry.when === 'string'
+      ) {
+        // A condition is kept, never dropped (RVM94HU 14).
+        table[glob] = { when: entry.when }
+      }
+    }
+  }
+  return table
 }
 
 /**
  * A command whose failure is logged, with its stack, and said once (M39). A
  * rejected command would otherwise reach only VS Code's Extension Host log.
- * No command here takes arguments.
+ * Arguments pass through for the commands that take them (Tab's accept).
  */
-function registerLoggedCommand(log: Logger, id: string, run: () => unknown): vscode.Disposable {
-  return vscode.commands.registerCommand(id, async () => {
+function registerLoggedCommand(
+  log: Logger,
+  id: string,
+  run: (...args: unknown[]) => unknown,
+): vscode.Disposable {
+  return vscode.commands.registerCommand(id, async (...args: unknown[]) => {
     try {
-      return await run()
+      return await run(...args)
     } catch (error: unknown) {
       log.error(`${id} failed: ${errorDetail(error)}`)
       const reason = error instanceof Error ? error.message : String(error)
@@ -522,12 +612,72 @@ function registerLoggedCommand(log: Logger, id: string, run: () => unknown): vsc
   })
 }
 
+/** A signal that ends a process, as the recorder's vocabulary names it. */
+const EXIT_SIGNAL = /\bSIG[A-Z]{2,6}\b/
+
+/**
+ * How Muse Code's process ended, as one word of the recorder's vocabulary
+ * (M93, D72): the signal named in the exit's description, or `exited`.
+ * The description itself (which can name a path) is never recorded.
+ */
+function exitCodeWord(description: string): string {
+  const signal = EXIT_SIGNAL.exec(description)?.[0]
+  return signal !== undefined && REPORT_ERROR_CODES.has(signal) ? signal : REPORT_EXIT_CODE
+}
+
+/** What activation made before anything else could fail: the log and the flight recorder. */
+interface EarlyActivation {
+  readonly activationStartedAt: number
+  readonly channel: vscode.LogOutputChannel
+  readonly log: Logger
+  readonly version: string
+  readonly reports: ReportRecorder
+}
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   // How long activation takes, for the log (M39).
   const activationStartedAt = performance.now()
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
   const log = createLogger(channel)
   const { version } = packageManifestSchema.parse(context.extension.packageJSON)
+  // The flight recorder (M93, PLAN.md D6, D72): this window's journal and
+  // activation marker under global storage. Its front answers from here on;
+  // the journal itself (dist/recorder.js) loads just after activation, or at
+  // the first failure, and keeps every record until then.
+  const reports = new ReportRecorder({
+    load: async () => {
+      const bundle: typeof RecorderBundle = await import('./host/support/recorderEntry')
+      return bundle.createWindowJournal({
+        globalStorageDir: context.globalStorageUri.fsPath,
+        instance: crypto.randomUUID(),
+        ext: version,
+        host: vscode.version,
+        pid: process.pid,
+        log,
+        isAlive: isProcessAlive,
+        extensionRoot: context.extensionPath,
+        now: () => Date.now(),
+      })
+    },
+    now: () => Date.now(),
+    onUnavailable: (error) => {
+      log.error(`The flight recorder bundle could not be loaded: ${errorDetail(error)}`)
+    },
+  })
+  lifecycle.reports = reports
+  try {
+    await activateWindow(context, { activationStartedAt, channel, log, version, reports })
+  } catch (error: unknown) {
+    reports.recordError('activationFailed', error)
+    throw error
+  }
+}
+
+async function activateWindow(
+  context: vscode.ExtensionContext,
+  early: EarlyActivation,
+): Promise<void> {
+  const { activationStartedAt, channel, log, version, reports } = early
   log.info(
     `Activating ${PRODUCT_NAME} ${version} (VS Code ${vscode.version}, Node ${process.versions.node}, ${process.platform})`,
   )
@@ -555,10 +705,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // or says a word (PLAN.md D33); the webviews get the same table.
   const l10n = await loadUiTable({
     language: vscode.env.language,
-    readExtensionFile: async (segments) =>
-      new TextDecoder().decode(
-        await vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, ...segments)),
-      ),
+    readExtensionFile: (segments) => readUiTableFile(context.extensionUri.fsPath, segments),
     log,
   })
 
@@ -606,6 +753,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       nativeStarts.abort()
     },
   })
+  // Conversations in a worktree and someone else's pull requests (M71, PLAN.md
+  // D49): a window on a folder under the extension's pull request worktrees is
+  // held until the user trusts it in the card, whatever VS Code's trust says.
+  const storageRoot = context.globalStorageUri.fsPath
+  const worktreeRegistry = new WorktreeRegistry(context.globalState, process.platform, existsSync)
+  const windowHold = new WindowHold(
+    holdFor(
+      workspaceRoot === undefined ? [] : pathSpellings(workspaceRoot),
+      pathSpellings(heldWorktreesRoot(storageRoot, process.platform)),
+      worktreeRegistry.records(),
+      process.platform,
+    ),
+  )
+  if (windowHold.isHeld) {
+    log.info(
+      "This window is held on someone else's pull request: Plan mode, no project configuration",
+    )
+  }
+  /**
+   * Whether the project's own configuration may load (rules, skills, hooks,
+   * MCP servers, and the backends' workspace shell): VS Code trusts the
+   * folder, and the window is not held (M71).
+   */
+  const isProjectTrusted = () =>
+    !nativeStarts.signal.aborted &&
+    windowHold.allowsProjectConfiguration(vscode.workspace.isTrusted)
   let checkpointRoot: CheckpointLocation | undefined
   try {
     checkpointRoot = await checkpointLocation(
@@ -704,13 +877,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
     },
     store: checkpointStore,
-    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    // A held pull request worktree is untrusted for git as Restricted Mode is (M71, D24).
+    isWorkspaceTrusted: isProjectTrusted,
     isEnabled: () => currentSettings().turnCheckpoints,
     hasGit: processGitLocator(),
   })
   void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
   const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
-
   const credentials = new CredentialStore(context.secrets, (message) => {
     log.warn(message)
   })
@@ -738,8 +911,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const paid = createPaidFeatures({
     globalState: context.globalState,
     workspaceState: context.workspaceState,
-    isSettingOn: (feature) => currentSettings()[PAID_FEATURE_SETTINGS[feature]],
-    isAvailable: (feature) => paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
+    isSettingOn: (feature) =>
+      feature !== 'judge' && currentSettings()[PAID_FEATURE_SETTINGS[feature]],
+    isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
+    isAvailable: (feature) =>
+      feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
     isDefaultOn: isDefaultPaidOn,
     dailyBudgetUsd: () => (paidBackend === 'modelApi' ? dailyPaid.capUsd() : undefined),
     isKeyStored: () => isKeyStored,
@@ -747,6 +923,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // and never in Restricted Mode.
     canRememberPaidUse: () =>
       vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
+    // Account & usage's Tab row reads the configured budget and the ledger's
+    // cross-window day (RVM94HU 23–24); `tab` is read only when it runs.
+    tabDay: () => ({
+      budgetUsd: currentSettings().tabDailyBudgetUsd,
+      todayUsd: tab.todayTotalUsd(),
+    }),
     log,
   })
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): dist/museCodeReviewer.js
@@ -759,9 +941,58 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     isOn: () => currentSettings().museCodeAutoReviewer,
     log,
   })
+  const judge = judgeWindowPort({
+    ledger: dailyPaid.judgeLedger,
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', JUDGE_BUNDLE_FILE).fsPath,
+    engine: () => currentSettings()['judge.engine'],
+    context: (action) => {
+      if (!isProjectTrusted()) return
+      for (const controller of controllers.values()) {
+        const current = controller.judgeContext(action.sessionId, action.turnId)
+        if (current !== undefined)
+          return {
+            ...current,
+            ownerId: String(auth.admissionGeneration),
+            confidential: currentSettings().confidentialWorkspace,
+          }
+      }
+      return
+    },
+    readSettingsText: () => {
+      try {
+        return readFileSync(museSettingsPath(museConfig()), 'utf8')
+      } catch (error: unknown) {
+        if (storeErrorCode(error) === 'ENOENT') return
+        throw error
+      }
+    },
+    startSession: async (options) => {
+      const host = await backend.ensureHost()
+      return await host.startSession(options)
+    },
+    modelApi: (action) => modelApi.judgeConnection(action.sessionId, action.turnId),
+    paid,
+    emit: (action, event) => {
+      for (const controller of controllers.values()) {
+        if (controller.boardSession()?.sessionId === action.sessionId)
+          controller.postJudge({ type: 'agentEvent', event })
+      }
+    },
+    status: (action, status) => {
+      for (const controller of controllers.values()) {
+        if (controller.boardSession()?.sessionId === action.sessionId)
+          controller.postJudge({ type: 'judgeState', state: status })
+      }
+    },
+    notice: (text) => {
+      registry.broadcast({ type: 'notice', level: 'info', text })
+    },
+    log,
+  })
   context.subscriptions.push({
     dispose: () => {
       museCodeReviewer.dispose()
+      judge.dispose()
     },
   })
   // Both engines' drivers are dist/voice.js (D6), required on the first recording.
@@ -799,8 +1030,222 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
     isKeyStored = isStored
     broadcastPaidState()
+    tab.refreshStatus()
   }
-  void refreshKeyPresence()
+  // Inline completions (Tab) (M94, PLAN.md D73): the secret read waits for
+  // the first view, panel, command or Tab request. Activation with no view
+  // or panel and Tab off reads no secret, starts no process and requires no
+  // lazy bundle; the openers and the view provider below call this, and the
+  // shim calls it on the first enable.
+  const ensureKeyPresence = deferredRefresh(refreshKeyPresence)
+  // Inline completions (Tab) (M94, PLAN.md D73): the shim. With the setting
+  // off, no bundle load, no request, no secret read, no process: dist/tab.js
+  // loads only for an explicit Tab command or while the setting is on. Only
+  // types and the loader come from the Tab side here, so dist/extension.js
+  // carries the small status item, but none of the provider, engine (lane C) or
+  // the ledger (lane L). Tab is on by default (owner, 2026-10-04): no
+  // turn-on price confirmation; the first request asks D48's question with
+  // the price and the daily budget, and nothing is sent before the answer.
+  const tabRecentEdits = new Map<string, { readonly uri: vscode.Uri; readonly line: number }>()
+  const tabIgnoreListeners = new Set<() => void>()
+  const tabIgnoreWatcher = vscode.workspace.createFileSystemWatcher(
+    '**/{.gitignore,.cursorignore,.continueignore}',
+  )
+  const tabIgnoreCleared = () => {
+    for (const clear of tabIgnoreListeners) {
+      clear()
+    }
+  }
+  const tabDisposables = [
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      const change = event.contentChanges.at(0)
+      if (change === undefined || event.document.uri.scheme !== 'file') return
+      {
+        const key = event.document.uri.toString()
+        tabRecentEdits.delete(key)
+        tabRecentEdits.set(key, { uri: event.document.uri, line: change.range.start.line })
+        if (tabRecentEdits.size > TAB_CONTEXT_FILES) {
+          const oldest = tabRecentEdits.keys().next().value
+          if (oldest !== undefined) tabRecentEdits.delete(oldest)
+        }
+      }
+    }),
+    tabIgnoreWatcher,
+    tabIgnoreWatcher.onDidChange(tabIgnoreCleared),
+    tabIgnoreWatcher.onDidCreate(tabIgnoreCleared),
+    tabIgnoreWatcher.onDidDelete(tabIgnoreCleared),
+  ]
+  const isTabWorkspaceRoot = (root: string, absolutePath: string): boolean => {
+    if (process.platform === 'win32') {
+      const file = absolutePath.toLowerCase()
+      const folder = root.toLowerCase()
+      return file === folder || file.startsWith(`${folder}${path.sep}`)
+    }
+    return absolutePath === root || absolutePath.startsWith(`${root}${path.sep}`)
+  }
+  const tab = createTabActivation({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', TAB_BUNDLE_FILE).fsPath,
+    log,
+    isTabSettingOn: () => currentSettings().modelApiTab,
+    tabSettings: () => {
+      const settings = currentSettings()
+      return {
+        tabModel: settings.tabModel,
+        tabLanguages: settings.tabLanguages,
+        tabMultiline: settings.tabMultiline,
+        tabTrigger: settings.tabTrigger,
+        tabWithCopilot: settings.tabWithCopilot,
+        tabDailyBudgetUsd: settings.tabDailyBudgetUsd,
+      }
+    },
+    isPaidOn: () => paid.gate.isOn('tab'),
+    isKeyStored: () => isKeyStored,
+    isTrusted: isProjectTrusted,
+    ensureKeyPresence,
+    updateSetting: async (key, value) => {
+      await updateSetting(key, value)
+    },
+    registerCommand: (id, run) => registerLoggedCommand(log, id, run),
+    // Links resolved before a file is read (RVM94HU 12).
+    realPath: async (absolutePath) => await canonicalPath(absolutePath),
+    registerProvider: (provider) =>
+      vscode.languages.registerInlineCompletionItemProvider({ scheme: 'file' }, provider),
+    setTabOnContext: (isOn) => {
+      void vscode.commands.executeCommand('setContext', CONTEXT_KEYS.tabOn, isOn)
+    },
+    foreignSetting: (section, key) => vscode.workspace.getConfiguration(section).get(key),
+    isCopilotExtensionPresent: () =>
+      vscode.extensions.getExtension('GitHub.copilot')?.isActive === true ||
+      vscode.extensions.getExtension('GitHub.copilot-chat')?.isActive === true,
+    filesExclude: (uri) =>
+      tabFilesExcludeTable(vscode.workspace.getConfiguration('files', uri).get('exclude')),
+    workspaceRoots: (absolutePath) =>
+      (vscode.workspace.workspaceFolders ?? [])
+        .map((folder) => folder.uri.fsPath)
+        .filter((root) => isTabWorkspaceRoot(root, absolutePath))
+        .toSorted((a, b) => b.length - a.length),
+    ignoreFileExists: (absolutePath) => {
+      try {
+        return statSync(absolutePath).isFile()
+      } catch {
+        return false
+      }
+    },
+    runGit: (args, cwd) =>
+      runGit(args, cwd, undefined, undefined, () => {
+        if (!isProjectTrusted()) {
+          throw new Error(UI_TEXT.tabStatusUntrusted)
+        }
+      }),
+    onIgnoreFilesChanged: (clear) => {
+      tabIgnoreListeners.add(clear)
+      return {
+        dispose: () => {
+          tabIgnoreListeners.delete(clear)
+        },
+      }
+    },
+    recentEdits: () => {
+      const edits: { readonly uri: vscode.Uri; readonly line: number }[] = []
+      for (const edit of tabRecentEdits.values()) edits.unshift(edit)
+      return edits
+    },
+    onDidChangeTextDocument: (listener) =>
+      vscode.workspace.onDidChangeTextDocument((event) => {
+        listener(tabTextChangeEvent(event))
+      }),
+    activeLanguageId: () => vscode.window.activeTextEditor?.document.languageId,
+    knownLanguages: async () => await vscode.languages.getLanguages(),
+    confirmCopilotDisable: async (languageId) => {
+      const turnOff = fill(UI_TEXT.tabMenuCopilotOff, { language: languageId })
+      return (
+        (await vscode.window.showWarningMessage(
+          fill(UI_TEXT.tabCopilotConfirmTitle, { language: languageId }),
+          { modal: true, detail: fill(UI_TEXT.tabCopilotConfirmDetail, { language: languageId }) },
+          turnOff,
+        )) === turnOff
+      )
+    },
+    disableCopilotFor: async (languageId) => {
+      const config = vscode.workspace.getConfiguration('github.copilot')
+      const current = config.get<unknown>('enable')
+      const table: Record<string, unknown> = {}
+      if (typeof current === 'object' && current !== null) {
+        for (const [key, val] of Object.entries(current)) {
+          table[key] = val
+        }
+      }
+      table[languageId] = false
+      await config.update('enable', table, vscode.ConfigurationTarget.Global)
+    },
+    // The conversation in view opens Account & usage; with none, the sidebar
+    // comes forward and opens it (RVM94HU 21).
+    openAccountUsage: async () => {
+      const surface = registry.active
+      if (surface === undefined) {
+        await openSidebar()
+      } else {
+        surface.reveal()
+      }
+      registry.active?.post({ type: 'openUsage' })
+    },
+    runCommand: async (command) => {
+      await vscode.commands.executeCommand(command)
+    },
+    table: () => UI_TEXT,
+    locale: () => uiLocale(),
+    snoozeStore: {
+      readSnoozedUntil: () => {
+        const end = context.globalState.get<unknown>(TAB_SNOOZE_STATE_KEY)
+        return typeof end === 'number' && Number.isFinite(end) ? end : undefined
+      },
+      writeSnoozedUntil: async (endMs) => {
+        await context.globalState.update(TAB_SNOOZE_STATE_KEY, endMs)
+      },
+      nowMs: () => Date.now(),
+    },
+    // The bundle builds its engine (lane C) and its spend gate over this
+    // window's ledger file (lane L) from these. The key client is the one
+    // M44 loads on its first paid use; it is read only on a Tab request.
+    services: {
+      stream: (body, signal, budget) => keyClient().streamResponse(body, signal, undefined, budget),
+      ledgerDirectory: path.join(context.globalStorageUri.fsPath, TAB_LEDGER_DIR),
+      windowId: crypto.randomUUID(),
+      onSent: () => {
+        paid.usage.addTabRequest()
+      },
+      onUsage: (model, usage) => {
+        paid.usage.addTabUsage(model, usage)
+      },
+    },
+    // Account & usage's Tab row follows the ledger's day (RVM94HU 23).
+    onTodayTotalChanged: () => {
+      broadcastPaidState()
+    },
+    // D48's question, once per window (Q-M94a): the first request asks with
+    // the model's rates and today's budget; Deny snoozes the window.
+    consent: {
+      requestUse: async () => {
+        const settings = currentSettings()
+        return await paid.consent.allows({
+          feature: 'tab',
+          modelId: settings.tabModel,
+          budgetUsd: settings.tabDailyBudgetUsd,
+        })
+      },
+    },
+  })
+  tabDisposables.push({
+    dispose: () => {
+      tab.dispose()
+    },
+  })
+  // Tab on at startup (the default): the provider is registered now, and
+  // the secret read and dist/tab.js wait for the first request (RVM94HU 7).
+  tab.refresh()
+  for (const disposable of tabDisposables) {
+    context.subscriptions.push(disposable)
+  }
   // Voice dictation (M9): the OS recogniser behind the composer's microphone.
   const dictation = createDictationSetup(
     {
@@ -847,7 +1292,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     getShellSandbox: () => currentSettings().shellSandbox,
     getSandboxNetwork: () => currentSettings().sandboxNetwork,
     userProfileDir: process.env['USERPROFILE'],
-    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    isWorkspaceTrusted: isProjectTrusted,
     getProxySettings: () =>
       readProxySettings(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)),
   })
@@ -964,6 +1409,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // and count for the session that was live when the import began.
     agentImport: {
       isActive: () => !nativeStarts.signal.aborted,
+      isProjectTrusted,
+      isProjectHeld: () => windowHold.isHeld,
       currentRoot: firstFolderPath,
       captureOwner: () => {
         const active = registry.active
@@ -1028,18 +1475,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     openLog: () => {
       channel.show(true)
     },
+    isProjectTrusted,
+    isProjectHeld: () => windowHold.isHeld,
     openDocument,
     log,
   })
+  const conversationGit = conversationGitLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CONVERSATION_GIT_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
   const worktrees = createWorktreeFeatures({
+    isWorkspaceTrusted: isProjectTrusted,
     workspaceRoot,
-    runGit,
-    mutationGit: (args, cwd, timeoutMs) =>
+    runGit: (args, cwd, timeoutMs, beforeRun) => runGit(args, cwd, timeoutMs, undefined, beforeRun),
+    mutationGit: (args, cwd, timeoutMs, beforeRun) =>
       backend.startWorktreeMutation(
         cwd,
-        (ownedCwd) => runGit(args, ownedCwd, timeoutMs),
+        (ownedCwd) => runGit(args, ownedCwd, timeoutMs, undefined, beforeRun),
         nativeStarts.signal,
       ),
+    registry: worktreeRegistry,
     log,
   })
   const sandbox = new SandboxSetup({
@@ -1194,11 +1650,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const listWorkspaceFiles = createWorkspaceFileLister({
     workspaceRoot: workspaceRoot ?? '',
     respectGitIgnore: () => currentSettings().respectGitIgnore,
-    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    isWorkspaceTrusted: isProjectTrusted,
     runGit,
     findFiles: findWorkspaceFiles,
     log,
   })
+  // Best-of-N's git, admitted at the native entry by the same project trust
+  // as the rest: none while someone else's pull request holds the window (M71).
   const runBestOfNGit: typeof automaticBestOfNGit = (args, cwd, timeoutMs, input, beforeRun) =>
     automaticBestOfNGit(
       args,
@@ -1207,7 +1665,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       input,
       Object.assign(
         () => {
-          if (!vscode.workspace.isTrusted) throw new Error(UI_TEXT.bestOfNNeedsTrust)
+          if (!isProjectTrusted()) {
+            throw new Error(
+              windowHold.isHeld ? UI_TEXT.worktreeHeldShell : UI_TEXT.bestOfNNeedsTrust,
+            )
+          }
           beforeRun?.()
         },
         { prepare: beforeRun?.prepare },
@@ -1215,9 +1677,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     )
   // The C# of both Windows job helpers, shipped beside the bundle (PLAN.md D6).
   const readJobSource = jobSourceReader(context.extensionPath)
-  const storageDir = context.globalStorageUri.fsPath
-  const windowsJobAssembly = windowsJobHelper(shellJobAssembly, storageDir, readJobSource, log)
-  const windowsMcpJob = windowsJobHelper(mcpJobExecutable, storageDir, readJobSource, log)
+  const windowsJobAssembly = windowsJobHelper(shellJobAssembly, storageRoot, readJobSource, log)
+  const windowsMcpJob = windowsJobHelper(mcpJobExecutable, storageRoot, readJobSource, log)
+  // Amp and OpenCode plugin children (M91b): on Windows, M50's kill-on-close
+  // job launcher, prepared afresh after a failure.
+  const pluginJobs = pluginContainment({
+    platform: process.platform,
+    newJobExecutable: () => windowsJobHelper(mcpJobExecutable, storageRoot, readJobSource, log),
+    now: () => Date.now(),
+    log: (message) => {
+      log.warn(message)
+    },
+  })
+  const shellEnvironmentOf = (): NodeJS.ProcessEnv =>
+    withTerminalOverrides(
+      process.env,
+      vscode.workspace
+        .getConfiguration(TERMINAL_ENV_SECTION)
+        .get<Record<string, string | null>>(TERMINAL_ENV_KEYS[terminalPlatform()]) ?? {},
+      process.platform,
+      workspaceRoot,
+    )
   // The workspace's files and a shell (M7): the Model API backend's tools,
   // and the files the ide server's image tools read and write (M44).
   const toolIo = createToolIo({
@@ -1226,15 +1706,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     systemRoot: process.env['SystemRoot'],
     // The user's terminal environment settings apply to the shell tool as
     // they do to VS Code's terminal (PLAN.md D25).
-    env: () =>
-      withTerminalOverrides(
-        process.env,
-        vscode.workspace
-          .getConfiguration(TERMINAL_ENV_SECTION)
-          .get<Record<string, string | null>>(TERMINAL_ENV_KEYS[terminalPlatform()]) ?? {},
-        process.platform,
-        workspaceRoot,
-      ),
+    env: shellEnvironmentOf,
     searchWorkerPath: vscode.Uri.joinPath(context.extensionUri, 'dist', SEARCH_WORKER_FILE).fsPath,
     log: (message) => {
       log.warn(message)
@@ -1271,17 +1743,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   })
   // Images for Muse Code (M44, PLAN.md D37): made here with the stored key,
   // never by `muse serve`, each one confirmed with its price.
-  const keyClient = new ModelApiClient({
-    fetch: liveFetch,
-    baseUrl: MODEL_API_BASE_URL,
-    apiKey: () => credentials.getApiKey(),
-    sleep: (ms) =>
-      new Promise((resolve) => {
-        setTimeout(resolve, ms)
-      }),
-    now: () => Date.now(),
-    random: () => Math.random(),
+  const keyClient = modelApiClientLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODEL_API_BUNDLE_FILE).fsPath,
     log,
+    client: {
+      fetch: liveFetch,
+      baseUrl: MODEL_API_BASE_URL,
+      apiKey: () => credentials.getApiKey(),
+      sleep: (ms) =>
+        new Promise((resolve) => {
+          setTimeout(resolve, ms)
+        }),
+      now: () => Date.now(),
+      random: () => Math.random(),
+      log,
+    },
   })
   const ideTools = [diagnostics]
   // Web fetch (M69, PLAN.md D49): resolved, checked and pinned here, for the
@@ -1372,8 +1848,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // identity: the tool is listed only in a trusted workspace whose
       // sandbox network setting allows the network, and every call asks.
       ...ideWebFetchTools({
-        isOffered: () =>
-          isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
+        isOffered: () => isIdeWebFetchOffered(isProjectTrusted(), currentSettings().sandboxNetwork),
         checkUrl: lazyPageUrlCheck(webFetchBundle),
         fetchPage: webFetch,
         confirm: askWebFetch,
@@ -1688,6 +2163,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           }),
         })
   const modelApi = new ModelApiBackendManager({
+    judge,
     log,
     // Each Model API turn's unit (M86): its record before it runs, its own
     // recorded writes while it does, then its writes drained, its unit folded
@@ -1703,7 +2179,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       createWorkspaceFileLister({
         workspaceRoot: attemptRoot,
         respectGitIgnore: () => currentSettings().respectGitIgnore,
-        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        isWorkspaceTrusted: isProjectTrusted,
         runGit: runBestOfNGit,
         findFiles: () =>
           findRootFiles({
@@ -1737,11 +2213,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       isEnabled: () => currentSettings().bundledSkills,
     },
     personalAgentsRoot: agentsHome,
-    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    isWorkspaceTrusted: isProjectTrusted,
     isConfidentialWorkspace: () => currentSettings().confidentialWorkspace,
     confirmContributorModel: isContributorModelAllowed,
     hookSettingsPath: museSettingsPath(museConfig()),
     isHooksEnabled: () => currentSettings().modelApiHooks,
+    hookHttpAllowedHosts: () => currentSettings().hookHttpAllowedHosts,
+    isHookNetworkAllowed: () =>
+      isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
+    // Plugin children get the hook environment (M51) and their tree (M91b).
+    pluginHooks: {
+      env: () => hookEnvironment(shellEnvironmentOf(), process.platform),
+      containment: pluginJobs.containment,
+    },
     // Sessions survive the window (PLAN.md D14) in the workspace storage
     // directory; no folder open, no storage, no persistence.
     store:
@@ -1773,7 +2257,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             check()
             if (
               workspaceRoot === undefined ||
-              !vscode.workspace.isTrusted ||
+              !isProjectTrusted() ||
               !isSamePath(cwd, workspaceRoot, process.platform)
             ) {
               throw new Error(UI_TEXT.checkpointFailed)
@@ -1787,7 +2271,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           )
         },
         workspaceRoot,
-        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        // The git facts carry commit subjects: none from someone else's pull request (M71).
+        isWorkspaceTrusted: isProjectTrusted,
         log,
         now: Date.now,
       })
@@ -1797,7 +2282,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       describeEnvironment({
         runGit: runBestOfNGit,
         workspaceRoot: attemptRoot,
-        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        isWorkspaceTrusted: isProjectTrusted,
         log,
         now: Date.now,
       }),
@@ -1820,7 +2305,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           beforeWorkspaceProcessStart: () => checkpoints.markNativeBackend(),
           workspaceRoot: root,
           settingsPath: () => museSettingsPath(museConfig()),
-          isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+          isWorkspaceTrusted: isProjectTrusted,
           clientVersion: version,
           platform: process.platform,
           jobExecutablePath: await windowsMcpJob?.(),
@@ -1835,6 +2320,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
+    isShellKeepsDirectoryOn: () => currentSettings().modelApiShellKeepsDirectory,
     allowsPaidUse: async (request, requiresAsking) =>
       await paid.consent.allows(request, requiresAsking),
     isPaidUseRemembered: (feature) => paid.consent.isRemembered(feature),
@@ -1843,6 +2329,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     noteReviewerUsage: (modelId, usage) => {
       paid.usage.addReviewerUsage(modelId, usage)
+    },
+    // M91 prompt/agent hook runs (D70): settled on the hookModels tally line.
+    noteHookModelUsage: (modelId, usage) => {
+      paid.usage.addHookModelUsage(modelId, usage)
     },
     // The command rules and permission profiles (M78), read at each call.
     permissionSettings: () => permissionSettingsOf(currentSettings()),
@@ -1878,8 +2368,92 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Its own bundle, loaded when this backend first starts (M57, PLAN.md D6).
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODEL_API_BUNDLE_FILE).fsPath,
   })
+  // Git and pull requests (M71): VS Code's git extension and GitHub sign-in,
+  // made in the conversation Git bundle with the first conversation or the
+  // first pull request command (PLAN.md D6), from these primitives.
+  // The selected folder as given, not its canonical form: an own pull request's worktree
+  // sits beside it and its record names it (the owner capture resolves links itself).
+  const gitFeatures = gitFeaturesLoader(conversationGit, {
+    workspaceRoot,
+    storageRoot,
+    hold: windowHold,
+    registry: worktreeRegistry,
+    workspaceState: context.workspaceState,
+    fetch: liveFetch,
+    userAgent: `${EXTENSION_NAME}/${version}`,
+    runGit,
+    // Someone else's pull request: no git checkout; the extension writes its files (M71).
+    gitProcess: processGitProcess(),
+    env: process.env,
+    isCurrent: () => !nativeStarts.signal.aborted,
+    // Commit and push run hooks, which can write the workspace: admitted as any such command is (M72).
+    admit: (start) => backend.startWorkspaceCommand(start, nativeStarts.signal),
+    restartBackends: (reason) => restartBackend(reason),
+    holdReleased: () => {
+      for (const controller of controllers.values()) {
+        controller.worktreeHoldReleased()
+      }
+    },
+    log,
+  })
+  // The pull request command's refusal when its bundle cannot load.
+  const gitPopups = loggedPopups(log)
   const watchedHosts = new WeakSet<AgentHost>()
   let chosenBackend: BackendKind | undefined
+  // `Report a Problem` with no conversation open (M93): the dialog opens
+  // once the surface it opened is ready to show it.
+  let isReportPending = false
+  // The report dialog's facts, journal and scrub context (M93, PLAN.md D72):
+  // local reads only. The CLI's sign-in comes from its credential file's
+  // structure (no `account/read`), the key's presence from the secret store.
+  const reportSource: ReportDataSource = {
+    readFacts: async () => {
+      const settings = currentSettings()
+      const resolution = backend.resolveLaunch()
+      const configuration = vscode.workspace.getConfiguration()
+      return extensionReportFacts({
+        extensionVersion: version,
+        vscodeVersion: vscode.version,
+        nodeVersion: process.versions.node,
+        platform: process.platform,
+        backend: settings.backend,
+        sandbox: settings.shellSandbox,
+        cli: resolution.ok
+          ? { isFound: true, version: backend.installedVersion(resolution.launch.installDir) }
+          : { isFound: false, version: undefined },
+        credentialFileVerdict: backend.credentialFileVerdict(),
+        hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
+        hasEnvironmentApiKey: backend.hasEnvironmentKey(),
+        changedSettingNames: changedSettingNames(
+          manifestSettingNames(context.extension.packageJSON),
+          (name) => configuration.inspect(name),
+        ),
+      })
+    },
+    readJournal: () => reports.readJournal(),
+    readScrub: () =>
+      reportScrubContext({
+        workspaceRoots: (vscode.workspace.workspaceFolders ?? []).map(
+          (folder) => folder.uri.fsPath,
+        ),
+        homeDir: homedir(),
+        userName: () => userInfo().username,
+        hostName: () => hostname(),
+      }),
+    nowMs: () => Date.now(),
+    canUseVscodeReporter: async () => {
+      const commands = await vscode.commands.getCommands(true)
+      return commands.includes(VSCODE_COMMANDS.openIssueReporter)
+    },
+  }
+  const conversationReports: ConversationReports = {
+    source: reportSource,
+    io: vscodeReportEditorIo,
+    recordWebviewError: (error) => {
+      reports.recordWebviewError(error)
+    },
+    record: (kind, code) => reports.record(kind, code),
+  }
   /** The host for the next conversation, by the same selection the sign-in gate uses. */
   const ensureSelectedHost = async () => {
     const host = await chooseAuthorizedHost(
@@ -1905,6 +2479,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (host.info.kind === 'museCode' && !watchedHosts.has(host)) {
       watchedHosts.add(host)
       host.onExit((exit) => {
+        if (!exit.isExpected) {
+          // A fixed word, never the description itself (M93, D72).
+          reports.record('backendExit', exitCodeWord(exit.description), { backend: 'museCode' })
+        }
         for (const active of controllers.values()) {
           active.hostExited(exit)
         }
@@ -2057,6 +2635,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         await worktrees.removeWorktree()
         break
       }
+      case 'openPullRequestInConversation': {
+        await openPullRequestInConversation(gitFeatures, gitPopups.showError)
+        break
+      }
       case 'restartMuseCode': {
         // A notice's Restart (a D26 fault, or Muse Code not answering): the
         // next message continues the conversation (D25).
@@ -2091,9 +2673,129 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     log,
   })
 
+  // Extension hooks on both backends (M91 lane E, PLAN.md D70): FileChanged,
+  // ConfigChange, Setup, Manual and DirectoryAdded fire from the window, so
+  // the backend in use does not matter. The runner loads lazily from
+  // dist/extensionHooks.js the first time one fires; activation never pays
+  // for it, and a window that never fires one never loads it.
+  const hookBundle = extensionHooksBundle(
+    vscode.Uri.joinPath(context.extensionUri, 'dist', EXTENSION_HOOKS_BUNDLE_FILE).fsPath,
+    log,
+  )
+  const hookChannel = vscode.window.createOutputChannel(`${PRODUCT_NAME} Hooks`)
+  let hookRunner: ExtensionHookRunner | undefined
+  let hookRunnerLoading: Promise<ExtensionHookRunner | undefined> | undefined
+  const createHookRunnerFor = async (
+    shouldAnnounceFailure: boolean,
+  ): Promise<ExtensionHookRunner | undefined> => {
+    if (hookRunner !== undefined) {
+      return hookRunner
+    }
+    let loaded: ExtensionHooksModule
+    try {
+      loaded = await hookBundle.loadBundle()
+    } catch (error: unknown) {
+      log.warn(
+        `Extension hooks are unavailable: ${error instanceof Error ? error.message : String(error)}`,
+      )
+      if (shouldAnnounceFailure) {
+        void vscode.window.showWarningMessage(UI_TEXT.extensionHooksUnavailable)
+      }
+      return undefined
+    }
+    const runner = loaded.createExtensionHookRunner(
+      {
+        io: fileContextIo,
+        runHook: (command, payload, cwd, timeoutMs, signal, extraEnvNames) => {
+          const run = toolIo.runHook?.bind(toolIo)
+          if (run === undefined) throw new Error(UI_TEXT.hooksNotRunnable)
+          return run(command, payload, cwd, timeoutMs, signal, extraEnvNames)
+        },
+        platform: process.platform,
+        workspaceRoot: workspaceRoot ?? '',
+        settingsPath: museSettingsPath(museConfig()),
+        isWorkspaceTrusted: isProjectTrusted,
+        isHooksEnabled: () => currentSettings().modelApiHooks,
+        now: () => Date.now(),
+        isIndexed: (relativePath) => mentions.contains(relativePath),
+        notice: (level, text) => {
+          registry.broadcast({ type: 'notice', level, text })
+        },
+        showOutput: (title, text) => {
+          hookChannel.appendLine(`--- ${title} ---`)
+          hookChannel.append(text.endsWith('\n') ? text : `${text}\n`)
+          hookChannel.show(true)
+        },
+        warn: (message) => {
+          log.warn(message)
+        },
+      },
+      UI_TEXT,
+      uiLocale(),
+    )
+    await runner.reload()
+    hookRunner = runner
+    return runner
+  }
+  const hookRunnerFor = async (
+    shouldAnnounceFailure: boolean,
+  ): Promise<ExtensionHookRunner | undefined> => {
+    // One in-flight factory preserves the window-wide debounce and process cap.
+    hookRunnerLoading ??= createHookRunnerFor(shouldAnnounceFailure)
+    const loading = hookRunnerLoading
+    try {
+      return await loading
+    } finally {
+      if (hookRunnerLoading === loading) hookRunnerLoading = undefined
+    }
+  }
+  /** The gates before the bundle even loads: untrusted or opted out, nothing fires. */
+  const areHooksArmed = (): boolean =>
+    workspaceRoot !== undefined && isProjectTrusted() && currentSettings().modelApiHooks
+  /** Run with the window's hook runner; failures stay in the log unless announced. */
+  const withHookRunner = async (
+    run: (runner: ExtensionHookRunner) => Promise<void>,
+    shouldAnnounceFailure: boolean,
+  ): Promise<void> => {
+    if (!areHooksArmed()) {
+      return
+    }
+    const runner = await hookRunnerFor(shouldAnnounceFailure)
+    if (runner === undefined) {
+      return
+    }
+    await run(runner)
+  }
+  /** Run one Manual hook by command or description; false when no hook matches. */
+  const runManualHookByName = async (name: string): Promise<{ matched: boolean }> => {
+    if (!areHooksArmed()) {
+      void vscode.window.showInformationMessage(UI_TEXT.hooksNotRunnable)
+      return { matched: false }
+    }
+    let outcome: { matched: boolean } = { matched: false }
+    await withHookRunner(async (runner) => {
+      outcome = await runner.runManual(name)
+      if (!outcome.matched) {
+        void vscode.window.showWarningMessage(fill(UI_TEXT.manualHookNoneNamed, { name }))
+      } else if ('failedReason' in outcome && typeof outcome.failedReason === 'string') {
+        void vscode.window.showWarningMessage(
+          fill(UI_TEXT.manualHookFailed, { name, reason: outcome.failedReason }),
+        )
+      } else {
+        void vscode.window.showInformationMessage(fill(UI_TEXT.manualHookDone, { name }))
+      }
+    }, true)
+    return outcome
+  }
+
+  const loadConversation = conversationLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CONVERSATION_BUNDLE_FILE).fsPath,
+    log,
+  })
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
+      const factory = loadConversation()
       const tasksTab = new TasksPanel(
         hostContext,
         () => {
@@ -2108,277 +2810,292 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         },
       )
       tasksTabs.set(surface.id, tasksTab)
-      controller = new ConversationController({
-        surface,
-        tasksTab,
-        auth,
-        ensureHost: ensureSelectedHost,
-        workspaceRoot,
-        modelId: DEFAULT_MODEL_ID,
-        initialPermissionMode: currentSettings().initialPermissionMode,
-        hasApprovalUi: HAS_APPROVAL_UI,
-        openExternal: (url) => {
-          void vscode.env.openExternal(vscode.Uri.parse(url))
-        },
-        openSideChat: (sessionId) => {
-          openChatPanel(hostContext, registry, {
-            sessionId,
-            isSideChat: true,
-            onDisposed: () => {
+      controller = factory.createConversation(
+        {
+          runManualHook: runManualHookByName,
+          rewriteMessage: async (text) => {
+            const runner = areHooksArmed() ? await hookRunnerFor(false) : undefined
+            return await runner?.rewriteMessage(text)
+          },
+          surface,
+          tasksTab,
+          auth,
+          ensureHost: ensureSelectedHost,
+          workspaceRoot,
+          modelId: DEFAULT_MODEL_ID,
+          initialPermissionMode: currentSettings().initialPermissionMode,
+          hasApprovalUi: HAS_APPROVAL_UI,
+          openExternal: (url) => {
+            void vscode.env.openExternal(vscode.Uri.parse(url))
+          },
+          openSideChat: (sessionId) => {
+            openChatPanel(hostContext, registry, {
+              sessionId,
+              isSideChat: true,
+              onDisposed: () => {
+                if (registry.has(surface)) {
+                  surface.reveal()
+                }
+              },
+            })
+          },
+          mentions: {
+            search: (query, limit) => mentions.search(query, limit),
+            contains: (relativePath) => mentions.contains(relativePath),
+          },
+          files,
+          isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
+          isRemoteWindow: vscode.env.remoteName !== undefined,
+          confirmRemoteBypass: async () =>
+            (await vscode.window.showWarningMessage(
+              UI_TEXT.bypassRemoteTitle,
+              { modal: true, detail: UI_TEXT.bypassRemoteDetail },
+              UI_TEXT.bypassRemoteConfirm,
+            )) === UI_TEXT.bypassRemoteConfirm,
+          isConfidentialWorkspace: () => currentSettings().confidentialWorkspace,
+          // One explicit yes per conversation before the model switches; the
+          // Model API backend asks the same question for a custom agent's model.
+          confirmContributor: isContributorModelAllowed,
+          runHostAction,
+          // A turn needs the user while the VS Code window is unfocused
+          // (M82); the notice's button brings this surface into view, while
+          // it is still open.
+          notifyAttention: (notice) => {
+            backgroundNotifier.notify(notice, () => {
               if (registry.has(surface)) {
                 surface.reveal()
               }
-            },
-          })
-        },
-        mentions: {
-          search: (query, limit) => mentions.search(query, limit),
-          contains: (relativePath) => mentions.contains(relativePath),
-        },
-        files,
-        isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
-        isRemoteWindow: vscode.env.remoteName !== undefined,
-        confirmRemoteBypass: async () =>
-          (await vscode.window.showWarningMessage(
-            UI_TEXT.bypassRemoteTitle,
-            { modal: true, detail: UI_TEXT.bypassRemoteDetail },
-            UI_TEXT.bypassRemoteConfirm,
-          )) === UI_TEXT.bypassRemoteConfirm,
-        isConfidentialWorkspace: () => currentSettings().confidentialWorkspace,
-        // One explicit yes per conversation before the model switches; the
-        // Model API backend asks the same question for a custom agent's model.
-        confirmContributor: isContributorModelAllowed,
-        runHostAction,
-        // A turn needs the user while the VS Code window is unfocused
-        // (M82); the notice's button brings this surface into view, while
-        // it is still open.
-        notifyAttention: (notice) => {
-          backgroundNotifier.notify(notice, () => {
-            if (registry.has(surface)) {
-              surface.reveal()
+            })
+          },
+          museCodeReviewer,
+          judge,
+          copyText: async (text) => {
+            await vscode.env.clipboard.writeText(text)
+          },
+          insertCode: async (text) => {
+            const editor = vscode.window.activeTextEditor
+            if (editor === undefined) {
+              return false
             }
-          })
-        },
-        museCodeReviewer,
-        copyText: async (text) => {
-          await vscode.env.clipboard.writeText(text)
-        },
-        insertCode: async (text) => {
-          const editor = vscode.window.activeTextEditor
-          if (editor === undefined) {
+            return await editor.edit((builder) => {
+              builder.insert(editor.selection.active, text)
+            })
+          },
+          onSandboxUnavailable: () => {
+            void sandbox.offerIfNeeded('failure').catch(logRejection(log, 'sandbox offer'))
+          },
+          platform: process.platform,
+          shellSandbox: () => backend.shellSandboxPosture(),
+          shouldWarnSandboxOff,
+          editorContext: () => editorContext.active,
+          isAutosaveEnabled: () => currentSettings().autosave,
+          saveAll: async () => {
+            await vscode.workspace.saveAll(false)
+          },
+          // Workspace files open with unsaved changes (PLAN.md D27).
+          unsavedFiles: () =>
+            vscode.workspace.textDocuments
+              .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
+              .map((document) => vscode.workspace.asRelativePath(document.uri, false)),
+          // Code block "Apply": the block replaces the selection (or lands at
+          // the caret); false when no text editor is active.
+          applyCode: async (text) => {
+            const editor = vscode.window.activeTextEditor
+            if (editor === undefined) {
+              return false
+            }
+            const isApplied = await editor.edit((builder) => {
+              builder.replace(editor.selection, text)
+            })
+            if (isApplied) {
+              editor.revealRange(editor.selection)
+            }
+            return isApplied
+          },
+          editReview: review.editReview,
+          review,
+          openDocument,
+          openFile,
+          readToolImage: async (imagePath) =>
+            await loadToolImage(
+              imagePath,
+              workspaceRoot,
+              process.platform,
+              toolImagePreviewIo(toolIo, async (fsPath) => {
+                const stat = await vscode.workspace.fs.stat(vscode.Uri.file(fsPath))
+                return stat.size
+              }),
+            ),
+          // A server that failed to start is started again, and the session
+          // that asked waits for it, so it gets the tool too (D25).
+          ideMcpEndpoint: async () => {
+            if (ideServer.current === undefined) {
+              await startIdeServer()
+            }
+            return ideServer.current
+          },
+          newAttachmentId: () => crypto.randomUUID(),
+          sessions,
+          // The usage modal's Account section and insights (M14).
+          accountFacts: async (kind) => {
+            const resolution = backend.resolveLaunch()
+            const isCliSession = await hasCliSession()
+            const hasKey = (await credentials.getApiKey()) !== undefined
+            const signInMethod = signInMethodFor(kind, isCliSession, hasKey)
+            const cliVersion = resolution.ok
+              ? backend.installedVersion(resolution.launch.installDir)
+              : undefined
+            return {
+              signInMethod,
+              ...(cliVersion !== undefined && { cliVersion }),
+              ...(kind === 'museCode' && {
+                delegationMode: delegationMode(),
+                workflowTriggerMode: workflowTriggerMode(),
+              }),
+            }
+          },
+          usageInsights: () => insights.read(),
+          // Only the sidebar reopens on its last session; a tab is a new
+          // conversation by construction (M6).
+          isRestorable: surface.id === SIDEBAR_SURFACE_ID,
+          dictation,
+          // Muse Voice on the Model API backend, and on Muse Code with a stored key (M44).
+          museVoice: () => {
+            if (
+              !paid.gate.isOn('voice') ||
+              !usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')
+            )
+              return
+            if (auth.current.backend === 'modelApi') {
+              return currentSettings().dictationEngine === 'system'
+                ? undefined
+                : { isAvailable: false, reason: UI_TEXT.sessionBudgetVoiceUnavailable }
+            }
+            return museVoiceSetup
+          },
+          modelApiSessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
+          voiceAccountId: () => modelApi.accountId(),
+          ownedVoiceBudgetScope: async (sessionId) => {
+            if (auth.current.backend !== 'modelApi') {
+              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+            }
+            const host = await modelApi.ensureHost()
+            return await host.getOwnedBudgetScope(sessionId)
+          },
+          exports: cliFeatures.exports,
+          transferFiles: createSessionTransferFiles(),
+          reports: conversationReports,
+          plans,
+          // The palette's paid-feature toggles (M33): on goes through the price confirmation.
+          setPaidFeature: async (feature, isOn) => {
+            if (isOn) {
+              await paid.gate.turnOn(feature)
+            } else {
+              await paid.gate.turnOff(feature)
+            }
+          },
+          // VS Code's trust and the hold apart (M71), so a refusal says which;
+          // the controller asks both before any git (Best-of-N, board, review).
+          isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+          isWorktreeHeld: () => windowHold.isHeld,
+          createGit: conversationGitFactory(conversationGit, gitFeatures),
+          onForegroundTasksChanged: refreshTaskContext,
+          isScheduledPaidOn: () => paid.gate.isOn('scheduledPrompts'),
+          confirmScheduledRun: async (job, modelId) =>
+            await paid.consent.allows({ feature: 'scheduledPrompts', prompt: job.prompt, modelId }),
+          allowsPaidUse: async (request) => await paid.consent.allows(request),
+          forgetPaidUse: async () => {
+            await paid.consent.forget()
+          },
+          checkpoints,
+          // Text files and notebooks open with unsaved changes, by absolute path (M72).
+          unsavedPaths: () =>
+            [...vscode.workspace.textDocuments, ...vscode.workspace.notebookDocuments]
+              .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
+              .map((document) => document.uri.fsPath),
+          confirmFileAction: async (title, detail, action) =>
+            (await vscode.window.showWarningMessage(title, { modal: true, detail }, action)) ===
+            action,
+          // Muse Code checks its own edits (M68): its checks run through its own
+          // shell, so none are named while Restricted Mode runs no shell (D13).
+          // The diagnostics sentence only for a session that has the ide server.
+          verifyGuidance: (hasIdeServer) => {
+            const settings = currentSettings()
+            return verifyGuidance(
+              settings.diagnosticsAfterEdits && hasIdeServer,
+              isProjectTrusted() ? settings.checkCommands : [],
+            )
+          },
+          bundledSkillsOffer: () => bundledSkillsOffer.next(),
+          // The session board's pending prompts, shared by every surface (M77).
+          pendingPrompts: boardPrompts,
+          boardSessions: () => {
+            const sessions: BoardSession[] = []
+            for (const active of controllers.values()) {
+              const session = active.boardSession()
+              if (session !== undefined) sessions.push(session)
+            }
+            return sessions
+          },
+          focusBoardSession: (sessionId, backendKind) => {
+            for (const active of controllers.values()) {
+              if (active.revealBoardSession(sessionId, backendKind)) return true
+            }
             return false
-          }
-          return await editor.edit((builder) => {
-            builder.insert(editor.selection.active, text)
-          })
-        },
-        onSandboxUnavailable: () => {
-          void sandbox.offerIfNeeded('failure').catch(logRejection(log, 'sandbox offer'))
-        },
-        platform: process.platform,
-        shellSandbox: () => backend.shellSandboxPosture(),
-        shouldWarnSandboxOff,
-        editorContext: () => editorContext.active,
-        isAutosaveEnabled: () => currentSettings().autosave,
-        saveAll: async () => {
-          await vscode.workspace.saveAll(false)
-        },
-        // Workspace files open with unsaved changes (PLAN.md D27).
-        unsavedFiles: () =>
-          vscode.workspace.textDocuments
-            .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
-            .map((document) => vscode.workspace.asRelativePath(document.uri, false)),
-        // Code block "Apply": the block replaces the selection (or lands at
-        // the caret); false when no text editor is active.
-        applyCode: async (text) => {
-          const editor = vscode.window.activeTextEditor
-          if (editor === undefined) {
-            return false
-          }
-          const isApplied = await editor.edit((builder) => {
-            builder.replace(editor.selection, text)
-          })
-          if (isApplied) {
-            editor.revealRange(editor.selection)
-          }
-          return isApplied
-        },
-        editReview: review.editReview,
-        review,
-        openDocument,
-        openFile,
-        readToolImage: async (imagePath) =>
-          await loadToolImage(
-            imagePath,
-            workspaceRoot,
-            process.platform,
-            toolImagePreviewIo(toolIo, async (fsPath) => {
-              const stat = await vscode.workspace.fs.stat(vscode.Uri.file(fsPath))
-              return stat.size
-            }),
-          ),
-        // A server that failed to start is started again, and the session
-        // that asked waits for it, so it gets the tool too (D25).
-        ideMcpEndpoint: async () => {
-          if (ideServer.current === undefined) {
-            await startIdeServer()
-          }
-          return ideServer.current
-        },
-        newAttachmentId: () => crypto.randomUUID(),
-        sessions,
-        // The usage modal's Account section and insights (M14).
-        accountFacts: async (kind) => {
-          const resolution = backend.resolveLaunch()
-          const isCliSession = await hasCliSession()
-          const hasKey = (await credentials.getApiKey()) !== undefined
-          const signInMethod = signInMethodFor(kind, isCliSession, hasKey)
-          const cliVersion = resolution.ok
-            ? backend.installedVersion(resolution.launch.installDir)
-            : undefined
-          return {
-            signInMethod,
-            ...(cliVersion !== undefined && { cliVersion }),
-            ...(kind === 'museCode' && {
-              delegationMode: delegationMode(),
-              workflowTriggerMode: workflowTriggerMode(),
-            }),
-          }
-        },
-        usageInsights: () => insights.read(),
-        // Only the sidebar reopens on its last session; a tab is a new
-        // conversation by construction (M6).
-        isRestorable: surface.id === SIDEBAR_SURFACE_ID,
-        dictation,
-        // Muse Voice on the Model API backend, and on Muse Code with a stored key (M44).
-        museVoice: () => {
-          if (
-            !paid.gate.isOn('voice') ||
-            !usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')
-          )
-            return
-          if (auth.current.backend === 'modelApi') {
-            return currentSettings().dictationEngine === 'system'
-              ? undefined
-              : { isAvailable: false, reason: UI_TEXT.sessionBudgetVoiceUnavailable }
-          }
-          return museVoiceSetup
-        },
-        modelApiSessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
-        voiceAccountId: () => modelApi.accountId(),
-        ownedVoiceBudgetScope: async (sessionId) => {
-          if (auth.current.backend !== 'modelApi') {
-            throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-          }
-          const host = await modelApi.ensureHost()
-          return await host.getOwnedBudgetScope(sessionId)
-        },
-        exports: cliFeatures.exports,
-        transferFiles: createSessionTransferFiles(),
-        plans,
-        // The palette's paid-feature toggles (M33): on goes through the price confirmation.
-        setPaidFeature: async (feature, isOn) => {
-          if (isOn) {
-            await paid.gate.turnOn(feature)
-          } else {
-            await paid.gate.turnOff(feature)
-          }
-        },
-        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
-        onForegroundTasksChanged: refreshTaskContext,
-        isScheduledPaidOn: () => paid.gate.isOn('scheduledPrompts'),
-        confirmScheduledRun: async (job, modelId) =>
-          await paid.consent.allows({ feature: 'scheduledPrompts', prompt: job.prompt, modelId }),
-        allowsPaidUse: async (request) => await paid.consent.allows(request),
-        forgetPaidUse: async () => {
-          await paid.consent.forget()
-        },
-        checkpoints,
-        // Text files and notebooks open with unsaved changes, by absolute path (M72).
-        unsavedPaths: () =>
-          [...vscode.workspace.textDocuments, ...vscode.workspace.notebookDocuments]
-            .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
-            .map((document) => document.uri.fsPath),
-        confirmFileAction: async (title, detail, action) =>
-          (await vscode.window.showWarningMessage(title, { modal: true, detail }, action)) ===
-          action,
-        // Muse Code checks its own edits (M68): its checks run through its own
-        // shell, so none are named while Restricted Mode runs no shell (D13).
-        // The diagnostics sentence only for a session that has the ide server.
-        verifyGuidance: (hasIdeServer) => {
-          const settings = currentSettings()
-          return verifyGuidance(
-            settings.diagnosticsAfterEdits && hasIdeServer,
-            vscode.workspace.isTrusted ? settings.checkCommands : [],
-          )
-        },
-        bundledSkillsOffer: () => bundledSkillsOffer.next(),
-        // The session board's pending prompts, shared by every surface (M77).
-        pendingPrompts: boardPrompts,
-        boardSessions: () => {
-          const sessions: BoardSession[] = []
-          for (const active of controllers.values()) {
-            const session = active.boardSession()
-            if (session !== undefined) sessions.push(session)
-          }
-          return sessions
-        },
-        focusBoardSession: (sessionId, backendKind) => {
-          for (const active of controllers.values()) {
-            if (active.revealBoardSession(sessionId, backendKind)) return true
-          }
-          return false
-        },
-        bestOfNCoordinator,
-        bestOfNWorkspaceEdits: (session) => {
-          const owner =
-            session === undefined ? undefined : modelApi.captureExternalEditOwner(session)
-          return async (root, paths) => {
-            const files: EditedFile[] = []
-            for (const file of paths) {
-              const checked = await confineWorkspacePath(root, file, process.platform, {
-                realPath: canonicalPath,
-              })
-              if (
-                !checked.ok ||
-                isProtectedPath(checked.relative) ||
-                isProtectedPath(checked.canonical) ||
-                checked.relative !== checked.canonical
-              ) {
-                throw new Error(UI_TEXT.bestOfNTargetChanged)
+          },
+          bestOfNCoordinator,
+          bestOfNWorkspaceEdits: (session) => {
+            const owner =
+              session === undefined ? undefined : modelApi.captureExternalEditOwner(session)
+            return async (root, paths) => {
+              const files: EditedFile[] = []
+              for (const file of paths) {
+                const checked = await confineWorkspacePath(root, file, process.platform, {
+                  realPath: canonicalPath,
+                })
+                if (
+                  !checked.ok ||
+                  isProtectedPath(checked.relative) ||
+                  isProtectedPath(checked.canonical) ||
+                  checked.relative !== checked.canonical
+                ) {
+                  throw new Error(UI_TEXT.bestOfNTargetChanged)
+                }
+                files.push({ relative: checked.canonical, absolute: checked.checkedAbsolute })
               }
-              files.push({ relative: checked.canonical, absolute: checked.checkedAbsolute })
+              return modelApi.beginExternalEdit(owner, files)
             }
-            return modelApi.beginExternalEdit(owner, files)
-          }
+          },
+          modelApiAccountId: () => modelApi.accountId(),
+          noteBestOfNRequest: () => {
+            paid.usage.addBestOfNRequest()
+          },
+          noteBestOfNUsage: (modelId, usage) => {
+            paid.usage.addBestOfNUsage(modelId, usage)
+          },
+          bestOfNBudgetScope: (sessionId) => modelApi.bestOfNBudgetScope(sessionId),
+          openBestOfNWorktree: async (absolutePath) => {
+            await vscode.commands.executeCommand(
+              VSCODE_COMMANDS.openFolder,
+              vscode.Uri.file(absolutePath),
+              { forceNewWindow: true },
+            )
+          },
+          runGit,
+          runBestOfNGit,
+          isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
+          notePaidUse: (feature, units) => {
+            paid.usage.add(feature, units)
+          },
+          buildAttemptHost: (worktreeRoot, admitRequest, noteUsage, budgetScope) =>
+            modelApi.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),
+          realPath: canonicalPath,
+          now: () => Date.now(),
+          log,
         },
-        modelApiAccountId: () => modelApi.accountId(),
-        noteBestOfNRequest: () => {
-          paid.usage.addBestOfNRequest()
-        },
-        noteBestOfNUsage: (modelId, usage) => {
-          paid.usage.addBestOfNUsage(modelId, usage)
-        },
-        bestOfNBudgetScope: (sessionId) => modelApi.bestOfNBudgetScope(sessionId),
-        openBestOfNWorktree: async (absolutePath) => {
-          await vscode.commands.executeCommand(
-            VSCODE_COMMANDS.openFolder,
-            vscode.Uri.file(absolutePath),
-            { forceNewWindow: true },
-          )
-        },
-        runGit,
-        runBestOfNGit,
-        isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
-        notePaidUse: (feature, units) => {
-          paid.usage.add(feature, units)
-        },
-        buildAttemptHost: (worktreeRoot, admitRequest, noteUsage, budgetScope) =>
-          modelApi.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),
-        realPath: canonicalPath,
-        now: () => Date.now(),
-        log,
-      })
+        UI_TEXT,
+        uiLocale(),
+      )
       controllers.set(surface.id, controller)
     }
     return controller
@@ -2403,6 +3120,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     onSurfaceReady: (surface, attachmentEpoch) => {
       const controller = controllerFor(surface)
       controller.surfaceReady(attachmentEpoch)
+      // `Report a Problem` opened this surface (M93): its dialog now has a page to show in.
+      if (isReportPending) {
+        isReportPending = false
+        void controller.openReport().catch(logRejection(log, 'the problem report'))
+      }
       surface.post({ type: 'editorContext', context: editorContext.summary })
       surface.post({ type: 'paidState', state: paid.state() })
       // A rebuilt panel resumes the session it held (D15); the sidebar
@@ -2443,9 +3165,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
     }
 
-  const openSidebar = () => vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
+  // The sidebar's view provider, wrapped for Tab's deferred secret read.
+  const chatViewProvider = new ChatViewProvider(hostContext, registry)
+  const openSidebar = () => {
+    // Tab's deferred secret read (M94): the first view, panel or command.
+    void ensureKeyPresence()
+    return vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
+  }
   /** A conversation where the setting says new ones open. */
   const openConversation = async (): Promise<void> => {
+    void ensureKeyPresence()
     if (currentSettings().preferredLocation === 'sidebar') {
       await openSidebar()
       return
@@ -2466,6 +3195,48 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const personalSkillsWatcher = vscode.workspace.createFileSystemWatcher(
     new vscode.RelativePattern(vscode.Uri.file(skillsHome), PERSONAL_SKILLS_GLOB),
   )
+  // Extension hooks on both backends (M91 lane E): every workspace file for
+  // FileChanged, the three project config files for ConfigChange, the user's
+  // own spark-hooks.json for a silent snapshot reload (it has no
+  // workspace-relative path, so it never fires ConfigChange).
+  const hookFileWatcher = vscode.workspace.createFileSystemWatcher('**/*')
+  const hookConfigWatcher = vscode.workspace.createFileSystemWatcher(
+    '**/{.muse/hooks.json,.muse/spark-hooks.json}',
+  )
+  const hookUserWatcher = vscode.workspace.createFileSystemWatcher(
+    new vscode.RelativePattern(
+      vscode.Uri.file(path.dirname(museSettingsPath(museConfig()))),
+      'spark-hooks.json',
+    ),
+  )
+  const onHookWorkspaceFile = (uri: vscode.Uri): void => {
+    if (!areHooksArmed()) {
+      return
+    }
+    void withHookRunner((runner) => runner.noteWorkspaceFile(uri.fsPath), false).catch(
+      logRejection(log, 'FileChanged hook'),
+    )
+  }
+  const onHookConfigFile = (uri: vscode.Uri): void => {
+    if (!areHooksArmed()) {
+      return
+    }
+    let reason: 'settings' | 'hooks' | 'spark-hooks' = 'settings'
+    if (uri.path.endsWith('.muse/spark-hooks.json')) {
+      reason = 'spark-hooks'
+    } else if (uri.path.endsWith('.muse/hooks.json')) {
+      reason = 'hooks'
+    }
+    void withHookRunner((runner) => runner.noteConfigFile(uri.fsPath, reason), false).catch(
+      logRejection(log, 'ConfigChange hook'),
+    )
+  }
+  const onHookUserFile = (): void => {
+    if (!areHooksArmed()) {
+      return
+    }
+    void withHookRunner((runner) => runner.reload(), false).catch(logRejection(log, 'hook reload'))
+  }
 
   editorContext.update(editorSnapshot)
   // A setting turned on while VS Code was closed, or in another window, is
@@ -2490,6 +3261,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     personalSkillsWatcher.onDidChange(onSkillFilesChanged),
     personalSkillsWatcher.onDidCreate(onSkillFilesChanged),
     personalSkillsWatcher.onDidDelete(onSkillFilesChanged),
+    // Extension hooks on both backends (M91 lane E): the workspace watcher
+    // feeds FileChanged, the config files ConfigChange, folder changes
+    // DirectoryAdded. The index refreshes first so the runner's
+    // gitignored/excluded check answers for the file as it is now; the
+    // runner drops the rest before any process starts.
+    hookFileWatcher,
+    hookChannel,
+    hookFileWatcher.onDidChange(onHookWorkspaceFile),
+    hookFileWatcher.onDidCreate(onHookWorkspaceFile),
+    hookFileWatcher.onDidDelete(onHookWorkspaceFile),
+    hookConfigWatcher,
+    hookConfigWatcher.onDidChange(onHookConfigFile),
+    hookConfigWatcher.onDidCreate(onHookConfigFile),
+    hookConfigWatcher.onDidDelete(onHookConfigFile),
+    hookUserWatcher,
+    hookUserWatcher.onDidChange(onHookUserFile),
+    hookUserWatcher.onDidCreate(onHookUserFile),
+    hookUserWatcher.onDidDelete(onHookUserFile),
+    vscode.workspace.onDidChangeWorkspaceFolders((event) => {
+      for (const folder of event.added) {
+        void withHookRunner((runner) => runner.noteDirectoryAdded(folder.uri.fsPath), false).catch(
+          logRejection(log, 'DirectoryAdded hook'),
+        )
+      }
+    }),
     editorContext,
     {
       dispose: () => {
@@ -2498,6 +3294,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     vscode.window.onDidChangeActiveTextEditor(() => {
       editorContext.update(editorSnapshot)
+      // Tab's language-off and snooze states follow the active editor (M94).
+      tab.refreshStatus()
+    }),
+    vscode.window.onDidChangeWindowState((state) => {
+      // A timed snooze is enforced live by the provider; the bar catches up
+      // when the window is focused (M94).
+      if (state.focused) {
+        tab.refreshStatus()
+      }
     }),
     vscode.window.onDidChangeTextEditorSelection(() => {
       editorContext.update(editorSnapshot)
@@ -2513,10 +3318,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     vscode.window.registerWebviewViewProvider(
       CHAT_VIEW_ID,
-      new ChatViewProvider(hostContext, registry),
+      {
+        resolveWebviewView: (view) => {
+          // Tab's deferred secret read (M94): a restored sidebar view is a
+          // first view with no command or panel open behind it.
+          void ensureKeyPresence()
+          chatViewProvider.resolveWebviewView(view)
+        },
+      },
       { webviewOptions: { retainContextWhenHidden: true } },
     ),
     vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration(SETTINGS_SECTION)) {
+        void withHookRunner((runner) => runner.noteSettingsChange(), false).catch(
+          logRejection(log, 'ConfigChange hook'),
+        )
+      }
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
         for (const controller of controllers.values()) {
@@ -2535,6 +3352,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // A paid feature turned on anywhere asks for its price once (D30).
       if (paid.affects(event)) {
         void paid.gate.review().catch(logRejection(log, 'paid feature review'))
+      }
+      // Inline completions on or off, and the status bar follows the
+      // settings, the editors and the spend (M94).
+      if (event.affectsConfiguration(`${SETTINGS_SECTION}.modelApiTab`)) {
+        tab.refresh()
+      } else if (event.affectsConfiguration(SETTINGS_SECTION)) {
+        tab.refreshStatus()
+      }
+      // Account & usage shows the configured budget (RVM94HU 24).
+      if (event.affectsConfiguration(`${SETTINGS_SECTION}.tabDailyBudgetUsd`)) {
+        broadcastPaidState()
       }
       // The bundled skills on or off: the Model API catalogue follows (M89).
       if (event.affectsConfiguration(BUNDLED_SKILLS_SETTING)) {
@@ -2589,6 +3417,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       for (const controller of controllers.values()) {
         controller.checkpointsChanged()
       }
+      // A trusted workspace activates (M91 lane E): its root reads as a
+      // DirectoryAdded, on both backends.
+      void withHookRunner((runner) => runner.noteDirectoryAdded(workspaceRoot ?? ''), false).catch(
+        logRejection(log, 'DirectoryAdded hook'),
+      )
     }),
     // Editor-tab conversations come back after a window reload (D15).
     vscode.window.registerWebviewPanelSerializer(CHAT_PANEL_VIEW_TYPE, {
@@ -2634,7 +3467,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const check = backend.workspaceActionGuard(nativeStarts.signal)
       await createRulesFile({
         workspaceRoot,
-        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        // `muse init` reads the project: not while the window is held (M71).
+        isWorkspaceTrusted: isProjectTrusted,
         fileExists: isExistingPath,
         writeFile: (fsPath, content) => writeUserFile(check, fsPath, content),
         openFile: async (fsPath) => {
@@ -2673,6 +3507,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.openInSidebar, openSidebar),
     registerLoggedCommand(log, COMMAND_IDS.showLogs, () => {
       channel.show(true)
+    }),
+    // Report a problem (M93, PLAN.md D72): the dialog over the journal and
+    // local facts, in the conversation in view or one opened for it.
+    registerLoggedCommand(log, COMMAND_IDS.reportProblem, async () => {
+      const surface = registry.active
+      if (surface === undefined) {
+        isReportPending = true
+        await openConversation()
+        return
+      }
+      surface.reveal()
+      await controllerFor(surface).openReport()
     }),
     // The support report (PLAN.md D14): facts only, credentials as booleans.
     registerLoggedCommand(log, COMMAND_IDS.diagnostics, async () => {
@@ -2792,6 +3638,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.setUpSandbox, async () => {
       await sandbox.runCommand()
     }),
+    registerLoggedCommand(log, COMMAND_IDS.retryPluginHooks, () => {
+      pluginJobs.reset()
+      void vscode.window.showInformationMessage(UI_TEXT.pluginHooksRetried)
+    }),
     // A fresh `muse serve` without a window reload (CLI recovery): a running
     // turn is stopped, and each conversation resumes with its next message.
     registerLoggedCommand(log, COMMAND_IDS.restartMuseCode, async () => {
@@ -2817,6 +3667,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.memory, () => memoryView.showMemory()),
     registerLoggedCommand(log, COMMAND_IDS.newWorktree, () => worktrees.newWorktree()),
     registerLoggedCommand(log, COMMAND_IDS.removeWorktree, () => worktrees.removeWorktree()),
+    registerLoggedCommand(log, COMMAND_IDS.openPullRequestInConversation, () =>
+      openPullRequestInConversation(gitFeatures, gitPopups.showError),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.exportConversation, async () => {
       const surface = registry.active
       if (surface === undefined) {
@@ -2836,7 +3689,94 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       COMMAND_IDS.openShareFile,
       forActiveConversation((controller) => controller.handle({ type: 'openShareFile' })),
     ),
+    // Setup and Manual hooks (M91 lane E): the user starts them, on both
+    // backends. Observation; the bounded output is shown in the hooks
+    // channel, a failure as a warning with the hook's reason.
+    registerLoggedCommand(log, COMMAND_IDS.runSetupHooks, async () => {
+      if (!areHooksArmed()) {
+        void vscode.window.showInformationMessage(UI_TEXT.hooksNotRunnable)
+        return
+      }
+      const runner = await hookRunnerFor(true)
+      if (runner === undefined) {
+        return
+      }
+      const result = await runner.runSetup('init')
+      if (result.ran === 0) {
+        void vscode.window.showInformationMessage(UI_TEXT.setupHooksNone)
+      } else if (result.failedReason === undefined) {
+        void vscode.window.showInformationMessage(plural(UI_TEXT.setupHooksRan, result.ran))
+      } else {
+        void vscode.window.showWarningMessage(
+          fill(UI_TEXT.setupHooksFailed, { reason: result.failedReason }),
+        )
+      }
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.runHook, async () => {
+      if (!areHooksArmed()) {
+        void vscode.window.showInformationMessage(UI_TEXT.hooksNotRunnable)
+        return
+      }
+      const runner = await hookRunnerFor(true)
+      if (runner === undefined) {
+        return
+      }
+      await runner.reload()
+      const hooks = runner.listManual()
+      if (hooks.length === 0) {
+        void vscode.window.showInformationMessage(UI_TEXT.manualHookNone)
+        return
+      }
+      const picked = await vscode.window.showQuickPick(
+        hooks.map((hook) => ({
+          label: hook.description ?? hook.command,
+          description: hook.description === undefined ? hook.source : hook.command,
+          detail: hook.source,
+          command: hook.command,
+        })),
+        { placeHolder: UI_TEXT.manualHookPick },
+      )
+      if (picked === undefined) {
+        return
+      }
+      const name = picked.label
+      const result = await runner.runManual(picked.command)
+      if (!result.matched) {
+        void vscode.window.showInformationMessage(UI_TEXT.manualHookNone)
+      } else if (result.failedReason === undefined) {
+        void vscode.window.showInformationMessage(fill(UI_TEXT.manualHookDone, { name }))
+      } else {
+        void vscode.window.showWarningMessage(
+          fill(UI_TEXT.manualHookFailed, { name, reason: result.failedReason }),
+        )
+      }
+    }),
+  )
+  void withHookRunner((runner) => runner.noteDirectoryAdded(workspaceRoot ?? ''), false).catch(
+    logRejection(log, 'DirectoryAdded hook'),
   )
   void whatsNew.check().catch(logRejection(log, 'What’s New'))
   log.info(`Activated in ${String(Math.round(performance.now() - activationStartedAt))} ms`)
+  // The flight recorder starts once activation is done (M93, D6): it sets
+  // this window's marker and prunes. When the last activation of some window
+  // ended without its deactivate, it is offered once, now that the command
+  // can answer; its marker is already consumed, so a dismissal is remembered.
+  setTimeout(() => {
+    void reports
+      .start()
+      .then(async (shouldOffer) => {
+        if (!shouldOffer) {
+          return
+        }
+        const choice = await vscode.window.showWarningMessage(
+          UI_TEXT.reportCrashOffer,
+          UI_TEXT.reportCrashAction,
+          UI_TEXT.reportCrashDismiss,
+        )
+        if (choice === UI_TEXT.reportCrashAction) {
+          await vscode.commands.executeCommand(COMMAND_IDS.reportProblem)
+        }
+      })
+      .catch(logRejection(log, 'the crash report offer'))
+  }, 0)
 }

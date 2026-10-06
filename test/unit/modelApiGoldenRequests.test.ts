@@ -231,6 +231,9 @@ function normalizeBodies(bodies: readonly string[]): string[] {
   })
 }
 
+// D78 (PLAN.md, FIXDEF follow-up): recall_output is declared only when the
+// request contains a packed observation. Fixtures include the resulting key;
+// all other raw request bytes and the existing id-only normalization stay exact.
 function checkGolden(scenario: string, harness: Harness): void {
   expect(harness.rawBodies).toHaveLength(harness.api.responseBodies().length)
   expect(

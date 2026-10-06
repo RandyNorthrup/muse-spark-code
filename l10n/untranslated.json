@@ -1,5 +1,23 @@
 {
   "ui": {
+    "cs": [
+      "groupModel",
+      "usageModel",
+      "modelPillLabel",
+      "exportModelLine",
+      "agentUntitled",
+      "subagentRowLabel",
+      "exportSubagentNoRole",
+      "agentRole",
+      "agentsCount.one",
+      "toolLabels.shell",
+      "workflowChildUntitled",
+      "agentImportKindHook",
+      "agentImportKindAgent",
+      "teamTemplates.solo",
+      "teamCapabilityWarning",
+      "gitChangeCounts"
+    ],
     "*": [
       "apiKeyPlaceholder",
       "modesHintKeys",
@@ -50,52 +68,33 @@
       "teamJsonRefused",
       "teamSwitchRow",
       "contextMeterUnderOne",
-      "diffTallyLines"
+      "diffTallyLines",
+      "gitPullRequestName",
+      "reportEventItem",
+      "hooksSparkProjectFile",
+      "agentImportSourceGemini",
+      "agentImportSourceWindsurf",
+      "agentImportSourceKiro",
+      "agentImportSourceCline",
+      "agentImportSourceAmp",
+      "agentImportSourceOpenCode"
     ],
-    "cs": [
-      "groupModel",
-      "usageModel",
-      "modelPillLabel",
-      "exportModelLine",
-      "agentUntitled",
-      "subagentRowLabel",
-      "exportSubagentNoRole",
-      "agentRole",
-      "agentsCount.one",
+    "zh-tw": ["toolLabels.shell"],
+    "es": [
+      "usagePlan",
+      "agentTokens",
+      "permissionModes.manual",
       "toolLabels.shell",
-      "workflowChildUntitled",
+      "goalTokens",
       "agentImportKindHook",
-      "agentImportKindAgent",
+      "verifyErrors.one",
+      "teamRolesTitle",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
-    ],
-    "tr": [
-      "groupModel",
-      "usageModel",
-      "modelPillLabel",
-      "exportModelLine",
-      "usagePlan",
-      "teamTemplates.solo",
-      "teamCapabilityWarning"
-    ],
-    "pl": [
-      "groupModel",
-      "usageModel",
-      "modelPillLabel",
-      "exportModelLine",
-      "usagePlan",
-      "usageBackend",
-      "backendItem",
-      "exportBackendLine",
-      "agentUntitled",
-      "exportSubagentNoRole",
-      "agentsCount.one",
-      "imageBuyPrompt",
-      "workflowChildUntitled",
-      "agentImportKindHook",
-      "agentImportKindAgent",
-      "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamSetupSteps.pools",
+      "teamCapabilityWarning",
+      "teamUsageTokens",
+      "hooksItem",
+      "gitChangeCounts"
     ],
     "de": [
       "groupSkills",
@@ -129,21 +128,14 @@
       "teamTemplateSolo",
       "teamTreeLabel",
       "teamOrchestrator",
-      "teamUsageTitle"
-    ],
-    "es": [
-      "usagePlan",
-      "agentTokens",
-      "permissionModes.manual",
-      "toolLabels.shell",
-      "goalTokens",
-      "agentImportKindHook",
-      "verifyErrors.one",
-      "teamRolesTitle",
-      "teamTemplates.solo",
-      "teamSetupSteps.pools",
-      "teamCapabilityWarning",
-      "teamUsageTokens"
+      "teamUsageTitle",
+      "gitCommitItem",
+      "gitPushBranchLine",
+      "gitCommitFormLabel",
+      "gitCommitTitle",
+      "gitChangeCounts",
+      "gitCommitAction",
+      "shellDirectory"
     ],
     "pt-br": [
       "agentTokens",
@@ -155,7 +147,52 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
-      "teamUsageTokens"
+      "teamUsageTokens",
+      "gitPushBranchLine",
+      "gitChangeCounts"
+    ],
+    "ko": ["teamCapabilityWarning", "gitChangeCounts"],
+    "zh-cn": ["toolLabels.shell"],
+    "hu": [
+      "toolLabels.shell",
+      "imageBuyPrompt",
+      "agentImportKindHook",
+      "teamIntensityLevels.max",
+      "teamCapabilityWarning",
+      "gitChangeCounts"
+    ],
+    "pl": [
+      "groupModel",
+      "usageModel",
+      "modelPillLabel",
+      "exportModelLine",
+      "usagePlan",
+      "usageBackend",
+      "backendItem",
+      "exportBackendLine",
+      "agentUntitled",
+      "exportSubagentNoRole",
+      "agentsCount.one",
+      "imageBuyPrompt",
+      "workflowChildUntitled",
+      "agentImportKindHook",
+      "agentImportKindAgent",
+      "teamTemplates.solo",
+      "teamCapabilityWarning",
+      "gitChangeCounts"
+    ],
+    "it": [
+      "usageAccount",
+      "exportOutputLabel",
+      "toolLabels.shell",
+      "imageBuyPrompt",
+      "agentImportKindHook",
+      "teamIntensityLevels.max",
+      "teamTemplates.solo",
+      "teamCapabilityWarning",
+      "teamTreeLabel",
+      "teamUsageTitle",
+      "gitChangeCounts"
     ],
     "fr": [
       "modesTitle",
@@ -179,39 +216,29 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamTemplateSolo",
-      "teamIntensityLevels.minimal"
+      "teamIntensityLevels.minimal",
+      "gitChangeCounts",
+      "gitPrBodyLabel"
     ],
-    "it": [
-      "usageAccount",
-      "exportOutputLabel",
-      "toolLabels.shell",
-      "imageBuyPrompt",
-      "agentImportKindHook",
-      "teamIntensityLevels.max",
+    "tr": [
+      "groupModel",
+      "usageModel",
+      "modelPillLabel",
+      "exportModelLine",
+      "usagePlan",
       "teamTemplates.solo",
       "teamCapabilityWarning",
-      "teamTreeLabel",
-      "teamUsageTitle"
+      "gitChangeCounts"
     ],
-    "zh-cn": ["toolLabels.shell"],
-    "zh-tw": ["toolLabels.shell"],
-    "hu": [
-      "toolLabels.shell",
-      "imageBuyPrompt",
-      "agentImportKindHook",
-      "teamIntensityLevels.max",
-      "teamCapabilityWarning"
-    ],
-    "ko": ["teamCapabilityWarning"],
-    "ru": ["teamCapabilityWarning"]
+    "ru": ["teamCapabilityWarning", "gitChangeCounts"]
   },
   "manifest": {
-    "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],
     "cs": ["views.chatView.name"],
-    "de": ["views.chatView.name", "command.hooks.title"],
-    "es": ["views.chatView.name"],
-    "pt-br": ["views.chatView.name"],
     "fr": ["command.hooks.title"],
-    "it": ["views.chatView.name"]
+    "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],
+    "it": ["views.chatView.name"],
+    "es": ["views.chatView.name", "command.hooks.title"],
+    "de": ["views.chatView.name", "command.hooks.title"],
+    "pt-br": ["views.chatView.name"]
   }
 }

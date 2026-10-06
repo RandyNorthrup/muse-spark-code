@@ -22,6 +22,24 @@ function whatsNewHeadings(text: string): string[] {
 }
 
 describe("the README's What's new section and the manifest version", () => {
+  it('keeps the same quiet star link in the READMEs and first-run welcome', () => {
+    const line =
+      '[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)'
+    for (const file of [
+      'README.md',
+      'docs/marketplace-readme.md',
+      'resources/walkthrough/welcome.md',
+    ]) {
+      expect(read(file), file).toContain(line)
+    }
+    const nls: unknown = JSON.parse(read('package.nls.json'))
+    const description = z
+      .object({ 'walkthrough.gettingStarted.step.welcome.description': z.string() })
+      .parse(nls)['walkthrough.gettingStarted.step.welcome.description']
+    expect(description).toContain(line)
+    expect(read('README.md').indexOf(line)).toBeLessThan(read('README.md').indexOf('**Contents:**'))
+  })
+
   it(`README.md has exactly one What's new section, for ${manifest.version}`, () => {
     expect(whatsNewHeadings(read('README.md'))).toEqual([heading])
   })

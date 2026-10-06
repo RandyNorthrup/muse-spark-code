@@ -1,6 +1,6 @@
 // The VS Code side of "Import from other agents" (M83, PLAN.md D49): the
 // pickers, the read-only preview, the modals, unsaved target edits.
-// Activation retains only `runAgentImport`, the loader shim. The UI entry
+// Activation uses `agentImportBundle.ts`'s loader shim. The UI entry
 // and the scan, plan and writes load together through `agentImportEntry.ts`
 // in the existing import bundle on the first import.
 
@@ -18,6 +18,15 @@ import * as z from 'zod/mini'
 export interface AgentImportHostDeps {
   readonly workspaceRoot: string | undefined
   readonly isActive: () => boolean
+  /**
+   * Whether the project's own configuration may load (M71): VS Code trusts
+   * the folder and the window is not held on someone else's pull request.
+   * Carried as the import's workspace trust so every project-scope read and
+   * editor copy respects the hold; user-scope imports never consult it.
+   */
+  readonly isProjectTrusted: () => boolean
+  /** Whether this window is held on someone else's pull request (M71). */
+  readonly isProjectHeld?: () => boolean
   /** The window's first folder as VS Code names it now. */
   readonly currentRoot: () => string | undefined
   readonly captureOwner?: () => WorkspaceEditRecorder | undefined
@@ -46,10 +55,17 @@ const UNTITLED_SCHEME = 'untitled'
 /** Built when asked, so the labels come from the table installed at activation. */
 function sourceChoices(): readonly SourceChoice[] {
   return [
-    { label: UI_TEXT.agentImportSourceAll, choice: 'all' },
+    { label: UI_TEXT.agentImportSourceEvery, choice: 'all' },
     { label: UI_TEXT.importSourceClaude, choice: 'claudeCode' },
     { label: UI_TEXT.importSourceCodex, choice: 'codex' },
     { label: UI_TEXT.agentImportSourceCursor, choice: 'cursor' },
+    { label: UI_TEXT.agentImportSourceGemini, choice: 'gemini' },
+    { label: UI_TEXT.agentImportSourceCopilot, choice: 'copilot' },
+    { label: UI_TEXT.agentImportSourceWindsurf, choice: 'windsurf' },
+    { label: UI_TEXT.agentImportSourceKiro, choice: 'kiro' },
+    { label: UI_TEXT.agentImportSourceCline, choice: 'cline' },
+    { label: UI_TEXT.agentImportSourceAmp, choice: 'amp' },
+    { label: UI_TEXT.agentImportSourceOpenCode, choice: 'opencode' },
   ]
 }
 
@@ -99,12 +115,6 @@ function mergedConfig(
   }
 }
 
-export async function runAgentImport(deps: AgentImportHostDeps): Promise<void> {
-  // Only this shim is retained by activation; the existing UI implementation
-  // is exported to the import bundle and is tree-shaken from the shim's caller.
-  await deps.bundle().runAgentImport(deps, UI_TEXT, uiLocale())
-}
-
 export async function runAgentImportUi(deps: AgentImportHostDeps): Promise<void> {
   // Load the bundle first: a window without it says so before any picker opens.
   const { importFromAgents } = deps.bundle()
@@ -123,7 +133,8 @@ export async function runAgentImportUi(deps: AgentImportHostDeps): Promise<void>
           .map((folder) => folder.uri.fsPath) ??
         (deps.workspaceRoot === undefined ? [] : [deps.workspaceRoot]),
       currentRoot: deps.currentRoot,
-      isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+      isWorkspaceTrusted: deps.isProjectTrusted,
+      ...(deps.isProjectHeld !== undefined && { isProjectHeld: deps.isProjectHeld }),
       isActive: deps.isActive,
       museSettingsFile: deps.museSettingsPath(),
       editProject: deps.editProject,

@@ -4,9 +4,13 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { build } from 'esbuild'
 import { describe, expect, it, vi } from 'vitest'
-import { deferredCohort } from '../../scripts/lib/deferredTeamView.mjs'
-import { sharedValidation } from '../../scripts/lib/sharedValidation.mjs'
-import { sharedUiText } from './helpers/modelApiBundle'
+import {
+  deferredCohort,
+  sharedValidation,
+  sharedUiText,
+  sharedWire,
+} from '../../scripts/lib/deferredBundles.mjs'
+import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
 import { EN } from '../../src/shared/l10n/en'
 
 const require = createRequire(import.meta.url)
@@ -31,7 +35,7 @@ describe('packaged team factories', () => {
           teamRunners: 'src/host/runners/teamRunnersEntry.ts',
         },
         outdir: folder,
-        plugins: [sharedUiText, sharedValidation, deferredCohort],
+        plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
       })
       await build({
         ...common,
@@ -40,6 +44,12 @@ describe('packaged team factories', () => {
           uiText: 'src/shared/l10n/en.ts',
         },
         outdir: folder,
+      })
+      await build({
+        ...common,
+        entryPoints: ['src/shared/wireEntry.ts'],
+        outfile: path.join(folder, 'wire.js'),
+        plugins: [sharedUiText, sharedValidation, deferredTeamView],
       })
       const runtime = require(path.join(folder, 'team.js')).createTeamRuntime(EN, 'en')
       const schedulerFile = path.join(folder, 'teamScheduler.js')

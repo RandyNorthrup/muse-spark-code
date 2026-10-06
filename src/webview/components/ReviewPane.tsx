@@ -6,7 +6,11 @@
 // running turn as a steer, or as the next message when nothing runs.
 
 import { useId, useState } from 'react'
-import { REVIEW_COMMENT_CONTEXT_LINES, REVIEW_MODEL_TEXT, UI_TEXT } from '../../shared/constants'
+import {
+  REVIEW_COMMENT_CONTEXT_LINES,
+  REVIEW_COMMENT_MODEL_TEXT,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 import {
   ADD_MARKER,
@@ -76,7 +80,7 @@ function commentReference(path: string, rows: readonly DiffRow[], index: number)
   const row = rows[index]
   const heading =
     row?.kind === 'remove'
-      ? fill(REVIEW_MODEL_TEXT.reviewRemovedLine, { path, line: String(row.oldLine ?? '') })
+      ? fill(REVIEW_COMMENT_MODEL_TEXT.reviewRemovedLine, { path, line: String(row.oldLine ?? '') })
       : `${path}:${String(row?.newLine ?? '')}`
   const around = rows
     .slice(

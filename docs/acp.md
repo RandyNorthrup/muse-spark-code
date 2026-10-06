@@ -423,3 +423,56 @@ the ACP package. These factories need the editor/window runtime to supply
 journalled launch, ownership, permissions and landing; team dispatch and the
 Traffic/Runners panel remain unavailable until those bindings are integrated.
 Packaging them does not enable remote execution or spend.
+
+## Report a problem (M93)
+
+`muse-spark-code-acp report` prints the same kind of scrubbed problem report
+the VS Code extension previews, without starting anything:
+
+```text
+muse-spark-code-acp report [--out <file>] [--description <text>] [--no-facts] [--no-events]
+```
+
+It starts no backend, signs in nowhere, opens no browser and makes no
+network or model call. It reads only the agent's own failure journals and
+gathers local facts: the agent and Node versions, the platform, whether the
+Muse Code CLI was found and is signed in (from the credential file's
+structure only), and whether a Model API key is stored or `META_API_KEY`
+was set (yes or no only). The report goes to stdout, or with `--out` it is
+written to `<file>` and nothing goes to stdout. `--no-facts` and
+`--no-events` leave those sections out. `report` creates no activation
+marker and consumes none. Exits: 0 printed or saved, 1 the report could not
+be built or written, 2 bad arguments.
+
+Each agent process writes its own journal,
+`<data folder>/reports/journal-<process>.jsonl`, through the extension's own
+recorder and under the same policy. The data folder is
+`%LOCALAPPDATA%\Muse Spark Code` on Windows,
+`~/Library/Application Support/Muse Spark Code` on macOS and
+`$XDG_DATA_HOME/muse-spark-code` (or `~/.local/share/muse-spark-code`) on
+Linux.
+
+- A journal keeps records for 7 days and at most 256 KiB, oldest removed
+  first. It is pruned at each new record and each time `report` reads it.
+- A record holds only fixed fields: one with an unknown field is rejected,
+  and a torn or tampered line is skipped. Records are validated when written
+  and again when read.
+- Symbolic links, hard links and unexpected files in `reports/` are
+  refused.
+- A journal that was never written reads as no recent events. When the
+  folder cannot be used, the report says "event recording was unavailable".
+
+In ACP mode (`muse-spark-code-acp` serving an editor) the agent records its
+own failures there as fixed words (`updateNotSent`, `skillsUnavailable`,
+`permissionRequestFailed`, `approvalWithoutDenial`, `questionFailed`), with
+no frames, messages, paths, prompts or session ids. It never writes report
+text to ACP stdout. While it serves, a marker beside its journal keeps
+another process's cleanup away from that journal; outside VS Code there is
+no crash offer.
+
+The standalone report says `vscode: none (standalone agent)`, gives the
+backend and sandbox as `auto`, and lists no setting names. A credential
+store the process cannot read reads as no stored key. Anything typed into
+`--description` is capped at 2,000 characters and scrubbed with the rest of
+the draft, but like shell history it still passes through the terminal, so
+keep secrets out of it.

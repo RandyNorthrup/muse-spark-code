@@ -15,6 +15,8 @@ import {
   type BrowserRuntimeMode,
   type CheckCommandSetting,
   type EnvironmentVariable,
+  JUDGE_ENGINES,
+  type JudgeEngine,
   PROMPT_CACHE_RETENTIONS,
   type PromptCacheRetention,
   SANDBOX_NETWORK_MODES,
@@ -23,6 +25,16 @@ import {
   SETTINGS_SECTION,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
+  TAB_DAILY_BUDGET_MAX_USD,
+  TAB_DAILY_BUDGET_MIN_USD,
+  TAB_MODELS,
+  TAB_MULTILINE_MODES,
+  TAB_TRIGGER_MODES,
+  TAB_WITH_COPILOT_MODES,
+  type TabModel,
+  type TabMultiline,
+  type TabTrigger,
+  type TabWithCopilot,
 } from '../shared/constants'
 import type { PermissionSettings } from '../core/permissionSettings'
 import { type SettingsSnapshot, settingsSnapshotShape } from '../shared/protocol'
@@ -58,6 +70,12 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiTeamWorkers: boolean
   /** Configured hooks are enabled by default (D78), in trusted workspaces only. */
   readonly modelApiHooks: boolean
+  /** The Model API shell keeps its directory between calls (M91 lane S): on until turned off. */
+  readonly modelApiShellKeepsDirectory: boolean
+  /** M91 prompt/agent hook handlers (D70): on by default, the setting is the kill switch. */
+  readonly modelApiHookModels: boolean
+  /** M91 http hook handlers (D70): allowlisted hosts, empty by default. */
+  readonly hookHttpAllowedHosts: readonly string[]
   /**
    * M78 (PLAN.md D49): each kept whole here; the Model API bundle parses
    * every rule and profile and reports what it refuses (permissionPolicy.ts).
@@ -68,6 +86,22 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiRepositoryRules: unknown
   /** Paid Auto reviewer availability (M78, D78); each use needs consent. */
   readonly modelApiAutoReviewer: boolean
+  /** Inline completions (M94, PLAN.md D73): on only with the price accepted too. */
+  readonly modelApiTab: boolean
+  /** The model Tab completion requests use (Q-M94b). */
+  readonly tabModel: TabModel
+  /** The hard daily budget in US dollars for Tab requests (Q-M94c). */
+  readonly tabDailyBudgetUsd: number
+  /** The languages Tab suggests in, like `github.copilot.enable`. */
+  readonly tabLanguages: Readonly<Record<string, boolean>>
+  /** When Tab adds surrounding context for multi-line completions. */
+  readonly tabMultiline: TabMultiline
+  /** Whether Tab suggests automatically or only when invoked. */
+  readonly tabTrigger: TabTrigger
+  /** What Tab does where GitHub Copilot also suggests. */
+  readonly tabWithCopilot: TabWithCopilot
+  /** The Muse Judge's engine (M98, PLAN.md D77): `auto` is `same` in phase 1. */
+  readonly 'judge.engine': JudgeEngine
   /** The verify loop (M68, PLAN.md D49): diagnostics after edits, check commands, format on edit. */
   readonly diagnosticsAfterEdits: boolean
   readonly checkCommands: readonly CheckCommandSetting[]
@@ -126,11 +160,24 @@ const settingSchemas = {
   modelApiBestOfN: z.boolean(),
   modelApiTeamWorkers: z.boolean(),
   modelApiHooks: z.boolean(),
+  modelApiShellKeepsDirectory: z.boolean(),
+  modelApiHookModels: z.boolean(),
+  hookHttpAllowedHosts: z.array(z.string()),
   modelApiCommandRules: z.array(z.unknown()),
   modelApiPermissionProfiles: z.record(z.string(), z.unknown()),
   modelApiPermissionProfile: z.unknown(),
   modelApiRepositoryRules: z.unknown(),
   modelApiAutoReviewer: z.boolean(),
+  modelApiTab: z.boolean(),
+  tabModel: z.enum(TAB_MODELS),
+  tabDailyBudgetUsd: z
+    .number()
+    .check(z.gte(TAB_DAILY_BUDGET_MIN_USD), z.lte(TAB_DAILY_BUDGET_MAX_USD)),
+  tabLanguages: z.record(z.string(), z.boolean()),
+  tabMultiline: z.enum(TAB_MULTILINE_MODES),
+  tabTrigger: z.enum(TAB_TRIGGER_MODES),
+  tabWithCopilot: z.enum(TAB_WITH_COPILOT_MODES),
+  'judge.engine': z.enum(JUDGE_ENGINES),
   diagnosticsAfterEdits: z.boolean(),
   checkCommands: checkCommandsSchema,
   formatOnEdit: z.boolean(),
@@ -223,6 +270,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
     modelApiTeamWorkers: readSetting(config, 'modelApiTeamWorkers', log),
     modelApiHooks: readSetting(config, 'modelApiHooks', log),
+    modelApiShellKeepsDirectory: readSetting(config, 'modelApiShellKeepsDirectory', log),
+    modelApiHookModels: readSetting(config, 'modelApiHookModels', log),
+    hookHttpAllowedHosts: readSetting(config, 'hookHttpAllowedHosts', log),
     diagnosticsAfterEdits: readSetting(config, 'diagnosticsAfterEdits', log),
     checkCommands: readSetting(config, 'checkCommands', log),
     formatOnEdit: readSetting(config, 'formatOnEdit', log),
@@ -243,7 +293,15 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiPermissionProfile: readSetting(config, 'modelApiPermissionProfile', log),
     modelApiRepositoryRules: readSetting(config, 'modelApiRepositoryRules', log),
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
+    'judge.engine': readSetting(config, 'judge.engine', log),
     museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),
+    modelApiTab: readSetting(config, 'modelApiTab', log),
+    tabModel: readSetting(config, 'tabModel', log),
+    tabDailyBudgetUsd: readSetting(config, 'tabDailyBudgetUsd', log),
+    tabLanguages: readSetting(config, 'tabLanguages', log),
+    tabMultiline: readSetting(config, 'tabMultiline', log),
+    tabTrigger: readSetting(config, 'tabTrigger', log),
+    tabWithCopilot: readSetting(config, 'tabWithCopilot', log),
   }
 }
 

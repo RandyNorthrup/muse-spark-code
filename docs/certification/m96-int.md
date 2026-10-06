@@ -655,3 +655,77 @@ commits across two certification records and historical auth-source tests.
 Only rule/file/line/commit metadata is retained. Matched text is never copied;
 no scanner ignore or historical rewrite is introduced. This remains a
 lead-owned release blocker, distinct from staged hook scanning.
+
+## M96INT round 3c preflight (2026-10-05, macmini)
+
+Branch `m96/int3c`, base `30105e49`. W final fixes at `71baf294` merge
+as `9dcd95cc`; the package diet merge retains parent `be00b172`. W remains
+the shared Git classifier owner, including I's earlier stricter option
+regressions. No live model attempts, paid calls or pushes.
+
+Every one of the inherited 64 runtime failures is a pre-D78 fixture
+expectation. D78 FIXDEF explicitly offers packed recall only after an
+observation is packed, preserving the unused request and cache key.
+The product already follows that rule; nine fixtures now follow it too.
+Only the unused recall declaration and its derived cache key change in
+16 request bodies. Raw equality, packed recall, compaction, the team-disabled
+zero-loader proof and the request builder all remain enforced. The complete
+69-test golden file passes. The exact case table and request-index evidence
+are in `m96-int-round3c-d78.md` and `.json`.
+
+TeamUi lazily groups tree, cards, worker labels and the team usage section.
+Shared dependencies stay charged to startup or ordinary deferred UI. The
+new 25 KiB team entry follows D6; every existing cap stays fixed. Browser
+startup is 875,810/921,600 B, team UI 16,088/25,600 B and ordinary deferred
+51,098/51,200 B. Runtime and browser proofs use the same production
+shared-wire/deferred resolver; no alternate classifier or resolver is kept.
+The row rendering retains the order, values, formatting and controls.
+React review checks module-scope lazy declarations, Suspense boundaries,
+stable hooks, semantic dl/dt/dd pairs and existing UI accessibility checks.
+
+Five-project typecheck passes. Focused checks pass 76 MCP, 45 paid consent,
+51 team/runtime-package, 92 transcript/report/card and 22 browser tests;
+the English/region/VSIX packaging batch passes 59. The combined golden,
+UsageDialog and startup batch passes 116. Localization reports 14 tables,
+165 manifest strings, 693 source files and zero problems. Host API and
+third-party notices regenerate against the integrated tree.
+
+The unconditional-recall drill fails exactly 64 tests; exact source
+restoration returns all 69 to green. Omitting TeamTree from the accounted
+team output fails the new split row, and exact metadata restoration passes.
+The browser size drill pads the team chunk, sees the team UI cap fail,
+restores its SHA exactly, and passes. SHA receipts and machine-readable
+preflight results are in `m96-int-round3c-results.json`.
+
+Brotli 11 took 8.9 seconds for the combined translation bytes and exceeded
+the existing staging deadline. Level 10 took 3.5 seconds with a 10 KB larger
+archive. Exact values, source digests, native CommonJS export discovery,
+test deadlines and size caps remain unchanged. The 59-test packaging batch
+passes with level 10; actual package bytes and final quality follow below.
+
+Windows-native proof is the REDWINI96 host lane's responsibility and is
+merged in round 3d. This Mac receipt does not certify Windows. The inherited
+M95 Models & Agents shell and concrete runtime/accounting/launch/landing
+binding prerequisites remain documented in the earlier integration record.
+
+Round 3c package measurements pass the unchanged 2,252,800 B VSIX cap:
+helperless 2,121,414 B; universal 2,204,233 B (48,567 B headroom).
+The universal helper is built locally from the integrated Swift source,
+contains arm64 and x86_64 slices, embeds package version 0.14.0, and passes
+the real disclaimed-process SIGTERM check (143). It is not represented as
+the published 0.13.0 helper. The private ACP tarball is 1,088,885 B.
+Both VSIX packages include team/teamScheduler/teamRunners, the solid code
+archive, both runner helpers and the emitted TeamUi browser chunk. Native
+Node import and require proofs pass all 37 VSIX and 18 ACP modules. Package
+SHA-256 and inventories are recorded in round3c-results; archives stay in
+OS temporary storage, outside lint's repository traversal.
+
+Initial global lint identified nine merge issues, all repaired without rule
+changes: existing async paidUseQuestion callers now await/reject correctly;
+ACP retains its runner-directory copy import; set difference and tuple-array
+syntax follow the project rules. Reuse the hook-consent test's existing
+setup instead of duplicating the team-consent setup. The affected paid suites
+pass all 50, deadcode/cycles pass, and jscpd reports zero clones across 1,365
+files. Production build, every size/split/host-global gate and notices pass.
+The copied vendor documentation fixture remains byte-exact despite its
+inherited whitespace; no citation source or formatting ignore changes.

@@ -131,7 +131,7 @@ describe('RVM96B browser regressions', () => {
 
   it('23 counts lazy bytes in the deferred size gate and restores its chunk byte-exact', () => {
     const meta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
-    const chunk = Object.keys(meta.outputs).find((file) => file.includes('/TeamTree-'))
+    const chunk = Object.keys(meta.outputs).find((file) => file.includes('/TeamUi-'))
     expect(chunk).toBeDefined()
     const original = readFileSync(chunk)
     const sha = createHash('sha256').update(original).digest('hex')
@@ -141,7 +141,7 @@ describe('RVM96B browser regressions', () => {
         encoding: 'utf8',
       })
       expect(red.status).toBe(1)
-      expect(red.stdout).toContain('OVER dist/webview deferred JS')
+      expect(red.stdout).toContain('OVER dist/webview team UI')
     } finally {
       writeFileSync(chunk, original)
     }
