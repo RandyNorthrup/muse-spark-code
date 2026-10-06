@@ -26,6 +26,8 @@ happened, not what was planned; superseded entries are kept.
   stay dismissed through model switches and saved conversation restoration.
   Plan billing disclosures survive a temporarily empty model catalogue.
   Subscription commands install the language in both deferred bundles.
+  Corrupted subscription records return a fixed error without exposing their
+  stored text through JSON parsing failures.
 
 
 - ChatGPT provider add, remove and status commands now reach the ACP executable
