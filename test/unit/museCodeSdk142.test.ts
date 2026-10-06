@@ -284,6 +284,64 @@ describe('Muse Code 1.4.2 feature ports', () => {
     expect(log.error).toHaveBeenCalledExactlyOnceWith('MSP observer failed')
   })
 
+  it.each([
+    ['completed', 'connection close'],
+    ['completed', 'host exit'],
+    ['completed', 'host close'],
+    ['failed', 'connection close'],
+    ['failed', 'host exit'],
+    ['failed', 'host close'],
+  ] as const)('preserves a validated %s deletion terminal racing %s', async (outcome, ending) => {
+    const fixture = await trackedDeletion({ outcome, reason: 'terminal evidence' })
+    const { host, server, events, reader } = fixture
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const history = new Set([record.sessionId])
+    let closing: Promise<void> | undefined
+    const visible = vi.fn((event: MuseCodeLifecycleEvent) => {
+      if (event.type !== 'deleteCompleted') return
+      if (event.outcome === 'completed') history.delete(event.sessionId)
+      if (ending === 'host exit') fixture.exit(1)
+      else if (ending === 'host close') closing = host.close()
+    })
+    host.onMuseCodeLifecycleEvent(visible)
+    server.followWith('session/delete', (params) => {
+      events.push(deletion(String(params['commandId']), { outcome, reason: 'terminal evidence' }))
+      // End the actual SDK transport with admission and terminal in its final read.
+      if (ending === 'connection close') server.close()
+      return [{ jsonrpc: '2.0', method: 'session/deleteCompleted', params: {} }]
+    })
+    await expect(host.deleteSession('s')).resolves.toMatchObject({
+      outcome,
+      reason: 'terminal evidence',
+    })
+    await closing
+    await settle()
+    expect(reader.parseDeleteAdmission).toHaveBeenCalledOnce()
+    expect(visible).toHaveBeenCalledOnce()
+    expect(history.has('s')).toBe(outcome === 'failed')
+    expect(host.sessionCount).toBe(outcome === 'failed' && ending !== 'host close' ? 1 : 0)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('keeps the first validated deletion terminal when a later terminal disagrees', async () => {
+    const { host, server, events } = await trackedDeletion()
+    let closing: Promise<void> | undefined
+    host.onMuseCodeLifecycleEvent((event) => {
+      if (event.type === 'deleteCompleted' && event.outcome === 'failed') closing = host.close()
+    })
+    server.followWith('session/delete', (params) => {
+      const commandId = String(params['commandId'])
+      events.push(deletion(commandId), deletion(commandId, { outcome: 'failed' }))
+      return [
+        { jsonrpc: '2.0', method: 'session/deleteCompleted', params: {} },
+        { jsonrpc: '2.0', method: 'session/deleteCompleted', params: {} },
+      ]
+    })
+    await expect(host.deleteSession('s')).resolves.toMatchObject({ outcome: 'completed' })
+    await closing
+    expect(host.sessionCount).toBe(0)
+  })
+
   it.each(['connection close', 'host exit', 'host close'] as const)(
     'rejects admitted deletion promptly on %s without reporting the session deleted',
     async (ending) => {

@@ -547,6 +547,52 @@ describe('MuseCodeHost', () => {
     expect(calls).toBe(2)
   })
 
+  it('delivers a validated completion to the remaining session observer', async () => {
+    const { host, server, log } = setup()
+    const session = await host.startSession(startOptions)
+    const first = vi.fn(() => {
+      throw new Error('disposed completion surface / private observer detail')
+    })
+    const remaining = vi.fn()
+    session.onEvent(first)
+    session.onEvent(remaining)
+    server.notify('turn/completed', {
+      sessionId: session.sessionId,
+      turnId: 'turn-1',
+      terminal: 'completed',
+    })
+    await settle()
+    const completion = { type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' }
+    expect(first).toHaveBeenCalledExactlyOnceWith(completion)
+    expect(remaining).toHaveBeenCalledExactlyOnceWith(completion)
+    expect(log.error).toHaveBeenCalledExactlyOnceWith('MSP observer failed')
+  })
+
+  it.each(['early events', 'open prompts'] as const)(
+    'returns an unsubscribe and replays the remaining %s after an observer throws',
+    async (backlog) => {
+      const { host, server, log } = setup()
+      const session = await host.startSession(startOptions)
+      if (backlog === 'open prompts') session.onEvent(() => undefined)
+      server.notify('approval/requested', approvalParams(session.sessionId, 1))
+      server.notify('userInput/requested', questionParams(session.sessionId))
+      await settle()
+      const listener = vi.fn((_event: AgentEvent) => {
+        throw new Error('disposed replay surface / private observer detail')
+      })
+      const unsubscribe = session.onEvent(listener)
+      expect(listener.mock.calls.map(([event]) => event)).toEqual([
+        expect.objectContaining({ type: 'approvalRequested', isReplayed: true }),
+        expect.objectContaining({ type: 'questionRequested', isReplayed: true }),
+      ])
+      expect(log.error.mock.calls).toEqual([['MSP observer failed'], ['MSP observer failed']])
+      unsubscribe()
+      server.notify('session/statusChanged', { sessionId: session.sessionId, status: 'idle' })
+      await settle()
+      expect(listener).toHaveBeenCalledTimes(2)
+    },
+  )
+
   it('fails a command that never answers instead of waiting for ever (D25)', async () => {
     const { host, server } = setup({ timeouts: { normalMs: 50, longMs: 100 } })
     server.silence('model/list')
@@ -1287,7 +1333,7 @@ describe('MuseCodeHost: prompts, receipts and resume (D26)', () => {
     server.notify('turn/started', { sessionId: session.sessionId, turnId: 't1' })
     await settle()
     const lines = log.error.mock.calls.map(([line]) => String(line)).join('\n')
-    expect(lines).toContain('could not be handled: Error')
+    expect(lines).toBe('MSP observer failed')
     expect(lines).not.toContain('alice@example.test')
     expect(lines).not.toContain('/Users/alice/private-project')
   })
@@ -2168,6 +2214,25 @@ describe('MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03)', 
     expect(countLogged(log, 'event log failed (internal (MSP error -32603))')).toBe(1)
     // The CLI's own words never reach the log (AGENTS.md rule 8).
     expect(countLogged(log, 'conflicts with an existing event')).toBe(0)
+  })
+
+  it('delivers log-damage recovery to the remaining session observer and preserves the MSP failure', async () => {
+    const { host, server, log } = setup()
+    const session = await host.startSession(startOptions)
+    const first = vi.fn(() => {
+      throw new Error('disposed recovery surface / private observer detail')
+    })
+    const remaining = vi.fn()
+    session.onLogDamaged(first)
+    session.onLogDamaged(remaining)
+    server.handle('turn/start', eventLogFault)
+    await expect(session.sendTurn(steered)).rejects.toMatchObject({
+      message: EVENT_LOG_SUBMIT_MESSAGE,
+      kind: 'internal',
+    })
+    expect(first).toHaveBeenCalledOnce()
+    expect(remaining).toHaveBeenCalledOnce()
+    expect(log.error).toHaveBeenCalledExactlyOnceWith('MSP observer failed')
   })
 })
 

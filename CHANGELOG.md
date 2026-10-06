@@ -22,6 +22,9 @@ happened, not what was planned; superseded entries are kept.
 - Muse Code deletion completion and handle cleanup survive throwing surface
   observers. Unconfirmed deletion now rejects on connection close, process
   exit, host close or its terminal deadline without reporting success.
+- Validated Muse Code deletion results now survive shutdown racing their
+  admission. Session completion, recovery and backlog observers each run
+  even when another surface's callback throws.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

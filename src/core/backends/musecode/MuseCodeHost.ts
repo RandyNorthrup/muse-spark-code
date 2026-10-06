@@ -92,6 +92,7 @@ import {
   SteerRefusedError,
 } from '../../agent/agentBackend'
 import type { CoreLogger } from '../../logging'
+import { notify } from '../../events/notify'
 import {
   MALFORMED_PARAMS,
   mapNotification,
@@ -719,9 +720,7 @@ export class MuseSession implements AgentSession {
     this.log.warn(
       `Muse Code reported session ${this.sessionId}'s event log failed (${failureForLog(error)}); the session takes no new message`,
     )
-    for (const listener of this.logDamagedListeners) {
-      listener()
-    }
+    notify(this.logDamagedListeners, undefined, this.log, 'MSP')
   }
 
   private finishDispose(): void {
@@ -924,7 +923,12 @@ export class MuseSession implements AgentSession {
     const backlog = this.early ?? this.prompts.open()
     this.early = undefined
     for (const event of backlog) {
-      listener(isPendingPrompt(event) ? { ...event, isReplayed: true } : event)
+      notify(
+        [listener],
+        isPendingPrompt(event) ? { ...event, isReplayed: true } : event,
+        this.log,
+        'MSP',
+      )
     }
     return () => {
       this.listeners.delete(listener)
@@ -956,9 +960,7 @@ export class MuseSession implements AgentSession {
       this.early.push(admitted)
       return
     }
-    for (const listener of this.listeners) {
-      listener(admitted)
-    }
+    notify(this.listeners, admitted, this.log, 'MSP')
   }
 
   /** Submit one user turn; queued behind a running turn by host default. */
@@ -1330,7 +1332,7 @@ export class MuseCodeHost implements AgentHost {
         timeouts.unresponsiveSilenceMs ?? MSP_UNRESPONSIVE_SILENCE_MS,
         log,
         () => {
-          this.notifyObservers(this.unresponsiveListeners, undefined)
+          notify(this.unresponsiveListeners, undefined, this.log, 'MSP')
         },
       ),
     }
@@ -1393,19 +1395,8 @@ export class MuseCodeHost implements AgentHost {
       } else {
         this.log.warn(`muse serve exited (${described.description})`)
       }
-      this.notifyObservers(this.exitListeners, described)
+      notify(this.exitListeners, described, this.log, 'MSP')
     })
-  }
-
-  /** Public surfaces cannot interrupt private lifecycle bookkeeping or one another. */
-  private notifyObservers<T>(listeners: ReadonlySet<(event: T) => void>, event: T): void {
-    for (const listener of listeners) {
-      try {
-        listener(event)
-      } catch {
-        this.log.error('MSP observer failed')
-      }
-    }
   }
 
   /** One notification: a host-level event, or a session's. */
@@ -1517,21 +1508,19 @@ export class MuseCodeHost implements AgentHost {
     ) {
       const event = this.features.lifecycle.parseNotification({ method, params })
       if (event.type === 'started') {
-        this.notifyObservers(this.listListeners, { type: 'changed', record: event.record })
+        notify(this.listListeners, { type: 'changed', record: event.record }, this.log, 'MSP')
       }
       if (event.type === 'deleteCompleted' && event.outcome === 'completed') {
         this.sessions.get(event.sessionId)?.disposeAll()
       }
-      for (const listener of this.deletionTerminalListeners) {
-        listener(event)
-      }
-      this.notifyObservers(this.lifecycleListeners, event)
+      notify(this.deletionTerminalListeners, event, this.log, 'MSP')
+      notify(this.lifecycleListeners, event, this.log, 'MSP')
       return true
     }
     if (method === USAGE_CHANGED) {
       const parsed = subscriptionUsageSchema.safeParse(params)
       if (parsed.success) {
-        this.notifyObservers(this.usageListeners, parsed.data)
+        notify(this.usageListeners, parsed.data, this.log, 'MSP')
       } else {
         this.warnShape(method)
       }
@@ -1545,7 +1534,7 @@ export class MuseCodeHost implements AgentHost {
       this.warnShape(method)
       return true
     }
-    this.notifyObservers(this.listListeners, event)
+    notify(this.listListeners, event, this.log, 'MSP')
     return true
   }
 
@@ -1749,18 +1738,27 @@ export class MuseCodeHost implements AgentHost {
     const signal = this.deletionStopped.signal
     signal.throwIfAborted()
     const commandId = this.channel.connection.mintCommandId()
+    const deletion: {
+      state:
+        | { phase: 'pending' }
+        | { phase: 'terminalValidated'; event: MuseCodeLifecycleEvent }
+        | { phase: 'reported' }
+    } = { state: { phase: 'pending' } }
     // Arm before dispatch: the notification can be in the same read as admission.
     let onTerminal: ((event: MuseCodeLifecycleEvent) => void) | undefined
     const terminal = new Promise<MuseCodeLifecycleEvent>((resolve) => {
       onTerminal = (event) => {
         if (
-          event.type === 'deleteCompleted' &&
-          event.sessionId === sessionId &&
-          event.commandId === commandId &&
-          (event.outcome === 'completed' || event.outcome === 'failed')
+          deletion.state.phase !== 'pending' ||
+          event.type !== 'deleteCompleted' ||
+          event.sessionId !== sessionId ||
+          event.commandId !== commandId ||
+          (event.outcome !== 'completed' && event.outcome !== 'failed')
         ) {
-          resolve(event)
+          return
         }
+        deletion.state = { phase: 'terminalValidated', event }
+        resolve(event)
       }
       this.deletionTerminalListeners.add(onTerminal)
     })
@@ -1787,7 +1785,12 @@ export class MuseCodeHost implements AgentHost {
         this.timeouts.deleteTerminalMs ?? this.timeouts.longMs,
         UI_TEXT.sessionDeleteTimedOut,
       )
+    } catch (error: unknown) {
+      // Dispatch validated the terminal before shutdown; async admission may still be resuming.
+      if (deletion.state.phase === 'terminalValidated') return deletion.state.event
+      throw error
     } finally {
+      deletion.state = { phase: 'reported' }
       if (onTerminal !== undefined) this.deletionTerminalListeners.delete(onTerminal)
       if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
     }
