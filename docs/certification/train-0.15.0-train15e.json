@@ -4,8 +4,8 @@
   "branch": "release/train-0.15.0",
   "input": "77dbd65d2",
   "merged": "f07bf3e51",
-  "implementationCommit": null,
-  "finishedAt": "2026-10-06T18:20:27.616Z",
+  "implementationCommit": "046ccb08f42552ce59d3b736b160c42b82988070",
+  "finishedAt": "2026-10-06T18:30:51.758Z",
   "network": "No public network, live or paid model calls; named badge network-only skip. No installs or credential reads.",
   "conflicts": [
     ".vscodeignore",
@@ -304,6 +304,20 @@
       "log": "stdio-final2.log"
     },
     {
+      "file": "test/e2e/execTestLauncher.e2e.test.ts",
+      "tests": 6,
+      "detail": "6 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-1.log"
+    },
+    {
+      "file": "test/unit/acpAgent.test.ts",
+      "tests": 100,
+      "detail": "100 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-0.log"
+    },
+    {
       "file": "test/unit/acpModelApi.test.ts",
       "tests": null,
       "detail": null,
@@ -549,6 +563,20 @@
       "log": "account-ledger-codec-final.log"
     },
     {
+      "file": "test/unit/handoffDialog.test.tsx",
+      "tests": 14,
+      "detail": "14 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-1.log"
+    },
+    {
+      "file": "test/unit/hostBridge.test.ts",
+      "tests": 4,
+      "detail": "4 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-1.log"
+    },
+    {
       "file": "test/unit/insights.test.ts",
       "tests": null,
       "detail": null,
@@ -780,6 +808,13 @@
       "log": "sweep-18.log"
     },
     {
+      "file": "test/unit/ndjson.test.ts",
+      "tests": 8,
+      "detail": "8 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-0.log"
+    },
+    {
       "file": "test/unit/observationPack.test.ts",
       "tests": null,
       "detail": null,
@@ -792,6 +827,13 @@
       "detail": "1 failed",
       "passed": false,
       "log": "rerun-10.log"
+    },
+    {
+      "file": "test/unit/paidHost.test.ts",
+      "tests": 34,
+      "detail": "34 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-0.log"
     },
     {
       "file": "test/unit/paletteRegistry.test.ts",
@@ -1081,6 +1123,13 @@
       "log": "sweep-1.log"
     },
     {
+      "file": "test/unit/usagePackaging.test.mjs",
+      "tests": 4,
+      "detail": "4 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-2.log"
+    },
+    {
       "file": "test/unit/usagePanel.test.ts",
       "tests": null,
       "detail": null,
@@ -1156,6 +1205,13 @@
       "detail": null,
       "passed": true,
       "log": "fix3.log"
+    },
+    {
+      "file": "test/unit/webviewBundles.test.mjs",
+      "tests": 7,
+      "detail": "7 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-2.log"
     }
   ],
   "gateResults": [
@@ -1840,5 +1896,15 @@
       "name": "Release certification",
       "result": "Full quality, hosted/native/live receipts remain external; these local packages are unpublished."
     }
-  ]
+  ],
+  "implementationTree": "d512a75b80de859c5a5abf5714a975ced301c079",
+  "implementationParents": [
+    "77dbd65d29d5c007f08973afe0a300e4208b4707",
+    "f07bf3e513e4c0df47d44766608050bdbe2201ad"
+  ],
+  "commitHooks": {
+    "merge": "Normal lint-staged ESLint/Prettier/CSS and staged Gitleaks passed; no bypass.",
+    "scannerBytes": 4543852,
+    "result": "no leaks found"
+  }
 }

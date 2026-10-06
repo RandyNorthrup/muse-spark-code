@@ -846,7 +846,7 @@ dpdm, zero-threshold duplication, real PSScriptAnalyzer, exec schemas,
 localization (14 UI / 14 usage tables, 186 manifest strings, 892 files) and
 regenerated/checked host inventory (362 APIs, 40 vscode importers, 27 Node
 built-ins, 66 theme variables) pass. The loader batch passes 87 tests.
-The complete owning receipt lists 124 unique files: 122
+The complete owning receipt lists 132 unique files: 130
 have a positive whole-file result, with the two exceptions below. Batches
 use at most three files/workers and testTimeout=120000; no filtering or
 new skips. Normal local commit hooks are kept on.
@@ -880,3 +880,13 @@ rebase, manual stash or Git configuration write occurs. Badge checks use
 the named network-only skip; source and exact-stage checks still run.
 Exact conflicts, owning filenames, samples, hashes and artifact measurements
 are in train-0.15.0-train15e.json.
+
+Implementation merge `046ccb08f42552ce59d3b736b160c42b82988070` has the authorized parents
+`77dbd65d29d5c007f08973afe0a300e4208b4707` and `f07bf3e513e4c0df47d44766608050bdbe2201ad`. Normal lint-staged
+ESLint/Prettier/CSS and staged Gitleaks pass (4,543,852 bytes, no leaks).
+The final receipt verifies all fixture, released-changelog and package hashes
+after the merge. Eight owning files omitted from the initial batch collector
+are rerun as whole files: ACP agent/ndjson/paid host pass 142 assertions;
+handoff/host bridge/fake-only exec launcher pass 24; usage packaging/webview
+budgets pass their complete files. The three existing certification holds
+remain. The follow-up changes only these two certification files.
