@@ -18910,6 +18910,22 @@ Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**M103INT integration and lanes I/0 (2026-10-05, Kubuntu).** Merge only
+m103/sfix, m103/dfix, m103/pfix2, m103/mfix3, m103/x, m103/afix and
+m103/tredesign2, in that order, with merge commits; no guard branch joins
+until G4 is reviewed. Freeze MakerHost and one target-bound, expiring,
+single-use approval/answer contract in ports.ts and makerProtocol.ts;
+replace D/M/P's temporary projections with types from that port. Dispatch
+revalidates the immutable target and interactive/trusted hardware admission
+at the adapter's final spawn/write, with Stop remaining independent.
+Compose the detection event and maker surface messages into the portable
+protocol and commit deterministic JSON Schema snapshots. Consolidate maker
+text and translate it in every UI table; this lane adds no manifest command
+or setting before W. U/V/R get the exact entry points in m103-int.md.
+No UI/adapter/wiring implementation, physical device operation or model call
+is in this scope. The 150-minute brief forbids aggregate quality; owning
+suites, static gates and per-merge cap receipts are required instead.
+
 **FIXM103S review corrections (2026-10-05).** Resolve RVM103S's two P2
 installer findings and its P3 topic-safety coverage finding within lane S.
 Updates reconcile owned same-id links across the vendor and first-party
