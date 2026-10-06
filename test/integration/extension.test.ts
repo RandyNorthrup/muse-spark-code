@@ -147,7 +147,28 @@ suite('activation', () => {
       assert.ok(text.includes(RULES_HEADER), 'header line missing')
       await waitForDocument(target)
     } finally {
-      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      const tabs = vscode.window.tabGroups.all
+        .flatMap((group) => group.tabs)
+        .filter(
+          (tab) =>
+            tab.input instanceof vscode.TabInputText &&
+            tab.input.uri.toString() === target.toString(),
+        )
+      if (tabs.length > 0) {
+        await vscode.window.tabGroups.close(tabs, true)
+      } else {
+        const editor = vscode.window.visibleTextEditors.find(
+          (shown) => shown.document.uri.toString() === target.toString(),
+        )
+        assert.ok(editor, 'the owned AGENTS.md editor is still visible')
+        // eslint-disable-next-line @typescript-eslint/no-deprecated -- Missing tab identities require the same exact-editor close API as the M103A2 production adapter; never close a focused chat panel.
+        editor.hide()
+        const deadline = Date.now() + TAB_WAIT_TIMEOUT_MS
+        while (vscode.window.visibleTextEditors.includes(editor) && Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
+        }
+        assert.equal(vscode.window.visibleTextEditors.includes(editor), false)
+      }
       await vscode.workspace.fs.delete(target)
     }
   })

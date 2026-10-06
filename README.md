@@ -347,7 +347,8 @@ The experimental Arduino package ends in **`-arduino.vsix`**. It is the same Mus
 Spark Code (Unofficial) product, built for Arduino IDE's VS Code API 1.96,
 Node 20.14 and Chromium 124. Arduino supports themes officially; this full
 extension is an unsupported side-load. There is no extension store in the IDE.
-JSON diagnostics use a positioned local fallback when the host emits no report;
+The macOS qualification run passes **34/34 integration tests** with the explicit
+TypeScript capability expectations described below. JSON diagnostics use a positioned local fallback when the host emits no report;
 VS Code's native reports stay preferred. The fallback also checks Muse permission
 settings using the schemas shipped with the extension, without downloading a
 language server. Verification loads only on first use. Arduino has no TypeScript

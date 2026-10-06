@@ -4,14 +4,15 @@
 // formatter through `vscode.executeFormatDocumentProvider`. Runs inside the
 // Extension Development Host (see .vscode-test.mjs).
 
-import { redactSecrets } from '../../src/core/redact'
 import * as assert from 'node:assert/strict'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import { canonicalPath } from '../../src/host/canonicalPath'
-import { createVerifyEditor, type VerifyEditor } from '../../src/host/editor/verifyEditor'
+import type { VerifyEditor } from '../../src/host/editor/verifyEditor'
+import { createDeferredVerifyEditor } from '../../src/host/editor/verifyEditorBundle'
+import { EXTENSION_QUALIFIED_ID } from '../../src/shared/constants'
 import { createLogger } from '../../src/host/logger'
 
 // A server that is still starting can take seconds to report here; the
@@ -58,21 +59,25 @@ suite('verify loop in VS Code (M68)', () => {
           diagnosticsSnapshots.push(snapshot)
       }, 500)
     }
-    verify = createVerifyEditor({
-      redact: redactSecrets,
-      platform: process.platform,
-      log: {
-        ...createLogger(channel),
-        warn: (message) => {
-          messages.push(message)
-          channel.warn(message)
+    const extension = vscode.extensions.getExtension(EXTENSION_QUALIFIED_ID)
+    assert.ok(extension, 'installed extension missing')
+    verify = createDeferredVerifyEditor(
+      {
+        platform: process.platform,
+        log: {
+          ...createLogger(channel),
+          warn: (message) => {
+            messages.push(message)
+            channel.warn(message)
+          },
         },
+        workspaceRoot: folder,
+        realPath: canonicalPath,
+        settle: SETTLE,
+        format: FORMAT,
       },
-      workspaceRoot: folder,
-      realPath: canonicalPath,
-      settle: SETTLE,
-      format: FORMAT,
-    })
+      vscode.Uri.joinPath(extension.extensionUri, 'dist').fsPath,
+    )
   })
 
   suiteTeardown(async () => {
