@@ -57,8 +57,22 @@ try {
           await page.goto(
             `http://127.0.0.1:${String(port)}/test/harness/playbook.html?lang=${locale}&theme=${theme}&scene=${scene}`,
           )
-          if (scene === 'notes') await page.locator('.playbook-badge').first().waitFor()
-          else {
+          if (scene === 'notes') {
+            await page.locator('.playbook-badge').first().waitFor()
+            const isOwnerFirst = await page.evaluate(() => {
+              const owner = globalThis.document.querySelector(
+                '.playbook-note[data-needs-user="true"]',
+              )
+              const statistic = globalThis.document.querySelectorAll('.playbook-badge')[1]
+              return (
+                (owner.compareDocumentPosition(statistic) &
+                  globalThis.Node.DOCUMENT_POSITION_FOLLOWING) !==
+                0
+              )
+            })
+            if (!isOwnerFirst)
+              throw new Error('Combined agent details put owner failures after statistics')
+          } else {
             await page.locator('.playbook-record').waitFor()
             if (scene !== 'status')
               await page
@@ -78,7 +92,12 @@ try {
               await page.waitForFunction(() => {
                 const save = globalThis.document.querySelector('form.playbook-rule button')
                 const status = globalThis.document.querySelector('[role="status"]')
-                return save === globalThis.document.activeElement && status.textContent.length > 0
+                return (
+                  save === globalThis.document.activeElement &&
+                  !save.disabled &&
+                  save.getAttribute('aria-disabled') === 'true' &&
+                  status.textContent.length > 0
+                )
               })
               await page.keyboard.press('Tab')
               const continued = await page
@@ -94,9 +113,16 @@ try {
               await rounds.locator('select').selectOption('1')
               await rounds.locator('button').focus()
               await rounds.locator('button').press('Enter')
-              await page.waitForFunction(() =>
-                globalThis.document.activeElement?.id.endsWith('-rounds-save'),
-              )
+              await page.waitForFunction(() => {
+                const save = globalThis.document.querySelector('button[id$="-rounds-save"]')
+                const status = globalThis.document.querySelector('[role="status"]')
+                return (
+                  save === globalThis.document.activeElement &&
+                  !save.disabled &&
+                  save.getAttribute('aria-disabled') === 'true' &&
+                  status.textContent.length > 0
+                )
+              })
               if ((await otherDraft.inputValue()) !== 'Unsubmitted maintenance')
                 throw new Error('Limit save discarded unrelated draft')
               const status = page.locator('[role="status"]')

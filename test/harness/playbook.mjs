@@ -6,8 +6,7 @@ import { UI_TEXT } from '../../src/shared/l10n/text'
 import { WEBVIEW_L10N_ELEMENT_ID } from '../../src/shared/constants'
 import { installEmbeddedTable } from '../../src/webview/installTable'
 import {
-  DeferredPlaybookBadge,
-  DeferredPlaybookNotes,
+  DeferredPlaybookDetails,
   DeferredPlaybookPanel,
 } from '../../src/webview/playbook/DeferredPlaybook'
 import {
@@ -99,15 +98,9 @@ async function mount() {
     scene === 'notes'
       ? [
           createElement('h1', { key: 'title' }, UI_TEXT.playbookTitle),
-          createElement(DeferredPlaybookNotes, {
-            key: 'notes',
-            notes: snapshot.records
-              .filter((record) => record.kind === 'note')
-              .map((record) => record.value),
-          }),
-          createElement(DeferredPlaybookBadge, { key: 'badges', records: snapshot.records }),
+          createElement(DeferredPlaybookDetails, { key: 'details', records: snapshot.records }),
         ]
       : [createElement(DeferredPlaybookPanel, { key: 'panel', port })]
-  createRoot(root).render(createElement('main', null, ...children))
+  createRoot(root).render(createElement('main', { className: 'playbook-surface' }, ...children))
 }
 void mount()
