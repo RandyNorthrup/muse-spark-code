@@ -364,7 +364,7 @@ const judgeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelsPanelOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
   entryPoints: [MODELS_PANEL_ENTRY],
   outfile: MODELS_PANEL_OUTFILE,
   platform: 'node',

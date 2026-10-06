@@ -168,5 +168,7 @@
   "config.judge.engine.description": "`auto` (kendi sohbet modeliniz; 1. aşamada `same`) ve `same`, hiçbir kuralın karara bağlamadığı riskli bir Auto işlemine yalnızca dikkat ekleyebilir: hazır bir uyarı izni soruya dönüştürür ya da onay kartına not ekler. `off` değerlendirici çalıştırmaz. Model API arka ucunda her değerlendirme anahtarınıza faturalandırılır ve önce bir kez onay ister; Muse Code’da aboneliğinizden çalışır.",
   "config.judge.engine.enumDescriptions.auto": "Kendi sohbet modeliniz değerlendirir (1. aşamada `same`); ayrı bir değerlendirici yapılandırıldığında katılır.",
   "config.judge.engine.enumDescriptions.same": "Yalnızca kendi sohbet modeliniz değerlendirir; modeli asla değiştirmez.",
-  "config.judge.engine.enumDescriptions.off": "Değerlendirici yok: onaylar tam olarak değerlendiricisiz olduğu gibi davranır."
+  "config.judge.engine.enumDescriptions.off": "Değerlendirici yok: onaylar tam olarak değerlendiricisiz olduğu gibi davranır.",
+  "command.connectChatGpt": "ChatGPT ile devam et",
+  "command.connectCopilot": "Copilot modellerimi kullan"
 }

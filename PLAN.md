@@ -5461,6 +5461,12 @@ every line of ours it cites, is `docs/research/pi-solpi-2026-10-05.md`.
   is on a different base. The rig brief forbids main merges and network
   fetches. The injected host/registry contract is tested offline; production
   assembly awaits the lead's exact dependency and W's configured sources.
+- **Q-M95BINT live receipts (2026-10-05):** the supplied findings identify
+  `acdc0f60…` and `577bc807…` (0 + 1 model attempts), but do not name the
+  exact raw-capture workspace or provide a successful plan tool/reasoning/
+  cached-token response. Supply those receipts when Subscription Sharing
+  headroom returns; also confirm the scrubbed usage-limit code and test an
+  installed Copilot host/remote callback. No new live call is authorized here.
 
 - **Q-M95INT2 release prerequisite (2026-10-05):** the rig brief says
   `m95/scfix` contains `928a9200` (0.13.0), but its actual `e5a114b4` tip
@@ -18035,9 +18041,134 @@ release acceptance are still pending.**
 
 ### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
 
-**Status 2026-10-04: planned with M95; research in
-`docs/certification/m95-research.md` §6. Starts when M95's seam (lanes P, T
-and I) has merged.**
+**M95R3 scope (2026-10-05, Windows rig).** Merge release 0.14.0, CAPREC,
+lane I, DEFLAKE5 and M95b in the brief's order. Close acceptance 9 with
+a shared configured-provider registry and the five captured codecs: selected
+capability records drive tools, media, reasoning and output bounds; captured
+plan-key presets use plan accounting instead of a dollar price. Reuse the
+existing request/retry/idle guards and pinned Node HTTP transport. Read keys
+per request from the supplied SecretStorage/OS-store port, bind the exact
+origin, refuse redirects and revalidate configuration and DNS before send.
+Use fake servers through the real host and ACP runtime; Meta goldens stay
+byte-identical. No live receipts, dependency or gate changes are authorized.
+Copilot is limited to VS Code's Language Model API; other editors retain
+their own Copilot plugin and this agent's ChatGPT/API-key routes.
+
+The Copilot factory integration regression failed after two distinct merge
+repairs (missing plan catalogue fields, then request dispatch refusal). The
+shared lane stopping rule applies: retain the failing receipt, stop that
+repair path and report it in docs/certification/m95-r3.md.
+
+**M95BINT integration (2026-10-05, Windows 11 rig).** Merge S/C/V/X/U's
+reviewed work, preserve their records, and close the production seams: exact
+subscription schemas, account-catalogue discovery, a lazy provider registry
+over the existing Model API client contract, panel actions and extension
+commands, and the same registry in the ACP runtime. Plan attempts bypass
+dollar reservations, retain their own request/token tallies, and supply the
+qualified model/provider to hooks. Fake-only end-to-end checks cover browser
+sign-in, catalogue selection, a turn and the captured HTTP-200 SSE limit;
+Copilot uses its host adapter and remains unavailable outside VS Code. Update
+all translations, subscriptions/privacy docs and acceptance 1–10 in
+`docs/certification/m95b.md`. The first composed build measured chat startup
+at 901.3/900 KiB; defer the optional Handoff and Best-of-N dialogs through the existing
+dismissible loading surface and add it to the existing 25-KiB deferred cap
+and split guard (no threshold changes). No live or paid calls; full quality and hosted
+editor/live receipts remain the lead's gates under the 150-minute rig brief.
+The host API gate caught a core type import reaching the VS Code entry; its
+seam contract now lives with the existing pure provider ports. The compiled
+Models bundle's language regression also failed before repair: subscription
+factories install both their local language state and the providers bundle's.
+
+**FIXM95BU review repair (2026-10-05, macmini rig).** Repair all three
+RVM95BU P2 findings within lane U: the production notice port keys browser
+acknowledgement by provider plus a host-supplied SHA-256 account-id hash,
+never email/token, and reads again on account/port replacement while mounted.
+The authored `authState.planAccount` bridge field carries only that provider
+and hash; V/W supply it from the verified account, with missing identity
+showing the notice without a persistent acknowledgement. Keep dismissed
+plan limits by turn id in conversation state and its validated snapshot,
+preserving them through model switches/unmounts and clearing them after a
+successful new turn or conversation replacement. Derive plan billing text
+from the bound qualified model reference before optional catalogue metadata,
+including an empty or inconsistent catalogue. Each finding gets regression
+coverage and byte-exact red drills in `docs/certification/m95b-u.md`.
+No dependencies, new service-wire shapes, paid/live calls or relaxed gates;
+W retains aggregate docs and host identity production.
+
+**M95BINT U-review composition (2026-10-05).** Merge the newly arrived
+`m95b/ufix` and supply its authored `authState.planAccount` from the owner's
+captured OIDC `sub` claim, hashed only after signature/issuer/audience/expiry/
+nonce verification. Persist only that hash in this product's secret record;
+never email, a raw subject, a token-derived hash, installation id or echoed
+cache key. Preserve it across refresh without an ID token; reject a verified
+subject change during rotation. Legacy/missing-identity grants retain the
+fail-closed disclosure until a verified sign-in/refresh supplies identity.
+The VS Code auth service publishes it only for signed-in Model API state;
+account changes refresh that snapshot. Test hash privacy, refresh continuity,
+changed-subject refusal, host publication and U's account/dismissal regressions.
+Other ACP editors still receive the explicit pre-sign-in plan notice; cross-
+editor/profile webview persistence remains an installed-host receipt. Own-store identity parsing also sanitizes corrupted-record errors before the host can expose their detail.
+
+**FIXM95BS review repair (2026-10-05, Windows 11 rig).** Repair all four
+RVM95BS findings in the owned sign-in core and tests: atomically persist a
+replacement grant as a pending refresh before validation, preserve it in
+memory if the secret store refuses the write, and resume validation or revoke
+that replacement without spending the old refresh token again. Pending grants
+are never returned before ID-token/scope validation and the caller's validity
+margin; an insufficient lifetime raises the typed `expired` failure without
+an internal refresh loop. HTTP/network outages remain retryable
+`request-failed`; only token-endpoint HTTP 400/401 `invalid_grant` asks for
+sign-in. Endpoint-specific fakes must prove token/revocation refusals reach
+their named endpoints. Port method signatures stay unchanged; the secret
+record gains an optional pending-refresh validation marker. Regression tests,
+byte-exact red drills and integration/storage limits go in `m95b-s.md` and §9.
+No dependency, guard relaxation, live call or another lane's implementation.
+
+**FIXM95BC review repair (2026-10-05, RVM95BC).** Within lane C's codec,
+tests, request fixtures and certification, preserve validated reported usage
+in the output-cap error for the canonical adapter's ordinary failure
+settlement; prove the actual `ModelApiHost` emits all four token tallies
+without replaying excess output. Add the supplied scrubbed namespace-request
+comparison, preserve its description and declared strictness, and enumerate
+every intentional harness adaptation beside the test. Keep the existing
+contract golden, API-key profiles, guards and dependencies unchanged. Each
+finding gets an owning-file red drill with byte-exact restoration, recorded
+in `docs/certification/m95b-c.md`. The rig brief delegates full quality and
+shared README/CHANGELOG integration to the lead/lane W and forbids
+merge/rebase/push; focused checks run directly on Kubuntu.
+
+**FIXM95BV review repair (2026-10-05).** RVM95BV-1–3 are repaired in
+the VS Code adapters: publish complete lock-owner records atomically, recover
+dead owners without removing live owners, bound and cancel token counting,
+and settle dispatched attempts with the estimates retained through failure
+or consumer closure. Offline regressions and byte-exact red drills belong in
+`docs/certification/m95b-v.md`. RVM95BV-4 requires shared subscription schemas,
+registry dispatch and translations that are absent from this base and outside
+this repair's owned files; see the named release blocker in §9.
+
+**FIXM95BX review repair (2026-10-05).** Finish RVM95BX's two P2s:
+connect the exact ChatGPT provider grammar to runtime dispatch and expose the
+same terminal actions through ACP authentication; install translated command
+and callback text in all fourteen tables. Use the existing atomic providers
+file with a separately pinned ChatGPT subscription entry and the owner's
+captured account catalogue, without relaxing API-key or origin validation.
+Classify native OS-store failures with a fixed `store-unavailable` code that
+survives locking and host creation and directs the user to an interactive
+desktop session. Test production parser/dispatch, ACP exposure and sanitized
+failure paths, and record deliberate red drills in `m95b-x.md`. No live or
+paid calls, dependency, merge, rebase or push; the lead runs full quality.
+The runtime factory is exported by the existing `providers.js` entry and
+resolved there by the ACP build's dynamic-import plugin. This is required by
+the unchanged provider-core exclusion guard; the factory installs the caller's
+language table before use. Parser-only grammar stays in cliArgs, so help,
+invalid arguments and headless/Meta-only command parsing load no provider core.
+
+**Status 2026-10-05: ChatGPT/Copilot production paths integrated with
+fake-server evidence; release certification remains open.** The account
+catalogue, headerless SSE, limit recovery, plan tallies, VS Code actions and
+ACP dispatch now compose. Plan-key transports/Hugging Face registration and
+the owner/live/installed-editor receipts remain prerequisites; see
+`docs/certification/m95b.md` and Q-M95BINT.
 
 - **Goal.** A user with a ChatGPT Plus or Pro plan, or a Copilot plan, runs
   the harness on that plan's inference with one click in the same panel,
@@ -18152,7 +18283,7 @@ and I) has merged.**
 - **Certification checklist.**
   - [ ] Step 1 capture recorded with its counted calls.
   - [ ] Acceptance 1–10 with tests and drills (`docs/certification/m95b.md`).
-  - [ ] README, PRIVACY, CHANGELOG and this record updated.
+  - [x] README, PRIVACY, CHANGELOG and this record updated.
 
 ### M95c — More providers and integrations after the first release (D74)
 
@@ -20073,6 +20204,60 @@ consumers. No stub or guessed transport is shipped, and no support claim is
 made until those dependencies and integrated gates pass. Native hosted search
 on BYO needs its separately captured tool/price adapter; capability evidence
 alone cannot prove that route. No gate is weakened.
+**M95BINT rig delegation (2026-10-05).** The explicit integration brief
+requires whole-file lane suites with at most three files and three workers,
+all five typechecks, scoped lint/format, deadcode, duplication, localization,
+cycles, generated host API and every production cap. It expressly forbids
+full quality on the shared rig; the lead must run `npm run quality` before a
+release/commit proposal is accepted. Local commits preserve reviewable work
+with unchanged hooks. No test, threshold, timeout, rule or ignore is relaxed.
+Acceptance 9 remains deferred because the base has no general M95 transport
+composition; the panel's ordinary provider ports continue to throw their
+explicit unavailable error. Building that missing prerequisite exceeds this
+subscription integration lane. No API-key/plan-key success is fabricated.
+
+**FIXM95BC gate boundary (2026-10-05).** The rig/common brief prohibits
+aggregate `npm run quality` and full-test runs in this lane; the lead owns
+that gate on the integrated tree. Run the owned codec suites and required
+static/build checks directly on Kubuntu with every existing gate unchanged.
+Shared README/CHANGELOG updates remain lane W's work. Results and deliberate
+failure drills are recorded in `docs/certification/m95b-c.md`.
+
+**FIXM95BV gate delegation (2026-10-05).** The rig/common brief expressly
+forbids full quality and complete test runs in this repair lane, and the rig
+note forbids integration merges. Run the two owned suites, required scoped
+static checks and production build here, with hooks enabled for every commit.
+The lead must run `npm run quality` after integrating subscription contracts
+and the blocked V panel path. No gate or threshold is weakened; the offline
+adapter certificate does not certify an integrated M95b release.
+
+**FIXM95BX scoped gate delegation (2026-10-05).** The rig brief/common.md
+reserve full quality for the lead and prohibit merge/rebase/push. Run scoped
+whole-file suites and local type/lint/format/deadcode/duplication/l10n/build
+checks without changing a gate. `providersPolicy`'s simultaneous-save test
+intermittently hits Windows EPERM on rename. This was reproduced with the
+byte-original `9e4be782` providersFile source (24 pass, one fail), then the
+repair source was restored with SHA-256 equality. The unrelated atomic-writer
+repair belongs to lane P/integration; this is a named validation deferral,
+not a green receipt or a relaxed assertion. The existing broad execStdio
+suite cannot start without Bash on this rig; the focused real npm-pack
+regressions run here without it.
+The host API check retains exactly the four stale Node import counts in the
+original RVM95BX report (crypto 35→36, http 3→4, net 4→5,
+timers/promises 3→4). Regenerating that shared inventory belongs to the
+integration lane; record BX-HOST-API-INVENTORY rather than expanding this
+repair's file ownership or claiming a green check.
+
+**FIXM95BU gate boundary / M95BU-R-composed-gates (2026-10-05).**
+The rig brief forbids full `quality`, full coverage and merges here; the lead
+runs aggregate acceptance. Scoped tests, five-project typecheck, lint,
+formatting, localization, knip, duplication and production build run here.
+The host API check has its inherited sole count mismatch: the stored inventory
+has 35 `node:crypto` imports, source generates 36. API membership is unchanged;
+this UI repair adds no Node import. W/lead owns the generated inventory and
+must run `npm run check:host-api -- --write`, review it and rerun the unchanged
+gate on integration. No gate is weakened; receipts are in
+`docs/certification/m95b-u.md`.
 
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
@@ -21212,12 +21397,26 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| M95 K repair file                     | Construct                                                    | Reason                                                                                                                                                                                                                                             | Added      |
-| ------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/models/modelsPanelEntry.ts` | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal.                                                                                          | 2026-10-05 |
-| Location                              | Escape hatch                                                 | Reason                                                                                                                                                                                                                                             |
-| -----------------------------------   | -----------------------------------                          | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET)   | `as UiText` on the descriptor clone                          | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| M95 K repair file                                                              | Construct                                                    | Reason                                                                                                                                                                                                                                             | Added      |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/models/modelsPanelEntry.ts`                                          | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal.                                                                                          | 2026-10-05 |
+| Location                                                                       | Escape hatch                                                 | Reason                                                                                                                                                                                                                                             |
+| -----------------------------------                                            | -----------------------------------                          | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET)                                            | `as UiText` on the descriptor clone                          | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| M95BINT extends the existing Models bundle predicate to require both callable  |
+| factories (`createModelsPanelFeatures`, `createSubscriptionFeatures`). Their   |
+| signatures are trusted only within one typed source/build/package; the         |
+| missing-factory regression, built split gate and real subscription factory     |
+| integration test cover this boundary. No suppression, `any`, or unchecked      |
+| cast is added. Literal `as const` annotations retain compiler-verified values. |
+
+| M95BINT file                           | Construct                    | Reason                                                                                                                                       | Added      |
+| -------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/models/modelsPanelBundle.ts` | `value is ModelsPanelBundle` | Both callable factories come from one typed build/package; missing exports fail closed, and real factories are exercised with fake services. | 2026-10-05 |
+
+| M95 K repair file                     | Construct                                                    | Reason                                                                                                                                                    | Added      |
+| ------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/models/modelsPanelEntry.ts` | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal. | 2026-10-05 |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
@@ -21369,6 +21568,131 @@ before a repaired one loads (2026-09-30).
   the lane brief. Offline scoped proof does not certify installed dispatch,
   service behavior or the inherited universal package debt. Follow-up: run
   those gates on the combined exact release tree before a release claim.
+- **FIXM95BU (2026-10-05):** all three RVM95BU P2 UI findings are repaired;
+  no numbered finding is deferred. Account acknowledgement is keyed by
+  provider plus SHA-256 account-id hash through the production persistence
+  port and re-read on mounted account/port changes. Limit dismissal is
+  conversation state keyed by turn id, saved through the validated snapshot,
+  and cleared on successful completion or conversation replacement. Plan
+  billing follows the bound reference even with an empty catalogue. Tests,
+  byte-exact drills and gate receipts are in `docs/certification/m95b-u.md`.
+- **M95BU-R-account-producer:** the authored `authState.planAccount` field
+  is `{ providerId, accountIdHash }`, with a valid non-Meta provider id and
+  exactly 64 lower-case hexadecimal SHA-256 characters. V/X/W must produce
+  it from the verified account id and refresh it on account changes, never
+  from email/token or a guessed wire claim. This U branch does not implement
+  another lane's identity extraction. Missing/mismatched identity fails
+  closed: the notice appears and no unscoped acknowledgement is persisted,
+  so another account cannot inherit a dismissal. Follow-up: certify the
+  verified producer in integration before claiming once-per-account sign-in.
+  **Closed offline by M95BINT:** captured OIDC `sub` is hashed with its verified
+  issuer after ID-token validation, retained through no-ID-token refresh and
+  rejected on a verified subject change. Signed-in Model API auth publishes
+  only this hash; legacy/pending/signed-out states omit it. Production factory,
+  refresh and auth regressions plus eight byte-exact integration drills are in
+  `docs/certification/m95b.md`. Installed/profile persistence remains separate.
+- **M95BU-R-persistence-origin:** default browser persistence is scoped to
+  the webview's origin as well as provider/account; isolated editor origins
+  may repeat the disclosure. It never suppresses another account. Hosts can
+  inject the same keyed port for profile-wide persistence. Follow-up: V/W
+  certify cross-window/profile persistence on the composed editor adapters.
+- **M95BU-R-composed-gates:** full quality/coverage, live/editor receipts,
+  CHANGELOG/README incorporation and the inherited generated host API
+  `node:crypto` count mismatch remain W/lead acceptance. The unchanged
+  900 KiB chat startup cap has very little spare space; composed wiring must
+  re-run the existing caps. This repair makes no aggregate-green claim and
+  performs no paid/live calls.
+
+- **FIXM95BS (2026-10-05):** all three RVM95BS P2 findings and its P3
+  endpoint-test finding are repaired; no numbered review finding is deferred.
+  Regression and eleven byte-exact red-drill receipts are in
+  `docs/certification/m95b-s.md`. V/X method signatures are unchanged, but
+  their atomic whole-record stores must preserve the optional
+  `pendingRefresh: { idToken?: string }` marker and map `expired` to an
+  insufficient-lifetime message, `request-failed` to service unavailable /
+  retry, and token HTTP 400/401 `invalid_grant` to sign-in required.
+- **M95BS-R-store-outage-lifetime:** when the first secret-store write fails,
+  recovery retains the replacement only in the live host port's memory.
+  Reuse that port for its grant; distinct processes cannot share this slot,
+  and process death during a total keystore outage cannot durably recover it.
+  Safe for this unintegrated core: access fails closed, no unverified token
+  leaves it, and Remove uses the retained replacement. Follow-up: V/X must
+  certify their atomic stores, process lock, outage recovery and shutdown
+  behavior before aggregate acceptance; no guarantee of durability after an
+  unsuccessful write is made.
+- **M95BS-R-integration-evidence:** exact raw OAuth/refresh/error receipts,
+  `earliest_refresh_at`, host/runtime wiring, plain translated error mapping,
+  CHANGELOG incorporation and composed bundle/platform gates remain with
+  V/X/0/W and the lead. The independent repair has no live/paid calls and does
+  not claim shipped sign-in support. The inherited generated host API count
+  difference (35 → 36 `node:crypto` imports) also remains W/lead's record
+  maintenance, as documented under M95BS-R-host-api-count in certification.
+
+- **FIXM95BC / RVM95BC (2026-10-05).** P2 reported usage lost at an
+  output-cap cut and P3 missing capture-request comparison are both repaired
+  in lane C; no assigned finding is deferred. The typed cap error carries
+  validated usage only, with excess output withheld. Tests drive its
+  canonical failure translation through the actual `ModelApiHost` and
+  compare the supplied scrubbed request with enumerated adaptations, with
+  deliberate failures recorded in `docs/certification/m95b-c.md`.
+  **BC-INTEGRATION** remains the pre-existing acceptance boundary: lane T/I/W
+  must wire that cap-error translation and the namespace description/counter
+  inputs, and the lead must certify successful live plan/tool turns and
+  combined quality. Safe while this codec-only branch has no subscription
+  dispatch; this is an integration prerequisite, not a supported-live-turn
+  claim. No paid or live model calls are authorized in this repair lane.
+
+- **RVM95BV-4-SUBSCRIPTION-INTEGRATION (FIXM95BV, 2026-10-05), repaired
+  offline by M95BINT.** Shared schemas/dispatch, translated panel actions,
+  production commands and both real factories now compose under fake-server
+  tests and unchanged membership/size gates. Installed/live release checks
+  remain open. The following describes the original FIXM95BV base: its owned
+  Providers rows and extension command path were unfinished. This base has no `ProviderRegistry` or shared `ProviderClient`;
+  the provider file, host port and strict Models panel schemas accept only
+  `apiKey`/`none`, and the strings tables contain none of the required ChatGPT
+  or Copilot notices/errors. A working flow requires coordinated shared
+  persistence, dispatch, protocol and localization changes in other lanes,
+  not just importing the factories or attaching inert buttons. Safe only
+  while these adapters remain unreachable in production; this is not an
+  accepted shipping risk or a certification of M95b. Follow-up: integrate
+  those contracts, then V completes its rows and command region, tests the
+  real panel-to-dispatch path and runs production membership/size drills.
+- **RVM95BV-1-LEGACY-LOCK-MIGRATION (FIXM95BV, 2026-10-05).** The new lock
+  publishes complete owner metadata atomically and recovers dead owners.
+  The original, unshipped adapter's ownerless regular file remains closed:
+  age cannot establish whether a live legacy host is rotating a grant. Safe
+  for the current test-only adapters, with no supported installed-user
+  migration. Follow-up: integration must not mix lock layouts; close all
+  legacy development hosts before explicitly clearing an ownerless file.
+  Foreign live PIDs are also retained on start-time uncertainty/PID reuse,
+  since the portable liveness check cannot prove which incarnation owns it.
+  This preserves exclusivity at the cost of conservative availability.
+
+- **FIXM95BX review findings:** RVM95BX P2 command reachability and P2
+  sanitized store recovery are both repaired with production parser/dispatch,
+  ACP, packaging and failure regressions. No assigned finding is deferred.
+- **BX-WIN32-ATOMIC-RENAME:** the pre-existing simultaneous providers-file
+  writer can fail with EPERM on Windows. Baseline reproduction and the
+  unchanged test are in `m95b-x.md`; failures remain explicit, and failed
+  ChatGPT setup attempts revocation and local grant deletion. The grant lock
+  serializes ChatGPT commands; cross-editor/general-file transactions remain
+  lane P/integration's follow-up. No success is substituted for a failed save.
+- **BX-NATIVE-STORE-CERTIFICATION:** native persistence/rotation still needs
+  a logged-in desktop rig session, as the original certificate records.
+  Synthetic platform errors and real process locking certify the recovery
+  category, not an actual unlocked OS store. The brief forbids real credential
+  reads and live/paid calls; the lead reruns the native certification.
+- **BX-HOST-API-INVENTORY:** the generated host API inventory has exactly the
+  four stale Node import counts already reported by RVM95BX; the portable
+  boundary check reports no new violation. No new host API permission or
+  runtime capability follows from a count. Integration must regenerate and
+  review the shared record before its full quality gate can pass.
+- **BX-AGGREGATE-M95B:** this repair completes executable/editor sign-in
+  management and account-catalogue configuration. Combined model dispatch,
+  per-editor acceptance and the owner's raw capture workspace/receipts remain
+  the M95b integration gate. No inference or paid feature is enabled by these
+  commands. Native and aggregate limitations are certification dependencies,
+  not outstanding RVM95BX fixes.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate

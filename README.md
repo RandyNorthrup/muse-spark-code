@@ -33,7 +33,7 @@ key to the CLI.
 
 **Contents:** [What's new](#whats-new-in-0140) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
-[Get started](#get-started) · [Backends](#backends) ·
+[Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [Web fetch](#web-fetch) ·
@@ -441,6 +441,25 @@ This setup follows JetBrains' documentation and has not been tested here yet.
 Add `"--backend", "modelApi"` to `args` in either editor to use the Model
 API backend instead of Muse Code.
 
+**ChatGPT subscription sign-in (M95b preview):** terminal-capable ACP editors
+offer Continue with ChatGPT, Remove and Check; other editors show the same
+commands to run by hand:
+
+```sh
+muse-spark-code-acp providers add chatgpt
+muse-spark-code-acp providers status chatgpt
+muse-spark-code-acp providers remove chatgpt
+```
+
+Add requires Plus or Pro, prints the plan/credit notice and the browser URL,
+and saves only eligible models from the account's own catalogue in the
+user-level providers file. Tokens stay in the OS credential store. Status
+reads local state without a network request; Remove attempts revocation and
+clears local sign-in and configuration. If the store is unavailable, sign in
+from an interactive desktop session with an unlocked store (Linux also needs
+Secret Service). These commands certify sign-in management; combined M95b
+model dispatch and editor acceptance still await integration certification.
+
 **On Windows**, npm installs `muse-spark-code-acp` as a `.cmd` launcher,
 which some editors cannot start. If the editor says it cannot find or start
 the agent, use `node` as the command and the agent's script as the first
@@ -462,6 +481,46 @@ which editors have been tried: so far VSCodium, code-server, Eclipse
 Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
 the extension, and Zed, Emacs (agent-shell), Neovim (CodeCompanion) and
 JupyterLab (Jupyter AI) with the agent.
+
+## Subscriptions
+
+Subscription sign-in is being integrated under M95b; installed-editor and live
+success certification is still pending ([record](docs/certification/m95b.md)).
+In **Models & Agents → Providers**, choose **Continue with ChatGPT** or
+**Use my Copilot models**. The same actions are available in the command palette.
+Connecting selects the shared in-process harness and the account's first
+eligible model; the model picker can select another catalogue model.
+
+**ChatGPT:** OpenAI's sanctioned Subscription Sharing preview accepts eligible
+**Plus and Pro** accounts. Free and other ineligible accounts cannot use this
+flow. The system browser signs in with OpenAI, with a local loopback callback;
+remote VS Code windows currently require signing in from a local window.
+Models come from your account's catalogue, rather than a fixed example model.
+The conversation, tools and tool results spend your ChatGPT plan. **Manage
+usage** opens the provider's limits page. A limit reached inside a successful
+HTTP stream stops the turn and offers usage management. Remove revokes the
+grant and deletes this product's secret record.
+The plan notice is remembered for each verified account. Older grants without
+that identity keep showing it until a verified sign-in or refresh supplies it.
+
+**Copilot:** available only in VS Code hosts exposing `vscode.lm`, using the
+host's Copilot consent. Select it again after reloading the window. It spends
+your Copilot plan or AI credits under GitHub's terms. Models are marked
+**reduced**: token counts are estimates, server reasoning/cache details are
+unavailable, and images are refused unless the host adapter has a verified
+image capability. Quota and consent errors are explained; confidential
+workspaces hide and refuse Copilot. The AI-content note and report link remain
+visible with its plan mark. Other editors use ChatGPT through the shared ACP
+runtime's existing add/status/remove actions and authentication menu (configure
+`--backend model-api`); Copilot
+requires the VS Code host API.
+
+Plan requests never consume the harness's USD cap or open its paid-use popup.
+Account & usage counts each dispatched request, with reported ChatGPT tokens
+and estimated Copilot tokens kept separately. Optional paid extras continue
+to require their own supported credential and consent; a subscription does
+not pay for them. Plan-key presets and Hugging Face OAuth remain pending their
+M95 transport/capture prerequisites and application registration.
 
 ## Permission modes
 
@@ -3240,6 +3299,8 @@ source cannot elevate their priority. See [M95 N's record contract](docs/certifi
 
 | Command                                             | Default keybinding                                                                               | What it does                                                                                                                                                                                                                  |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Muse Spark: Continue with ChatGPT                   | —                                                                                                | Connect an eligible Plus/Pro plan in the system browser and select its catalogue model                                                                                                                                        |
+| Muse Spark: Use my Copilot models                   | —                                                                                                | Select VS Code’s Copilot models using host consent and the user’s plan or AI credits                                                                                                                                          |
 | Muse Spark: Open in Sidebar                         | —                                                                                                | Focus the chat view in the activity bar                                                                                                                                                                                       |
 | Muse Spark: New Conversation                        | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused                      | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                                                                                      |
 | Muse Spark: Sign Out                                | —                                                                                                | Forget the stored Model API key and sign the CLI out when it is signed in (its `account/logout`, else `muse logout`)                                                                                                          |

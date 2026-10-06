@@ -90,6 +90,24 @@ asks for it. Elsewhere, run it yourself once:
   Service (GNOME Keyring, KWallet, KeePassXC). `auth status` says whether
   one is stored; `auth clear` removes it.
 
+**ChatGPT subscription sign-in (M95b preview):** the agent advertises
+`providers add chatgpt`, `providers remove chatgpt` and `providers status chatgpt`
+as terminal authentication actions. Editors without terminal authentication
+show the full commands to run manually. These use the same runtime adapter,
+OS credential store and process lock in JetBrains, Visual Studio, Eclipse,
+Zed, Xcode, Neovim, Emacs, Sublime and companion clients. Add prints the
+Plus/Pro eligibility and credit notice before the browser URL and writes
+only eligible account catalogue models to the user-level providers file.
+Status makes no network request; Remove attempts revocation and clears the
+local grant and configuration. ACP authentication verifies the local action
+independently of Meta sign-in. An unavailable store gives a fixed message to
+sign in from an interactive desktop session with the store unlocked; Linux
+also requires Secret Service. For ChatGPT inference, configure the agent with its existing `--backend model-api`
+argument; it uses the account catalogue and the same subscription dispatch as
+the extension. Fake-server inference now passes; installed-editor and live
+success certification remain open. Copilot requires VS Code and is unavailable
+in the standalone agent.
+
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
 unlocked Secret Service the Model API backend is unavailable; there is no

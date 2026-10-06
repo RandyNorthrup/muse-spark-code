@@ -191,6 +191,22 @@ function ProviderRow({
 }) {
   const { post } = props
   const [editing, setEditing] = useState(false)
+  if (provider.auth === 'subscription')
+    return (
+      <li className="models-provider">
+        <h3>{provider.label}</h3>
+        <p>{provider.id === 'chatgpt' ? UI_TEXT.acpChatGpt.notice : UI_TEXT.planUi.aiContent}</p>
+        <p>{provider.models.join(', ')}</p>
+        <button
+          type="button"
+          onClick={() => {
+            post({ type: 'providers/remove', providerId: provider.id })
+          }}
+        >
+          {UI_TEXT.providerRemove}
+        </button>
+      </li>
+    )
   const editDraft = panelState.drafts.edits[provider.id]
   const isHighlighted = props.highlightedItem === provider.id
   return (
@@ -378,6 +394,29 @@ export function ProvidersSection(props: SectionProps) {
   return (
     <section aria-label={UI_TEXT.providersSectionTitle}>
       <h2>{UI_TEXT.providersSectionTitle}</h2>
+      {panelState.subscriptionsAvailable === true && (
+        <div className="models-actions">
+          <button
+            type="button"
+            onClick={() => {
+              post({ type: 'providers/connectSubscription', providerId: 'chatgpt' })
+            }}
+          >
+            {UI_TEXT.acpChatGpt.actions.add}
+          </button>
+          {panelState.copilotAvailable === true && (
+            <button
+              type="button"
+              onClick={() => {
+                post({ type: 'providers/connectSubscription', providerId: 'copilot' })
+              }}
+            >
+              {UI_TEXT.planUi.copilotConnect}
+            </button>
+          )}
+          <p>{UI_TEXT.acpChatGpt.notice}</p>
+        </div>
+      )}
       {panelState.notice !== undefined && (
         <p className="models-notice" role="status">
           {panelState.notice}

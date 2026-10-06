@@ -168,5 +168,7 @@
   "config.judge.engine.description": "`auto` (váš vlastní chatovací model; ve fázi 1 `same`) a `same` mohou k rizikové akci Auto, kterou nerozhodne žádné pravidlo, jen přidat opatrnost: připravená výstraha změní povolení na dotaz nebo na poznámku na schvalovací kartě. `off` žádného posuzovatele nespouští. Na back-endu Model API se každé posouzení účtuje vašemu klíči a nejprve se jednou zeptá; na Muse Code běží na vaše předplatné.",
   "config.judge.engine.enumDescriptions.auto": "Posuzuje váš vlastní chatovací model (ve fázi 1 `same`); samostatný posuzovatel se přidá, jakmile se nastaví.",
   "config.judge.engine.enumDescriptions.same": "Posuzuje pouze váš vlastní chatovací model; model nikdy nemění.",
-  "config.judge.engine.enumDescriptions.off": "Bez posuzovatele: schvalování se chová přesně jako bez něj."
+  "config.judge.engine.enumDescriptions.off": "Bez posuzovatele: schvalování se chová přesně jako bez něj.",
+  "command.connectChatGpt": "Pokračovat s ChatGPT",
+  "command.connectCopilot": "Použít mé modely Copilot"
 }

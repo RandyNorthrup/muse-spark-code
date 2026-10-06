@@ -1,3 +1,5 @@
+import type { ProviderClient } from '../core/backends/modelapi/client'
+import type { runtimeSubscriptionClient } from './chatGptProviderCommands'
 // The ACP agent's backend (PLAN.md D62): the panel's backend managers,
 // given in this process what VS Code gives them in the extension, one per
 // workspace folder. Muse Code signs in on its own and the subscription
@@ -48,6 +50,9 @@ import {
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
+  PROVIDER_SECRET_PREFIX,
+  PROVIDERS_CONFIG_DIR_NAME,
+  PROVIDERS_FILE_NAME,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
@@ -158,6 +163,22 @@ function modelApiManager(
   assertWorkspaceCurrent: () => void,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
+  let subscriptions: Promise<ReturnType<typeof runtimeSubscriptionClient>> | undefined
+  const subscriptionClient = () =>
+    (subscriptions ??= (async () => {
+      const bundle = await import('./chatGptProviderCommands')
+      return bundle.runtimeSubscriptionClient({
+        secrets: deps.secrets,
+        fetch: deps.fetch,
+        configFile: path.join(
+          deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+          PROVIDERS_CONFIG_DIR_NAME,
+          PROVIDERS_FILE_NAME,
+        ),
+        openBrowser: () => Promise.reject(new Error(UI_TEXT.acpChatGpt.failure)),
+        callbackText: () => UI_TEXT.acpChatGpt.callback,
+      })
+    })())
   const isWorkspaceTrusted = () => options.trustWorkspace
   const dataInput: DataFolderInput = { platform, env: deps.env, homeDir: deps.homeDir }
   const systemRoot = deps.env['SystemRoot']
@@ -252,6 +273,17 @@ function modelApiManager(
     contextIo: fileContextIo,
     webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
     fetch: deps.fetch,
+    ...(deps.exec === undefined && {
+      createProviderClient: async (meta: ProviderClient) => {
+        if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined) return meta
+        const factory = await subscriptionClient()
+        return await factory.createClient(meta)
+      },
+      getProviderAccountId: async () => {
+        const factory = await subscriptionClient()
+        return await factory.accountId()
+      },
+    }),
     ...(deps.exec !== undefined && { streamIdleMs: deps.exec.streamIdleMs }),
     newId: () => randomUUID(),
     now: () => Date.now(),
@@ -412,6 +444,14 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       return {
         state: 'unavailable',
         message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
+      }
+    }
+    if (deps.exec === undefined && (key === undefined || key === '')) {
+      try {
+        if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)
+          return { state: 'ready' }
+      } catch {
+        return { state: 'unavailable', message: UI_TEXT.acpChatGpt.storeUnavailable }
       }
     }
     return key === undefined || key === ''

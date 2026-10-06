@@ -18,6 +18,7 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
+import type { ChatGptProviderAction } from './chatGptProviderCommands'
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */
@@ -48,6 +49,7 @@ export interface ReportOptions {
 
 export type RuntimeCommand =
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
+  | { readonly command: 'chatGptProvider'; readonly action: ChatGptProviderAction }
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'report'; readonly options: ReportOptions }
@@ -55,6 +57,24 @@ export type RuntimeCommand =
   | { readonly command: 'login'; readonly options: ServeOptions }
   | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'help' | 'version' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
+
+/** Exact terminal grammar: credentials and extra arguments are never accepted. */
+export function parseChatGptProviderAction(
+  argv: readonly string[],
+): ChatGptProviderAction | undefined {
+  const [command, action, provider, ...rest] = argv
+  if (command !== 'providers' || provider !== 'chatgpt' || rest.length > 0) return
+  switch (action) {
+    case 'add':
+    case 'remove':
+    case 'status': {
+      return action
+    }
+    default: {
+      return undefined
+    }
+  }
+}
 
 /** `auth set|status|clear`: the key's three commands (D61). */
 function authCommand(name: string | undefined): 'authSet' | 'authStatus' | 'authClear' | undefined {
@@ -88,6 +108,12 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  if (argv[0] === 'providers') {
+    const action = parseChatGptProviderAction(argv)
+    return action === undefined
+      ? { command: 'invalid', reason: UI_TEXT.acpChatGpt.usage }
+      : { command: 'chatGptProvider', action }
+  }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))
   let parsed: ReturnType<typeof parseCommandLineStrictly>

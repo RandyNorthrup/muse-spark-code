@@ -2722,5 +2722,52 @@
   "judgeStatusPaid": "Ücretli",
   "paidProviderPrice": "Milyon token başına: girdi {input}, önbellek okuma {cached}, önbellek yazma {write}, bir saatlik yazma {write1h}, çıktı {output}. İstek başına {request}; görsel başına {image}.",
   "paidProviderPriceTier": "{threshold} girdi tokenından itibaren: milyon başına girdi {input}, çıktı {output}.",
-  "modelToolCallingUnavailable": "Bu model için araç çağırma doğrulanmadı."
+  "modelToolCallingUnavailable": "Bu model için araç çağırma doğrulanmadı.",
+  "acpChatGpt": {
+    "usage": "Kullanım: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "ChatGPT ile devam et",
+      "remove": "ChatGPT oturumunu kaldır",
+      "status": "ChatGPT oturumunu kontrol et"
+    },
+    "notice": "ChatGPT Plus veya Pro gerekir. İstekler plan kotanızı kullanır; ChatGPT’de etkinleştirdiyseniz OpenAI ek kredileri harcayabilir. Tarayıcınızda oturum açın.",
+    "alreadyAdded": "ChatGPT zaten eklenmiş. Yeniden oturum açmadan önce kaldırın.",
+    "states": {
+      "signed-in": "ChatGPT oturumu açık.",
+      "expired": "ChatGPT oturumunun süresi doldu; kullanımda yenilenir veya kaldırıp yeniden oturum açın.",
+      "signed-out": "ChatGPT oturumu açık değil."
+    },
+    "callback": "ChatGPT oturumu açıldı. Düzenleyicinize veya terminalinize dönün.",
+    "failure": "ChatGPT oturumu açılamadı. Yeniden deneyin veya kaldırıp tekrar oturum açın.",
+    "storeUnavailable": "Bu bilgisayarın kimlik bilgisi deposu kullanılamıyor. Kilidi açılmış depoyla etkileşimli bir masaüstü oturumundan giriş yapın; Linux’ta önce Secret Service’i başlatın."
+  },
+  "planUi": {
+    "chatGptMark": "ChatGPT planı kullanılıyor",
+    "providerMark": "{provider} planı kullanılıyor",
+    "manage": "Kullanımı yönet",
+    "noticeTitle": "ChatGPT planınızı kullanıyorsunuz",
+    "noticeDetail": "Bu istekler ChatGPT Plus veya Pro planınızdan karşılanır. Mevcut kotanızı paylaşır ve yeni bir kota eklemez.",
+    "credits": "ChatGPT ayarlarında uygulamaların kredi kullanmasına izin verirseniz, plan sınırından sonra istekler bu kredileri harcayabilir. Sınırları ve kredi ayarlarını kontrol etmek için kullanımı yönetin.",
+    "understood": "Anladım",
+    "limitTitle": "ChatGPT planı kullanım sınırına ulaşıldı",
+    "limitDetail": "Kotanızın yenilenmesini bekleyin veya API anahtarı kullanan bir model seçin. Yenilenme zamanı belirtilmedi. Faturalandırmayı değiştirmek sizin seçiminizi gerektirir.",
+    "chooseModel": "Başka model seç",
+    "usageHeading": "Plan kullanımı",
+    "usageDetail": "Plan istekleri sağlayıcının kotasını veya kredilerini kullanır ve bu uygulamanın dolar sınırına dahil edilmez. Kalan kota ve yenilenme zamanı burada mevcut değildir.",
+    "requests": "İstekler",
+    "reportedTokens": "Bildirilen tokenlar",
+    "estimatedTokens": "Tahmini tokenlar",
+    "unknownTokens": "Token kullanımı bilinmeyen istekler",
+    "tokenCounts": "{input} girdi · {output} çıktı · istekler: {requests}",
+    "reduced": "Sınırlı özellikler",
+    "aiContent": "Yapay zeka tarafından üretilen içerik hatalı olabilir. Copilot kendi kurallarını ekler ve yapay zeka kredilerinizi kullanır; kullanım bildirilmediğinde token sayıları tahminidir.",
+    "reportContent": "Zararlı içeriği bildir",
+    "copilotConnect": "Copilot modellerimi kullan",
+    "copilotUnavailable": "Copilot modelleri kullanılamıyor. Copilot’u etkinleştirip tekrar deneyin.",
+    "copilotQuota": "Copilot kotanız tükendi. Kullanımı yönetin veya başka bir model seçin.",
+    "copilotRateLimit": "Copilot istek sıklığını sınırlıyor. Daha sonra tekrar deneyin.",
+    "copilotConsent": "Devam etmek için Copilot onay penceresinde erişime izin verin.",
+    "expired": "ChatGPT bu istek için çok kısa bir geçerlilik süresi verdi. Yeniden oturum açın.",
+    "retry": "ChatGPT geçici olarak kullanılamıyor. Tekrar deneyin."
+  }
 }

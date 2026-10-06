@@ -2825,5 +2825,52 @@
   "judgeStatusPaid": "De pago",
   "paidProviderPrice": "Por millón de tokens: entrada {input}, lectura de caché {cached}, escritura de caché {write}, escritura de una hora {write1h}, salida {output}. Por solicitud {request}; por imagen {image}.",
   "paidProviderPriceTier": "A partir de {threshold} tokens de entrada: entrada {input}, salida {output} por millón.",
-  "modelToolCallingUnavailable": "No se ha verificado la llamada a herramientas para este modelo."
+  "modelToolCallingUnavailable": "No se ha verificado la llamada a herramientas para este modelo.",
+  "acpChatGpt": {
+    "usage": "Uso: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "Continuar con ChatGPT",
+      "remove": "Eliminar el inicio de sesión de ChatGPT",
+      "status": "Comprobar el inicio de sesión de ChatGPT"
+    },
+    "notice": "Se requiere ChatGPT Plus o Pro. Las solicitudes usan la cuota de su plan; OpenAI puede gastar créditos adicionales si los activó en ChatGPT. Inicie sesión en su navegador.",
+    "alreadyAdded": "ChatGPT ya está añadido. Elimínelo antes de volver a iniciar sesión.",
+    "states": {
+      "signed-in": "ChatGPT tiene una sesión iniciada.",
+      "expired": "La sesión de ChatGPT ha caducado; se renovará al usarla, o elimínela e inicie sesión de nuevo.",
+      "signed-out": "ChatGPT no tiene una sesión iniciada."
+    },
+    "callback": "El inicio de sesión de ChatGPT se ha completado. Vuelva al editor o al terminal.",
+    "failure": "No se pudo completar el inicio de sesión de ChatGPT. Inténtelo de nuevo o elimínelo y vuelva a iniciar sesión.",
+    "storeUnavailable": "El almacén de credenciales de este equipo no está disponible. Inicie sesión desde una sesión de escritorio interactiva con el almacén desbloqueado; en Linux, inicie primero Secret Service."
+  },
+  "planUi": {
+    "chatGptMark": "Usando el plan de ChatGPT",
+    "providerMark": "Usando el plan de {provider}",
+    "manage": "Gestionar uso",
+    "noticeTitle": "Estás usando tu plan de ChatGPT",
+    "noticeDetail": "Tu plan ChatGPT Plus o Pro cubre estas solicitudes. Comparten tu cuota actual y no añaden una cuota nueva.",
+    "credits": "Si permites que las aplicaciones usen créditos en la configuración de ChatGPT, las solicitudes pueden gastar esos créditos al alcanzar el límite del plan. Gestiona el uso para revisar los límites y los ajustes de créditos.",
+    "understood": "Entendido",
+    "limitTitle": "Se alcanzó el límite de uso del plan de ChatGPT",
+    "limitDetail": "Espera a que se restablezca tu cuota o elige un modelo con clave API. No se proporcionó una hora de restablecimiento. Cambiar la facturación requiere tu elección.",
+    "chooseModel": "Elegir otro modelo",
+    "usageHeading": "Uso del plan",
+    "usageDetail": "Las solicitudes del plan consumen la cuota o los créditos del proveedor y no cuentan para el límite en dólares de esta aplicación. La cuota restante y la hora de restablecimiento no están disponibles aquí.",
+    "requests": "Solicitudes",
+    "reportedTokens": "Tokens informados",
+    "estimatedTokens": "Tokens estimados",
+    "unknownTokens": "Solicitudes con uso de tokens desconocido",
+    "tokenCounts": "{input} de entrada · {output} de salida · solicitudes: {requests}",
+    "reduced": "Funciones reducidas",
+    "aiContent": "El contenido generado por IA puede ser inexacto. Copilot añade sus propias reglas y usa tus créditos de IA; los recuentos de tokens son estimaciones cuando no se informa del uso.",
+    "reportContent": "Denunciar contenido dañino",
+    "copilotConnect": "Usar mis modelos de Copilot",
+    "copilotUnavailable": "Los modelos de Copilot no están disponibles. Activa Copilot e inténtalo de nuevo.",
+    "copilotQuota": "Tu cuota de Copilot se ha agotado. Gestiona el uso o elige otro modelo.",
+    "copilotRateLimit": "Copilot limita la frecuencia de solicitudes. Inténtalo más tarde.",
+    "copilotConsent": "Permite el acceso en el diálogo de consentimiento de Copilot para continuar.",
+    "expired": "ChatGPT concedió muy poco tiempo para esta solicitud. Inicia sesión de nuevo.",
+    "retry": "ChatGPT no está disponible temporalmente. Inténtalo de nuevo."
+  }
 }

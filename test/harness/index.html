@@ -361,6 +361,14 @@
       // checked in English as if it were translated.
       const webviewErrors = []
       const scenarioName = new URLSearchParams(location.search).get('scenario')
+      // M95b: deterministic notice state, before the app reads its store.
+      if (scenarioName?.startsWith('plan-') || scenarioName?.startsWith('copilot-plan')) {
+        if (scenarioName.startsWith('plan-notice')) {
+          localStorage.removeItem('museSpark.chatGptPlanNotice.v1')
+        } else {
+          localStorage.setItem('museSpark.chatGptPlanNotice.v1', '1')
+        }
+      }
       // M25: the conversation a panel saved in VS Code's webview state before
       // the crash screen's Reload, as the webview's own snapshot writes it.
       const restoredState = {
@@ -786,6 +794,9 @@
                         ...(window.harnessProviders === undefined
                           ? {}
                           : { providers: window.harnessProviders }),
+                        ...(window.harnessPlans === undefined
+                          ? {}
+                          : { plans: window.harnessPlans }),
                       }
                     : {
                         type: 'usageReport',
@@ -1073,8 +1084,19 @@
   <body>
     <div id="root"></div>
     <script>
-      if (new URLSearchParams(location.search).get('scenario')?.startsWith('tasks-tab')) {
+      const surfaceScenario = new URLSearchParams(location.search).get('scenario') ?? ''
+      if (surfaceScenario.startsWith('tasks-tab')) {
         document.body.dataset.surface = 'tasks'
+      }
+      if (
+        surfaceScenario.startsWith('tasks-tab') ||
+        [
+          'plan-notice-narrow',
+          'plan-limit-narrow',
+          'plan-usage-narrow',
+          'copilot-plan-narrow',
+        ].includes(surfaceScenario)
+      ) {
         document.documentElement.style.width = '100%'
         document.body.style.width = '100%'
       }
@@ -1904,6 +1926,39 @@
       // a queued steer, the working line, the docked approval card and the
       // composer with an open file. The column scenarios play it and then
       // measure the layout (columnGeometry, below).
+      const subscriptionFixture = (providerId = 'chatgpt', providerLabel = 'ChatGPT') => {
+        window.harnessBackend = 'modelApi'
+        const slug =
+          providerId === 'copilot'
+            ? 'auto'
+            : providerId === 'mistral-plan'
+              ? 'codestral'
+              : 'gpt-6-astra'
+        const modelId = `${providerId}/${slug}`
+        send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+        send({
+          type: 'modelList',
+          models: [
+            {
+              modelId,
+              displayLabel:
+                providerId === 'copilot'
+                  ? 'Auto'
+                  : providerId === 'mistral-plan'
+                    ? 'Codestral'
+                    : 'GPT-6 Astra',
+              isDefault: true,
+              providerId,
+              providerLabel,
+              pricing: 'plan',
+              ...(providerId === 'mistral-plan'
+                ? { planLimitsUrl: 'https://docs.mistral.ai/admin/billing-usage/subscriptions' }
+                : {}),
+            },
+          ],
+        })
+        send({ type: 'sessionInfo', modelId })
+      }
       const columnFixture = () => {
         window.harnessSilent = true
         send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
@@ -3238,6 +3293,66 @@
             setValue(filter, HTMLInputElement.prototype, '/usage')
             filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
           })
+        },
+        // --- M95b: shared plan surfaces; all data is fake host data. ---
+        'plan-chatgpt': () => {
+          subscriptionFixture()
+        },
+        'plan-notice': () => {
+          subscriptionFixture()
+        },
+        'plan-notice-narrow': () => {
+          steps['plan-notice']()
+        },
+        'plan-limit': () => {
+          subscriptionFixture()
+          event({
+            type: 'turnCompleted',
+            turnId: 'plan-limit-1',
+            terminal: 'failed',
+            errorKind: 'modelapi_error',
+            reason:
+              'The ChatGPT user has reached their Subscription Sharing usage limit. Ask the user to try again after their usage limit resets or use an API key instead.',
+          })
+        },
+        'plan-limit-narrow': () => {
+          steps['plan-limit']()
+        },
+        'plan-key': () => {
+          subscriptionFixture('mistral-plan', 'Mistral')
+        },
+        'copilot-plan': () => {
+          subscriptionFixture('copilot', 'Copilot')
+        },
+        'copilot-plan-narrow': () => {
+          steps['copilot-plan']()
+        },
+        'plan-usage': () => {
+          subscriptionFixture()
+          window.harnessPlans = [
+            {
+              providerId: 'chatgpt',
+              requests: 4,
+              reported: { requests: 3, inputTokens: 20804, outputTokens: 210 },
+              estimated: { requests: 0, inputTokens: 0, outputTokens: 0 },
+            },
+            {
+              providerId: 'copilot',
+              requests: 2,
+              reported: { requests: 0, inputTokens: 0, outputTokens: 0 },
+              estimated: { requests: 2, inputTokens: 8000, outputTokens: 1000 },
+            },
+          ]
+          whenFound('.composer-area:not([inert]) .plan-mark', () => {
+            click('Commands')
+            whenFound('.palette-filter', (filter) => {
+              setValue(filter, HTMLInputElement.prototype, '/usage')
+              filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+            })
+          })
+        },
+        'plan-usage-narrow': () => {
+          steps['plan-usage']()
         },
         // --- M33: paid features on the Model API backend: the badge, a paid
         // search row, a reply's sources, the tally and the palette's toggles ---

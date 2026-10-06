@@ -13,7 +13,13 @@ import { EN } from '../../src/shared/l10n/en'
 
 describe('isModelsPanelBundle', () => {
   it('accepts the factory and refuses anything else', () => {
-    expect(isModelsPanelBundle({ createModelsPanelFeatures: () => ({}) })).toBe(true)
+    expect(
+      isModelsPanelBundle({
+        createModelsPanelFeatures: () => ({}),
+        createSubscriptionFeatures: () => ({}),
+      }),
+    ).toBe(true)
+    expect(isModelsPanelBundle({ createModelsPanelFeatures: () => ({}) })).toBe(false)
     for (const bad of [undefined, null, {}, { createModelsPanelFeatures: 'x' }]) {
       expect(isModelsPanelBundle(bad)).toBe(false)
     }

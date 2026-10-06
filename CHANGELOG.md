@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- M95b connects ChatGPT and Copilot subscription actions to the Models panel,
+  command palette and shared harness. ChatGPT uses the account catalogue and
+  parses headerless SSE, including usage limits inside HTTP 200; ACP editors
+  use the same dispatch. Plan attempts have separate token/request tallies
+  and bypass USD reservations. Copilot uses host consent and remains reduced
+  and unavailable in confidential workspaces. Live success certification and
+  plan-key transport integration remain pending.
+
 ### Fixed
 
 - Isolate M95's built exec package and bundle-split drills so parallel unit
@@ -43,6 +53,23 @@ happened, not what was planned; superseded entries are kept.
   Bind retries and held confirmations to the provider/model/credential,
   retain unknown costs and separate Meta image credentials from BYO profiles.
   Production transport composition remains pending M95 lane T/W integration.
+- Windows concurrent ChatGPT refresh recovery retries transient sharing
+  refusals without deleting a live owner or replacing a legacy ownerless lock.
+
+- Plan notices now use a verified account hash, and dismissed usage limits
+  stay dismissed through model switches and saved conversation restoration.
+  Plan billing disclosures survive a temporarily empty model catalogue.
+  Subscription commands install the language in both deferred bundles.
+  Corrupted subscription records return a fixed error without exposing their
+  stored text through JSON parsing failures.
+
+
+- ChatGPT provider add, remove and status commands now reach the ACP executable
+  and appear as terminal or manual actions in every ACP editor. Sign-in saves
+  the account's eligible catalogue models atomically; translated notices and
+  callback text ship in all fourteen languages. Native credential-store failures
+  retain a sanitized recovery category and direct users to an interactive
+  desktop session, without exposing the store's error text.
 
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage

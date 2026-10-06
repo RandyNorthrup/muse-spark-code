@@ -168,5 +168,7 @@
   "config.judge.engine.description": "`auto` (votre propre modèle de conversation ; `same` en phase 1) et `same` ne peuvent qu’ajouter de la prudence à une action Auto risquée qu’aucune règle ne tranche : un avertissement prêt transforme une autorisation en question, ou en note sur la carte d’approbation. `off` n’exécute aucun évaluateur. Sur le backend Model API, chaque jugement est facturé sur votre clé et demande d’abord votre accord une fois ; sur Muse Code, il passe par votre abonnement.",
   "config.judge.engine.enumDescriptions.auto": "Votre propre modèle de conversation évalue (`same` en phase 1) ; un évaluateur distinct le rejoint dès qu’un est configuré.",
   "config.judge.engine.enumDescriptions.same": "Seul votre propre modèle de conversation évalue ; il ne change jamais de modèle.",
-  "config.judge.engine.enumDescriptions.off": "Aucun évaluateur : les approbations se comportent exactement comme sans lui."
+  "config.judge.engine.enumDescriptions.off": "Aucun évaluateur : les approbations se comportent exactement comme sans lui.",
+  "command.connectChatGpt": "Continuer avec ChatGPT",
+  "command.connectCopilot": "Utiliser mes modèles Copilot"
 }

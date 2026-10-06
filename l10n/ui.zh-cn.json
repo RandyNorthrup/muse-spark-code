@@ -2619,5 +2619,52 @@
   "judgeStatusPaid": "付费",
   "paidProviderPrice": "每百万词元：输入 {input}、缓存读取 {cached}、缓存写入 {write}、一小时写入 {write1h}、输出 {output}。每次请求 {request}；每张图片 {image}。",
   "paidProviderPriceTier": "输入达到 {threshold} 个词元后：每百万词元输入 {input}、输出 {output}。",
-  "modelToolCallingUnavailable": "此模型的工具调用尚未验证。"
+  "modelToolCallingUnavailable": "此模型的工具调用尚未验证。",
+  "acpChatGpt": {
+    "usage": "用法: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "使用 ChatGPT 继续",
+      "remove": "移除 ChatGPT 登录",
+      "status": "检查 ChatGPT 登录"
+    },
+    "notice": "需要 ChatGPT Plus 或 Pro。请求会使用您的套餐额度；如果您在 ChatGPT 中启用了额外点数，OpenAI 可能会消耗这些点数。请在浏览器中登录。",
+    "alreadyAdded": "已添加 ChatGPT。请先移除，再重新登录。",
+    "states": {
+      "signed-in": "已登录 ChatGPT。",
+      "expired": "ChatGPT 登录已过期；使用时会刷新，您也可以移除后重新登录。",
+      "signed-out": "尚未登录 ChatGPT。"
+    },
+    "callback": "ChatGPT 登录完成。请返回编辑器或终端。",
+    "failure": "无法完成 ChatGPT 登录。请重试，或移除后重新登录。",
+    "storeUnavailable": "此计算机的凭据存储不可用。请从交互式桌面会话中登录，并解锁凭据存储；在 Linux 上，请先启动 Secret Service。"
+  },
+  "planUi": {
+    "chatGptMark": "正在使用 ChatGPT 套餐",
+    "providerMark": "正在使用 {provider} 套餐",
+    "manage": "管理用量",
+    "noticeTitle": "你正在使用自己的 ChatGPT 套餐",
+    "noticeDetail": "这些请求由你的 ChatGPT Plus 或 Pro 套餐承担。它们共享现有额度，不会增加新的额度。",
+    "credits": "如果你在 ChatGPT 设置中允许应用使用点数，请求可能在达到套餐上限后消耗这些点数。请在管理用量中查看上限和点数设置。",
+    "understood": "知道了",
+    "limitTitle": "已达到 ChatGPT 套餐用量上限",
+    "limitDetail": "请等待额度重置，或选择使用 API 密钥的模型。服务未提供重置时间。更改计费方式需要你主动选择。",
+    "chooseModel": "选择其他模型",
+    "usageHeading": "套餐用量",
+    "usageDetail": "套餐请求使用提供商的额度或点数，不计入此应用的美元支出上限。这里无法查看剩余额度和重置时间。",
+    "requests": "请求数",
+    "reportedTokens": "已报告的令牌",
+    "estimatedTokens": "估算的令牌",
+    "unknownTokens": "令牌用量未知的请求",
+    "tokenCounts": "输入 {input} · 输出 {output} · 请求数：{requests}",
+    "reduced": "功能受限",
+    "aiContent": "AI 生成的内容可能不准确。Copilot 会添加自己的规则并使用你的 AI 点数；未报告用量时，令牌数为估算值。",
+    "reportContent": "举报有害内容",
+    "copilotConnect": "使用我的 Copilot 模型",
+    "copilotUnavailable": "Copilot 模型不可用。请启用 Copilot 后重试。",
+    "copilotQuota": "Copilot 配额已用尽。请管理用量或选择其他模型。",
+    "copilotRateLimit": "Copilot 请求频率受限。请稍后重试。",
+    "copilotConsent": "请在 Copilot 授权对话框中允许访问以继续。",
+    "expired": "ChatGPT 授予的有效期不足以完成此请求。请重新登录。",
+    "retry": "ChatGPT 暂时不可用。请重试。"
+  }
 }

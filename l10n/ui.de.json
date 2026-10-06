@@ -2722,5 +2722,52 @@
   "judgeStatusPaid": "Kostenpflichtig",
   "paidProviderPrice": "Pro Million Tokens: Eingabe {input}, Cache-Lesen {cached}, Cache-Schreiben {write}, einstündiges Schreiben {write1h}, Ausgabe {output}. Pro Anfrage {request}; pro Bild {image}.",
   "paidProviderPriceTier": "Ab {threshold} Eingabe-Tokens: Eingabe {input}, Ausgabe {output} pro Million.",
-  "modelToolCallingUnavailable": "Werkzeugaufrufe wurden für dieses Modell nicht verifiziert."
+  "modelToolCallingUnavailable": "Werkzeugaufrufe wurden für dieses Modell nicht verifiziert.",
+  "acpChatGpt": {
+    "usage": "Aufruf: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "Mit ChatGPT fortfahren",
+      "remove": "ChatGPT-Anmeldung entfernen",
+      "status": "ChatGPT-Anmeldung prüfen"
+    },
+    "notice": "ChatGPT Plus oder Pro ist erforderlich. Anfragen nutzen Ihr Plankontingent; OpenAI kann zusätzliche Guthaben verbrauchen, wenn Sie diese in ChatGPT aktiviert haben. Melden Sie sich im Browser an.",
+    "alreadyAdded": "ChatGPT wurde bereits hinzugefügt. Entfernen Sie es vor einer erneuten Anmeldung.",
+    "states": {
+      "signed-in": "ChatGPT ist angemeldet.",
+      "expired": "Die ChatGPT-Anmeldung ist abgelaufen; sie wird bei Nutzung erneuert, oder entfernen Sie sie und melden Sie sich erneut an.",
+      "signed-out": "ChatGPT ist nicht angemeldet."
+    },
+    "callback": "Die ChatGPT-Anmeldung ist abgeschlossen. Kehren Sie zu Ihrem Editor oder Terminal zurück.",
+    "failure": "Die ChatGPT-Anmeldung konnte nicht abgeschlossen werden. Versuchen Sie es erneut oder entfernen Sie sie und melden Sie sich erneut an.",
+    "storeUnavailable": "Der Anmeldedatenspeicher dieses Computers ist nicht verfügbar. Melden Sie sich aus einer interaktiven Desktopsitzung mit entsperrtem Speicher an; starten Sie unter Linux zuerst Secret Service."
+  },
+  "planUi": {
+    "chatGptMark": "ChatGPT-Abo wird verwendet",
+    "providerMark": "Abo von {provider} wird verwendet",
+    "manage": "Nutzung verwalten",
+    "noticeTitle": "Du verwendest dein ChatGPT-Abo",
+    "noticeDetail": "Diese Anfragen werden über dein ChatGPT-Plus- oder Pro-Abo abgerechnet. Sie nutzen dein bestehendes Kontingent und fügen kein weiteres hinzu.",
+    "credits": "Wenn du Apps in den ChatGPT-Einstellungen die Nutzung von Guthaben erlaubst, können Anfragen nach Erreichen des Abo-Limits dieses Guthaben verbrauchen. Prüfe Limits und Guthabeneinstellungen unter Nutzung verwalten.",
+    "understood": "Verstanden",
+    "limitTitle": "Nutzungslimit des ChatGPT-Abos erreicht",
+    "limitDetail": "Warte auf die Erneuerung deines Kontingents oder wähle ein Modell mit API-Schlüssel. Es wurde kein Zeitpunkt dafür angegeben. Eine Änderung der Abrechnung erfordert deine Auswahl.",
+    "chooseModel": "Anderes Modell wählen",
+    "usageHeading": "Abo-Nutzung",
+    "usageDetail": "Abo-Anfragen nutzen das Kontingent oder Guthaben des Anbieters und zählen nicht zum Dollar-Limit dieser App. Restkontingent und Erneuerungszeit sind hier nicht verfügbar.",
+    "requests": "Anfragen",
+    "reportedTokens": "Gemeldete Token",
+    "estimatedTokens": "Geschätzte Token",
+    "unknownTokens": "Anfragen mit unbekannter Token-Nutzung",
+    "tokenCounts": "{input} Eingabe · {output} Ausgabe · Anfragen: {requests}",
+    "reduced": "Eingeschränkte Funktionen",
+    "aiContent": "KI-generierte Inhalte können ungenau sein. Copilot fügt eigene Regeln hinzu und nutzt deine KI-Guthaben; Token-Zahlen sind Schätzungen, wenn keine Nutzung gemeldet wird.",
+    "reportContent": "Schädliche Inhalte melden",
+    "copilotConnect": "Meine Copilot-Modelle verwenden",
+    "copilotUnavailable": "Copilot-Modelle sind nicht verfügbar. Aktivieren Sie Copilot und versuchen Sie es erneut.",
+    "copilotQuota": "Ihr Copilot-Kontingent ist aufgebraucht. Verwalten Sie die Nutzung oder wählen Sie ein anderes Modell.",
+    "copilotRateLimit": "Copilot begrenzt die Anfragerate. Versuchen Sie es später erneut.",
+    "copilotConsent": "Erlauben Sie den Zugriff im Zustimmungsdialog von Copilot.",
+    "expired": "ChatGPT hat eine zu kurze Gültigkeit für diese Anfrage gewährt. Melden Sie sich erneut an.",
+    "retry": "ChatGPT ist vorübergehend nicht verfügbar. Versuchen Sie es erneut."
+  }
 }

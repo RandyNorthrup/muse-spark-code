@@ -64,6 +64,7 @@ import {
   accountFactsSchema,
   providerUsageRowSchema,
   subscriptionUsageSchema,
+  planUsageReportSchema,
   usageInsightsSchema,
 } from './usage'
 
@@ -255,6 +256,8 @@ const modelOptionSchema = z.object({
   providerId: z.optional(z.string()),
   providerLabel: z.optional(z.string()),
   pricing: z.optional(z.enum(MODEL_PRICINGS)),
+  /** Plan-key preset's limits page; no credential or account identity. */
+  planLimitsUrl: z.optional(z.url().check(z.refine((url) => url.startsWith('https://')))),
   inputUsdPerMTokens: z.optional(z.number()),
   outputUsdPerMTokens: z.optional(z.number()),
   /** Pinned in the Models section: first in the composer's picker (M95). */
@@ -842,6 +845,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     hasCli: z.optional(z.boolean()),
     hasCliSession: z.optional(z.boolean()),
     installState: z.optional(z.enum(['running', 'failed'])),
+    /** Host-authored identity for plan notice persistence; no raw account id or credential. */
+    planAccount: z.optional(
+      z.object({
+        providerId: z.string().check(z.regex(/^(?!meta$)[a-z][a-z0-9-]{0,31}$/u)),
+        accountIdHash: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
+      }),
+    ),
   }),
   // The active session's model (shown in the composer pill) and identity.
   z.object({
@@ -908,6 +918,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     insights: z.optional(z.object({ day: usageInsightsSchema, week: usageInsightsSchema })),
     /** This window's tallies per BYO provider (M95); absent until one is used. */
     providers: z.optional(z.array(providerUsageRowSchema)),
+    plans: z.optional(planUsageReportSchema),
   }),
   // A finished provider setup (M95): the wizard saved a provider and set the
   // composer's model. The panel confirms once, then leaves first run.

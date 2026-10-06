@@ -1,7 +1,7 @@
 // M95-I's single capability adapter. CAPREC replaces the evidence join here;
 // consumers retain the distinctions between unknown and unsupported. Provider
 // core stays in dist/providers.js, so only its types cross this seam.
-import type { ModelApiClient } from './client'
+import type { ModelApiClient, ProviderClient } from './client'
 import type { ModelSummary } from '../../agent/agentBackend'
 import type { CreateResponseBody, Usage } from './schemas'
 import { estimateCostUsd } from '../../usage/insights'
@@ -152,12 +152,18 @@ export function modelPricedUsage(usage: Usage): ModelPricedUsage {
   }
 }
 
-export function metaResolvedModel(ref: string, client: ModelClient): ResolvedModel {
-  const policy = modelPolicyFor(ref)
+export function metaResolvedModel(ref: string, client: ProviderClient): ResolvedModel {
+  const isPlan = client.isPlanModel?.(ref) === true
+  const policy = modelPolicyFor(
+    ref,
+    isPlan ? { capabilities: { toolCalling: true }, pricing: { kind: 'plan' } } : {},
+  )
   const estimate = (usage: PricedUsage) =>
-    policy.pricing.kind === 'priced'
-      ? estimateCostUsd({ ...usage, cachedTokens: usage.cachedTokens ?? 0 }, ref)
-      : undefined
+    isPlan
+      ? 0
+      : policy.pricing.kind === 'priced'
+        ? estimateCostUsd({ ...usage, cachedTokens: usage.cachedTokens ?? 0 }, ref)
+        : undefined
   return {
     ref,
     client,

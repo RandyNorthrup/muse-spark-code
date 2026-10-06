@@ -45,6 +45,8 @@ export const GOOEY_MENU = {
 } as const
 
 export const COMMAND_IDS = {
+  connectChatGpt: 'museSpark.connectChatGpt',
+  connectCopilot: 'museSpark.connectCopilot',
   openInSidebar: 'museSpark.openInSidebar',
   openInNewTab: 'museSpark.openInNewTab',
   openTasks: 'museSpark.openTasks',
@@ -116,6 +118,9 @@ export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
+/** ACP grant mutations serialize by exclusively listening on this loopback port. */
+export const CHATGPT_REFRESH_LOCK_PORT = 49_953
+export const CHATGPT_REFRESH_LOCK_RETRY_MS = 100
 /** A removed provider's secret waits ten seconds behind Undo (D74). */
 export const PROVIDER_UNDO_WINDOW_MS = 10 * 1000
 /** How long Scan this computer waits on one loopback port (D74). */
@@ -5294,6 +5299,15 @@ export const ZAI_KEY_PATTERN = /^[0-9a-f]{32}\.[A-Za-z0-9]{8,64}$/
 export const PROVIDERS_CONFIG_DIR_NAME = 'muse-spark-code'
 export const PROVIDERS_FILE_NAME = 'providers.json'
 export const PROVIDERS_FILE_VERSION = 1
+// M95b destinations: opening one never changes billing or sends a model call.
+export const CHATGPT_MANAGE_USAGE_URL = 'https://chatgpt.com/settings/usage'
+export const COPILOT_REPORT_URL = 'mailto:copilot-partners@github.com'
+export const COPILOT_MANAGE_USAGE_URL = 'https://github.com/settings/copilot'
+export const CHATGPT_PLAN_NOTICE_STORAGE_KEY = 'museSpark.chatGptPlanNotice.v1'
+// Owner capture M95B-FINDINGS.md, 2026-10-05: SSE error inside HTTP 200.
+export const CHATGPT_PLAN_LIMIT_MESSAGE = 'Subscription Sharing usage limit'
+export const CHATGPT_PLAN_LIMIT_ERROR_KIND = 'subscription_sharing_usage_limit_exceeded'
+export const SUBSCRIPTION_STREAM_MAX_BYTES = 16 * 1024 * 1024
 // A credential record's version (`{v, auth, origin, …}`, bound to the exact
 // origin it was obtained for).
 export const CREDENTIAL_RECORD_VERSION = 1

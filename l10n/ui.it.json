@@ -2825,5 +2825,52 @@
   "judgeStatusPaid": "A pagamento",
   "paidProviderPrice": "Per milione di token: input {input}, lettura cache {cached}, scrittura cache {write}, scrittura di un’ora {write1h}, output {output}. Per richiesta {request}; per immagine {image}.",
   "paidProviderPriceTier": "Da {threshold} token di input: input {input}, output {output} per milione.",
-  "modelToolCallingUnavailable": "La chiamata agli strumenti non è stata verificata per questo modello."
+  "modelToolCallingUnavailable": "La chiamata agli strumenti non è stata verificata per questo modello.",
+  "acpChatGpt": {
+    "usage": "Uso: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "Continua con ChatGPT",
+      "remove": "Rimuovi l’accesso a ChatGPT",
+      "status": "Verifica l’accesso a ChatGPT"
+    },
+    "notice": "È necessario ChatGPT Plus o Pro. Le richieste usano la quota del piano; OpenAI può consumare crediti aggiuntivi se li hai abilitati in ChatGPT. Accedi nel browser.",
+    "alreadyAdded": "ChatGPT è già stato aggiunto. Rimuovilo prima di accedere nuovamente.",
+    "states": {
+      "signed-in": "ChatGPT ha effettuato l’accesso.",
+      "expired": "L’accesso a ChatGPT è scaduto; verrà rinnovato all’uso, oppure rimuovilo e accedi nuovamente.",
+      "signed-out": "ChatGPT non ha effettuato l’accesso."
+    },
+    "callback": "L’accesso a ChatGPT è completato. Torna all’editor o al terminale.",
+    "failure": "Non è stato possibile completare l’accesso a ChatGPT. Riprova oppure rimuovilo e accedi nuovamente.",
+    "storeUnavailable": "L’archivio credenziali del computer non è disponibile. Accedi da una sessione desktop interattiva con l’archivio sbloccato; su Linux, avvia prima Secret Service."
+  },
+  "planUi": {
+    "chatGptMark": "Piano ChatGPT in uso",
+    "providerMark": "Piano {provider} in uso",
+    "manage": "Gestisci utilizzo",
+    "noticeTitle": "Stai usando il tuo piano ChatGPT",
+    "noticeDetail": "Il tuo piano ChatGPT Plus o Pro copre queste richieste. Condividono la quota esistente e non aggiungono una nuova quota.",
+    "credits": "Se consenti alle app di usare crediti nelle impostazioni di ChatGPT, le richieste possono spendere quei crediti dopo il limite del piano. Gestisci l’utilizzo per controllare limiti e impostazioni dei crediti.",
+    "understood": "Ho capito",
+    "limitTitle": "Limite di utilizzo del piano ChatGPT raggiunto",
+    "limitDetail": "Attendi il ripristino della quota o scegli un modello con chiave API. Non è stato fornito un orario di ripristino. Cambiare la fatturazione richiede una tua scelta.",
+    "chooseModel": "Scegli un altro modello",
+    "usageHeading": "Utilizzo del piano",
+    "usageDetail": "Le richieste del piano usano la quota o i crediti del fornitore e non rientrano nel limite in dollari di questa app. La quota residua e l’orario di ripristino non sono disponibili qui.",
+    "requests": "Richieste",
+    "reportedTokens": "Token riportati",
+    "estimatedTokens": "Token stimati",
+    "unknownTokens": "Richieste con utilizzo dei token sconosciuto",
+    "tokenCounts": "{input} in ingresso · {output} in uscita · richieste: {requests}",
+    "reduced": "Funzionalità ridotte",
+    "aiContent": "I contenuti generati dall’IA possono essere inesatti. Copilot aggiunge le proprie regole e usa i tuoi crediti IA; i conteggi dei token sono stime quando l’utilizzo non viene riportato.",
+    "reportContent": "Segnala contenuti dannosi",
+    "copilotConnect": "Usa i miei modelli Copilot",
+    "copilotUnavailable": "I modelli Copilot non sono disponibili. Attiva Copilot e riprova.",
+    "copilotQuota": "La quota Copilot è esaurita. Gestisci l’utilizzo o scegli un altro modello.",
+    "copilotRateLimit": "Copilot limita la frequenza delle richieste. Riprova più tardi.",
+    "copilotConsent": "Consenti l’accesso nella finestra di consenso di Copilot per continuare.",
+    "expired": "ChatGPT ha concesso una durata troppo breve per questa richiesta. Accedi di nuovo.",
+    "retry": "ChatGPT è temporaneamente non disponibile. Riprova."
+  }
 }

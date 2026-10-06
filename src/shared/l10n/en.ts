@@ -28,6 +28,41 @@ export const EN = {
   paidDailyStop: 'Stop until tomorrow',
   paidDailyRaisePrompt:
     'Enter today’s limit in USD (0.50–500), enough for the pending reservations.',
+  planUi: {
+    copilotConnect: 'Use my Copilot models',
+    copilotUnavailable: 'Copilot models are unavailable. Enable Copilot and try again.',
+    copilotQuota: 'Your Copilot quota is exhausted. Manage usage or choose another model.',
+    copilotRateLimit: 'Copilot is rate limited. Try again later.',
+    copilotConsent: 'Allow access to Copilot in its consent dialog to continue.',
+    expired: 'ChatGPT granted too little time to finish this request. Sign in again.',
+    retry: 'ChatGPT is temporarily unavailable. Try again.',
+    // M95b: plan billing, allowance recovery and Copilot's required content note.
+    chatGptMark: 'Using ChatGPT plan',
+    providerMark: 'Using {provider} plan',
+    manage: 'Manage usage',
+    noticeTitle: 'You’re using your ChatGPT plan',
+    noticeDetail: 'ChatGPT Plus/Pro requests share your allowance; they add none.',
+    credits:
+      'Apps may spend credits after plan limits if enabled. Check ChatGPT’s Manage usage settings.',
+    understood: 'Got it',
+    limitTitle: 'ChatGPT plan usage limit reached',
+    limitDetail:
+      'Wait for a reset or choose an API-key model. Reset time is unknown. You choose billing changes.',
+    chooseModel: 'Choose another model',
+    usageHeading: 'Plan usage',
+    usageDetail:
+      'Plan allowance or credits pay, outside this app’s dollar cap. Quota and reset time are unknown.',
+    requests: 'Requests',
+    reportedTokens: 'Reported tokens',
+    estimatedTokens: 'Estimated tokens',
+    unknownTokens: 'Unknown tokens (requests)',
+    // {input}, {output}, {requests}: localized counts, including the sampled requests.
+    tokenCounts: '{input} input · {output} output · requests: {requests}',
+    reduced: 'Reduced',
+    aiContent:
+      'AI content can be inaccurate. Copilot adds rules and uses AI credits. Unreported token usage is estimated.',
+    reportContent: 'Report harmful content',
+  },
   untitledConversation: 'Untitled',
   crashTitle: 'The panel hit an error',
   crashDetail: 'Reload rebuilds the panel; the conversation is kept by the host.',
@@ -3224,6 +3259,27 @@ export const EN = {
   // {id}: the provider id, as written.
   acpProviderAdded: 'Added provider {id}.',
   acpProviderRemoved: 'Removed provider {id}.',
+  acpChatGpt: {
+    usage: 'Usage: muse-spark-code-acp providers add|remove|status chatgpt',
+    actions: {
+      add: 'Continue with ChatGPT',
+      remove: 'Remove ChatGPT sign-in',
+      status: 'Check ChatGPT sign-in',
+    },
+    notice:
+      'ChatGPT Plus or Pro is required. Requests use your plan allowance; OpenAI may spend additional credits if you enabled them in ChatGPT. Continue in your browser to sign in.',
+    alreadyAdded: 'ChatGPT is already added. Remove it before signing in again.',
+    states: {
+      'signed-in': 'ChatGPT is signed in.',
+      expired:
+        'ChatGPT sign-in has expired; it will refresh on use, or remove it and sign in again.',
+      'signed-out': 'ChatGPT is not signed in.',
+    },
+    callback: 'ChatGPT sign-in is complete. Return to your editor or terminal.',
+    failure: 'ChatGPT sign-in could not be completed. Try again or remove it and sign in again.',
+    storeUnavailable:
+      'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
+  },
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.
   providerText: {

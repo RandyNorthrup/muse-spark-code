@@ -2619,5 +2619,52 @@
   "judgeStatusPaid": "유료",
   "paidProviderPrice": "100만 토큰당: 입력 {input}, 캐시 읽기 {cached}, 캐시 쓰기 {write}, 1시간 쓰기 {write1h}, 출력 {output}. 요청당 {request}, 이미지당 {image}.",
   "paidProviderPriceTier": "입력 토큰 {threshold}개부터: 100만 토큰당 입력 {input}, 출력 {output}.",
-  "modelToolCallingUnavailable": "이 모델의 도구 호출은 검증되지 않았습니다."
+  "modelToolCallingUnavailable": "이 모델의 도구 호출은 검증되지 않았습니다.",
+  "acpChatGpt": {
+    "usage": "사용법: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "ChatGPT로 계속",
+      "remove": "ChatGPT 로그인 제거",
+      "status": "ChatGPT 로그인 확인"
+    },
+    "notice": "ChatGPT Plus 또는 Pro가 필요합니다. 요청은 플랜 이용 한도를 사용하며, ChatGPT에서 추가 크레딧을 활성화한 경우 OpenAI가 이를 사용할 수 있습니다. 브라우저에서 로그인하세요.",
+    "alreadyAdded": "ChatGPT가 이미 추가되어 있습니다. 다시 로그인하기 전에 제거하세요.",
+    "states": {
+      "signed-in": "ChatGPT에 로그인되어 있습니다.",
+      "expired": "ChatGPT 로그인이 만료되었습니다. 사용 시 갱신되거나, 제거한 뒤 다시 로그인하세요.",
+      "signed-out": "ChatGPT에 로그인되어 있지 않습니다."
+    },
+    "callback": "ChatGPT 로그인이 완료되었습니다. 편집기 또는 터미널로 돌아가세요.",
+    "failure": "ChatGPT 로그인을 완료할 수 없습니다. 다시 시도하거나 제거한 뒤 다시 로그인하세요.",
+    "storeUnavailable": "이 컴퓨터의 자격 증명 저장소를 사용할 수 없습니다. 저장소가 잠금 해제된 대화형 데스크톱 세션에서 로그인하세요. Linux에서는 먼저 Secret Service를 시작하세요."
+  },
+  "planUi": {
+    "chatGptMark": "ChatGPT 요금제 사용 중",
+    "providerMark": "{provider} 요금제 사용 중",
+    "manage": "사용량 관리",
+    "noticeTitle": "ChatGPT 요금제를 사용하고 있습니다",
+    "noticeDetail": "이 요청은 ChatGPT Plus 또는 Pro 요금제로 처리됩니다. 기존 사용 한도를 공유하며 새로운 한도를 추가하지 않습니다.",
+    "credits": "ChatGPT 설정에서 앱의 크레딧 사용을 허용하면 요금제 한도에 도달한 후 요청이 해당 크레딧을 소모할 수 있습니다. 사용량 관리에서 한도와 크레딧 설정을 확인하세요.",
+    "understood": "확인",
+    "limitTitle": "ChatGPT 요금제 사용 한도에 도달했습니다",
+    "limitDetail": "한도가 초기화될 때까지 기다리거나 API 키를 사용하는 모델을 선택하세요. 초기화 시간은 제공되지 않았습니다. 결제 방식 변경은 직접 선택해야 합니다.",
+    "chooseModel": "다른 모델 선택",
+    "usageHeading": "요금제 사용량",
+    "usageDetail": "요금제 요청은 제공업체의 한도 또는 크레딧을 사용하며 이 앱의 달러 지출 한도에 포함되지 않습니다. 남은 한도와 초기화 시간은 여기에서 확인할 수 없습니다.",
+    "requests": "요청 수",
+    "reportedTokens": "보고된 토큰",
+    "estimatedTokens": "추정 토큰",
+    "unknownTokens": "토큰 사용량을 알 수 없는 요청",
+    "tokenCounts": "입력 {input} · 출력 {output} · 요청: {requests}",
+    "reduced": "제한된 기능",
+    "aiContent": "AI가 생성한 콘텐츠는 부정확할 수 있습니다. Copilot은 자체 규칙을 추가하고 AI 크레딧을 사용합니다. 사용량이 보고되지 않으면 토큰 수는 추정치입니다.",
+    "reportContent": "유해 콘텐츠 신고",
+    "copilotConnect": "내 Copilot 모델 사용",
+    "copilotUnavailable": "Copilot 모델을 사용할 수 없습니다. Copilot을 활성화하고 다시 시도하세요.",
+    "copilotQuota": "Copilot 할당량을 모두 사용했습니다. 사용량을 관리하거나 다른 모델을 선택하세요.",
+    "copilotRateLimit": "Copilot 요청 빈도가 제한되었습니다. 나중에 다시 시도하세요.",
+    "copilotConsent": "계속하려면 Copilot 동의 대화 상자에서 접근을 허용하세요.",
+    "expired": "ChatGPT가 부여한 유효 시간이 이 요청에 너무 짧습니다. 다시 로그인하세요.",
+    "retry": "ChatGPT를 일시적으로 사용할 수 없습니다. 다시 시도하세요."
+  }
 }

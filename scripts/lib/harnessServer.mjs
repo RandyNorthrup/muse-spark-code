@@ -102,6 +102,17 @@ export const SCENARIOS = [
   'usage-api',
   // M95: Account & usage with per-provider rows and key usage.
   'usage-providers',
+  // M95b shared plan surfaces and their 320 px layouts.
+  'plan-chatgpt',
+  'plan-notice',
+  'plan-notice-narrow',
+  'plan-limit',
+  'plan-limit-narrow',
+  'plan-usage',
+  'plan-usage-narrow',
+  'plan-key',
+  'copilot-plan',
+  'copilot-plan-narrow',
   'reply-usage',
   'banner',
   'jump',
@@ -253,6 +264,10 @@ export const SIZED_SCENARIOS = {
   judge: { width: 690, ready: '.judge-status' },
   'judge-slow': { width: 690, ready: '.judge-status' },
   'judge-usage': { width: 690, ready: '[role="dialog"]' },
+  'plan-notice-narrow': { width: 320, ready: '#chatgpt-plan-title' },
+  'plan-limit-narrow': { width: 320, ready: '#chatgpt-plan-title' },
+  'plan-usage-narrow': { width: 320, ready: '#usage-title' },
+  'copilot-plan-narrow': { width: 320, ready: '.copilot-note' },
   'share-narrow': { width: 320, ready: '[role="dialog"]' },
   // M91 lane M: the MCP elicitation form at the panel's narrowest width.
   'elicitation-narrow': { width: 320, ready: 'form' },

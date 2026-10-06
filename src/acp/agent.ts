@@ -126,6 +126,8 @@ export interface SignInMethod {
   readonly args: readonly string[]
   /** The command a user runs by hand where the client cannot (`muse-spark-code-acp auth set`). */
   readonly command: string
+  /** Terminal provider actions verify their own local result, independently of Meta. */
+  readonly verify?: () => Promise<string | undefined>
 }
 
 export interface AcpAgentDeps {
@@ -133,6 +135,7 @@ export interface AcpAgentDeps {
   readonly version: string
   readonly options: AcpAgentOptions
   readonly signIn: SignInMethod
+  readonly providerSignIns?: readonly SignInMethod[]
   /** The folder a `session/list` without one lists (the agent's own). */
   readonly defaultCwd: string
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
@@ -970,8 +973,8 @@ class AgentState {
    * allows a terminal method only then), otherwise by the user, whose
    * `authenticate` this checks.
    */
-  private authMethod(): AuthMethod {
-    const { id, name, description, args, command } = this.deps.signIn
+  private authMethod(method: SignInMethod): AuthMethod {
+    const { id, name, description, args, command } = method
     return this.clientCapabilities.auth?.terminal === true
       ? { type: 'terminal', id, name, description, args: [...args] }
       : { id, name, description: fill(UI_TEXT.acpSignInByHand, { command }) }
@@ -1175,13 +1178,22 @@ class AgentState {
         mcpCapabilities: { http: this.deps.backend.kind === 'museCode', sse: false },
         sessionCapabilities: { list: {}, resume: {}, close: {} },
       },
-      authMethods: [this.authMethod()],
+      authMethods: [this.deps.signIn, ...(this.deps.providerSignIns ?? [])].map((method) =>
+        this.authMethod(method),
+      ),
       agentInfo: { name: ACP_AGENT_NAME, title: ACP_AGENT_TITLE, version: this.deps.version },
     }
   }
 
   /** Confirms the sign-in took; the client asks again if not. */
-  public async authenticate(): Promise<Record<string, never>> {
+  public async authenticate(methodId: string): Promise<Record<string, never>> {
+    const provider = this.deps.providerSignIns?.find((method) => method.id === methodId)
+    if (provider?.verify !== undefined) {
+      const failure = await provider.verify()
+      if (failure !== undefined) throw RequestError.authRequired(undefined, failure)
+      return {}
+    }
+    if (methodId !== this.deps.signIn.id) throw RequestError.invalidParams()
     await this.requireReady(true)
     return {}
   }
@@ -1326,7 +1338,7 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   )
   return acpAgent({ name: ACP_AGENT_NAME })
     .onRequest('initialize', (context) => state.initialize(context.params.clientCapabilities))
-    .onRequest('authenticate', () => state.authenticate())
+    .onRequest('authenticate', (context) => state.authenticate(context.params.methodId))
     .onRequest('session/new', (context) =>
       state.newSession(context.params.cwd, context.params.mcpServers, context.client),
     )

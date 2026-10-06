@@ -59,6 +59,8 @@ import {
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly judge?: ModelApiHostDeps['judge']
+  readonly createProviderClient?: ModelApiBundleDeps['createProviderClient']
+  readonly getProviderAccountId?: () => Promise<string | undefined>
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
   readonly getAccountId?: (() => Promise<string | undefined>) | undefined
@@ -264,6 +266,9 @@ export class ModelApiBackendManager {
       }),
       uiText: UI_TEXT,
       uiLocale: uiLocale(),
+      ...(this.deps.createProviderClient !== undefined && {
+        createProviderClient: this.deps.createProviderClient,
+      }),
       client: {
         ...(this.deps.reservePaidRequest !== undefined && {
           reservePaidRequest: this.deps.reservePaidRequest,
@@ -298,7 +303,9 @@ export class ModelApiBackendManager {
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
           const key = await this.deps.getApiKey()
-          return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+          return key === undefined
+            ? await this.deps.getProviderAccountId?.()
+            : createHash('sha256').update(key).digest('hex')
         },
         admitResponseAttempt: variant.admitResponseAttempt,
         noteResponseUsage: variant.noteResponseUsage,
@@ -482,7 +489,9 @@ export class ModelApiBackendManager {
   /** Hash-only identity, without starting the host or requiring a workspace. */
   public async accountId(): Promise<string | undefined> {
     const key = await this.deps.getApiKey()
-    return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+    return key === undefined
+      ? await this.deps.getProviderAccountId?.()
+      : createHash('sha256').update(key).digest('hex')
   }
 
   /** The host, created on first use with the stored sessions read. Rejects without a workspace. */

@@ -2928,5 +2928,52 @@
   "judgeStatusPaid": "Płatne",
   "paidProviderPrice": "Za milion tokenów: wejście {input}, odczyt pamięci podręcznej {cached}, zapis pamięci podręcznej {write}, zapis na godzinę {write1h}, wyjście {output}. Za żądanie {request}; za obraz {image}.",
   "paidProviderPriceTier": "Od {threshold} tokenów wejściowych: wejście {input}, wyjście {output} za milion.",
-  "modelToolCallingUnavailable": "Wywoływanie narzędzi nie zostało zweryfikowane dla tego modelu."
+  "modelToolCallingUnavailable": "Wywoływanie narzędzi nie zostało zweryfikowane dla tego modelu.",
+  "acpChatGpt": {
+    "usage": "Użycie: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "Kontynuuj z ChatGPT",
+      "remove": "Usuń logowanie do ChatGPT",
+      "status": "Sprawdź logowanie do ChatGPT"
+    },
+    "notice": "Wymagany jest ChatGPT Plus lub Pro. Żądania zużywają limit planu; OpenAI może wykorzystać dodatkowe kredyty, jeśli włączono je w ChatGPT. Zaloguj się w przeglądarce.",
+    "alreadyAdded": "ChatGPT jest już dodany. Usuń go przed ponownym logowaniem.",
+    "states": {
+      "signed-in": "ChatGPT jest zalogowany.",
+      "expired": "Logowanie do ChatGPT wygasło; odnowi się przy użyciu lub usuń je i zaloguj się ponownie.",
+      "signed-out": "ChatGPT nie jest zalogowany."
+    },
+    "callback": "Logowanie do ChatGPT zostało zakończone. Wróć do edytora lub terminala.",
+    "failure": "Nie udało się zakończyć logowania do ChatGPT. Spróbuj ponownie lub usuń je i zaloguj się jeszcze raz.",
+    "storeUnavailable": "Magazyn poświadczeń tego komputera jest niedostępny. Zaloguj się z interaktywnej sesji pulpitu z odblokowanym magazynem; w systemie Linux najpierw uruchom Secret Service."
+  },
+  "planUi": {
+    "chatGptMark": "Korzystanie z planu ChatGPT",
+    "providerMark": "Korzystanie z planu {provider}",
+    "manage": "Zarządzaj użyciem",
+    "noticeTitle": "Korzystasz ze swojego planu ChatGPT",
+    "noticeDetail": "Te żądania pokrywa Twój plan ChatGPT Plus lub Pro. Korzystają ze wspólnego istniejącego limitu i nie dodają nowego.",
+    "credits": "Jeśli w ustawieniach ChatGPT zezwolisz aplikacjom na używanie kredytów, żądania mogą je zużywać po osiągnięciu limitu planu. W zarządzaniu użyciem sprawdź limity i ustawienia kredytów.",
+    "understood": "Rozumiem",
+    "limitTitle": "Osiągnięto limit użycia planu ChatGPT",
+    "limitDetail": "Poczekaj na odnowienie limitu lub wybierz model z kluczem API. Nie podano czasu odnowienia. Zmiana rozliczeń wymaga Twojego wyboru.",
+    "chooseModel": "Wybierz inny model",
+    "usageHeading": "Użycie planu",
+    "usageDetail": "Żądania planu zużywają limit lub kredyty dostawcy i nie wliczają się do limitu dolarowego tej aplikacji. Pozostały limit i czas odnowienia nie są tu dostępne.",
+    "requests": "Żądania",
+    "reportedTokens": "Zgłoszone tokeny",
+    "estimatedTokens": "Szacowane tokeny",
+    "unknownTokens": "Żądania o nieznanym użyciu tokenów",
+    "tokenCounts": "{input} wejściowych · {output} wyjściowych · żądania: {requests}",
+    "reduced": "Ograniczone możliwości",
+    "aiContent": "Treści generowane przez AI mogą być niedokładne. Copilot dodaje własne reguły i używa Twoich kredytów AI; liczby tokenów są szacunkowe, gdy użycie nie jest zgłaszane.",
+    "reportContent": "Zgłoś szkodliwe treści",
+    "copilotConnect": "Użyj moich modeli Copilot",
+    "copilotUnavailable": "Modele Copilot są niedostępne. Włącz Copilot i spróbuj ponownie.",
+    "copilotQuota": "Limit Copilot został wyczerpany. Zarządzaj użyciem lub wybierz inny model.",
+    "copilotRateLimit": "Copilot ogranicza częstotliwość żądań. Spróbuj później.",
+    "copilotConsent": "Zezwól na dostęp w oknie zgody Copilot, aby kontynuować.",
+    "expired": "ChatGPT przyznał zbyt krótki czas ważności dla tego żądania. Zaloguj się ponownie.",
+    "retry": "ChatGPT jest tymczasowo niedostępny. Spróbuj ponownie."
+  }
 }

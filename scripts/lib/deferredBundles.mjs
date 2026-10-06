@@ -325,6 +325,8 @@ export const sharedValidation = {
 // Keep dynamic imports dynamic: these entries run only on their first action.
 /** @type {import('esbuild').Plugin} */
 const DEFERRED_OUTFILES = new Map([
+  [path.resolve('src/host/backend/providersEntry.ts'), 'dist/providers.js'],
+  [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/providers.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
@@ -341,10 +343,10 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
+          /\/(?:providersEntry|chatGptProviderCommands|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
-        if (args.kind !== 'dynamic-import') return
+        if (args.kind !== 'dynamic-import' && !args.path.endsWith('providersEntry')) return
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
         const output = DEFERRED_OUTFILES.get(source)
         return output === undefined

@@ -168,5 +168,7 @@
   "config.judge.engine.description": "Az `auto` (saját csevegőmodellje; az 1. fázisban `same`) és a `same` ahhoz a kockázatos Auto művelethez, amelyről egyetlen szabály sem dönt, csak óvatosságot adhat hozzá: az elkészült figyelmeztetés az engedélyt kérdéssé alakítja, vagy megjegyzést fűz a jóváhagyási kártyához. Az `off` nem futtat értékelőt. A Model API háttérrendszeren minden értékelés a kulcsára terhelődik, és előbb egyszer engedélyt kér; a Muse Code rendszerben az előfizetésére fut.",
   "config.judge.engine.enumDescriptions.auto": "A saját csevegőmodellje értékel (az 1. fázisban `same`); külön értékelő csatlakozik, ha beállít egyet.",
   "config.judge.engine.enumDescriptions.same": "Csak a saját csevegőmodellje értékel; modellt soha nem vált.",
-  "config.judge.engine.enumDescriptions.off": "Értékelő nélkül: a jóváhagyások pontosan úgy viselkednek, mint nélküle."
+  "config.judge.engine.enumDescriptions.off": "Értékelő nélkül: a jóváhagyások pontosan úgy viselkednek, mint nélküle.",
+  "command.connectChatGpt": "Folytatás ChatGPT-vel",
+  "command.connectCopilot": "Saját Copilot-modellek használata"
 }

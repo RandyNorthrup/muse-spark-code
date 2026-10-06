@@ -21,15 +21,36 @@ export interface KeyringEntry {
 /** Opens the entry for a service and account; throws when the store cannot be used. */
 export type KeyringEntryFactory = (service: string, account: string) => KeyringEntry
 
+/** Native failures may contain account or credential text; retain neither. */
+export class StoreUnavailableError extends Error {
+  public constructor() {
+    super('store-unavailable')
+    this.name = 'StoreUnavailableError'
+  }
+}
+
+export async function storeOperation<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work()
+  } catch {
+    // Includes Windows logon-session failures, locked/denied Keychains and
+    // absent Linux Secret Service. Nothing supplied by the binding escapes.
+    throw new StoreUnavailableError()
+  }
+}
+
 /** The credential store as the key's `SecretStore`, each call on a freshly opened entry. */
 export function keyringSecretStore(openEntry: KeyringEntryFactory): SecretStore {
   return {
-    get: async (key) => (await openEntry(KEYRING_SERVICE, key).getPassword()) ?? undefined,
+    get: async (key) =>
+      await storeOperation(
+        async () => (await openEntry(KEYRING_SERVICE, key).getPassword()) ?? undefined,
+      ),
     store: async (key, value) => {
-      await openEntry(KEYRING_SERVICE, key).setPassword(value)
+      await storeOperation(() => openEntry(KEYRING_SERVICE, key).setPassword(value))
     },
     delete: async (key) => {
-      await openEntry(KEYRING_SERVICE, key).deletePassword()
+      await storeOperation(() => openEntry(KEYRING_SERVICE, key).deletePassword())
     },
   }
 }

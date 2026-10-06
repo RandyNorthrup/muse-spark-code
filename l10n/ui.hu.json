@@ -2722,5 +2722,52 @@
   "judgeStatusPaid": "Fizetős",
   "paidProviderPrice": "Millió tokenenként: bemenet {input}, gyorsítótár-olvasás {cached}, gyorsítótár-írás {write}, egyórás írás {write1h}, kimenet {output}. Kérésenként {request}; képenként {image}.",
   "paidProviderPriceTier": "{threshold} bemeneti tokentől: bemenet {input}, kimenet {output} milliónként.",
-  "modelToolCallingUnavailable": "Az eszközhívás nincs ellenőrizve ennél a modellnél."
+  "modelToolCallingUnavailable": "Az eszközhívás nincs ellenőrizve ennél a modellnél.",
+  "acpChatGpt": {
+    "usage": "Használat: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "Folytatás ChatGPT-vel",
+      "remove": "ChatGPT-bejelentkezés eltávolítása",
+      "status": "ChatGPT-bejelentkezés ellenőrzése"
+    },
+    "notice": "ChatGPT Plus vagy Pro szükséges. A kérések az előfizetés keretét használják; az OpenAI további krediteket is felhasználhat, ha engedélyezte őket a ChatGPT-ben. Jelentkezzen be a böngészőben.",
+    "alreadyAdded": "A ChatGPT már hozzá van adva. Új bejelentkezés előtt távolítsa el.",
+    "states": {
+      "signed-in": "A ChatGPT be van jelentkezve.",
+      "expired": "A ChatGPT-bejelentkezés lejárt; használatkor megújul, vagy távolítsa el, és jelentkezzen be újra.",
+      "signed-out": "A ChatGPT nincs bejelentkezve."
+    },
+    "callback": "A ChatGPT-bejelentkezés befejeződött. Térjen vissza a szerkesztőbe vagy a terminálba.",
+    "failure": "A ChatGPT-bejelentkezést nem sikerült befejezni. Próbálja újra, vagy távolítsa el, és jelentkezzen be ismét.",
+    "storeUnavailable": "A számítógép hitelesítőadat-tárolója nem érhető el. Jelentkezzen be interaktív asztali munkamenetből, feloldott tárolóval; Linuxon előbb indítsa el a Secret Service szolgáltatást."
+  },
+  "planUi": {
+    "chatGptMark": "ChatGPT-előfizetés használata",
+    "providerMark": "{provider}-előfizetés használata",
+    "manage": "Használat kezelése",
+    "noticeTitle": "A ChatGPT-előfizetését használja",
+    "noticeDetail": "Ezeket a kéréseket a ChatGPT Plus vagy Pro előfizetése fedezi. A meglévő keretén osztoznak, és nem adnak új keretet.",
+    "credits": "Ha a ChatGPT beállításaiban engedélyezi az alkalmazásoknak a kreditek használatát, a kérések az előfizetési korlát elérése után ezeket a krediteket költhetik. A használat kezelésénél ellenőrizze a korlátokat és a kreditbeállításokat.",
+    "understood": "Értem",
+    "limitTitle": "Elérte a ChatGPT-előfizetés használati korlátját",
+    "limitDetail": "Várja meg a keret megújulását, vagy válasszon API-kulcsos modellt. A megújulás időpontja nem áll rendelkezésre. A számlázás módosításához az Ön választása szükséges.",
+    "chooseModel": "Másik modell választása",
+    "usageHeading": "Előfizetés használata",
+    "usageDetail": "Az előfizetéses kérések a szolgáltató keretét vagy kreditjeit használják, és nem számítanak bele az alkalmazás dolláros korlátjába. A fennmaradó keret és a megújulás időpontja itt nem érhető el.",
+    "requests": "Kérések",
+    "reportedTokens": "Jelentett tokenek",
+    "estimatedTokens": "Becsült tokenek",
+    "unknownTokens": "Ismeretlen tokenhasználatú kérések",
+    "tokenCounts": "{input} bemeneti · {output} kimeneti · kérések: {requests}",
+    "reduced": "Korlátozott képességek",
+    "aiContent": "Az AI által létrehozott tartalom pontatlan lehet. A Copilot saját szabályokat ad hozzá és az Ön AI-kreditjeit használja; a tokenszámok becslések, ha a használat nincs jelentve.",
+    "reportContent": "Káros tartalom jelentése",
+    "copilotConnect": "Saját Copilot-modellek használata",
+    "copilotUnavailable": "A Copilot-modellek nem érhetők el. Engedélyezze a Copilotot, és próbálja újra.",
+    "copilotQuota": "A Copilot-kerete elfogyott. Kezelje a használatot, vagy válasszon másik modellt.",
+    "copilotRateLimit": "A Copilot korlátozza a kérések gyakoriságát. Próbálja később.",
+    "copilotConsent": "A folytatáshoz engedélyezze a hozzáférést a Copilot beleegyezési ablakában.",
+    "expired": "A ChatGPT túl rövid érvényességet adott a kéréshez. Jelentkezzen be újra.",
+    "retry": "A ChatGPT átmenetileg nem érhető el. Próbálja újra."
+  }
 }

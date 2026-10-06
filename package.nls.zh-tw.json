@@ -168,5 +168,7 @@
   "config.judge.engine.description": "`auto`（您自己的聊天模型；第1階段即`same`）和`same`只能給沒有規則決定的有風險的Auto操作增加謹慎：就緒的提醒會將允許變為提問，或在審批卡上新增備註。`off`不執行評判器。在Model API後端，每次評判計入您的金鑰並先詢問一次；在Muse Code上改走您的訂閱。",
   "config.judge.engine.enumDescriptions.auto": "您自己的聊天模型評判（第1階段即`same`）；設定單獨的評判器後會加入。",
   "config.judge.engine.enumDescriptions.same": "僅您自己的聊天模型評判；從不切換模型。",
-  "config.judge.engine.enumDescriptions.off": "無評判器：審批與沒有評判器時完全一致。"
+  "config.judge.engine.enumDescriptions.off": "無評判器：審批與沒有評判器時完全一致。",
+  "command.connectChatGpt": "使用 ChatGPT 繼續",
+  "command.connectCopilot": "使用我的 Copilot 模型"
 }

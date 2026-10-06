@@ -2619,5 +2619,52 @@
   "judgeStatusPaid": "有料",
   "paidProviderPrice": "100万トークンあたり：入力 {input}、キャッシュ読み取り {cached}、キャッシュ書き込み {write}、1時間の書き込み {write1h}、出力 {output}。リクエストあたり {request}、画像あたり {image}。",
   "paidProviderPriceTier": "入力が {threshold} トークン以上の場合：100万トークンあたり入力 {input}、出力 {output}。",
-  "modelToolCallingUnavailable": "このモデルではツール呼び出しが検証されていません。"
+  "modelToolCallingUnavailable": "このモデルではツール呼び出しが検証されていません。",
+  "acpChatGpt": {
+    "usage": "使い方: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "ChatGPT で続行",
+      "remove": "ChatGPT のサインインを削除",
+      "status": "ChatGPT のサインインを確認"
+    },
+    "notice": "ChatGPT Plus または Pro が必要です。リクエストはプランの利用枠を使います。ChatGPT で追加クレジットを有効にしている場合、OpenAI がそれを消費することがあります。ブラウザーでサインインしてください。",
+    "alreadyAdded": "ChatGPT は既に追加されています。再度サインインする前に削除してください。",
+    "states": {
+      "signed-in": "ChatGPT にサインインしています。",
+      "expired": "ChatGPT のサインインの有効期限が切れました。使用時に更新されます。または削除して再度サインインしてください。",
+      "signed-out": "ChatGPT にサインインしていません。"
+    },
+    "callback": "ChatGPT のサインインが完了しました。エディターまたはターミナルに戻ってください。",
+    "failure": "ChatGPT のサインインを完了できませんでした。再試行するか、削除して再度サインインしてください。",
+    "storeUnavailable": "このコンピューターの資格情報ストアを利用できません。ストアのロックを解除した対話型デスクトップセッションからサインインしてください。Linux では、先に Secret Service を起動してください。"
+  },
+  "planUi": {
+    "chatGptMark": "ChatGPTプランを使用中",
+    "providerMark": "{provider}プランを使用中",
+    "manage": "使用状況を管理",
+    "noticeTitle": "ChatGPTプランを使用しています",
+    "noticeDetail": "これらのリクエストはChatGPT PlusまたはProプランで処理されます。既存の利用枠を共有し、新たな利用枠は追加されません。",
+    "credits": "ChatGPTの設定でアプリによるクレジットの使用を許可すると、プランの上限に達した後はリクエストでクレジットが消費される場合があります。使用状況の管理で上限とクレジットの設定を確認してください。",
+    "understood": "確認しました",
+    "limitTitle": "ChatGPTプランの利用上限に達しました",
+    "limitDetail": "利用枠がリセットされるまで待つか、APIキーを使うモデルを選択してください。リセット時刻は提供されていません。課金方法の変更にはご自身の選択が必要です。",
+    "chooseModel": "別のモデルを選択",
+    "usageHeading": "プランの使用状況",
+    "usageDetail": "プランのリクエストはプロバイダーの利用枠またはクレジットを使用し、このアプリのドル建て上限には含まれません。残りの利用枠とリセット時刻はここでは確認できません。",
+    "requests": "リクエスト数",
+    "reportedTokens": "報告されたトークン数",
+    "estimatedTokens": "推定トークン数",
+    "unknownTokens": "トークン使用量が不明なリクエスト数",
+    "tokenCounts": "入力：{input} · 出力：{output} · リクエスト数：{requests}",
+    "reduced": "機能制限あり",
+    "aiContent": "AIが生成した内容は不正確な場合があります。Copilotは独自のルールを追加し、AIクレジットを使用します。使用量が報告されない場合、トークン数は推定値です。",
+    "reportContent": "有害な内容を報告",
+    "copilotConnect": "自分のCopilotモデルを使う",
+    "copilotUnavailable": "Copilotモデルを利用できません。Copilotを有効にして再試行してください。",
+    "copilotQuota": "Copilotの利用枠を使い切りました。利用状況を管理するか別のモデルを選んでください。",
+    "copilotRateLimit": "Copilotのリクエスト頻度が制限されています。後で再試行してください。",
+    "copilotConsent": "続けるにはCopilotの同意画面でアクセスを許可してください。",
+    "expired": "ChatGPTが付与した有効期間ではこのリクエストを完了できません。再度サインインしてください。",
+    "retry": "ChatGPTを一時的に利用できません。再試行してください。"
+  }
 }

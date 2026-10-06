@@ -48,6 +48,14 @@ import {
 } from './schemas'
 import { parseSse } from './sse'
 import { estimateCostUsd } from '../../usage/insights'
+import type { PlanUsageRow } from '../../../shared/usage'
+
+/** Public transport contract shared by Meta, plan clients and host adapters. */
+export type ProviderClient = Pick<ModelApiClient, keyof ModelApiClient> & {
+  readonly modelContextLimit?: (model: string) => number | undefined
+  readonly isPlanModel?: (model: string) => boolean
+  readonly readPlanUsage?: () => readonly PlanUsageRow[]
+}
 
 export interface ModelApiClientDeps {
   /** Interactive VS Code extras only; ACP/headless clients omit this port. */

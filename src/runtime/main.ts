@@ -25,11 +25,13 @@ import {
   EXTENSION_HOOKS_BUNDLE_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
+  PROVIDERS_CONFIG_DIR_NAME,
+  PROVIDERS_FILE_NAME,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
-import { fill } from '../shared/l10n/text'
+import { fill, uiLocale } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
 import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
@@ -39,7 +41,8 @@ import { reportEventsOf } from '../core/support/journalEvents'
 import { agentDataFolder } from './dataFolder'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
-import { credentialStoreName, keyringSecretStore } from './keyStore'
+import { credentialStoreName, keyringSecretStore, StoreUnavailableError } from './keyStore'
+import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import { takeCredentials } from './credentialVariables'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
@@ -58,7 +61,6 @@ import { museSettingsPath } from '../host/backend/museSettings'
 import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
-import { uiLocale } from '../shared/l10n/text'
 
 const EXIT_FAILED = 1
 // The Model API key variable Muse Code reads; the report says only whether it was set.
@@ -114,7 +116,11 @@ async function loadSecrets(): Promise<SecretStore> {
         new AsyncEntry(service, account, { linux: { store: 'secret-service' } }),
     )
   })()
-  return await nativeStore.value
+  try {
+    return await nativeStore.value
+  } catch {
+    throw new StoreUnavailableError()
+  }
 }
 const secrets: SecretStore = {
   async get(name) {
@@ -192,6 +198,36 @@ function authDeps(): AuthCommandDeps {
     printError: (line) => {
       writeLine(process.stderr, line)
     },
+  }
+}
+
+async function chatGptDeps() {
+  const bundle = await import('./chatGptProviderCommands')
+  const commands = bundle.runtimeChatGptCommandDeps({
+    uiText: UI_TEXT,
+    locale: uiLocale(),
+    secrets,
+    fetch: globalThis.fetch.bind(globalThis),
+    configFile: path.join(
+      process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
+      PROVIDERS_CONFIG_DIR_NAME,
+      PROVIDERS_FILE_NAME,
+    ),
+    callbackText: () => UI_TEXT.acpChatGpt.callback,
+    openBrowser: (url) => {
+      writeLine(process.stdout, url)
+      return Promise.resolve()
+    },
+    print: (line) => {
+      writeLine(process.stdout, line)
+    },
+    printError: (line) => {
+      writeLine(process.stderr, line)
+    },
+  })
+  return {
+    signIns: bundle.chatGptAuthenticationMethods(() => commands.createHost()),
+    run: (action: ChatGptProviderAction) => bundle.runChatGptProviderCommand(action, commands),
   }
 }
 
@@ -325,6 +361,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   // runs; there is no crash offer outside the editor, so startup's is unused.
   const journal = await reportJournal(log)
   await journal.startup()
+  const providerCommands = await chatGptDeps()
   const agent = createAcpAgent({
     backend: runtime.backend,
     version: packageVersion(),
@@ -334,6 +371,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       initialMode: SETTING_DEFAULTS.initialPermissionMode,
     },
     signIn: signInMethod(options),
+    providerSignIns: providerCommands.signIns,
     defaultCwd: process.cwd(),
     paid: runtime.paid,
     log,
@@ -490,6 +528,10 @@ async function main(): Promise<number> {
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
     }
+    case 'chatGptProvider': {
+      const providers = await chatGptDeps()
+      return await providers.run(command.action)
+    }
     case 'serve': {
       return await serve(command.options, log)
     }
@@ -592,6 +634,7 @@ async function main(): Promise<number> {
     }
     case 'help': {
       writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      writeLine(process.stdout, UI_TEXT.acpChatGpt.usage)
       return 0
     }
     case 'invalid': {

@@ -130,6 +130,7 @@ function packagingFixture() {
   for (const bundle of [
     'acp',
     'modelApi',
+    'providers',
     'reviewer',
     // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
     'foreignHooks',
@@ -512,7 +513,7 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
       ]) {
         cpSync(path.join(ROOT, folder), path.join(BUILD_ROOT, folder), { recursive: true })
       }
-      for (const file of ['package.json', 'tsconfig.json', 'LICENSE']) {
+      for (const file of ['package.json', 'tsconfig.json', 'LICENSE', 'CHANGELOG.md']) {
         cpSync(path.join(ROOT, file), path.join(BUILD_ROOT, file))
       }
       symlinkSync(
