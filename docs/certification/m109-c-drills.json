@@ -646,5 +646,171 @@
       "native files and platform ports creates its native fixture under an existing OS temporary parent"
     ],
     "restoredSha256": "3c3d50dd7f2e7c1736d1b9ae04f4c563ddc8243ee413d0abb1458ca775345ab0"
+  },
+  {
+    "guard": "RVM109C-1 exact ciphertext commitment",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/vaultStore.test.ts", "test/unit/vault/backup.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault backup refuses same-generation restored forks even when all authenticated files are copied",
+      "encrypted vault store chains each committed state to the previous keyed digest and rejects reordered ciphertext entries"
+    ],
+    "restoredSha256": "a1b2ee7ddefc1dbcf4712f5a1140287ebe7afacd64cb299193052d2d116bcfe6"
+  },
+  {
+    "guard": "RVM109C-1 exact anchor digest",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/vaultStore.test.ts", "test/unit/vault/backup.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault backup refuses same-generation restored forks even when all authenticated files are copied"
+    ],
+    "restoredSha256": "a1b2ee7ddefc1dbcf4712f5a1140287ebe7afacd64cb299193052d2d116bcfe6"
+  },
+  {
+    "guard": "RVM109C-1 chained prior digest",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/vaultStore.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault store chains each committed state to the previous keyed digest and rejects reordered ciphertext entries",
+      "encrypted vault store authenticates every pending item before recovery publishes or consumes the record",
+      "encrypted vault store advances the independent anchor before publication and fails closed after interrupted writes",
+      "encrypted vault store recovers a prepared commit before anchor advancement and a partial creation; refuses corrupt or stale pending records"
+    ],
+    "restoredSha256": "a1b2ee7ddefc1dbcf4712f5a1140287ebe7afacd64cb299193052d2d116bcfe6"
+  },
+  {
+    "guard": "RVM109C-1 restore history admission",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/backup.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault backup refuses same-generation restored forks even when all authenticated files are copied",
+      "encrypted vault backup refuses newer fork backups after policy revocation or removal, even with confirmation",
+      "encrypted vault backup refuses an older backup on the original device, restores current backups, and detects payload/slot mutations"
+    ],
+    "restoredSha256": "a1b2ee7ddefc1dbcf4712f5a1140287ebe7afacd64cb299193052d2d116bcfe6"
+  },
+  {
+    "guard": "RVM109C-1 store restore confirmation",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/backup.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault backup refuses unconfirmed restores before changing files or advancing the anchor"
+    ],
+    "restoredSha256": "a1b2ee7ddefc1dbcf4712f5a1140287ebe7afacd64cb299193052d2d116bcfe6"
+  },
+  {
+    "guard": "RVM109C-1 backup restore confirmation",
+    "source": "src/core/vault/backup.ts",
+    "suite": ["test/unit/vault/backup.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault backup refuses unconfirmed restores before decrypting, changing files or advancing the anchor"
+    ],
+    "restoredSha256": "e8ab8e637555aa30b9602f37bb58682bc092bb9b3eb19f5ebdcd0f44bf3f1acd"
+  },
+  {
+    "guard": "RVM109C-2 confirmed restore jump recovery",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/backup.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault backup recovers confirmed restore jumps before anchor advancement by open or retry, without advancing twice"
+    ],
+    "restoredSha256": "a1b2ee7ddefc1dbcf4712f5a1140287ebe7afacd64cb299193052d2d116bcfe6"
+  },
+  {
+    "guard": "RVM109C-2 authenticated write-ahead intent",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/vaultStore.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault store authenticates the exact prior anchor and restore marker before recovering an intent"
+    ],
+    "restoredSha256": "a1b2ee7ddefc1dbcf4712f5a1140287ebe7afacd64cb299193052d2d116bcfe6"
+  },
+  {
+    "guard": "RVM109C-2 idempotent restore retry",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/backup.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault backup recovers confirmed restore jumps before anchor advancement by open or retry, without advancing twice"
+    ],
+    "restoredSha256": "a1b2ee7ddefc1dbcf4712f5a1140287ebe7afacd64cb299193052d2d116bcfe6"
+  },
+  {
+    "guard": "RVM109C-2 atomic prior anchor contract",
+    "source": "test/unit/vault/storeFixtures.ts",
+    "suite": ["test/unit/vault/vaultStore.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault store requires an exact prior state when the independent anchor advances"
+    ],
+    "restoredSha256": "cfcf09a5ab2b555ee6a6acd2dd469284ae959e01a0074537adc43cb778799a8d"
+  },
+  {
+    "guard": "RVM109C-3 canonical serialization",
+    "source": "src/core/vault/crypto.ts",
+    "suite": ["test/unit/vault/crypto.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "vault crypto canonicalizes nested JSON keys and numeric spellings while retaining array order"
+    ],
+    "restoredSha256": "cefb19383bcb154e2a48442e5427b79d4d6a890bf41cbf8f9d1bfe49b1226f16"
+  },
+  {
+    "guard": "RVM109C-4 nonce RNG cleanup",
+    "source": "src/core/vault/crypto.ts",
+    "suite": ["test/unit/vault/crypto.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "vault crypto erases derived and partially filled random buffers when nonce RNG throws"
+    ],
+    "restoredSha256": "cefb19383bcb154e2a48442e5427b79d4d6a890bf41cbf8f9d1bfe49b1226f16"
+  },
+  {
+    "guard": "RVM109C-4 partial RNG cleanup",
+    "source": "src/core/vault/crypto.ts",
+    "suite": ["test/unit/vault/crypto.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "vault crypto erases derived and partially filled random buffers when nonce RNG throws"
+    ],
+    "restoredSha256": "cefb19383bcb154e2a48442e5427b79d4d6a890bf41cbf8f9d1bfe49b1226f16"
+  },
+  {
+    "guard": "RVM109C-4 salt RNG cleanup",
+    "source": "src/core/vault/keyslots.ts",
+    "suite": ["test/unit/vault/keyslots.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "vault software slots erases its root-key copy when salt RNG throws before asking for a passphrase"
+    ],
+    "restoredSha256": "d881ec40292d914e1176d887e1f88e4d1335b90a5da0bf8e0932809216d405a5"
+  },
+  {
+    "guard": "RVM109C-5 native fixture parent",
+    "source": "test/unit/vault/vaultStore.test.ts",
+    "suite": ["test/unit/vault/vaultStore.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "native files and platform ports creates its native fixture under an existing OS temporary parent"
+    ],
+    "restoredSha256": "a32a3d2da783968ad2526b0de52cf401ea7dda368668d5774025a0a6aa2fb670"
+  },
+  {
+    "guard": "RVM109C-2 atomic prior anchor contract",
+    "source": "test/unit/vault/storeFixtures.ts",
+    "suite": ["test/unit/vault/vaultStore.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault store requires an exact prior state when the independent anchor advances"
+    ],
+    "restoredSha256": "80e820745510192064c48a9ff68e566b8c251f920efe295da8551f02f9a563ad"
   }
 ]

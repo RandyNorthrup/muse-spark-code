@@ -122,7 +122,9 @@ export async function restoreEncryptedBackup(
   options: VaultStoreOptions,
   bytes: Uint8Array,
   maxBytes: number,
+  isConfirmed = false,
 ): Promise<VaultStore> {
+  if (!isConfirmed) throw new VaultError('invalid')
   const backup = parseBackup(bytes, maxBytes)
   if (backup.length > maxBytes) throw new VaultError('invalid')
   const plaintext = Buffer.alloc(backup.length)
@@ -156,7 +158,7 @@ export async function restoreEncryptedBackup(
       document.data.generation !== backup.generation
     )
       throw new VaultError('invalid')
-    return await VaultStore.restore(options, shape.data, [backup.slot])
+    return await VaultStore.restore(options, shape.data, [backup.slot], isConfirmed)
   } catch (error) {
     if (error instanceof VaultError) throw error
     throw new VaultError('invalid')

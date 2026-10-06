@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { constants } from 'node:fs'
 import { lstat, mkdir, open, realpath, rename, unlink } from 'node:fs/promises'
 import path from 'node:path'
@@ -41,11 +42,17 @@ export interface VaultGenerationState {
   generation: number
   auditGeneration: number
   auditHead: string
+  stateDigest: string
 }
 /** P/B must bind this to durable monotonic state outside the replaceable vault file. */
 export interface VaultGenerationPort {
   minimum(vaultId: string): Promise<VaultGenerationState | null>
-  advance(vaultId: string, state: VaultGenerationState): Promise<void>
+  /** Atomically compare the complete prior state, then advance; refuse a changed prior or regression. */
+  advance(
+    vaultId: string,
+    state: VaultGenerationState,
+    prior: VaultGenerationState | null,
+  ): Promise<void>
 }
 /** Mandatory on Windows. P verifies/protects owner-only DACLs without inventing a helper frame here. */
 export interface VaultFileSecurityPort {
@@ -215,6 +222,8 @@ const slotsSchema = z.strictObject({
   generation,
   auditGeneration: generation,
   auditHead: digest,
+  previousDigest: digest,
+  documentDigest: digest,
   records: z.array(vaultSlotRecordSchema).check(z.minLength(1), z.maxLength(VAULT_LIMITS.names)),
   mac: z.string(),
 })
@@ -224,6 +233,18 @@ const indexSchema = z.strictObject({
     .check(z.maxLength(VAULT_LIMITS.items)),
 })
 const snapshotSchema = z.strictObject({ document: documentSchema, slots: slotsSchema })
+const anchorSchema = z.strictObject({
+  generation,
+  auditGeneration: generation,
+  auditHead: digest,
+  stateDigest: digest,
+})
+const intentSchema = z.strictObject({
+  prior: z.nullable(anchorSchema),
+  restoreDigest: z.nullable(digest),
+  snapshot: snapshotSchema,
+  mac: z.string(),
+})
 type Document = z.infer<typeof documentSchema>
 type Slots = z.infer<typeof slotsSchema>
 type Index = z.infer<typeof indexSchema>
@@ -245,21 +266,47 @@ function parseJson(bytes: Buffer): unknown {
     throw new VaultError('invalid')
   }
 }
-function slotMac(key: Uint8Array, slots: Omit<Slots, 'mac'>): Buffer {
-  const derived = hkdfSha256(key, Buffer.from(slots.vaultId), Buffer.from('vault-slots-v1'))
+function stateMac(key: Uint8Array, vaultId: string, domain: string, body: object): Buffer {
+  const derived = hkdfSha256(key, Buffer.from(vaultId), Buffer.from(domain))
   try {
-    return vaultHmacSha256(derived, encodeVaultJson(slots))
+    return vaultHmacSha256(derived, encodeVaultJson(body))
   } finally {
     derived.fill(0)
   }
+}
+function slotMac(key: Uint8Array, slots: Omit<Slots, 'mac'>): Buffer {
+  return stateMac(key, slots.vaultId, 'vault-slots-v1', slots)
+}
+function documentDigest(document: Document): string {
+  return createHash('sha256').update(encodeVaultJson(document)).digest('hex')
+}
+function stateOf(slots: Slots): VaultGenerationState {
+  return {
+    generation: slots.generation,
+    auditGeneration: slots.auditGeneration,
+    auditHead: slots.auditHead,
+    stateDigest: Buffer.from(slots.mac, 'base64').toString('hex'),
+  }
+}
+function isSameState(
+  left: VaultGenerationState | null,
+  right: VaultGenerationState | null,
+): boolean {
+  return left === null || right === null
+    ? left === right
+    : left.generation === right.generation &&
+        left.auditGeneration === right.auditGeneration &&
+        left.auditHead === right.auditHead &&
+        left.stateDigest === right.stateDigest
 }
 function authenticateSlots(key: Uint8Array, input: unknown): Slots {
   const parsed = slotsSchema.safeParse(input)
   if (!parsed.success) throw new VaultError('invalid')
   const { mac, ...body } = parsed.data
   const expected = slotMac(key, body)
-  const actual = decodeVaultBytes(mac, VAULT_KEY_BYTES)
+  let actual: Buffer | undefined
   try {
+    actual = decodeVaultBytes(mac, VAULT_KEY_BYTES)
     if (
       !areVaultBytesEqual(expected, actual) ||
       new Set(body.records.map((slot) => slot.id)).size !== body.records.length ||
@@ -275,7 +322,7 @@ function authenticateSlots(key: Uint8Array, input: unknown): Slots {
     return parsed.data
   } finally {
     expected.fill(0)
-    actual.fill(0)
+    actual?.fill(0)
   }
 }
 function openIndex(key: Uint8Array, document: Document): Index {
@@ -319,6 +366,7 @@ function validateSnapshot(
   const slots = authenticateSlots(key, input.slots)
   if (parsed.data.vaultId !== slots.vaultId || parsed.data.generation !== slots.generation)
     throw new VaultError('rollback')
+  if (documentDigest(parsed.data) !== slots.documentDigest) throw new VaultError('authentication')
   return { snapshot: { document: parsed.data, slots }, index: openIndex(key, parsed.data) }
 }
 
@@ -334,15 +382,15 @@ export class VaultStore implements VaultStorePort {
       const pending = bytes ? null : await files.read('pending.v1')
       if (pending) {
         try {
-          const parsed = snapshotSchema.safeParse(parseJson(pending))
+          const parsed = intentSchema.safeParse(parseJson(pending))
           if (
             !parsed.success ||
-            parsed.data.document.vaultId !== vaultId ||
-            parsed.data.slots.vaultId !== vaultId ||
-            parsed.data.slots.records.some((slot) => slot.vaultId !== vaultId)
+            parsed.data.snapshot.document.vaultId !== vaultId ||
+            parsed.data.snapshot.slots.vaultId !== vaultId ||
+            parsed.data.snapshot.slots.records.some((slot) => slot.vaultId !== vaultId)
           )
             throw new VaultError('invalid')
-          return parsed.data.slots.records
+          return parsed.data.snapshot.slots.records
         } finally {
           pending.fill(0)
         }
@@ -383,6 +431,8 @@ export class VaultStore implements VaultStorePort {
           generation: 0,
           auditGeneration: 0,
           auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
+          previousDigest: '0'.repeat(VAULT_LIMITS.sha256Hex),
+          documentDigest: '0'.repeat(VAULT_LIMITS.sha256Hex),
           records: [...records],
           mac: '',
         })
@@ -405,56 +455,57 @@ export class VaultStore implements VaultStorePort {
       throw error
     }
   }
+  /** The trusted caller passes true only after the user confirms this exact restore. */
   static async restore(
     options: VaultStoreOptions,
     input: unknown,
     records?: readonly VaultSlotRecord[],
+    isConfirmed = false,
   ): Promise<VaultStore> {
+    if (!isConfirmed) throw new VaultError('invalid')
     const shape = snapshotSchema.safeParse(input)
     if (!shape.success) throw new VaultError('invalid')
     const validated = validateSnapshot(options.key, shape.data)
     const store = new VaultStore(options, validated.snapshot.document.vaultId)
     try {
       await options.files.withWriter(async () => {
-        await store.recoverPending()
+        const recovered = await store.recoverPending()
+        const source = stateOf(validated.snapshot.slots)
+        if (recovered === source.stateDigest) return
         const minimum = await options.anchor.minimum(store.vaultId)
+        // Never import a different history over revocations, including a newer fork.
+        if (minimum && !isSameState(minimum, source)) throw new VaultError('rollback')
         const current = await options.files.read('vault.v1')
         const currentSlots = await options.files.read('slots.v1')
         try {
           if ((current === null) !== (currentSlots === null)) throw new VaultError('invalid')
           if (current && currentSlots) {
-            const previous = documentSchema.safeParse(parseJson(current))
-            const previousSlots = authenticateSlots(store.active(), parseJson(currentSlots))
+            const previous = snapshotSchema.safeParse({
+              document: parseJson(current),
+              slots: parseJson(currentSlots),
+            })
+            if (!previous.success) throw new VaultError('invalid')
+            const authenticated = validateSnapshot(store.active(), previous.data)
             if (
-              !previous.success ||
-              previous.data.vaultId !== store.vaultId ||
-              previousSlots.vaultId !== store.vaultId
-            )
-              throw new VaultError('invalid')
-            if (
-              previous.data.generation > shape.data.document.generation ||
-              previousSlots.generation > shape.data.document.generation
+              authenticated.snapshot.document.vaultId !== store.vaultId ||
+              !isSameState(minimum, stateOf(authenticated.snapshot.slots))
             )
               throw new VaultError('rollback')
           }
-          if (
-            minimum &&
-            (shape.data.document.generation < minimum.generation ||
-              shape.data.slots.auditGeneration < minimum.auditGeneration ||
-              (shape.data.slots.auditGeneration === minimum.auditGeneration &&
-                shape.data.slots.auditHead !== minimum.auditHead))
-          )
-            throw new VaultError('rollback')
-          // Authenticate every item before advancing an anchor or publishing anything.
           for (const item of validated.index.items)
             eraseVaultMaterial(
               store.material(validated.snapshot.document, validated.index, item.metadata.id)
                 .material,
             )
-          await store.publish(validated.index, validated.snapshot.document.items, {
-            ...validated.snapshot.slots,
-            records: records ? [...records] : validated.snapshot.slots.records,
-          })
+          await store.publish(
+            validated.index,
+            validated.snapshot.document.items,
+            {
+              ...validated.snapshot.slots,
+              records: records ? [...records] : validated.snapshot.slots.records,
+            },
+            source.stateDigest,
+          )
         } finally {
           current?.fill(0)
           currentSlots?.fill(0)
@@ -495,11 +546,8 @@ export class VaultStore implements VaultStorePort {
       const minimum = await this.options.anchor.minimum(this.vaultId)
       this.active()
       if (
-        !minimum ||
         result.snapshot.document.vaultId !== this.vaultId ||
-        result.snapshot.document.generation !== minimum.generation ||
-        result.snapshot.slots.auditGeneration !== minimum.auditGeneration ||
-        result.snapshot.slots.auditHead !== minimum.auditHead
+        !isSameState(minimum, stateOf(result.snapshot.slots))
       )
         throw new VaultError('rollback')
       return result
@@ -508,82 +556,81 @@ export class VaultStore implements VaultStorePort {
       slotsBytes.fill(0)
     }
   }
-  private async recoverPending(): Promise<void> {
+  private async recoverPending(): Promise<string | null> {
     const bytes = await this.options.files.read('pending.v1')
-    if (!bytes) return
+    if (!bytes) return null
+    let expected: Buffer | undefined
+    let actual: Buffer | undefined
     try {
-      const parsed = snapshotSchema.safeParse(parseJson(bytes))
-      if (!parsed.success || parsed.data.document.vaultId !== this.vaultId)
+      const parsed = intentSchema.safeParse(parseJson(bytes))
+      if (!parsed.success || parsed.data.snapshot.document.vaultId !== this.vaultId)
         throw new VaultError('invalid')
-      const { snapshot, index } = validateSnapshot(this.active(), parsed.data)
+      const { mac, ...intent } = parsed.data
+      expected = stateMac(this.active(), this.vaultId, 'vault-intent-v1', intent)
+      actual = decodeVaultBytes(mac, VAULT_KEY_BYTES)
+      if (!areVaultBytesEqual(expected, actual)) throw new VaultError('authentication')
+      const { snapshot, index } = validateSnapshot(this.active(), intent.snapshot)
+      const next = stateOf(snapshot.slots)
       const minimum = await this.options.anchor.minimum(this.vaultId)
       this.active()
+      const priorGeneration = intent.prior?.generation ?? 0
       if (
-        snapshot.document.generation !== (minimum?.generation ?? 0) &&
-        snapshot.document.generation !== (minimum?.generation ?? 0) + 1
-      )
-        throw new VaultError('rollback')
-      if (
-        minimum &&
-        (snapshot.slots.auditGeneration < minimum.auditGeneration ||
-          (snapshot.slots.auditGeneration === minimum.auditGeneration &&
-            snapshot.slots.auditHead !== minimum.auditHead))
-      )
-        throw new VaultError('rollback')
-      if (
-        snapshot.document.generation === minimum?.generation &&
-        (snapshot.slots.auditGeneration !== minimum.auditGeneration ||
-          snapshot.slots.auditHead !== minimum.auditHead)
+        snapshot.slots.previousDigest !==
+          (intent.prior?.stateDigest ?? '0'.repeat(VAULT_LIMITS.sha256Hex)) ||
+        next.generation <= priorGeneration ||
+        (intent.restoreDigest === null && next.generation !== priorGeneration + 1) ||
+        (intent.prior &&
+          (next.auditGeneration < intent.prior.auditGeneration ||
+            (next.auditGeneration === intent.prior.auditGeneration &&
+              next.auditHead !== intent.prior.auditHead))) ||
+        (!isSameState(minimum, intent.prior) && !isSameState(minimum, next))
       )
         throw new VaultError('rollback')
       for (const item of index.items)
         eraseVaultMaterial(this.material(snapshot.document, index, item.metadata.id).material)
-      if (!minimum || snapshot.document.generation > minimum.generation)
-        await this.options.anchor.advance(this.vaultId, {
-          generation: snapshot.document.generation,
-          auditGeneration: snapshot.slots.auditGeneration,
-          auditHead: snapshot.slots.auditHead,
-        })
+      if (!isSameState(minimum, next))
+        await this.options.anchor.advance(this.vaultId, next, intent.prior)
       this.active()
       await this.options.files.writeAtomic('slots.v1', encodeVaultJson(snapshot.slots))
       this.active()
       await this.options.files.writeAtomic('vault.v1', encodeVaultJson(snapshot.document))
       this.active()
       await this.options.files.remove('pending.v1')
+      return intent.restoreDigest
     } finally {
       bytes.fill(0)
+      expected?.fill(0)
+      actual?.fill(0)
     }
   }
-  private async publish(index: Index, items: Document['items'], prior: Slots): Promise<void> {
+  private async publish(
+    index: Index,
+    items: Document['items'],
+    prior: Slots,
+    restoreDigest: string | null = null,
+  ): Promise<void> {
     const next = prior.generation + 1
     if (!Number.isSafeInteger(next)) throw new VaultError('invalid')
-    const body: Omit<Slots, 'mac'> = {
-      v: VAULT_FORMAT_VERSION,
-      vaultId: this.vaultId,
-      generation: next,
-      auditGeneration: prior.auditGeneration,
-      auditHead: prior.auditHead,
-      records: prior.records.map((record) => ({
-        ...record,
-        lastGeneration: next,
-        auditGeneration: prior.auditGeneration,
-        auditHead: prior.auditHead,
-      })),
-    }
-    const parsedBody = slotsSchema.safeParse({ ...body, mac: '' })
+    const records = z
+      .array(vaultSlotRecordSchema)
+      .check(z.minLength(1), z.maxLength(VAULT_LIMITS.names))
+      .safeParse(prior.records)
     if (
-      !parsedBody.success ||
-      body.records.some((slot) => slot.vaultId !== this.vaultId) ||
-      new Set(body.records.map((slot) => slot.id)).size !== body.records.length
+      !records.success ||
+      records.data.some((slot) => slot.vaultId !== this.vaultId) ||
+      new Set(records.data.map((slot) => slot.id)).size !== records.data.length
     )
       throw new VaultError('invalid')
-    const mac = slotMac(this.active(), body)
     const plaintext = encodeVaultJson(index)
+    let mac: Buffer | undefined
+    let intentMac: Buffer | undefined
     let documentBytes: Buffer | undefined
     let slotBytes: Buffer | undefined
     let pendingBytes: Buffer | undefined
     try {
-      const document: Document = {
+      const previous = await this.options.anchor.minimum(this.vaultId)
+      this.active()
+      const documentInput: Document = {
         v: VAULT_FORMAT_VERSION,
         vaultId: this.vaultId,
         generation: next,
@@ -594,11 +641,35 @@ export class VaultStore implements VaultStorePort {
         ),
         items,
       }
-      if (!documentSchema.safeParse(document).success) throw new VaultError('invalid')
+      const parsedDocument = documentSchema.safeParse(documentInput)
+      if (!parsedDocument.success) throw new VaultError('invalid')
+      const document = parsedDocument.data
       openIndex(this.active(), document)
+      const parsedBody = slotsSchema.safeParse({
+        v: VAULT_FORMAT_VERSION,
+        vaultId: this.vaultId,
+        generation: next,
+        auditGeneration: prior.auditGeneration,
+        auditHead: prior.auditHead,
+        previousDigest: previous?.stateDigest ?? '0'.repeat(VAULT_LIMITS.sha256Hex),
+        documentDigest: documentDigest(document),
+        records: records.data.map((record) => ({
+          ...record,
+          lastGeneration: next,
+          auditGeneration: prior.auditGeneration,
+          auditHead: prior.auditHead,
+        })),
+        mac: '',
+      })
+      if (!parsedBody.success) throw new VaultError('invalid')
+      const { mac: _mac, ...body } = parsedBody.data
+      mac = slotMac(this.active(), body)
+      const slots: Slots = { ...body, mac: mac.toString('base64') }
+      const intent = { prior: previous, restoreDigest, snapshot: { document, slots } }
+      intentMac = stateMac(this.active(), this.vaultId, 'vault-intent-v1', intent)
       documentBytes = encodeVaultJson(document)
-      slotBytes = encodeVaultJson({ ...body, mac: mac.toString('base64') })
-      pendingBytes = encodeVaultJson({ document, slots: { ...body, mac: mac.toString('base64') } })
+      slotBytes = encodeVaultJson(slots)
+      pendingBytes = encodeVaultJson({ ...intent, mac: intentMac.toString('base64') })
       if (
         documentBytes.length > this.options.files.maxBytes ||
         slotBytes.length > this.options.files.maxBytes ||
@@ -607,11 +678,7 @@ export class VaultStore implements VaultStorePort {
         throw new VaultError('invalid')
       await this.options.files.writeAtomic('pending.v1', pendingBytes)
       this.active()
-      await this.options.anchor.advance(this.vaultId, {
-        generation: next,
-        auditGeneration: body.auditGeneration,
-        auditHead: body.auditHead,
-      })
+      await this.options.anchor.advance(this.vaultId, stateOf(slots), previous)
       this.active()
       await this.options.files.writeAtomic('slots.v1', slotBytes)
       this.active()
@@ -622,7 +689,8 @@ export class VaultStore implements VaultStorePort {
       this.lock()
       throw error
     } finally {
-      mac.fill(0)
+      mac?.fill(0)
+      intentMac?.fill(0)
       plaintext.fill(0)
       documentBytes?.fill(0)
       slotBytes?.fill(0)

@@ -32,7 +32,16 @@ export function ownedBytes(source: Uint8Array): Buffer<ArrayBuffer> {
 }
 
 export function encodeVaultJson(value: object): Buffer {
-  const json = JSON.stringify(value)
+  // Object order is irrelevant; array order is semantic. JSON normalizes finite numbers, including -0.
+  const json = JSON.stringify(value, (_name, entry: unknown): unknown =>
+    entry === null || typeof entry !== 'object' || Array.isArray(entry)
+      ? entry
+      : Object.fromEntries(
+          Object.entries(entry).toSorted(
+            ([left], [right]) => Number(left > right) - Number(left < right),
+          ),
+        ),
+  )
   const bytes = Buffer.alloc(Buffer.byteLength(json))
   bytes.write(json)
   return bytes

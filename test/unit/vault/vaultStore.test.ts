@@ -3,6 +3,7 @@ import * as filesystem from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { vaultSlotRecordSchema } from '../../../src/shared/vault'
 import { NodeVaultFiles, VaultStore } from '../../../src/core/vault/store'
 import {
   decodeVaultMaterial,
@@ -11,12 +12,22 @@ import {
   ownedBytes,
   randomVaultBytes,
 } from '../../../src/core/vault/crypto'
-import { createRecoverySlot, unlockRecoverySlot } from '../../../src/core/vault/keyslots'
+import {
+  createRecoverySlot,
+  unlockRecoverySlot,
+  PassphraseVaultSlot,
+} from '../../../src/core/vault/keyslots'
 import * as vaultCrypto from '../../../src/core/vault/crypto'
 import { VAULT_LIMITS } from '../../../src/shared/constants'
 import { item } from '../helpers/vault/fixtures'
 import { FakeVaultClock } from '../helpers/vault/core'
-import { freshVault, jsonRecord, MemoryVaultFiles } from './storeFixtures'
+import {
+  freshVault,
+  jsonRecord,
+  MemoryVaultAnchor,
+  MemoryVaultFiles,
+  installSnapshot,
+} from './storeFixtures'
 
 const directories: string[] = []
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -37,6 +48,76 @@ afterEach(async () => {
 })
 
 describe('encrypted vault store', () => {
+  it('publishes slots from validated canonical JSON regardless of nested property order and number spelling', async () => {
+    const files = new MemoryVaultFiles()
+    const key = randomVaultBytes()
+    const vaultId = randomVaultBytes(16).toString('hex')
+    const passphrase = new PassphraseVaultSlot(vaultId, new FakeVaultClock(), () =>
+      Promise.resolve(randomVaultBytes()),
+    )
+    const recovery = { slot: await passphrase.wrap(key) }
+    const reversed = Object.fromEntries(Object.entries(recovery.slot).toReversed())
+    const options = { files, anchor: new MemoryVaultAnchor(), key }
+    // Zod owns the validated record; a caller's insertion order is immaterial.
+    const record = vaultSlotRecordSchema.parse(reversed)
+    const supplied = record
+    // Reconstruct order without a type assertion, preserving all validated fields.
+    for (const entry of [supplied, supplied.kdf]) {
+      if (!entry) continue
+      for (const name of Object.keys(entry).toReversed()) {
+        const value: unknown = Reflect.get(entry, name)
+        Reflect.deleteProperty(entry, name)
+        Reflect.set(entry, name, value)
+      }
+    }
+    const store = await VaultStore.create(options, vaultId, [supplied])
+    expect(await store.list()).toEqual([])
+    const snapshot = await store.exportSnapshot()
+    const canonical = Buffer.from(JSON.stringify(snapshot.slots)).toString()
+    files.data.set(
+      'slots.v1',
+      Buffer.from(canonical.replaceAll('"auditGeneration":0', '"auditGeneration":-0')),
+    )
+    const opened = await VaultStore.open(options, vaultId)
+    expect(await opened.list()).toEqual([])
+  })
+  it('chains each committed state to the previous keyed digest and rejects reordered ciphertext entries', async () => {
+    const files = new MemoryVaultFiles()
+    const vault = await freshVault(files)
+    const first = await vault.store.exportSnapshot()
+    const secret = item()
+    await vault.store.write(secret)
+    const second = await vault.store.exportSnapshot()
+    const slots = jsonRecord(Buffer.from(JSON.stringify(second.slots)))
+    expect(slots['previousDigest']).toBe(Buffer.from(first.slots.mac, 'base64').toString('hex'))
+    const extra = item()
+    extra.metadata.id = randomVaultBytes(16).toString('hex')
+    extra.metadata.name = 'second'
+    extra.metadata.handle = 'secret://second'
+    await vault.store.write(extra)
+    const current = await vault.store.exportSnapshot()
+    current.document.items.reverse()
+    files.data.set('vault.v1', Buffer.from(JSON.stringify(current.document)))
+    await expect(vault.store.read(secret.metadata.id)).rejects.toThrow()
+  })
+
+  it('requires an exact prior state when the independent anchor advances', async () => {
+    const vault = await freshVault()
+    const previous = await vault.anchor.minimum(vault.vaultId)
+    if (!previous) throw new Error('anchor')
+    await expect(
+      vault.anchor.advance(
+        vault.vaultId,
+        {
+          ...previous,
+          generation: previous.generation + 1,
+          stateDigest: 'a'.repeat(64),
+        },
+        { ...previous, stateDigest: 'b'.repeat(64) },
+      ),
+    ).rejects.toMatchObject({ code: 'rollback' })
+    expect(await vault.anchor.minimum(vault.vaultId)).toEqual(previous)
+  })
   it('provides validated unlock hints and authenticates recovered keys before opening', async () => {
     const vault = await freshVault()
     const hints = await VaultStore.slotRecords(vault.files, vault.vaultId)
@@ -201,7 +282,7 @@ describe('encrypted vault store', () => {
       id: randomVaultBytes(16).toString('hex'),
       block: structuredClone(snapshot.document.index),
     })
-    files.data.set('vault.v1', Buffer.from(JSON.stringify(snapshot.document)))
+    installSnapshot({ ...vault.options, files }, snapshot)
     await expect(vault.store.list()).rejects.toMatchObject({ code: 'invalid' })
   })
   it('enforces the configured item ceiling and refuses basic_text slot records', async () => {
@@ -259,29 +340,36 @@ describe('encrypted vault store', () => {
       plaintext,
     )
     plaintext.fill(0)
-    files.data.set('vault.v1', Buffer.from(JSON.stringify(snapshot.document)))
+    installSnapshot({ ...vault.options, files }, snapshot)
     await expect(vault.store.read(secret.metadata.id)).rejects.toMatchObject({ code: 'invalid' })
   })
   it('refuses a pending generation jump or audit-anchor mismatch and recovers initial preparation without an anchor', async () => {
     const files = new MemoryVaultFiles()
     const vault = await freshVault(files)
-    await vault.store.commitAudit(1, 'f'.repeat(64))
-    const snapshot = await vault.store.exportSnapshot()
-    files.data.set('pending.v1', Buffer.from(JSON.stringify(snapshot)))
+    files.fail = 'vault.v1'
+    await expect(vault.store.commitAudit(1, 'f'.repeat(64))).rejects.toThrow()
+    files.fail = null
+    const minimum = await vault.anchor.minimum(vault.vaultId)
+    if (!minimum) throw new Error('anchor')
     vault.anchor.states.set(vault.vaultId, {
+      ...minimum,
       generation: 0,
       auditGeneration: 0,
       auditHead: '0'.repeat(64),
     })
-    await expect(vault.store.list()).rejects.toMatchObject({ code: 'rollback' })
+    await expect(VaultStore.open(vault.options, vault.vaultId)).rejects.toMatchObject({
+      code: 'rollback',
+    })
     for (const state of [
       { generation: 2, auditGeneration: 2, auditHead: 'f'.repeat(64) },
       { generation: 2, auditGeneration: 1, auditHead: 'e'.repeat(64) },
       { generation: 2, auditGeneration: 0, auditHead: '0'.repeat(64) },
     ]) {
-      vault.anchor.states.set(vault.vaultId, state)
+      vault.anchor.states.set(vault.vaultId, { ...minimum, ...state })
       const unchanged = new Map(files.data)
-      await expect(vault.store.list()).rejects.toMatchObject({ code: 'rollback' })
+      await expect(VaultStore.open(vault.options, vault.vaultId)).rejects.toMatchObject({
+        code: 'rollback',
+      })
       expect(files.data).toEqual(unchanged)
     }
     const created = new MemoryVaultFiles()
@@ -299,25 +387,51 @@ describe('encrypted vault store', () => {
   it('authenticates every pending item before recovery publishes or consumes the record', async () => {
     const files = new MemoryVaultFiles()
     const vault = await freshVault(files)
+    const secret = item()
+    const wrong = encodeVaultMaterial({
+      kind: 'password',
+      username: null,
+      password: randomVaultBytes(),
+    })
+    const seal = vaultCrypto.sealVaultBlock
+    const mutation = vi
+      .spyOn(vaultCrypto, 'sealVaultBlock')
+      .mockImplementation((key, context, bytes) =>
+        seal(key, context, context.id === secret.metadata.id ? wrong : bytes),
+      )
     files.fail = 'vault.v1'
-    await expect(vault.store.write(item())).rejects.toThrow()
+    try {
+      await expect(vault.store.write(secret)).rejects.toThrow()
+    } finally {
+      mutation.mockRestore()
+      wrong.fill(0)
+    }
     files.fail = null
-    const bytes = files.data.get('pending.v1')
-    if (!bytes) throw new Error('prepared snapshot')
-    const prepared = jsonRecord(bytes)
-    const document = prepared['document']
-    if (document === null || typeof document !== 'object') throw new Error('document')
-    const entries: unknown = Reflect.get(document, 'items')
-    if (!Array.isArray(entries)) throw new Error('entries')
-    const entry: unknown = entries[0]
-    if (entry === null || typeof entry !== 'object') throw new Error('entry')
-    const block: unknown = Reflect.get(entry, 'block')
-    if (block === null || typeof block !== 'object') throw new Error('block')
-    Reflect.set(block, 'tag', randomVaultBytes(16).toString('base64'))
-    files.data.set('pending.v1', Buffer.from(JSON.stringify(prepared)))
+    expect(files.data.has('pending.v1')).toBe(true)
     const unchanged = new Map(files.data)
-    await expect(VaultStore.open(vault.options, vault.vaultId)).rejects.toThrow()
+    await expect(VaultStore.open(vault.options, vault.vaultId)).rejects.toMatchObject({
+      code: 'invalid',
+    })
     expect(files.data).toEqual(unchanged)
+  })
+  it('authenticates the exact prior anchor and restore marker before recovering an intent', async () => {
+    const files = new MemoryVaultFiles()
+    const vault = await freshVault(files)
+    vi.spyOn(vault.anchor, 'advance').mockRejectedValueOnce(new Error('generated anchor failure'))
+    await expect(vault.store.write(item())).rejects.toThrow()
+    const pending = files.data.get('pending.v1')
+    if (!pending) throw new Error('intent')
+    const anchored = await vault.anchor.minimum(vault.vaultId)
+    for (const changed of [{ prior: null }, { restoreDigest: 'a'.repeat(64) }]) {
+      const intent = { ...jsonRecord(pending), ...changed }
+      files.data.set('pending.v1', Buffer.from(JSON.stringify(intent)))
+      const unchanged = new Map(files.data)
+      await expect(VaultStore.open(vault.options, vault.vaultId)).rejects.toMatchObject({
+        code: 'authentication',
+      })
+      expect(files.data).toEqual(unchanged)
+      expect(await vault.anchor.minimum(vault.vaultId)).toEqual(anchored)
+    }
   })
   it('requires at least one valid slot and allows adding/removing slots only while unlocked', async () => {
     const vault = await freshVault()
@@ -352,7 +466,6 @@ describe('encrypted vault store', () => {
   it('recovers a prepared commit before anchor advancement and a partial creation; refuses corrupt or stale pending records', async () => {
     const files = new MemoryVaultFiles()
     const vault = await freshVault(files)
-    const saved = await vault.store.exportSnapshot()
     const advance = vault.anchor.advance.bind(vault.anchor)
     vault.anchor.advance = () => Promise.reject(new Error('generated anchor failure'))
     const secret = item()
@@ -360,9 +473,12 @@ describe('encrypted vault store', () => {
     const minimum = await vault.anchor.minimum(vault.vaultId)
     expect(minimum?.generation).toBe(1)
     vault.anchor.advance = advance
+    const saved = files.data.get('pending.v1')
+    if (!saved) throw new Error('intent')
     const recovered = await VaultStore.open(vault.options, vault.vaultId)
     expect(await recovered.read(secret.metadata.id)).toEqual(secret)
-    files.data.set('pending.v1', Buffer.from(JSON.stringify(saved)))
+    await recovered.write(secret)
+    files.data.set('pending.v1', saved)
     await expect(recovered.list()).rejects.toMatchObject({ code: 'rollback' })
     files.data.set('pending.v1', Buffer.from('{'))
     await expect(recovered.list()).rejects.toMatchObject({ code: 'invalid' })

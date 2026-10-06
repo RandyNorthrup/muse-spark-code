@@ -1,4 +1,5 @@
-import * as crypto from 'node:crypto'
+import { withRngFailure } from './storeFixtures'
+import type * as crypto from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import {
   aesGcmOpen,
@@ -7,6 +8,7 @@ import {
   decodeVaultBytes,
   decodeVaultMaterial,
   encodeVaultMaterial,
+  encodeVaultJson,
   eraseVaultMaterial,
   hkdfSha256,
   openVaultBlock,
@@ -24,20 +26,16 @@ vi.mock('node:crypto', async (importOriginal) => {
 })
 
 describe('vault crypto', () => {
-  it('erases derived and partially filled random buffers when nonce RNG throws', () => {
+  it('canonicalizes nested JSON keys and numeric spellings while retaining array order', () => {
+    const left = encodeVaultJson({ z: [{ b: -0, a: 1e2 }], a: { z: 2, a: 1 } })
+    const right = encodeVaultJson({ a: { a: 1, z: 2 }, z: [{ a: 100, b: 0 }] })
+    expect(left).toEqual(right)
+    expect(left.toString()).toBe('{"a":{"a":1,"z":2},"z":[{"a":100,"b":0}]}')
+    expect(encodeVaultJson({ z: [1, 2] })).not.toEqual(encodeVaultJson({ z: [2, 1] }))
+  })
+  it('erases derived and partially filled random buffers when nonce RNG throws', async () => {
     const key = randomVaultBytes()
-    const allocations: Buffer[] = []
-    const allocate = Buffer.alloc
-    const allocation = vi.spyOn(Buffer, 'alloc').mockImplementation((length) => {
-      const bytes = allocate(length)
-      allocations.push(bytes)
-      return bytes
-    })
-    const rng = vi.spyOn(crypto, 'randomFillSync').mockImplementation((bytes) => {
-      new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength).fill(100)
-      throw new Error('generated RNG failure')
-    })
-    try {
+    await withRngFailure(key, 12, () => {
       expect(() =>
         sealVaultBlock(
           key,
@@ -45,19 +43,7 @@ describe('vault crypto', () => {
           key,
         ),
       ).toThrow('generated RNG failure')
-      const derived = allocations.filter((bytes) => bytes.length === key.length)
-      expect(derived.length).toBe(1)
-      expect(derived.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true)
-      const random = allocations.filter((bytes) => bytes.length === 12)
-      expect(random.length).toBe(1)
-      expect(random.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true)
-      expect(key.some((byte) => byte !== 0)).toBe(true)
-    } finally {
-      rng.mockRestore()
-      allocation.mockRestore()
-      for (const bytes of allocations) bytes.fill(0)
-      key.fill(0)
-    }
+    })
   })
   it('roundtrips every private material kind with owned bytes and no prototype-shaped field', () => {
     const materials: VaultItem['material'][] = [

@@ -7395,8 +7395,18 @@ It builds on:
      the broker does. The panel names the tier in force in those words, for
      example "Protected by this PC's TPM. It unlocks silently when you sign in,
      so programs running as you can unlock it too."
-   - **Rollback.** The slot records hold the last generation. A vault file
-     older than that is refused, and the panel says so.
+   - **Rollback (FIXM109C, 2026-10-05).** The slot document MAC binds the
+     generation, canonical ciphertext document digest and previous committed
+     state's keyed digest. The independently protected anchor holds that exact
+     MAC as `stateDigest` with the generation and audit state, and advances
+     only after an atomic comparison of its complete prior state. Older files,
+     same-generation forks and reordered ciphertext entries are refused.
+     Restore requires the user's explicit confirmation, publishes a fresh
+     generation and admits only the exact existing anchor or a new device
+     without history; a different backup cannot revive revoked policies or
+     removed material. Its authenticated write-ahead intent binds the exact
+     prior anchor and source digest, so a prepared restore jump can recover
+     before advancement and retry without advancing twice.
    - **Platform limits, said plainly:**
      - This slot uses the documented P-256 signing/key-agreement API, which
        imports no raw private key. Passwords and Ed25519 keys are vault items
@@ -20950,6 +20960,21 @@ prohibits merges, pushes and live/paid calls.
 
 ## 7. Gates
 
+**FIXM109C review repair (2026-10-05, Mac mini).** All five RVM109C findings
+are fixed: exact committed-state/hash-chain anchoring, explicitly confirmed
+restore with revocation-preserving admission, authenticated write-ahead restore
+intent and idempotent recovery, canonical validated MAC serialization, RNG
+failure erasure and independent native fixture parents. The five complete
+owned suites pass 61 tests and focused coverage meets unchanged thresholds;
+20 red executions of 15 distinct mutations fail their named regressions and
+restore sources byte-exact. Records: `docs/certification/m109-c.md` and its
+existing drills JSON. The rig brief reserves aggregate quality for the lead.
+The W-owned host API record remains an explicit deferral: crypto imports
+46 → 50, fs 33 → 34, fs/promises 47 → 48, path 84 → 85. No host API or built-in
+is added; W must regenerate after integration. No review finding is deferred;
+P/B's protected complete-state anchor and W's trusted confirmation bindings
+are mandatory before this unwired core ships (named in §9).
+
 **FIXM109L0 review repair (2026-10-05, Mac mini).** RVM109L0's two P2
 contract findings and its P3 fake ownership finding are fixed. A distinct
 HTTPS issuer identifier schema allows paths and preserves exact spelling,
@@ -22156,6 +22181,23 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M109C-anchor-binding (FIXM109C, unmerged integration contract).** RVM109C's
+  five findings are repaired in shared core. P/B must persist generation,
+  audit state and `stateDigest` independently of the replaceable vault files,
+  and atomically compare the complete prior state on every advance. Restoring
+  that protected anchor with all files is D89 V11's existing limit. Safe for
+  now: this core remains unwired and the adapter is mandatory, with no silent
+  fallback. Follow-up: P/B prove durable anchor binding before W ships it.
+- **M109C-restore-history (FIXM109C, deliberate admission policy).** Confirmed
+  restore imports onto a new device without history, or restores the exact
+  snapshot matching an existing device's complete anchor. A different or
+  newer fork is refused even after user confirmation: no backup can revive
+  that device's revoked policy or removed material. Safe for now: no
+  cross-history merge or rollback is admitted. Follow-up: W binds the trusted
+  confirmation action in every editor; any future cross-history import needs
+  separately designed revocation proof, never a weaker generation guard.
+  No RVM109C finding is deferred.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

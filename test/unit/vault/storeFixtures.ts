@@ -1,11 +1,22 @@
+import * as crypto from 'node:crypto'
+import { expect, vi } from 'vitest'
+import { createHash } from 'node:crypto'
 import {
   VaultStore,
   type VaultFilePort,
   type VaultGenerationPort,
   type VaultGenerationState,
+  type VaultSnapshot,
 } from '../../../src/core/vault/store'
 import { createRecoverySlot } from '../../../src/core/vault/keyslots'
-import { ownedBytes, randomVaultBytes, VaultError } from '../../../src/core/vault/crypto'
+import {
+  encodeVaultJson,
+  hkdfSha256,
+  vaultHmacSha256,
+  ownedBytes,
+  randomVaultBytes,
+  VaultError,
+} from '../../../src/core/vault/crypto'
 import { FakeVaultClock } from '../helpers/vault/core'
 
 export class MemoryVaultFiles implements VaultFilePort {
@@ -42,8 +53,14 @@ export class MemoryVaultAnchor implements VaultGenerationPort {
     const state = this.states.get(vaultId)
     return Promise.resolve(state ? { ...state } : null)
   }
-  advance(vaultId: string, state: VaultGenerationState): Promise<void> {
-    const previous = this.states.get(vaultId)
+  advance(
+    vaultId: string,
+    state: VaultGenerationState,
+    prior: VaultGenerationState | null,
+  ): Promise<void> {
+    const previous = this.states.get(vaultId) ?? null
+    if (!encodeVaultJson({ state: previous }).equals(encodeVaultJson({ state: prior })))
+      return Promise.reject(new VaultError('rollback'))
     if (
       previous &&
       (state.generation <= previous.generation || state.auditGeneration < previous.auditGeneration)
@@ -70,4 +87,71 @@ export function jsonRecord(bytes: Buffer): Record<string, unknown> {
   if (value === null || typeof value !== 'object' || Array.isArray(value))
     throw new Error('test document')
   return Object.fromEntries(Object.entries(value))
+}
+
+/** Deliberately author malformed authenticated states so inner semantic guards still fire. */
+export function signSnapshot(key: Uint8Array, snapshot: VaultSnapshot): void {
+  snapshot.slots.documentDigest = createHash('sha256')
+    .update(encodeVaultJson(snapshot.document))
+    .digest('hex')
+  const derived = hkdfSha256(
+    key,
+    Buffer.from(snapshot.slots.vaultId),
+    Buffer.from('vault-slots-v1'),
+  )
+  const { mac: _mac, ...body } = snapshot.slots
+  const mac = vaultHmacSha256(derived, encodeVaultJson(body))
+  try {
+    snapshot.slots.mac = mac.toString('base64')
+  } finally {
+    derived.fill(0)
+    mac.fill(0)
+  }
+}
+export function installSnapshot(
+  options: { files: MemoryVaultFiles; anchor: MemoryVaultAnchor; key: Uint8Array },
+  snapshot: VaultSnapshot,
+): void {
+  signSnapshot(options.key, snapshot)
+  options.files.data.set('vault.v1', encodeVaultJson(snapshot.document))
+  options.files.data.set('slots.v1', encodeVaultJson(snapshot.slots))
+  options.anchor.states.set(snapshot.document.vaultId, {
+    generation: snapshot.slots.generation,
+    auditGeneration: snapshot.slots.auditGeneration,
+    auditHead: snapshot.slots.auditHead,
+    stateDigest: Buffer.from(snapshot.slots.mac, 'base64').toString('hex'),
+  })
+}
+
+/** Generated-only probe: retain owned allocations through the assertion, then erase even a failed drill. */
+export async function withRngFailure(
+  key: Buffer,
+  randomLength: number,
+  assertion: () => void | Promise<void>,
+): Promise<void> {
+  const allocations: Buffer[] = []
+  const allocate = Buffer.alloc
+  const allocation = vi.spyOn(Buffer, 'alloc').mockImplementation((length) => {
+    const bytes = allocate(length)
+    allocations.push(bytes)
+    return bytes
+  })
+  const rng = vi.spyOn(crypto, 'randomFillSync').mockImplementation((bytes) => {
+    new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength).fill(100)
+    throw new Error('generated RNG failure')
+  })
+  try {
+    await assertion()
+    for (const length of [key.length, randomLength]) {
+      const owned = allocations.filter((bytes) => bytes.length === length)
+      expect(owned.length).toBe(1)
+      expect(owned.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true)
+    }
+    expect(key.some((byte) => byte !== 0)).toBe(true)
+  } finally {
+    rng.mockRestore()
+    allocation.mockRestore()
+    for (const bytes of allocations) bytes.fill(0)
+    key.fill(0)
+  }
 }
