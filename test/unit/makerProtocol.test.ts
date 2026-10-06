@@ -41,6 +41,7 @@ const machine = {
   endpoint: 'http://192.168.1.5',
   limits: {},
 } as const
+const { registrationId, ...registration } = machine
 const event = {
   type: 'presetsOffered',
   title: 'Suggested checks',
@@ -134,8 +135,8 @@ describe('maker surface boundary', () => {
       payloadHex: '00ff',
     },
     { v, type: 'makerOpenLog' },
-    { v, type: 'makerAddMachine', machine, allowPlainHttp: true },
-    { v, type: 'makerRemoveMachine', machineId: 'printer', registrationId: machine.registrationId },
+    { v, type: 'makerAddMachine', machine: registration, allowPlainHttp: true },
+    { v, type: 'makerRemoveMachine', machineId: 'printer', registrationId },
     { v, type: 'makerChoosePreset', presetId: 'pio-build' },
     { v, type: 'makerOpenPreview', artifactId: approval.id },
   ] satisfies MakerSurfaceMessage[])('validates surface message $type', (message) => {
@@ -176,6 +177,25 @@ describe('maker surface boundary', () => {
     expect(
       makerSurfaceMessageSchema.safeParse({ v, type: 'makerHardware', enabled: false }).success,
     ).toBe(true)
+  })
+  it('keeps registration generations on the engine side of add requests', () => {
+    expect(
+      makerSurfaceMessageSchema.safeParse({
+        v,
+        type: 'makerAddMachine',
+        machine,
+        allowPlainHttp: true,
+      }).success,
+    ).toBe(false)
+    expect(
+      makerSurfaceMessageSchema.safeParse({
+        v,
+        type: 'makerAddMachine',
+        machine: registration,
+        allowPlainHttp: true,
+      }).success,
+    ).toBe(true)
+    expect(makerMachineSummarySchema.safeParse(registration).success).toBe(false)
   })
   it('validates serial and machine approval detail without accepting Stop as an approved action', () => {
     const serial = {

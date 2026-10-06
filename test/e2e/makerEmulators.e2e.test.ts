@@ -4,8 +4,6 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
-import { build } from 'esbuild'
-import { z } from 'zod'
 import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { startSerialProcess } from '../../src/core/maker/serial/process'
@@ -22,47 +20,7 @@ import {
   startRig,
   until,
 } from './helpers/makerEmulators'
-import { makerEmulatorLeaseMain } from './helpers/makerEmulatorLease'
-
-const leaseFrame = z.discriminatedUnion('status', [
-  z.object({ status: z.literal('busy'), holderPid: z.number().int().positive() }),
-  z.object({
-    status: z.literal('claimed'),
-    record: z.object({
-      version: z.literal(1),
-      id: z.uuid(),
-      resource: z.string(),
-      holder: z.string(),
-      pid: z.number().int().positive(),
-      endpoint: z.string(),
-    }),
-  }),
-])
-async function frame(child: ChildProcessWithoutNullStreams) {
-  let pending = ''
-  const value = await new Promise<string>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error('lease worker deadline'))
-    }, 10_000)
-    child.once('error', reject)
-    child.stdout.on('data', (bytes: Buffer) => {
-      pending += bytes.toString('utf8')
-      if (Buffer.byteLength(pending) > 4096) {
-        clearTimeout(timer)
-        reject(new Error('lease frame oversize'))
-        return
-      }
-      const end = pending.indexOf('\n')
-      if (end === -1) {
-        return
-      }
-
-      clearTimeout(timer)
-      resolve(pending.slice(0, end))
-    })
-  })
-  return leaseFrame.parse(JSON.parse(value))
-}
+import { buildMakerLeaseWorker, readMakerLeaseFrame } from './helpers/makerEmulatorLease'
 
 // Explicitly opt in to real local emulator processes; missing tools FAIL on opt-in.
 describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator board matrix', () => {
@@ -72,18 +30,7 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
     expect(process.platform).toBe('linux')
     directory = await mkdtemp(path.join(tmpdir(), 'mx-'))
     worker = path.join(directory, 'lease-worker.cjs')
-    const entry = path.resolve('test/e2e/helpers/makerEmulatorLease.ts')
-    await build({
-      stdin: {
-        contents: `import { ${makerEmulatorLeaseMain.name} } from ${JSON.stringify(entry)}; ${makerEmulatorLeaseMain.name}().catch(() => { process.exitCode = 1; });`,
-        resolveDir: process.cwd(),
-        loader: 'ts',
-      },
-      outfile: worker,
-      bundle: true,
-      platform: 'node',
-      format: 'cjs',
-    })
+    await buildMakerLeaseWorker(worker)
   })
   afterAll(async () => {
     await rm(directory, { recursive: true, force: true })
@@ -213,11 +160,11 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
           return child
         }
         const first = launch()
-        const held = await frame(first)
+        const held = await readMakerLeaseFrame(first)
         expect(held.status).toBe('claimed')
         if (held.status !== 'claimed') throw new Error('initial lease busy')
         const second = launch()
-        expect(await frame(second)).toEqual({ status: 'busy', holderPid: first.pid })
+        expect(await readMakerLeaseFrame(second)).toEqual({ status: 'busy', holderPid: first.pid })
         expect(await didStopHardwareLease(await makerLeaseDeps(leases), held.record.resource)).toBe(
           true,
         )

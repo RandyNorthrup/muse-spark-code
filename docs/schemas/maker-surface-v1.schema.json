@@ -186,11 +186,6 @@
         "machine": {
           "type": "object",
           "properties": {
-            "registrationId": {
-              "type": "string",
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-            },
             "id": { "type": "string", "minLength": 1, "maxLength": 256 },
             "name": { "type": "string", "minLength": 1, "maxLength": 256 },
             "kind": {
@@ -236,7 +231,7 @@
               "additionalProperties": false
             }
           },
-          "required": ["registrationId", "id", "name", "kind", "category", "endpoint", "limits"],
+          "required": ["id", "name", "kind", "category", "endpoint", "limits"],
           "additionalProperties": false
         },
         "allowPlainHttp": { "type": "boolean" }
@@ -291,6 +286,7 @@
     "Travel bounds require min <= max on every axis. Preset paths are relative, contain no parent segments, option/response-file prefix or control characters.",
     "Host state, limits, keys and permission are engine/host authority. A surface message alone never enables hardware or approves a send.",
     "Enabling hardware requires a nonblank user reason. Disabling hardware needs no reason.",
+    "New machine registration input cannot supply the engine-owned generation UUID. Host summaries, approval targets and stale removals retain it.",
     "Stop is dispatched independently of approval, trust, hardware enablement, active turns and ordinary queues.",
     "Device log entries are user-requested and scrubbed before crossing the surface boundary; keys never cross this protocol."
   ]

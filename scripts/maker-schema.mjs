@@ -36,6 +36,7 @@ for (const [name, boundary] of [
     'Travel bounds require min <= max on every axis. Preset paths are relative, contain no parent segments, option/response-file prefix or control characters.',
     'Host state, limits, keys and permission are engine/host authority. A surface message alone never enables hardware or approves a send.',
     'Enabling hardware requires a nonblank user reason. Disabling hardware needs no reason.',
+    'New machine registration input cannot supply the engine-owned generation UUID. Host summaries, approval targets and stale removals retain it.',
     'Stop is dispatched independently of approval, trust, hardware enablement, active turns and ordinary queues.',
     'Device log entries are user-requested and scrubbed before crossing the surface boundary; keys never cross this protocol.',
   ]

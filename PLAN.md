@@ -18951,6 +18951,17 @@ exemption is added. Commands and settings are not registered by this lane,
 so maker manifest keys remain with W. The release base has no help catalog,
 reference generator or reference-check script; integrating that separate
 facility remains a named lead/W obligation, not an invented replacement here.
+The final interface review keeps engine-minted registration generations out
+of `makerAddMachine` input. New registrations carry only their secretless
+fields; only host summaries, target approval echoes and stale-removal checks
+carry the generation UUID. This matches MachineRegistry's fresh UUID on add
+and avoids making a surface invent an identifier the engine would overwrite.
+The final P/X join review exposes X's version-1 lease-frame parser against P's
+version-2 producer. Move that existing consumer into X's test helper and add
+an always-running real lease-worker regression, using an ordinary temporary
+file as the resource and no serial/device open. Capture the child's actual
+version-2 frame and generation before updating the parser. This closes the
+masked ABI drift without claiming the missing emulator board matrix passed.
 
 **FIXM103S review corrections (2026-10-05).** Resolve RVM103S's two P2
 installer findings and its P3 topic-safety coverage finding within lane S.
@@ -20159,6 +20170,22 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**M103INT bounded integration receipts (2026-10-05, Kubuntu).** The explicit
+rig brief requires the seven named merges, lanes I/0, owning suites and
+static/build checks, and forbids aggregate quality/full-unit runs. Five
+TypeScript projects, merged-file lint/formatting, localization with duplicate
+checks, reviewed host inventory, plain Knip, zero-clone jscpd, normal and
+unwired-maker cycle graphs, schema drift and the Arduino API 1.96 floor pass.
+Normal/Arduino builds pass every unchanged cap. Guard/translation drills
+restore SHA-256-exact bytes; P/X's stale lease parser is corrected from an
+actual lease-only child capture, without a device open or model attempt.
+The X board matrix remains 17 failures for absent worktree-local tools/images;
+no other lane's cache was read. Native Arduino, physical/live, cross-editor,
+full quality/coverage/a11y, startup-growth wiring and G4 joining remain with
+W/E/lead. The absent help catalogue/reference tooling is an inherited W/lead
+integration obligation. Exact receipts and U/V/R handoff: m103-int.md. No
+threshold, ignore, severity, timeout or budget was weakened.
 
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor

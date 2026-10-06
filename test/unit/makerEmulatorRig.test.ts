@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
 import { mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { setTimeout as delay } from 'node:timers/promises'
 import { isTestProcessAlive } from './helpers/makerSerial'
 import { z } from 'zod'
+import { buildMakerLeaseWorker, readMakerLeaseFrame } from '../e2e/helpers/makerEmulatorLease'
 
 const exec = promisify(execFile)
 const directories: string[] = []
@@ -38,6 +39,36 @@ async function control(action: string, directory: string, command: string[] = []
 }
 
 describe.skipIf(process.platform !== 'linux')('emulator process ownership', () => {
+  it('parses the live lease worker without emulator assets or a device open', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'mx-frame-'))
+    directories.push(directory)
+    const resource = path.join(directory, 'ordinary-file')
+    await writeFile(resource, '')
+    const worker = path.join(directory, 'lease-worker.cjs')
+    await buildMakerLeaseWorker(worker)
+    const child = spawn(process.execPath, [worker, path.join(directory, 'leases'), resource], {
+      env: { PATH: process.env['PATH'] },
+      stdio: 'pipe',
+    })
+    if (child.pid !== undefined) processes.push(child.pid)
+    const exited = new Promise<number | null>((resolve) => {
+      child.once('exit', resolve)
+    })
+    let capture = ''
+    child.stdout.on('data', (bytes: Buffer) => {
+      capture += bytes.toString('utf8')
+    })
+    try {
+      expect(await readMakerLeaseFrame(child)).toMatchObject({
+        status: 'claimed',
+        record: { version: 2, generation: expect.any(String) },
+      })
+    } finally {
+      child.stdin.end()
+      await writeFile(path.resolve('temp/m103-int-lease-frame.json'), capture)
+      expect(await exited).toBe(0)
+    }
+  })
   it('starts once, strips inherited environment, and Stop removes both PTYs and all children', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'mx-life-'))
     directories.push(directory)

@@ -4,7 +4,8 @@ Kubuntu, 2026-10-05. Base `6fb6f0f924`, branch `m103/int`. The requested
 `plan/m103-m104` ref is absent on this rig; `m103/sfix:PLAN.md` contains the
 complete D83/M103 decisions and lane table used here. No guard branch,
 main/release merge, push, rebase, physical hardware, credential read or model
-call. Model attempts and paid calls: **0**. No dependencies installed so far.
+call. Model attempts and paid calls: **0**. Only the existing pinned @types/vscode 1.96.0 fixture was installed, in private
+`temp/arduino-types`; shared node_modules was untouched.
 
 ## Merge receipts
 
@@ -138,7 +139,8 @@ bridge cast or UI implementation in this lane. Action requests do not grant
 permission: V/R classify independently, read authoritative state, create the
 approval and accept the corresponding host-UI answer. A makerStop with no id
 means stop all held targets; process it ahead of admission and ordinary queues.
-Machine registration is secretless on this boundary; V/R collect any key via
+Machine registration is secretless and omits the engine-owned generation UUID;
+V/R collect any key via
 a host-owned input into the credential store. Open-preview uses an opaque
 artifact UUID, never a surface-supplied path. Logs are explicitly requested,
 scrubbed and local; result `sentOutcomeUnknown` must be visible before retry.
@@ -292,3 +294,77 @@ The maker engine and surfaces remain unwired, so their lazy bundles and
 D83’s final startup-growth requirement remain W/E’s qualification. The inline
 browser English fallback grows with the authorized text region; no budget
 was raised and no new engine or adapter loads at activation.
+
+## Final handoff review corrections
+
+`makerAddMachine.machine` is the secretless summary shape **without**
+`registrationId`. The engine generates it; host lists, target echoes and
+`makerRemoveMachine` retain it. The new regression accepts a generation-free
+add, rejects a supplied generation, and still requires one on host summaries.
+Protocol/approval/registry suites pass 94 cases. The two complete-file drills
+fail by making generation required again (3 failed / 33 passed) and by
+accepting a supplied generation (2 failed / 34 passed). Both restore SHA-256
+`d14e3bd9c8b56f2ae952ccca954abf08e2970338fc930abdf36102a476c16b9e`.
+
+P/X’s masked lease ABI drift is fixed: X’s original consumer expected version
+1 and lacked P’s generation field. The new always-running lease-worker
+case, added to the existing lifecycle suite, failed against that parser
+(1 failed / 5 passed) before the fix. It uses an ordinary temporary file,
+real Node child, native file lock and private owner endpoint; **no serial
+open, emulator firmware, physical device or model call**. Its actual producer
+frame is committed as `m103-int/lease-v2.capture.json`, captured on Kubuntu
+in `/home/randy/lanes/M103INT`, with counted model attempts **0**. The
+consumer’s version 2 and generation UUID come from that capture. Both the
+board matrix and the always-running regression use `readMakerLeaseFrame`
+in `test/e2e/helpers/makerEmulatorLease.ts`; one shared worker builder avoids
+a copied fixture. The restored approval/protocol/lifecycle run passes 80
+cases. This closes the P/X parser join but does not qualify the missing
+board images/tools.
+
+The lease-v2 drill fails the complete lifecycle suite (1 failed / 5
+passed), then restores SHA-256 `1e5d6971eb30e6d7f135d92fd622737646351d8db1bd41d2b62e264c154efa61`.
+
+The lease-generation drill fails the complete lifecycle suite (1 failed / 5
+passed), then restores SHA-256 `1e5d6971eb30e6d7f135d92fd622737646351d8db1bd41d2b62e264c154efa61`.
+
+## Final gates and remaining owners
+
+The final corrected tree passes all five TypeScript projects; ESLint over
+105 merged code paths and Prettier over 210 supported-format paths;
+localization (14 tables, 165 manifest strings, 635 sources, zero problems);
+host API --write and byte check; plain Knip; jscpd (zero clones); both the
+normal and explicit 22-file maker dependency graphs; maker schema drift; and
+both Arduino API 1.96 projects. Regenerated host inventory still has 342 APIs,
+33 VS Code importers, 26 Node built-ins and 61 theme variables; only lane I’s
+previously reviewed perf_hooks importer count changes. Shared node_modules,
+all gates and all caps remain unchanged.
+
+The Arduino profile production build with integration bundles passes size,
+split, globals and notices; the normal production build does too. The final
+normal build is restored, with its integration bundle present for the
+30 passing Arduino board/build/host fixture cases. The Arduino type-floor
+install is the existing pinned @types/vscode 1.96.0 only, private scratch.
+This is compilation and fake-host evidence, not an installed Arduino receipt.
+
+All 45 deliberate mutation drills (one split, 34 I guards, six localization,
+two registration-generation and two lease-frame) fail their full owning suite
+or gate and restore byte-exact. The original P/X parser also fails the new
+always-running case before correction. Final review tests pass 66 cases
+(lifecycle, protocol, serial session); the complementary approval/registry
+checks pass as recorded above. Thonny’s existing Python 3.14/pytest 9 run
+passes 190 cases. No new skips or filters; existing platform skips are named.
+
+G4 joins only after review. U builds the shared React surface/HostBridge
+composition; V supplies VS Code adapters and authoritative admission,
+storage/secrets and independent Stop; R supplies equivalent runtime/ACP/
+companion permissions and freezes Thonny R/P handover. W wires tools,
+commands/settings, lazy maker/preview bundles, packaging and help/reference
+integration. E/lead supply fresh board assets/emulator matrix, installed
+Arduino/other editors, cross-OS/physical/live evidence, startup requirements
+and full quality/coverage/accessibility. The failed opt-in X run is preserved
+as missing qualification. This branch claims no support beyond its receipts.
+
+Final package/budget/deferred-manifest fixture run: **57 pass** after the
+corrected tree’s production/integration build. Hooks are enabled on every
+merge and implementation commit; lint-staged and gitleaks report no leak.
+The work is completed within the 150-minute box, with no push or guard join.

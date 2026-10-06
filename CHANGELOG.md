@@ -31,6 +31,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The maker emulator lease consumer now reads P's version-2 record and
+  immutable generation, verified against a live lease-only child without
+  board assets. New machine registration requests leave generation UUIDs
+  with the engine.
+
 - JSONC verification rejects missing members/elements rather than erasing
   illegal commas. Stale editor text stays unchecked after an empty diagnostic
   event, and disposing verification stops active and queued diagnostic reads.

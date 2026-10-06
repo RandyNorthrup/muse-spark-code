@@ -218,6 +218,7 @@ export const makerMachineSummarySchema = z.strictObject({
   limits: makerLimitsSchema,
 })
 export type MakerMachineSummary = z.infer<typeof makerMachineSummarySchema>
+const machineRegistrationSchema = z.omit(makerMachineSummarySchema, { registrationId: true })
 
 export const makerWarningSchema = z.enum([
   'physicalStopRequired',
@@ -380,7 +381,7 @@ export const makerSurfaceMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     ...envelope,
     type: z.literal('makerAddMachine'),
-    machine: makerMachineSummarySchema,
+    machine: machineRegistrationSchema,
     allowPlainHttp: z.boolean(),
   }),
   z.strictObject({
