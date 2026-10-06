@@ -2,7 +2,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { App } from '../../src/webview/App'
-import * as highlightModule from '../../src/webview/highlight'
+import * as highlightModule from '../../src/webview/highlightRuntime'
 import * as presentation from '../../src/webview/toolPresentation'
 import { testSettings } from './helpers/fakes'
 
@@ -17,7 +17,7 @@ vi.mock('../../src/webview/toolPresentation', async (original) => {
   return { ...actual, changeSummary: vi.fn(actual.changeSummary) }
 })
 
-vi.mock('../../src/webview/highlight', async (original) => {
+vi.mock('../../src/webview/highlightRuntime', async (original) => {
   const actual = await original<typeof highlightModule>()
   return { ...actual, highlight: vi.fn(actual.highlight) }
 })
@@ -37,7 +37,7 @@ function textarea() {
 }
 
 describe('render cost (M25)', () => {
-  it('renders no row for a keystroke and only the changed row for a delta', () => {
+  it('renders no row for a keystroke and only the changed row for a delta', async () => {
     render(<App postMessage={vi.fn()} />)
     deliver({
       type: 'init',
@@ -71,6 +71,7 @@ describe('render cost (M25)', () => {
       type: 'itemStarted',
       item: { itemId: 'm1', kind: 'agentMessage', status: 'inProgress', text: '' },
     })
+    await screen.findByText('const', { selector: '.hljs-keyword' })
     const rowRender = vi.mocked(presentation.changeSummary)
     const highlight = vi.mocked(highlightModule.highlight)
     const rowRenders = rowRender.mock.calls.length

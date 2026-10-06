@@ -4242,7 +4242,7 @@
             canUseVscodeReporter: true,
             recordingUnavailable: false,
           })
-          later(400, () => {
+          whenFound('.report-check input', () => {
             const boxes = [...document.querySelectorAll('.report-check input')].map((input) =>
               input.getBoundingClientRect(),
             )

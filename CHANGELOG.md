@@ -18,6 +18,12 @@ happened, not what was planned; superseded entries are kept.
 - Timed-out and stopped POSIX shell commands now wait for their process
   group to exit before returning. Cleanup is bounded and reports a group
   that remains; macOS monitor tests recognize exited zombies correctly.
+- Chat startup now loads syntax highlighting only for a closed supported code
+  fence, leaving code text and Copy, Insert and Apply immediately available
+  while its engine loads. Action-only dialogs and the separate Tasks surface
+  also load on demand; the command palette reuses its shared list shell. The
+  900 KiB startup budget and existing deferred budget stay unchanged.
+
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

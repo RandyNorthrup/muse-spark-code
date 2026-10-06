@@ -7,11 +7,10 @@
 // language's table goes in before anything reads the text (PLAN.md D33).
 
 import { createRoot } from 'react-dom/client'
-import { useSyncExternalStore } from 'react'
-import { WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
+import { lazy, Suspense, useSyncExternalStore } from 'react'
+import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
 import type { WebviewToHostMessage } from '../shared/protocol'
 import { App } from './App'
-import { TasksApp } from './TasksApp'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
@@ -20,6 +19,11 @@ import { installEmbeddedTable } from './installTable'
 import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore, type UiStore } from './state/store'
 import './styles.css'
+
+const TasksApp = lazy(async () => {
+  const { TasksApp } = await import('./TasksApp')
+  return { default: TasksApp }
+})
 
 // This module's own resolved URL (M93): the report's frames name only
 // locations inside main.js, as the package path, never the URL (which holds
@@ -61,21 +65,36 @@ function CrashReportDialog({
 }
 
 if (document.body.dataset['surface'] === 'tasks') {
+  mountTasks(rootElement)
+} else {
+  mountChat(rootElement)
+}
+
+function mountTasks(element: Element): void {
   const api = acquireVsCodeApi()
   const tableError = installEmbeddedTable(document)
   if (tableError !== undefined) {
     throw tableError
   }
-  createRoot(rootElement).render(
-    <TasksApp
-      messages={window}
-      postMessage={(message) => {
-        api.postMessage(message)
-      }}
-    />,
+  createRoot(element).render(
+    <Suspense
+      fallback={
+        <main className="todo-surface">
+          <header className="todo-tab-header">
+            <h1>{UI_TEXT.todoTitle}</h1>
+          </header>
+          <p role="status">{UI_TEXT.loadingOutput}</p>
+        </main>
+      }
+    >
+      <TasksApp
+        messages={window}
+        postMessage={(message) => {
+          api.postMessage(message)
+        }}
+      />
+    </Suspense>,
   )
-} else {
-  mountChat(rootElement)
 }
 
 function mountChat(element: Element): void {
