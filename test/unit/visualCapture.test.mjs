@@ -13,7 +13,7 @@ beforeAll(async () => {
   const matrix = JSON.parse(await readFile('test/harness/visual-matrix.json', 'utf8'))
   captured.result = await captureMatrix(
     process.cwd(),
-    { ...audit, scenes: ['board', 'deferred-modal', 'whats-new'] },
+    { ...audit, scenes: ['board', 'deferred-modal', 'whats-new', 'whats-new-highlights'] },
     { ...matrix, themes: ['light'], widths: [320] },
     async (capture, bytes, page) => {
       decodePng(bytes, capture.width, capture.height)
@@ -51,6 +51,14 @@ describe('M114 real visual capture driver', () => {
         (capture) => capture.scene === 'board' && capture.state === 'selected',
       ).applied,
     ).toBe(true)
+  })
+  it('captures real controls on extra scenes without canonical component rows', () => {
+    for (const state of ['hover', 'focus-visible', 'pressed', 'disabled'])
+      expect(
+        captured.result.captures.find(
+          (capture) => capture.scene === 'whats-new-highlights' && capture.state === state,
+        ),
+      ).toMatchObject({ applied: true, target: expect.stringContaining('button') })
   })
   it('isolates fixture CSP origins for concurrent capture runs', async () => {
     const first = await makeFixtures(process.cwd(), 11_401)

@@ -104,6 +104,8 @@ async function targetFor(page, rows, state) {
       const scopes = rows
         .map((row) => globalThis.document.querySelector(row.captureSelector))
         .filter((element) => element !== null)
+      // Extra variants and host-rendered pages have no canonical audit row.
+      if (scopes.length === 0) scopes.push(globalThis.document.body)
       // Prefer the narrowest component scope over App/Transcript wrappers.
       scopes.sort((a, b) => a.querySelectorAll('*').length - b.querySelectorAll('*').length)
       for (const scope of scopes) {

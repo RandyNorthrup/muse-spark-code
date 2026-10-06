@@ -215,3 +215,27 @@ The lead's CI binding is now explicit in PLAN §7: the workflow's manual
 static command includes neither token nor visual gates and its checkout is
 shallow. The workflow owner must add them and supply the tracked Git object;
 S does not edit that foreign file or quietly fetch baselines over the network.
+
+## Extra scene control applicability and complete six-theme observations
+
+Review of the first styled full candidate found 16 extra variants with no
+canonical A component row. They had real controls but `targetFor` searched
+only row scopes, incorrectly marking every state unavailable. That candidate
+manifest was removed and its archive retained outside git as an unaccepted
+attempt. Extra scenes now discover controls in the actual document when no
+row scope exists; canonical rows still use their component scope. The
+new actual What's New highlights regression failed before the fix and after
+intentionally removing the fallback, on `applied: false, target: null`.
+The source restored byte-exact to SHA-256
+`531abc48c98466386b0d48cdb53aa2b4065f9c9f0c9c843ee7a3de550a68e2a3`.
+The complete browser suite passes **4/4**, sharing 24 actual captures in
+beforeAll, default timeouts. No product CSS or handler was changed.
+
+The complete six-theme supplementary axe run passes with **804/804 page
+results** and **zero pages with violations**. It retains **1,152** incomplete
+nodes: 1,026 `elmPartiallyObscured`, 42 `bgOverlap`, 60
+`elmPartiallyObscuring` and 24 `nonBmp`. There are zero unclassified reasons;
+these are exactly the obscured/glyph limits named by the canonical gate,
+not assertions that axe measured their contrast. The durable after receipt
+retains every node. This default-view observation uses the identical product
+UI; the capture-driver fallback changes extra scenes' state discovery only.

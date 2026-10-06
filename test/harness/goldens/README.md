@@ -22,7 +22,8 @@ One Dark Pro/Dracula fixtures. No remote font, theme code or model runs.
 
 Default state preserves the scenario. Hover, focus-visible and pressed use
 Chromium's CSS pseudo-state forcing on a recorded visible real control; this
-keeps menus open without invoking actions. Disabled uses the existing native
+keeps menus open without invoking actions. Extra scene variants and host-rendered
+pages with no canonical audit row discover actual controls in the document. Disabled uses the existing native
 control state. Selected records an already selected real option/toggle/input.
 `applied: false` explicitly marks a scene with no applicable target/selection;
 it is never a claim that an unavailable interaction was tested. These are
