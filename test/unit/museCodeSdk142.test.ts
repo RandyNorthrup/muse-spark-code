@@ -9,7 +9,7 @@ import type {
   MuseCodeLifecycleEvent,
   MuseCodeLifecycleReader,
 } from '../../src/core/backends/musecode/mapNotification'
-import { UI_TEXT } from '../../src/shared/constants'
+import { REDACTED_MARK, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeInitializeResult, fakeMspHost, settle } from './helpers/fakeMsp'
 
@@ -137,6 +137,29 @@ describe('Muse Code 1.4.2 feature ports', () => {
     expect(server.requestsFor('feedback/submit')).toHaveLength(1)
     expect(server.requestsFor('feedback/submit')[0]?.params).toEqual(report)
     expect(parseOutcome).toHaveBeenCalledExactlyOnceWith({ opaque: 'reader input' })
+  })
+
+  it('previews registered secrets and M84 patterns and dispatches exactly the approved note', async () => {
+    const literal = 'feedback-host-literal'
+    const { host, server } = setup(
+      {
+        feedback: {
+          parseOutcome: () => 'uploaded',
+          secretLiterals: () => [literal],
+        },
+      },
+      ['feedback'],
+    )
+    server.handle('feedback/submit', () => ({ opaque: 'receipt' }))
+    const raw = `${literal} / ghp_${'x'.repeat(36)}`
+    await expect(host.submitFeedback({ ...report, note: raw })).rejects.toThrow(
+      UI_TEXT.feedbackFailed,
+    )
+    expect(server.requestsFor('feedback/submit')).toHaveLength(0)
+    const note = host.previewFeedbackNote(raw)
+    expect(note).toBe(`${REDACTED_MARK} / ${REDACTED_MARK}`)
+    await host.submitFeedback({ ...report, note })
+    expect(server.requestsFor('feedback/submit')[0]?.params?.['note']).toBe(note)
   })
 
   it('propagates a rejected receipt without retrying or logging its content', async () => {

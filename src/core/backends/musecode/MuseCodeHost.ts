@@ -102,6 +102,7 @@ import {
   type WireNotification,
 } from './mapNotification'
 import { failureForLog } from './logText'
+import { redactSecrets } from '../../../shared/redact'
 import { PromptLedger } from './promptLedger'
 import { submitMuseFeedback, type FeedbackOutcomeReader, type FeedbackRequest } from './feedback'
 import {
@@ -1875,19 +1876,28 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /** The user's confirmed disclosure choices; send once, never replay an upload. */
+  public previewFeedbackNote(note: string): string {
+    return redactSecrets(note, this.features.feedback?.secretLiterals?.() ?? [])
+  }
+
   public async submitFeedback(input: FeedbackRequest): Promise<string> {
     const reader = this.features.feedback
     if (reader === undefined || !this.info.grantedCapabilities.includes('feedback')) {
       throw new Error(UI_TEXT.feedbackFailed)
     }
-    return await submitMuseFeedback(input, {
-      submit: async (request) =>
-        reader.parseOutcome(
-          await requestWithin(this.channel, 'feedback/submit', this.timeouts.normalMs, () =>
-            answered(this.channel, 'feedback/submit', { ...request }),
+    return await submitMuseFeedback(
+      input,
+      {
+        scrubNote: (note) => Promise.resolve(this.previewFeedbackNote(note)),
+        submit: async (request) =>
+          reader.parseOutcome(
+            await requestWithin(this.channel, 'feedback/submit', this.timeouts.normalMs, () =>
+              answered(this.channel, 'feedback/submit', { ...request }),
+            ),
           ),
-        ),
-    })
+      },
+      input.note,
+    )
   }
 
   public async startSession(options: StartSessionOptions): Promise<MuseSession> {

@@ -1,6 +1,7 @@
 import { useRef, useState, type SubmitEvent } from 'react'
 import {
   feedbackClassificationSchema,
+  scrubMuseFeedbackNote,
   submitMuseFeedback,
   type FeedbackClassification,
   type FeedbackSubmitPort,
@@ -25,6 +26,7 @@ function FeedbackForm({ sessionId, classifications, port, onClose }: FeedbackDia
     classifications[0]?.classification ?? 'other',
   )
   const [note, setNote] = useState('')
+  const [previewed, setPreviewed] = useState(false)
   const [withFiles, setWithFiles] = useState(false)
   const [attachSessionRecord, setAttachSessionRecord] = useState(false)
   const [isSending, setIsSending] = useState(false)
@@ -37,6 +39,8 @@ function FeedbackForm({ sessionId, classifications, port, onClose }: FeedbackDia
     (classification !== 'bug' || note.trim().length > 0)
   let statusText = result === undefined ? '' : fill(UI_TEXT.feedbackResult, { result })
   if (failed) statusText = UI_TEXT.feedbackFailed
+  let submitText = previewed ? UI_TEXT.feedbackSend : UI_TEXT.reportPreviewLabel
+  if (isSending) submitText = UI_TEXT.feedbackSending
 
   const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -46,10 +50,16 @@ function FeedbackForm({ sessionId, classifications, port, onClose }: FeedbackDia
     setResult(undefined)
     setFailed(false)
     try {
+      if (!previewed) {
+        setNote(await scrubMuseFeedbackNote(note, port))
+        setPreviewed(true)
+        return
+      }
       setResult(
         await submitMuseFeedback(
           { sessionId, classification, note, withFiles, attachSessionRecord },
           port,
+          note,
         ),
       )
     } catch {
@@ -87,12 +97,23 @@ function FeedbackForm({ sessionId, classifications, port, onClose }: FeedbackDia
             {UI_TEXT.feedbackNote}
             <textarea
               value={note}
+              readOnly={previewed}
               required={classification === 'bug'}
               onChange={(event) => {
                 setNote(event.target.value)
               }}
             />
           </label>
+          {previewed && (
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewed(false)
+              }}
+            >
+              {UI_TEXT.queuedEdit}
+            </button>
+          )}
           <label>
             <input
               type="checkbox"
@@ -117,7 +138,7 @@ function FeedbackForm({ sessionId, classifications, port, onClose }: FeedbackDia
           </label>
         </fieldset>
         <button type="submit" disabled={isSending || !canSend}>
-          {isSending ? UI_TEXT.feedbackSending : UI_TEXT.feedbackSend}
+          {submitText}
         </button>
         <p role="status">{statusText}</p>
       </form>

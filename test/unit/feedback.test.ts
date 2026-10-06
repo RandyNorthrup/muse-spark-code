@@ -3,10 +3,38 @@ import {
   feedbackClassificationSchema,
   submitMuseFeedback,
 } from '../../src/core/backends/musecode/feedback'
+import { REDACTED_MARK, UI_TEXT } from '../../src/shared/constants'
+import { redactSecrets } from '../../src/shared/redact'
 
 const report = { sessionId: 's', classification: 'badResult', note: 'A wrong answer' } as const
 
 describe('Muse Code feedback: user choices before an injected receipt reader', () => {
+  it('scrubs a registered literal and an M84 credential pattern before dispatch', async () => {
+    const literal = 'feedback-test-literal'
+    const pattern = `ghp_${'x'.repeat(36)}`
+    const submit = vi.fn().mockResolvedValue('uploaded')
+    const scrubNote = vi.fn((note: string) => Promise.resolve(redactSecrets(note, [literal])))
+    await submitMuseFeedback({ ...report, note: `${literal} / ${pattern}` }, { submit, scrubNote })
+    expect(submit).toHaveBeenCalledExactlyOnceWith({
+      ...report,
+      note: `${REDACTED_MARK} / ${REDACTED_MARK}`,
+      withFiles: false,
+      attachSessionRecord: false,
+    })
+  })
+
+  it('refuses dispatch when scrubbing changes the approved preview', async () => {
+    const submit = vi.fn()
+    const note = 'feedback-test-literal'
+    await expect(
+      submitMuseFeedback(
+        { ...report, note },
+        { submit, scrubNote: () => Promise.resolve(REDACTED_MARK) },
+        note,
+      ),
+    ).rejects.toThrow(UI_TEXT.feedbackFailed)
+    expect(submit).not.toHaveBeenCalled()
+  })
   it('keeps the client-selected classification vocabulary closed', () => {
     expect(feedbackClassificationSchema.safeParse('futureClassification').success).toBe(false)
   })

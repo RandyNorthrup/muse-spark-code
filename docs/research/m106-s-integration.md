@@ -68,6 +68,13 @@ Muse Code when it is granted and the captured receipt reader is installed.
 Load `FeedbackDialog.tsx` lazily into an optional webview chunk. Bridge its
 `FeedbackSubmitPort` to `MuseCodeHost.submitFeedback` through zod-validated
 shared messages and responses, using the clicked turn's owning session.
+Bind `FeedbackSubmitPort.scrubNote` to `MuseCodeHost.previewFeedbackNote`
+over that bridge too. Supply `feedback.secretLiterals` from the host's
+registered secret store; only scrubbed text crosses back to the webview.
+Preview scrubs the note before Send becomes available. The displayed note
+is read-only until Edit starts a new preview; dispatch refuses a changed
+preview, including a newly registered literal secret. The host independently
+refuses notes that have not already passed its scrubber.
 
 The dialog requires localized labels for `bug`, `badResult`, `goodResult`
 and `other`. Those four labels need new English keys and real translations

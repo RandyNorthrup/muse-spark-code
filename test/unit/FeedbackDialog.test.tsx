@@ -5,7 +5,8 @@ import {
   FeedbackDialog,
   type FeedbackDialogProps,
 } from '../../src/webview/components/FeedbackDialog'
-import { UI_TEXT } from '../../src/shared/constants'
+import { REDACTED_MARK, UI_TEXT } from '../../src/shared/constants'
+import { redactSecrets } from '../../src/shared/redact'
 import { fill } from '../../src/shared/l10n/text'
 
 function setup(overrides: Partial<FeedbackDialogProps> = {}) {
@@ -31,14 +32,20 @@ function files() {
 function record() {
   return screen.getByRole('checkbox', { name: UI_TEXT.feedbackAttachSessionRecord })
 }
-function send() {
+async function preview() {
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.reportPreviewLabel }))
+  await screen.findByRole('button', { name: UI_TEXT.feedbackSend })
+}
+
+async function send() {
+  if (screen.queryByRole('button', { name: UI_TEXT.reportPreviewLabel })) await preview()
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.feedbackSend }))
 }
 
 async function requestWithoutRecord(submit: ReturnType<typeof setup>['submit']): Promise<unknown> {
   expect(record()).not.toBeChecked()
   expect(record()).toBeDisabled()
-  send()
+  await send()
   await waitFor(() => {
     expect(submit).toHaveBeenCalledTimes(1)
   })
@@ -46,6 +53,40 @@ async function requestWithoutRecord(submit: ReturnType<typeof setup>['submit']):
 }
 
 describe('FeedbackDialog: disclosure consent', () => {
+  it('shows the scrubbed registered secret and M84 pattern before consent and sends that exact preview', async () => {
+    const literal = 'feedback-dialog-literal'
+    const submit = vi.fn().mockResolvedValue('uploaded')
+    setup({
+      port: { submit, scrubNote: (note) => Promise.resolve(redactSecrets(note, [literal])) },
+    })
+    fireEvent.change(screen.getByLabelText(UI_TEXT.feedbackNote), {
+      target: { value: `${literal} / ghp_${'x'.repeat(36)}` },
+    })
+    await preview()
+    const approved = `${REDACTED_MARK} / ${REDACTED_MARK}`
+    expect(screen.getByLabelText(UI_TEXT.feedbackNote)).toHaveValue(approved)
+    expect(screen.getByLabelText(UI_TEXT.feedbackNote)).toHaveAttribute('readonly')
+    expect(submit).not.toHaveBeenCalled()
+    await send()
+    await waitFor(() => {
+      expect(submit).toHaveBeenCalledTimes(1)
+    })
+    expect(submit.mock.calls[0]?.[0]).toMatchObject({ note: approved })
+  })
+
+  it('requires a new scrubbed preview after editing the approved note', async () => {
+    const { submit } = setup()
+    await preview()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.queuedEdit }))
+    fireEvent.change(screen.getByLabelText(UI_TEXT.feedbackNote), { target: { value: 'Changed' } })
+    await preview()
+    expect(submit).not.toHaveBeenCalled()
+    await send()
+    await waitFor(() => {
+      expect(submit).toHaveBeenCalledTimes(1)
+    })
+    expect(submit.mock.calls[0]?.[0]).toMatchObject({ note: 'Changed' })
+  })
   it('starts with both disclosures off, sends once, and displays the exact returned outcome', async () => {
     const { submit } = setup()
     expect(submit).not.toHaveBeenCalled()
@@ -54,7 +95,7 @@ describe('FeedbackDialog: disclosure consent', () => {
     expect(record()).toBeDisabled()
     expect(screen.getByText(UI_TEXT.feedbackPrivacy)).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText(UI_TEXT.feedbackNote), { target: { value: 'A note' } })
-    send()
+    await send()
     await screen.findByText(fill(UI_TEXT.feedbackResult, { result: 'trackingUncertain' }))
     expect(submit).toHaveBeenCalledExactlyOnceWith({
       sessionId: 's',
@@ -70,7 +111,7 @@ describe('FeedbackDialog: disclosure consent', () => {
     const { submit } = setup()
     fireEvent.click(files())
     fireEvent.click(record())
-    send()
+    await send()
     await waitFor(() => {
       expect(submit).toHaveBeenCalledTimes(1)
     })
@@ -105,11 +146,14 @@ describe('FeedbackDialog: disclosure consent', () => {
     const receipt = Promise.withResolvers<string>()
     const submit = vi.fn(() => receipt.promise)
     setup({ port: { submit } })
+    await preview()
     const form = screen.getByLabelText(UI_TEXT.feedbackNote).closest('form')
     expect(form).not.toBeNull()
     fireEvent.submit(form!)
     fireEvent.submit(form!)
-    expect(submit).toHaveBeenCalledTimes(1)
+    await waitFor(() => {
+      expect(submit).toHaveBeenCalledTimes(1)
+    })
     expect(screen.getByRole('button', { name: UI_TEXT.feedbackSending })).toBeDisabled()
     receipt.resolve('futureOutcome')
     await screen.findByText(fill(UI_TEXT.feedbackResult, { result: 'futureOutcome' }))
@@ -121,13 +165,13 @@ describe('FeedbackDialog: disclosure consent', () => {
       target: { value: 'bug' },
     })
     fireEvent.change(screen.getByLabelText(UI_TEXT.feedbackNote), { target: { value: '  ' } })
-    expect(screen.getByRole('button', { name: UI_TEXT.feedbackSend })).toBeDisabled()
+    expect(screen.getByRole('button', { name: UI_TEXT.reportPreviewLabel })).toBeDisabled()
     expect(submit).not.toHaveBeenCalled()
   })
 
   it('refuses dispatch without an offered classification', () => {
     const { submit } = setup({ classifications: [] })
-    expect(screen.getByRole('button', { name: UI_TEXT.feedbackSend })).toBeDisabled()
+    expect(screen.getByRole('button', { name: UI_TEXT.reportPreviewLabel })).toBeDisabled()
     const form = screen.getByLabelText(UI_TEXT.feedbackNote).closest('form')
     fireEvent.submit(form!)
     expect(submit).not.toHaveBeenCalled()
@@ -143,7 +187,7 @@ describe('FeedbackDialog: disclosure consent', () => {
   it('shows a fixed failure without displaying raw receipt or error details', async () => {
     const submit = vi.fn().mockRejectedValue(new Error('/private/session-record'))
     setup({ port: { submit } })
-    send()
+    await send()
     await screen.findByText(UI_TEXT.feedbackFailed)
     expect(screen.queryByText('/private/session-record')).not.toBeInTheDocument()
   })

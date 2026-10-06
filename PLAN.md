@@ -19407,6 +19407,17 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**Lane S review repair (RVM106S, 2026-10-06).** Fix all three P2 findings:
+scrub feedback with the shared credential detector and host-held literal
+secrets before preview/dispatch, send exactly the approved note, isolate
+public lifecycle observers from private deletion bookkeeping, and reject
+deletion waits on connection close, process exit, explicit host close or
+the named terminal deadline. Failed/uncertain deletion never emits success
+or removes stored History. Regression tests and byte-exact red drills are
+recorded in `docs/certification/m106-s.md`; no review residual is planned.
+The rig brief prohibits aggregate quality and merging; scoped local checks
+and hook-on commits precede the lead's integrated quality gate.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
 FIXM101P2; everything else starts against lane 0's contracts.
