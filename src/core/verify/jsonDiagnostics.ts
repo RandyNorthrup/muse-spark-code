@@ -14,7 +14,9 @@ export interface JsonProblem {
 }
 
 const COMMENTS = /"(?:\\.|[^"\\])*"|\/\/[^\r\n]*|\/\*[\s\S]*?\*\//g
-const TRAILING_COMMAS = /"(?:\\.|[^"\\])*"|,(?=\s*[}\]])/g
+// Only erase a comma after a value's final character. A comma after an
+// opener, colon or another comma is missing a member/element, not trailing.
+const TRAILING_COMMAS = /"(?:\\.|[^"\\])*"(?:\s*,(?=\s*[}\]]))?|[}\]\del]\s*,(?=\s*[}\]])/g
 const SETTING_SCHEMAS = {
   'museSpark.modelApiCommandRules': z.array(commandRuleSchema),
   'museSpark.modelApiPermissionProfiles': z.record(z.string(), permissionProfileSchema),
@@ -30,7 +32,9 @@ function parseText(text: string, isJsonc: boolean): string {
         .replaceAll(COMMENTS, (token) =>
           token.startsWith('/') ? token.replaceAll(/[^\r\n]/g, ' ') : token,
         )
-        .replaceAll(TRAILING_COMMAS, (token) => (token === ',' ? ' ' : token))
+        .replaceAll(TRAILING_COMMAS, (token) =>
+          token.endsWith(',') ? `${token.slice(0, -1)} ` : token,
+        )
     : withoutBom
 }
 

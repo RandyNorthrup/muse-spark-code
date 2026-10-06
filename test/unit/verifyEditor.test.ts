@@ -1101,6 +1101,52 @@ describe('JSON diagnostics without a native report', () => {
     expect(set).not.toHaveBeenCalled()
   })
 
+  it('keeps stale malformed disk text unchecked after an empty collection-clear event', async () => {
+    const diskText = '{"new": 1 "broken": 2}'
+    vi.mocked(workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode(diskText))
+    const pending = editor().verify.diagnosticsAfterEdit(
+      [{ ...file, fingerprint: fingerprint(diskText) }],
+      new AbortController().signal,
+    )
+    setTimeout(() => {
+      report(file.absolute)
+    }, 5)
+    const [result] = await pending
+    expect(result?.unchecked).toBe('noReport')
+    expect(result?.entries).toEqual([])
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it('stops an active native wait on disposal without creating fallback resources', async () => {
+    const { verify } = editor()
+    const signal = new AbortController().signal
+    const pending = verify.settleFile(file.absolute, signal)
+    setTimeout(() => {
+      verify.dispose()
+    }, 5)
+    expect(await pending).toBeUndefined()
+    expect(signal.aborted).toBe(false)
+    expect(languages.createDiagnosticCollection).not.toHaveBeenCalled()
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it('stops queued diagnostics and rejects later calls after disposal', async () => {
+    const { verify } = editor()
+    const signal = new AbortController().signal
+    const active = verify.diagnosticsAfterEdit([file], signal)
+    const queued = verify.diagnosticsAfterEdit([file], signal)
+    setTimeout(() => {
+      verify.dispose()
+    }, 5)
+    const [[first], [next]] = await Promise.all([active, queued])
+    expect(first?.unchecked).toBe('stopped')
+    expect(next?.unchecked).toBe('stopped')
+    const calls = vi.mocked(workspace.openTextDocument).mock.calls.length
+    expect(await verify.settleFile(file.absolute)).toBeUndefined()
+    expect(workspace.openTextDocument).toHaveBeenCalledTimes(calls)
+    expect(set).not.toHaveBeenCalled()
+  })
+
   it('refuses cancellation and read revocation while its own report settles', async () => {
     const stop = new AbortController()
     const pending = editor().verify.diagnosticsAfterEdit([file], stop.signal)

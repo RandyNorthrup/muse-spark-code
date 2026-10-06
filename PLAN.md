@@ -15226,6 +15226,19 @@ real-IDE red drill followed by byte-exact restoration. No live/paid calls or
 physical-device access. The lane runs scoped checks; the lead retains aggregate
 quality/coverage. Evidence: `docs/certification/m103-a3.md`.
 
+**Review corrections (FIXM103A, 2026-10-05).** Resolve all four RVM103A
+findings within the existing parser, verification adapter and Arduino harness:
+preserve illegal empty JSONC members/elements, keep failed fallback admission
+unchecked despite an earlier empty event, stop active/queued diagnostics when
+the adapter is disposed, and reject empty discovery or incomplete host results.
+Each correction gets a failing-before regression and a deliberate guard-removal
+drill with byte-exact restoration. Repeat the 34-case Arduino and 19-case native
+VS Code packaged controls, both existing package/build gates and the 44-output
+cross-profile JavaScript comparison. No new dependency, host-name guard, model
+call, credential access or device access. Scoped lane gates only; aggregate
+quality/coverage remain with the lead under the rig brief. Record corrections
+and any named residual in `docs/certification/m103-a3.md` and §9.
+
 **Lanes and file ownership.** One integration branch
 (`feature/m103-makers`). Sub-milestone **f** is the maker editors (lanes A
 and T, and the Eclipse and JetBrains qualification rows); the owner has
@@ -16259,6 +16272,11 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM103A (2026-10-05):** all four RVM103A findings are corrected; no
+  reviewed P2/P3 is deferred. The earlier absent-TypeScript capability limit
+  and lead-owned aggregate/Linux qualification remain as recorded in M103A3;
+  these corrections do not claim a language broker or release certification.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

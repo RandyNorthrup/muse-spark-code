@@ -43,6 +43,7 @@ export async function run(testsPath, callback) {
     )
   }
   try {
+    if (files.length === 0) throw new Error('No Arduino integration tests discovered')
     capture()
     const { run: runTests } = createRequire(testsPath)(runnerPath)
     await runTests()

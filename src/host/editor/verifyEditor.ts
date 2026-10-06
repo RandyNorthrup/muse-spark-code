@@ -589,6 +589,9 @@ async function settledDiagnostics(
           file.relative,
           shown.document.languageId === 'jsonc',
         ).length > 0)
+    // An empty earlier event cannot certify malformed JSON when the local
+    // check is refused, for example because the editor still has old text.
+    if (shouldUseJsonFallback) isSettled = false
     if (
       shouldUseJsonFallback &&
       (await isShowingDiskText(shown.document, isAllowed)) &&
@@ -906,6 +909,7 @@ export function createVerifyEditor(
   if (table !== undefined && locale !== undefined) setUiText(table, locale)
   const fallback = jsonFallback()
   const reportLog = logReports(deps.platform)
+  const lifetime = new AbortController()
   // One queue for every caller: files are shown and read one batch at a time,
   // each batch starting once every one before it ended, however that ended.
   // A caller that stops while it waits leaves at once (the Codex review of
@@ -914,12 +918,13 @@ export function createVerifyEditor(
   const enqueue = async <T>(
     signal: AbortSignal,
     stopped: () => T,
-    work: () => Promise<T>,
+    work: (activeSignal: AbortSignal) => Promise<T>,
   ): Promise<T> => {
+    const activeSignal = AbortSignal.any([signal, lifetime.signal])
     const previous = tail
     // No Promise.withResolvers here: VS Code 1.99's extension host runs Node 20.
     const turn = (async () =>
-      (await reachedBeforeStop(previous, signal)) ? await work() : stopped())()
+      (await reachedBeforeStop(previous, activeSignal)) ? await work(activeSignal) : stopped())()
     tail = afterBoth(previous, turn)
     return await turn
   }
@@ -928,14 +933,15 @@ export function createVerifyEditor(
       enqueue(
         signal,
         () => files.map((file) => ({ file, entries: [], unchecked: 'stopped' as const })),
-        () => readFiles(deps, reportLog, fallback, files, signal, canReadFile),
+        (activeSignal) => readFiles(deps, reportLog, fallback, files, activeSignal, canReadFile),
       ),
     settleFile: (absolutePath, signal = NEVER_STOPPED) =>
-      enqueue(signal, NOTHING_READ, () =>
-        toolFileDiagnostics(deps, reportLog, fallback, absolutePath, signal),
+      enqueue(signal, NOTHING_READ, (activeSignal) =>
+        toolFileDiagnostics(deps, reportLog, fallback, absolutePath, activeSignal),
       ),
     formatAfterEdit: (absolutePath, text) => formatAfterEdit(deps, absolutePath, text),
     dispose: () => {
+      lifetime.abort()
       reportLog.dispose()
       fallback.dispose()
     },

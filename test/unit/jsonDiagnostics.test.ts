@@ -21,6 +21,21 @@ describe('positioned local JSON diagnostics', () => {
     expect(jsonDiagnostics('{ /* x */ }', 'a.json', false)).toHaveLength(1)
     expect(jsonDiagnostics('{"a": 1,}', 'a.json', false)).toHaveLength(1)
   })
+  it.each(['{,}', '[,]', '{ /* no member */ , }', '[ /* no item */ , ]'])(
+    'rejects an empty JSONC member or element in %s',
+    (text) => {
+      expect(jsonDiagnostics(text, 'a.jsonc', true)).toHaveLength(1)
+    },
+  )
+  it.each([
+    '["text",]',
+    '[true, false, null,]',
+    '[1, -2.5e+3,]',
+    '{"a": [], "b": {},}',
+    '[ /* comment */ {"a": 1,}, ["b",],]',
+  ])('accepts JSONC trailing commas after complete values in %s', (text) => {
+    expect(jsonDiagnostics(text, 'a.jsonc', true)).toEqual([])
+  })
   it('uses shipped permission schemas only in editor settings', () => {
     const text =
       '{"museSpark.modelApiCommandRules": [{"pattern": []}], "museSpark.modelApiPermissionProfiles": {"bad": {"extraRoots": 1}}, "museSpark.modelApiRepositoryRules": {"denyRead": 1}}'

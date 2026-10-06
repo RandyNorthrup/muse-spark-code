@@ -1,0 +1,80 @@
+{
+  "machine": "macmini",
+  "modelAttempts": 0,
+  "command": "npx --no-install vitest run <file> --maxWorkers=3 --testTimeout=120000",
+  "drills": [
+    {
+      "finding": "RVM103A-1",
+      "file": "src/core/verify/jsonDiagnostics.ts",
+      "test": "test/unit/jsonDiagnostics.test.ts",
+      "namedRegression": "rejects an empty JSONC member or element",
+      "exitCode": 1,
+      "failedTests": [
+        " FAIL  test/unit/jsonDiagnostics.test.ts > positioned local JSON diagnostics > rejects an empty JSONC member or element in {,}",
+        " FAIL  test/unit/jsonDiagnostics.test.ts > positioned local JSON diagnostics > rejects an empty JSONC member or element in [,]",
+        " FAIL  test/unit/jsonDiagnostics.test.ts > positioned local JSON diagnostics > rejects an empty JSONC member or element in { /* no member */ , }",
+        " FAIL  test/unit/jsonDiagnostics.test.ts > positioned local JSON diagnostics > rejects an empty JSONC member or element in [ /* no item */ , ]"
+      ],
+      "beforeSha256": "a908a6bd9c30b0e2e91ed642e7771b26906339b9befe7cdf830abec0339f524d",
+      "afterSha256": "a908a6bd9c30b0e2e91ed642e7771b26906339b9befe7cdf830abec0339f524d",
+      "restoredByteExact": true
+    },
+    {
+      "finding": "RVM103A-2",
+      "file": "src/host/editor/verifyEditor.ts",
+      "test": "test/unit/verifyEditor.test.ts",
+      "namedRegression": "keeps stale malformed disk text unchecked after an empty collection-clear event",
+      "exitCode": 1,
+      "failedTests": [
+        " FAIL  test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > keeps stale malformed disk text unchecked after an empty collection-clear event"
+      ],
+      "beforeSha256": "294fcf981f3a72d63213b1b4794c88b2e55eeb3b00b67055949f531a0a3a4efd",
+      "afterSha256": "294fcf981f3a72d63213b1b4794c88b2e55eeb3b00b67055949f531a0a3a4efd",
+      "restoredByteExact": true
+    },
+    {
+      "finding": "RVM103A-3",
+      "file": "src/host/editor/verifyEditor.ts",
+      "test": "test/unit/verifyEditor.test.ts",
+      "namedRegression": "stops an active native wait on disposal without creating fallback resources",
+      "exitCode": 1,
+      "failedTests": [
+        " FAIL  test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > stops an active native wait on disposal without creating fallback resources",
+        " FAIL  test/unit/verifyEditor.test.ts > JSON diagnostics without a native report > stops queued diagnostics and rejects later calls after disposal"
+      ],
+      "beforeSha256": "294fcf981f3a72d63213b1b4794c88b2e55eeb3b00b67055949f531a0a3a4efd",
+      "afterSha256": "294fcf981f3a72d63213b1b4794c88b2e55eeb3b00b67055949f531a0a3a4efd",
+      "restoredByteExact": true
+    },
+    {
+      "finding": "RVM103A-4-completion",
+      "file": "test/hosts/arduino.mjs",
+      "test": "test/unit/arduinoHost.test.mjs",
+      "namedRegression": "rejects a host receipt with zero executed tests",
+      "exitCode": 1,
+      "failedTests": [
+        " FAIL  test/unit/arduinoHost.test.mjs > Arduino qualification completion guards > rejects a host receipt with zero executed tests",
+        " FAIL  test/unit/arduinoHost.test.mjs > Arduino qualification completion guards > rejects a host receipt with entirely pending suite",
+        " FAIL  test/unit/arduinoHost.test.mjs > Arduino qualification completion guards > rejects a host receipt with partly pending suite",
+        " FAIL  test/unit/arduinoHost.test.mjs > Arduino qualification completion guards > rejects a host receipt with missing passes",
+        " FAIL  test/unit/arduinoHost.test.mjs > Arduino qualification completion guards > rejects a host receipt with inconsistent passes"
+      ],
+      "beforeSha256": "37673aea8d731e69290d6b601251f5ef692a70ca2739a79baff7a1a43595a3cd",
+      "afterSha256": "37673aea8d731e69290d6b601251f5ef692a70ca2739a79baff7a1a43595a3cd",
+      "restoredByteExact": true
+    },
+    {
+      "finding": "RVM103A-4-discovery",
+      "file": "test/hosts/arduino-test-runner.mjs",
+      "test": "test/unit/arduinoHost.test.mjs",
+      "namedRegression": "rejects empty discovery before invoking the test-cli runner",
+      "exitCode": 1,
+      "failedTests": [
+        " FAIL  test/unit/arduinoHost.test.mjs > Arduino qualification completion guards > rejects empty discovery before invoking the test-cli runner"
+      ],
+      "beforeSha256": "87b6bea083edda572a1f42440db8059f1218ac94b63a3d42c9cbbba315027b17",
+      "afterSha256": "87b6bea083edda572a1f42440db8059f1218ac94b63a3d42c9cbbba315027b17",
+      "restoredByteExact": true
+    }
+  ]
+}

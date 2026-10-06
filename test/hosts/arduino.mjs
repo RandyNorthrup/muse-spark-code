@@ -179,7 +179,14 @@ try {
     throw new Error('Arduino integration runner did not return within 15 minutes')
   const result = JSON.parse(readFileSync(resultFile, 'utf8'))
   console.log(JSON.stringify({ stats: result.stats, error: result.error }, null, 2))
-  if (result.error || result.stats?.failures !== 0)
+  if (
+    result.error ||
+    !Number.isSafeInteger(result.stats?.tests) ||
+    result.stats.tests <= 0 ||
+    result.stats.passes !== result.stats.tests ||
+    result.stats.pending !== 0 ||
+    result.stats.failures !== 0
+  )
     throw new Error('Arduino integration tests failed')
 } finally {
   writeFileSync(path.join(work, 'arduino.log'), log.join(''))

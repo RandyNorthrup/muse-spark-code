@@ -19,6 +19,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- JSONC verification rejects missing members/elements rather than erasing
+  illegal commas. Stale editor text stays unchecked after an empty diagnostic
+  event, and disposing verification stops active and queued diagnostic reads.
+  Arduino qualification requires discovered tests and a fully passed receipt
+  with zero pending cases.
+
 - JSON verification supplies positioned local diagnostics when the host emits
   no JSON report, publishes through the editor API, checks existing Muse
   permission-setting schemas, and prefers native diagnostics without duplicates.
