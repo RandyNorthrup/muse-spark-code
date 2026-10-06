@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Portable settings updates publish each conversation's own effective values;
+  root changes preserve worktree overrides, and worktree changes revoke Bypass
+  against that conversation's current permission setting.
+- Runtime engine contributions can own paid policy and accounting, Model API
+  budget/edit/attempt-host services, authentication and account facts.
+  Missing contribution groups retain the existing explicit refusals.
+
 - Portable panels publish live runtime-owned settings, replace backend profiles, report failed profile construction, follow editor trust grants and revocations, and retain separate worktree stores. Selected-model records gate compaction, handoff, vision, PDFs and reasoning when supplied by a provider adapter.
 - Browser session retirement revokes old launch codes and bearers, stops their event streams and closes cancelled HTTP calls.
 - Portable attachment picking uses the shared host picker and confined reads; restored handoff dialogs and text-file parts survive reload. Typed engine/presentation factories own their actions, auxiliary views and awaited cleanup.

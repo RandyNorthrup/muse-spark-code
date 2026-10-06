@@ -19172,6 +19172,18 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104PA review repair (2026-10-06).** Close RVM104PA's two P2 and
+two P3 findings in lane A's files. Publish settings and revoke Bypass using
+each held conversation's own live settings; republish only effective changes.
+Extend the existing typed engine contribution with paid policy/accounting,
+Model API budget/edit/attempt-host and authentication/account ports, preserving
+existing contract names and explicit refusals when an adapter is absent.
+Qualify the companion Chrome fixture with the repository's default test
+timeouts, and correct the replacement guide: MHP 1.2 replaces 1.1 and both
+legacy snapshot filenames now carry 1.2. Each repair has a regression and a
+byte-exact red drill in `docs/certification/m104-pa.md`; scoped gates run
+directly on macmini, no aggregate quality, merge, dependency or live/paid call.
+
 **M104PA parity lane A (2026-10-06, lead decisions).** First close the
 integration review's preparation/release barrier, method-aware bounded late
 reply correlation and same-record storage publication races. Storage uses a
