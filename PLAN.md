@@ -6844,7 +6844,7 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
-### FIXM112Q — Durable-question review corrections (2026-10-06)
+### FIXM112Q — Durable-question review corrections (2026-10-06, Q complete)
 
 Scope: all six findings in `RVM112Q.report.md`, within Q's existing files.
 Late answers use the ordinary user-message send path, including permission-mode
@@ -6861,6 +6861,11 @@ Each finding requires a failing-before regression and a deliberate red drill
 with byte-exact restoration in `docs/certification/m112-q.md`. Run targeted
 Kubuntu suites and the lane's static/build checks; the lead owns full quality
 and cross-platform integration. No merge or push is authorized in this lane.
+Implementation commit `070a79e7a` closes all six findings, with eight byte-exact
+red controls and 1,417 passing tests across fifteen complete owning files.
+Host/integration types, scoped lint/format, plain knip, duplication, localization
+and production build pass. The inherited U reducer and A inventory handoffs
+remain as below.
 
 ### BADGEFIX — Exact package versions on store pages (2026-10-05)
 
@@ -18985,7 +18990,7 @@ aggregate certification record.
 
 **FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
 forbids aggregate quality and full-suite runs; full integrated quality remains
-with the lead. Run all owned complete test files, red drills, scoped lint and
+with the lead. Run the complete owning test files, red drills, scoped lint and
 format, compiler projects, plain knip, duplication, localization, host API and
 production build directly on Kubuntu. The frozen Q base's U-owned
 `uiState.ts:2452` reducer and A-owned generated host-API inventory are already
