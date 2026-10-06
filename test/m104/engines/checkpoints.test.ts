@@ -26,6 +26,11 @@ import { createRuntimeEngines } from '../../../src/runtime/features/engines'
 import { runtimeSettings } from '../../../src/runtime/panel/runtimeFeatures'
 import { RuntimeSettingsStore } from '../../../src/runtime/settingsStore'
 import { fakeSurface } from '../../unit/helpers/fakes'
+import { createRuntimeHooks } from '../../../src/runtime/features/hooks'
+import { memoryContextIo } from '../../unit/helpers/fakeContextIo'
+import { hookResult } from '../../unit/helpers/fakeToolIo'
+import { createFileScheduleStore } from '../../../src/host/backend/fileScheduleStore'
+import { SCHEDULE_MIN_INTERVAL_MS } from '../../../src/shared/constants'
 
 const folders: string[] = []
 const runtimes: RuntimeBackend[] = []
@@ -82,7 +87,10 @@ async function setup() {
   const backend = (
     kind: 'museCode' | 'modelApi',
     provider: NonNullable<Parameters<typeof createRuntimeBackend>[0]['checkpoints']>,
-    extra: Pick<RuntimeBackendDeps, 'verify' | 'unsavedPaths'> = {},
+    extra: Pick<
+      RuntimeBackendDeps,
+      'verify' | 'unsavedPaths' | 'hooks' | 'schedules' | 'isWorkspaceTrusted'
+    > = {},
   ) => {
     const runtime = createRuntimeBackend({
       options: {
@@ -132,6 +140,7 @@ async function changeNote(
   runtime: RuntimeBackend,
   root: string,
   api: ReturnType<typeof fakeModelApi>,
+  onWriteRequest?: () => void,
 ) {
   const host = await runtime.backend.hostFor(root)
   const session = await host.startSession({
@@ -146,6 +155,7 @@ async function changeNote(
       calls: [
         { name: 'write_file', arguments: JSON.stringify({ path: 'note.txt', content: 'after' }) },
       ],
+      ...(onWriteRequest !== undefined && { onRequest: onWriteRequest }),
     },
     { text: 'done' },
   )
@@ -156,6 +166,52 @@ async function changeNote(
 }
 
 describe('portable checkpoint backend recording', () => {
+  it('uses live interactive trust before a model tool can write in Bypass', async () => {
+    const { root, create, backend, api } = await setup()
+    const service = await create()
+    let isTrusted = true
+    const runtime = backend('modelApi', () => Promise.resolve(service), {
+      isWorkspaceTrusted: () => isTrusted,
+    })
+    await writeFile(path.join(root, 'note.txt'), 'before')
+    await changeNote(runtime, root, api, () => {
+      isTrusted = false
+    })
+    expect(await readFile(path.join(root, 'note.txt'), 'utf8')).toBe('before')
+  })
+  it('offers durable interactive schedules without enabling a paid dispatch', async () => {
+    const { root, create, backend, api, data, log } = await setup()
+    const service = await create()
+    const runtime = backend('modelApi', () => Promise.resolve(service), {
+      schedules: () =>
+        createFileScheduleStore({ directory: path.join(data, 'schedules'), now: Date.now, log }),
+    })
+    const host = await runtime.backend.hostFor(root)
+    const session = await host.startSession({
+      workspaceRoot: root,
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'allowAll',
+    })
+    expect(session.schedules).toBeDefined()
+    if (session.schedules === undefined) throw new Error('missing interactive schedules')
+    const job = await session.schedules.create(
+      { kind: 'interval', everyMs: SCHEDULE_MIN_INTERVAL_MS },
+      'inspect changes',
+    )
+    expect(await session.schedules.list()).toMatchObject([
+      { id: job.id, prompt: 'inspect changes' },
+    ])
+    await expect(
+      session.schedules.run(job.id, job.nextFireAtMs, {
+        sessionId: session.sessionId,
+        modelId: session.modelId,
+        prompt: job.prompt,
+      }),
+    ).rejects.toThrow(UI_TEXT.schedulePaidOff)
+    expect(api.requests).toEqual([])
+    expect(await session.schedules.cancel(job.id)).toBe(true)
+    expect(await session.schedules.list()).toEqual([])
+  })
   it('supplies real backend turns with the owned portable verifier and drains it on close', async () => {
     const { root, create, backend, api } = await setup()
     const service = await create()
@@ -184,7 +240,26 @@ describe('portable checkpoint backend recording', () => {
   it('publishes the backend-owned port through A’s frozen engine factory', async () => {
     const { root, create, backend, data, log } = await setup()
     const service = await create()
-    const runtime = backend('modelApi', () => Promise.resolve(service))
+    const hooks = createRuntimeHooks(
+      {
+        io: memoryContextIo(new Map()),
+        runHook: () => Promise.resolve(hookResult('')),
+        platform: process.platform,
+        workspaceRoot: root,
+        settingsPath: path.join(data, 'settings.json'),
+        assertCurrent: () => undefined,
+        isWorkspaceTrusted: () => true,
+        isHooksEnabled: () => true,
+        now: Date.now,
+        notice: () => undefined,
+        showOutput: () => undefined,
+        warn: () => undefined,
+      },
+      UI_TEXT,
+      'en',
+    )
+    const disposeHooks = vi.spyOn(hooks, 'dispose')
+    const runtime = backend('modelApi', () => Promise.resolve(service), { hooks: () => hooks })
     const store = new RuntimeSettingsStore(data, root)
     const settings = await runtimeSettings(store, log)
     const own = vi.fn()
@@ -226,10 +301,16 @@ describe('portable checkpoint backend recording', () => {
         'en',
       )
       expect(contribution.features.checkpoints).toBe(service.port)
+      expect(await contribution.features.runManualHook?.('absent')).toMatchObject({
+        matched: false,
+      })
+      expect(await contribution.features.rewriteMessage?.('message')).toBeUndefined()
       expect(own).not.toHaveBeenCalled()
     } finally {
       await settings.dispose()
+      await runtime.close()
     }
+    expect(disposeHooks).toHaveBeenCalledOnce()
   })
   it('records actual Model API tools, restores their bytes and redoes the restore', async () => {
     const { root, create, backend, api } = await setup()

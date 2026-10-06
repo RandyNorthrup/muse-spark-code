@@ -119,3 +119,53 @@ live dirty-buffer service. Validate CRLF, Windows URI/separators, stale report
 and formatter races, code-loading exclusion, trust revocation and shutdown.
 No l10n changes are needed. All native editors need these version/freshness
 and cancellation guarantees; absent services remain explicit unchecked data.
+
+### A/C/D/E/F — F25/F28/F29 portable services
+
+Interactive RuntimeBackendDeps now has `hooks(root)`, `hookSettings` with
+`path(root)`/`isEnabled(root)`, `mcp(root, newPool)` and `schedules(root)`.
+`hooksFor(root)` is backend-owned and the engines factory publishes its manual
+and message-rewrite ports. Bind `createRuntimeHooks(deps, table, locale)` from
+`src/runtime/features/hooks.ts`; its deps extend ExtensionHookRunnerDeps with
+live `assertCurrent`. The process callback must be the existing real tool
+I/O's runHook wrapped by the shared checkpoint guard, with a scrubbed env;
+never a terminal command that loses its cancellation/credential fence. Wire
+native file/config/settings/folder events to the named note methods only after
+the existing shared/native schemas validate them. Bind C's hooks manager to
+listManual/runSetup/output and the current settings snapshot; cancel watchers
+before backend.close. No new hook wire is guessed and no new text is needed.
+
+For MCP, `mcp(root, newPool)` should return
+`createRuntimeMcp(deps, newPool)` from `src/runtime/features/mcp.ts`.
+The actual bundle passes its own existing pool factory. RuntimeMcpDeps requires
+readSettings, env, fetch, log, workspace/platform/version, live trust/current
+owner and `canUseTools()` from the selected model's catalog capability record.
+Supply the real Windows job executable on Windows. Before local startup await
+that workspace's shared checkpoint `markNativeBackend` as the existing VS Code
+adapter does; admission failure must start nothing. Env lookup is scrubbed;
+no stored key reaches a server. `mcpSnapshotFor(root)` projects the manager's
+actual pool state without starting a host. C/D/E/F must bind server views,
+forms, cancel/teardown and negotiated services; Muse Code's own server manager
+is retained and still needs its native/provider scenarios. Test a selected
+model losing/gaining tool support, trust loss during admission, late process
+acquisition/release and refusal in exec. Canonical tool capability names must
+come from A's catalog contract, not a provider-name inference.
+
+`schedules(root)` returns the existing `createFileScheduleStore` (B-owned
+`src/host/backend/fileScheduleStore.ts`) in the owning canonical profile's
+MODEL_API_SCHEDULES_DIR. Keep immutable account/session/workspace ownership
+and atomic occurrence claims. Bind paid dispatch only with the real priced
+consent and shared ledger; ACP/headless get no new schedule injection. The
+paid-off test creates/lists/cancels durably and dispatches no request.
+
+Supply `RuntimeBackendDeps.isWorkspaceTrusted(root)` from live native trust
+for both backends, plus the same reader to checkpoints, verifier, hooks and
+MCP. The launch flag remains the upper bound; this callback can only revoke.
+The actual writer checks it just before publication, including Bypass.
+
+Lazy integration: build the portable feature adapters in a named deferred
+engine entry, keep MCP protocol/model text in modelApi.js via its pool factory,
+and preserve all caps and exact notices/inventory. New standalone exports
+require knip entry integration. Provider catalog/transports are absent from
+this base; deliver typed selected records, verified tariffs and provider
+factories before any model-dependent row is qualified.

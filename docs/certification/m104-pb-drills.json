@@ -145,5 +145,75 @@
     "exitCode": 1,
     "sha256Before": "50248d191446b86eb074d3b9fd3a37a6f61fd805cb59c236c7f7e710fca79953",
     "sha256Restored": "50248d191446b86eb074d3b9fd3a37a6f61fd805cb59c236c7f7e710fca79953"
+  },
+  {
+    "drill": "hooks-release",
+    "file": "src/runtime/features/hooks.ts",
+    "exitCode": 1,
+    "sha256Before": "1ca29933392c7bc950f76b7d5c67b51dab635fe6d01ec5afb58579610ea56aee",
+    "sha256Restored": "1ca29933392c7bc950f76b7d5c67b51dab635fe6d01ec5afb58579610ea56aee"
+  },
+  {
+    "drill": "hooks-owner-generation",
+    "file": "src/runtime/features/hooks.ts",
+    "exitCode": 1,
+    "sha256Before": "1ca29933392c7bc950f76b7d5c67b51dab635fe6d01ec5afb58579610ea56aee",
+    "sha256Restored": "1ca29933392c7bc950f76b7d5c67b51dab635fe6d01ec5afb58579610ea56aee"
+  },
+  {
+    "drill": "hooks-windows-user-config",
+    "file": "src/core/backends/modelapi/hooks.ts",
+    "exitCode": 1,
+    "sha256Before": "7cda8a5e930c8028af436d31970e06a943a6ae150cd5bd665574571a780b005a",
+    "sha256Restored": "7cda8a5e930c8028af436d31970e06a943a6ae150cd5bd665574571a780b005a"
+  },
+  {
+    "drill": "mcp-tools-admission",
+    "file": "src/runtime/features/mcp.ts",
+    "exitCode": 1,
+    "sha256Before": "5811473f55f420caf80cb8d30a66b9fa1d7d79b430933bae15a5150002f8e66b",
+    "sha256Restored": "5811473f55f420caf80cb8d30a66b9fa1d7d79b430933bae15a5150002f8e66b"
+  },
+  {
+    "drill": "mcp-live-trust",
+    "file": "src/runtime/features/mcp.ts",
+    "exitCode": 1,
+    "sha256Before": "5811473f55f420caf80cb8d30a66b9fa1d7d79b430933bae15a5150002f8e66b",
+    "sha256Restored": "5811473f55f420caf80cb8d30a66b9fa1d7d79b430933bae15a5150002f8e66b"
+  },
+  {
+    "drill": "mcp-process-barrier",
+    "file": "src/runtime/features/mcp.ts",
+    "exitCode": 1,
+    "sha256Before": "5811473f55f420caf80cb8d30a66b9fa1d7d79b430933bae15a5150002f8e66b",
+    "sha256Restored": "5811473f55f420caf80cb8d30a66b9fa1d7d79b430933bae15a5150002f8e66b"
+  },
+  {
+    "drill": "mcp-late-child-release",
+    "file": "src/runtime/features/mcp.ts",
+    "exitCode": 1,
+    "sha256Before": "5811473f55f420caf80cb8d30a66b9fa1d7d79b430933bae15a5150002f8e66b",
+    "sha256Restored": "5811473f55f420caf80cb8d30a66b9fa1d7d79b430933bae15a5150002f8e66b"
+  },
+  {
+    "drill": "runtime-live-write-trust",
+    "file": "src/runtime/backends.ts",
+    "exitCode": 1,
+    "sha256Before": "5278476d5fad58334d6a43f963b59371bf9eff116ff70eb6db9c3a7807e3c15b",
+    "sha256Restored": "5278476d5fad58334d6a43f963b59371bf9eff116ff70eb6db9c3a7807e3c15b"
+  },
+  {
+    "drill": "runtime-schedule-binding",
+    "file": "src/runtime/backends.ts",
+    "exitCode": 1,
+    "sha256Before": "5278476d5fad58334d6a43f963b59371bf9eff116ff70eb6db9c3a7807e3c15b",
+    "sha256Restored": "5278476d5fad58334d6a43f963b59371bf9eff116ff70eb6db9c3a7807e3c15b"
+  },
+  {
+    "drill": "runtime-hook-binding",
+    "file": "src/runtime/features/engines.ts",
+    "exitCode": 1,
+    "sha256Before": "c1ef2eb8f87bb545de9d3961d4c51b271c4f6c705ff9334fcffe33b4b6335eac",
+    "sha256Restored": "c1ef2eb8f87bb545de9d3961d4c51b271c4f6c705ff9334fcffe33b4b6335eac"
   }
 ]

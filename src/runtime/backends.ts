@@ -50,6 +50,10 @@ import {
 import type { RuntimeCheckpoints } from './features/checkpoints'
 import type { VerifyHooks } from '../core/backends/modelapi/verifyLoop'
 import type { createRuntimeVerify } from './features/verify'
+import type { createRuntimeHooks } from './features/hooks'
+import type { McpPoolSnapshot, McpToolSource } from '../core/backends/modelapi/mcp/pool'
+import type { ScheduleStore } from '../shared/schedule'
+import type { McpPoolFactory } from '../host/backend/modelApiBundle'
 import {
   type EnvironmentVariable,
   FILE_REFUSAL_MODEL_TEXT,
@@ -107,6 +111,18 @@ export interface RuntimeBackendDeps {
   readonly unsavedPaths?: (workspaceRoot: string) => readonly string[]
   /** Interactive editor verification; its portable owner drains it during profile release. */
   readonly verify?: (workspaceRoot: string) => ReturnType<typeof createRuntimeVerify>
+  readonly hooks?: (workspaceRoot: string) => ReturnType<typeof createRuntimeHooks>
+  readonly mcp?: (
+    workspaceRoot: string,
+    newPool: McpPoolFactory,
+  ) => McpToolSource | Promise<McpToolSource>
+  readonly schedules?: (workspaceRoot: string) => ScheduleStore
+  readonly hookSettings?: {
+    readonly path: (workspaceRoot: string) => string
+    readonly isEnabled: (workspaceRoot: string) => boolean
+  }
+  /** Live interactive trust; the launch flag remains the upper bound for ACP/headless. */
+  readonly isWorkspaceTrusted?: (workspaceRoot: string) => boolean
 }
 
 export interface RuntimeBackend {
@@ -125,6 +141,8 @@ export interface RuntimeBackend {
   /** The same port and recorder used by this workspace's actual backend tools. */
   readonly checkpointsFor?: (workspaceRoot: string) => Promise<RuntimeCheckpoints>
   readonly verifyFor?: (workspaceRoot: string) => ReturnType<typeof createRuntimeVerify>
+  readonly hooksFor?: (workspaceRoot: string) => ReturnType<typeof createRuntimeHooks>
+  readonly mcpSnapshotFor?: (workspaceRoot: string) => McpPoolSnapshot | undefined
 }
 
 // No editor proxy setting exists outside VS Code; the CLI reads the
@@ -155,7 +173,9 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
     // No `--sandbox-network` (M56): Muse Code's default, or a managed policy's.
     getSandboxNetwork: () => SETTING_DEFAULTS.sandboxNetwork,
     userProfileDir: deps.env['USERPROFILE'],
-    isWorkspaceTrusted: () => options.trustWorkspace,
+    isWorkspaceTrusted: () =>
+      options.trustWorkspace &&
+      (workspaceRoot === undefined || deps.isWorkspaceTrusted?.(workspaceRoot) !== false),
     getProxySettings: () => NO_EDITOR_PROXY,
   })
 }
@@ -179,7 +199,8 @@ function modelApiManager(
   verify: VerifyHooks | undefined,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
-  const isWorkspaceTrusted = () => options.trustWorkspace
+  const isWorkspaceTrusted = () =>
+    options.trustWorkspace && deps.isWorkspaceTrusted?.(storedWorkspaceRoot) !== false
   const dataInput: DataFolderInput = { platform, env: deps.env, homeDir: deps.homeDir }
   const systemRoot = deps.env['SystemRoot']
   const warn = (message: string) => {
@@ -205,7 +226,10 @@ function modelApiManager(
     log: warn,
     // The agent cannot see the editor's buffers (D62); the client's `fs/*` will (M63c).
     unsavedFiles: () => deps.unsavedPaths?.(storedWorkspaceRoot) ?? [],
-    assertWorkspaceCurrent,
+    assertWorkspaceCurrent: () => {
+      assertWorkspaceCurrent()
+      if (!isWorkspaceTrusted()) throw new Error('MHP_WORKSPACE_RESTRICTED')
+    },
     shellJobAssembly:
       platform === 'win32' && systemRoot !== undefined
         ? shellJobAssembly({
@@ -323,6 +347,18 @@ function modelApiManager(
     confirmContributorModel: () => Promise.resolve(options.allowsContributorModels),
     isWorkspaceTrusted,
     store: deps.exec === undefined ? store : headlessStore,
+    ...(deps.exec === undefined && {
+      ...(deps.schedules !== undefined && { scheduleStore: deps.schedules(storedWorkspaceRoot) }),
+      ...(deps.mcp !== undefined && {
+        createMcpServers: (_root, newPool) =>
+          deps.mcp?.(storedWorkspaceRoot, newPool) ??
+          Promise.reject(new Error('MHP_MCP_UNAVAILABLE')),
+      }),
+      ...(deps.hookSettings !== undefined && {
+        hookSettingsPath: deps.hookSettings.path(storedWorkspaceRoot),
+        isHooksEnabled: () => deps.hookSettings?.isEnabled(storedWorkspaceRoot) === true,
+      }),
+    }),
     describeEnvironment: () =>
       describeEnvironment({
         runGit: deps.runGit,
@@ -384,6 +420,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   const checkpointFactory = deps.exec === undefined ? deps.checkpoints : undefined
   const verifyHosts = new Map<string, ReturnType<typeof createRuntimeVerify>>()
   const verifyFactory = deps.exec === undefined ? deps.verify : undefined
+  const hookHosts = new Map<string, ReturnType<typeof createRuntimeHooks>>()
+  const hookFactory = deps.exec === undefined ? deps.hooks : undefined
   let isDisposed = false
   let closing: Promise<void> | undefined
   const assertOpen = () => {
@@ -394,6 +432,13 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     if (verifyFactory === undefined) throw new Error('MHP_VERIFY_UNAVAILABLE')
     const service = verifyHosts.get(root) ?? verifyFactory(root)
     verifyHosts.set(root, service)
+    return service
+  }
+  const hooksFor = (root: string) => {
+    assertOpen()
+    if (hookFactory === undefined) throw new Error('MHP_HOOKS_UNAVAILABLE')
+    const service = hookHosts.get(root) ?? hookFactory(root)
+    hookHosts.set(root, service)
     return service
   }
   const checkpointsFor = async (root: string): Promise<RuntimeCheckpoints> => {
@@ -521,6 +566,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       return await existing.manager.ensureHost()
     }
     const assertWorkspaceCurrent = () => {
+      assertOpen()
       if (!identity.isCurrent()) {
         throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       }
@@ -569,6 +615,11 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     paid,
     ...(checkpointFactory !== undefined && { checkpointsFor }),
     ...(verifyFactory !== undefined && { verifyFor }),
+    ...(hookFactory !== undefined && { hooksFor }),
+    ...(deps.exec === undefined &&
+      deps.mcp !== undefined && {
+        mcpSnapshotFor: (root: string) => modelApiHosts.get(root)?.manager.mcpSnapshot(),
+      }),
     forgetUnflaggedGrants: () =>
       deps.exec === undefined && deps.options.backend === 'modelApi'
         ? paid.forgetUnflagged()
@@ -578,7 +629,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       closing ??= (async () => {
         // A probe still waiting on its short-lived host ends with the agent.
         accountHosts.close()
-        const checking = Array.from(verifyHosts.values(), (service) => service.dispose())
+        const checking = [
+          ...Array.from(verifyHosts.values(), (service) => service.dispose()),
+          ...Array.from(hookHosts.values(), (service) => service.dispose()),
+        ]
         const managers = [
           ...museCodeHosts.values(),
           ...Array.from(modelApiHosts.values(), ({ manager }) => manager),
@@ -586,6 +640,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         const stopped = await Promise.allSettled(managers.map((manager) => manager.dispose()))
         const verified = await Promise.allSettled(checking)
         verifyHosts.clear()
+        hookHosts.clear()
         const released = await Promise.allSettled(
           Array.from(checkpointHosts.values(), async (pending) => {
             const services = await pending
