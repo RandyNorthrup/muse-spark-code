@@ -20044,6 +20044,14 @@ Each joins when its dependency merges, and none blocks the others.
 
 ## 7. Gates
 
+**M105-F gate deferral (RVM105F corrections, 2026-10-05).** The lane brief
+reserves full quality and integration for the lead. Required local checks are
+recorded in `docs/certification/m105-f.md`; the unchanged lane W blockers
+remain red: deferred browser JS 51.1/50 KiB, Files backend classification in
+the bundle-split check, and the generated Node crypto importer count 46 → 48.
+No gate, ignore or budget is changed. W must close these before integration;
+§9 records the named residuals and why this unmerged lane remains safe.
+
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
 scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
@@ -21216,6 +21224,25 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M105-F-integration-gates (RVM105F corrections).** All four review findings
+  are fixed with regressions and red drills (`docs/certification/m105-f.md`).
+  The existing lane W handoffs remain: deferred browser JS exceeds 50 KiB,
+  `files.ts` lacks bundle-split classification, and the generated host record
+  still counts 46 rather than 48 Node crypto importers. Safe for this unmerged
+  lane because these gates continue to reject integration/release. Follow-up:
+  W binds the media/account page, classifies the module and regenerates the
+  host record; the lead runs full quality on the integrated tree. No cap or
+  gate is weakened here.
+- **M105-F-binding-and-capture-evidence.** Provider/account storage and its
+  cross-process lock, U6c storage admission, replay/export and editor bridges
+  remain required injected bindings; the capture workspace and round-2 raw
+  expiry/Date/retrieval evidence are not available to this lane. Safe for now:
+  uploads require explicit storage admission, ownership requires durable
+  storage, and existing uploads are retrieved rather than expired by the local
+  clock. Follow-up: W/M2/E2/E3 bind the documented ports across editors, and the
+  lead supplies the capture provenance and billing decision before enabling
+  M105. No live Meta expiry claim follows from the synthetic skew regression.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

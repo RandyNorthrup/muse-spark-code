@@ -19,6 +19,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M105 session saves share a writer and check generations before releasing
+  upload ownership. Saves and removals hold the account lock through session
+  publication; delete and purge release ownership durably before removing the
+  record. Metadata-only intents let listing retry interrupted saves and cleanup.
 - M105 Files retrieval, listing and deletion keep the 30-second deadline when
   a caller supplies cancellation. Existing uploads are retrieved before
   replacement, so provider clock skew does not force another upload or reject

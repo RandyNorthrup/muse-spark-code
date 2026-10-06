@@ -66,9 +66,17 @@ export interface UploadLedgerDeps {
 }
 
 /** Bind to FileSessionStoreDeps.uploads; M2 also uses it for fork/rewind snapshots. */
-export interface SessionUploadLifecycle {
-  syncSession(sessionId: string, refs: readonly UploadedMediaRef[]): Promise<void>
+export interface SessionUploadOwnership {
+  syncSession(
+    sessionId: string,
+    refs: readonly UploadedMediaRef[],
+    isCurrent?: () => boolean,
+  ): Promise<void>
   releaseSession(sessionId: string): Promise<void>
+}
+export interface SessionUploadLifecycle extends SessionUploadOwnership {
+  /** Holds the storage lock across session publication and ownership changes. */
+  withLock<T>(operation: (ownership: SessionUploadOwnership) => Promise<T>): Promise<T>
 }
 
 export class UploadLedger implements SessionUploadLifecycle {
@@ -98,11 +106,15 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /** Delete only durable zero-reference entries. Failed deletions remain retryable. */
-  private async cleanup(state: UploadLedgerState): Promise<void> {
+  private async cleanup(
+    state: UploadLedgerState,
+    isCurrent: () => boolean = () => true,
+  ): Promise<void> {
     if (!(await this.isCurrentAccount())) return
     for (const entry of state.entries) {
       if (entry.sessions.length > 0) continue
       await this.requireAccount()
+      if (!isCurrent()) return
       try {
         await this.files.delete(entry.file.fileId)
       } catch (error: unknown) {
@@ -177,25 +189,61 @@ export class UploadLedger implements SessionUploadLifecycle {
     })
   }
 
-  public async syncSession(sessionId: string, refs: readonly UploadedMediaRef[]): Promise<void> {
-    await this.deps.storage.withLock(async () => {
-      const state = await this.read()
-      const wanted = refs.map((ref) => uploadedMediaRefSchema.parse(ref))
-      // Never claim ownership of an arbitrary imported or foreign provider ID.
-      for (const ref of wanted) {
-        if (
-          state.entries.every(
-            ({ file }) => !(file.sha256 === ref.sha256 && file.provider === ref.provider),
-          )
+  public async withLock<T>(
+    operation: (ownership: SessionUploadOwnership) => Promise<T>,
+  ): Promise<T> {
+    return await this.deps.storage.withLock(async () => {
+      const syncSession = async (
+        sessionId: string,
+        refs: readonly UploadedMediaRef[],
+        isCurrent: () => boolean = () => true,
+      ): Promise<void> => {
+        const state = await this.read()
+        if (!isCurrent()) return
+        const previousSessions = new Map(
+          state.entries.map((entry) => [entry.file.fileId, entry.sessions]),
         )
-          throw new Error(fill(UI_TEXT.media.uploadExpired, { name: ref.name }))
+        const wanted = refs.map((ref) => uploadedMediaRefSchema.parse(ref))
+        // Never claim ownership of an arbitrary imported or foreign provider ID.
+        for (const ref of wanted) {
+          if (
+            state.entries.every(
+              ({ file }) => !(file.sha256 === ref.sha256 && file.provider === ref.provider),
+            )
+          )
+            throw new Error(fill(UI_TEXT.media.uploadExpired, { name: ref.name }))
+        }
+        for (const entry of state.entries) {
+          entry.sessions = entry.sessions.filter((id) => id !== sessionId)
+          if (wanted.some((ref) => ref.sha256 === entry.file.sha256)) entry.sessions.push(sessionId)
+        }
+        await this.deps.storage.write(state)
+        await this.cleanup(state, isCurrent)
+        if (isCurrent()) return
+        // A newer save may arrive during the write or account checks. Restore
+        // still-existing owners before another account operation can clean them.
+        for (const entry of state.entries) {
+          const sessions = previousSessions.get(entry.file.fileId)
+          if (sessions !== undefined) entry.sessions = sessions
+        }
+        await this.deps.storage.write(state)
       }
-      for (const entry of state.entries) {
-        entry.sessions = entry.sessions.filter((id) => id !== sessionId)
-        if (wanted.some((ref) => ref.sha256 === entry.file.sha256)) entry.sessions.push(sessionId)
-      }
-      await this.deps.storage.write(state)
-      await this.cleanup(state)
+      return await operation({
+        syncSession,
+        releaseSession: async (sessionId) => {
+          await syncSession(sessionId, [])
+        },
+      })
+    })
+  }
+
+  public async syncSession(
+    sessionId: string,
+    refs: readonly UploadedMediaRef[],
+    isCurrent?: () => boolean,
+  ): Promise<void> {
+    await this.withLock(async (ownership) => {
+      await ownership.syncSession(sessionId, refs, isCurrent)
     })
   }
 
