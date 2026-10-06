@@ -10737,9 +10737,12 @@ security` threshold where its job allows.
       itself on.
     - **The character is the owner's electric penguin.** It is not Meta's
       Muse avatar, whose art is not licensed to us. The Meta gadget SDK is
-      for personal use only, and D71's "never a gadget" stands. Until the
-      owner names it (Q-M111 item 7) the interface calls it "the
-      companion", never "Muse" (rule 11).
+      for personal use only, and D71's "never a gadget" stands.
+    - **Each person names it.** Turning the companion on asks for its name
+      (the owner, 2026-10-06; Q-M111 item 7). Until a name is given, the
+      interface says "the companion". The name is checked like any display
+      name (length, no control characters) and can never be "Muse"
+      (rule 11).
     - **The art is sprite strips, not a rig.** This amends research §2's
       recommendation of a part rig. The owner rejected the lead's hand-drawn
       rig ("that does not look anythink alike to what i gave you"). The art
@@ -10814,8 +10817,9 @@ security` threshold where its job allows.
         D48's ask-once for paid extras.
       - **Continue in chat** hands the exchange to the chat panel.
       - The local judge (D90.27) only triages; it never answers.
-    - **Voice.** Text only until the owner rules (Q-M111 item 9). After his
-      ruling, push-to-talk comes first, under his M9 voice rules.
+    - **No audio** (the owner, 2026-10-06: "companion will have no audio").
+      There is no voice input, no speech and no sound effects: the
+      companion is text and animation only.
     - **Accessibility.**
       - A text-only mode: the same ask box without the character.
       - The keyboard summon.
@@ -12522,6 +12526,34 @@ prompts into a chat in any workspace".
   The owner, 2026-10-06: "i accept your recommendations and yes i think to all of the questions." The credentials and purchases in items 3 and 6 stay his
   to make; until then their defaults hold.
 
+  **Owner update (2026-10-06, later):** "simulator will be the golden rule
+  my devices are too old, i dont know what os signing key are but i have a
+  rented server, why would we need a domain? but i do have one".
+  - **Item 3:** he has a rented server and a domain. Their access (an SSH
+    login on the server, DNS records on the domain) comes from him when
+    M110d–f's internet certification starts. The credentials stay his.
+  - **Why a domain:**
+    - Passkeys only work on a domain name, never on a bare IP address
+      (WebAuthn's relying-party id).
+    - Free TLS certificates (ACME) are issued for names.
+    - The update server and the pack index get a stable address that
+      survives moving to another server.
+    - Emailed reports (M113) need a domain's mail records to be delivered.
+  - **Item 5:** simulators and QEMU are the authoritative matrix ("the
+    golden rule"). Real machines are optional extra evidence; none is
+    waiting on him.
+  - **Item 6, what the signing keys are:**
+    - The **update-bundle key** signs every OS update, so a node installs
+      only updates we made.
+    - The **Secure Boot keys** let a PC check that the boot chain is ours
+      before it starts.
+    - Neither is bought. Lane OS4 makes them in a short scripted ceremony
+      that he runs on his own PC. The private halves go onto a USB stick
+      that he keeps offline; only the release job's signing certificate
+      lives in the `marketplace`-style environment.
+    - Until the ceremony, item 6's defaults hold: manual-install images with
+      cosign signatures, no over-the-air updates, and Secure Boot off.
+
 - **Q-M111 — What Muse Desktop needs from the owner (2026-10-05).** Every lane
   builds and certifies on fakes, QEMU and the rigs meanwhile; nothing here
   blocks lane 0.
@@ -12569,6 +12601,13 @@ prompts into a chat in any workspace".
       tied to the agents' work. **Default:** on once the companion is on,
       as D91.30 lists, with each one switchable.
 
+  **Owner answers (2026-10-06):** "companion approved", then "companion
+  will have no audio and will ask the user for a name when they set it up".
+  - **Item 7:** each person names their own companion when they turn it
+    on. "The companion" is only the placeholder before they choose.
+  - **Item 9:** no audio at all: no voice input, no speech and no sounds.
+  - **Items 8 and 10:** the defaults stand.
+
 - **Q-M109 — A Mac for the Secure Enclave slot (2026-10-05).** D89.2's
   Secure Enclave slot needs a Mac where `SecureEnclave.isAvailable`: Apple
   silicon, or an Intel Mac with Touch ID. The Mac mini rig is Intel without
@@ -12582,6 +12621,11 @@ prompts into a chat in any workspace".
   saying why, until a capable Mac is available.
 
   **Owner answer (2026-10-06):** the default, accepted. The owner, 2026-10-06: "i accept your recommendations and yes i think to all of the questions."
+
+  **Owner update (2026-10-06, later):** "i have a touch id mac i will setup
+  after 5pm today". The Secure Enclave capture runs on that Mac once he
+  sets it up (after 5 pm PT, 2026-10-06). The SE slot then turns on where
+  the capture passes; the default above holds until then.
 
 - **Q-M108 — What M108 needs from the owner (2026-10-05).**
   1. **Second credentials for the live captures.** Several of M108's wire
@@ -12602,6 +12646,13 @@ prompts into a chat in any workspace".
 
      **Owner answer (2026-10-06):** the default, accepted; the second
      credentials stay his to provide.
+
+     **Owner update (2026-10-06, later):** "the two more meta keys are
+     approved". The lead mints the second Meta key on the same team and the
+     key on another team when M108's live captures are next. They are made
+     in his signed-in Meta developer page and copied straight into
+     DPAPI-encrypted files. Nobody sees the values, and they are never
+     printed, stored in the repository or put into the Muse Code CLI.
 
   2. **Two accounts on one PC** (D88's placement amendment). With placement
      mandatory, a user with a single PC who wants two accounts of one
