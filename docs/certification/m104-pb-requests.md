@@ -51,3 +51,71 @@ binding; alternatively call the function in A's existing conversion.
 MHP's frozen selection schema already carries `excerpt`/`truncated`; no wire
 or translation change is needed. Validate actual excerpt, path-only context,
 Windows separators and outside/non-file/reversed-range refusal.
+
+### A — F10/F11 actual recording and frozen engine factory
+
+`RuntimeBackendDeps` in the B-owned `src/runtime/backends.ts` now accepts
+`checkpoints(root): Promise<RuntimeCheckpoints>` and
+`unsavedPaths(root): readonly string[]`. In the interactive panel's runtime
+construction only, supply `createRuntimeCheckpoints(deps, table, locale)` from
+`src/runtime/features/checkpoints.ts`. `RuntimeCheckpointDeps` requires the
+actual data root/dist directory, workspace root/platform, scrubbed environment,
+logger and live trust/turnCheckpoints/cleanupPeriodDays callbacks. Set
+`onAvailabilityChanged` to notify every owning controller. Each callback must
+refer to that workspace's settings/trust; resolve aliases to the same owning
+profile policy. ACP/headless defaults stay unchanged and exec rejects this
+injection by ignoring it. Do not install a recorder only on the controller:
+the runtime now uses it in the backend's real before/after-turn hooks.
+
+Bind `factories.engines` to the exported `createRuntimeEngines` from
+`src/runtime/features/engines.ts`; its signature matches A's frozen factory.
+It publishes `features.checkpoints` from `runtime.checkpointsFor(root)`.
+Backend lifetime owns the shared workspace store; a conversation must not
+close it while a sibling still uses it. Await `runtime.close()` during profile
+replacement/shutdown. C's edit-review adapter must consume this same port.
+
+Lazy build integration: declare an engines entry reading the caller's language
+table/locale and call `createRuntimeEngines`; include it in the exact ACP/panel
+package inventory and notices. Keep the existing checkpointStore lazy chunk,
+all current caps and startup budgets unchanged. Add the engines entry and owned
+tests to knip. Validation: real fake-API tool write/restore/Redo, current dirty
+paths and native-startup denial, concurrent acquisition/close and journal
+cleanup, all at the default test timeout. No new UI strings or service/model
+wire fields are needed for this checkpoint.
+
+### F — documentation/reference synchronization
+
+Add an Unreleased note for portable guarded edit review, selected-text admission
+and runtime checkpoint recording/rewind adapters. Describe the A/C binding and
+native qualification prerequisites explicitly. No command/setting is added.
+The help catalog/reference source named by common.md is absent at this base;
+regenerate it when its owning integration supplies it. Component receipts do
+not support W or a newly supported editor claim.
+
+### A/D/E/F — F9 fresh editor verification
+
+Import `createRuntimeVerify` from `src/runtime/features/verify.ts` and supply
+`RuntimeBackendDeps.verify(root)` in interactive composition. The backend owns
+one returned service per workspace, feeds its VerifyHooks into the actual
+Model API manager, aborts it before stopping managers and awaits its drain.
+The injected `RuntimeVerifyDeps` requires live settings/generation/trust,
+realPath, HostServices and `settledDiagnostics(uri, version, signal)`.
+That last callback returns the authored internal shape
+`{ uri, version, diagnostics }`, or undefined when no fresh report exists.
+The native owner must attest the exact document version after diagnostics
+settle and obey cancellation. Existing `diagnostics/get` supplies an array
+without freshness/version: it cannot justify returning this attestation.
+If A chooses a wire addition, specify version and freshness from the native
+editor's own document protocol, validate both ends and regenerate the lock;
+this is an editor service, not a guessed provider response.
+
+Formatting uses frozen `codeIntel/format`, expectedVersion and bounded
+cancellation, then rechecks URI/version/text/dirty state before returning text
+for the tool's guarded writer. Diagnostics check the recorded fingerprint,
+recheck the document after settling and keep absent/stale reports unchecked.
+A changed executable configuration skips editor services for the entire
+batch. Supply `unsavedPaths(root)` with all canonical/display aliases from the
+live dirty-buffer service. Validate CRLF, Windows URI/separators, stale report
+and formatter races, code-loading exclusion, trust revocation and shutdown.
+No l10n changes are needed. All native editors need these version/freshness
+and cancellation guarantees; absent services remain explicit unchecked data.

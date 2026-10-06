@@ -40,6 +40,16 @@ import { createWorkspaceFileLister } from '../host/mention/workspaceFiles'
 import { pageConverter } from '../host/web/pageConverter'
 import { createWebFetcher } from '../host/web/webFetcher'
 import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
+import { canonicalPath } from '../host/canonicalPath'
+import { createCheckpointedMemory } from '../host/backend/checkpointedMemory'
+import {
+  finishCheckpointTurn,
+  prepareCheckpointTurn,
+  withCheckpointStorageGuard,
+} from '../host/checkpoints/checkpointHost'
+import type { RuntimeCheckpoints } from './features/checkpoints'
+import type { VerifyHooks } from '../core/backends/modelapi/verifyLoop'
+import type { createRuntimeVerify } from './features/verify'
 import {
   type EnvironmentVariable,
   FILE_REFUSAL_MODEL_TEXT,
@@ -91,6 +101,12 @@ export interface RuntimeBackendDeps {
   /** Waits between retries and rename attempts; injectable so tests do not sleep. */
   readonly sleep: (ms: number) => Promise<void>
   readonly log: Logger
+  /** Interactive panel composition supplies this; ACP/headless keep their existing policy. */
+  readonly checkpoints?: (workspaceRoot: string) => Promise<RuntimeCheckpoints>
+  /** Absolute dirty-buffer paths, refreshed by the owning editor service. */
+  readonly unsavedPaths?: (workspaceRoot: string) => readonly string[]
+  /** Interactive editor verification; its portable owner drains it during profile release. */
+  readonly verify?: (workspaceRoot: string) => ReturnType<typeof createRuntimeVerify>
 }
 
 export interface RuntimeBackend {
@@ -106,6 +122,9 @@ export interface RuntimeBackend {
    */
   readonly forgetUnflaggedGrants: () => Promise<void>
   readonly close: () => Promise<void>
+  /** The same port and recorder used by this workspace's actual backend tools. */
+  readonly checkpointsFor?: (workspaceRoot: string) => Promise<RuntimeCheckpoints>
+  readonly verifyFor?: (workspaceRoot: string) => ReturnType<typeof createRuntimeVerify>
 }
 
 // No editor proxy setting exists outside VS Code; the CLI reads the
@@ -156,6 +175,8 @@ function modelApiManager(
   paid: AcpPaidUse,
   workspaceEdits: WorkspaceEdits,
   assertWorkspaceCurrent: () => void,
+  checkpoints: RuntimeCheckpoints | undefined,
+  verify: VerifyHooks | undefined,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
   const isWorkspaceTrusted = () => options.trustWorkspace
@@ -174,7 +195,7 @@ function modelApiManager(
       log,
     })
   const listFiles = filesIn(workspaceRoot)
-  const io = createToolIo({
+  const rawIo = createToolIo({
     platform,
     listFiles,
     systemRoot,
@@ -183,7 +204,7 @@ function modelApiManager(
     searchWorkerPath: path.join(deps.distDir, SEARCH_WORKER_FILE),
     log: warn,
     // The agent cannot see the editor's buffers (D62); the client's `fs/*` will (M63c).
-    unsavedFiles: () => [],
+    unsavedFiles: () => deps.unsavedPaths?.(storedWorkspaceRoot) ?? [],
     assertWorkspaceCurrent,
     shellJobAssembly:
       platform === 'win32' && systemRoot !== undefined
@@ -200,15 +221,39 @@ function modelApiManager(
   const warnMemory = (message: string) => {
     warn(`Memory: ${message}`)
   }
-  const memory = new MemoryStore({
-    io: createMemoryIo(io, { warn: warnMemory, assertCanWrite: assertWorkspaceCurrent }),
+  const memoryDeps = {
     platform,
     dataRoot: () =>
       memoryDataRoot({ platform, homeDir: deps.homeDir, xdgDataHome: homes.xdgDataHome }),
     workspaceRoot,
     systemPath,
     warn: warnMemory,
-  })
+  }
+  const checkpointedMemory =
+    checkpoints === undefined
+      ? undefined
+      : createCheckpointedMemory(rawIo, checkpoints.port, {
+          ...memoryDeps,
+          captureGuard: () => assertWorkspaceCurrent,
+        })
+  const io = checkpoints === undefined ? rawIo : withCheckpointStorageGuard(rawIo, checkpoints.port)
+  const memory =
+    checkpointedMemory?.store ??
+    new MemoryStore({
+      ...memoryDeps,
+      io: createMemoryIo(io, { warn: warnMemory, assertCanWrite: assertWorkspaceCurrent }),
+    })
+  const recorder =
+    checkpoints === undefined || checkpointedMemory === undefined
+      ? undefined
+      : checkpoints.recording.recorder({
+          io,
+          memory: checkpointedMemory.turnWrites,
+          workspaceRoot,
+          canonicalPath,
+          newId: randomUUID,
+          log,
+        })
   const store =
     deps.exec?.isEphemeral === true
       ? undefined
@@ -248,6 +293,13 @@ function modelApiManager(
     assertWorkspaceCurrent,
     workspaceEdits,
     io,
+    ...(verify !== undefined && { verify }),
+    ...(checkpoints !== undefined && {
+      beforeTurnRuns: (sessionId, turnId, top) =>
+        prepareCheckpointTurn(checkpoints.port, recorder, sessionId, turnId, log, top),
+      afterTurnRuns: (sessionId, turnId, end) =>
+        finishCheckpointTurn(checkpoints.port, recorder, sessionId, turnId, end),
+    }),
     listAttemptFiles: (attemptRoot) => filesIn(attemptRoot)(),
     contextIo: fileContextIo,
     webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
@@ -328,6 +380,40 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     { readonly manager: ModelApiBackendManager; readonly identity: string }
   >()
   const workspaceEdits = new Map<string, WorkspaceEdits>()
+  const checkpointHosts = new Map<string, Promise<RuntimeCheckpoints>>()
+  const checkpointFactory = deps.exec === undefined ? deps.checkpoints : undefined
+  const verifyHosts = new Map<string, ReturnType<typeof createRuntimeVerify>>()
+  const verifyFactory = deps.exec === undefined ? deps.verify : undefined
+  let isDisposed = false
+  let closing: Promise<void> | undefined
+  const assertOpen = () => {
+    if (isDisposed) throw new Error('MHP_RUNTIME_CLOSED')
+  }
+  const verifyFor = (root: string) => {
+    assertOpen()
+    if (verifyFactory === undefined) throw new Error('MHP_VERIFY_UNAVAILABLE')
+    const service = verifyHosts.get(root) ?? verifyFactory(root)
+    verifyHosts.set(root, service)
+    return service
+  }
+  const checkpointsFor = async (root: string): Promise<RuntimeCheckpoints> => {
+    assertOpen()
+    if (checkpointFactory === undefined) throw new Error('MHP_CHECKPOINT_NAMESPACE_UNAVAILABLE')
+    let pending = checkpointHosts.get(root)
+    if (pending === undefined) {
+      pending = checkpointFactory(root)
+      checkpointHosts.set(root, pending)
+    }
+    let services: RuntimeCheckpoints
+    try {
+      services = await pending
+    } catch (error: unknown) {
+      if (checkpointHosts.get(root) === pending) checkpointHosts.delete(root)
+      throw error
+    }
+    assertOpen()
+    return services
+  }
   const credentials = new CredentialStore(
     deps.secrets,
     (message) => {
@@ -425,6 +511,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       throw new Error(UI_TEXT.modelApiNeedsFolder)
     }
     const { canonical, key } = identity
+    const checkpoints = checkpointFactory === undefined ? undefined : await checkpointsFor(cwd)
+    assertOpen()
     const existing = modelApiHosts.get(cwd)
     if (existing !== undefined) {
       if (existing.identity !== key) {
@@ -448,18 +536,26 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       paid,
       edits,
       assertWorkspaceCurrent,
+      checkpoints,
+      verifyFactory === undefined ? undefined : verifyFor(cwd).verify,
     )
     modelApiHosts.set(cwd, { manager, identity: key })
     return await manager.ensureHost()
   }
 
-  const hostFor = (cwd: string): Promise<AgentHost> => {
+  const hostFor = async (cwd: string): Promise<AgentHost> => {
+    assertOpen()
     if (deps.options.backend === 'modelApi') {
-      return modelApiHostFor(cwd)
+      return await modelApiHostFor(cwd)
+    }
+    if (checkpointFactory !== undefined) {
+      const checkpoints = await checkpointsFor(cwd)
+      await checkpoints.port.markNativeBackend()
+      assertOpen()
     }
     const manager = museCodeHosts.get(cwd) ?? museCodeManager(deps, cwd)
     museCodeHosts.set(cwd, manager)
-    return manager.ensureHost()
+    return await manager.ensureHost()
   }
 
   return {
@@ -471,18 +567,42 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     },
     museCode,
     paid,
+    ...(checkpointFactory !== undefined && { checkpointsFor }),
+    ...(verifyFactory !== undefined && { verifyFor }),
     forgetUnflaggedGrants: () =>
       deps.exec === undefined && deps.options.backend === 'modelApi'
         ? paid.forgetUnflagged()
         : Promise.resolve(),
-    close: async () => {
-      // A probe still waiting on its short-lived host ends with the agent.
-      accountHosts.close()
-      const managers = [
-        ...museCodeHosts.values(),
-        ...Array.from(modelApiHosts.values(), ({ manager }) => manager),
-      ]
-      await Promise.all(managers.map((manager) => manager.dispose()))
+    close: () => {
+      isDisposed = true
+      closing ??= (async () => {
+        // A probe still waiting on its short-lived host ends with the agent.
+        accountHosts.close()
+        const checking = Array.from(verifyHosts.values(), (service) => service.dispose())
+        const managers = [
+          ...museCodeHosts.values(),
+          ...Array.from(modelApiHosts.values(), ({ manager }) => manager),
+        ]
+        const stopped = await Promise.allSettled(managers.map((manager) => manager.dispose()))
+        const verified = await Promise.allSettled(checking)
+        verifyHosts.clear()
+        const released = await Promise.allSettled(
+          Array.from(checkpointHosts.values(), async (pending) => {
+            const services = await pending
+            await services.dispose()
+          }),
+        )
+        checkpointHosts.clear()
+        const failures = [...stopped, ...verified, ...released].filter(
+          (result) => result.status === 'rejected',
+        )
+        if (failures.length > 0)
+          throw new AggregateError(
+            failures.map((result): unknown => result.reason),
+            'MHP_RUNTIME_CLOSE_FAILED',
+          )
+      })()
+      return closing
     },
   }
 }

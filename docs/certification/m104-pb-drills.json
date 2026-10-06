@@ -47,5 +47,103 @@
     "exitCode": 1,
     "sha256Before": "6314a281e94527613854c354902e3ce218d9b8a1340c91104814e0436c597407",
     "sha256Restored": "6314a281e94527613854c354902e3ce218d9b8a1340c91104814e0436c597407"
+  },
+  {
+    "drill": "checkpoint-recorder",
+    "file": "src/runtime/backends.ts",
+    "exitCode": 1,
+    "sha256Before": "ab861071a9e5d9f1086b8bc0dec8adad20f43903b9d7f9b1002bf72e6acf1476",
+    "sha256Restored": "ab861071a9e5d9f1086b8bc0dec8adad20f43903b9d7f9b1002bf72e6acf1476"
+  },
+  {
+    "drill": "checkpoint-native-admission",
+    "file": "src/runtime/backends.ts",
+    "exitCode": 1,
+    "sha256Before": "ab861071a9e5d9f1086b8bc0dec8adad20f43903b9d7f9b1002bf72e6acf1476",
+    "sha256Restored": "ab861071a9e5d9f1086b8bc0dec8adad20f43903b9d7f9b1002bf72e6acf1476"
+  },
+  {
+    "drill": "checkpoint-late-release",
+    "file": "src/runtime/backends.ts",
+    "exitCode": 1,
+    "sha256Before": "ab861071a9e5d9f1086b8bc0dec8adad20f43903b9d7f9b1002bf72e6acf1476",
+    "sha256Restored": "ab861071a9e5d9f1086b8bc0dec8adad20f43903b9d7f9b1002bf72e6acf1476"
+  },
+  {
+    "drill": "checkpoint-presence-drain",
+    "file": "src/host/checkpoints/checkpointStore.ts",
+    "exitCode": 1,
+    "sha256Before": "ab65ae5238ee8a87186f91e8cf506ce9337b562a983ade9928a1fde145ab8e13",
+    "sha256Restored": "ab65ae5238ee8a87186f91e8cf506ce9337b562a983ade9928a1fde145ab8e13"
+  },
+  {
+    "drill": "checkpoint-journal-finally",
+    "file": "src/runtime/features/checkpoints.ts",
+    "exitCode": 1,
+    "sha256Before": "14b84f2994780aa636f282cd8eb5b1a96643cdc024e12f7d2af739a0afced609",
+    "sha256Restored": "14b84f2994780aa636f282cd8eb5b1a96643cdc024e12f7d2af739a0afced609"
+  },
+  {
+    "drill": "checkpoint-live-trust",
+    "file": "src/runtime/features/checkpoints.ts",
+    "exitCode": 1,
+    "sha256Before": "14b84f2994780aa636f282cd8eb5b1a96643cdc024e12f7d2af739a0afced609",
+    "sha256Restored": "14b84f2994780aa636f282cd8eb5b1a96643cdc024e12f7d2af739a0afced609"
+  },
+  {
+    "drill": "checkpoint-shared-release",
+    "file": "src/runtime/features/checkpoints.ts",
+    "exitCode": 1,
+    "sha256Before": "14b84f2994780aa636f282cd8eb5b1a96643cdc024e12f7d2af739a0afced609",
+    "sha256Restored": "14b84f2994780aa636f282cd8eb5b1a96643cdc024e12f7d2af739a0afced609"
+  },
+  {
+    "drill": "verify-version-attestation",
+    "file": "src/runtime/features/verify.ts",
+    "exitCode": 1,
+    "sha256Before": "8a5db6c845f6d075bc433bfdb690c864c58a5589adacdfc216e687a161e6d658",
+    "sha256Restored": "8a5db6c845f6d075bc433bfdb690c864c58a5589adacdfc216e687a161e6d658"
+  },
+  {
+    "drill": "verify-saved-fingerprint",
+    "file": "src/runtime/features/verify.ts",
+    "exitCode": 1,
+    "sha256Before": "8a5db6c845f6d075bc433bfdb690c864c58a5589adacdfc216e687a161e6d658",
+    "sha256Restored": "8a5db6c845f6d075bc433bfdb690c864c58a5589adacdfc216e687a161e6d658"
+  },
+  {
+    "drill": "verify-report-race",
+    "file": "src/runtime/features/verify.ts",
+    "exitCode": 1,
+    "sha256Before": "8a5db6c845f6d075bc433bfdb690c864c58a5589adacdfc216e687a161e6d658",
+    "sha256Restored": "8a5db6c845f6d075bc433bfdb690c864c58a5589adacdfc216e687a161e6d658"
+  },
+  {
+    "drill": "verify-code-loading-batch",
+    "file": "src/runtime/features/verify.ts",
+    "exitCode": 1,
+    "sha256Before": "8a5db6c845f6d075bc433bfdb690c864c58a5589adacdfc216e687a161e6d658",
+    "sha256Restored": "8a5db6c845f6d075bc433bfdb690c864c58a5589adacdfc216e687a161e6d658"
+  },
+  {
+    "drill": "verify-format-race",
+    "file": "src/runtime/features/verify.ts",
+    "exitCode": 1,
+    "sha256Before": "8a5db6c845f6d075bc433bfdb690c864c58a5589adacdfc216e687a161e6d658",
+    "sha256Restored": "8a5db6c845f6d075bc433bfdb690c864c58a5589adacdfc216e687a161e6d658"
+  },
+  {
+    "drill": "verify-release",
+    "file": "src/runtime/features/verify.ts",
+    "exitCode": 1,
+    "sha256Before": "8a5db6c845f6d075bc433bfdb690c864c58a5589adacdfc216e687a161e6d658",
+    "sha256Restored": "8a5db6c845f6d075bc433bfdb690c864c58a5589adacdfc216e687a161e6d658"
+  },
+  {
+    "drill": "verify-backend-injection",
+    "file": "src/runtime/backends.ts",
+    "exitCode": 1,
+    "sha256Before": "50248d191446b86eb074d3b9fd3a37a6f61fd805cb59c236c7f7e710fca79953",
+    "sha256Restored": "50248d191446b86eb074d3b9fd3a37a6f61fd805cb59c236c7f7e710fca79953"
   }
 ]
