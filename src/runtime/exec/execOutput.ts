@@ -21,7 +21,7 @@ import {
   validateResult,
 } from './execProtocol'
 import type { FdWriter } from './fdWriter'
-import { outputJsonSchema, type OutputSchema } from './outputSchema'
+import { execRecordSchema, outputJsonSchema, type OutputSchema } from './outputSchema'
 
 /** Optional M106 fields; callers without a schema retain M80's exact result. */
 export type SchemaExecResult = ExecResult & {
@@ -31,10 +31,10 @@ export type SchemaExecResult = ExecResult & {
 
 /** Validate the additive fields and every existing M80 invariant at egress. */
 export function validateSchemaResult(value: unknown): SchemaExecResult {
-  const record = z.record(z.string(), z.unknown()).parse(value)
+  const record = execRecordSchema(z.unknown()).parse(value)
   const { output, ledger, ...rest } = record
   const hasOutput = Object.hasOwn(record, 'output')
-  const ledgerRecord = ledger === null ? undefined : z.record(z.string(), z.unknown()).parse(ledger)
+  const ledgerRecord = ledger === null ? undefined : execRecordSchema(z.unknown()).parse(ledger)
   const { outputSchemaSha256, ...baseLedger } = ledgerRecord ?? {}
   const hasDigest = ledgerRecord !== undefined && Object.hasOwn(ledgerRecord, 'outputSchemaSha256')
   const result = validateResult({ ...rest, ledger: ledger === null ? null : baseLedger })
@@ -71,7 +71,7 @@ export type SchemaExecEvent =
   | (Extract<ExecEvent, { type: 'result' }> & { result: SchemaExecResult })
 
 export function validateSchemaEvent(value: unknown, schema?: OutputSchema): SchemaExecEvent {
-  const record = z.record(z.string(), z.unknown()).parse(value)
+  const record = execRecordSchema(z.unknown()).parse(value)
   if (record['type'] !== 'result') {
     const event = execEventSchema.parse(record)
     if (

@@ -86,6 +86,55 @@ const definitionNameSchema = (size: number) => ({
 })
 
 describe('M106 O2 strict output schema', () => {
+  it.each(['__proto__', 'constructor', 'prototype'])(
+    'refuses forbidden record key %s in top-level and nested schemas and answers',
+    (key) => {
+      const schema = compileOutputSchema(encode(closed({ ok: { type: 'boolean' } })))
+      const nested = compileOutputSchema(
+        encode(closed({ nested: closed({ ok: { type: 'boolean' } }) })),
+      )
+      expect(schema.parseAnswer(`{"ok":true,"${key}":{"unexpected":true}}`)).toMatchObject({
+        ok: false,
+        detail: expect.stringContaining('forbidden record key'),
+      })
+      expect(
+        nested.parseAnswer(`{"nested":{"ok":true,"${key}":{"unexpected":true}}}`),
+      ).toMatchObject({
+        ok: false,
+        detail: expect.stringContaining('forbidden record key'),
+      })
+      for (const value of [
+        { ...closed({}), [key]: { type: 'string' } },
+        { ...closed({}), $defs: { [key]: { type: 'string', minLength: 1 } } },
+        { ...closed({}), $defs: { [key]: { type: 'string', description: 'x'.repeat(120_001) } } },
+        closed({ nested: closed({ [key]: { type: 'boolean' } }) }),
+      ])
+        expect(() => compileOutputSchema(encode(value))).toThrow('forbidden record key')
+      expect(schema.parseAnswer('{"ok":true}')).toEqual({ ok: true, value: { ok: true } })
+      expect(nested.parseAnswer('{"nested":{"ok":true}}')).toEqual({
+        ok: true,
+        value: { nested: { ok: true } },
+      })
+    },
+  )
+  it('returns null-prototype records at every schema and answer nesting level', () => {
+    const schema = compileOutputSchema(
+      encode(closed({ nested: closed({ ok: { type: 'boolean' } }) })),
+    )
+    const answer = schema.parseAnswer('{"nested":{"ok":true}}')
+    expect(Object.getPrototypeOf(schema.schema)).toBeNull()
+    expect(Object.getPrototypeOf(schema.schema['properties'])).toBeNull()
+    if (
+      !answer.ok ||
+      typeof answer.value !== 'object' ||
+      answer.value === null ||
+      Array.isArray(answer.value)
+    )
+      throw new Error('missing answer')
+    expect(Object.getPrototypeOf(answer.value)).toBeNull()
+    expect(Object.getPrototypeOf(answer.value['nested'])).toBeNull()
+  })
+
   it('ships additive v1 schema snapshots preserving every base field and event guard', async () => {
     const read = async (name: string) =>
       z

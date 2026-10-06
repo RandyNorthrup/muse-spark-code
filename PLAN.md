@@ -19407,6 +19407,18 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**O2 round-two repair (FIXM106O22, 2026-10-06).** Refuse own
+`__proto__`, `constructor` and `prototype` keys before any record parser can
+normalise them, at every nesting level in schemas, answers and additive exec
+records. All O2 record readers share the same null-prototype record parser.
+Workspace-confined schema reads open first (final-component no-follow where
+supported), verify the held file's device/inode against lstat of the path's
+realpath and workspace containment, and read only that handle. One helper
+owns every O2 confined read; seams exercise file swaps, symlink parents and
+Windows junctions. Both RVM106O22 P2 findings require regressions and
+SHA-256-equal restored red drills. Default test timeouts and existing ownership
+handoffs remain in force.
+
 **O2 review repair (FIXM106O2, 2026-10-06).** Address all six RVM106O2
 findings within O2 ownership: compile local references once with memoised
 expansion counts and named preflight/answer work budgets; resolve the schema

@@ -43,6 +43,78 @@ const answerSchema = (properties?: Record<string, unknown>) => {
 }
 
 describe('M106 structured exec egress', () => {
+  it('bounds cyclic and oversized additive records before recursive parsing', () => {
+    const cyclic: Record<string, unknown> = { ...resultRecord() }
+    cyclic['cycle'] = cyclic
+    expect(() => validateSchemaResult(cyclic)).toThrow('depth / nodes')
+    let deep: unknown = null
+    for (let level = 0; level < 100; level += 1) deep = { next: deep }
+    expect(() => validateSchemaResult({ ...resultRecord(), extra: deep })).toThrow('depth / nodes')
+    expect(() =>
+      validateSchemaResult({
+        ...resultRecord(),
+        extra: Array.from({ length: 200_001 }, () => null),
+      }),
+    ).toThrow('depth / nodes')
+  })
+  it.each(['__proto__', 'constructor', 'prototype'])(
+    'fails forbidden answer key %s without rewriting it into a completed result',
+    async (key) => {
+      const schema = answerSchema()
+      const h = harness('jsonl', schema)
+      h.sink.message({
+        itemId: 'final',
+        kind: 'agentMessage',
+        text: `{"ok":true,"${key}":{"unexpected":true}}`,
+        complete: true,
+      })
+      await h.sink.finish(resultRecord())
+      const final = validateSchemaEvent(JSON.parse(h.out.chunks.at(-1) ?? ''), schema)
+      expect(final).toMatchObject({
+        type: 'result',
+        result: {
+          status: 'failed',
+          exitCode: 4,
+          error: { kind: 'output_schema_mismatch' },
+          usage: resultRecord().usage,
+          ledger: { outputSchemaSha256: schema.sha256 },
+        },
+      })
+      if (final.type !== 'result') throw new Error('missing result')
+      expect(Object.hasOwn(final.result, 'output')).toBe(false)
+      expect(h.sink.resultExitCode).toBe(4)
+    },
+  )
+  it.each(['__proto__', 'constructor', 'prototype'])(
+    'refuses forbidden record key %s in additive result and event readers at every level',
+    (key) => {
+      const good = {
+        ...resultRecord(),
+        output: { value: { ok: true }, validation: 'provider' },
+        ledger: { ...resultRecord().ledger, outputSchemaSha256: answerSchema().sha256 },
+      }
+      for (const result of [
+        { ...good, [key]: true },
+        { ...good, ledger: { ...good.ledger, [key]: true } },
+        { ...good, output: { ...good.output, value: { ok: true, nested: { [key]: true } } } },
+        { ...good, usage: { ...good.usage, [key]: true } },
+      ]) {
+        const input: unknown = structuredClone(result)
+        expect(() => validateSchemaResult(input)).toThrow('forbidden record key')
+        expect(() =>
+          validateSchemaEvent({
+            v: 1,
+            seq: 1,
+            at: '2026-10-06T00:00:00.000Z',
+            type: 'result',
+            result: input,
+          }),
+        ).toThrow('forbidden record key')
+      }
+      expect(validateSchemaResult(good)).toEqual(good)
+    },
+  )
+
   it.each(['META_API_KEY=opaque-value', 'password="quoted-value"'])(
     'serialises decoded redaction once and keeps message/result JSON identical: %s',
     async (note) => {
