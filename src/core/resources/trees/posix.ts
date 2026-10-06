@@ -32,14 +32,22 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
 
   private async read(
     ticket: ResourceTicket,
-  ): Promise<{ rows: readonly ProcessSample[]; cpuSeconds: number } | null> {
+  ): Promise<{ rows: readonly ProcessSample[]; cpuSeconds: number; epoch: object } | null> {
     if (
       ticket.scope.type === 'job' ||
       (ticket.scope.type === 'group' && ticket.scope.pgid !== ticket.root.pid)
     )
       return null
+    const signature = JSON.stringify(ticket)
+    const prior = this.states.get(ticket.id)
+    const state =
+      prior?.signature === signature
+        ? prior
+        : { signature, known: new Map<number, string>(), cpu: new Map<string, number>() }
+    // The state object is this ticket's epoch; forget invalidates every pending continuation.
+    this.states.set(ticket.id, state)
     const snapshot = await this.source.snapshot(ticket)
-    if (snapshot === null) return null
+    if (snapshot === null || this.states.get(ticket.id) !== state) return null
     const rows = z
       .array(processSampleSchema)
       .parse(snapshot.rows)
@@ -51,12 +59,6 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
     // POSIX adapters return exact, decimal kernel start counters, not ps's second-resolution lstart.
     if (!/^\d+$/.test(ticket.root.startTime) || rows.some((row) => !/^\d+$/.test(row.startTime)))
       return null
-    const signature = JSON.stringify(ticket)
-    const prior = this.states.get(ticket.id)
-    const state =
-      prior?.signature === signature
-        ? prior
-        : { signature, known: new Map<number, string>(), cpu: new Map<string, number>() }
     const root = rows.find((row) => row.pid === ticket.root.pid)
     const anchor = root ?? rows.find((row) => state.known.get(row.pid) === row.startTime)
     if (anchor === undefined || (root !== undefined && root.startTime !== ticket.root.startTime)) {
@@ -65,17 +67,17 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
     }
     // A scan can span group reuse; only a still-current authority may introduce witnesses.
     if (!(await this.source.containsNow(ticket, anchor))) return null
+    if (this.states.get(ticket.id) !== state) return null
     const members = rows.filter((row) => BigInt(row.startTime) >= BigInt(ticket.root.startTime))
     state.known = new Map(members.map((row) => [row.pid, row.startTime]))
     for (const member of members) {
       const key = `${String(member.pid)}/${member.startTime}`
       state.cpu.set(key, Math.max(state.cpu.get(key) ?? 0, member.cpuSeconds))
     }
-    this.states.set(ticket.id, state)
     let observedCpu = 0
     for (const value of state.cpu.values()) observedCpu += value
     const cpuSeconds = snapshot.cpuSeconds ?? observedCpu
-    return { rows: members, cpuSeconds }
+    return { rows: members, cpuSeconds, epoch: state }
   }
 
   forget(ticket: ResourceTicket): void {
@@ -92,7 +94,8 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
     return snapshot?.rows.some(
       (row) => row.pid === identity.pid && row.startTime === identity.startTime,
     )
-      ? await this.source.containsNow(ticket, identity)
+      ? (await this.source.containsNow(ticket, identity)) &&
+          this.states.get(ticket.id) === snapshot.epoch
       : false
   }
 

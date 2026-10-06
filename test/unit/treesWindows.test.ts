@@ -9,7 +9,7 @@ import { ResourceTreeRegistry } from '../../src/core/resources/trees/registry'
 import { joinStatement, newShellJob, shellJobAssembly } from '../../src/host/backend/shellJob'
 import { killTree, windowsPowerShell } from '../../src/host/processTree'
 import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/shared/constants'
-import type { ResourceTicket } from '../../src/shared/resources'
+import type { ResourceProcessIdentity, ResourceTicket } from '../../src/shared/resources'
 import { readJobSource } from './helpers/jobSource'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -24,6 +24,24 @@ const ticket: ResourceTicket = {
 const deps = {
   systemRoot: String.raw`C:\Windows`,
   assemblyPath: String.raw`C:\Storage\O'Brien\job.dll`,
+}
+
+function jobReader(members: () => readonly ResourceProcessIdentity[]) {
+  const run = vi.fn((_file: string, args: readonly string[]) =>
+    Promise.resolve(
+      args.at(-1)?.includes('::Contains(')
+        ? 'true'
+        : JSON.stringify({ members: members(), usage: { cpuSeconds: 2, residentBytes: 4096 } }),
+    ),
+  )
+  const reader = new WindowsResourceTreeReader({ ...deps, run })
+  return { run, reader, registry: new ResourceTreeRegistry(reader) }
+}
+
+function pendingJobAnswer(run: ReturnType<typeof jobReader>['run']) {
+  const finish = Promise.withResolvers<string>()
+  run.mockReturnValueOnce(finish.promise)
+  return finish
 }
 
 describe('Windows resource job reader', () => {
@@ -118,14 +136,7 @@ describe('Windows resource job reader', () => {
 
   it('retains an observed orphan job but refuses a reused job name or root identity', async () => {
     let members = [ticket.root, { pid: 811, startTime: '134040000000000001' }]
-    const run = vi.fn((_file: string, args: readonly string[]) =>
-      Promise.resolve(
-        args.at(-1)?.includes('::Contains(')
-          ? 'true'
-          : JSON.stringify({ members, usage: { cpuSeconds: 2, residentBytes: 4096 } }),
-      ),
-    )
-    const reader = new WindowsResourceTreeReader({ ...deps, run })
+    const { reader } = jobReader(() => members)
     const observed = await reader.members(ticket)
     expect(observed).toEqual(members)
     observed[1]!.startTime = 'forged-copy'
@@ -143,6 +154,47 @@ describe('Windows resource job reader', () => {
     reader.forget(ticket)
     members = [{ pid: 811, startTime: '134040000000000001' }]
     expect(await reader.members(ticket)).toEqual([])
+  })
+
+  it.each(['query', 'root-proof'] as const)(
+    'does not restore Windows witnesses when a pending %s finishes after retirement',
+    async (stage) => {
+      const answer = JSON.stringify({
+        members: [ticket.root],
+        usage: { cpuSeconds: 2, residentBytes: 4096 },
+      })
+      const { run, reader, registry } = jobReader(() => [ticket.root])
+      await registry.register(ticket)
+      const finish = pendingJobAnswer(run)
+      const pending =
+        stage === 'query' ? reader.usage(ticket) : reader.contains(ticket, ticket.root)
+      registry.unregister(ticket)
+      finish.resolve(stage === 'query' ? answer : 'true')
+      if (stage === 'query') expect(await pending).toBeNull()
+      else expect(await pending).toBe(false)
+      expect(registry.tickets()).toEqual([])
+      expect(reader).toHaveProperty('known.size', 0)
+    },
+  )
+
+  it('isolates a new Windows ticket epoch from an old job query', async () => {
+    let members = [ticket.root, { pid: 811, startTime: '134040000000000001' }]
+    const { run, registry } = jobReader(() => members)
+    await registry.register(ticket)
+    const finish = pendingJobAnswer(run)
+    const pending = registry.usage(ticket)
+    registry.unregister(ticket)
+    await registry.register(ticket)
+    expect(await registry.members(ticket)).toEqual(members)
+    finish.resolve(
+      JSON.stringify({
+        members: [{ ...ticket.root, startTime: 'reused' }],
+        usage: { cpuSeconds: 0, residentBytes: 0 },
+      }),
+    )
+    expect(await pending).toBeNull()
+    members = [members[1]!]
+    expect(await registry.members(ticket)).toEqual(members)
   })
 
   it.runIf(process.platform === 'win32')(

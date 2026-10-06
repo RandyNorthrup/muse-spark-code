@@ -29,7 +29,7 @@ export interface WindowsTreeDeps {
 }
 
 export class WindowsResourceTreeReader implements ResourceTreeReader {
-  private readonly known = new Map<string, readonly ResourceProcessIdentity[]>()
+  private readonly known = new Map<string, { members: readonly ResourceProcessIdentity[] }>()
   constructor(private readonly deps: WindowsTreeDeps) {
     if (!path.win32.isAbsolute(deps.assemblyPath) || !path.win32.isAbsolute(deps.systemRoot))
       throw new Error('Resource helper paths must be absolute')
@@ -46,27 +46,37 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
     return value
   }
 
+  private epoch(id: string): { members: readonly ResourceProcessIdentity[] } {
+    let state = this.known.get(id)
+    if (state === undefined) {
+      state = { members: [] }
+      this.known.set(id, state)
+    }
+    return state
+  }
+
   private async query(ticket: ResourceTicket): Promise<z.infer<typeof querySchema> | null> {
     if (ticket.scope.type !== 'job') return null
+    const state = this.epoch(ticket.id)
     const answer = await this.call(
       `[${SHELL_JOB_TYPE_NAME}]::Query(${powerShellQuoted(ticket.scope.name)})`,
     )
-    if (answer === null) return null
+    if (answer === null || this.known.get(ticket.id) !== state) return null
     const parsed = querySchema.parse(answer)
     const root = parsed.members.find((member) => member.pid === ticket.root.pid)
     const hasAnchor =
       root === undefined
         ? parsed.members.some((member) =>
-            this.known
-              .get(ticket.id)
-              ?.some((known) => known.pid === member.pid && known.startTime === member.startTime),
+            state.members.some(
+              (known) => known.pid === member.pid && known.startTime === member.startTime,
+            ),
           )
         : root.startTime === ticket.root.startTime
     if (!hasAnchor) {
       this.known.delete(ticket.id)
       return null
     }
-    this.known.set(ticket.id, structuredClone(parsed.members))
+    state.members = structuredClone(parsed.members)
     return parsed
   }
 
@@ -89,6 +99,7 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
   async contains(ticket: ResourceTicket, identity: ResourceProcessIdentity): Promise<boolean> {
     if (ticket.scope.type !== 'job' || !resourceProcessIdentitySchema.safeParse(identity).success)
       return false
+    const state = this.epoch(ticket.id)
     try {
       const isRoot =
         identity.pid === ticket.root.pid && identity.startTime === ticket.root.startTime
@@ -104,9 +115,10 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
       const answer = await this.call(
         `if ([${SHELL_JOB_TYPE_NAME}]::Contains(${powerShellQuoted(ticket.scope.name)}, ${String(identity.pid)}, ${powerShellQuoted(identity.startTime)})) { 'true' } else { 'false' }`,
       )
+      if (this.known.get(ticket.id) !== state) return false
       const isMember = z.boolean().parse(answer)
-      if (isRoot && isMember && !this.known.has(ticket.id))
-        this.known.set(ticket.id, [structuredClone(ticket.root)])
+      if (isRoot && isMember && state.members.length === 0)
+        state.members = [structuredClone(ticket.root)]
       return isMember
     } catch {
       return false

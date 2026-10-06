@@ -188,6 +188,72 @@ describe('POSIX group and start-time proof', () => {
       await reader.usage({ ...ticket, root: { ...ticket.root, startTime: 'whole seconds' } }),
     ).toBeNull()
   })
+
+  it.each(['snapshot', 'anchor', 'target'] as const)(
+    'does not restore POSIX state when a pending %s finishes after retirement',
+    async (stage) => {
+      const current = { rows: [row(710), row(711, '1001')], cpuSeconds: null }
+      const snapshot = vi.fn(() => Promise.resolve(current))
+      const containsNow = vi.fn(() => Promise.resolve(true))
+      const reader = new PosixResourceTreeReader({ snapshot, containsNow })
+      const registry = new ResourceTreeRegistry(reader)
+      await registry.register(ticket)
+      const started = Promise.withResolvers<undefined>()
+      const finish = Promise.withResolvers<undefined>()
+      const wait = async () => {
+        started.resolve(undefined)
+        await finish.promise
+      }
+      if (stage === 'snapshot')
+        snapshot.mockImplementationOnce(async () => {
+          await wait()
+          return current
+        })
+      else {
+        if (stage === 'target') containsNow.mockResolvedValueOnce(true)
+        containsNow.mockImplementationOnce(async () => {
+          await wait()
+          return true
+        })
+      }
+      const pending =
+        stage === 'target' ? reader.contains(ticket, ticket.root) : reader.usage(ticket)
+      await started.promise
+      registry.unregister(ticket)
+      finish.resolve(undefined)
+      if (stage === 'target') expect(await pending).toBe(false)
+      else expect(await pending).toBeNull()
+      expect(registry.tickets()).toEqual([])
+      expect(reader).toHaveProperty('states.size', 0)
+    },
+  )
+
+  it.each([false, true])(
+    'isolates a new POSIX ticket epoch from an old scan (recycled=%s)',
+    async (isRecycled) => {
+      let current: PosixTreeSnapshot = { rows: [row(710), row(711, '1001')], cpuSeconds: null }
+      const snapshot = vi.fn(() => Promise.resolve(current))
+      const reader = new PosixResourceTreeReader({
+        snapshot,
+        containsNow: () => Promise.resolve(true),
+      })
+      const registry = new ResourceTreeRegistry(reader)
+      await registry.register(ticket)
+      const finish = Promise.withResolvers<PosixTreeSnapshot>()
+      snapshot.mockReturnValueOnce(finish.promise)
+      const pending = registry.usage(ticket)
+      registry.unregister(ticket)
+      await registry.register(ticket)
+      finish.resolve({
+        rows: [{ ...row(710, isRecycled ? '3000' : '1000'), cpuSeconds: 99 }],
+        cpuSeconds: null,
+      })
+      expect(await pending).toBeNull()
+      expect(reader).toHaveProperty('states.size', 1)
+      current = { rows: [row(711, '1001')], cpuSeconds: null }
+      expect(await registry.usage(ticket)).toEqual({ cpuSeconds: 4, residentBytes: 4096 })
+    },
+  )
 })
 
 function linuxWorld(scope?: string, overrides: Partial<LinuxTreeDeps> = {}) {

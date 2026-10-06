@@ -11,7 +11,8 @@ happened, not what was planned; superseded entries are kept.
 
 - Resource-tree readers revalidate an existing POSIX authority anchor before
   retaining new witnesses, preventing a mixed-time scan from admitting a
-  process in a reused group.
+  process in a reused group. Ticket retirement also invalidates pending reads
+  so they cannot restore accounting or overwrite a newer registration.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.
