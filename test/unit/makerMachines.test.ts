@@ -92,6 +92,13 @@ function http(target: MachineRecord, lan = localFakeLan) {
   }
   return new MachineHttp(target, lan, secrets, { timeoutMs: 1000, maxResponseBytes: 16_000 })
 }
+function watchRequests(transport: MachineHttp, observe: (path: string) => void): void {
+  const request = transport.request.bind(transport)
+  vi.spyOn(transport, 'request').mockImplementation((method, path, body, signal, beforeWrite) => {
+    observe(path)
+    return request(method, path, body, signal, beforeWrite)
+  })
+}
 const closers: (() => Promise<void>)[] = []
 afterEach(async () => {
   for (const close of closers.splice(0)) await close()
@@ -112,8 +119,8 @@ describe('maker printer status and guarded send', () => {
     const captured0 = await machine.status()
     expect(captured0.limits.feedMmMin).toBe(6000)
     expect(confirm).not.toHaveBeenCalled()
-    const payload = 'G91\nG1 X1 F600 ; exact bytes\nG90'
-    await machine.send(payload)
+    const payload = 'G91\nG1 X1 F600\nG90'
+    await machine.send('g091\nG01x+01 F0600 ; exact bytes\nG090')
     expect(confirm).toHaveBeenCalledTimes(1)
     expect(confirm.mock.calls[0]?.[0]).toMatchObject({
       payload,
@@ -123,6 +130,198 @@ describe('maker printer status and guarded send', () => {
       server.requests.filter((request) => request.path === '/printer/gcode/script'),
     ).toMatchObject([{ body: { script: payload }, hasKey: true }])
     expect(append).toHaveBeenCalledWith(expect.objectContaining({ payload, outcome: 'sent' }))
+  })
+  it.each(['G01', 'g0001', 'M0104', 'm00104'])(
+    'refuses canonical macro override %s before approval',
+    async (command) => {
+      const { machine, confirm, server } = await moonrakerTest()
+      Object.assign(server.moonraker.result.status.configfile.settings, {
+        [`gcode_macro ${command}`]: { rename_existing: `${command}.1` },
+      })
+      const parameter = command.toUpperCase().startsWith('G') ? 'X20' : 'S200'
+      const payload = `${command.toUpperCase().startsWith('G') ? 'G1' : 'M104'} ${parameter}`
+      await expect(machine.send(payload)).rejects.toThrow('unknownEffects')
+      await expect(machine.send(`${command} ${parameter}`)).rejects.toThrow('unknownEffects')
+      expect(confirm).not.toHaveBeenCalled()
+      expect(server.requests.some((request) => request.path === '/printer/gcode/script')).toBe(
+        false,
+      )
+    },
+  )
+  it('uses the active extruder cap and refuses unknown heater selection', async () => {
+    const { machine, confirm, server } = await moonrakerTest()
+    Object.assign(server.moonraker.result.status.configfile.settings, {
+      extruder1: { max_temp: 180 },
+    })
+    Object.assign(server.moonraker.result.status.toolhead, { extruder: 'extruder1' })
+    const active = await machine.status()
+    expect(active.limits.extruder).toBe(179)
+    await expect(machine.send('M104 S200')).rejects.toThrow('temperatureLimit')
+    Object.assign(server.moonraker.result.status.toolhead, { extruder: 'unknown' })
+    await expect(machine.send('M104 S150')).rejects.toThrow('unknownState')
+    Object.assign(server.moonraker.result.status.toolhead, { extruder: undefined })
+    await expect(machine.send('G1 X20')).rejects.toThrow()
+    expect(confirm).not.toHaveBeenCalled()
+    expect(server.requests.some((request) => request.path === '/printer/gcode/script')).toBe(false)
+  })
+  it('bounds canonical and framed dispatch bytes before approval', async () => {
+    const { target, server, deps, confirm } = await moonrakerTest()
+    const machine = createMoonrakerMachine(target, http(target), {
+      ...deps,
+      policy: { ...deps.policy, gcode: { ...deps.policy.gcode, maxBytes: 8 } },
+    })
+    await expect(machine.send('G1X20F60')).rejects.toThrow('payloadSize')
+    expect(confirm).not.toHaveBeenCalled()
+    expect(server.requests).toEqual([])
+  })
+  it.each(['bytes', 'lines'])(
+    'bounds the Marlin terminator against %s before approval',
+    async (bound) => {
+      const { deps, confirm } = dependencies(),
+        { port, request } = grblPort()
+      const machine = createMarlinMachine(record('/dev/test', 'marlin'), port, {
+        ...deps,
+        policy: {
+          ...deps.policy,
+          gcode: {
+            ...deps.policy.gcode,
+            ...(bound === 'bytes' ? { maxBytes: 4 } : { maxLines: 1 }),
+          },
+        },
+      })
+      await expect(machine.send('M105')).rejects.toThrow('payloadSize')
+      expect(confirm).not.toHaveBeenCalled()
+      expect(request).not.toHaveBeenCalled()
+    },
+  )
+  it('asks again when equal-cap active extruders change during approval', async () => {
+    const { machine, confirm, server } = await moonrakerTest()
+    Object.assign(server.moonraker.result.status.configfile.settings, {
+      extruder1: { max_temp: 250 },
+    })
+    confirm.mockImplementation((request) => {
+      Object.assign(server.moonraker.result.status.toolhead, { extruder: 'extruder1' })
+      return Promise.resolve(answer(request))
+    })
+    await machine.send('M104 S150')
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(confirm.mock.calls[0]?.[0].id).not.toBe(confirm.mock.calls[1]?.[0].id)
+  })
+  it('refuses the newly selected lower-cap heater after approval without dispatch', async () => {
+    const { machine, confirm, server } = await moonrakerTest()
+    Object.assign(server.moonraker.result.status.configfile.settings, {
+      extruder1: { max_temp: 180 },
+    })
+    confirm.mockImplementation((request) => {
+      server.moonraker.result.status.toolhead.extruder = 'extruder1'
+      return Promise.resolve(answer(request))
+    })
+    await expect(machine.send('M104 S200')).rejects.toThrow('temperatureLimit')
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(server.requests.some((request) => request.path === '/printer/gcode/script')).toBe(false)
+  })
+  it.each(['expiry', 'elapsed', 'hardware', 'trust', 'lease', 'interactive', 'printing', 'stop'])(
+    'rechecks %s after final secret lookup before dispatch',
+    async (condition) => {
+      const { target, deps, server, confirm } = await moonrakerTest()
+      let now = 0
+      let isEnabled = true,
+        isTrusted = true,
+        isHeld = true,
+        isInteractive = true
+      let isActuationLookup = false
+      const secrets: MakerSecrets = {
+        async get() {
+          if (isActuationLookup) {
+            isActuationLookup = false
+            if (condition === 'elapsed') {
+              await new Promise((resolve) => {
+                setTimeout(resolve, 120)
+              })
+            } else if (condition === 'expiry') now = 1000
+            isEnabled = condition !== 'hardware'
+            isTrusted = condition !== 'trust'
+            isHeld = condition !== 'lease'
+            isInteractive = condition !== 'interactive'
+            if (condition === 'printing')
+              server.moonraker.result.status.print_stats.state = 'printing'
+            else if (condition === 'stop') await machine.stop()
+          }
+          return undefined
+        },
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      }
+      const transport = new MachineHttp(target, localFakeLan, secrets, {
+        timeoutMs: 1000,
+        maxResponseBytes: 16_000,
+      })
+      watchRequests(transport, (path) => {
+        isActuationLookup = path === '/printer/gcode/script'
+      })
+      const machine = createMoonrakerMachine(target, transport, {
+        ...deps,
+        isLeaseHeld: () => isHeld,
+        policy: {
+          ...deps.policy,
+          now: () => now,
+          approvalTtlMs: condition === 'elapsed' ? 100 : 1000,
+        },
+        host: {
+          ...deps.host,
+          hardwareEnabled: () => isEnabled,
+          isTrusted: () => isTrusted,
+          isInteractive: () => isInteractive,
+        },
+      })
+      await expect(machine.send('M104 S200')).rejects.toThrow()
+      expect(confirm).toHaveBeenCalledTimes(1)
+      expect(server.requests.some((request) => request.path === '/printer/gcode/script')).toBe(
+        false,
+      )
+    },
+  )
+  it('reads changed machine state after actuation DNS resolution and asks again', async () => {
+    const { target, deps, server, confirm } = await moonrakerTest()
+    const named = { ...target, endpoint: server.endpoint.replace('127.0.0.1', 'printer.local') }
+    let isActuationLookup = false,
+      didChange = false
+    const lan: MakerLanPolicy = {
+      classify: () => 'private',
+      async resolve() {
+        if (isActuationLookup && !didChange) {
+          didChange = true
+          server.moonraker.result.status.toolhead.position[0] = 11
+          server.moonraker.result.status.gcode_move.position[0] = 11
+          server.moonraker.result.status.gcode_move.gcode_position[0] = 11
+          await Promise.resolve()
+        }
+        return ['127.0.0.1']
+      },
+    }
+    const transport = http(named, lan)
+    watchRequests(transport, (path) => {
+      isActuationLookup = path === '/printer/gcode/script'
+    })
+    await createMoonrakerMachine(named, transport, deps).send('G1 X20')
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(
+      server.requests.filter((request) => request.path === '/printer/gcode/script'),
+    ).toHaveLength(1)
+  })
+  it('reads final machine state after observation-log persistence settles', async () => {
+    const { machine, server, append, confirm } = await moonrakerTest()
+    let observations = 0
+    append.mockImplementation(async (entry) => {
+      if (entry.action !== 'observe') return
+      observations += 1
+      if (observations !== 2) return
+      await Promise.resolve()
+      server.moonraker.result.status.print_stats.state = 'printing'
+    })
+    await expect(machine.send('M104 S200')).rejects.toThrow('machineBusy')
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(server.requests.some((request) => request.path === '/printer/gcode/script')).toBe(false)
   })
   it.each([
     'G1 X201',
@@ -282,7 +481,7 @@ describe('maker printer status and guarded send', () => {
   it('rechecks machine state after persisting the approval and guards macro overrides', async () => {
     const { machine, server, append, confirm } = await moonrakerTest()
     append.mockImplementation((entry) => {
-      if (entry.outcome === 'attempt') server.changeIdentity()
+      if (entry.action === 'actuate' && entry.outcome === 'attempt') server.changeIdentity()
       return Promise.resolve()
     })
     await machine.send('G1 X20')
@@ -301,7 +500,7 @@ describe('maker printer status and guarded send', () => {
       host: { ...deps.host, hardwareEnabled: () => isEnabled },
     })
     append.mockImplementation((entry) => {
-      if (entry.outcome === 'attempt') isEnabled = false
+      if (entry.action === 'actuate' && entry.outcome === 'attempt') isEnabled = false
       return Promise.resolve()
     })
     await expect(machine.send('G1 X20')).rejects.toThrow('hardwareDisabled')
@@ -310,7 +509,7 @@ describe('maker printer status and guarded send', () => {
   it('expires approval using elapsed time even when the wall clock does not advance', async () => {
     const { target, deps, server, append } = await moonrakerTest()
     append.mockImplementation(async (entry) => {
-      if (entry.outcome === 'attempt')
+      if (entry.action === 'actuate' && entry.outcome === 'attempt')
         await new Promise((resolve) => {
           setTimeout(resolve, 30)
         })
@@ -366,7 +565,9 @@ describe('maker printer status and guarded send', () => {
   it('fails closed when the audit log cannot persist the intent', async () => {
     const { machine, server, append } = await moonrakerTest()
     append.mockImplementation((entry) =>
-      entry.outcome === 'attempt' ? Promise.reject(new Error('diskFull')) : Promise.resolve(),
+      entry.action === 'actuate' && entry.outcome === 'attempt'
+        ? Promise.reject(new Error('diskFull'))
+        : Promise.resolve(),
     )
     await expect(machine.send('G1 X20')).rejects.toThrow('diskFull')
     expect(server.requests.some((request) => request.path === '/printer/gcode/script')).toBe(false)
@@ -383,6 +584,17 @@ describe('maker printer status and guarded send', () => {
 })
 
 describe('maker fixed Stop paths', () => {
+  it('blocks pending-removal machine use while keeping the fixed Stop available', async () => {
+    const { target, deps, server, confirm } = await moonrakerTest()
+    const pending = { ...target, credentialPendingRemoval: true } as const
+    const machine = createMoonrakerMachine(pending, http(pending), deps)
+    await expect(machine.status()).rejects.toThrow('credentialPendingRemoval')
+    await expect(machine.send('M104 S200')).rejects.toThrow('credentialPendingRemoval')
+    expect(server.requests).toEqual([])
+    await machine.stop()
+    expect(server.requests.at(-1)?.path).toBe('/printer/emergency_stop')
+    expect(confirm).not.toHaveBeenCalled()
+  })
   it('stops a queued Moonraker send out of band, without consent or hardware enablement', async () => {
     const { target, deps, server, confirm } = await moonrakerTest()
     const host = { ...deps.host, hardwareEnabled: vi.fn(() => true) }
@@ -467,13 +679,18 @@ function grblPort() {
     return Promise.resolve(replies[command] ?? '$N0=G1X10\n$N1=')
   })
   const realtime = vi.fn(() => Promise.resolve())
+  const send = vi.fn<SerialMachinePort['send']>(async (_bytes, signal, beforeWrite) => {
+    const check = await beforeWrite()
+    signal.throwIfAborted()
+    check()
+  })
   const port: SerialMachinePort = {
     request,
     realtime,
-    send: vi.fn(() => Promise.resolve()),
+    send,
     cancel: vi.fn(),
   }
-  return { port, request, realtime }
+  return { port, request, realtime, send }
 }
 
 describe('maker other firmware adapters', () => {
@@ -487,6 +704,120 @@ describe('maker other firmware adapters', () => {
         gcode: { position: { x: 10, y: 10, z: 10 }, absolute: true, unit: 'mm', feedMmMin: 600 },
       }),
   }
+  it('prevents a timed-out Marlin queue from writing later even when the port ignores abort', async () => {
+    const { port, request, send } = grblPort(),
+      { deps } = dependencies()
+    request.mockImplementation((command) =>
+      Promise.resolve(command === 'M115' ? 'FIRMWARE_NAME:Marlin' : 'echo: M203 X100 Y100 Z10'),
+    )
+    const finished = Promise.withResolvers<undefined>()
+    let didWrite = false
+    send.mockImplementation(async (_bytes, _signal, beforeWrite) => {
+      try {
+        await new Promise((resolve) => {
+          setTimeout(resolve, 80)
+        })
+        const check = await beforeWrite()
+        check()
+        didWrite = true
+      } finally {
+        finished.resolve(undefined)
+      }
+    })
+    const machine = createMarlinMachine(
+      record('/dev/test', 'marlin'),
+      port,
+      {
+        ...deps,
+        policy: { ...deps.policy, requestDeadlineMs: 40 },
+      },
+      telemetry,
+    )
+    await expect(machine.send('M104 S200')).rejects.toThrow('machineDeadline')
+    await finished.promise
+    expect(didWrite).toBe(false)
+  })
+  it.each(['hardware', 'lease', 'expiry', 'printing'])(
+    'Marlin rechecks %s after the serial queue and before writing',
+    async (condition) => {
+      const { port, request, send } = grblPort(),
+        { deps } = dependencies()
+      request.mockImplementation((command) =>
+        Promise.resolve(command === 'M115' ? 'FIRMWARE_NAME:Marlin' : 'echo: M203 X100 Y100 Z10'),
+      )
+      let isEnabled = true,
+        isHeld = true,
+        now = 0
+      let state = 'ready'
+      let didWrite = false
+      send.mockImplementation(async (_bytes, _signal, beforeWrite) => {
+        await Promise.resolve()
+        isEnabled = condition !== 'hardware'
+        isHeld = condition !== 'lease'
+        now = condition === 'expiry' ? 1000 : 0
+        state = condition === 'printing' ? 'printing' : 'ready'
+        const check = await beforeWrite()
+        check()
+        didWrite = true
+      })
+      const machine = createMarlinMachine(
+        record('/dev/test', 'marlin'),
+        port,
+        {
+          ...deps,
+          isLeaseHeld: () => isHeld,
+          host: { ...deps.host, hardwareEnabled: () => isEnabled },
+          policy: { ...deps.policy, now: () => now },
+        },
+        {
+          read: async (signal) => {
+            const current = await telemetry.read(signal)
+            return { ...current, state }
+          },
+        },
+      )
+      const codes: Readonly<Record<string, string>> = {
+        hardware: 'hardwareDisabled',
+        lease: 'machineBusy',
+        expiry: 'approvalRejected',
+        printing: 'machineBusy',
+      }
+      await expect(machine.send('M104 S200')).rejects.toThrow(codes[condition])
+      expect(didWrite).toBe(false)
+    },
+  )
+  it('OctoPrint rechecks hardware after its actuation credential lookup', async () => {
+    const server = await fakeMachineServer()
+    closers.push(server.close)
+    const target = record(server.endpoint, 'octoprint'),
+      { deps } = dependencies()
+    let isEnabled = true,
+      isActuationLookup = false
+    const transport = new MachineHttp(
+      target,
+      localFakeLan,
+      {
+        get: () => {
+          if (isActuationLookup) isEnabled = false
+          return Promise.resolve(undefined)
+        },
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+      { timeoutMs: 1000, maxResponseBytes: 16_000 },
+    )
+    watchRequests(transport, (path) => {
+      isActuationLookup = path === '/api/printer/command'
+    })
+    const machine = createOctoprintMachine(
+      target,
+      transport,
+      { ...deps, host: { ...deps.host, hardwareEnabled: () => isEnabled } },
+      telemetry,
+    )
+    await expect(machine.send('M104 S200')).rejects.toThrow('hardwareDisabled')
+    expect(server.requests.some((request) => request.path === '/api/printer/command')).toBe(false)
+  })
   it('parses actual Moonraker and OctoPrint Virtual Printer captures without fabricating limits', async () => {
     const { server, machine } = await moonrakerTest()
     Object.assign(server.moonraker, moonrakerCapture)

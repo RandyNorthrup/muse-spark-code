@@ -2,6 +2,7 @@ import * as z from 'zod/mini'
 import { SECONDS_PER_MINUTE } from '../../../shared/constants'
 import { payloadDigest } from '../deviceLog'
 import { pointSchema } from '../gcode/limits'
+import { canonicalGcodeCommand } from '../gcode/tokenizer'
 import { type MachineRecord } from '../registry'
 import { type MachineHttp } from './http'
 import { protectMachine, type Machine, type MachineDeps, type MachineStatus } from './machine'
@@ -16,6 +17,7 @@ const reportSchema = z.object({
       webhooks: z.object({ state: z.string() }),
       print_stats: z.object({ state: z.string() }),
       toolhead: z.object({
+        extruder: z.string(),
         axis_minimum: positionSchema,
         axis_maximum: positionSchema,
         position: positionSchema,
@@ -92,14 +94,14 @@ export function createMoonrakerMachine(
           JSON.stringify(position) === JSON.stringify(xyz(move.position)) &&
           JSON.stringify(position) === JSON.stringify(xyz(toolhead.position)) &&
           move.speed_factor === 1
-        const extruder = heater.safeParse(settings['extruder'])
+        const extruder = heater.safeParse(settings[toolhead.extruder])
         const bed = heater.safeParse(settings['heater_bed'])
         let state = report.print_stats.state
         if (info.state !== 'ready') state = info.state
         else if (report.webhooks.state !== 'ready') state = report.webhooks.state
         else if (['standby', 'complete', 'cancelled', 'error'].includes(state)) state = 'ready'
         return {
-          identity: `${info.hostname}/${info.software_version}/${payloadDigest(JSON.stringify(settings))}`,
+          identity: `${info.hostname}/${info.software_version}/${toolhead.extruder}/${payloadDigest(JSON.stringify(settings))}`,
           state,
           isHomed: AXES.every((axis) => toolhead.homed_axes.includes(axis)),
           limits: {
@@ -123,21 +125,22 @@ export function createMoonrakerMachine(
             ...(extruder.success && { extruder: extruder.data.max_temp - 1 }),
             ...(bed.success && { bed: bed.data.max_temp - 1 }),
           },
-          gcode: isUntransformed
-            ? {
-                position,
-                absolute: move.absolute_coordinates,
-                unit: 'mm',
-                feedMmMin: move.speed * SECONDS_PER_MINUTE,
-              }
-            : undefined,
+          gcode:
+            isUntransformed && extruder.success
+              ? {
+                  position,
+                  absolute: move.absolute_coordinates,
+                  unit: 'mm',
+                  feedMmMin: move.speed * SECONDS_PER_MINUTE,
+                }
+              : undefined,
           blockedCommands: Object.keys(settings)
             .filter((key) => key.startsWith('gcode_macro '))
-            .map((key) => key.slice('gcode_macro '.length).toUpperCase()),
+            .map((key) => canonicalGcodeCommand(key.slice('gcode_macro '.length))),
           warnings: [],
         }
       },
-      async send(payload, signal) {
+      async send(payload, signal, beforeWrite) {
         active = new AbortController()
         try {
           okay.parse(
@@ -146,6 +149,7 @@ export function createMoonrakerMachine(
               '/printer/gcode/script',
               { script: payload },
               AbortSignal.any([signal, active.signal]),
+              beforeWrite,
             ),
           )
         } finally {

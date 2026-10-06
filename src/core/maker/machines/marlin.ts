@@ -29,9 +29,7 @@ export function createMarlinMachine(
     {
       statusPayload: 'M115\nM503\n',
       dialect: 'marlin',
-      preparePayload(input) {
-        return input.endsWith('\n') ? input : `${input}\n`
-      },
+      payloadTerminator: '\n',
       stopPayload: 'M112\n',
       async status(signal) {
         const info = z.string().parse(await port.request('M115', signal))
@@ -55,8 +53,8 @@ export function createMarlinMachine(
           warnings: hasEmergencyParser ? [] : ['physicalStopRequired'],
         }
       },
-      async send(payload, signal) {
-        await port.send(Buffer.from(payload.endsWith('\n') ? payload : `${payload}\n`), signal)
+      async send(payload, signal, beforeWrite) {
+        await port.send(Buffer.from(payload), signal, beforeWrite)
       },
       async stop(signal) {
         await port.realtime(Buffer.from('M112\n'), signal)

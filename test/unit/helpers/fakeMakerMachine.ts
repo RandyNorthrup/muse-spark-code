@@ -18,6 +18,7 @@ export function moonrakerFrame() {
         webhooks: { state: 'ready' },
         print_stats: { state: 'standby' },
         toolhead: {
+          extruder: 'extruder',
           axis_minimum: [0, 0, 0, 0],
           axis_maximum: [200, 200, 200, 0],
           position: [10, 10, 10, 0],

@@ -1,12 +1,19 @@
 import { withMakerDeadline } from './deadline'
 import { performance } from 'node:perf_hooks'
+import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
 import { payloadDigest, type DeviceLogPort } from '../deviceLog'
 import { analyseGcode, type GcodeAnalysis, type GcodeState } from '../gcode/analyser'
 import { type GcodeDialect } from '../gcode/dialects'
 import { checkGcodeLimits, effectiveLimits, type MachineLimits } from '../gcode/limits'
-import { tokenizeGcode, type GcodePolicy } from '../gcode/tokenizer'
+import {
+  canonicalGcodeCommand,
+  GcodeError,
+  serializeGcode,
+  tokenizeGcode,
+  type GcodePolicy,
+} from '../gcode/tokenizer'
 import { MachineError, machineRecordSchema, type MachineRecord } from '../registry'
 
 export type MachineWarning = 'physicalStopRequired' | 'startupMotion' | 'limitsUnavailable'
@@ -72,9 +79,11 @@ export interface MachineDriver {
   readonly dialect: GcodeDialect
   readonly stopPayload: string | Uint8Array
   readonly statusPayload: string
-  preparePayload?(input: string): string
+  readonly payloadTerminator?: '\n'
   status(signal: AbortSignal): Promise<MachineStatus>
-  send(payload: string, signal: AbortSignal): Promise<void>
+  /** Resolve transport inputs, then read state; invoke the returned guard
+   * synchronously at the write, including after any transport queue. */
+  send(payload: string, signal: AbortSignal, beforeWrite: () => Promise<() => void>): Promise<void>
   stop(signal: AbortSignal): Promise<readonly MachineWarning[]>
   cancel(): void
 }
@@ -98,20 +107,18 @@ export function protectMachine(
       throw new MachineError('hardwareDisabled')
   }
   const read = async (): Promise<MachineStatus> => {
-    const status = await withMakerDeadline(
-      (signal) => driver.status(signal),
-      deps.policy.requestDeadlineMs,
-    )
+    // Persist the observation intent before reading, so log/secret awaits
+    // cannot age the final status snapshot used at the write.
     await withMakerDeadline(async () => {
       await deps.log.append({
         machine: record.id,
         action: 'observe',
         payload: driver.statusPayload,
         approval: null,
-        outcome: 'sent',
+        outcome: 'attempt',
       })
     }, deps.policy.requestDeadlineMs)
-    return status
+    return await withMakerDeadline((signal) => driver.status(signal), deps.policy.requestDeadlineMs)
   }
   const audit = async (
     payload: string,
@@ -145,17 +152,26 @@ export function protectMachine(
     },
     async status() {
       access()
+      if (record.credentialPendingRemoval) throw new MachineError('credentialPendingRemoval')
       if (!deps.host.isInteractive() && ['grbl', 'fluidnc', 'marlin'].includes(record.kind))
         throw new MachineError('unattendedHardware')
       return await read()
     },
     async send(input) {
-      const payload = driver.preparePayload?.(input) ?? input
       access()
+      if (record.credentialPendingRemoval) throw new MachineError('credentialPendingRemoval')
       if (!deps.host.isInteractive()) throw new MachineError('unattendedHardware')
       if (record.category !== 'printer' || ['grbl', 'fluidnc', 'prusalink'].includes(record.kind))
         throw new MachineError('readOnlyMachine')
       if (isSending || !deps.isLeaseHeld()) throw new MachineError('machineBusy')
+      const blocks = tokenizeGcode(input, deps.policy.gcode)
+      const canonical = serializeGcode(blocks)
+      const payload = `${canonical}${driver.payloadTerminator ?? ''}`
+      if (
+        Buffer.byteLength(payload) > deps.policy.gcode.maxBytes ||
+        payload.split('\n').length > deps.policy.gcode.maxLines
+      )
+        throw new GcodeError('payloadSize')
       isSending = true
       const started = generation
       let approval: string | null = null
@@ -171,10 +187,12 @@ export function protectMachine(
           if (!['ready', 'idle', 'operational'].includes(status.state))
             throw new MachineError('machineBusy')
           if (status.gcode === undefined) throw new MachineError('unknownState')
-          const blocks = tokenizeGcode(payload, deps.policy.gcode)
-          if (blocks.some((block) => status.blockedCommands.includes(block.command)))
+          const blocked = new Set(
+            status.blockedCommands.map((command) => canonicalGcodeCommand(command)),
+          )
+          if (blocks.some((block) => blocked.has(block.command)))
             throw new MachineError('unknownEffects')
-          const analysis = analyseGcode(payload, driver.dialect, status.gcode, deps.policy.gcode)
+          const analysis = analyseGcode(blocks, driver.dialect, status.gcode, deps.policy.gcode)
           const failure = checkGcodeLimits(
             analysis,
             effectiveLimits(status.limits, record.limits),
@@ -220,12 +238,6 @@ export function protectMachine(
           if (hasExpired()) throw new MachineError('approvalRejected')
           approval = request.id
           await audit(payload, 'attempt', approval)
-          const current = await read()
-          if (fingerprint(current) !== fingerprint(status)) {
-            await audit(payload, 'failed', approval)
-            approval = null
-            continue
-          }
           if (!deps.host.isInteractive()) throw new MachineError('unattendedHardware')
           // Stop/revocation while persisting the intent must prevent dispatch.
           access()
@@ -236,9 +248,28 @@ export function protectMachine(
           active.add(controller)
           try {
             await withMakerDeadline(
-              (signal) => driver.send(payload, AbortSignal.any([signal, controller.signal])),
+              (signal) =>
+                driver.send(payload, AbortSignal.any([signal, controller.signal]), async () => {
+                  const latest = await read()
+                  return () => {
+                    signal.throwIfAborted()
+                    access()
+                    if (!deps.host.isInteractive()) throw new MachineError('unattendedHardware')
+                    if (!deps.isLeaseHeld()) throw new MachineError('machineBusy')
+                    if (generation !== started) throw new MachineError('machineStopped')
+                    if (hasExpired()) throw new MachineError('approvalRejected')
+                    if (fingerprint(latest) !== fingerprint(status))
+                      throw new MachineError('machineStateChanged')
+                  }
+                }),
               deps.policy.requestDeadlineMs,
             )
+          } catch (error) {
+            if (!(error instanceof MachineError) || error.code !== 'machineStateChanged')
+              throw error
+            await audit(payload, 'failed', approval)
+            approval = null
+            continue
           } finally {
             active.delete(controller)
           }

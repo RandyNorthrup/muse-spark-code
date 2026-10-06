@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { analyseGcode, type GcodeState } from '../../src/core/maker/gcode/analyser'
 import { gcodeClass } from '../../src/core/maker/gcode/dialects'
 import { checkGcodeLimits, effectiveLimits, limitsSchema } from '../../src/core/maker/gcode/limits'
-import { tokenizeGcode } from '../../src/core/maker/gcode/tokenizer'
+import {
+  canonicalGcodeCommand,
+  serializeGcode,
+  tokenizeGcode,
+} from '../../src/core/maker/gcode/tokenizer'
 
 const policy = { maxBytes: 4096, maxLines: 30, mmPerInch: 25.4 }
 const initial: GcodeState = {
@@ -16,6 +20,21 @@ const initial: GcodeState = {
 const analyse = (script: string) => analyseGcode(script, 'klipper', initial, policy)
 
 describe('maker G-code tokenizer and dialects', () => {
+  it('serializes the canonical stream and uses it directly for analysis', () => {
+    const blocks = tokenizeGcode(
+      ' (ignored) g0001x+001.50 y-00 F0600 ; ignored\r\n\tm00104 S0200\n',
+      policy,
+    )
+    expect(serializeGcode(blocks)).toBe('G1 X1.5 Y0 F600\nM104 S200')
+    expect(analyseGcode(blocks, 'klipper', initial, policy)).toEqual(
+      analyse(serializeGcode(blocks)),
+    )
+    expect(canonicalGcodeCommand(' m00104 ')).toBe('M104')
+  })
+  it('refuses exponent-form serialization and opaque macro arguments', () => {
+    for (const payload of ['G1 X0.00000001', 'G1 X' + '9'.repeat(22), 'CUSTOM X=1'])
+      expect(() => serializeGcode(tokenizeGcode(payload, policy))).toThrow('syntax')
+  })
   it('retains exact lines while removing comments from analysis', () => {
     const blocks = tokenizeGcode('G01X12.5Y-2 (ignored M500); text\nM105\r\n', policy)
     expect(blocks).toMatchObject([

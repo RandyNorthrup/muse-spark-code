@@ -15602,6 +15602,15 @@ lane A's first step.
 
 ## 7. Gates
 
+**FIXM103M (2026-10-05, Kubuntu).** The rig brief prohibits full quality and
+full-suite runs and assigns integration gates to the lead. This fix lane
+runs its four owning test files, red drills and required static/build checks
+directly on the rig. The existing generated Node import inventory is stale;
+lane W owns regeneration after combining Maker lanes. Full quality,
+coverage, installed-editor/surface acceptance and simulator MCU success
+remain unclaimed. No rule, threshold, budget or ignore is weakened. Receipts
+and named residuals are in `docs/certification/m103-m.md` and §9.
+
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
 120 minutes. No cap, threshold, skip or user-facing feature may be weakened.

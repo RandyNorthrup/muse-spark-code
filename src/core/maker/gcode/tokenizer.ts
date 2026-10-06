@@ -22,6 +22,33 @@ export class GcodeError extends Error {
   }
 }
 
+/** Command names from the wire and config use the tokenizer's same spelling. */
+export function canonicalGcodeCommand(command: string): string {
+  return command
+    .trim()
+    .toUpperCase()
+    .replace(/^([GMT])0+(?=\d)/, '$1')
+}
+
+/** Only bounded numeric words and argument-free commands can be dispatched. */
+export function serializeGcode(blocks: readonly GcodeBlock[]): string {
+  return blocks
+    .map((block) => {
+      if (block.isMacro && block.hasArguments) throw new GcodeError('syntax')
+      return [
+        block.command,
+        ...Object.entries(block.parameters).map(([letter, value]) => {
+          // Number.toString may use exponent notation, which firmware can read
+          // as another word. Refuse instead of changing the parsed value.
+          const number = String(value)
+          if (!/^-?\d+(?:\.\d+)?$/.test(number)) throw new GcodeError('syntax')
+          return `${letter}${number}`
+        }),
+      ].join(' ')
+    })
+    .join('\n')
+}
+
 /** Comments never carry commands; nested/unclosed comments are rejected. */
 function uncomment(line: string): string {
   let isInside = false
@@ -64,7 +91,7 @@ export function tokenizeGcode(payload: string, policy: GcodePolicy): readonly Gc
         text,
       )
     if (head === null) throw new GcodeError('syntax')
-    const command = head[0].toUpperCase().replace(/^([GMT])0+(?=\d)/, '$1')
+    const command = canonicalGcodeCommand(head[0])
     const isMacro = !/^[GMT]\d+(?:\.\d+)?$/.test(command)
     const tail = text.slice(head[0].length).trim()
     const parameters: Record<string, number> = {}

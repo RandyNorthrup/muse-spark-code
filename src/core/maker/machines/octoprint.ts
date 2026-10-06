@@ -7,6 +7,8 @@ import { protectMachine, type Machine, type MachineDeps } from './machine'
 
 /** A host-owned firmware telemetry reader. REST's operational flag is not homing. */
 export interface PrinterTelemetry {
+  /** Identity includes the active tool/heater selection; limits apply to
+   * that selection. Unknown selection returns gcode: undefined. */
   read(signal: AbortSignal): Promise<{
     readonly identity: string
     readonly state: string
@@ -71,7 +73,7 @@ export function createOctoprintMachine(
           warnings: firmware === undefined ? ['limitsUnavailable'] : [],
         }
       },
-      async send(payload, signal) {
+      async send(payload, signal, beforeWrite) {
         active = new AbortController()
         try {
           nullReply.parse(
@@ -80,6 +82,7 @@ export function createOctoprintMachine(
               '/api/printer/command',
               { commands: payload.split('\n') },
               AbortSignal.any([signal, active.signal]),
+              beforeWrite,
             ),
           )
         } finally {

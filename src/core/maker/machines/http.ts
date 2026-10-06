@@ -51,8 +51,9 @@ export class MachineHttp {
     path: string,
     body?: unknown,
     signal?: AbortSignal,
+    beforeWrite?: () => Promise<() => void>,
   ): Promise<unknown> {
-    const reply = await this.request(method, path, body, signal)
+    const reply = await this.request(method, path, body, signal, beforeWrite)
     return reply.body
   }
   async request(
@@ -60,6 +61,7 @@ export class MachineHttp {
     path: string,
     body?: unknown,
     signal?: AbortSignal,
+    beforeWrite?: () => Promise<() => void>,
   ): Promise<HttpReply> {
     if (
       !path.startsWith('/') ||
@@ -79,7 +81,12 @@ export class MachineHttp {
       const request = target.url.protocol === 'https:' ? httpsRequest : httpRequest
       const deadline = AbortSignal.timeout(this.policy.timeoutMs)
       const cancellation = signal === undefined ? deadline : AbortSignal.any([deadline, signal])
+      const check = await beforeWrite?.()
       return await new Promise<HttpReply>((resolve, reject) => {
+        // DNS, SecretStorage and the last status read have settled. Creating
+        // a ClientRequest may already open a socket: guard before creation.
+        cancellation.throwIfAborted()
+        check?.()
         const outgoing = request(
           {
             protocol: target.url.protocol,

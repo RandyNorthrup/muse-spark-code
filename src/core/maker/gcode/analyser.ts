@@ -1,5 +1,5 @@
 import { gcodeClass, type GcodeClass, type GcodeDialect } from './dialects'
-import { tokenizeGcode, type GcodePolicy } from './tokenizer'
+import { tokenizeGcode, type GcodeBlock, type GcodePolicy } from './tokenizer'
 
 export interface Point {
   readonly x: number
@@ -51,12 +51,12 @@ function include(bounds: Bounds | undefined, next: Point): Bounds {
  * unknown effects and cannot be sent. This is an analyser, not a firmware emulator.
  */
 export function analyseGcode(
-  payload: string,
+  payload: string | readonly GcodeBlock[],
   dialect: GcodeDialect,
   initial: GcodeState,
   policy: GcodePolicy,
 ): GcodeAnalysis {
-  const blocks = tokenizeGcode(payload, policy)
+  const blocks = typeof payload === 'string' ? tokenizeGcode(payload, policy) : payload
   let position = initial.position
   let isAbsolute = initial.absolute
   let scale = initial.unit === 'mm' ? 1 : policy.mmPerInch
