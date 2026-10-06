@@ -109,25 +109,28 @@ export class AccountConfirmations {
 
   /** Stored data is untrusted and has no authority outside this exact machine/row. */
   public async read(row: AccountPolicy): Promise<AccountPolicyGrant | undefined> {
-    const key = this.key(row)
+    const snapshot = structuredClone(row)
+    const key = this.key(snapshot)
     if (this.revoked.has(key)) return
     const generation = this.generations.get(key) ?? 0
-    const parsed = storedSchema.safeParse(await this.deps.store.read(row.provider, row.product))
+    const parsed = storedSchema.safeParse(
+      await this.deps.store.read(snapshot.provider, snapshot.product),
+    )
     if (!parsed.success || this.revoked.has(key) || generation !== (this.generations.get(key) ?? 0))
       return
     const { confirmation, policyDigest } = parsed.data
     if (
       confirmation.machineId !== this.deps.machineId ||
-      confirmation.provider !== row.provider ||
-      confirmation.product !== row.product ||
-      confirmation.recordVersion !== row.recordVersion ||
-      confirmation.recordCheckedAt !== row.checkedAt ||
+      confirmation.provider !== snapshot.provider ||
+      confirmation.product !== snapshot.product ||
+      confirmation.recordVersion !== snapshot.recordVersion ||
+      confirmation.recordCheckedAt !== snapshot.checkedAt ||
       Date.parse(confirmation.answeredAt) > this.deps.now() ||
       !Number.isFinite(this.deps.now()) ||
-      policyDigest !== digest(row)
+      policyDigest !== digest(snapshot)
     )
       return
-    return this.grant(row, confirmation.choice)
+    return this.grant(snapshot, confirmation.choice)
   }
 
   /** Headless reads only; interactive concurrent admissions share one question. */
@@ -135,12 +138,13 @@ export class AccountConfirmations {
     row: AccountPolicy,
     isInteractive: boolean,
   ): Promise<AccountPolicyGrant | undefined> {
-    const existing = await this.read(row)
+    const snapshot = structuredClone(row)
+    const existing = await this.read(snapshot)
     if (existing !== undefined || !isInteractive) return existing
-    const key = digest(row)
+    const key = digest(snapshot)
     const pending = this.pending.get(key)
     if (pending !== undefined) return await pending
-    const decision = this.decide(row)
+    const decision = this.decide(snapshot)
     this.pending.set(key, decision)
     try {
       return await decision

@@ -98,19 +98,28 @@ describe('M108 vendor account policy gate', () => {
     expect(own.kind === 'allow' && own.isCurrent(t.policy())).toBe(false)
   })
 
-  it('refuses unknown rows and changed rows while a question is open', async () => {
+  it('refuses unknown policy rows', async () => {
     const t = policyRig()
     expect(
       await t.gate.authorize({ policy: () => undefined, trigger: cap, isInteractive: true }),
     ).toEqual({ kind: 'stop', reason: 'notOffered' })
-    t.ask.mockImplementation(() => {
-      t.change({ recordVersion: 'changed' })
-      return Promise.resolve('confirm')
-    })
-    expect(
-      await t.gate.authorize({ policy: t.policy, trigger: vendor, isInteractive: true }),
-    ).toEqual({ kind: 'stop', reason: 'confirmation' })
   })
+
+  it.each(['replacement', 'in place'])(
+    'refuses a policy changed %s while its question is open',
+    async (mode) => {
+      const t = policyRig()
+      t.change({ sources: structuredClone(t.policy().sources) })
+      t.ask.mockImplementation(() => {
+        if (mode === 'replacement') t.change({ recordVersion: 'changed' })
+        else t.policy().sources[0]!.quote = 'changed in place'
+        return Promise.resolve('confirm')
+      })
+      expect(
+        await t.gate.authorize({ policy: t.policy, trigger: vendor, isInteractive: true }),
+      ).toEqual({ kind: 'stop', reason: 'confirmation' })
+    },
+  )
 
   it('quotes the recorded sources and dates with the translated warning and three answers', () => {
     const t = policyRig()
