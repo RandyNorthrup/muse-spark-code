@@ -979,7 +979,7 @@ describe('Transcript rows (M25)', () => {
 })
 
 describe('Transcript replies (M25)', () => {
-  it('shows a fence still streaming as plain text, and highlights it once closed', () => {
+  it('shows a fence still streaming as plain text, and highlights it once closed', async () => {
     const streaming = '```ts\nconst a = 1'
     const view = mountTranscript([
       { kind: 'assistant', id: 'a', text: streaming, isStreaming: true },
@@ -990,7 +990,7 @@ describe('Transcript replies (M25)', () => {
     view.rerender({
       entries: [{ kind: 'assistant', id: 'a', text: `${streaming}\n\`\`\``, isStreaming: false }],
     })
-    expect(document.querySelector('.hljs-keyword')).not.toBeNull()
+    await screen.findByText('const', { selector: '.hljs-keyword' })
   })
 
   it('opens a relative link as a workspace file and refuses one outside it', () => {

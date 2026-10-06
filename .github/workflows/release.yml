@@ -477,6 +477,8 @@ jobs:
           node-version: 22
       - run: npm ci --ignore-scripts --no-audit
       - name: refresh README badges
+        # URLs come from README.md, including Markdown and the GitHub CI badge.
+        # Each badge is fetched before the repository page's camo copies purge.
         run: node scripts/refresh-badges.mjs
       - name: report refresh setup failure
         if: failure()

@@ -11,7 +11,7 @@ import { mkdtemp } from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { windowsPowerShellModulePath } from '../../src/core/backends/musecode/launch'
 import { newShellJob, shellJobAssembly } from '../../src/host/backend/shellJob'
 import { shellArguments } from '../../src/host/backend/toolIo'
@@ -19,12 +19,17 @@ import {
   killTree,
   parseProcessTable,
   type RunProgram,
+  runProgram,
   sweepExitedTree,
   type TreeRoot,
   treeSpawnOptions,
   windowsPowerShell,
 } from '../../src/host/processTree'
-import { ORPHAN_SWEEP_ROUNDS } from '../../src/shared/constants'
+import {
+  ORPHAN_SWEEP_ROUNDS,
+  POSIX_TREE_EXIT_POLL_MS,
+  POSIX_TREE_EXIT_WAIT_MS,
+} from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
 import { readJobSource } from './helpers/jobSource'
 
@@ -320,6 +325,107 @@ class FakeShell extends EventEmitter implements TreeRoot {
     this.emit('exit')
   }
 }
+
+function posixCleanup(
+  platform: NodeJS.Platform,
+  run: RunProgram = () => Promise.resolve('100 S\n'),
+) {
+  const logged: string[] = []
+  const pending = killTree(
+    new FakeShell(100),
+    {
+      platform,
+      systemRoot: undefined,
+      run,
+      log: (message) => {
+        logged.push(message)
+      },
+    },
+    Date.now(),
+  )
+  return { pending, logged }
+}
+
+describe('POSIX group exit after SIGKILL (CIFIX14T)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  it.each(['darwin', 'linux'] as const)('waits until the %s group disappears', async (platform) => {
+    vi.useFakeTimers()
+    let isPresent = true
+    let isSettled = false
+    vi.spyOn(process, 'kill').mockImplementation((_pid, signal) => {
+      if (signal === 0 && !isPresent) throw Object.assign(new Error('gone'), { code: 'ESRCH' })
+      return true
+    })
+    const world = posixCleanup(platform)
+    const pending = (async () => {
+      await world.pending
+      isSettled = true
+    })()
+    await vi.advanceTimersByTimeAsync(POSIX_TREE_EXIT_POLL_MS)
+    expect(isSettled).toBe(false)
+    isPresent = false
+    await vi.advanceTimersByTimeAsync(POSIX_TREE_EXIT_POLL_MS)
+    await pending
+    expect(isSettled).toBe(true)
+    expect(world.logged).toEqual([])
+  })
+
+  it.each(['darwin', 'linux'] as const)(
+    'bounds a stuck %s group and signals it again',
+    async (platform) => {
+      vi.useFakeTimers()
+      const kill = vi.spyOn(process, 'kill').mockReturnValue(true)
+      const world = posixCleanup(platform)
+      await vi.advanceTimersByTimeAsync(POSIX_TREE_EXIT_WAIT_MS)
+      await world.pending
+      expect(kill.mock.calls.filter(([, signal]) => signal === 'SIGKILL')).toEqual([
+        [-100, 'SIGKILL'],
+        [-100, 'SIGKILL'],
+      ])
+      expect(world.logged).toEqual([
+        'process group 100 was still present 2000 ms after SIGKILL; signalled it again',
+      ])
+    },
+  )
+
+  it('treats only Linux zombies in the target group as exited', async () => {
+    vi.spyOn(process, 'kill').mockReturnValue(true)
+    const run = vi.fn<RunProgram>().mockResolvedValue('200 S\n 100 Z\n100 Z+\n')
+    const world = posixCleanup('linux', run)
+    await world.pending
+    expect(run).toHaveBeenCalledWith('/bin/ps', ['-eo', 'pgid=,stat='], {}, expect.any(Number))
+    expect(run.mock.calls[0]?.[3]).toBeGreaterThan(0)
+    expect(run.mock.calls[0]?.[3]).toBeLessThanOrEqual(POSIX_TREE_EXIT_WAIT_MS)
+    expect(world.logged).toEqual([])
+  })
+
+  it('bounds the state reader by the remaining deadline', async () => {
+    const started = Date.now()
+    await expect(
+      runProgram(
+        process.execPath,
+        ['-e', 'setInterval(() => {}, 1000)'],
+        {},
+        POSIX_TREE_EXIT_POLL_MS,
+      ),
+    ).rejects.toThrow()
+    expect(Date.now() - started).toBeLessThan(POSIX_TREE_EXIT_WAIT_MS)
+  })
+
+  it('reports a failed Linux state read and sends the final signal', async () => {
+    const kill = vi.spyOn(process, 'kill').mockReturnValue(true)
+    const world = posixCleanup('linux', () => Promise.reject(new Error('ps failed')))
+    await world.pending
+    expect(kill.mock.calls.filter(([, signal]) => signal === 'SIGKILL')).toHaveLength(2)
+    expect(world.logged).toEqual([
+      'process group 100 exit could not be confirmed: Error: ps failed',
+    ])
+  })
+})
 
 // FILETIME: 100 ns ticks since 1601-01-01 UTC, as the process table prints it.
 function fileTime(ms: number): string {

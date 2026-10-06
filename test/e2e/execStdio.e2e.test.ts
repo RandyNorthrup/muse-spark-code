@@ -112,6 +112,12 @@ function packagingFixture() {
     path.join(dir, 'scripts', 'third-party-notices.mjs'),
     'import {writeFileSync} from "node:fs"; writeFileSync(process.argv.at(-1), "test fixture notices");',
   )
+  // The badge check has its own suite (checkBadges.test.mjs) and the fixture's
+  // landing page carries no badges: a test-owned renderer and a no-op check.
+  writeFileSync(
+    path.join(dir, 'scripts', 'check-badges.mjs'),
+    'export const renderPackageReadme = (markdown) => markdown\n',
+  )
   writeFileSync(
     path.join(dir, 'package.json'),
     JSON.stringify({

@@ -254,42 +254,46 @@ unchanged. Verify exact
 round-trip values, loading/retry/localization and client dispatch, drill these
 properties, and retain all existing caps. No new artifact or dependency.
 
-| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                                                                                                                        |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dist/conversation.js`     | ≤ 250 KiB (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                         |
-| `dist/tab.js`              | ≤ 75 KiB (M94: first request/menu; status/provider registration stays eager)                                                                                                                                                                                                                                                                                                                           |
-| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
-| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)                                                                                              |
-| `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                                                                        |
-| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                                                                                                                                                                                                               |
-| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                                                                             |
-| `dist/webview/main.js`     | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                                                                                                                                                                                                          |
-| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
-| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
-| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
-| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
-| `dist/uiText.js`           | ≤ 125 KiB (original cap retained; ACTDIET regional core 116,791 bytes)                                                                                                                                                                                                                                                                                                                                 |
-| `dist/wire.js`             | ≤ 50 KiB (TRAIN14B: shared existing Node protocol and agent-event schemas; 41,370 bytes plus 15%, rounded to 25 KiB; browser and integration parsers stay inline)                                                                                                                                                                                                                                      |
-| `dist/uiTextRuntime.js`    | ≤ 25 KiB (ACTDIET: ACP/headless English, 8,338 bytes plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                      |
-| `dist/uiTextHooks.js`      | ≤ 25 KiB (ACTDIET: hooks/import English, 12,176 bytes by the same rule)                                                                                                                                                                                                                                                                                                                                |
-| `dist/uiTextSurfaces.js`   | ≤ 25 KiB (ACTDIET: Tab/report/What's New English, 5,893 bytes by the same rule)                                                                                                                                                                                                                                                                                                                        |
-| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                        |
-| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                      |
-| `dist/foreignHooks.js`     | ≤ 100 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract, 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`; 2026-10-05 on 0.13.0's shared `dist/validation.js`: 65.4 KiB, plus 15%, rounded up to 25 KiB) |
-| `dist/hookRuntime.js`      | ≤ 50 KiB (M91: the hook and MCP-form runtime, lane E's spark-hooks.json reader and dispatcher, lane H's typed handlers and lane M's form checks, moved out of `dist/modelApi.js` and loaded when a spark-hooks.json exists, a typed handler runs or a server asks for a form; 67.1 KiB when split out, 41.7 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)  |
-| `dist/pluginHooks.js`      | ≤ 50 KiB (M91b: the Amp and OpenCode plugin host, loaded on the first plugin hook; 51.6 KiB when split out, 33.8 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)                                                                                                                                                                                             |
-| `dist/agentImport.js`      | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; M91 lane I's readers for every agent's hooks: 147.7 KiB on 2026-10-04, 108.1 KiB on 0.13.0's shared `dist/validation.js` on 2026-10-05, within the unchanged budget)                                                                                                                            |
-| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                             |
-| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                  |
-| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                    |
-| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                  |
-| `dist/extensionHooks.js`   | ≤ 75 KiB (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
-| `dist/browserCheck.js`     | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                         |
-| `dist/browserRuntime.js`   | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                 |
-| `dist/whatsNew.js`         | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                               |
-| `dist/whatsNew.json`       | ≤ 40 KiB on-disk JSON, independent of ZIP compression; bounded lossless envelope with 75 KiB decoded maximum (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                                                                                                               |
-| `dist/webview/whatsNew.js` | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
-| `dist/tab.js`              | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                                                                                                                                                                                                         |
+| Artifact                              | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dist/conversation.js`                | ≤ 250 KiB (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                         |
+| `dist/tab.js`                         | ≤ 75 KiB (M94: first request/menu; status/provider registration stays eager)                                                                                                                                                                                                                                                                                                                           |
+| `dist/extension.js`                   | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
+| `dist/modelApi.js`                    | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)                                                                                              |
+| `dist/review.js`                      | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                                                                        |
+| `dist/searchWorker.js`                | ≤ 50 KiB                                                                                                                                                                                                                                                                                                                                                                                               |
+| `dist/pageWorker.js`                  | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                                                                             |
+| `dist/webview/main.js`                | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                                                                                                                                                                                                          |
+| Webview original deferred surfaces    | ≤ 50 KiB aggregate for the original seven surfaces and unclassified/shared deferred helpers (TRAIN13B; unchanged in STARTDIET)                                                                                                                                                                                                                                                                         |
+| Webview highlighting import closure   | ≤ 125 KiB (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                         |
+| Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
+| Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
+| `.vsix`                               | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
+| `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
+| `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
+| `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
+| `dist/uiText.js`                      | ≤ 125 KiB (original cap retained; ACTDIET regional core 116,791 bytes)                                                                                                                                                                                                                                                                                                                                 |
+| `dist/wire.js`                        | ≤ 50 KiB (TRAIN14B: shared existing Node protocol and agent-event schemas; 41,370 bytes plus 15%, rounded to 25 KiB; browser and integration parsers stay inline)                                                                                                                                                                                                                                      |
+| `dist/uiTextRuntime.js`               | ≤ 25 KiB (ACTDIET: ACP/headless English, 8,338 bytes plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                      |
+| `dist/uiTextHooks.js`                 | ≤ 25 KiB (ACTDIET: hooks/import English, 12,176 bytes by the same rule)                                                                                                                                                                                                                                                                                                                                |
+| `dist/uiTextSurfaces.js`              | ≤ 25 KiB (ACTDIET: Tab/report/What's New English, 5,893 bytes by the same rule)                                                                                                                                                                                                                                                                                                                        |
+| `dist/sessionBoard.js`                | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                        |
+| `dist/reviewer.js`                    | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                      |
+| `dist/foreignHooks.js`                | ≤ 100 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract, 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`; 2026-10-05 on 0.13.0's shared `dist/validation.js`: 65.4 KiB, plus 15%, rounded up to 25 KiB) |
+| `dist/hookRuntime.js`                 | ≤ 50 KiB (M91: the hook and MCP-form runtime, lane E's spark-hooks.json reader and dispatcher, lane H's typed handlers and lane M's form checks, moved out of `dist/modelApi.js` and loaded when a spark-hooks.json exists, a typed handler runs or a server asks for a form; 67.1 KiB when split out, 41.7 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)  |
+| `dist/pluginHooks.js`                 | ≤ 50 KiB (M91b: the Amp and OpenCode plugin host, loaded on the first plugin hook; 51.6 KiB when split out, 33.8 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)                                                                                                                                                                                             |
+| `dist/agentImport.js`                 | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; M91 lane I's readers for every agent's hooks: 147.7 KiB on 2026-10-04, 108.1 KiB on 0.13.0's shared `dist/validation.js` on 2026-10-05, within the unchanged budget)                                                                                                                            |
+| `dist/bundledSkills.js`               | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                             |
+| `dist/codeIntel.js`                   | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                  |
+| `dist/voice.js`                       | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                    |
+| `dist/museCodeReviewer.js`            | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                  |
+| `dist/extensionHooks.js`              | ≤ 75 KiB (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
+| `dist/browserCheck.js`                | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                         |
+| `dist/browserRuntime.js`              | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                 |
+| `dist/whatsNew.js`                    | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                               |
+| `dist/whatsNew.json`                  | ≤ 40 KiB on-disk JSON, independent of ZIP compression; bounded lossless envelope with 75 KiB decoded maximum (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                                                                                                               |
+| `dist/webview/whatsNew.js`            | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
+| `dist/tab.js`                         | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                                                                                                                                                                                                         |
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
@@ -297,13 +301,27 @@ the existing rule). Browser/integration parsers stay inline. All Node
 consumers, including ACP and workers, ship it beside their bundles; the
 split and host-global gates enforce separation and API completeness.
 The optional chat surfaces use ESM chunks under dist/webview/chunks; ACTDIET
-adds the report dialog; this train keeps Share and Session Board eager to
-fit both unchanged aggregate caps. Browser English remains fully inline through
+adds the report dialog; TRAIN14 kept Share and Session Board eager to
+fit both unchanged aggregate caps (STARTDIET supersedes their placement below). Browser English remains fully inline through
 a lossless synchronous fragment dictionary.
 The unchanged 900 KiB startup cap includes every transitively eager chunk;
-optional JavaScript has a new 50 KiB total cap (38.6 KiB measured plus
+the original optional surfaces retain their 50 KiB total cap (38.6 KiB measured plus
 15%, rounded by D6). Chunk reachability, lazy placement and packaging are
 guarded; stale chunks are cleared before a build. Existing caps are unchanged.
+
+**STARTDIET (2026-10-05).** Highlighting loads only for a closed supported
+fence, with plain React-escaped code and all actions rendered immediately.
+Its static import closure has a new **125 KiB** cap (93.1 KiB measured plus
+15%, rounded to 25 KiB). The original deferred surfaces retain their aggregate
+50 KiB cap, including any helpers they share with a new closure; unclassified
+deferred JavaScript is charged there too. Startup remains capped at 900 KiB.
+The four remaining action dialogs (Share, Session Board, handoff, secret prompt)
+share a new **25 KiB** import-closure cap (11.2 KiB at first split; plus 15%,
+rounded to 25 KiB), and the separate Tasks surface has a **25 KiB** cap (1.4 KiB
+by the same rule). The command palette reuses its list/dismissal shell with
+History/Session Board, removing duplicate markup/handlers while keeping that
+small shared shell eager so the original deferred cap holds.
+
 | `dist/conversationGit.js` | ≤ 150 KiB (M71: the Git adapter and the window's git and pull request features; measured 127.4 KiB plus 15%, rounded up to 25 KiB) |
 
 M98 adds `dist/judge.js` at **100 KiB**, measured at 77.7 KiB on Kubuntu,
@@ -11564,6 +11582,42 @@ initial filing of the issue".
       orchestrator's Agent map, with its stage and what it waits for, and a
       row in `/report issues` (D93); those waiting on the owner come first.
 
+### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
+
+The VS Code Model API shell inherited credential variables from the extension
+host and terminal overrides. The shared, case-insensitive credential-name
+matcher now fences shell commands, verification/`then_run`, background and
+scheduled runs, child/team workers, hooks/plugins, Git and native helpers.
+MCP stdio servers keep their narrow host projection and their explicitly
+configured `env`; browser checks keep their private projection. Image tools
+use in-process HTTP and file IO, with no child process. Muse Code's own
+`serve`, account, skills and login processes keep D1's credential path.
+
+`museSpark.shell.passEnvironmentVariables` is an empty-by-default,
+machine-scoped array of variable names, never values. Only an interactive
+top-level shell command (including the user's `!` command) may pass a named
+credential. Unattended verification/`then_run`, schedules, child/team workers,
+hooks/plugins and helpers never honor it. Moving an already admitted
+interactive shell to the background preserves its starting environment.
+The setting warns that a command can expose the value to the conversation
+and model provider. ACP/headless keep their existing credential-free tool
+environments in every editor; no pass-through flag is added there.
+
+The base lacks `src/shared/featureCatalog.ts`: add the setting to HELPREF's
+catalogue when that lane merges. No paid/live calls are authorized.
+
+**FIXENVFENCE review repair (2026-10-05).** RVENVFENCE found two P1s:
+common credential names escaped the matcher, and a scheduled shell delayed
+in directory preparation could read a later active-turn state as interactive.
+Cover the standard credential suffix families and known exact/prefix names,
+with an explicit harmless-name allow-list. Capture interactive admission when
+the command is created, before hooks or directory waits; the native spawn
+still rechecks the captured owner's admission. Regressions must include a
+real shell, ACP startup removal, safe-name preservation, and a backgrounded
+scheduled command released after its turn ends. Deliberately break each fix,
+observe the named tests fail, restore byte-exact and record the evidence in
+`docs/certification/envfence.md`. No new dependency or broader exception.
+
 ## 3. Open questions (need the owner)
 
 - **Q-M115 — What M115 needs from the owner (2026-10-06).** Nothing here
@@ -12184,6 +12238,102 @@ train, and those waiting on outside events, keep their own status lines.
     dependency (M103X, OS5, KVM on the image, M110b, M110g, M111w). Needs:
     M114's lane 0; M104a and M110a0 for M111b's wiring; M110os for M111os and
     M111i.
+
+### BADGEFIX — Exact package versions on store pages (2026-10-05)
+
+- [x] Generate static Marketplace/Open VSX and npm/GitHub release version
+      badges from the manifest while staging each package. Landing-page templates
+      use `{version}`; installed READMEs contain the exact package version.
+      Keep GitHub's root README versions and all count badges dynamic.
+- [x] Discover all README badge images, including Markdown/reference images and
+      GitHub's trusted workflow badge; fetch them before purging GitHub camo.
+- [x] Add `check:badges` to quality and CI: HTTPS image targets, trusted store
+      SVG hosts, no dynamic store versions, exact staged versions and valid SVG
+      responses. Keep PNG screenshots as HTTPS content images. Network skips
+      require a named local reason and are refused in CI; packaging checks the
+      exact staged READMEs. No model calls, dependencies or runtime UI changes.
+- [x] Package and inspect the VSIX and ACP tarball; prove dynamic-version and
+      version-mismatch failures, restore byte-exact, and record focused/static
+      checks and artifact versions in `docs/certification/badgefix.md`.
+
+The rig brief prohibits push, merge and rebase; shared rules reserve aggregate
+quality for the lead. Run the bounded owning tests and static/build gates here,
+with hooks on. Badge-check public requests are the brief's sole added network
+exception; release cache refresh remains CI-only. Time box: 60 minutes.
+
+### CIFIX14T — Timed-out monitor cleanup on macOS (2026-10-05)
+
+- [x] Collect 30 complete baseline owning-file runs under twelve CPU load
+      workers. Capture a running descendant after return with a 300-call
+      native diagnostic; prove Mac zombies also accept signal zero.
+- [x] Fix the proven product race: SIGKILL returned before a descendant
+      exited (loaded native probe: PID 60465, parent 1, group 60423, state R).
+      Await POSIX group exit for up to two seconds, then signal again and log.
+      Exclude Linux zombies from running groups and make the Mac test probe
+      recognize exited zombies and already-reaped PIDs. Preserve Windows jobs.
+- [x] Prove 30/30 loaded runs (210 tests), with the wait removed failing 3/3
+      loaded drills. All seven guard drills restore exact SHA-256 bytes.
+      Five owning shell files pass 113 tests, with six existing Windows skips.
+- [x] Complete static/build checks and prepare the hook-on local repair
+      commit within the 60-minute lane. No push, merge, rebase or paid/live call.
+
+Evidence belongs in `docs/certification/cifix14-monitor.md`. The explicit rig
+brief prohibits pushes, merges, rebases and paid/live calls; the shared lane
+rules reserve aggregate quality and integrated coverage for the lead. Test
+deadlines, retries, skips and every existing gate remain unchanged. Shared
+shell execution covers the extension and ACP/headless runtime on every editor.
+
+### STARTDIET — Chat startup headroom (2026-10-05)
+
+- **Scope.** Measure the production startup import closure and record its forty
+  largest modules with import chains. Keep the 900 KiB startup cap and all
+  existing budgets; achieve at least 40 KiB of startup headroom on 0.14.0.
+  Move the syntax engine and all eighteen grammars to a lazy code-body chunk:
+  render the escaped, selectable code and its actions immediately, including
+  during streaming and import latency. Load highlighting only for a closed,
+  supported fence. Keep Markdown/GFM parsing synchronous for restored messages.
+  Defer the remaining action-only dialogs (Share, Session Board, handoff,
+  secret prompt), and the separate Tasks surface. Reuse React, localization,
+  language aliases and shared helpers through ESM splitting. Reuse the existing
+  palette list/dismissal shell in the command palette: deferring Session Board
+  otherwise moves that shell into the original deferred cohort (52.0/50 KiB).
+  Deduplicate those handlers/markup and keep the shared shell eager so that cap
+  holds, without inventing a helper or changing dismissal behavior. Use hash-only
+  generated browser chunk names: the first shell dedupe still leaves 80 import
+  bytes over the old cap, and more palette-body cleanup only saves eager bytes.
+  Stop that route; remove repeated generated names from import paths instead.
+  Metafile source/entry-point guards and `chunks/*.js` packaging stay unchanged.
+  The full accessibility scan found no axe violations but one report page checked
+  its lazy dialog at a fixed 400 ms before it loaded. Use the existing bounded
+  `whenFound` helper for its checkbox inspection; retain both the exact count
+  and 24 px spacing assertions, and rerun the complete gate.
+  No dependency,
+  translated text, model/wire shape, paid-call or host-specific change.
+- **Budgets.** Add measured budgets for the new lazy import closures under D6's
+  existing size-plus-15%-rounded-to-25-KiB rule. The original seven deferred
+  surfaces retain their aggregate 50 KiB cap, including any shared deferred
+  helpers. Unclassified deferred output stays charged to that cap. Guard new
+  entry points, their source placement and startup exclusion in the split gate.
+- **Proof.** Before/after per-output bytes and startup/deferred totals; unchanged
+  empty/sign-in/transcript/Markdown harness images; the accessibility gate;
+  directly run touched/owning unit files (at most three per invocation, three
+  workers), typecheck, changed-file lint/format, localization, host API,
+  deadcode, duplication and production build. Hold a new import to prove code
+  and actions render while it loads and a canceled dialog stays closed. Statically
+  re-import a moved module, watch the bundle split check fail, then restore its
+  SHA-256 exactly. Record results in `docs/certification/startdiet.md`.
+- **Editors.** All changes are in the shared browser UI/build guards; every editor
+  using that webview receives the same behavior. ACP/headless have no browser
+  surface and their bundles/behavior are unchanged. No live or paid calls.
+- **Certified.** Startup 893.221 → 792.149 KiB (107.851 KiB headroom), original
+  deferred surfaces 49.697/50 KiB; new highlighting 93.131/125, action dialogs
+  9.141/25, Tasks 1.343/25. All existing caps unchanged. 302 owning unit tests,
+  production build, static checks, four identical screenshot pairs and all 620
+  accessibility pages pass. Red fallback/static-import/close/checkbox drills
+  fire and restored bytes/receipts are in `docs/certification/startdiet.md`.
+- **Lane gates.** The rig brief explicitly forbids full quality/full unit runs
+  and merges; use its direct targeted checks and hooks-on local commits. The
+  lead owns the full cross-rig gate and integration.
 
 ### CIFIX14C — Packaged ACP help agrees with its canonical table (2026-10-05)
 
@@ -26924,7 +27074,39 @@ Total: about 100 lane-hours.
   9. **Status:** each issue's card and its `/report issues` row; owner-blocked
      first.
 
+### ENVFENCE — Shell credential fence (D89.5, security fix for 0.14.1)
+
+- [x] Shared credential matcher and fences at model process entry.
+- [x] Machine-scoped interactive name-only exception, with 14 translations.
+- [x] Spawn environment snapshots and real-shell fake-credential probe;
+      deliberately remove guards, observe failures and restore byte-exact.
+- [x] Focused rig tests, typecheck/lint/format, localization, host API,
+      deadcode/duplication and production bundle budgets.
+- [x] Certification: `docs/certification/envfence.md`; hooks-on local commit.
+      The lead runs aggregate quality on the rigs (lane common rules).
+- [x] FIXENVFENCE: repair both RVENVFENCE P1s with regression tests and red
+      drills (25 matcher failures, 2 delayed-origin failures), followed by
+      byte-exact restoration. Focused certification is appended to
+      `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
+
 ## 7. Gates
+
+**BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
+prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
+test files, deliberate failures, typecheck, scoped lint/format, deadcode,
+duplication, localization, host API and production/package checks directly on
+Kubuntu; the lead retains full integrated quality and hosted service proof.
+Local badge requests use the explicitly permitted named skip because the shared
+rig lane forbids public network. CI and CI packaging reject that override and
+must validate actual SVG responses. PNG screenshots remain HTTPS content images;
+the SVG requirement applies to badges. No threshold or existing gate is relaxed.
+Focused certification passed: 86 tests, 23 byte-exact red drills, required
+static/build/package checks and actual VSIX/ACP archive version inspection.
+The 0.14.0 VSIX is 2,168,278 bytes under the unchanged 2,252,800-byte cap; the
+ACP tarball is 1,295,446 bytes. Both carry exact static v0.14.0 badges, and a
+future-version fixture proves no manual badge bump is needed. The Kubuntu
+package lacks the compiled macOS helper; hosted universal packaging remains
+unchanged. Receipts: `docs/certification/badgefix.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -27502,6 +27684,23 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**CIFIX14T verified local result (2026-10-05).** The five owning suites
+pass 113 tests (six existing Windows-only skips); the exact restored monitor
+file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
+drills; all seven drills restore SHA-256-exact source. All five compiler
+projects, final unit compile, scoped ESLint/Prettier, plain knip, duplication,
+localization, host API and production build pass. Extension 437.4 / 600 KiB,
+Model API 446.6 / 475 KiB, ACP 817.5 / 850 KiB; every budget is unchanged.
+Native Mac proof and complete receipts are in `docs/certification/cifix14-monitor.md`.
+Hosted Node 22 and native Linux/Windows certification remain with the lead.
+
+**CIFIX14T bounded-lane gate delegation (2026-10-05).** The requested Mac
+mini reproduction and red drills run directly here with hooks enabled.
+`common.md` prohibits aggregate quality/full unit runs; collect the owned
+shell tests and required static/build checks, leaving full quality, merged
+coverage and hosted cross-platform certification to the lead. No gate is
+weakened and no integrated-green claim is made by this lane.
 
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in
@@ -28098,6 +28297,13 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
+  `src/shared/featureCatalog.ts` or reference generator. The existing setting
+  and its full security contract are in README, D89.5, the manifest and all
+  translations, so the repair introduces no undocumented command or option.
+  Follow-up: add the setting to HELPREF's catalogue when that lane joins the
+  release. RVENVFENCE's two P1 findings are fixed; no review finding is deferred.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

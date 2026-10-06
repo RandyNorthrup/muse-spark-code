@@ -4,6 +4,7 @@ import path from 'node:path'
 import { setTimeout } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
+import { isBadgeUrl, readmeImageUrls } from './check-badges.mjs'
 
 const POLL_MS = 30_000
 const PROPAGATION_MS = 15 * 60_000
@@ -28,21 +29,15 @@ const OPEN_VSX = z.object({ version: VERSION })
 const NPM = z.object({ 'dist-tags': z.object({ latest: VERSION }) })
 const GITHUB = z.object({ tag_name: VERSION })
 
-/** Exact hosts and HTTPS only; handle quoted/unquoted HTML src, entities and duplicates. */
-export function imageUrls(html, hosts = ['badgen.net', 'img.shields.io']) {
+/** Discover every README badge; an explicit host filter selects camo images. */
+export function imageUrls(markdown, hosts) {
   const urls = new Set()
-  for (const [tag] of html.matchAll(/<img\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi)) {
-    const source = tag
-      .matchAll(/\s([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)
-      .find(([, name]) => name.toLowerCase() === 'src')
-    if (source === undefined) continue
+  for (const source of readmeImageUrls(markdown)) {
     try {
-      const url = new URL(
-        (source[2] ?? source[3] ?? source[4]).replaceAll(/&(?:amp|#38|#x26);/gi, '&'),
-      )
+      const url = new URL(source)
       if (
         url.protocol === 'https:' &&
-        hosts.includes(url.hostname) &&
+        (hosts === undefined ? isBadgeUrl(url.href) : hosts.includes(url.hostname)) &&
         !url.username &&
         !url.password
       ) {
