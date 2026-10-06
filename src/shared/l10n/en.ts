@@ -2581,6 +2581,11 @@ export const EN = {
   // and the Account & usage row. {price} is a dollar amount in the display
   // language's money format.
   paidTabName: 'Tab completions',
+  lspUsage:
+    'muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nLanguage server: explicit paid Tab opt-in; trusted workspace and consent required.',
+  lspFix: 'Ask Muse to fix',
+  lspExplain: 'Explain',
+  lspApply: 'Apply suggested edit',
   paidConfirmTab:
     'Tab completions send the code around your cursor to Meta as you type, billed to your Model API key. {price} At typical typing that is about $0.80 an hour on Standard and about $0.05 on the contributor model, capped by a daily budget you can change in settings. The contributor model is cheaper, and Meta trains on the code it is sent. Copilot, if on, is yielded to: automatic Tab suggestions pause for its languages unless you run both. Tab asks once per window before its first suggestion.',
   paidUseTabTitle: 'Let Tab suggest in this window?',

@@ -1,6 +1,6 @@
 -- Current Qt Creator Lua API doubles in a real Lua VM. No provider calls.
 package.path = vim.fn.getcwd() .. "/hosts/qtcreator/musespark/?.lua;" .. package.path
-local actions, children = {}, {}
+local actions, children, controls = {}, {}, {}
 local diagnostics = {}
 local executable, start_result, stop_result, project_present = true, true, true, true
 local yield_lookup = false
@@ -91,7 +91,11 @@ package.preload["Process"] = function()
         end
         return result
       end
-      children[#children + 1] = child
+      if opts.arguments[3] == "stop" then
+        controls[#controls + 1] = child
+      else
+        children[#children + 1] = child
+      end
       return child
     end,
   }
@@ -120,6 +124,8 @@ end, "duplicate companion refused")
 print("PASS duplicate companion refused")
 actions["MuseSpark.Stop"].onTrigger()
 assert(not children[1].alive, "Stop terminates owned process")
+assert(#controls == 1 and controls[1].opts.arguments[3] == "stop", "independent Stop channel")
+assert(controls[1].opts.workingDirectory:nativePath() == "/workspace with spaces")
 muse.stop()
 print("PASS Stop terminates owned process")
 muse.open_companion()

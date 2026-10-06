@@ -2425,5 +2425,9 @@
   "judgeStatusDeclined": "Kapalı: ücretli kullanım reddedildi",
   "judgeStatusSlow": "Varsayılan olarak kapalı: inceleyici kararında çok az sonuç hazır",
   "judgeStatusSubscription": "Abonelik",
-  "judgeStatusPaid": "Ücretli"
+  "judgeStatusPaid": "Ücretli",
+  "lspFix": "Muse’dan düzeltmesini iste",
+  "lspExplain": "Açıkla",
+  "lspApply": "Önerilen düzenlemeyi uygula",
+  "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nDil sunucusu: ücretli Tab açıkça etkinleştirme, güvenilir bir çalışma alanı ve onay gerektirir."
 }

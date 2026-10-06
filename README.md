@@ -463,22 +463,44 @@ Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
 the extension, and Zed, Emacs (agent-shell), Neovim (CodeCompanion) and
 JupyterLab (Jupyter AI) with the agent.
 
-The source checkout also has experimental independent runtime supervision
-for M104. `supervise` runs the installed ACP bundle as a child with private
-out-of-band Stop control; `stop` targets supervised owners in the current
-workspace. From a built checkout, these offline commands exercise the CLI:
+The source checkout includes experimental stdio LSP and independent runtime
+supervision for M104. The LSP uses the M94 Tab engine and its caps, file
+eligibility, usage and daily ledger. Paid Tab is off until `--tab` and
+`--trust-workspace` are supplied; its editor consent prompt names the price
+and budget. A native-store Model API key is required only when dispatching.
+One private broker serves each canonical workspace, with eight clients and
+60 seconds of idle time. Conflicting runtime options are refused.
+
+From a built checkout, these offline commands exercise help and Stop:
 
 ```sh
+node dist/acp.js lsp --help
 node dist/acp.js supervise --version
 node dist/acp.js stop
+node scripts/gen-reference.mjs
+npm run check:reference
 ```
 
-Runtime Stop gives TERM 500 ms, escalates to a POSIX group kill or the
-existing Windows job helper, and waits for termination. This is a building
-block: native shim wiring, abrupt supervisor-death containment, POSIX
-descendants that detach into another group, and Windows receipts are still
-pending. It does not qualify universal editor Stop or
-add LSP/Tab capabilities. See [M104 H certification](docs/certification/m104-h.md).
+Configure the installed agent's `lsp` command in your editor, with
+`--workspace` pointing to its project root. Neovim supplies `MuseLsp`, Emacs
+supplies `muse-spark-lsp` through Eglot, Sublime has an optional LSP package
+configuration, Qt Creator can use its generic language client, and Zed has
+Rust extension source. Each shim's Stop route runs a separate authenticated
+control command; it can run while the request queue is blocked.
+
+Stop gives TERM 500 ms, then escalates to group/tree kill. On POSIX an
+independent guardian checks process identities and observed detached
+children, including after supervisor SIGKILL. A descendant that double-forks
+before observation can still escape this sampling policy. Windows uses the
+existing kill-on-close job helper and awaits Windows qualification.
+
+The required merge sources do not contain the panel/review controller.
+The production LSP explicitly refuses open-panel/Fix/Explain and does not
+advertise review code actions; injected conformance services test diagnostics,
+version/hash checks and approved workspace edits. Native GUI qualification,
+Zed SDK compilation and full editor parity remain open. See the
+[reference](docs/runtime-reference.md) and
+[M104 H/L certification](docs/certification/m104-h.md).
 
 ## Permission modes
 

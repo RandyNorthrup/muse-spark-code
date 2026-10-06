@@ -42,6 +42,7 @@ export {
   string,
   transform,
   trim,
+  tuple,
   union,
   unknown,
   url,

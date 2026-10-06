@@ -29,8 +29,7 @@ and Zed's native task runner remain unqualified. The script installs nothing.
 
 Select **Muse Spark Code (Unofficial)** in Zed's Agent Panel for ACP. Use
 the `Muse Spark Code (Unofficial): panel` task through `task::Spawn` to
-start an independent shared companion in the workspace. Stop it using
-Zed's task terminal cancellation. The task does not save dirty buffers,
+start an independent shared companion in the workspace. Use the independent Stop task to reach the workspace supervisor. The task does not save dirty buffers,
 display its command or permit concurrent copies. Same-session pairing is
 the controller-based ACP agent's `/panel` command/link (lane B); a new
 companion task does not silently attach to an unrelated existing session.
@@ -51,6 +50,30 @@ real process execution with test-only sentinels:
 python3 -m unittest discover -s hosts/zed/test -v
 ```
 
-No Zed GUI qualification, registry publication, WASM extension or
-F1–F56 end-to-end conformance is claimed. The LSP broker and Zed Tab
-completions endpoint remain separate runtime work; see the lane record.
+No Zed GUI qualification, registry publication, compiled WASM artifact or
+F1–F56 end-to-end conformance is claimed. LSP source and its qualification
+boundary are recorded below.
+
+## LSP source and independent Stop task
+
+`extension.toml`, `Cargo.toml` and `src/lib.rs` supply a language-server
+extension using pinned `zed_extension_api` 0.7.0. The command is the installed
+agent's `lsp` route; `lsp.muse_spark.binary` can supply its path and extra
+arguments. A Node binary can put the installed `dist/acp.js` path first in
+those arguments; the shim preserves that script prefix before `lsp` and
+passes the worktree root explicitly. In `languages`, enable `muse_spark` alongside the language's usual
+server. Opt into paid Tab with `--tab --trust-workspace` in the extra argv.
+The shared runtime owns consent, the OS-store key and daily accounting.
+
+This is an ordinary LSP completion route. Zed's dedicated edit-prediction
+provider API does not accept extension providers according to the checked-in
+research; native ghost-text qualification is not claimed. Offline compilation
+was attempted but the rig has no cached 0.7.0 SDK, and this lane forbids
+network downloads. The source needs a reviewed SDK/native receipt before
+installation or publication.
+
+The generator now emits a separate concurrent `stop` task, preserving shell
+quoting for every argument. ACP and panel tasks launch through `supervise`;
+Stop reaches the authenticated workspace control channel independently of a
+busy task. B's composed panel controller is still absent. See the updated
+upstream request in `docs/research/zed-editor-api-request.md`.

@@ -446,6 +446,19 @@ const acpOptions = {
   banner: { js: '#!/usr/bin/env node' },
 }
 
+const lspOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/lsp/lspEntry.ts'],
+  outfile: 'dist/lsp.js',
+  banner: undefined,
+}
+const watchdogOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/lsp/watchdogEntry.ts'],
+  outfile: 'dist/runtimeWatchdog.js',
+  banner: undefined,
+}
+
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
 const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
@@ -557,6 +570,8 @@ if (isWatch) {
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
+    esbuild.context(lspOptions),
+    esbuild.context(watchdogOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
@@ -596,6 +611,8 @@ if (isWatch) {
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
     tab: esbuild.build(tabOptions),
+    lsp: esbuild.build(lspOptions),
+    runtimeWatchdog: esbuild.build(watchdogOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),

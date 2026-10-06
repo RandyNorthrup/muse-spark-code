@@ -64,11 +64,17 @@
     "src/host/web/pageWorker.ts",
     "src/webview/main.tsx",
     "src/runtime/main.ts",
+    "src/runtime/lsp/lspEntry.ts",
+    "src/shared/featureCatalog.ts",
+    "src/runtime/lsp/watchdogEntry.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     "test/e2e/**/*.test.ts",
     "test/e2e/fake-muse/serve.mjs",
     // The fake stdio MCP server the M50 tests start as a child process.
     "test/unit/helpers/fakeMcpServer.mjs",
+    "test/unit/helpers/fakeLsp.ts",
+    "test/unit/helpers/supervisorParent.ts",
+    "test/unit/helpers/runtimeLspParent.ts",
     // A bounded orphan-child process drill, launched by path at runtime.
     "test/unit/helpers/fakeMcpOrphan.mjs",
     // The Windows job drills launch these finite binary, owner-exit and

@@ -14,6 +14,7 @@ import { killTree, sweepExitedTree, treeSpawnOptions } from '../../host/processT
 import { RUNTIME_STOP } from '../../shared/constants'
 import { workspaceKey } from '../dataFolder'
 import { withoutCredentials } from '../credentialVariables'
+import { isProcessAlive } from '../../host/checkpoints/windowPresence'
 
 // Private child diagnostics never enter the editor log.
 const log = () => {
@@ -21,6 +22,7 @@ const log = () => {
 }
 
 const ownerSchema = z.strictObject({
+  pid: z.optional(z.int().check(z.gte(1))),
   pipe: z.string().check(z.maxLength(RUNTIME_STOP.pathChars)),
   token: z
     .string()
@@ -38,6 +40,7 @@ export interface SupervisorDeps {
   readonly args: readonly string[]
   readonly env: NodeJS.ProcessEnv
   readonly packageRoot: string
+  readonly watchdogFile?: string
   readonly stdin: Readable
   readonly stdout: Writable
 }
@@ -48,7 +51,7 @@ function delay(ms: number): Promise<void> {
   })
 }
 
-/** Await the group too: a leader's exit does not prove its children died. */
+/** A leader's exit alone does not prove its process group has exited. */
 async function groupExited(pid: number | undefined): Promise<void> {
   if (pid === undefined || process.platform === 'win32') return
   const deadline = Date.now() + RUNTIME_STOP.exitMs
@@ -56,7 +59,14 @@ async function groupExited(pid: number | undefined): Promise<void> {
     try {
       process.kill(-pid, 0)
     } catch (error: unknown) {
-      if (error instanceof Error && 'code' in error && error.code === 'ESRCH') return
+      // Called only after the guardian has verified the process table. macOS can
+      // report EPERM for an empty former group; that attestation covers this case.
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        (error.code === 'ESRCH' || error.code === 'EPERM')
+      )
+        return
       throw error
     }
     if (Date.now() >= deadline) throw new Error('ESTOP_TREE')
@@ -89,17 +99,10 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
       : path.join(directory, 'control')
   const record = path.join(deps.registry, `${workspaceKey(deps.cwd)}-${token}.json`)
   let child: ChildProcessWithoutNullStreams | undefined
+  let watchdog: ChildProcessWithoutNullStreams | undefined
+  let watchdogDone: Promise<number> | undefined
   let stopping: Promise<void> | undefined
-  const ending = new AbortController()
-  const closed = new Promise<void>((resolve) => {
-    ending.signal.addEventListener(
-      'abort',
-      () => {
-        resolve()
-      },
-      { once: true },
-    )
-  })
+  const { promise: closed, resolve: closeOwner } = Promise.withResolvers<undefined>()
   const startedAt = Date.now()
   const treeDeps = { platform: process.platform, systemRoot: env['SystemRoot'], log }
   const stop = () => {
@@ -114,7 +117,13 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
           await sweepExitedTree(child.pid, startedAt, Date.now(), treeDeps)
         }
       }
-      await groupExited(child.pid)
+      // The independent guardian verifies surviving groups and detached identities.
+      if (watchdog !== undefined && watchdogDone !== undefined) {
+        watchdog.stdin.end()
+        const result = await watchdogDone
+        if (result !== 0) throw new Error('ESTOP_WATCHDOG')
+        await groupExited(child.pid)
+      }
       if (process.platform === 'win32') {
         await new Promise<void>((resolve, reject) => {
           const timer = setTimeout(() => {
@@ -129,11 +138,11 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
       child.stdin.destroy()
       child.stdout.destroy()
       child.stderr.destroy()
-      ending.abort()
+      closeOwner(undefined)
     })()
     // The main path awaits this failure and preserves a nonzero result.
     void stopping.catch(() => {
-      ending.abort()
+      closeOwner(undefined)
     })
   }
   const sockets = new Set<ReturnType<typeof createConnection>>()
@@ -177,12 +186,52 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
       control.once('error', reject)
       control.listen(pipe, resolve)
     })
-    await writeFile(record, JSON.stringify({ pipe, token }), {
+    await writeFile(record, JSON.stringify({ pid: process.pid, pipe, token }), {
       flag: 'wx',
       mode: RUNTIME_STOP.fileMode,
     })
     process.on('SIGTERM', stop)
     process.on('SIGINT', stop)
+    if (process.platform !== 'win32') {
+      // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- installed private POSIX guardian, fixed owner PID and sanitized env; independent of the supervised model queue (PLAN.md §8).
+      watchdog = spawn(
+        process.execPath,
+        [
+          deps.watchdogFile ?? path.join(deps.packageRoot, 'dist', 'runtimeWatchdog.js'),
+          String(process.pid),
+        ],
+        {
+          cwd: deps.cwd,
+          env,
+          stdio: 'pipe',
+          detached: true,
+        },
+      )
+      const guard = watchdog
+      watchdogDone = new Promise<number>((resolve) => {
+        guard.once('close', (code) => {
+          resolve(code ?? 1)
+        })
+      })
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error('ESTOP_WATCHDOG'))
+        }, RUNTIME_STOP.exitMs)
+        guard.once('error', reject)
+        guard.stdout.once('data', (bytes: Buffer) => {
+          clearTimeout(timer)
+          if (bytes.toString('ascii') === 'READY\n') resolve()
+          else reject(new Error('ESTOP_WATCHDOG'))
+        })
+        guard.once('close', () => {
+          clearTimeout(timer)
+          reject(new Error('ESTOP_WATCHDOG'))
+        })
+      })
+      guard.stderr.resume()
+      guard.stdout.resume()
+      guard.once('exit', stop)
+    }
     child =
       jobExecutablePath === undefined
         ? // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the installed ACP bundle supervises its own Node/argv; tests inject a fake child, no shell or credential environment (PLAN.md §8).
@@ -201,11 +250,13 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
             env,
             log,
           })
+    if (watchdog !== undefined && child.pid !== undefined)
+      watchdog.stdin.write(`${JSON.stringify({ pid: child.pid })}\n`)
     child.on('error', () => {
-      ending.abort()
+      closeOwner(undefined)
     })
     child.on('close', () => {
-      ending.abort()
+      closeOwner(undefined)
     })
     child.on('exit', stop)
     // Piping preserves byte boundaries/backpressure; provider stderr is private.
@@ -220,6 +271,10 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
   } finally {
     process.off('SIGTERM', stop)
     process.off('SIGINT', stop)
+    if (watchdog !== undefined) {
+      watchdog.stdin.end()
+      await watchdogDone
+    }
     if (child !== undefined) deps.stdin.unpipe(child.stdin)
     deps.stdin.destroy()
     await new Promise<void>((resolve) => {
@@ -260,6 +315,10 @@ export async function stopWorkspace(registry: string, cwd: string): Promise<void
           owner = ownerSchema.parse(JSON.parse(bytes.toString('utf8', 0, bytesRead)))
         } finally {
           await handle.close()
+        }
+        if (owner.pid !== undefined && !isProcessAlive(owner.pid)) {
+          await rm(path.join(registry, file), { force: true })
+          return
         }
         await new Promise<void>((resolve, reject) => {
           const socket = createConnection(owner.pipe)

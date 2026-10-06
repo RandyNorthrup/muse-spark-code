@@ -32,7 +32,7 @@ class LauncherTests(unittest.TestCase):
             launch.main(["panel", "/agent with spaces"])
             command, argv, env = execute.call_args.args
             self.assertEqual(command, "/agent with spaces")
-            self.assertEqual(argv, [command, "panel", "--companion"])
+            self.assertEqual(argv, [command, "supervise", "panel", "--companion"])
             self.assertNotIn("M104_API_KEY", env)
             self.assertNotIn("OPENAI_KEY", env)
             self.assertNotIn("m104_api_key", env)
@@ -75,7 +75,7 @@ class LauncherTests(unittest.TestCase):
             agent.write_text(
                 f"#!{sys.executable}\nimport os,sys\n"
                 "assert not any(k.upper().endswith('_API_KEY') or k == 'OPENAI_KEY' for k in os.environ)\n"
-                "assert sys.argv[1:] == ['panel', '--companion']\n"
+                "assert sys.argv[1:] == ['supervise', 'panel', '--companion']\n"
             )
             agent.chmod(0o700)
             child = subprocess.run(
@@ -117,12 +117,12 @@ class LauncherTests(unittest.TestCase):
             )
             self.assertEqual(
                 execute.call_args.args[1],
-                ["C:/Node/node.exe", "C:/ACP/dist/acp.js", "panel", "--companion"],
+                ["C:/Node/node.exe", "C:/ACP/dist/acp.js", "supervise", "panel", "--companion"],
             )
         with tempfile.TemporaryDirectory() as directory:
             script = Path(directory) / "script with spaces.py"
             script.write_text(
-                "import sys; assert sys.argv[1:] == ['panel', '--companion']\n"
+                "import sys; assert sys.argv[1:] == ['supervise', 'panel', '--companion']\n"
             )
             child = subprocess.run(
                 [

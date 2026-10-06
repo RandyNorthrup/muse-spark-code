@@ -15,6 +15,9 @@ import {
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
   UI_TEXT,
+  TAB_MODELS,
+  TAB_DAILY_BUDGET_MIN_USD,
+  TAB_DAILY_BUDGET_MAX_USD,
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
@@ -46,7 +49,16 @@ export interface ReportOptions {
   readonly includeEvents: boolean
 }
 
+export interface LspOptions extends ServeOptions {
+  readonly workspace: string
+  readonly tabOn: boolean
+  readonly tabModel: string
+  readonly tabBudgetUsd: number
+  readonly brokerWorker: boolean
+}
+
 export type RuntimeCommand =
+  | { readonly command: 'lsp'; readonly options: LspOptions }
   | { readonly command: 'supervise'; readonly args: readonly string[] }
   | { readonly command: 'stop' }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
@@ -90,13 +102,18 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
-  if (argv[0] === 'stop' && argv.length === 1) return { command: 'stop' }
+  if (argv[0] === 'stop') {
+    // Shims preserve configured runtime flags after the verb; validate without starting a backend.
+    const flags = parseCommandLine(argv.slice(1))
+    return flags.command === 'serve' ? { command: 'stop' } : invalid('stop')
+  }
   if (argv[0] === 'supervise') {
     const args = argv.slice(1)
     return args[0] === 'supervise' || args[0] === 'stop'
       ? invalid(args[0])
       : { command: 'supervise', args }
   }
+  if (argv[0] === 'lsp') return parseLsp(argv.slice(1))
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))
   let parsed: ReturnType<typeof parseCommandLineStrictly>
@@ -273,4 +290,68 @@ function parseCommandLineStrictly(argv: readonly string[]) {
       version: { type: 'boolean', short: 'v' },
     },
   })
+}
+
+function parseLsp(argv: readonly string[]): RuntimeCommand {
+  try {
+    const { values } = parseArgs({
+      args: [...argv],
+      strict: true,
+      allowPositionals: false,
+      options: {
+        backend: { type: 'string' },
+        'trust-workspace': { type: 'boolean' },
+        'muse-binary': { type: 'string' },
+        'shell-sandbox': { type: 'string' },
+        'allow-contributor-models': { type: 'boolean' },
+        verbose: { type: 'boolean' },
+        workspace: { type: 'string' },
+        tab: { type: 'boolean' },
+        'tab-model': { type: 'string' },
+        'tab-daily-budget-usd': { type: 'string' },
+        'broker-worker': { type: 'boolean' },
+        help: { type: 'boolean', short: 'h' },
+      },
+    })
+    if (values.help === true) return { command: 'help' }
+    const tabModel = values['tab-model'] ?? SETTING_DEFAULTS.tabModel
+    const budget =
+      values['tab-daily-budget-usd'] === undefined
+        ? SETTING_DEFAULTS.tabDailyBudgetUsd
+        : Number(values['tab-daily-budget-usd'])
+    if (
+      !isOneOf(TAB_MODELS, tabModel) ||
+      !Number.isFinite(budget) ||
+      budget < TAB_DAILY_BUDGET_MIN_USD ||
+      budget > TAB_DAILY_BUDGET_MAX_USD ||
+      (values['tab-daily-budget-usd'] ?? '1').trim() === ''
+    )
+      return invalid('lsp')
+    const baseArgs: string[] = []
+    for (const name of ['backend', 'muse-binary', 'shell-sandbox'] as const) {
+      const value = values[name]
+      if (typeof value === 'string') baseArgs.push(`--${name}`, value)
+    }
+    for (const name of ['trust-workspace', 'allow-contributor-models', 'verbose'] as const) {
+      if (values[name] === true) baseArgs.push(`--${name}`)
+    }
+    // Parse common flags independently: no paid feature is silently enabled by LSP.
+    const base = parseCommandLine(baseArgs)
+    if (base.command !== 'serve') return invalid('lsp')
+    if (tabModel !== SETTING_DEFAULTS.tabModel && !base.options.allowsContributorModels)
+      return invalid('--allow-contributor-models')
+    return {
+      command: 'lsp',
+      options: {
+        ...base.options,
+        workspace: values.workspace ?? process.cwd(),
+        tabOn: values.tab === true,
+        tabModel,
+        tabBudgetUsd: budget,
+        brokerWorker: values['broker-worker'] === true,
+      },
+    }
+  } catch {
+    return invalid('lsp')
+  }
 }

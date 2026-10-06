@@ -53,6 +53,7 @@ loadBundle(path.resolve('dist/modelApi.js'), 'createModelApiHost')
 loadBundle(path.resolve('dist/review.js'), 'createReviewFeatures')
 // The installed agent's own copy of the backend, which `--help` never loads.
 loadBundle(path.resolve(packageRoot, 'dist/modelApi.js'), 'createModelApiHost')
+loadBundle(path.resolve(packageRoot, 'dist/lsp.js'), 'runLsp')
 const agent = path.resolve(packageRoot, 'dist/acp.js')
 const table = createRequire(agent)('./uiText.js').EN
 // --help takes no backend or credential-store action. An English locale
@@ -61,7 +62,13 @@ const help = execFileSync(process.execPath, [agent, '--help'], {
   encoding: 'utf8',
   env: { LC_ALL: 'en_US.UTF-8' },
 })
-assert.equal(help.trim(), table.acpUsage.replaceAll('{command}', 'muse-spark-code-acp').trim())
+const expectedHelp = `${table.acpUsage.replaceAll('{command}', 'muse-spark-code-acp')}\n${table.lspUsage}`
+assert.equal(help.trim(), expectedHelp.trim())
+const lspHelp = execFileSync(process.execPath, [agent, 'lsp', '--help'], {
+  encoding: 'utf8',
+  env: { LC_ALL: 'en_US.UTF-8' },
+})
+assert.equal(lspHelp.trim(), expectedHelp.trim())
 console.log(
-  'ok   extension, Model API, review and installed ACP tarball load the shared English fallback',
+  'ok   extension, Model API, review, LSP and installed ACP tarball load the shared English fallback',
 )

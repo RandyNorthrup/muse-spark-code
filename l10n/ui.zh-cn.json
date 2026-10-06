@@ -2331,5 +2331,9 @@
   "judgeStatusDeclined": "关闭：已拒绝付费使用",
   "judgeStatusSlow": "默认关闭：审核员作出决定时就绪的结果太少",
   "judgeStatusSubscription": "订阅",
-  "judgeStatusPaid": "付费"
+  "judgeStatusPaid": "付费",
+  "lspFix": "请 Muse 修复",
+  "lspExplain": "解释",
+  "lspApply": "应用建议的编辑",
+  "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\n语言服务器：付费 Tab 需要显式启用、受信任的工作区和同意。"
 }

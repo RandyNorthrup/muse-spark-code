@@ -5336,3 +5336,31 @@ export const CONVERSATION_MODEL_TEXT = {
   exportRedactedPath: '[redacted path]',
   exportRedactedAccount: '[redacted account]',
 } as const
+
+/** M104L: limits shared by stdio LSP and its private workspace broker. */
+export const LSP_LIMITS = {
+  headerBytes: 8192,
+  headerDelimiterBytes: 4,
+  frameBytes: 4_194_304,
+  queuedBytes: 8_388_608,
+  documentBytes: 1_048_576,
+  documentCount: 128,
+  pendingRequests: 32,
+  uriChars: 4096,
+  messageChars: 65_536,
+  diagnosticCount: 256,
+  diagnosticSeverities: 4,
+  watchdogScanMs: 1000,
+  watchdogPollMs: 250,
+  watchdogProcesses: 512,
+  requestMs: 30_000,
+  startupMs: 10_000,
+  idleMs: 60_000,
+  pollMs: 50,
+  clients: 8,
+  fileMode: 0o600,
+  directoryMode: 0o700,
+  recordBytes: 4096,
+  tokenBytes: 32,
+  socketNameBytes: 8,
+} as const

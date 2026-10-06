@@ -46,3 +46,16 @@ python3 -m unittest discover -s hosts/sublime/test -v
 
 No actual Sublime GUI or shared controller conformance is claimed by the
 stub. F1–F56 integration remains tracked in `docs/certification/m104-h.md`.
+
+## LSP and independent workspace Stop
+
+With Sublime's LSP package installed, this package registers
+`LSP-muse-spark.sublime-settings`. Its command is the installed agent's `lsp`
+route. Add `--tab` and `--trust-workspace` to that command only when opting
+into invoked paid Tab; runtime consent and the native-store key are required.
+The adapter empties inherited credential variables before LSP launch. Native
+GUI qualification is pending; registration and launch use offline API doubles.
+
+Companion launch uses `supervise`. `muse_stop` starts a separate bounded,
+credential-free workspace Stop process, including on window close. Panel and
+review services still require the absent controller composition.

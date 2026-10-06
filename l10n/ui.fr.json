@@ -2519,5 +2519,9 @@
   "judgeStatusDeclined": "Désactivé : utilisation payante refusée",
   "judgeStatusSlow": "Désactivé par défaut : trop peu de résultats prêts au verdict du réviseur",
   "judgeStatusSubscription": "Abonnement",
-  "judgeStatusPaid": "Payant"
+  "judgeStatusPaid": "Payant",
+  "lspFix": "Demander à Muse de corriger",
+  "lspExplain": "Expliquer",
+  "lspApply": "Appliquer la modification suggérée",
+  "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nServeur de langage : Tab payant nécessite une activation explicite, un espace de travail approuvé et votre consentement."
 }

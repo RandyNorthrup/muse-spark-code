@@ -25,7 +25,17 @@ def configuration(agent, python, agent_script=None):
         quote = shlex.quote
         task_command = quote(python)
         task_shell = {"program": "/bin/sh"}
-    task_args = [quote(part) for part in ["-I", launcher, "panel", *agent_args]]
+    tasks = []
+    for mode in ("panel", "stop"):
+        tasks.append({
+            "label": "Muse Spark Code (Unofficial): " + mode,
+            "command": task_command,
+            "args": [quote(part) for part in ["-I", launcher, mode, *agent_args]],
+            "shell": task_shell,
+            "allow_concurrent_runs": mode == "stop",
+            "use_new_terminal": True,
+            "reveal": "never", "show_command": False, "show_summary": False, "save": "none",
+        })
     return {
         "settings": {
             "agent_servers": {
@@ -37,20 +47,7 @@ def configuration(agent, python, agent_script=None):
                 }
             }
         },
-        "tasks": [
-            {
-                "label": "Muse Spark Code (Unofficial): panel",
-                "command": task_command,
-                "args": task_args,
-                "shell": task_shell,
-                "allow_concurrent_runs": False,
-                "use_new_terminal": True,
-                "reveal": "never",
-                "show_command": False,
-                "show_summary": False,
-                "save": "none",
-            }
-        ],
+        "tasks": tasks,
     }
 
 

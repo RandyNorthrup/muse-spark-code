@@ -39,3 +39,16 @@ emacs --batch -Q -L hosts/emacs -l hosts/emacs/test/muse-spark-test.el -f ert-ru
 ERT uses test-only agent-shell/browser doubles and a real companion-process
 cleanup check. These tests do not claim the pending shared controller's
 F1–F56 conformance; see `docs/certification/m104-h.md`.
+
+## LSP and independent workspace Stop
+
+`M-x muse-spark-lsp` starts Eglot synchronously under a credential-free
+environment. `muse-spark-lsp-arguments` supplies optional runtime flags, such
+as `("--tab" "--trust-workspace")` for invoked paid Tab. Eglot normally owns
+one server per buffer, so choose this route when configuring that project's
+completion server. Diagnostics/Fix/Explain await B's controller. Native Emacs
+batch qualification is pending on the Mac rig, which has no Emacs binary.
+
+ACP and companion launch use `supervise`; `muse-spark-stop` also starts an
+independent `stop` command in the project root and releases its private stderr
+pipe on failure. The runtime owns paid consent, accounting and credentials.

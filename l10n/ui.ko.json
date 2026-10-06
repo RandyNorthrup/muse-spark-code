@@ -2331,5 +2331,9 @@
   "judgeStatusDeclined": "꺼짐: 유료 사용 거부됨",
   "judgeStatusSlow": "기본으로 꺼짐: 검토자 판정 시 준비된 결과가 너무 적음",
   "judgeStatusSubscription": "구독",
-  "judgeStatusPaid": "유료"
+  "judgeStatusPaid": "유료",
+  "lspFix": "Muse에 수정 요청",
+  "lspExplain": "설명",
+  "lspApply": "제안된 편집 적용",
+  "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\n언어 서버: 유료 Tab은 명시적인 활성화, 신뢰할 수 있는 작업 영역 및 동의가 필요합니다."
 }

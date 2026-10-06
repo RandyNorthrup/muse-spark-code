@@ -2613,5 +2613,9 @@
   "judgeStatusDeclined": "Vypnuto: placené použití odmítnuto",
   "judgeStatusSlow": "Ve výchozím nastavení vypnuto: příliš málo výsledků připravených při rozhodnutí kontrolora",
   "judgeStatusSubscription": "Předplatné",
-  "judgeStatusPaid": "Placené"
+  "judgeStatusPaid": "Placené",
+  "lspFix": "Požádat Muse o opravu",
+  "lspExplain": "Vysvětlit",
+  "lspApply": "Použít navrženou úpravu",
+  "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nJazykový server: placený Tab vyžaduje výslovné zapnutí, důvěryhodný pracovní prostor a souhlas."
 }

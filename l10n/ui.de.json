@@ -2425,5 +2425,9 @@
   "judgeStatusDeclined": "Aus: kostenpflichtige Nutzung abgelehnt",
   "judgeStatusSlow": "Standardmäßig aus: zu wenige Ergebnisse beim Urteil des Prüfers bereit",
   "judgeStatusSubscription": "Abonnement",
-  "judgeStatusPaid": "Kostenpflichtig"
+  "judgeStatusPaid": "Kostenpflichtig",
+  "lspFix": "Muse um eine Korrektur bitten",
+  "lspExplain": "Erklären",
+  "lspApply": "Vorgeschlagene Änderung anwenden",
+  "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nSprachserver: Kostenpflichtiges Tab erfordert ausdrückliche Aktivierung, einen vertrauenswürdigen Arbeitsbereich und Zustimmung."
 }

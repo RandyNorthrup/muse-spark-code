@@ -2331,5 +2331,9 @@
   "judgeStatusDeclined": "オフ：有料利用が拒否されました",
   "judgeStatusSlow": "既定でオフ：レビュー担当の判定時に準備できる結果が少なすぎます",
   "judgeStatusSubscription": "サブスクリプション",
-  "judgeStatusPaid": "有料"
+  "judgeStatusPaid": "有料",
+  "lspFix": "Muse に修正を依頼",
+  "lspExplain": "説明",
+  "lspApply": "提案された編集を適用",
+  "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\n言語サーバー：有料の Tab には明示的な有効化、信頼されたワークスペース、同意が必要です。"
 }

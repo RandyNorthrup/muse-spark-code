@@ -9,6 +9,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Experimental stdio LSP with UTF-16 dirty-buffer synchronization, negotiated
+  inline/fallback Tab completions using M94's paid engine, caps and ledger,
+  and one bounded private workspace broker. Stop, usage and help commands
+  work; review diagnostics and approved edit actions have a tested service
+  port but await the separate panel controller in production.
+- Five editor shims now launch supervised runtimes and issue independent
+  workspace Stop commands. POSIX supervision adds a process-identity guardian
+  for observed detached descendants and abrupt supervisor death. Fast
+  double-fork escapes, native Windows and GUI qualification remain open.
+- Neovim LSP, Emacs Eglot, optional Sublime LSP configuration, Qt Creator
+  generic-client setup and Zed Rust LSP source. Neovim's real headless client
+  is qualified against a fake service; Zed SDK compilation is pending.
+- Generated runtime/shim command catalog and `check:reference` freshness gate.
+
 - Experimental standalone `supervise` and workspace `stop` commands:
   authenticated private control outside the request queue, bounded TERM
   escalation, process-group exit waiting and credential-free child launches.

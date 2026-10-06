@@ -2425,5 +2425,9 @@
   "judgeStatusDeclined": "Kikapcsolva: a fizetős használat elutasítva",
   "judgeStatusSlow": "Alapértelmezetten kikapcsolva: túl kevés eredmény kész az ellenőr döntésekor",
   "judgeStatusSubscription": "Előfizetés",
-  "judgeStatusPaid": "Fizetős"
+  "judgeStatusPaid": "Fizetős",
+  "lspFix": "Javítás kérése a Muse-tól",
+  "lspExplain": "Magyarázat",
+  "lspApply": "Javasolt módosítás alkalmazása",
+  "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nNyelvi kiszolgáló: a fizetős Tab kifejezett bekapcsolást, megbízható munkaterületet és hozzájárulást igényel."
 }

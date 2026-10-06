@@ -1210,7 +1210,8 @@
     "images": "node scripts/render-images.mjs",
     "prepare": "husky",
     "security:sast": "node scripts/sast.mjs",
-    "schema:exec": "node scripts/exec-schema.mjs"
+    "schema:exec": "node scripts/exec-schema.mjs",
+    "check:reference": "node scripts/gen-reference.mjs --check"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [

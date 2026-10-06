@@ -2613,5 +2613,9 @@
   "judgeStatusDeclined": "Выключен: платное использование отклонено",
   "judgeStatusSlow": "По умолчанию выключен: слишком мало результатов готово к решению проверяющего",
   "judgeStatusSubscription": "Подписка",
-  "judgeStatusPaid": "Платно"
+  "judgeStatusPaid": "Платно",
+  "lspFix": "Попросить Muse исправить",
+  "lspExplain": "Объяснить",
+  "lspApply": "Применить предложенное изменение",
+  "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nЯзыковой сервер: платный Tab требует явного включения, доверенной рабочей области и согласия."
 }

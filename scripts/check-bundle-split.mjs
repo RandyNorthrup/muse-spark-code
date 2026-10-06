@@ -701,7 +701,7 @@ const TEXT_BLOCKS = [
   {
     block: 'TAB_MODEL_TEXT',
     sentinels: ['tabSystem', 'tabUserTemplate'],
-    readers: ['dist/tab.js'],
+    readers: ['dist/tab.js', 'dist/lsp.js'],
   },
   {
     block: 'HOOK_MODEL_TEXT',

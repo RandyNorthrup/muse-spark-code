@@ -2519,5 +2519,9 @@
   "judgeStatusDeclined": "Desactivado: uso de pago rechazado",
   "judgeStatusSlow": "Desactivado por defecto: pocos resultados listos al decidir el revisor",
   "judgeStatusSubscription": "Suscripción",
-  "judgeStatusPaid": "De pago"
+  "judgeStatusPaid": "De pago",
+  "lspFix": "Pedir a Muse que lo corrija",
+  "lspExplain": "Explicar",
+  "lspApply": "Aplicar la edición sugerida",
+  "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nServidor de lenguaje: Tab de pago requiere activación explícita, un espacio de trabajo de confianza y consentimiento."
 }

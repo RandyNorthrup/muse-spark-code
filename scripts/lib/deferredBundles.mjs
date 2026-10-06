@@ -71,6 +71,19 @@ export const DEFERRED = [
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
   {
+    output: 'dist/lsp.js',
+    metafile: 'dist/meta/lsp.json',
+    use: 'the LSP command',
+    files: [
+      'src/runtime/lsp/lspEntry.ts',
+      'src/runtime/lsp/server.ts',
+      'src/runtime/lsp/transport.ts',
+      'src/runtime/lsp/documents.ts',
+      'src/runtime/lsp/broker.ts',
+      'src/runtime/tabServe.ts',
+    ],
+  },
+  {
     output: 'dist/conversation.js',
     metafile: 'dist/meta/conversation.json',
     use: 'the first chat surface',
@@ -121,6 +134,7 @@ export const ON_FIRST_USE = [
       'src/host/tab/tabSpendGate.ts',
       'src/core/tab/tabCache.ts',
       'src/core/tab/tabContext.ts',
+      'src/core/tab/tabEligibility.ts',
       'src/core/tab/tabEngine.ts',
       'src/core/tab/tabReply.ts',
       'src/core/tab/tabRequest.ts',
@@ -304,6 +318,7 @@ export const sharedValidation = {
 // Keep dynamic imports dynamic: these entries run only on their first action.
 /** @type {import('esbuild').Plugin} */
 const DEFERRED_OUTFILES = new Map([
+  [path.resolve('src/runtime/lsp/lspEntry.ts'), 'dist/lsp.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
@@ -320,7 +335,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
+          /\/(?:lspEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (args.kind !== 'dynamic-import') return

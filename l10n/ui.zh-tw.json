@@ -2331,5 +2331,9 @@
   "judgeStatusDeclined": "關閉：已拒絕付費使用",
   "judgeStatusSlow": "預設關閉：審核員作出決定時就緒的結果太少",
   "judgeStatusSubscription": "訂閱",
-  "judgeStatusPaid": "付費"
+  "judgeStatusPaid": "付費",
+  "lspFix": "請 Muse 修正",
+  "lspExplain": "說明",
+  "lspApply": "套用建議的編輯",
+  "lspUsage": "muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\n語言伺服器：付費 Tab 需要明確啟用、受信任的工作區及同意。"
 }

@@ -84,7 +84,7 @@ class ZedTests(unittest.TestCase):
                 text=True, capture_output=True, check=False,
             )
             self.assertEqual(child.returncode, 0, child.stderr)
-            self.assertEqual(json.loads(child.stdout), ["panel", "--companion"])
+            self.assertEqual(json.loads(child.stdout), ["supervise", "panel", "--companion"])
 
     def test_windows_task_uses_powershell_literals(self):
         with patch.object(register.sys, "platform", "win32"):
@@ -123,7 +123,7 @@ class ZedTests(unittest.TestCase):
             launch.main(["panel", "/agent with spaces"])
             agent, argv, env = execute.call_args.args
             self.assertEqual(agent, "/agent with spaces")
-            self.assertEqual(argv, [agent, "panel", "--companion"])
+            self.assertEqual(argv, [agent, "supervise", "panel", "--companion"])
             self.assertNotIn("M104_API_KEY", env)
             self.assertNotIn("OPENAI_KEY", env)
             self.assertNotIn("m104_api_key", env)
@@ -136,7 +136,7 @@ class ZedTests(unittest.TestCase):
             agent.write_text(
                 f"#!{sys.executable}\nimport os,sys\n"
                 "assert not any(k.upper().endswith('_API_KEY') or k == 'OPENAI_KEY' for k in os.environ)\n"
-                "assert len(sys.argv) == 1\nprint(sys.stdin.read(),end='')\n"
+                "assert sys.argv[1:] == ['supervise']\nprint(sys.stdin.read(),end='')\n"
             )
             agent.chmod(0o700)
             result = subprocess.run(
@@ -195,7 +195,7 @@ class ZedTests(unittest.TestCase):
         with patch.object(launch.os, "execvpe") as execute:
             launch.main(agent["args"][2:])
             self.assertEqual(
-                execute.call_args.args[1], ["C:/Node/node.exe", "C:/ACP/dist/acp.js"]
+                execute.call_args.args[1], ["C:/Node/node.exe", "C:/ACP/dist/acp.js", "supervise"]
             )
         with tempfile.TemporaryDirectory() as directory:
             script = Path(directory) / "script with spaces.py"

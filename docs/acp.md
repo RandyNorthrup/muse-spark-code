@@ -224,6 +224,52 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 | `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price             |
 | `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                     |
 
+## Experimental LSP and workspace Stop (M104L)
+
+The source package also ships `lsp`, a stdio frontend to one private runtime
+per canonical workspace. Use `lsp --workspace <directory>` in a native LSP
+client. It negotiates UTF-16 full document synchronization, inline completion
+or ordinary completion items, and command support. A broker admits at most
+eight clients and exits after 60 seconds without authenticated activity.
+Client versions and content hashes protect dirty-buffer results and edits.
+
+Paid Tab needs `--tab --trust-workspace`; it uses the M94 engine, rate/output
+caps, private and ignored file checks, usage tally and cross-process ledger.
+The daily budget defaults to USD 1 and accepts USD 0.05–50 with
+`--tab-daily-budget-usd`. `--tab-model` accepts the M94 model table;
+contributor models also require `--allow-contributor-models`. Only invoked
+completion runs by default. The first editor prompt names the price, budget
+and training lane. The key stays in the OS credential store and never enters
+a supervised child environment. No paid request is part of the offline tests.
+
+The shims run `supervise` for ACP and companion launch; their independent
+`stop` command reaches authenticated owners of the same workspace outside
+the model queue. POSIX process groups and an independent guardian reap
+observed detached descendants even after supervisor death. Fast double-fork
+escapes before observation remain a platform containment gap. Windows uses
+the existing kill-on-close job helper and still needs a native receipt.
+
+The production LSP supplies `muse.stop`, `muse.usage` and `muse.help`.
+Open-panel/Fix/Explain and review/verify diagnostic publication require the
+absent B controller. It refuses those commands explicitly and advertises no
+review provider. The injected service contract is conformance-tested with
+fake diagnostics and versioned, approved workspace edits. This does not
+qualify review or all F1–F56 features in native editors.
+
+Offline reference commands, also documented in the root README:
+
+```sh
+node dist/acp.js lsp --help
+node dist/acp.js supervise --version
+node dist/acp.js stop
+node scripts/gen-reference.mjs
+npm run check:reference
+```
+
+See [runtime reference](runtime-reference.md) and
+[M104 H/L certification](certification/m104-h.md) for native receipts and
+remaining integration work.
+
 ## What the editor sees
 
 - **Modes**: Manual, Edit automatically, Plan, Auto (and Bypass permissions

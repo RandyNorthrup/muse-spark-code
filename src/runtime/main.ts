@@ -41,7 +41,7 @@ import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore } from './keyStore'
 import { takeCredentials } from './credentialVariables'
-import { workspaceKey } from './dataFolder'
+import { workspaceKey, paidGrantsFile } from './dataFolder'
 import { stopWorkspace, superviseRuntime } from './lsp/supervisor'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
@@ -517,6 +517,25 @@ async function main(): Promise<number> {
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
     }
+    case 'lsp': {
+      const { runLsp } = await import('./lsp/lspEntry')
+      const dataInput = { platform: process.platform, env: process.env, homeDir: homedir() }
+      return await runLsp(command.options, {
+        stdin: process.stdin,
+        stdout: process.stdout,
+        executable: process.execPath,
+        entry: __filename,
+        registry: path.join(tmpdir(), `muse-runtime-${workspaceKey(homedir())}`),
+        dataFolder: agentDataFolder(dataInput),
+        grantsFile: paidGrantsFile(dataInput),
+        secrets,
+        env: process.env,
+        log,
+        table: UI_TEXT,
+        locale: uiLocale(),
+        runGit: processGitRunner(),
+      })
+    }
     case 'serve': {
       return await serve(command.options, log)
     }
@@ -619,6 +638,7 @@ async function main(): Promise<number> {
     }
     case 'help': {
       writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      writeLine(process.stdout, UI_TEXT.lspUsage)
       return 0
     }
     case 'invalid': {

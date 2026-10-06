@@ -25,6 +25,8 @@ for (const file of [
   LAUNCHER,
   ...[
     'acp.js',
+    'lsp.js',
+    'runtimeWatchdog.js',
     'modelApi.js',
     'recorder.js',
     'uiText.js',
