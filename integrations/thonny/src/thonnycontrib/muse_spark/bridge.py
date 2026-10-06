@@ -59,6 +59,7 @@ class ProviderClient:
         self._connect_timeout = connect_timeout
         self._sock: Optional[socket.socket] = None
         self._closed = threading.Event()
+        self._leftover = b""
 
     @property
     def is_connected(self) -> bool:
@@ -108,6 +109,8 @@ class ProviderClient:
         except ProtocolError as exc:
             # A broken or foreign peer: drop the connection untouched.
             raise ConnectionFailed("protocol error: %s" % exc)
+        except OSError as exc:
+            raise ConnectionFailed("connection lost: %s" % exc)
         finally:
             self.close()
             self._engine.detach()
@@ -162,11 +165,25 @@ class ProviderClient:
 
     def _read_frame(self) -> dict:
         """Read one ``\\n``-terminated frame. Raises ``_CleanHangup`` on a
-        tidy EOF, :class:`ProtocolError` on anything that must be refused."""
+        tidy EOF, :class:`ProtocolError` on anything that must be refused.
+
+        TCP may coalesce several frames into one ``recv`` (or split one
+        frame across several); bytes past the first newline are kept for
+        the next call, so pipelined requests are each served in turn.
+        """
         assert self._sock is not None
-        chunks = []
-        size = 0
+        data = self._leftover
+        self._leftover = b""
         while True:
+            cut = data.find(b"\n")
+            if cut != -1:
+                line = data[: cut + 1]
+                self._leftover = data[cut + 1 :]
+                return protocol.decode_frame(line)
+            if len(data) > protocol.FRAME_MAX_BYTES + 1:
+                raise ProtocolError(
+                    protocol.ERR_FRAME_TOO_LARGE, "frame exceeds size limit"
+                )
             try:
                 piece = self._sock.recv(4096)
             except socket.timeout as exc:
@@ -174,19 +191,10 @@ class ProviderClient:
             except OSError as exc:
                 raise ConnectionFailed("connection lost: %s" % exc)
             if not piece:
-                if not chunks:
+                if not data:
                     raise _CleanHangup()
                 raise ProtocolError(protocol.ERR_MALFORMED, "connection cut mid-frame")
-            size += len(piece)
-            if size > protocol.FRAME_MAX_BYTES + 1:
-                raise ProtocolError(
-                    protocol.ERR_FRAME_TOO_LARGE, "frame exceeds size limit"
-                )
-            chunks.append(piece)
-            if piece.endswith(b"\n"):
-                break
-        line = b"".join(chunks)
-        return protocol.decode_frame(line)
+            data += piece
 
 
 class _CleanHangup(Exception):

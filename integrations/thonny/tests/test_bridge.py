@@ -400,6 +400,26 @@ def test_oversize_frame_drops_connection_untouched():
     peer.close()
 
 
+def test_pipelined_frames_are_each_served_in_turn():
+    peer = Peer()
+    _, runner, _, engine = _harness()
+    client = _connect_client(peer, engine)
+    with pumping(engine):
+        worker = client.start_thread()
+        peer.runtime_side.sendall(
+            protocol.encode_frame(_read_frame(request_id="req-1"))
+            + protocol.encode_frame(_read_frame(request_id="req-2"))
+        )
+        first = peer.read_frame()
+        second = peer.read_frame()
+        client.close()
+        worker.join(timeout=5)
+    assert (first["id"], first["ok"]) == ("req-1", True)
+    assert (second["id"], second["ok"]) == ("req-2", True)
+    assert [s["name"] for s in runner.sent] == ["read_file", "read_file"]
+    peer.close()
+
+
 def test_read_frame_reports_oversize_precisely():
     peer = Peer()
     _, _, _, engine = _harness()
