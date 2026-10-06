@@ -17,6 +17,7 @@ import type { PaidUseConsent } from '../paid/paidConsent'
 import type { PaidFeatureGate, PaidUsage } from '../paid/paidFeatures'
 import { paidFeaturePrice } from '../../shared/paid'
 import { unlessAborted } from '../timeouts'
+import { multiplyUsd, parseUsd, type Usd } from '../../shared/usd'
 
 type SoundMedia = Extract<MediaInfo, { kind: 'video' | 'audio' }>
 
@@ -135,7 +136,7 @@ export function audioRouteOptions(
 /** Application result, NOT a provider schema. The adapter parses the captured
  * HTTP response before mapping it here. No duration receipt is invented. */
 const batchResultSchema = z.strictObject({
-  text: z.string().check(z.minLength(1), z.maxLength(MAX_TEXT_ATTACHMENT_BYTES)),
+  text: z.string(),
   billedSeconds: z.optional(z.number().check(z.gte(0))),
 })
 
@@ -169,7 +170,7 @@ export interface BatchSpendClaim {
   /** Final synchronous admission, including the current budget and owner. */
   readonly admitSend: () => void
   /** Undefined keeps the full reservation as uncertain liability. */
-  readonly settle: (costUsd: number | undefined) => Promise<void>
+  readonly settle: (costUsd: Usd | undefined) => Promise<void>
 }
 
 export interface AudioPreparationDeps {
@@ -183,7 +184,7 @@ export interface AudioPreparationDeps {
   /** Shared PaidUseConsent, with voice's window-once policy and batch question. */
   readonly consent: Pick<PaidUseConsent, 'allows'>
   /** D78 daily and M82 session admission, durable before dispatch. */
-  readonly reserve: (costUsd: number, signal: AbortSignal) => Promise<BatchSpendClaim>
+  readonly reserve: (costUsd: Usd, signal: AbortSignal) => Promise<BatchSpendClaim>
   readonly usage: Pick<PaidUsage, 'addVoiceBatch'>
 }
 
@@ -209,6 +210,15 @@ export function batchTranscriptionQuestion(name: string, dailyBudgetUsd: number)
       fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(dailyBudgetUsd, 2) }),
     ].join('\n\n'),
   }
+}
+
+/** The shared money policy rounds fractional nano-USD liability upward. */
+function batchCost(seconds: number): Usd {
+  return multiplyUsd(
+    parseUsd(PAID_PRICES_USD.voicePerHour),
+    parseUsd(seconds),
+    BigInt(SECONDS_PER_HOUR) * parseUsd(1),
+  )
 }
 
 function check(deps: AudioPreparationDeps, signal: AbortSignal): void {
@@ -269,8 +279,11 @@ export async function prepareAudioAttachment(
   if (!allowed) throw new Error(UI_TEXT.museVoiceRefused)
   let converted: Awaited<ReturnType<AudioConversionPort['convert']>> | undefined
   let claim: BatchSpendClaim | undefined
-  const accounting: { hasSent: boolean; settledCost: number | undefined; countedSeconds: number } =
-    { hasSent: false, settledCost: 0, countedSeconds: upperSeconds }
+  const accounting: { hasSent: boolean; settledCost: Usd | undefined; countedSeconds: number } = {
+    hasSent: false,
+    settledCost: parseUsd(0),
+    countedSeconds: upperSeconds,
+  }
   try {
     if (!deps.context.batchFormats.includes(source.info.mediaType)) {
       if (deps.converter === undefined) throw new Error(UI_TEXT.media.converterUnavailable)
@@ -284,10 +297,7 @@ export async function prepareAudioAttachment(
       )
         throw new Error(UI_TEXT.media.converterUnavailable)
     }
-    const admittedClaim = await deps.reserve(
-      (upperSeconds * PAID_PRICES_USD.voicePerHour) / SECONDS_PER_HOUR,
-      signal,
-    )
+    const admittedClaim = await deps.reserve(batchCost(upperSeconds), signal)
     claim = admittedClaim
     check(deps, signal)
     const result = batchResultSchema.parse(
@@ -300,19 +310,18 @@ export async function prepareAudioAttachment(
         accounting.settledCost = undefined
       }),
     )
+    if (!accounting.hasSent) throw new Error(UI_TEXT.museVoiceRefused)
+    // A validated bill is independent of whether the text may enter chat.
+    accounting.countedSeconds = result.billedSeconds ?? upperSeconds
+    accounting.settledCost =
+      result.billedSeconds === undefined ? undefined : batchCost(accounting.countedSeconds)
+    if (accounting.countedSeconds > upperSeconds)
+      throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
     if (
-      !accounting.hasSent ||
       result.text.trim() === '' ||
       new TextEncoder().encode(result.text).length > MAX_TEXT_ATTACHMENT_BYTES
     )
       throw new Error(UI_TEXT.museVoiceRefused)
-    accounting.countedSeconds = result.billedSeconds ?? upperSeconds
-    accounting.settledCost =
-      result.billedSeconds === undefined
-        ? undefined
-        : (accounting.countedSeconds * PAID_PRICES_USD.voicePerHour) / SECONDS_PER_HOUR
-    if (accounting.countedSeconds > upperSeconds)
-      throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
     check(deps, signal)
     return {
       modelId,
@@ -327,8 +336,11 @@ export async function prepareAudioAttachment(
     }
   } finally {
     try {
-      if (accounting.hasSent) deps.usage.addVoiceBatch(accounting.countedSeconds)
-      await claim?.settle(accounting.settledCost)
+      try {
+        if (accounting.hasSent) deps.usage.addVoiceBatch(accounting.countedSeconds)
+      } finally {
+        await claim?.settle(accounting.settledCost)
+      }
     } finally {
       await converted?.dispose()
     }

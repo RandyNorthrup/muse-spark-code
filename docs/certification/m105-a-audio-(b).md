@@ -49,15 +49,15 @@ it without breaking the optional UI cap.
 
 ## Named integration handoffs
 
-| Binding        | Owner and concrete action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| A-U18-BATCH    | Lead/capture owner: supply scrubbed batch wav/mp3/mp4/mov request/response frames, workspace, counted attempts and billing/rounding receipts. Implement the adapter behind `BatchTranscriptionPort`, parse its real HTTP boundary, declare only captured formats and a proven billable-duration upper bound. It streams the confined source, retrieves the stored key internally, checks admission after that wait and before every attempted send, and aborts on the supplied signal. Adapter errors must be fixed public reasons, without provider bodies, keys or private helper paths.                                                                                                                                                       |
-| A-M1-CONVERT   | M1: bind `AudioConversionPort` for extractWav/wrapMp4 and its availability flags. Wrap audio with a still frame. Verify the absolute executable through the trusted-path port; use argument arrays, no credentials, bounded owner-only output, a stable validated source, sniffed duration/sound and idempotent cleanup. Unknown bounds stay unavailable. No permission or privacy setting was changed here; native permission-gated checks remain with their recorder/converter lanes.                                                                                                                                                                                                                                                          |
-| A-M2-MESSAGE   | M2: bind `ModelApiHostDeps.prepareAudioMessage` through the lazy media bundle, resolving accepted attachment choices to the router. Append its transcript as a textFile part beside the uploaded video; standalone transcription omits the audio. Upload wrapped media then dispose its lease. Use the returned per-message model for encoding, capability/replay gates, reservations and billing. Keep Meta input_audio forbidden. Route audio-bearing steers through a fresh admitted message rather than bypassing preparation. Bind the model-specific message pill; this lane emits the per-message notice and selected chip action without changing session model/settings.                                                                |
-| A-C-CHOICES    | C/M95: project captured record fields into `AudioRoutingContext`; validate the same-provider/tier fallback and contributor consent after each wait. Run C's contributor question before spending/sending. Project fresh localized labels when the display language changes. Unknown records grant nothing.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| A-PAID-DAILY   | W/paid owner: use the existing gate (interactive default-on, explicit false respected), a batch instance of PaidUseConsent with voice window-once generation/revocation and the existing workspace grants. Use `batchTranscriptionQuestion(name, museSpark.paidDailyBudgetUsd)` in its existing three-choice popup. Bind `reserve` to D78 and M82's existing durable ledgers; undefined settlement retains the full claim, zero refunds an unsent attempt. No separate store, key lane or paid approval card. ACP/headless defaults stay off.                                                                                                                                                                                                    |
-| A-E1-UI-BUDGET | W/E1/C: bind `AttachmentSound` through `AttachmentChips.renderAudio` and validated metadata-only action messages. Default-on choices still ask before any charge. The current browser optional total has insufficient headroom for the direct binding; recover space or use D85's separately budgeted page entry while preserving every existing cap. W owns build/budget/split changes.                                                                                                                                                                                                                                                                                                                                                         |
-| A-EDITORS-DOCS | W/E1/E2/E3/M104: bind the same core ports and shared React surface in VS Code family, remote/companion, native embedded panels and ACP clients. No vscode import exists in the new logic. Headless receives named refusals when its paid flags/consent/budget are unavailable; no recording can start here. Host/native editor receipts, four-theme/320px accessibility, README modality matrix, PRIVACY, CHANGELOG/PLAN status and featureCatalog entries (the file is absent on this base) remain with W. Reference entries needed: soundtrack choices, batch transcription at $0.18/hour with daily budget/first charge consent, converter-gated audio-as-video and the per-message model choice. No new command/setting is contributed by A. |
+| Binding        | Owner and concrete action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A-U18-BATCH    | Lead/capture owner: supply scrubbed batch wav/mp3/mp4/mov request/response frames, workspace, counted attempts and billing/rounding receipts. Implement the adapter behind `BatchTranscriptionPort`, parse its real HTTP boundary, declare only captured formats and a proven billable-duration upper bound. It streams the confined source, retrieves the stored key internally, checks admission after that wait and before every attempted send, and aborts on the supplied signal. Adapter errors must be fixed public reasons, without provider bodies, keys or private helper paths.                                                                                                                                                                              |
+| A-M1-CONVERT   | M1: bind `AudioConversionPort` for extractWav/wrapMp4 and its availability flags. Wrap audio with a still frame. Verify the absolute executable through the trusted-path port; use argument arrays, no credentials, bounded owner-only output, a stable validated source, sniffed duration/sound and idempotent cleanup. Unknown bounds stay unavailable. No permission or privacy setting was changed here; native permission-gated checks remain with their recorder/converter lanes.                                                                                                                                                                                                                                                                                 |
+| A-M2-MESSAGE   | M2: bind `ModelApiHostDeps.prepareAudioMessage` through the lazy media bundle, resolving accepted attachment choices to the router. Append its transcript as a textFile part beside the uploaded video; standalone transcription omits the audio. Upload wrapped media then dispose its lease. Use the returned per-message model for encoding, capability/replay gates, reservations and billing. Keep Meta input_audio forbidden. Route audio-bearing steers through a fresh admitted message rather than bypassing preparation. Bind the model-specific message pill; this lane emits the per-message notice and selected chip action without changing session model/settings.                                                                                       |
+| A-C-CHOICES    | C/M95: project captured record fields into `AudioRoutingContext`; validate the same-provider/tier fallback and contributor consent after each wait. Run C's contributor question before spending/sending. Project fresh localized labels when the display language changes. Unknown records grant nothing.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| A-PAID-DAILY   | W/paid owner: use the existing gate (interactive default-on, explicit false respected), a batch instance of PaidUseConsent with voice window-once generation/revocation and the existing workspace grants. Use `batchTranscriptionQuestion(name, museSpark.paidDailyBudgetUsd)` in its existing three-choice popup. Bind `reserve` to D78 and M82's existing durable ledgers, carrying `Usd` (integer nano-USD) through admission, accumulation, comparison and settlement with no intermediate number conversion; undefined retains the full claim, exact zero refunds an unsent attempt. Settle each claim once. Repeat the 1000-bill / $0.50 boundary with the production ledger. No separate store, key lane or paid approval card. ACP/headless defaults stay off. |
+| A-E1-UI-BUDGET | W/E1/C: bind `AttachmentSound` through `AttachmentChips.renderAudio` and validated metadata-only action messages. Default-on choices still ask before any charge. The current browser optional total has insufficient headroom for the direct binding; recover space or use D85's separately budgeted page entry while preserving every existing cap. W owns build/budget/split changes.                                                                                                                                                                                                                                                                                                                                                                                |
+| A-EDITORS-DOCS | W/E1/E2/E3/M104: bind the same core ports and shared React surface in VS Code family, remote/companion, native embedded panels and ACP clients. No vscode import exists in the new logic. Headless receives named refusals when its paid flags/consent/budget are unavailable; no recording can start here. Host/native editor receipts, four-theme/320px accessibility, README modality matrix, PRIVACY, CHANGELOG/PLAN status and featureCatalog entries (the file is absent on this base) remain with W. Reference entries needed: soundtrack choices, batch transcription at $0.18/hour with daily budget/first charge consent, converter-gated audio-as-video and the per-message model choice. No new command/setting is contributed by A.                        |
 
 ## Capability cases certified with fakes
 
@@ -231,3 +231,116 @@ All 65 tests passed across `transcribeBatch`, `modelApiAudio`, `paidConsent`.
 Each drill ran its complete file with `--maxWorkers=3`, no timeout override
 or test filtering. Each source was restored byte-for-byte and its before
 and restored SHA-256 matched. No credentials, model calls or network calls.
+
+### Findings 2 (P2) and 3 (P3): receipt settlement and exact money — fixed
+
+Application billing is validated and recorded before empty, blank or
+oversized transcript text is refused. The same UTF-8 limit still guards
+chat. No-admission results still settle the unsent zero; absent/invalid
+receipts after dispatch retain uncertain liability. The claim's one settle
+call runs in finally even if PaidUsage throws, and private converted audio
+still disposes when either tallying or settlement fails. Tests cover empty,
+blank, oversized ASCII and oversized multibyte text with a known one-second
+bill, plus a failed usage tally. Before the repair these tests received
+undefined settlement or no settlement. An intermediate receipt-only repair
+exposed the existing binary-money difference, so these two fixes are
+certified together.
+
+Both spend-port arguments now carry `Usd`, integer nano-USD, through the
+existing shared helper. That module was absent on this base; the helper and
+its tests were restored from local commit `5fd85846d01120dd498bef7813b821c132187b85`
+without merging a branch or reading another worktree. Only the numeric
+constants moved to `src/shared/constants.ts` to meet this repository's
+rule. The arithmetic/presentation policy is unchanged: decimal parse at
+legacy edges, exact integer arithmetic, fractional nano-USD liabilities
+rounded up and caps rounded down. The batch tariff uses a rational product
+of the parsed hourly price and duration; no binary-dollar arithmetic or
+number conversion intervenes in reserve/settle. The 10-second baseline
+first failed with `0.0004999999999999999` instead of `0.0005`.
+
+The new regression admits 1000 ten-second bills at an exact $0.50 cap,
+then refuses the 1001st before sending. Fractional seconds, sub-nano-dollar
+upward rounding, known bills, unsent refunds and uncertain settlement are
+covered. A-PAID-DAILY and PLAN §9's **M105-A-PAID-EXACT-BINDING** explicitly
+require the production durable ledger to preserve that type and rerun the
+boundary test when it is bound. It is safe to defer that binding because
+there is no production batch caller. No reviewed finding is left residual;
+existing captured-adapter, converter, UI-budget and editor/docs handoffs
+remain as named above. No guards, budgets, caps, paid defaults, dependencies,
+wire fields or credentials changed.
+
+### Receipt and money red-drill evidence
+
+Every row below ran its complete test file with `--maxWorkers=3` at the
+repository timeout. Every named test failed with exit 1; after each mutation
+the exact source bytes were restored and SHA-256 matched. The batch source
+hash for these drills was
+`51c7cb08556f9861abb53b1afff41aeb8faa304274cbcf6ac7f27b5a31cb8db7`;
+the restored shared USD helper hash was
+`e8a4cd655e5abaeb1e6af78c7779866bb8dd388e02f5d192b45c4d306e56c724`.
+
+| Broken behavior               | File and named failing test                                                                                 | Result                   |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------ |
+| known-bill-before-text        | `transcribeBatch.test.ts`: settles a known bill exactly once even when transcript text is rejected          | exit 1; SHA-256 restored |
+| settle-despite-tally-failure  | `transcribeBatch.test.ts`: settles exactly once and cleans converted audio even when the usage tally throws | exit 1; SHA-256 restored |
+| exact-batch-admission         | `transcribeBatch.test.ts`: passes the exact ten-second tariff to admission and settlement                   | exit 1; SHA-256 restored |
+| exact-batch-settlement        | `transcribeBatch.test.ts`: passes the exact ten-second tariff to admission and settlement                   | exit 1; SHA-256 restored |
+| exact-batch-single-settlement | `transcribeBatch.test.ts`: passes the exact ten-second tariff to admission and settlement                   | exit 1; SHA-256 restored |
+| transcript-byte-limit         | `transcribeBatch.test.ts`: settles a known bill exactly once even when transcript text is rejected          | exit 1; SHA-256 restored |
+| usd-input-length              | `usd.test.ts`: refuses malformed, unbounded and negative amounts and invalid divisors                       | exit 1; SHA-256 restored |
+| usd-negative-input            | `usd.test.ts`: refuses malformed, unbounded and negative amounts and invalid divisors                       | exit 1; SHA-256 restored |
+| usd-exponent-bound            | `usd.test.ts`: refuses malformed, unbounded and negative amounts and invalid divisors                       | exit 1; SHA-256 restored |
+| usd-max-bound                 | `usd.test.ts`: refuses malformed, unbounded and negative amounts and invalid divisors                       | exit 1; SHA-256 restored |
+| usd-divisor-bound             | `usd.test.ts`: refuses malformed, unbounded and negative amounts and invalid divisors                       | exit 1; SHA-256 restored |
+| usd-liability-ceiling         | `usd.test.ts`: rounds liabilities up and caps down without binary arithmetic                                | exit 1; SHA-256 restored |
+| usd-numeric-output-bound      | `usd.test.ts`: refuses malformed, unbounded and negative amounts and invalid divisors                       | exit 1; SHA-256 restored |
+| usd-negative-display          | `usd.test.ts`: refuses malformed, unbounded and negative amounts and invalid divisors                       | exit 1; SHA-256 restored |
+| usd-display-precision         | `usd.test.ts`: refuses malformed, unbounded and negative amounts and invalid divisors                       | exit 1; SHA-256 restored |
+
+Together with finding 1, **19 repair drills proved**. The earlier milestone
+record remains separate; these rows prove the review repairs and restored
+helper in this tree.
+
+### Final repair verification (Mac mini)
+
+All final Vitest commands ran directly in this worktree, with at most three
+files/workers, no test filtering, no timeout override and the repository's
+5-second test timeout. No test needed a named longer timeout.
+
+| `npx vitest run <files> --maxWorkers=3`                                                    | Result     |
+| ------------------------------------------------------------------------------------------ | ---------- |
+| `transcribeBatch.test.ts`, `usd.test.ts`, `paidConsent.test.ts`                            | 74 passed  |
+| `modelApiAudio.test.ts`, `modelApiHost.test.ts`, `Composer.test.tsx`                       | 701 passed |
+| `AudioAttachmentActions.test.tsx`, `audioBundle.test.ts`, `modelApiGoldenRequests.test.ts` | 23 passed  |
+| `paidFeatures.test.ts`                                                                     | 30 passed  |
+
+**828 distinct tests across ten files passed**, including ordinary raw
+request goldens, the real-session Stop regression and exact budget boundary.
+The existing Vite config-loader migration warning was informational.
+
+| Check                                                           | Final result                                                                               |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `npm run typecheck`                                             | exit 0; all five projects                                                                  |
+| `npx eslint --max-warnings=0` on all eight changed TS/TSX files | exit 0                                                                                     |
+| `npx prettier --check` on all eleven changed files              | exit 0                                                                                     |
+| `npm run deadcode`                                              | exit 0; two pre-existing configuration hints, no unused code                               |
+| `npx jscpd`                                                     | exit 0; zero clones across 1176 files                                                      |
+| `node scripts/check-l10n.mjs`                                   | exit 0; 14 tables, 164 manifest strings, 597 source files, zero problems                   |
+| `npm run check:host-api`                                        | exit 0; 332 APIs, 31 importing files, 25 Node built-ins, 61 theme variables, zero problems |
+| `npm run build`                                                 | exit 0; size, split, host-global and notices checks all pass                               |
+| `git diff --check`                                              | exit 0                                                                                     |
+
+Final production sizes/caps (KiB): extension **437.0/600**, Model API
+**447.6/475**, ACP **817.0/850**, browser main including static imports
+**899.0/900**, deferred browser JavaScript **49.7/50**, checkpoint store
+**77.0/225**. The unbound batch module still makes no claim that production
+bindings fit; A-E1-UI-BUDGET remains with its named owners. No cap changed.
+
+Local commits use the repository's hooks (lint-staged and staged gitleaks),
+explicit paths and the required co-author. No suppression, unverified cast,
+new dependency or tool installation was needed. No live/model calls,
+spend or uploads: **0 attempts, 0 spend, 0 uploads**. No credentials were
+read, printed, copied or stored. No push, rebase or merge ran. The rig/common
+rules explicitly forbid full `npm run quality` here; the lead still owns
+that gate and the integration matrix. These repairs have no P1/P2/P3
+residual; the named production binding is the existing integration handoff.

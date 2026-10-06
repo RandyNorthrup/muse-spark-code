@@ -19102,7 +19102,10 @@ Stop cancels an unanswered consent wait (pass the turn signal into consent
 and race the wait); a validated billing receipt settles exactly once even
 when transcript text is rejected; admission and settlement preserve exact
 `Usd` through `src/shared/usd.ts`, which is absent on this base and will be
-added without a dependency. Extend the shared consent signature compatibly
+restored from the local repository history (`5fd85846d`, nano-USD with
+liabilities rounded upward and caps downward), with tunables in constants.
+Billing is captured before text rejection; tally failure cannot skip the
+claim's one settlement. Extend the shared consent signature compatibly
 for the supplied signal. Regression tests and byte-restored red drills live
 in `docs/certification/m105-a-audio-(b).md`. Existing captured-adapter,
 converter, UI-budget and production-ledger bindings remain with their named
@@ -21216,6 +21219,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M105-A-PAID-EXACT-BINDING (FIXM105A).** RVM105A's three findings are
+  fixed in the portable batch ports and consent wait. The production batch
+  HTTP adapter and D78/M82 ledger binding are still absent, as recorded in
+  `docs/certification/m105-a-audio-(b).md` (A-U18-BATCH, A-PAID-DAILY).
+  Safe for now: these ports have no production caller, so no batch money is
+  admitted into the legacy numeric journals. Follow-up: W/paid owner must
+  carry the exact `Usd` amounts through durable admission, accumulation,
+  cap comparison and one settlement; a number conversion for display
+  cannot become a new arithmetic boundary. Repeat the $0.50 / 1000-bill
+  regression through the real ledger when binding it. Captures and existing
+  converter/UI/editor handoffs remain required; this repair claims none.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

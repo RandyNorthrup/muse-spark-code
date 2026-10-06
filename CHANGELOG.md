@@ -11,6 +11,8 @@ happened, not what was planned; superseded entries are kept.
 
 - M105 batch audio preparation now finishes a stopped turn while its paid
   consent popup is unanswered.
+  Valid batch bills settle once even for rejected transcript text or a failed
+  usage tally; admission and settlement preserve exact nano-USD amounts.
 
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the

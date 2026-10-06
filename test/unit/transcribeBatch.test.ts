@@ -17,6 +17,7 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { audioLabels } from './helpers/audioLabels'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
+import { compareUsd, parseUsd, sumUsd, type Usd } from '../../src/shared/usd'
 
 // Test-only projections of U4/U7's summary, never claimed complete live records.
 const spark13: AudioModelCapabilities = {
@@ -89,7 +90,7 @@ function rig() {
   const usage = new PaidUsage(log)
   const claim = {
     admitSend: vi.fn(),
-    settle: vi.fn<(cost: number | undefined) => Promise<void>>(() => Promise.resolve()),
+    settle: vi.fn<(cost: Usd | undefined) => Promise<void>>(() => Promise.resolve()),
   }
   const reserve = vi.fn<AudioPreparationDeps['reserve']>(() => Promise.resolve(claim))
   const transcribe = vi.fn<BatchTranscriptionPort['transcribe']>((source, _signal, admit) => {
@@ -293,13 +294,54 @@ describe('batch preparation and accounting', () => {
     const audioPrepared = await r.prepare(wav)
     expect(audioPrepared.media).toBeUndefined()
     expect(r.context.model).toBe(spark13)
-    expect(r.reserve.mock.calls[0]?.[0]).toBeCloseTo(0.0030125, 10)
-    expect(r.claim.settle.mock.calls.at(-1)?.[0]).toBeCloseTo(0.0030125, 10)
+    expect(r.reserve.mock.calls[0]?.[0]).toBe(parseUsd('0.0030125'))
+    expect(r.claim.settle.mock.calls.at(-1)?.[0]).toBe(parseUsd('0.0030125'))
     expect(r.usage.current.voiceSeconds).toBe(120.5)
     expect(r.ask).toHaveBeenCalledOnce()
     await r.consent.forget()
     await r.prepare(wav)
     expect(r.ask).toHaveBeenCalledTimes(2)
+  })
+
+  it('passes the exact ten-second tariff to admission and settlement', async () => {
+    const r = rig()
+    await r.prepare({ ...wav, info: { ...wav.info, durationSeconds: 10 } })
+    expect(r.reserve.mock.calls[0]?.[0]).toBe(parseUsd('0.0005'))
+    expect(r.claim.settle).toHaveBeenCalledExactlyOnceWith(parseUsd('0.0005'))
+  })
+
+  it('admits exactly 1000 ten-second bills at the half-dollar cap and refuses the next', async () => {
+    const r = rig()
+    const cap = parseUsd('0.5')
+    let spent = parseUsd(0)
+    const reserve = vi.fn<AudioPreparationDeps['reserve']>((cost) => {
+      if (compareUsd(sumUsd([spent, cost]), cap) > 0)
+        return Promise.reject(new Error('budget reached'))
+      return Promise.resolve({
+        admitSend: () => undefined,
+        settle: (actual) => {
+          spent = sumUsd([spent, actual ?? cost])
+          return Promise.resolve()
+        },
+      })
+    })
+    const source = { ...wav, info: { ...wav.info, durationSeconds: 10 } }
+    for (let index = 0; index < 1000; index++) await r.prepare(source, 'transcribe', { reserve })
+    expect(spent).toBe(cap)
+    await expect(r.prepare(source, 'transcribe', { reserve })).rejects.toThrow('budget reached')
+    expect(r.transcribe).toHaveBeenCalledTimes(1000)
+  })
+
+  it('keeps fractional-second tariffs and rounds a sub-nano-USD liability upward', async () => {
+    const r = rig()
+    for (const [seconds, cost] of [
+      [0.125, '0.00000625'],
+      [0.000001, '0.000000001'],
+    ] as const) {
+      await r.prepare({ ...wav, info: { ...wav.info, durationSeconds: seconds } })
+      expect(r.reserve).toHaveBeenLastCalledWith(parseUsd(cost), expect.any(AbortSignal))
+      expect(r.claim.settle).toHaveBeenLastCalledWith(parseUsd(cost))
+    }
   })
 
   it('names the exact hourly price, key billing and shared daily budget in the existing modal', () => {
@@ -444,7 +486,7 @@ describe('batch preparation and accounting', () => {
     })
     await expect(r.prepare()).rejects.toThrow('stale choice')
     expect(r.transcribe).not.toHaveBeenCalled()
-    expect(r.claim.settle).toHaveBeenCalledWith(0)
+    expect(r.claim.settle).toHaveBeenCalledWith(parseUsd(0))
   })
 
   it.each([Infinity, NaN, 1])(
@@ -483,7 +525,7 @@ describe('batch preparation and accounting', () => {
     })
     await expect(r.prepare()).rejects.toThrow()
     expect(r.claim.admitSend).not.toHaveBeenCalled()
-    expect(r.claim.settle).toHaveBeenCalledWith(0)
+    expect(r.claim.settle).toHaveBeenCalledWith(parseUsd(0))
     r.state.isOn = true
     r.claim.admitSend.mockImplementationOnce(() => {
       throw new Error('daily budget reached')
@@ -540,11 +582,39 @@ describe('batch preparation and accounting', () => {
     },
   )
 
+  it.each([
+    '',
+    ' ',
+    'x'.repeat(MAX_TEXT_ATTACHMENT_BYTES + 1),
+    'é'.repeat(MAX_TEXT_ATTACHMENT_BYTES),
+  ])('settles a known bill exactly once even when transcript text is rejected', async (text) => {
+    const r = rig()
+    r.transcribe.mockImplementationOnce((_source, _signal, admit) => {
+      admit()
+      return Promise.resolve({ text, billedSeconds: 1 })
+    })
+    await expect(r.prepare(wav)).rejects.toThrow()
+    expect(r.claim.settle).toHaveBeenCalledExactlyOnceWith(parseUsd('0.00005'))
+    expect(r.usage.current.voiceSeconds).toBe(1)
+  })
+
+  it('settles exactly once and cleans converted audio even when the usage tally throws', async () => {
+    const r = rig()
+    vi.spyOn(r.usage, 'addVoiceBatch').mockImplementationOnce(() => {
+      throw new Error('usage tally failed')
+    })
+    await expect(
+      r.prepare(video, 'transcribe', { context: { ...r.context, batchFormats: ['audio/wav'] } }),
+    ).rejects.toThrow('usage tally failed')
+    expect(r.claim.settle).toHaveBeenCalledExactlyOnceWith(parseUsd('0.0030125'))
+    expect(r.dispose).toHaveBeenCalledOnce()
+  })
+
   it('does not accept a success from an adapter that bypasses final admission', async () => {
     const r = rig()
     r.transcribe.mockResolvedValueOnce({ text: 'not admitted', billedSeconds: 1 })
     await expect(r.prepare(wav)).rejects.toThrow()
-    expect(r.claim.settle).toHaveBeenLastCalledWith(0)
+    expect(r.claim.settle).toHaveBeenLastCalledWith(parseUsd(0))
     expect(r.usage.current.voiceSeconds).toBe(0)
   })
 
@@ -558,6 +628,7 @@ describe('batch preparation and accounting', () => {
       r.prepare(video, 'transcribe', { context: { ...r.context, batchFormats: ['audio/wav'] } }),
     ).rejects.toThrow('ledger unavailable')
     expect(r.dispose).toHaveBeenCalledTimes(2)
+    expect(r.claim.settle).toHaveBeenCalledOnce()
   })
 
   it('settles an over-bound receipt honestly and refuses its transcript', async () => {
@@ -567,7 +638,7 @@ describe('batch preparation and accounting', () => {
       return Promise.resolve({ text: 'overspend', billedSeconds: 100 })
     })
     await expect(r.prepare(wav)).rejects.toThrow()
-    expect(r.claim.settle).toHaveBeenCalledWith(0.005)
+    expect(r.claim.settle).toHaveBeenCalledWith(parseUsd('0.005'))
     expect(r.usage.current.voiceSeconds).toBe(100)
   })
 

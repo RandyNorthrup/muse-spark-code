@@ -784,6 +784,16 @@ export const PAID_PRICES_VERIFIED_ON = '2026-09-24'
 export const SEARCHES_PER_PRICE_UNIT = 1000
 export const SECONDS_PER_HOUR = 3600
 
+// Exact USD accounting (shared helper restored from 5fd85846d).
+export const USD_DECIMAL_ZERO = 0n
+export const USD_DECIMAL_ONE = 1n
+export const USD_DECIMAL_RADIX = 10n
+export const USD_MAX_DECIMAL_LENGTH = 128
+export const USD_NANO_DECIMALS = 9
+export const USD_NANO_SCALE = USD_DECIMAL_RADIX ** BigInt(USD_NANO_DECIMALS)
+export const USD_SMALL_DISPLAY_DECIMALS = 4
+export const USD_MAX_AMOUNT = BigInt(Number.MAX_SAFE_INTEGER) * USD_NANO_SCALE
+
 // --- The Muse Judge (M98, PLAN.md D77) ---
 //
 // The engines `museSpark.judge.engine` takes in phase 1. `auto` is `same`
