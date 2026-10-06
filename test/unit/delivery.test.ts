@@ -116,6 +116,30 @@ function setup(backend: 'museCode' | 'modelApi', overrides: Partial<ScheduleV2> 
   }
 }
 
+function beginHold(rig: ReturnType<typeof setup>) {
+  rig.session.running = true
+  const waiting = vi.spyOn(rig.session, 'waitUntilIdle')
+  const pending = rig.deliver()
+  return {
+    pending,
+    observed: () =>
+      vi.waitFor(() => {
+        expect(waiting).toHaveBeenCalledOnce()
+      }),
+  }
+}
+
+async function settleStarted(
+  rig: ReturnType<typeof setup>,
+  pending: ReturnType<ScheduleDelivery['deliver']>,
+) {
+  await vi.waitFor(() => {
+    expect(rig.started).toHaveBeenCalledOnce()
+  })
+  rig.terminal.resolve(facts)
+  return await pending
+}
+
 describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backend) => {
   it.each([true, false])(
     'steers when running=%s and waits for run-scoped settlement',
@@ -142,11 +166,7 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
       return Promise.reject(new SteerRefusedError('No turn took this input'))
     })
     const pending = rig.deliver()
-    await vi.waitFor(() => {
-      expect(rig.started).toHaveBeenCalledOnce()
-    })
-    rig.terminal.resolve(facts)
-    await pending
+    await settleStarted(rig, pending)
     expect(rig.session.calls.map((call) => call.kind)).toEqual(['send'])
   })
 
@@ -159,6 +179,23 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
       return Promise.reject(new Error('Ack lost after dispatch'))
     })
     expect(await rig.deliver()).toMatchObject(rig.failure)
+    expect(rig.session.calls).toEqual([])
+  })
+
+  it('refuses a steer fallback after losing workspace ownership', async () => {
+    const rig = setup(backend, { delivery: 'steer' })
+    const refusal = Promise.withResolvers<undefined>()
+    const steered = vi.spyOn(rig.session, 'steer').mockImplementation(() => refusal.promise)
+    rig.session.running = true
+    const pending = rig.deliver()
+    await vi.waitFor(() => {
+      expect(steered).toHaveBeenCalledOnce()
+    })
+    rig.dropWorkspace()
+    rig.session.running = false
+    refusal.reject(new SteerRefusedError('No turn took this input'))
+    rig.terminal.resolve(facts)
+    expect(await pending).toMatchObject(rig.failure)
     expect(rig.session.calls).toEqual([])
   })
 
@@ -177,11 +214,7 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
     })
     expect(rig.session.calls.map((call) => call.kind)).toEqual(['cancel'])
     rig.session.idleNow()
-    await vi.waitFor(() => {
-      expect(rig.started).toHaveBeenCalledOnce()
-    })
-    rig.terminal.resolve(facts)
-    await pending
+    await settleStarted(rig, pending)
     expect(rig.session.calls.map((call) => call.kind)).toEqual(['cancel', 'send'])
   })
 
@@ -207,25 +240,13 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
 
   it('when idle holds without a backend queue and sends only after idle', async () => {
     const rig = setup(backend)
-    rig.session.running = true
-    const waiting = vi.fn()
-    const original = rig.session.waitUntilIdle.bind(rig.session)
-    vi.spyOn(rig.session, 'waitUntilIdle').mockImplementation((signal) => {
-      waiting()
-      return original(signal)
-    })
-    const pending = rig.deliver()
-    await vi.waitFor(() => {
-      expect(waiting).toHaveBeenCalledOnce()
-    })
+    const held = beginHold(rig)
+    const pending = held.pending
+    await held.observed()
     expect(rig.session.calls).toEqual([])
     expect(rig.runs.run).not.toHaveBeenCalled()
     rig.session.idleNow()
-    await vi.waitFor(() => {
-      expect(rig.started).toHaveBeenCalledOnce()
-    })
-    rig.terminal.resolve(facts)
-    await pending
+    await settleStarted(rig, pending)
     expect(rig.session.calls.map((call) => call.kind)).toEqual(['send'])
     expect(rig.delivery.skip(rig.context.runId)).toBe(false)
   })
@@ -264,11 +285,7 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
     const rig = setup(backend, { delivery: 'newConversation', parallel: true })
     rig.session.running = true
     const pending = rig.deliver()
-    await vi.waitFor(() => {
-      expect(rig.started).toHaveBeenCalledOnce()
-    })
-    rig.terminal.resolve(facts)
-    await pending
+    await settleStarted(rig, pending)
     expect(rig.targets.fresh).toHaveBeenCalledWith(rig.schedule, occurrenceMs)
     expect(rig.targets.find).not.toHaveBeenCalled()
     expect(rig.freshSession.calls.map((call) => call.kind)).toEqual(['send'])
@@ -313,17 +330,9 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
 
   it('never dispatches after losing the workspace while an idle fire waits', async () => {
     const rig = setup(backend)
-    rig.session.running = true
-    const waiting = vi.fn()
-    const original = rig.session.waitUntilIdle.bind(rig.session)
-    vi.spyOn(rig.session, 'waitUntilIdle').mockImplementation((signal) => {
-      waiting()
-      return original(signal)
-    })
-    const pending = rig.deliver()
-    await vi.waitFor(() => {
-      expect(waiting).toHaveBeenCalledOnce()
-    })
+    const held = beginHold(rig)
+    const pending = held.pending
+    await held.observed()
     rig.terminal.resolve(facts)
     rig.dropWorkspace()
     rig.session.idleNow()
@@ -347,25 +356,13 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
 
   it('keeps an admitted grant snapshot while the caller changes its copy', async () => {
     const rig = setup(backend)
-    rig.session.running = true
-    const waiting = vi.fn()
-    const original = rig.session.waitUntilIdle.bind(rig.session)
-    vi.spyOn(rig.session, 'waitUntilIdle').mockImplementation((signal) => {
-      waiting()
-      return original(signal)
-    })
-    const pending = rig.deliver()
-    await vi.waitFor(() => {
-      expect(waiting).toHaveBeenCalledOnce()
-    })
+    const held = beginHold(rig)
+    const pending = held.pending
+    await held.observed()
     rig.schedule.grant.paidCapUsd = 1
     rig.context.grant.paidCapUsd = 1
     rig.session.idleNow()
-    await vi.waitFor(() => {
-      expect(rig.started).toHaveBeenCalledOnce()
-    })
-    rig.terminal.resolve(facts)
-    await pending
+    await settleStarted(rig, pending)
     expect(rig.runs.run.mock.calls[0]?.[2].grant.paidCapUsd).toBe(0)
   })
 
@@ -399,6 +396,36 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
     rig.dropWorkspace()
     expect(await rig.deliver()).toMatchObject({ outcome: 'missed', cost: { usd: 0 } })
     expect(rig.targets.find).not.toHaveBeenCalled()
+  })
+
+  it('rechecks workspace ownership after unattended admission waits', async () => {
+    const rig = setup(backend)
+    rig.runs.run.mockImplementation(async (_session, _schedule, _context, dispatch) => {
+      rig.dropWorkspace()
+      try {
+        await dispatch()
+        return facts
+      } catch {
+        return rig.failure
+      }
+    })
+    expect(await rig.deliver()).toMatchObject(rig.failure)
+    expect(rig.session.calls).toEqual([])
+  })
+
+  it('sends nothing after losing the workspace while Stop unwinds', async () => {
+    const rig = setup(backend, { delivery: 'interrupt' })
+    rig.session.running = true
+    rig.terminal.resolve(facts)
+    const stopped = vi.spyOn(rig.session, 'cancel')
+    const pending = rig.deliver()
+    await vi.waitFor(() => {
+      expect(stopped).toHaveBeenCalledOnce()
+    })
+    rig.dropWorkspace()
+    rig.session.idleNow()
+    expect(await pending).toMatchObject(rig.failure)
+    expect(rig.session.calls.map((call) => call.kind)).toEqual(['cancel'])
   })
 
   it('rejects invalid occurrences before opening the target', async () => {

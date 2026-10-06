@@ -249,6 +249,9 @@ export class ScheduleDelivery implements ScheduleHostPort {
       }
       const prompt = this.deps.prompt(schedule, event)
       const settlement = await this.deps.runs.run(session, schedule, context, async () => {
+        if (!this.holds(schedule.workspaceKey) || !session.isOpen()) {
+          throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
+        }
         switch (schedule.delivery) {
           case 'steer': {
             if (session.isRunning()) {
@@ -258,6 +261,9 @@ export class ScheduleDelivery implements ScheduleHostPort {
               } catch (error: unknown) {
                 // Only a definite no-input refusal permits a new submission.
                 if (!isSteerRefusedError(error)) throw error
+                if (!this.holds(schedule.workspaceKey) || !session.isOpen()) {
+                  throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable, { cause: error })
+                }
               }
             }
             await session.send(prompt, context)
@@ -268,6 +274,9 @@ export class ScheduleDelivery implements ScheduleHostPort {
             // Stop acknowledges before the aborted turn has always unwound.
             if (!(await session.waitUntilIdle(new AbortController().signal))) {
               throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
+            }
+            if (!this.holds(schedule.workspaceKey)) {
+              throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
             }
             await session.send(prompt, context)
             return
