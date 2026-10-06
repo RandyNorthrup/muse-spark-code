@@ -10,6 +10,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:net'
 import { setEnvironmentVariable } from '../../core/backends/musecode/launch'
 import { redactSecrets } from '../../core/redact'
+import type { ResourceLease } from '../../core/resources/launch'
 import {
   MCP_JOB_CONFIG_VARIABLE,
   MCP_JOB_HANDSHAKE_MAX_CHARS,
@@ -17,6 +18,10 @@ import {
 } from '../../shared/constants'
 
 export interface McpJobLaunch {
+  /** Only the pinned browser uses the fixed additional CDP pipe pair. */
+  readonly debugPipes?: boolean | undefined
+  readonly resource?: ResourceLease | undefined
+  readonly resourceAssembly?: string | undefined
   readonly executablePath: string
   readonly file: string
   readonly args: readonly string[]
@@ -86,6 +91,7 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
       controlPipe,
       controlNonce,
       ...(launch.jobMemoryLimit !== undefined && { jobMemoryLimit: launch.jobMemoryLimit }),
+      ...(launch.debugPipes === true && { debugPipes: true }),
     }),
     'utf8',
   ).toString('base64')
@@ -99,14 +105,33 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
       {
         cwd: launch.cwd,
         env: helperEnv,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio:
+          launch.debugPipes === true
+            ? ['pipe', 'pipe', 'pipe', 'pipe', 'pipe']
+            : ['pipe', 'pipe', 'pipe'],
         windowsHide: true,
       },
     )
     child.once('exit', closeControl)
     child.once('error', closeControl)
+    launch.resource?.register({
+      job:
+        launch.resourceAssembly === undefined
+          ? undefined
+          : {
+              name: `Local\\${controlPipe}`,
+              assemblyPath: launch.resourceAssembly,
+            },
+    })
+    child.once('exit', () => {
+      launch.resource?.complete(false)
+    })
+    child.once('error', () => {
+      launch.resource?.complete(child?.pid === undefined)
+    })
     return child
   } catch (error: unknown) {
+    launch.resource?.complete(true)
     closeControl()
     throw error
   }

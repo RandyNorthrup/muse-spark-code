@@ -168,6 +168,21 @@ public static class MuseSparkJob {
   }
   // End M107 T query region. Lane A adds priority/rate controls separately.
 
+  /** C1's holder is outside the governed job. Root exit never closes its last handle. */
+  const int ERROR_ALREADY_EXISTS = 183;
+  public static void Hold(string name) {
+    IntPtr job = CreateJobObjectW(IntPtr.Zero, name);
+    if (job == IntPtr.Zero) throw new Win32Exception();
+    try {
+      if (Marshal.GetLastWin32Error() == ERROR_ALREADY_EXISTS) throw new InvalidOperationException("job already exists");
+      Console.Out.WriteLine("held");
+      Console.Out.Flush();
+      // Owner EOF also ends an unused holder. No process is killed or governed here.
+      if (Console.In.ReadLine() == null) return;
+      while (ProcessIds(job).Length != 0) System.Threading.Thread.Sleep(100);
+    } finally { CloseHandle(job); }
+  }
+
   /** Creates the named job and puts this process in it; its children follow. */
   public static void Join(string name) {
     IntPtr job = CreateJobObjectW(IntPtr.Zero, name);

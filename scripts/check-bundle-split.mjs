@@ -476,6 +476,7 @@ for (const bundle of [
   }
   const { outputs } = JSON.parse(readFileSync(bundle.metafile, 'utf8'))
   if (
+    bundle.uiText !== false &&
     outputs[bundle.output].imports.every((entry) => entry.path !== './uiText.js' || !entry.external)
   ) {
     problems.push(`${bundle.output} no longer loads the shared English table`)

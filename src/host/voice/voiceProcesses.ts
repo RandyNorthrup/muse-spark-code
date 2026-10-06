@@ -4,7 +4,12 @@
 // recording; no `vscode` here.
 
 import { spawn } from 'node:child_process'
-import type { Readable, Writable } from 'node:stream'
+import { PassThrough, type Readable, type Writable } from 'node:stream'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
+import { spawnMcpJob } from '../backend/mcpJobLaunch'
+import { observeResourceProcess } from '../resources/resourceAdmission'
+import { treeSpawnOptions } from '../processTree'
 import type { HelperChild, HelperInvocation } from '../../core/voice/dictation'
 import { helperEnvironment } from '../../core/voice/helperLocation'
 import type { VoiceSocket, VoiceSocketHandlers } from '../../core/voice/museVoice'
@@ -23,12 +28,95 @@ export interface HelperProcess {
 }
 
 function startProcess(invocation: HelperInvocation): HelperProcess {
-  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is fixed by helperLocation.ts (Windows PowerShell under %SystemRoot% with the bundled script, or the bundled macOS binary with VS Code's own app name) and passed as an argument array; nothing from the user, the model or the workspace is in it (PLAN.md §8)
-  return spawn(invocation.command, [...invocation.args], {
-    env: helperEnvironment(process.env, invocation, process.platform),
-    windowsHide: true,
-    stdio: ['pipe', 'pipe', 'pipe'],
+  return admittedVoiceProcess(
+    invocation.command,
+    invocation.args,
+    helperEnvironment(process.env, invocation, process.platform),
+  )
+}
+
+/** The synchronous driver receives pipes immediately; its actual helper waits for admission. */
+function admittedVoiceProcess(
+  command: string,
+  args: readonly string[],
+  env: NodeJS.ProcessEnv,
+): HelperProcess {
+  const stdin = new PassThrough()
+  const stdout = new PassThrough()
+  const stderr = new PassThrough()
+  const events = stdout
+  const stop = new AbortController()
+  let child: ChildProcessWithoutNullStreams | undefined
+  const start = async () => {
+    const resource = await admitResource('other', stop.signal)
+    try {
+      const job =
+        resource !== undefined && process.platform === 'win32'
+          ? await resourceWindowsJob()
+          : undefined
+      if (stop.signal.aborted) {
+        resource?.complete(true)
+        events.emit('exit', null, 'SIGTERM')
+        return
+      }
+      // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the fixed bundled dictation helper or absolute recorder command from helperLocation with fixed flags; nothing from the model or workspace reaches this command (PLAN.md §8).
+      child =
+        job === undefined
+          ? spawn(command, [...args], {
+              env,
+              stdio: ['pipe', 'pipe', 'pipe'],
+              windowsHide: true,
+              ...treeSpawnOptions(process.platform),
+            })
+          : spawnMcpJob({
+              executablePath: job.executablePath,
+              resourceAssembly: job.assemblyPath,
+              file: command,
+              args,
+              cwd: process.cwd(),
+              env,
+              isVerbatim: false,
+              resource,
+              log: () => {
+                /* A helper's own stderr and exit report its launch failure. */
+              },
+            })
+      if (job === undefined) observeResourceProcess(resource, child)
+      child.once('error', (error) => {
+        events.emit('error', error)
+      })
+      child.once('exit', (code, signal) => {
+        events.emit('exit', code, signal)
+      })
+      child.stdin.on('error', (error) => {
+        stdin.destroy(error)
+      })
+      stdin.pipe(child.stdin)
+      child.stdout.pipe(stdout)
+      child.stderr.pipe(stderr)
+    } catch (error: unknown) {
+      resource?.complete(child === undefined)
+      throw error
+    }
+  }
+  void start().catch((error: unknown) => {
+    if (stop.signal.aborted) events.emit('exit', null, 'SIGTERM')
+    else
+      events.emit(
+        'error',
+        error instanceof Error ? error : new Error('Voice helper could not start'),
+      )
   })
+  return {
+    stdin,
+    stdout,
+    stderr,
+    on: events.on.bind(events),
+    kill: () => {
+      stop.abort()
+      child?.kill()
+    },
+  }
 }
 
 /** The events of a child process the exit report reads. */
@@ -129,7 +217,7 @@ export function openWebSocket(url: string, handlers: VoiceSocketHandlers): Voice
 /** The system's recorder, one process per recording (Linux, M35). */
 export function startRecorder(command: string, args: readonly string[]): RecorderProcess {
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command is arecord or parec found by absolute path on PATH (helperLocation.ts, resolveExecutable) with fixed arguments from constants.ts; nothing from the user, the model or the workspace is in it (PLAN.md §8)
-  const child = spawn(command, [...args], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+  const child = admittedVoiceProcess(command, args, process.env)
   let exitListener: ((description: string) => void) | undefined
   watchExit(child, (description) => {
     exitListener?.(description)

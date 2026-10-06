@@ -304,6 +304,20 @@ async function registeredLinuxCgroup() {
   return { ...world, scoped, registry }
 }
 
+describe('C1 SDK root ownership', () => {
+  it('accepts only the exact process with the harness as its kernel-recorded parent', async () => {
+    const h = linuxWorld()
+    expect(await h.reader.childIdentity(710, 1)).toEqual(ticket.root)
+    expect(await h.reader.childIdentity(710, 2)).toBeNull()
+    expect(await h.reader.childIdentity(710, 0)).toBeNull()
+    expect(await h.reader.childIdentity(900, 1)).toBeNull()
+    h.read.mockResolvedValue(stat(row(710, '1000', 888)))
+    expect(await h.reader.childIdentity(710, 1)).toBeNull()
+    h.read.mockResolvedValue(stat(row(711)))
+    expect(await h.reader.childIdentity(710, 1)).toBeNull()
+  })
+})
+
 describe('POSIX authority during mixed-time scans', () => {
   it.each([
     { platform: 'linux', orphan: false },

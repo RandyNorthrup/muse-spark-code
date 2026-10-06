@@ -22,8 +22,10 @@ import {
   sharedUiText,
   sharedValidation,
   sharedWire,
+  sharedResourceAdmission,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
+import type * as resourceGovernor from '../../src/core/resources/resourceGovernorEntry'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const metafileSchema = z.looseObject({
@@ -89,8 +91,16 @@ beforeAll(async () => {
         checkpointStore: 'src/host/checkpoints/checkpointStoreEntry.ts',
         pageWorker: 'src/host/web/pageWorker.ts',
         searchWorker: 'src/host/backend/searchWorker.ts',
+        resourceGovernor: 'src/core/resources/resourceGovernorEntry.ts',
+        resourceAdmission: 'src/core/resources/admission.ts',
       },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [
+        sharedUiText,
+        sharedValidation,
+        deferredCohort,
+        sharedWire,
+        sharedResourceAdmission,
+      ],
       external: ['vscode', '@napi-rs/keyring'],
     }),
     build({
@@ -98,7 +108,13 @@ beforeAll(async () => {
       outdir: 'dist',
       target: 'node22',
       entryPoints: { acp: 'src/runtime/main.ts' },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [
+        sharedUiText,
+        sharedValidation,
+        deferredCohort,
+        sharedWire,
+        sharedResourceAdmission,
+      ],
       external: ['@napi-rs/keyring'],
     }),
     build({
@@ -218,6 +234,30 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('keeps governor execution in its lazy bundle and shares the admission shim', () => {
+    for (const name of ['extension', 'modelApi', 'acp', 'browserCheck']) {
+      expect(inputs(name)).not.toContain('src/core/resources/governor.ts')
+      expect(inputs(name)).not.toContain('src/core/resources/admission.ts')
+      expect(bundleText(name)).toContain('./resourceAdmission.js')
+    }
+    expect(inputs('resourceGovernor')).toContain('src/core/resources/governor.ts')
+    expect(bundleText('resourceAdmission')).toContain('./resourceGovernor.js')
+    expect(inputs('resourceAdmission')).not.toContain('src/core/resources/governor.ts')
+    const original = bundleInputs({
+      output: 'dist/modelApi.js',
+      metafile: 'dist/meta/modelApi.json',
+    })
+    const changed = new Map(original)
+    changed.set('src/core/resources/governor.ts', 1)
+    expect(
+      checkDeferredBundles((bundle) =>
+        bundle.output === 'dist/modelApi.js' ? changed : bundleInputs(bundle),
+      ),
+    ).toContain(
+      'dist/modelApi.js carries src/core/resources/governor.ts, which loads only on the first governed spawn',
+    )
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
   it('decodes the complete production English fallback without changing any value', () => {
     expect(bundleText('uiText')).toContain('brotliDecompressSync')
     expect(loadSupportBundle('uiText')).toHaveProperty('EN', EN)
@@ -474,4 +514,22 @@ describe('deferred cohort bundles', () => {
       expect(check()).toEqual([])
     },
   )
+})
+
+it('loads the lazy governor with the shared validation exports without probing at construction', () => {
+  const module = z
+    .object({
+      resourceGovernorHost: z.custom<typeof resourceGovernor.resourceGovernorHost>(
+        (value) => typeof value === 'function',
+      ),
+    })
+    .parse(loadSupportBundle('resourceGovernor'))
+  const host = module.resourceGovernorHost({
+    inspect: () => undefined,
+    onError: () => {
+      throw new Error('Unexpected resource probe')
+    },
+  })
+  expect(host.tickets()).toEqual([])
+  host.dispose()
 })

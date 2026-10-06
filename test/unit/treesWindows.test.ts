@@ -227,6 +227,8 @@ describe('Windows resource job reader', () => {
           const reader = new WindowsResourceTreeReader({ assemblyPath: assembly!, systemRoot })
           const root = await reader.identity(child.pid!)
           expect(root).not.toBeNull()
+          expect(await reader.rootOfJob(job.name)).toEqual(root)
+          expect(await reader.jobGone(job.name)).toBe(false)
           const launch: ResourceTicket = {
             ...ticket,
             root: root!,
@@ -256,6 +258,8 @@ describe('Windows resource job reader', () => {
             job,
           )
           await death
+          const reader = new WindowsResourceTreeReader({ assemblyPath: assembly!, systemRoot })
+          expect(await reader.jobGone(job.name)).toBe(true)
         }
       } finally {
         await removeFolder(folder)

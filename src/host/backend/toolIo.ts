@@ -65,6 +65,10 @@ import { canonicalPath } from '../canonicalPath'
 import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
 import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
 import { joinStatement, newShellJob } from './shellJob'
+import type { ResourceLease } from '../../core/resources/launch'
+import { admitResource } from '../../core/resources/admission'
+import { observeResourceProcess } from '../resources/resourceAdmission'
+import { holdResourceJob } from '../resources/resourceJobHolder'
 
 export interface ToolIoDeps {
   readonly platform: NodeJS.Platform
@@ -339,6 +343,7 @@ export function shellArguments(
   platform: NodeJS.Platform,
   command: string,
   job?: ShellJob,
+  isGoverned = false,
 ): readonly string[] {
   return platform === 'win32'
     ? [
@@ -347,7 +352,7 @@ export function shellArguments(
         '-ExecutionPolicy',
         'Bypass',
         '-Command',
-        `${job === undefined ? '' : joinStatement(job)}${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${command}`,
+        `${job === undefined ? '' : joinStatement(job, isGoverned)}${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${command}`,
       ]
     : ['-lc', command]
 }
@@ -512,6 +517,20 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     deps.unsavedFiles().some((open) => isSamePath(open, absolutePath, deps.platform))
   const configuredHookShell = deps.env()['SHELL']
   const hookProgram = hookProgramFor(deps, configuredHookShell)
+  const prepareResourceJob = async (
+    resource: ResourceLease | undefined,
+    job: ShellJob | undefined,
+  ) => {
+    if (resource !== undefined && job !== undefined && deps.systemRoot !== undefined)
+      resource = await holdResourceJob(resource, job, deps.systemRoot)
+    try {
+      deps.assertWorkspaceCurrent?.()
+    } catch (error: unknown) {
+      resource?.complete(true)
+      throw error
+    }
+    return resource
+  }
   return {
     async readFile(absolutePath, expectedCanonicalPath) {
       let bytes: Uint8Array
@@ -680,23 +699,32 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     listFiles: deps.listFiles,
     searchFiles: (job) => searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS),
     realPath: canonicalPath,
-    async runShell(command, cwd, timeoutMs, signal, limit, assertCanRun) {
+    async runShell(command, cwd, timeoutMs, signal, limit, assertCanRun, resourceKind) {
       if (interpreter === undefined) {
         const missing = deps.platform === 'win32' ? 'Windows PowerShell' : BASH
         return unstartedShell(`${missing} was not found on the absolute entries of PATH`)
       }
-      const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
+      let resource = await admitResource(resourceKind ?? 'toolShell', signal)
+      let assembly: string | undefined
+      try {
+        assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
+        deps.assertWorkspaceCurrent?.()
+      } catch (error: unknown) {
+        resource?.complete(true)
+        throw error
+      }
       const job = assembly === undefined ? undefined : newShellJob(assembly)
-      deps.assertWorkspaceCurrent?.()
+      resource = await prepareResourceJob(resource, job)
       try {
         assertCanRun?.()
       } catch {
+        resource?.complete(true)
         // No workspace process has started; cancellation is proven at this boundary.
         return refusedShellEntry()
       }
       return await runCommand({
         file: interpreter,
-        args: shellArguments(deps.platform, command, job),
+        args: shellArguments(deps.platform, command, job, resource !== undefined),
         cwd,
         env: shellEnvironment(deps.env(), deps.platform, deps.systemRoot),
         timeoutMs,
@@ -704,6 +732,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         limit,
         tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
         job,
+        resource,
       })
     },
     async runHook(command, payload, cwd, timeoutMs, signal, extraEnvNames) {
@@ -718,6 +747,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
       const job = assembly === undefined ? undefined : newShellJob(assembly)
+      let resource = await admitResource('hook', signal)
       // On Windows PowerShell joins the job first, then starts cmd.exe with
       // the configured command. The command itself uses cmd, as Muse Code does.
       const args =
@@ -726,9 +756,10 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
               deps.platform,
               `& ${powerShellQuoted(hookProgram)} /D /S /C ${powerShellQuoted(command)}`,
               job,
+              resource !== undefined,
             )
           : ['-c', command]
-      deps.assertWorkspaceCurrent?.()
+      resource = await prepareResourceJob(resource, job)
       return await runCommand({
         file,
         args,
@@ -738,6 +769,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         signal,
         tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
         job,
+        resource,
         stdin: payload,
         maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
       })
@@ -793,6 +825,7 @@ export class BoundedText {
 }
 
 export interface CommandRun {
+  readonly resource?: ResourceLease | undefined
   readonly file: string
   readonly args: readonly string[]
   readonly cwd: string
@@ -814,13 +847,15 @@ export interface CommandRun {
 function startProcess(run: CommandRun) {
   try {
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is the payload by design: the user approved it on a card, and it runs through the interpreter as an argument array, never a shell string (PLAN.md §8)
-    return spawn(run.file, [...run.args], {
+    const child = spawn(run.file, [...run.args], {
       cwd: run.cwd,
       env: run.env,
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],
       ...treeSpawnOptions(run.tree.platform),
     })
+    observeResourceProcess(run.resource, child, run.job)
+    return child
   } catch (error: unknown) {
     return error instanceof Error ? error : new Error(String(error))
   }
@@ -836,6 +871,7 @@ function startProcess(run: CommandRun) {
 export function runCommand(run: CommandRun): Promise<ShellResult> {
   return new Promise<ShellResult>((resolve) => {
     if (run.signal?.aborted === true) {
+      run.resource?.complete(true)
       resolve({
         stdout: '',
         stderr: '',
@@ -849,6 +885,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
     const startedAt = Date.now()
     const child = startProcess(run)
     if (child instanceof Error) {
+      run.resource?.complete(true)
       // spawn itself threw (a command line past the operating system's limit,
       // a NUL in the command): no process was ever created, which is the one
       // local fact that proves none exists to outlive the result.
@@ -878,6 +915,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
     }, run.timeoutMs)
     run.limit?.bind(() => {
       clearTimeout(timer)
+      run.resource?.background()
     })
     const settle = (exitCode: number | null, failure = '', isUnstarted = false) => {
       if (isSettled) {

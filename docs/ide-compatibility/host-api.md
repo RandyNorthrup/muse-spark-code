@@ -423,29 +423,30 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.textDocuments`                                                            | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `workspace.workspaceFolders`                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`                                                                                                                                                                                                                                                                                              |
 
-## Node built-ins the host imports (25)
+## Node built-ins the host imports (26)
 
 | Module                 | Files |
 | ---------------------- | ----- |
+| `node:async_hooks`     | 1     |
 | `node:buffer`          | 39    |
-| `node:child_process`   | 13    |
-| `node:crypto`          | 46    |
+| `node:child_process`   | 17    |
+| `node:crypto`          | 47    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 3     |
 | `node:fs`              | 33    |
-| `node:fs/promises`     | 47    |
+| `node:fs/promises`     | 50    |
 | `node:http`            | 4     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 7     |
-| `node:os`              | 9     |
-| `node:path`            | 84    |
-| `node:process`         | 1     |
+| `node:os`              | 11    |
+| `node:path`            | 90    |
+| `node:process`         | 3     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |
 | `node:string_decoder`  | 1     |
-| `node:timers/promises` | 3     |
+| `node:timers/promises` | 4     |
 | `node:tls`             | 1     |
 | `node:url`             | 4     |
 | `node:util`            | 5     |

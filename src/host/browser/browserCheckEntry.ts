@@ -14,15 +14,58 @@ import {
   runBrowserCheck as runCheck,
 } from '../../core/browser/browserRun'
 import { hostBrowserRunDeps } from './browserProcess'
+import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
+import type { ResourceLease } from '../../core/resources/launch'
 
 /** One check on the verified runtime (design spec v4 §5's frozen signature). */
 export async function runBrowserCheck(
   request: BrowserCheckRequest,
   options: BrowserHostOptions,
 ): Promise<BrowserCheckResult> {
-  return await runCheck(
-    hostBrowserRunDeps({ platform: process.platform, env: process.env, warn: options.warn }),
-    request,
-    options,
+  const resource = await admitResource(
+    'browserCheck',
+    AbortSignal.any([request.signal, options.admissionSignal]),
   )
+  if (!options.admissionStillValid()) {
+    resource?.complete(true)
+    return { ok: false, failure: { kind: 'cancelled' } }
+  }
+  let wasSpawned = false
+  const processResource: ResourceLease | undefined =
+    resource === undefined
+      ? undefined
+      : {
+          register: (launch) => {
+            wasSpawned = true
+            resource.register(launch)
+          },
+          complete: (isTreeGone) => {
+            resource.complete(isTreeGone)
+          },
+          background: () => {
+            resource.background()
+          },
+        }
+  try {
+    const windowsJob =
+      resource === undefined || process.platform !== 'win32'
+        ? undefined
+        : await resourceWindowsJob()
+    if (!options.admissionStillValid()) return { ok: false, failure: { kind: 'cancelled' } }
+    if (resource !== undefined && windowsJob === undefined && process.platform === 'win32')
+      return { ok: false, failure: { kind: 'browserFailed' } }
+    return await runCheck(
+      hostBrowserRunDeps({
+        platform: process.platform,
+        env: process.env,
+        warn: options.warn,
+        resource: processResource,
+        windowsJob,
+      }),
+      request,
+      options,
+    )
+  } finally {
+    resource?.complete(!wasSpawned)
+  }
 }

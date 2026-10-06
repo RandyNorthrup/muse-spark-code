@@ -150,6 +150,7 @@ import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensio
 import type { ExtensionHookRunner } from './host/extensionHooksEntry'
 import { showPickOne } from './host/quickPick'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
+import { configureResources } from './core/resources/admission'
 import {
   createCheckpointPort,
   finishCheckpointTurn,
@@ -639,6 +640,34 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const activationStartedAt = performance.now()
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
   const log = createLogger(channel)
+  const resourceJobSource = jobSourceReader(context.extensionPath)
+  const resourceAssembly = windowsJobHelper(
+    shellJobAssembly,
+    context.globalStorageUri.fsPath,
+    resourceJobSource,
+    log,
+  )
+  const resourceMcpJob = windowsJobHelper(
+    mcpJobExecutable,
+    context.globalStorageUri.fsPath,
+    resourceJobSource,
+    log,
+  )
+  context.subscriptions.push({
+    dispose: configureResources({
+      inspect: (key) => vscode.workspace.getConfiguration('museSpark').inspect(key),
+      onError: () => {
+        log.warn('Resource tree or sampler reading is unavailable')
+      },
+      windowsJob: async () => {
+        const assemblyPath = await resourceAssembly?.()
+        const executablePath = await resourceMcpJob?.()
+        return assemblyPath === undefined || executablePath === undefined
+          ? undefined
+          : { assemblyPath, executablePath }
+      },
+    }),
+  })
   const { version } = packageManifestSchema.parse(context.extension.packageJSON)
   // The flight recorder (M93, PLAN.md D6, D72): this window's journal and
   // activation marker under global storage. Its front answers from here on;
@@ -1257,6 +1286,7 @@ async function activateWindow(
     voice,
   )
   const backend = new MuseCodeBackendManager({
+    shellJobAssembly: () => windowsJobAssembly?.() ?? Promise.resolve(undefined),
     beforeWorkspaceHostStart: async () => {
       await checkpoints.markNativeBackend()
     },
@@ -1682,6 +1712,7 @@ async function activateWindow(
   // Amp and OpenCode plugin children (M91b): on Windows, M50's kill-on-close
   // job launcher, prepared afresh after a failure.
   const pluginJobs = pluginContainment({
+    shellJobAssembly: windowsJobAssembly,
     platform: process.platform,
     newJobExecutable: () => windowsJobHelper(mcpJobExecutable, storageRoot, readJobSource, log),
     now: () => Date.now(),
@@ -2309,6 +2340,7 @@ async function activateWindow(
           clientVersion: version,
           platform: process.platform,
           jobExecutablePath: await windowsMcpJob?.(),
+          shellJobAssembly: windowsJobAssembly,
           env: () => process.env,
           fetch: globalThis.fetch.bind(globalThis),
           log,

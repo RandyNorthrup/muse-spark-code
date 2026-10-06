@@ -3857,6 +3857,15 @@ results and what is still open.
 
 ## Development
 
+M107's staged resource integration uses a shared admission shim and loads
+`dist/resourceGovernor.js` on the first governed launch. The window's shell,
+check, MCP, hook, browser, Git, voice/recording and Muse Code adapters share it; Model API
+attempts, children and scheduled runs carry background admission. Windows
+jobs preserve the browser's CDP pipes and retain a query handle until the
+whole job is empty. Holder failure retains unknown work. Missing native identity proof remains
+unknown. The remaining milestone lanes supply actions, routing, UI, runtime
+wiring and final delivery; see [C1 certification](docs/certification/m107-c1.md).
+
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's
 image-proxy copies. It needs no secret; stale caches or network failures warn

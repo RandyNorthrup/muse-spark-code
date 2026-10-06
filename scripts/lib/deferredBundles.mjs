@@ -71,6 +71,21 @@ export const DEFERRED = [
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
   {
+    output: 'dist/resourceGovernor.js',
+    metafile: 'dist/meta/resourceGovernor.json',
+    uiText: false,
+    use: 'the first governed spawn',
+    files: [
+      'src/core/resources/resourceGovernorEntry.ts',
+      'src/core/resources/launchHost.ts',
+      'src/core/resources/governor.ts',
+      'src/core/resources/queue.ts',
+      'src/core/resources/events.ts',
+      'src/core/resources/sampler/system.ts',
+      'src/core/resources/trees/registry.ts',
+    ],
+  },
+  {
     output: 'dist/conversation.js',
     metafile: 'dist/meta/conversation.json',
     use: 'the first chat surface',
@@ -228,9 +243,10 @@ export function checkDeferredBundles(inputsOf) {
   const problems = []
   for (const bundle of [...DEFERRED, ...ON_FIRST_USE]) {
     const inputs = inputsOf(bundle)
-    const parents = DEFERRED.includes(bundle)
-      ? [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]
-      : [BUNDLES.activation]
+    const parents =
+      DEFERRED.includes(bundle) || bundle.output === 'dist/resourceGovernor.js'
+        ? [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]
+        : [BUNDLES.activation]
     for (const file of bundle.files) {
       for (const parent of parents) {
         if (inputsOf(parent).has(file)) {
@@ -304,6 +320,7 @@ export const sharedValidation = {
 // Keep dynamic imports dynamic: these entries run only on their first action.
 /** @type {import('esbuild').Plugin} */
 const DEFERRED_OUTFILES = new Map([
+  [path.resolve('src/core/resources/resourceGovernorEntry.ts'), 'dist/resourceGovernor.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
@@ -320,7 +337,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
+          /\/(?:resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (args.kind !== 'dynamic-import') return
@@ -344,6 +361,20 @@ export const sharedWire = {
     build.onResolve({ filter: /(?:^|\/)(?:protocol|agentEvents)(?:\.ts)?$/ }, (args) => {
       const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
       return WIRE_SOURCES.has(source) ? { path: './wire.js', external: true } : undefined
+    })
+  },
+}
+
+// One process-wide admission configuration, shared by every lazy Node bundle.
+export const sharedResourceAdmission = {
+  name: 'shared-resource-admission',
+  setup(build) {
+    build.onResolve({ filter: /(?:^|\/)admission(?:\.[jt]s)?$/ }, (args) => {
+      if (args.kind === 'entry-point') return
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      return source === path.resolve('src/core/resources/admission.ts')
+        ? { path: './resourceAdmission.js', external: true }
+        : undefined
     })
   },
 }

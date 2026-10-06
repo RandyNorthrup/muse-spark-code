@@ -432,9 +432,10 @@ export function withCheckpointStorageGuard(io: ToolIo, checkpoints: CheckpointPo
   const conditionalWrite = io.writeFileIfUnchanged.bind(io)
   return {
     ...io,
-    runShell: async (command, cwd, timeoutMs, signal, limit, assertCanRun) =>
+    runShell: async (command, cwd, timeoutMs, signal, limit, assertCanRun, resourceKind) =>
       await activity(
-        async () => await io.runShell(command, cwd, timeoutMs, signal, limit, assertCanRun),
+        async () =>
+          await io.runShell(command, cwd, timeoutMs, signal, limit, assertCanRun, resourceKind),
         assertCanRun,
       ),
     ...(hook !== undefined && {

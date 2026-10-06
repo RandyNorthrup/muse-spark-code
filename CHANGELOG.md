@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Staged resource-governor integration admits the window's tool shells,
+  checks, MCP servers, hooks, browser checks, Git, voice/recording and Muse Code hosts, and the
+  Model API's background attempts, children and scheduled runs. Windows
+  launches register named jobs, including the browser's binary CDP pipes;
+  orphan children retain a queryable job until empty, and failed holders or
+  unproved tree readings retain their reservations. The governor loads in
+  its own bundle on the first governed launch.
 - Resource sampler probes prevent libuv from filling missing Windows
   environment variables from the parent; Linux resource-tree paths retain
   POSIX semantics when their complete fixtures run on Windows.

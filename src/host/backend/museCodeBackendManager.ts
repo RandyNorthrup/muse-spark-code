@@ -15,7 +15,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import { type FingerprintWarning, spawnMspConnection } from '@muse-code/sdk'
+import { type FingerprintWarning } from '@muse-code/sdk'
 import type { CredentialFileVerdict } from '../../core/backends/musecode/credentialFile'
 import {
   type CommandTimeouts,
@@ -63,6 +63,8 @@ import {
 import { readCredentialFile } from '../auth/cliAccount'
 import type { Logger } from '../logger'
 import { systemPath } from './memoryIo'
+import { admitResource } from '../../core/resources/admission'
+import { spawnResourceMuseConnection } from '../resources/museResourceLaunch'
 
 /** VS Code's proxy settings (`http.proxy`, `http.noProxy`), handed to the CLI when its environment has none. */
 export interface ProxySettings {
@@ -86,6 +88,7 @@ export interface UnresponsiveHostDeps {
 }
 
 export interface BackendManagerDeps {
+  readonly shellJobAssembly?: (() => Promise<string | undefined>) | undefined
   /** Awaited before any agent host process can edit this workspace. */
   readonly beforeWorkspaceHostStart: () => Promise<void>
   /**
@@ -155,6 +158,7 @@ export class MuseCodeBackendManager {
   private hostPromise: Promise<MuseCodeHost> | undefined
   /** Bumped by every spawn and every dispose: an attempt only clears its own slot. */
   private generation = 0
+  private resourceStop = new AbortController()
   private launchCache: { readonly key: string; readonly resolution: LaunchResolution } | undefined
 
   public constructor(private readonly deps: BackendManagerDeps) {}
@@ -215,7 +219,9 @@ export class MuseCodeBackendManager {
     }
     const launch: MuseLaunch = resolution.launch
     await this.admitWorkspaceHost()
+    const resource = await admitResource('museServe', this.resourceStop.signal)
     if (this.generation !== generation) {
+      resource?.complete(true)
       throw new Error(UI_TEXT.questionCancelled)
     }
     const posture = this.shellSandboxPosture()
@@ -244,17 +250,24 @@ export class MuseCodeBackendManager {
     this.deps.log.info(`Spawning ${launch.command} ${launch.args.join(' ')}`)
     // Spawn to handshake, for the log (M39).
     const spawnedAt = Date.now()
-    const handshake = spawnMspConnection({
-      command: launch.command,
-      args: [...launch.args],
-      ...(this.deps.workspaceRoot !== undefined && { cwd: this.deps.workspaceRoot }),
-      env,
-      onStderr: (chunk) => {
-        // A chatty or looping CLI must not flood the log (PLAN.md D24), and
-        // its free text is named in fixed words (the review of PR #49).
-        this.deps.log.warn(`muse serve stderr: ${clipForLog(stderrForLog(chunk))}`)
+    const handshake = await spawnResourceMuseConnection(
+      {
+        command: launch.command,
+        args: launch.args,
+        ...(this.deps.workspaceRoot !== undefined && { cwd: this.deps.workspaceRoot }),
+        env,
+        onStderr: (chunk) => {
+          this.deps.log.warn(`muse serve stderr: ${clipForLog(stderrForLog(chunk))}`)
+        },
       },
-    })
+      resource,
+      () => this.deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
+      environmentValue(env, process.platform, 'SystemRoot'),
+      async () => {
+        await this.admitWorkspaceHost()
+        if (this.generation !== generation) throw new Error(UI_TEXT.questionCancelled)
+      },
+    )
     const firstMs = this.deps.handshakeTimeoutMs ?? MSP_HANDSHAKE_TIMEOUT_MS
     const totalMs = this.deps.slowHandshakeTimeoutMs ?? MSP_SLOW_HANDSHAKE_TIMEOUT_MS
     const seconds = (ms: number) => String(Math.round(ms / MILLISECONDS_PER_SECOND))
@@ -571,6 +584,8 @@ export class MuseCodeBackendManager {
   }
 
   public async dispose(): Promise<void> {
+    this.resourceStop.abort()
+    this.resourceStop = new AbortController()
     const pending = this.hostPromise
     this.hostPromise = undefined
     this.generation += 1

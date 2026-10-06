@@ -1,4 +1,6 @@
 import { Buffer } from 'node:buffer'
+import * as resourceAdmission from '../../src/core/resources/admission'
+import type { ResourceLease } from '../../src/core/resources/launch'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { rename } from 'node:fs/promises'
@@ -7788,6 +7790,35 @@ async function completePaidChild(
 }
 
 describe('ModelApiSession subagents (M48)', () => {
+  it('rechecks a child grant after resource admission and closes an expired queued child', async () => {
+    const hold = Promise.withResolvers<ResourceLease>()
+    const lease = { register: vi.fn(), complete: vi.fn(), background: vi.fn() }
+    const admission = vi.spyOn(resourceAdmission, 'admitResource').mockReturnValue(hold.promise)
+    const paid: PaidFeature[] = ['subagents']
+    const t = setup({ paid })
+    const { session } = await startSession(t, 'allowAll')
+    try {
+      scriptExplorerSpawn(t, 'resource-held-child')
+      await session.sendTurn([{ type: 'text', text: 'delegate' }])
+      await vi.waitFor(() => {
+        expect(admission).toHaveBeenCalledWith('subagent', expect.any(AbortSignal), 'background')
+      })
+      paid.length = 0
+      hold.resolve(lease)
+      await vi.waitFor(() => {
+        expect(session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
+          controlStatus: 'closed',
+        })
+      })
+      expect(lease.complete).toHaveBeenCalledWith(true)
+      expect(t.paidUses).toEqual([])
+    } finally {
+      hold.resolve(lease)
+      admission.mockRestore()
+      session.disposeAll()
+    }
+  })
+
   it('refuses child creation while its paid gate is off', async () => {
     const t = setup()
     const { session, turnDone } = await startSession(t, 'allowAll')

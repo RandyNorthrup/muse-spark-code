@@ -31,6 +31,10 @@ export class LinuxResourceTreeReader extends PosixResourceTreeReader {
   identity(pid: number): Promise<ResourceProcessIdentity | null> {
     return this.linux.identity(pid)
   }
+
+  childIdentity(pid: number, parentPid: number): Promise<ResourceProcessIdentity | null> {
+    return this.linux.childIdentity(pid, parentPid)
+  }
 }
 
 class LinuxTreeSource implements PosixTreeSource {
@@ -124,6 +128,29 @@ class LinuxTreeSource implements PosixTreeSource {
     try {
       const row = await this.stat(pid)
       return row === null ? null : { pid: row.pid, startTime: row.startTime }
+    } catch {
+      return null
+    }
+  }
+
+  async childIdentity(pid: number, parentPid: number): Promise<ResourceProcessIdentity | null> {
+    if (
+      [pid, parentPid].some(
+        (value) => !resourceProcessIdentitySchema.safeParse({ pid: value, startTime: '0' }).success,
+      )
+    )
+      return null
+    try {
+      const text = await this.read(`/proc/${String(pid)}/stat`)
+      const parent = text
+        .slice(text.lastIndexOf(')') + 1)
+        .trim()
+        .split(/\s+/, 2)[1]
+      const units = await this.getUnits()
+      const row = parseLinuxStat(text, units.hz, units.page)
+      return row?.pid === pid && row.pgid === pid && parent === String(parentPid)
+        ? { pid: row.pid, startTime: row.startTime }
+        : null
     } catch {
       return null
     }

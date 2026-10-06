@@ -24,6 +24,8 @@
 // - bounds: PLUGIN_HOOK_TIMEOUT_MS per call, PLUGIN_CHILD_MAX_HEAP_MB heap
 //   for node, PLUGIN_RESPONSE_MAX_BYTES UTF-8 bytes per answer frame [14].
 import { Buffer } from 'node:buffer'
+import { admitResource } from '../../resources/admission'
+import type { ResourceLease } from '../../resources/launch'
 import { type ChildProcess, execFile as nodeExecFile, spawn as nodeSpawn } from 'node:child_process'
 import { statSync } from 'node:fs'
 import path from 'node:path'
@@ -59,6 +61,7 @@ export interface PluginCall {
 }
 
 export interface PluginSpawnOptions {
+  readonly resource?: ResourceLease | undefined
   /** The child's whole environment: already allowlisted by the caller. */
   readonly env: NodeJS.ProcessEnv
   readonly cwd: string
@@ -310,17 +313,22 @@ export function nodeChildHandle(child: ChildProcess): PluginChildHandle {
 
 /** POSIX: the child leads a process group of its own, killed as one. */
 export const posixProcessTree: PluginProcessTree = {
-  spawn: (command, args, options) =>
-    Promise.resolve(
-      nodeChildHandle(
-        nodeSpawn(command, [...args], {
-          env: options.env,
-          cwd: options.cwd,
-          detached: true,
-          stdio: ['pipe', 'pipe', 'pipe'],
-        }),
-      ),
-    ),
+  spawn: (command, args, options) => {
+    const child = nodeSpawn(command, [...args], {
+      env: options.env,
+      cwd: options.cwd,
+      detached: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    options.resource?.register({ pid: child.pid, group: true })
+    child.once('exit', () => {
+      options.resource?.complete(false)
+    })
+    child.once('error', () => {
+      options.resource?.complete(child.pid === undefined)
+    })
+    return Promise.resolve(nodeChildHandle(child))
+  },
   killTree: (child) => {
     if (child.pid === undefined) return
     try {
@@ -538,13 +546,20 @@ async function runInScope(
   if (scope?.isClosed() === true) return closed()
   if (!runtime.ok) return settled(call, transportFailure(call, runtime.reason))
   const source = deps.childSource ?? pluginChildSource()
+  const resource = await admitResource('hook', scope?.signal)
+  if (scope?.isClosed() === true) {
+    resource?.complete(true)
+    return closed()
+  }
   let child: PluginChildHandle
   try {
     child = await tree.spawn(runtime.command, [...runtime.args, source], {
       env: withoutCredentials(deps.env),
       cwd: path.dirname(call.pluginPath),
+      ...(resource !== undefined && { resource }),
     })
   } catch {
+    resource?.complete(true)
     return settled(call, transportFailure(call, 'the plugin child could not start'))
   }
   if (scope?.isClosed() === true) {

@@ -96,6 +96,24 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
     }
   }
 
+  /** A private named launch job, never a process discovered outside our launch boundary. */
+  async rootOfJob(name: string): Promise<ResourceProcessIdentity | null> {
+    const answer = await this.call(`[${SHELL_JOB_TYPE_NAME}]::Query(${powerShellQuoted(name)})`)
+    if (answer === null) return null
+    const { members } = querySchema.parse(answer)
+    return (
+      members.toSorted((left, right) =>
+        BigInt(left.startTime) < BigInt(right.startTime) ? -1 : 1,
+      )[0] ?? null
+    )
+  }
+
+  /** Only a successful native query can prove retirement; failed probes throw. */
+  async jobGone(name: string): Promise<boolean> {
+    const answer = await this.call(`[${SHELL_JOB_TYPE_NAME}]::Query(${powerShellQuoted(name)})`)
+    return answer === null || querySchema.parse(answer).members.length === 0
+  }
+
   async contains(ticket: ResourceTicket, identity: ResourceProcessIdentity): Promise<boolean> {
     if (ticket.scope.type !== 'job' || !resourceProcessIdentitySchema.safeParse(identity).success)
       return false

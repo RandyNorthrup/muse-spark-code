@@ -28,6 +28,8 @@ import { redactSecrets } from '../../core/redact'
 import { MCP_STDIO_ENV_ALLOWLIST, TREE_EXIT_WAIT_MS } from '../../shared/constants'
 import { killTree, sweepExitedTree, type TreeRoot, treeSpawnOptions } from '../processTree'
 import { spawnMcpJob } from './mcpJobLaunch'
+import type { ResourceLease } from '../../core/resources/launch'
+import { observeResourceProcess } from '../resources/resourceAdmission'
 
 export interface McpSpawnDeps {
   readonly platform: NodeJS.Platform
@@ -346,8 +348,15 @@ export function observeMcpProcess(
 /** The pool's spawner (McpPoolDeps.spawn); throws with the reason a server cannot start. */
 export function mcpServerSpawner(
   deps: McpSpawnDeps,
-): (launch: McpStdioLaunch, cwd: string) => McpChildProcess {
-  return (launch, cwd) => {
+): (
+  launch: McpStdioLaunch,
+  cwd: string,
+  isCancelled?: () => boolean,
+  signal?: AbortSignal,
+  resource?: ResourceLease,
+  assembly?: string,
+) => McpChildProcess {
+  return (launch, cwd, _isCancelled, _signal, resource, assembly) => {
     if (!deps.isExistingDirectory(cwd)) {
       throw new Error(`its working directory ${cwd} does not exist`)
     }
@@ -367,6 +376,8 @@ export function mcpServerSpawner(
         cwd,
         env,
         log: deps.log,
+        resource,
+        resourceAssembly: assembly,
       })
       return observeMcpProcess(nodeProcessHandle(child), deps, startedAt, true)
     }
@@ -378,6 +389,7 @@ export function mcpServerSpawner(
       windowsHide: true,
       ...treeSpawnOptions(deps.platform),
     })
+    observeResourceProcess(resource, child)
     return observeMcpProcess(nodeProcessHandle(child), deps, startedAt)
   }
 }

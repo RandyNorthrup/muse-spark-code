@@ -15,6 +15,8 @@
 
   "entry": [
     "src/extension.ts",
+    "src/core/resources/resourceGovernorEntry.ts",
+    "src/core/resources/admission.ts",
     "src/host/conversation/conversationEntry.ts",
     "src/shared/validationEntry.ts",
     "src/shared/wireEntry.ts",

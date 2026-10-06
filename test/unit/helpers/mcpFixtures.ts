@@ -36,7 +36,7 @@ export function realSpawner(
   log: FakeLogOutputChannel,
   jobExecutablePath?: string,
 ): (launch: McpStdioLaunch, cwd: string) => McpChildProcess {
-  return mcpServerSpawner({
+  const spawn = mcpServerSpawner({
     platform: process.platform,
     systemRoot: process.env['SystemRoot'],
     jobExecutablePath,
@@ -47,6 +47,8 @@ export function realSpawner(
       log.warn(message)
     },
   })
+  // The pool's third argument is its cancellation predicate, not a resource lease.
+  return (launch, cwd) => spawn(launch, cwd)
 }
 
 /** The actual M50 executable for real Windows fixture processes, isolated per test file. */
