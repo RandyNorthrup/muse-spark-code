@@ -2,9 +2,10 @@ import { withMakerDeadline } from './deadline'
 import { performance } from 'node:perf_hooks'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
-import * as z from 'zod/mini'
+import { MakerApproval, type MachineApprovalRequest, type MakerHost } from '../ports'
+import type { MakerWarning } from '../../../shared/makerProtocol'
 import { payloadDigest, type DeviceLogPort } from '../deviceLog'
-import { analyseGcode, type GcodeAnalysis, type GcodeState } from '../gcode/analyser'
+import { analyseGcode, type GcodeState } from '../gcode/analyser'
 import { type GcodeDialect } from '../gcode/dialects'
 import { checkGcodeLimits, effectiveLimits, type MachineLimits } from '../gcode/limits'
 import {
@@ -16,12 +17,7 @@ import {
 } from '../gcode/tokenizer'
 import { MachineError, machineRecordSchema, type MachineRecord } from '../registry'
 
-export type MachineWarning =
-  | 'physicalStopRequired'
-  | 'startupMotion'
-  | 'limitsUnavailable'
-  | 'auditUnrecorded'
-  | 'sentOutcomeUnknown'
+export type MachineWarning = MakerWarning
 export interface MachineStatus {
   readonly identity: string
   readonly state: string
@@ -31,33 +27,10 @@ export interface MachineStatus {
   readonly blockedCommands: readonly string[]
   readonly warnings: readonly MachineWarning[]
 }
-export interface MachineApproval {
-  readonly id: string
-  readonly digest: string
-  readonly target: {
-    readonly id: string
-    readonly name: string
-    readonly endpoint: string
-    readonly identity: string
-  }
-  readonly expiresAt: number
-  readonly payload: string
-  readonly analysis: GcodeAnalysis
-}
-const answerSchema = z.strictObject({
-  id: z.string(),
-  digest: z.string(),
-  targetIdentity: z.string(),
-  decision: z.enum(['sendOnce', 'reject']),
-})
-/** A structural slice of MakerHost. No model-visible flag or token enters this port. */
-export interface MachineHost {
-  isTrusted(): boolean
-  hardwareEnabled(): boolean
-  isInteractive(): boolean
-  confirm(request: MachineApproval): Promise<unknown>
-  notify(warning: MachineWarning): Promise<void>
-}
+type MachineHost = Pick<
+  MakerHost<MachineApprovalRequest>,
+  'isTrusted' | 'hardwareEnabled' | 'isInteractive' | 'confirm' | 'notify'
+>
 export interface MachinePolicy {
   readonly gcode: GcodePolicy
   readonly approvalTtlMs: number
@@ -221,10 +194,14 @@ export function protectMachine(
           )
           if (failure !== undefined) throw new MachineError(failure)
           const approvalStarted = performance.now()
-          const request: MachineApproval = {
+          const requestInput: MachineApprovalRequest = {
+            kind: 'machine',
+            action: 'actuate',
             id: randomUUID(),
             digest: payloadDigest(payload),
             target: {
+              kind: 'machine',
+              registrationId: record.registrationId,
               id: record.id,
               name: record.name,
               endpoint: record.endpoint,
@@ -234,6 +211,17 @@ export function protectMachine(
             payload,
             analysis,
           }
+          const approvalCheck = new MakerApproval(
+            requestInput,
+            () =>
+              deps.host.isTrusted() &&
+              deps.host.hardwareEnabled() &&
+              deps.host.isInteractive() &&
+              deps.isLeaseHeld() &&
+              generation === started,
+            deps.policy.now,
+          )
+          const request = approvalCheck.request
           const hasExpired = (): boolean =>
             deps.policy.now() >= request.expiresAt ||
             performance.now() - approvalStarted >= deps.policy.approvalTtlMs
@@ -242,20 +230,12 @@ export function protectMachine(
             () => deps.host.confirm(structuredClone(request)),
             deps.policy.approvalTtlMs,
           )
-          const answer = answerSchema.safeParse(supplied)
-          if (
-            !answer.success ||
-            answer.data.decision !== 'sendOnce' ||
-            answer.data.id !== request.id ||
-            answer.data.digest !== request.digest ||
-            answer.data.targetIdentity !== request.target.identity ||
-            hasExpired()
-          )
-            throw new MachineError('approvalRejected')
           access()
           if (!deps.isLeaseHeld()) throw new MachineError('machineBusy')
           if (!deps.host.isInteractive()) throw new MachineError('unattendedHardware')
           if (generation !== started) throw new MachineError('machineStopped')
+          const binding = approvalCheck.answer(supplied)
+          if (binding === undefined || hasExpired()) throw new MachineError('approvalRejected')
           if (hasExpired()) throw new MachineError('approvalRejected')
           approval = request.id
           await audit(payload, 'attempt', approval)
@@ -285,6 +265,17 @@ export function protectMachine(
                       throw new MachineError('machineStateChanged')
                     // This guard runs synchronously at the transport write. Once
                     // reached, no transport/deadline/parse error proves nonexecution.
+                    if (
+                      !approvalCheck.consume(binding, {
+                        kind: 'machine',
+                        registrationId: record.registrationId,
+                        id: record.id,
+                        name: record.name,
+                        endpoint: record.endpoint,
+                        identity: latest.identity,
+                      })
+                    )
+                      throw new MachineError('approvalRejected')
                     dispatch.didBeginWrite = true
                   }
                 }),
@@ -333,20 +324,18 @@ export function protectMachine(
           const isLogRecorded = (await isAuditRecorded()) || (await isAuditRecorded())
           if (!isLogRecorded) {
             try {
-              await withMakerDeadline(
-                () => deps.host.notify('auditUnrecorded'),
-                deps.policy.requestDeadlineMs,
-              )
+              await withMakerDeadline(async () => {
+                await deps.host.notify('auditUnrecorded')
+              }, deps.policy.requestDeadlineMs)
             } catch {
               /* The caller still receives the dispatch outcome and missing audit. */
             }
           }
           if (dispatchOutcome === 'sentOutcomeUnknown') {
             try {
-              await withMakerDeadline(
-                () => deps.host.notify('sentOutcomeUnknown'),
-                deps.policy.requestDeadlineMs,
-              )
+              await withMakerDeadline(async () => {
+                await deps.host.notify('sentOutcomeUnknown')
+              }, deps.policy.requestDeadlineMs)
             } catch {
               /* The result still carries uncertainty when the surface is unavailable. */
             }
@@ -394,7 +383,9 @@ export function protectMachine(
       const isLogRecorded = await isStopLogged('stopped')
       for (const warning of warnings) {
         try {
-          await withMakerDeadline(() => deps.host.notify(warning), deps.policy.requestDeadlineMs)
+          await withMakerDeadline(async () => {
+            await deps.host.notify(warning)
+          }, deps.policy.requestDeadlineMs)
         } catch {
           /* The caller still receives the warning when its notification surface failed. */
         }

@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- A portable maker host and versioned surface protocol for the forthcoming
+  editor/runtime adapters, with committed JSON Schemas. Serial and machine
+  approvals share a frozen target, expiring single-use answer checks and a
+  live identity check at the final spawn/write. Device swaps, stale answers,
+  revoked permissions and replayed bindings refuse dispatch; Stop stays
+  independent.
+
 - An Arduino IDE 2.3.x VSIX variant of the same product, targeting VS Code API
   1.96, Node 20.14 and Chromium 124, with an isolated older-API typecheck,
   unchanged package and startup budgets, and side-load installation guidance.

@@ -60,6 +60,30 @@ async function readPty(peer: FileHandle, length: number): Promise<Buffer> {
 }
 
 describe('bounded serial helper', () => {
+  it('runs the final approval guard after preparation and refuses before spawning any child', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'm103-start-binding-'))
+    directories.push(directory)
+    const marker = path.join(directory, 'child-started')
+    const command: SerialCommand = {
+      file: process.execPath,
+      args: ['-e', 'require("node:fs").writeFileSync(process.argv[1], "started")', marker],
+      writable: false,
+    }
+    let didPrepare = false
+    const guard = vi.fn(() => {
+      throw new Error('test-approval-refused')
+    })
+    await expect(
+      startSerialProcess(command, makerProcessDeps(), undefined, async () => {
+        await delay(1)
+        didPrepare = true
+        return guard
+      }),
+    ).rejects.toThrow('test-approval-refused')
+    expect(didPrepare).toBe(true)
+    expect(guard).toHaveBeenCalledOnce()
+    await expect(access(marker)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
   it('waits for opener closure even when forced termination fails', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'm103-kill-failure-'))
     directories.push(directory)

@@ -1,3 +1,4 @@
+import type { SerialApprovalRequest } from '../../src/core/maker/ports'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
@@ -12,7 +13,6 @@ import {
 import {
   runSerialAction,
   type SerialActionInput,
-  type SerialApprovalRequest,
   type SerialSessionDependencies,
 } from '../../src/core/maker/serial/session'
 import type { SerialCapture, SerialProcess } from '../../src/core/maker/serial/process'
@@ -25,7 +25,7 @@ afterEach(async () => {
 })
 
 function allow(request: SerialApprovalRequest) {
-  return { id: request.id, digest: request.digest, decision: 'allow_once' }
+  return { id: request.id, digest: request.digest, target: request.target, decision: 'allow_once' }
 }
 
 const classifyReplacement: SerialSessionDependencies['classify'] = (input) =>
@@ -73,7 +73,13 @@ async function fixture() {
   const identityNow = vi
     .fn<SerialSessionDependencies['identityNow']>()
     .mockResolvedValue(input.identity)
-  const open = vi.fn<SerialSessionDependencies['open']>().mockResolvedValue(transport)
+  const open = vi.fn<SerialSessionDependencies['open']>(
+    async (_input, _maxBytes, _signal, start) => {
+      const guard = await start()
+      guard()
+      return transport
+    },
+  )
   const log = vi.fn<SerialSessionDependencies['log']>().mockResolvedValue(undefined)
   const deps: SerialSessionDependencies = {
     platform: process.platform,
@@ -93,6 +99,80 @@ async function fixture() {
 }
 
 describe('host-only serial approval', () => {
+  it('refuses a different target echoed by the host UI before opening', async () => {
+    const f = await fixture()
+    f.confirm.mockImplementation((request) =>
+      Promise.resolve({
+        ...allow(request),
+        target: { ...request.target, serialNumber: 'other-board' },
+      }),
+    )
+    expect(await runSerialAction(f.input, f.deps)).toEqual({
+      status: 'refused',
+      reason: 'approval',
+    })
+    expect(f.open).not.toHaveBeenCalled()
+  })
+  it('keeps the serial approval target and payload frozen at the host boundary', async () => {
+    const f = await fixture()
+    f.confirm.mockImplementation((request) => {
+      expect(Reflect.set(request.target, 'serialNumber', 'other-board')).toBe(false)
+      expect(Reflect.set(request.payload, 'value', 'changed')).toBe(false)
+      return Promise.resolve(allow(request))
+    })
+    const result = await runSerialAction(f.input, f.deps)
+    expect(result.status).toBe('complete')
+    expect(f.write).toHaveBeenCalledWith(Buffer.from(f.input.payloadHex, 'hex'))
+  })
+  it('refuses a target swap during adapter preparation before the final spawn guard', async () => {
+    const f = await fixture()
+    let didSpawn = false
+    f.open.mockImplementation(async (_input, _maxBytes, _signal, start) => {
+      await delay(1)
+      f.identityNow.mockResolvedValue({ ...f.input.identity, vid: '2e8a', pid: '0003' })
+      const guard = await start()
+      guard()
+      didSpawn = true
+      throw new Error('unexpected test spawn')
+    })
+    expect(
+      await runSerialAction(f.input, { ...f.deps, flashTarget: { idfTarget: 'esp32' } }),
+    ).toEqual({ status: 'refused', reason: 'mismatch' })
+    expect(didSpawn).toBe(false)
+    expect(f.write).not.toHaveBeenCalled()
+    expect(f.confirm).toHaveBeenCalledOnce()
+  })
+  it('refuses newly unattended admission after target discovery but before spawn', async () => {
+    const f = await fixture()
+    let isAdmitted = true
+    let didSpawn = false
+    f.open.mockImplementation(async (_input, _maxBytes, _signal, start) => {
+      const guard = await start()
+      isAdmitted = false
+      guard()
+      didSpawn = true
+      throw new Error('unexpected test spawn')
+    })
+    expect(await runSerialAction(f.input, { ...f.deps, canUseHardware: () => isAdmitted })).toEqual(
+      { status: 'refused', reason: 'context' },
+    )
+    expect(didSpawn).toBe(false)
+    expect(f.write).not.toHaveBeenCalled()
+  })
+  it('fails explicitly when an adapter omits the required spawn guard', async () => {
+    const f = await fixture()
+    f.open.mockResolvedValue({
+      pid: undefined,
+      result: Promise.resolve(f.capture),
+      write: f.write,
+      close: f.close,
+    })
+    await expect(runSerialAction(f.input, f.deps)).rejects.toThrow(
+      'maker-adapter-start-guard-missing',
+    )
+    expect(f.write).not.toHaveBeenCalled()
+    expect(f.close).toHaveBeenCalled()
+  })
   it.each(['Stop', 'turn cancellation'])(
     'waits for cancelled opening cleanup on %s',
     async (method) => {
@@ -394,7 +474,9 @@ describe('host-only serial approval', () => {
     const f = await fixture()
     const ended = new AbortController()
     const { entered, waiting } = enteredSignal()
-    f.open.mockImplementation(() => {
+    f.open.mockImplementation(async (_input, _maxBytes, _signal, start) => {
+      const guard = await start()
+      guard()
       const result = new Promise<SerialCapture>((resolve) => {
         const timer = setTimeout(() => {
           resolve({ bytes: Buffer.alloc(0), reason: 'ended' })
@@ -408,7 +490,7 @@ describe('host-only serial approval', () => {
           { once: true },
         )
       })
-      return Promise.resolve({ pid: undefined, result, close: f.close, write: f.write })
+      return { pid: undefined, result, close: f.close, write: f.write }
     })
     f.close.mockImplementation(() => {
       ended.abort()
@@ -467,8 +549,10 @@ describe('host-only serial approval', () => {
 
   it('sends nothing if approval expires or the board changes while opening', async () => {
     const f = await fixture()
-    f.open.mockImplementation(async () => {
+    f.open.mockImplementation(async (_input, _maxBytes, _signal, start) => {
       await delay(50)
+      const guard = await start()
+      guard()
       return { pid: undefined, result: Promise.resolve(f.capture), write: f.write, close: f.close }
     })
     expect(
@@ -488,7 +572,8 @@ describe('host-only serial approval', () => {
       await runSerialAction(next.input, { ...next.deps, flashTarget: { idfTarget: 'esp32' } }),
     ).toEqual({ status: 'refused', reason: 'mismatch' })
     expect(next.write).not.toHaveBeenCalled()
-    expect(next.close).toHaveBeenCalledTimes(1)
+    // Final target verification now refuses before any opener creates a port.
+    expect(next.close).not.toHaveBeenCalled()
   })
 
   it('logs an already-expired answer as rejected and rejects extra answer fields', async () => {

@@ -1,3 +1,7 @@
+import type {
+  MakerSecrets,
+  MachineApprovalRequest as MachineApproval,
+} from '../../src/core/maker/ports'
 async function captureFailure(work: Promise<unknown>): Promise<unknown> {
   try {
     await work
@@ -11,7 +15,7 @@ import { randomUUID } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createGrblMachine, parseGrblReport } from '../../src/core/maker/machines/grbl'
 import { MachineHttp } from '../../src/core/maker/machines/http'
-import { type MachineApproval, type MachineDeps } from '../../src/core/maker/machines/machine'
+import { type MachineDeps } from '../../src/core/maker/machines/machine'
 import { createMarlinMachine, marlinFeedLimit } from '../../src/core/maker/machines/marlin'
 import { createMoonrakerMachine } from '../../src/core/maker/machines/moonraker'
 import {
@@ -24,7 +28,6 @@ import type { SerialMachinePort } from '../../src/core/maker/machines/serial'
 import {
   machineTarget,
   type MakerLanPolicy,
-  type MakerSecrets,
   type MachineRecord,
 } from '../../src/core/maker/registry'
 import moonrakerCapture from '../fixtures/maker/moonraker-status.json'
@@ -48,8 +51,8 @@ function answer(request: MachineApproval) {
   return {
     id: request.id,
     digest: request.digest,
-    targetIdentity: request.target.identity,
-    decision: 'sendOnce',
+    target: request.target,
+    decision: 'allow_once',
   }
 }
 function dependencies() {
@@ -652,7 +655,7 @@ describe('maker printer status and guarded send', () => {
           confirm: true,
         }
         const keys: Readonly<Record<string, string>> = {
-          identity: 'targetIdentity',
+          identity: 'target',
           reject: 'decision',
         }
         const key = keys[field] ?? field

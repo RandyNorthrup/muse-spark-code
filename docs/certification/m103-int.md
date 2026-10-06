@@ -67,3 +67,167 @@ with the lead. The host API inventory was regenerated and reviewed after A:
 342 APIs, 33 VS Code importers, 26 Node built-ins, 61 theme variables, zero
 problems. Native Arduino installation/qualification and cross-OS receipts
 remain the inherited lane A/E obligations.
+
+## Lane I contract and handoff to U/V/R
+
+The implementation entry is `src/core/maker/ports.ts`. `MakerHost<Request =
+ApprovalRequest>` has `confirm(request): Promise<unknown>`,
+`notify(MakerNotice): void | Promise<void>`,
+`stopControls(readonly MakerMachineSummary[]): void | Promise<void>`,
+`openPreview(MakerPreview): Promise<void>`, `storage.workspace` and
+`storage.machine` (canonical host-owned directory, asynchronous get/update/delete),
+`secrets` (asynchronous get/store/delete), `isTrusted()`, `hardwareEnabled()` and
+`isInteractive()`, plus optional `serialProvider`. Hardware admission must be
+false for Plan, tasks, subagents, schedules, headless and every other unattended
+context. Never route approval to a model, remembered rule or Bypass setting.
+Stop controls invoke the engine's independent Stop path, including when trust,
+hardware or interaction admission is false. SecretStorage/OS credentials are
+adapter-owned; no key field exists in the surface protocol.
+
+`ApprovalRequest` is a readonly discriminated union of serial, machine and
+command requests. All carry a UUID id, SHA-256 digest, absolute expiry and
+complete target snapshot. Serial includes exact text/hex bytes, line settings,
+reset warning and captured flash-target classification; machine includes the
+exact payload and the existing G-code analysis; command supplies G4's proposed
+command payload without implementing its classifier or gate. Machine targets
+include the immutable registration UUID, endpoint and observed identity;
+serial targets include port, VID/PID, serial number and stable path. A friendly
+serial description is display metadata, never identity authority.
+
+`MakerApproval` validates, clones and recursively freezes the engine snapshot.
+`answer(unknown)` accepts only `{ id, digest, target, decision }`, where decision
+is `allow_once` or `reject_once`. An invalid, denied or replayed answer burns
+that request's answer slot. Wall and monotonic expiry and admission are checked
+at answer and dispatch. The resulting `ApprovedTargetBinding` is an opaque
+local object by identity: a serialized/cloned or another instance's binding
+cannot authorize anything. `consume(binding, liveTarget)` or `start(liveTarget)`
+consumes it once and verifies the freshly read target. `hasStarted` is true only
+for a successful final check. U only sends the answer; V/R retain this object.
+The machine core gives a detached display clone to confirm; serial supplies the
+frozen request. Neither allows the UI to change the retained authority.
+
+`MakerSerialProvider` exposes read-only existing text through `context(signal)`;
+`open(settings, maxBytes, signal, start)` must await `start()` after all setup,
+then invoke its returned synchronous guard immediately before spawn/open, with
+no intervening await. `release()` resolves after the port and runtime lease
+close. `startSerialProcess` implements that final guard; `runSerialAction`
+refuses an adapter that omitted it. D's `MakerDetectHost` and M's `MachineHost`
+are `Pick<MakerHost<…>, …>` projections; P's confirm/open types come from this
+same port. Existing machine drivers preserve their final write callback and
+ungated Stop. This interface does not certify a third-party serial adapter.
+
+`src/shared/makerProtocol.ts` exports the production parsers
+`makerHostMessageSchema` / `MakerHostMessage` and
+`makerSurfaceMessageSchema` / `MakerSurfaceMessage`, envelope `v: 1`, plus
+request, answer, target, notice, preview, summary and preset schemas/types.
+It imports only shared code and zod/mini: an actual browser bundle test
+proves there are no core imports or Node shims. Detection's compatibility
+export and G-code limits use these shared schemas, avoiding parallel shapes.
+The contract is our own engine/surface wire, not a guessed external device
+frame. New external services still require D83's captured-wire evidence.
+
+| Direction   | Messages                                                                                                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Engine → U  | makerApproval, makerApprovalClosed, makerNotice, makerPresets, makerPreview, makerStatus, makerState, makerDeviceLog, makerResult                                              |
+| U → adapter | makerReady, makerAnswer, makerStop, makerHardware, makerStatus, makerSend, makerSerial, makerOpenLog, makerAddMachine, makerRemoveMachine, makerChoosePreset, makerOpenPreview |
+
+U builds shared React UI and speaks only these messages through HostBridge.
+The existing bridge accepts the chat protocol; U/W must compose this maker
+union at that boundary and parse each direction before dispatch. There is no
+bridge cast or UI implementation in this lane. Action requests do not grant
+permission: V/R classify independently, read authoritative state, create the
+approval and accept the corresponding host-UI answer. A makerStop with no id
+means stop all held targets; process it ahead of admission and ordinary queues.
+Machine registration is secretless on this boundary; V/R collect any key via
+a host-owned input into the credential store. Open-preview uses an opaque
+artifact UUID, never a surface-supplied path. Logs are explicitly requested,
+scrubbed and local; result `sentOutcomeUnknown` must be visible before retry.
+
+V owns `src/host/maker/`, host storage/secrets, native confirm and independent
+Stop controls; R owns `src/runtime/maker/`, equivalent ACP/editor/companion
+permissions and OS storage. Both consume this port and protocol and keep all
+hardware under the engine. Thonny's v2 context/acquire/release proposal remains
+unfrozen pending R/P agreement: it is a context and explicit user handover,
+not a provider that executes device bytes. G4 joins later with its classifier,
+hardware latch, per-shell prompts and token-bound final spawn check. W owns
+commands/settings, activation/tools, packaging and bridge wiring. E owns
+cross-editor, cross-OS, physical and live qualification. Nothing in I or 0
+claims those lanes are implemented or certified.
+
+The deterministic snapshots are `docs/schemas/maker-host-v1.schema.json` and
+`maker-surface-v1.schema.json`, generated by `node scripts/maker-schema.mjs`;
+`--check` is covered by the complete protocol suite. JSON Schema cannot express
+runtime identity, permission, expiry or every zod refinement; its
+`x-runtime-invariants` names those production checks. Snapshot drift was seen
+to fail when the host status schema changed, then regenerated and passed.
+
+## Lane I guard-fire receipts
+
+All 28 deliberate mutations failed the complete owning test file, then
+restored the source byte-exact (SHA-256 checked after every mutation). No
+filtered or skipped case was used. Receipts name each guard:
+
+| Guard                  | Failing cases | Restored source SHA-256 |
+| ---------------------- | ------------- | ----------------------- |
+| answer-replay          | 8 failed      | 26 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| answer-id              | 2 failed      | 32 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| answer-digest          | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| answer-target          | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| answer-decision        | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| wall-expiry            | 2 failed      | 32 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| monotonic-expiry       | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| initial-admission      | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| current-admission      | 2 failed      | 32 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| binding-object         | 2 failed      | 32 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| dispatch-replay        | 2 failed      | 32 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| live-target            | 10 failed     | 24 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| frozen-request         | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| detached-request       | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| target-port            | 2 failed      | 32 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| target-vid             | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| target-pid             | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| target-serialNumber    | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| target-stablePath      | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| target-registrationId  | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| target-id              | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| target-name            | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| target-endpoint        | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| target-identity        | 1 failed      | 33 passed (34)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| strict-messages        | 6 failed      | 27 passed (33)          | `6c4b433f59307c42d8eacd2c0fdd0638f22e5910e4d345857347c7370fd4c96a` |
+| protocol-version       | 2 failed      | 31 passed (33)          | `6c4b433f59307c42d8eacd2c0fdd0638f22e5910e4d345857347c7370fd4c96a` |
+| final-spawn-guard      | 1 failed      | 13 passed (14)          | `810ebbdfbcda165b1fbdef7d5540285db2e4f2430c2bb05ebce1e329fb27b404` |
+| adapter-guard-required | 1 failed      | 23 passed (24)          | `1e2ce128844eeda252b1d30f80727eb6cb887b639cb9fa8bfcac8e0de7bea239` |
+
+Four additional drills cover constructor request validation, browser core/Node
+imports and serial nested payload immutability after sharing the check schema:
+
+| Guard               | Failing cases | Restored source SHA-256 |
+| ------------------- | ------------- | ----------------------- |
+| request-validation  | 4 failed      | 34 passed (38)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+| browser-core-import | 1 failed      | 32 passed (33)          | `bc79bce39acf32595bf905caa7c8ae27b713706cdfdd6b2250efc649090f24c7` |
+| browser-node-import | 1 failed      | 32 passed (33)          | `bc79bce39acf32595bf905caa7c8ae27b713706cdfdd6b2250efc649090f24c7` |
+| serial-deep-freeze  | 1 failed      | 23 passed (24)          | `1baaf07642d2078b9c2b756636b7286cffafad302efec069f74b28f7bb3ef22b` |
+
+Owning restored runs: approval/protocol/serial 81 pass; contract/session 91
+pass; shared check commands/presets/protocol 83 pass with two existing
+Windows-only skips; G-code/registry/CAD 148 pass. Earlier affected serial and
+machine suites pass 160 cases. Five TypeScript projects pass. The shared
+check-command field extraction removes the sole newly reported clone while
+preserving settings parsing and strict maker presets. Host API regeneration
+adds only the new portable approval clock importer (`node:perf_hooks` count
+1 → 2); VS Code APIs/importers, built-ins and theme totals stay unchanged.
+
+Hardware-enable reason and nonblank-reason drills each fail the complete
+protocol suite (1 failed / 34 passed) and restore SHA-256
+`432c881c2d822f3a700f443215098af5b2a4eef0fc286901ca8b440dc48699b8`. Disabling requires no reason. The final
+restored approval/protocol/session run passes **97 cases**. The outgoing
+message type accepts frozen engine requests without casts.
+
+Lane I final static receipts: changed-file ESLint and Prettier exit 0; plain
+Knip exit 0; jscpd reports **0 clones**; normal entry cycles and the explicit
+unwired maker graph (22 files) exit 0; production build, split, globals,
+notices and every unchanged cap exit 0. Final typed protocol passes the unit
+TypeScript project; the five-project pass precedes the last reason refinement,
+and all five are rerun with lane 0. Build sizes remain 434.0 KiB activation,
+447.0 Model API, 76.9 checkpoint, 792.9 webview startup, 818.2 ACP and
+22.2 verification. No ignore, threshold, cap or rule level was changed.

@@ -28,11 +28,10 @@ import {
   type ProjectDetectIo,
 } from './projectKinds'
 
-/** A narrow projection of lane I's MakerHost: the detector never asks for approval or secrets. */
-export interface MakerDetectHost {
-  isTrusted(): boolean
-  notify(event: MakerPresetsOffered): void | Promise<void>
-}
+import type { MakerHost } from '../ports'
+
+/** Detection uses only trust and the shared notice port. */
+export type MakerDetectHost = Pick<MakerHost, 'isTrusted' | 'notify'>
 
 export interface MakerPresetOptions {
   /** User/IDE-selected targets. A workspace marker never chooses a board to program. */

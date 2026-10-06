@@ -1,6 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import * as z from 'zod/mini'
 import type { TreeRoot } from '../../../host/processTree'
+import type { MakerStartGuard } from '../ports'
 
 export interface SerialCommand {
   readonly file: string
@@ -47,6 +48,7 @@ export async function startSerialProcess(
   command: SerialCommand,
   deps: SerialProcessDependencies,
   signal?: AbortSignal,
+  beforeSpawn?: MakerStartGuard,
 ): Promise<SerialProcess> {
   if (signal?.aborted === true) throw new Error('serial-open-stopped')
   if (
@@ -61,12 +63,19 @@ export async function startSerialProcess(
     throw new Error('serial-process-limits-invalid')
   }
   const startedAt = Date.now()
-  const child = spawn(command.file, [...command.args], {
+  const file = command.file
+  const args = [...command.args]
+  const options = {
     env: deps.env,
     windowsHide: true,
     detached: deps.platform !== 'win32',
     stdio: 'pipe',
-  })
+  } as const
+  const start = await beforeSpawn?.()
+  signal?.throwIfAborted()
+  // No await or transport preparation may follow this guard before spawn.
+  start?.()
+  const child = spawn(file, args, options)
   let hasClosed = false
   let swept: Promise<void> | undefined
   child.once('exit', () => {

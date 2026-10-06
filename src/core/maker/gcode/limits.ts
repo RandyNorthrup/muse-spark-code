@@ -1,24 +1,12 @@
-import * as z from 'zod/mini'
+import type * as z from 'zod/mini'
 import type { Bounds, GcodeAnalysis } from './analyser'
 
-const nonnegative = z.number().check(z.gte(0))
-export const pointSchema = z.object({ x: z.number(), y: z.number(), z: z.number() })
-export const limitsSchema = z
-  .strictObject({
-    travel: z.optional(z.object({ min: pointSchema, max: pointSchema })),
-    feedMmMin: z.optional(z.number().check(z.positive())),
-    extruder: z.optional(nonnegative),
-    bed: z.optional(nonnegative),
-  })
-  .check(
-    z.refine(
-      (limits) =>
-        limits.travel === undefined ||
-        (limits.travel.min.x <= limits.travel.max.x &&
-          limits.travel.min.y <= limits.travel.max.y &&
-          limits.travel.min.z <= limits.travel.max.z),
-    ),
-  )
+import { type makerLimitsSchema as limitsSchema } from '../../../shared/makerProtocol'
+export {
+  makerLimitsSchema as limitsSchema,
+  makerPointSchema as pointSchema,
+} from '../../../shared/makerProtocol'
+
 export type MachineLimits = z.infer<typeof limitsSchema>
 export type LimitsFailure =
   | 'refusedCommand'

@@ -6,12 +6,8 @@ import { isIP } from 'node:net'
 import * as z from 'zod/mini'
 import { limitsSchema } from './gcode/limits'
 
-/** Structural slice of MakerHost.secrets, until lane I's full port lands. */
-export interface MakerSecrets {
-  get(name: string): Promise<string | undefined>
-  store(name: string, value: string): Promise<void>
-  delete(name: string): Promise<void>
-}
+import type { MakerSecrets } from './ports'
+
 export interface MachineStorage {
   /** Canonical per-user data directory, shared by every editor/runtime. */
   readonly directory: string

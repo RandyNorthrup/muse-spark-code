@@ -1,3 +1,4 @@
+import type { MakerStartGuard } from '../../src/core/maker/ports'
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -189,8 +190,8 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
           { ...input, durationMs: 30_000 },
           {
             ...guarded,
-            open: async (request, maxBytes) => {
-              const serial = await deps.open(request, maxBytes)
+            open: async (request, maxBytes, openSignal, start) => {
+              const serial = await deps.open(request, maxBytes, openSignal, start)
               opened.abort()
               return serial
             },
@@ -263,22 +264,30 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
       let run = await startRig(board, state, 'download')
       const abort = new AbortController()
       const deps = await sessionDependencies(board, run.port, leases, abort.signal)
-      const open = vi.fn((input: SerialActionInput, maxBytes: number) =>
-        startSerialProcess(
-          {
-            file: '/usr/bin/python3',
-            args: [
-              '-I',
-              path.resolve('test/fixtures/maker-emulators/flash.py'),
-              board.name,
-              state,
-              String(Buffer.from(input.payloadHex, 'hex').length),
-            ],
-            readyWord: 'serial-ready',
-            writable: true,
-          },
-          makerProcessDeps({ durationMs: input.durationMs, maxBytes }),
-        ),
+      const open = vi.fn(
+        (
+          input: SerialActionInput,
+          maxBytes: number,
+          openSignal: AbortSignal,
+          start: MakerStartGuard,
+        ) =>
+          startSerialProcess(
+            {
+              file: '/usr/bin/python3',
+              args: [
+                '-I',
+                path.resolve('test/fixtures/maker-emulators/flash.py'),
+                board.name,
+                state,
+                String(Buffer.from(input.payloadHex, 'hex').length),
+              ],
+              readyWord: 'serial-ready',
+              writable: true,
+            },
+            makerProcessDeps({ durationMs: input.durationMs, maxBytes }),
+            openSignal,
+            start,
+          ),
       )
       const confirm = vi.fn(deps.confirm)
       const input: SerialActionInput = {

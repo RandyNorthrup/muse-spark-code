@@ -1,3 +1,4 @@
+import type { MakerSecrets } from '../../src/core/maker/ports'
 import { Buffer } from 'node:buffer'
 import { fork } from 'node:child_process'
 import { build } from 'esbuild'
@@ -15,7 +16,6 @@ import {
   machineRecordSchema,
   machineSecretName,
   machineTarget,
-  type MakerSecrets,
   type MachineRecord,
   type MakerLanPolicy,
 } from '../../src/core/maker/registry'

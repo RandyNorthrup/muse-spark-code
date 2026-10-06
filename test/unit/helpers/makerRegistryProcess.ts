@@ -1,3 +1,4 @@
+import type { MakerSecrets } from '../../../src/core/maker/ports'
 import process from 'node:process'
 import { randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
@@ -5,7 +6,6 @@ import {
   FileMachineStorage,
   MachineRegistry,
   machineSecretName,
-  type MakerSecrets,
 } from '../../../src/core/maker/registry'
 
 export const REGISTRY_PROCESS_MARKER = 'makerRegistryChild'

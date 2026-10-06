@@ -453,7 +453,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:net`             | 10    |
 | `node:os`              | 9     |
 | `node:path`            | 95    |
-| `node:perf_hooks`      | 1     |
+| `node:perf_hooks`      | 2     |
 | `node:process`         | 1     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |

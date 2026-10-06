@@ -18926,6 +18926,23 @@ No UI/adapter/wiring implementation, physical device operation or model call
 is in this scope. The 150-minute brief forbids aggregate quality; owning
 suites, static gates and per-merge cap receipts are required instead.
 
+Lane I keeps the shared protocol free of core/Node imports: detection preset
+and limit schemas move into the shared boundary, with compatibility exports
+for their existing core readers. D/M/P use projections of the single full
+port; no separate host interface remains. The approval's wall-clock expiry
+also has a monotonic lifetime, so a clock rollback cannot extend it. Runtime
+bindings stay local to one engine instance and are consumed synchronously at
+dispatch after adapter preparation. Host/UI clones cannot mutate the engine
+snapshot. The two committed maker schemas and their complete drift tests
+follow the exec schema pattern. Future adapter defaults remain with V/R/W;
+this lane introduces only constants used by its protocol. The exact contract,
+byte-exact failure drills and U/V/R handoff are in m103-int.md.
+The duplication gate also requires the existing verifier's check-command
+field schema to move into `src/shared/checkCommandSchema.ts`: the maker
+protocol wraps the same fields strictly, while the settings parser preserves
+its existing unknown-field behavior. This small dependent seam avoids both a
+copied validator and a browser import of Node-typed core shell helpers.
+
 **FIXM103S review corrections (2026-10-05).** Resolve RVM103S's two P2
 installer findings and its P3 topic-safety coverage finding within lane S.
 Updates reconcile owned same-id links across the vendor and first-party

@@ -1,4 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto'
+import {
+  MakerApproval,
+  type SerialApprovalRequest,
+  type MakerHost,
+  type MakerSerialProvider,
+} from '../ports'
 import * as z from 'zod/mini'
 import { checkFlashIdentity, type FlashTarget } from '../flashIdentity'
 import {
@@ -26,29 +32,6 @@ const actionSchema = z.enum(['connect', 'program', 'actuate', 'refused'])
 
 export type SerialActionInput = z.infer<typeof inputSchema>
 
-/** Temporary structural seam for lane I's ApprovalRequest, absent from this base. */
-export interface SerialApprovalRequest {
-  readonly id: string
-  readonly digest: string
-  readonly target: SerialIdentity
-  readonly expiresAt: number
-  readonly action: 'connect' | 'program' | 'actuate'
-  readonly payload: ReturnType<typeof serialPayload>
-  readonly baud: number
-  readonly durationMs: number
-  readonly dtr: boolean
-  readonly rts: boolean
-  readonly warnsAboutReset: true
-  readonly projectTarget?: FlashTarget
-  readonly flashIdentity: ReturnType<typeof checkFlashIdentity>
-}
-
-const answerSchema = z.strictObject({
-  id: z.uuid(),
-  digest: z.string(),
-  decision: z.enum(['allow_once', 'reject_once']),
-})
-
 export interface SerialActionLog {
   readonly request: SerialApprovalRequest
   readonly outcome: 'attempt' | 'rejected' | 'changed' | 'sent' | 'failed' | 'stopped'
@@ -71,17 +54,13 @@ export interface SerialSessionDependencies {
     input: SerialActionInput,
   ) => Promise<'connect' | 'program' | 'actuate' | 'refused'>
   /** Only the host UI supplies this answer; never tool args or results. */
-  readonly confirm: (request: SerialApprovalRequest) => Promise<unknown>
+  readonly confirm: MakerHost<SerialApprovalRequest>['confirm']
   /** Returns a currently discovered serial identity, or throws for an unknown port. */
   readonly identityNow: (port: string) => Promise<SerialIdentity>
   /** Metadata check (fuser/lsof or OS exclusive open), never a probe open. */
   readonly isPortBusy: (identity: SerialIdentity) => Promise<boolean>
   /** Cancellation must settle only after the opener and its port have closed. */
-  readonly open: (
-    input: SerialActionInput,
-    maxBytes: number,
-    signal: AbortSignal,
-  ) => Promise<SerialProcess>
+  readonly open: MakerSerialProvider['open']
   readonly log: (event: SerialActionLog) => Promise<void>
   readonly signal: AbortSignal
   /** Project detection supplies this; never inferred from a UART bridge. */
@@ -97,10 +76,17 @@ export type SerialActionResult =
         'context' | 'bounds' | 'identity' | 'mismatch' | 'approval' | 'changed' | 'classification'
     }
 
+class SerialStartError extends Error {
+  constructor(readonly reason: 'context' | 'approval' | 'changed') {
+    super(`maker-serial-start-${reason}`)
+  }
+}
+
 async function isApproved(
-  request: SerialApprovalRequest,
+  approval: MakerApproval<SerialApprovalRequest>,
   deps: SerialSessionDependencies,
 ): Promise<boolean> {
+  const request = approval.request
   let timer: ReturnType<typeof setTimeout> | undefined
   const listening = new AbortController()
   try {
@@ -123,15 +109,8 @@ async function isApproved(
         { once: true, signal: listening.signal },
       )
     })
-    const answer = answerSchema.safeParse(await Promise.race([deps.confirm(request), pending]))
-    return (
-      answer.success &&
-      answer.data.id === request.id &&
-      answer.data.digest === request.digest &&
-      answer.data.decision === 'allow_once' &&
-      Date.now() < request.expiresAt &&
-      !deps.signal.aborted
-    )
+    const answer = await Promise.race([deps.confirm(request), pending])
+    return !deps.signal.aborted && approval.answer(answer) !== undefined
   } finally {
     clearTimeout(timer)
     listening.abort()
@@ -205,10 +184,11 @@ export async function runSerialAction(
       )
         return { status: 'refused', reason: 'mismatch' }
       const digest = createHash('sha256').update(bytes).digest('hex')
-      const request: SerialApprovalRequest = {
+      const requestInput: SerialApprovalRequest = {
+        kind: 'serial',
         id: randomUUID(),
         digest,
-        target: identity,
+        target: { ...identity, kind: 'serial' },
         expiresAt: Date.now() + deps.limits.approvalTtlMs,
         action,
         payload: serialPayload(bytes),
@@ -222,9 +202,11 @@ export async function runSerialAction(
           projectTarget: deps.flashTarget,
         }),
       }
-      if (!(await isApproved(request, approvalDeps))) {
+      const approval = new MakerApproval(requestInput, canProceed)
+      const request = approval.request
+      if (!(await isApproved(approval, approvalDeps))) {
         await deps.log({ request, outcome: 'rejected' })
-        return { status: 'refused', reason: 'approval' }
+        return { status: 'refused', reason: deps.canUseHardware() ? 'approval' : 'context' }
       }
       const current = serialIdentitySchema.parse(await deps.identityNow(identity.port))
       if (!isSameSerialIdentity(identity, current)) {
@@ -246,8 +228,26 @@ export async function runSerialAction(
       if (!canProceed() || Date.now() >= request.expiresAt)
         return { status: 'refused', reason: 'context' }
       try {
-        opening = deps.open({ ...input, identity }, deps.limits.maxBytes, approvalDeps.signal)
+        opening = deps.open(
+          { ...input, identity },
+          deps.limits.maxBytes,
+          approvalDeps.signal,
+          async () => {
+            const live = serialIdentitySchema.parse(await deps.identityNow(identity.port))
+            return () => {
+              if (!canProceed()) throw new SerialStartError('context')
+              if (Date.now() >= request.expiresAt) throw new SerialStartError('approval')
+              if (!isSameSerialIdentity(identity, live)) {
+                identity = live
+                throw new SerialStartError('changed')
+              }
+              if (!approval.start({ ...live, kind: 'serial' }))
+                throw new SerialStartError('approval')
+            }
+          },
+        )
         process = await opening
+        if (!approval.hasStarted) throw new Error('maker-adapter-start-guard-missing')
         if (canProceed()) {
           const connected = serialIdentitySchema.parse(await deps.identityNow(identity.port))
           if (!canProceed()) await process.close()
@@ -269,6 +269,11 @@ export async function runSerialAction(
         await deps.log({ request, outcome })
         return { status: 'complete', capture }
       } catch (error: unknown) {
+        if (error instanceof SerialStartError) {
+          await deps.log({ request, outcome: error.reason === 'changed' ? 'changed' : 'rejected' })
+          if (error.reason === 'changed') continue
+          return { status: 'refused', reason: error.reason }
+        }
         if (approvalDeps.signal.aborted) {
           await deps.log({ request, outcome: 'stopped' })
           return { status: 'refused', reason: 'context' }

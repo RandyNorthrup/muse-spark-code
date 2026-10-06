@@ -1,3 +1,4 @@
+import type { MakerSecrets } from '../ports'
 import { Buffer } from 'node:buffer'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
@@ -11,7 +12,6 @@ import {
   machineRecordSchema,
   machineTarget,
   type MakerLanPolicy,
-  type MakerSecrets,
   type MachineRecord,
 } from '../registry'
 

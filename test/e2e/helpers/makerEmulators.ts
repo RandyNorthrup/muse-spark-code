@@ -149,12 +149,17 @@ export async function sessionDependencies(
     // P's injection seam only; G's classifier is absent on the lane P base.
     classify: (input) => Promise.resolve(input.operation === 'read' ? 'connect' : 'actuate'),
     confirm: (request) =>
-      Promise.resolve({ id: request.id, digest: request.digest, decision: 'allow_once' }),
+      Promise.resolve({
+        id: request.id,
+        digest: request.digest,
+        target: request.target,
+        decision: 'allow_once',
+      }),
     identityNow: () => Promise.resolve(identity),
     isPortBusy: () => Promise.resolve(false),
     log: () => Promise.resolve(),
     signal,
-    open: async (input, maxBytes) => {
+    open: async (input, maxBytes, openSignal, start) => {
       const adapter = {
         kind: 'posix-raw',
         file: '/usr/bin/python3',
@@ -167,6 +172,8 @@ export async function sessionDependencies(
       return await startSerialProcess(
         serialAdapterCommand(adapter, port, settings),
         makerProcessDeps({ durationMs: input.durationMs, maxBytes }),
+        openSignal,
+        start,
       )
     },
   }

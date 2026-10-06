@@ -226,6 +226,11 @@ export const MAKER_PI_COMMAND_PATHS = ['/usr/bin/vcgencmd', '/opt/vc/bin/vcgencm
 export const MAKER_PI_COMMAND_TIMEOUT_MS = 2000
 export const MAKER_PRESET_TIMEOUT_SECONDS = 120
 export const MAKER_PRESETS_MAX = 32
+// M103 I: shared surface bounds and per-action approval defaults.
+export const MAKER_PROTOCOL_VERSION = 1
+export const MAKER_PROTOCOL_MAX_TEXT_CHARS = 1024 * 1024
+export const MAKER_PROTOCOL_MAX_ID_CHARS = 256
+export const MAKER_PROTOCOL_MAX_ITEMS = 256
 export const MAKER_SIMULATION_TIMEOUT_MS = 60_000
 export const MAKER_GAZEBO_ITERATIONS = 1000
 export const MAKER_PROJECT_KINDS = [
