@@ -501,3 +501,15 @@ restore the built boundary byte-exact, and the complete ACP native probe passes
 20/20 again. The receipt retains all eight controls, their target hashes and
 exact owning files. Size recovery is still awaiting the owner's explicit
 response to the shared-rule override request; elapsed time grants no approval.
+
+The local `--no-ff` review checkpoint is `45c3439bd`, with `532aca298` and
+`0f0ce2ce` as its two parents. Its unchanged pre-commit hook runs ESLint,
+Stylelint, Prettier and staged gitleaks: **6.48 MB scanned, zero leaks**. The
+working tree is clean after that checkpoint. The committed-source binding suite
+now passes **1/1**, confirming all eight Git-filtered blobs against the refreshed
+record. Across **117 complete owning files**, latest results are **3,050 passed,
+1 failed** (the known restored global size check), and **2 existing platform
+skips**. The JSON receipt preserves the initial failures, owning-file replay
+sources, controls, sizes and top-20 archive deltas. No extra merge, cap change,
+paid/live model call, credential read, install, hook change, push, rebase or
+full quality run occurs.

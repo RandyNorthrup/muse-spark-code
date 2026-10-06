@@ -1071,10 +1071,10 @@
       },
       {
         "file": "test/unit/teamWorkerCertification.test.ts",
-        "status": "failed",
-        "receipt": "merge5-tests-35.json",
-        "passed": 0,
-        "failed": 1,
+        "status": "passed",
+        "receipt": "merge5-binding-postcommit.json",
+        "passed": 1,
+        "failed": 0,
         "pending": 0
       },
       {
@@ -1176,8 +1176,8 @@
     ],
     "owningTotals": {
       "files": 117,
-      "passed": 3049,
-      "failed": 2,
+      "passed": 3050,
+      "failed": 1,
       "pending": 2
     },
     "checks": {
@@ -1601,6 +1601,6 @@
     "capsRaised": false,
     "hooksChanged": false,
     "pushOrRebase": false,
-    "head": "532aca2983c56e87ee461e5c7040470498b00bfc"
+    "reviewCheckpoint": "45c3439bd3bb16088fb5749ec81b3ff3341957a8"
   }
 }
