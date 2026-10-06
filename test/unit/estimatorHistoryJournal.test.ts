@@ -45,9 +45,9 @@ describe('M117 durable metadata-only history journal', () => {
     ])
     const file = await publishedFile()
     const text = await fs.readFile(file, 'utf8')
-    expect(JSON.parse(text)).toEqual(record)
+    expect(JSON.parse(text)).toEqual({ version: 1, durationBasis: record.durationBasis, record })
     expect(path.basename(file)).toMatch(/^[a-f\d]{64}\.json$/)
-    expect(await fs.readdir(path.dirname(file))).toHaveLength(1)
+    expect(await fs.readdir(path.dirname(file))).toHaveLength(2)
     if (process.platform === 'win32') {
       return
     }
@@ -69,7 +69,7 @@ describe('M117 durable metadata-only history journal', () => {
       }),
     )
     expect(await journal.list()).toEqual(records)
-    expect(await fs.readdir(path.join(directory, 'history'))).toHaveLength(12)
+    expect(await fs.readdir(path.join(directory, 'history'))).toHaveLength(24)
   })
 
   it('makes a concurrent replay idempotent and refuses a conflicting completed observation', async () => {
@@ -85,7 +85,150 @@ describe('M117 durable metadata-only history journal', () => {
       code: 'conflictingHistory',
     })
     expect(await fs.readFile(file)).toEqual(bytes)
-    expect(await fs.readdir(path.dirname(file))).toHaveLength(1)
+    expect(await fs.readdir(path.dirname(file))).toHaveLength(2)
+  })
+
+  it('refuses cross-basis class and kind conflicts while preserving unrelated history', async () => {
+    const record = fakeHistoryRecord('M117:cross-basis')
+    const unrelated = fakeHistoryRecord('M117:unrelated')
+    await journal.append(record)
+    await journal.append(unrelated)
+    for (const change of [{ machineClassId: 'macos-arm64-builder' }, { kind: 'ui' }]) {
+      await expect(
+        journal.append({ ...record, ...change, durationBasis: 'gitElapsed', source: 'git' }),
+      ).rejects.toMatchObject({ code: 'conflictingHistory' })
+      expect(await journal.list()).toEqual([record, unrelated])
+    }
+  })
+
+  it('admits only one identity when independent journals concurrently append different bases', async () => {
+    const record = fakeHistoryRecord('M117:cross-basis')
+    const other = new EstimateHistoryJournal(path.join(directory, 'history'))
+    const results = await Promise.allSettled([
+      journal.append(record),
+      other.append({ ...record, kind: 'ui', durationBasis: 'gitElapsed', source: 'git' }),
+    ])
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter((result) => result.status === 'rejected')).toEqual([
+      { status: 'rejected', reason: expect.objectContaining({ code: 'conflictingHistory' }) },
+    ])
+    expect(await journal.list()).toHaveLength(1)
+    await journal.append(fakeHistoryRecord('M117:unrelated'))
+    expect(await journal.list()).toHaveLength(2)
+  })
+
+  it('versions and retains both bases separately while accepting legacy records', async () => {
+    const agent = fakeHistoryRecord('M117:cross-basis')
+    await journal.append(agent)
+    const firstFile = await publishedFile()
+    // Simulate the prior journal format, which has no envelope or lane claim.
+    await fs.writeFile(firstFile, JSON.stringify(agent))
+    const files = await fs.readdir(path.dirname(firstFile))
+    await fs.rm(
+      path.join(
+        path.dirname(firstFile),
+        files.find((file) => file.endsWith('.identity'))!,
+      ),
+    )
+    await expect(journal.append({ ...agent, kind: 'ui' })).rejects.toMatchObject({
+      code: 'conflictingHistory',
+    })
+    await expect(
+      journal.append({ ...agent, kind: 'ui', durationBasis: 'gitElapsed', source: 'git' }),
+    ).rejects.toMatchObject({ code: 'conflictingHistory' })
+    const git = {
+      ...agent,
+      durationBasis: 'gitElapsed',
+      source: 'git',
+      actualHours: 5,
+    } satisfies typeof agent
+    await journal.append(git)
+    await Promise.all([journal.append(agent), journal.append(git)])
+    expect(await new EstimateHistoryJournal(path.dirname(firstFile)).list()).toEqual([agent, git])
+    const allFiles = await fs.readdir(path.dirname(firstFile))
+    const published = allFiles.filter((file) => file.endsWith('.json'))
+    expect(published).toHaveLength(2)
+    const secondFile = published.find((file) => file !== path.basename(firstFile))!
+    expect(
+      JSON.parse(await fs.readFile(path.join(path.dirname(firstFile), secondFile), 'utf8')),
+    ).toEqual({ version: 1, durationBasis: 'gitElapsed', record: git })
+    expect(await fs.readFile(firstFile, 'utf8')).toBe(JSON.stringify(agent))
+    expect(journal.skippedRecords).toEqual([])
+  })
+
+  it('skips and reports unknown versions, unknown bases and mixed basis tags without hiding good lanes', async () => {
+    const first = fakeHistoryRecord('M117:first')
+    await journal.append(first)
+    const file = await publishedFile()
+    const unrelated = fakeHistoryRecord('M117:unrelated')
+    await journal.append(unrelated)
+    const envelope = { version: 1, durationBasis: first.durationBasis, record: first }
+    for (const [value, code] of [
+      [{ ...envelope, version: 2 }, 'unknownHistoryVersion'],
+      [{ ...envelope, durationBasis: 'futureBasis' }, 'unknownHistoryBasis'],
+      [{ ...first, durationBasis: 'futureBasis' }, 'unknownHistoryBasis'],
+      [{ ...envelope, record: { ...first, durationBasis: 'futureBasis' } }, 'unknownHistoryBasis'],
+      [{ ...envelope, durationBasis: 'gitElapsed' }, 'mixedHistoryBasis'],
+    ]) {
+      const bytes = JSON.stringify(value)
+      await fs.writeFile(file, bytes)
+      expect(await journal.list()).toEqual([unrelated])
+      expect(journal.skippedRecords).toEqual([
+        { recordId: expect.stringMatching(/^[a-f\d]{64}$/), code },
+      ])
+      expect(await fs.readFile(file, 'utf8')).toBe(bytes)
+    }
+    await fs.writeFile(file, JSON.stringify(envelope))
+    expect(await journal.list()).toEqual([first, unrelated])
+    expect(journal.skippedRecords).toEqual([])
+  })
+
+  it('skips and reports a conflicting legacy cross-basis identity instead of poisoning all lanes', async () => {
+    const first = fakeHistoryRecord('M117:cross-basis')
+    await journal.append(first)
+    const file = await publishedFile()
+    await journal.append({ ...first, durationBasis: 'gitElapsed', source: 'git' })
+    const bytes = JSON.stringify({ ...first, machineClassId: 'macos-arm64-builder' })
+    await fs.writeFile(file, bytes)
+    const unrelated = fakeHistoryRecord('M117:unrelated')
+    await journal.append(unrelated)
+    const listed = await journal.list()
+    expect(listed).toHaveLength(2)
+    expect(listed).toContainEqual(unrelated)
+    expect(journal.skippedRecords).toEqual([
+      { recordId: expect.stringMatching(/^[a-f\d]{64}$/), code: 'conflictingLaneIdentity' },
+    ])
+    expect(await fs.readFile(file, 'utf8')).toBe(bytes)
+  })
+
+  it('keeps history readable during a torn staging write and publishes nothing from that write', async () => {
+    const record = fakeHistoryRecord('M117:first')
+    await journal.append(record)
+    const file = await publishedFile()
+    const original = await fs.readFile(file)
+    const realOpen = fs.open
+    vi.spyOn(fs, 'open').mockImplementation(async (...args) => {
+      const handle = await realOpen(...args)
+      if (args[1] === 'wx') {
+        const write = handle.writeFile.bind(handle)
+        vi.spyOn(handle, 'writeFile').mockImplementationOnce(async () => {
+          await write('{torn')
+          expect(await journal.list()).toEqual([record])
+          throw new Error('PRIVATE-TORN-WRITE')
+        })
+      }
+      return handle
+    })
+    await expect(journal.append(fakeHistoryRecord('M117:second'))).rejects.toMatchObject({
+      code: 'historyWriteFailed',
+    })
+    expect(await journal.list()).toEqual([record])
+    expect(await fs.readFile(file)).toEqual(original)
+    const remaining = await fs.readdir(path.dirname(file))
+    expect(remaining.some((name) => name.endsWith('.tmp'))).toBe(false)
+    vi.restoreAllMocks()
+    await journal.append(fakeHistoryRecord('M117:second'))
+    expect(await journal.list()).toHaveLength(2)
   })
 
   it('canonicalizes dates and module/class order before comparing replays', async () => {
@@ -207,7 +350,7 @@ describe('M117 durable metadata-only history journal', () => {
       code: 'historyWriteFailed',
     })
     expect(await journal.list()).toEqual([first])
-    expect(await fs.readdir(path.join(directory, 'history'))).toHaveLength(1)
+    expect(await fs.readdir(path.join(directory, 'history'))).toHaveLength(2)
   })
 
   it('never reads a symlink as a published record', async () => {

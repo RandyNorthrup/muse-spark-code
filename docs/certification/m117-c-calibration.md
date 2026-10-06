@@ -228,3 +228,75 @@ the brief. No other lane's file was modified, and no installation was needed.
 Scratch drill reports and test directories were removed after preserving the
 named failures and source hashes here. No credential or model/provider data
 was printed, copied or stored.
+
+## FIXM117C — RVM117C P2 repair (2026-10-06)
+
+RVM117C found one P2 and no P1/P3: same-lane observations with different
+kinds or machine classes could both publish across `agentTime`/`gitElapsed`,
+then make the whole journal unreadable. Both new sequential/concurrent
+regressions failed against the original implementation (20 passed, 2 failed,
+exit 1) before the fix. No finding is deferred.
+
+New observations retain one immutable file per lane/basis, now in a strict
+version-1 envelope with an explicit basis tag. A complete fsynced staging
+inode first takes an exclusive `.identity` hard link keyed by lane, then its
+observation link. The first claim atomically fixes kind and machine class
+across both bases and independent journal instances; conflicting writers cannot
+publish. Legacy observations in both bases are checked before the first claim,
+including same-basis identity conflicts, so a refused legacy replay cannot
+poison the claim. Valid cross-basis samples and replays remain distinct and
+idempotent; legacy metadata-only files are accepted without rewriting them.
+
+`list()` retains incompatible bytes and skips only unknown envelope versions,
+unknown duration bases, mixed basis tags and conflicting legacy identities.
+The concrete journal exposes a per-list `skippedRecords` snapshot of opaque
+record IDs and fixed technical codes; valid unrelated lanes remain readable.
+Other corrupt/oversized/invalid-UTF8/misfiled/symlinked published records still
+fail closed. No path, raw source message, skipped value or conversation body
+enters a diagnostic. Canonical fitting still refuses conflicting input arrays.
+W must surface this snapshot in history honesty disclosures and include identity
+claims in retention/export/deletion policy. A publication failure may retain a
+complete identity claim with no sample; a same-identity retry is safe.
+
+The torn-write regression writes a partial staging file, reads the existing
+history while that write is interrupted, then raises an I/O failure. It verifies
+that no partial observation publishes, existing bytes survive, staging cleanup
+runs and a retry succeeds. The atomic-order drill publishes prematurely and
+makes this exact test fail. Existing corruption guards and assertions stay
+active; file-count assertions now include the extra identity claims, so they
+still detect abandoned staging files.
+
+No new dependency, shared contract, escape hatch, UI string, command or setting.
+Only `journal.ts`, its owning test, PLAN, CHANGELOG and this certification change.
+No merge, push, rebase, install, live/paid call, network request or credential
+access. Hooks exist and remain enabled.
+
+### Repair guard-fire receipts
+
+Each mutation ran the **entire** journal test file on Mac mini with
+`--maxWorkers=3`, repository default timeout, no skips/filter/timeout override.
+All ten exited 1 with the named regression below. Each restore was byte-exact:
+`journal.ts` SHA-256 **02021b06c04e198ef22a5db564beaa3d414b4ed45109dbb37773ad0b1c8666cc**.
+The test source stayed unchanged throughout, SHA-256
+**6af80c37eafe8176454234dde333cf5339c7ca21ab5a799c9089e53d9d32b260**.
+
+| Drill | Deliberate break                                                      | Named failing test                                                                               | Failures |
+| ----- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------: |
+| F01   | Remove exclusive lane-identity publication                            | admits only one identity when independent journals concurrently append different bases           |        6 |
+| F02   | Disable comparison against the winning identity claim                 | admits only one identity when independent journals concurrently append different bases           |        1 |
+| F03   | Disable identity comparison with existing legacy observations         | versions and retains both bases separately while accepting legacy records                        |        1 |
+| F04   | Write unversioned metadata instead of the basis-tagged envelope       | persists metadata across journal instances with private permissions and no staging files         |        2 |
+| F05   | Disable envelope version validation                                   | skips and reports unknown versions, unknown bases and mixed basis tags without hiding good lanes |        1 |
+| F06   | Accept every string as a supported duration basis                     | skips and reports unknown versions, unknown bases and mixed basis tags without hiding good lanes |        1 |
+| F07   | Disable agreement between envelope and record basis                   | skips and reports unknown versions, unknown bases and mixed basis tags without hiding good lanes |        1 |
+| F08   | Disable per-record legacy lane-identity detection                     | skips and reports a conflicting legacy cross-basis identity instead of poisoning all lanes       |        1 |
+| F09   | Rethrow recognized incompatible records instead of skipping/reporting | skips and reports unknown versions, unknown bases and mixed basis tags without hiding good lanes |        2 |
+| F10   | Publish the staging inode before writing complete bytes               | keeps history readable during a torn staging write and publishes nothing from that write         |        6 |
+
+### Repair verification
+
+The restored calibration/journal suites passed 52/52 at default timeout before
+the drills; all five TypeScript projects and scoped ESLint passed. Final checks
+and hook receipts follow below. Full quality and cross-rig integration remain
+with W/the lead under the lane brief; no cap or gate is changed. The previously
+recorded `M117-W-host-api-record` refresh remains W-owned.
