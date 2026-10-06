@@ -140,7 +140,7 @@ describe('UsagePanel', () => {
   })
 
   it('requires the counted delete confirmation and routes settings, folder, models and safe consoles', async () => {
-    const { ports, context, openModels, panel } = openPanel()
+    const { ports, context, openModels, panel, usage } = openPanel()
     expect(await ports.confirmDelete(1234)).toBe(false)
     expect(confirm).toHaveBeenLastCalledWith(
       'Delete usage history?',
@@ -163,6 +163,7 @@ describe('UsagePanel', () => {
     expect(commands.executeCommand).toHaveBeenCalledWith('revealFileInOS', Uri.file('/data/usage'))
     expect(openModels).toHaveBeenCalledExactlyOnceWith('ollama', 'local')
     await ports.setHistory(true)
+    expect(usage.setHistory).toHaveBeenCalledExactlyOnceWith(true)
     expect(updateHistory).toHaveBeenCalledExactlyOnceWith('usageHistory', true, 1)
     for (const unsafe of [
       'command:doSomething',

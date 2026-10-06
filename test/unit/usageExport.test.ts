@@ -9,6 +9,7 @@ import {
 } from '../../src/core/usage/usageExport'
 import { usagePageStateSchema } from '../../src/shared/usagePage'
 import type { UsageRecord } from '../../src/shared/usageJournal'
+import { usageState } from './helpers/usageAdapters'
 
 const at = new Date(2026, 9, 5, 12).getTime()
 function record(id: string, model = 'model'): UsageRecord {
@@ -62,13 +63,8 @@ function summaryState() {
     query: { range: '30d', groupBy: 'model', metric: 'cost' },
     generatedAt: at,
     history: {
-      enabled: true,
+      ...usageState().history,
       host: 'Kubuntu',
-      detailDays: 30,
-      historyDays: 365,
-      recordCount: 2,
-      newerVersionRecords: 0,
-      tornLines: 0,
     },
     totals,
     previousTotals: { records: 0, tokens: {}, units: {}, costs: [], retries: 0, rateLimited: 0 },

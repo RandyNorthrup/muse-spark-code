@@ -13,7 +13,11 @@ import {
   type PriceCard,
 } from '../../src/core/providers/priceCard'
 import { createUsageRecording } from '../../src/core/usage/recording'
-import { createUsageAccess, createUsageWriter } from '../../src/runtime/usage/usageServiceEntry'
+import {
+  createUsageAccess,
+  createUsageWriter,
+  runUsageCommand,
+} from '../../src/runtime/usage/usageServiceEntry'
 import { openUsageCompanion } from '../../src/runtime/usage/usageCompanionEntry'
 import {
   usageCompanionEventSchema,
@@ -52,17 +56,25 @@ async function event(
   }
 }
 const query = { range: '30d', groupBy: 'provider', metric: 'cost' } as const
+function unavailable(): never {
+  throw new Error('unexpected terminal host action')
+}
+function accessDeps(root: string) {
+  return {
+    dataFolder: root,
+    packageRoot: path.resolve('.'),
+    host: 'win11',
+    locale: 'en',
+    uiText: EN,
+    log: new FakeLogOutputChannel(),
+  }
+}
 
 describe('M102 integrated surfaces', () => {
   it('refuses to publish a partial read while its recorder cannot settle', async () => {
     const root = await folder()
     const access = createUsageAccess({
-      dataFolder: root,
-      packageRoot: path.resolve('.'),
-      host: 'win11',
-      locale: 'en',
-      uiText: EN,
-      log: new FakeLogOutputChannel(),
+      ...accessDeps(root),
       beforeRead: () => Promise.reject(new Error('unsettled recorder')),
     })
     await expect(access.read(query)).rejects.toThrow('unsettled recorder')
@@ -212,6 +224,24 @@ describe('M102 integrated surfaces', () => {
     expect(text).toContain('40')
     expect(text).toContain('62')
     expect(text).toContain('API-equivalent')
+    const terminal: string[] = []
+    expect(
+      await runUsageCommand(
+        { action: 'summary', query, format: 'text' },
+        {
+          usage: access,
+          input: [],
+          openPage: unavailable,
+          openBrowser: unavailable,
+          writeFile: unavailable,
+          print: (value) => {
+            terminal.push(value)
+            return Promise.resolve()
+          },
+        },
+      ),
+    ).toBe(0)
+    expect(terminal.join('')).toBe(access.usageText(state, 'plain', 'summary'))
     const exported: unknown = JSON.parse(await access.export(query, 'json'))
     const exportState = z.object({ state: usagePageStateSchema }).parse(exported).state
     expect(exportState.totals).toEqual(state.totals)
@@ -352,12 +382,8 @@ describe('M102 integrated surfaces', () => {
   it('honours persisted history-off while preserving stored totals and live windows', async () => {
     const root = await folder()
     const access = createUsageAccess({
-      dataFolder: root,
-      packageRoot: path.resolve('.'),
-      host: 'win11',
-      locale: 'en',
-      uiText: EN,
-      log: new FakeLogOutputChannel(),
+      ...accessDeps(root),
+      historySettings: () => ({ enabled: true, days: 365 }),
     })
     await access.setHistory?.(false)
     const writer = await createUsageWriter({

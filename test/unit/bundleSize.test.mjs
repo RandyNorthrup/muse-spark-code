@@ -30,6 +30,32 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('bundled What’s New content budget', () => {
+  it('bounds reachable deferred chat chunks while allowing the separately budgeted usage page', async () => {
+    readFileSync.mockReturnValue(
+      JSON.stringify({
+        outputs: {
+          'dist/webview/main.js': {
+            imports: [{ path: 'dist/webview/chunks/dialog.js', kind: 'dynamic-import' }],
+          },
+          'dist/webview/chunks/dialog.js': { imports: [] },
+          'dist/webview/models.js': { imports: [] },
+          'dist/webview/usage.js': { imports: [] },
+        },
+      }),
+    )
+    statSync.mockImplementation((file) => ({ size: file.endsWith('usage.js') ? 200 * 1024 : 0 }))
+    await import('../../scripts/check-bundle-size.mjs')
+    expect(process.exit).not.toHaveBeenCalled()
+    vi.resetModules()
+    statSync.mockImplementation((file) => ({
+      size: file.endsWith('dialog.js') ? 50 * 1024 + 1 : 0,
+    }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith(
+      'OVER dist/webview deferred JS: 50.0 KiB (budget 50 KiB)',
+    )
+  })
+
   it('counts eager chunks against the unchanged startup cap', async () => {
     readFileSync.mockReturnValue(
       JSON.stringify({

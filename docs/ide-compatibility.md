@@ -250,6 +250,18 @@ Open VSX distribution is central to reaching several compatible editors. Zed's c
 
 ## 11. Connection to the Muse Spark Code companion app
 
+M102's local Usage & cost page uses the shared React usage bundle and the same
+journal/service as VS Code. ACP editors can request `/usage`, run the agent's
+`usage` command, or open its loopback browser companion. Native JCEF, WebView2
+and SWT usage bridges carry the same checked messages. The browser companion
+exchanges a one-use fragment code for a separate memory bearer per window;
+authenticated fetch streams use Authorization headers and no cookies. Reading,
+filtering, exporting and counted history deletion use the shared service.
+Native editor installation receipts remain required before claiming editor
+support. Browser requests to reveal an OS folder, open host settings or open the
+native Models panel currently return an explicit unsupported result; those host
+navigation adapters are still outstanding in the integration certification.
+
 The same shared UI and application contracts can support the planned phone companion. Keep media capture as an optional host capability: phone camera, desktop microphone, or a future glasses source. Route captured assets to a specifically paired workspace/session.
 
 The reviewed backend turn contract accepts text, images, and skills; it does not establish universal video-input support. Future video/live capture therefore needs its own backend capability and processing plan. ACP's documented media content does not define a universal camera button or live-glasses interface in every editor. [Current turn contract](https://github.com/RandyNorthrup/muse-spark-code/blob/main/src/core/agent/agentBackend.ts), [ACP content types](https://agentclientprotocol.com/protocol/v1/content)

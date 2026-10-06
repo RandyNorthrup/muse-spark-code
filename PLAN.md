@@ -16759,6 +16759,160 @@ joined with M57, M58 and PR #49's sign-in
   before sign-in; the key never in a frame, an argument, the environment
   or the log; every gate green.
 
+### M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
+
+**Status 2026-10-05: planned; lanes start from `m101/base` (the M95
+integration branch plus this plan).** The item numbers below are the
+research report's (`docs/research/pi-solpi-2026-10-05.md`): plain numbers are
+its sections 1–2 (harness), "BYO n" its section 3 (providers).
+
+- **Goal.** Take every upstream improvement that fits our design, on every
+  provider that can use it; finish M74's automatic compaction, memory flush
+  and todo follow-up under D78's consent contract and SoL-Pi's corrected
+  cost model.
+- **Depends on.** M95 (model/preset capability records, codecs, price cards)
+  for the provider gates; M73 (packing) and M74 (`/compact`, `/handoff`);
+  M75 (eval arms); D78's paid gate and ledger (wired in 0.14.0).
+- **Capability gates (D81.2).** Each lane names, per item, the capability it
+  reads and the providers where it is on; the certification record carries a
+  provider × item table (Meta Muse Responses, OpenAI, xAI, Azure, Anthropic,
+  Gemini, OpenRouter/chat, Ollama/local, custom), with "on / off: reason" in
+  every cell.
+
+**Lanes and file ownership** (so lanes merge without overlapping hunks):
+
+- **Lane A — cache-stable prefix** (items 1, 2 with 22, 7, 16, 17).
+  1. Goal progress (tokens, percentage, current/next work, reminder) leaves
+     `instructions` and the `prompt_cache_key` digest; it rides as a trailing
+     input item rebuilt per request and never saved into the replay. The
+     Anthropic codec puts its rolling breakpoint before that item. All
+     providers.
+  2. `recall_output` (with item 22's literal search inside a packed output)
+     is declared on every request of a packing session
+     (`this.packing !== undefined`), so the tool list changes once, not when
+     the first output packs. Reviewer turns stay unpacked. Tool-calling
+     models only.
+  3. `StoredSession.packedCallIds` (optional) persists across resume, fork
+     and rewind; `copyInto` keeps the ids that survive the cut, so a
+     restored session re-sends the same placeholders. Old session files load
+     as today.
+  4. The prompt's date is the local date, fixed once per session (goldens
+     inject `now`).
+  5. A cache-miss detector logs (log only) when
+     `min(previous, current) − cached > 1024` tokens; on where the format's
+     `cachedUsageFields` is non-empty.
+     Files: `goals.ts`, `instructions.ts`, `promptCache.ts`, the request builder
+     and session copy paths in `ModelApiHost.ts`, the recall paging and search
+     region of `observationPack.ts`, the `recall_output` declaration in
+     `tools.ts`, the session store schema, the Anthropic codec's breakpoint
+     placement.
+- **Lane C1 — compaction quality** (items 3, 5, 10, 11, 19; BYO 17). 3. `/compact` sends the last turn's exact body (instructions, tools, key,
+  packed input) with the compaction prompt appended, so it reads the
+  conversation's cache; a reply holding a function call is discarded and
+  today's tool-less request is the fallback. Honour
+  `FormatQuirks.keepToolsWithHistory`. 5. The exact open todos (host data, never the model's guess) are appended
+  to the compaction prompt and the summary entry, snapshotted at
+  compaction time. 10. Pi's structured summary (Goal / Constraints / Progress / Decisions /
+  Next steps / Critical context; exact paths and errors kept), its update
+  prompt when the replay already starts with a summary, and file lists
+  built from the replay's read/write/edit calls; the summary budget
+  scales with `contextTokens`. 11. Guards: a summary blank after trimming is refused and the replay kept;
+  NOOP when everything is already the previous compaction; the summary
+  call retries like a turn (backoff, budget re-reserved). 19. The recent tail (whole trailing turns up to about 20k tokens, scaled by
+  window) stays verbatim; reasoning items stay byte-exact where
+  `reasoningReplay` applies.
+  BYO 17. "Fork with summary", off by default (one extra call when chosen,
+  through the D78 gate).
+  Files: the compaction path in `ModelApiHost.ts` (`compactNow`,
+  `collectText`), the compaction prompt constants, the fork command.
+- **Lane C2 — automatic compaction, memory flush, todo follow-up** (Q-M74
+  items 1–4, D81.3–4), after C1 is reviewed. A pure cost model module
+  (`autoCompact.ts`: removable tokens, debt, break-even, cooldown, occupancy
+  floor, r from the price card per pricing kind), decided once at a settled
+  tool-loop boundary inside the user's turn; the memory flush through
+  MemoryStore and the permission engine (Manual asks, Plan and Restricted
+  Mode refuse, untrusted labels kept); the D78 gate and ledger for every
+  call; Stop honoured; one guarded automatic compact-and-retry on a
+  classified overflow (from lane O). The M75 arm is frozen before it runs.
+- **Lane O — context overflow** (item 6, item 13's budget scaling).
+  A pure `providers/overflow.ts` with Pi's per-format patterns (429 and rate
+  limits never count) and the two silent-overflow signals; the model's
+  `contextTokens` replaces the fixed window; until C2 lands the user sees
+  "Context window full: /compact or /handoff"; a pre-request check against
+  window minus reserve. `read_file`'s character budget scales with
+  `contextTokens`.
+- **Lane T — tool and packing correctness** (items 4, 8, 9, 12, 13, 14, 15,
+  18, 20, 21). 4. The packed placeholder trims the tail from its front and always keeps
+  the final line (the exit code) when it fits. 8. Tool calls in a cut-short reply are answered with an error, never run
+  (every codec's stop mapping). 9. One `normalizeModelPath(given, platform)` at every place a model-given
+  path is resolved (Unicode spaces, leading `@`, `file://`, `/c/…`,
+  `/mnt/c/…`, `/cygdrive/c/…` on win32; `~` refused); permission check and
+  write resolve the same path. 12. `edit_file` falls back to a normalised unique match (NFKC, trailing
+  whitespace, quotes, dashes, Unicode spaces) and copies untouched lines
+  from the original; `find` equal to `replace` is refused. 13. `read_file` truncation names the next offset; an offset past the end is
+  an error. 14. One search hit is capped at about 500 characters with a note. 15. Shell output elided in the middle stays recoverable through
+  `recall_output` when packing is on (or an owner-only temp file). 18. A single long line packs to about a 1k excerpt and packing is skipped
+  when it saves under half; a non-string `then_run` reports "not run";
+  `clip` and `clipOutput` never split a surrogate pair. 20. `edit_file` takes `edits[]`, all or nothing, overlaps refused (one tool
+  schema change, M75 re-run). 21. Images are downscaled once when they enter history, gated on
+  `capabilities.vision` and the preset's image limits, inside the bundle
+  caps.
+  Files: the placeholder region of `observationPack.ts`, `tools.ts` (edit,
+  read, shell), `workspacePath.ts`, `searchWorker.ts`, `verifyTools.ts`, the
+  incomplete-reply branch in `ModelApiHost.ts`.
+- **Lane P1 — provider codecs** (BYO 1, 2, 3, 4, 7, 8, 9, 11, 13).
+  Bad history items no longer break later requests; Responses replay ids per
+  model; tool-call ids per target format; Gemini thought signatures returned;
+  Gemini usage with omitted zeros; a tolerant Anthropic decoder; Anthropic
+  `thinking.display: "summarized"`; Gemini 3 images in tool results and full
+  schemas; lone surrogates removed. Files: `codecs/*`.
+- **Lane P2 — provider pricing, limits and retry** (BYO 5, 6, 10, 12, 14, 15,
+  16; item 24's per-model strict schemas and the llama.cpp grammar check).
+  Retry classification moves into `FormatQuirks`; price cards read long
+  context tiers (cache rates included) and 1-hour writes, and the loop stops
+  pricing every model at Meta's rates; per-model effort levels from the
+  catalogue's `reasoning_options`; the ChatGPT loopback fixes; compatibility
+  overrides for custom servers; per-model image limits into the media
+  budget; coalesced session saves and listing without full parses. Files:
+  `priceCard.ts`, `presets.ts`, the catalogue sync script, `oauthLoopback.ts`,
+  `fileSessionStore.ts`, the retry constants.
+- **Lane E — evaluation.** Live checks on the contributor model in an empty
+  workspace: one `/compact` and one budgeted goal round, reading
+  `cached_tokens` (about 4 model calls) to confirm items 1–3; Meta's overflow
+  text and cut-off function-call marking captured for lane O's table; the M75
+  pair for C2 (and item 20's schema change). Calls counted from the trace log
+  and reported.
+- **Not ported** (recorded in the research report): item 23 (cache warming;
+  extra billed calls for little gain) unless the eval shows a saving, and
+  everything in the report's "not applicable" list.
+
+- **Acceptance.** Every item above is implemented on the providers its
+  capability names and refused or absent elsewhere, with the provider × item
+  table complete; goldens are byte-identical where a feature is off and
+  re-baselined with recorded diffs where a fix changes bytes; compaction
+  keeps the exact todos and untrusted labels; automatic compaction passes
+  its M75 pair before it is available by default.
+- **Tests.** Unit tests per item with a red drill each; codec goldens per
+  provider; the fake Model API across a compaction, an overflow and a resume;
+  the M75 pair.
+- **Gates.** The full quality gate, check-l10n, host-API, every bundle cap
+  (no cap raise on a startup bundle, D6), VSIX size.
+- **Security.** Paths normalised once and shared by check and write; no
+  temp file readable by other users; no credential in a fixture; the D78 gate
+  for every extra call.
+- **Docs.** README (compaction and packing sections), CHANGELOG, this record,
+  `docs/certification/m101-<lane>.md` per lane and `m101.md` for the whole.
+- **Size.** L.
+- **Certification checklist.**
+  - [ ] Lane A, with drills and the golden diffs
+  - [ ] Lane C1, with drills
+  - [ ] Lane C2, with drills and its M75 pair
+  - [ ] Lane O, with drills and captured overflow texts
+  - [ ] Lane T, with drills
+  - [ ] Lanes P1 and P2, with drills and codec goldens
+  - [ ] Lane E's live counts and cached-token results
+  - [ ] Provider × item table complete; full gate green
+
 ### M102 — Usage & cost in every editor (D82)
 
 **M102INT composition (2026-10-05, win11).** W joins E, S, L, U and R on
@@ -17757,6 +17911,24 @@ Kubuntu first-render timing, hosted CI/full quality and incoming U/R review
 repairs remain final certification work, not local passes. Exact receipts
 and acceptance rows are in `docs/certification/m102.md`.
 
+The strict four-theme usage accessibility gate currently fails with zero
+violations but 424 undecided color-contrast results for short table text
+(including zero-count cells). No exemption or rule is changed. This page
+finding is retained for the incoming U review rather than pre-empting its
+repair. PSScriptAnalyzer 1.25.0 is absent on Win11, so PowerShell lint cannot
+run; the brief prohibits installing system tools. Browser settings/folder/
+Models navigation and Tab/conversation/OpenRouter meter feeds remain explicit
+implementation gaps. These are not green checks or a release sign-off.
+
+The actual helper-free VSIX is **2,515,818 bytes**, exceeding its unchanged
+2,252,800-byte cap by 263,018 bytes. ZIP inspection confirms the compact
+3,034-byte guide, recent notes and compact tables are present; the staged
+runtime graph has no stale webview chunks. The printed VSCE source-document
+sizes were misleading. No assets, language tables or features are removed and
+no cap is raised to conceal the failure. The ACP package assembles successfully
+(1,416,250 compressed bytes). A larger packaging/bundle change and the universal
+helper receipt remain with the lead.
+
 **FIXM102J scoped repair receipt (2026-10-05).** The five owned test files
 pass 71/71, all five TypeScript projects pass, and owned-file ESLint/Prettier,
 deadcode, duplication and production build checks pass. Full quality is
@@ -17801,162 +17973,6 @@ recorded in `docs/certification/m95-int.md`. No gate is weakened.
 
 **M95INT round-one whole-chain receipt — historical 120-minute rig brief.**
 The browser and SAST failures below are historical and repaired in round two.
-
-### M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
-
-**Status 2026-10-05: planned; lanes start from `m101/base` (the M95
-integration branch plus this plan).** The item numbers below are the
-research report's (`docs/research/pi-solpi-2026-10-05.md`): plain numbers are
-its sections 1–2 (harness), "BYO n" its section 3 (providers).
-
-- **Goal.** Take every upstream improvement that fits our design, on every
-  provider that can use it; finish M74's automatic compaction, memory flush
-  and todo follow-up under D78's consent contract and SoL-Pi's corrected
-  cost model.
-- **Depends on.** M95 (model/preset capability records, codecs, price cards)
-  for the provider gates; M73 (packing) and M74 (`/compact`, `/handoff`);
-  M75 (eval arms); D78's paid gate and ledger (wired in 0.14.0).
-- **Capability gates (D81.2).** Each lane names, per item, the capability it
-  reads and the providers where it is on; the certification record carries a
-  provider × item table (Meta Muse Responses, OpenAI, xAI, Azure, Anthropic,
-  Gemini, OpenRouter/chat, Ollama/local, custom), with "on / off: reason" in
-  every cell.
-
-**Lanes and file ownership** (so lanes merge without overlapping hunks):
-
-- **Lane A — cache-stable prefix** (items 1, 2 with 22, 7, 16, 17).
-  1. Goal progress (tokens, percentage, current/next work, reminder) leaves
-     `instructions` and the `prompt_cache_key` digest; it rides as a trailing
-     input item rebuilt per request and never saved into the replay. The
-     Anthropic codec puts its rolling breakpoint before that item. All
-     providers.
-  2. `recall_output` (with item 22's literal search inside a packed output)
-     is declared on every request of a packing session
-     (`this.packing !== undefined`), so the tool list changes once, not when
-     the first output packs. Reviewer turns stay unpacked. Tool-calling
-     models only.
-  3. `StoredSession.packedCallIds` (optional) persists across resume, fork
-     and rewind; `copyInto` keeps the ids that survive the cut, so a
-     restored session re-sends the same placeholders. Old session files load
-     as today.
-  4. The prompt's date is the local date, fixed once per session (goldens
-     inject `now`).
-  5. A cache-miss detector logs (log only) when
-     `min(previous, current) − cached > 1024` tokens; on where the format's
-     `cachedUsageFields` is non-empty.
-     Files: `goals.ts`, `instructions.ts`, `promptCache.ts`, the request builder
-     and session copy paths in `ModelApiHost.ts`, the recall paging and search
-     region of `observationPack.ts`, the `recall_output` declaration in
-     `tools.ts`, the session store schema, the Anthropic codec's breakpoint
-     placement.
-- **Lane C1 — compaction quality** (items 3, 5, 10, 11, 19; BYO 17). 3. `/compact` sends the last turn's exact body (instructions, tools, key,
-  packed input) with the compaction prompt appended, so it reads the
-  conversation's cache; a reply holding a function call is discarded and
-  today's tool-less request is the fallback. Honour
-  `FormatQuirks.keepToolsWithHistory`. 5. The exact open todos (host data, never the model's guess) are appended
-  to the compaction prompt and the summary entry, snapshotted at
-  compaction time. 10. Pi's structured summary (Goal / Constraints / Progress / Decisions /
-  Next steps / Critical context; exact paths and errors kept), its update
-  prompt when the replay already starts with a summary, and file lists
-  built from the replay's read/write/edit calls; the summary budget
-  scales with `contextTokens`. 11. Guards: a summary blank after trimming is refused and the replay kept;
-  NOOP when everything is already the previous compaction; the summary
-  call retries like a turn (backoff, budget re-reserved). 19. The recent tail (whole trailing turns up to about 20k tokens, scaled by
-  window) stays verbatim; reasoning items stay byte-exact where
-  `reasoningReplay` applies.
-  BYO 17. "Fork with summary", off by default (one extra call when chosen,
-  through the D78 gate).
-  Files: the compaction path in `ModelApiHost.ts` (`compactNow`,
-  `collectText`), the compaction prompt constants, the fork command.
-- **Lane C2 — automatic compaction, memory flush, todo follow-up** (Q-M74
-  items 1–4, D81.3–4), after C1 is reviewed. A pure cost model module
-  (`autoCompact.ts`: removable tokens, debt, break-even, cooldown, occupancy
-  floor, r from the price card per pricing kind), decided once at a settled
-  tool-loop boundary inside the user's turn; the memory flush through
-  MemoryStore and the permission engine (Manual asks, Plan and Restricted
-  Mode refuse, untrusted labels kept); the D78 gate and ledger for every
-  call; Stop honoured; one guarded automatic compact-and-retry on a
-  classified overflow (from lane O). The M75 arm is frozen before it runs.
-- **Lane O — context overflow** (item 6, item 13's budget scaling).
-  A pure `providers/overflow.ts` with Pi's per-format patterns (429 and rate
-  limits never count) and the two silent-overflow signals; the model's
-  `contextTokens` replaces the fixed window; until C2 lands the user sees
-  "Context window full: /compact or /handoff"; a pre-request check against
-  window minus reserve. `read_file`'s character budget scales with
-  `contextTokens`.
-- **Lane T — tool and packing correctness** (items 4, 8, 9, 12, 13, 14, 15,
-  18, 20, 21). 4. The packed placeholder trims the tail from its front and always keeps
-  the final line (the exit code) when it fits. 8. Tool calls in a cut-short reply are answered with an error, never run
-  (every codec's stop mapping). 9. One `normalizeModelPath(given, platform)` at every place a model-given
-  path is resolved (Unicode spaces, leading `@`, `file://`, `/c/…`,
-  `/mnt/c/…`, `/cygdrive/c/…` on win32; `~` refused); permission check and
-  write resolve the same path. 12. `edit_file` falls back to a normalised unique match (NFKC, trailing
-  whitespace, quotes, dashes, Unicode spaces) and copies untouched lines
-  from the original; `find` equal to `replace` is refused. 13. `read_file` truncation names the next offset; an offset past the end is
-  an error. 14. One search hit is capped at about 500 characters with a note. 15. Shell output elided in the middle stays recoverable through
-  `recall_output` when packing is on (or an owner-only temp file). 18. A single long line packs to about a 1k excerpt and packing is skipped
-  when it saves under half; a non-string `then_run` reports "not run";
-  `clip` and `clipOutput` never split a surrogate pair. 20. `edit_file` takes `edits[]`, all or nothing, overlaps refused (one tool
-  schema change, M75 re-run). 21. Images are downscaled once when they enter history, gated on
-  `capabilities.vision` and the preset's image limits, inside the bundle
-  caps.
-  Files: the placeholder region of `observationPack.ts`, `tools.ts` (edit,
-  read, shell), `workspacePath.ts`, `searchWorker.ts`, `verifyTools.ts`, the
-  incomplete-reply branch in `ModelApiHost.ts`.
-- **Lane P1 — provider codecs** (BYO 1, 2, 3, 4, 7, 8, 9, 11, 13).
-  Bad history items no longer break later requests; Responses replay ids per
-  model; tool-call ids per target format; Gemini thought signatures returned;
-  Gemini usage with omitted zeros; a tolerant Anthropic decoder; Anthropic
-  `thinking.display: "summarized"`; Gemini 3 images in tool results and full
-  schemas; lone surrogates removed. Files: `codecs/*`.
-- **Lane P2 — provider pricing, limits and retry** (BYO 5, 6, 10, 12, 14, 15,
-  16; item 24's per-model strict schemas and the llama.cpp grammar check).
-  Retry classification moves into `FormatQuirks`; price cards read long
-  context tiers (cache rates included) and 1-hour writes, and the loop stops
-  pricing every model at Meta's rates; per-model effort levels from the
-  catalogue's `reasoning_options`; the ChatGPT loopback fixes; compatibility
-  overrides for custom servers; per-model image limits into the media
-  budget; coalesced session saves and listing without full parses. Files:
-  `priceCard.ts`, `presets.ts`, the catalogue sync script, `oauthLoopback.ts`,
-  `fileSessionStore.ts`, the retry constants.
-- **Lane E — evaluation.** Live checks on the contributor model in an empty
-  workspace: one `/compact` and one budgeted goal round, reading
-  `cached_tokens` (about 4 model calls) to confirm items 1–3; Meta's overflow
-  text and cut-off function-call marking captured for lane O's table; the M75
-  pair for C2 (and item 20's schema change). Calls counted from the trace log
-  and reported.
-- **Not ported** (recorded in the research report): item 23 (cache warming;
-  extra billed calls for little gain) unless the eval shows a saving, and
-  everything in the report's "not applicable" list.
-
-- **Acceptance.** Every item above is implemented on the providers its
-  capability names and refused or absent elsewhere, with the provider × item
-  table complete; goldens are byte-identical where a feature is off and
-  re-baselined with recorded diffs where a fix changes bytes; compaction
-  keeps the exact todos and untrusted labels; automatic compaction passes
-  its M75 pair before it is available by default.
-- **Tests.** Unit tests per item with a red drill each; codec goldens per
-  provider; the fake Model API across a compaction, an overflow and a resume;
-  the M75 pair.
-- **Gates.** The full quality gate, check-l10n, host-API, every bundle cap
-  (no cap raise on a startup bundle, D6), VSIX size.
-- **Security.** Paths normalised once and shared by check and write; no
-  temp file readable by other users; no credential in a fixture; the D78 gate
-  for every extra call.
-- **Docs.** README (compaction and packing sections), CHANGELOG, this record,
-  `docs/certification/m101-<lane>.md` per lane and `m101.md` for the whole.
-- **Size.** L.
-- **Certification checklist.**
-  - [ ] Lane A, with drills and the golden diffs
-  - [ ] Lane C1, with drills
-  - [ ] Lane C2, with drills and its M75 pair
-  - [ ] Lane O, with drills and captured overflow texts
-  - [ ] Lane T, with drills
-  - [ ] Lanes P1 and P2, with drills and codec goldens
-  - [ ] Lane E's live counts and cached-token results
-  - [ ] Provider × item table complete; full gate green
-
-## 7. Gates
 
 **M95-I dependency and acceptance limits (2026-10-05).** The rig brief
 requires scoped gates, not full quality or a dependency merge. The lead owns

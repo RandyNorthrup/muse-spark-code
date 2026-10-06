@@ -113,7 +113,13 @@ function aggregateRows(journal: StoredJournal): UsageAggregateRow[] {
 /** J's store, S's service and formatter are shared by every editor surface. */
 export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
   setUiText(deps.uiText, deps.locale)
-  const settings = deps.historySettings ?? (() => readSettings(deps.dataFolder))
+  const settings = () => {
+    const stored = readSettings(deps.dataFolder)
+    const configured = deps.historySettings?.()
+    return configured === undefined
+      ? stored
+      : { ...configured, enabled: configured.enabled && stored.enabled }
+  }
   const store = new UsageJournalStore(new NodeUsageFs(deps.dataFolder), {
     writerId: randomUUID(),
     now: Date.now,

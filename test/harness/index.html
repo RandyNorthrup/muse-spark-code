@@ -21,6 +21,9 @@
       if (harnessBundle === 'models') {
         document.documentElement.classList.add('models-harness')
       }
+      if (harnessBundle === 'usage') {
+        document.documentElement.classList.add('usage-harness')
+      }
       document.write(`<link rel="stylesheet" href="../../dist/webview/${harnessBundle}.css" />`)
     </script>
     <script>
@@ -120,7 +123,9 @@
       }
 
       html.models-harness,
-      html.models-harness body {
+      html.models-harness body,
+      html.usage-harness,
+      html.usage-harness body {
         width: 100%;
       }
 

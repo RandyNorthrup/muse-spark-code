@@ -9,6 +9,7 @@ import vm from 'node:vm'
 import { beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import type * as validation from '../../src/shared/validationEntry'
+import { EN } from '../../src/shared/l10n/en'
 
 const metafileSchema = z.looseObject({
   outputs: z.record(
@@ -35,6 +36,11 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('preserves every English fallback value when the shared table is compressed', () => {
+    const require = createRequire(path.resolve('dist/uiText.js'))
+    const fallback: unknown = require(path.resolve('dist/uiText.js'))
+    expect(fallback).toEqual({ EN })
+  })
   it('uses the real shared parser for boundary checks without inlining it in Node bundles', () => {
     const require = createRequire(path.resolve('dist/validation.js'))
     const parser: typeof validation = require(path.resolve('dist/validation.js'))
@@ -138,6 +144,10 @@ describe('deferred cohort bundles', () => {
   })
 
   it.each([
+    ['extension', 'src/core/usage/usageService.ts', 'on its first action'],
+    ['modelApi', 'src/core/usage/journalStore.ts', 'on its first action'],
+    ['acp', 'src/runtime/usage/usageCompanionEntry.ts', 'on its first action'],
+    ['extension', 'src/host/usage/usagePanel.ts', 'on its first action'],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['modelsPanel', 'src/shared/protocol.ts', 'chat schemas'],
     ['modelApi', 'node_modules/zod/v4/mini/future.js', 'shared mini-parser'],

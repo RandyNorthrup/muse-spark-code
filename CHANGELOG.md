@@ -22,6 +22,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Usage history switches now update the shared preference across native and
+  browser pages, and native reads respect a companion's disabled preference.
+- Integration retains every merged milestone in the plan's proper section and
+  registers standalone usage browser checks in the dead-code graph.
 - Usage history keeps known prices for incomplete calls and records the cost of
   their known token portion as uncertain, without filling unknown counters.
 - Usage history reads stay consistent across retention, read atomically replaced

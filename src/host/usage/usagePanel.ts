@@ -111,6 +111,7 @@ export class UsagePanel implements vscode.Disposable {
           await vscode.env.openExternal(vscode.Uri.parse(url.href))
         },
         setHistory: async (isEnabled) => {
+          await this.deps.usage.setHistory?.(isEnabled)
           await vscode.workspace
             .getConfiguration(SETTINGS_SECTION)
             .update('usageHistory', isEnabled, vscode.ConfigurationTarget.Global)

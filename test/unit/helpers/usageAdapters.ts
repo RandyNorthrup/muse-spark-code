@@ -47,6 +47,7 @@ export function fakeUsageAccess() {
     .mockResolvedValue(undefined)
   const dispose = vi.fn()
   const usage = {
+    setHistory: vi.fn<NonNullable<UsageAccess['setHistory']>>().mockResolvedValue(undefined),
     connect: vi.fn<UsageAccess['connect']>((ports) => {
       connections.push(ports)
       return { receive, dispose }

@@ -4,6 +4,7 @@ import type { ModelPricing } from '../providers/priceCard'
 import type { CoreLogger } from '../logging'
 import type { UsageJournalEntry, UsageRecord, UsageLimitSnapshot } from '../../shared/usageJournal'
 import { USAGE_JOURNAL_VERSION } from '../../shared/constants'
+import { usageLocalDay as localUsageDay } from './localDay'
 
 export type RecordedCall = Omit<
   UsageRecord,
@@ -51,15 +52,6 @@ export interface UsageRecordingOptions {
   readonly isEnabled: () => boolean
   readonly writer: (onWriteError: () => void) => Promise<UsageWriter>
   readonly log: CoreLogger
-}
-
-export function localUsageDay(at: number): string {
-  const date = new Date(at)
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-')
 }
 
 /** Lazy writes never join the dispatch path; shutdown and reads may flush. */

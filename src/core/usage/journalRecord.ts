@@ -26,6 +26,8 @@ import {
   type PricedUsage,
 } from '../providers/priceCard'
 import { estimateCostUsd } from './insights'
+import { usageLocalDay } from './localDay'
+export { usageLocalDay } from './localDay'
 
 export type UsageRecordContext = Omit<
   UsageRecord,
@@ -40,15 +42,6 @@ export type UsageRecordContext = Omit<
   readonly estimatedTokens?: boolean
   readonly uncertain?: boolean
   readonly retainedLiabilityUsd?: number
-}
-
-export function usageLocalDay(at: number): string {
-  const date = new Date(at)
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-')
 }
 
 export function normaliseUsage(
