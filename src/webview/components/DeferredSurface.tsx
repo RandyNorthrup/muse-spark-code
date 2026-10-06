@@ -1,63 +1,148 @@
 import { webviewKey } from '../../shared/keybindings'
-// The controls stay unavailable until their chunk loads. Closing while it
-// loads unmounts the boundary, so a late import cannot reopen the surface.
-import { type ReactNode, Suspense, useEffect, useRef } from 'react'
+import {
+  Component,
+  type ComponentType,
+  type ReactNode,
+  lazy,
+  Suspense,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { UI_TEXT } from '../../shared/constants'
+import { retrySurface } from '../surfaceRetry'
 import { Modal } from './Modal'
+
+interface SurfaceProps {
+  readonly onClose?: (() => void) | undefined
+  readonly isModal?: boolean
+  readonly keepFocus?: boolean | undefined
+}
 
 export function DeferredSurface({
   children,
-  onClose,
-  isModal = true,
-}: {
-  readonly children: ReactNode
-  readonly onClose: () => void
-  readonly isModal?: boolean
-}) {
+  fallback,
+  ...props
+}: SurfaceProps & { readonly children: ReactNode; readonly fallback?: ReactNode }) {
   return (
-    <Suspense fallback={<LoadingSurface onClose={onClose} isModal={isModal} />}>
+    <Suspense fallback={fallback === undefined ? <UnavailableSurface {...props} /> : fallback}>
       {children}
     </Suspense>
   )
 }
 
-function LoadingSurface({
+/** Loading and failure retain the same dismissal contract as an open menu. */
+function UnavailableSurface({
   onClose,
-  isModal,
-}: {
-  readonly onClose: () => void
-  readonly isModal: boolean
-}) {
-  const close = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    if (!isModal) close.current?.focus()
-  }, [isModal])
-  const status = (
+  isModal = true,
+  keepFocus = false,
+  failed = false,
+  opener,
+}: SurfaceProps & { readonly failed?: boolean; readonly opener?: Element | null }) {
+  const container = useRef<HTMLDivElement>(null)
+  const closeButton = useRef<HTMLButtonElement>(null)
+  const [trigger] = useState(() => opener ?? document.activeElement)
+  const close = () => {
+    if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus()
+    onClose?.()
+  }
+  useLayoutEffect(() => {
+    if (isModal) return
+    if (!keepFocus) closeButton.current?.focus()
+    const dismiss = (event: Event) => {
+      if (!(event.target instanceof Node) || container.current?.contains(event.target)) return
+      // Focus may stay in an attached composer's input while loading.
+      if (event.type === 'focusin' && event.target === trigger) return
+      onClose?.()
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (webviewKey('deferred.close', event) !== 'close') return
+      event.preventDefault()
+      event.stopPropagation()
+      if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus()
+      onClose?.()
+    }
+    document.addEventListener('pointerdown', dismiss)
+    document.addEventListener('focusin', dismiss)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', dismiss)
+      document.removeEventListener('focusin', dismiss)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [isModal, keepFocus, onClose, trigger])
+  const row = failed ? (
+    <div role="alert">
+      <p>{UI_TEXT.surfaceLoadFailed}</p>
+      <button type="button" className="button-secondary" onClick={retrySurface}>
+        {UI_TEXT.surfaceLoadRetry}
+      </button>
+    </div>
+  ) : (
     <p role="status" data-deferred-loading>
       {UI_TEXT.loadingOutput}
     </p>
   )
-  if (isModal) {
+  if (isModal && onClose !== undefined) {
     return (
-      <Modal title={UI_TEXT.loadingOutput} titleId="deferred-title" onClose={onClose}>
-        {status}
+      <Modal
+        title={failed ? UI_TEXT.surfaceLoadFailed : UI_TEXT.loadingOutput}
+        titleId="deferred-title"
+        onClose={close}
+      >
+        {row}
       </Modal>
     )
   }
   return (
-    <div
-      className="palette history"
-      onKeyDown={(event) => {
-        if (webviewKey('deferred.close', event) !== 'close') return
-        event.preventDefault()
-        event.stopPropagation()
-        onClose()
-      }}
-    >
-      {status}
-      <button ref={close} type="button" className="button-secondary" onClick={onClose}>
-        {UI_TEXT.usageClose}
-      </button>
+    <div ref={container} className="palette history">
+      {row}
+      {onClose === undefined ? null : (
+        <button ref={closeButton} type="button" className="button-secondary" onClick={close}>
+          {UI_TEXT.usageClose}
+        </button>
+      )}
     </div>
   )
+}
+
+/** Each open owns an intent; cancelling it prevents a pending import taking focus. */
+export function deferred<P extends object>(
+  load: () => Promise<{ default: ComponentType<P> }>,
+  isModal = false,
+  fallback?: (props: P) => ReactNode,
+) {
+  const Surface = lazy(load)
+  return function Deferred(props: P & SurfaceProps) {
+    const [intent, setIntent] = useState(() => ({ active: true, opener: document.activeElement }))
+    if (!intent.active) return null
+    const onClose =
+      props.onClose === undefined
+        ? undefined
+        : () => {
+            setIntent((current) => ({ ...current, active: false }))
+            props.onClose?.()
+          }
+    const surfaceProps = { onClose, isModal: props.isModal ?? isModal, keepFocus: props.keepFocus }
+    return (
+      <SurfaceBoundary {...surfaceProps} opener={intent.opener}>
+        <DeferredSurface {...surfaceProps} fallback={fallback?.(props)}>
+          <Surface {...props} />
+        </DeferredSurface>
+      </SurfaceBoundary>
+    )
+  }
+}
+
+class SurfaceBoundary extends Component<
+  SurfaceProps & { readonly children: ReactNode; readonly opener: Element | null },
+  { readonly failed: boolean }
+> {
+  public static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  public override state = { failed: false }
+  public override render(): ReactNode {
+    return this.state.failed ? <UnavailableSurface {...this.props} failed /> : this.props.children
+  }
 }

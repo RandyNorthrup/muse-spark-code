@@ -173,10 +173,10 @@ describe('plan actions (M79)', () => {
     expect(card?.className).toContain('message-sent')
   })
 
-  it('asks the host for the saved plans from the palette’s Plans…', () => {
+  it('asks the host for the saved plans from the palette’s Plans…', async () => {
     const postMessage = renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Commands' }))
-    fireEvent.click(screen.getByText(UI_TEXT.plansItem))
+    fireEvent.click(await screen.findByText(UI_TEXT.plansItem))
     // Closing the palette gives the composer its focus back afterwards.
     expect(postMessage).toHaveBeenCalledWith({ type: 'showPlans' })
   })

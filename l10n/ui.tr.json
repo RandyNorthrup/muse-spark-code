@@ -702,6 +702,8 @@
   "showMore": "Daha fazla göster",
   "showLess": "Daha az göster",
   "loadingOutput": "Yükleniyor…",
+  "surfaceLoadFailed": "Bu panel yüklenemedi.",
+  "surfaceLoadRetry": "Yeniden dene",
   "toolFailed": "Başarısız",
   "toolRejected": "Reddedildi",
   "toolStopped": "Durduruldu",

@@ -56,6 +56,10 @@ them, the milestone plan, and the certification checklist.
      their inline fallback.
    - **Adding or changing a key** means every table in `l10n/` gets it too,
      or `npm run check:l10n` fails.
+   - **New UI surfaces ship lazily**, on first use, with accessible loading,
+     an honest chunk-load failure and retry, and a measured budget of their own.
+     Startup and the original deferred aggregate retain their existing caps;
+     reserve first-paint bytes for chat and its first turn.
 6. **No dead code, no placeholders.** No commented-out code, unused exports,
    unused dependencies, TODO stubs, fake implementations, or mock data outside
    `test/**`. A function that cannot do its job throws or returns an explicit

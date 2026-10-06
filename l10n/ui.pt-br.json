@@ -721,6 +721,8 @@
   "showMore": "Mostrar mais",
   "showLess": "Mostrar menos",
   "loadingOutput": "Carregando…",
+  "surfaceLoadFailed": "Não foi possível carregar este painel.",
+  "surfaceLoadRetry": "Tentar novamente",
   "toolFailed": "Falhou",
   "toolRejected": "Rejeitado",
   "toolStopped": "Parado",

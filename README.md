@@ -63,6 +63,9 @@ key to the CLI.
   the deadline (`--questions-defer-after`); other editors get the text.
   `/questions` lists open questions and `/answer <n> <text>` answers one.
 
+- **Faster startup.** Optional panels and menus load when first opened, keeping
+  the chat panel quick to start.
+
 ### Earlier in 0.14.2
 
 - **Help & Reference.** Type `/help` or run **Muse Spark: Open Help & Reference**
@@ -4004,6 +4007,12 @@ See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 results and what is still open.
 
 ## Development
+
+After a production build, `node test/e2e/webviewDiet.mjs` checks optional UI
+surfaces in Chrome against a fake host: no startup requests, first-use loading
+under the shared CSP, and recovery from actual failed entry/static-dependency
+fetches. Retry reloads the panel with its saved conversation and draft. Cold
+menus remain dismissible and cannot take focus after dismissal.
 
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's

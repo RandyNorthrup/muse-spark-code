@@ -475,7 +475,8 @@
         { "ui": "referenceThinking" },
         {
           "conditions": [{ "when": "turnState", "text": { "ui": "referenceConversationActions" } }]
-        }
+        },
+        { "ui": "crashDetail" }
       ],
       "facts": {},
       "editors": ["vscode"]

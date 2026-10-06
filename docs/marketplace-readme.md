@@ -42,6 +42,9 @@ Code” are Meta trademarks. You bring your own credentials.
   the deadline (`--questions-defer-after`); other editors get the text.
   `/questions` lists open questions and `/answer <n> <text>` answers one.
 
+- **Faster startup.** Optional panels and menus load when first opened, keeping
+  the chat panel quick to start.
+
 ### Earlier in 0.14.2
 
 - **Help & Reference.** Type `/help` or run **Muse Spark: Open Help & Reference**

@@ -702,6 +702,8 @@
   "showMore": "Mehr anzeigen",
   "showLess": "Weniger anzeigen",
   "loadingOutput": "Wird geladen…",
+  "surfaceLoadFailed": "Dieses Panel konnte nicht geladen werden.",
+  "surfaceLoadRetry": "Erneut versuchen",
   "toolFailed": "Fehlgeschlagen",
   "toolRejected": "Abgelehnt",
   "toolStopped": "Angehalten",

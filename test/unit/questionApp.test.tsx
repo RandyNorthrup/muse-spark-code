@@ -271,9 +271,10 @@ describe('M112 App commands and shared question delivery', () => {
     expect(row().queryByRole('button', { name: 'More actions' })).toBeNull()
     host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
     fireEvent.click(row().getByRole('button', { name: 'More actions' }))
+    const dismissItem = await screen.findByRole('menuitem', { name: 'Dismiss' })
     await act(async () => {
+      fireEvent.click(dismissItem)
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Dismiss' }))
     })
     expect(post).toHaveBeenCalledWith({
       type: 'dismissOpenQuestion',

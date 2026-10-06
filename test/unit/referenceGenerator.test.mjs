@@ -176,13 +176,33 @@ const commandText = (key) => {
 }
 
 describe('RVHELPREF truth regressions', () => {
-  it('RVHELPREF4 P1 derives the Best-of-N budget prerequisite from production admission', async () => {
+  let admission
+  beforeAll(async () => {
+    // Share cold module setup; each production-admission assertion keeps 5 s.
     const { ModelApiBackendManager } = await import('../../src/host/backend/modelApiBackendManager')
     const modelApiEntry = await import('../../src/host/backend/modelApiEntry')
     const { fakeManagerDeps } = await import('./helpers/modelApiManager')
     const { fakeModelApi } = await import('./helpers/fakeModelApi')
     const { FakeLogOutputChannel } = await import('./helpers/fakes')
     const { memorySessionStore } = await import('./helpers/fakeSessionStore')
+    admission = {
+      ModelApiBackendManager,
+      modelApiEntry,
+      fakeManagerDeps,
+      fakeModelApi,
+      FakeLogOutputChannel,
+      memorySessionStore,
+    }
+  })
+  it('RVHELPREF4 P1 derives the Best-of-N budget prerequisite from production admission', async () => {
+    const {
+      ModelApiBackendManager,
+      modelApiEntry,
+      fakeManagerDeps,
+      fakeModelApi,
+      FakeLogOutputChannel,
+      memorySessionStore,
+    } = admission
     const manager = new ModelApiBackendManager(
       fakeManagerDeps(fakeModelApi(), new FakeLogOutputChannel(), {
         workspaceRoot: '/reference-budget',

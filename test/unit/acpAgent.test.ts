@@ -20,6 +20,7 @@ import { memoryPaidGrants } from './helpers/paidGrants'
 import { commandApproval, until } from './helpers/acpWaits'
 import { acpMspHost, acpResumeEnvelope, answerMsp } from './helpers/acpMsp'
 import { fakeAcpQuestions } from './helpers/questions/acpRegistry'
+import { expectedQuestionCommandsUpdate } from './helpers/questions/fixtures'
 
 // M63 (PLAN.md D62): the agent driven by the ACP SDK's own client, in
 // process, against a scripted backend.
@@ -593,14 +594,7 @@ describe('the ACP agent (M63)', () => {
     })
     expect(response).toEqual({ stopReason: 'end_turn' })
     expect(h.updates).toEqual([
-      {
-        sessionUpdate: 'available_commands_update',
-        availableCommands: [
-          { name: 'help', description: UI_TEXT.referenceIntro, input: null },
-          { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
-          { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
-        ],
-      },
+      expectedQuestionCommandsUpdate(),
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Hel' } },
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'lo' } },
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: '!' } },

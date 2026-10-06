@@ -390,6 +390,8 @@ Choose how much effort Muse puts into each reply. Thinking: On = effort; Off = m
 
 turnState: Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.
 
+Reload rebuilds the panel; the conversation is kept by the host.
+
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: `museSpark.openInSidebar`, `museSpark.openInNewTab`, `museSpark.focusInput`, `museSpark.newConversation`, `museSpark.insertMentionReference`, `museSpark.toggleFocusView`, `museSpark.toggleThinking`. Settings: `museSpark.preferredLocation`, `museSpark.autosave`, `museSpark.attachOpenFile`, `museSpark.useCtrlEnterToSend`, `museSpark.hideOnboarding`, `museSpark.focusView`, `museSpark.enableNewConversationShortcut`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)

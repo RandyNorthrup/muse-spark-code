@@ -17,6 +17,7 @@ import { until } from './helpers/acpWaits'
 import { FakeQuestionAcpClient } from './helpers/questions/acpClient'
 import { acpQuestionEvent, FakeAcpQuestionRegistry } from './helpers/questions/acpRegistry'
 import { FakeQuestionClock } from './helpers/questions/clock'
+import { expectedQuestionCommandsUpdate } from './helpers/questions/fixtures'
 import { ScriptedQuestionSession } from './helpers/questions/session'
 
 const SECOND = 1000
@@ -732,14 +733,7 @@ describe('M112 through the pinned ACP SDK client', () => {
       h.session.listSkills.mockRejectedValueOnce(new Error('no skills'))
       await h.prompt(client, '/questions')
       expect(h.session.sendTurn).not.toHaveBeenCalled()
-      expect(h.updates).toContainEqual({
-        sessionUpdate: 'available_commands_update',
-        availableCommands: [
-          { name: 'help', description: UI_TEXT.referenceIntro, input: null },
-          { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
-          { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
-        ],
-      })
+      expect(h.updates).toContainEqual(expectedQuestionCommandsUpdate())
     })
   })
 

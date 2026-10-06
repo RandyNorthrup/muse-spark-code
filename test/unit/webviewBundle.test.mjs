@@ -13,6 +13,7 @@ import {
 import path from 'node:path'
 import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { webviewDeferredBudgetGroups } from '../../scripts/lib/webviewBundles.mjs'
 
 const ENTRY = 'dist/webview/main.js'
 const SIZE_GATE = path.resolve('scripts/check-bundle-size.mjs')
@@ -23,7 +24,26 @@ beforeAll(() => {
   writeFileSync('dist/webview/chunks/stale.js', 'throw new Error("stale browser chunk")')
   // Exercise the real production settings, including removal of stale chunks.
   execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
-  built.outputs = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs
+  const outputs = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs
+  built.outputs = Object.fromEntries(
+    Object.entries(outputs).map(([file, output]) => [
+      file.replaceAll('\\', '/'),
+      {
+        ...output,
+        entryPoint: output.entryPoint?.replaceAll('\\', '/'),
+        inputs: Object.fromEntries(
+          Object.entries(output.inputs).map(([source, details]) => [
+            source.replaceAll('\\', '/'),
+            details,
+          ]),
+        ),
+        imports: output.imports.map((entry) => ({
+          ...entry,
+          path: entry.path.replaceAll('\\', '/'),
+        })),
+      },
+    ]),
+  )
   mkdirSync('temp', { recursive: true })
   built.fixture = mkdtempSync(path.resolve('temp/fix78w-size-'))
   mkdirSync(path.join(built.fixture, 'dist/meta'), { recursive: true })
@@ -122,7 +142,30 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(bytes).toBeLessThanOrEqual(900 * 1024)
   })
 
-  it.each(['GitPanel', 'UsageDialog'])('loads %s only through its dynamic import', (name) => {
+  it('keeps FIXDIET1 startup and original deferred bytes within their review baseline', () => {
+    const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
+    expect(bytes).toBeLessThanOrEqual(733.8 * 1024)
+    const legacy = webviewDeferredBudgetGroups({ outputs: built.outputs }).find(
+      (group) => group.name === 'deferred JS',
+    )
+    expect(legacy).toBeDefined()
+    expect(
+      legacy.outputs.reduce((sum, output) => sum + statSync(output).size, 0),
+    ).toBeLessThanOrEqual(32.1 * 1024)
+  })
+
+  it.each([
+    'GitPanel',
+    'UsageDialog',
+    'SignIn',
+    'GoalPanel',
+    'SchedulePanel',
+    'Palette',
+    'PopoverMenu',
+    'GooeyMenuContent',
+    'UsageDialogContent',
+    'AgentMapContent',
+  ])('loads %s only through its dynamic import', (name) => {
     const source = `src/webview/components/${name}.tsx`
     const owners = Object.entries(built.outputs).filter(([, output]) =>
       Object.hasOwn(output.inputs, source),
@@ -131,10 +174,34 @@ describe('the production webview chunks (FIX78W)', () => {
     const [[output]] = owners
     expect(initialOutputs().has(output)).toBe(false)
     expect(built.outputs[output].entryPoint).toBe(source)
-    expect(built.outputs[ENTRY].imports).toContainEqual(
+    expect(Object.values(built.outputs).flatMap((chunk) => chunk.imports)).toContainEqual(
       expect.objectContaining({ path: output, kind: 'dynamic-import' }),
     )
   })
+
+  it.each(['WorkflowRun', 'ElicitationCard'])(
+    'shares %s between lazy surfaces without pulling its implementation into startup',
+    (name) => {
+      const source = `src/webview/components/${name}.tsx`
+      const owners = Object.entries(built.outputs).filter(([, output]) =>
+        Object.hasOwn(output.inputs, source),
+      )
+      expect(owners).toHaveLength(1)
+      const [[owner]] = owners
+      expect(initialOutputs().has(owner)).toBe(false)
+      const roots = Object.entries(built.outputs).filter(
+        ([, output]) => output.entryPoint === source,
+      )
+      expect(roots).toHaveLength(1)
+      const [[root, output]] = roots
+      expect(output.imports).toContainEqual(
+        expect.objectContaining({ path: owner, kind: 'import-statement' }),
+      )
+      expect(Object.values(built.outputs).flatMap((chunk) => chunk.imports)).toContainEqual(
+        expect.objectContaining({ path: root, kind: 'dynamic-import' }),
+      )
+    },
+  )
 
   it.each([
     'src/shared/l10n/en.ts',
@@ -151,6 +218,7 @@ describe('the production webview chunks (FIX78W)', () => {
   it('packages every emitted browser script, with no stale browser chunks', async () => {
     const files = await listFiles({ cwd: built.fixture, dependencies: false })
     const listed = files
+      .map((file) => file.replaceAll('\\', '/'))
       .filter((file) => file.startsWith('dist/webview/') && file.endsWith('.js'))
       .toSorted((a, b) => a.localeCompare(b, 'en'))
     expect(listed).toEqual(
@@ -159,6 +227,7 @@ describe('the production webview chunks (FIX78W)', () => {
         ...Object.keys(JSON.parse(readFileSync('dist/meta/whatsNewPage.json', 'utf8')).outputs),
         ...Object.keys(JSON.parse(readFileSync('dist/meta/referencePage.json', 'utf8')).outputs),
       ]
+        .map((file) => file.replaceAll('\\', '/'))
         .filter((file) => file.endsWith('.js'))
         .toSorted((a, b) => a.localeCompare(b, 'en')),
     )

@@ -50,6 +50,7 @@ describe('webview import budgets', () => {
         'src/webview/components/QuestionUi.tsx',
         'src/webview/components/QuestionCard.tsx',
         'src/webview/components/OpenQuestionsChip.tsx',
+        'src/webview/components/ElicitationCard.tsx',
       ],
       outputs: [question, SHARED],
     })
@@ -94,6 +95,7 @@ describe('webview import budgets', () => {
         'src/webview/components/QuestionUi.tsx',
         'src/webview/components/QuestionCard.tsx',
         'src/webview/components/OpenQuestionsChip.tsx',
+        'src/webview/components/ElicitationCard.tsx',
       ],
       budgetKiB: 25,
       outputs: [question, helper, SHARED],
@@ -113,6 +115,25 @@ describe('webview import budgets', () => {
       webviewDeferredBudgetGroups(meta, 25).find(({ name }) => name === 'code highlighting')
         ?.outputs,
     ).toEqual([])
+  })
+
+  it('normalizes Windows output, import and entry paths before grouping', () => {
+    const meta = metafile()
+    meta.outputs = Object.fromEntries(
+      Object.entries(meta.outputs).map(([file, value]) => [
+        file.replaceAll('/', '\\'),
+        {
+          ...value,
+          entryPoint: value.entryPoint?.replaceAll('/', '\\'),
+          imports: value.imports.map((entry) => ({
+            ...entry,
+            path: entry.path.replaceAll('/', '\\'),
+          })),
+        },
+      ]),
+    )
+    expect(webviewStartupOutputs(meta)).toEqual([MAIN, CORE])
+    expect(webviewDeferredBudgetGroups(meta)).toEqual(webviewDeferredBudgetGroups(metafile()))
   })
 
   it('refuses an incomplete static import graph', () => {

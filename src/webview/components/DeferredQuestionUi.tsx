@@ -1,19 +1,35 @@
 // One guarded import for the question-only UI; its draft context stays mounted.
-import { lazy, Suspense } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import type { PendingQuestion } from '../state/uiState'
 import type { QuestionCardProps, QuestionOutcome } from './QuestionCard'
 import type { QuestionDockProps } from './QuestionUi'
+import { deferred } from './DeferredSurface'
 
 const loadQuestionUi = () => import('./QuestionUi')
-const LazyCard = lazy(async () => {
-  const { QuestionView } = await loadQuestionUi()
-  return { default: QuestionView }
-})
-const LazyDock = lazy(async () => {
-  const { QuestionDock } = await loadQuestionUi()
-  return { default: QuestionDock }
-})
+const LazyCard = deferred(
+  async () => {
+    const { QuestionView } = await loadQuestionUi()
+    return { default: QuestionView }
+  },
+  false,
+  (props) =>
+    'question' in props ? (
+      <QuestionLoadingCard question={props.question} isDockCard={props.isDockCard ?? false} />
+    ) : null,
+)
+const LazyDock = deferred(
+  async () => {
+    const { QuestionDock } = await loadQuestionUi()
+    return { default: QuestionDock }
+  },
+  false,
+  (props) =>
+    props.hasApproval ? (
+      <div className="attention-question-line">{UI_TEXT.questionOpen}</div>
+    ) : (
+      <QuestionLoadingCard question={props.questionGroup.questions[0]} isDockCard />
+    ),
+)
 
 /** Keep an arrival visible while its controls load; drafts live above Suspense. */
 function QuestionLoadingCard({
@@ -45,30 +61,8 @@ function QuestionLoadingCard({
 export function DeferredQuestionCard(
   props: QuestionCardProps | Parameters<typeof QuestionOutcome>[0],
 ) {
-  return (
-    <Suspense
-      fallback={
-        'question' in props ? (
-          <QuestionLoadingCard question={props.question} isDockCard={props.isDockCard ?? false} />
-        ) : null
-      }
-    >
-      <LazyCard {...props} />
-    </Suspense>
-  )
+  return <LazyCard {...props} />
 }
 export function DeferredQuestionDock(props: QuestionDockProps) {
-  return (
-    <Suspense
-      fallback={
-        props.hasApproval ? (
-          <div className="attention-question-line">{UI_TEXT.questionOpen}</div>
-        ) : (
-          <QuestionLoadingCard question={props.questionGroup.questions[0]} isDockCard />
-        )
-      }
-    >
-      <LazyDock {...props} />
-    </Suspense>
-  )
+  return <LazyDock {...props} />
 }

@@ -33,6 +33,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Retry after a failed optional panel reloads its complete module graph with
+  the conversation and draft saved. Cold menus respect outside dismissal and
+  late imports cannot take focus; failed menus accept Escape and return focus
+  to their trigger.
+
 - Durable questions: late answers now use the ordinary send path's permission
   barriers and session recovery. Re-asks keep their own deferral deadline,
   publication saves once with durable rollback, coalesced replies finish
@@ -66,6 +71,27 @@ happened, not what was planned; superseded entries are kept.
 
 - The Help reference packs each CLI route prefix losslessly, keeping the
   Node reference within its existing 100 KiB budget with the question entries.
+
+- Optional menus, sign-in, goals, schedules, Account & usage and Agent map
+  content load on first use with accessible loading and retry after a failed
+  chunk request. A lossless native encoding keeps the complete English fallback
+  inline while reducing webview startup from 794.1 to 733.8 KiB (60.3 KiB).
+  The original deferred group drops from 50.0 to 32.1 KiB; existing size caps
+  stay unchanged.
+
+- MCP form controls and workflow details also load on first use, preserving
+  the diet's startup and deferred regression limits with the question dock.
+  Questions keep their visible arrival card and use the shared local retry
+  after a failed load. Workflow details have their own 25 KiB closure budget;
+  all existing caps remain unchanged.
+
+- Reference tests share unchanged setup and keyboard analysis, keeping
+  catalogue mutation checks within the normal test timeout.
+
+- The VSIX omits the duplicate generated Markdown reference; Help continues
+  to load its bundled reference and links to the complete online guide.
+  Its compressed universal package budget is 2400 KiB, measured with Help
+  and the macOS helper plus 5%, rounded up to 25 KiB.
 
 ## [0.14.2] - 2026-10-06
 

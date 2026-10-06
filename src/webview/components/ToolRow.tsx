@@ -44,7 +44,9 @@ import {
   DeferredQuestionCard as DeferredQuestionOutcome,
 } from './DeferredQuestionUi'
 
-import { ElicitationCard, type ElicitationCardProps } from './ElicitationCard'
+import type { ElicitationCardProps } from './ElicitationCard'
+import { deferred } from './DeferredSurface'
+
 import { Clipped, DiffTable } from './ToolBlocks'
 import {
   GoalBody,
@@ -57,6 +59,19 @@ import {
 } from './ToolBodies'
 import { verifySummaryText } from '../../shared/verifyText'
 import { ThenRunBlock, VerifyBody } from './VerifyParts'
+
+const ElicitationCard = deferred(
+  async () => {
+    const module = await import('./ElicitationCard')
+    return { default: module.ElicitationCard }
+  },
+  false,
+  ({ form }) => (
+    <div className="question" role="group" aria-busy="true" aria-label={form.server}>
+      {form.server}: {UI_TEXT.loadingOutput}
+    </div>
+  ),
+)
 
 type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
 

@@ -238,6 +238,36 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**DIET1 (2026-10-06, main `e56b795a`).** The production baseline is
+813,180 B (794.1 KiB) for chat startup and 51,157 B (49.96 KiB) for the original
+deferred aggregate. After DIET1, startup is 751,392 B (733.8 KiB), down
+61,788 B (60.3 KiB), and the original deferred aggregate is 32,875 B
+(32.1 KiB). Optional sign-in, goal/schedule panels, palette/popover and
+radial menus now load on use. Account & usage and Agent map retain their public
+entrypoints and load independently budgeted content chunks. Each new surface
+has a 25 KiB physical and import-closure cap: measured size plus 15%, rounded
+up to 25 KiB. Legacy/shared/unclassified deferred bytes keep their original
+50 KiB cap, and startup keeps 900 KiB. The complete browser English fallback
+stays inline, encoded losslessly as DEFLATE/base85 and decoded by the native
+DecompressionStream before dependent ESM modules run; Node and integration
+fallbacks and all table checks remain unchanged. FIXDIET1 replaces dynamic-root
+query retries with the existing host document rebuild after a synchronous state
+flush: the browser refetches failed static dependencies too. React.lazy caches
+successes and shared static dependencies retain canonical URLs.
+All editor shells use the shared CSP/asset-origin path. Receipts and final
+before/after sizes: `docs/certification/diet1.md`. FIXDIET1 holds startup
+at 750,942 B (733.3 KiB) and the original deferred group at 32,835 B
+(32.1 KiB), within the review baseline targets.
+
+**REL0143M (2026-10-06).** Questions retain their eager arrival and draft
+context while controls and MCP form fields use the shared local retry boundary.
+MCP forms share the unchanged 25 KiB question closure cap. Workflow details
+load on first use: 2.6 KiB measured, plus 15% rounded to an independent 25 KiB
+closure cap. History lays out rows with a single index across groups; all
+existing caps and DIET1's 733.8/32.1 KiB regression baselines remain unchanged.
+Both lazy details share their implementations with their existing dock/map
+consumers. See `docs/certification/rel0143.md` for final rig measurements.
+
 **TRAIN14A integration size recovery (2026-10-05).** The initial M94 archive
 has insufficient universal-helper headroom, and the prepared M71 join exceeds
 activation and shared English by 7.1 KiB each; browser budgets still fit.
@@ -7096,6 +7126,77 @@ one governor for everything the harness starts.
     registers when the governor first loads. Each spawning bundle gains only
     its admission call, and no cap rises (D6).
 
+14. **Free disk space is governed too, on by default** (added 2026-10-06).
+    - **Why.** On 2026-10-06 the Mac mini's data volume filled while seven
+      agent lanes ran their tests. Every one of them died with "No space
+      left on device" in the middle of its work. Most of the space was the
+      lanes' own leftovers: browser code-sign clones from killed test
+      browsers, test temp folders, finished worktrees and old dependency
+      copies.
+    - **The owner, 2026-10-06:** "we ran into this storage issue that cause
+      failure right you add guardrails for this in our harness as part of
+      the thresholds?"
+    - **Volumes watched.** The sampler reads free space with `fs.statfs`,
+      a Node built-in that needs no child process.
+      - It watches every volume the harness writes to: the workspace and
+        its worktree root, the system temp folder, the harness's data and
+        log folders, and on a node its state folder.
+      - It samples every `RESOURCE_DISK_SAMPLE_MS` (30 seconds), and every
+        5 seconds once the volume is below twice the floor.
+      - A failed read is "unknown", as in item 4.
+    - **The thresholds,** machine-scoped like item 3:
+      - `museSpark.resourceDiskMinFreeGiB` is the floor. By default it is
+        10 GiB, or 10% of the volume when that is smaller, but never below
+        2 GiB.
+      - Throttle starts at the floor.
+      - Pause starts at half the floor.
+      - Critical is 1 GiB or 1% of the volume, whichever is larger.
+      - The trend also counts: when the last five minutes' rate of filling
+        would reach the floor within `RESOURCE_DISK_ETA_MS` (10 minutes),
+        the level steps up early.
+      - Hysteresis and dwell work as in item 5, with 2 GiB above the floor
+        to exit.
+    - **What each level does:**
+      - **Throttle:** no new disk-heavy work starts. That means test runs,
+        builds, installs, new worktrees, downloads and `npm ci`. They wait,
+        or relocate to a device that has space (item 7, M100's pools).
+        Work already running continues.
+      - **Pause:** background lanes pause at their next safe point, and the
+        user is told once, naming the volume and its free space.
+      - **Critical:** agent tools that write to that volume refuse with a
+        named reason, so a full disk becomes an honest error instead of a
+        crash halfway through a file.
+      - **Never throttled:** Stop, cancel, the checkpoint that saves a
+        pause, and the user's own edits (item 8's list).
+    - **Leftovers: the harness cleans up after itself.**
+      - Every governed child runs with `TMPDIR`, `TEMP` and `TMP` pointed
+        at a temp root the harness owns for that tree. Browsers launched
+        for tests get their own profile and cache folders in that root.
+      - When the tree exits, its root is removed. A failed run's root is
+        kept for `RESOURCE_TEMP_KEEP_MS` (24 hours) for debugging and is
+        then removed.
+      - Some leftovers an operating system puts outside the temp root,
+        such as macOS's per-launch code-sign clones. Lane 0 measures them on
+        each platform. They are removed only when their creating process
+        belonged to one of our trees and has exited.
+      - Worktrees and dependency copies the harness created are removed
+        once their work has merged or been archived, never while dirty.
+      - At throttle the cleaner runs at once and reports what it freed.
+    - **Never touch what is not ours** (item 9). Cleaning reaches only
+      paths recorded in the harness's own registry of what it created. The
+      person's files, other applications' data and anything not in that
+      registry are never removed. The pause notice names the biggest
+      folders on the volume, read-only, so the person can decide.
+    - **Every editor shows it** (item 10): the resource chip and the status
+      item show free space per watched volume, and the pause notice
+      appears in every host.
+    - **Devices and the fleet.**
+      - Each linked device and node reports its free space with its
+        headroom (M100, M110).
+      - The lane scheduler never places disk-heavy work on a device below
+        its floor.
+      - The capacity estimator (M117) counts disk per lane.
+
 ---
 
 ### D88 — Several accounts per provider, with use thresholds (M108, 2026-10-05)
@@ -10738,9 +10839,12 @@ security` threshold where its job allows.
       itself on.
     - **The character is the owner's electric penguin.** It is not Meta's
       Muse avatar, whose art is not licensed to us. The Meta gadget SDK is
-      for personal use only, and D71's "never a gadget" stands. Until the
-      owner names it (Q-M111 item 7) the interface calls it "the
-      companion", never "Muse" (rule 11).
+      for personal use only, and D71's "never a gadget" stands.
+    - **Each person names it.** Turning the companion on asks for its name
+      (the owner, 2026-10-06; Q-M111 item 7). Until a name is given, the
+      interface says "the companion". The name is checked like any display
+      name (length, no control characters) and can never be "Muse"
+      (rule 11).
     - **The art is sprite strips, not a rig.** This amends research §2's
       recommendation of a part rig. The owner rejected the lead's hand-drawn
       rig ("that does not look anythink alike to what i gave you"). The art
@@ -10815,8 +10919,9 @@ security` threshold where its job allows.
         D48's ask-once for paid extras.
       - **Continue in chat** hands the exchange to the chat panel.
       - The local judge (D90.27) only triages; it never answers.
-    - **Voice.** Text only until the owner rules (Q-M111 item 9). After his
-      ruling, push-to-talk comes first, under his M9 voice rules.
+    - **No audio** (the owner, 2026-10-06: "companion will have no audio").
+      There is no voice input, no speech and no sound effects: the
+      companion is text and animation only.
     - **Accessibility.**
       - A text-only mode: the same ask box without the character.
       - The keyboard summon.
@@ -12770,6 +12875,34 @@ prompts into a chat in any workspace".
   The owner, 2026-10-06: "i accept your recommendations and yes i think to all of the questions." The credentials and purchases in items 3 and 6 stay his
   to make; until then their defaults hold.
 
+  **Owner update (2026-10-06, later):** "simulator will be the golden rule
+  my devices are too old, i dont know what os signing key are but i have a
+  rented server, why would we need a domain? but i do have one".
+  - **Item 3:** he has a rented server and a domain. Their access (an SSH
+    login on the server, DNS records on the domain) comes from him when
+    M110d–f's internet certification starts. The credentials stay his.
+  - **Why a domain:**
+    - Passkeys only work on a domain name, never on a bare IP address
+      (WebAuthn's relying-party id).
+    - Free TLS certificates (ACME) are issued for names.
+    - The update server and the pack index get a stable address that
+      survives moving to another server.
+    - Emailed reports (M113) need a domain's mail records to be delivered.
+  - **Item 5:** simulators and QEMU are the authoritative matrix ("the
+    golden rule"). Real machines are optional extra evidence; none is
+    waiting on him.
+  - **Item 6, what the signing keys are:**
+    - The **update-bundle key** signs every OS update, so a node installs
+      only updates we made.
+    - The **Secure Boot keys** let a PC check that the boot chain is ours
+      before it starts.
+    - Neither is bought. Lane OS4 makes them in a short scripted ceremony
+      that he runs on his own PC. The private halves go onto a USB stick
+      that he keeps offline; only the release job's signing certificate
+      lives in the `marketplace`-style environment.
+    - Until the ceremony, item 6's defaults hold: manual-install images with
+      cosign signatures, no over-the-air updates, and Secure Boot off.
+
 - **Q-M111 — What Muse Desktop needs from the owner (2026-10-05).** Every lane
   builds and certifies on fakes, QEMU and the rigs meanwhile; nothing here
   blocks lane 0.
@@ -12817,6 +12950,13 @@ prompts into a chat in any workspace".
       tied to the agents' work. **Default:** on once the companion is on,
       as D91.30 lists, with each one switchable.
 
+  **Owner answers (2026-10-06):** "companion approved", then "companion
+  will have no audio and will ask the user for a name when they set it up".
+  - **Item 7:** each person names their own companion when they turn it
+    on. "The companion" is only the placeholder before they choose.
+  - **Item 9:** no audio at all: no voice input, no speech and no sounds.
+  - **Items 8 and 10:** the defaults stand.
+
 - **Q-M109 — A Mac for the Secure Enclave slot (2026-10-05).** D89.2's
   Secure Enclave slot needs a Mac where `SecureEnclave.isAvailable`: Apple
   silicon, or an Intel Mac with Touch ID. The Mac mini rig is Intel without
@@ -12830,6 +12970,11 @@ prompts into a chat in any workspace".
   saying why, until a capable Mac is available.
 
   **Owner answer (2026-10-06):** the default, accepted. The owner, 2026-10-06: "i accept your recommendations and yes i think to all of the questions."
+
+  **Owner update (2026-10-06, later):** "i have a touch id mac i will setup
+  after 5pm today". The Secure Enclave capture runs on that Mac once he
+  sets it up (after 5 pm PT, 2026-10-06). The SE slot then turns on where
+  the capture passes; the default above holds until then.
 
 - **Q-M108 — What M108 needs from the owner (2026-10-05).**
   1. **Second credentials for the live captures.** Several of M108's wire
@@ -12850,6 +12995,13 @@ prompts into a chat in any workspace".
 
      **Owner answer (2026-10-06):** the default, accepted; the second
      credentials stay his to provide.
+
+     **Owner update (2026-10-06, later):** "the two more meta keys are
+     approved". The lead mints the second Meta key on the same team and the
+     key on another team when M108's live captures are next. They are made
+     in his signed-in Meta developer page and copied straight into
+     DPAPI-encrypted files. Nobody sees the values, and they are never
+     printed, stored in the repository or put into the Muse Code CLI.
 
   2. **Two accounts on one PC** (D88's placement amendment). With placement
      mandatory, a user with a single PC who wants two accounts of one
@@ -25540,23 +25692,26 @@ Each joins when its dependency merges, and none blocks the others.
   1. Lane 0.
   2. S, T, G and U in parallel against the fakes.
   3. A after T's registry interface; C1 and H after G.
-  4. C2, R and J as their dependencies merge.
+  4. C2, R and J as their dependencies merge; DK (D87.14, added
+     2026-10-06) after the S + T + G trunk, before U and H finish, so the
+     surfaces show free space.
   5. W last.
 
-| Lane                                               | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Files it owns                                                                                          | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                        | Starts                                   |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| 0 Contracts, strings, fakes, platform facts (lead) | The sample, level, event, ticket and status types; the settings schema; the device headroom field; the `resource` journal record; the exec `resource` event. The fakes: a scripted sampler, a fake process tree, a fake clock, a fake linked device. The platform facts, with no model call: what `os.freemem()` and `process.availableMemory()` mean on the Mac mini; cgroup v2 delegation on Kubuntu; the job CPU rate cap on the Win11 VM; whether `taskpolicy -B` undoes `-b` | new `src/shared/resources.ts`, `test/unit/helpers/resources/**`, `docs/certification/m107-platform.md` | `constants.ts` (`RESOURCE_*`); `en.ts`, the 14 tables, `package.nls*.json` (settings and commands); `src/shared/hostApi/**` (the status item, with M104 lane 0); `src/shared/devices.ts` (the offer's `resource` field, with M100 lane 0); `src/shared/usageJournal.ts` (the `resource` record, with M102 lane 0); `docs/schemas/exec-event-*.schema.json` (with M80's versioning) | day 0                                    |
-| S Sampler                                          | D87.4: the machine sampler (CPU deltas, Linux pressure files, memory, container limits, macOS per lane 0's fact); the GPU and disk probes, lazy and only when set; the self-cost bound                                                                                                                                                                                                                                                                                            | new `src/core/resources/sampler/**`                                                                    | —                                                                                                                                                                                                                                                                                                                                                                                  | after 0                                  |
-| T Trees                                            | D87.2 and D87.9: the launch registry (ticket, root process, start time, job, cgroup or group, kind, class, session); the membership proof; per-platform accounting                                                                                                                                                                                                                                                                                                                | new `src/core/resources/trees/**`                                                                      | `native/windows/MuseSparkJob.cs` (a query mode); `src/host/processTree.ts` (the shared table parse, moved to `src/core/resources/trees/processTable.ts` if the host API gate needs it portable)                                                                                                                                                                                    | after 0                                  |
-| G Governor                                         | D87.5, D87.6 (capacity, queue, foreground wait), D87.8: the levels, hysteresis, escalation, critical, dwell, override and events                                                                                                                                                                                                                                                                                                                                                  | new `src/core/resources/governor.ts`, `queue.ts`, `events.ts`                                          | —                                                                                                                                                                                                                                                                                                                                                                                  | after 0                                  |
-| A Actuators                                        | D87.6's priority: the Windows job priority class and CPU rate cap; Linux cgroup knobs or nice and ionice; macOS `taskpolicy`; the reversibility table; restore on recovery                                                                                                                                                                                                                                                                                                        | new `src/core/resources/actuators/**`                                                                  | `MuseSparkJob.cs` (the priority and rate mode, after T's region); M96 lane K's `processLifetime.ts` (the scope's delegated knobs)                                                                                                                                                                                                                                                  | after T's registry interface             |
-| C1 Spawn sites: the Model API and the window       | Admission and registration at every spawn on main: tool shells, background tasks, checks and the verify loop, MCP servers, best-of-N, subagents, schedules, the browser check, command hooks, `muse serve`'s tree                                                                                                                                                                                                                                                                 | —                                                                                                      | `toolIo.ts` (spawn); `mcpServers.ts`, `mcpJobLaunch.ts`, `mcp/pool.ts` (start); `bestOfNRunner.ts`; `subagentTools.ts`; `schedules.ts`; `verifyTools.ts`; `src/host/browser/browserProcess.ts`; the hook spawn region; `museCodeBackendManager.ts` (tree registration)                                                                                                             | after G                                  |
-| C2 The team and runners                            | `loadGuard.ts` retired, its callers on the governor; M96c's pick and slots read the capacity; check slots; the runners' routing takes the local level                                                                                                                                                                                                                                                                                                                             | —                                                                                                      | `src/host/team/loadGuard.ts` (removed); `processLifetime.ts` (the registry hook); `src/core/team/scheduler/pick.ts` and `slots.ts` (capacity); `src/host/team/checkSlots.ts`; `src/core/runners/routing.ts`                                                                                                                                                                        | after G, with M96 and M96c merged        |
-| R Relocation                                       | D87.7: pool routing by headroom; the receiver's admission by its own level; **Move to** after retirement; **Keep here**; the events                                                                                                                                                                                                                                                                                                                                               | new `src/core/resources/relocate.ts`                                                                   | `src/core/team/remotePool.ts` (routing); `src/host/devices/devicePool.ts`; `src/host/devices/deviceReceiver.ts` (admission); `src/core/runners/routing.ts` (after C2)                                                                                                                                                                                                              | after G and C2, with M100 S and E merged |
-| U Surfaces                                         | D87.10's VS Code and shared parts: the chip and popover, the status bar item, the panel's mount, the Traffic view's row, MHP's status item through a fake bridge, the companion page; harness scenes and axe                                                                                                                                                                                                                                                                      | new `src/webview/resources/**` (a lazy chunk), `src/host/resources/resourceStatus.ts`                  | `App.tsx` (the mount beside `HeartbeatTrace`); `src/webview/components/traffic/TrafficView.tsx` (the row, with M96c V's owner); `extension.ts` (the command region, loaders only); `styles.css` (its region); `test/harness` scenes                                                                                                                                                | after 0; finished after G                |
-| H Runtime, ACP and headless                        | D87.10's other rows: the runtime's governor host, `/resources`, the notices and `_meta`, the CLI's `resources`, exec's events and flags, the runtime settings                                                                                                                                                                                                                                                                                                                     | new `src/runtime/resources/**`, `src/acp/resources.ts`                                                 | `src/acp/agent.ts` (commands); `src/runtime/cliArgs.ts` and `main.ts` (`resources`); `runExec.ts` and `execProtocol.ts` (events); the runtime settings store (with M104 lane B)                                                                                                                                                                                                    | after G                                  |
-| J Journal and the usage page                       | D87.11: the resource records, their aggregation, the page's Resources section, the text summary                                                                                                                                                                                                                                                                                                                                                                                   | new `src/core/usage/resourceRecords.ts`, `src/webview/usage/ResourcesSection.tsx`                      | `src/core/usage/aggregate.ts` (resource buckets); `usageText.ts`; `UsageApp.tsx` (the mount)                                                                                                                                                                                                                                                                                       | after 0, with M102 merged                |
-| W Wiring, docs and gates (last)                    | `dist/resourceGovernor.js`, budgets, `package.json`, docs, registry rows, certification, the full gate                                                                                                                                                                                                                                                                                                                                                                            | `docs/certification/m107*.md`                                                                          | `scripts/build.mjs`; the bundle-size and split gates; the host API record (no `vscode` under `src/core/resources`); knip and dpdm; `scripts/package-acp.mjs`; `package.json`; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; AGENTS.md's layout; PLAN                                                                             | last                                     |
+| Lane                                               | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Files it owns                                                                                                | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                        | Starts                                   |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| 0 Contracts, strings, fakes, platform facts (lead) | The sample, level, event, ticket and status types; the settings schema; the device headroom field; the `resource` journal record; the exec `resource` event. The fakes: a scripted sampler, a fake process tree, a fake clock, a fake linked device. The platform facts, with no model call: what `os.freemem()` and `process.availableMemory()` mean on the Mac mini; cgroup v2 delegation on Kubuntu; the job CPU rate cap on the Win11 VM; whether `taskpolicy -B` undoes `-b`                                                                                                                                                                               | new `src/shared/resources.ts`, `test/unit/helpers/resources/**`, `docs/certification/m107-platform.md`       | `constants.ts` (`RESOURCE_*`); `en.ts`, the 14 tables, `package.nls*.json` (settings and commands); `src/shared/hostApi/**` (the status item, with M104 lane 0); `src/shared/devices.ts` (the offer's `resource` field, with M100 lane 0); `src/shared/usageJournal.ts` (the `resource` record, with M102 lane 0); `docs/schemas/exec-event-*.schema.json` (with M80's versioning) | day 0                                    |
+| S Sampler                                          | D87.4: the machine sampler (CPU deltas, Linux pressure files, memory, container limits, macOS per lane 0's fact); the GPU and disk probes, lazy and only when set; the self-cost bound                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | new `src/core/resources/sampler/**`                                                                          | —                                                                                                                                                                                                                                                                                                                                                                                  | after 0                                  |
+| T Trees                                            | D87.2 and D87.9: the launch registry (ticket, root process, start time, job, cgroup or group, kind, class, session); the membership proof; per-platform accounting                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | new `src/core/resources/trees/**`                                                                            | `native/windows/MuseSparkJob.cs` (a query mode); `src/host/processTree.ts` (the shared table parse, moved to `src/core/resources/trees/processTable.ts` if the host API gate needs it portable)                                                                                                                                                                                    | after 0                                  |
+| G Governor                                         | D87.5, D87.6 (capacity, queue, foreground wait), D87.8: the levels, hysteresis, escalation, critical, dwell, override and events                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | new `src/core/resources/governor.ts`, `queue.ts`, `events.ts`                                                | —                                                                                                                                                                                                                                                                                                                                                                                  | after 0                                  |
+| A Actuators                                        | D87.6's priority: the Windows job priority class and CPU rate cap; Linux cgroup knobs or nice and ionice; macOS `taskpolicy`; the reversibility table; restore on recovery                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | new `src/core/resources/actuators/**`                                                                        | `MuseSparkJob.cs` (the priority and rate mode, after T's region); M96 lane K's `processLifetime.ts` (the scope's delegated knobs)                                                                                                                                                                                                                                                  | after T's registry interface             |
+| C1 Spawn sites: the Model API and the window       | Admission and registration at every spawn on main: tool shells, background tasks, checks and the verify loop, MCP servers, best-of-N, subagents, schedules, the browser check, command hooks, `muse serve`'s tree                                                                                                                                                                                                                                                                                                                                                                                                                                               | —                                                                                                            | `toolIo.ts` (spawn); `mcpServers.ts`, `mcpJobLaunch.ts`, `mcp/pool.ts` (start); `bestOfNRunner.ts`; `subagentTools.ts`; `schedules.ts`; `verifyTools.ts`; `src/host/browser/browserProcess.ts`; the hook spawn region; `museCodeBackendManager.ts` (tree registration)                                                                                                             | after G                                  |
+| C2 The team and runners                            | `loadGuard.ts` retired, its callers on the governor; M96c's pick and slots read the capacity; check slots; the runners' routing takes the local level                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | —                                                                                                            | `src/host/team/loadGuard.ts` (removed); `processLifetime.ts` (the registry hook); `src/core/team/scheduler/pick.ts` and `slots.ts` (capacity); `src/host/team/checkSlots.ts`; `src/core/runners/routing.ts`                                                                                                                                                                        | after G, with M96 and M96c merged        |
+| R Relocation                                       | D87.7: pool routing by headroom; the receiver's admission by its own level; **Move to** after retirement; **Keep here**; the events                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | new `src/core/resources/relocate.ts`                                                                         | `src/core/team/remotePool.ts` (routing); `src/host/devices/devicePool.ts`; `src/host/devices/deviceReceiver.ts` (admission); `src/core/runners/routing.ts` (after C2)                                                                                                                                                                                                              | after G and C2, with M100 S and E merged |
+| U Surfaces                                         | D87.10's VS Code and shared parts: the chip and popover, the status bar item, the panel's mount, the Traffic view's row, MHP's status item through a fake bridge, the companion page; harness scenes and axe                                                                                                                                                                                                                                                                                                                                                                                                                                                    | new `src/webview/resources/**` (a lazy chunk), `src/host/resources/resourceStatus.ts`                        | `App.tsx` (the mount beside `HeartbeatTrace`); `src/webview/components/traffic/TrafficView.tsx` (the row, with M96c V's owner); `extension.ts` (the command region, loaders only); `styles.css` (its region); `test/harness` scenes                                                                                                                                                | after 0; finished after G                |
+| H Runtime, ACP and headless                        | D87.10's other rows: the runtime's governor host, `/resources`, the notices and `_meta`, the CLI's `resources`, exec's events and flags, the runtime settings                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | new `src/runtime/resources/**`, `src/acp/resources.ts`                                                       | `src/acp/agent.ts` (commands); `src/runtime/cliArgs.ts` and `main.ts` (`resources`); `runExec.ts` and `execProtocol.ts` (events); the runtime settings store (with M104 lane B)                                                                                                                                                                                                    | after G                                  |
+| J Journal and the usage page                       | D87.11: the resource records, their aggregation, the page's Resources section, the text summary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | new `src/core/usage/resourceRecords.ts`, `src/webview/usage/ResourcesSection.tsx`                            | `src/core/usage/aggregate.ts` (resource buckets); `usageText.ts`; `UsageApp.tsx` (the mount)                                                                                                                                                                                                                                                                                       | after 0, with M102 merged                |
+| DK Free space and leftovers                        | D87.14: free space per watched volume through `fs.statfs` (workspace and worktree root, temp, data and logs, a node's state), the floor and its levels, the fill-rate early step; throttle of disk-heavy work (tests, builds, installs, worktrees, downloads), pause at a safe point, critical write refusal by agent tools; the per-tree temp root (`TMPDIR`/`TEMP`/`TMP`, test browsers' profiles inside it) and its removal at tree exit with the failed-run retention; the registry of what the harness created and the cleaner limited to it; lane 0's per-OS leftover facts (macOS code-sign clones and the rest); the device headroom's free-space field | new `src/core/resources/disk.ts`, `src/host/resources/tempRoots.ts`, `src/core/resources/createdRegistry.ts` | the sampler's volume reading (with S's owner); the levels' disk inputs (with G's owner); the spawn sites' environment (with C1's owner); M100's headroom field (with M100's owner); `constants.ts` (`RESOURCE_DISK_*`, `RESOURCE_TEMP_KEEP_MS`); `en.ts` and the 14 tables                                                                                                         | after the S + T + G trunk (M107INT)      |
+| W Wiring, docs and gates (last)                    | `dist/resourceGovernor.js`, budgets, `package.json`, docs, registry rows, certification, the full gate                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `docs/certification/m107*.md`                                                                                | `scripts/build.mjs`; the bundle-size and split gates; the host API record (no `vscode` under `src/core/resources`); knip and dpdm; `scripts/package-acp.mjs`; `package.json`; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; AGENTS.md's layout; PLAN                                                                             | last                                     |
 
 - **Acceptance** (fakes unless named; no model calls):
   1. **Settings.**
@@ -25640,7 +25795,20 @@ Each joins when its dependency merges, and none blocks the others.
       event-loop delay (`monitorEventLoopDelay`) p95 is measured with and
       without the governor, and a second window's activation time is
       recorded. The figures go in the certification record.
-  16. **Budgets.** As below, with activation unchanged.
+  16. **Free space** (D87.14, a fake volume and the rigs).
+      - The levels follow the fake free-space series, including the
+        fill-rate early step.
+      - At throttle a test run waits and a running one finishes. At pause
+        background lanes stop at a safe point. At critical an agent's write
+        is refused with the volume named.
+      - Stop and cancel still work at critical.
+      - A governed tree's temp root disappears at exit, and a failed run's
+        root after the retention.
+      - The cleaner removes only registered paths: a red drill points it
+        at an unregistered folder, and it refuses.
+      - On the Mac mini, the rig that filled, a browser test killed
+        mid-run leaves nothing behind after the cleaner.
+  17. **Budgets.** As below, with activation unchanged.
 - **Tests.** Every test can fail: each runs against a fake that can be made
   to lie (the scripted sampler, the fake process tree, the fake clock, the
   fake linked device), and each has a red drill recorded in
@@ -29120,6 +29288,84 @@ drill in `docs/certification/m112-a.md`. The rig/shared rules delegate full
 quality and Q/U integration to the lead; this lane runs its focused suites
 and required static/build checks without merging, pushing or paid calls.
 
+### REL0143M — Integrate the webview diet into 0.14.3 (2026-10-06)
+
+- Merge `sync/main-0143` (`61d8647c2`) into the prepared release with both
+  M112 question behavior and DIET1 optional-surface loading retained.
+- Keep the immediate question arrival card and shared drafts eager; give lazy
+  question controls the shared failure/retry boundary and their existing 25 KiB cap.
+- Preserve DIET1's stricter 733.8/32.1 KiB regression baselines as well: defer
+  MCP form controls and workflow details, and compact History's layout loop.
+  Forms share the existing question cap;
+  workflow details get a measured independent 25 KiB closure cap.
+- Deduplicate the merged ACP question-command golden in existing test fixtures,
+  retaining every command, description and input field under the zero-clone gate.
+- Keep the What's New codec fixture between its unchanged 40 KiB encoded
+  and 75 KiB decoded limits, even when a whole historical release jumps
+  past the upper limit. The real two-release artifact remains separately checked.
+- Regenerate reference artifacts, put the diet release notes in 0.14.3 and add
+  the README startup bullet. Verify the unchanged 900/50/2400 KiB startup,
+  deferred and VSIX caps with focused default-timeout tests and rig gates.
+- Local hooks-on merge commit only; no push, extra merge or model call.
+
+### DIET1 — Webview startup and deferred headroom (2026-10-06)
+
+- [x] Measure main `e56b795a` with the production metafile: startup 813,180 B
+      (794.1 KiB); original deferred aggregate 51,157 B (49.96 KiB).
+- [x] Reduce startup by at least 60 KiB and original deferred aggregate to
+      at most 35 KiB without raising either existing cap or adding dependencies.
+      Keep transcript, composer and approvals eager; defer optional surfaces
+      and preserve the complete inline English fallback with lossless encoding.
+- [x] Accessible loading, local load failure and retry; shared-host CSP/asset
+      proof; owning tests and intentional static-import red drill.
+- [x] Fix RVMDIET1 P2-1, P2-2 and P3 with owning regressions and byte-exact
+      red drills; final 628-page accessibility matrix exits 0 on macmini.
+- [~] Scoped rig gates, production/package, accessibility and browser smoke;
+  certification `docs/certification/diet1.md`, contribution rule and changelog.
+  Lane rules prohibit aggregate quality, network, merges and pushes; the
+  lead retains integrated quality and hosted checks.
+
+**FIXDIET1 review follow-up (2026-10-06).** RVMDIET1 P2-1 is fixed by
+rebuilding the panel document on Retry; the existing persister flushes state
+before the host rebuilds and the browser refetches the complete module graph,
+including failed static dependencies. The dynamic-root URL rewrite is removed.
+Interactive lazy surfaces use the shared deferred loader. Each open owns
+an intent that is cancelled on dismissal; loading and failed nonmodal menus
+retain outside-pointer/focus, Escape and trigger-focus behavior (P2-2/P3).
+Regression tests and byte-exact red drills certify each fix. Keep startup at most
+733.8 KiB, the original deferred group at most 32.1 KiB and each moved
+surface within 25 KiB. No dependency, gate relaxation, model call or merge.
+
+## 7. Gates
+
+**REL0143M bounded integration certification (2026-10-06, Kubuntu).** The
+specific rig brief authorizes only the main diet merge and local hooks-on
+commit. Shared rig rules prohibit aggregate `npm run quality`; the lead owns
+integrated quality, hosted CI and live/editor release receipts. Preserve all
+existing caps and DIET1's regression baseline assertions. Add the measured
+workflow closure in D6; MCP forms share the existing question closure. Five
+intentional guard failures are restored byte-exact before default-timeout
+verification. No dependency, wire shape, paid call, extra merge, push, rebase,
+timeout override or hook change. Local package badge validation uses the
+existing named network skip, which CI rejects. Receipts and conflicts:
+`docs/certification/rel0143.md`.
+
+**DIET1 bounded rig certification (2026-10-06).** The user-provided lane brief
+and shared rules prohibit aggregate quality and public network, merges and
+pushes. The local commit uses scoped typecheck, lint/format, Knip, duplication,
+localization, reference, host API, webview suites, production/split/size,
+accessibility matrix, real-browser fake-host smoke and VSIX packaging. Local
+packaging uses the existing named badge-network skip; CI rejects it. The lead
+must run integrated `npm run quality` and hosted checks before integration.
+See `docs/certification/diet1.md` for measurements and byte-exact red drills.
+The initial second accessibility scan reported zero violations/undecided rules
+across 628 pages but exited 1 when light/usage-install missed the unchanged
+10-second readiness deadline. FIXDIET1's final complete matrix supersedes that
+outstanding receipt: 628 pages (157 scenarios × four themes), exit 0, zero
+violations, zero undecided rules, zero exemptions and zero missing results.
+No timeout, exemption, worker policy or accessibility rule changed. The lead
+still owns integrated aggregate quality and actual host/release certification.
+
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
 test files, deliberate failures, typecheck, scoped lint/format, deadcode,
@@ -30545,6 +30791,18 @@ before a repaired one loads (2026-09-30).
   Follow-up: add the setting to HELPREF's catalogue when that lane joins the
   release. RVENVFENCE's two P1 findings are fixed; no review finding is deferred.
 
+- **FIXDIET1 audit outcome (2026-10-06).** RVMDIET1 P2-1, P2-2 and P3 are
+  fixed; no review finding is deferred. Retry flushes the existing webview
+  snapshot before the host rebuilds the document, so entry and static
+  dependency failures recover together without duplicating React/language
+  state. A cancelled cold-menu intent cannot mount its late import; loading
+  and failed rows retain dismissal and focus return. The same shared React
+  path serves either backend and shells embedding this webview; ACP editors
+  keep their native UI. Existing persistence size/session validation,
+  credential boundaries, CSP, dependencies and bundle caps are unchanged.
+  The lead retains integrated quality and real host/release certification.
+  Tests, exact-restoration drills and rig receipts: docs/certification/diet1.md.
+
 - **ENVFENCE-HELPREF (resolved in REL0142 integration, 2026-10-06).** Main's
   credential pass-through setting joins the Help permissions feature with its
   existing translated manifest description and an explicit typed condition for
@@ -31552,10 +31810,15 @@ unchanged 100 KiB budget (99.5 KiB) through lossless CLI route-prefix
 packing. Live through the ACP agent, contributor model, empty workspace:
 Model API 2 of 2 expected requests (budget 3), answered form only; Muse Code
 2 of 2 turns (budget 2), deferral and a late answer, 10 CLI model attempts
-(`docs/certification/m112.md#live-checks-2026-10-06`). Open before release:
-the webview deferred-JS aggregate is 89 bytes over its unchanged 50 KiB cap,
-so `npm run build` and `npm run package` exit 1 on the host; the VSIX packed
-directly is 2,278,496 bytes, under its 2400 KiB cap. Also open: Model API
-deferral live, installed editors and screenshots. Evidence:
-`docs/certification/rel0143.md`. Release run, tag commit and channel results:
-pending.
+(`docs/certification/m112.md#live-checks-2026-10-06`). REL0143M merges main's
+diet (`61d8647c2`, PR #128) into the prepared release (`648511c6c`), retaining
+question arrival and draft state while deferring optional controls. On Kubuntu,
+`npm run build` and `npm run package` now exit 0: startup 750,695 bytes
+(733.1 KiB), original deferred aggregate 32,857 bytes (32.1 KiB), VSIX
+2,289,406 bytes under the unchanged 2400 KiB cap. Question UI and workflow
+closures also pass their 25 KiB caps, and DIET1's stricter startup/deferred
+regression baselines remain unchanged. Open before release: Model API
+deferral live, installed editors and screenshots, the lead's integrated full
+quality and hosted CI, remote badges and universal-package/platform checks.
+Evidence: `docs/certification/rel0143.md`. Release run, tag commit and channel
+results: pending.

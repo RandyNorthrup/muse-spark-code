@@ -683,6 +683,8 @@
   "showMore": "顯示更多",
   "showLess": "顯示較少",
   "loadingOutput": "正在載入…",
+  "surfaceLoadFailed": "無法載入此面板。",
+  "surfaceLoadRetry": "重試",
   "toolFailed": "失敗",
   "toolRejected": "已拒絕",
   "toolStopped": "已停止",

@@ -15,6 +15,7 @@ import {
   renderTranscript,
   selectPassage,
   tool,
+  warmRowMenus,
   transcriptProps,
 } from './helpers/transcriptFixtures'
 
@@ -50,6 +51,8 @@ function waitingQuestion() {
     },
   })
 }
+
+beforeAll(warmRowMenus)
 
 describe('Transcript', () => {
   it('marks a MessageDisplay hook’s rewrite and keeps the original one click away (M91)', () => {

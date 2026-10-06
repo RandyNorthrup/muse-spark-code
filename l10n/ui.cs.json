@@ -740,6 +740,8 @@
   "showMore": "Zobrazit více",
   "showLess": "Zobrazit méně",
   "loadingOutput": "Načítání…",
+  "surfaceLoadFailed": "Tento panel se nepodařilo načíst.",
+  "surfaceLoadRetry": "Zkusit znovu",
   "toolFailed": "Selhalo",
   "toolRejected": "Odmítnuto",
   "toolStopped": "Zastaveno",
