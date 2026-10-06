@@ -9,8 +9,8 @@ import {
   type ConnectionToken,
 } from '../../../src/core/vault/broker/state'
 import { runVaultRelease } from '../../../src/core/vault/broker/broker'
-import { type VaultAuditWriter } from '../../../src/core/vault/broker/ports'
-import { type VaultSlotRecord, type VaultTicket } from '../../../src/shared/vault'
+import { type VaultAuditWriter, type VaultUseLifetime } from '../../../src/core/vault/broker/ports'
+import { type VaultSlotRecord, type VaultTicket, type VaultItem } from '../../../src/shared/vault'
 import { VAULT_APPROVAL_TTL_MS } from '../../../src/shared/constants'
 import { FakeVaultSlot, InMemoryVault } from '../helpers/vault/core'
 import { item, requester, use, grant } from '../helpers/vault/fixtures'
@@ -24,6 +24,8 @@ type Deferred = Extract<Effect, { kind: 'io' | 'audit' | 'release' }>
 interface Task {
   effect: Deferred
   result: Result
+  error?: Error
+  started?: boolean
 }
 const seed = 109_003
 /** Executes the production reducer and final release runner; I/O is snapshotted at dispatch. */
@@ -36,7 +38,10 @@ class Model {
   replies = new Map<string, unknown>()
   rows = new Map<string, string[]>()
   writes = 0
+  allowedWrites = 0
   checks = 0
+  closeFailure = new Error('generated lifetime close failure')
+  failedEffects = 0
   stored = item()
   standing = grant()
   identity = requester()
@@ -73,6 +78,7 @@ class Model {
       | Omit<Extract<Event, { kind: 'audited' }>, 'id' | 'nonce' | 'now'>,
   ): string {
     const id = (++this.sequence).toString(16).padStart(32, '0')
+    const owned = this.ownedBytes()
     const transition = step(this.state, {
       ...input,
       id,
@@ -80,27 +86,27 @@ class Model {
       now: this.now,
     })
     this.state = transition.state
+    const retained = new Set(this.ownedBytes())
+    for (const bytes of owned)
+      if (!retained.has(bytes)) expect(bytes.every((byte) => byte === 0)).toBe(true)
     for (const effect of transition.effects) this.apply(effect)
     this.invariants()
     return id
   }
+  ownedBytes(): Uint8Array[] {
+    const bytes: Uint8Array[] = this.state.key ? [this.state.key] : []
+    for (const { resources } of this.state.buffers.values()) {
+      for (const value of [resources.key, resources.source, resources.buffer])
+        if (value) bytes.push(value)
+      if (resources.item)
+        for (const value of Object.values(resources.item.material))
+          if (value instanceof Uint8Array) bytes.push(value)
+    }
+    return bytes
+  }
   apply(effect: Effect): void {
     switch (effect.kind) {
       case 'cleanup': {
-        const currentKey = this.state.key
-        for (const bytes of [
-          effect.resources.key,
-          effect.resources.source,
-          effect.resources.buffer,
-        ]) {
-          if (bytes !== undefined && bytes === currentKey)
-            throw new Error('cleanup targeted the installed generation')
-          bytes?.fill(0)
-        }
-        const material = effect.resources.item?.material
-        if (material)
-          for (const value of Object.values(material))
-            if (value instanceof Uint8Array) value.fill(0)
         if (effect.resources.store && effect.resources.store === this.state.store)
           throw new Error('cleanup targeted the installed store')
         if (effect.resources.writer && effect.resources.writer === this.state.writer)
@@ -111,7 +117,12 @@ class Model {
         break
       }
       case 'closeLifetime': {
-        effect.lifetime.close()
+        try {
+          effect.lifetime.close()
+        } catch (error: unknown) {
+          if (error !== this.closeFailure) throw error
+          this.failedEffects += 1
+        }
         break
       }
       case 'settle': {
@@ -216,7 +227,7 @@ class Model {
     const effect = task.effect
     if (effect.kind === 'audit') {
       const row = this.state.audits.get(effect.operationId)
-      if (row?.version === effect.version && row.writer === effect.writer) {
+      if (!task.error && row?.version === effect.version && row.writer === effect.writer) {
         const history = this.rows.get(effect.operationId) ?? []
         history.push(effect.row.outcome)
         this.rows.set(effect.operationId, history)
@@ -226,12 +237,15 @@ class Model {
         operationId: effect.operationId,
         version: effect.version,
         writer: effect.writer,
+        ...(task.error && { error: task.error }),
       })
     } else if (effect.kind === 'release') {
       let error: unknown
       try {
-        const result = runVaultRelease(this.state, effect, this.now)
-        if (result instanceof Promise) throw new Error('model release must be synchronous')
+        if (!task.started) {
+          const result = runVaultRelease(this.state, effect, this.now)
+          if (result instanceof Promise) throw new Error('model release must be synchronous')
+        }
       } catch (error_: unknown) {
         error = error_
       }
@@ -243,8 +257,12 @@ class Model {
       })
     } else this.event({ kind: 'completed', tags: effect.tags, result: task.result })
   }
-  drain(): void {
-    while (this.tasks.length > 0) this.complete()
+  drain(held?: Task): void {
+    let index = this.tasks.findIndex((task) => task !== held)
+    while (index !== -1) {
+      this.complete(index)
+      index = this.tasks.findIndex((task) => task !== held)
+    }
   }
   hold(phase: string): void {
     while (
@@ -278,7 +296,7 @@ class Model {
       taint: { tainted: false, reasons: [] },
     })
   }
-  redeemTicket(): VaultTicket {
+  redeemTicket(lifetime?: VaultUseLifetime): VaultTicket {
     this.proposal()
     this.drain()
     const ticket = Array.from(this.state.tickets, ([, admission]) => admission)[0]?.ticket
@@ -288,9 +306,24 @@ class Model {
       requesterId: this.identity.id,
       ticket,
       use: use(),
-      lifetime: { close: () => undefined, terminate: () => Promise.resolve(true) },
+      lifetime: lifetime ?? { close: () => undefined, terminate: () => Promise.resolve(true) },
     })
     return ticket
+  }
+  material(
+    ticket: VaultTicket,
+    run: (item: VaultItem) => Promise<void> = () => {
+      this.writes += 1
+      return Promise.resolve()
+    },
+  ): string {
+    return this.command({
+      kind: 'material',
+      ticketId: ticket.id,
+      requesterId: this.identity.id,
+      use: use(),
+      run,
+    })
   }
   answerApproval(): void {
     this.stored.metadata.policy.mode = 'askOncePerSession'
@@ -304,6 +337,17 @@ class Model {
       answer: { requestId: request.id, digest: request.digest, decision: 'allowSession' },
     })
     this.hold('list')
+  }
+  finishDuringMaterial(hasSucceeded: boolean): void {
+    const ticket = this.redeemTicket()
+    this.drain()
+    this.material(ticket)
+    this.hold(hasSucceeded ? 'release' : 'read')
+    this.command({ kind: 'finish', ticketId: ticket.id, succeeded: hasSucceeded })
+    expect(this.state.active.size).toBe(0)
+    expect(
+      Array.from(this.state.operations, ([, op]) => op.command.kind).includes('material'),
+    ).toBe(false)
   }
   privateRead(): void {
     const metadata = this.stored.metadata
@@ -351,6 +395,24 @@ class Model {
     }
     for (const held of this.state.buffers.values())
       expect(held.generation).toBe(this.state.generation)
+    for (const admission of this.state.active.values())
+      expect(this.state.audits.get(admission.request.id)?.terminal).not.toBe(true)
+    for (const operation of this.state.operations.values())
+      if (operation.command.kind === 'finish') {
+        expect(operation.terminalOutcome).toBeDefined()
+        if (operation.phase === 'audit') {
+          const audit = this.state.audits.get(operation.request?.id ?? '')
+          expect(
+            this.tasks.some(
+              ({ effect }) =>
+                effect.kind === 'audit' &&
+                effect.operationId === operation.request?.id &&
+                effect.version === audit?.version,
+            ),
+          ).toBe(true)
+        }
+      }
+    for (const id of this.state.serial) expect(this.state.operations.has(id)).toBe(true)
     for (const history of this.rows.values()) {
       const terminal = history.findIndex((outcome) => outcome !== 'pending')
       if (terminal !== -1) expect(history.slice(terminal + 1)).toEqual([])
@@ -358,6 +420,97 @@ class Model {
   }
 }
 const scenarios: Record<string, (model: Model) => void> = {
+  'RVM109B4 P2-1 material before redemption audit': (model) => {
+    const ticket = model.redeemTicket()
+    while (model.tasks.every(({ effect }) => effect.kind !== 'audit')) model.complete()
+    const attempted = model.material(ticket)
+    expect(model.replies.get(attempted)).toBeInstanceOf(Error)
+    expect(model.state.active.get(ticket.id)?.released).not.toBe(true)
+  },
+  'RVM109B4 P1 throwing close with pending plaintext': (model) => {
+    let held = new Uint8Array()
+    const ticket = model.redeemTicket({
+      close: () => {
+        expect(held.every((byte) => byte === 0)).toBe(true)
+        throw model.closeFailure
+      },
+      terminate: () => Promise.resolve(true),
+    })
+    model.drain()
+    model.material(ticket, (item) => {
+      if (item.material.kind !== 'secret') throw new Error('expected scheduler secret')
+      held = item.material.value
+      model.writes += 1
+      return Promise.resolve()
+    })
+    model.hold('release')
+    const task = model.tasks.find(({ effect }) => effect.kind === 'release')!
+    if (task.effect.kind !== 'release') throw new Error('missing release')
+    void runVaultRelease(model.state, task.effect, model.now)
+    task.started = true
+    model.allowedWrites = 1
+    expect(held.some((byte) => byte !== 0)).toBe(true)
+    model.command({ kind: 'cancel', requesterId: model.identity.id, grantId: null })
+    expect(held.every((byte) => byte === 0)).toBe(true)
+    expect(model.failedEffects).toBe(1)
+  },
+  'RVM109B4 P2-1 failed redemption audit': (model) => {
+    let closes = 0
+    const ticket = model.redeemTicket({
+      close: () => {
+        closes += 1
+      },
+      terminate: () => Promise.resolve(true),
+    })
+    while (model.tasks.every(({ effect }) => effect.kind !== 'audit')) model.complete()
+    const index = model.tasks.findIndex(({ effect }) => effect.kind === 'audit')
+    model.tasks[index]!.error = new Error('generated append failure')
+    model.complete(index)
+    expect(model.state.active.size).toBe(0)
+    expect(closes).toBe(1)
+    model.material(ticket)
+  },
+  'RVM109B4 P2-2 Finish(false) during material read': (model) => {
+    model.finishDuringMaterial(false)
+  },
+  'RVM109B4 P2-2 Finish(true) during queued release': (model) => {
+    model.finishDuringMaterial(true)
+  },
+  'RVM109B4 P2-3 expiry during requester termination': (model) => {
+    const ticket = model.redeemTicket()
+    model.drain()
+    model.command({ kind: 'cancel', requesterId: model.identity.id, grantId: null })
+    model.now += VAULT_APPROVAL_TTL_MS
+    model.command({ kind: 'tick' })
+    const terminal = model.state.operations.get(`${ticket.requestId}:terminal`)
+    expect(terminal?.phase).toBe('terminate')
+    expect(terminal?.terminalOutcome).toBe('revoked')
+  },
+  'RVM109B4 P2-4 cancelled automatic unlock releases serialized work': (model) => {
+    model.command({ kind: 'lock', bump: true })
+    model.drain()
+    const obsolete = model.proposal()
+    model.hold('unwrap')
+    const held = model.tasks[0]!
+    model.command({ kind: 'cancel', requesterId: model.identity.id, grantId: null })
+    expect(model.replies.has(obsolete)).toBe(true)
+    expect(model.state.serial).not.toContain(obsolete)
+    model.command({
+      kind: 'register',
+      peer: model.peer,
+      registration: { requester: model.identity, ceiling: 'ask' },
+    })
+    model.command({ kind: 'unlock', slotId: null })
+    model.drain(held)
+    const fresh = model.proposal()
+    const grant = { ...model.standing, id: '9'.repeat(32), uses: 0 }
+    const management = model.command({ kind: 'grant', peer: model.peer, grant })
+    model.drain(held)
+    expect(model.replies.has(fresh)).toBe(true)
+    expect(model.replies.get(management)).toBeUndefined()
+    expect(model.replies.has(management)).toBe(true)
+    expect(model.state.grants.has(grant.id)).toBe(true)
+  },
   'cancel and re-register during authentication': (model) => {
     const connection: ConnectionToken = { kind: 'connection', id: 'c'.repeat(32) }
     model.command({ kind: 'connect', connection })
@@ -454,8 +607,9 @@ describe('M109 deterministic effect interleavings', () => {
         try {
           for (const choice of choices) model.complete(choice)
           if (model.tasks.length === 0) {
-            expect(model.writes).toBe(0)
+            expect(model.writes).toBe(model.allowedWrites)
             expect(model.state.sessions.size).toBe(0)
+            expect(model.state.operations.size).toBe(0)
             schedules += 1
             events += model.checks
           } else
@@ -472,12 +626,12 @@ describe('M109 deterministic effect interleavings', () => {
         `M109 scheduler ${name}: ${String(schedules)} schedules, ${String(events)} invariant steps\n`,
       )
     })
-  it('seeded larger sets keep all six invariants after every event', () => {
-    let random = seed
-    let schedules = 0,
-      events = 0
-    for (let round = 0; round < 100; round += 1)
-      for (const [name, scenario] of Object.entries(scenarios)) {
+  for (const [name, scenario] of Object.entries(scenarios))
+    it(`seeded: ${name}`, () => {
+      let random = seed
+      let schedules = 0,
+        events = 0
+      for (let round = 0; round < 100; round += 1) {
         const model = prepare(scenario)
         // A larger independent set of stale status and epoch completions accompanies the safety transition.
         for (let extra = 0; extra < 4; extra += 1) model.command({ kind: 'status' })
@@ -489,7 +643,8 @@ describe('M109 deterministic effect interleavings', () => {
             choices.push(choice)
             model.complete(choice)
           }
-          expect(model.writes).toBe(0)
+          expect(model.writes).toBe(model.allowedWrites)
+          expect(model.state.operations.size).toBe(0)
           schedules += 1
           events += model.checks
         } catch (error: unknown) {
@@ -499,10 +654,10 @@ describe('M109 deterministic effect interleavings', () => {
           )
         }
       }
-    process.stdout.write(
-      `M109 scheduler seed ${String(seed)}: ${String(schedules)} schedules, ${String(events)} invariant steps\n`,
-    )
-  })
+      process.stdout.write(
+        `M109 scheduler seed ${String(seed)}, ${name}: ${String(schedules)} schedules, ${String(events)} invariant steps\n`,
+      )
+    })
   it('RVM109B3 P1-2 a queued private send has no plaintext authority after Lock', () => {
     const model = new Model()
     model.setup()
@@ -510,6 +665,19 @@ describe('M109 deterministic effect interleavings', () => {
     model.hold('release')
     model.command({ kind: 'lock', bump: true })
     model.drain()
+    expect(model.writes).toBe(0)
+  })
+  it('RVM109B4 P2-2 final release requires the current active admission', () => {
+    const model = new Model()
+    model.setup()
+    const ticket = model.redeemTicket()
+    model.drain()
+    model.material(ticket)
+    model.hold('release')
+    const effect = model.tasks.find(({ effect }) => effect.kind === 'release')!.effect
+    if (effect.kind !== 'release') throw new Error('missing queued material')
+    const withoutAdmission = { ...model.state, active: new Map() }
+    expect(() => runVaultRelease(withoutAdmission, effect, model.now)).toThrow()
     expect(model.writes).toBe(0)
   })
   it('a queued private send cannot outlive the item expiry without a timer tick', () => {

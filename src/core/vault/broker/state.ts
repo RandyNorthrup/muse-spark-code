@@ -150,7 +150,6 @@ interface Operation {
   authority?: Authority | undefined
   ticket?: VaultTicket | undefined
   session?: boolean | undefined
-  retired?: boolean
   terminalOutcome?: Row['outcome']
   result?: unknown
   reason?: Reason
@@ -163,6 +162,7 @@ interface Admission {
   token: RegistrationToken
   generation: number
   lifetime?: VaultUseLifetime
+  redeemed?: boolean
   released?: boolean | undefined
 }
 interface AuditEntry {
@@ -225,7 +225,7 @@ export type Effect =
       buffer?: Buffer | undefined
     }
   | { kind: 'audit'; operationId: string; version: number; writer: VaultAuditWriter; row: Row }
-  | { kind: 'cleanup'; owner: string; resources: Resources }
+  | { kind: 'cleanup'; owner: string; resources: Pick<Resources, 'store' | 'writer'> }
   | { kind: 'settle'; id: string; value?: unknown; error?: unknown }
   | {
       kind: 'authenticated'
@@ -360,10 +360,16 @@ function operationReason(state: BrokerState, op: Operation, now: number): Reason
 }
 export function canReleaseMaterial(state: BrokerState, tags: Tags, now: number): boolean {
   const op = state.operations.get(tags.operationId)
+  const admission = op?.ticket && state.active.get(op.ticket.id)
   return (
     state.key !== undefined &&
     isEffectCurrent(state, tags) &&
     op !== undefined &&
+    (op.command.kind !== 'material' ||
+      (admission?.redeemed === true &&
+        admission.ticket === op.ticket &&
+        admission.token === op.token &&
+        admission.generation === tags.generation)) &&
     operationReason(state, op, now) === null
   )
 }
@@ -374,7 +380,7 @@ const operationTags = (op: Operation): Tags => ({
   ...(op.token && { token: op.token }),
   ...(op.connection && { connection: op.connection }),
 })
-/** Pure synchronous transition. Resource erasure is a synchronous runner effect, before the next event. */
+/** Synchronous transition: erase plaintext before returning any removal of its ownership. */
 export function step(
   previous: BrokerState,
   event: Event,
@@ -410,7 +416,16 @@ export function step(
     effects.push({ kind: 'io', tags: operationTags(op), run })
   }
   const cleanup = (owner: string, resources: Resources): void => {
-    effects.push({ kind: 'cleanup', owner, resources })
+    resources.source?.fill(0)
+    resources.key?.fill(0)
+    resources.buffer?.fill(0)
+    if (resources.item)
+      for (const value of Object.values(resources.item.material))
+        if (value instanceof Uint8Array) value.fill(0)
+    if (resources.store)
+      effects.push({ kind: 'cleanup', owner, resources: { store: resources.store } })
+    if (resources.writer)
+      effects.push({ kind: 'cleanup', owner, resources: { writer: resources.writer } })
     state.buffers.delete(owner)
   }
   const own = (op: Operation, resources: Resources): void => {
@@ -507,6 +522,7 @@ export function step(
     entry.version += 1
     entry.terminal = outcome !== 'pending'
     entry.outcome = outcome
+    if (entry.terminal) op.terminalOutcome = outcome
     entry.waiting.add(op.id)
     op.phase = 'audit'
     effects.push({
@@ -533,6 +549,8 @@ export function step(
     reason: Reason,
     outcome: Row['outcome'] = reason === 'expired' || reason === 'locked' ? reason : 'denied',
   ): void => {
+    // A terminal operation settles its recorded liability; it cannot wait on itself.
+    if (op.command.kind === 'finish' && op.terminalOutcome !== undefined) return
     op.reason = reason
     op.result = denied(reason)
     if (state.unlockOwner === op.id) {
@@ -555,9 +573,12 @@ export function step(
     }
     if (op.request) state.pending.delete(op.request.id)
     if (['unwrap', 'open', 'writer', 'read', 'release'].includes(op.phase)) {
-      op.retired = true
-      cleanup(op.id, op.resources)
-      op.resources = {}
+      // The tag no longer has an operation owner. Late I/O can only erase its own result.
+      settle(
+        op,
+        op.command.kind === 'request' ? denied(reason) : undefined,
+        op.command.kind === 'request' ? undefined : new Error(UI_TEXT.vault.noAccess),
+      )
       return
     }
     cleanup(op.id, op.resources)
@@ -746,6 +767,7 @@ export function step(
       request: admission.request,
       authority: admission.authority,
       parent: parent?.id,
+      terminalOutcome: outcome,
     }
     state.operations.set(op.id, op)
     if (parent) state.draining.get(parent.id)?.add(op.id)
@@ -760,7 +782,6 @@ export function step(
           run: async () => ({ value: await lifetime.terminate() }),
         },
       )
-      op.terminalOutcome = outcome
     } else {
       op.result = undefined
       audit(op, 'deny', 'failClosed', outcome)
@@ -956,9 +977,11 @@ export function step(
         state.active.delete(command.ticketId)
         op.request = admission.request
         op.authority = admission.authority
-        for (const [owner, held] of state.buffers)
-          if (state.operations.get(owner)?.ticket?.id === command.ticketId)
-            cleanup(owner, held.resources)
+        if (admission.lifetime)
+          effects.push({ kind: 'closeLifetime', lifetime: admission.lifetime })
+        for (const old of state.operations.values())
+          if (old !== op && old.command.kind === 'material' && old.ticket?.id === command.ticketId)
+            fail(old, 'replay')
         audit(
           op,
           'allow',
@@ -1057,6 +1080,7 @@ export function step(
         const admission = state.active.get(command.ticketId)
         if (
           !admission ||
+          !admission.redeemed ||
           admission.released ||
           command.requesterId !== admission.token.id ||
           vaultUseDigest(command.use) !== admission.request.digest
@@ -1156,6 +1180,13 @@ export function step(
       if (op.request) state.pending.delete(op.request.id)
       makeTicket(op)
     } else if (op.command.kind === 'redeem') {
+      const ticket = requireValue(op.ticket),
+        admission = state.active.get(ticket.id)
+      if (!admission) {
+        fail(op, 'replay')
+        return
+      }
+      state.active.set(ticket.id, { ...admission, redeemed: true })
       state.lastUse = event.now
       settle(op, { kind: 'ticket', ticket: op.ticket, authority: op.authority })
     } else settle(op)
@@ -1189,6 +1220,12 @@ export function step(
             afterAudit(op)
           } else {
             effects.push({ kind: 'failure' })
+            if (op.command.kind === 'redeem' && op.ticket) {
+              const admission = state.active.get(op.ticket.id)
+              state.active.delete(op.ticket.id)
+              state.tickets.delete(op.ticket.id)
+              if (admission) terminate(admission, 'failed')
+            }
             if (op.parent) {
               const parent = state.operations.get(op.parent)
               if (parent) parent.result = event.error
@@ -1259,12 +1296,6 @@ export function step(
         )
       ) {
         cleanup(completed.operationId, result)
-        if (op?.retired)
-          settle(
-            op,
-            op.command.kind === 'request' ? denied(op.reason ?? 'locked') : undefined,
-            op.command.kind === 'request' ? undefined : new Error(UI_TEXT.vault.noAccess),
-          )
       } else if (op) {
         const phase = op.phase
         op.phase = `${phase}:completed`
@@ -1386,7 +1417,8 @@ export function step(
                     break
                   }
                   requireValue(op.resources.key).set(source)
-                  effects.push({ kind: 'cleanup', owner: op.id, resources: { source } })
+                  source.fill(0)
+                  op.resources.source = undefined
                   op.slot = vaultSlotRecordSchema.parse(result.slot)
                   const key = requireValue(op.resources.key)
                   io(op, 'open', async (deps) => ({ store: await deps.repository.open(key) }))

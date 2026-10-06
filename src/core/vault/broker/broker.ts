@@ -60,15 +60,11 @@ interface Waiter {
   reject(error: unknown): void
 }
 const id = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
-function erase(resources: Result): void {
-  resources.source?.fill(0)
-  resources.key?.fill(0)
+function erase(resources: Pick<Result, 'item' | 'buffer'>): void {
   resources.buffer?.fill(0)
   if (resources.item)
     for (const value of Object.values(resources.item.material))
       if (value instanceof Uint8Array) value.fill(0)
-  resources.store?.lock()
-  resources.writer?.close()
 }
 /** The last release boundary is a single tick: generation check, destination invocation, private wipe. */
 export function runVaultRelease(
@@ -151,15 +147,34 @@ export class VaultBroker implements VaultBrokerPort {
   private transition(event: Event): void {
     const result = step(this.state, event)
     this.state = result.state
-    // Wipes and close barriers run before callbacks or any I/O can re-enter the broker.
+    // The reducer has already wiped plaintext. Fallible effects cannot stop one another.
+    const run = (effect: Effect): void => {
+      try {
+        this.run(effect)
+      } catch {
+        try {
+          this.deps.onAuditFailure()
+        } catch {
+          // A failing host notice must not interrupt the remaining owned effects.
+        }
+      }
+    }
     for (const effect of result.effects)
-      if (effect.kind === 'cleanup') erase(effect.resources)
-      else if (effect.kind === 'closeLifetime') effect.lifetime.close()
+      if (effect.kind === 'cleanup' || effect.kind === 'closeLifetime') run(effect)
     for (const effect of result.effects)
-      if (effect.kind !== 'cleanup' && effect.kind !== 'closeLifetime') this.run(effect)
+      if (effect.kind !== 'cleanup' && effect.kind !== 'closeLifetime') run(effect)
   }
-  private run(effect: Exclude<Effect, { kind: 'cleanup' | 'closeLifetime' }>): void {
+  private run(effect: Effect): void {
     switch (effect.kind) {
+      case 'cleanup': {
+        effect.resources.store?.lock()
+        effect.resources.writer?.close()
+        return
+      }
+      case 'closeLifetime': {
+        effect.lifetime.close()
+        return
+      }
       case 'settle': {
         const waiter = this.waiters.get(effect.id)
         this.waiters.delete(effect.id)

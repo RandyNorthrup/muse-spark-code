@@ -20637,6 +20637,17 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**FIXM109B5 / RVM109B4 (2026-10-06).** Keep D90's reducer architecture and
+close all five findings: wipe plaintext synchronously in the reducer before
+removing ownership; isolate every runner effect from callback exceptions;
+revoke admission and lifetime in the failed redemption-audit step; invalidate
+in-flight material on Finish and require active admission at final release;
+record terminal outcomes in state without self-dependent audit settlement;
+retire cancelled automatic unlocks from the serialized queue immediately,
+disposing late results by tag. Each scenario gets a regression, exhaustive
+scheduler coverage and byte-exact red drill. No dependencies, guard widening,
+merge, live calls or aggregate quality run; integration remains lead-owned.
+
 **REDM109B redesign (2026-10-06).** Replace the broker's async authorization
 owner and re-validation helper with D90's synchronous reducer and tagged effect
 runner. Close all RVM109B3 probes by construction; retain named regressions from
@@ -20981,6 +20992,21 @@ only, no dependencies or live calls. Certification: `docs/certification/m109-b.m
         14 tables; budgets measured; full gate green
 
 ## 7. Gates
+
+**FIXM109B5 / RVM109B4 (2026-10-06, Mac mini).** All five findings are fixed;
+no review residual is accepted. The final restored source passes 313 tests in
+all 18 vault files at the repository-default timeout, at most three files and
+three workers per invocation. Exhaustive and seeded coverage is 518 + 1,600
+schedules, 67,368 invariant steps, seed 109003. Seeded cases run 100 rounds
+per scenario in separate tests after the combined case hit the five-second
+limit; all rounds and invariants remain. Ten named red mutations restore
+byte-exact and their source/test hashes match current files. All five typechecks,
+changed-file ESLint/Prettier, plain Knip, zero-clone jscpd, localization, schema
+drift and production build pass without changing any budget. `B-W-host-api`
+remains the same six generated Node import totals; the existing W-owned patch
+passes apply checking. Aggregate quality is prohibited in this lane by the
+brief and remains lead-owned, as do joined native/editor checks and wiring.
+Evidence: `docs/certification/m109-b.md` and `m109-b-round4-drills.json`.
 
 **REDM109B / D90 (2026-10-06, Mac mini).** The broker core is a synchronous
 reducer with tagged effects; the old queue and async re-validation implementation
@@ -22230,6 +22256,22 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM109B5 / RVM109B4 (2026-10-06).** All five findings (one P1, four P2)
+  are fixed; none is accepted as residual risk. Plaintext erasure runs inside
+  the synchronous reducer before ownership disappears. Fallible cleanup,
+  lifetime-close and host callbacks are isolated per effect. Redemption does
+  not authorize material before successful audit settlement; failed audit
+  removes the admission and closes its lifetime. Finish retires material
+  operations immediately, and final release requires the current admission.
+  Terminal outcomes are recorded in state and survive expiry while cleanup
+  settles; terminal operations cannot become their own audit dependency.
+  Cancelled automatic unlocks settle and leave the serialized queue immediately;
+  late results dispose only their tagged resources. Evidence and finite scheduler
+  limits: `docs/certification/m109-b.md` and `m109-b-round4-drills.json`.
+  Existing C/P/T/route/W bindings, Windows/editor certification, the W-owned
+  generated host API counts and joined-tree full quality remain integration
+  work. No model attempt, paid call, dependency or guard relaxation is added.
 
 - **REDM109B / D90 (2026-10-06).** The synchronous reducer and capability-bound
   effects supersede the earlier FIXM109B/FIXM109B2 authorization/cleanup claims.

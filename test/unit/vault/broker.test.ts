@@ -454,7 +454,9 @@ describe('vault broker lifetime and isolation', () => {
       waiting.resolve(undefined)
       await observed
     }
-    expect(held.every((byte) => byte === 0)).toBe(true)
+    await vi.waitFor(() => {
+      expect(held.every((byte) => byte === 0)).toBe(true)
+    })
     expect(fixture.deps.unlock.presence).not.toHaveBeenCalled()
   })
   it('lock during the final first-party metadata check rejects without returning erased material', async () => {
