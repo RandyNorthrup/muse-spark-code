@@ -19101,6 +19101,19 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**M2 review corrections (RVM105M2, 2026-10-06).** Fix all three P2 findings
+within the existing media gate/replay/host regions. Select the actual inline
+or Files route before checking its byte limit, including replay promotions.
+Restore inline-only image/PDF bytes from the approved private source after
+authorization, validating size and digest; absent bytes become an explicit
+reattach refusal part and never enter the inline encoder as metadata.
+Admission and fitting account for all undelivered media across messages and
+steering, refusing an overfull pending turn before accepted media can be
+silently omitted. Preserve the no-media request goldens. Each fix has a
+regression and a byte-exact red drill in
+`docs/certification/m105-m2-wire,-gate-and-replay-(a).md`. Existing captured
+codec/source/consent/editor bindings and W's gates remain integration handoffs.
+
 **M1 review corrections (RVM105M1, 2026-10-06).** Resolve all three findings:
 discover converters only at explicit configured paths or documented installation
 locations, require the shared StrictModes/safe_path verifier before each version

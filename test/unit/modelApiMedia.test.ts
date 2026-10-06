@@ -21,6 +21,7 @@ import {
 } from './helpers/media/replay'
 import type { MediaModelCapabilities } from '../../src/core/media/modalityGate'
 import { buildSessionExport } from '../../src/core/export/sessionTransfer'
+import { MEDIA_FILE_ID_MIN_BYTES } from '../../src/shared/constants'
 
 function isTestMissingFile(error: unknown): boolean {
   return error instanceof Error && error.message === 'file missing'
@@ -74,6 +75,56 @@ async function sendMediaTurn(h: Awaited<ReturnType<typeof setup>>): Promise<void
 }
 
 describe('Model API media integration through injected ports', () => {
+  it.each([2, MEDIA_FILE_ID_MIN_BYTES + 1])(
+    'applies the actual encoding-route limit to an image of %i bytes',
+    async (sizeBytes) => {
+      const media = {
+        ...videoMedia(),
+        name: 'photo.png',
+        info: { kind: 'image', mediaType: 'image/png', sizeBytes },
+      } as const
+      const h = await setup({
+        media,
+        model: (id) => {
+          const model = mediaModel(id)
+          return {
+            ...model,
+            modalities: {
+              ...model.modalities,
+              image: {
+                ...model.modalities.image,
+                inlineMaxBytes: 1,
+                uploadMaxBytes: MEDIA_FILE_ID_MIN_BYTES + 1,
+              },
+            },
+          }
+        },
+      })
+      try {
+        const done = h.turnDone()
+        await h.session.sendTurn([
+          { type: 'image', base64Data: 'AQI=', mediaType: 'image/png', width: 1, height: 1 },
+        ])
+        await done
+        if (sizeBytes === 2) {
+          expect(h.api.responseBodies()).toHaveLength(0)
+          expect(h.rig.ensure).not.toHaveBeenCalled()
+          expect(h.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+            terminal: 'failed',
+            reason: expect.stringContaining('exceeds'),
+          })
+        } else {
+          expect(h.api.responseBodies()).toHaveLength(1)
+          expect(h.rig.ensure).toHaveBeenCalled()
+          expect(JSON.stringify(h.api.responseBodies()[0])).toContain('test-upload:')
+          expect(JSON.stringify(h.api.responseBodies()[0])).not.toContain('AQI=')
+        }
+      } finally {
+        await h.host.close()
+      }
+    },
+  )
+
   it('sends byte-identical no-media requests with the media port installed or absent', async () => {
     const capabilities = vi.fn(() => {
       throw new Error('No media capability lookup expected')

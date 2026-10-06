@@ -1,9 +1,29 @@
 import { describe, expect, it } from 'vitest'
 import { modalityGate } from '../../src/core/media/modalityGate'
+import { MEDIA_FILE_ID_MIN_BYTES } from '../../src/shared/constants'
 import type { MediaInfo } from '../../src/shared/media'
 import { mediaModel, videoMedia } from './helpers/media/replay'
 
 describe('selected-model media gate', () => {
+  it('checks the inline limit for a small image on a Files-capable model and the upload limit for a large image', () => {
+    const model = mediaModel()
+    const limits = {
+      ...model,
+      modalities: {
+        ...model.modalities,
+        image: {
+          ...model.modalities.image,
+          inlineMaxBytes: 1,
+          uploadMaxBytes: MEDIA_FILE_ID_MIN_BYTES + 1,
+        },
+      },
+    }
+    const info: MediaInfo = { kind: 'image', mediaType: 'image/png', sizeBytes: 2 }
+    expect(modalityGate(info, limits)).toMatchObject({ ok: false })
+    expect(modalityGate({ ...info, sizeBytes: MEDIA_FILE_ID_MIN_BYTES + 1 }, limits).ok).toBe(true)
+    expect(modalityGate({ ...info, sizeBytes: MEDIA_FILE_ID_MIN_BYTES + 2 }, limits).ok).toBe(false)
+  })
+
   it('accepts captured mp4/mov and distinguishes 1.3 soundtrack from 1.2', () => {
     expect(modalityGate(videoMedia().info, mediaModel())).toMatchObject({
       ok: true,

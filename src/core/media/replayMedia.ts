@@ -139,6 +139,24 @@ export class ReplayMedia {
       : media.files?.find((file) => file.provider === model.provider)
   }
 
+  private route(
+    media: StoredMediaPart,
+    model: MediaModelCapabilities,
+    part: InputContentPart,
+  ): 'inline' | 'upload' {
+    return model.files === 'yes' &&
+      (media.file !== undefined ||
+        (media.files?.length ?? 0) > 0 ||
+        media.info.kind === 'video' ||
+        media.info.kind === 'audio' ||
+        media.info.sizeBytes > MEDIA_FILE_ID_MIN_BYTES ||
+        media.delivered === true ||
+        ((media.info.kind === 'image' || media.info.kind === 'document') &&
+          part.type === 'input_text'))
+      ? 'upload'
+      : 'inline'
+  }
+
   public beginRequest(): void {
     this.replacements.clear()
   }
@@ -153,14 +171,15 @@ export class ReplayMedia {
     if (raw === undefined) return inline
     const media = storedMediaPartSchema.parse(raw)
     const model = this.model(modelId)
-    const gate = modalityGate(media.info, model, media.fps)
+    const route = this.route(media, model, inline)
+    const gate = modalityGate(media.info, model, media.fps, route)
     if (!gate.ok) throw new Error(gate.reason)
     const content =
+      route === 'upload' ||
       media.file !== undefined ||
       (media.files?.length ?? 0) > 0 ||
       media.info.kind === 'video' ||
-      media.info.kind === 'audio' ||
-      (model.files === 'yes' && media.info.sizeBytes > MEDIA_FILE_ID_MIN_BYTES)
+      media.info.kind === 'audio'
         ? metadataPart(media)
         : inline
     this.parts.set(content, media)
@@ -197,24 +216,14 @@ export class ReplayMedia {
       const media = this.parts.get(part)
       if (media === undefined) continue
       const previousFile = this.fileFor(media, model)
-      const gate = modalityGate(media.info, model, media.fps)
+      const route = this.route(media, model, part)
+      const gate = modalityGate(media.info, model, media.fps, route)
       if (!gate.ok) continue
       if (model.files !== 'yes' && (media.file !== undefined || (media.files?.length ?? 0) > 0))
         continue
       await this.deps.authorize(media, model, gate, signal)
       signal.throwIfAborted()
-      if (
-        model.files !== 'yes' ||
-        !(
-          previousFile !== undefined ||
-          media.info.kind === 'video' ||
-          media.info.sizeBytes > MEDIA_FILE_ID_MIN_BYTES ||
-          media.delivered === true ||
-          ((media.info.kind === 'image' || media.info.kind === 'document') &&
-            part.type === 'input_text')
-        )
-      )
-        continue
+      if (route === 'inline') continue
       const approved = await this.deps.source(media, signal)
       signal.throwIfAborted()
       if (approved === undefined && previousFile === undefined)
@@ -277,7 +286,7 @@ export class ReplayMedia {
       const content = item.content.map((part): InputContentPart => {
         const media = this.parts.get(part)
         if (media === undefined) return part
-        const gate = modalityGate(media.info, model, media.fps)
+        const gate = modalityGate(media.info, model, media.fps, this.route(media, model, part))
         if (!gate.ok)
           return {
             type: 'input_text',

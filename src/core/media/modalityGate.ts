@@ -1,6 +1,6 @@
 // M95 binds this projection of its evidence-bearing selected-model record.
 // Unknown support never becomes permission to dispatch (PLAN.md D85.1).
-import { UI_TEXT } from '../../shared/constants'
+import { MEDIA_FILE_ID_MIN_BYTES, UI_TEXT } from '../../shared/constants'
 import { fill, formatBytes, formatUnit } from '../../shared/l10n/text'
 import type { MediaInfo } from '../../shared/media'
 
@@ -35,6 +35,10 @@ export function modalityGate(
   info: MediaInfo,
   model: MediaModelCapabilities,
   fps?: number,
+  route: 'inline' | 'upload' = model.files === 'yes' &&
+  (info.kind === 'video' || info.kind === 'audio' || info.sizeBytes > MEDIA_FILE_ID_MIN_BYTES)
+    ? 'upload'
+    : 'inline',
 ): MediaGateResult {
   if (info.kind === 'text') return { ok: true }
   const capability = model.modalities[info.kind]
@@ -74,7 +78,7 @@ export function modalityGate(
         { model: model.modelName },
       ),
     }
-  const maxBytes = model.files === 'yes' ? capability.uploadMaxBytes : capability.inlineMaxBytes
+  const maxBytes = route === 'upload' ? capability.uploadMaxBytes : capability.inlineMaxBytes
   if (maxBytes !== undefined && info.sizeBytes > maxBytes)
     return { ok: false, reason: fill(UI_TEXT.media.sizeExceeded, { size: formatBytes(maxBytes) }) }
   if ('durationSeconds' in info && capability.maxDurationSeconds !== undefined) {

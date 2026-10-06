@@ -16,6 +16,37 @@ import { replayLedgerRig } from './helpers/media/replayLedger'
 const signal = (): AbortSignal => new AbortController().signal
 
 describe('media replay and metadata persistence', () => {
+  it('checks the upload limit after promoting a delivered small inline image', async () => {
+    const media = {
+      ...videoMedia(),
+      name: 'small.png',
+      info: { kind: 'image', mediaType: 'image/png', sizeBytes: 2 },
+    } as const
+    const rig = replayRig(media, {
+      capabilities: (id) => {
+        const model = mediaModel(id)
+        return {
+          ...model,
+          modalities: {
+            ...model.modalities,
+            image: { ...model.modalities.image, inlineMaxBytes: 2, uploadMaxBytes: 1 },
+          },
+        }
+      },
+    })
+    expect(JSON.stringify(rig.replay.project(rig.input, 'muse-spark-1.3', rig.budget))).toContain(
+      'MEDIA_BYTE_CANARY',
+    )
+    rig.replay.delivered(rig.input)
+    await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
+    expect(rig.ensure).not.toHaveBeenCalled()
+    expect(rig.authorize).not.toHaveBeenCalled()
+    expect(rig.encodeInline).toHaveBeenCalledTimes(1)
+    expect(
+      JSON.stringify(rig.replay.project(rig.input, 'muse-spark-1.3', rig.budget)),
+    ).not.toContain('MEDIA_BYTE_CANARY')
+  })
+
   it('never falls back to base64 for an uploaded file when the selected model cannot use Files', async () => {
     const media = {
       ...videoMedia(),

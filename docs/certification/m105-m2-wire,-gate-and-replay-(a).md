@@ -285,3 +285,28 @@ source was restored byte-exact, before/after SHA-256 `b64bf711f94a853e348bb23f3c
 The prior 72 control hashes remain the exact control-time records.
 
 The recording follow-up also passed all five typecheck projects, the replay/host/golden batch (55 tests), the gate/budget/store batch (40 tests), changed-file ESLint/Prettier, localization, and zero-clone duplication. Production compilation passed with the same deferred-JS blocker and the final sizes above. The earlier complete host regression file contributes the remaining 615 tests; host dispatch code was unchanged by this schema-only follow-up.
+
+## RVM105M2 corrections — 2026-10-06, Kubuntu
+
+### P2 actual encoding-route byte limit
+
+The gate selects inline/upload before checking the corresponding capability
+limit. Replay passes its selected route explicitly, including promotion of
+delivered small images and restored metadata to Files. Small inline images
+on Files-capable models cannot use the larger upload allowance.
+
+Regressions: **checks the inline limit for a small image on a Files-capable
+model and the upload limit for a large image**, **applies the actual
+encoding-route limit to an image of 2 bytes**, its large-image case, and
+**checks the upload limit after promoting a delivered small inline image**.
+The first test failed before the fix. The gate/replay/host-media batch then
+passed **54 tests**, three complete files with repository default timeouts.
+
+Red drill: restore the old `model.files === 'yes'` byte-limit selector in
+`modalityGate.ts`. All three named small-image regressions failed (exit 1);
+the large-image case stayed green. Restored byte-exact, before/after SHA-256
+`fb4ad3383de79f80213aa0e584f3c5257fb59ef53d3285f34f09eb1b21a2f14c`.
+Scratch log: `temp/m105m2-fix-route-red.log`.
+
+The inline restore and cumulative pending-media findings are the remaining
+authorized corrections in this lane; their completion records follow below.
