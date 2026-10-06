@@ -6,7 +6,7 @@
 // focus through a "Show archived" toggle too (M25): the switch used to take
 // it, and the arrows, Enter and Esc stopped working until the next click.
 
-import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type KeyboardEvent, type MouseEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
 import {
@@ -45,6 +45,10 @@ const ROW_ID_PREFIX = 'history-row-'
 // Archives or restores the highlighted row from the search box (M37).
 const ARCHIVE_KEY = 'Delete'
 const DELETE_SHORTCUT = 'Shift+Delete'
+
+function keepSearchFocus(event: MouseEvent<HTMLElement>): void {
+  event.preventDefault()
+}
 
 /** What the list renders: group titles and numbered rows, in order. */
 export type HistoryEntry =
@@ -100,9 +104,10 @@ function RowView({
   readonly onHover: () => void
   readonly onResume: () => void
   readonly onSetArchived: (isArchived: boolean) => void
-  readonly onDelete: (() => void) | undefined
+  readonly onDelete: ((sessionId: string) => void) | undefined
 }) {
   const archiveLabel = isRowArchived ? UI_TEXT.historyUnarchive : UI_TEXT.historyArchive
+  const deletionLabel = UI_TEXT.memoryDeleteAction
   return (
     <PaletteSessionRow
       rowId={`${ROW_ID_PREFIX}${row.sessionId}`}
@@ -112,11 +117,7 @@ function RowView({
       meta={meta}
       // The row is the control: Delete (un)archives it from the search box.
       keyShortcuts={onDelete === undefined ? ARCHIVE_KEY : `${ARCHIVE_KEY} ${DELETE_SHORTCUT}`}
-      keyDescription={
-        onDelete === undefined
-          ? archiveLabel
-          : `${archiveLabel} (${ARCHIVE_KEY}) · ${UI_TEXT.memoryDeleteAction} (${DELETE_SHORTCUT})`
-      }
+      keyDescription={onDelete === undefined ? archiveLabel : `${archiveLabel} · ${deletionLabel}`}
       action={
         <>
           {/* For the mouse only: a button inside an option is still reachable by
@@ -125,9 +126,7 @@ function RowView({
             className="icon-button history-archive"
             title={`${archiveLabel} (${ARCHIVE_KEY})`}
             aria-hidden="true"
-            onMouseDown={(event) => {
-              event.preventDefault()
-            }}
+            onMouseDown={keepSearchFocus}
             onClick={(event) => {
               event.stopPropagation()
               onSetArchived(!isRowArchived)
@@ -137,18 +136,16 @@ function RowView({
           </span>
           {onDelete !== undefined && (
             <span
-              className="icon-button history-archive history-delete"
-              title={`${UI_TEXT.memoryDeleteAction} (${DELETE_SHORTCUT})`}
+              className="icon-button history-archive"
+              title={`${deletionLabel} (${DELETE_SHORTCUT})`}
               aria-hidden="true"
-              onMouseDown={(event) => {
-                event.preventDefault()
-              }}
+              onMouseDown={keepSearchFocus}
               onClick={(event) => {
                 event.stopPropagation()
-                onDelete()
+                onDelete(row.sessionId)
               }}
             >
-              {UI_TEXT.memoryDeleteAction}
+              {deletionLabel}
             </span>
           )}
         </>
@@ -260,13 +257,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
               onSetArchived={(isRowArchived) => {
                 onSetArchived(entry.row.sessionId, isRowArchived)
               }}
-              onDelete={
-                onDelete === undefined
-                  ? undefined
-                  : () => {
-                      onDelete(entry.row.sessionId)
-                    }
-              }
+              onDelete={onDelete}
             />
           ),
         )}
@@ -299,13 +290,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
           }}
           onKeyDown={handleKeyDown}
         />
-        <label
-          className="history-toggle"
-          onMouseDown={(event) => {
-            // A click toggles the switch without taking the focus.
-            event.preventDefault()
-          }}
-        >
+        <label className="history-toggle" onMouseDown={keepSearchFocus}>
           <input
             type="checkbox"
             checked={isShowingArchived}

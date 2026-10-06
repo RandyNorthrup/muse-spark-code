@@ -120,6 +120,9 @@ from the lock uses that SDK; the immutable inherited install on this rig
 was not overwritten. Lead aggregate quality, accessibility of the bound
 dialog, actual shipped lazy chunks and cross-editor bridges remain the
 integration gates. No cap, timeout, lint level or ignore was changed.
+The isolated SDK 1.4.2 production build passes all existing gates, but the
+deferred webview total leaves only 17 bytes. The unbound feedback dialog is
+not in that total; fit it and the other added optional UI within the caps.
 
 The [upstream media draft](m106-sdk-media-parts.md) is ready for the lead's
 dedupe search and comment on
