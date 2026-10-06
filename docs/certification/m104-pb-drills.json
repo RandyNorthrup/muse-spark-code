@@ -721,5 +721,12 @@
     "exitCode": 1,
     "sha256Before": "7592686385e4695e4c91518a7115969756c72e4aa03f99a2b78b3bfaeb5adadf",
     "sha256Restored": "7592686385e4695e4c91518a7115969756c72e4aa03f99a2b78b3bfaeb5adadf"
+  },
+  {
+    "drill": "workflow-captured-data",
+    "file": "src/core/backends/musecode/sessionRecords.ts",
+    "exitCode": 1,
+    "sha256Before": "d3d7f7a1410c1d0eea7db5e9dc38fdc165af5c4e814d7b89a936a07f113c03f0",
+    "sha256Restored": "d3d7f7a1410c1d0eea7db5e9dc38fdc165af5c4e814d7b89a936a07f113c03f0"
   }
 ]

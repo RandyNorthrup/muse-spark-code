@@ -438,3 +438,17 @@ For F6, supply `RuntimeBackendDeps.autoReviewer(root)` in interactive panel
 construction. The backend shares the owner, the actual engines contribution
 publishes `features.museCodeReviewer`, and backend close drains it. Do not
 construct it for ACP/exec. F owns the matching PLAN/Unreleased/help update.
+
+### A/C/D/E/F — F18 captured workflow path and missing orchestration
+
+The actual runtime→MuseCodeHost→shared-event workflow path now has owned
+captured seven-revision tests, malformed-row refusal and open status evidence.
+C should consume existing ItemSnapshot/workflowDetails/WorkflowRun, preserving
+IDs, child usage/result refs and reconciled output. No new event shape is
+needed for this read-only path. Native/editor qualification remains open.
+The Model API backend has no workflow orchestration/tool contract in this base.
+A must deliver its internal tool/schema/model-text contract and captured
+selected-model tool capabilities; C supplies grouped run presentation. A
+new orchestration implementation needs a separately sized checkpoint under
+the shared 300-line rule. No provider wire is invented, and the native Muse
+workflow setting still belongs to Muse Code; the extension never edits it.
