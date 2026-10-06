@@ -159,7 +159,7 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
-  if (argv[0] === 'providers' && argv[2] === 'chatgpt') {
+  if (argv[0] === 'providers' && (argv[2] === 'chatgpt' || argv[2] === 'copilot')) {
     const action = parseChatGptProviderAction(argv)
     return action === undefined
       ? { command: 'invalid', reason: UI_TEXT.acpChatGpt.usage }

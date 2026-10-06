@@ -20379,6 +20379,18 @@ reference generator and check script remain a lead integration prerequisite.
 Actual suites, caps, drills and the final quality tail are recorded in
 `docs/certification/m95-r3.md`, round 5.
 
+The sole R5 aggregate run on `003e55f2` exits 1: all static gates pass;
+coverage reports 31 failures in 12 files (12,244 passing, 99 existing skips).
+Repair the confirmed stream-payload redaction, legacy resolved-origin,
+structural Tab error and command-parser regressions without changing their
+assertions. Pin native Windows tar in the remaining package fixture.
+Executable content keeps its syntax while exact request-key echoes, including
+JSON-escaped keys, are removed; diagnostics keep the full scrub. Continue only
+complete owning suites and individual gates; the brief forbids a second
+aggregate wrapper. Record the four checkpoint shutdown failures and five
+package timeouts honestly, even if scoped reruns pass. Final aggregate
+coverage and release certification remain a lead prerequisite.
+
 **FIXM95N scoped proof and delegation (2026-10-05).** The user-invoked
 FIXM95N/common.md brief forbids a full quality run in this lane and delegates
 combined certification to the lead. All seven review findings are fixed:

@@ -204,7 +204,7 @@ export class CodecClient implements ProviderClient {
     }
     const model = this.deps.modelFor(body.model)
     const request = this.deps.codec.encode(body, model)
-    const { response, redact, eventParsed } = await this.transport.streamRequest(
+    const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
       request.path,
       {
         body: request.body,
@@ -221,9 +221,15 @@ export class CodecClient implements ProviderClient {
     try {
       for await (const event of this.deps.codec.decode(response, model)) {
         const parsed = parseCanonicalEvent(event)
-        const safe: unknown = JSON.parse(JSON.stringify(parsed), (_key, value: unknown) =>
-          typeof value === 'string' ? redact(value) : value,
-        )
+        // Arguments are executable payloads, not diagnostic text. Retain
+        // their bytes while keeping the codec's ordinary output redaction.
+        const safe: unknown = JSON.parse(JSON.stringify(parsed), (key, value: unknown) => {
+          if (typeof value !== 'string') return value
+          const isExecutable =
+            key === 'arguments' ||
+            (key === 'delta' && parsed.type === 'response.function_call_arguments.delta')
+          return isExecutable ? redactContent(value) : redact(value)
+        })
         const validated = parseCanonicalEvent(safe)
         eventParsed()
         yield validated

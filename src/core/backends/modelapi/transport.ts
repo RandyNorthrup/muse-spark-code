@@ -25,6 +25,7 @@ import {
 import { redactSecrets } from '../../redact'
 export { redactSecrets } from '../../redact'
 import { errorBodySchema } from './schemas'
+import type { StreamEvent } from './schemas'
 import type { AuthHeaders, AuthSource } from './authSource'
 import { DeadlineError, withDeadline } from '../../timeouts'
 
@@ -53,6 +54,8 @@ export interface TransportResponse {
   readonly response: Response
   /** Exact credential redaction remains scoped to this response's lifetime. */
   readonly redact: (text: string) => string
+  /** Exact request credentials only, for executable and ordinary content. */
+  readonly redactContent: (text: string) => string
 }
 
 export interface TransportStreamResponse extends TransportResponse {
@@ -138,16 +141,50 @@ export class ModelApiError extends Error {
 export function isModelApiError(value: unknown): value is ModelApiError {
   return (
     value instanceof ModelApiError ||
-    (value instanceof Error &&
+    (typeof value === 'object' &&
+      value !== null &&
+      'name' in value &&
       (value.name === 'ModelApiError' || value.name === 'CredentialOriginError') &&
+      'message' in value &&
+      typeof value.message === 'string' &&
       'status' in value &&
       typeof value.status === 'number' &&
       Number.isFinite(value.status) &&
-      'kind' in value &&
-      (value.kind === undefined || typeof value.kind === 'string') &&
-      'code' in value &&
-      (value.code === undefined || typeof value.code === 'string'))
+      (!('kind' in value) || value.kind === undefined || typeof value.kind === 'string') &&
+      (!('code' in value) || value.code === undefined || typeof value.code === 'string'))
   )
+}
+
+/** Diagnostics cross the privacy boundary; executable/model content stays intact. */
+export function redactStreamDiagnostics(
+  event: StreamEvent,
+  redact: (text: string) => string,
+): StreamEvent {
+  if (event.type === 'error') {
+    return {
+      ...event,
+      message: redact(event.message),
+      ...(typeof event.code === 'string' && { code: redact(event.code) }),
+    }
+  }
+  if (!('response' in event)) return event
+  const { error, incomplete_details: incomplete } = event.response
+  return {
+    ...event,
+    response: {
+      ...event.response,
+      ...(error != null && {
+        error: {
+          ...error,
+          message: redact(error.message),
+          ...(typeof error.code === 'string' && { code: redact(error.code) }),
+        },
+      }),
+      ...(incomplete?.reason !== undefined && {
+        incomplete_details: { ...incomplete, reason: redact(incomplete.reason) },
+      }),
+    },
+  }
 }
 
 /** Use at every adapter/error boundary, including a parser that throws while reading headers. */
@@ -651,7 +688,18 @@ export class RequestTransport {
         this.deps.log.trace(
           `Model API ${init.method} ${credentials.redact(path)} answered ${String(response.status)} in ${String(this.deps.now() - startedAt)} ms`,
         )
-        return { response, redact: credentials.redact }
+        const secrets = Object.entries(credentials.values)
+          .filter(([name]) =>
+            ['authorization', 'x-api-key', 'x-goog-api-key', 'api-key'].includes(
+              name.toLowerCase(),
+            ),
+          )
+          .map(([, value]) => (value.startsWith('Bearer ') ? value.slice('Bearer '.length) : value))
+        return {
+          response,
+          redact: credentials.redact,
+          redactContent: (text) => redactSecrets(text, secrets, false),
+        }
       }
       const failure = await describeFailure(response, this.deps.parseError, credentials.redact)
       if (

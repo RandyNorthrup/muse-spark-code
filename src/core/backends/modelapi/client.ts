@@ -13,6 +13,7 @@ import {
   ModelApiError,
   parseJsonResponse,
   redactModelApiError,
+  redactStreamDiagnostics,
   type ConfirmedModelRequest,
   type ResponseAttemptGuard,
   type RetryBudget,
@@ -62,6 +63,7 @@ export type ProviderClient = Pick<
   ModelApiClient,
   Exclude<keyof ModelApiClient, 'provider' | 'capabilities'>
 > & {
+  readonly provider?: TransportProviderClient['provider']
   readonly models?: ModelResolver
   readonly modelContextLimit?: (model: string) => number | undefined
   readonly isPlanModel?: (model: string) => boolean
@@ -260,7 +262,7 @@ export class ModelApiClient implements TransportProviderClient {
           )
     const paid = claim === undefined ? undefined : { claim, isSent: false }
     try {
-      const { response, redact, eventParsed } = await this.transport.streamRequest(
+      const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
         '/responses',
         { body, accept: EVENT_STREAM_MEDIA_TYPE, ...(paid !== undefined && { paid }) },
         signal,
@@ -300,11 +302,12 @@ export class ModelApiClient implements TransportProviderClient {
             )
           }
           json = JSON.parse(JSON.stringify(json), (_key, value: unknown) =>
-            typeof value === 'string' ? redact(value) : value,
+            typeof value === 'string' ? redactContent(value) : value,
           )
           const known = streamEventSchema.safeParse(json)
           if (known.success) {
             eventParsed()
+            const event = redactStreamDiagnostics(known.data, redact)
             if (
               claim !== undefined &&
               ['response.completed', 'response.incomplete', 'response.failed'].includes(
@@ -337,7 +340,7 @@ export class ModelApiClient implements TransportProviderClient {
                 )
               }
             }
-            yield known.data
+            yield event
             continue
           }
           const typed = eventTypeSchema.safeParse(json)

@@ -167,7 +167,7 @@ export function metaResolvedModel(ref: string, client: ProviderClient): Resolved
   return {
     ref,
     client,
-    origin: new URL(MODEL_API_BASE_URL).origin,
+    origin: client.provider?.origin ?? new URL(MODEL_API_BASE_URL).origin,
     policy,
     price: { reserve: estimate, settle: estimate },
     isCurrent: () => true,

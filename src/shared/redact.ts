@@ -414,7 +414,7 @@ function redactPatterns(text: string, matched?: () => void, cuts?: SliceCut[]): 
  * legacy key's tail after the `%` its pattern stops at.
  */
 function literalForms(literal: string): string[] {
-  const forms = [literal]
+  const forms = [literal, JSON.stringify(literal).slice(1, -1)]
   try {
     forms.push(encodeURIComponent(literal))
   } catch {
@@ -427,7 +427,12 @@ function literalForms(literal: string): string[] {
   return forms
 }
 
-function redactWith(text: string, literals: readonly string[], matched?: () => void): string {
+function redactWith(
+  text: string,
+  literals: readonly string[],
+  matched?: () => void,
+  shouldIncludePatterns = true,
+): string {
   let result = text
   const ordered = [
     ...new Set(literals.filter((value) => value !== '').flatMap((value) => literalForms(value))),
@@ -438,12 +443,19 @@ function redactWith(text: string, literals: readonly string[], matched?: () => v
       return REDACTED_MARK
     })
   }
-  return redactPatterns(result, matched)
+  return shouldIncludePatterns ? redactPatterns(result, matched) : result
 }
 
-/** Exact run keys precede patterns, including legacy keys containing percent signs. */
-export function redactSecrets(text: string, literals: readonly string[] = []): string {
-  return redactWith(text, literals)
+/**
+ * Exact run keys precede patterns, including legacy keys containing percent
+ * signs. Executable payloads omit patterns to preserve their syntax.
+ */
+export function redactSecrets(
+  text: string,
+  literals: readonly string[] = [],
+  shouldIncludePatterns = true,
+): string {
+  return redactWith(text, literals, undefined, shouldIncludePatterns)
 }
 
 /** Counts only changed, nonoverlapping matches in the same order as redaction. */

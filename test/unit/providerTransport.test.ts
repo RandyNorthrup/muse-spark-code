@@ -116,6 +116,38 @@ function codecDeps(overrides: Partial<CodecClientDeps> = {}): CodecClientDeps {
 }
 
 describe('shared provider transport', () => {
+  it.each(['meta', 'codec'])('preserves executable and ordinary content on %s', async (kind) => {
+    const argumentsText = JSON.stringify({ apiKey: 'literal placeholder', content: KEY })
+    const events: StreamEvent[] = [
+      { type: 'response.function_call_arguments.delta', item_id: 'f', delta: argumentsText },
+      { type: 'response.function_call_arguments.done', item_id: 'f', arguments: argumentsText },
+      { type: 'response.output_text.delta', item_id: 'm', delta: 'ordinary answer' },
+    ]
+    const fetch = () =>
+      Promise.resolve(
+        new Response(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('')),
+      )
+    const client =
+      kind === 'meta'
+        ? new ModelApiClient({ ...deps({ fetch }), apiKey: () => Promise.resolve(KEY) })
+        : new CodecClient(codecDeps({ transport: deps({ fetch }) }))
+    const expected = events.map((event) => {
+      if (event.type === 'response.function_call_arguments.delta')
+        return {
+          ...event,
+          delta: argumentsText.replace(JSON.stringify(KEY).slice(1, -1), '[redacted]'),
+        }
+      if (event.type === 'response.function_call_arguments.done')
+        return {
+          ...event,
+          arguments: argumentsText.replace(JSON.stringify(KEY).slice(1, -1), '[redacted]'),
+        }
+      return event
+    })
+    expect(
+      await Array.fromAsync(client.streamResponse(body, new AbortController().signal)),
+    ).toEqual(expected)
+  })
   it('requires an endpoint verifier for every injected auth source', () => {
     const auth = codecDeps().auth
     expect(() => new RequestTransport(deps({ auth }))).toThrow('endpoint_verifier_required')

@@ -17,6 +17,12 @@ import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const roots: string[] = []
+// Drive-letter archive names require native bsdtar; Git's GNU tar treats
+// their colon as a remote host when Git Bash is on the hook PATH.
+const TAR =
+  process.platform === 'win32'
+    ? path.join(process.env['SystemRoot'] ?? String.raw`C:\Windows`, 'System32', 'tar.exe')
+    : 'tar'
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((dir) => removeFolder(dir)))
 })
@@ -98,7 +104,7 @@ describe('ChatGPT ACP package', () => {
     const run = pack(dir)
     expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0)
     const archive = path.join(dir, 'dist/muse-spark-code-acp-0.0.0.tgz')
-    const extracted = spawnSync('tar', ['-xOzf', archive, 'package/dist/runtime.bundles.json.br'])
+    const extracted = spawnSync(TAR, ['-xOzf', archive, 'package/dist/runtime.bundles.json.br'])
     expect(extracted.status, extracted.stderr.toString()).toBe(0)
     const members = z
       .object({ bundles: z.record(z.string(), z.string()) })

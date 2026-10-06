@@ -20,6 +20,9 @@ happened, not what was planned; superseded entries are kept.
 - Join the configured providers to the shared request transport: origin-bound
   credentials, redirect refusal, bounded framing, parser redaction and event
   progress deadlines. Meta's request bytes remain unchanged.
+  Redact stream failure diagnostics while preserving executable arguments
+  and model content. Bind legacy review consent to the client's actual origin
+  and recognize errors structurally across lazy bundles.
 
 - Include the lazy subscription and configured-provider bundles in the VSIX
   allowlist and keep crash-report frames aligned with the packaged files.
