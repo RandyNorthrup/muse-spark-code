@@ -74,6 +74,34 @@ describe('bundled What’s New content budget', () => {
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
   })
 
+  it.each([
+    ['deferred JS', 50, 'src/webview/components/HistoryDialog.tsx'],
+    ['code highlighting', 125, 'src/webview/components/HighlightedCode.tsx'],
+    ['action dialogs', 25, 'src/webview/components/ShareView.tsx'],
+    ['tasks tab', 25, 'src/webview/TasksApp.tsx'],
+  ])(
+    'enforces the %s cap without widening the original deferred allowance',
+    async (name, cap, entryPoint) => {
+      const chunk = 'dist/webview/chunks/optional.js'
+      readFileSync.mockReturnValue(
+        JSON.stringify({
+          outputs: {
+            'dist/webview/main.js': { imports: [{ path: chunk, kind: 'dynamic-import' }] },
+            [chunk]: { imports: [], entryPoint },
+          },
+        }),
+      )
+      statSync.mockImplementation((file) => ({ size: file === chunk ? cap * 1024 : 0 }))
+      await import('../../scripts/check-bundle-size.mjs')
+      expect(console.log).toHaveBeenCalledWith(
+        `ok   dist/webview ${name}: ${cap}.0 KiB (budget ${cap} KiB)`,
+      )
+      vi.resetModules()
+      statSync.mockImplementation((file) => ({ size: file === chunk ? cap * 1024 + 1 : 0 }))
+      await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    },
+  )
+
   it('admits exactly 40 KiB of raw JSON', async () => {
     await import('../../scripts/check-bundle-size.mjs')
     expect(console.log).toHaveBeenCalledWith('ok   dist/whatsNew.json: 40.0 KiB (budget 40 KiB)')

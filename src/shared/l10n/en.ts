@@ -2350,11 +2350,8 @@ export const EN = {
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
-  ].join('\n'),
-  // The Setup hooks' command (M91, PLAN.md D70); {command}: the executable's
-  // name. Lane E adds it to the usage above with the command.
-  acpUsageSetup:
     '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',
+  ].join('\n'),
   // Report a problem headless (M93 lane A, PLAN.md D72): `report --help`
   // and bad report arguments print this on stderr, never the report itself.
   // {command}: the executable's name. <file> and <text> stay as typed.

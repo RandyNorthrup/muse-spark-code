@@ -67,9 +67,7 @@ import { GoalPanel } from './components/GoalPanel'
 import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
 import { SetupBanner } from './components/SetupBanner'
-import { HandoffDialog } from './components/HandoffDialog'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
-import { SecretPromptDialog } from './components/SecretPromptDialog'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import { Palette, type PaletteKeys, type PaletteView } from './components/Palette'
@@ -101,8 +99,6 @@ import {
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
-import { SessionBoardDialog } from './components/SessionBoardDialog'
-import { ShareView } from './components/ShareView'
 import { DeferredSurface } from './components/DeferredSurface'
 
 const HistoryDialog = lazy(async () => {
@@ -124,6 +120,26 @@ const BestOfNDialog = lazy(async () => {
 const ReviewPane = lazy(async () => {
   const module = await import('./components/ReviewPane')
   return { default: module.ReviewPane }
+})
+
+const HandoffDialog = lazy(async () => {
+  const { HandoffDialog } = await import('./components/HandoffDialog')
+  return { default: HandoffDialog }
+})
+
+const SecretPromptDialog = lazy(async () => {
+  const { SecretPromptDialog } = await import('./components/SecretPromptDialog')
+  return { default: SecretPromptDialog }
+})
+
+const SessionBoardDialog = lazy(async () => {
+  const { SessionBoardDialog } = await import('./components/SessionBoardDialog')
+  return { default: SessionBoardDialog }
+})
+
+const ShareView = lazy(async () => {
+  const { ShareView } = await import('./components/ShareView')
+  return { default: ShareView }
 })
 
 export interface AppProps {
@@ -2309,8 +2325,8 @@ export function App({
         {reviewPane}
         {bestOfN}
       </DeferredSurface>
-      {handoffDialog}
-      {secretPromptDialog}
+      <DeferredSurface onClose={onHandoffCancel}>{handoffDialog}</DeferredSurface>
+      <DeferredSurface onClose={onSecretPromptDismiss}>{secretPromptDialog}</DeferredSurface>
       {reportDialog}
       {state.share === undefined ? null : (
         <DeferredSurface onClose={onCloseShare}>

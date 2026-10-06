@@ -756,6 +756,7 @@ describe('round-3 contract corrections', () => {
   it('R3-10 the generic entry accepts the import record shape', () => {
     const viaRecord = buildForeignStdin('cursor', 'PreToolUse', shell, {
       sourceEvent: 'beforeShellExecution',
+      platform: 'linux',
     })
     expect(viaRecord).toEqual(
       cursorIn('PreToolUse', shell, { sourceEvent: 'beforeShellExecution' }),

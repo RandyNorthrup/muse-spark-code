@@ -7,6 +7,7 @@
 // which can be truncated). The declared tool description and schema never
 // change (SoL-Pi rule 1); `then_run` and `run_checks` still run at the root.
 
+import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -647,12 +648,39 @@ describe('the kept shell directory on Windows', () => {
     await cdSubTurn(harness)
     await shellTurn(harness, 'cd deeper', 's2', 'deeper', 'Go deeper.')
     const wroot = harness.root.replaceAll('/', '\\')
-    expectCwds(harness, [harness.root, String.raw`${wroot}\sub`])
+    expectCwds(harness, [wroot, String.raw`${wroot}\sub`])
     // The executed lines carry the PowerShell trailer.
     expect(harness.io.shellCalls[0]?.command).toContain('[System.IO.File]::WriteAllText')
     expectOutputEnd(harness, 3, 's2', directoryTail('sub/deeper'))
     await harness.host.close()
   })
+
+  it.each(['short', 'long'] as const)(
+    'canonicalizes a %s workspace root and either reported spelling',
+    async (spelling) => {
+      const shortRoot = String.raw`C:\Users\RUNNER~1\AppData\Local\Temp\m91s-real-hMTrCE`
+      const longRoot = String.raw`C:\Users\runneradmin\AppData\Local\Temp\m91s-real-hMTrCE`
+      const root = spelling === 'short' ? shortRoot : longRoot
+      const otherRoot = spelling === 'short' ? longRoot : shortRoot
+      const harness = await setupShell({ platform: 'win32', root })
+      harness.io.realPath = (absolutePath) =>
+        Promise.resolve(absolutePath.replace(shortRoot, () => longRoot))
+      await shellTurn(harness, String.raw`cd '${otherRoot}\sub'`, 's1', 'moved', 'Go to sub.')
+      await pwdTurn(harness, 's2')
+      expectCwds(harness, [longRoot, String.raw`${longRoot}\sub`])
+      expectOutputEnd(harness, 1, 's1', directoryTail('sub'))
+      expectOutputEnd(harness, 3, 's2', directoryTail('sub'))
+      expect(toolRows(harness).map((row) => row.visibleOutput)).toEqual([
+        `[exit code 0]\n${directoryTail('sub')}`,
+        `[exit code 0]\n${directoryTail('sub')}`,
+      ])
+      await shellTurn(harness, `cd '${otherRoot}'`, 's3', 'back', 'Go back.')
+      expect(modelOutputs(harness, 5).get('s3')).toBe('[exit code 0]')
+      await pwdTurn(harness, 's4')
+      expect(harness.io.shellCalls.at(-1)?.cwd).toBe(longRoot)
+      await harness.host.close()
+    },
+  )
 
   it.each([
     ['a UNC path', String.raw`cd \\server\share`, String.raw`\\server\share`],
@@ -661,10 +689,11 @@ describe('the kept shell directory on Windows', () => {
   ])('resets to the root with a note: %s', async (_name, command, outside) => {
     const harness = await setupShell({ platform: 'win32' })
     await shellTurn(harness, command, 's1', 'out', 'Go out.')
-    expectCwds(harness, [harness.root])
+    const wroot = path.win32.normalize(harness.root)
+    expectCwds(harness, [wroot])
     expectOutputEnd(harness, 1, 's1', fill(UI_TEXT.shellDirectoryReset, { path: outside }))
     await pwdTurn(harness, 's2')
-    expectCwds(harness, [harness.root, harness.root])
+    expectCwds(harness, [wroot, wroot])
     await harness.host.close()
   })
 
@@ -673,7 +702,7 @@ describe('the kept shell directory on Windows', () => {
     await cdSubTurn(harness)
     await shellTurn(harness, 'cd C:other', 's2', 'stayed', 'Go drive-relative.')
     const wroot = harness.root.replaceAll('/', '\\')
-    expectCwds(harness, [harness.root, String.raw`${wroot}\sub`])
+    expectCwds(harness, [wroot, String.raw`${wroot}\sub`])
     expectOutputEnd(harness, 3, 's2', directoryTail('sub'))
     await harness.host.close()
   })
@@ -684,7 +713,18 @@ describe('the kept shell directory through a real shell', () => {
     const platform = process.platform
     const shellName = shellToolFor(platform).name
     const base = mkdtempSync(path.join(tmpdir(), 'm91s-real-'))
-    const root = realpathSync(base)
+    const canonicalRoot = platform === 'win32' ? realpathSync.native(base) : realpathSync(base)
+    // Windows may disable 8.3 creation. The injected cases above still cover
+    // CI's exact aliases; where available this drives the real short path.
+    const short =
+      platform === 'win32'
+        ? spawnSync('cmd.exe', ['/d', '/c', `for %I in ("${base}") do @echo %~sI`], {
+            encoding: 'utf8',
+            windowsVerbatimArguments: true,
+          })
+        : undefined
+    if (short !== undefined) expect(short.status).toBe(0)
+    const root = short?.stdout.trim() ?? canonicalRoot
     mkdirSync(path.join(root, 'sub'))
     const sidecar = mkdtempSync(path.join(tmpdir(), 'm91s-real-sidecar-'))
     cleanups.push(() => {
@@ -740,14 +780,18 @@ describe('the kept shell directory through a real shell', () => {
       await started.sendTurn([{ type: 'text', text }])
       await turnDone()
     }
-    api.script({ calls: [shellCall(shellName, 'cd sub', 's1')] }, { text: 'moved' })
+    const cdSub =
+      platform === 'win32'
+        ? `cd sub; cd '${path.join(root, 'sub').replaceAll("'", "''")}'`
+        : 'cd sub'
+    api.script({ calls: [shellCall(shellName, cdSub, 's1')] }, { text: 'moved' })
     await runRealTurn('Go to sub.')
     const here = platform === 'win32' ? '(Get-Location).Path' : 'pwd'
     api.script({ calls: [shellCall(shellName, here, 's2')] }, { text: 'there' })
     await runRealTurn('Where are you?')
     const p = pathApi(platform)
     // The second command really started in the subdirectory…
-    expect(cwds).toEqual([root, p.join(root, 'sub')])
+    expect(cwds).toEqual([canonicalRoot, p.join(canonicalRoot, 'sub')])
     const tail = fill(UI_TEXT.shellDirectory, { path: 'sub' })
     // …the trailer stayed out of the output, and the tail names it.
     for (const visible of rows()) {
@@ -760,17 +804,17 @@ describe('the kept shell directory through a real shell', () => {
     // …a real `cd ..` comes back to the root silently…
     api.script({ calls: [shellCall(shellName, 'cd ..', 's3')] }, { text: 'back' })
     await runRealTurn('Go back.')
-    expect(cwds[2]).toBe(p.join(root, 'sub'))
+    expect(cwds[2]).toBe(p.join(canonicalRoot, 'sub'))
     expect(responseOutputsByCall(api, 5).get('s3')).toBe('[exit code 0]')
     // …a second one leaves the workspace and resets with a note…
     api.script({ calls: [shellCall(shellName, 'cd ..', 's4')] }, { text: 'out' })
     await runRealTurn('Go up.')
-    expect(cwds[3]).toBe(root)
+    expect(cwds[3]).toBe(canonicalRoot)
     expect(responseOutputsByCall(api, 7).get('s4')).toMatch(/is outside the workspace\.\s*$/)
     // …and an exit code survives the trailer at the root, with no tail.
     api.script({ calls: [shellCall(shellName, 'exit 3', 's5')] }, { text: 'left' })
     await runRealTurn('Leave.')
-    expect(cwds[4]).toBe(root)
+    expect(cwds[4]).toBe(canonicalRoot)
     expect(responseOutputsByCall(api, 9).get('s5')).toBe('[exit code 3]')
     await host.close()
   }, 180_000)

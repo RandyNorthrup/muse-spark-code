@@ -115,7 +115,7 @@ describe('RVM91P3 tool guards and source scripts', () => {
       ...request,
       messages: [{ role: 'user', content: 'read the project' }],
     }
-    const result = buildGeminiStdin('BeforeToolSelection', packet)
+    const result = buildGeminiStdin('BeforeToolSelection', packet, { platform: 'linux' })
     if (result.outcome !== 'run') throw new Error(result.reason)
     const output = execFileSync(process.execPath, ['-e', script('filter-tools')], {
       input: result.stdin,
