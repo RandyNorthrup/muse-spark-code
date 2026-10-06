@@ -11,6 +11,8 @@ happened, not what was planned; superseded entries are kept.
   release 0.14.0, retaining lazy bundle boundaries and translated strings.
   Keep bundle drills in memory and include the release build inputs and
   provider bundle in private ACP packaging fixtures.
+- Keep Account & usage open for unpriced models whose usage includes cached
+  tokens; show dollar estimates only with a verified Model API tariff.
 - Restore the confidential contributor-model warning before remembered
   consent can return, retaining the fresh configured-provider privacy check.
 - Document Copilot's VS Code Language Model API boundary and the ChatGPT/API

@@ -28,7 +28,7 @@ import { ObservationPack } from '../../src/core/backends/modelapi/observationPac
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { memoryContextIo } from './helpers/fakeContextIo'
+import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { watchSessionTurns } from './helpers/sessionTurns'
 import {
@@ -751,31 +751,15 @@ describe('decodeGeminiStream turns', () => {
     )
     let ids = 0
     const host = new ModelApiHost({
-      client,
-      workspaceRoot: '/ws',
-      platform: 'linux',
-      io: memoryToolIo({}, '/ws'),
-      contextIo: memoryContextIo(new Map()),
+      ...fakeModelApiHostDeps({
+        client,
+        workspaceRoot: '/ws',
+        io: memoryToolIo({}, '/ws'),
+        log,
+      }),
       newId: () => `id${String((ids += 1))}`,
       now: () => 0,
-      log,
-      personalSkillsRoot: undefined,
-      personalAgentsRoot: undefined,
-      isWorkspaceTrusted: () => true,
-      isConfidentialWorkspace: () => false,
-      confirmContributorModel: () => Promise.resolve(false),
-      describeEnvironment: () => Promise.resolve({ git: undefined }),
-      isPaidFeatureOn: () => false,
-      notePaidUse: () => undefined,
-      allowsPaidUse: () => Promise.resolve(false),
-      isPaidUseRemembered: () => false,
-      promptCacheRetention: () => 'in_memory',
-      sessionBudgetUsd: () => 0,
-      showReplyUsage: () => false,
       getAccountId: () => Promise.resolve('fake-account'),
-      memory: undefined,
-      noteSubagentUsage: () => undefined,
-      noteReviewerUsage: () => undefined,
     })
     const session = await host.startSession({
       workspaceRoot: '/ws',

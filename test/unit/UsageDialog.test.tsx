@@ -653,17 +653,23 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('Remaining$7.90')
   })
 
-  it('counts only tokens for the unpriced current model (M95)', () => {
+  it.each([
+    ['unpriced', 'openrouter/mystery/model'],
+    ['unpriced', 'muse-spark-1.3'],
+    ['priced', 'openrouter/mystery/model'],
+  ] as const)('counts only tokens without an applicable tariff (%s, %s)', (pricing, modelId) => {
     renderDialog({
       ...modelApiCostCase(),
-      usage: { inputTokens: 500, outputTokens: 50 },
-      modelId: 'openrouter/mystery/model',
-      modelPricing: 'unpriced',
+      usage: { inputTokens: 500, outputTokens: 50, cachedTokens: 0 },
+      modelId,
+      modelPricing: pricing,
     })
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent(
-      'This model has no price card, so only its tokens are counted.',
-    )
+    if (pricing === 'unpriced') {
+      expect(dialog).toHaveTextContent(
+        'This model has no price card, so only its tokens are counted.',
+      )
+    }
     expect(screen.queryByText('Estimated cost')).toBeNull()
   })
 

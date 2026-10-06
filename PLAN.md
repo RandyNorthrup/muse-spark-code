@@ -5453,39 +5453,6 @@ every line of ours it cites, is `docs/research/pi-solpi-2026-10-05.md`.
    is corrected. So the packing items (2, 4, 7, 18, 22) reach every Model API
    user.
 
-## 3. Open questions (need the owner)
-
-- **Q-M95R3 transport size (2026-10-05):** the required general transport,
-  per-attempt credential/network checks, capability-record registry and
-  host/ACP composition exceed the shared lane brief's approximate 300-line
-  limit for one fix. May this required implementation exceed that limit?
-  Clarification is pending; independent merge, test and documentation work
-  continues. No partial production transport is installed.
-
-- **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
-  commit supplies ProviderClient/transport/authSource for this checkout?
-  Those modules are absent at `60bf96aa`; the local `rt-fixm95t` rig snapshot
-  is on a different base. The rig brief forbids main merges and network
-  fetches. The injected host/registry contract is tested offline; production
-  assembly awaits the lead's exact dependency and W's configured sources.
-- **Q-M95BINT live receipts (2026-10-05):** the supplied findings identify
-  `acdc0f60…` and `577bc807…` (0 + 1 model attempts), but do not name the
-  exact raw-capture workspace or provide a successful plan tool/reasoning/
-  cached-token response. Supply those receipts when Subscription Sharing
-  headroom returns; also confirm the scrubbed usage-limit code and test an
-  installed Copilot host/remote callback. No new live call is authorized here.
-
-- **Q-M95INT2 release prerequisite (2026-10-05):** the rig brief says
-  `m95/scfix` contains `928a9200` (0.13.0), but its actual `e5a114b4` tip
-  contains only `a95f24cf`. May the exact local release commit be merged
-  separately, despite the rig note's main-merge prohibition? Until answered,
-  keep the five authorized merges and independent cap repairs only.
-- **Q-M95INT2 universal helper (2026-10-05):** what approved local path supplies
-  the real universal macOS helper, or is downloading a released VSIX solely
-  to verify/extract that binary authorized? The binary is absent and the
-  common rule prohibits downloads. A helper-free package cannot certify the
-  requested universal-helper VSIX budget.
-
 ### D70 — Hooks from every popular agent (M91, 2026-10-04)
 
 The owner asked on 2026-10-04: "we should have all of the hooks from the most
@@ -7094,6 +7061,37 @@ Decisions:
   machine; the rigs are development infrastructure.
 
 ## 3. Open questions (need the owner)
+
+- **Q-M95R3 transport size (2026-10-05):** the required general transport,
+  per-attempt credential/network checks, capability-record registry and
+  host/ACP composition exceed the shared lane brief's approximate 300-line
+  limit for one fix. May this required implementation exceed that limit?
+  Clarification is pending; independent merge, test and documentation work
+  continues. No partial production transport is installed.
+
+- **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
+  commit supplies ProviderClient/transport/authSource for this checkout?
+  Those modules are absent at `60bf96aa`; the local `rt-fixm95t` rig snapshot
+  is on a different base. The rig brief forbids main merges and network
+  fetches. The injected host/registry contract is tested offline; production
+  assembly awaits the lead's exact dependency and W's configured sources.
+- **Q-M95BINT live receipts (2026-10-05):** the supplied findings identify
+  `acdc0f60…` and `577bc807…` (0 + 1 model attempts), but do not name the
+  exact raw-capture workspace or provide a successful plan tool/reasoning/
+  cached-token response. Supply those receipts when Subscription Sharing
+  headroom returns; also confirm the scrubbed usage-limit code and test an
+  installed Copilot host/remote callback. No new live call is authorized here.
+
+- **Q-M95INT2 release prerequisite (2026-10-05):** the rig brief says
+  `m95/scfix` contains `928a9200` (0.13.0), but its actual `e5a114b4` tip
+  contains only `a95f24cf`. May the exact local release commit be merged
+  separately, despite the rig note's main-merge prohibition? Until answered,
+  keep the five authorized merges and independent cap repairs only.
+- **Q-M95INT2 universal helper (2026-10-05):** what approved local path supplies
+  the real universal macOS helper, or is downloading a released VSIX solely
+  to verify/extract that binary authorized? The binary is absent and the
+  common rule prohibits downloads. A helper-free package cannot certify the
+  requested universal-helper VSIX budget.
 
 - **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
   `native/darwin/muse-dictate`. The lane's shared rules forbid network except
@@ -18050,6 +18048,14 @@ release acceptance are still pending.**
 
 ### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
 
+**M95R3 cost and gate repairs (2026-10-05).** Strengthen the unpriced
+usage regression with a cached total and retain dollar estimates only when
+the legacy Model API tariff is known and pricing is not unpriced, local or
+plan. Native settled costs remain in their provider rows. Consolidate the
+reviewer split mutation into the existing parameterized cohort drill and
+reuse the existing fake-host dependency fixture for Gemini; gates and
+assertions remain unchanged or stronger.
+
 **M95R3 contributor guard repair (2026-10-05).** The release/M95 join
 left a remembered-consent return ahead of the confidential-workspace check
 and duplicated that return. Restore the release ordering: a confidential
@@ -19990,58 +19996,6 @@ joined with M57, M58 and PR #49's sign-in
         (`docs/certification/m92.md`); the commit guard skipped, no
         commit-writing path exists
 
-## 7. Gates
-
-**M95R3 integration gate status (2026-10-05).** The rig authorizes local
-merge/repair commits with unchanged hooks and one final full quality run.
-These preserve reviewable integration work and do not propose a release.
-Copilot's joined factory/host regression remains stopped under the shared
-two-fix rule; acceptance 9 awaits the size-rule clarification in §3. All
-fixed bundle caps stay unchanged; browser startup/deferred overages belong
-to the separately planned batch diet if the joined build still reports them.
-Exact final gate receipts belong in docs/certification/m95-r3.md. No
-assertion, coverage threshold, ignore, deadline or rule is relaxed.
-
-**DEFLAKE5 unit/coverage acceptance (2026-10-05, kubuntu).** On committed
-code `8d31e73a`, three consecutive complete three-worker V8 runs return 0:
-404 files and 8,093 tests pass each, with four files / 57 existing skips.
-A complete ten-worker run plus four owned CPU-load processes also returns
-0 on that exact code. Every coverage threshold passes: 93.75% statements,
-89.01% branches, 94.70% functions and 93.89% lines in all four final runs.
-Typecheck (five projects), full lint, format, plain knip and duplication
-return 0. The scoped rig brief authorizes this unit-only acceptance instead
-of a whole quality wrapper. It closes the unit/coverage deferral below;
-the historical failed wrapper and unrelated release/helper prerequisites
-remain recorded. Two actual causes are fixed: shared build artifacts and
-repeated expensive checks of identical restored bytes. Red drills reproduce
-all five historical files' defects and the new shared-metafile regression,
-with byte-exact restoration. See `docs/certification/deflake5.md` for commands,
-errors, hashes, worker/load settings and all successful and failed receipts.
-
-**M95INT round-two whole-chain receipt (2026-10-05) — still deferred.**
-The single full `npm run quality` authorized by the 150-minute rig brief
-passes format, lint, all five type projects, localization, host API, dead
-code, cycles and duplication, then returns 1 at unit tests: 27 failures
-and one failed setup across five files. Two fake package fixtures omit the
-new required `validation.js`; four panel/sidebar assertions expect the old
-script tag, and a handoff test expects synchronous usage-dialog loading.
-The repaired five complete files pass 73/73 with no assertion removed.
-Together with the full run, every offline test has passed, but V8 emits no
-coverage report after the failed suite. Preserve the brief's single-wrapper
-limit: its remaining build, audit, accessibility, secret and SAST gates run
-separately and all return 0. Accessibility covers 668 pages with zero violations,
-undecided rules or missing results; SAST runs 287 rules on 954 targets with
-zero findings and no timeout warnings. The helper-free diagnostic VSIX is
-2,050,323 bytes, under the fixed 2,252,800-byte cap, but is not the requested
-universal package. A fresh whole-chain/coverage receipt belongs to the lead after
-the release/helper prerequisites in §3 are resolved; do not call this
-wrapper green. The earlier four SAST findings, timeout warnings and two
-browser failures are repaired, with red proofs and clean scoped/full scans
-recorded in `docs/certification/m95-int.md`. No gate is weakened.
-
-**M95INT round-one whole-chain receipt — historical 120-minute rig brief.**
-The browser and SAST failures below are historical and repaired in round two.
-
 ### M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
 
 **Status 2026-10-05: planned; lanes start from `m101/base` (the M95
@@ -20950,6 +20904,56 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**M95R3 integration gate status (2026-10-05).** The rig authorizes local
+merge/repair commits with unchanged hooks and one final full quality run.
+These preserve reviewable integration work and do not propose a release.
+Copilot's joined factory/host regression remains stopped under the shared
+two-fix rule; acceptance 9 awaits the size-rule clarification in §3. All
+fixed bundle caps stay unchanged; browser startup/deferred overages belong
+to the separately planned batch diet if the joined build still reports them.
+Exact final gate receipts belong in docs/certification/m95-r3.md. No
+assertion, coverage threshold, ignore, deadline or rule is relaxed.
+
+**DEFLAKE5 unit/coverage acceptance (2026-10-05, kubuntu).** On committed
+code `8d31e73a`, three consecutive complete three-worker V8 runs return 0:
+404 files and 8,093 tests pass each, with four files / 57 existing skips.
+A complete ten-worker run plus four owned CPU-load processes also returns
+0 on that exact code. Every coverage threshold passes: 93.75% statements,
+89.01% branches, 94.70% functions and 93.89% lines in all four final runs.
+Typecheck (five projects), full lint, format, plain knip and duplication
+return 0. The scoped rig brief authorizes this unit-only acceptance instead
+of a whole quality wrapper. It closes the unit/coverage deferral below;
+the historical failed wrapper and unrelated release/helper prerequisites
+remain recorded. Two actual causes are fixed: shared build artifacts and
+repeated expensive checks of identical restored bytes. Red drills reproduce
+all five historical files' defects and the new shared-metafile regression,
+with byte-exact restoration. See `docs/certification/deflake5.md` for commands,
+errors, hashes, worker/load settings and all successful and failed receipts.
+
+**M95INT round-two whole-chain receipt (2026-10-05) — still deferred.**
+The single full `npm run quality` authorized by the 150-minute rig brief
+passes format, lint, all five type projects, localization, host API, dead
+code, cycles and duplication, then returns 1 at unit tests: 27 failures
+and one failed setup across five files. Two fake package fixtures omit the
+new required `validation.js`; four panel/sidebar assertions expect the old
+script tag, and a handoff test expects synchronous usage-dialog loading.
+The repaired five complete files pass 73/73 with no assertion removed.
+Together with the full run, every offline test has passed, but V8 emits no
+coverage report after the failed suite. Preserve the brief's single-wrapper
+limit: its remaining build, audit, accessibility, secret and SAST gates run
+separately and all return 0. Accessibility covers 668 pages with zero violations,
+undecided rules or missing results; SAST runs 287 rules on 954 targets with
+zero findings and no timeout warnings. The helper-free diagnostic VSIX is
+2,050,323 bytes, under the fixed 2,252,800-byte cap, but is not the requested
+universal package. A fresh whole-chain/coverage receipt belongs to the lead after
+the release/helper prerequisites in §3 are resolved; do not call this
+wrapper green. The earlier four SAST findings, timeout warnings and two
+browser failures are repaired, with red proofs and clean scoped/full scans
+recorded in `docs/certification/m95-int.md`. No gate is weakened.
+
+**M95INT round-one whole-chain receipt — historical 120-minute rig brief.**
+The browser and SAST failures below are historical and repaired in round two.
 
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in

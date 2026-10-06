@@ -746,8 +746,8 @@ export function UsageDialog({
     usage !== undefined &&
     cachedTokens !== undefined &&
     modelId !== undefined &&
-    modelPricing !== 'plan' &&
-    (modelPricing !== undefined || modelApiPaidTier(modelId) !== undefined) &&
+    (modelPricing === undefined || modelPricing === 'priced') &&
+    modelApiPaidTier(modelId) !== undefined &&
     report?.backend === 'modelApi'
       ? estimateCostUsd(
           { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cachedTokens },
