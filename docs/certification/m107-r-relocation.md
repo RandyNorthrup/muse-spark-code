@@ -335,3 +335,56 @@ and whitespace checks pass. The restored, formatted suite passes 89/89.
 The inherited named M100/C2/U/J/W handoffs above remain; PLAN §9 names
 `M107-R-integration-binding` with its current safety boundary and follow-up.
 Aggregate quality is the lead's explicit rig/common responsibility.
+
+### Finding 2 — unresolved headroom holds routing and Keep here
+
+Every offered selection/revalidation probe now races the named
+`RESOURCE_RELOCATION_PROBE_MS` (5 seconds) deadline on the existing injected
+clock and the existing `unlessAborted` helper. Timeout/abort is unknown
+headroom, not an admission or retirement receipt. All candidate probes start
+concurrently; a stalled peer costs at most one deadline across the pool,
+then eligible healthy peers can route. Explicit target selection still
+probes only the named target, and unoffered/disabled targets have no probe.
+Keep here releases pre-dispatch discovery without any clock advance;
+post-dispatch cancellation and unproved local retirement remain unchanged.
+Every completed/failed/cancelled/expired probe clears its timer; the shared
+cancellation helper removes its listener and observes late failures.
+
+Before repair, the complete file exited 1 with five new assertion failures
+and 89 passes: selection/recheck Keep here, selection/recheck deadlines,
+and concurrent probing past a stalled peer. No raised timeout. The repaired
+file plus four cleanup cases passes 98/98 under the default timeout.
+The existing equal-headroom test now expects later offered peers to be
+probed once (concurrent discovery), while still proving no later dispatch
+and ample-before-some priority. No permission guard is widened.
+
+Reuse the existing ES2023-compatible cancellation helper rather than
+`Promise.withResolvers`, which the VS Code floor's Node 20 lacks. The only
+new shared-source change is the required `RESOURCE_*` timeout constant;
+it supersedes the original lane's no-new-tunable statement above. There
+is no new setting, command, translated text or user help surface. The
+help catalog/generator/reference script remain absent on this base;
+their existing relocation delivery handoff stays with W.
+
+Four complete-file guard drills all exit 1 at the named assertions:
+
+| Mutation                                   | Failing test                                                                   | Result              |
+| ------------------------------------------ | ------------------------------------------------------------------------------ | ------------------- |
+| Remove the deadline from the probe race    | treats an unresolved selection/recheck probe as unknown at its deadline        | 4 failed, 94 passed |
+| Remove `unlessAborted` from the probe race | Keep here completes before an unresolved selection/recheck probe returns       | 3 failed, 95 passed |
+| Await candidate probes sequentially        | probes peers concurrently and routes past a stalled first peer at the deadline | 1 failed, 97 passed |
+| Remove timer cleanup                       | clears every probe deadline after admitted/error/cancel/timeout                | 4 failed, 94 passed |
+
+Each restores source bytes in finally and compares SHA-256 equal before
+the next mutation:
+`da8f58af43d20af21e86f07023452f2baad07614d7b4ab4784e484838dfe04bb`.
+Logs are `temp/m107r/probe-deadline.log`, `probe-cancellation.log`,
+`parallel-probes.log` and `probe-timer-cleanup.log`. Unbounded-wait mutations
+also hit the unchanged default five-second test timeout in the affected
+dispatch/cleanup cases; the restored tests complete in about one second.
+No timeout override, test filter or skip is used in any run.
+
+The second repair's all-five-project typecheck, explicit source/constants/test
+ESLint (zero warnings), six-file Prettier check and whitespace check all exit 0. Its restored complete suite passes 98/98 before the normal hook-on commit.
+The first commit `d961dc9c4` passed normal serial lint-staged and staged
+redacted gitleaks (6.16 KB, no leaks); the source hash was unchanged by hooks.

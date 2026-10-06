@@ -1,3 +1,4 @@
+import { RESOURCE_RELOCATION_PROBE_MS } from '../../shared/constants'
 import {
   deviceResourceSchema,
   resourceLevelSchema,
@@ -9,6 +10,7 @@ import {
   type ResourceLinkedDevice,
   type ResourceStatus,
 } from '../../shared/resources'
+import { unlessAborted } from '../timeouts'
 import type { ResourceEvents } from './events'
 
 interface RelocationMetadata {
@@ -111,14 +113,27 @@ export class ResourceRelocator {
   private async headroom(
     work: ResourceRelocationWork,
     target: ResourceRelocationTarget,
+    signal: AbortSignal,
   ): Promise<'ample' | 'some' | null> {
-    if (!this.offered(work, target)) return null
-    const parsed = deviceResourceSchema.safeParse(await target.resource())
-    return !parsed.success ||
-      !canAdmitResourceRelocation(parsed.data.level) ||
-      parsed.data.headroom === 'none'
-      ? null
-      : parsed.data.headroom
+    if (signal.aborted || !this.offered(work, target)) return null
+    let clear: (() => void) | undefined
+    const expired = new Promise<null>((resolve) => {
+      clear = this.options.clock.setTimeout(() => {
+        resolve(null)
+      }, RESOURCE_RELOCATION_PROBE_MS)
+    })
+    try {
+      const parsed = deviceResourceSchema.safeParse(
+        await unlessAborted(Promise.race([target.resource(), expired]), signal),
+      )
+      return !parsed.success ||
+        !canAdmitResourceRelocation(parsed.data.level) ||
+        parsed.data.headroom === 'none'
+        ? null
+        : parsed.data.headroom
+    } finally {
+      clear?.()
+    }
   }
 
   private async select(
@@ -132,19 +147,20 @@ export class ResourceRelocator {
         ? this.options.runners(work)
         : []),
     ]
-    let selected: ResourceRelocationTarget | undefined
-    for (const target of targets) {
-      if (signal.aborted) return undefined
-      if (targetId !== undefined && target.id !== targetId) continue
-      try {
-        const room = await this.headroom(work, target)
-        if (room === 'ample') return target
-        if (room === 'some' && selected === undefined) selected = target
-      } catch (error) {
-        this.options.onError(error)
-      }
-    }
-    return selected
+    const rooms = await Promise.all(
+      targets.map(async (target) => {
+        if (targetId !== undefined && target.id !== targetId) return null
+        try {
+          return await this.headroom(work, target, signal)
+        } catch (error) {
+          this.options.onError(error)
+          return null
+        }
+      }),
+    )
+    if (signal.aborted) return undefined
+    const room = rooms.includes('ample') ? 'ample' : 'some'
+    return targets.find((_target, index) => rooms[index] === room)
   }
 
   private report(
@@ -219,12 +235,12 @@ export class ResourceRelocator {
         result = 'kept'
       }
       if (this.status(signal, isManual) === null) return result
-      if ((await this.headroom(work, target)) === null) return result
+      if ((await this.headroom(work, target, signal)) === null) return result
       status = this.status(signal, isManual)
       if (status === null || (!isRunning && work.phase() !== 'queued')) return result
       if (!isApproved && status.settings.relocate === 'ask') {
         isApproved = await this.options.ask(work, target)
-        if (!isApproved || (await this.headroom(work, target)) === null) return result
+        if (!isApproved || (await this.headroom(work, target, signal)) === null) return result
         status = this.status(signal, isManual)
         if (status === null || (!isRunning && work.phase() !== 'queued')) return result
       }

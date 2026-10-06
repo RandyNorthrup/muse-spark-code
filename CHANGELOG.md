@@ -11,6 +11,8 @@ happened, not what was planned; superseded entries are kept.
 
 - The staged resource relocator rechecks policy and cancellation after the
   final offer callback, preventing dispatch after synchronous revocation.
+- Its headroom probes run concurrently with a five-second bound, and Keep
+  here cancels discovery without waiting for an unresponsive peer.
 
 - Governed shell, MCP, browser, Git, voice and plugin cleanup uses registered
   member stops, including descendants after root exit. Refused stops retain

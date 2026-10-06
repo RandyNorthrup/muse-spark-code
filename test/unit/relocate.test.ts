@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { RESOURCE_RELOCATION_PROBE_MS } from '../../src/shared/constants'
 import { ResourceEvents } from '../../src/core/resources/events'
 import {
   ResourceRelocator,
@@ -127,6 +128,20 @@ async function keepDuringAdmission(f: ReturnType<typeof setup>) {
   return { reply, moving, keeping }
 }
 
+async function stallProbe(f: ReturnType<typeof setup>, stage: 'selection' | 'recheck') {
+  const reply = Promise.withResolvers<unknown>()
+  const entered = Promise.withResolvers<undefined>()
+  let reads = 0
+  f.target.resource = vi.fn(() => {
+    if (stage === 'recheck' && ++reads === 1) return f.device.resource()
+    entered.resolve(undefined)
+    return reply.promise
+  })
+  const moving = f.attempt.run()
+  await entered.promise
+  return { reply, moving }
+}
+
 describe('resource relocation', () => {
   it('routes an offered queued worker with a row before dispatch and all move records', async () => {
     const f = setup()
@@ -245,7 +260,7 @@ describe('resource relocation', () => {
     expect(canAdmitResourceRelocation('unknown')).toBe(false)
   })
 
-  it('prefers ample over some and preserves pool order for equal headroom', async () => {
+  it('prefers ample over some and uses pool order for the first equal-headroom choice', async () => {
     const f = setup()
     f.device.setResource({ level: 'normal', headroom: 'some' })
     const ample = {
@@ -268,7 +283,8 @@ describe('resource relocation', () => {
     expect(await f.attempt.run()).toBe('admitted')
     expect(ample.dispatch).toHaveBeenCalledOnce()
     expect(f.target.dispatch).not.toHaveBeenCalled()
-    expect(later.resource).not.toHaveBeenCalled()
+    expect(later.resource).toHaveBeenCalledOnce()
+    expect(later.dispatch).not.toHaveBeenCalled()
     const g = setup()
     g.device.setResource({ level: 'normal', headroom: 'some' })
     g.options.devices = () => [g.target, { ...g.target, id: 'second' }]
@@ -633,6 +649,108 @@ describe('resource relocation', () => {
     expect(f.errors).toHaveBeenCalledOnce()
     expect(f.options.row).toHaveBeenCalledWith(f.work, good, expect.anything())
   })
+
+  it.each(['selection', 'recheck'] as const)(
+    'Keep here completes before an unresolved %s probe returns',
+    async (stage) => {
+      const f = setup()
+      const { reply, moving } = await stallProbe(f, stage)
+      try {
+        const keeping = f.attempt.keepHere()
+        // No clock advance: cancellation must not wait for the probe deadline.
+        await vi.waitFor(() => {
+          expect(f.work.settle).toHaveBeenCalledExactlyOnceWith('kept')
+        })
+        expect(await keeping).toBe(true)
+        expect(await moving).toBe('kept')
+        expect(f.isOwned()).toBe(false)
+        expect(f.target.dispatch).not.toHaveBeenCalled()
+      } finally {
+        reply.resolve({ level: 'normal', headroom: 'ample' })
+      }
+    },
+  )
+
+  it.each(['selection', 'recheck'] as const)(
+    'treats an unresolved %s probe as unknown at its deadline',
+    async (stage) => {
+      const f = setup()
+      const { reply, moving } = await stallProbe(f, stage)
+      try {
+        f.clock.advance(RESOURCE_RELOCATION_PROBE_MS - 1)
+        expect(f.work.settle).not.toHaveBeenCalled()
+        f.clock.advance(1)
+        await vi.waitFor(() => {
+          expect(f.work.settle).toHaveBeenCalledExactlyOnceWith('kept')
+        })
+        expect(await moving).toBe('kept')
+        expect(f.target.dispatch).not.toHaveBeenCalled()
+        expect(f.isOwned()).toBe(false)
+        // A late rejection is observed without changing the settled outcome.
+        reply.reject(new Error('Late probe failure'))
+        expect(await f.attempt.run()).toBe('kept')
+        expect(f.errors).not.toHaveBeenCalled()
+      } finally {
+        reply.resolve(null)
+      }
+    },
+  )
+
+  it('probes peers concurrently and routes past a stalled first peer at the deadline', async () => {
+    const f = setup()
+    const good = {
+      ...f.target,
+      id: 'healthy',
+      resource: vi.fn(() => f.device.resource()),
+      dispatch: vi.fn<ResourceRelocationTarget['dispatch']>(() => Promise.resolve('admitted')),
+    }
+    f.options.devices = () => [f.target, good]
+    const { reply, moving } = await stallProbe(f, 'selection')
+    try {
+      await vi.waitFor(() => {
+        expect(good.resource).toHaveBeenCalledOnce()
+      })
+      f.clock.advance(RESOURCE_RELOCATION_PROBE_MS)
+      expect(await moving).toBe('admitted')
+      expect(f.options.row).toHaveBeenCalledWith(f.work, good, expect.anything())
+      expect(good.dispatch).toHaveBeenCalledOnce()
+      expect(f.target.dispatch).not.toHaveBeenCalled()
+      expect(f.errors).not.toHaveBeenCalled()
+    } finally {
+      reply.resolve({ level: 'normal', headroom: 'ample' })
+    }
+  })
+
+  it.each(['admitted', 'error', 'cancel', 'timeout'])(
+    'clears every probe deadline after %s',
+    async (outcome) => {
+      const f = setup()
+      const schedule = f.clock.setTimeout.bind(f.clock)
+      const clears: (() => void)[] = []
+      f.clock.setTimeout = (callback, delayMs) => {
+        const clear = vi.fn(schedule(callback, delayMs))
+        clears.push(clear)
+        return clear
+      }
+      if (outcome === 'cancel' || outcome === 'timeout') {
+        const { reply, moving } = await stallProbe(f, 'selection')
+        try {
+          if (outcome === 'cancel') expect(await f.attempt.keepHere()).toBe(true)
+          else f.clock.advance(RESOURCE_RELOCATION_PROBE_MS)
+          expect(await moving).toBe('kept')
+        } finally {
+          reply.resolve(null)
+        }
+      } else {
+        if (outcome === 'error') {
+          f.target.resource = () => Promise.reject(new Error('Probe failed'))
+        }
+        expect(await f.attempt.run()).toBe(outcome === 'admitted' ? 'admitted' : 'kept')
+      }
+      expect(clears).toHaveLength(outcome === 'admitted' ? 2 : 1)
+      for (const clear of clears) expect(clear).toHaveBeenCalledOnce()
+    },
+  )
 
   it('notifies once per conversation and records every move despite a failing observer', async () => {
     const f = setup()
