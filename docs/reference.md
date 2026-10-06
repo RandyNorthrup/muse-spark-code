@@ -10,7 +10,7 @@ Open `/help` in the panel or **Muse Spark: Open Help & Reference**. Search the r
 
 Best of N Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.
 
-bestOfNAdmission: Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget prevents this workflow until candidate budgets can be shared. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.
+bestOfNAdmission: Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget requires an owned parent budget scope shared by candidates. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.
 
 Interactive Model API extras ask before spending and use the shared daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; that daily ledger does not cover them. ACP paid features default off, require Model API flags and editor permission; ordinary ACP has no mandatory hard budget. Headless images require acceptEdits, the flag and a hard budget. Account & usage can forget workspace paid-use grants.
 
@@ -367,7 +367,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Record voice
 
-Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine. Voice dictation is not available in a remote window (SSH, WSL, a container, a tunnel or a codespace): the extension runs on the remote machine, which cannot hear this computer’s microphone. Open the folder in a local window to dictate.
+platform&localWindow: Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine. Voice dictation is not available in a remote window (SSH, WSL, a container, a tunnel or a codespace): the extension runs on the remote machine, which cannot hear this computer’s microphone. Open the folder in a local window to dictate.
 
 ```json
 {
@@ -459,7 +459,7 @@ Commands: `museSpark.createRulesFile`. Settings: `museSpark.respectGitIgnore`. [
 
 SKILL.md. museCode: Turn Muse Code's skills on or off. modelApi: SKILL.md.
 
-Bundled skills: project_setup, feature_delivery, quality_retrofit. muse_gadgets is available on Model API only.
+backend: Bundled skills: project_setup, feature_delivery, quality_retrofit. muse_gadgets is available on Model API only.
 
 ```json
 {
@@ -638,7 +638,7 @@ Commands: `museSpark.downloadBrowserCheckRuntime`. Settings: `museSpark.browserC
 
 ### Muse Voice
 
-Paid voice is unavailable on Model API in this version. Muse Code needs a local window, a stored Model API key and explicit opt-in. Linux also needs arecord or parec.
+backend&localWindow&voiceAdmission: Paid voice is unavailable on Model API in this version. Muse Code needs a local window, a stored Model API key and explicit opt-in. Linux also needs arecord or parec.
 
 Interactive Model API extras ask before spending and use the shared daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; that daily ledger does not cover them. ACP paid features default off, require Model API flags and editor permission; ordinary ACP has no mandatory hard budget. Headless images require acceptEdits, the flag and a hard budget. Account & usage can forget workspace paid-use grants.
 
@@ -1139,8 +1139,17 @@ Turn paid Judge advice on or off.
   "defaultState": {
     "type": "enum",
     "value": "auto",
-    "meaning": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.",
-    "meaningKey": "config.judge.engine.enumDescriptions.auto"
+    "meaning": {
+      "conditions": [
+        {
+          "when": "judgeEngine",
+          "text": {
+            "fallbackKey": "config.judge.engine.enumDescriptions.auto",
+            "fallback": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured."
+          }
+        }
+      ]
+    }
   },
   "pricesUsd": {
     "webSearchPerThousand": 2.5,
@@ -1165,8 +1174,17 @@ Turn paid Judge advice on or off.
       "defaultState": {
         "type": "enum",
         "value": "auto",
-        "meaning": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.",
-        "meaningKey": "config.judge.engine.enumDescriptions.auto"
+        "meaning": {
+          "conditions": [
+            {
+              "when": "judgeEngine",
+              "text": {
+                "fallbackKey": "config.judge.engine.enumDescriptions.auto",
+                "fallback": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured."
+              }
+            }
+          ]
+        }
       },
       "key": "SecretStorage",
       "consent": "use",
@@ -1385,7 +1403,7 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Restart Muse Code
 
-`museSpark.restartMuseCode` — A reply that is running stops; the conversation continues on your next message
+`museSpark.restartMuseCode` — turnState: A reply that is running stops; the conversation continues on your next message
 
 ### Muse Spark: Install Bundled Skills for Muse Code
 
@@ -1527,7 +1545,7 @@ Type: `"string"`. Default: `"auto"`. Scope: `machine`.
 }
 ```
 
-- `"auto"`: Muse Code when the CLI is installed and signed in (billed to your Muse subscription); otherwise the Meta Model API when a key is stored; otherwise Muse Code's sign-in.
+- `"auto"`: backendAvailability: Muse Code when the CLI is installed and signed in (billed to your Muse subscription); otherwise the Meta Model API when a key is stored; otherwise Muse Code's sign-in.
 - `"museCode"`: Always the Muse Code CLI, with its own sign-in.
 - `"modelApi"`: Always the Meta Model API with the key you pasted (pay as you go), using the extension's own tools.
 
@@ -1756,7 +1774,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.modelApiVoice
 
-Offers Muse Voice ($0.18 per audio hour); free OS dictation remains the default. Muse Voice is unavailable under a finite budget. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
+voiceAdmission: Offers Muse Voice ($0.18 per audio hour); free OS dictation remains the default. Muse Voice is unavailable under a finite budget. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -2037,7 +2055,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.bundledSkills
 
-On by default: the skills that come with Muse Spark (project_setup, feature_delivery and quality_retrofit, from the high-quality-projects package) are available on the Model API backend, after any project or personal skill with the same name. Muse Code reads only its own folders, so for it they are installed with Muse Spark: Install Bundled Skills for Muse Code, which a Muse Code conversation offers once per window until you install them or choose Not now. Their delivery helpers need Python 3.12 or newer.
+backend&skillInstallation: On by default: the skills that come with Muse Spark (project_setup, feature_delivery and quality_retrofit, from the high-quality-projects package) are available on the Model API backend, after any project or personal skill with the same name. Muse Code reads only its own folders, so for it they are installed with Muse Spark: Install Bundled Skills for Muse Code, which a Muse Code conversation offers once per window until you install them or choose Not now. Their delivery helpers need Python 3.12 or newer.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -2306,7 +2324,7 @@ Type: `"string"`. Default: `"ask"`. Scope: `machine`.
 ```
 
 - `"ask"`: Ask before downloading it.
-- `"download"`: Download it when a check needs it, without asking, now and for every later pinned version.
+- `"download"`: browserRuntimeAcquisition: Download it when a check needs it, without asking, now and for every later pinned version.
 - `"off"`: No browser check: the tool is not offered and nothing is downloaded.
 
 ### museSpark.paidDailyBudgetUsd
@@ -2422,7 +2440,7 @@ Type: `"string"`. Default: `"auto"`. Scope: `machine`.
 }
 ```
 
-- `"auto"`: Multi-line when the cursor's line is blank or ends in a block opener, and on every explicit Invoke.
+- `"auto"`: multilineMode: Multi-line when the cursor's line is blank or ends in a block opener, and on every explicit Invoke.
 - `"onInvoke"`: Multi-line context only on explicit Invoke.
 - `"never"`: Never add multi-line context; complete the rest of the line only.
 
@@ -2441,7 +2459,7 @@ Type: `"string"`. Default: `"onInvoke"`. Scope: `machine`.
 ```
 
 - `"automatic"`: Suggest automatically after a short debounce.
-- `"onInvoke"`: Suggest only when you invoke suggestions by hand.
+- `"onInvoke"`: tabTrigger: Suggest only when you invoke suggestions by hand.
 
 ### museSpark.tabWithCopilot
 
@@ -2474,7 +2492,7 @@ Type: `"string"`. Default: `"auto"`. Scope: `machine`.
 }
 ```
 
-- `"auto"`: Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.
+- `"auto"`: judgeEngine: Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.
 - `"same"`: Only your own chat model judges; it never switches models.
 - `"off"`: No judge: approvals behave exactly as without one.
 

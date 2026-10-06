@@ -2741,7 +2741,7 @@
   "referenceTabSnooze": "Odložit o 15 minut; Odložit o hodinu; Odložit do restartu.",
   "referenceServe": "{command} [volby]              Poskytuje Agent Client Protocol přes stdin a stdout",
   "referencePaletteKeys": "Procházet položky, vybrat či dokončit výběr nebo zavřít seznam. Zvolte, kolik úsilí Muse věnuje každé odpovědi.",
-  "referenceBestOfNRequirements": "Kandidáti vyžadují Model API, zapnutou placenou funkci, důvěryhodný pracovní prostor Git, Git 2.36 či novější a žádné nakonfigurované filtry nebo hooky Git. Konečný rozpočet relace brání tomuto postupu, dokud kandidáti nesdílejí rozpočet. Nastavte limity pokusů a požadavků, porovnejte výsledky či zrušte běh a použijte vybrané změny a přidejte je do indexu bez commitu.",
+  "referenceBestOfNRequirements": "Kandidáti vyžadují Model API, zapnutou placenou funkci, důvěryhodný pracovní prostor Git, Git 2.36 či novější a žádné nakonfigurované filtry nebo hooky Git. Konečný rozpočet relace vyžaduje rozpočtový rozsah vlastněný nadřazenou relací a sdílený kandidáty. Nastavte limity pokusů a požadavků, porovnejte výsledky či zrušte běh a použijte vybrané změny a přidejte je do indexu bez commitu.",
   "referenceWindowsSessions": "Muse Code nemůže ve Windows přejmenovávat ani rozvětvovat relace (meta-models/muse-code-sdk#30, #31).",
   "referenceAgentControls": "Ovládání agenta; Přerušit; Zastavit; Pokračovat; Zavřít agenta; Znovu otevřít agenta; Označit výsledek jako přečtený; Odeslat zprávu; Navazující úkol",
   "referenceElicitationTitle": "Formuláře MCP",

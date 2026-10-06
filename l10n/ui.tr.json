@@ -2553,7 +2553,7 @@
   "referenceTabSnooze": "15 dakika ertele; 1 saat ertele; Yeniden başlatmaya kadar ertele.",
   "referenceServe": "{command} [seçenekler]              Agent Client Protocol'ü stdin ve stdout üzerinden sunar",
   "referencePaletteKeys": "Öğeleri gezin, seçim yapın veya tamamlayın ya da listeyi kapatın. Muse'un her yanıta ayırdığı çabayı seçin.",
-  "referenceBestOfNRequirements": "Adaylar için Model API, açık ücretli özellik, güvenilen Git çalışma alanı, Git 2.36 veya yenisi ve yapılandırılmış Git filtre veya kanca programlarının olmaması gerekir. Aday bütçeleri paylaşılabilene kadar sonlu oturum bütçesi bu akışı engeller. Deneme ve istek sınırlarını belirleyin, karşılaştırın veya iptal edin, sonra seçili değişiklikleri commit oluşturmadan uygulayıp hazırlayın.",
+  "referenceBestOfNRequirements": "Adaylar için Model API, açık ücretli özellik, güvenilen Git çalışma alanı, Git 2.36 veya yenisi ve yapılandırılmış Git filtre veya kanca programlarının olmaması gerekir. Sonlu oturum bütçesi, üst oturumun sahip olduğu ve adayların paylaştığı bir bütçe kapsamı gerektirir. Deneme ve istek sınırlarını belirleyin, karşılaştırın veya iptal edin, sonra seçili değişiklikleri commit oluşturmadan uygulayıp hazırlayın.",
   "referenceWindowsSessions": "Muse Code, Windows'ta oturumları yeniden adlandıramaz veya çatallayamaz (meta-models/muse-code-sdk#30, #31).",
   "referenceAgentControls": "Aracı denetimleri; Kes; Durdur; Sürdür; Aracıyı kapat; Aracıyı yeniden aç; Sonucu okundu olarak işaretle; Mesaj gönder; Takip görevi",
   "referenceElicitationTitle": "MCP formları",

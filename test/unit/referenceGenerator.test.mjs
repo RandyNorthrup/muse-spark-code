@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import {
   buildReference,
@@ -131,6 +131,61 @@ const commandText = (key) => {
 }
 
 describe('RVHELPREF truth regressions', () => {
+  it('RVHELPREF4 P1 derives the Best-of-N budget prerequisite from production admission', async () => {
+    const { ModelApiBackendManager } = await import('../../src/host/backend/modelApiBackendManager')
+    const modelApiEntry = await import('../../src/host/backend/modelApiEntry')
+    const { fakeManagerDeps } = await import('./helpers/modelApiManager')
+    const { fakeModelApi } = await import('./helpers/fakeModelApi')
+    const { FakeLogOutputChannel } = await import('./helpers/fakes')
+    const { memorySessionStore } = await import('./helpers/fakeSessionStore')
+    const manager = new ModelApiBackendManager(
+      fakeManagerDeps(fakeModelApi(), new FakeLogOutputChannel(), {
+        workspaceRoot: '/reference-budget',
+        bundlePath: 'src/host/backend/modelApiEntry.ts',
+        loadBundle: () => modelApiEntry,
+        store: memorySessionStore(),
+        sessionBudgetUsd: () => 0.1,
+      }),
+    )
+    const admit = vi.fn()
+    let attempt
+    try {
+      await expect(manager.bestOfNBudgetScope()).rejects.toMatchObject({
+        refusal: 'budgetUnavailable',
+      })
+      await expect(manager.buildAttemptHost('/reference-budget/candidate', admit)).rejects.toThrow(
+        source.EN.bestOfNBudgetUnavailable,
+      )
+      const host = await manager.ensureHost()
+      const parent = await host.startSession({
+        workspaceRoot: '/reference-budget',
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'onRequest',
+      })
+      const scope = await manager.bestOfNBudgetScope(parent.sessionId)
+      expect(scope).toMatchObject({ sessionId: parent.sessionId })
+      attempt = await manager.buildAttemptHost(
+        '/reference-budget/candidate',
+        admit,
+        undefined,
+        scope,
+      )
+      const model = build()
+      const row = model.features.find((entry) => entry.id === 'best-of-n')
+      const requirements = row.details.find((ref) =>
+        ref.conditions?.some(({ when }) => when === 'bestOfNAdmission'),
+      )
+      const actual = source.referenceText(requirements, model, nls, source.EN)
+      // The same finite cap refuses without a scope and admits with it above.
+      const prerequisite =
+        'A finite session budget requires an owned parent budget scope shared by candidates.'
+      expect(actual).toContain(prerequisite)
+      expect(referenceMarkdown(model, source, nls, manifest)).toContain(prerequisite)
+    } finally {
+      await attempt?.close()
+      await manager.dispose()
+    }
+  })
   it('C01 describes every Auto reviewer and its no-card approval path', () => {
     const auto = setting('initialPermissionMode').enumDescriptions[3]
     const limits = source.EN.referencePermissionLimits
@@ -569,6 +624,78 @@ describe('RVHELPREF truth regressions', () => {
 })
 
 describe('RVHELPREF2 runtime truth regressions', () => {
+  it('RVHELPREF4 P2-1 rejects the closed state vocabulary at the generator boundary', () => {
+    const predicates = ['is', 'are', 'was', 'becomes']
+    const states = [
+      'available',
+      'unavailable',
+      'enabled',
+      'disabled',
+      'on',
+      'off',
+      'active',
+      'inactive',
+      'running',
+      'connected',
+      'disconnected',
+      'signed in',
+      'installed',
+      'configured',
+    ]
+    const claims = [
+      'Delegation is available in this conversation.',
+      'A future feature is on.',
+      'It works right now.',
+      ...predicates.flatMap((predicate) =>
+        states.map((state) => `A future feature ${predicate} ${state}.`),
+      ),
+    ]
+    for (const claim of claims) {
+      const changed = { ...source, EN: { ...source.EN, referenceNativeAgents: claim } }
+      expect(
+        () => referenceMarkdown(build(manifest, changed), changed, nls, manifest),
+        claim,
+      ).toThrow('Catalogue asserts conditional state: native-agents')
+    }
+    const neutral = {
+      ...source,
+      EN: { ...source.EN, referenceNativeAgents: 'Use agent controls to delegate work.' },
+    }
+    expect(referenceMarkdown(build(manifest, neutral), neutral, nls, manifest)).toContain(
+      neutral.EN.referenceNativeAgents,
+    )
+  })
+  it('RVHELPREF4 P2-2 walks emitted shortcut descriptions and future nested rows', () => {
+    for (const claim of ['Modal navigation is on.', 'Currently the modal is disabled.']) {
+      const changed = { ...source, EN: { ...source.EN, referenceModalKeys: claim } }
+      expect(
+        () => referenceMarkdown(build(manifest, changed), changed, nls, manifest),
+        claim,
+      ).toThrow('Catalogue asserts conditional state: modal.focus')
+    }
+    const claim = 'A future feature is on.'
+    expect(() =>
+      referenceMarkdown(
+        build(manifest, {
+          referenceKeyboardActions: () =>
+            source.referenceKeyboardActions().map((row) => ({
+              ...row,
+              futureKind: { description: claim },
+            })),
+        }),
+        source,
+        nls,
+        manifest,
+      ),
+    ).toThrow('Catalogue asserts conditional state')
+    const neutral = {
+      ...source,
+      EN: { ...source.EN, referenceModalKeys: 'Move focus within the dialog.' },
+    }
+    expect(referenceMarkdown(build(manifest, neutral), neutral, nls, manifest)).toContain(
+      neutral.EN.referenceModalKeys,
+    )
+  })
   it('C06 rejects new conditional sentences in plain descriptions and renders typed conditions', () => {
     const claims = [
       'Delegation is enabled in this conversation.',

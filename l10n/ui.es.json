@@ -2647,7 +2647,7 @@
   "referenceTabSnooze": "Posponer 15 minutos; Posponer una hora; Posponer hasta el reinicio.",
   "referenceServe": "{command} [opciones]              Servir el Agent Client Protocol por stdin y stdout",
   "referencePaletteKeys": "Recorrer elementos, elegir o completar una selección o cerrar la lista. Elige cuánto esfuerzo dedica Muse a cada respuesta.",
-  "referenceBestOfNRequirements": "Los candidatos requieren Model API, la función de pago activada, un espacio Git confiable, Git 2.36 o posterior y ningún programa de filtro o hook configurado. Un presupuesto de sesión limitado impide este flujo hasta que los candidatos puedan compartirlo. Fije límites de intentos y solicitudes, compare resultados o cancele y aplique los cambios seleccionados al índice sin crear un commit.",
+  "referenceBestOfNRequirements": "Los candidatos requieren Model API, la función de pago activada, un espacio Git confiable, Git 2.36 o posterior y ningún programa de filtro o hook configurado. Un presupuesto de sesión limitado requiere un ámbito de presupuesto perteneciente a la sesión principal y compartido por los candidatos. Fije límites de intentos y solicitudes, compare resultados o cancele y aplique los cambios seleccionados al índice sin crear un commit.",
   "referenceWindowsSessions": "Muse Code no puede cambiar el nombre de las sesiones ni bifurcarlas en Windows (meta-models/muse-code-sdk#30, #31).",
   "referenceAgentControls": "Controles del agente; Interrumpir; Detener; Reanudar; Cerrar el agente; Volver a abrir el agente; Marcar resultado como leído; Enviar mensaje; Tarea de seguimiento",
   "referenceElicitationTitle": "Formularios MCP",

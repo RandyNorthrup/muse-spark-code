@@ -2459,7 +2459,7 @@
   "referenceTabSnooze": "15분간 다시 알림; 1시간 동안 다시 알림; 다시 시작할 때까지 다시 알림.",
   "referenceServe": "{command} [옵션]              stdin과 stdout으로 Agent Client Protocol을 제공합니다",
   "referencePaletteKeys": "항목을 탐색하고 선택하거나 완성하거나 목록을 닫습니다. 각 답변에 Muse가 들이는 노력을 선택합니다.",
-  "referenceBestOfNRequirements": "후보 실행에는 Model API, 유료 기능 활성화, 신뢰하는 Git 작업 공간, Git 2.36 이상 및 Git 필터나 훅 프로그램이 설정되지 않은 상태가 필요합니다. 후보 예산을 공유할 수 있을 때까지 유한한 세션 예산에서는 사용할 수 없습니다. 시도와 요청 한도를 설정하고 비교하거나 취소한 다음 선택한 변경을 적용하고 스테이징합니다. 커밋은 만들지 않습니다.",
+  "referenceBestOfNRequirements": "후보 실행에는 Model API, 유료 기능 활성화, 신뢰하는 Git 작업 공간, Git 2.36 이상 및 Git 필터나 훅 프로그램이 설정되지 않은 상태가 필요합니다. 유한한 세션 예산에는 상위 세션이 소유하고 후보들이 공유하는 예산 범위가 필요합니다. 시도와 요청 한도를 설정하고 비교하거나 취소한 다음 선택한 변경을 적용하고 스테이징합니다. 커밋은 만들지 않습니다.",
   "referenceWindowsSessions": "Muse Code는 Windows에서 세션 이름을 바꾸거나 포크할 수 없습니다(meta-models/muse-code-sdk#30, #31).",
   "referenceAgentControls": "에이전트 제어; 중단; 중지; 재개; 에이전트 닫기; 에이전트 다시 열기; 결과를 읽음으로 표시; 메시지 보내기; 후속 작업",
   "referenceElicitationTitle": "MCP 양식",

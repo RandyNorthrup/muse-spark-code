@@ -18204,6 +18204,33 @@ joined with M57, M58 and PR #49's sign-in
         (`docs/certification/m92.md`); the commit guard skipped, no
         commit-writing path exists
 
+### FIXHELPREF4 — Final focused help audit repairs (2026-10-06)
+
+Scope: fix RVHELPREF4's P1 and both P2 findings. Best-of-N's finite session
+budget requires an owned parent scope shared by candidates; derive that help
+prerequisite from the production manager's admission in a truth regression.
+Correct English and all fourteen translations, then regenerate every output.
+Reject the closed state-predicate vocabulary in every plain description by
+walking the complete built reference, including keyboard rows and nested facts.
+Move existing state claims into typed conditions rather than rewording them.
+Prove the review's exact sentences fail at buildReference/referenceMarkdown,
+accept neutral prose, and retain the original 100-KiB reference cap.
+
+The complete walk exposed existing conditional enum meanings and paid-default
+facts as well as ordinary descriptions. Preserve them with typed localized
+references and the same selector on every surface. The first production build
+correctly rejected the resulting reference at 103,230 bytes / 102,400. Extend
+the existing lossless string packing with shared technical prefixes, certify
+whole-model equality and a rejecting restoration drill, and retain every cap.
+
+- [x] Budget truth regression, all translations and generated outputs.
+- [x] Vocabulary/output-walk regressions and byte-exact red drills.
+- [x] Scoped Kubuntu validation and hook-on commits; no merge or push.
+
+Evidence: `docs/certification/help-reference.md`. The rig brief reserves full
+quality and release integration for the lead. No new dependency, paid/live
+call, guard weakening or cap change is authorized; time box: ninety minutes.
+
 ### FIXHELPREF3 — Third truth audit repairs (2026-10-06)
 
 Scope: resolve all six RVHELPREF3 findings at their source. Describe both Auto
@@ -18305,6 +18332,13 @@ or live model calls, dependency changes, credential access or cap changes.
 Certification: `docs/certification/help-reference.md`.
 
 ## 7. Gates
+
+**FIXHELPREF4 bounded certification (2026-10-06).** The explicit rig brief
+prohibits aggregate quality and reserves release integration for the lead.
+Run all owning reference/budget tests, exact-restoration red drills and the
+existing scoped static/build checks directly on Kubuntu before the local
+hook-on commit. The original predicates, schemas and bundle caps remain gates;
+no threshold, ignore, rule level, timeout or dependency is relaxed.
 
 **FIXHELPREF bounded truth certification (2026-10-05).** Kubuntu runs the
 owning reference/ACP regressions, source and guard failure drills with exact
@@ -19492,6 +19526,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXHELPREF4 audit outcome.** RVHELPREF4's P1 and both P2 findings are fixed,
+  with no deferred finding. The closed predicate vocabulary is checked over
+  the complete emitted reference rather than a list of row kinds. Existing
+  state claims, enum meanings and paid-default facts retain typed conditions;
+  Best-of-N's prerequisite is tested against production admission with a fake
+  API. This supersedes FIXHELPREF3's incomplete C06 guard claim. Arbitrary prose
+  truth still needs an owning source audit. The original bundle cap and the
+  lead's integrated quality/release boundary remain unchanged. Evidence and
+  exact-restoration drills: `docs/certification/help-reference.md`.
 
 - **FIXHELPREF3 audit outcome.** C01–C06 and the two additional C07 prose
   corrections have no deferred finding. The structural guard certifies typed

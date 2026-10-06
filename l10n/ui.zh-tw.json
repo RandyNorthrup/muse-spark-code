@@ -2459,7 +2459,7 @@
   "referenceTabSnooze": "稍後提醒 15 分鐘; 稍後提醒 1 小時; 稍後提醒到重新啟動.",
   "referenceServe": "{command} [選項]              透過 stdin 與 stdout 提供 Agent Client Protocol",
   "referencePaletteKeys": "瀏覽項目，選取或補全選擇，或關閉清單。 選擇 Muse 在每則回答上投入的心力。",
-  "referenceBestOfNRequirements": "候選方案需要Model API、啟用付費功能、可信Git工作區、Git 2.36或更新版本，且不能設定Git過濾器或鉤子程式。在候選預算可共用前，有限工作階段預算會阻止此流程。設定嘗試和請求上限、比較或取消，然後套用所選變更並暫存，不建立提交。",
+  "referenceBestOfNRequirements": "候選方案需要Model API、啟用付費功能、可信Git工作區、Git 2.36或更新版本，且不能設定Git過濾器或鉤子程式。有限工作階段預算需要一個由父工作階段擁有、供候選方案共用的預算範圍。設定嘗試和請求上限、比較或取消，然後套用所選變更並暫存，不建立提交。",
   "referenceWindowsSessions": "Muse Code 無法在 Windows 上重新命名或分叉工作階段（meta-models/muse-code-sdk#30、#31）。",
   "referenceAgentControls": "代理程式控制項; 中斷; 停止; 恢復; 關閉代理程式; 重新開啟代理程式; 將結果標示為已讀; 傳送訊息; 後續工作",
   "referenceElicitationTitle": "MCP 表單",

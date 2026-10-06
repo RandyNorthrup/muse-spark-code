@@ -24,6 +24,7 @@ export interface ReferenceSetting {
   readonly default: unknown
   readonly enum?: readonly unknown[] | undefined
   readonly enumDescriptions?: readonly string[] | undefined
+  readonly enumTexts?: Readonly<Record<string, ReferenceText>> | undefined
   readonly enumDescriptionKeys?: readonly (string | null)[] | undefined
   readonly refinements: readonly string[]
   readonly schema: Readonly<Record<string, unknown>>
