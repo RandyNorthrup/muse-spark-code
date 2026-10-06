@@ -44,7 +44,7 @@ import { AccountHosts, connectAccountSession } from './host/auth/accountHost'
 import { AuthService } from './host/auth/authService'
 import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
 import { runDeviceSignIn } from './host/auth/deviceSignIn'
-import { CredentialStore, isValidModelApiKey } from './host/auth/credentialStore'
+import { isValidModelApiKey } from './host/auth/credentialStore'
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { createFileScheduleStore } from './host/backend/fileScheduleStore'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
@@ -197,6 +197,13 @@ import { voiceLoader } from './host/voice/voiceBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
+import {
+  modelsPanelLoader,
+  providersSeamLoader,
+  providerCredentials,
+  recoverProviderRemovals,
+} from './host/models/modelsPanelBundle'
+import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
 import { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
@@ -234,6 +241,8 @@ import {
   BROWSER_CHECK_BUNDLE_FILE,
   BROWSER_RUNTIME_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
+  MODELS_PANEL_BUNDLE_FILE,
+  PROVIDERS_BUNDLE_FILE,
   WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
@@ -887,9 +896,14 @@ async function activateWindow(
   })
   void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
   const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
-  const credentials = new CredentialStore(context.secrets, (message) => {
-    log.warn(message)
+
+  const providersSeamBundle = providersSeamLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', PROVIDERS_BUNDLE_FILE).fsPath,
+    log,
   })
+  const credentials = providerCredentials(context.secrets, log, () =>
+    providersSeamBundle().store.list(),
+  )
   // The paid Model API features (M33–M35, PLAN.md D30): on only with the
   // setting on and the price accepted; every panel shows which are on.
   // Whether a Model API key is stored (M44): the Muse Code backend then
@@ -2323,6 +2337,7 @@ async function activateWindow(
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
+    isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
     isShellKeepsDirectoryOn: () => currentSettings().modelApiShellKeepsDirectory,
     allowsPaidUse: async (request, requiresAsking) =>
       await paid.consent.allows(request, requiresAsking),
@@ -2472,7 +2487,8 @@ async function activateWindow(
           setting: currentSettings().backend,
           hasCli: backend.resolveLaunch().ok,
           hasCliSession,
-          hasStoredKey: async () => (await credentials.getApiKey()) !== undefined,
+          // A provider's secret counts as a Model API credential (M95, D74).
+          hasStoredKey: async () => await credentials.hasModelApiCredential(),
         }),
       async (kind): Promise<AgentHost> =>
         kind === 'modelApi' ? await modelApi.ensureHost() : await backend.ensureHost(),
@@ -2661,6 +2677,21 @@ async function activateWindow(
       }
       case 'declineBundledSkills': {
         await bundledSkillsOffer.decline()
+        break
+      }
+      // M95 (PLAN.md D74, lane U): the first-run screen, the picker's rows
+      // and the setup confirmation reach lane K's Models & Agents commands
+      // through the registered ids (an explicit error until lane K lands).
+      case 'startWithOwnModel': {
+        await vscode.commands.executeCommand(COMMAND_IDS.startWithOwnModel)
+        break
+      }
+      case 'addModelProvider': {
+        await vscode.commands.executeCommand(COMMAND_IDS.addModelProvider)
+        break
+      }
+      case 'manageModels': {
+        await vscode.commands.executeCommand(COMMAND_IDS.modelsAndAgents)
         break
       }
       case 'showWhatsNew': {
@@ -3278,6 +3309,70 @@ async function activateWindow(
     void withHookRunner((runner) => runner.reload(), false).catch(logRejection(log, 'hook reload'))
   }
 
+  // Models & Agents (M95 lane K, PLAN.md D74, D6): the panel bundle and the
+  // lane-P/T seam load on the first Models action; activation keeps only
+  // these registrations and the loaders. Until lanes P and I merge, the
+  // seam load refuses and each command says the panel is unavailable.
+  const modelsPanelBundle = modelsPanelLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_PANEL_BUNDLE_FILE).fsPath,
+    log,
+  })
+  /** Asks the conversation to set the composer's model (its refusal stands). */
+  const setComposerModel = async (modelRef: string): Promise<void> => {
+    if (registry.active === undefined) {
+      await openConversation()
+    }
+    const surface = registry.active
+    const confirm = modelsPanelBundle().setComposerModelConfirmed
+    if (surface === undefined || confirm === undefined) {
+      throw new Error(UI_TEXT.actionFailed)
+    }
+    await confirm(surface, modelRef, () =>
+      controllerFor(surface).handle({ type: 'setModel', modelId: modelRef }),
+    )
+  }
+  /** `museSpark.suggestedProvider` as written: a preset id at most. */
+  const suggestedProviderSetting = (): string => {
+    const raw: unknown = vscode.workspace
+      .getConfiguration(SETTINGS_SECTION)
+      .get('suggestedProvider')
+    return typeof raw === 'string' ? raw : ''
+  }
+  let modelsFeatures: ModelsPanelFeatures | undefined
+  const ensureModelsFeatures = (): ModelsPanelFeatures => {
+    if (modelsFeatures === undefined) {
+      const bundle = modelsPanelBundle()
+      const seam = providersSeamBundle()
+      modelsFeatures = bundle.createModelsPanelFeatures(
+        {
+          secrets: context.secrets,
+          extensionUri: context.extensionUri,
+          l10n,
+          log,
+          globalState: context.globalState,
+          suggestedProviderSetting,
+          isRemote: vscode.env.remoteName !== undefined,
+          setComposerModel,
+          onWizardSaved: async (outcome) => {
+            await auth.refresh()
+            const surface = registry.active
+            if (surface !== undefined) {
+              bundle.publishProviderSetup?.(outcome, surface)
+            }
+          },
+        },
+        seam,
+      )
+    }
+    return modelsFeatures
+  }
+
+  void recoverProviderRemovals(
+    context.globalState.get(GLOBAL_STATE_KEYS.providerPendingRemovals),
+    ensureModelsFeatures,
+    log,
+  )
+
   editorContext.update(editorSnapshot)
   // A setting turned on while VS Code was closed, or in another window, is
   // confirmed here: at activation, and when this window gains focus (D30).
@@ -3739,6 +3834,24 @@ async function activateWindow(
       COMMAND_IDS.openShareFile,
       forActiveConversation((controller) => controller.handle({ type: 'openShareFile' })),
     ),
+    // M95 (PLAN.md D74) lane K: the wizard opened at "Pick a provider" (with
+    // the workspace's suggested preset chosen, when it names one), the panel,
+    // and the quick-pick fast path. Loading a missing bundle refuses with an
+    // explicit error, never an empty success.
+    registerLoggedCommand(log, COMMAND_IDS.startWithOwnModel, () => {
+      const features = ensureModelsFeatures()
+      features.openPanel({
+        wizard: true,
+        section: 'providers',
+        presetId: features.suggestedPreset(),
+      })
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.modelsAndAgents, () => {
+      ensureModelsFeatures().openPanel()
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.addModelProvider, async () => {
+      await ensureModelsFeatures().runQuickPick()
+    }),
     // Setup and Manual hooks (M91 lane E): the user starts them, on both
     // backends. Observation; the bounded output is shown in the hooks
     // channel, a failure as a warning with the hook's reason.

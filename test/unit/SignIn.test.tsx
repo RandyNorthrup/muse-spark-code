@@ -109,4 +109,33 @@ describe('SignIn', () => {
     renderSignIn({ status: 'noCli', methods: [] })
     expect(screen.queryAllByText('Use a Model API key')).toHaveLength(1)
   })
+
+  it('ranks the own-model choice equally with the other two when no backend is set up', () => {
+    const props = renderSignIn({ methods: ['browser', 'apiKey', 'byo'] })
+    const browser = screen.getByText('Sign in with your Meta account')
+    const key = screen.getByText('Use a Model API key')
+    const own = screen.getByText('Start with your own model')
+    expect(
+      screen.getByText('Add a model provider with an API key and pick a model.'),
+    ).toBeInTheDocument()
+    for (const button of [browser, key, own]) {
+      expect(button.tagName).toBe('BUTTON')
+      expect(button).toHaveClass('button-primary')
+    }
+    fireEvent.click(own)
+    expect(props.onSignIn).toHaveBeenCalledWith('byo')
+  })
+
+  it('keeps the ranking when the own-model choice is missing', () => {
+    renderSignIn({ methods: ['browser', 'apiKey'] })
+    expect(screen.getByText('Sign in with your Meta account')).toHaveClass('button-primary')
+    expect(screen.getByText('Use a Model API key')).toHaveClass('button-secondary')
+    expect(screen.queryByText('Start with your own model')).toBeNull()
+  })
+
+  it('offers the own-model choice beside the install guidance when the CLI is missing', () => {
+    const props = renderSignIn({ status: 'noCli', methods: ['browser', 'apiKey', 'byo'] })
+    fireEvent.click(screen.getByText('Start with your own model'))
+    expect(props.onSignIn).toHaveBeenCalledWith('byo')
+  })
 })

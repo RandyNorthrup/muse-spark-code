@@ -146,6 +146,7 @@ function packagingFixture() {
     'wire',
     'validation',
     'searchWorker',
+    'imageResizeWorker',
     'pageWorker',
   ]) {
     writeFileSync(path.join(dir, 'dist', `${bundle}.js`), '// test-owned inert bundle\n')

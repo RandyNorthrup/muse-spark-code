@@ -66,7 +66,7 @@ export interface InstructionFacts {
   }
   /**
    * The session goal while it is active (M45, PLAN.md D38, `goals.ts`):
-   * last, so the sections before it stay the same from call to call.
+   * objective and rules only; mutable progress is a request-only suffix.
    */
   readonly goalSection?: string
   /**
@@ -272,4 +272,14 @@ export function instructionsFor(facts: InstructionFacts): string {
     facts.goalSection,
   ]
   return sections.filter((section) => section !== undefined).join(PARAGRAPH)
+}
+
+/** The host's local calendar date, captured once when a session starts (M101). */
+export function localPromptDate(now: number): string {
+  const date = new Date(now)
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
 }

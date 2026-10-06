@@ -4,6 +4,19 @@ import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { UI_TEXT } from '../../src/shared/constants'
 
 describe('M80 args (A1–A10, F1)', () => {
+  it('shares the automatic compaction opt-out between ACP and headless', () => {
+    expect(parseCommandLine(['--no-auto-compaction'])).toMatchObject({
+      command: 'serve',
+      options: { autoCompaction: false },
+    })
+    const parsed = parseExec({ 'no-auto-compaction': true }, ['hi'])
+    if (!parsed.ok) throw new Error(parsed.reason)
+    expect(serveOptionsFor(parsed.options).autoCompaction).toBe(false)
+    expect(parseCommandLine(['exec', '--no-auto-compaction', 'hi'])).toMatchObject({
+      command: 'exec',
+      options: { autoCompaction: false },
+    })
+  })
   it('A1 keeps safe Muse Code defaults and projects an untrusted serve session', () => {
     const parsed = parseExec({}, ['hi'])
     expect(parsed.ok).toBe(true)

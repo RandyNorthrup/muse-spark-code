@@ -20,6 +20,7 @@ import { ACP_PAID_FLAGS } from '../shared/constants'
 
 const COMMON_OPTIONS = {
   backend: { type: 'string' },
+  'no-auto-compaction': { type: 'boolean' },
   'trust-workspace': { type: 'boolean' },
   maintenance: { type: 'boolean' },
   'muse-binary': { type: 'string' },
@@ -35,6 +36,7 @@ const COMMON_OPTIONS = {
 
 const EXEC_OPTIONS = {
   backend: { type: 'string' },
+  'no-auto-compaction': { type: 'boolean' },
   cwd: { type: 'string' },
   'prompt-file': { type: 'string' },
   'untrusted-file': { type: 'string', multiple: true },
@@ -88,6 +90,7 @@ export const CLI_OPTION_REGISTRY = {
 // chooses an English usage line or a failure message by matching its contents.
 export const CLI_OPTION_TEXT = {
   backend: 'backend',
+  'no-auto-compaction': 'no-auto-compaction',
   'trust-workspace': 'trust-workspace',
   maintenance: 'maintenance',
   'muse-binary': 'muse-binary',

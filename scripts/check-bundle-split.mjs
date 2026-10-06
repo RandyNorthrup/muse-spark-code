@@ -129,6 +129,7 @@ const LAZY_ONLY = [
   // TRAIN14A: stored-key image/Tab HTTP calls load the same client on first use.
   'client.ts',
   'ModelApiHost.ts',
+  'modelCapabilities.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',
   'commandRules.ts',
@@ -148,6 +149,7 @@ const LAZY_ONLY = [
   'modelCallHooks.ts',
   // M73: observation packing's store, its placeholder and recall_output.
   'observationPack.ts',
+  'autoCompact.ts',
   'permissions.ts',
   'promptCache.ts',
   // The built-in Reviewer's prompt and tool list (M70).
@@ -204,6 +206,7 @@ for (const name of onDisk) {
     Number(ACTIVATION_ALLOWED.has(name)) +
     Number(lazy.has(name)) +
     Number(DEFERRED_ONLY.includes(name)) +
+    Number(name.startsWith('codecs/')) +
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
     Number(PLUGIN_HOOKS_ONLY.includes(name)) +
@@ -653,6 +656,33 @@ if (!whatsNewPage.has(WHATS_NEW_PAGE.script)) {
   problems.push(`${WHATS_NEW_PAGE.output} no longer carries ${WHATS_NEW_PAGE.script}`)
 }
 
+const providers = inputsOf(BUNDLES.providers)
+for (const name of onDisk) {
+  if (name.startsWith('codecs/') && !providers.has(`${MODEL_API_DIR}/${name}`)) {
+    problems.push(`${BUNDLES.providers.output} no longer carries ${MODEL_API_DIR}/${name}`)
+  }
+}
+
+// M95: codecs belong exclusively to the separate providers bundle. Check
+// every emitted JS output, including future bundles and new codec files.
+for (const directory of ['dist/meta', 'dist/meta-acp']) {
+  for (const name of readdirSync(directory)) {
+    if (!name.endsWith('.json')) continue
+    const { outputs } = JSON.parse(readFileSync(path.join(directory, name), 'utf8'))
+    for (const [output, bundle] of Object.entries(outputs)) {
+      if (output === BUNDLES.providers.output || !output.endsWith('.js')) continue
+      for (const input of Object.keys(bundle.inputs)) {
+        if (
+          input.startsWith(`${MODEL_API_DIR}/codecs/`) ||
+          input.startsWith('src/core/providers/')
+        ) {
+          problems.push(`${output} carries ${input}, which loads only in dist/providers.js`)
+        }
+      }
+    }
+  }
+}
+
 // Model text (PLAN.md D6, 2026-10-03). One object is carried whole by every
 // bundle that reads any key of it: esbuild does not tree-shake by key. So
 // text that only lazily loaded bundles read is a block of its own in
@@ -673,20 +703,25 @@ function shippedBundles() {
         const metafile = `${dir}/${name}`
         const { outputs } = JSON.parse(readFileSync(metafile, 'utf8'))
         return Object.keys(outputs)
-          .filter((output) => output.endsWith('.js'))
+          .filter((output) => output.endsWith('.js') && !output.startsWith('dist/webview/chunks/'))
           .map((output) => ({ output, metafile }))
       }),
   )
 }
 const SHIPPED = shippedBundles()
-// ESM splitting moves shared constants to one common browser chunk. Identify
-// that chunk by its source, so hashes may change without loosening the text gate.
-const webviewConstants = SHIPPED.filter(
-  (bundle) =>
-    bundle.output.startsWith('dist/webview/') && inputsOf(bundle).has('src/shared/constants.ts'),
+// The chat ESM graph carries the review template in a shared chunk. Models
+// is a separate graph and may also use constants, but never this template.
+// textOf(main) checks every chunk in its graph; require its actual reader.
+const webviewReview = SHIPPED.filter(
+  ({ output, metafile }) =>
+    output.startsWith('dist/webview/') &&
+    Object.hasOwn(
+      JSON.parse(readFileSync(metafile, 'utf8')).inputs,
+      'src/webview/components/ReviewPane.tsx',
+    ),
 )
-if (webviewConstants.length !== 1) {
-  problems.push('the webview must carry shared constants in exactly one JavaScript output')
+if (webviewReview.length !== 1) {
+  problems.push('exactly one webview graph must carry ReviewPane')
 }
 /** The shipped bundle that `output` names; a missing one is a problem. */
 function shipped(output) {
@@ -748,7 +783,7 @@ const TEXT_BLOCKS = [
   {
     block: 'REVIEW_COMMENT_MODEL_TEXT',
     sentinels: ['reviewRemovedLine'],
-    readers: webviewConstants.map(({ output }) => output),
+    readers: webviewReview.map(({ output }) => output),
   },
   // Web fetch's own words (M69): the window's fetch, the Model API
   // backend's URL checks and the ACP agent's fetch.
@@ -809,7 +844,13 @@ function blockKeys(name) {
 const outputText = new Map()
 function textOf(output) {
   if (!outputText.has(output)) {
-    outputText.set(output, readFileSync(output, 'utf8'))
+    const files =
+      output === 'dist/webview/main.js'
+        ? Object.keys(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs).filter(
+            (file) => file.endsWith('.js'),
+          )
+        : [output]
+    outputText.set(output, files.map((file) => readFileSync(file, 'utf8')).join('\n'))
   }
   return outputText.get(output)
 }
@@ -956,9 +997,13 @@ const validationExports = new Set(
 const nodeMetafiles = readdirSync('dist/meta')
   .filter(
     (name) =>
-      !['validation.json', 'webview.json', 'whatsNewPage.json', 'referencePage.json'].includes(
-        name,
-      ),
+      ![
+        'validation.json',
+        'webview.json',
+        'whatsNewPage.json',
+        'referencePage.json',
+        'modelsWebview.json',
+      ].includes(name),
   )
   .map((name) => `dist/meta/${name}`)
 nodeMetafiles.push('dist/meta-acp/acp.json')
@@ -1016,6 +1061,13 @@ if (
   problems.push('dist/validation.js no longer carries the mini-parser')
 }
 
+if (
+  inputsOf({ output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' }).has(
+    'src/shared/protocol.ts',
+  )
+) {
+  problems.push('dist/modelsPanel.js carries unrelated chat schemas')
+}
 if (problems.length > 0) {
   console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
   for (const problem of problems) {
@@ -1068,6 +1120,7 @@ console.log(
 console.log(
   `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,
 )
+console.log(`ok   ${BUNDLES.providers.output}: codecs and provider core load exclusively there`)
 console.log(
   `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
 )

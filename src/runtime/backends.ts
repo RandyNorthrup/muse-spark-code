@@ -293,8 +293,13 @@ function modelApiManager(
     },
     // The panel's default (M56); the agent has no setting for the longer retention.
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
+    // ACP and headless share the panel's packing/recall engine. Without a
+    // VS Code setting here, use D81.6's enabled policy in every editor.
+    isObservationPackingOn: () => true,
     // M82's cap and reply line are VS Code settings; ACP exposes neither.
     sessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
+    isAutoCompactionOn: () =>
+      deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
     // D78 changes only VS Code's display default; ACP remains unchanged.
     showReplyUsage: () => false,
     // Each use asked in the editor's session (M58, PLAN.md D48). Child tasks

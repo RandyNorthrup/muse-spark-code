@@ -164,5 +164,12 @@
   "config.judge.engine.enumDescriptions.same": "Posuzuje pouze váš vlastní chatovací model; model nikdy nemění.",
   "config.judge.engine.enumDescriptions.off": "Bez posuzovatele: schvalování se chová přesně jako bez něj.",
   "command.openHelp.title": "Nápověda a reference",
-  "config.shell.passEnvironmentVariables.description": "Názvy proměnných prostředí předávaných interaktivním příkazům shellu hlavní relace, včetně proměnných s přihlašovacími údaji, které jsou běžně skryté. Pouze názvy, nikdy hodnoty. Výchozí: žádné. Příkaz může tyto hodnoty odhalit v konverzaci a poskytovateli modelu. Ověřování/then_run, plány, podřízení/týmoví pracovníci a hooky nikdy nedostávají proměnné s přihlašovacími údaji, ani když jsou zde uvedené. Interaktivní příkaz přesunutý na pozadí si ponechá počáteční prostředí. Nemění prostředí Muse Code ani explicitně nakonfigurovaných serverů MCP."
+  "config.shell.passEnvironmentVariables.description": "Názvy proměnných prostředí předávaných interaktivním příkazům shellu hlavní relace, včetně proměnných s přihlašovacími údaji, které jsou běžně skryté. Pouze názvy, nikdy hodnoty. Výchozí: žádné. Příkaz může tyto hodnoty odhalit v konverzaci a poskytovateli modelu. Ověřování/then_run, plány, podřízení/týmoví pracovníci a hooky nikdy nedostávají proměnné s přihlašovacími údaji, ani když jsou zde uvedené. Interaktivní příkaz přesunutý na pozadí si ponechá počáteční prostředí. Nemění prostředí Muse Code ani explicitně nakonfigurovaných serverů MCP.",
+  "command.startWithOwnModel.title": "Začít s vlastním modelem",
+  "command.modelsAndAgents.title": "Modely a agenti",
+  "command.addModelProvider.title": "Přidat poskytovatele modelů…",
+  "config.suggestedProvider.description": "Pracovní prostor smí navrhnout jednu předvolbu poskytovatele modelů podle id; panel nabídne otevření Modelů a agentů s touto předvolbou. Prázdné nenavrhuje nic. Pracovní prostor nemůže nastavit adresu ani údaj.",
+  "walkthrough.gettingStarted.step.ownModel.title": "Začněte s vlastním modelem",
+  "walkthrough.gettingStarted.step.ownModel.description": "Nemáte předplatné Muse ani klíč Meta API? Přidejte vlastního poskytovatele modelů — OpenRouter, Anthropic, OpenAI nebo místní server — a vyberte model.\n[Začít s vlastním modelem](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Automaticky zhušťovat dlouhé konverzace Model API. Výchozí nastavení je zapnuto, ale funkce zůstává neaktivní do úspěšného párového vyhodnocení. Každé další placené volání vyžaduje souhlas s cenou a denním rozpočtem."
 }

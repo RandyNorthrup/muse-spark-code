@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import * as z from 'zod/mini'
 import {
   MissingApiKeyError,
   ModelApiClient,
@@ -11,6 +13,31 @@ import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/mo
 import { MODEL_API_MAX_RETRIES, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
+import { errorBodySchema } from '../../src/core/backends/modelapi/schemas'
+
+it('parses the captured U9 strict-schema 400 without retrying or inferring a missing code (M106)', async () => {
+  const capture = z
+    .object({ status: z.literal(400), response: errorBodySchema })
+    .parse(
+      JSON.parse(
+        readFileSync(new URL('../fixtures/m106/u9-strict-refusal.json', import.meta.url), 'utf8'),
+      ),
+    )
+  const attempts = vi.fn(() =>
+    Promise.resolve(Response.json(capture.response, { status: capture.status })),
+  )
+  const { client, sleeps } = setup(undefined, attempts)
+  const events = Array.fromAsync(client.streamResponse(body, new AbortController().signal))
+  await expect(events).rejects.toBeInstanceOf(ModelApiError)
+  await expect(events).rejects.toMatchObject({
+    status: 400,
+    message: "'additionalProperties' is required to be supplied and to be false.",
+    kind: 'invalid_request_error',
+    code: undefined,
+  })
+  expect(attempts).toHaveBeenCalledTimes(1)
+  expect(sleeps).toEqual([])
+})
 
 const body: CreateResponseBody = {
   model: 'muse-spark-1.3',
@@ -69,6 +96,17 @@ function bodyOf(text: string, cancel: () => void): ReadableStream<Uint8Array> {
 
 function collect(stream: AsyncIterable<StreamEvent>): Promise<StreamEvent[]> {
   return Array.fromAsync(stream)
+}
+
+/** The scripted failures, then success: the stream completes after exactly `expectedSleeps`. */
+async function streamRetryThenSucceed(
+  client: ModelApiClient,
+  sleeps: number[],
+  expectedSleeps: readonly number[],
+): Promise<void> {
+  const events = await collect(client.streamResponse(body, new AbortController().signal))
+  expect(events.at(-1)?.type).toBe('response.completed')
+  expect(sleeps).toEqual(expectedSleeps)
 }
 
 /** A fetch behind a network that inspects HTTPS: Node's "fetch failed" and its cause (M56). */
@@ -490,6 +528,38 @@ describe('ModelApiClient', () => {
     expect(api.requests[0]?.body).not.toHaveProperty('stream')
   })
 
+  it('aborts a token recount with its owning turn signal', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const held = Promise.withResolvers<Response>()
+    let requestSignal: AbortSignal | null | undefined
+    const { client } = setup('LLM|1|secret', (_url, init) => {
+      requestSignal = init?.signal
+      entered.resolve(undefined)
+      requestSignal?.addEventListener(
+        'abort',
+        () => {
+          held.reject(new Error('cancelled'))
+        },
+        {
+          once: true,
+        },
+      )
+      return held.promise
+    })
+    const stop = new AbortController()
+    const { stream: _stream, ...countable } = body
+    const counted = client.countInputTokens(countable, stop.signal)
+    const result = expect(counted).rejects.toMatchObject({ message: 'cancelled' })
+    try {
+      await entered.promise
+      stop.abort()
+      expect(requestSignal?.aborted).toBe(true)
+    } finally {
+      held.reject(new Error('cancelled'))
+      await result
+    }
+  })
+
   it('streams the documented events in order, skipping unknown types', async () => {
     const { api, client } = setup()
     api.script({
@@ -536,10 +606,8 @@ describe('ModelApiClient', () => {
       { httpError: { status: 500 } },
       { text: 'finally' },
     )
-    const events = await collect(client.streamResponse(body, new AbortController().signal))
-    expect(events.at(-1)?.type).toBe('response.completed')
     // Retry-After 2 s + 500 ms jitter, then 2 s + jitter and 4 s + jitter of backoff.
-    expect(sleeps).toEqual([2500, 2500, 4500])
+    await streamRetryThenSucceed(client, sleeps, [2500, 2500, 4500])
     expect(log.warn).toHaveBeenCalledTimes(3)
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('429')
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('slow down')
@@ -552,6 +620,62 @@ describe('ModelApiClient', () => {
       status: 503,
     })
     expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(4 + 5)
+  })
+
+  it('never retries quota errors, whatever the status (M101 BYO 5)', async () => {
+    const { api, client, sleeps } = setup()
+    api.script({
+      httpError: {
+        status: 429,
+        body: {
+          error: {
+            message: 'You exceeded your current quota, please check your plan and billing details.',
+            type: 'rate_limit_error',
+            code: 'insufficient_quota',
+          },
+        },
+      },
+    })
+    await expect(
+      collect(client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toMatchObject({
+      name: 'ModelApiError',
+      status: 429,
+      code: 'insufficient_quota',
+    })
+    expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(1)
+    expect(sleeps).toEqual([])
+  })
+
+  it('fails at once on a Retry-After past the cap, naming the wait (M101 BYO 5)', async () => {
+    const { api, client, sleeps } = setup()
+    api.script({
+      httpError: {
+        status: 429,
+        retryAfter: '120',
+        body: { error: { message: 'slow down', type: 'rate_limit_error' } },
+      },
+    })
+    await expect(
+      collect(client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toThrow('wait 120 s before retrying, past the 60 s limit')
+    expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(1)
+    expect(sleeps).toEqual([])
+  })
+
+  it('still retries at exactly the Retry-After cap (M101 BYO 5)', async () => {
+    const { api, client, sleeps } = setup()
+    api.script(
+      {
+        httpError: {
+          status: 429,
+          retryAfter: '60',
+          body: { error: { message: 'slow down', type: 'rate_limit_error' } },
+        },
+      },
+      { text: 'finally' },
+    )
+    await streamRetryThenSucceed(client, sleeps, [60_000])
   })
 
   it('checks a child grant after a fresh key read before every HTTP retry', async () => {

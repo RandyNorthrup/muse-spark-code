@@ -68,6 +68,7 @@ export const EN = {
   referenceExecImages:
     'Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused.',
   referenceCliOptions: {
+    'no-auto-compaction': 'Disable automatic compaction',
     backend:
       '--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     'trust-workspace':
@@ -1236,6 +1237,15 @@ export const EN = {
   toolReadPdfInvalid: 'The file `{path}` has a PDF name but no PDF header.',
   toolReadImageInvalid: 'The file `{path}` is not a supported image.',
   toolVisualFileMissing: 'The file `{path}` was not found.',
+  toolEditInvalid: 'Use a nonempty find/replace pair or a nonempty edits list, never both.',
+  toolEditNoChange: 'Find and replace are identical; nothing would change.',
+  toolEditNotFound: 'Find text was not found in {path}.',
+  toolEditAmbiguous: 'Find text occurs more than once in {path}; include more context.',
+  toolEditOverlap: 'Edits overlap; no two entries may change the same text.',
+  toolReadPastEnd: 'Offset {offset} is beyond the end of {path}.',
+  toolReadText: 'Read text file `{path}`.',
+  toolReadRange: 'Lines {start}–{end} of {total}; offset={offset}',
+  incompleteToolCallsNotRun: 'The model reply was cut short. No tool calls were run; please retry.',
   toolVisualReadFailed: 'The file `{path}` could not be read.',
   // M69 (PLAN.md D49): web fetch. The row's line under a fetched page: its
   // size and content type (text/html).
@@ -1389,6 +1399,8 @@ export const EN = {
   // Observation packing (M73): a recall_output row's heading above the
   // recalled text (shown as it was), and why a recall read nothing back.
   packRecalled: 'Recalled characters {start} to {end} of {total} from packed output {id}',
+  packRecallNotFound: 'No literal match in packed output {id} from character {offset}.',
+  promptCacheMiss: 'Prompt cache missed {tokens} reusable input tokens.',
   packRecallInvalid: 'The recall request was malformed, so nothing was read back.',
   packRecallUnknownId:
     'No packed output in this conversation has the id {id}, so nothing was read back.',
@@ -1791,8 +1803,15 @@ export const EN = {
   reject: 'Reject',
   modelApiStalled:
     'The Model API sent nothing for {seconds} s, so the reply was ended; send the message again to retry',
+  // {wait}: the Retry-After the provider asked for, in seconds; {cap}: the
+  // wait past which a request fails at once instead of waiting it out.
+  modelApiRetryAfterTooLong:
+    'The provider asked to wait {wait} s before retrying, past the {cap} s limit, so the request was not retried.',
   queuedTurnDropped: 'Not sent: Stop cleared the queued messages',
   compactionStopped: 'the compaction was stopped',
+  compactionEmpty: 'The summary was empty; the conversation is unchanged.',
+  compactionToolCall: 'The summary requested a tool; the conversation is unchanged.',
+  summaryForkUnavailable: 'Fork with summary requires paid admission; no fork was opened.',
   compactionStoppedNotice: 'Compaction stopped; the conversation is as it was.',
   // PLAN.md D26: a decision or answer that arrived after the prompt had moved.
   promptAlreadySettled: 'That request was already answered, so this choice was not needed.',
@@ -1843,6 +1862,10 @@ export const EN = {
   contributorConfirm: 'Use contributor model',
   contributorBlocked:
     'Contributor-tier models are blocked in this workspace (museSpark.confidentialWorkspace).',
+  // A BYO model whose provider or route may train on the content, refused
+  // where the workspace forbids it (M95, PLAN.md D74).
+  trainingBlocked:
+    'Models that may train on workspace content are blocked in this workspace (museSpark.confidentialWorkspace).',
   backendItem: 'Backend',
   backendDetail: 'museSpark.backend: auto / museCode / modelApi',
   backendMuseCode: 'Muse Code (your Muse subscription)',
@@ -1852,6 +1875,9 @@ export const EN = {
   installOrKeyDetail:
     'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
   compactionDone: 'Context compacted',
+  autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
+  autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
+  contextWindowFull: 'Context window full: /compact or /handoff',
   // The Model API session budget (M82): a request that cannot fit is not
   // sent, and the turn's cost is shown against the cap afterwards.
   sessionBudgetStopped:
@@ -2564,6 +2590,7 @@ export const EN = {
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
+    '  --no-auto-compaction             Disable automatic compaction',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
     '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',
@@ -3258,6 +3285,8 @@ export const EN = {
   thenRunLabel: 'Then ran',
   // {reason}: one of checkSkips, with the user's or the hook's words after it.
   thenRunNotRun: 'Not run: {reason}',
+  // A then_run value that is present but not a command line.
+  thenRunNotString: 'then_run must be one command line as a string',
   // After "a hook denied it": the hook rewrote the command into none.
   hookInputNoCommand: 'The hook’s updated input names no command.',
   thenRunTimedOut: 'Stopped at its time limit',
@@ -3272,6 +3301,349 @@ export const EN = {
   exportThenRunLabel: 'Then ran:',
   // {command}: the then_run command; {outcome}: why it did not run.
   exportThenRunSkipped: 'then_run `{command}`: {outcome}',
+  // M95 (PLAN.md D74): bring-your-own model providers. The first-run
+  // screen's third choice, beside the Muse sign-in and the Meta key.
+  startWithOwnModel: 'Start with your own model',
+  startWithOwnModelDetail: 'Add a model provider with an API key and pick a model.',
+  // {provider}: the preset's name; {model}: the qualified model reference.
+  setupComplete: 'You’re set up with {provider} · {model}',
+  manageProviders: 'Manage providers',
+  // The Models & Agents panel's framework: its sections, filters and wizard.
+  modelsPanelTitle: 'Models & Agents',
+  // Shown when the panel's bundle cannot load: an explicit error, never an
+  // empty panel.
+  modelsPanelUnavailable: 'Models & Agents is not available in this build.',
+  providersSectionTitle: 'Providers',
+  modelsSectionTitle: 'Models',
+  providerSearchPlaceholder: 'Search providers…',
+  modelsSearchPlaceholder: 'Search models…',
+  // The provider dropdown's filter chips.
+  providerFilters: {
+    cloud: 'Cloud',
+    local: 'On this computer',
+    subscription: 'Subscription sign-in',
+    aggregator: 'Aggregator',
+  },
+  scanComputer: 'Scan this computer',
+  providersScanning: 'Scanning…',
+  providerUntested: 'Not tested',
+  // A stored credential names only the origin it was entered for, never the key.
+  keyBoundState: 'stored, bound to {origin}',
+  // {count}: the models the free check listed.
+  providerKeyWorks: forms({
+    one: 'Key works · {count} model',
+    other: 'Key works · {count} models',
+  }),
+  // Before a check that bills a token: its cost is stated and asked first.
+  providerTestPaid: 'This check sends one token and costs about {cost}.',
+  // {detail}: what the provider answered, in its words.
+  providerTestFailed: 'Test failed: {detail}',
+  scanFailed: 'Scan failed: {detail}',
+  // The wizard's first step; the quick pick runs the same flow.
+  wizardPickProvider: 'Pick a provider',
+  providerFields: {
+    provider: 'Provider',
+    address: 'Address',
+    models: 'Models',
+    privacy: 'Privacy',
+  },
+  // The wire format a custom server speaks.
+  wireFormats: {
+    responses: 'OpenAI Responses',
+    chat: 'Chat Completions',
+    anthropic: 'Anthropic Messages',
+  },
+  getKey: 'Get a key',
+  enterKey: 'Enter key…',
+  // {provider}: the preset's name.
+  providerConnect: 'Connect {provider} account',
+  providerConnectWaiting: 'Waiting for {provider} in the browser…',
+  // The OAuth loopback's callback page, shown in the browser.
+  oauthCallbackDone: 'You can close this window and return to VS Code.',
+  providerKeyPrompt: '{provider} API key',
+  // {provider}: the preset's name. Said under the password box while typing.
+  providerKeyInvalid: 'This does not look like a {provider} key.',
+  // {origin}: the address the credential is sent to, and no other.
+  keyStoredNote: 'Stored in your system keychain; sent only to {origin}.',
+  changeKey: 'Change key',
+  reconnectAccount: 'Reconnect',
+  providerEdit: 'Edit',
+  providerRemove: 'Remove',
+  testConnection: 'Test',
+  saveProvider: 'Save',
+  saveAndUseNow: 'Save and use now',
+  wizardBack: 'Back',
+  wizardCancel: 'Cancel',
+  wizardContinue: 'Continue',
+  suggestionAccept: 'Accept',
+  suggestionChange: 'Change',
+  // {id}: the provider id, as written.
+  providerRemoved: 'Removed provider {id}.',
+  undoAction: 'Undo',
+  providerExport: 'Export',
+  providerImport: 'Import',
+  providerImportPreviewTitle: 'Import preview',
+  importNeedsKey: 'needs a key',
+  refreshModels: 'Refresh models',
+  scanNewModels: forms({
+    one: '{count} new model since the last scan',
+    other: '{count} new models since the last scan',
+  }),
+  scanRemovedModels: forms({
+    one: '{count} model removed since the last scan',
+    other: '{count} models removed since the last scan',
+  }),
+  scanRepricedModels: forms({
+    one: '{count} model with a new price since the last scan',
+    other: '{count} models with a new price since the last scan',
+  }),
+  // The Models table's badges, each shown by its rule (M95 acceptance 17).
+  modelBadges: {
+    recommended: 'Recommended',
+    cheapestCapable: 'Cheapest capable',
+    largestContext: 'Largest context',
+    newBadge: 'New',
+  },
+  // How a model without a dollar price is marked.
+  modelUnpriced: 'unpriced',
+  modelLocal: 'local',
+  modelPlan: 'plan',
+  modelFree: 'free',
+  modelColumns: {
+    name: 'Model',
+    context: 'Context',
+    inputPrice: 'Input',
+    outputPrice: 'Output',
+    price: 'Price',
+  },
+  // OpenRouter's privacy routing, private by default; each in one sentence.
+  privacyNoRetention: 'No data retention',
+  privacyNoRetentionDetail: 'Only providers that retain no data are used.',
+  privacyNoTraining: 'No training',
+  privacyNoTrainingDetail: 'Providers may retain data, but must not train on it.',
+  privacyAnyProvider: 'Any provider',
+  privacyAnyDetail: 'Any provider may be used, including ones that train on data.',
+  spendLimitLink: 'Set this key’s own spend limit',
+  // The suggestion engine's values (M95) and why each is proposed.
+  suggestDefaultModel: 'Default model',
+  suggestSessionBudget: 'Session budget',
+  suggestReasonCheapest:
+    'The cheapest model that calls tools and fits the context the harness needs.',
+  suggestReasonRecommended: 'The provider’s recommended model.',
+  // {cost}: the median of the user's own recent sessions.
+  suggestReasonBudgetMedian: 'From your recent sessions (median {cost}).',
+  // {detail}: why the address is refused, in technical words.
+  providerAddressInvalid: 'This address cannot be used: {detail}',
+  // {address}: a private-network address, saved only after confirmation.
+  providerPrivateNetwork: '{address} is on a private network. Use it only if you trust it.',
+  providerPrivateConfirm: 'Use it anyway',
+  // {expected}: the origin the credential was entered for; {actual}: where
+  // the file points now. The request is refused until it is entered again.
+  originBindingMismatch:
+    'This provider now points at {actual}, but the stored credential was entered for {expected}. Enter it again.',
+  providerRedirectRefused: 'The provider redirected the request, so it was not sent.',
+  // The composer's model picker (groups, pinned favourites first).
+  addModelProviderRow: 'Add a model provider…',
+  manageModelsRow: 'Manage models…',
+  // {window}: the model's context window; {price}: its price, `unpriced`,
+  // `local` or `plan`.
+  pickerModelDetail: '{window} context · {price}',
+  // The models view's first group, when any model is pinned (M95).
+  pickerPinnedGroup: 'Pinned favourites',
+  // The models view's group for Meta's own models, which carry no provider.
+  pickerMetaGroup: 'Muse Spark',
+  // {input}, {output}: a priced model's per-M-token prices as dollars.
+  pickerPricePair: '{input} in · {output} out (per M tokens)',
+  // Account & usage's rows per provider.
+  usageKeyUsage: 'API key usage',
+  usageLimit: 'Limit',
+  usageRemaining: 'Remaining',
+  usageToday: 'Today',
+  usageThisMonth: 'This month',
+  usageUnpricedDetail: 'This model has no price card, so only its tokens are counted.',
+  // Sign-out keeps provider keys unless this is ticked (M95 acceptance 15).
+  signOutRemoveProviders: 'Also remove model providers and subscriptions',
+  // The ACP agent's provider commands print through these.
+  acpProvidersNone: 'No providers are configured.',
+  // {id}: the provider id, as written.
+  acpProviderAdded: 'Added provider {id}.',
+  acpProviderRemoved: 'Removed provider {id}.',
+  execProviderNotConfigured: 'Provider {id} is not configured.',
+  // M95 providers: evaluated through UI_TEXT at use time.
+  providerText: {
+    wizard: {
+      cancelled: 'The wizard was cancelled.',
+      pick: 'Pick a provider first.',
+      address: 'Enter the server address.',
+      credential: 'Enter the key or connect the account first.',
+      keyShape: 'The key is not shaped like this provider’s keys.',
+      test: 'Test the connection first.',
+      models: 'Tick at least one model.',
+      validate: 'Validate the server address first.',
+      refused: 'The server address was refused: {reason}',
+      private: 'Confirm access to this private network first.',
+      pickStep: 'Pick a provider from its own step.',
+      keyStep: 'Enter the key at its own step.',
+      badKey: 'That key is not shaped like this provider’s keys.',
+      oauthStep: 'Connect the account at its own step.',
+      costStep: 'Accept the test cost at its own step.',
+      testStep: 'Run the test at its own step.',
+      costConsent: 'Say the test’s cost and ask first: it was not accepted.',
+      modelsStep: 'Tick models at their own step.',
+      privacyStep: 'Choose privacy at its own step.',
+      passedTest: 'A passed test comes before the models.',
+      finish: 'Confirm to finish.',
+      confirmStep: 'Confirm from the summary step.',
+    },
+    summary: {
+      provider: 'Provider: {value}',
+      destination: 'Code goes to: {value}',
+      models: 'Models: {value}',
+      defaultSuggested: 'Default model: suggested',
+      defaultModel: 'Default model: {value}',
+    },
+    schema: {
+      id: 'A provider id, never "meta"',
+      modelRef: 'A model reference',
+      outputCap: 'Output cap exceeds context window',
+      customLimits: 'Custom models require context windows and output caps',
+      compat: 'Compatibility overrides apply only to a custom server',
+    },
+    descriptions: {
+      openai: 'OpenAI Responses API with GPT models',
+      azure: 'Azure OpenAI v1 API on your own resource and deployment',
+      xai: 'Grok models on the xAI Responses API',
+      anthropic: 'Claude models on the Anthropic Messages API',
+      gemini: 'Gemini models on the generateContent API',
+      openrouter: 'Hundreds of models through one key, with privacy routing',
+      groq: 'Fast inference on Groq hardware, OpenAI-compatible',
+      deepseek: 'DeepSeek chat models with thinking on by default',
+      mistral: 'Mistral chat models with prompt caching',
+      together: 'Open models on Together, priced per model',
+      fireworks: 'Fast open-model inference on Fireworks',
+      huggingface: 'The Hugging Face router across many providers',
+      zai: 'GLM models on Z.ai pay-as-you-go',
+      ollama: 'Models on this computer through Ollama',
+      lmstudio: 'Models on this computer through LM Studio',
+      vllm: 'A vLLM server, here or on your network over HTTPS',
+      llamacpp: 'A llama.cpp server, here or on your network over HTTPS',
+      custom: 'Any Chat Completions, Responses or Messages server',
+    },
+    hints: {
+      prefix: 'Key beginning with {prefix}… ({site})',
+      site: 'The key from {site}',
+      azure: 'The resource key from the Azure portal',
+      router: 'Key beginning with {prefix}… ({site}) or Connect OpenRouter account',
+      custom: 'The key the server expects',
+    },
+    privacy: {
+      zdr: 'No data retention: only endpoints that store no data at all may answer.',
+      'no-training': 'No training: only providers that do not train on your data may answer.',
+      any: 'Any provider: the cheapest or fastest answer wins, including providers that may keep data.',
+    },
+    suggest: {
+      recommended:
+        'Recommended, and the cheapest tool-calling model with room for the harness ({ref}).',
+      cheapest: 'The cheapest tool-calling model with room for the harness ({ref}).',
+      last: '{reason} It is also your last default.',
+      history: 'Your recent sessions’ median: {amount} a session.',
+      reference: 'No history yet: a reference session at the default model’s prices ({amount}).',
+    },
+    scan: {
+      empty: 'First scan: no models listed.',
+      first: forms({
+        one: 'First scan: {count} model.',
+        other: 'First scan: {count} models.',
+      }),
+      new: forms({
+        one: '{count} new model',
+        other: '{count} new models',
+      }),
+      removed: forms({
+        one: '{count} removed model',
+        other: '{count} removed models',
+      }),
+      repriced: forms({
+        one: '{count} repriced model',
+        other: '{count} repriced models',
+      }),
+      unchanged: 'No changes since the last scan.',
+      since: '{changes} since the last scan.',
+    },
+    labels: {
+      custom: 'Custom server',
+    },
+  },
+  // M95: locally authored Anthropic errors; protocol identifiers remain technical.
+  anthropicCodecError: 'Anthropic could not process this request.',
+  anthropicCodecPdfUnsupported: 'PDF input is not supported for Anthropic models.',
+  anthropicCodecImageInvalid:
+    'Anthropic images must use a base64 data URL with a supported image type.',
+  anthropicCodecToolArgumentsInvalid: 'Anthropic tool arguments must be a JSON object.',
+  anthropicCodecEffortUnsupported: 'This reasoning effort is not supported by Anthropic.',
+  anthropicCodecEmptyTurn: 'Anthropic requires at least one message.',
+  anthropicCodecLimitExceeded: 'The Anthropic response exceeded a decoding limit.',
+  // M95-M (the Models panel's framework, PLAN.md D74): the table, filter
+  // and form labels the panel's shared components read. Lane 0 tabled the
+  // M95 flows above; these rows are the panel's own.
+  modelsEmpty: 'No model providers yet. Add one to use your own models.',
+  panelNoMatches: 'No matches.',
+  modelFilterLabels: {
+    toolCalling: 'Tool calling',
+    vision: 'Vision',
+    reasoning: 'Reasoning',
+    contextMin: 'Min context',
+    contextMax: 'Max context',
+    maxInput: 'Max input price',
+    maxOutput: 'Max output price',
+    maxCached: 'Max cached price',
+    freeOrLocal: 'Free or local',
+    provider: 'Provider',
+    family: 'Family',
+    clear: 'Clear filters',
+    any: 'Any',
+  },
+  // {model}: the qualified model reference.
+  tickModel: 'Offer {model} in the model picker',
+  // {model}: the qualified model reference.
+  pinModel: 'Pin {model} as a favourite',
+  modelsColumnOffered: 'Offered',
+  modelsColumnPinned: 'Pinned',
+  providerDetailFields: {
+    azureResource: 'Azure resource',
+    deployment: 'Deployment',
+    loopbackPort: 'Local port',
+    customFormat: 'Wire format',
+  },
+  providerDocs: 'Documentation',
+  providerDataUse: 'How your data is used',
+  numCtxLabel: 'Context size',
+  suggestUnavailable: 'No suggestion: no model here qualifies.',
+  // {model}: the last default's qualified reference.
+  lastDefaultHint: 'Last default: {model}',
+  importUntrusted: 'This file is untrusted: check every address before importing.',
+  openRouterOrder: 'Preferred provider order',
+  openRouterFallback: 'Fall back to other providers',
+  keyMissing: 'No key stored',
+  testRunning: 'Testing…',
+  // {shown}: the filtered rows; {count}: every row.
+  modelsShownCount: forms({
+    one: '{shown} of {count} model',
+    other: '{shown} of {count} models',
+  }),
+  pricePerMillion: 'Prices per million tokens.',
+  modelsNotScanned: 'Refresh to list this provider’s models.',
+  // Native Ollama codec failures (M95).
+  ollamaModelRequired: 'Ollama needs a model id.',
+  ollamaContextRequired: 'Ollama needs a positive integer num_ctx.',
+  ollamaPdfUnsupported: 'Ollama does not accept PDF input.',
+  ollamaToolImageUnsupported: 'Ollama does not accept images in tool results.',
+  ollamaDuplicateCall: 'Ollama history contains a duplicate tool call id.',
+  ollamaResponseIdRequired: 'Ollama needs a unique response id for this request.',
+  ollamaMissingFinal: 'Ollama closed the stream without a final answer.',
+  ollamaMalformedFrame: 'Malformed Ollama stream frame.',
+  ollamaStreamLimit: 'Ollama exceeded the stream size or item limit.',
+  ollamaFinishReason: 'Ollama finished with reason "{reason}".',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

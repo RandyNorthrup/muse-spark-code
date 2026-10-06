@@ -1,0 +1,68 @@
+{
+  "provider": "together",
+  "capturedAt": "2026-10-04",
+  "totalRequests": 6,
+  "billedRequests": 3,
+  "freeRequests": 3,
+  "expected": {
+    "billed": 2,
+    "free": 3
+  },
+  "models": ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "Qwen/Qwen3.8-Flash"],
+  "calls": [
+    {
+      "seq": 1,
+      "name": "models-list",
+      "method": "GET",
+      "url": "https://api.together.ai/v1/models",
+      "status": 200,
+      "billed": false,
+      "ms": 752
+    },
+    {
+      "seq": 2,
+      "name": "models-list-xyz-host",
+      "method": "GET",
+      "url": "https://api.together.xyz/v1/models",
+      "status": 200,
+      "billed": false,
+      "ms": 306
+    },
+    {
+      "seq": 3,
+      "name": "tool-call-stream",
+      "method": "POST",
+      "url": "https://api.together.ai/v1/chat/completions",
+      "status": 400,
+      "billed": true,
+      "ms": 244
+    },
+    {
+      "seq": 4,
+      "name": "tool-call-stream-gpt-oss-120b",
+      "method": "POST",
+      "url": "https://api.together.ai/v1/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 988
+    },
+    {
+      "seq": 5,
+      "name": "tool-result-stream",
+      "method": "POST",
+      "url": "https://api.together.ai/v1/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 521
+    },
+    {
+      "seq": 6,
+      "name": "error-invalid-model",
+      "method": "POST",
+      "url": "https://api.together.ai/v1/chat/completions",
+      "status": 404,
+      "billed": false,
+      "ms": 318
+    }
+  ]
+}

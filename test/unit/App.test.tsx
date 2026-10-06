@@ -3373,6 +3373,67 @@ describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
   })
 })
 
+describe('App BYO picker and setup (M95)', () => {
+  const byoModels = [
+    ...models,
+    {
+      modelId: 'openrouter/deepseek/deepseek-v3',
+      displayLabel: 'DeepSeek V3',
+      contextLimit: 64_000,
+      isDefault: true,
+      providerId: 'openrouter',
+      providerLabel: 'OpenRouter',
+      pricing: 'priced',
+      inputUsdPerMTokens: 0.27,
+      outputUsdPerMTokens: 1.1,
+    },
+  ]
+
+  it('names the provider in the composer pill', () => {
+    renderReady()
+    deliver({ type: 'modelList', models: byoModels })
+    deliver({
+      type: 'sessionInfo',
+      modelId: 'openrouter/deepseek/deepseek-v3',
+      contextLimit: 64_000,
+    })
+    expect(screen.getByLabelText('Model')).toHaveTextContent('OpenRouter · DeepSeek V3 High')
+  })
+
+  it('keeps the bare pill for Meta models', () => {
+    renderReady()
+    deliver({ type: 'modelList', models })
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
+    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 High')
+  })
+
+  it('opens the provider quick-pick from the picker footer', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'modelList', models: byoModels })
+    fireEvent.click(screen.getByLabelText('Model'))
+    fireEvent.click(screen.getByRole('option', { name: 'Add a model provider…' }))
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'hostAction',
+      action: 'addModelProvider',
+    })
+  })
+
+  it('confirms the finished setup once, then manages and dismisses', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'setupComplete',
+      provider: 'OpenRouter',
+      model: 'openrouter/deepseek/deepseek-v3',
+    })
+    expect(screen.getByRole('status')).toHaveTextContent('OpenRouter')
+    expect(screen.getByRole('status')).toHaveTextContent('openrouter/deepseek/deepseek-v3')
+    fireEvent.click(screen.getByRole('button', { name: 'Manage providers' }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'manageModels' })
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByRole('button', { name: 'Manage providers' })).toBeNull()
+  })
+})
+
 /** A signed-in panel whose cards get ids in order, on the given backend. */
 function renderBackend(backend: 'modelApi' | 'museCode', now?: () => number) {
   const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()

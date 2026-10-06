@@ -14,6 +14,8 @@ export interface ScriptedCall {
   readonly name: string
   readonly arguments: string
   readonly callId?: string
+  /** A call the reply left uncompleted (M101 item 8): never run, answered with an error. */
+  readonly status?: 'completed' | 'incomplete'
 }
 
 /** One hosted web search in a reply (M33), streamed before the text. */
@@ -280,7 +282,7 @@ export function streamFor(
       call_id: callId,
       name: call.name,
       arguments: call.arguments,
-      status: 'completed',
+      status: call.status ?? 'completed',
     }
     text += frame({ type: 'response.output_item.done', output_index: index, item: done })
     output.push(done)

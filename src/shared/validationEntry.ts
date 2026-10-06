@@ -38,6 +38,7 @@ export {
   refine,
   regex,
   startsWith,
+  safeParse,
   strictObject,
   string,
   transform,

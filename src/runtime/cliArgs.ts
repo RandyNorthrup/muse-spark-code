@@ -34,6 +34,7 @@ export interface ServeOptions {
   readonly paidFeatures: readonly AcpPaidFeature[]
   /** The finest log detail on stderr. */
   readonly isVerbose: boolean
+  readonly autoCompaction?: boolean | undefined
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
@@ -135,6 +136,7 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     allowsContributorModels: values['allow-contributor-models'] === true,
     paidFeatures,
     isVerbose: values.verbose === true,
+    autoCompaction: values['no-auto-compaction'] !== true,
   }
   const [first, second, ...rest] = positionals
   if (first === 'setup' && second === undefined) {

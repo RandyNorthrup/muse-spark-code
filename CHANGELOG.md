@@ -7,6 +7,26 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- M106 strict-tool declarations reuse M101's schema rewrite. Convertible
+  MCP tools become strict on capable models; unsupported schemas retain
+  non-strict arguments and produce one named conversion note. Nullable
+  optionals restore correctly even after repeated strict encoding. Strict-off
+  request goldens remain unchanged. Session-setting registration and the
+  counted live M75 pair remain integration work.
+
+- M101 integration: combine release 0.14.0 and reviewed cache, compaction,
+  overflow, tools and provider lanes. Bind strict schemas to selected model
+  capabilities (including owner-confirmed Meta support), restore optional
+  null tool arguments, and resize real PNG/JPEG images in a bounded portable
+  worker before replay when documented model limits are supplied. Keep
+  automatic compaction inactive pending lane E. Align transient goal progress
+  with automatic-compaction snapshots, preserving goal-budget/Stop guards. Compress the complete browser
+  English fallback and immutable Model API instructions losslessly and share repeated usage markup to retain every
+  existing startup/deferred cap. Lane E's launcher supplies fake checks,
+  live M75 opt-in and counted capture estimates. Restore merged contributor
+  privacy checks and picker host actions, retain browser array bounds in strict
+  schemas, and align shipped browser/worker package records.
+
 ### Added
 
 - M106 development contracts now include captured Meta hosted-search,
@@ -21,6 +41,261 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Strict MCP fallbacks now survive independent host/provider bundles and
+  remain non-strict in Chat requests. Open objects and unrepresentable
+  argument schemas keep their fallback and conversion note instead of
+  losing valid arguments during strict conversion.
+  Session-import sanitization now loads on first import from the existing
+  hook runtime, preserving localized refusals and keeping the Model API
+  bundle within its unchanged size budget.
+
+- Pin the fixed development-only source-map-js 1.2.2 patch for
+  GHSA-68fv-2mgg-jv7q; preserve the existing dependency audit policy.
+
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes and excessive
+  `Retry-After` waits; provider transport binding remains pending.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
+- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
+  requests. Blank text is dropped, empty tool results ride as
+  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
+  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
+  and images for a model without image input ride as an
+  image-omitted placeholder. Tool-call ids are mapped per target format
+  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
+  provider aliases) with unique
+  per-response Gemini fallback ids. Responses replays send the call `id`
+  only for the same model with an `fc_` prefix. Gemini replays thought
+  signatures on text parts (empty ones included), counts omitted usage as
+  zero, sends vision-gated tool-result images inside `functionResponse.parts`
+  and full tool schemas through `parametersJsonSchema` on Gemini 3.
+  Gemini rejects proxy-null usage and explicitly rejects negative usage
+  counters instead of retaining an earlier tally. Signed blank parts replay;
+  late response ids salt fallback call ids; `$ref` siblings stay constrained
+  through `allOf`. The Anthropic decoder tolerates
+  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
+  requests `display: summarized` so newer models stream thinking text.
+  Lone surrogates are removed from every BYO encoder; parsed JSON retains
+  own `__proto__` keys as data, including Anthropic tool arguments.
+  Fakes only; no live
+  or paid model call.
+- M101 tool correctness: atomic multi-edit calls are schema-valid, fuzzy
+  matching preserves newlines and yields to Stop, read paging keeps its
+  next offset, file URLs decode before confinement, and ACP previews name
+  the same targets. Shell originals remain recallable above the first-send
+  budget, background completions pack, and new failures are translated.
+
+- M101 tool safety: cut-short replies refuse every tool call, including
+  completed items, show failed tool rows and explain why the turn failed
+  across all five provider codecs.
+- M101 review repairs keep Gemini goal progress as trailing user context and
+  Chat/OpenRouter rolling cache markers on historical messages. Pending
+  Manual approvals preserve sticky packed ids for safe crash recovery, even
+  without a token/spend change. ACP and headless Model API conversations now
+  share observation packing and exact literal `recall_output` with the panel.
+- M101 adds case-sensitive literal search to `recall_output`, keeps its
+  declaration stable for a tool-capable packing session, and restores sticky
+  packing ids across resume, fork and rewind. Cache misses are logged only
+  where the selected format reports cached usage; all new text is translated
+  into the 14 display languages.
+- M101 keeps goal progress outside the cached instruction prefix, places
+  Anthropic’s rolling breakpoint before the transient progress message, and
+  fixes the local prompt date once per session across resume and fork.
+- Automatic compaction stops during pending dependencies, honours a memory
+  hook's request to stop, and ends goal work when a summary spends its token
+  budget while preserving separate user input. Stopped unsent reservations are
+  refunded when they arrive; late failures are observed and summary streams close.
+  A committed manual summary remains accepted when Stop cancels its recount.
+  Retained context and summaries use the pricing tier selected by their
+  respective input sizes. The plan
+  distinguishes this candidate's packing default from released main's default.
+
+- Carry the existing release repairs into the candidate's five test fixtures:
+  include the required validation bundle, check module script tags, and await
+  the deferred Account & usage dialog.
+
+- The Model API engine now has automatic compaction economics, settled-tool
+  boundary decisions, and one classified overflow recovery attempt per turn.
+  Memory snapshots use existing permission checks and retain untrusted labels;
+  the hidden continuation restores exact host todos and the goal. The machine
+  setting defaults on, with an ACP/headless opt-out, but production reports
+  awaiting evaluation and stays inactive until its M75 pair passes and shared
+  D78 paid admission/ledger wiring is available. Missing admission fails closed.
+  If accounting fails during an HTTP retry notice, that dispatched attempt
+  is settled once and the turn stops; cleanup cannot tally it a second time.
+
+- Compaction keeps media removed by Stop out of its request and resolves the
+  selected model's capabilities after hooks. File snapshots report successful
+  effective tool results. Final-admission refusal rolls back unsent summary
+  forks; already compacted sources can be summary-forked. ACP editors and
+  headless prompts route `/compact` to the same backend compaction core.
+
+- Model API compaction reuses the sent cached prefix where supported,
+  snapshots exact open tasks and replay-derived file paths, and keeps recent
+  whole turns and supported reasoning verbatim. Structured summaries update
+  earlier summaries; output and tail budgets scale with the model window.
+  Blank summaries are refused, repeated compaction is a no-op, and transient
+  stream failures share the turn retry limit. Returned tools never run.
+  The summary-fork engine action is opt-in and requires injected paid
+  admission; it remains unavailable in the UI until D78 is wired.
+- Model API turns recognize context overflow and show “Context window full:
+  /compact or /handoff”. Context pressure, request admission and text-file
+  read budgets follow the selected model's supplied window. Admission checks
+  the lower input estimate against the full window, so an 8k Ollama session
+  can start with the real prompt and tools. Each attempt keeps its admitted
+  window and format through completion and failure. Quota and billing failures
+  keep their actual errors; only verified legacy Muse ids inherit the Muse
+  window when no registry resolver is installed. Manual compaction remains
+  available and rate limits keep their existing retry path. BYO registry wiring and certified production activation of automatic
+  recovery remain integration work.
+
+- M95 integration shares the Node validation runtime and the provider-setup
+  schema, so Models host stays within its existing size budget. Account & usage
+  loads on demand with a dismissible loading modal. Chat's unchanged startup
+  budget counts every static JavaScript chunk; the package ships all chunks.
+
+- M95 integration uses one strict Models panel bridge and includes the captured
+  Chat and Ollama codecs in the lazy provider bundle. Z.ai key checks use a
+  fixed pattern, and OAuth callbacks serve localized plain text. Models
+  harness readiness and selected-description contrast survive combined builds.
+  Native Chat reasoning fragments copy future fields without setter mutation;
+  serial SAST scans complete at unchanged rule deadlines without timeout warnings.
+- The M95 Chat codec keeps impossible cache accounting unknown, fails
+  corrupt response chunks, and preserves tool-call identity across fragments
+  and responses, including Fireworks' captured nullable continuation IDs.
+  Vision-capable models accept image input and image tool results; retained
+  completed hosted search survives a provider switch as plain text. Packed
+  output and compaction requests now have checked-in byte goldens.
+- M95 integration keeps all captured provider codecs and provider core in
+  `dist/providers.js`, with required membership and exclusion checks and a
+  measured bundle budget. The Models panel emits the script and stylesheet
+  paths its host and harness load; its new bundles have measured budgets.
+  Shared scan/context constants and loopback rejection assertions now work
+  across the merged lanes. The host settings reader validates and preserves
+  the workspace's provider suggestion alongside its documented default.
+  Accessibility captures use the existing Playwright Chrome driver with the
+  same viewports and deadlines, avoiding the rig's stalled CLI captures.
+  The Models panel has its own themed page background, readable control
+  and error colors, valid usage markup and accessible checkbox targets.
+  The harness routes the BYO chat palette to the chat bundle.
+
+- Provider endpoint checks classify equivalent IPv6 spellings consistently and
+  restrict plain HTTP to literal loopback or localhost. Budget admission reserves
+  full input cost; settlement counts fresh, cached and cache-written input once.
+  Concurrent provider saves use unique temporary files beside the destination
+  and clean up failed writes. OpenRouter routing keeps order and fallback
+  restrictions together, Fireworks keys use the correct prefix, custom model
+  limits survive reload, scan summaries track price availability accurately,
+  and recommendations exclude non-callable models. The provider wizard requires
+  endpoint validation and private-network consent before saving, and connection
+  edits clear dependent credentials, tests and consent.
+- Provider descriptions, key hints, privacy explanations, wizard and validation
+  messages, suggestions and scan summaries follow the installed display language
+  in all fourteen translations, including localized counts and currency.
+- Gemini codec: count billed thinking in output usage, require a successful
+  terminal reason, and retain live item identities. Regression checks include
+  the unit TypeScript project and the real host's live message/thinking rows.
+- Gemini tool-result images now fail with an explicit named error pending a
+  supported captured replay shape. Checked-in exact request bytes cover first
+  turns, signed tool loops, user images, packed output and compaction; session
+  growth preserves every earlier content entry and stable request field.
+- Harden the pending Anthropic provider codec: bound stream accumulation,
+  reject malformed deltas, preserve cache-write usage and TTL counts, apply
+  rolling cache breakpoints, and translate local errors. Native request
+  goldens and the codec bundle exclusion guard cover the review regressions.
+- **M95 provider host review repairs.** Stored-key tests and scans refuse an
+  edited origin; panel failures use fixed text, and password-box/OAuth keys
+  remain in host-owned drafts. The panel uses the Models bridge and stylesheet.
+  Save compensates persistence and composer failures, native private-network
+  consent is required, draft scans use the entered key, and concurrent cache
+  writes/removal recovery preserve provider state. Auth recognizes configured
+  local models. Canonical exports retain model options and the default model.
+  Final integration certification and the activation-growth residual remain open.
+- Confidential workspaces resolve current bring-your-own model privacy
+  before selection, including first setup; unknown models and failed
+  resolution are refused. Bare Muse-only pickers retain their existing
+  rows and keyboard wrapping.
+- The Models panel requests provider edit drafts explicitly, keeps grid
+  shortcuts within the grid, and clears inaccessible active references.
+  Its JavaScript and CSS now build at the host's expected paths. Theme
+  colors, usage-list markup and checkbox targets pass the four-theme
+  accessibility checks; five German, French and Italian labels are
+  translated without localization exceptions.
+
+- **M95 Ollama codec review repairs.** Native tool identities preserve
+  growing-session history, reasoning replays only to its producing model,
+  stream buffers and output retention are bounded, and the native terminal
+  line closes the source. Nine local Ollama 0.35.1 receipts replace invented
+  decode fixtures; five byte goldens and translated codec errors cover the
+  repaired seam. Provider integration and full milestone certification remain
+  separate gates.
+- **Provider account IDs stay redacted across session export boundaries.**
+  Whole-string redaction validates slice cuts, including `team id` followed
+  by a newline and UUID; serialized OpenAI and Anthropic account headers
+  are redacted in logs and exports while retaining JSON names and quotes.
+- **Offline provider catalogue replay avoids deep Buffer assertion cost.**
+  Tests compare byte length and SHA-256 without changing the default timeout
+  or the sealed snapshot integrity checks.
+- **M101 lane T: tool and packing correctness.** A packed placeholder trims
+  the tail from its front so the final lines (a shell result's exit code)
+  survive, a single long line packs to about a 1k excerpt, and packing that
+  would save under half is skipped. A reply cut short by the output limit
+  answers each uncompleted call with an error instead of running half-formed
+  arguments, on every codec's stop mapping. Every model-given path resolves
+  through one shared normalisation (Unicode spaces, a leading `@`, `file://`,
+  Windows drive forms; `~` refused). `edit_file` falls back to a normalised
+  unique match, refuses a no-op edit, and takes `edits[]` applied all or not
+  at all with overlaps refused. A truncated `read_file` names the shown
+  lines and the offset that reads on, and an offset past the end is an error.
+  Search hits are cut to about 500 characters with a note. Shell and
+  `then_run` output rides whole while the session packs observations, so it
+  stays recoverable through `recall_output`; a non-string `then_run` is
+  reported instead of silently dropped; output clips never split a character.
+
+### Added
+
+- **Bring-your-own-model keys and panel host (M95 lane K).** The `Start
+with Your Own Model` wizard (in-memory draft; Save writes
+  `providers.json` and the secret together, Cancel discards), the
+  `Models & Agents` panel host with its validated bridge, and the
+  `Add Model Provider…` quick-pick fast path: SecretStorage records
+  bound to their origin, the password box with the preset's live shape
+  check, the one-shot `127.0.0.1` OAuth callback, the local-server
+  probe, OpenRouter connect and key usage, cached model scans with
+  diffs, removal with Undo, import/export without secrets, and the
+  workspace preset suggestion.
+
+- **First-run and usage UI for bring-your-own providers (M95 lane U).**
+  The sign-in gate offers Start with your own model beside the other two
+  (ranked equally with no backend set up); a finished setup confirms once
+  with Manage providers. The model picker groups by provider with pinned
+  favourites first, priced/unpriced/local/plan details and provider rows;
+  the composer pill names the provider; Account & usage lists per-provider
+  tallies with OpenRouter key usage and unpriced/local costs. A confidential
+  workspace hides training models from the list and refuses them on switch.
+- ACP help and argument errors now use one complete localized usage table,
+  including the Setup hooks command, so the installed package passes the
+  release job's strict English fallback check.
+- Windows shell directory tracking now uses the native long workspace path
+  when starting or resetting a command, so 8.3 aliases keep the correct cwd
+  and workspace-relative directory tail.
+- Production bundle regression tests now build their own compressed English and
+  shared wire fixtures, so macOS CI's test job works without a prior build.
+- Windows CI hook fixtures now use the platform their captured paths describe;
+  Cline discovery exercises both POSIX and Windows path handling on every OS.
+  Deferred-bundle checks load their in-memory builds without requiring stale
+  or pre-existing files in `dist`.
+- Cline hook quoting is checked through native PowerShell on Windows and the
+  POSIX shell on Unix, without requiring a Windows Bash installation.
+- Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
+  missing-browser-chunk checks accept Windows filesystem error paths.
+- Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
+  Windows while retaining native-platform parsing and containment checks.
 - Retry after a failed optional panel reloads its complete module graph with
   the conversation and draft saved. Cold menus respect outside dismissal and
   late imports cannot take focus; failed menus accept Escape and return focus
@@ -690,6 +965,7 @@ happened, not what was planned; superseded entries are kept.
   required check names and the release artifacts are unchanged. In a merge
   group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
   action refuses that event.
+
 - **The extension loads less at startup**: `dist/extension.js` is
   552.6 KiB, down from 590.6 KiB, under its unchanged 600 KiB budget
   (PLAN.md D6, 2026-10-03 and 2026-10-04). Model text that only a lazily
@@ -1036,7 +1312,7 @@ happened, not what was planned; superseded entries are kept.
   - **Results and schemas:** the result and events are versioned (v1) and
     validated, and their JSON Schemas ship in the package's `schemas/`;
     `npm run schema:exec` regenerates them. `muse-spark-code-acp
-    scan-secrets <file>` counts likely secrets in one file and prints only
+scan-secrets <file>` counts likely secrets in one file and prints only
     the number.
   - **The Action:** `action/` reviews, or proposes a fix for, a
     same-repository pull request on GitHub-hosted runners (a private
@@ -1107,7 +1383,7 @@ happened, not what was planned; superseded entries are kept.
   shows the generic failure card. A
   command covered by an always-allow rule could run in the empty folder
   before cancellation lands. On
-  ALLOW the approval is answered *Allow once* (never an "always" choice) for
+  ALLOW the approval is answered _Allow once_ (never an "always" choice) for
   each stage while subject and user request stay the same, and the tool row says "Decided: approved (Auto
   reviewer)" with its reason; on ASK, an unreadable answer, no answer
   within 45 seconds, an error, a busy side session or a tripped breaker,
@@ -1523,6 +1799,7 @@ happened, not what was planned; superseded entries are kept.
     Muse Code refused the decision and still waits on that very step.
   - The log names the step each answer was for: a multi-step command
     decided step by step had read as repeated answers.
+
 - **A step Muse Code moved without saying so no longer strands its
   card.** After **Always allow in this workspace**, Muse Code 1.4.2 can
   show a step its new rule already allows, refuse the decision for it as
@@ -2145,6 +2422,7 @@ happened, not what was planned; superseded entries are kept.
   presence rather than enabling restore. Native/old/unknown uncertainty
   survives window close, PID death and age. Explicit confirmed recovery removes
   only the exact stale presence marker, preserving checkpoints and history.
+
 - **Checkpoints never touch the workspace's `.git`.** They live in a shadow
   repository under the extension profile's canonical-root global storage, run with hooks,
   fsmonitor, your git configuration and the workspace's filters all off,
@@ -3472,7 +3750,7 @@ The first community fix, and the README brought up to date with the panel.
   drill's budget and measurements are current, and the three upstream Muse
   Code issues are linked from Troubleshooting. Its eleven screenshots are
   rendered from the shipped panel by the UI harness (`npm run
-  harness:shots`) and say so; the 0.1.1 captures are gone.
+harness:shots`) and say so; the 0.1.1 captures are gone.
 
 ## [0.5.1] - 2026-09-23
 
@@ -3905,7 +4183,7 @@ certified per milestone under `docs/certification/`.
   a chat opens, `muse sandbox windows check` runs once per extension host and
   a `setup_required` result raises a notification with _Set up now_ / _Not
   now_ / _Don't ask again_; _Set up now_ relaunches `muse sandbox windows
-  setup` through the UAC prompt, re-checks, and reports. The new command
+setup` through the UAC prompt, re-checks, and reports. The new command
   **Muse Spark: Set Up Shell Sandbox** runs the same flow on demand, and a
   shell tool failing with `sandbox enforcement unavailable` re-offers it. The
   transcript notice now names that command instead of a terminal recipe.

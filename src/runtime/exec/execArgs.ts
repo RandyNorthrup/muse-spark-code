@@ -57,11 +57,13 @@ export interface ExecOptions {
   readonly museBinary: string
   readonly shellSandbox: ShellSandboxMode
   readonly isVerbose: boolean
+  readonly autoCompaction?: boolean
 }
 
 const BOOLEAN_OPTIONS = new Set([
   'allow-contributor-models',
   'image-generation',
+  'no-auto-compaction',
   'fail-on-denial',
   'ephemeral',
   'key-stdin',
@@ -231,6 +233,7 @@ export function parseExec(
       museBinary: stringValue('muse-binary') ?? SETTING_DEFAULTS.museBinaryPath,
       shellSandbox,
       isVerbose: values['verbose'] === true,
+      autoCompaction: values['no-auto-compaction'] !== true,
     },
   }
 }
@@ -245,5 +248,6 @@ export function serveOptionsFor(options: ExecOptions): ServeOptions {
     allowsContributorModels: options.allowsContributorModels,
     paidFeatures: options.paidFeatures,
     isVerbose: options.isVerbose,
+    autoCompaction: options.autoCompaction,
   }
 }

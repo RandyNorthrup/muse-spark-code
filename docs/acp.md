@@ -26,6 +26,15 @@ transport is Node's `https` implementation: VS Code proxy/PAC settings do
 not apply. Its proxy and certificate behavior follows the installed Node
 version and environment, rather than VS Code's network patch.
 
+On the Model API backend, ACP and headless conversations pack long tool
+outputs by default for tool-capable models: an output over 8,000 characters
+is sent whole twice, then as a stable placeholder. `recall_output` reads exact
+original pages, with optional case-sensitive literal `search`. Reopened
+conversations keep their sticky placeholders, including after a crash while
+Manual approval is pending. Recall continues the ordinary billed model turn;
+it makes no separate paid-feature request. The VS Code packing setting does
+not apply to this process.
+
 The configuration below names the command and its arguments. Where each
 editor keeps its agent settings is in that editor's documentation, linked
 from [the compatibility plan](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ide-compatibility.md#32-ides-and-editors-reached-through-a-shared-acp-agent);
@@ -212,17 +221,18 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 ## Interactive ACP options
 
-| Argument                               | Effect                                                                                                                  |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `--backend museCode\|modelApi`         | Which backend, and so who pays (default `museCode`)                                                                     |
-| `--trust-workspace`                    | Load the folder's rules, skills and memory, as Muse Code's own flag does. Without it the folder is treated as untrusted |
-| `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                  |
-| `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                          |
-| `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                       |
-| `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                |
-| `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                  |
-| `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price             |
-| `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                     |
+| Argument                               | Effect                                                                                                                            |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `--backend museCode\|modelApi`         | Which backend, and so who pays (default `museCode`)                                                                               |
+| `--trust-workspace`                    | Load the folder's rules, skills and memory, as Muse Code's own flag does. Without it the folder is treated as untrusted           |
+| `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                            |
+| `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                                    |
+| `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                                 |
+| `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                          |
+| `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                            |
+| `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price                       |
+| `--no-auto-compaction`                 | Disable automatic compaction in the shared Model API core (also accepted by exec); production is awaiting evaluation and inactive |
+| `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                               |
 
 ## What the editor sees
 
@@ -415,6 +425,16 @@ and `schemas/exec-event-v1.schema.json`; canonical
 and [receipts](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/certification/m80.md)
 use absolute links because npm does not resolve relative links. Registry Action
 support still requires post-release LR, beyond unsigned candidate acceptance.
+
+ACP advertises `/compact` alongside skills. An exact text-only `/compact`
+prompt calls the backend's shared compaction core and waits for its updates
+before returning. Cancellation stops the compaction; another prompt is refused
+while it runs. The headless runtime uses this same ACP dispatch and its existing
+request/budget ledger. On an empty headless session, `/compact` is a no-op and
+sends no model request. Its exec result retains the response-proof contract:
+`incomplete` (exit 8), null terminal and `no_compactable_history`, rather than
+claiming a completed model response. Attachments or additional arguments remain ordinary
+prompts, rather than being silently discarded as command input.
 
 ## Report a problem (M93)
 

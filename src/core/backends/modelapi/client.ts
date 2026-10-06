@@ -19,13 +19,13 @@ import {
   MODEL_API_RETRY_BASE_MS,
   MODEL_API_RETRY_JITTER_MS,
   MODEL_API_RETRY_MAX_MS,
-  MODEL_API_RETRYABLE_STATUSES,
   MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_STREAM_IDLE_MS,
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
+import { classifyRetry, RETRY_TABLES } from '../../../shared/retryPolicy'
 import { DeadlineError, withDeadline } from '../../timeouts'
 import type { CoreLogger } from '../../logging'
 import {
@@ -417,16 +417,34 @@ export class ModelApiClient {
         (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
       )
         init.paid.isSent = false
-      const isRetryable = isRateLimitOnly
-        ? response.status === HTTP_TOO_MANY_REQUESTS
-        : MODEL_API_RETRYABLE_STATUSES.has(response.status)
+      // Retry classification per format (M101 BYO 5): Meta reads the
+      // responses table. Quota never retries, whatever the status; a
+      // `Retry-After` past the cap fails at once and names the wait.
+      const waitMs = retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now())
+      const decision = classifyRetry(RETRY_TABLES.responses, {
+        status: response.status,
+        kind: failure.kind,
+        code: failure.code,
+        message: failure.message,
+        retryAfterMs: waitMs,
+      })
+      if (!decision.retry && decision.reason === 'retry-after-cap') {
+        throw new ModelApiError(
+          fill(UI_TEXT.modelApiRetryAfterTooLong, {
+            wait: Math.ceil((waitMs ?? 0) / MILLISECONDS_PER_SECOND),
+            cap: RETRY_TABLES.responses.retryAfterCapMs / MILLISECONDS_PER_SECOND,
+          }),
+          response.status,
+          failure.kind,
+          failure.code,
+        )
+      }
+      const isRetryable =
+        decision.retry && (!isRateLimitOnly || response.status === HTTP_TOO_MANY_REQUESTS)
       if (!isRetryable || attempt >= MODEL_API_MAX_RETRIES) {
         throw failure
       }
-      const delay = this.backoffMs(
-        attempt,
-        retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now()),
-      )
+      const delay = this.backoffMs(attempt, waitMs)
       this.deps.log.warn(
         `Model API answered ${String(response.status)} (${failure.message}); retrying in ${String(delay)} ms`,
       )
@@ -502,11 +520,15 @@ export class ModelApiClient {
   }
 
   /** Tokens the rendered input would occupy; not billed (dev.meta.ai/docs/token-counting). */
-  public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
+  public async countInputTokens(
+    body: Omit<CreateResponseBody, 'stream'>,
+    signal?: AbortSignal,
+  ): Promise<number> {
+    const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
     const response = await this.request(
       '/responses/input_tokens',
       { method: 'POST', body, accept: JSON_MEDIA_TYPE },
-      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      signal === undefined ? deadline : AbortSignal.any([signal, deadline]),
     )
     return inputTokensSchema.parse(await response.json()).input_tokens
   }

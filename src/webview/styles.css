@@ -6,6 +6,8 @@
    first, then state rules from lowest to highest specificity
    (:disabled and :focus-visible before :hover:enabled). */
 
+@import url('./page.css');
+
 :root {
   --ms-gap: 8px;
   --ms-radius: 6px;
@@ -32,17 +34,6 @@
      scroller, so the scrollbar never moves the transcript off the composer. */
   --ms-column-inset: max(0px, (100vw - var(--ms-column-max-width)) / 2);
   --ms-column-gutter: calc(var(--ms-column-inset) + var(--ms-gap));
-}
-
-html,
-body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  color: var(--vscode-foreground);
-  font-family: var(--vscode-font-family);
-  font-size: var(--vscode-font-size);
-  background: var(--vscode-sideBar-background);
 }
 
 .app {

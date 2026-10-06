@@ -25,6 +25,7 @@ import {
   HARNESS_PATH,
   LOOPBACK,
   SCENARIOS,
+  bundleFor,
   SIZED_SCENARIOS,
   serveRepo,
   withSizedPage,
@@ -32,6 +33,7 @@ import {
 
 const OUT_DIR = 'harness-shots'
 const BUNDLE_PATH = 'dist/webview/main.js'
+const MODELS_BUNDLE_PATH = 'dist/webview/models.js'
 const SHOT_WIDTH = 690
 const SHOT_HEIGHT = 760
 const repoRoot = process.cwd()
@@ -39,7 +41,7 @@ const THEMES = new Set(['light', 'dark', 'hc-dark', 'hc-light'])
 
 async function shoot(chrome, port, scenario, lang, theme, outDir, profileDir) {
   const file = path.join(outDir, `${scenario}.png`)
-  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}${langQuery(lang)}${theme === undefined ? '' : `&theme=${theme}`}`
+  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}&bundle=${bundleFor(scenario)}${langQuery(lang)}${theme === undefined ? '' : `&theme=${theme}`}`
   const sized = SIZED_SCENARIOS[scenario]
   if (sized !== undefined) {
     await withSizedPage(chrome, profileDir, url, sized, async (page) => {
@@ -72,6 +74,12 @@ async function main() {
   const { lang, scenarios: requested } = harnessArgs(
     args.filter((arg) => !arg.startsWith('--theme=')),
   )
+  if (
+    (requested.length === 0 || requested.some((name) => bundleFor(name) === 'models')) &&
+    !existsSync(path.join(repoRoot, MODELS_BUNDLE_PATH))
+  ) {
+    throw new Error(`${MODELS_BUNDLE_PATH} is missing; run npm run build:dev first`)
+  }
   const unknown = requested.filter((name) => !SCENARIOS.includes(name))
   if (unknown.length > 0) {
     throw new Error(`Unknown scenario(s): ${unknown.join(', ')}. Known: ${SCENARIOS.join(', ')}`)

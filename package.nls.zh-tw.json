@@ -164,5 +164,12 @@
   "config.judge.engine.enumDescriptions.same": "僅您自己的聊天模型評判；從不切換模型。",
   "config.judge.engine.enumDescriptions.off": "無評判器：審批與沒有評判器時完全一致。",
   "command.openHelp.title": "說明與參考",
-  "config.shell.passEnvironmentVariables.description": "傳遞給主工作階段互動式 shell 命令的環境變數名稱，包括通常被排除的憑證變數。僅填寫名稱，不填寫值。預設不傳遞。命令可能在對話中以及向模型供應商揭露這些值。驗證/then_run、排程、子代理/團隊工作者和掛鉤永遠不會接收憑證變數，即使在此列出名稱。移至背景的互動式命令保留啟動時的環境。不會變更 Muse Code 或明確設定的 MCP 伺服器環境。"
+  "config.shell.passEnvironmentVariables.description": "傳遞給主工作階段互動式 shell 命令的環境變數名稱，包括通常被排除的憑證變數。僅填寫名稱，不填寫值。預設不傳遞。命令可能在對話中以及向模型供應商揭露這些值。驗證/then_run、排程、子代理/團隊工作者和掛鉤永遠不會接收憑證變數，即使在此列出名稱。移至背景的互動式命令保留啟動時的環境。不會變更 Muse Code 或明確設定的 MCP 伺服器環境。",
+  "command.startWithOwnModel.title": "使用自己的模型開始",
+  "command.modelsAndAgents.title": "模型與代理",
+  "command.addModelProvider.title": "新增模型提供者…",
+  "config.suggestedProvider.description": "工作區最多可按 id 推薦一個模型提供者預設；面板會提供使用該預設開啟「模型與代理」。為空則不推薦。工作區不能設定位址或憑證。",
+  "walkthrough.gettingStarted.step.ownModel.title": "使用自己的模型開始",
+  "walkthrough.gettingStarted.step.ownModel.description": "沒有 Muse 訂閱或 Meta API 金鑰？新增您自己的模型提供者（OpenRouter、Anthropic、OpenAI 或本機伺服器）並選擇模型。\n[使用自己的模型開始](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "自動壓縮較長的 Model API 對話。預設開啟，但在配對評估通過前維持停用。每次額外付費呼叫都需要同意價格與每日預算。"
 }

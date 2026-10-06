@@ -164,5 +164,12 @@
   "config.judge.engine.enumDescriptions.same": "Yalnızca kendi sohbet modeliniz değerlendirir; modeli asla değiştirmez.",
   "config.judge.engine.enumDescriptions.off": "Değerlendirici yok: onaylar tam olarak değerlendiricisiz olduğu gibi davranır.",
   "command.openHelp.title": "Yardım ve başvuru",
-  "config.shell.passEnvironmentVariables.description": "Ana oturumdaki etkileşimli kabuk komutlarına aktarılacak ortam değişkenlerinin adları; normalde dışarıda tutulan kimlik bilgileri de dahil. Yalnızca adlar, asla değerler. Varsayılan: hiçbiri. Bir komut bu değerleri konuşmada ve model sağlayıcısına açığa çıkarabilir. Doğrulama/then_run, zamanlanmış işler, alt/ekip çalışanları ve kancalar, burada adları yazılsa bile kimlik bilgisi değişkenlerini asla almaz. Arka plana taşınan etkileşimli bir komut başlangıç ortamını korur. Muse Code veya açıkça yapılandırılmış MCP sunucusu ortamlarını değiştirmez."
+  "config.shell.passEnvironmentVariables.description": "Ana oturumdaki etkileşimli kabuk komutlarına aktarılacak ortam değişkenlerinin adları; normalde dışarıda tutulan kimlik bilgileri de dahil. Yalnızca adlar, asla değerler. Varsayılan: hiçbiri. Bir komut bu değerleri konuşmada ve model sağlayıcısına açığa çıkarabilir. Doğrulama/then_run, zamanlanmış işler, alt/ekip çalışanları ve kancalar, burada adları yazılsa bile kimlik bilgisi değişkenlerini asla almaz. Arka plana taşınan etkileşimli bir komut başlangıç ortamını korur. Muse Code veya açıkça yapılandırılmış MCP sunucusu ortamlarını değiştirmez.",
+  "command.startWithOwnModel.title": "Kendi modelinizle başlayın",
+  "command.modelsAndAgents.title": "Modeller ve Ajanlar",
+  "command.addModelProvider.title": "Model sağlayıcı ekle…",
+  "config.suggestedProvider.description": "Çalışma alanı, kimliğine göre tek bir model sağlayıcı ön ayarı önerebilir; panel, Modeller ve Ajanlar'ı bu ön ayarla açmayı önerir. Boş değer hiçbir şey önermez. Çalışma alanı adres veya kimlik bilgisi belirleyemez.",
+  "walkthrough.gettingStarted.step.ownModel.title": "Kendi modelinizle başlayın",
+  "walkthrough.gettingStarted.step.ownModel.description": "Muse aboneliğiniz veya Meta API anahtarınız yok mu? Kendi model sağlayıcınızı ekleyin — OpenRouter, Anthropic, OpenAI veya yerel sunucu — ve bir model seçin.\n[Kendi modelinizle başlayın](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Uzun Model API konuşmalarını otomatik sıkıştır. Varsayılan olarak açık, ancak eşleştirilmiş değerlendirmeyi geçene kadar etkin değil. Her ek ücretli çağrı için fiyat ve günlük bütçe onayı gerekir."
 }

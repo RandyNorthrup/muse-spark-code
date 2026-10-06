@@ -1,0 +1,137 @@
+[
+  {
+    "drill": "harness-strict-flag",
+    "source": "src/core/backends/modelapi/schemas.ts",
+    "test": "test/unit/modelApiTools.test.ts",
+    "namedFailure": "rewrites every harness declaration",
+    "exit": 1,
+    "beforeSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119",
+    "afterSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119"
+  },
+  {
+    "drill": "mcp-fallback",
+    "source": "src/core/backends/modelapi/schemas.ts",
+    "test": "test/unit/mcpFunctions.test.ts",
+    "namedFailure": "keeps unconvertible MCP tools non-strict",
+    "exit": 1,
+    "beforeSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119",
+    "afterSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119"
+  },
+  {
+    "drill": "mcp-lossy-fit",
+    "source": "src/core/backends/modelapi/mcp/functions.ts",
+    "test": "test/unit/mcpFunctions.test.ts",
+    "namedFailure": "does not certify a lossy MCP fit",
+    "exit": 1,
+    "beforeSha256": "a17966c5ba12d769a6aa966420dd69cb2d6927717c15b6e5ae5faed2b8dbe979",
+    "afterSha256": "a17966c5ba12d769a6aa966420dd69cb2d6927717c15b6e5ae5faed2b8dbe979"
+  },
+  {
+    "drill": "mcp-original-proof",
+    "source": "src/core/backends/modelapi/mcp/functions.ts",
+    "test": "test/unit/mcpFunctions.test.ts",
+    "namedFailure": "does not certify a lossy MCP fit",
+    "exit": 1,
+    "beforeSha256": "a17966c5ba12d769a6aa966420dd69cb2d6927717c15b6e5ae5faed2b8dbe979",
+    "afterSha256": "a17966c5ba12d769a6aa966420dd69cb2d6927717c15b6e5ae5faed2b8dbe979"
+  },
+  {
+    "drill": "mcp-log-note",
+    "source": "src/core/backends/modelapi/mcp/functions.ts",
+    "test": "test/unit/mcpPool.test.ts",
+    "namedFailure": "logs one named strict fallback",
+    "exit": 1,
+    "beforeSha256": "a17966c5ba12d769a6aa966420dd69cb2d6927717c15b6e5ae5faed2b8dbe979",
+    "afterSha256": "a17966c5ba12d769a6aa966420dd69cb2d6927717c15b6e5ae5faed2b8dbe979"
+  },
+  {
+    "drill": "fallback-argument-bytes",
+    "source": "src/core/backends/modelapi/schemas.ts",
+    "test": "test/unit/mcpFunctions.test.ts",
+    "namedFailure": "keeps unconvertible MCP tools non-strict",
+    "exit": 1,
+    "beforeSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119",
+    "afterSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119"
+  },
+  {
+    "drill": "declaration-gate",
+    "source": "src/core/backends/modelapi/tools.ts",
+    "test": "test/unit/modelApiTools.test.ts",
+    "namedFailure": "rewrites every harness declaration",
+    "exit": 1,
+    "beforeSha256": "59808a6174387a05d724a675ce71408b5f8c9b679b435499ace535df404230f6",
+    "afterSha256": "59808a6174387a05d724a675ce71408b5f8c9b679b435499ace535df404230f6"
+  },
+  {
+    "drill": "codec-setting-gate",
+    "source": "src/core/backends/modelapi/codecs/responses.ts",
+    "test": "test/unit/responsesCodec.test.ts",
+    "namedFailure": "keeps explicit strict-off bytes",
+    "exit": 1,
+    "beforeSha256": "9d11350590fa90e16ab95df25b8d48b44a761624ab27ec4368a8d431f5333d03",
+    "afterSha256": "9d11350590fa90e16ab95df25b8d48b44a761624ab27ec4368a8d431f5333d03"
+  },
+  {
+    "drill": "codec-model-gate",
+    "source": "src/core/backends/modelapi/codecs/responses.ts",
+    "test": "test/unit/responsesCodec.test.ts",
+    "namedFailure": "keeps explicit strict-off bytes",
+    "exit": 1,
+    "beforeSha256": "9d11350590fa90e16ab95df25b8d48b44a761624ab27ec4368a8d431f5333d03",
+    "afterSha256": "9d11350590fa90e16ab95df25b8d48b44a761624ab27ec4368a8d431f5333d03"
+  },
+  {
+    "drill": "golden-strict-flag",
+    "source": "src/core/backends/modelapi/schemas.ts",
+    "test": "test/unit/modelApiGoldenRequests.test.ts",
+    "namedFailure": "golden requests with hooks off and strict tools true",
+    "exit": 1,
+    "beforeSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119",
+    "afterSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119"
+  },
+  {
+    "drill": "golden-schema-rewrite",
+    "source": "src/core/backends/modelapi/schemas.ts",
+    "test": "test/unit/modelApiGoldenRequests.test.ts",
+    "namedFailure": "golden requests with hooks off and strict tools true",
+    "exit": 1,
+    "beforeSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119",
+    "afterSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119"
+  },
+  {
+    "drill": "fake-m75-arm",
+    "source": "test/unit/eval/evalRunner.test.ts",
+    "test": "test/unit/eval/evalRunner.test.ts",
+    "namedFailure": "runs the M75 strict-tools fake pair",
+    "exit": 1,
+    "beforeSha256": "06b04765a51fa60fa0a16169053be1652d6795714865c0d5c4e4b554543be137",
+    "afterSha256": "06b04765a51fa60fa0a16169053be1652d6795714865c0d5c4e4b554543be137"
+  },
+  {
+    "drill": "rewritten-original-schema",
+    "source": "src/core/backends/modelapi/schemas.ts",
+    "test": "test/unit/modelApiTools.test.ts",
+    "namedFailure": "restores nullable optionals from already rewritten",
+    "exit": 1,
+    "beforeSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119",
+    "afterSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119"
+  },
+  {
+    "drill": "rewritten-double-encoding",
+    "source": "src/core/backends/modelapi/schemas.ts",
+    "test": "test/unit/modelApiTools.test.ts",
+    "namedFailure": "restores nullable optionals from already rewritten",
+    "exit": 1,
+    "beforeSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119",
+    "afterSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119"
+  },
+  {
+    "drill": "rewritten-restore-selection",
+    "source": "src/core/backends/modelapi/schemas.ts",
+    "test": "test/unit/modelApiTools.test.ts",
+    "namedFailure": "restores nullable optionals from already rewritten",
+    "exit": 1,
+    "beforeSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119",
+    "afterSha256": "68a30bc1d0fb8669a6af9f6b7052abc5c26089eb33262d7ce00cea1cbb75b119"
+  }
+]

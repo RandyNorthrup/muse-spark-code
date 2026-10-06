@@ -3,6 +3,7 @@
 !dist/conversation.js
 !dist/tab.js
 !dist/modelApi.js
+!dist/providers.js
 !dist/sessionBoard.js
 !dist/reviewer.js
 !dist/foreignHooks.js
@@ -21,17 +22,19 @@
 !dist/voice.js
 !dist/webFetch.js
 !dist/museCodeReviewer.js
+!dist/modelsPanel.js
+!dist/uiText.js
+!dist/validation.js
 !dist/whatsNew.js
 !dist/whatsNew.json
 !dist/judge.js
-!dist/uiText.js
 !dist/uiTextRuntime.js
 !dist/uiTextHooks.js
 !dist/uiTextSurfaces.js
-!dist/validation.js
 !dist/wire.js
 !dist/searchWorker.js
 !dist/pageWorker.js
+!dist/imageResizeWorker.js
 !dist/report.js
 !dist/recorder.js
 !dist/reference.js
@@ -40,6 +43,9 @@
 !dist/webview/referencePage.css
 !dist/webview/chunks/*.js
 !dist/webview/main.css
+!dist/webview/models.js
+!dist/webview/models.css
+!dist/providerCatalog.json
 !dist/webview/whatsNew.js
 !dist/webview/whatsNew.css
 !media/icon.svg
@@ -62,4 +68,6 @@
 !docs/PRIVACY.md
 !docs/judge.md
 !vendor/high-quality-projects-skill/**
+!vendor/models-dev/LICENSE
+!vendor/models-dev/VENDOR.json
 !first-party-skills/**

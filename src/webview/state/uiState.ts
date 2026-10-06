@@ -63,7 +63,12 @@ import type { ScheduleView } from '../../shared/schedule'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import type { BoardRow } from '../../shared/sessionBoard'
 import type { SessionRow } from '../../shared/sessions'
-import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
+import type {
+  AccountFacts,
+  ProviderUsageRow,
+  SubscriptionUsage,
+  UsageInsights,
+} from '../../shared/usage'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
 import {
   type GitFormEdit,
@@ -114,6 +119,8 @@ export interface UsageReport {
   readonly subscription: SubscriptionUsage | undefined
   readonly account: AccountFacts | undefined
   readonly insights: { readonly day: UsageInsights; readonly week: UsageInsights } | undefined
+  /** This window's tallies per BYO provider (M95); undefined until one is used. */
+  readonly providers: readonly ProviderUsageRow[] | undefined
 }
 
 /**
@@ -455,6 +462,11 @@ export interface UiState {
   /** A local share file open read-only (M84); undefined when none is open. */
   readonly share: SharePreview | undefined
   /**
+   * The finished provider setup (M95): the wizard saved a provider and set
+   * the composer's model. Shown once above the composer, until dismissed.
+   */
+  readonly setupComplete: { readonly provider: string; readonly model: string } | undefined
+  /**
    * The report-a-problem preview (M93 lane W): lane P's sealed draft as the
    * host built it, with the removable items it contains. Undefined while
    * the dialog is closed; never saved (the journal outlives the panel, and
@@ -571,6 +583,8 @@ export type UiAction =
   | { readonly type: 'reviewHunkReverting'; readonly key: string }
   /** The × (or Escape, or the backdrop) on the share-file modal (M84). */
   | { readonly type: 'shareClosed' }
+  /** The × on the post-wizard confirmation (M95). */
+  | { readonly type: 'setupCompleteDismissed' }
   /** Cancel (or Escape, the × or the backdrop) on the report dialog (M93 lane W). */
   | { readonly type: 'reportClosed' }
 
@@ -658,6 +672,7 @@ export const initialUiState: UiState = {
   pendingRestore: undefined,
   pendingClearEchoes: 0,
   share: undefined,
+  setupComplete: undefined,
   report: undefined,
   closedReportSession: 0,
   isImported: false,
@@ -2379,6 +2394,7 @@ function clearedAccountView(state: UiState): UiState {
     announcement: undefined,
     pendingRestore: undefined,
     pendingClearEchoes: 0,
+    setupComplete: undefined,
   }
 }
 
@@ -2689,8 +2705,18 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           subscription: message.subscription,
           account: message.account,
           insights: message.insights,
+          providers: message.providers === undefined ? undefined : [...message.providers],
         },
       }
+    }
+    case 'setupComplete': {
+      return announce(
+        {
+          ...state,
+          setupComplete: { provider: message.provider, model: message.model },
+        },
+        fill(UI_TEXT.setupComplete, { provider: message.provider, model: message.model }),
+      )
     }
     case 'sharePreview': {
       return {
@@ -3474,6 +3500,9 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     }
     case 'shareClosed': {
       return { ...state, share: undefined }
+    }
+    case 'setupCompleteDismissed': {
+      return { ...state, setupComplete: undefined }
     }
     case 'reportClosed': {
       return {

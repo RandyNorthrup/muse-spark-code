@@ -39,6 +39,15 @@ const metafileSchema = z.looseObject({
   ),
 })
 
+function expectUnchangedMeta(
+  meta: z.infer<typeof metafileSchema>,
+  hash: string,
+  check: () => readonly string[],
+): void {
+  expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
+  expect(check()).toEqual([])
+}
+
 const fixtures = new Map<string, { bytes: Buffer; meta: z.infer<typeof metafileSchema> }>()
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'muse-deferred-bundles-'))
 const bundleTexts = new Map<string, string>()
@@ -69,6 +78,8 @@ beforeAll(async () => {
       entryPoints: {
         extension: 'src/extension.ts',
         reference: 'src/shared/reference/referenceEntry.ts',
+        providers: 'src/host/backend/providersEntry.ts',
+        modelsPanel: 'src/host/models/modelsPanelEntry.ts',
         conversation: 'src/host/conversation/conversationEntry.ts',
         modelApi: 'src/host/backend/modelApiEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
@@ -90,6 +101,7 @@ beforeAll(async () => {
         checkpointStore: 'src/host/checkpoints/checkpointStoreEntry.ts',
         pageWorker: 'src/host/web/pageWorker.ts',
         searchWorker: 'src/host/backend/searchWorker.ts',
+        imageResizeWorker: 'src/core/imageResizeWorker.ts',
       },
       plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
       external: ['vscode', '@napi-rs/keyring'],
@@ -143,7 +155,6 @@ beforeAll(async () => {
     }
   }
   parsers.push(parserSchema.parse(loadSupportBundle('validation')))
-  expect(checkDeferredBundles(bundleInputs)).toEqual([])
 })
 
 afterAll(() => {
@@ -219,6 +230,12 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('loads the portable session sanitizer only from the lazy hook runtime (FIXM106T budget)', () => {
+    expect(inputs('modelApi')).not.toContain('src/core/export/sessionTransfer.ts')
+    expect(inputs('hookRuntime')).toContain('src/core/export/sessionTransfer.ts')
+    expect(bundleText('modelApi')).toContain('./hookRuntime.js')
+  })
+
   it('decodes the complete production English fallback without changing any value', () => {
     expect(bundleText('uiText')).toContain('brotliDecompressSync')
     expect(loadSupportBundle('uiText')).toHaveProperty('EN', EN)
@@ -278,6 +295,8 @@ describe('deferred cohort bundles', () => {
     expect(loaded).toContain('./wire.js')
     expect(loaded).not.toContain('./sessionBoard.js')
     expect(loaded).not.toContain('./reviewer.js')
+    expect(loaded).not.toContain('./providers.js')
+    expect(loaded).not.toContain('./modelsPanel.js')
     expect(loaded).not.toContain('./conversation.js')
   })
 
@@ -324,6 +343,17 @@ describe('deferred cohort bundles', () => {
     }
     // The port that requires it on the first review stays where it is asked.
     expect(activation).toContain('src/host/review/museCodeReviewerBundle.ts')
+  })
+
+  it('carries every captured codec only in the providers bundle', () => {
+    for (const codec of ['anthropic', 'chat', 'gemini', 'ollama', 'responses']) {
+      const source = `src/core/backends/modelapi/codecs/${codec}.ts`
+      expect(inputs('providers')).toContain(source)
+      for (const bundle of ['extension', 'modelApi', 'modelsPanel']) {
+        expect(inputs(bundle)).not.toContain(source)
+      }
+    }
+    expect(inputs('providers')).toContain('src/core/providers/providersFile.ts')
   })
 
   it('keeps paid review execution out of the session first-turn bundle', () => {
@@ -402,35 +432,9 @@ describe('deferred cohort bundles', () => {
     }
   })
 
-  it('rejects a missing deferred input and restores its metafile byte-exact', () => {
-    const file = 'dist/meta/reviewer.json'
-    const meta = structuredClone(fixture(file).meta)
-    const original = JSON.stringify(meta)
-    const hash = createHash('sha256').update(original).digest('hex')
-    const output = meta.outputs['dist/reviewer.js']
-    if (output === undefined) throw new Error('Missing reviewer output')
-    const source = 'src/core/backends/modelapi/reviewerEntry.ts'
-    const input = output.inputs[source]
-    if (input === undefined) throw new Error('Missing reviewer input')
-    const originalInputs = structuredClone(output.inputs)
-    const check = () => {
-      const changed = outputInputs(meta, 'dist/reviewer.js')
-      return checkDeferredBundles((bundle) =>
-        bundle.metafile === file ? changed : bundleInputs(bundle),
-      )
-    }
-    expect(check()).toEqual([])
-    try {
-      Reflect.deleteProperty(output.inputs, source)
-      expect(check()).toEqual([`dist/reviewer.js no longer carries ${source}`])
-    } finally {
-      output.inputs = originalInputs
-    }
-    expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
-    expect(check()).toEqual([])
-  })
-
   it.each([
+    ['reviewer', 'src/core/backends/modelapi/reviewerEntry.ts', 'missing'],
+    ['hookRuntime', 'src/core/export/sessionTransfer.ts', 'missing'],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],
@@ -443,9 +447,23 @@ describe('deferred cohort bundles', () => {
     ['modelApi', 'src/core/backends/modelapi/hookFormats/engine.ts', 'on its first action'],
     // M91: the hook and MCP-form runtime, required on first use.
     ['modelApi', 'src/core/backends/modelapi/hookRuntimeEntry.ts', 'on its first action'],
+    ['modelApi', 'src/core/export/sessionTransfer.ts', 'on import'],
     // Split out of activation on 2026-10-03 (PLAN.md D6).
     ['extension', 'src/core/codeIntel/codeIntelQuery.ts', 'on the first code intelligence call'],
     ['extension', 'src/core/voice/museVoice.ts', 'on the first recording'],
+    // M95: membership injection must fail in every parent bundle.
+    ['extension', 'src/core/backends/modelapi/codecs/anthropic.ts', 'in dist/providers.js'],
+    ['modelApi', 'src/core/backends/modelapi/codecs/anthropic.ts', 'in dist/providers.js'],
+    ['acp', 'src/core/backends/modelapi/codecs/anthropic.ts', 'in dist/providers.js'],
+    ['pageWorker', 'src/core/backends/modelapi/codecs/future.ts', 'in dist/providers.js'],
+    ['extension', 'src/core/backends/modelapi/codecs/gemini.ts', 'in dist/providers.js'],
+    ['modelApi', 'src/core/backends/modelapi/codecs/responses.ts', 'in dist/providers.js'],
+    ['modelsPanel', 'src/core/providers/providersFile.ts', 'in dist/providers.js'],
+    ['providers', 'src/core/backends/modelapi/codecs/anthropic.ts', 'missing'],
+    ['providers', 'src/core/backends/modelapi/codecs/gemini.ts', 'missing'],
+    ['providers', 'src/core/backends/modelapi/codecs/responses.ts', 'missing'],
+    ['providers', 'src/core/backends/modelapi/codecs/chat.ts', 'missing'],
+    ['providers', 'src/core/backends/modelapi/codecs/ollama.ts', 'missing'],
     // M90: the Auto reviewer on Muse Code, required on the first review.
     ['extension', 'src/host/review/museCodeReviewer.ts', 'on the first review'],
   ])(
@@ -464,15 +482,32 @@ describe('deferred cohort bundles', () => {
         )
       }
       expect(check()).toEqual([])
-      expect(output.inputs).not.toHaveProperty(source)
+      const originalInputs = structuredClone(output.inputs)
+      const isMissing = use === 'missing'
+      if (isMissing) expect(output.inputs).toHaveProperty(source)
+      else expect(output.inputs).not.toHaveProperty(source)
       try {
-        output.inputs[source] = { bytesInOutput: 1 }
-        expect(check()).toContain(`dist/${name}.js carries ${source}, which loads only ${use}`)
+        if (isMissing) Reflect.deleteProperty(output.inputs, source)
+        else output.inputs[source] = { bytesInOutput: 1 }
+        const problem = isMissing
+          ? `dist/${name}.js no longer carries ${source}`
+          : `dist/${name}.js carries ${source}, which loads only ${use}`
+        if (name === 'reviewer' || name === 'hookRuntime') expect(check()).toEqual([problem])
+        else expect(check()).toContain(problem)
       } finally {
-        Reflect.deleteProperty(output.inputs, source)
+        output.inputs = originalInputs
       }
-      expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
-      expect(check()).toEqual([])
+      expectUnchangedMeta(meta, hash, check)
     },
+  )
+})
+
+it('refuses a raster codec leaked into the lazy Model API parent', () => {
+  const maps = new Map(inputMaps)
+  const inputs = new Map(maps.get('dist/modelApi.js'))
+  inputs.set('node_modules/jpeg-js/lib/decoder.js', 1)
+  maps.set('dist/modelApi.js', inputs)
+  expect(checkDeferredBundles((bundle) => maps.get(bundle.output) ?? new Map())).toContain(
+    'dist/modelApi.js carries node_modules/jpeg-js/, which runs only on the image resize worker',
   )
 })

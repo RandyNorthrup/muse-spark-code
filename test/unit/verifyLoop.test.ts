@@ -1733,14 +1733,17 @@ describe('the checks’ state since the user’s message', () => {
 })
 
 describe('what reaches a check and the editor (the M68 review)', () => {
-  it('refuses a path a response file or the Windows shells would read as syntax', async () => {
+  it('reads a leading @ as a mention but still refuses shell syntax (M101 item 9)', async () => {
+    // A leading @ is a mention, not the name: the write lands on args.txt
+    // and the check runs against that safe path.
     const t = setup({ files: {}, checks: [LINT] })
     const { events, turn } = await start(t, 'allowAll')
     t.api.script({ calls: [writeCall('@args.txt', 'x\n')] }, { text: 'ok' })
     await turn()
-    expect(t.io.shellCalls).toEqual([])
+    expect(t.io.files.get(`${ROOT}/args.txt`)).toBe('x\n')
+    expect(t.io.shellCalls.map((call) => call.command)).toEqual(["npm run lint -- 'args.txt'"])
     expect(completedRows(events, 'verify_edits')[0]?.verifySummary?.checks).toEqual([
-      { name: 'lint', outcome: 'notRun', skip: 'unsafePath' },
+      { name: 'lint', outcome: 'passed' },
     ])
     const windows = setup({ files: {}, checks: [LINT], platform: 'win32' })
     const second = await start(windows, 'allowAll')

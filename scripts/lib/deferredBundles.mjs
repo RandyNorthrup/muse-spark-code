@@ -6,6 +6,7 @@ export const BUNDLES = {
   activation: { output: 'dist/extension.js', metafile: 'dist/meta/extension.json' },
   modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
+  providers: { output: 'dist/providers.js', metafile: 'dist/meta/providers.json' },
 }
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
@@ -251,6 +252,14 @@ export function checkDeferredBundles(inputsOf) {
       if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
     }
   }
+  // Session export remains available to the conversation and ACP front ends;
+  // the backend loads its import sanitizer only from the existing lazy runtime.
+  const transfer = 'src/core/export/sessionTransfer.ts'
+  if (inputsOf(BUNDLES.modelApi).has(transfer))
+    problems.push(`${BUNDLES.modelApi.output} carries ${transfer}, which loads only on import`)
+  const hookRuntime = DEFERRED.find((bundle) => bundle.output === 'dist/hookRuntime.js')
+  if (!inputsOf(hookRuntime).has(transfer))
+    problems.push(`${hookRuntime.output} no longer carries ${transfer}`)
   // The plugin host loads only on the first plugin hook: the adapters' bundle
   // requires it rather than carry it (M91b).
   {
@@ -277,6 +286,60 @@ export function checkDeferredBundles(inputsOf) {
     for (const bundle of [...Object.values(BUNDLES), ...DEFERRED, ...ON_FIRST_USE]) {
       if (inputsOf(bundle).has(file))
         problems.push(`${bundle.output} duplicates shared wire schemas in ${file}`)
+    }
+  }
+  // M95 remains isolated in the combined release graph; drills use these same checks.
+  const providerFiles = ['anthropic', 'chat', 'gemini', 'ollama', 'responses'].map(
+    (name) => `${MODEL_API_DIR}/codecs/${name}.ts`,
+  )
+  const providers = inputsOf(BUNDLES.providers)
+  for (const file of providerFiles) {
+    if (!providers.has(file)) problems.push(`${BUNDLES.providers.output} no longer carries ${file}`)
+  }
+  for (const bundle of [
+    ...Object.values(BUNDLES).filter((entry) => entry !== BUNDLES.providers),
+    ...DEFERRED,
+    ...ON_FIRST_USE,
+    { output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' },
+    { output: 'dist/pageWorker.js', metafile: 'dist/meta/pageWorker.json' },
+  ]) {
+    for (const file of inputsOf(bundle).keys()) {
+      if (file.startsWith(`${MODEL_API_DIR}/codecs/`) || file.startsWith('src/core/providers/')) {
+        problems.push(`${bundle.output} carries ${file}, which loads only in dist/providers.js`)
+      }
+    }
+  }
+  const imageWorker = {
+    output: 'dist/imageResizeWorker.js',
+    metafile: 'dist/meta/imageResizeWorker.json',
+  }
+  const rasterOnly = [
+    'src/core/imageResizeWorker.ts',
+    'node_modules/jpeg-js/',
+    'node_modules/pngjs/',
+  ]
+  for (const prefix of rasterOnly) {
+    if (
+      inputsOf(imageWorker)
+        .keys()
+        .every((file) => !file.startsWith(prefix))
+    )
+      problems.push(`${imageWorker.output} no longer carries ${prefix}`)
+    for (const bundle of [
+      ...Object.values(BUNDLES),
+      ...DEFERRED,
+      ...ON_FIRST_USE,
+      { output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' },
+      { output: 'dist/pageWorker.js', metafile: 'dist/meta/pageWorker.json' },
+    ]) {
+      if (
+        inputsOf(bundle)
+          .keys()
+          .some((file) => file.startsWith(prefix))
+      )
+        problems.push(
+          `${bundle.output} carries ${prefix}, which runs only on the image resize worker`,
+        )
     }
   }
   return problems

@@ -1,0 +1,32 @@
+{
+  "provider": "anthropic",
+  "capturedAt": "2026-10-04",
+  "totalRequests": 2,
+  "billedRequests": 2,
+  "freeRequests": 0,
+  "expected": {
+    "billed": 2,
+    "free": 0
+  },
+  "models": ["claude-sonnet-5-5"],
+  "calls": [
+    {
+      "seq": 1,
+      "name": "tool-call-stream",
+      "method": "POST",
+      "url": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "billed": true,
+      "ms": 2002
+    },
+    {
+      "seq": 2,
+      "name": "tool-result-stream",
+      "method": "POST",
+      "url": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "billed": true,
+      "ms": 1069
+    }
+  ]
+}

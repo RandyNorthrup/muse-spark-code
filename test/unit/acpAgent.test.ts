@@ -590,7 +590,10 @@ describe('the ACP agent (M63)', () => {
     expect(h.updates).toEqual([
       {
         sessionUpdate: 'available_commands_update',
-        availableCommands: [{ name: 'help', description: UI_TEXT.referenceIntro, input: null }],
+        availableCommands: [
+          { name: 'help', description: UI_TEXT.referenceIntro, input: null },
+          { name: 'compact', description: UI_TEXT.compactDetail, input: null },
+        ],
       },
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Hel' } },
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'lo' } },
@@ -680,6 +683,7 @@ describe('the ACP agent (M63)', () => {
       sessionUpdate: 'available_commands_update',
       availableCommands: [
         { name: 'help', description: UI_TEXT.referenceIntro, input: null },
+        { name: 'compact', description: UI_TEXT.compactDetail, input: null },
         { name: 'review', description: 'Review', input: { hint: '<path>' } },
       ],
     })
@@ -2200,6 +2204,73 @@ describe('ACP session ownership across asynchronous releases', () => {
         client.request('session/resume', { sessionId: 'old-1', cwd: CWD }),
       ).rejects.toThrow()
       await expect(client.request('session/close', { sessionId: 'old-1' })).rejects.toThrow()
+    })
+  })
+})
+
+describe('FIXM101C1 ACP compaction', () => {
+  it('routes /compact to the shared backend and advertises it through the SDK (R6)', async () => {
+    const h = harness({ kind: 'modelApi' })
+    const response = await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      h.host.sessions[0]?.compact.mockResolvedValue({ status: 'accepted', reason: undefined })
+      const response = client.request('session/prompt', {
+        sessionId,
+        prompt: [{ type: 'text', text: '/compact' }],
+      })
+      await until(
+        () =>
+          (h.host.sessions[0]?.compact.mock.calls.length ?? 0) > 0 ||
+          (h.host.sessions[0]?.sendTurn.mock.calls.length ?? 0) > 0,
+      )
+      h.host.sessions[0]?.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+      return await response
+    })
+    expect(response.stopReason).toBe('end_turn')
+    expect(h.host.sessions[0]?.compact).toHaveBeenCalledOnce()
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    expect(h.updates).toContainEqual({
+      sessionUpdate: 'available_commands_update',
+      availableCommands: [{ name: 'compact', description: UI_TEXT.compactDetail, input: null }],
+    })
+  })
+
+  it('cancels an in-flight compact and refuses concurrent ACP prompts (R6)', async () => {
+    const h = harness({ kind: 'modelApi' })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const session = h.host.sessions[0]
+      const held = Promise.withResolvers<{ status: string; reason: undefined }>()
+      session?.compact.mockReturnValue(held.promise)
+      session?.cancel.mockImplementation(() => {
+        held.resolve({ status: 'cancelled', reason: undefined })
+        return Promise.resolve()
+      })
+      const response = client.request('session/prompt', {
+        sessionId,
+        prompt: [{ type: 'text', text: '/compact' }],
+      })
+      await until(
+        () =>
+          (session?.compact.mock.calls.length ?? 0) > 0 ||
+          (session?.sendTurn.mock.calls.length ?? 0) > 0,
+      )
+      if ((session?.sendTurn.mock.calls.length ?? 0) > 0) {
+        session?.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+        await response
+      }
+      expect(session?.compact).toHaveBeenCalledOnce()
+      await expect(
+        client.request('session/prompt', {
+          sessionId,
+          prompt: [{ type: 'text', text: 'concurrent' }],
+        }),
+      ).rejects.toThrow(UI_TEXT.acpPromptBusy)
+      await client.notify('session/cancel', { sessionId })
+      const answer = await response
+      expect(answer.stopReason).toBe('cancelled')
+      expect(session?.cancel).toHaveBeenCalledOnce()
+      expect(session?.sendTurn).not.toHaveBeenCalled()
     })
   })
 })

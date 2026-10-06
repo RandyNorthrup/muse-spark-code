@@ -25,7 +25,7 @@ import {
   type ExecEvent,
   type ExecResult,
 } from '../../src/runtime/exec/execProtocol'
-import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { EXEC_EXIT, NO_COMPACTABLE_HISTORY, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { paidGrantsFile, workspaceSessionsFolder } from '../../src/runtime/dataFolder'
 import { memorySecrets } from './helpers/fakes'
 import {
@@ -1075,4 +1075,22 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       })
     },
   )
+})
+
+describe('FIXM101C1 headless compaction', () => {
+  it('routes /compact through ACP and returns NOOP without a model prompt on empty history (R6)', async () => {
+    const h = await harness()
+    h.deps.options = { ...h.deps.options, prompt: { kind: 'text', text: '/compact' } }
+    const r = await h.run()
+    expect(r.code).toBe(EXEC_EXIT.incomplete)
+    expect(result(r)).toMatchObject({
+      status: 'incomplete',
+      stopReason: 'end_turn',
+      terminal: null,
+      incompleteReason: NO_COMPACTABLE_HISTORY,
+      usage: { requests: 0 },
+      error: { message: UI_TEXT.nothingToCompact },
+    })
+    expect(h.api.responseBodies()).toHaveLength(0)
+  })
 })
