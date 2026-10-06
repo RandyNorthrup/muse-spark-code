@@ -90,7 +90,8 @@
 }
 
 .fallback-diff pre,
-.fallback-terminal {
+.fallback-terminal,
+.presentation-document {
   max-height: 60vh;
   padding: var(--ms-gap);
   overflow: auto;
