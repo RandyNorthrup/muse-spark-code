@@ -13,7 +13,12 @@
 // No `vscode` here: the host injects the settings, the store, the modal and
 // the window focus.
 
-import { PAID_FEATURES, type PaidFeature } from '../../shared/constants'
+import {
+  PAID_FEATURES,
+  PAID_PRICES_USD,
+  SEARCHES_PER_PRICE_UNIT,
+  type PaidFeature,
+} from '../../shared/constants'
 import {
   EMPTY_PAID_TALLY,
   modelApiPaidTier,
@@ -23,6 +28,13 @@ import {
 } from '../../shared/paid'
 import type { CoreLogger } from '../logging'
 import { estimateCostUsd } from '../usage/insights'
+
+/** A verified per-call search tariff; other providers must inject their own price. */
+export function webSearchPriceUsd(modelId: string): number | undefined {
+  return modelApiPaidTier(modelId) === undefined
+    ? undefined
+    : PAID_PRICES_USD.webSearchPerThousand / SEARCHES_PER_PRICE_UNIT
+}
 
 export interface PaidFeatureGateDeps {
   /** Whether the feature's `museSpark.*` setting is on. */

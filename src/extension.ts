@@ -2294,7 +2294,26 @@ async function activateWindow(
     // The session budget cap and the per-reply usage line (M82), read per
     // request and per reply so a changed setting applies at once.
     sessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
-    reservePaidRequest: dailyPaid.reserve,
+    reservePaidRequest: async (body, feature, estimatedInputTokens, signal, reservationUsd) => {
+      if (reservationUsd === undefined) {
+        return await dailyPaid.reserve(body, feature, estimatedInputTokens, signal)
+      }
+      signal?.throwIfAborted()
+      const claim = await dailyPaid.judgeLedger.reserve(reservationUsd)
+      try {
+        signal?.throwIfAborted()
+        return {
+          ...claim,
+          check: () => {
+            signal?.throwIfAborted()
+            claim.check()
+          },
+        }
+      } catch (error: unknown) {
+        await claim.settle(0)
+        throw error
+      }
+    },
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
     // Muse Code's MCP servers, run by this window for the Model API backend
     // (M50, PLAN.md D42): started in a trusted workspace only, stopped with

@@ -24,6 +24,8 @@ import {
   SESSION_BUDGET_MIN_BYTES_PER_TOKEN,
   TOKENS_PER_MILLION,
   UI_TEXT,
+  WEB_SEARCH_MIN_PER_REQUEST,
+  WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { modelApiPaidTier } from '../../../shared/paid'
@@ -161,7 +163,10 @@ export function reserveRequest(request: {
   readonly spentUsd: number
   readonly estimatedInputTokens: number
   readonly modelId: string
+  readonly maxToolCalls?: number
+  readonly searchPriceUsd?: number | undefined
 }): BudgetReservation {
+  const searchCostUsd = searchAllowanceUsd(request.maxToolCalls, request.searchPriceUsd)
   const tier = modelApiPaidTier(request.modelId)
   if (tier === undefined) {
     throw new SessionBudgetExceededError(
@@ -172,12 +177,12 @@ export function reserveRequest(request: {
   const inputCostUsd = (request.estimatedInputTokens * prices.input) / TOKENS_PER_MILLION
   const leftUsd = request.capUsd - request.spentUsd
   const affordableOutputTokens = Math.floor(
-    ((leftUsd - inputCostUsd) * TOKENS_PER_MILLION) / prices.output,
+    ((leftUsd - inputCostUsd - searchCostUsd) * TOKENS_PER_MILLION) / prices.output,
   )
   if (affordableOutputTokens < 1) {
     throw new SessionBudgetExceededError(
       fill(UI_TEXT.sessionBudgetStopped, {
-        estimate: formatUsd(inputCostUsd),
+        estimate: formatUsd(inputCostUsd + searchCostUsd),
         cap: formatUsd(request.capUsd),
         spent: formatUsd(request.spentUsd),
       }),
@@ -187,8 +192,27 @@ export function reserveRequest(request: {
   return {
     estimatedInputTokens: request.estimatedInputTokens,
     maxOutputTokens,
-    costUsd: inputCostUsd + (maxOutputTokens * prices.output) / TOKENS_PER_MILLION,
+    costUsd: inputCostUsd + (maxOutputTokens * prices.output) / TOKENS_PER_MILLION + searchCostUsd,
   }
+}
+
+/** The hosted fee held alongside tokens, from a verified bound and tariff. */
+export function searchAllowanceUsd(
+  bound: number | undefined,
+  priceUsd: number | undefined,
+): number {
+  if (
+    bound !== undefined &&
+    (priceUsd === undefined ||
+      priceUsd < 0 ||
+      !Number.isSafeInteger(bound) ||
+      bound < WEB_SEARCH_MIN_PER_REQUEST ||
+      bound > WEB_SEARCH_MAX_PER_REQUEST_LIMIT ||
+      !Number.isFinite(priceUsd))
+  ) {
+    throw new SessionBudgetExceededError(UI_TEXT.sessionBudgetSearchUnavailable)
+  }
+  return (bound ?? 0) * (priceUsd ?? 0)
 }
 
 /** A hidden paid request's known charge, or its retained uncertain reservation. */

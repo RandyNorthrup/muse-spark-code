@@ -63,6 +63,65 @@ describe('estimateInput', () => {
 })
 
 describe('reserveRequest', () => {
+  it('holds the search bound times its price before allocating output tokens', () => {
+    const reservation = reserveRequest({
+      capUsd: 0.14,
+      spentUsd: 0,
+      estimatedInputTokens: 100_000,
+      modelId: MODEL,
+      maxToolCalls: 5,
+      searchPriceUsd: 0.0025,
+    })
+    expect(reservation.maxOutputTokens).toBe(588)
+    expect(reservation.costUsd).toBeCloseTo(0.125 + 588 * STANDARD_OUTPUT_TOKEN_USD + 0.0125, 12)
+    expect(reservation.costUsd).toBeLessThanOrEqual(0.14 + FLOAT_SLACK)
+  })
+
+  it.each([0, -1, 21, 1.5, NaN, Infinity])(
+    'refuses an invalid hosted-call bound of %s',
+    (maxToolCalls) => {
+      expect(() =>
+        reserveRequest({
+          capUsd: 1,
+          spentUsd: 0,
+          estimatedInputTokens: 0,
+          modelId: MODEL,
+          maxToolCalls,
+          searchPriceUsd: 0.0025,
+        }),
+      ).toThrow(SessionBudgetExceededError)
+    },
+  )
+
+  it.each([undefined, -1, NaN, Infinity])(
+    'refuses an unverified or invalid search price of %s',
+    (searchPriceUsd) => {
+      expect(() =>
+        reserveRequest({
+          capUsd: 1,
+          spentUsd: 0,
+          estimatedInputTokens: 0,
+          modelId: MODEL,
+          maxToolCalls: 5,
+          searchPriceUsd,
+        }),
+      ).toThrow(SessionBudgetExceededError)
+    },
+  )
+
+  it('refuses search when its allowance leaves no room for a reply', () => {
+    expect(() =>
+      reserveRequest({
+        capUsd: 0.0125,
+        spentUsd: 0,
+        estimatedInputTokens: 0,
+        modelId: MODEL,
+        maxToolCalls: 5,
+        searchPriceUsd: 0.0025,
+      }),
+    ).toThrow(SessionBudgetExceededError)
+  })
+
   it('lowers max_output_tokens so input plus output at list price fits what is left', () => {
     // Input $0.125 (100k × $1.25/M); $0.005 left pays 1,176 output tokens at $4.25/M.
     const reservation = reserveRequest({

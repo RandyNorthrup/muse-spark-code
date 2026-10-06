@@ -9,7 +9,7 @@
 
 import { createHash } from 'node:crypto'
 import type { PaidFeature } from '../../../shared/constants'
-import type { SessionBudgetClaim } from './sessionBudget'
+import { estimateInput, requestParts, searchAllowanceUsd } from './sessionBudget'
 
 import {
   MODEL_API_MAX_RETRIES,
@@ -25,7 +25,7 @@ import {
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../../shared/constants'
-import { fill } from '../../../shared/l10n/text'
+import { fill, formatUsd } from '../../../shared/l10n/text'
 import { DeadlineError, withDeadline } from '../../timeouts'
 import type { CoreLogger } from '../../logging'
 import {
@@ -47,7 +47,16 @@ import {
   streamEventSchema,
 } from './schemas'
 import { parseSse } from './sse'
-import { estimateCostUsd } from '../../usage/insights'
+import { estimateCostUsd, type BillableUsage } from '../../usage/insights'
+import { webSearchPriceUsd } from '../../paid/paidFeatures'
+import { modelApiPaidTier } from '../../../shared/paid'
+
+/** The client needs admission and settlement, not the ledger's internal totals. */
+interface PaidRequestClaim {
+  readonly reservedUsd: number
+  check(capUsd: number): void
+  settle(actualCostUsd: number): Promise<unknown>
+}
 
 export interface ModelApiClientDeps {
   /** Interactive VS Code extras only; ACP/headless clients omit this port. */
@@ -56,7 +65,13 @@ export interface ModelApiClientDeps {
     feature: PaidFeature,
     estimatedInputTokens?: number,
     signal?: AbortSignal,
-  ) => Promise<SessionBudgetClaim | undefined>
+    /** M106: tokens plus the verified hosted-call allowance, computed in this bundle. */
+    reservationUsd?: number,
+  ) => Promise<PaidRequestClaim | undefined>
+  /** M95 integration: a provider's verified hosted-search tariff, never a fallback estimate. */
+  readonly webSearchPriceUsd?: (modelId: string) => number | undefined
+  /** M95's verified token pricing; an unpriced provider cannot spend under a search cap. */
+  readonly searchTokenCostUsd?: (usage: BillableUsage, modelId: string) => number | undefined
   readonly fetch: typeof fetch
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */
@@ -219,6 +234,8 @@ export interface ResponseAttemptGuard {
   (keyDigest: string | undefined): void
   /** After every final fence and request build, adjacent to the actual fetch call. */
   readonly onRequestStarted?: () => void
+  /** Terminal hosted-call count, also on failed responses whose item events were omitted. */
+  readonly onSearchesReturned?: (count: number) => void
 }
 
 function isAborted(signal: AbortSignal | undefined): boolean {
@@ -305,7 +322,7 @@ export class ModelApiClient {
        */
       readonly retries?: 'all' | 'rateLimitOnly'
       readonly paid?: {
-        readonly claim: SessionBudgetClaim
+        readonly claim: PaidRequestClaim
         isSent: boolean
       }
     },
@@ -468,9 +485,36 @@ export class ModelApiClient {
     }
   }
 
+  private searchTokenCostUsd(
+    usage: BillableUsage,
+    modelId: string,
+    unknownChargeUsd?: number,
+  ): number {
+    const knownCost =
+      modelApiPaidTier(modelId) === undefined ? undefined : estimateCostUsd(usage, modelId)
+    const cost =
+      this.deps.searchTokenCostUsd === undefined
+        ? knownCost
+        : this.deps.searchTokenCostUsd(usage, modelId)
+    if (cost === undefined || !Number.isFinite(cost) || cost < 0) {
+      throw new Error(
+        unknownChargeUsd === undefined
+          ? fill(UI_TEXT.sessionBudgetUnpriced, { model: modelId })
+          : fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(unknownChargeUsd) }),
+      )
+    }
+    return cost
+  }
+
   /** Whether interactive extras have a finite daily admission port (D78). */
   public get hasPaidDailyBudget(): boolean {
     return this.deps.reservePaidRequest !== undefined
+  }
+
+  public searchPriceUsd(modelId: string): number | undefined {
+    return this.deps.webSearchPriceUsd === undefined
+      ? webSearchPriceUsd(modelId)
+      : this.deps.webSearchPriceUsd(modelId)
   }
 
   /** Bind a one-use child consent to the stored key without retaining it. */
@@ -574,6 +618,20 @@ export class ModelApiClient {
     if (feature === undefined && confirmed !== undefined) feature = 'scheduledPrompts'
     if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search'))
       feature = 'webSearch'
+    const hasSearch = body.tools.some((tool) => tool.type === 'web_search')
+    const searchPrice = hasSearch ? this.searchPriceUsd(body.model) : undefined
+    let reservationUsd: number | undefined
+    if (hasSearch && this.hasPaidDailyBudget) {
+      if (body.max_tool_calls === undefined) throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+      const inputTokens =
+        admitAttempt?.paidEstimatedInputTokens ??
+        estimateInput(requestParts(body), undefined).inputTokens
+      reservationUsd =
+        this.searchTokenCostUsd(
+          { inputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
+          body.model,
+        ) + searchAllowanceUsd(body.max_tool_calls, searchPrice)
+    }
     const claim =
       feature === undefined
         ? undefined
@@ -582,8 +640,19 @@ export class ModelApiClient {
             feature,
             admitAttempt?.paidEstimatedInputTokens,
             signal,
+            reservationUsd,
           )
     const paid = claim === undefined ? undefined : { claim, isSent: false }
+    const searchItems = new Set<string>()
+    let returnedSearches = 0
+    let hasTerminal = false
+    const noteSearchAnomaly = () => {
+      if (body.max_tool_calls !== undefined && returnedSearches > body.max_tool_calls) {
+        this.deps.log.warn(
+          `Hosted search returned ${String(returnedSearches)} calls above its bound of ${String(body.max_tool_calls)}; all calls are charged`,
+        )
+      }
+    }
     try {
       const response = await within(
         this.request(
@@ -633,15 +702,33 @@ export class ModelApiClient {
           const known = streamEventSchema.safeParse(json)
           if (known.success) {
             if (
-              claim !== undefined &&
+              known.data.type === 'response.output_item.done' &&
+              known.data.item.type === 'web_search_call'
+            ) {
+              searchItems.add(
+                known.data.item.id ??
+                  (known.data.output_index === undefined
+                    ? `unidentified:${String(searchItems.size)}`
+                    : `index:${String(known.data.output_index)}`),
+              )
+              returnedSearches = searchItems.size
+            }
+            if (
               ['response.completed', 'response.incomplete', 'response.failed'].includes(
                 known.data.type,
               ) &&
               'response' in known.data
             ) {
+              returnedSearches = Math.max(
+                returnedSearches,
+                known.data.response.output.filter((item) => item.type === 'web_search_call').length,
+              )
+              noteSearchAnomaly()
+              admitAttempt?.onSearchesReturned?.(returnedSearches)
               const usage = known.data.response.usage
               const cached = usage?.input_tokens_details?.cached_tokens ?? 0
               if (
+                claim !== undefined &&
                 usage !== null &&
                 usage !== undefined &&
                 Number.isSafeInteger(usage.input_tokens) &&
@@ -652,17 +739,29 @@ export class ModelApiClient {
                 cached >= 0 &&
                 cached <= usage.input_tokens
               ) {
+                const billable = {
+                  inputTokens: usage.input_tokens,
+                  outputTokens: usage.output_tokens,
+                  cachedTokens: cached,
+                }
                 await claim.settle(
-                  estimateCostUsd(
-                    {
-                      inputTokens: usage.input_tokens,
-                      outputTokens: usage.output_tokens,
-                      cachedTokens: cached,
-                    },
-                    body.model,
-                  ),
+                  (hasSearch
+                    ? this.searchTokenCostUsd(
+                        billable,
+                        body.model,
+                        claim.reservedUsd +
+                          Math.max(0, returnedSearches - (body.max_tool_calls ?? 0)) *
+                            (searchPrice ?? 0),
+                      )
+                    : estimateCostUsd(billable, body.model)) +
+                    returnedSearches * (searchPrice ?? 0),
+                )
+              } else if (claim !== undefined && hasSearch && body.max_tool_calls !== undefined) {
+                await claim.settle(
+                  claim.reservedUsd + (returnedSearches - body.max_tool_calls) * (searchPrice ?? 0),
                 )
               }
+              hasTerminal = true
             }
             yield known.data
             continue
@@ -690,7 +789,14 @@ export class ModelApiClient {
         void frames.return(undefined).catch(ignoreClosingError)
       }
     } finally {
+      if (!hasTerminal) noteSearchAnomaly()
       if (paid?.isSent === false) await paid.claim.settle(0)
+      else if (paid !== undefined && hasSearch && !hasTerminal) {
+        await paid.claim.settle(
+          paid.claim.reservedUsd +
+            Math.max(0, returnedSearches - (body.max_tool_calls ?? 0)) * (searchPrice ?? 0),
+        )
+      }
     }
   }
 }
