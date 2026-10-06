@@ -7855,7 +7855,9 @@ It builds on:
 - **Q-M109-Windows-DPAPI (2026-10-06, P Windows rig).** Current-user DPAPI
   initially roundtripped generated material on Win11, then Windows itself
   returned `0x80070005` in the rig's NTLM logon context, including outside
-  our helper. Local-machine protection works but is never a substitute.
+  our helper. A fresh 17:03 UTC probe reports current-user protection
+  available again: this is intermittent, not a permanent OS limitation.
+  Local-machine protection works but is never a substitute.
   The helper reports DPAPI availability in the current session; C/B must
   offer passphrase/recovery where both hardware and the OS store refuse.
   Re-capture DPAPI in a stable interactive and an independent SSH logon

@@ -1,0 +1,36 @@
+{
+  "rig": "win11",
+  "workspace": "C:/lanes/M109PW",
+  "testedCommit": "4c756e42",
+  "capturedAtUtc": "2026-10-06T17:03:18.008Z",
+  "os": {
+    "type": "Windows_NT",
+    "release": "10.0.26200",
+    "arch": "x64"
+  },
+  "node": "v24.21.0",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "frame": {
+    "v": 1,
+    "status": "ok",
+    "rsa": false,
+    "ecc": false,
+    "hello": false,
+    "dpapi": true
+  },
+  "sourceSha256": {
+    "MuseSparkVault.cs": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee",
+    "MuseSparkVaultCng.cs": "56ee239eb9a255b70bf1641251b72047c56e5fd8d1038859441dd3d1c4a30303",
+    "MuseSparkVaultHello.cs": "aba81a830df0dce7528d5a51e5e23b29b1eadbe59b909a3317d9090156ddd5b1",
+    "MuseSparkVaultLock.cs": "661cb29ed1b933ee4e9c26e9cb93cee96bfb5abc003b716bf7fdfbb490618c44"
+  },
+  "dpapiCapture": {
+    "capturedAtUtc": "2026-10-06T17:06:42.508Z",
+    "generatedMaterialOnly": true,
+    "scope": "CurrentUser",
+    "roundtrip": true,
+    "reboundRefused": true,
+    "persistedSlotEntries": 0
+  }
+}
