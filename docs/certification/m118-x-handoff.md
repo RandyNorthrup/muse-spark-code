@@ -62,6 +62,9 @@ cannot release or insert. ACP uses existing `session/prompt` and
 `available_commands_update`; no guessed extension method, elicitation or
 ordinary permission prompt was added. Reserved slash commands fail explicitly
 without the binding and cannot fall through to skills/model execution.
+Both interception and argument parsing use the shared `parseSkillInvocation`
+selector parser, including leading spaces, tabs and newlines. Preserve the
+original command text for save-body parsing; do not trim its trailing bytes.
 
 For standalone commands, call `parseCommandLine(argv, parseSharingArgs)` and
 route its `share`/`prompts` results to `runSharingCommand(command, commands,

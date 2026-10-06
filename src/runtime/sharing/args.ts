@@ -2,6 +2,7 @@
 import { parseArgs, type ParseArgsConfig } from 'node:util'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { parseSkillInvocation } from '../../shared/mentions'
 import type { SavedPrompt } from '../../shared/prompts'
 import type { ShareRequest } from '../../shared/share'
 
@@ -165,14 +166,14 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
 
 /** Our slash syntax, not a shell: quoted arguments, then verbatim save text after ` -- `. */
 export function parseSharingSlash(text: string, sessionId: string) {
-  const invocation = /^\/(share|prompt)(?=\s|$)/.exec(text)
-  if (invocation === null) return
+  const invocation = parseSkillInvocation(text, new Set(['share', 'prompt']))
+  if (invocation === undefined) return
   const tokens: string[] = []
   let body: string | undefined
-  let remaining = text.slice(1).trimStart()
+  let remaining = text.trimStart().slice(1).trimStart()
   while (remaining !== '') {
     const token = /^(?:"((?:\\.|[^"\\])*)"|'([^']*)'|([^\s"']+))(?=\s|$)/.exec(remaining)
-    if (token === null) throw localArgumentError(`/${invocation[1] ?? ''}`)
+    if (token === null) throw localArgumentError(`/${invocation.selector}`)
     if (token[3] === '--' && remaining.length > token[0].length) {
       const delimiterLength = remaining.startsWith('\r\n', token[0].length) ? 2 : 1
       body = remaining.slice(token[0].length + delimiterLength)
@@ -180,7 +181,7 @@ export function parseSharingSlash(text: string, sessionId: string) {
     }
     const value: unknown =
       token[1] === undefined ? (token[2] ?? token[3]) : JSON.parse(`"${token[1]}"`)
-    if (typeof value !== 'string') throw localArgumentError(`/${invocation[1] ?? ''}`)
+    if (typeof value !== 'string') throw localArgumentError(`/${invocation.selector}`)
     tokens.push(value)
     remaining = remaining.slice(token[0].length).trimStart()
   }
@@ -193,7 +194,7 @@ export function parseSharingSlash(text: string, sessionId: string) {
     throw localArgumentError('--cwd/--confirm')
   }
   if ((command.command === 'prompts' && command.action === 'save') !== (body !== undefined)) {
-    throw localArgumentError(`/${invocation[1] ?? ''}`)
+    throw localArgumentError(`/${invocation.selector}`)
   }
   return { command, body }
 }

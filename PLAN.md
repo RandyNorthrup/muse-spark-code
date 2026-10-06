@@ -6907,6 +6907,21 @@ certification remain with W. No paid/live/network calls or new dependencies.
 - [x] Missing runtime, TUI, MHP, help/docs and lazy-bundle bindings named in
       `docs/certification/m118-x-handoff.md`; installed/native parity remains W's.
 
+**FIXM118X / RVM118X (2026-10-06, Kubuntu).** Repair all four reviewed P2
+adapter defects within X's files: reuse workspace-path confinement for the
+resolved output and allowed root at release; require explicit headless
+destination and file output flags; abort every pending sharing UI when ACP
+cancels/releases/exits; reuse the shared skill/slash parser for reserved
+commands with leading whitespace. Interactive defaults stay unchanged.
+No new dependency, model call or production P/C/native binding is in scope.
+Record regression failures, byte-exact red drills and bounded checks in
+`docs/certification/m118-x.md`, and update W's integration contracts there.
+
+- [ ] P2-1 output confinement and resolved path/root release contract.
+- [ ] P2-2 explicit headless destination and file output admission.
+- [ ] P2-3 abortable sharing UI and immediate ACP prompt/session cleanup.
+- [x] P2-4 shared leading-whitespace local-command interception.
+
 ### BADGEFIX — Exact package versions on store pages (2026-10-05)
 
 - [x] Generate static Marketplace/Open VSX and npm/GitHub release version

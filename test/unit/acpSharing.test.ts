@@ -114,6 +114,43 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
     expect(JSON.stringify(h.updates)).toContain('Prepared text')
     expect(local.ui.insertPrompt).not.toHaveBeenCalled()
   })
+  it.each([' ', '\t', '\n'])(
+    'keeps whitespace-prefixed local commands off the backend: %j',
+    async (prefix) => {
+      const local = sharingHarness()
+      const h = acpHarness(createAcpSharing(local.commands, () => local.ui))
+      await h.run(async (client, sessionId) => {
+        h.host.sessions[0]!.sendTurn.mockRejectedValue(new Error('backend must never run'))
+        for (const command of [
+          '/prompt list',
+          '/prompt save --title Review -- Private body\r\n',
+          '/share chat',
+        ]) {
+          expect(await localPrompt(client, sessionId, `${prefix}${command}`)).toEqual({
+            stopReason: 'end_turn',
+          })
+        }
+      })
+      expect(local.write).toHaveBeenCalledWith(
+        expect.objectContaining({ body: 'Private body\r\n' }),
+      )
+      expect(local.release).toHaveBeenCalledTimes(1)
+    },
+  )
+  it.each([' ', '\t', '\n'])(
+    'reserves whitespace-prefixed local commands without a binding: %j',
+    async (prefix) => {
+      const h = acpHarness()
+      await h.run(async (client, sessionId) => {
+        h.host.sessions[0]!.sendTurn.mockRejectedValue(new Error('backend must never run'))
+        for (const command of ['/share chat', '/prompt list']) {
+          await expect(localPrompt(client, sessionId, `${prefix}${command}`)).rejects.toThrow(
+            fill(UI_TEXT.acpUnknownArgument, { argument: command.split(' ', 1)[0] ?? '' }),
+          )
+        }
+      })
+    },
+  )
   it('reserves local names against skills and fails explicitly when runtime binding is absent', async () => {
     const h = acpHarness()
     await h.run(async (client, sessionId) => {
