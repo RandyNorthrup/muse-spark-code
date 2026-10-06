@@ -57,7 +57,9 @@ export function paidUseQuestion(request: PaidUseRequest): {
     case 'webSearch': {
       return {
         title: UI_TEXT.paidUseWebSearchTitle,
-        detail: fill(UI_TEXT.paidUseWebSearchDetail, { price: paidFeaturePrice('webSearch') }),
+        detail: fill(UI_TEXT.paidUseWebSearchDetail, {
+          price: paidFeaturePrice('webSearch', request.priceUsd),
+        }),
       }
     }
     case 'voice': {

@@ -70,7 +70,7 @@ describe('M80 structural headless paid policy', () => {
 
 const FOLDER = path.resolve('work', 'app')
 const OTHER = path.resolve('work', 'other')
-const WEB_SEARCH = { feature: 'webSearch' } as const
+const WEB_SEARCH = { feature: 'webSearch', priceUsd: 0.0025 } as const
 const folders: string[] = []
 
 vi.mock('node:fs', async (importActual) => {

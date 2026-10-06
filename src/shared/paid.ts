@@ -28,6 +28,15 @@ import type { BackendKind } from './protocol'
 /** What this window used of each paid feature since it opened. */
 export const paidTallySchema = z.object({
   webSearches: z.number(),
+  /** Verified tariffs for searches counted after M106; older tallies are Meta-only. */
+  webSearchCharges: z.optional(
+    z.array(
+      z.object({
+        units: z.int().check(z.nonnegative()),
+        priceUsd: z.number().check(z.nonnegative()),
+      }),
+    ),
+  ),
   images: z.number(),
   voiceSeconds: z.number(),
   scheduledRuns: z.number(),
@@ -145,7 +154,7 @@ export type PaidState = z.infer<typeof paidStateSchema>
  */
 export type PaidUseRequest =
   | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: number }
-  | { readonly feature: 'webSearch' }
+  | { readonly feature: 'webSearch'; readonly priceUsd: number }
   | { readonly feature: 'voice' }
   | {
       readonly feature: 'imageGeneration'
@@ -209,7 +218,9 @@ export function usablePaidFeatures(
 export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
   switch (feature) {
     case 'webSearch': {
-      return (tally.webSearches * PAID_PRICES_USD.webSearchPerThousand) / SEARCHES_PER_PRICE_UNIT
+      return tally.webSearchCharges === undefined
+        ? (tally.webSearches * PAID_PRICES_USD.webSearchPerThousand) / SEARCHES_PER_PRICE_UNIT
+        : tally.webSearchCharges.reduce((cost, charge) => cost + charge.units * charge.priceUsd, 0)
     }
     case 'imageGeneration': {
       return tally.images * PAID_PRICES_USD.imageGeneration
@@ -374,11 +385,14 @@ export function hookModelPrice(modelId: string): string {
 }
 
 /** The feature's price, as its setting, confirmation, badge and dialog state it. */
-export function paidFeaturePrice(feature: PaidFeature): string {
+export function paidFeaturePrice(feature: PaidFeature, searchPriceUsd?: number): string {
   switch (feature) {
     case 'webSearch': {
+      const price = searchPriceUsd ?? PAID_PRICES_USD.webSearchPerThousand / SEARCHES_PER_PRICE_UNIT
+      if (!Number.isFinite(price) || price < 0)
+        throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
       return fill(UI_TEXT.paidWebSearchPrice, {
-        price: formatUsd(PAID_PRICES_USD.webSearchPerThousand, 2),
+        price: formatUsd(price * SEARCHES_PER_PRICE_UNIT, 2),
       })
     }
     case 'imageGeneration': {

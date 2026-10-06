@@ -10,7 +10,9 @@ import { responseSchema, type CreateResponseBody } from '../../src/core/backends
 import { estimateInput, requestParts } from '../../src/core/backends/modelapi/sessionBudget'
 import type { SessionStore } from '../../src/core/backends/modelapi/sessionStore'
 import { estimateCostUsd, formatUsd } from '../../src/core/usage/insights'
-import { webSearchPriceUsd } from '../../src/core/paid/paidFeatures'
+import { PaidUsage, webSearchPriceUsd } from '../../src/core/paid/paidFeatures'
+import { paidUseQuestion } from '../../src/core/paid/paidConsent'
+import { paidCostUsd, paidTallySchema } from '../../src/shared/paid'
 import { parseExec } from '../../src/runtime/exec/execArgs'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
 import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
@@ -53,13 +55,17 @@ afterEach(async () => {
   vi.restoreAllMocks()
 })
 
-function client(reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']) {
+function client(
+  reservePaidRequest?: ModelApiClientDeps['reservePaidRequest'],
+  pricing: Pick<ModelApiClientDeps, 'webSearchPriceUsd' | 'searchTokenCostUsd'> = {},
+) {
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const instance = new ModelApiClient({
     fetch: api.fetch,
     ...fakeModelApiClientSettings(log),
     ...(reservePaidRequest !== undefined && { reservePaidRequest }),
+    ...pricing,
   })
   return { api, log, instance }
 }
@@ -98,15 +104,18 @@ async function host(
     readonly consent?: ModelApiHostDeps['allowsPaidUse']
     readonly isOn?: () => boolean
     readonly journal?: SessionStore['budget']
+    readonly pricing?: Pick<ModelApiClientDeps, 'webSearchPriceUsd' | 'searchTokenCostUsd'>
+    readonly modelId?: string
+    readonly notePaidUse?: ModelApiHostDeps['notePaidUse']
   } = {},
 ) {
-  const t = client(options.daily)
+  const t = client(options.daily, options.pricing)
   const store = {
     ...memorySessionStore(),
     ...(options.journal !== undefined && { budget: options.journal }),
   }
   const consent = vi.fn(options.consent ?? (() => Promise.resolve(true)))
-  const paidUses = vi.fn<ModelApiHostDeps['notePaidUse']>()
+  const paidUses = vi.fn<ModelApiHostDeps['notePaidUse']>(options.notePaidUse)
   const engine = new ModelApiHost({
     ...fakeModelApiHostDeps({
       client: t.instance,
@@ -125,7 +134,7 @@ async function host(
   cleanup.push(() => engine.close())
   const session = await engine.startSession({
     workspaceRoot: '/ws',
-    modelId: 'muse-spark-1.3',
+    modelId: options.modelId ?? 'muse-spark-1.3',
     approvalMode: 'allowAll',
   })
   const watched = watchSessionTurns(session)
@@ -144,6 +153,28 @@ async function expectSearchUnavailable(t: Awaited<ReturnType<typeof host>>): Pro
 }
 
 describe('M106 hosted-search bounds', () => {
+  it('quotes and tallies a verified USD 0.01 per-call provider tariff end to end', async () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    const t = await host({
+      modelId: 'custom-model',
+      capabilities: () => CAPABILITIES,
+      maxCalls: () => 1,
+      pricing: { webSearchPriceUsd: () => 0.01, searchTokenCostUsd: () => 0 },
+      notePaidUse: (feature, units, price) => {
+        usage.add(feature, units, price)
+      },
+    })
+    t.api.script({ searches: [{}] })
+    await t.turn()
+    const request = t.consent.mock.calls[0]?.[0]
+    if (request === undefined) throw new Error('Missing consent request')
+    expect(request).toEqual({ feature: 'webSearch', priceUsd: 0.01 })
+    expect(paidUseQuestion(request).detail).toContain('$10.00 per 1,000 searches')
+    const tally = paidTallySchema.parse(usage.current)
+    expect(tally.webSearchCharges).toEqual([{ units: 1, priceUsd: 0.01 }])
+    expect(paidCostUsd('webSearch', tally)).toBe(0.01)
+  })
+
   it('reserves tokens plus the bound, then settles the captured U8 search call exactly', async () => {
     const c = claims()
     const log = new FakeLogOutputChannel()

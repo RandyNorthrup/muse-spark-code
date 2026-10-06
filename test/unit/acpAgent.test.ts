@@ -1625,7 +1625,7 @@ function choose(optionId: string): PermissionAnswer {
   return () => ({ outcome: { outcome: 'selected', optionId } })
 }
 
-const WEB_SEARCH = { feature: 'webSearch' } as const
+const WEB_SEARCH = { feature: 'webSearch', priceUsd: 0.0025 } as const
 const IMAGE = {
   feature: 'imageGeneration',
   kind: 'generate',

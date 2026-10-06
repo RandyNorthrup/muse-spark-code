@@ -94,7 +94,6 @@ import {
   SCHEDULE_MAX_PROMPT_CHARS,
   SCHEDULE_MIN_INTERVAL_MS,
   SCHEDULE_POLL_INTERVAL_MS,
-  SEARCHES_PER_PRICE_UNIT,
   WEB_SEARCH_MAX_PER_REQUEST,
   WEB_SEARCH_MIN_PER_REQUEST,
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
@@ -443,7 +442,7 @@ export interface ModelApiPaidHooks {
   /** Whether a paid feature is on: its machine setting and accepted price. */
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts attempts and extra-feature uses for the window. */
-  readonly notePaidUse: (feature: PaidFeature, units: number) => void
+  readonly notePaidUse: (feature: PaidFeature, units: number, searchPriceUsd?: number) => void
   /**
    * The popup before a paid use (M58, PLAN.md D48): true when it is allowed
    * always in this workspace or allowed now. `requiresAsking` asks even then.
@@ -507,7 +506,7 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   /** Whether a paid feature is on (M33–M35, PLAN.md D30): its setting, and its price accepted. */
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts paid uses for the window's tally: searches made, images returned. */
-  readonly notePaidUse: (feature: PaidFeature, units: number) => void
+  readonly notePaidUse: (feature: PaidFeature, units: number, searchPriceUsd?: number) => void
   /** `museSpark.modelApiPromptCacheRetention`, read per request (M56, PLAN.md D43). */
   readonly promptCacheRetention: () => PromptCacheRetention
   /** `museSpark.modelApiSessionBudgetUsd`, read per request; 0 is no cap (M82). */
@@ -3416,7 +3415,13 @@ export class ModelApiSession implements AgentSession {
     if (!this.deps.isPaidFeatureOn('webSearch')) {
       return false
     }
-    if (!this.canOfferWebSearch()) {
+    const priceUsd = this.deps.client.searchPriceUsd(this.modelId)
+    if (
+      priceUsd === undefined ||
+      !Number.isFinite(priceUsd) ||
+      priceUsd < 0 ||
+      !this.canOfferWebSearch()
+    ) {
       this.emit({
         type: 'backendNotice',
         level: 'warning',
@@ -3427,7 +3432,7 @@ export class ModelApiSession implements AgentSession {
     return this.isSubagent
       ? this.childTaskGrant?.isWebSearchAllowed === true
       : await unlessStopped(
-          this.deps.allowsPaidUse({ feature: 'webSearch' }, false, this.askingSessionId),
+          this.deps.allowsPaidUse({ feature: 'webSearch', priceUsd }, false, this.askingSessionId),
           signal,
         )
   }
@@ -3974,11 +3979,10 @@ export class ModelApiSession implements AgentSession {
       return
     }
     const units = searchUnits(item)
-    this.deps.notePaidUse('webSearch', units)
-    const costUsd =
-      units *
-      (this.deps.client.searchPriceUsd(this.sendingModelId ?? this.modelId) ??
-        PAID_PRICES_USD.webSearchPerThousand / SEARCHES_PER_PRICE_UNIT)
+    const price = this.deps.client.searchPriceUsd(this.sendingModelId ?? this.modelId)
+    if (price === undefined) throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+    this.deps.notePaidUse('webSearch', units, price)
+    const costUsd = units * price
     this.budgetSpentUsd += costUsd
     this.turnCostUsd += costUsd
     this.recordBudgetCost(costUsd, undefined)
@@ -3992,7 +3996,7 @@ export class ModelApiSession implements AgentSession {
     const units = count - this.chargedSearchCalls
     this.chargedSearchCalls = count
     const costUsd = units * price
-    this.deps.notePaidUse('webSearch', units)
+    this.deps.notePaidUse('webSearch', units, price)
     if (this.openReservation !== undefined) {
       this.openReservation.searchSpentUsd = count * price
     }

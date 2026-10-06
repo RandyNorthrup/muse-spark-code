@@ -521,7 +521,7 @@ export interface ConversationDeps {
   /** Whether a paid feature's setting is on and its price accepted (M77). */
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts a paid use in the window's tally (M77). */
-  readonly notePaidUse: (feature: PaidFeature, units: number) => void
+  readonly notePaidUse: (feature: PaidFeature, units: number, searchPriceUsd?: number) => void
   /** A Model API host rooted in a best-of-N worktree (M77). */
   readonly buildAttemptHost: (
     worktreeRoot: string,

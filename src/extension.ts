@@ -2287,8 +2287,8 @@ async function activateWindow(
         now: Date.now,
       }),
     isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
-    notePaidUse: (feature, units) => {
-      paid.usage.add(feature, units)
+    notePaidUse: (feature, units, searchPriceUsd) => {
+      paid.usage.add(feature, units, searchPriceUsd)
     },
     promptCacheRetention: () => currentSettings().modelApiPromptCacheRetention,
     // The session budget cap and the per-reply usage line (M82), read per
@@ -3103,8 +3103,8 @@ async function activateWindow(
           runGit,
           runBestOfNGit,
           isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
-          notePaidUse: (feature, units) => {
-            paid.usage.add(feature, units)
+          notePaidUse: (feature, units, searchPriceUsd) => {
+            paid.usage.add(feature, units, searchPriceUsd)
           },
           buildAttemptHost: (worktreeRoot, admitRequest, noteUsage, budgetScope) =>
             modelApi.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),

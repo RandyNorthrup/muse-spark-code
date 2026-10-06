@@ -1568,6 +1568,8 @@ export const MODEL_API_PRICES_PER_MILLION = {
 } as const
 export const MODEL_API_PRICES_VERIFIED_ON = '2026-09-26'
 export const MODEL_API_PRICE_DECIMALS = 3
+/** Decimal currency coefficients stay integers; no binary USD arithmetic in admission. */
+export const USD_DECIMAL_RADIX = 10
 export const MODEL_API_PRICED_MODELS = {
   standard: ['muse-spark-1.1', 'muse-spark-1.2', 'muse-spark-1.3'],
   contributor: ['muse-spark-1.2-contributor', 'muse-spark-1.3-contributor'],

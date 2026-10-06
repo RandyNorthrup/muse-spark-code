@@ -78,17 +78,19 @@ async function details(request: Parameters<typeof askPaidUse>[0]) {
 describe('the paid-use popup (M58)', () => {
   it('offers Allow once, Allow always in this workspace and Deny, Deny closing it', async () => {
     answerWith(UI_TEXT.paidAllowAlways)
-    await expect(askPaidUse({ feature: 'webSearch' }, true)).resolves.toBe('always')
+    await expect(askPaidUse({ feature: 'webSearch', priceUsd: 0.0025 }, true)).resolves.toBe(
+      'always',
+    )
     expect(offeredButtons()).toEqual([UI_TEXT.allowOnce, UI_TEXT.paidAllowAlways, UI_TEXT.paidDeny])
     const deny = vi.mocked(confirmModal).mock.calls[0]?.slice(2).at(-1) as vscode.MessageItem
     expect(deny.isCloseAffordance).toBe(true)
     expect(vi.mocked(confirmModal).mock.calls[0]?.[1]).toMatchObject({ modal: true })
     answerWith(UI_TEXT.allowOnce)
-    await expect(askPaidUse({ feature: 'webSearch' }, true)).resolves.toBe('once')
+    await expect(askPaidUse({ feature: 'webSearch', priceUsd: 0.0025 }, true)).resolves.toBe('once')
     answerWith(UI_TEXT.paidDeny)
-    await expect(askPaidUse({ feature: 'webSearch' }, true)).resolves.toBe('deny')
+    await expect(askPaidUse({ feature: 'webSearch', priceUsd: 0.0025 }, true)).resolves.toBe('deny')
     answerWith(undefined)
-    await expect(askPaidUse({ feature: 'webSearch' }, true)).resolves.toBe('deny')
+    await expect(askPaidUse({ feature: 'webSearch', priceUsd: 0.0025 }, true)).resolves.toBe('deny')
   })
 
   it('refuses an Auto review on a model without verified rates before any popup (M78)', async () => {
@@ -160,7 +162,7 @@ describe('the paid-use popup (M58)', () => {
   })
 
   it('names what each use is and what it costs', async () => {
-    const search = await details({ feature: 'webSearch' })
+    const search = await details({ feature: 'webSearch', priceUsd: 0.0025 })
     expect(search.title).toBe(UI_TEXT.paidUseWebSearchTitle)
     expect(search.detail).toContain('$2.50 per 1,000 searches')
     expect(search.detail).toContain('$5.00')
@@ -269,15 +271,21 @@ describe('Allow always in this workspace (M58)', () => {
     const workspace = new Map<string, unknown>()
     const { paid } = paidWithSettings(data, ['webSearch'], { workspace })
     answerWith(UI_TEXT.paidAllowAlways)
-    await expect(paid.consent.allows({ feature: 'webSearch' })).resolves.toBe(true)
-    await expect(paid.consent.allows({ feature: 'webSearch' })).resolves.toBe(true)
+    await expect(paid.consent.allows({ feature: 'webSearch', priceUsd: 0.0025 })).resolves.toBe(
+      true,
+    )
+    await expect(paid.consent.allows({ feature: 'webSearch', priceUsd: 0.0025 })).resolves.toBe(
+      true,
+    )
     expect(confirmModal).toHaveBeenCalledTimes(1)
     expect(workspace.get(WORKSPACE_STATE_KEYS.paidWorkspaceGrants)).toEqual({ webSearch: 0 })
     expect(paid.state().alwaysAllowed).toEqual(['webSearch'])
     // Another workspace has its own (empty) store: it asks.
     const other = paidWithSettings(data, ['webSearch'])
     answerWith(UI_TEXT.allowOnce)
-    await expect(other.paid.consent.allows({ feature: 'webSearch' })).resolves.toBe(true)
+    await expect(
+      other.paid.consent.allows({ feature: 'webSearch', priceUsd: 0.0025 }),
+    ).resolves.toBe(true)
     expect(confirmModal).toHaveBeenCalledTimes(2)
     expect(other.paid.state().alwaysAllowed).toEqual([])
   })
@@ -315,7 +323,9 @@ describe('Allow always in this workspace (M58)', () => {
     })
     expect(paid.consent.isRemembered('webSearch')).toBe(false)
     answerWith(UI_TEXT.allowOnce)
-    await expect(paid.consent.allows({ feature: 'webSearch' })).resolves.toBe(true)
+    await expect(paid.consent.allows({ feature: 'webSearch', priceUsd: 0.0025 })).resolves.toBe(
+      true,
+    )
     expect(offeredButtons()).toEqual([UI_TEXT.allowOnce, UI_TEXT.paidDeny])
     canRemember = true
     expect(paid.consent.isRemembered('webSearch')).toBe(true)

@@ -259,14 +259,33 @@ export class PaidUsage {
   }
 
   /** Counts `units` uses: searches, images, or whole seconds of audio. */
-  public add(feature: PaidFeature, units: number): void {
+  public add(feature: PaidFeature, units: number, searchPriceUsd?: number): void {
     if (units <= 0) {
       return
     }
     const { tally } = this
     switch (feature) {
       case 'webSearch': {
-        this.tally = { ...tally, webSearches: tally.webSearches + units }
+        if (
+          searchPriceUsd === undefined ||
+          !Number.isFinite(searchPriceUsd) ||
+          searchPriceUsd < 0
+        ) {
+          throw new Error('Search use needs a verified tariff')
+        }
+        const charges = tally.webSearchCharges ?? []
+        const hasTariff = charges.some((charge) => charge.priceUsd === searchPriceUsd)
+        this.tally = {
+          ...tally,
+          webSearches: tally.webSearches + units,
+          webSearchCharges: hasTariff
+            ? charges.map((charge) =>
+                charge.priceUsd === searchPriceUsd
+                  ? { ...charge, units: charge.units + units }
+                  : charge,
+              )
+            : [...charges, { units, priceUsd: searchPriceUsd }],
+        }
         break
       }
       case 'imageGeneration': {

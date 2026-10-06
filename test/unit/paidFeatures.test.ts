@@ -192,6 +192,20 @@ describe('PaidFeatureGate (M33, PLAN.md D30)', () => {
 })
 
 describe('PaidUsage and the prices (M33)', () => {
+  it('keeps each verified search tariff when the window changes provider', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.add('webSearch', 1, 0.01)
+    usage.add('webSearch', 2, 0.0025)
+    usage.add('webSearch', 1, 0.01)
+    expect(usage.current.webSearchCharges).toEqual([
+      { units: 2, priceUsd: 0.01 },
+      { units: 2, priceUsd: 0.0025 },
+    ])
+    expect(paidCostUsd('webSearch', usage.current)).toBe(0.025)
+    expect(() => {
+      usage.add('webSearch', 1)
+    }).toThrow('verified tariff')
+  })
   it('counts an attempted child request as unpriced until its usage arrives', () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
     usage.add('subagents', 1)
@@ -308,15 +322,21 @@ describe('PaidUsage and the prices (M33)', () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
     const listener = vi.fn()
     const stop = usage.onDidChange(listener)
-    usage.add('webSearch', 3)
+    usage.add('webSearch', 3, 0.0025)
     usage.add('imageGeneration', 1)
     usage.add('voice', 90)
     usage.add('scheduledPrompts', 1)
     usage.add('voice', 0)
-    expect(usage.current).toEqual({ webSearches: 3, images: 1, voiceSeconds: 90, scheduledRuns: 1 })
+    expect(usage.current).toEqual({
+      webSearches: 3,
+      webSearchCharges: [{ units: 3, priceUsd: 0.0025 }],
+      images: 1,
+      voiceSeconds: 90,
+      scheduledRuns: 1,
+    })
     expect(listener).toHaveBeenCalledTimes(4)
     stop()
-    usage.add('webSearch', 1)
+    usage.add('webSearch', 1, 0.0025)
     expect(listener).toHaveBeenCalledTimes(4)
   })
 

@@ -8228,7 +8228,7 @@ describe('ModelApiSession subagents (M48)', () => {
     }
     // The parent's web search popup, then the spawn's; the child asked nothing.
     expect(t.paidRequests).toEqual([
-      { request: { feature: 'webSearch' }, requiresAsking: false },
+      { request: { feature: 'webSearch', priceUsd: 0.0025 }, requiresAsking: false },
       {
         request: {
           feature: 'subagents',
@@ -11410,8 +11410,8 @@ describe('ModelApiSession: web search, paid and loud (M33)', () => {
     await answerFirst(t, session, turnDone)
     expect(t.api.responseBodies()).toHaveLength(3)
     expect(t.paidRequests).toEqual([
-      { request: { feature: 'webSearch' }, requiresAsking: false },
-      { request: { feature: 'webSearch' }, requiresAsking: false },
+      { request: { feature: 'webSearch', priceUsd: 0.0025 }, requiresAsking: false },
+      { request: { feature: 'webSearch', priceUsd: 0.0025 }, requiresAsking: false },
     ])
     expect(hasApprovalCard(events)).toBe(false)
     for (const body of t.api.responseBodies()) {
@@ -11432,8 +11432,8 @@ describe('ModelApiSession: web search, paid and loud (M33)', () => {
     expect(webSearchTools(allowed)).toEqual([{ type: 'web_search' }])
     expect(allowed?.['include']).toEqual(['reasoning.encrypted_content', 'web_search_call.results'])
     expect(t.paidRequests).toEqual([
-      { request: { feature: 'webSearch' }, requiresAsking: false },
-      { request: { feature: 'webSearch' }, requiresAsking: false },
+      { request: { feature: 'webSearch', priceUsd: 0.0025 }, requiresAsking: false },
+      { request: { feature: 'webSearch', priceUsd: 0.0025 }, requiresAsking: false },
     ])
   })
 

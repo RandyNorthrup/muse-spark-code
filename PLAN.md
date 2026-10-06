@@ -19419,6 +19419,12 @@ no unrelated lane regions, dependencies, wire shapes or guards change.
 Each finding gets a default-timeout regression and byte-exact red drill in
 `docs/certification/m106-h.md`. Product wiring remains the existing W/M95
 handoffs, including equivalent interactive-editor ports and headless refusal.
+Exact arithmetic uses a small shared decimal value backed by integer
+coefficients, rather than rounding existing sub-micro token charges away.
+Journal version 2 stores exact decimal strings; version 1 float amounts are
+converted once when parsed, preserving their represented precision. Only
+the owner publishes a migrated claim on its next write; readers never
+rewrite another owner's row and cannot race a settlement.
 
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for

@@ -22,6 +22,8 @@ happened, not what was planned; superseded entries are kept.
 - Terminal search counts release unused session allowance even when token
   usage is missing. Search fees settle the original durable request claim,
   so a crash cannot count an in-bound fee beside its existing reservation.
+- Hosted-search consent and paid tallying use the provider's verified
+  tariff, including when a window changes providers.
 
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the

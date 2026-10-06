@@ -35,7 +35,15 @@ function consentWith(
   return { consent, ask, on, writes, grants: () => grants }
 }
 
-const SEARCH: PaidUseRequest = { feature: 'webSearch' }
+const SEARCH: PaidUseRequest = { feature: 'webSearch', priceUsd: 0.0025 }
+
+describe('paidUseQuestion: verified hosted-search tariffs', () => {
+  it.each([-1, NaN, Infinity])('refuses an invalid search tariff of %s', (priceUsd) => {
+    expect(() => paidUseQuestion({ feature: 'webSearch', priceUsd })).toThrow(
+      UI_TEXT.sessionBudgetSearchUnavailable,
+    )
+  })
+})
 
 describe('PaidUseConsent (M58)', () => {
   it('lets an "always" it cannot keep go ahead once, and says so', async () => {
