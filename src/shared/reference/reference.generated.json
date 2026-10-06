@@ -796,7 +796,7 @@
       "categoryKey": "command.category",
       "description": "Read a shared session file, read-only.",
       "text": { "tip": "openShare" },
-      "canRun": true
+      "canRun": false
     },
     {
       "id": "museSpark.mcpServers",
@@ -806,7 +806,7 @@
       "categoryKey": "command.category",
       "description": "The servers in Muse Code’s settings, run by this window",
       "text": { "ui": "mcpItemDetailModelApi" },
-      "canRun": true
+      "canRun": false
     },
     {
       "id": "museSpark.hooks",
@@ -816,7 +816,7 @@
       "categoryKey": "command.category",
       "description": "Where Muse Code's hooks come from.",
       "text": { "tip": "hooks" },
-      "canRun": true
+      "canRun": false
     },
     {
       "id": "museSpark.runSetupHooks",
@@ -856,7 +856,7 @@
       "categoryKey": "command.category",
       "description": "The notes Muse keeps for later sessions.",
       "text": { "tip": "memory" },
-      "canRun": true
+      "canRun": false
     },
     {
       "id": "museSpark.newWorktree",
@@ -986,7 +986,7 @@
       "categoryKey": "command.category",
       "description": "Paid, on by default; asks once before the first request in each window. On the Model API backend, suggests ghost-text completions as you type, billed to your Model API key: about $0.80 per hour of typical typing on Standard, about $0.05 on the contributor model. The hard daily budget defaults to $1.00 across all windows on this machine. The existing paid modal names the price and budget: Allow once covers this window, Allow always in this workspace remembers consent, and Deny snoozes Tab here. Nothing is sent before an allowing answer. Copilot, if on, is yielded to for its languages unless you run both.",
       "text": { "setting": "modelApiTab" },
-      "canRun": true
+      "canRun": false
     },
     {
       "id": "museSpark.tabLanguages",

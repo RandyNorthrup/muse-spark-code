@@ -28,6 +28,10 @@ happened, not what was planned; superseded entries are kept.
 - Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
   Windows while retaining native-platform parsing and containment checks.
 
+### Performance
+
+- Shorter tokens in the lossless inline English dictionary keep chat startup smaller than 0.14.0 while adding Help & Reference; the complete fallback and existing size limits remain.
+
 ## [0.14.0] - 2026-10-05
 
 ### Highlights

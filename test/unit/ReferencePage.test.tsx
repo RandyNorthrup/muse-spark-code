@@ -72,6 +72,20 @@ describe('shared Help & Reference page', () => {
       key: 'museSpark.modelApiTab',
     })
   })
+  it('states when a host has no current configuration values and still shows defaults', () => {
+    render(
+      <ReferencePage
+        postMessage={vi.fn()}
+        onClose={vi.fn()}
+        settings={testSettings}
+        values={{ ...values, values: {} }}
+      />,
+    )
+    expect(screen.getByText(EN.referenceUnavailable)).toBeInTheDocument()
+    const settings = screen.getByRole('region', { name: EN.referenceSettings })
+    expect(within(settings).getAllByText('—').length).toBeGreaterThan(0)
+    expect(within(settings).getAllByText('true').length).toBeGreaterThan(0)
+  })
   it('offers Run only for safe commands and routes documentation through the host', () => {
     const { postMessage } = page()
     expect(screen.queryByRole('button', { name: 'Run: Sign Out' })).toBeNull()

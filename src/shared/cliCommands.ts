@@ -28,7 +28,7 @@ export function compactReference(skills: readonly string[]): string {
   return [
     UI_TEXT.helpReferenceTitle,
     UI_TEXT.referenceIntro,
-    `${UI_TEXT.groupSlashCommands}: ${[`/${SLASH_COMMAND_NAMES.help}`, ...skills.map((name) => `/${name}`)].join(', ')}`,
+    `${UI_TEXT.groupSlashCommands}: ${[`/${SLASH_COMMAND_NAMES.help}`, ...skills.filter((name) => name !== SLASH_COMMAND_NAMES.help).map((name) => `/${name}`)].join(', ')}`,
     `${UI_TEXT.referenceCommands}: ${cliCommands()
       .map((entry) => entry.name)
       .join(', ')}`,

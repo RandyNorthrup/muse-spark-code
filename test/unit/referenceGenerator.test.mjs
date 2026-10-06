@@ -87,7 +87,16 @@ describe('the code-derived reference gate', () => {
   })
   it('rejects an undocumented CLI route', () => {
     expect(() =>
-      buildReference(manifest, nls, source, `${runtime}\n{ readonly command: 'newRoute' }`, readme),
+      buildReference(
+        manifest,
+        nls,
+        source,
+        runtime.replace(
+          'export type RuntimeCommand =',
+          "export type RuntimeCommand =\n | { readonly command:\n 'newRoute' }\n",
+        ),
+        readme,
+      ),
     ).toThrow('CLI command lacks entry: newRoute')
   })
   it('checks all generated outputs byte-for-byte', async () => {

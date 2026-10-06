@@ -4,6 +4,7 @@ import { createReference, type ReferenceHost } from '../../src/shared/reference/
 import { parseReferenceModel, referenceModel } from '../../src/shared/reference/reference.generated'
 import { parseHostToWebviewMessage, parseWebviewToHostMessage } from '../../src/shared/protocol'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
+import { compactReference } from '../../src/shared/cliCommands'
 
 function host(): ReferenceHost {
   return {
@@ -54,6 +55,11 @@ describe('reference host actions and command line', () => {
       'museSpark.signOut',
       'museSpark.removeWorktree',
       'workbench.action.closeWindow',
+      'museSpark.memory',
+      'museSpark.mcpServers',
+      'museSpark.hooks',
+      'museSpark.openShareFile',
+      'museSpark.tabMenu',
     ])
       await expect(
         reference.handle({ type: 'runReferenceCommand', command }, bridge),
@@ -77,6 +83,11 @@ describe('reference host actions and command line', () => {
       createReference(EN, 'en').handle({ type: 'readReference' }, bridge),
     ).rejects.toThrow()
     expect(bridge.post).not.toHaveBeenCalled()
+  })
+  it('lists reserved ACP help once alongside the installed skills', () => {
+    const text = compactReference(['help', 'demo'])
+    expect(text.match(/\/help/g)).toHaveLength(1)
+    expect(text).toContain('/demo')
   })
   it('prints every category without starting a backend and parses full help strictly', () => {
     const text = createReference(EN, 'en').all()

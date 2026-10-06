@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import * as esbuild from 'esbuild'
+import ts from 'typescript'
 import { format, resolveConfig } from 'prettier'
 
 const MODULE = 'src/shared/reference/reference.generated.ts'
@@ -129,15 +130,30 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   const cli = source.cliCommands()
   // RuntimeCommand is the parser's closed command inventory; new routes must
   // appear in the public command table as well as being documented.
-  const runtimeNames = runtimeSource
-    .matchAll(/readonly command: ([^}\n]+)/g)
-    .flatMap((m) =>
-      m[1]
-        .matchAll(/'([^']+)'/g)
-        .map((v) => v[1])
-        .toArray(),
+  const runtimeTree = ts.createSourceFile('cliArgs.ts', runtimeSource, ts.ScriptTarget.Latest, true)
+  const runtimeType = runtimeTree.statements.find(
+    (statement) => ts.isTypeAliasDeclaration(statement) && statement.name.text === 'RuntimeCommand',
+  )
+  if (runtimeType === undefined) throw new Error('Missing RuntimeCommand inventory')
+  const variants = ts.isUnionTypeNode(runtimeType.type)
+    ? runtimeType.type.types
+    : [runtimeType.type]
+  const runtimeNames = variants.flatMap((variant) => {
+    if (!ts.isTypeLiteralNode(variant)) throw new Error('Invalid RuntimeCommand variant')
+    const command = variant.members.find(
+      (member) =>
+        ts.isPropertySignature(member) &&
+        (ts.isIdentifier(member.name) || ts.isStringLiteral(member.name)) &&
+        member.name.text === 'command',
     )
-    .toArray()
+    if (command?.type === undefined) throw new Error('Missing RuntimeCommand discriminator')
+    const literals = ts.isUnionTypeNode(command.type) ? command.type.types : [command.type]
+    return literals.map((literal) => {
+      if (!ts.isLiteralTypeNode(literal) || !ts.isStringLiteral(literal.literal))
+        throw new Error('Invalid RuntimeCommand discriminator')
+      return literal.literal.text
+    })
+  })
   const names = new Set(cli.map((c) => c.route))
   for (const name of runtimeNames) {
     if (name !== 'invalid' && !names.has(name)) errors.push(`CLI command lacks entry: ${name}`)

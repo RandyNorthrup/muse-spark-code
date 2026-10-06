@@ -171,5 +171,85 @@
       "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
       " FAIL  test/unit/paletteRegistry.test.ts > slashCommandsOf > keeps /help local when an installed skill has the same selector"
     ]
+  },
+  {
+    "name": "English dictionary collision guard",
+    "file": "src/shared/l10n/compactEnglish.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "6aebec7b8ba6021ee2a75dc3bc9544f353cf4230018e76546112580039fdcb6d",
+    "restoredSha256": "6aebec7b8ba6021ee2a75dc3bc9544f353cf4230018e76546112580039fdcb6d",
+    "evidence": [
+      "   × refuses an English value that collides with reserved dictionary tokens 15ms",
+      "      Tests  1 failed | 6 passed (7)",
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      " FAIL  test/unit/uiTextRegions.test.mjs > refuses an English value that collides with reserved dictionary tokens"
+    ]
+  },
+  {
+    "name": "English dictionary decode is lossless",
+    "file": "src/shared/l10n/compactEnglish.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "6aebec7b8ba6021ee2a75dc3bc9544f353cf4230018e76546112580039fdcb6d",
+    "restoredSha256": "6aebec7b8ba6021ee2a75dc3bc9544f353cf4230018e76546112580039fdcb6d",
+    "evidence": [
+      "   × round-trips every browser English key, value and plural form inline 341ms",
+      "      Tests  1 failed | 6 passed (7)",
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      " FAIL  test/unit/uiTextRegions.test.mjs > round-trips every browser English key, value and plural form inline"
+    ]
+  },
+  {
+    "name": "multiline CLI command inventory is complete",
+    "file": "src/runtime/cliArgs.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "d5c960a2f3bad52a5a13f76970fb64020db3f0da8f5ddf441db72315e93a90a6",
+    "restoredSha256": "d5c960a2f3bad52a5a13f76970fb64020db3f0da8f5ddf441db72315e93a90a6",
+    "evidence": ["Error: CLI command lacks entry: unregistered"]
+  },
+  {
+    "name": "compact ACP help lists reserved selector once",
+    "file": "src/shared/cliCommands.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "330796990a07d16008cf775b8934048edba82837d37ca4d3de724051277352ba",
+    "restoredSha256": "330796990a07d16008cf775b8934048edba82837d37ca4d3de724051277352ba",
+    "evidence": [
+      "     × lists reserved ACP help once alongside the installed skills 9ms",
+      "      Tests  1 failed | 5 passed (6)",
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      " FAIL  test/unit/referenceEntry.test.ts > reference host actions and command line > lists reserved ACP help once alongside the installed skills",
+      "     82|   it('lists reserved ACP help once alongside the installed skills', ()…"
+    ]
+  },
+  {
+    "name": "new reference bundle frame vocabulary is complete",
+    "file": "src/shared/constants.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "3ec3c6c610e3475c904ffc0c351a24eada328772aa403acc48ce520c23435b9e",
+    "restoredSha256": "3ec3c6c610e3475c904ffc0c351a24eada328772aa403acc48ce520c23435b9e",
+    "evidence": [
+      "     × R2 verifies the frame vocabulary against the shipped extension package 13ms",
+      "      Tests  1 failed | 58 passed (59)",
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      " FAIL  test/unit/flightRecorder.test.ts > RVM93R regressions > R2 verifies the frame vocabulary against the shipped extension package"
+    ]
+  },
+  {
+    "name": "missing current values are stated",
+    "file": "src/webview/components/ReferencePage.tsx",
+    "exit": 1,
+    "fired": true,
+    "sha256": "a092679adb19e06c63809e06cf2322f0e13539f28f0e9dc97f61e2cb9cfdf0f9",
+    "restoredSha256": "a092679adb19e06c63809e06cf2322f0e13539f28f0e9dc97f61e2cb9cfdf0f9",
+    "evidence": [
+      "     × states when a host has no current configuration values and still shows defaults 211ms",
+      "      Tests  1 failed | 6 passed (7)",
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      " FAIL  test/unit/ReferencePage.test.tsx > shared Help & Reference page > states when a host has no current configuration values and still shows defaults"
+    ]
   }
 ]

@@ -4353,6 +4353,8 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/searchWorker.js',
   'dist/pageWorker.js',
   'dist/webview/main.js',
+  'dist/webview/referencePage.js',
+  'dist/reference.js',
   'dist/report.js',
   'dist/recorder.js',
   'dist/browserCheck.js',
@@ -5217,8 +5219,10 @@ export const EVAL_COST_DECIMALS = 4
 export { UI_TEXT } from './l10n/text'
 // Inclusive integer range used to check whether a locale's `one` needs a count.
 export const L10N_COMPACT_FRAGMENT_WORDS = 6
-export const L10N_COMPACT_TOKEN_FIRST = 0xe0_00
-export const L10N_COMPACT_TOKEN_LAST = 0xf8_ff
+// Build-only English dictionary: two UTF-8 bytes per token. The codec rejects
+// a canonical key/value in this reserved range before encoding it.
+export const L10N_COMPACT_TOKEN_FIRST = 0x01_00
+export const L10N_COMPACT_TOKEN_LAST = 0x05_ff
 export const L10N_TABLE_ARCHIVE_FILE = 'ui.tables.json.br'
 export const L10N_COMPRESSION_QUALITY = 11
 export const L10N_TABLE_MAX_BYTES = 1024 * 1024

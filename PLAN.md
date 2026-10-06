@@ -18210,6 +18210,14 @@ Owner requests `/help` opening an always-current, searchable reference of every
 feature, slash command, palette command, setting and keyboard shortcut. Build
 on the shared palette, manifest translations, host bridge and modal UI.
 
+Startup comparison against `2d4d72bd` measured 914,658 bytes before help and
+917,333 bytes with help's entry points and English controls. Keep the existing
+inline fallback and lossless dictionary; use reserved two-byte UTF-8 dictionary
+characters (U+0100–U+05FF) instead of three-byte private-use characters. The
+canonical English table has no collision and uses 953 of 1,280 slots. The
+existing collision guard and exact full-table round-trip remain mandatory;
+verify smaller startup and unchanged limits before certifying this lane.
+
 - [x] Generate the lazy reference model and `docs/reference.md` from the
       manifest, palette, typed feature catalogue and ACP/CLI command table.
       Validate coverage, descriptions, links and freshness in `check:reference`;
@@ -18222,9 +18230,9 @@ on the shared palette, manifest translations, host bridge and modal UI.
       `/help`, CLI `help --all` and headless help. The generated GitHub reference
       is the companion link for ACP editors; the React page is portable through
       the shared bridge. No backend or model invocation is required for help.
-- [~] Prove generator/page tests and red drills; check accessibility in all
-  four themes, capture wide/narrow light/dark, measure unchanged startup caps,
-  update README, CONTRIBUTING, AGENTS and CHANGELOG, commit with hooks.
+- [x] Prove generator/page tests and red drills; check accessibility in all
+      four themes, capture wide/narrow light/dark, measure unchanged startup caps,
+      update README, CONTRIBUTING, AGENTS and CHANGELOG, commit with hooks.
 
 HELPREF lane runs on macmini. The explicit rig rules prohibit full `quality`,
 push, merge and rebase; the lead retains integrated quality/release approval.

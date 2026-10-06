@@ -236,7 +236,9 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
           </section>
           <section id="reference-settings" aria-labelledby="reference-settings-title">
             <h3 id="reference-settings-title">{UI_TEXT.referenceSettings}</h3>
-            {values === undefined ? <p role="status">{UI_TEXT.referenceUnavailable}</p> : null}
+            {Object.keys(values?.values ?? {}).length === 0 ? (
+              <p role="status">{UI_TEXT.referenceUnavailable}</p>
+            ) : null}
             {settingsRows.map((s) => (
               <article key={s.id}>
                 <h4>{translated(s.nameKey, s.name)}</h4>
