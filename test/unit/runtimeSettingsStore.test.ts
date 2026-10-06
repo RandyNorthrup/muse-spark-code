@@ -11,6 +11,8 @@ import { filesUnder, removeFolder } from './helpers/temporaryFolders'
 const publishGate = vi.hoisted(() => ({
   isOn: false,
   arrivals: 0,
+  heldFile: '',
+  failedFile: '',
   released: Promise.resolve(true),
 }))
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -20,7 +22,14 @@ vi.mock('node:fs/promises', async (importOriginal) => {
     async rename(...args: Parameters<typeof original.rename>) {
       if (publishGate.isOn) {
         publishGate.arrivals += 1
-        if (publishGate.arrivals === 1) await publishGate.released
+        const destination = args[1].toString()
+        const isHeld =
+          publishGate.heldFile === ''
+            ? publishGate.arrivals === 1
+            : destination.endsWith(publishGate.heldFile)
+        if (isHeld) await publishGate.released
+        if (publishGate.failedFile !== '' && destination.endsWith(publishGate.failedFile))
+          throw new Error('Fake write failure')
       }
       await original.rename(...args)
     },
@@ -41,6 +50,47 @@ async function setup() {
 }
 
 describe('runtime settings and storage', () => {
+  it('drains every admitted write before reporting a failed publication', async () => {
+    const { store } = await setup()
+    const release = Promise.withResolvers<boolean>()
+    publishGate.isOn = true
+    publishGate.arrivals = 0
+    publishGate.heldFile = `${createHash('sha256').update('held').digest('hex')}.json`
+    publishGate.failedFile = `${createHash('sha256').update('failed').digest('hex')}.json`
+    publishGate.released = release.promise
+    const failed = expect(store.setStorage('failed', 1, 'user')).rejects.toThrow(
+      'Fake write failure',
+    )
+    const held = store.setStorage('held', 2, 'user')
+    let isDrained = false
+    let drainError: unknown
+    const draining = (async () => {
+      try {
+        await store.settled()
+      } catch (error: unknown) {
+        drainError = error
+      } finally {
+        isDrained = true
+      }
+    })()
+    try {
+      await vi.waitFor(() => {
+        expect(publishGate.arrivals).toBe(2)
+      })
+      await failed
+      await new Promise((resolve) => setTimeout(resolve, OBSERVATION_MS))
+      expect(isDrained).toBe(false)
+    } finally {
+      release.resolve(true)
+      await held
+      await draining
+      publishGate.isOn = false
+      publishGate.heldFile = ''
+      publishGate.failedFile = ''
+    }
+    expect(drainError).toBeInstanceOf(AggregateError)
+    expect(await store.getStorage('held', 'user')).toBe(2)
+  })
   it('waits for the earlier same-key publication before publishing the next update', async () => {
     const { store } = await setup()
     const release = Promise.withResolvers<boolean>()

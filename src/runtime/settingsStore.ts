@@ -123,6 +123,16 @@ export class RuntimeSettingsStore {
     }
   }
 
+  /** The owning controller drains admitted atomic writes before its store is released. */
+  public async settled(): Promise<void> {
+    const failures: unknown[] = []
+    while (this.writers.size > 0) {
+      const writes = await Promise.allSettled(this.writers.values())
+      for (const write of writes) if (write.status === 'rejected') failures.push(write.reason)
+    }
+    if (failures.length > 0) throw new AggregateError(failures, 'MHP_STATE_WRITE_FAILED')
+  }
+
   public async getSetting(key: string): Promise<JsonValue> {
     settingKeySchema.parse(key)
     const name = key.slice(SETTINGS_SECTION.length + 1)

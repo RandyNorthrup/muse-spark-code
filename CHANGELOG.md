@@ -65,6 +65,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Runtime controller cleanup waits for every admitted atomic storage write, even
+  when one publication fails, before reporting the error.
+
 - Source-layout ACP process tests use a fake credential-store binding and
   refuse to start children if its marker is absent, avoiding native credential
   reads during fake-only regression runs.
