@@ -10,6 +10,7 @@ import {
   resourceSettingsSchema,
   resourceStatusSchema,
   type ResourceEvent,
+  type ResourceLevel,
   type ResourceSample,
   type ResourceSampler,
 } from '../../src/shared/resources'
@@ -62,6 +63,27 @@ function setup(settings = resourceSettingsSchema.parse({}), injected?: ResourceS
 }
 
 describe('resource governor levels', () => {
+  it('backs off two independent harnesses together from the same machine readings', async () => {
+    const left = setup()
+    const right = setup()
+    for (let atMs = 0; atMs <= 150_000; atMs += RESOURCE_SAMPLE_MS) {
+      const machine = { memoryUsedPercent: 92 }
+      await left.read(atMs, machine)
+      await right.read(atMs, machine)
+      let expected: ResourceLevel = 'pause'
+      if (atMs < 5000) expected = 'normal'
+      else if (atMs < 65_000) expected = 'throttle'
+      else if (atMs < 125_000) expected = 'relocate'
+      expect(left.governor.level()).toBe(expected)
+      expect(right.governor.level()).toBe(expected)
+      expect(left.governor.capacity('worker')).toBe(right.governor.capacity('worker'))
+    }
+    expect(left.seen).toEqual(right.seen)
+    left.governor.resumeNow()
+    expect(left.governor.level()).toBe('normal')
+    expect(right.governor.level()).toBe('pause')
+  })
+
   it('starts no sampling or timer at construction and enters only after 30 seconds of CPU pressure', async () => {
     const f = setup()
     f.clock.advance(120_000)
@@ -410,6 +432,19 @@ describe('resource governor levels', () => {
     await Promise.resolve()
     expect(refresh).not.toHaveBeenCalled()
     expect(f.sampler.calls).toBe(2)
+  })
+
+  it('discards a failed in-flight sample after disposal without notifying or changing status', async () => {
+    const failed = Promise.withResolvers<ResourceSample>()
+    const f = setup(undefined, { sample: () => failed.promise })
+    const pending = f.governor.refresh()
+    await Promise.resolve()
+    f.governor.dispose()
+    failed.reject(new Error('Late sampler failure'))
+    await pending
+    expect(f.onError).not.toHaveBeenCalled()
+    expect(f.governor.status([]).sample).toBeNull()
+    expect(f.seen).toEqual([])
   })
 
   it('treats rejected, throwing or invalid sampler outputs as unknown and can retry', async () => {
