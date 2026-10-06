@@ -3102,13 +3102,15 @@
         // --- M16: the question card filled in, on its second tab ---
         'question-filled': () => {
           steps.question()
-          later(300, () => {
-            document.querySelectorAll('input[type="radio"]')[1].click()
-            document.querySelectorAll('[role="tab"]')[1].click()
-            later(100, () => {
-              document.querySelectorAll('input[type="checkbox"]')[0].click()
-              const other = document.querySelector('.question input[type="text"]')
-              setValue(other, HTMLInputElement.prototype, 'Pineapple')
+          // The question controls load in their own chunk: wait for them, never a fixed delay.
+          whenFound('.question input[type="radio"]', () => {
+            document.querySelectorAll('.question input[type="radio"]')[1].click()
+            document.querySelectorAll('.question [role="tab"]')[1].click()
+            whenFound('.question input[type="checkbox"]', (checkbox) => {
+              checkbox.click()
+              whenFound('.question input[type="text"]', (other) =>
+                setValue(other, HTMLInputElement.prototype, 'Pineapple'),
+              )
             })
           })
         },
@@ -3885,13 +3887,13 @@
             answers: [],
             clarification: 'Neither yet: show me the failing cases first.',
           })
-          later(300, () => {
-            // Explain instead: the first secondary action, whatever the language.
-            document.querySelector('.question-actions .button-secondary')?.click()
-            later(100, () => {
-              const box = document.querySelector('.question-explain-input')
-              setValue(box, HTMLTextAreaElement.prototype, 'Green, and no toppings at all.')
-            })
+          // Explain instead: the first secondary action, whatever the language. The
+          // question controls load in their own chunk, so wait for them to render.
+          whenFound('.question-actions .button-secondary', (explain) => {
+            explain.click()
+            whenFound('.question-explain-input', (box) =>
+              setValue(box, HTMLTextAreaElement.prototype, 'Green, and no toppings at all.'),
+            )
           })
         },
         // --- M47: workflow runs: the captured one finished, a second running read-only ---
