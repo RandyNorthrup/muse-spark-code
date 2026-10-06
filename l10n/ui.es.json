@@ -2594,5 +2594,15 @@
     "cancelled": "Se canceló la acción.",
     "untrusted": "Confía en el espacio de trabajo antes de ejecutar código del repositorio.",
     "unsupported": "Esta operación no es compatible con este nodo."
+  },
+  "nodeAuth": {
+    "lockout": "El acceso con clave de paso está bloqueado. Use la consola local del nodo para emitir un nuevo código de configuración de un solo uso y registrar una clave de reemplazo.",
+    "windows": "Windows: importe el certificado comparado al almacén de certificados de su usuario y reinicie el navegador.",
+    "macos": "macOS: importe el certificado comparado en Acceso a Llaveros, confíe en él para este nodo y reinicie el navegador.",
+    "linux": "Linux: importe el certificado comparado con el administrador de certificados del navegador y reinícielo.",
+    "firefox": "Firefox usa su propio administrador de certificados. Si no puede confiar en este certificado que no es de CA, la vinculación no estará disponible hasta verificar la plataforma.",
+    "verified": "Comparé la huella completa con la consola del nodo e instalé este certificado.",
+    "download": "Descargar certificado del nodo",
+    "trustRequired": "Instale el certificado comparado antes de crear o usar una clave de paso. Ignorar una advertencia no establece confianza."
   }
 }

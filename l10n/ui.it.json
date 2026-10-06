@@ -2594,5 +2594,15 @@
     "cancelled": "L’azione è stata annullata.",
     "untrusted": "Considera attendibile l’area di lavoro prima di eseguire il codice del repository.",
     "unsupported": "Questa operazione non è supportata su questo nodo."
+  },
+  "nodeAuth": {
+    "lockout": "L’accesso con passkey è bloccato. Usa la console locale del nodo per emettere un nuovo codice di configurazione monouso e registrare una passkey sostitutiva.",
+    "windows": "Windows: importa il certificato confrontato nell’archivio certificati del tuo utente, quindi riavvia il browser.",
+    "macos": "macOS: importa il certificato confrontato in Accesso Portachiavi, consideralo attendibile per questo nodo e riavvia il browser.",
+    "linux": "Linux: importa il certificato confrontato con il gestore certificati del browser, quindi riavvia il browser.",
+    "firefox": "Firefox usa il proprio gestore certificati. Se non può considerare attendibile questo certificato non CA, l’associazione resta indisponibile fino alla verifica della piattaforma.",
+    "verified": "Ho confrontato l’impronta completa con la console del nodo e installato questo certificato.",
+    "download": "Scarica il certificato del nodo",
+    "trustRequired": "Installa il certificato confrontato prima di creare o usare una passkey. Ignorare un avviso non stabilisce attendibilità."
   }
 }

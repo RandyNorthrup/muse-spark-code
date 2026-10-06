@@ -2500,5 +2500,15 @@
     "cancelled": "İşlem iptal edildi.",
     "untrusted": "Depo kodunu çalıştırmadan önce çalışma alanına güvenin.",
     "unsupported": "Bu işlem bu düğümde desteklenmiyor."
+  },
+  "nodeAuth": {
+    "lockout": "Geçiş anahtarıyla oturum açma kilitlendi. Yerel düğüm konsolundan yeni bir tek kullanımlık kurulum kodu oluşturun ve yeni bir geçiş anahtarı kaydedin.",
+    "windows": "Windows: karşılaştırdığınız sertifikayı kullanıcı sertifika deposuna aktarın ve tarayıcıyı yeniden başlatın.",
+    "macos": "macOS: karşılaştırdığınız sertifikayı Anahtar Zinciri Erişimi ile aktarın, bu düğüm için güvenilir olarak ayarlayın ve tarayıcıyı yeniden başlatın.",
+    "linux": "Linux: karşılaştırdığınız sertifikayı tarayıcınızın sertifika yöneticisiyle aktarın ve tarayıcıyı yeniden başlatın.",
+    "firefox": "Firefox kendi sertifika yöneticisini kullanır. CA olmayan bu sertifikaya güvenemezse platform doğrulaması tamamlanana kadar eşleştirme kullanılamaz.",
+    "verified": "Tam parmak izini düğüm konsoluyla karşılaştırdım ve bu sertifikayı yükledim.",
+    "download": "Düğüm sertifikasını indir",
+    "trustRequired": "Geçiş anahtarı oluşturmadan veya kullanmadan önce karşılaştırdığınız sertifikayı yükleyin. Bir uyarıyı geçmek güven sağlamaz."
   }
 }

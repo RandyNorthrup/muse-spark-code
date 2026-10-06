@@ -2688,5 +2688,15 @@
     "cancelled": "Akce byla zrušena.",
     "untrusted": "Před spuštěním kódu repozitáře důvěřujte pracovnímu prostoru.",
     "unsupported": "Tato operace není na tomto uzlu podporována."
+  },
+  "nodeAuth": {
+    "lockout": "Přihlašování přístupovým klíčem je zablokováno. Na místní konzoli uzlu vydejte nový jednorázový kód a zaregistrujte náhradní přístupový klíč.",
+    "windows": "Windows: importujte porovnaný certifikát do úložiště certifikátů svého uživatele a restartujte prohlížeč.",
+    "macos": "macOS: importujte porovnaný certifikát v aplikaci Klíčenka, nastavte důvěru pro tento uzel a restartujte prohlížeč.",
+    "linux": "Linux: importujte porovnaný certifikát ve správci certifikátů prohlížeče a restartujte prohlížeč.",
+    "firefox": "Firefox používá vlastní správce certifikátů. Pokud tomuto certifikátu bez oprávnění CA nemůže důvěřovat, párování nebude dostupné do ověření platformy.",
+    "verified": "Porovnal(a) jsem celý otisk s konzolí uzlu a nainstaloval(a) tento certifikát.",
+    "download": "Stáhnout certifikát uzlu",
+    "trustRequired": "Před vytvořením nebo použitím přístupového klíče nainstalujte porovnaný certifikát. Přeskočení varování nezakládá důvěru."
   }
 }

@@ -22524,6 +22524,34 @@ and issuance receipts. Tests cover binding, origin/metadata, header-only
 auth, first-frame deadline, size/admission limits, payload binding and Stop;
 every guard is deliberately broken and restored. No paid/live calls.
 
+**M110A1 implementation scope (2026-10-06).** Implement the accepted A1
+controls H02–H06, H08–H09 and H19–H20 under `runtime/node/auth`,
+`runtime/node/tls` and `webview/node/auth`. Use the pinned MIT
+`@simplewebauthn/server` 14.0.3 verifier, with required presence/UV, exact
+RP/origin/challenge and library counter checks. Serialize enrollment and
+durable lockout; keep all challenges, bearers and consumed action proofs in
+bounded process memory on monotonic deadlines. Recover only through a fresh
+console code, atomically replacing disabled passkeys. Bind N's verifier,
+state/audit and session lifecycle through explicit injected ports; missing
+M104 page/route and T console bindings remain named integration handoffs.
+Issue a non-CA self-signed leaf through installed OpenSSL, verify its names,
+key, validity and full fingerprint, and check local name resolution. Supply
+a lazy browser pairing/sign-in entry with OS trust instructions and no
+persistent credential storage. Browser/platform trust receipts remain
+qualification prerequisites; no trust store or firewall is changed here.
+
+**A1 dependency pins.** `@simplewebauthn/server` 14.0.3 and
+`@simplewebauthn/browser` 14.0.0 are MIT, with no peer dependencies (checked
+2026-10-06). Server integrity:
+`sha512-D39/0fiDiYmGV+nraY9s63D1Ho2AX/waMLy22/9gUadTUuvbAnstfb4bpbHYbwZuV5ZLDYN1SmzDKuiHzKAA4Q==`;
+browser integrity:
+`sha512-1odWVqeEBTl7lJ9zMKLEsmTlnyrDO5iRcTvfMKKk1WThUnp/i8JJdffdj2icP+tty159s4PgwE3BiMoEW9NFow==`.
+The server verifies actual WebAuthn cryptography; the browser package handles
+the native credential API's binary/JSON conversion. Both remain confined to
+the A1 lazy artifacts. The manifest/lock pins are exact. Scratch installation
+is under this lane's `temp/` because the shared rules prohibit all writes
+under its hard-linked `node_modules`; no shared dependency bytes changed.
+
 **M110N listener receipt (2026-10-06).** N implements the accepted-table
 transport in the lazy node bundle: explicit private/loopback bind, pinned TLS
 and full console fingerprint, browser guards, memory-bearer verifier port,
@@ -23007,6 +23035,15 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
         live or paid call without CLAUDE.md's count first
 
 ## 7. Gates
+
+**M110 A1 scoped certification (2026-10-06).** The lane brief forbids the
+aggregate quality run and changes to other owners' files. A1 runs its own
+whole test files with default timeouts and at most three workers; the lead
+retains integrated `npm run quality`, OS/browser TLS/name qualification and
+binding the named N/M104/T/C/J ports. No cap, timeout, lint level, ignore or
+hook is weakened. See `docs/certification/m110-a1-passkeys-and-the-pinned-certificate.md`
+for failures deliberately observed and restored, package/audit details and
+the documentation/reference integration patch.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -24067,9 +24104,11 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
-| ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| Location                                     | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
+| -------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET)          | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| `src/runtime/node/auth/methods.ts` (M110 A1) | `as NodeMethodResult<M>`            | The selected catalog's zod result parser validates the exact method result; TypeScript cannot preserve that generic key/result correlation across the switch.                                                                                      |
+| `src/webview/node/auth/client.ts` (M110 A1)  | `as NodeMethodResult<M>`            | The selected catalog's zod result parser validates the HTTP response before use; TypeScript cannot preserve the generic catalog correlation.                                                                                                       |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 

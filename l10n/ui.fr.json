@@ -2594,5 +2594,15 @@
     "cancelled": "L’action a été annulée.",
     "untrusted": "Faites confiance à l’espace de travail avant d’exécuter le code du dépôt.",
     "unsupported": "Cette opération n’est pas prise en charge sur ce nœud."
+  },
+  "nodeAuth": {
+    "lockout": "La connexion par clé d’accès est bloquée. Depuis la console locale du nœud, émettez un nouveau code de configuration à usage unique et enregistrez une clé de remplacement.",
+    "windows": "Windows : importez le certificat comparé dans le magasin de certificats de votre utilisateur, puis redémarrez le navigateur.",
+    "macos": "macOS : importez le certificat comparé dans Trousseaux d’accès, accordez-lui votre confiance pour ce nœud, puis redémarrez le navigateur.",
+    "linux": "Linux : importez le certificat comparé avec le gestionnaire de certificats du navigateur, puis redémarrez-le.",
+    "firefox": "Firefox utilise son propre gestionnaire de certificats. S’il ne peut pas faire confiance à ce certificat non-AC, l’association reste indisponible jusqu’à la validation de la plateforme.",
+    "verified": "J’ai comparé l’empreinte complète avec la console du nœud et installé ce certificat.",
+    "download": "Télécharger le certificat du nœud",
+    "trustRequired": "Installez le certificat comparé avant de créer ou d’utiliser une clé d’accès. Ignorer un avertissement n’établit pas la confiance."
   }
 }

@@ -11,6 +11,16 @@ export const PRODUCT_NAME = 'Muse Spark'
 // M110a0 lane 0: standalone home-node bounds. No node module is loaded by
 // the extension; the service/companion bindings are separate runtime entries.
 export const NODE_PROTOCOL_VERSION = 1
+// M110-A1: random capabilities, private leaf issuance and lazy sign-in assets.
+export const NODE_AUTH_RANDOM_BYTES = 32
+export const NODE_TLS_VALID_DAYS = 365
+export const NODE_TLS_SERIAL_BYTES = 16
+export const NODE_TLS_CERT_FILE = 'node-certificate.pem'
+export const NODE_TLS_KEY_FILE = 'node-tls-key.pem'
+export const NODE_TLS_ISSUE_TIMEOUT_MS = 10_000
+export const NODE_AUTH_USER_HANDLE = 'b3duZXI'
+export const NODE_AUTH_ALGORITHMS = [-7, -257]
+export const NODE_AUTH_TERMINAL_STREAM = '/node/terminal/stream'
 // M110-N: owner-only durable service files and bounded lifecycle.
 export const NODE_DIRECTORY_MODE = 0o700
 export const NODE_FILE_MODE = 0o600

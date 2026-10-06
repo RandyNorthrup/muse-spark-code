@@ -2500,5 +2500,15 @@
     "cancelled": "Die Aktion wurde abgebrochen.",
     "untrusted": "Vertrauen Sie dem Arbeitsbereich, bevor Sie Repository-Code ausführen.",
     "unsupported": "Diese Operation wird auf diesem Knoten nicht unterstützt."
+  },
+  "nodeAuth": {
+    "lockout": "Die Passkey-Anmeldung ist gesperrt. Erstellen Sie an der lokalen Knotenkonsole einen neuen einmaligen Einrichtungscode und registrieren Sie einen Ersatz-Passkey.",
+    "windows": "Windows: Importieren Sie das verglichene Zertifikat in Ihren Benutzerzertifikatspeicher und starten Sie den Browser neu.",
+    "macos": "macOS: Importieren Sie das verglichene Zertifikat in der Schlüsselbundverwaltung, vertrauen Sie ihm für diesen Knoten und starten Sie den Browser neu.",
+    "linux": "Linux: Importieren Sie das verglichene Zertifikat mit der Zertifikatsverwaltung Ihres Browsers und starten Sie den Browser neu.",
+    "firefox": "Firefox verwendet eine eigene Zertifikatsverwaltung. Kann sie diesem Nicht-CA-Zertifikat nicht vertrauen, bleibt die Kopplung bis zur Plattformprüfung unverfügbar.",
+    "verified": "Ich habe den vollständigen Fingerabdruck mit der Knotenkonsole verglichen und dieses Zertifikat installiert.",
+    "download": "Knotenzertifikat herunterladen",
+    "trustRequired": "Installieren Sie das verglichene Zertifikat, bevor Sie einen Passkey erstellen oder verwenden. Das Übergehen einer Warnung stellt kein Vertrauen her."
   }
 }

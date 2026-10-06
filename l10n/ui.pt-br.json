@@ -2594,5 +2594,15 @@
     "cancelled": "A ação foi cancelada.",
     "untrusted": "Confie no espaço de trabalho antes de executar código do repositório.",
     "unsupported": "Esta operação não é suportada neste nó."
+  },
+  "nodeAuth": {
+    "lockout": "O login com chave de acesso está bloqueado. Use o console local do nó para emitir um novo código de configuração de uso único e registrar uma chave substituta.",
+    "windows": "Windows: importe o certificado comparado para o repositório de certificados do seu usuário e reinicie o navegador.",
+    "macos": "macOS: importe o certificado comparado no Acesso às Chaves, confie nele para este nó e reinicie o navegador.",
+    "linux": "Linux: importe o certificado comparado usando o gerenciador de certificados do navegador e reinicie o navegador.",
+    "firefox": "O Firefox usa seu próprio gerenciador de certificados. Se ele não puder confiar neste certificado que não é de AC, o pareamento ficará indisponível até a verificação da plataforma.",
+    "verified": "Comparei a impressão digital completa com o console do nó e instalei este certificado.",
+    "download": "Baixar certificado do nó",
+    "trustRequired": "Instale o certificado comparado antes de criar ou usar uma chave de acesso. Ignorar um aviso não estabelece confiança."
   }
 }

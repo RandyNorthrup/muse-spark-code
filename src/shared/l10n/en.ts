@@ -17,6 +17,24 @@ import { forms } from './forms'
 
 export const EN = {
   // M110a0: node labels and messages; consumers read UI_TEXT at runtime.
+  // M110-A1: console recovery and browser trust instructions.
+  nodeAuth: {
+    lockout:
+      'Passkey sign-in is locked. Use the local node console to issue a new one-time setup code and enroll a replacement passkey.',
+    windows:
+      'Windows: import the compared certificate into your user certificate store, then restart the browser.',
+    macos:
+      'macOS: import the compared certificate in Keychain Access, trust it for this node, then restart the browser.',
+    linux:
+      'Linux: import the compared certificate using your browser’s certificate manager, then restart the browser.',
+    firefox:
+      'Firefox uses its own certificate manager. If it cannot trust this non-CA certificate, pairing is unavailable pending platform qualification.',
+    verified:
+      'I compared the full fingerprint with the node console and installed this certificate.',
+    download: 'Download node certificate',
+    trustRequired:
+      'Install the compared certificate before creating or using a passkey. Clicking through a warning does not establish trust.',
+  },
   nodeLabels: {
     title: 'Muse Spark Code Node (Unofficial)',
     files: 'Workspace files',

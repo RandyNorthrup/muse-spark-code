@@ -2500,5 +2500,15 @@
     "cancelled": "A művelet megszakadt.",
     "untrusted": "A tároló kódjának futtatása előtt jelölje megbízhatónak a munkaterületet.",
     "unsupported": "Ez a művelet nem támogatott ezen a csomóponton."
+  },
+  "nodeAuth": {
+    "lockout": "A hozzáférési kulcsos bejelentkezés zárolva van. A csomópont helyi konzolján adjon ki új egyszer használatos beállítási kódot, és regisztráljon egy pótló kulcsot.",
+    "windows": "Windows: importálja az összehasonlított tanúsítványt a felhasználói tanúsítványtárba, majd indítsa újra a böngészőt.",
+    "macos": "macOS: importálja az összehasonlított tanúsítványt a Kulcskarika-elérésben, állítsa be a bizalmat ehhez a csomóponthoz, majd indítsa újra a böngészőt.",
+    "linux": "Linux: importálja az összehasonlított tanúsítványt a böngésző tanúsítványkezelőjével, majd indítsa újra a böngészőt.",
+    "firefox": "A Firefox saját tanúsítványkezelőt használ. Ha nem tud megbízni ebben a nem CA-tanúsítványban, a párosítás a platform ellenőrzéséig nem érhető el.",
+    "verified": "Összehasonlítottam a teljes ujjlenyomatot a csomópont konzoljával, és telepítettem ezt a tanúsítványt.",
+    "download": "Csomópont tanúsítványának letöltése",
+    "trustRequired": "A hozzáférési kulcs létrehozása vagy használata előtt telepítse az összehasonlított tanúsítványt. Egy figyelmeztetés átugrása nem hoz létre bizalmat."
   }
 }
