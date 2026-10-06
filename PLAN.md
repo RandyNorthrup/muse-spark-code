@@ -6844,6 +6844,14 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### TRAIN15A — Start the 0.15.0 release batch (2026-10-05)
+
+- [ ] Merge `perf/vsix-diet-2-fix`, `m101/int`, `m96/int3d`, `m96/ifix-win4` and `m97/sr` in that order with two-parent merge commits, preserving every input's intent.
+- [ ] Keep one Unreleased section with at most five contributed-command/setting Highlights; retain every released section byte-identical to `6a0207c1`. Union decisions, milestones and real translations; regenerate generated records.
+- [ ] After every merge, run scoped owning tests (at most three files, three workers, 120-second test admission), typecheck, changed-file lint/format, localization, host API, help reference when present, production build and a CI-shaped VSIX with the checksum-verified universal helper from the shared 0.13.0 archive. Keep all existing caps unchanged.
+- [ ] Recover measured size through existing deferred chunks or package exclusions without dropping shipped functionality. If M101 still exceeds the VSIX cap without an owner product decision, record the largest twenty exact archive deltas and stop.
+- [ ] Record merges, conflicts, resolutions, checks and per-merge sizes in `docs/certification/train-0.15.0.md`. Commit locally with hooks, no push/rebase, live/paid calls or unrelated merges. Full quality and the two unfinished inputs belong to the later continuation; time box 120 minutes.
+
 ### BADGEFIX — Exact package versions on store pages (2026-10-05)
 
 - [x] Generate static Marketplace/Open VSX and npm/GitHub release version
