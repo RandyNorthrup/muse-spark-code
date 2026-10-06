@@ -18,6 +18,8 @@
 //   there: a function called at once, or one passed to map, filter, …),
 //   because the display language's table is installed after that. Imports,
 //   exports and types (`typeof UI_TEXT`) are not reads.
+// - No JSON file it reads names a key twice in one object (M91): JSON.parse
+//   would keep the last one silently.
 //
 // Every problem is printed; any problem fails the gate.
 //
@@ -25,6 +27,7 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
+import { brotliDecompressSync } from 'node:zlib'
 import process from 'node:process'
 import ts from 'typescript'
 import { loadL10n } from './lib/l10nSource.mjs'
@@ -98,11 +101,71 @@ function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/** Opens a container for `{` or `[` and closes one for `}` or `]`. */
+function trackContainer(open, char) {
+  switch (char) {
+    case '{': {
+      open.push(new Set())
+      return
+    }
+    case '[': {
+      open.push(null)
+      return
+    }
+    case '}':
+    case ']': {
+      open.pop()
+      return
+    }
+    // No default
+  }
+}
+
+/**
+ * The keys an object in valid JSON text names twice, at any depth. JSON.parse
+ * keeps the last one without a word, so a stale string could win unseen (M91:
+ * a merge left two `config.modelApiHooks.description` lines in three tables).
+ */
+function duplicateKeys(text) {
+  const found = []
+  // One entry per open container: the keys seen for an object, null for an array.
+  const open = []
+  let index = 0
+  while (index < text.length) {
+    const char = text[index]
+    if (char === '"') {
+      let end = index + 1
+      while (end < text.length && text[end] !== '"') end += text[end] === '\\' ? 2 : 1
+      const literal = text.slice(index, end + 1)
+      index = end + 1
+      let next = index
+      while (/\s/u.test(text[next] ?? '')) next += 1
+      const keys = open.at(-1)
+      if (text[next] === ':' && keys instanceof Set) {
+        const key = JSON.parse(literal)
+        if (keys.has(key)) found.push(key)
+        keys.add(key)
+      }
+      continue
+    }
+    trackContainer(open, char)
+    index += 1
+  }
+  return found
+}
+
 /** The parsed JSON file, or undefined with the reason added to `problems`. */
-function readJson(file, problems, root = repoRoot) {
+function readJson(file, problems, root = repoRoot, maxOutputLength) {
   let value
   try {
-    value = JSON.parse(readFileSync(path.join(root, file), 'utf8'))
+    const target = path.join(root, file)
+    const text =
+      maxOutputLength === undefined
+        ? readFileSync(target, 'utf8')
+        : brotliDecompressSync(readFileSync(`${target}.br`), { maxOutputLength }).toString('utf8')
+    value = JSON.parse(text)
+    for (const key of duplicateKeys(text))
+      problems.push(`${file}: "${key}" is named twice in one object; JSON keeps only the last`)
   } catch (error) {
     problems.push(`${file}: ${error.message}`)
   }
@@ -435,7 +498,22 @@ function checkPackaged(root, l10n, untranslatedFor, strings, problems) {
     ]),
   ]
   for (const file of files) {
-    const shipped = readJson(file, problems, root)
+    let shipped
+    if (file.startsWith(`${l10n.TABLE_DIRECTORY}/`)) {
+      try {
+        const text = brotliDecompressSync(
+          readFileSync(path.join(root, l10n.TABLE_DIRECTORY, l10n.L10N_TABLE_ARCHIVE_FILE)),
+          {
+            maxOutputLength: l10n.L10N_TABLE_MAX_BYTES * l10n.TABLE_LOCALES.length,
+          },
+        ).toString('utf8')
+        shipped = JSON.parse(
+          l10n.readArchivedUiTable(text, TABLE_FILE.exec(path.basename(file))?.[1]),
+        )
+      } catch (error) {
+        problems.push(`${file}: ${error.message}`)
+      }
+    } else shipped = readJson(file, problems, root)
     const source = readJson(file, problems)
     if (JSON.stringify(shipped) !== JSON.stringify(source))
       problems.push(`packaged ${file}: differs from source`)

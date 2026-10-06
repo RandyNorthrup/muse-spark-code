@@ -1,0 +1,9 @@
+{
+  "cwd": "<workspace>",
+  "hook_event_name": "Interrupt",
+  "model": "echo",
+  "permission_mode": "default",
+  "session_id": "01a10858-6094-7390-8685-60a37851fb0e",
+  "transcript_path": null,
+  "turn_id": "01a10858-74d0-7000-99ad-060d73f9cb24"
+}

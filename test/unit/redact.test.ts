@@ -3,6 +3,7 @@ import {
   countSecretMatches,
   MAY_HOLD_SECRET,
   redactableSlices,
+  redactDiagnosticEvent,
   redactSecrets,
   SECRET_RULES,
   type SecretRule,
@@ -67,6 +68,12 @@ const SHAPES: readonly (readonly [shape: string, text: string, redacted: string]
     '[redacted]\nafter',
   ],
   ['a GitHub token', `ghp_${'a'.repeat(36)}`, '[redacted]'],
+  ['a Muse Gadgets SDK token', `mgst_${'A'.repeat(42)}A`, '[redacted]'],
+  [
+    'a Muse Gadgets SDK token in a sentence',
+    `pasted mgst_${'A'.repeat(42)}A here`,
+    'pasted [redacted] here',
+  ],
   ['an AWS access key id', `id AKIA${'A'.repeat(16)} end`, 'id [redacted] end'],
   ['a Slack token', `xoxb-${'1'.repeat(12)}`, '[redacted]'],
   ['a Stripe-style key', `sk_live_${'a'.repeat(24)}`, '[redacted]'],
@@ -301,6 +308,57 @@ describe('redactSecrets', () => {
     expect(redactSecrets(text)).toBe(expected)
   })
 
+  // Muse Gadgets SDK tokens (M92): `mgst_` and 43 base64url characters
+  // holding 32 bytes, the last one constrained. Fixtures are built at
+  // runtime, so no secret-shaped literal sits in the repository.
+  describe('Muse Gadgets SDK tokens (M92)', () => {
+    // A valid token: the prefix, 42 body characters and a valid last one.
+    const token = `mgst_${'A'.repeat(42)}A`
+
+    it('redacts a valid token on its own and inside a sentence', () => {
+      expect(redactSecrets(token)).toBe('[redacted]')
+      expect(redactSecrets(`install with ${token} done`)).toBe('install with [redacted] done')
+      expect(countSecretMatches(token, [])).toBe(1)
+    })
+
+    it('leaves a token with a bad final character alone', () => {
+      // No other rule recognises this shape either, so it stays as it was.
+      const bad = `mgst_${'A'.repeat(42)}B`
+      expect(redactSecrets(bad)).toBe(bad)
+      expect(countSecretMatches(bad, [])).toBe(0)
+    })
+
+    it.each([41, 43])('leaves a %i-character body alone', (body) => {
+      const wrongLength = `mgst_${'A'.repeat(body)}A`
+      expect(redactSecrets(wrongLength)).toBe(wrongLength)
+      expect(countSecretMatches(wrongLength, [])).toBe(0)
+    })
+
+    it('leaves mgst_ inside a longer word alone', () => {
+      for (const glued of [`x${token}`, `${token}x`]) {
+        expect(redactSecrets(glued)).toBe(glued)
+        expect(countSecretMatches(glued, [])).toBe(0)
+      }
+    })
+
+    it('leaves a valid token glued to a hyphen run alone', () => {
+      // `-` is in the token alphabet, so a hyphen continues the run: the
+      // whole is an overlength near-miss, not a token with punctuation.
+      for (const glued of [`${token}-`, `${token}-extra`, `-${token}`]) {
+        expect(redactSecrets(glued)).toBe(glued)
+        expect(countSecretMatches(glued, [])).toBe(0)
+      }
+    })
+
+    it('redacts every valid final character', () => {
+      for (const last of 'AEIMQUYcgkosw048') {
+        const candidate = `mgst_${'A'.repeat(42)}${last}`
+        expect(redactSecrets(candidate)).toBe('[redacted]')
+        expect(countSecretMatches(candidate, [])).toBe(1)
+      }
+    })
+  })
+
   it('leaves ordinary words, counts, prefixes and code with those names alone', () => {
     const text = [
       'Turn usage: inputTokens: 1200, max_output_tokens: 4096',
@@ -320,6 +378,69 @@ describe('redactSecrets', () => {
     expect(redactSecrets(String.raw`{"access_token":"two \" words"}`)).toBe(
       '{"access_token":"[redacted]"}',
     )
+  })
+
+  // Built at run time so the repository's secret scan sees no token shape.
+  const githubTokens = [
+    `ghp_${'0'.repeat(36)}`,
+    `gho_${'1'.repeat(36)}`,
+    `ghu_${'A'.repeat(40)}`,
+    `ghs_${'b'.repeat(36)}`,
+    `ghr_${'2'.repeat(76)}`,
+    `github_pat_${'3'.repeat(22)}_${'c'.repeat(59)}`,
+  ]
+
+  it.each(githubTokens)('redacts the GitHub token %j (M71)', (token) => {
+    expect(redactSecrets(`see ${token} here`)).toBe('see [redacted] here')
+  })
+
+  it('redacts private key blocks, AWS key ids and Slack tokens (M71)', () => {
+    const header = ['-----BEGIN', 'OPENSSH PRIVATE KEY-----'].join(' ')
+    const footer = ['-----END', 'OPENSSH PRIVATE KEY-----'].join(' ')
+    expect(redactSecrets(`a\n${header}\nb3BlbnNzaA\nAAAA\n${footer}\nz`)).toBe('a\n[redacted]\nz')
+    // A block cut short is redacted to the end.
+    expect(redactSecrets(`a ${header}\nb3BlbnNzaA`)).toBe('a [redacted]')
+    expect(redactSecrets(`id ${['AKIA', 'Z'.repeat(16)].join('')} end`)).toBe('id [redacted] end')
+    expect(redactSecrets(`slack ${['xoxb', '1'.repeat(12)].join('-')} end`)).toBe(
+      'slack [redacted] end',
+    )
+  })
+
+  it.each(['a', 'b', 'e', 'o', 'p', 'r', 's'])(
+    'keeps the M71 Slack prefix xox%s in the merged redactor',
+    (prefix) => {
+      const token = `xox${prefix}-${'1'.repeat(12)}`
+      expect(redactSecrets(`slack ${token} end`)).toBe('slack [redacted] end')
+    },
+  )
+
+  it('redacts the whole M71 Slack token beyond the old main rule cap', () => {
+    const token = `xoxb-${'1'.repeat(300)}`
+    expect(redactSecrets(`slack ${token} end`)).toBe('slack [redacted] end')
+  })
+
+  it('keeps legacy encrypted PEM headers inside the M71 whole-block redaction', () => {
+    const text = [
+      'before',
+      pemEdge('BEGIN'),
+      'Proc-Type: 4,ENCRYPTED',
+      `DEK-Info: AES-256-CBC,${'0'.repeat(32)}`,
+      '',
+      'A'.repeat(64),
+      pemEdge('END'),
+      'after',
+    ].join('\n')
+    expect(redactSecrets(text)).toBe('before\n[redacted]\nafter')
+    expect(
+      redactableSlices(text, 16)
+        .map((slice) => redactSecrets(slice))
+        .join(''),
+    ).toBe('before\n[redacted]\nafter')
+  })
+
+  it('leaves near misses alone', () => {
+    const text = 'ghp_short, github_pat_x, AKIA123 and xoxb-1 stay'
+    expect(redactSecrets(text)).toBe(text)
   })
 })
 
@@ -552,5 +673,46 @@ describe('redactableSlices', () => {
     // `Bearer` then a line break then `Bearer` is a credential: never cut.
     expect(redactableSlices(text, 64)).toEqual([text])
     expect(performance.now() - started).toBeLessThan(LINEAR_SCAN_MS)
+  })
+})
+
+// Diagnostics are distinct from user/model/tool content, even with token-shaped text.
+describe('diagnostic event boundary', () => {
+  it('redacts retry, withdrawal, completion and notice diagnostics', () => {
+    const secret = `ghp_${'a'.repeat(36)}`
+    expect(
+      redactDiagnosticEvent({
+        type: 'turnRetry',
+        turnId: 't',
+        attempt: 1,
+        maxAttempts: 2,
+        retryDelayMs: 100,
+        reason: secret,
+      }),
+    ).toMatchObject({ reason: '[redacted]' })
+    expect(
+      redactDiagnosticEvent({ type: 'turnWithdrawn', turnId: 't', reason: secret }),
+    ).toMatchObject({ reason: '[redacted]' })
+    expect(
+      redactDiagnosticEvent({
+        type: 'turnCompleted',
+        turnId: 't',
+        terminal: 'failed',
+        reason: secret,
+        errorKind: secret,
+      }),
+    ).toMatchObject({ reason: '[redacted]', errorKind: '[redacted]' })
+    expect(
+      redactDiagnosticEvent({ type: 'backendNotice', level: 'warning', text: secret }),
+    ).toMatchObject({ text: '[redacted]' })
+  })
+  it('preserves ordinary streamed conversation text', () => {
+    const event = {
+      type: 'textDelta',
+      itemId: 'i',
+      field: 'text',
+      delta: `ghp_${'a'.repeat(36)}`,
+    } as const
+    expect(redactDiagnosticEvent(event)).toBe(event)
   })
 })

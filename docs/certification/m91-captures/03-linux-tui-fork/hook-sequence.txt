@@ -1,0 +1,8 @@
+2026-10-04T19:11:19.154Z #1 SessionStart label=SessionStart mode=log
+2026-10-04T19:11:19.154Z #1 exit 0
+2026-10-04T19:11:19.211Z #2 UserPromptSubmit label=UserPromptSubmit mode=log
+2026-10-04T19:11:19.212Z #2 exit 0
+2026-10-04T19:11:19.289Z #3 Stop label=Stop mode=log
+2026-10-04T19:11:19.290Z #3 exit 0
+2026-10-04T19:12:29.286Z #4 SessionEnd label=SessionEnd mode=log
+2026-10-04T19:12:29.286Z #4 exit 0

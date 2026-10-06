@@ -10,6 +10,10 @@ describe('parseWebviewToHostMessage', () => {
     ['ready', { type: 'ready' }],
     ['inputFocusChanged', { type: 'inputFocusChanged', focused: true }],
     ['sendMessage', { type: 'sendMessage', localId: 'l1', text: 'hi', attachmentIds: ['a'] }],
+    [
+      'sendMessage with secret acceptance',
+      { type: 'sendMessage', localId: 'l1', text: 'hi', attachmentIds: [], secretAccepted: true },
+    ],
     ['cancelTurn', { type: 'cancelTurn' }],
     ['signIn', { type: 'signIn', method: 'browser' }],
     ['signOut', { type: 'signOut' }],
@@ -215,6 +219,7 @@ describe('parseHostToWebviewMessage', () => {
     ['side chat init', { ...init, sideChat: true }],
     ['settingsChanged', { type: 'settingsChanged', settings: testSettings }],
     ['focusInput', { type: 'focusInput' }],
+    ['openUsage', { type: 'openUsage' }],
     ['surfaceState epoch', { type: 'surfaceState', attachmentEpoch: 3 }],
     ['old surfaceState', { type: 'surfaceState' }],
     ['insertText', { type: 'insertText', text: '@a.ts ' }],
@@ -267,6 +272,10 @@ describe('parseHostToWebviewMessage', () => {
           item: { itemId: 'u1', kind: 'userMessage', status: 'completed', recordedAt: 'soon' },
         },
       },
+    ],
+    [
+      'secretPromptDetected',
+      { type: 'secretPromptDetected', localId: 'l', redactedText: 'hi [redacted]' },
     ],
     ['goalCommandResult', { type: 'goalCommandResult', requestId: 'g1', accepted: false }],
     [

@@ -1,0 +1,735 @@
+[
+  {
+    "id": "cursor-common-stdin-1",
+    "vendor": "cursor",
+    "event": "common",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:815-826",
+    "raw": "{\n  \"conversation_id\": \"string\",\n  \"generation_id\": \"string\",\n  \"model\": \"string\",\n  \"model_id\": \"string\",\n  \"model_params\": [{ \"id\": \"string\", \"value\": \"string\" }],\n  \"hook_event_name\": \"string\",\n  \"cursor_version\": \"string\",\n  \"workspace_roots\": [\"<path>\"],\n  \"user_email\": \"string | null\",\n  \"transcript_path\": \"string | null\"\n}",
+    "json": {
+      "conversation_id": "string",
+      "generation_id": "string",
+      "model": "string",
+      "model_id": "string",
+      "model_params": [
+        {
+          "id": "string",
+          "value": "string"
+        }
+      ],
+      "hook_event_name": "string",
+      "cursor_version": "string",
+      "workspace_roots": ["<path>"],
+      "user_email": "string | null",
+      "transcript_path": "string | null"
+    },
+    "note": "Common schema \"Input (all hooks)\": base fields sent with every hook in addition to the hook-specific fields (line 812); workspaceOpen omits conversation_id, generation_id, model, session_id, transcript_path (line 842)"
+  },
+  {
+    "id": "cursor-preToolUse-stdin-1",
+    "vendor": "cursor",
+    "event": "preToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:852-865",
+    "raw": "{\n  \"tool_name\": \"Shell\",\n  \"tool_input\": { \"command\": \"npm install\", \"working_directory\": \"/project\" },\n  \"tool_use_id\": \"abc123\",\n  \"cwd\": \"/project\",\n  \"model\": \"claude-opus-4-7-thinking-max\",\n  \"model_id\": \"claude-opus-4-7\",\n  \"model_params\": [\n    { \"id\": \"thinking\", \"value\": \"true\" },\n    { \"id\": \"context\", \"value\": \"1m\" },\n    { \"id\": \"effort\", \"value\": \"max\" }\n  ],\n  \"agent_message\": \"Installing dependencies...\"\n}",
+    "json": {
+      "tool_name": "Shell",
+      "tool_input": {
+        "command": "npm install",
+        "working_directory": "/project"
+      },
+      "tool_use_id": "abc123",
+      "cwd": "/project",
+      "model": "claude-opus-4-7-thinking-max",
+      "model_id": "claude-opus-4-7",
+      "model_params": [
+        {
+          "id": "thinking",
+          "value": "true"
+        },
+        {
+          "id": "context",
+          "value": "1m"
+        },
+        {
+          "id": "effort",
+          "value": "max"
+        }
+      ],
+      "agent_message": "Installing dependencies..."
+    },
+    "note": "split from the combined Input/Output block at lines 851-873; label comment on line 851 excluded"
+  },
+  {
+    "id": "cursor-preToolUse-stdout-1",
+    "vendor": "cursor",
+    "event": "preToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:868-873",
+    "raw": "{\n  \"permission\": \"allow\" | \"deny\",\n  \"user_message\": \"<message shown in client when denied>\",\n  \"agent_message\": \"<message sent to agent when denied>\",\n  \"updated_input\": { \"command\": \"npm ci\" }\n}",
+    "note": "not strict JSON; schema block (\"allow\" | \"deny\" union); split from the combined Input/Output block at lines 851-873; label comment on line 867 excluded"
+  },
+  {
+    "id": "cursor-postToolUse-stdin-1",
+    "vendor": "cursor",
+    "event": "postToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:889-903",
+    "raw": "{\n  \"tool_name\": \"Shell\",\n  \"tool_input\": { \"command\": \"npm test\" },\n  \"tool_output\": \"{\\\"exitCode\\\":0,\\\"stdout\\\":\\\"All tests passed\\\"}\",\n  \"tool_use_id\": \"abc123\",\n  \"cwd\": \"/project\",\n  \"duration\": 5432,\n  \"model\": \"claude-opus-4-7-thinking-max\",\n  \"model_id\": \"claude-opus-4-7\",\n  \"model_params\": [\n    { \"id\": \"thinking\", \"value\": \"true\" },\n    { \"id\": \"context\", \"value\": \"1m\" },\n    { \"id\": \"effort\", \"value\": \"max\" }\n  ]\n}",
+    "json": {
+      "tool_name": "Shell",
+      "tool_input": {
+        "command": "npm test"
+      },
+      "tool_output": "{\"exitCode\":0,\"stdout\":\"All tests passed\"}",
+      "tool_use_id": "abc123",
+      "cwd": "/project",
+      "duration": 5432,
+      "model": "claude-opus-4-7-thinking-max",
+      "model_id": "claude-opus-4-7",
+      "model_params": [
+        {
+          "id": "thinking",
+          "value": "true"
+        },
+        {
+          "id": "context",
+          "value": "1m"
+        },
+        {
+          "id": "effort",
+          "value": "max"
+        }
+      ]
+    },
+    "note": "tool_output is a JSON-stringified payload (line 915); split from the combined Input/Output block at lines 888-909; label comment on line 888 excluded"
+  },
+  {
+    "id": "cursor-postToolUse-stdout-1",
+    "vendor": "cursor",
+    "event": "postToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:906-909",
+    "raw": "{\n  \"updated_mcp_tool_output\": { \"modified\": \"output\" },\n  \"additional_context\": \"Test coverage report attached.\"\n}",
+    "json": {
+      "updated_mcp_tool_output": {
+        "modified": "output"
+      },
+      "additional_context": "Test coverage report attached."
+    },
+    "note": "updated_mcp_tool_output is \"For MCP tools only\" (line 919); split from the combined Input/Output block at lines 888-909; label comment on line 905 excluded"
+  },
+  {
+    "id": "cursor-postToolUseFailure-stdin-1",
+    "vendor": "cursor",
+    "event": "postToolUseFailure",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:928-937",
+    "raw": "{\n  \"tool_name\": \"Shell\",\n  \"tool_input\": { \"command\": \"npm test\" },\n  \"tool_use_id\": \"abc123\",\n  \"cwd\": \"/project\",\n  \"error_message\": \"Command timed out after 30s\",\n  \"failure_type\": \"timeout\" | \"error\" | \"permission_denied\",\n  \"duration\": 5000,\n  \"is_interrupt\": false\n}",
+    "note": "not strict JSON; schema block (failure_type union); split from the combined Input/Output block at lines 927-942; label comment on line 927 excluded"
+  },
+  {
+    "id": "cursor-postToolUseFailure-stdout-1",
+    "vendor": "cursor",
+    "event": "postToolUseFailure",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:940-942",
+    "raw": "{\n  \"additional_context\": \"Tests time out on CI runners. Retry with --maxWorkers=2.\"\n}",
+    "json": {
+      "additional_context": "Tests time out on CI runners. Retry with --maxWorkers=2."
+    },
+    "note": "split from the combined Input/Output block at lines 927-942; label comment on line 939 excluded"
+  },
+  {
+    "id": "cursor-subagentStart-stdin-1",
+    "vendor": "cursor",
+    "event": "subagentStart",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:962-971",
+    "raw": "{\n  \"subagent_id\": \"abc-123\",\n  \"subagent_type\": \"generalPurpose\",\n  \"task\": \"Explore the authentication flow\",\n  \"parent_conversation_id\": \"conv-456\",\n  \"tool_call_id\": \"tc-789\",\n  \"subagent_model\": \"claude-sonnet-4-20250514\",\n  \"is_parallel_worker\": false,\n  \"git_branch\": \"feature/auth\"\n}",
+    "json": {
+      "subagent_id": "abc-123",
+      "subagent_type": "generalPurpose",
+      "task": "Explore the authentication flow",
+      "parent_conversation_id": "conv-456",
+      "tool_call_id": "tc-789",
+      "subagent_model": "claude-sonnet-4-20250514",
+      "is_parallel_worker": false,
+      "git_branch": "feature/auth"
+    },
+    "note": "split from the combined Input/Output block at lines 961-977; label comment on line 961 excluded"
+  },
+  {
+    "id": "cursor-subagentStart-stdout-1",
+    "vendor": "cursor",
+    "event": "subagentStart",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:974-977",
+    "raw": "{\n  \"permission\": \"allow\" | \"deny\",\n  \"user_message\": \"<message shown when denied>\"\n}",
+    "note": "not strict JSON; schema block (\"allow\" | \"deny\" union; \"ask\" is treated as \"deny\", line 993); split from the combined Input/Output block at lines 961-977; label comment on line 973 excluded"
+  },
+  {
+    "id": "cursor-subagentStop-stdin-1",
+    "vendor": "cursor",
+    "event": "subagentStop",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1002-1014",
+    "raw": "{\n  \"subagent_type\": \"generalPurpose\",\n  \"status\": \"completed\" | \"error\" | \"aborted\",\n  \"task\": \"Explore the authentication flow\",\n  \"description\": \"Exploring auth flow\",\n  \"summary\": \"<subagent output summary>\",\n  \"duration_ms\": 45000,\n  \"message_count\": 12,\n  \"tool_call_count\": 8,\n  \"loop_count\": 0,\n  \"modified_files\": [\"src/auth.ts\"],\n  \"agent_transcript_path\": \"/path/to/subagent/transcript.txt\"\n}",
+    "note": "not strict JSON; schema block (status union); split from the combined Input/Output block at lines 1001-1019; label comment on line 1001 excluded"
+  },
+  {
+    "id": "cursor-subagentStop-stdout-1",
+    "vendor": "cursor",
+    "event": "subagentStop",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1017-1019",
+    "raw": "{\n  \"followup_message\": \"<auto-continue with this message>\"\n}",
+    "json": {
+      "followup_message": "<auto-continue with this message>"
+    },
+    "note": "followup_message is only consumed when status is \"completed\" (line 1038); split from the combined Input/Output block at lines 1001-1019; label comment on line 1016 excluded"
+  },
+  {
+    "id": "cursor-beforeShellExecution-stdin-1",
+    "vendor": "cursor",
+    "event": "beforeShellExecution",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1050-1054",
+    "raw": "{\n  \"command\": \"<full terminal command>\",\n  \"cwd\": \"<current working directory>\",\n  \"sandbox\": false\n}",
+    "json": {
+      "command": "<full terminal command>",
+      "cwd": "<current working directory>",
+      "sandbox": false
+    },
+    "note": "split from the combined beforeShellExecution/beforeMCPExecution block at lines 1049-1072; label \"// beforeShellExecution input\" on line 1049 excluded"
+  },
+  {
+    "id": "cursor-beforeShellExecution-stdout-1",
+    "vendor": "cursor",
+    "event": "beforeShellExecution",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1068-1072",
+    "raw": "{\n  \"permission\": \"allow\" | \"deny\" | \"ask\",\n  \"user_message\": \"<message shown in client>\",\n  \"agent_message\": \"<message sent to agent>\"\n}",
+    "note": "not strict JSON; schema block (\"allow\" | \"deny\" | \"ask\" union); output block shared by beforeShellExecution and beforeMCPExecution; split from lines 1049-1072, label \"// Output\" on line 1067 excluded"
+  },
+  {
+    "id": "cursor-beforeShellExecution-stdout-2",
+    "vendor": "cursor",
+    "event": "beforeShellExecution",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:344-349",
+    "raw": "{\n  \"continue\": true,\n  \"permission\": \"deny\",\n  \"user_message\": \"Git command blocked. Please use the GitHub CLI (gh) tool instead.\",\n  \"agent_message\": \"The git command '$command' has been blocked by a hook. Instead of using raw git commands, please use the 'gh' tool which provides better integration with GitHub and follows best practices. For example:\\n- Instead of 'git clone', use 'gh repo clone'\\n- Instead of 'git push', use 'gh repo sync' or the appropriate gh command\\n- For other git operations, check if there's an equivalent gh command or use the GitHub web interface\\n\\nThis helps maintain consistency and leverages GitHub's enhanced tooling.\"\n}",
+    "json": {
+      "continue": true,
+      "permission": "deny",
+      "user_message": "Git command blocked. Please use the GitHub CLI (gh) tool instead.",
+      "agent_message": "The git command '$command' has been blocked by a hook. Instead of using raw git commands, please use the 'gh' tool which provides better integration with GitHub and follows best practices. For example:\n- Instead of 'git clone', use 'gh repo clone'\n- Instead of 'git push', use 'gh repo sync' or the appropriate gh command\n- For other git operations, check if there's an equivalent gh command or use the GitHub web interface\n\nThis helps maintain consistency and leverages GitHub's enhanced tooling."
+    },
+    "note": "example script output: block-git.sh heredoc (script says it implements beforeShellExecution, line 326); bash expands $command at run time; carries \"continue\", which the reference output schema (lines 1068-1072) does not list"
+  },
+  {
+    "id": "cursor-beforeShellExecution-stdout-3",
+    "vendor": "cursor",
+    "event": "beforeShellExecution",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:355-360",
+    "raw": "{\n  \"continue\": true,\n  \"permission\": \"ask\",\n  \"user_message\": \"GitHub CLI command requires permission: $command\",\n  \"agent_message\": \"The command '$command' uses the GitHub CLI (gh) which can interact with your GitHub repositories and account. Please review and approve this command if you want to proceed.\"\n}",
+    "json": {
+      "continue": true,
+      "permission": "ask",
+      "user_message": "GitHub CLI command requires permission: $command",
+      "agent_message": "The command '$command' uses the GitHub CLI (gh) which can interact with your GitHub repositories and account. Please review and approve this command if you want to proceed."
+    },
+    "note": "example script output: block-git.sh heredoc for gh commands; bash expands $command at run time"
+  },
+  {
+    "id": "cursor-beforeShellExecution-stdout-4",
+    "vendor": "cursor",
+    "event": "beforeShellExecution",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:366-369",
+    "raw": "{\n  \"continue\": true,\n  \"permission\": \"allow\"\n}",
+    "json": {
+      "continue": true,
+      "permission": "allow"
+    },
+    "note": "example script output: block-git.sh heredoc for all other commands"
+  },
+  {
+    "id": "cursor-beforeMCPExecution-stdin-1",
+    "vendor": "cursor",
+    "event": "beforeMCPExecution",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1057-1061",
+    "raw": "{\n  \"tool_name\": \"<tool name>\",\n  \"tool_input\": \"<json params>\",\n  \"mcp_server_name\": \"<server name from mcp.json>\"\n}",
+    "json": {
+      "tool_name": "<tool name>",
+      "tool_input": "<json params>",
+      "mcp_server_name": "<server name from mcp.json>"
+    },
+    "note": "base object; tool_input is a JSON params STRING (line 1078); split from lines 1049-1072, label \"// beforeMCPExecution input\" on line 1056 excluded"
+  },
+  {
+    "id": "cursor-beforeMCPExecution-stdin-2",
+    "vendor": "cursor",
+    "event": "beforeMCPExecution",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1063-1063",
+    "raw": "{ \"url\": \"<server url>\", \"mcp_server_url\": \"<server url>\" }",
+    "json": {
+      "url": "<server url>",
+      "mcp_server_url": "<server url>"
+    },
+    "note": "extra fields for HTTP/SSE servers, merged into the base object (label \"// Plus either (HTTP/SSE servers):\" on line 1062)"
+  },
+  {
+    "id": "cursor-beforeMCPExecution-stdin-3",
+    "vendor": "cursor",
+    "event": "beforeMCPExecution",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1065-1065",
+    "raw": "{ \"command\": \"<launch command and args>\" }",
+    "json": {
+      "command": "<launch command and args>"
+    },
+    "note": "extra field for stdio servers, merged into the base object (label \"// Or (stdio servers):\" on line 1064)"
+  },
+  {
+    "id": "cursor-beforeMCPExecution-stdout-1",
+    "vendor": "cursor",
+    "event": "beforeMCPExecution",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1068-1072",
+    "raw": "{\n  \"permission\": \"allow\" | \"deny\" | \"ask\",\n  \"user_message\": \"<message shown in client>\",\n  \"agent_message\": \"<message sent to agent>\"\n}",
+    "note": "not strict JSON; schema block (\"allow\" | \"deny\" | \"ask\" union); output block shared by beforeShellExecution and beforeMCPExecution; split from lines 1049-1072, label \"// Output\" on line 1067 excluded"
+  },
+  {
+    "id": "cursor-afterShellExecution-stdin-1",
+    "vendor": "cursor",
+    "event": "afterShellExecution",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1092-1097",
+    "raw": "{\n  \"command\": \"<full terminal command>\",\n  \"output\": \"<full terminal output>\",\n  \"duration\": 1234,\n  \"sandbox\": false\n}",
+    "json": {
+      "command": "<full terminal command>",
+      "output": "<full terminal output>",
+      "duration": 1234,
+      "sandbox": false
+    },
+    "note": "label \"// Input\" on line 1091 excluded; the doc shows no output block for this event"
+  },
+  {
+    "id": "cursor-afterMCPExecution-stdin-1",
+    "vendor": "cursor",
+    "event": "afterMCPExecution",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1113-1119",
+    "raw": "{\n  \"tool_name\": \"<tool name>\",\n  \"tool_input\": \"<json params>\",\n  \"mcp_server_name\": \"<server name from mcp.json>\",\n  \"result_json\": \"<tool result json>\",\n  \"duration\": 1234\n}",
+    "json": {
+      "tool_name": "<tool name>",
+      "tool_input": "<json params>",
+      "mcp_server_name": "<server name from mcp.json>",
+      "result_json": "<tool result json>",
+      "duration": 1234
+    },
+    "note": "tool_input and result_json are JSON strings (lines 1125, 1128); label \"// Input\" on line 1112 excluded; the doc shows no output block for this event"
+  },
+  {
+    "id": "cursor-afterFileEdit-stdin-1",
+    "vendor": "cursor",
+    "event": "afterFileEdit",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1137-1140",
+    "raw": "{\n  \"file_path\": \"<absolute path>\",\n  \"edits\": [{ \"old_string\": \"<search>\", \"new_string\": \"<replace>\" }]\n}",
+    "json": {
+      "file_path": "<absolute path>",
+      "edits": [
+        {
+          "old_string": "<search>",
+          "new_string": "<replace>"
+        }
+      ]
+    },
+    "note": "label \"// Input\" on line 1136 excluded; the doc shows no output block for this event"
+  },
+  {
+    "id": "cursor-beforeReadFile-stdin-1",
+    "vendor": "cursor",
+    "event": "beforeReadFile",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1151-1160",
+    "raw": "{\n  \"file_path\": \"<absolute path>\",\n  \"content\": \"<file contents>\",\n  \"attachments\": [\n    {\n      \"type\": \"file\" | \"rule\",\n      \"file_path\": \"<absolute path>\"\n    }\n  ]\n}",
+    "note": "not strict JSON; schema block (attachments[].type union); split from the combined Input/Output block at lines 1150-1166; label comment on line 1150 excluded"
+  },
+  {
+    "id": "cursor-beforeReadFile-stdout-1",
+    "vendor": "cursor",
+    "event": "beforeReadFile",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1163-1166",
+    "raw": "{\n  \"permission\": \"allow\" | \"deny\",\n  \"user_message\": \"<message shown when denied>\"\n}",
+    "note": "not strict JSON; schema block (\"allow\" | \"deny\" union); split from the combined Input/Output block at lines 1150-1166; label comment on line 1162 excluded"
+  },
+  {
+    "id": "cursor-beforeTabFileRead-stdin-1",
+    "vendor": "cursor",
+    "event": "beforeTabFileRead",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1192-1195",
+    "raw": "{\n  \"file_path\": \"<absolute path>\",\n  \"content\": \"<file contents>\"\n}",
+    "json": {
+      "file_path": "<absolute path>",
+      "content": "<file contents>"
+    },
+    "note": "split from the combined Input/Output block at lines 1191-1200; label comment on line 1191 excluded"
+  },
+  {
+    "id": "cursor-beforeTabFileRead-stdout-1",
+    "vendor": "cursor",
+    "event": "beforeTabFileRead",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1198-1200",
+    "raw": "{\n  \"permission\": \"allow\" | \"deny\"\n}",
+    "note": "not strict JSON; schema block (\"allow\" | \"deny\" union); split from the combined Input/Output block at lines 1191-1200; label comment on line 1197 excluded"
+  },
+  {
+    "id": "cursor-afterTabFileEdit-stdin-1",
+    "vendor": "cursor",
+    "event": "afterTabFileEdit",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1215-1231",
+    "raw": "{\n  \"file_path\": \"<absolute path>\",\n  \"edits\": [\n    {\n      \"old_string\": \"<search>\",\n      \"new_string\": \"<replace>\",\n      \"range\": {\n        \"start_line_number\": 10,\n        \"start_column\": 5,\n        \"end_line_number\": 10,\n        \"end_column\": 20\n      },\n      \"old_line\": \"<line before edit>\",\n      \"new_line\": \"<line after edit>\"\n    }\n  ]\n}",
+    "json": {
+      "file_path": "<absolute path>",
+      "edits": [
+        {
+          "old_string": "<search>",
+          "new_string": "<replace>",
+          "range": {
+            "start_line_number": 10,
+            "start_column": 5,
+            "end_line_number": 10,
+            "end_column": 20
+          },
+          "old_line": "<line before edit>",
+          "new_line": "<line after edit>"
+        }
+      ]
+    },
+    "note": "split from the combined Input/Output block at lines 1214-1236; label comment on line 1214 excluded"
+  },
+  {
+    "id": "cursor-afterTabFileEdit-stdout-1",
+    "vendor": "cursor",
+    "event": "afterTabFileEdit",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1234-1236",
+    "raw": "{\n  // No output fields currently supported\n}",
+    "note": "not strict JSON; schema block with comment (\"No output fields currently supported\"); split from the combined Input/Output block at lines 1214-1236; label comment on line 1233 excluded"
+  },
+  {
+    "id": "cursor-beforeSubmitPrompt-stdin-1",
+    "vendor": "cursor",
+    "event": "beforeSubmitPrompt",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1245-1253",
+    "raw": "{\n  \"prompt\": \"<user prompt text>\",\n  \"attachments\": [\n    {\n      \"type\": \"file\" | \"rule\",\n      \"file_path\": \"<absolute path>\"\n    }\n  ]\n}",
+    "note": "not strict JSON; schema block (attachments[].type union); split from the combined Input/Output block at lines 1244-1259; label comment on line 1244 excluded"
+  },
+  {
+    "id": "cursor-beforeSubmitPrompt-stdout-1",
+    "vendor": "cursor",
+    "event": "beforeSubmitPrompt",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1256-1259",
+    "raw": "{\n  \"continue\": true | false,\n  \"user_message\": \"<message shown to user when blocked>\"\n}",
+    "note": "not strict JSON; schema block (continue: true | false); split from the combined Input/Output block at lines 1244-1259; label comment on line 1255 excluded"
+  },
+  {
+    "id": "cursor-afterAgentResponse-stdin-1",
+    "vendor": "cursor",
+    "event": "afterAgentResponse",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1273-1275",
+    "raw": "{\n  \"text\": \"<assistant final text>\"\n}",
+    "json": {
+      "text": "<assistant final text>"
+    },
+    "note": "label \"// Input\" on line 1272 excluded; the doc shows no output block for this event"
+  },
+  {
+    "id": "cursor-afterAgentThought-stdin-1",
+    "vendor": "cursor",
+    "event": "afterAgentThought",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1284-1287",
+    "raw": "{\n  \"text\": \"<fully aggregated thinking text>\",\n  \"duration_ms\": 5000\n}",
+    "json": {
+      "text": "<fully aggregated thinking text>",
+      "duration_ms": 5000
+    },
+    "note": "split from the combined Input/Output block at lines 1283-1292; label comment on line 1283 excluded"
+  },
+  {
+    "id": "cursor-afterAgentThought-stdout-1",
+    "vendor": "cursor",
+    "event": "afterAgentThought",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1290-1292",
+    "raw": "{\n  // No output fields currently supported\n}",
+    "note": "not strict JSON; schema block with comment (\"No output fields currently supported\"); split from the combined Input/Output block at lines 1283-1292; label comment on line 1289 excluded"
+  },
+  {
+    "id": "cursor-stop-stdin-1",
+    "vendor": "cursor",
+    "event": "stop",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1306-1309",
+    "raw": "{\n  \"status\": \"completed\" | \"aborted\" | \"error\",\n  \"loop_count\": 0\n}",
+    "note": "not strict JSON; schema block (status union); label \"// Input\" on line 1305 excluded"
+  },
+  {
+    "id": "cursor-stop-stdout-1",
+    "vendor": "cursor",
+    "event": "stop",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1314-1316",
+    "raw": "{\n  \"followup_message\": \"<message text>\"\n}",
+    "json": {
+      "followup_message": "<message text>"
+    },
+    "note": "non-empty followup_message is auto-submitted as the next user message (line 1319); label \"// Output\" on line 1313 excluded"
+  },
+  {
+    "id": "cursor-sessionStart-stdin-1",
+    "vendor": "cursor",
+    "event": "sessionStart",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1328-1332",
+    "raw": "{\n  \"session_id\": \"<unique session identifier>\",\n  \"is_background_agent\": true | false,\n  \"composer_mode\": \"agent\" | \"ask\" | \"edit\"\n}",
+    "note": "not strict JSON; schema block (boolean and composer_mode unions); label \"// Input\" on line 1327 excluded"
+  },
+  {
+    "id": "cursor-sessionStart-stdout-1",
+    "vendor": "cursor",
+    "event": "sessionStart",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1337-1340",
+    "raw": "{\n  \"env\": { \"<key>\": \"<value>\" },\n  \"additional_context\": \"<context to add to conversation>\"\n}",
+    "json": {
+      "env": {
+        "<key>": "<value>"
+      },
+      "additional_context": "<context to add to conversation>"
+    },
+    "note": "continue and user_message are accepted by the schema but not enforced (line 1354); label \"// Output\" on line 1336 excluded"
+  },
+  {
+    "id": "cursor-sessionEnd-stdin-1",
+    "vendor": "cursor",
+    "event": "sessionEnd",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1362-1369",
+    "raw": "{\n  \"session_id\": \"<unique session identifier>\",\n  \"reason\": \"completed\" | \"aborted\" | \"error\" | \"window_close\" | \"user_close\",\n  \"duration_ms\": 45000,\n  \"is_background_agent\": true | false,\n  \"final_status\": \"<status string>\",\n  \"error_message\": \"<error details if reason is 'error'>\"\n}",
+    "note": "not strict JSON; schema block (reason and boolean unions); label \"// Input\" on line 1361 excluded"
+  },
+  {
+    "id": "cursor-sessionEnd-stdout-1",
+    "vendor": "cursor",
+    "event": "sessionEnd",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1374-1376",
+    "raw": "{\n  // No output fields - fire and forget\n}",
+    "note": "not strict JSON; schema block with comment (\"No output fields - fire and forget\"); label \"// Output\" on line 1373 excluded"
+  },
+  {
+    "id": "cursor-preCompact-stdin-1",
+    "vendor": "cursor",
+    "event": "preCompact",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1394-1402",
+    "raw": "{\n  \"trigger\": \"auto\" | \"manual\",\n  \"context_usage_percent\": 85,\n  \"context_tokens\": 120000,\n  \"context_window_size\": 128000,\n  \"message_count\": 45,\n  \"messages_to_compact\": 30,\n  \"is_first_compaction\": true | false\n}",
+    "note": "not strict JSON; schema block (trigger and boolean unions); label \"// Input\" on line 1393 excluded"
+  },
+  {
+    "id": "cursor-preCompact-stdout-1",
+    "vendor": "cursor",
+    "event": "preCompact",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1407-1409",
+    "raw": "{\n  \"user_message\": \"<message to show when compaction occurs>\"\n}",
+    "json": {
+      "user_message": "<message to show when compaction occurs>"
+    },
+    "note": "label \"// Output\" on line 1406 excluded"
+  },
+  {
+    "id": "cursor-workspaceOpen-stdin-1",
+    "vendor": "cursor",
+    "event": "workspaceOpen",
+    "direction": "stdin",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1432-1437",
+    "raw": "{\n  \"hook_event_name\": \"workspaceOpen\",\n  \"cursor_version\": \"string\",\n  \"workspace_roots\": [\"<absolute path>\"],\n  \"user_email\": \"string | null\"\n}",
+    "json": {
+      "hook_event_name": "workspaceOpen",
+      "cursor_version": "string",
+      "workspace_roots": ["<absolute path>"],
+      "user_email": "string | null"
+    },
+    "note": "split from the combined Input/Output block at lines 1431-1442; label comment on line 1431 excluded"
+  },
+  {
+    "id": "cursor-workspaceOpen-stdout-1",
+    "vendor": "cursor",
+    "event": "workspaceOpen",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_hooks_md.out:1440-1442",
+    "raw": "{\n  \"pluginPaths\": [\"<absolute path>\", \"...\"]\n}",
+    "json": {
+      "pluginPaths": ["<absolute path>", "..."]
+    },
+    "note": "split from the combined Input/Output block at lines 1431-1442; label comment on line 1439 excluded"
+  },
+  {
+    "id": "cursor-preToolUse-stdout-2",
+    "vendor": "cursor",
+    "event": "preToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_reference_third-party-hooks_md.out:83-90",
+    "raw": "{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"PreToolUse\",\n    \"permissionDecision\": \"deny\",\n    \"permissionDecisionReason\": \"Blocked by policy\",\n    \"updatedInput\": { \"command\": \"npm ci\" }\n  }\n}",
+    "json": {
+      "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": "Blocked by policy",
+        "updatedInput": {
+          "command": "npm ci"
+        }
+      }
+    },
+    "note": "Claude Code nested hookSpecificOutput format that Cursor accepts (doc heading `PreToolUse` Response Formats, line 78); maps permissionDecision->permission, permissionDecisionReason->user_message, updatedInput->updated_input (line 103)"
+  },
+  {
+    "id": "cursor-preToolUse-stdout-3",
+    "vendor": "cursor",
+    "event": "preToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_reference_third-party-hooks_md.out:96-100",
+    "raw": "{\n  \"permission\": \"deny\",\n  \"user_message\": \"Blocked by policy\",\n  \"updated_input\": { \"command\": \"npm ci\" }\n}",
+    "json": {
+      "permission": "deny",
+      "user_message": "Blocked by policy",
+      "updated_input": {
+        "command": "npm ci"
+      }
+    },
+    "note": "flat Cursor-native format; equivalent to cursor-preToolUse-stdout-2 (line 103)"
+  },
+  {
+    "id": "cursor-stop-stdout-2",
+    "vendor": "cursor",
+    "event": "stop",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_reference_third-party-hooks_md.out:110-115",
+    "raw": "{\n  \"hookSpecificOutput\": {\n    \"decision\": \"block\",\n    \"reason\": \"Tasks incomplete, continue working\"\n  }\n}",
+    "json": {
+      "hookSpecificOutput": {
+        "decision": "block",
+        "reason": "Tasks incomplete, continue working"
+      }
+    },
+    "note": "Claude Code nested format; heading covers Stop and SubagentStop (line 105); decision \"block\" + reason = auto follow-up (line 135)"
+  },
+  {
+    "id": "cursor-stop-stdout-3",
+    "vendor": "cursor",
+    "event": "stop",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_reference_third-party-hooks_md.out:121-124",
+    "raw": "{\n  \"decision\": \"block\",\n  \"reason\": \"Tasks incomplete, continue working\"\n}",
+    "json": {
+      "decision": "block",
+      "reason": "Tasks incomplete, continue working"
+    },
+    "note": "Claude Code legacy flat format; heading covers Stop and SubagentStop (line 105)"
+  },
+  {
+    "id": "cursor-stop-stdout-4",
+    "vendor": "cursor",
+    "event": "stop",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_reference_third-party-hooks_md.out:130-132",
+    "raw": "{\n  \"followup_message\": \"Tasks incomplete, continue working\"\n}",
+    "json": {
+      "followup_message": "Tasks incomplete, continue working"
+    },
+    "note": "Cursor native format equivalent to cursor-stop-stdout-2/3 (line 135)"
+  },
+  {
+    "id": "cursor-subagentStop-stdout-2",
+    "vendor": "cursor",
+    "event": "subagentStop",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_reference_third-party-hooks_md.out:110-115",
+    "raw": "{\n  \"hookSpecificOutput\": {\n    \"decision\": \"block\",\n    \"reason\": \"Tasks incomplete, continue working\"\n  }\n}",
+    "json": {
+      "hookSpecificOutput": {
+        "decision": "block",
+        "reason": "Tasks incomplete, continue working"
+      }
+    },
+    "note": "same block as cursor-stop-stdout-2; heading covers Stop and SubagentStop (line 105)"
+  },
+  {
+    "id": "cursor-subagentStop-stdout-3",
+    "vendor": "cursor",
+    "event": "subagentStop",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_reference_third-party-hooks_md.out:121-124",
+    "raw": "{\n  \"decision\": \"block\",\n  \"reason\": \"Tasks incomplete, continue working\"\n}",
+    "json": {
+      "decision": "block",
+      "reason": "Tasks incomplete, continue working"
+    },
+    "note": "same block as cursor-stop-stdout-3; heading covers Stop and SubagentStop (line 105)"
+  },
+  {
+    "id": "cursor-subagentStop-stdout-4",
+    "vendor": "cursor",
+    "event": "subagentStop",
+    "direction": "stdout",
+    "source": "hooks-parity/cursor_com_docs_reference_third-party-hooks_md.out:130-132",
+    "raw": "{\n  \"followup_message\": \"Tasks incomplete, continue working\"\n}",
+    "json": {
+      "followup_message": "Tasks incomplete, continue working"
+    },
+    "note": "same block as cursor-stop-stdout-4; heading covers Stop and SubagentStop (line 105)"
+  },
+  {
+    "id": "cursor-preToolUse-stdout-4",
+    "vendor": "cursor",
+    "event": "preToolUse",
+    "direction": "stdout",
+    "exitCode": 2,
+    "source": "hooks-parity/cursor_com_docs_reference_third-party-hooks_md.out:160-160",
+    "raw": "{\"permission\": \"deny\", \"user_message\": \"Destructive command blocked\"}",
+    "json": {
+      "permission": "deny",
+      "user_message": "Destructive command blocked"
+    },
+    "note": "substring: the argument of echo '...' on line 160 of the \"Exit Code Behavior\" bash example, followed by exit 2 (line 161). AMBIGUOUS event: the doc names none; the script blocks a shell command and is presented as shared between Cursor and Claude Code hooks (line 154)"
+  },
+  {
+    "id": "cursor-preToolUse-stdout-5",
+    "vendor": "cursor",
+    "event": "preToolUse",
+    "direction": "stdout",
+    "exitCode": 0,
+    "source": "hooks-parity/cursor_com_docs_reference_third-party-hooks_md.out:163-163",
+    "raw": "{\"permission\": \"allow\"}",
+    "json": {
+      "permission": "allow"
+    },
+    "note": "substring: the argument of echo '...' on line 163, followed by exit 0 (line 164). AMBIGUOUS event: as cursor-preToolUse-stdout-4"
+  }
+]

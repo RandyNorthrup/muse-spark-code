@@ -47,6 +47,23 @@ export const paidTallySchema = z.object({
   bestOfNUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   bestOfNTokens: z.optional(z.int().check(z.nonnegative())),
   bestOfNCostUsd: z.optional(z.number().check(z.nonnegative())),
+  // Tab suggestion requests sent this window (M94, PLAN.md D73); absent
+  // means none. Lane L counts them, lane U shows them in Account & usage.
+  tabRequests: z.optional(z.int().check(z.nonnegative())),
+  tabUnknownRequests: z.optional(z.int().check(z.nonnegative())),
+  tabTokens: z.optional(z.int().check(z.nonnegative())),
+  tabCachedTokens: z.optional(z.int().check(z.nonnegative())),
+  tabCostUsd: z.optional(z.number().check(z.nonnegative())),
+  // M91 prompt/agent hook runs started this window (D70); absent means none.
+  hookModelRuns: z.optional(z.int().check(z.nonnegative())),
+  hookModelUnknownRequests: z.optional(z.int().check(z.nonnegative())),
+  hookModelTokens: z.optional(z.int().check(z.nonnegative())),
+  hookModelCostUsd: z.optional(z.number().check(z.nonnegative())),
+  // Same-model judge calls this window (M98, PLAN.md D77); absent means none.
+  judgeCalls: z.optional(z.int().check(z.nonnegative())),
+  judgeUnknownRequests: z.optional(z.int().check(z.nonnegative())),
+  judgeTokens: z.optional(z.int().check(z.nonnegative())),
+  judgeCostUsd: z.optional(z.number().check(z.nonnegative())),
 })
 export type PaidTally = z.infer<typeof paidTallySchema>
 
@@ -106,6 +123,17 @@ export const paidStateSchema = z.object({
   isKeyStored: z.boolean(),
   /** The features that are on and allowed always in this workspace (M58): they no longer ask. */
   alwaysAllowed: z.array(z.enum(PAID_FEATURES)),
+  /**
+   * Tab's day (M94, D73; RVM94HU 23–24): the configured daily budget, and
+   * today's total across every window from the ledger once Tab has run in
+   * this window (absent before: the ledger is read by dist/tab.js).
+   */
+  tab: z.optional(
+    z.object({
+      budgetUsd: z.number().check(z.nonnegative()),
+      todayUsd: z.optional(z.number().check(z.nonnegative())),
+    }),
+  ),
 })
 export type PaidState = z.infer<typeof paidStateSchema>
 
@@ -116,6 +144,7 @@ export type PaidState = z.infer<typeof paidStateSchema>
  * to search at all.
  */
 export type PaidUseRequest =
+  | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: number }
   | { readonly feature: 'webSearch' }
   | { readonly feature: 'voice' }
   | {
@@ -142,6 +171,23 @@ export type PaidUseRequest =
       readonly prompt: string
       readonly attempts: number
       readonly requestCeilingPerAttempt: number
+    }
+  | {
+      // Inline completions (M94, PLAN.md D73; lane L): the request's model
+      // (its per-token rates are quoted) and today's budget cap the popup.
+      readonly feature: 'tab'
+      readonly modelId: string
+      readonly budgetUsd: number
+    }
+  | {
+      /** M91 prompt/agent hook handlers (D70): one paid model call per hook run. */
+      readonly feature: 'hookModels'
+      /** The hook event the handler runs on. */
+      readonly event: string
+      /** The handler kind, as written in the file. */
+      readonly kind: 'prompt' | 'agent'
+      readonly modelId: string
+      readonly dailyBudgetUsd?: number | undefined
     }
 
 /**
@@ -188,6 +234,20 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
       // estimate. Count only reported costs here, not unknown HTTP tries.
       return tally.bestOfNCostUsd ?? 0
     }
+    case 'tab': {
+      // Tab requests are billed apart from every conversation, so they are
+      // counted here alone. Count only reported costs, not unknown tries.
+      return tally.tabCostUsd ?? 0
+    }
+    case 'hookModels': {
+      // A hook's own model call is billed apart from the conversation, like
+      // a review's. Count only reported costs, not unanswered runs.
+      return tally.hookModelCostUsd ?? 0
+    }
+    case 'judge': {
+      // Billed apart from the conversation, so counted here alone.
+      return tally.judgeCostUsd ?? 0
+    }
   }
 }
 
@@ -207,7 +267,10 @@ export function listedPaidFeatures(
       (feature === 'scheduledPrompts' && tally.scheduledRuns > 0) ||
       (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
       (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
-      (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0),
+      (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0) ||
+      (feature === 'tab' && (tally.tabRequests ?? 0) > 0) ||
+      (feature === 'hookModels' && (tally.hookModelRuns ?? 0) > 0) ||
+      (feature === 'judge' && (tally.judgeCalls ?? 0) > 0),
   )
 }
 
@@ -236,6 +299,9 @@ export function paidFeatureName(feature: PaidFeature): string {
     subagents: UI_TEXT.paidSubagentsName,
     autoReviewer: UI_TEXT.paidAutoReviewerName,
     bestOfN: UI_TEXT.paidBestOfNName,
+    tab: UI_TEXT.paidTabName,
+    hookModels: UI_TEXT.paidHookModelName,
+    judge: UI_TEXT.paidJudgeName,
   }
   return names[feature]
 }
@@ -297,6 +363,16 @@ export function bestOfNPrice(
   })
 }
 
+/**
+ * What one prompt/agent hook run may bill (M91, PLAN.md D70): the per-token
+ * rates of the model. The total cannot be known in advance, so the popup
+ * quotes exactly these; unknown models cannot authorize a hook run.
+ */
+export function hookModelPrice(modelId: string): string {
+  const tier = modelApiPaidTier(modelId)
+  return tier === undefined ? UI_TEXT.subagentTariffUnknown : tokenRatePrice(tier)
+}
+
 /** The feature's price, as its setting, confirmation, badge and dialog state it. */
 export function paidFeaturePrice(feature: PaidFeature): string {
   switch (feature) {
@@ -312,7 +388,10 @@ export function paidFeaturePrice(feature: PaidFeature): string {
       return fill(UI_TEXT.paidVoicePrice, { price: formatUsd(PAID_PRICES_USD.voicePerHour, 2) })
     }
     case 'scheduledPrompts':
-    case 'autoReviewer': {
+    case 'autoReviewer':
+    case 'tab':
+    case 'judge': {
+      // The judge runs on the conversation's own model, at its token rates.
       return tokenRatesByTier()
     }
     case 'subagents': {
@@ -336,6 +415,12 @@ export function paidFeaturePrice(feature: PaidFeature): string {
           BEST_OF_N_DEFAULT_ATTEMPTS,
           BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
         ),
+      ].join('\n')
+    }
+    case 'hookModels': {
+      return [
+        hookModelPrice(DEFAULT_MODEL_ID),
+        hookModelPrice(`${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`),
       ].join('\n')
     }
   }

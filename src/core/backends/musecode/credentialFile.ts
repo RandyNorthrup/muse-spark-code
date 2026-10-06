@@ -137,6 +137,15 @@ export function credentialFileVerdict(
   return !isMacOs && isCapturedInlineEntry(muse) ? 'inline' : 'unrecognized'
 }
 
+/**
+ * Whether the file's structure alone says the CLI is signed in (M93, D72):
+ * a captured inline credential, or the macOS Keychain lane. The problem
+ * report asks nothing more: it starts no `account/read` and reads no value.
+ */
+export function isSignedInByStructure(verdict: CredentialFileVerdict | undefined): boolean {
+  return verdict === 'inline' || verdict === 'keychain'
+}
+
 /** `security find-generic-password` without `-g`/`-w`: 0 found, 44 not found. */
 export function keychainItemPresence(exitCode: number): KeychainItemPresence {
   if (exitCode === 0) {

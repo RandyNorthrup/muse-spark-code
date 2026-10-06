@@ -1,0 +1,13 @@
+{
+  "session_id": "session-0002",
+  "transcript_path": "/home/user/.gemini/tmp/workspace/chats/session-0002.jsonl",
+  "cwd": "/workspace",
+  "hook_event_name": "BeforeTool",
+  "timestamp": "2026-10-05T02:43:31.799Z",
+  "tool_name": "read_file",
+  "tool_input": {
+    "end_line": 10,
+    "start_line": 1,
+    "file_path": "hello.txt"
+  }
+}

@@ -19,6 +19,8 @@ import {
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
   WALKTHROUGH_ID,
+  WHATS_NEW_CHANGELOG_URL,
+  WHATS_NEW_README_URL,
 } from '../../src/shared/constants'
 import { findBash } from './helpers/shellParsers'
 
@@ -37,6 +39,17 @@ function count(text: string, pattern: RegExp): number {
 const SURFACE_ACTIVE = `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || focusedView == '${CHAT_VIEW_ID}'`
 
 describe('package.json manifest', () => {
+  it('offers paid Tab by default while retaining its machine scope and daily cap', () => {
+    const properties = manifest.contributes.configuration.properties
+    expect(properties['museSpark.modelApiTab']).toMatchObject({ default: true, scope: 'machine' })
+    expect(properties['museSpark.tabDailyBudgetUsd']).toMatchObject({
+      default: 1,
+      minimum: 0.05,
+      maximum: 50,
+      scope: 'machine',
+    })
+  })
+
   it('identifies the extension the way constants.ts expects', () => {
     expect(manifest.name).toBe(EXTENSION_NAME)
     expect(manifest.publisher).toBe(EXTENSION_PUBLISHER)
@@ -90,8 +103,19 @@ describe('package.json manifest', () => {
       linux: 'ctrl+alt+o',
       when: 'museSpark.inputFocused',
     })
+    expect(bindings.get('editor.action.inlineSuggest.trigger')).toMatchObject({
+      key: 'alt+\\',
+      when: 'editorTextFocus && museSpark.tabOn',
+    })
     for (const command of bindings.keys()) {
-      expect(Object.values(COMMAND_IDS)).toContain(command)
+      if (command === 'editor.action.inlineSuggest.trigger') {
+        expect(bindings.get(command)).toMatchObject({
+          key: 'alt+\\',
+          when: 'editorTextFocus && museSpark.tabOn',
+        })
+      } else {
+        expect(Object.values(COMMAND_IDS)).toContain(command)
+      }
     }
   })
 
@@ -112,8 +136,11 @@ describe('package.json manifest', () => {
     expect(properties['museSpark.archiveInactiveSessions'].enum).toEqual([...ARCHIVE_DAY_CHOICES])
   })
 
-  it('activates for restored chat panels only (D15)', () => {
-    expect(manifest.activationEvents).toEqual([`onWebviewPanel:${CHAT_PANEL_VIEW_TYPE}`])
+  it('activates at startup for Tab and for restored chat panels (D15, D73)', () => {
+    expect(manifest.activationEvents).toEqual([
+      `onWebviewPanel:${CHAT_PANEL_VIEW_TYPE}`,
+      'onStartupFinished',
+    ])
   })
 
   it('machine-scopes the settings that choose what runs and what is billed (D15)', () => {
@@ -252,6 +279,8 @@ describe('package.json manifest', () => {
       [COMMAND_IDS.toggleThinking]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
       // The Windows sandbox; a remote window may run on Windows whatever this machine is.
       [COMMAND_IDS.setUpSandbox]: 'isWindows || remoteName',
+      // M91b: only Windows prepares a job for plugin hooks.
+      [COMMAND_IDS.retryPluginHooks]: 'isWindows',
       // Writes AGENTS.md into the workspace folder.
       [COMMAND_IDS.createRulesFile]: 'workspaceFolderCount > 0',
       // Exports the conversation in front of the user (M30).
@@ -262,6 +291,8 @@ describe('package.json manifest', () => {
       // git worktrees of the open folder's repository (M32).
       [COMMAND_IDS.newWorktree]: 'workspaceFolderCount > 0',
       [COMMAND_IDS.removeWorktree]: 'workspaceFolderCount > 0',
+      // A pull request of the open folder's repository, in a worktree (M71).
+      [COMMAND_IDS.openPullRequestInConversation]: 'workspaceFolderCount > 0',
       // Only while the conversation in view runs a command to move (M46).
       [COMMAND_IDS.moveToBackground]: CONTEXT_KEYS.canMoveToBackground,
       // The background tasks of the conversation in front of the user (M46).
@@ -271,6 +302,21 @@ describe('package.json manifest', () => {
     for (const command of palette.keys()) {
       expect(registered).toContain(command)
     }
+  })
+
+  it('links What’s New to the repository the manifest names (M99)', () => {
+    const repository = manifest.repository.url.replace(/.git$/, '')
+    expect(WHATS_NEW_CHANGELOG_URL).toBe(`${repository}/blob/main/CHANGELOG.md`)
+    expect(WHATS_NEW_README_URL).toBe(manifest.homepage)
+    // Machine-scoped and on by default (the owner's ruling: enhancements are on).
+    expect(manifest.contributes.configuration.properties['museSpark.showWhatsNewOnUpdate']).toEqual(
+      {
+        type: 'boolean',
+        default: true,
+        description: '%config.showWhatsNewOnUpdate.description%',
+        scope: 'machine',
+      },
+    )
   })
 
   it('lists the extension under the AI and Chat categories only (M26)', () => {
@@ -311,6 +357,17 @@ describe('packaging (M26)', () => {
     for (const name of [...Object.keys(manifest.dependencies), 'react', 'zod', '@muse-code/sdk']) {
       expect(notices, name).toContain(`\n${name} (`)
     }
+  })
+
+  it('ships What’s New: its bundle, its content and its page (M99)', () => {
+    expect(shipped).toEqual(
+      expect.arrayContaining([
+        'dist/whatsNew.js',
+        'dist/whatsNew.json',
+        'dist/webview/whatsNew.js',
+        'dist/webview/whatsNew.css',
+      ]),
+    )
   })
 
   it('ships the manifest strings and the translated tables, not the harness (M40)', () => {

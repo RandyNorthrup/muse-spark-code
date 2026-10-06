@@ -1,0 +1,43 @@
+{
+  "attempt": 1,
+  "cwd": "<workspace>",
+  "hook_event_name": "PreLLMCall",
+  "message_count": 1,
+  "messages": [
+    {
+      "content": [
+        {
+          "text": "You are a reminder observer for the main agent.\nDo not answer the user. Record exactly one decision this round by calling submit_reminder_decision. Use decision=\"remind\" only when the remind condition stated in your duty is met; otherwise use decision=\"non...[truncated]",
+          "type": "text"
+        }
+      ],
+      "role": "user"
+    }
+  ],
+  "model": "echo",
+  "options": {
+    "anthropic.output_config.effort": "low",
+    "anthropic.thinking": "enabled",
+    "anthropic.thinking.budget_tokens": 4096,
+    "local.reasoning.effort": "low",
+    "meta.reasoning.effort": "low",
+    "openai.reasoning.effort": "low",
+    "openrouter.reasoning.effort": "low"
+  },
+  "permission_mode": "default",
+  "provider": "model.unknown.response",
+  "request_id": "b386a215-ef34-403d-8ffc-b8a4a70e58df:0:1",
+  "session_id": "b386a215-ef34-403d-8ffc-b8a4a70e58df",
+  "step": 0,
+  "tool_count": 1,
+  "tools": [
+    {
+      "description": "Submit this reminder child's explicit decision.",
+      "has_parameters": true,
+      "name": "submit_reminder_decision",
+      "strict": true
+    }
+  ],
+  "transcript_path": null,
+  "turn_id": "b386a215-ef34-403d-8ffc-b8a4a70e58df"
+}

@@ -118,6 +118,19 @@ function providersReport(): Partial<UsageDialogProps> {
 }
 
 describe('UsageDialog', () => {
+  it('shows hook additions separately without subtracting them from packing savings', () => {
+    renderDialog({
+      usage: {
+        inputTokens: 30_000,
+        outputTokens: 1200,
+        packedTokensAvoided: 9000,
+        hookTokensAdded: 500,
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Packing saved (estimate)9K')
+    expect(dialog).toHaveTextContent('Added by hooks (estimate)500')
+  })
   it('names an installer terminal failure while the Model API stays available', () => {
     renderDialog({
       auth: {
@@ -658,5 +671,240 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     const props = renderDialog()
     fireEvent.click(screen.getByRole('button', { name: 'Start with your own model' }))
     expect(props.onSetupSignIn).toHaveBeenCalledWith('byo')
+  })
+})
+
+describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
+  const tabReport = {
+    providers: undefined,
+    backend: 'modelApi' as const,
+    subscription: undefined,
+    account: { signInMethod: 'apiKey' as const },
+    insights: undefined,
+  }
+
+  it('shows requests, tokens, today and window costs, and the budget while Tab is on', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: ['tab'],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          tabRequests: 12,
+          tabUnknownRequests: 0,
+          tabTokens: 45_000,
+          tabCachedTokens: 3000,
+          tabCostUsd: 0.12,
+        },
+        isKeyStored: true,
+        alwaysAllowed: [],
+        // Another window spent too: the ledger's day is not this window's cost.
+        tab: { budgetUsd: 1, todayUsd: 0.62 },
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Tab completions (on)')
+    expect(dialog).toHaveTextContent('12 Tab requests')
+    expect(dialog).toHaveTextContent('45,000 tokens (3,000 cached)')
+    expect(dialog).toHaveTextContent('Reported token estimate: $0.1200')
+    // Today is the ledger's cross-window day, apart from this window (RVM94HU 23).
+    expect(dialog).toHaveTextContent('Today: $0.6200')
+    expect(dialog).toHaveTextContent('This window: $0.1200')
+    expect(dialog).toHaveTextContent('Daily budget: $1.00')
+    expect(dialog).toHaveTextContent('Estimated extra-feature total$0.1200')
+  })
+
+  it('shows the configured budget, no made-up today, and wraps its facts (RVM94HU 23–25)', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: ['tab'],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          tabRequests: 2,
+          tabUnknownRequests: 0,
+          tabTokens: 900,
+          tabCachedTokens: 0,
+          tabCostUsd: 0.01,
+        },
+        isKeyStored: true,
+        alwaysAllowed: [],
+        // The ledger has not been read in this window yet.
+        tab: { budgetUsd: 5 },
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Daily budget: $5.00')
+    expect(dialog).not.toHaveTextContent('Today:')
+    expect(dialog).toHaveTextContent('This window: $0.0100')
+    const label = screen.getByText('Tab completions (on)')
+    expect(label.nextElementSibling).toHaveClass('usage-paid-child')
+  })
+
+  it('counts one request in the singular', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: ['tab'],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          tabRequests: 1,
+          tabTokens: 1200,
+          tabCachedTokens: 400,
+          tabCostUsd: 0.004,
+        },
+        isKeyStored: true,
+        alwaysAllowed: [],
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('1 Tab request')
+    expect(dialog).not.toHaveTextContent('1 Tab requests')
+  })
+
+  it('names requests with no reported cost yet instead of claiming they were free', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: ['tab'],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          tabRequests: 3,
+          tabUnknownRequests: 2,
+          tabTokens: 900,
+          tabCachedTokens: 0,
+          tabCostUsd: 0.001,
+        },
+        isKeyStored: true,
+        alwaysAllowed: [],
+      },
+    })
+    expect(screen.getByRole('dialog')).toHaveTextContent('2 requests have no reported cost yet')
+  })
+
+  it('says off with the budget, not zeros as if it ran, while Tab never ran here', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: [],
+        tally: { webSearches: 0, images: 0, voiceSeconds: 0, scheduledRuns: 0 },
+        isKeyStored: true,
+        alwaysAllowed: [],
+      },
+    })
+    const label = screen.getByText('Tab completions (off)')
+    expect(label.nextElementSibling).toHaveTextContent('Daily budget: $1.00')
+    expect(label.nextElementSibling).not.toHaveTextContent('Tab request')
+    expect(label.nextElementSibling).not.toHaveTextContent('$0.00')
+  })
+
+  it('keeps real history visible after Tab is turned off', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: [],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          tabRequests: 3,
+          tabTokens: 9000,
+          tabCachedTokens: 1000,
+          tabCostUsd: 0.02,
+        },
+        isKeyStored: true,
+        alwaysAllowed: [],
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Tab completions (off)')
+    expect(dialog).toHaveTextContent('3 Tab requests')
+    expect(dialog).toHaveTextContent('This window: $0.0200')
+    expect(dialog).toHaveTextContent('Daily budget: $1.00')
+  })
+
+  it('marks Tab allowed always in this workspace like every paid feature (M58)', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: ['tab'],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          tabRequests: 2,
+          tabTokens: 2000,
+          tabCachedTokens: 500,
+          tabCostUsd: 0.005,
+        },
+        isKeyStored: true,
+        alwaysAllowed: ['tab'],
+      },
+    })
+    expect(screen.getByRole('dialog')).toHaveTextContent(
+      'Tab completions (on, allowed always in this workspace)',
+    )
+  })
+})
+
+describe('M98 Judge usage row', () => {
+  it('shows paid judge calls, known tokens, costs and retained unknown calls', () => {
+    renderDialog({
+      ...modelApiCostCase(),
+      paid: {
+        features: ['judge'],
+        isKeyStored: true,
+        alwaysAllowed: [],
+        tally: {
+          ...EMPTY_PAID_TALLY,
+          judgeCalls: 2,
+          judgeUnknownRequests: 1,
+          judgeTokens: 1100,
+          judgeCostUsd: 0.001125,
+        },
+      },
+    })
+    expect(screen.getByText('Judge (on)')).toBeVisible()
+    expect(screen.getByText(/2 judgments/)).toHaveTextContent('1,100 tokens')
+    expect(screen.getByText(/1 request has no reported cost yet/)).toBeVisible()
+  })
+
+  it('does not present an unknown judge bill as zero', () => {
+    renderDialog({
+      ...modelApiCostCase(),
+      paid: {
+        features: ['judge'],
+        isKeyStored: true,
+        alwaysAllowed: [],
+        tally: { ...EMPTY_PAID_TALLY, judgeCalls: 1, judgeUnknownRequests: 1 },
+      },
+    })
+    expect(screen.getByText(/1 judgment/)).not.toHaveTextContent('$0.000')
+  })
+
+  it('never shows subscription judging as a paid key feature', () => {
+    renderDialog({
+      paid: {
+        features: ['judge'],
+        isKeyStored: false,
+        alwaysAllowed: [],
+        tally: { ...EMPTY_PAID_TALLY },
+      },
+    })
+    expect(screen.queryByText('Judge (on)')).toBeNull()
   })
 })

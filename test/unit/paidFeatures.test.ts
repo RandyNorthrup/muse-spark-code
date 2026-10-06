@@ -21,6 +21,8 @@ function gateWith(
     accepted?: readonly PaidFeature[]
     answers?: readonly boolean[]
     isFocused?: boolean
+    defaultOn?: readonly PaidFeature[]
+    asksOnFirstUse?: readonly PaidFeature[]
   } = {},
 ) {
   const settings = new Set<PaidFeature>(options.settings)
@@ -29,6 +31,7 @@ function gateWith(
   const asked: PaidFeature[] = []
   const focus = { isFocused: options.isFocused ?? true }
   const gate = new PaidFeatureGate({
+    isDefaultOn: (feature) => options.defaultOn?.includes(feature) === true,
     isSettingOn: (feature) => settings.has(feature),
     setSetting: (feature, isOn) => {
       if (isOn) {
@@ -48,6 +51,7 @@ function gateWith(
       return Promise.resolve(answers.shift() ?? false)
     },
     isWindowFocused: () => focus.isFocused,
+    asksOnFirstUse: new Set(options.asksOnFirstUse),
     log: new FakeLogOutputChannel(),
   })
   const changes = vi.fn()
@@ -56,6 +60,17 @@ function gateWith(
 }
 
 describe('PaidFeatureGate (M33, PLAN.md D30)', () => {
+  it('offers default-on extras without a startup price modal, while explicit false stays off', async () => {
+    const t = gateWith({ settings: ['imageGeneration'], defaultOn: ['imageGeneration', 'voice'] })
+    await t.gate.review()
+    expect(t.gate.features()).toEqual(['imageGeneration'])
+    expect(t.asked).toEqual([])
+    await t.gate.turnOff('imageGeneration')
+    expect(t.gate.isOn('imageGeneration')).toBe(false)
+    // The explicit palette OFF-to-ON action still asks, even on a default-on feature.
+    await expect(t.gate.turnOn('imageGeneration')).resolves.toBe(false)
+    expect(t.asked).toEqual(['imageGeneration'])
+  })
   it('has every feature off by default and never asks for one that is off', async () => {
     const t = gateWith()
     await t.gate.review()
@@ -149,6 +164,30 @@ describe('PaidFeatureGate (M33, PLAN.md D30)', () => {
     await t.gate.turnOff('webSearch')
     expect(t.gate.isOn('webSearch')).toBe(false)
     expect(t.accepted().has('webSearch')).toBe(false)
+  })
+
+  it('never shows a turn-on modal for Tab: on by default, its first use asks (M94, Q-M94a)', async () => {
+    // Activation in an unfocused and then a focused window: no modal either way.
+    const t = gateWith({ settings: ['tab'], asksOnFirstUse: ['tab'], isFocused: false })
+    await t.gate.review()
+    t.focus.isFocused = true
+    await t.gate.review()
+    expect(t.asked).toEqual([])
+    expect(t.settings.has('tab')).toBe(true)
+    expect(t.gate.isOn('tab')).toBe(true)
+    // Off still forgets the acceptance (it voids "always" grants, M58).
+    t.settings.delete('tab')
+    await t.gate.review()
+    expect(t.accepted().has('tab')).toBe(false)
+    expect(t.gate.isOn('tab')).toBe(false)
+    // The palette's Turn on: no modal either.
+    await expect(t.gate.turnOn('tab')).resolves.toBe(true)
+    expect(t.asked).toEqual([])
+    expect(t.gate.isOn('tab')).toBe(true)
+    // Other features keep their turn-on confirmation.
+    t.settings.add('webSearch')
+    await t.gate.review()
+    expect(t.asked).toEqual(['webSearch'])
   })
 })
 
@@ -361,5 +400,94 @@ describe('PaidUsage: the Auto reviewer (M78)', () => {
       })
     }).toThrow('nonnegative')
     expect(usage.current.autoReviewCostUsd).toBeUndefined()
+  })
+})
+
+describe('PaidUsage: Tab counting (M94 lane L, PLAN.md D73)', () => {
+  it('counts sent requests at once and prices them when their usage arrives', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.add('tab', 2)
+    expect(usage.current).toMatchObject({ tabRequests: 2 })
+    usage.addTabRequest()
+    usage.addTabRequest()
+    expect(usage.current).toMatchObject({ tabRequests: 4, tabUnknownRequests: 2 })
+    // No reported usage means no invented cost; unknowns stay unknown.
+    expect(paidCostUsd('tab', usage.current)).toBe(0)
+    expect(paidTotalUsd(usage.current)).toBe(0)
+    usage.addTabUsage('muse-spark-1.3', {
+      inputTokens: 1_000_000,
+      cachedTokens: 200_000,
+      outputTokens: 100_000,
+    })
+    expect(usage.current).toMatchObject({
+      tabRequests: 4,
+      tabUnknownRequests: 1,
+      tabTokens: 1_100_000,
+      tabCachedTokens: 200_000,
+    })
+    expect(paidCostUsd('tab', usage.current)).toBeCloseTo(1.455)
+    expect(paidTotalUsd(usage.current)).toBeCloseTo(1.455)
+    expect(listedPaidFeatures([], usage.current)).toEqual(['tab'])
+  })
+
+  it('keeps an unreported request unknown, and tells its listeners', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    const listener = vi.fn()
+    const stop = usage.onDidChange(listener)
+    usage.add('tab', 1)
+    usage.addTabRequest()
+    // Reported with no unknown outstanding settles nothing.
+    const fresh = new PaidUsage(new FakeLogOutputChannel())
+    fresh.addTabUsage('muse-spark-1.3', { inputTokens: 1, cachedTokens: 0, outputTokens: 0 })
+    expect(fresh.current.tabCostUsd).toBeUndefined()
+    usage.addTabUsage('muse-spark-1.3', { inputTokens: 10, cachedTokens: 2, outputTokens: 5 })
+    expect(usage.current).toMatchObject({
+      tabRequests: 2,
+      tabUnknownRequests: 0,
+      tabTokens: 15,
+      tabCachedTokens: 2,
+    })
+    expect(listener).toHaveBeenCalledTimes(3)
+    stop()
+  })
+
+  it('refuses usage it cannot price', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.addTabRequest()
+    expect(() => {
+      usage.addTabUsage('muse-spark-future', { inputTokens: 1, outputTokens: 1, cachedTokens: 0 })
+    }).toThrow('unpriced model')
+    expect(() => {
+      usage.addTabUsage('muse-spark-1.3', { inputTokens: 1, cachedTokens: 2, outputTokens: 0 })
+    }).toThrow('valid nonnegative token counts')
+    expect(() => {
+      usage.addTabUsage('muse-spark-1.3', {
+        inputTokens: -1,
+        outputTokens: 1,
+        cachedTokens: 0,
+      })
+    }).toThrow('nonnegative')
+    expect(usage.current.tabUnknownRequests).toBe(1)
+    expect(usage.current.tabCostUsd).toBeUndefined()
+  })
+})
+
+describe('PaidUsage: Tab completions (M94 lane 0, PLAN.md D73)', () => {
+  it('names Tab, prices it by token tiers, and lists it once it has requests', () => {
+    expect(paidFeatureName('tab')).toBe(UI_TEXT.paidTabName)
+    const price = paidFeaturePrice('tab')
+    expect(price).toContain('$1.250/1M input')
+    expect(price).toContain('$0.100/1M input')
+    expect(paidCostUsd('tab', EMPTY_PAID_TALLY)).toBe(0)
+    expect(paidCostUsd('tab', { ...EMPTY_PAID_TALLY, tabCostUsd: 1.5 })).toBeCloseTo(1.5)
+    expect(paidTotalUsd({ ...EMPTY_PAID_TALLY, tabCostUsd: 1.5 })).toBeCloseTo(1.5)
+    expect(listedPaidFeatures([], { ...EMPTY_PAID_TALLY, tabRequests: 2 })).toEqual(['tab'])
+  })
+
+  it('keeps Tab counters optional and rejects negative ones at the panel boundary', () => {
+    expect(paidTallySchema.safeParse(EMPTY_PAID_TALLY).success).toBe(true)
+    expect(paidTallySchema.safeParse({ ...EMPTY_PAID_TALLY, tabRequests: 3 }).success).toBe(true)
+    expect(paidTallySchema.safeParse({ ...EMPTY_PAID_TALLY, tabRequests: -1 }).success).toBe(false)
+    expect(paidTallySchema.safeParse({ ...EMPTY_PAID_TALLY, tabCostUsd: -0.5 }).success).toBe(false)
   })
 })

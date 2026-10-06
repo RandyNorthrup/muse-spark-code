@@ -467,7 +467,7 @@
                   'Type /model to pick the right tool for the job.',
                 composerPlaceholder:
                   harnessL10n.table?.composerPlaceholder ??
-                  'ctrl esc (ctrl alt esc on Windows) to focus or unfocus Muse',
+                  'ctrl esc (cmd esc on macOS, ctrl alt esc on Windows) to focus or unfocus Muse',
                 settings,
               })
               // M25: first, the session and turn the host holds for this surface.
@@ -2522,6 +2522,61 @@
             isProtectedWrite: false,
           })
         },
+        // --- M98-U: caution-only card and the backend's resolved Judge mode ---
+        judge: () => {
+          steps.approval()
+          send({
+            type: 'judgeState',
+            state: {
+              mode: 'same',
+              reason: 'auto-same',
+              modelId: 'muse-spark-1.3',
+              billing: 'subscription',
+            },
+          })
+          event({
+            type: 'approvalCaution',
+            approvalId: 'a1',
+            requirementId: { approvalId: 'a1', sourceIndex: 0 },
+          })
+        },
+        'judge-narrow': () => {
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          document.body.style.maxWidth = '320px'
+          steps.judge()
+        },
+        'judge-slow': () => {
+          steps.approval()
+          send({
+            type: 'judgeState',
+            state: {
+              mode: 'off',
+              reason: 'ready-rate-low',
+              modelId: 'muse-spark-1.3',
+              billing: 'modelApi',
+            },
+          })
+        },
+        'judge-usage': () => {
+          steps['paid-subagent-usage']()
+          window.harnessPaid = {
+            features: ['judge'],
+            isKeyStored: true,
+            alwaysAllowed: [],
+            tally: {
+              webSearches: 0,
+              images: 0,
+              voiceSeconds: 0,
+              scheduledRuns: 0,
+              judgeCalls: 2,
+              judgeTokens: 1100,
+              judgeCostUsd: 0.001125,
+              judgeUnknownRequests: 1,
+            },
+          }
+          send({ type: 'paidState', state: window.harnessPaid })
+        },
         // --- D26: three approvals waiting; the oldest is docked, with the count ---
         'approval-several': () => {
           steps.approval()
@@ -2621,6 +2676,67 @@
               },
             ],
           })
+        },
+        elicitation: () => {
+          transcriptFixture()
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'elicitation-tool',
+              kind: 'toolCall',
+              status: 'inProgress',
+              tool: 'mcp__profile__ask',
+              args: '{}',
+            },
+          })
+          event({
+            type: 'elicitationRequested',
+            elicitationId: 'form1',
+            itemId: 'elicitation-tool',
+            server: 'Profile server',
+            message: 'Choose a display profile to send to this server.',
+            fields: [
+              {
+                name: 'email',
+                title: 'Email address',
+                type: 'string',
+                format: 'email',
+                required: true,
+                description: 'Use a public contact address.',
+              },
+              {
+                name: 'colour',
+                title: 'Preferred colour',
+                type: 'string',
+                enum: ['red', 'blue'],
+                enumNames: ['Red', 'Blue'],
+                required: true,
+              },
+              {
+                name: 'count',
+                title: 'Number of items',
+                type: 'integer',
+                minimum: 1,
+                maximum: 2,
+                required: false,
+              },
+              { name: 'updates', title: 'Receive updates', type: 'boolean', required: true },
+            ],
+          })
+          later(300, () => {
+            setValue(
+              document.querySelector('.elicitation-input'),
+              HTMLInputElement.prototype,
+              'invalid-address',
+            )
+          })
+        },
+        'elicitation-narrow': () => {
+          if (window.innerWidth !== 320)
+            throw new Error('elicitation-narrow requires a 320 px viewport')
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps.elicitation()
         },
         todo: () => {
           transcriptFixture()
@@ -2985,13 +3101,15 @@
         },
         'agents-details': () => {
           steps.agents()
-          later(600, () => document.querySelector('.agent-node-clickable').click())
+          whenFound('.agent-node-clickable', (node) => node.click())
         },
         'agents-result': () => {
           window.harnessBackend = 'modelApi'
           send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
           steps.agents()
-          later(600, () => document.querySelectorAll('.agent-node-clickable')[1].click())
+          whenFound('.agent-node-clickable', () =>
+            document.querySelectorAll('.agent-node-clickable')[1].click(),
+          )
         },
         'agents-closed': () => {
           window.harnessBackend = 'modelApi'
@@ -3010,7 +3128,9 @@
               },
             }),
           )
-          later(600, () => document.querySelectorAll('.agent-node-clickable')[1].click())
+          whenFound('.agent-node-clickable', () =>
+            document.querySelectorAll('.agent-node-clickable')[1].click(),
+          )
         },
         'agents-off': () => {
           send({
@@ -3348,6 +3468,47 @@
         'auto-review-usage': () => {
           steps['auto-review']()
           whenFound('.paid-badge', (badge) => badge.click())
+        },
+        // --- M94 lane U: the Tab row of Account & usage, on ---
+        'tab-usage': () => {
+          window.harnessBackend = 'modelApi'
+          window.harnessPaid = {
+            features: ['tab'],
+            tally: {
+              webSearches: 0,
+              images: 0,
+              voiceSeconds: 0,
+              scheduledRuns: 0,
+              tabRequests: 12,
+              tabUnknownRequests: 1,
+              tabTokens: 45000,
+              tabCachedTokens: 3000,
+              tabCostUsd: 0.12,
+            },
+            isKeyStored: true,
+            alwaysAllowed: [],
+          }
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'paidState', state: window.harnessPaid })
+          whenFound('.paid-badge', (badge) => badge.click())
+        },
+        // --- M94 lane U: the Tab row of Account & usage, off ---
+        'tab-usage-off': () => {
+          window.harnessBackend = 'modelApi'
+          window.harnessPaid = {
+            features: [],
+            tally: { webSearches: 0, images: 0, voiceSeconds: 0, scheduledRuns: 0 },
+            isKeyStored: true,
+            alwaysAllowed: [],
+          }
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'paidState', state: window.harnessPaid })
+          // No badge while Tab is off: open Account & usage from the palette.
+          click('Commands')
+          whenFound('.palette-filter', (filter) => {
+            setValue(filter, HTMLInputElement.prototype, '/usage')
+            filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+          })
         },
         // --- M34, M58: an image's row while the paid-use popup asks first ---
         'paid-image': () => {
@@ -3728,8 +3889,7 @@
         // --- M25: the keyboard stays in the search box through Show archived ---
         'history-archived': () => {
           click('Session history')
-          later(300, () => {
-            const toggle = document.querySelector('.history-toggle input')
+          whenFound('.history-toggle input', (toggle) => {
             toggle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
             toggle.click()
             later(100, () => {
@@ -4487,6 +4647,113 @@
           document.body.style.maxWidth = '300px'
           steps.schedules()
         },
+        // --- M71: someone else's pull request, held, with its status and checks ---
+        'git-held': () => {
+          // The host holds the conversation in Plan until the worktree is trusted.
+          send({
+            type: 'composerState',
+            effort: 'high',
+            isThinkingEnabled: true,
+            permissionMode: 'plan',
+          })
+          send({
+            type: 'gitState',
+            state: {
+              hold: {
+                isRestricted: false,
+                pullRequest: {
+                  repository: 'RandyNorthrup/muse-spark-code',
+                  number: 51,
+                  title: 'test: lock Android/Termux P0 behavior for launch and voice',
+                  author: 'Piangpi1997',
+                  url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/51',
+                },
+              },
+              worktree: {
+                repositoryRoot: 'C:\\Users\\me\\src\\muse-spark-code',
+                pullRequestNumber: 51,
+              },
+            },
+          })
+        },
+        // --- M71: the commit form with a drafted message, and the linked pull request ---
+        'git-commit': () => {
+          send({
+            type: 'gitState',
+            state: {
+              worktree: { repositoryRoot: '/home/me/src/app', branch: 'feature/parser' },
+              pullRequest: {
+                repository: 'RandyNorthrup/muse-spark-code',
+                number: 56,
+                title: 'README: how this extension is built',
+                url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/56',
+                state: 'open',
+                isDraft: false,
+                isMerged: false,
+                checks: {
+                  passed: 5,
+                  failed: 1,
+                  running: 1,
+                  skipped: 0,
+                  cancelled: 0,
+                  failedNames: ['build / quality (macos-latest)'],
+                  other: [],
+                  notRead: 0,
+                },
+                checkedAt: Date.now(),
+              },
+            },
+          })
+          send({
+            type: 'gitCommitForm',
+            form: {
+              branch: 'feature/parser',
+              staged: 2,
+              unstaged: 1,
+              files: [
+                { path: 'src/parser.ts', isStaged: true },
+                { path: 'test/parser.test.ts', isStaged: true },
+                { path: 'README.md', isStaged: false },
+              ],
+              moreFiles: 0,
+            },
+          })
+          send({
+            type: 'gitDraft',
+            draft: {
+              kind: 'commitMessage',
+              message: 'Parse ?? and || with the right precedence\n\nAdds the missing tests.',
+            },
+          })
+          later(60, () => document.querySelector('.git-files summary')?.click())
+        },
+        // --- M71: the pull request form, a first push to a fork's parent ---
+        'git-pr': () => {
+          send({
+            type: 'gitPullRequestForm',
+            form: {
+              repository: 'RandyNorthrup/muse-spark-code',
+              headRepository: 'Piangpi1997/muse-spark-code',
+              remote: 'origin',
+              remoteUrl: 'https://[redacted]@github.com/Piangpi1997/muse-spark-code.git',
+              head: 'android-termux-p0-tests',
+              base: 'main',
+              push: 'needed',
+            },
+          })
+          send({
+            type: 'gitDraft',
+            draft: {
+              kind: 'pullRequest',
+              title: 'Lock Android/Termux behavior for launch and voice',
+              body: '## What and why\n\nRegression coverage for Termux.',
+            },
+          })
+        },
+        'git-pr-narrow': () => {
+          document.body.style.maxWidth = '300px'
+          steps['git-pr']()
+        },
         // --- M68: an edit with then_run, the automatic check after it, and its card ---
         verify: () => {
           window.harnessSilent = true
@@ -4676,6 +4943,82 @@
             2,
             'error',
             'Could not switch model: Muse Code did not answer session/setModel within 60 s',
+          )
+        },
+        // --- M93 lane W: report a problem — a recorded failure's row and
+        // the preview dialog over the host's sealed draft ---
+        report: () => {
+          send({
+            type: 'notice',
+            level: 'error',
+            text: 'Muse Code exited before the turn began.',
+            reportRef: { kind: 'backendExit', entryIndex: 3 },
+          })
+          send({
+            type: 'reportDraft',
+            session: 1,
+            revision: 0,
+            description: '',
+            includeFacts: true,
+            includeEvents: true,
+            items: [
+              { kind: 'facts', label: 'Support facts' },
+              { kind: 'event', eventIndex: 2, label: 'toolCallFailed · 45 seconds ago' },
+              { kind: 'event', eventIndex: 3, label: 'backendExit · 2 minutes ago' },
+            ],
+            title: 'Problem report: Muse Spark 0.12.1 on linux',
+            text: [
+              'Muse Spark problem report',
+              '',
+              'Support facts:',
+              'extension: 0.12.1',
+              'vscode: 1.99.0',
+              'node: 22.20.4',
+              'platform: linux',
+              'backend: museCode',
+              'cli: found (version 1.4.2); signed in: yes',
+              'stored model api key: no; META_API_KEY in environment: no',
+              'shell sandbox: sandboxed',
+              'settings (names only): museSpark.backend',
+              '',
+              'Recent events (2):',
+              '- 45s ago toolCallFailed TypeError',
+              '  dist/extension.js:2:41723',
+              '- 2m ago backendExit exited',
+            ].join('\n'),
+            hash: '0'.repeat(64),
+            canUseVscodeReporter: true,
+            recordingUnavailable: false,
+          })
+          later(400, () => {
+            const boxes = [...document.querySelectorAll('.report-check input')].map((input) =>
+              input.getBoundingClientRect(),
+            )
+            if (boxes.length !== 2) throw new Error('Report section checkboxes are missing')
+            const centers = boxes.map((box) => box.top + box.height / 2)
+            if (centers[1] - centers[0] < 24) {
+              throw new Error('Report section checkboxes need 24 px between their centers')
+            }
+          })
+        },
+        // The runners open this one in a real 320 px viewport (the dialog's
+        // backdrop is fixed to the viewport, so a narrow body would not test it).
+        'report-narrow': () => {
+          if (window.innerWidth !== 320) {
+            throw new Error('report-narrow requires a 320 px viewport')
+          }
+          steps['report']()
+          // A refused clipboard, stated on the dialog: the preview stays, so
+          // its text can still be copied by hand.
+          later(200, () =>
+            send({
+              type: 'reportExported',
+              session: 1,
+              hash: '0'.repeat(64),
+              via: 'copy',
+              ok: false,
+              reason: 'copyFailed',
+            }),
           )
         },
         // --- M84: a share file open read-only: Copy on its code, no Insert or Apply ---
@@ -5123,6 +5466,10 @@
         // The "/" list for "/co", rendered with its options (M87's tips too).
         'slash-commands': () => document.querySelector('.slash-menu [role="option"]') !== null,
         'slash-tips': () => document.querySelector('.slash-menu [role="option"]') !== null,
+        'agents-details': () => document.querySelector('.agent-details') !== null,
+        'agents-result': () => document.querySelector('.agent-details') !== null,
+        'agents-closed': () => document.querySelector('.agent-details') !== null,
+        'history-archived': () => document.querySelector('.history-toggle input:checked') !== null,
       }
       const nextFrame = () =>
         new Promise((resolve) => {
@@ -5148,7 +5495,9 @@
               later(Math.max(0, deadline - performance.now()), resolve)
             }),
           ])
-        const isReady = SCENARIO_READY[name] ?? (() => true)
+        const scenarioReady = SCENARIO_READY[name] ?? (() => true)
+        const isReady = () =>
+          document.querySelector('[data-deferred-loading]') === null && scenarioReady()
         for (;;) {
           if (isReady()) {
             await byDeadline(document.fonts.ready)

@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { brotliDecompressSync } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { stageVsix, packagedChangelog } from '../../scripts/package-vsix.mjs'
+import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
 import { listFiles } from '@vscode/vsce/out/package.js'
 
 const ROOT = process.cwd()
@@ -55,6 +57,7 @@ beforeAll(async () => {
     'dist/webview/main.css',
     'dist/webview/chunks/UsageDialog-test.js',
     'native/darwin/muse-dictate',
+    'l10n/ui.de.json.br',
   ]) {
     mkdirSync(path.dirname(path.join(fixture.root, file)), { recursive: true })
     writeFileSync(path.join(fixture.root, file), 'runtime')
@@ -82,6 +85,7 @@ describe('VSIX packaging', () => {
         'dist/validation.js',
         'dist/webview/chunks/UsageDialog-test.js',
         'native/darwin/muse-dictate',
+        'l10n/ui.tables.json.br',
       ]),
     )
     expect(packaged).not.toContain('docs/marketplace-readme.md')
@@ -89,9 +93,12 @@ describe('VSIX packaging', () => {
   it('compacts translations with identical values and leaves the source byte-exact', () => {
     const source = path.join(fixture.root, 'l10n/ui.de.json')
     const before = readFileSync(path.join(ROOT, 'l10n/ui.de.json'))
-    const shipped = readFileSync(path.join(fixture.stage, 'l10n/ui.de.json'), 'utf8')
-    expect(JSON.parse(shipped)).toEqual(JSON.parse(before))
-    expect(shipped).toBe(JSON.stringify(JSON.parse(before)))
+    const shipped = brotliDecompressSync(
+      readFileSync(path.join(fixture.stage, 'l10n/ui.tables.json.br')),
+    ).toString('utf8')
+    const table = readArchivedUiTable(shipped, 'de')
+    expect(JSON.parse(table)).toEqual(JSON.parse(before))
+    expect(table).toBe(JSON.stringify(JSON.parse(before)))
     expect(createHash('sha256').update(readFileSync(source)).digest('hex')).toBe(
       createHash('sha256').update(before).digest('hex'),
     )
@@ -108,6 +115,11 @@ describe('VSIX packaging', () => {
     expect(shipped).toContain('[Complete release history]')
     expect(packagedChangelog('## [0.1.0] - 2026-01-01\n\nNotes')).toContain('Notes')
     expect(() => packagedChangelog('No releases')).toThrow('No released')
+  })
+  it('keeps the quiet GitHub star link in the README Marketplace and Open VSX render', () => {
+    expect(readFileSync(path.join(fixture.stage, 'README.md'), 'utf8')).toContain(
+      '[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)',
+    )
   })
   it('refuses a stage outside its owned build directory', async () => {
     await expect(stageVsix(fixture.root, path.join(fixture.root, 'other'))).rejects.toThrow(

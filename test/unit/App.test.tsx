@@ -337,7 +337,7 @@ describe('App shell', () => {
           ],
           archivedIds: [],
         })
-        fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+        fireEvent.keyDown(await screen.findByRole('combobox'), { key: 'Enter' })
       } else {
         fireEvent.click(userMenuButtons()[1]!)
         fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
@@ -580,7 +580,7 @@ describe('App conversation', () => {
     ).toBeInTheDocument()
   })
 
-  it('moves a running command to the background and stops it from its row (M46)', () => {
+  it('moves a running command to the background and stops it from its row (M46)', async () => {
     const postMessage = renderReady()
     deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't1' } })
     const call = {
@@ -606,7 +606,7 @@ describe('App conversation', () => {
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'stopTask', itemId: 'c1' })
     // The header pill counts it, and the map's Stop all reaches the host.
     fireEvent.click(screen.getByRole('button', { name: '1 background task' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Stop all' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Stop all' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'stopAllTasks' })
   })
 
@@ -691,7 +691,8 @@ describe('App conversation', () => {
       // simple commands, and the reviewer (on by default, M90) may allow others once.
       'ManualMuse will ask before running commands; Muse Code edits workspace files without askingCurrent',
       'Edit automaticallyOn Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
-      'PlanMuse will explore the code and present a plan before editing',
+      // Plan on Muse Code refuses commands, not file-tool edits (musecode-write-asks).
+      'PlanMuse plans first; Muse Code refuses commands, but its file tools can still edit files without asking',
       'AutoMuse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest',
     ])
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Edit automatically/ }))
@@ -1221,6 +1222,9 @@ describe('App palette', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openKeybindings' })
     run('Output log')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openLog' })
+    // M99: the release notes of this version, in an editor tab.
+    run('What’s New')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showWhatsNew' })
     run('Sign out')
     expect(postMessage).toHaveBeenCalledWith({ type: 'signOut' })
     run('/compact')
@@ -1234,6 +1238,11 @@ describe('App palette', () => {
     fireEvent.change(textarea(), { target: { value: '' } })
     run('/export')
     expect(postMessage).toHaveBeenCalledWith({ type: 'exportConversation', format: 'markdown' })
+    deliver({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+    run('Import session…')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'importSession' })
+    run('Open share file…')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'openShareFile' })
     // The CLI's own rows (M30) need the Muse Code backend.
     deliver({ type: 'authState', status: 'signedIn', backend: 'museCode' })
     deliver({
@@ -1256,11 +1265,9 @@ describe('App palette', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'newWorktree' })
     run('Remove a worktree')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'removeWorktree' })
+    // M93: the report's preview, never a bare link.
     run('Report an issue')
-    expect(postMessage).toHaveBeenCalledWith({
-      type: 'openExternal',
-      url: 'https://github.com/RandyNorthrup/muse-spark-code/issues',
-    })
+    expect(postMessage).toHaveBeenCalledWith({ type: 'openReport' })
     run('/fix-bug')
     expect(textarea()).toHaveValue('/fix-bug ')
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -2001,17 +2008,26 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Connecting to the extension host')
   })
 
-  it('opens the dialog from the Account & usage row and from /cost', () => {
+  it('opens Account & usage when the host asks (the Tab menu’s row, RVM94HU 21)', () => {
+    const postMessage = renderReady()
+    expect(screen.queryByRole('dialog', { name: 'Account & usage' })).toBeNull()
+    postMessage.mockClear()
+    deliver({ type: 'openUsage' })
+    expect(screen.getByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
+    expect(postMessage).toHaveBeenCalledWith({ type: 'readUsage' })
+  })
+
+  it('opens the dialog from the Account & usage row and from /cost', async () => {
     const postMessage = renderReady()
     let filter = openPalette()
     fireEvent.change(filter, { target: { value: 'Account & usage' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
-    expect(screen.getByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Close'))
     filter = openPalette()
     fireEvent.change(filter, { target: { value: '/cost' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
-    expect(screen.getByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
     expect(postMessage.mock.calls.filter(([m]) => m.type === 'readUsage')).toHaveLength(2)
   })
 
@@ -2417,6 +2433,34 @@ function showGoal() {
   return screen.getByRole('region', { name: 'Session goal' })
 }
 
+describe('App: handoff command routing (M74)', () => {
+  it('sends the goal as a host command once and keeps it available after refusal', () => {
+    const postMessage = renderReady()
+    fireEvent.change(textarea(), { target: { value: '/handoff Ship release' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'requestHandoff',
+      requestId: 'handoff:local-1:1',
+      goal: 'Ship release',
+    })
+    expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'sendMessage' }))
+    expect(textarea().value).toBe('/handoff Ship release')
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(
+      postMessage.mock.calls.filter(([message]) => message.type === 'requestHandoff'),
+    ).toHaveLength(1)
+    deliver({ type: 'handoffCommandResult', requestId: 'handoff:local-1:1', accepted: false })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'requestHandoff',
+      requestId: 'handoff:local-1:2',
+      goal: 'Ship release',
+    })
+    deliver({ type: 'handoffCommandResult', requestId: 'handoff:local-1:2', accepted: true })
+    expect(textarea().value).toBe('')
+  })
+})
+
 describe('App: the session goal (M45)', () => {
   it('keeps the exact inline edit through refusal, then closes on acceptance', () => {
     const postMessage = renderReady()
@@ -2709,7 +2753,7 @@ describe('App: Model API scheduled prompts (M52)', () => {
     expect(screen.getByRole('button', { name: UI_TEXT.applyCode })).toBeInTheDocument()
   })
 
-  it('renders a share file read-only with keyboard order, trapping and Escape focus return (M84f)', () => {
+  it('renders a share file read-only with keyboard order, trapping and Escape focus return (M84f)', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'sharePreview',
@@ -2741,7 +2785,7 @@ describe('App: Model API scheduled prompts (M52)', () => {
         })),
       ],
     })
-    const dialog = screen.getByRole('dialog', { name: 'Shared over' })
+    const dialog = await screen.findByRole('dialog', { name: 'Shared over' })
     expect(within(dialog).getByText('Hi there')).toBeInTheDocument()
     expect(within(dialog).getByText('Tool: read_file')).toBeInTheDocument()
     // The file's `redacted: true` is anyone's to set: the view reports it as
@@ -3026,6 +3070,253 @@ describe('App turn checkpoints (M72)', () => {
   })
 })
 
+/** Filters the palette to one row and runs it. */
+function runPaletteRow(filterText: string) {
+  const filter = openPalette()
+  fireEvent.change(filter, { target: { value: filterText } })
+  fireEvent.keyDown(filter, { key: 'Enter' })
+}
+
+// M71 (PLAN.md D49): the git panel, its forms and the drafts asked for in a turn.
+describe('App: git and pull requests (M71)', () => {
+  const commitForm = {
+    type: 'gitCommitForm',
+    form: {
+      branch: 'feature',
+      staged: 1,
+      unstaged: 2,
+      files: [
+        { path: 'src/a.ts', isStaged: true },
+        { path: 'README.md', isStaged: false },
+      ],
+      moreFiles: 0,
+    },
+  } satisfies HostToWebviewMessage
+  const pullRequestForm = {
+    type: 'gitPullRequestForm',
+    form: {
+      repository: 'RandyNorthrup/muse-spark-code',
+      remote: 'origin',
+      remoteUrl: 'https://[redacted]@github.com/RandyNorthrup/muse-spark-code.git',
+      head: 'docs/how-its-built',
+      base: 'main',
+      push: 'needed',
+      commits: 2,
+    },
+  } satisfies HostToWebviewMessage
+
+  it('routes the palette rows to the host', () => {
+    const postMessage = renderReady()
+    const run = runPaletteRow
+    run('Commit…')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'gitAction', action: 'openCommit' })
+    run('Push…')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'gitAction', action: 'push' })
+    run('Open a pull request…')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'gitAction', action: 'openPullRequest' })
+    run('in a conversation')
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'hostAction',
+      action: 'openPullRequestInConversation',
+    })
+  })
+
+  it('cancels the host operation when the busy commit form is closed', async () => {
+    const postMessage = renderReady()
+    deliver(commitForm)
+    const form = await screen.findByRole('form', { name: 'Commit' })
+    expect(form).toHaveTextContent(
+      'Git may run repository hooks, signing programs or credential helpers.',
+    )
+    fireEvent.change(within(form).getByLabelText('Commit message'), { target: { value: 'Fix' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Commit' }))
+    expect(within(form).getByLabelText('Commit message')).toBeDisabled()
+    fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'gitAction', action: 'cancel' })
+    expect(screen.queryByRole('form', { name: 'Commit' })).toBeNull()
+  })
+
+  it('passes the edited PR base when requesting a generated description', async () => {
+    const postMessage = renderReady()
+    deliver(pullRequestForm)
+    const form = await screen.findByRole('form', { name: 'Pull request' })
+    fireEvent.change(within(form).getByLabelText('Into'), { target: { value: 'release' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Write with Muse' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'sendMessage',
+      localId: 'local-1',
+      text: 'Write the title and description of a pull request for this branch.',
+      attachmentIds: [],
+      gitDraft: 'pullRequest',
+      gitDraftBase: 'release',
+    })
+    // The title and description the draft replaces wait for it; the base does not.
+    expect(within(form).getByLabelText('Title')).toHaveAttribute('readonly')
+    expect(within(form).getByLabelText('Description')).toHaveAttribute('readonly')
+    expect(within(form).getByLabelText('Into')).not.toHaveAttribute('readonly')
+    deliver({ type: 'gitDraft', draft: { kind: 'failed', forKind: 'pullRequest' } })
+    expect(within(form).getByLabelText('Title')).not.toHaveAttribute('readonly')
+  })
+
+  it('commits what the form shows, and asks the model only when the user presses Write', async () => {
+    const postMessage = renderReady()
+    deliver(commitForm)
+    const form = await screen.findByRole('form', { name: 'Commit' })
+    expect(within(form).getByRole('button', { name: 'Commit' })).toBeDisabled()
+    // Something is staged: the unstaged box starts off.
+    expect(within(form).getByRole('checkbox')).not.toBeChecked()
+    fireEvent.click(within(form).getByRole('button', { name: 'Write with Muse' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'sendMessage',
+      localId: 'local-1',
+      text: 'Write a commit message for my changes.',
+      attachmentIds: [],
+      gitDraft: 'commitMessage',
+    })
+    expect(within(form).getByRole('button', { name: 'Writing…' })).toBeDisabled()
+    // The draft replaces the message, so nothing can be typed there until it comes.
+    expect(within(form).getByLabelText('Commit message')).toHaveAttribute('readonly')
+    // The user's message is in the transcript like any other.
+    expect(screen.getByText('Write a commit message for my changes.')).toBeInTheDocument()
+    deliver({ type: 'gitDraft', draft: { kind: 'commitMessage', message: 'Add the parser' } })
+    expect(within(form).getByLabelText('Commit message')).toHaveValue('Add the parser')
+    expect(within(form).getByLabelText('Commit message')).not.toHaveAttribute('readonly')
+    fireEvent.click(within(form).getByRole('checkbox'))
+    fireEvent.click(within(form).getByRole('button', { name: 'Commit' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'gitCommit',
+      message: 'Add the parser',
+      includeUnstaged: true,
+    })
+    expect(within(form).getByRole('button', { name: 'Committing…' })).toBeDisabled()
+    deliver({ type: 'gitDone', form: 'commit', ok: true })
+    expect(screen.queryByRole('form', { name: 'Commit' })).toBeNull()
+  })
+
+  it('shows every part of a pull request before it goes, and sends what was edited', async () => {
+    const postMessage = renderReady()
+    deliver(pullRequestForm)
+    const form = await screen.findByRole('form', { name: 'Pull request' })
+    expect(form).toHaveTextContent(
+      'origin https://[redacted]@github.com/RandyNorthrup/muse-spark-code.git',
+    )
+    expect(form).toHaveTextContent('docs/how-its-built')
+    expect(form).toHaveTextContent('2 commits go to origin first; you will be asked.')
+    expect(within(form).getByRole('checkbox', { name: 'Open as a draft' })).toBeChecked()
+    fireEvent.change(within(form).getByLabelText('Title'), { target: { value: 'README' } })
+    fireEvent.change(within(form).getByLabelText('Description'), { target: { value: 'Why' } })
+    fireEvent.change(within(form).getByLabelText('Into'), { target: { value: 'release' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Create draft pull request' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'gitCreatePullRequest',
+      head: 'docs/how-its-built',
+      base: 'release',
+      title: 'README',
+      body: 'Why',
+      isDraft: true,
+    })
+    // A refusal gives the button back with the text as it was.
+    deliver({ type: 'gitDone', form: 'pullRequest', ok: false })
+    expect(within(form).getByLabelText('Title')).toHaveValue('README')
+    expect(within(form).getByRole('button', { name: 'Create draft pull request' })).toBeEnabled()
+    // The host's masking replaces the text the user must see again.
+    deliver({ type: 'gitDraft', draft: { kind: 'pullRequest', title: 'T', body: '[redacted]' } })
+    expect(within(form).getByLabelText('Description')).toHaveValue('[redacted]')
+  })
+
+  it('shows the held card and the status of a pull request, and routes their buttons', async () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'gitState',
+      state: {
+        hold: {
+          isRestricted: false,
+          pullRequest: {
+            repository: 'RandyNorthrup/muse-spark-code',
+            number: 51,
+            title: 'test: lock Android/Termux P0 behavior',
+            author: 'Piangpi1997',
+            url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/51',
+          },
+        },
+        pullRequest: {
+          repository: 'RandyNorthrup/muse-spark-code',
+          number: 56,
+          title: 'README: how this extension is built',
+          url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/56',
+          state: 'open',
+          isDraft: true,
+          isMerged: false,
+          checks: {
+            passed: 5,
+            failed: 1,
+            running: 0,
+            skipped: 0,
+            cancelled: 0,
+            failedNames: ['build / quality (macos-latest)'],
+            other: [],
+            notRead: 0,
+          },
+        },
+      },
+    })
+    const card = await screen.findByRole('region', { name: 'Held pull request worktree' })
+    expect(card).toHaveTextContent('Pull request #51 by Piangpi1997: held until you trust it')
+    expect(card).toHaveTextContent('Other extensions follow VS Code’s own workspace trust')
+    fireEvent.click(within(card).getByRole('button', { name: 'Trust this worktree…' }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'gitAction', action: 'trustWorktree' })
+    const strip = await screen.findByRole('region', { name: 'This conversation’s pull request' })
+    expect(strip).toHaveTextContent('Draft')
+    expect(strip).toHaveTextContent('Checks: 1 failed · 5 passed')
+    fireEvent.click(within(strip).getByRole('button', { name: 'Refresh' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'gitAction',
+      action: 'refreshPullRequest',
+    })
+    fireEvent.click(within(strip).getByRole('button', { name: /#56/ }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'openExternal',
+      url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/56',
+    })
+  })
+
+  it.each([
+    ['a state it does not count', ['e2e: timed_out'], 0],
+    ['checks it did not read', [], 3],
+  ])('never shows the passed dot beside %s', async (_label, other, notRead) => {
+    renderReady()
+    const checks = {
+      passed: 5,
+      failed: 0,
+      running: 0,
+      skipped: 0,
+      cancelled: 0,
+      failedNames: [],
+      other,
+      notRead,
+    }
+    const pullRequest = {
+      repository: 'RandyNorthrup/muse-spark-code',
+      number: 56,
+      title: 'README: how this extension is built',
+      url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/56',
+      state: 'open',
+      isDraft: false,
+      isMerged: false,
+      checks,
+    }
+    deliver({ type: 'gitState', state: { pullRequest } })
+    const strip = await screen.findByRole('region', { name: 'This conversation’s pull request' })
+    expect(strip.querySelector('.tool-dot')).not.toBeNull()
+    expect(strip.querySelector('.tool-dot-ok')).toBeNull()
+    deliver({
+      type: 'gitState',
+      state: { pullRequest: { ...pullRequest, checks: { ...checks, other: [], notRead: 0 } } },
+    })
+    expect(strip.querySelector('.tool-dot-ok')).not.toBeNull()
+  })
+})
+
 describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
   // Each refusal before the runner publishes a run: the controller's notice, no update.
   it.each([
@@ -3035,7 +3326,7 @@ describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
     ['a declined paid-use popup', 'warning', () => UI_TEXT.bestOfNConsentDeclined],
     ['a missing budget journal', 'warning', () => UI_TEXT.bestOfNBudgetUnavailable],
     ['a host that failed to start', 'error', () => `${UI_TEXT.bestOfNTitle}: spawn failed`],
-  ] as const)('keeps the form and its prompt after %s', (_refusal, level, text) => {
+  ] as const)('keeps the form and its prompt after %s', async (_refusal, level, text) => {
     const postMessage = renderReady()
     deliver({
       type: 'paidState',
@@ -3047,8 +3338,8 @@ describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
       },
     })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.boardTitle }))
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.boardStartBestOfN }))
-    const prompt = screen.getByLabelText(UI_TEXT.bestOfNPromptLabel)
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.boardStartBestOfN }))
+    const prompt = await screen.findByLabelText(UI_TEXT.bestOfNPromptLabel)
     fireEvent.change(prompt, { target: { value: 'leave a note' } })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.bestOfNStart }))
     expect(postMessage).toHaveBeenLastCalledWith(
@@ -3331,5 +3622,86 @@ describe('App: the M87 wiring (PLAN.md D66)', () => {
       turnId: 't2',
       userMessageId: 'u3',
     })
+  })
+})
+
+describe('App: explicit held prompt resend (RVM92E P2)', () => {
+  it.each(['newer draft', ''])(
+    'sends the held prompt and its attachments while preserving draft %j',
+    (newer) => {
+      const postMessage = renderReady()
+      const text = `deploy with sk-${'k'.repeat(24)} now`
+      addTestImage()
+      fireEvent.change(textarea(), { target: { value: text } })
+      fireEvent.keyDown(textarea(), { key: 'Enter' })
+      fireEvent.change(textarea(), { target: { value: newer } })
+      deliver({
+        type: 'secretPromptDetected',
+        localId: 'local-1',
+        redactedText: 'deploy with [redacted] now',
+      })
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+      const sent = postMessage.mock.calls.at(-1)?.[0]
+      expect(
+        sent?.type === 'sendMessage' && sent.text === text && sent.secretAccepted === true,
+      ).toBe(true)
+      expect(sent).toMatchObject({ attachmentIds: ['att-1'] })
+      expect(textarea().value).toBe(newer)
+    },
+  )
+  it('resends the held reference while preserving a newer composer reference', () => {
+    const store = createUiStore({
+      ...initialUiState,
+      phase: 'ready',
+      settings: testSettings,
+      auth: { ...initialUiState.auth, status: 'signedIn' },
+    })
+    const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+    render(<App postMessage={postMessage} newLocalId={() => 'local-1'} store={store} />)
+    const original = {
+      intent: 'reply',
+      role: 'assistant',
+      entryId: 'a1',
+      text: 'original',
+    } as const
+    const newer = { ...original, entryId: 'a2', text: 'newer' }
+    act(() => {
+      store.dispatch({ type: 'referenceSet', reference: original })
+    })
+    fireEvent.change(textarea(), { target: { value: `use sk-${'k'.repeat(24)}` } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    fireEvent.change(textarea(), { target: { value: 'newer draft' } })
+    act(() => {
+      store.dispatch({ type: 'referenceSet', reference: newer })
+    })
+    act(() => {
+      store.dispatch({
+        type: 'hostMessage',
+        message: {
+          type: 'secretPromptDetected',
+          localId: 'local-1',
+          redactedText: 'use [redacted]',
+        },
+        at: 1,
+      })
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+    expect(postMessage.mock.calls.at(-1)?.[0]).toMatchObject({
+      reference: original,
+      secretAccepted: true,
+    })
+    expect(store.getState().reference).toEqual(newer)
+  })
+
+  it('keeps authentication admission during a transient Model API sign-in', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+    fireEvent.change(textarea(), { target: { value: `use sk-${'k'.repeat(24)}` } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    deliver({ type: 'secretPromptDetected', localId: 'local-1', redactedText: 'use [redacted]' })
+    deliver({ type: 'authState', status: 'signingIn', backend: 'modelApi' })
+    const before = postMessage.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+    expect(postMessage.mock.calls).toHaveLength(before)
   })
 })

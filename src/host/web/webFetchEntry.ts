@@ -12,6 +12,9 @@ import type { HtmlConverter } from '../../core/web/htmlConversion'
 import { checkPageUrl, type PageUrlCheck } from '../../core/web/pageUrl'
 import type { WebFetchResult } from '../../core/web/webFetch'
 import type { UiText } from '../../shared/l10n/en'
+
+// M91 HTTP hooks reuse this lazy transport bundle and its pinned-request path.
+export { postHookPayload } from './hookHttpRequest'
 import { setUiText } from '../../shared/l10n/text'
 import type { Logger } from '../logger'
 import { createWebFetcher } from './webFetcher'

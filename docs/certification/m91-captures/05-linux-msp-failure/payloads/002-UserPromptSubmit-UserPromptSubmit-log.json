@@ -1,0 +1,10 @@
+{
+  "cwd": "<workspace>",
+  "hook_event_name": "UserPromptSubmit",
+  "model": "echo",
+  "permission_mode": "default",
+  "prompt": "m91 capture: PreLLMCall refuse2",
+  "session_id": "01a10858-6094-7390-8685-60a37851fb0e",
+  "transcript_path": null,
+  "turn_id": "01a10858-610c-7000-90c1-cfbab9f5bd0d"
+}

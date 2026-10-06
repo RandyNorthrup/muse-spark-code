@@ -8,6 +8,7 @@
 // controller supplies its session and host; the dialogs and the file write
 // are injected.
 
+import { redactSecrets } from '../../core/redact'
 import type { AgentHost, AgentSession } from '../../core/agent/agentBackend'
 import {
   type BuiltSessionExport,
@@ -166,7 +167,7 @@ export async function exportConversation(
     return await exportJson(host, session, now, exports)
   }
   const history = await host.readSession(session.sessionId)
-  const title = titleOf(history.name, history.items)
+  const title = redactSecrets(titleOf(history.name, history.items))
   const fileName = exportFileName(title, now, EXPORT_FILE_EXTENSIONS[format])
   if (format === 'sessionLog') {
     await exports.saveSessionLog(session.sessionId, fileName)
@@ -181,14 +182,16 @@ export async function exportConversation(
   }
   await exports.saveMarkdown(
     fileName,
-    renderTranscriptMarkdown({
-      title,
-      sessionId: session.sessionId,
-      backendLabel: backendLabel(host.info.kind),
-      modelId: session.modelId,
-      exportedAt: now.toISOString(),
-      items: history.items,
-    }),
+    redactSecrets(
+      renderTranscriptMarkdown({
+        title,
+        sessionId: session.sessionId,
+        backendLabel: backendLabel(host.info.kind),
+        modelId: session.modelId,
+        exportedAt: now.toISOString(),
+        items: history.items,
+      }),
+    ),
   )
   return 'exported'
 }

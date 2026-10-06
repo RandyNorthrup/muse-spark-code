@@ -60,9 +60,11 @@ Use this order for a candidate branch:
    proof. A printed success line without the process exit status is not a
    gate result.
 
-- Run `npm run quality` and make it green. It runs every gate: formatting,
-  ESLint (zero warnings), stylelint, type checks, dead-code and cycle
-  detection, duplication, unit tests with coverage thresholds, the
+- Run `npm run quality` and make it green. It runs every local gate except
+  the VS Code integration tests (`npm run test:integration`, run by
+  `npm run quality:ci` and CI): formatting, ESLint (zero warnings),
+  stylelint, the PowerShell lint, type checks, the localization and host-API
+  checks, dead-code and cycle detection, duplication, unit tests with coverage thresholds, the
   production build with bundle budgets and the bundle split, `npm audit`,
   the accessibility gate, secret scanning and semgrep. CI's full tier runs
   the gates on Ubuntu, Windows and macOS, the complete accessibility gate on
@@ -86,7 +88,11 @@ Use this order for a candidate branch:
   nobody captured says so in a comment.
 - Update `CHANGELOG.md` (Keep a Changelog, under `Unreleased`), the README
   where behaviour changed, and `docs/PRIVACY.md` when anything new leaves
-  the machine.
+  the machine. A change users should try can add a bullet to the section's
+  `### Highlights` list, which What's New shows after the update (at most 5
+  per release; `docs/RELEASING.md` has the form and the `<!-- try: … -->`
+  button).
+
 - A visible change gets a harness scenario (`test/harness/index.html`, its
   name listed in `scripts/lib/harnessServer.mjs` beside the related one),
   rendered with `npm run harness:shots -- <names>` (`--theme=dark`, `light`,
@@ -123,7 +129,8 @@ Use this order for a candidate branch:
   configured check.
 - `main` is protected: changes land through a pull request with the CI
   checks green, it cannot be force-pushed or deleted, and release tags
-  (`v*`) cannot be moved or deleted.
+  (`v*`) cannot be moved or deleted, except by a repository admin (both
+  rulesets let the Admin role bypass them).
 
 ## CI tiers and required checks
 
@@ -198,10 +205,11 @@ never a literal in the code:
   does not carry it: one object is carried whole, and `npm run build` fails a
   `MODEL_TEXT` key that no file of `dist/extension.js` reads, a block found in
   a shipped bundle that is not among its declared readers, and a new block
-  that `scripts/check-bundle-split.mjs` does not guard. The Model API and review bundles carry no English table at all
-  (they install the activation bundle's before they run, and `npm run build`
-  fails if one comes back): a lazily loaded bundle that reads `UI_TEXT`
-  must do the same in its factory.
+  that `scripts/check-bundle-split.mjs` does not guard. No checked Node bundle carries the English table itself: each
+  loads the shared `dist/uiText.js`, and `npm run build` fails if one
+  duplicates `en.ts` or stops loading it. Each lazily loaded bundle keeps its
+  own language state, so one that reads `UI_TEXT` must install the caller's
+  table in its factory.
 
 `npm run check:l10n` checks all of this. It fails a key missing from a
 translation, a changed `{slot}`, a wrong set of plural forms, and a
@@ -259,6 +267,27 @@ finite detached child, and `fakeMcpLauncherParent.mjs` checks cleanup when
 the extension-side Node process exits, and `fakeMcpPrebindParent.mjs` checks death before the job
 helper binds that process. The withheld-GO test's marker must never start.
 The test-owned fixture PIDs must be gone after the suite.
+
+## Hooks from other agents (M91)
+
+A hook imported in another agent's format runs only through lane P's
+adapters (`src/core/backends/modelapi/hookFormats/`, PLAN.md D70), never as a
+native hook:
+
+- Each vendor's contract is a table under `hookFormats/contracts/`, and
+  every row cites its saved source.
+- `hookFormatsContracts.test.ts` proves the engine's invariants over every
+  row; a new row is covered there the moment it exists. Above all, no row
+  produces an allow.
+- The dispatcher's side lives in `hooks.ts` (the import record's checks,
+  `ForeignHookAdapter`) and `foreignHooksEntry.ts` (the source's rules
+  around the run: patterns, triggers, directory, shell, timeouts, loop
+  limits). It is tested in `foreignHooks.test.ts` and, in a running
+  session, in `modelApiForeignHooks.test.ts`.
+- The adapters ship in `dist/foreignHooks.js`. `check-bundle-split.mjs`
+  fails if `dist/modelApi.js` starts carrying them.
+- `modelApiGoldenRequests.test.ts` must stay byte-identical: with hooks
+  off, no change may move a request's bytes.
 
 ## Reporting bugs and proposing features
 
@@ -332,3 +361,22 @@ portable root `tmp/`; this is test tooling only, never an npm/product dependency
 or global install. Windows Node tar checks use native System32 bsdtar so drive
 letters are not interpreted as GNU tar remote hosts. A shell startup failure or
 failure to reach the fixture is a failed check, never a proved refusal.
+
+## Tab completion checks (M94)
+
+`test/unit/tab*.test.ts` covers the core, privacy boundaries, spend ledger,
+consent, startup status and localized menus against fakes. The integration
+suite `test/integration/tab.test.ts` loads the dev build's real `dist/tab.js`
+against a loopback fake Model API, then exercises full and word accepts in
+VS Code at the manifest floor and stable. It uses no credential.
+
+The opt-in probe is `test/e2e/tab.live.e2e.test.ts`. Only the lead runs it with
+explicit paid-call authorization: first announce the expected 30 requests,
+count HTTP attempts and usage frames separately, and record the actual cost
+and workspace in `docs/certification/m94.md`. Lane W's validation makes no
+live model calls. The final live check and the real Tab hook drills wait
+for M91/lane K. Every new guard or gate must have an observed failing drill
+and a byte-exact restoration recorded before certification.
+
+The Windows release-shell fixtures use Git Bash's installed path when it
+exists, otherwise Bash from PATH. A missing Bash remains a test failure.

@@ -8,7 +8,7 @@ import {
   type ExportPreviewChoice,
 } from '../../src/host/conversation/exportConversation'
 import type { ItemSnapshot } from '../../src/shared/agentEvents'
-import { MODEL_TEXT, SESSION_EXPORT_MAX_ITEMS } from '../../src/shared/constants'
+import { CONVERSATION_MODEL_TEXT, SESSION_EXPORT_MAX_ITEMS } from '../../src/shared/constants'
 
 function fakes(
   kind: BackendKind,
@@ -67,6 +67,19 @@ function userItem(text: string): ItemSnapshot {
 }
 
 describe('exportConversation', () => {
+  it('redacts accepted prompt secrets from Markdown content and filenames on either backend (RVM92E P1)', async () => {
+    const secret = `mgst_${'A'.repeat(42)}A`
+    for (const kind of ['museCode', 'modelApi'] as const) {
+      const t = fakes(kind, { items: [userItem(`use ${secret}`)] })
+      expect(await exportConversation(t.host, t.session, 'markdown', NOW, t.exports)).toBe(
+        'exported',
+      )
+      expect(JSON.stringify(t.markdown).includes(secret)).toBe(false)
+      expect(t.markdown[0]?.[0]).toBe('muse-use-redacted-2026-09-24.md')
+      expect(t.markdown[0]?.[1]).toContain('use [redacted]')
+    }
+  })
+
   it('refuses the session log on the Model API backend without reading anything', async () => {
     const t = fakes('modelApi', {})
     expect(await exportConversation(t.host, t.session, 'sessionLog', NOW, t.exports)).toBe(
@@ -121,7 +134,7 @@ describe('exportConversation', () => {
       expect(t.json).toEqual([['muse-share-me-2026-09-24.json', shown?.content]])
       const parsed = parseSessionExport(JSON.parse(shown?.content ?? ''))
       expect(parsed.ok && parsed.doc.transcript[0]?.text).toBe(
-        `Read ${MODEL_TEXT.exportRedactedPath} and ${MODEL_TEXT.exportRedactedPath}`,
+        `Read ${CONVERSATION_MODEL_TEXT.exportRedactedPath} and ${CONVERSATION_MODEL_TEXT.exportRedactedPath}`,
       )
       expect(parsed.ok && parsed.doc.sourceBackend).toBe(kind)
       expect(shown?.content).not.toContain('Northrup')
