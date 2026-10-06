@@ -793,3 +793,26 @@ Static checks, final packages and the unreached standalone gates are recorded
 with their actual final source commit in `m96-int-round3c-results.json`.
 Windows remains REDWINI96/round 3d's dependency. Shared archived refs remain
 outside this worktree's authorized mutation scope while permission is pending.
+
+Round 3c's unreached audit initially identifies high GHSA-68fv-2mgg-jv7q
+in the existing development-only source-map-js 1.2.1 leaf. The manifest
+pins 1.2.2, with official registry tarball integrity and no peers. Private
+script-free installs prove both the leaf and the complete unchanged-parent
+lock; the shared worktree install stays untouched at 1.2.1. The dependency
+is absent from every shipped metafile and the notices. The canonical audit
+now passes with the existing exception list unchanged; replaying the old
+report still exits 1. The owner must refresh the development install before
+another full-quality run.
+
+The initial standalone accessibility gate scans 652 pages and exits 1:
+no rule violations, two undecided one-digit diff-count spans, and two report
+pages whose fixed-delay fixture checked controls before the lazy dialog
+rendered. Grouping the existing translated sign/prefix with its count lets
+axe measure complete text. The exact row totals, locale order, controls and
+existing strings remain. The report fixture uses the existing bounded
+whenFound helper and retains both layout assertions. Related units pass
+41, webview typecheck/lint/build pass, and the affected four scenarios pass
+all 16 theme pages without violations, undecided checks or missing results.
+A deliberate low-contrast color fails two elements; byte-exact CSS restoration
+passes all four pages. The final complete accessibility receipt follows in
+the results JSON. No exemption, scan rule or wait is changed.

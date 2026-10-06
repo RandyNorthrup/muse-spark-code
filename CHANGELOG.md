@@ -87,6 +87,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Diff counter contrast checks.** The existing sign and count share one
+  colored text span, preserving totals and translated order while allowing
+  single-digit contrast measurement. The report browser fixture checks its
+  controls after the lazy dialog renders.
+
 - **Development dependency audit.** Pin `source-map-js` to 1.2.2 for the
   indexed-source-map denial-of-service advisory. The dependency is not shipped;
   the audit rule and existing exception list stay unchanged.

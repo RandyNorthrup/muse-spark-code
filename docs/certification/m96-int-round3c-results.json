@@ -1,5 +1,5 @@
 {
-  "status": "full-quality red; prescribed scoped repairs and final package verification pass; standalone gates pending",
+  "status": "full-quality red; audit repaired; scoped cases, targeted accessibility and cap gates pass; full final accessibility pending",
   "rig": "macmini",
   "base": "30105e49",
   "wMerge": "9dcd95cc",
@@ -194,6 +194,16 @@
         "test/unit/paidDailyBudget.test.ts",
         "test/unit/teamNativeLifetime.test.ts"
       ]
+    },
+    {
+      "name": "final-a11y-units",
+      "passed": 41,
+      "failed": 0,
+      "files": [
+        "test/unit/DiffTallyRow.test.tsx",
+        "test/unit/diffTally.test.ts",
+        "test/unit/reportProblemDialog.test.tsx"
+      ]
     }
   ],
   "drills": [
@@ -228,11 +238,24 @@
       "greenPassed": 17,
       "redExit": 1,
       "greenExit": 0
+    },
+    {
+      "source": "src/webview/styles.css",
+      "beforeSha256": "34a1bc61ee00d9abf681dbc7c6cf8594d119287c56f108aef706fe25b8052833",
+      "redExit": 1,
+      "restoredSha256": "34a1bc61ee00d9abf681dbc7c6cf8594d119287c56f108aef706fe25b8052833",
+      "greenExit": 0,
+      "redRule": "color-contrast",
+      "redElements": 2,
+      "redPages": 4,
+      "greenPages": 4,
+      "greenViolations": 0,
+      "greenUndecided": 0
     }
   ],
   "windowsDependency": "REDWINI96 host proof, merged in round 3d; not certified on macmini",
   "browserBytes": {
-    "startup": 875880,
+    "startup": 875986,
     "startupCap": 921600,
     "teamUi": 16088,
     "teamUiCap": 25600,
@@ -256,7 +279,17 @@
     "postRepairTypecheckFiveProjects": 0,
     "postRepairDuplication": 0,
     "postRepairProductionBuild": 0,
-    "postRepairAudit": 0
+    "postRepairAudit": 0,
+    "finalWebviewTypecheck": 0,
+    "finalA11yChangedPathsLint": 0,
+    "finalA11yTargeted": {
+      "exit": 0,
+      "pages": 16,
+      "violations": 0,
+      "undecided": 0,
+      "missingResults": 0,
+      "exempt": 0
+    }
   },
   "packages": {
     "helperless": {

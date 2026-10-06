@@ -32,9 +32,9 @@ describe('DiffTally', () => {
   it('shows singular files, formatted line totals, and the scope tooltip from real edits', () => {
     render(<DiffTally counts={diffTally([edit])} />)
     expect(screen.getByText('1 file changed')).toBeInTheDocument()
-    const added = screen.getByText('1,234')
+    const added = screen.getByText('+1,234')
     expect(added).toHaveClass('diff-tally-added')
-    expect(screen.getByText('5,678')).toHaveClass('diff-tally-removed')
+    expect(screen.getByText('−5,678')).toHaveClass('diff-tally-removed')
     expect(added.parentElement).toHaveTextContent('+1,234 −5,678')
     const row = screen.getByRole('group', { name: 'Changes in this conversation' })
     expect(row).toHaveAttribute('title', EN.diffTallyTitle)
@@ -45,7 +45,7 @@ describe('DiffTally', () => {
   it('uses the plural file form and keeps a zero-line edit visible', () => {
     render(<DiffTally counts={{ files: 2, added: 0, removed: 0 }} />)
     expect(screen.getByText('2 files changed')).toBeInTheDocument()
-    expect(screen.getByText('+', { exact: false })).toHaveTextContent('+0 −0')
+    expect(screen.getByText('+0').parentElement).toHaveTextContent('+0 −0')
   })
 
   it('offers Review only with its callback and invokes it once', () => {
@@ -78,7 +78,7 @@ describe('DiffTally', () => {
     )
     rerender(<DiffTally counts={counts} onReview={vi.fn()} />)
     expect(screen.getByText('1.234 Dateien geändert')).toBeInTheDocument()
-    expect(screen.getByText('2.345').parentElement).toHaveTextContent('−3.456 / +2.345')
+    expect(screen.getByText('/ +2.345').parentElement).toHaveTextContent('−3.456 / +2.345')
     expect(screen.getByRole('group', { name: 'Änderungen in diesem Gespräch' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Prüfen' })).toBeInTheDocument()
   })
