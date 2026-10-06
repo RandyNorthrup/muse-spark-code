@@ -1236,13 +1236,17 @@ export async function generateReference(root, isCheck = false) {
     'museSpark.',
     'config.',
     'https://github.com/RandyNorthrup/muse-spark-code#',
+    // Every CLI row name repeats its route before the option (REL0143).
+    ...Object.keys(source.CLI_OPTION_REGISTRY).map((route) => `${route}: --`),
   ]
   const serialize = (value) =>
     JSON.stringify(value, (_key, entry) => {
       if (typeof entry === 'number') return `${numericPrefix}${entry}`
       if (typeof entry !== 'string') return entry
       const index = stringPrefixes.findIndex((prefix) => entry.startsWith(prefix))
-      return index === -1 ? entry : `~s${index}:${entry.slice(stringPrefixes[index].length)}`
+      return index === -1
+        ? entry
+        : `~s${index.toString(source.REFERENCE_POOL_RADIX)}:${entry.slice(stringPrefixes[index].length)}`
     })
   const modelJson = serialize(model)
   const tokens = /"(?:[^"\\]|\\.)*"/g
