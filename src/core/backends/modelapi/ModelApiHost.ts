@@ -1,4 +1,10 @@
 import { redactDiagnosticEvent } from '../../redact'
+import {
+  sideCallBody,
+  structuredCompaction,
+  type SideCallAttempt,
+  type StructuredOutputDeps,
+} from './structuredOutput'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
 // replay, `store: false`) with the in-process tool harness, the permission
@@ -504,7 +510,7 @@ export interface ModelApiPaidHooks {
   readonly hookModelDailyBudget?: HookModelDailyBudget | undefined
 }
 
-export interface ModelApiHostDeps extends ModelApiPaidHooks {
+export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDeps {
   /** M98: injected same-model source; all paid dispatch admitted by lane A. */
   readonly judge?: JudgeAdvisory | undefined
   readonly client: ModelApiClient
@@ -6395,6 +6401,8 @@ export class ModelApiSession implements AgentSession {
       {
         deps: this.deps,
         tools: kind === 'agent' ? this.hookModelTools() : [],
+        table: UI_TEXT,
+        locale: uiLocale(),
         executeReadOnlyTool: async (name, argsJson, toolSignal) =>
           await this.executeHookModelTool(name, argsJson, toolSignal),
         ...this.paidModelObservers(turnId),
@@ -11469,7 +11477,7 @@ export class ModelApiSession implements AgentSession {
     const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
     let tail: readonly ReplayItem[] = []
     let snapshot = ''
-    const makeBody = (canUseTools: boolean): CreateResponseBody => {
+    const makeBody = (canUseTools: boolean, attempt: SideCallAttempt): CreateResponseBody => {
       // collectText calls again after hooks and budget refresh. Capture all model
       // decisions together, with no await between this projection and reservation.
       const modelId = this.modelId
@@ -11528,29 +11536,56 @@ export class ModelApiSession implements AgentSession {
         tools: canReuse ? (cached?.tools ?? current.tools) : [],
         include: ['reasoning.encrypted_content'],
       })
+      const formatted = this.keyed(sideCallBody(body, attempt, this.deps.forceSideCallTool))
       const reserved = this.budgeted({
-        ...body,
-        max_output_tokens: Math.min(body.max_output_tokens, summaryBudget),
+        ...formatted,
+        max_output_tokens: Math.min(formatted.max_output_tokens, summaryBudget),
       })
       return { ...reserved, max_output_tokens: Math.min(reserved.max_output_tokens, summaryBudget) }
     }
-    let collected = await this.collectText(
-      () => makeBody(true),
+    const postContexts: string[] = []
+    const summary = await structuredCompaction({
+      formats: this.deps.sideCallFormats?.(this.modelId),
       signal,
-      extraAdmission,
-      settleExtra,
-    )
-    if (
-      collected.body.tools.length > 0 &&
-      collected.response.output.some((item) => isFunctionCallItem(item))
-    ) {
-      if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited)
-        return { status: NOOP, reason: MODEL_API_MODEL_TEXT.goalBudgetReached }
-      collected = await this.collectText(() => makeBody(false), signal, extraAdmission, settleExtra)
-    }
-    if (collected.response.output.some((item) => isFunctionCallItem(item)))
-      throw new Error(UI_TEXT.compactionToolCall)
-    if (collected.text.trim() === '') throw new Error(UI_TEXT.compactionEmpty)
+      isTerminalError: (error) =>
+        error instanceof HookStoppedError || error instanceof SessionBudgetExceededError,
+      notice: (text) => {
+        this.emit({ type: 'backendNotice', level: 'warning', text })
+      },
+      request: async (attempt) => {
+        let collected = await this.collectText(
+          () => makeBody(true, attempt),
+          signal,
+          extraAdmission,
+          settleExtra,
+        )
+        if (
+          attempt.mode !== 'forced_tool' &&
+          collected.body.tools.length > 0 &&
+          collected.response.output.some((item) => isFunctionCallItem(item))
+        ) {
+          if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited)
+            throw new SessionBudgetExceededError(MODEL_API_MODEL_TEXT.goalBudgetReached)
+          collected = await this.collectText(
+            () => makeBody(false, attempt),
+            signal,
+            extraAdmission,
+            settleExtra,
+          )
+        }
+        postContexts.push(...collected.contexts)
+        if (attempt.mode === 'forced_tool') {
+          const call = collected.response.output.find(
+            (item) => isFunctionCallItem(item) && item.name === attempt.name,
+          )
+          if (call !== undefined && isFunctionCallItem(call)) return call.arguments
+        }
+        if (collected.response.output.some((item) => isFunctionCallItem(item)))
+          throw new Error(UI_TEXT.compactionToolCall)
+        if (collected.text.trim() === '') throw new Error(UI_TEXT.compactionEmpty)
+        return collected.text
+      },
+    })
     if (signal.aborted) throw new AbortedError()
     this.compactedThroughTurnId = this.turnIds.at(-1)
     this.replay.splice(
@@ -11564,7 +11599,7 @@ export class ModelApiSession implements AgentSession {
           content: [
             {
               type: 'input_text',
-              text: `${MODEL_API_MODEL_TEXT.compactionPrefix}\n\n${collected.text}\n\n${snapshot}`,
+              text: `${MODEL_API_MODEL_TEXT.compactionPrefix}\n\n${summary}\n\n${snapshot}`,
             },
           ],
         },
@@ -11578,7 +11613,7 @@ export class ModelApiSession implements AgentSession {
       ),
     )
     this.packing?.reset()
-    this.appendHookContexts(COMPACTION_TURN_ID, collected.contexts)
+    this.appendHookContexts(COMPACTION_TURN_ID, postContexts)
     const item: ItemSnapshot = {
       itemId: this.deps.newId(),
       kind: 'compaction',

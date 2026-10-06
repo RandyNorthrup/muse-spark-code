@@ -1,7 +1,7 @@
 // M106 contracts for answers the harness asks models to produce. These are
 // our output formats, not inferred service response shapes. Each consumer
 // validates the decoded JSON, repairs once, then takes its existing text path.
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import {
   AUTO_REVIEWER_REASON_MAX_CHARS,
   COMMIT_SUBJECT_MAX_CHARS,
@@ -31,7 +31,7 @@ export function judgeDistributionAnswerSchema(optionCount: number) {
     probabilities: z
       .array(percentage)
       .check(z.length(optionCount))
-      .refine((values) => values.some((value) => value > 0)),
+      .check(z.refine((values) => values.some((value) => value > 0))),
   })
 }
 
@@ -44,8 +44,10 @@ export const hookDecisionSchema = z
     reason: z.nullable(nonblankText.check(z.maxLength(HOOK_OUTPUT_MAX_BYTES))),
     additionalContext: z.nullable(nonblankText.check(z.maxLength(HOOK_OUTPUT_MAX_BYTES))),
   })
-  .refine((answer) =>
-    answer.decision === 'block' ? answer.reason !== null : answer.reason === null,
+  .check(
+    z.refine((answer) =>
+      answer.decision === 'block' ? answer.reason !== null : answer.reason === null,
+    ),
   )
 
 export const commitDraftSchema = z.strictObject({ message: nonblankText })

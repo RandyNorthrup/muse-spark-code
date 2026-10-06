@@ -129,6 +129,8 @@ const LAZY_ONLY = [
   // TRAIN14A: stored-key image/Tab HTTP calls load the same client on first use.
   'client.ts',
   'ModelApiHost.ts',
+  // M106: side answers load with the backend, reviewer, judge or Git action.
+  'structuredOutput.ts',
   'modelCapabilities.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',
