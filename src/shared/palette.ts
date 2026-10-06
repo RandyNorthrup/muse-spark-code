@@ -346,17 +346,20 @@ function scheduleItems(context: PaletteContext): readonly PaletteItem[] {
       {
         id: 'schedule',
         label: UI_TEXT.scheduleV2.labels.title,
+        tip: UI_TEXT.scheduleV2.editor.tips.list,
         slashName: 'schedule',
         action: context.schedules.list,
       },
       {
         id: 'schedulePrompt',
         label: UI_TEXT.scheduleV2.labels.schedulePrompt,
+        tip: UI_TEXT.scheduleV2.editor.tips.create,
         action: context.schedules.create,
       },
       {
         id: 'scheduleTimeline',
         label: UI_TEXT.scheduleV2.labels.timeline,
+        tip: UI_TEXT.scheduleV2.editor.tips.timeline,
         action: context.schedules.timeline,
       },
       {

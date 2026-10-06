@@ -27,6 +27,13 @@ async function request(
   return scheduleResponseSchema.parse(await port.request(scheduleRequestSchema.parse(input)))
 }
 
+async function readSchedules(port: ScheduleSurfacePort, workspaceKey: string) {
+  const list = await request(port, { method: 'schedules/list', workspaceKey })
+  if (list.kind !== 'list' || list.schedules.some((item) => item.workspaceKey !== workspaceKey))
+    throw new Error(UI_TEXT.scheduleV2.editor.loadFailed)
+  return list.schedules
+}
+
 export function ScheduleSurface(context: ScheduleSurfaceProps) {
   const { port, workspaceKey, initialView } = context
   const [schedules, setSchedules] = useState<ScheduleView[]>([])
@@ -49,15 +56,7 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
     let isCancelled = false
     const load = async () => {
       try {
-        const list = await request(port, {
-          method: 'schedules/list',
-          workspaceKey: workspaceKey,
-        })
-        if (
-          list.kind !== 'list' ||
-          list.schedules.some((item) => item.workspaceKey !== workspaceKey)
-        )
-          throw new Error(UI_TEXT.scheduleV2.editor.loadFailed)
+        const list = await readSchedules(port, workspaceKey)
         const events = await request(port, {
           method: 'schedules/eventSources',
           workspaceKey: workspaceKey,
@@ -73,7 +72,7 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
           if (!isCancelled) setEntries(timeline.entries)
         }
         if (!isCancelled) {
-          setSchedules(list.schedules)
+          setSchedules(list)
           setSources(events.sources)
           setLoaded(true)
         }
@@ -91,13 +90,7 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
   }, [port, workspaceKey, initialView])
 
   const reload = async () => {
-    const list = await request(port, {
-      method: 'schedules/list',
-      workspaceKey: workspaceKey,
-    })
-    if (list.kind !== 'list' || list.schedules.some((item) => item.workspaceKey !== workspaceKey))
-      throw new Error(UI_TEXT.scheduleV2.editor.loadFailed)
-    setSchedules(list.schedules)
+    setSchedules(await readSchedules(port, workspaceKey))
   }
   const act = async (input: ScheduleRequest) => {
     if (busy) return

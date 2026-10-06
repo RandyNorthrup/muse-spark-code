@@ -16,6 +16,18 @@ function action(text: string) {
   )
 }
 describe('M115 schedule and loop prompt entry', () => {
+  it('refuses a malformed creation draft instead of opening the editor as a valid schedule', () => {
+    const schedule = fakeSchedule()
+    expect(
+      schedulePromptAction(
+        '/schedule add',
+        schedule.workspaceKey,
+        { ...draftOf(schedule), zone: 'bad/zone' },
+        schedule.createdAtMs,
+        parseLoopPrompt,
+      ),
+    ).toMatchObject({ kind: 'refused' })
+  })
   it('keeps ordinary prompts ordinary and opens the list, timeline or editor locally', () => {
     expect(action('Explain /schedule')).toBeUndefined()
     expect(action('/scheduler')).toBeUndefined()

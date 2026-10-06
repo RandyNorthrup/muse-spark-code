@@ -2699,7 +2699,13 @@
         "exact": "Montant exact",
         "estimated": "Estimé",
         "unknown": "Inconnu"
-      }
+      },
+      "tips": {
+        "list": "Consultez les planifications et leurs autorisations permanentes dans cet espace de travail.",
+        "create": "Choisissez quand, où et avec quelles autorisations envoyer cette consigne.",
+        "timeline": "Consultez les prochains déclenchements et les conflits sur une même cible."
+      },
+      "anchorDate": "Date de référence (dans le fuseau horaire de la planification)"
     }
   }
 }

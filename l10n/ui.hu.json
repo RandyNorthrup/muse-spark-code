@@ -2603,7 +2603,13 @@
         "exact": "Pontos",
         "estimated": "Becsült",
         "unknown": "Ismeretlen"
-      }
+      },
+      "tips": {
+        "list": "Tekintse át az ütemezéseket és állandó engedélyeiket ebben a munkaterületben.",
+        "create": "Válassza ki, mikor, hová és milyen engedélyekkel küldje el ezt az utasítást.",
+        "timeline": "Tekintse meg a következő futásokat és az azonos célon történő ütközéseket."
+      },
+      "anchorDate": "Kezdőnap (az ütemezés időzónájában)"
     }
   }
 }

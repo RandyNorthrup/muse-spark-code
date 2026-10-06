@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { scheduleFireRecordSchema } from '../../src/shared/scheduleV2'
 import { ScheduleRunBody } from '../../src/webview/schedules/ScheduleRunBody'
 import { fakeSchedule } from './helpers/schedules/fixtures'
-import { tool } from './helpers/transcriptFixtures'
+import { renderTranscript, tool } from './helpers/transcriptFixtures'
 
 function fire(outcome: 'ran' | 'refused' | 'missed') {
   const schedule = fakeSchedule()
@@ -31,6 +31,23 @@ function fire(outcome: 'ran' | 'refused' | 'missed') {
 
 describe('schedule settlement transcript rows', () => {
   it.each(['ran', 'refused', 'missed'] as const)(
+    'shows %s in the collapsed transcript row',
+    (outcome) => {
+      renderTranscript([
+        tool({
+          tool: 'scheduled_prompt',
+          output: JSON.stringify({ type: 'scheduleFire', fire: fire(outcome) }),
+        }),
+      ])
+      const labels = { ran: 'Sent on schedule', refused: 'Refused', missed: 'Missed' }
+      const toggle = screen.getByRole('button', { name: new RegExp(labels[outcome]) })
+      expect(toggle.getAttribute('aria-expanded')).toBe('false')
+      expect(toggle.querySelector('.tool-dot')?.classList.contains('tool-dot-ok')).toBe(
+        outcome === 'ran',
+      )
+    },
+  )
+  it.each(['ran', 'refused', 'missed'] as const)(
     'renders %s with target, delivery and truthful cost',
     (outcome) => {
       const { container } = render(
@@ -41,11 +58,8 @@ describe('schedule settlement transcript rows', () => {
           })}
         />,
       )
-      expect(
-        screen.getByText(
-          outcome === 'ran' ? 'Sent on schedule' : outcome === 'refused' ? 'Refused' : 'Missed',
-        ),
-      ).toBeTruthy()
+      const labels = { ran: 'Sent on schedule', refused: 'Refused', missed: 'Missed' }
+      expect(screen.getByText(labels[outcome])).toBeTruthy()
       expect(container.textContent).toContain('New turn when idle')
       expect(container.textContent).toContain('Cost: $0.25 (Unknown); Retained liability: $1.00')
       if (outcome === 'refused') {

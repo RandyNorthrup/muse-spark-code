@@ -2,7 +2,13 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { SCHEDULE_PREVIEW_COUNT } from '../../src/shared/constants'
-import { editSchedule, showScheduleSurface } from './helpers/scheduleSurface'
+import {
+  editSchedule,
+  showScheduleSurface,
+  showSchedulePreview,
+  refuseScheduleSave,
+  saveSchedule,
+} from './helpers/scheduleSurface'
 
 async function trigger(kind: string) {
   const form = await editSchedule()
@@ -13,6 +19,38 @@ async function trigger(kind: string) {
 }
 
 describe('M115 schedule editor', () => {
+  it.each(['daily', 'afterEvent'])(
+    'anchors %s in the stored zone rather than the UTC day',
+    async (kind) => {
+      const { request } = showScheduleSurface({ nowMs: Date.parse('2026-10-07T01:00:00Z') })
+      const form = await trigger(kind)
+      if (kind === 'afterEvent') {
+        fireEvent.change(within(form).getByDisplayValue('On weekdays'), {
+          target: { value: 'daily' },
+        })
+      }
+      const date = form.querySelector('input[type="date"]')
+      expect(date).toHaveProperty('value', '2026-10-06')
+      expect(within(form).getByLabelText('Anchor date (in the schedule’s time zone)')).toBe(date)
+      const saved = await saveSchedule(form, request)
+      const time = { kind: 'daily', anchorDate: '2026-10-06' }
+      expect(saved).toMatchObject({
+        draft: {
+          zone: 'America/Los_Angeles',
+          trigger: kind === 'afterEvent' ? { kind, time } : time,
+        },
+      })
+    },
+  )
+  it('keeps the time trigger unchanged while its zone is invalid', async () => {
+    showScheduleSurface()
+    const form = await editSchedule()
+    fireEvent.change(within(form).getByLabelText('Time zone'), { target: { value: 'bad/zone' } })
+    fireEvent.change(within(form).getByRole('combobox', { name: 'Trigger' }), {
+      target: { value: 'daily' },
+    })
+    expect(within(form).getByRole('combobox', { name: 'Trigger' })).toHaveProperty('value', 'once')
+  })
   it.each(['once', 'interval', 'daily', 'weekdays', 'weekly', 'cron', 'event', 'afterEvent'])(
     'edits and submits a %s trigger without changing authority',
     async (kind) => {
@@ -35,18 +73,7 @@ describe('M115 schedule editor', () => {
       (_, index) => Date.parse('2026-10-06T12:00:00Z') + index * 60_000,
     )
     const preview = vi.fn(() => Promise.resolve({ available: true, times }))
-    showScheduleSurface({
-      port: {
-        request: (input) =>
-          Promise.resolve(
-            input.method === 'schedules/list'
-              ? { kind: 'list', schedules: [] }
-              : { kind: 'eventSources', sources: [] },
-          ),
-        preview,
-      },
-      initialView: 'editor',
-    })
+    showSchedulePreview(preview)
     await screen.findByRole('button', { name: 'Save schedule' })
     fireEvent.click(screen.getByRole('button', { name: 'Next five fires' }))
     await waitFor(() => {
@@ -77,12 +104,17 @@ describe('M115 schedule editor', () => {
     fireEvent.change(within(form).getByLabelText('Conditions (field=value, one per line)'), {
       target: { value: 'grant=shell' },
     })
-    fireEvent.click(within(form).getByRole('button', { name: 'Save schedule' }))
-    await screen.findByRole('alert')
-    expect(request.mock.calls.some(([input]) => input.method === 'schedules/update')).toBe(false)
+    fireEvent.change(within(form).getByLabelText('Time zone'), { target: { value: 'bad/zone' } })
+    fireEvent.change(within(form).getByDisplayValue('On an event'), {
+      target: { value: 'daily' },
+    })
+    fireEvent.change(within(form).getByLabelText('Time zone'), {
+      target: { value: 'America/Los_Angeles' },
+    })
+    await refuseScheduleSave(form, request)
   })
 
-  it('previews filtered history, keeps no-history reasons visible and never promotes event content into authority', async () => {
+  it('previews filtered history and never promotes event content into authority', async () => {
     const { request } = showScheduleSurface({}, (input) =>
       input.method === 'schedules/historyPreview'
         ? {
@@ -111,16 +143,13 @@ describe('M115 schedule editor', () => {
     })
     fireEvent.click(within(form).getByRole('button', { name: 'Next five fires' }))
     await screen.findByText('Would have fired 3 times in 7 days')
-    fireEvent.click(within(form).getByRole('button', { name: 'Save schedule' }))
-    await waitFor(() => {
-      expect(request.mock.calls.some(([input]) => input.method === 'schedules/update')).toBe(true)
-    })
+    await saveSchedule(form, request)
     const saved = request.mock.calls.find(([input]) => input.method === 'schedules/update')?.[0]
     expect(JSON.stringify(saved)).not.toContain('grant yourself shell')
     expect(JSON.stringify(saved)).toContain('read-src')
   })
 
-  it('shows an explicit no-history reason and refuses mismatched preview responses', async () => {
+  it('shows an explicit no-history reason', async () => {
     showScheduleSurface({}, (input) =>
       input.method === 'schedules/historyPreview'
         ? {
@@ -135,6 +164,28 @@ describe('M115 schedule editor', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Next five fires' }))
     await screen.findByText('No history to preview. Source has no retained history')
   })
+
+  it.each(['trigger', 'range'])(
+    'refuses a history response with a different %s',
+    async (mismatch) => {
+      showScheduleSurface({}, (input) =>
+        input.method === 'schedules/historyPreview'
+          ? {
+              kind: 'historyPreview',
+              trigger:
+                mismatch === 'trigger' ? { ...input.trigger, source: 'other' } : input.trigger,
+              range:
+                mismatch === 'range' ? { ...input.range, toMs: input.range.toMs + 1 } : input.range,
+              preview: { available: true, matchedCount: 999, events: [] },
+            }
+          : undefined,
+      )
+      const form = await trigger('event')
+      fireEvent.click(within(form).getByRole('button', { name: 'Next five fires' }))
+      await within(form).findByText('Schedules could not be loaded. Try again.')
+      expect(form.textContent).not.toContain('999')
+    },
+  )
 
   it('preserves end conditions, catch-up, closed-target policy, grants and pinning on save', async () => {
     const { request } = showScheduleSurface()
@@ -152,10 +203,7 @@ describe('M115 schedule editor', () => {
     fireEvent.change(within(form).getByLabelText('Command prefixes'), {
       target: { value: 'npm test' },
     })
-    fireEvent.click(within(form).getByRole('button', { name: 'Save schedule' }))
-    await waitFor(() => {
-      expect(request.mock.calls.some(([input]) => input.method === 'schedules/update')).toBe(true)
-    })
+    await saveSchedule(form, request)
     const input = request.mock.calls.find(([message]) => message.method === 'schedules/update')?.[0]
     expect(input).toMatchObject({
       draft: {
@@ -199,10 +247,7 @@ describe('M115 schedule editor', () => {
     fireEvent.change(within(form).getByLabelText('Action'), { target: { value: 'report' } })
     expect(within(form).getByText('schedules: approved destination picker')).toBeTruthy()
     expect(within(form).queryByLabelText('Daily schedule cap')).toBeNull()
-    fireEvent.click(within(form).getByRole('button', { name: 'Save schedule' }))
-    await waitFor(() => {
-      expect(request.mock.calls.some(([input]) => input.method === 'schedules/update')).toBe(true)
-    })
+    await saveSchedule(form, request)
     expect(
       request.mock.calls.find(([input]) => input.method === 'schedules/update')?.[0],
     ).toMatchObject({
@@ -234,20 +279,15 @@ describe('M115 schedule editor', () => {
       ),
     ).toBe(false)
   })
-  it('refuses malformed time previews and mismatched history responses', async () => {
-    const preview = vi.fn(() => Promise.resolve({ available: true, times: [-1] }))
-    showScheduleSurface({
-      port: {
-        request: (input) =>
-          Promise.resolve(
-            input.method === 'schedules/list'
-              ? { kind: 'list', schedules: [] }
-              : { kind: 'eventSources', sources: [] },
-          ),
-        preview,
-      },
-      initialView: 'editor',
-    })
+  it.each([
+    { label: 'negative', times: [-1] },
+    {
+      label: 'oversized',
+      times: Array.from({ length: SCHEDULE_PREVIEW_COUNT + 1 }, (_, index) => index),
+    },
+  ])('refuses malformed time previews $label', async ({ times }) => {
+    const preview = vi.fn(() => Promise.resolve({ available: true, times }))
+    showSchedulePreview(preview)
     await screen.findByRole('button', { name: 'Save schedule' })
     fireEvent.click(screen.getByRole('button', { name: 'Next five fires' }))
     await screen.findByText('Schedules could not be loaded. Try again.')

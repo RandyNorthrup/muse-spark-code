@@ -2795,7 +2795,13 @@
         "exact": "Přesné",
         "estimated": "Odhadované",
         "unknown": "Neznámé"
-      }
+      },
+      "tips": {
+        "list": "Zkontrolujte plány a jejich trvalá oprávnění v tomto pracovním prostoru.",
+        "create": "Vyberte, kdy, kam a s jakými oprávněními se má tento pokyn odeslat.",
+        "timeline": "Zobrazte nadcházející spuštění a souběhy u stejného cíle."
+      },
+      "anchorDate": "Výchozí datum (v časovém pásmu plánu)"
     }
   }
 }

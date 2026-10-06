@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { vi } from 'vitest'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { expect, vi } from 'vitest'
 import { scheduleViewV2Of, type ScheduleRequest } from '../../../src/shared/scheduleV2'
 import { ScheduleSurface } from '../../../src/webview/schedules/ScheduleSurface'
 import { draftOf } from '../../../src/webview/schedules/ScheduleEditor'
@@ -118,4 +118,40 @@ export function showScheduleSurface(
 export async function editSchedule() {
   fireEvent.click(await screen.findByRole('button', { name: 'Edit schedule' }))
   return screen.getByRole('region', { name: 'Edit schedule' })
+}
+
+export async function saveSchedule(
+  form: HTMLElement,
+  request: ReturnType<typeof showScheduleSurface>['request'],
+) {
+  fireEvent.click(within(form).getByRole('button', { name: 'Save schedule' }))
+  await waitFor(() => {
+    expect(request.mock.calls.some(([input]) => input.method === 'schedules/update')).toBe(true)
+  })
+  return request.mock.calls.find(([input]) => input.method === 'schedules/update')?.[0]
+}
+
+export async function refuseScheduleSave(
+  form: HTMLElement,
+  request: ReturnType<typeof showScheduleSurface>['request'],
+) {
+  fireEvent.click(within(form).getByRole('button', { name: 'Save schedule' }))
+  const alert = await screen.findByRole('alert')
+  expect(request.mock.calls.some(([input]) => input.method === 'schedules/update')).toBe(false)
+  return alert
+}
+
+export function showSchedulePreview(preview: ScheduleSurfaceProps['port']['preview']) {
+  return showScheduleSurface({
+    port: {
+      request: (input) =>
+        Promise.resolve(
+          input.method === 'schedules/list'
+            ? { kind: 'list', schedules: [] }
+            : { kind: 'eventSources', sources: [] },
+        ),
+      preview,
+    },
+    initialView: 'editor',
+  })
 }

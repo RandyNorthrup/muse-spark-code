@@ -2699,7 +2699,13 @@
         "exact": "Exato",
         "estimated": "Estimado",
         "unknown": "Desconhecido"
-      }
+      },
+      "tips": {
+        "list": "Revise os agendamentos e suas permissões permanentes neste espaço de trabalho.",
+        "create": "Escolha quando, para onde e com quais permissões enviar este prompt.",
+        "timeline": "Veja as próximas execuções e os conflitos no mesmo destino."
+      },
+      "anchorDate": "Data de referência (no fuso horário do agendamento)"
     }
   }
 }

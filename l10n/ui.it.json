@@ -2699,7 +2699,13 @@
         "exact": "Esatto",
         "estimated": "Stimato",
         "unknown": "Sconosciuto"
-      }
+      },
+      "tips": {
+        "list": "Controlla le pianificazioni e le loro autorizzazioni permanenti in questa area di lavoro.",
+        "create": "Scegli quando, dove e con quali autorizzazioni inviare questa istruzione.",
+        "timeline": "Visualizza le prossime esecuzioni e le sovrapposizioni sulla stessa destinazione."
+      },
+      "anchorDate": "Data di riferimento (nel fuso orario della pianificazione)"
     }
   }
 }

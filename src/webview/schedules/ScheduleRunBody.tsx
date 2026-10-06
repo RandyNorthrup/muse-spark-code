@@ -1,27 +1,13 @@
-import * as z from 'zod/mini'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, formatDateTime, formatUsd } from '../../shared/l10n/text'
-import { scheduleFireRecordSchema } from '../../shared/scheduleV2'
 import { ScheduleBody } from '../components/ToolBodies'
 import type { ToolEntry } from '../state/uiState'
-import { scheduleTargetText } from './presentation'
-
-// U/D serialize this internal settlement, never an inferred provider row.
-const scheduleTranscriptSchema = z.strictObject({
-  type: z.literal('scheduleFire'),
-  fire: scheduleFireRecordSchema,
-})
+import { parseScheduleSettlement, scheduleTargetText } from './presentation'
 
 export function ScheduleRunBody({ entry }: { readonly entry: ToolEntry }) {
-  let data: unknown
-  try {
-    data = JSON.parse(entry.output)
-  } catch {
-    return <ScheduleBody entry={entry} />
-  }
-  const parsed = scheduleTranscriptSchema.safeParse(data)
-  if (!parsed.success) return <ScheduleBody entry={entry} />
-  const { fire } = parsed.data
+  const parsed = parseScheduleSettlement(entry.output)
+  if (!parsed.ok) return <ScheduleBody entry={entry} />
+  const { fire } = parsed
   return (
     <div className="schedule-v2-fire">
       <strong>

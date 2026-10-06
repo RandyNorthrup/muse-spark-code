@@ -2603,7 +2603,13 @@
         "exact": "Genau",
         "estimated": "Geschätzt",
         "unknown": "Unbekannt"
-      }
+      },
+      "tips": {
+        "list": "Prüfe Zeitpläne und ihre dauerhaften Berechtigungen in diesem Arbeitsbereich.",
+        "create": "Wähle, wann, wohin und mit welchen Berechtigungen dieser Prompt gesendet wird.",
+        "timeline": "Sieh bevorstehende Ausführungen und Überschneidungen am selben Ziel."
+      },
+      "anchorDate": "Bezugsdatum (in der Zeitzone des Zeitplans)"
     }
   }
 }

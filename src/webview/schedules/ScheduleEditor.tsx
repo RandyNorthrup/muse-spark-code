@@ -243,6 +243,7 @@ export function ScheduleEditor({
         <TriggerFields
           trigger={draft.trigger}
           nowMs={context.nowMs}
+          zone={draft.zone}
           sources={sources}
           onChange={(trigger) => {
             setDraft({ ...draft, trigger })

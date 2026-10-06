@@ -2,6 +2,7 @@ import { UI_TEXT } from '../../shared/constants'
 import { formatNumber, formatUsd, plural } from '../../shared/l10n/text'
 import type { ScheduleRequest } from '../../shared/scheduleV2'
 import type { GrantAudit, ScheduleView } from './ports'
+import { TriggerSummary } from './TriggerSummary'
 import {
   scheduleCreatorText,
   scheduleGrantRuleText,
@@ -32,7 +33,9 @@ export function ScheduleCard({
       </p>
       <dl>
         <dt>{UI_TEXT.scheduleV2.labels.trigger}</dt>
-        <dd>{UI_TEXT.scheduleV2.triggers[schedule.trigger.kind]}</dd>
+        <dd>
+          <TriggerSummary trigger={schedule.trigger} zone={schedule.zone} />
+        </dd>
         <dt>{UI_TEXT.scheduleV2.labels.target}</dt>
         <dd>{scheduleTargetText(schedule.target)}</dd>
         <dt>{UI_TEXT.scheduleV2.labels.delivery}</dt>
@@ -47,6 +50,26 @@ export function ScheduleCard({
         <dd>{schedule.zone}</dd>
         <dt>{UI_TEXT.scheduleV2.labels.paidCap}</dt>
         <dd>{formatUsd(schedule.paidCapUsd, 2)}</dd>
+        {schedule.end?.atMs === undefined ? null : (
+          <>
+            <dt>{UI_TEXT.scheduleV2.labels.end}</dt>
+            <dd>{scheduleDateTime(schedule.end.atMs, schedule.zone)}</dd>
+          </>
+        )}
+        {schedule.end?.afterRuns === undefined ? null : (
+          <>
+            <dt>{UI_TEXT.scheduleV2.editor.afterRuns}</dt>
+            <dd>{formatNumber(schedule.end.afterRuns)}</dd>
+          </>
+        )}
+        <dt>{UI_TEXT.scheduleV2.labels.parallel}</dt>
+        <dd>{schedule.parallel ? UI_TEXT.toggleOn : UI_TEXT.toggleOff}</dd>
+        <dt>{UI_TEXT.scheduleV2.labels.pin}</dt>
+        <dd>{schedule.pinned ? UI_TEXT.toggleOn : UI_TEXT.toggleOff}</dd>
+        <dt>{UI_TEXT.scheduleV2.labels.whenClosed}</dt>
+        <dd>{UI_TEXT.scheduleV2.policies[schedule.whenClosed]}</dd>
+        <dt>{UI_TEXT.scheduleV2.labels.catchUp}</dt>
+        <dd>{UI_TEXT.scheduleV2.policies[schedule.catchUp]}</dd>
       </dl>
       {schedule.nextFireAtMs === undefined ? null : (
         <p>{scheduleDateTime(schedule.nextFireAtMs, schedule.zone)}</p>

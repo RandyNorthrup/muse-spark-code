@@ -19,6 +19,11 @@ export const EN = {
   // M115 lane 0: strings for the lazy schedule surfaces and adapters.
   scheduleV2: {
     editor: {
+      tips: {
+        list: 'Review schedules and their standing grants in this workspace.',
+        create: 'Choose when, where and with which permissions to send this prompt.',
+        timeline: 'See upcoming fires and collisions on the same target.',
+      },
       user: 'You',
       liability: 'Retained liability',
       certainty: { exact: 'Exact', estimated: 'Estimated', unknown: 'Unknown' },
@@ -28,6 +33,7 @@ export const EN = {
       loadFailed: 'Schedules could not be loaded. Try again.',
       empty: 'No schedules in this workspace.',
       dateTimeUtc: 'Date and time (UTC)',
+      anchorDate: 'Anchor date (in the schedule’s time zone)',
       minutes: 'Interval in minutes',
       everyDays: 'Every N days',
       times: 'Times (HH:MM, comma separated)',

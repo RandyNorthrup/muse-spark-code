@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { scheduleViewV2Of } from '../../src/shared/scheduleV2'
+import { mountScheduleSurface } from '../../src/webview/schedules/ScheduleSurface'
 import { draftOf } from '../../src/webview/schedules/ScheduleEditor'
 import { fakeSchedule } from './helpers/schedules/fixtures'
-import { showScheduleSurface as setup, editSchedule as edit } from './helpers/scheduleSurface'
+import {
+  showScheduleSurface as setup,
+  editSchedule as edit,
+  refuseScheduleSave,
+} from './helpers/scheduleSurface'
 describe('M115 schedule surface', () => {
   it('shows creator, interrupt warning, grant and argument-free audit with Revoke and Pause', async () => {
     const { request, schedule } = setup()
@@ -36,6 +41,74 @@ describe('M115 schedule surface', () => {
         workspaceKey: schedule.workspaceKey,
         id: schedule.id,
       })
+    })
+  })
+
+  it('shows the concrete cadence, end limits and execution policies on a card', async () => {
+    const schedule = scheduleViewV2Of(
+      fakeSchedule({
+        trigger: { kind: 'cron', expression: '0 9 * * 1' },
+        end: { atMs: Date.parse('2026-11-01T12:00:00Z'), afterRuns: 2 },
+        pinned: true,
+        whenClosed: 'skip',
+        catchUp: 'skip',
+      }),
+    )
+    setup({}, (input) =>
+      input.method === 'schedules/list' ? { kind: 'list', schedules: [schedule] } : undefined,
+    )
+    const card = await screen.findByRole('article', { name: schedule.name })
+    expect(card.textContent).toContain('0 9 * * 1')
+    expect(card.textContent).toContain('End after N runs2')
+    expect(card.textContent).toContain('Nov 1, 2026')
+    expect(card.textContent).toContain('Pin scheduleOn')
+    expect(card.textContent).toContain('Run in parallelOff')
+    expect(card.textContent).toContain('Closed targetSkip the fire')
+    expect(card.textContent).toContain('Missed firesSkip the fire')
+  })
+
+  it.each(['yes', 'notNow', 'never'] as const)(
+    'sends background choice %s only after an explicit click',
+    async (choice) => {
+      const { request, context } = setup({}, (input) =>
+        input.method === 'schedules/backgroundStatus'
+          ? { kind: 'backgroundStatus', status: { registered: false } }
+          : undefined,
+      )
+      await screen.findByRole('article')
+      expect(request.mock.calls.some(([input]) => input.method === 'schedules/background')).toBe(
+        false,
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Background entry' }))
+      const labels = {
+        yes: 'Yes, add the background entry',
+        notNow: 'Not now',
+        never: 'Never ask again',
+      }
+      fireEvent.click(await screen.findByRole('button', { name: labels[choice] }))
+      await waitFor(() => {
+        expect(request).toHaveBeenCalledWith({
+          method: 'schedules/background',
+          consent: { choice, decidedAtMs: context.nowMs },
+        })
+      })
+    },
+  )
+
+  it('shows an installed background entry and removes it only on request', async () => {
+    const { request } = setup({}, (input) =>
+      input.method === 'schedules/backgroundStatus'
+        ? { kind: 'backgroundStatus', status: { registered: true } }
+        : undefined,
+    )
+    await screen.findByRole('article')
+    fireEvent.click(screen.getByRole('button', { name: 'Background entry' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove the background entry' }))
+    await waitFor(() => {
+      expect(request).toHaveBeenCalledWith({ method: 'schedules/backgroundRemove' })
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Remove the background entry' })).toBeNull()
     })
   })
 
@@ -109,9 +182,7 @@ describe('M115 schedule surface', () => {
     fireEvent.change(within(form).getByLabelText('Workspace paths'), {
       target: { value: '../escape/**' },
     })
-    fireEvent.click(within(form).getByRole('button', { name: 'Save schedule' }))
-    await screen.findByRole('alert')
-    expect(request.mock.calls.some(([input]) => input.method === 'schedules/update')).toBe(false)
+    await refuseScheduleSave(form, request)
   })
 
   it('reloads after a revision conflict, closes the stale editor and never retries stale grants', async () => {
@@ -176,5 +247,20 @@ describe('M115 schedule surface', () => {
       'textContent',
       'Schedule cap reached; no paid request sent',
     )
+  })
+  it('mounts the same standalone surface for a native or companion host and unmounts cleanly', async () => {
+    const { context, schedule } = setup()
+    const element = document.createElement('div')
+    document.body.append(element)
+    let unmount: (() => void) | undefined
+    act(() => {
+      unmount = mountScheduleSurface(element, context)
+    })
+    await within(element).findByRole('article', { name: schedule.name })
+    act(() => {
+      unmount?.()
+    })
+    expect(element.childElementCount).toBe(0)
+    element.remove()
   })
 })

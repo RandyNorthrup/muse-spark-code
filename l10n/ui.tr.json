@@ -2603,7 +2603,13 @@
         "exact": "Kesin",
         "estimated": "Tahmini",
         "unknown": "Bilinmiyor"
-      }
+      },
+      "tips": {
+        "list": "Bu çalışma alanındaki zamanlamaları ve kalıcı izinlerini inceleyin.",
+        "create": "Bu istemin ne zaman, nereye ve hangi izinlerle gönderileceğini seçin.",
+        "timeline": "Aynı hedefteki yaklaşan çalıştırmaları ve çakışmaları görün."
+      },
+      "anchorDate": "Başlangıç tarihi (zamanlamanın saat diliminde)"
     }
   }
 }

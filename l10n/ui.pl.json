@@ -2795,7 +2795,13 @@
         "exact": "Dokładne",
         "estimated": "Szacunkowe",
         "unknown": "Nieznane"
-      }
+      },
+      "tips": {
+        "list": "Sprawdź harmonogramy i ich stałe uprawnienia w tym obszarze roboczym.",
+        "create": "Wybierz, kiedy, dokąd i z jakimi uprawnieniami wysłać ten monit.",
+        "timeline": "Zobacz nadchodzące uruchomienia i kolizje dotyczące tego samego celu."
+      },
+      "anchorDate": "Data odniesienia (w strefie czasowej harmonogramu)"
     }
   }
 }

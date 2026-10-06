@@ -718,3 +718,35 @@ describe('M87 palette tips', () => {
     },
   )
 })
+
+describe('M115 bound schedule palette', () => {
+  it.each(['museCode', 'modelApi'] as const)(
+    'exposes injected schedule actions on %s',
+    (backend) => {
+      const schedules: NonNullable<PaletteContext['schedules']> = {
+        create: { type: 'startLoop' },
+        list: { type: 'openHistory' },
+        timeline: { type: 'showPlans' },
+      }
+      const groups = buildPalette({ ...context, backend, schedules })
+      const rows = groups.flatMap((group) => group.items)
+      expect(rows.find((row) => row.id === 'schedule')?.action).toEqual(schedules.list)
+      expect(rows.find((row) => row.id === 'schedulePrompt')?.action).toEqual(schedules.create)
+      expect(rows.find((row) => row.id === 'scheduleTimeline')?.action).toEqual(schedules.timeline)
+      expect(rows.find((row) => row.id === 'loop')?.action).toEqual({ type: 'startLoop' })
+      for (const id of ['schedule', 'schedulePrompt', 'scheduleTimeline']) {
+        expect(rows.find((row) => row.id === id)?.tip?.trim(), id).toBeTruthy()
+      }
+      expect(slashCommandsOf(groups).find((row) => row.name === 'schedule')).toBeDefined()
+    },
+  )
+  it.each(['museCode', 'modelApi'] as const)(
+    'keeps unbound scheduling actions hidden on %s',
+    (backend) => {
+      const rows = buildPalette({ ...context, backend }).flatMap((group) => group.items)
+      expect(
+        rows.filter((row) => ['schedule', 'schedulePrompt', 'scheduleTimeline'].includes(row.id)),
+      ).toEqual([])
+    },
+  )
+})

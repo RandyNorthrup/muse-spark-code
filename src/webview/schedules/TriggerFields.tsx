@@ -1,20 +1,24 @@
 import { useState } from 'react'
 import {
   CRON_MAX_WEEKDAY,
-  MILLISECONDS_PER_DAY,
   SCHEDULE_DEFAULT_INTERVAL_MS,
   SCHEDULE_MIN_INTERVAL_MS,
   UI_TEXT,
 } from '../../shared/constants'
-import { uiLocale } from '../../shared/l10n/text'
+import { scheduleWeekdayText } from './presentation'
 import { scheduleEventTriggerSchema } from '../../shared/scheduleEvents'
-import type { ScheduleDraft, ScheduleTimeTrigger } from '../../shared/scheduleV2'
+import {
+  scheduleTimeTriggerSchema,
+  scheduleZoneSchema,
+  type ScheduleDraft,
+  type ScheduleTimeTrigger,
+} from '../../shared/scheduleV2'
 import type { EventSources } from './ports'
 
 type Trigger = ScheduleDraft['trigger']
 type EventTrigger = Extract<Trigger, { kind: 'event' }>
 
-export function timeTrigger(kind: string, nowMs: number): ScheduleTimeTrigger {
+export function timeTrigger(kind: string, nowMs: number, zone: string): ScheduleTimeTrigger {
   const times = [{ hour: 0, minute: 0 }]
   switch (kind) {
     case 'once': {
@@ -24,12 +28,24 @@ export function timeTrigger(kind: string, nowMs: number): ScheduleTimeTrigger {
       return { kind, everyMs: SCHEDULE_DEFAULT_INTERVAL_MS, anchorMs: nowMs }
     }
     case 'daily': {
-      return {
+      const parts = new Map(
+        new Intl.DateTimeFormat('en', {
+          timeZone: zone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          calendar: 'iso8601',
+          numberingSystem: 'latn',
+        })
+          .formatToParts(nowMs)
+          .map((part) => [part.type, part.value]),
+      )
+      return scheduleTimeTriggerSchema.parse({
         kind,
         times,
         everyDays: 1,
-        anchorDate: new Date(nowMs).toISOString().split('T', 1)[0] ?? '',
-      }
+        anchorDate: (['year', 'month', 'day'] as const).map((part) => parts.get(part)).join('-'),
+      })
     }
     case 'weekdays': {
       return { kind, times }
@@ -177,7 +193,7 @@ function TimeFields({
             />
           </label>
           <label>
-            {UI_TEXT.scheduleV2.editor.dateTimeUtc}
+            {UI_TEXT.scheduleV2.editor.anchorDate}
             <input
               type="date"
               value={trigger.anchorDate}
@@ -212,12 +228,7 @@ function TimeFields({
         <div>
           {Array.from({ length: CRON_MAX_WEEKDAY }, (_, weekday) => {
             const day = trigger.days.find((item) => item.weekday === weekday)
-            // 1970-01-04 was Sunday: UTC fixes the weekday label on every machine.
-            const sunday = Date.parse('1970-01-04T00:00:00Z')
-            const label = new Intl.DateTimeFormat(uiLocale(), {
-              weekday: 'long',
-              timeZone: 'UTC',
-            }).format(sunday + weekday * MILLISECONDS_PER_DAY)
+            const label = scheduleWeekdayText(weekday)
             return (
               <div key={weekday}>
                 <label>
@@ -348,16 +359,25 @@ function EventFields({
 export function TriggerFields({
   trigger,
   nowMs,
+  zone,
   sources,
   onChange,
   onValid,
 }: {
   readonly trigger: Trigger
   readonly nowMs: number
+  readonly zone: string
   readonly sources: EventSources
   readonly onChange: (value: Trigger) => void
   readonly onValid: (isValid: boolean) => void
 }) {
+  const changeTime = (kind: string, isComposed = false) => {
+    const checkedZone = scheduleZoneSchema.safeParse(zone)
+    if (!checkedZone.success) return
+    const next = timeTrigger(kind, nowMs, checkedZone.data)
+    if (!isComposed) onValid(true)
+    onChange(isComposed && trigger.kind === 'afterEvent' ? { ...trigger, time: next } : next)
+  }
   let event: EventTrigger | undefined
   let time: ScheduleTimeTrigger | undefined
   if (trigger.kind === 'afterEvent') {
@@ -374,7 +394,6 @@ export function TriggerFields({
           value={trigger.kind}
           onChange={(change) => {
             const kind = change.target.value
-            onValid(true)
             const source = sources.find(
               (item) => item.capability.available && item.kinds.length > 0,
             )
@@ -384,10 +403,13 @@ export function TriggerFields({
               event: source?.kinds[0] ?? 'manual',
               conditions: [],
             }
-            if (kind === 'event') onChange(eventTrigger)
-            else if (kind === 'afterEvent')
-              onChange({ kind, event: eventTrigger, time: timeTrigger('weekdays', nowMs) })
-            else onChange(timeTrigger(kind, nowMs))
+            if (kind === 'event') {
+              onValid(true)
+              onChange(eventTrigger)
+            } else if (kind === 'afterEvent') {
+              onValid(true)
+              onChange({ kind, event: eventTrigger, time: timeTrigger('weekdays', nowMs, zone) })
+            } else changeTime(kind)
           }}
         >
           {Object.entries(UI_TEXT.scheduleV2.triggers).map(([kind, label]) => (
@@ -414,7 +436,7 @@ export function TriggerFields({
           <select
             value={trigger.time.kind}
             onChange={(change) => {
-              onChange({ ...trigger, time: timeTrigger(change.target.value, nowMs) })
+              changeTime(change.target.value, true)
             }}
           >
             {Object.entries(UI_TEXT.scheduleV2.triggers)

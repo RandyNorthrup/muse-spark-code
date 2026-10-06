@@ -2699,7 +2699,13 @@
         "exact": "Exacto",
         "estimated": "Estimado",
         "unknown": "Desconocido"
-      }
+      },
+      "tips": {
+        "list": "Revisa las programaciones y sus permisos permanentes en este espacio de trabajo.",
+        "create": "Elige cuándo, dónde y con qué permisos enviar esta instrucción.",
+        "timeline": "Consulta las próximas ejecuciones y las coincidencias en el mismo destino."
+      },
+      "anchorDate": "Fecha de referencia (en la zona horaria de la programación)"
     }
   }
 }

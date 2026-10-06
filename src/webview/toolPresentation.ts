@@ -15,6 +15,7 @@ import {
   IMAGE_PREVIEW_TOOLS,
   MEMORY_TOOLS,
   MODEL_API_WEB_SEARCH_TOOL,
+  MODEL_API_SCHEDULED_TOOL,
   SCHEDULE_TOOLS,
   SHELL_TOOLS,
   UI_TEXT,
@@ -25,6 +26,8 @@ import {
 import { fill, formatBytes, plural } from '../shared/l10n/text'
 import { parseWebPageHeader } from '../shared/webPage'
 import type { PatchSummary } from './state/transcriptEntries'
+import type { ScheduleFireRecord } from '../shared/scheduleV2'
+import { parseScheduleSettlement } from './schedules/presentation'
 
 export type ToolBody =
   | 'shell'
@@ -42,6 +45,7 @@ export type ToolBody =
   | 'generic'
 
 export interface ToolPresentation {
+  readonly settlementOutcome?: ScheduleFireRecord['outcome']
   readonly label: string
   /** Path, command description, goal, prompt, query or nothing. */
   readonly summary: string
@@ -243,7 +247,22 @@ function otherPresentation(
   }
 }
 
-export function describeTool(tool: string, args: string): ToolPresentation {
+export function describeTool(tool: string, args: string, output?: string): ToolPresentation {
+  if (tool === MODEL_API_SCHEDULED_TOOL && output !== undefined) {
+    const parsed = parseScheduleSettlement(output)
+    if (parsed.ok)
+      return {
+        label:
+          parsed.fire.outcome === 'ran'
+            ? UI_TEXT.scheduleV2.editor.sent
+            : UI_TEXT.scheduleV2.outcomes[parsed.fire.outcome],
+        summary: parsed.fire.scheduleId,
+        settlementOutcome: parsed.fire.outcome,
+        body: 'schedule',
+        command: undefined,
+        imagePath: undefined,
+      }
+  }
   const parsed = parseArgs(args)
   const label = toolLabel(tool) ?? mcpLabel(tool) ?? tool
   const imagePath =
