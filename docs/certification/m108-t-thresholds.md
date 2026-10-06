@@ -162,3 +162,26 @@ the original cap inside the composed check; the M82 swap/liability test fails.
 | unconfigured-journal-read      | uses calendar dates for DST transitions and leap-month resets                             | `0ed366125667e6d535b98127190c4422b8a19cc6b13bac0ce4eafe72c929cee3` |
 | structured-trigger-error       | carries the structured trigger with translated user-cap and vendor-limit errors           | `0ed366125667e6d535b98127190c4422b8a19cc6b13bac0ce4eafe72c929cee3` |
 | single-account-identity        | keeps an unbound claim identical and binds a guard once for initial and every final check | `bdcf1c04a1e38e49d45558445a682da768193da85df2d88e4cf360c20da9ec6b` |
+
+## Midnight DST regression and fix
+
+The final calendar review found an additional real boundary case:
+America/Santiago skips midnight on 2026-09-06. The original start became
+01:00, then calendar date changes incorrectly preserved that hour for the
+next day, the week's start/end and the month's start/end. The strengthened
+`uses calendar dates for DST transitions and leap-month resets` test constructs
+its expected boundaries independently. With `TZ=America/Santiago`, the whole
+thresholds file failed 1/19 before the fix (next day 04:00Z instead of 03:00Z).
+
+The start now normalizes after selecting its calendar date, and the end
+normalizes after advancing to its own date. Both the Santiago run and the
+original local-calendar cases pass, with no timeout change or machine setting
+change. TZ was supplied only to the individual test process.
+
+Two additional deliberate drills separately restored the old start ordering
+and removed end normalization. Each whole-file Santiago run exited 1 at the
+named DST test. Both restored byte-exact to SHA-256
+`64a67cd1bbdf270d971c1e7d1b672e8a3bac701891ebf0673e4e385d89017438`.
+This brings executed deliberate drills to **38**, plus the before-fix
+regression failure. Earlier hashes above identify the earlier committed
+pieces; this hash identifies the final calendar implementation.

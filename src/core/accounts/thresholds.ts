@@ -62,14 +62,16 @@ function unavailable(): never {
 
 function periodRange(period: 'day' | 'week' | 'month', now: number) {
   const start = new Date(now)
-  start.setHours(0, 0, 0, 0)
   if (period === 'month') start.setDate(1)
   // ISO week, in local calendar time. Calendar arithmetic keeps DST days intact.
   else if (period === 'week')
     start.setDate(start.getDate() - ((start.getDay() + DAYS_PER_WEEK - 1) % DAYS_PER_WEEK))
+  start.setHours(0, 0, 0, 0)
   const end = new Date(start)
   if (period === 'month') end.setMonth(end.getMonth() + 1)
   else end.setDate(end.getDate() + (period === 'week' ? DAYS_PER_WEEK : 1))
+  // A skipped midnight normalizes to 01:00; do not carry it to another date.
+  end.setHours(0, 0, 0, 0)
   return { start: start.toISOString(), end: end.toISOString() }
 }
 

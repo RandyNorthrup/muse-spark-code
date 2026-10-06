@@ -125,6 +125,7 @@ describe('M108 T account thresholds', () => {
       new Date(2026, 2, 8, 12),
       new Date(2026, 10, 1, 12),
       new Date(2028, 1, 29, 12),
+      new Date(2026, 8, 6, 12), // Santiago skips midnight at this DST boundary.
     ]) {
       const read = vi.fn(() => EMPTY)
       evaluateAccountThresholds({
@@ -132,24 +133,34 @@ describe('M108 T account thresholds', () => {
         account: {
           id: 'work',
           thresholds: {
-            requests: { day: 1, month: 1 },
+            requests: { day: 1, week: 1, month: 1 },
           },
         },
         now: now.getTime(),
         journal: { read },
       })
-      expect(read.mock.calls).toHaveLength(2)
-      const start = new Date(now)
-      start.setHours(0, 0, 0, 0)
-      const next = new Date(start)
-      next.setDate(next.getDate() + 1)
+      expect(read.mock.calls).toHaveLength(3)
+      const year = now.getFullYear()
+      const month = now.getMonth()
+      const day = now.getDate()
+      const start = new Date(year, month, day)
+      const next = new Date(year, month, day + 1)
       expect(read).toHaveBeenCalledWith(
         expect.objectContaining({ start: start.toISOString(), end: next.toISOString() }),
       )
-      const month = new Date(start)
-      month.setDate(1)
-      month.setMonth(month.getMonth() + 1)
-      expect(read).toHaveBeenCalledWith(expect.objectContaining({ end: month.toISOString() }))
+      const monday = day - ((now.getDay() + 6) % 7)
+      expect(read).toHaveBeenCalledWith(
+        expect.objectContaining({
+          start: new Date(year, month, monday).toISOString(),
+          end: new Date(year, month, monday + 7).toISOString(),
+        }),
+      )
+      expect(read).toHaveBeenCalledWith(
+        expect.objectContaining({
+          start: new Date(year, month, 1).toISOString(),
+          end: new Date(year, month + 1, 1).toISOString(),
+        }),
+      )
     }
   })
 
