@@ -99,44 +99,52 @@ export class RuntimeConversation implements SessionController, PanelView {
     this.ensureLive()
     // ACP keeps its editor-owned identity; panel sessions move through the registry
     // and retire all old immutable surface bindings before publishing new output.
-    const host = this.host
     let prepared: LoadedSession | undefined = loaded
-    const ownedHost: AgentHost = {
-      info: host.info,
-      onExit: (listener) => host.onExit(listener),
-      listModels: (sessionId) => host.listModels(sessionId),
-      startSession: (options) =>
-        ports.sessionChanged === undefined
-          ? Promise.reject(new Error('MHP_PANEL_BINDING_MISMATCH'))
-          : host.startSession(options),
-      listSessions: (options) => host.listSessions(options),
-      readSession: (sessionId, options) => host.readSession(sessionId, options),
-      resumeSession: (sessionId, modelId, options) => {
-        if (sessionId === prepared?.session.sessionId) {
-          const adopted = prepared
-          prepared = undefined
-          return Promise.resolve(adopted)
-        }
-        return ports.sessionChanged === undefined
-          ? Promise.reject(new Error('MHP_PANEL_BINDING_MISMATCH'))
-          : host.resumeSession(sessionId, modelId, options)
-      },
-      forkSession: (sessionId, modelId, options) =>
-        ports.sessionChanged === undefined
-          ? Promise.reject(new Error('MHP_PANEL_BINDING_MISMATCH'))
-          : host.forkSession(sessionId, modelId, options),
-      onSessionListEvent: (listener) => host.onSessionListEvent(listener),
-      readUsage: () => host.readUsage(),
-      onUsageChanged: (listener) => host.onUsageChanged(listener),
-      get sessionCount() {
-        return host.sessionCount
-      },
-      close: () => host.close(),
+    const ownedHosts = new WeakMap<AgentHost, AgentHost>()
+    const ensureHost = async (): Promise<AgentHost> => {
+      const host = await deps.ensureHost()
+      this.ensureLive()
+      const existing = ownedHosts.get(host)
+      if (existing !== undefined) return existing
+      const ownedHost: AgentHost = {
+        info: host.info,
+        onExit: (listener) => host.onExit(listener),
+        listModels: (sessionId) => host.listModels(sessionId),
+        startSession: (options) =>
+          ports.sessionChanged === undefined
+            ? Promise.reject(new Error('MHP_PANEL_BINDING_MISMATCH'))
+            : host.startSession(options),
+        listSessions: (options) => host.listSessions(options),
+        readSession: (sessionId, options) => host.readSession(sessionId, options),
+        resumeSession: (sessionId, modelId, options) => {
+          if (sessionId === prepared?.session.sessionId) {
+            const adopted = prepared
+            prepared = undefined
+            return Promise.resolve(adopted)
+          }
+          return ports.sessionChanged === undefined
+            ? Promise.reject(new Error('MHP_PANEL_BINDING_MISMATCH'))
+            : host.resumeSession(sessionId, modelId, options)
+        },
+        forkSession: (sessionId, modelId, options) =>
+          ports.sessionChanged === undefined
+            ? Promise.reject(new Error('MHP_PANEL_BINDING_MISMATCH'))
+            : host.forkSession(sessionId, modelId, options),
+        onSessionListEvent: (listener) => host.onSessionListEvent(listener),
+        readUsage: () => host.readUsage(),
+        onUsageChanged: (listener) => host.onUsageChanged(listener),
+        get sessionCount() {
+          return host.sessionCount
+        },
+        close: () => host.close(),
+      }
+      ownedHosts.set(host, ownedHost)
+      return ownedHost
     }
     this.conversation = conversationLoader({ bundlePath, log: this.log })().createConversation(
       {
         ...deps,
-        ensureHost: () => Promise.resolve(ownedHost),
+        ensureHost,
         ...(ports.selectedModel !== undefined && {
           modelAllowsFeature: async (modelId: string, feature: string) => {
             const record = await ports.selectedModel?.()

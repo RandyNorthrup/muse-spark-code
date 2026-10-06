@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Portable controllers honor contributed host readiness and host selection
+  during restore and login model warm-up, preserving session ownership fences
+  and refusing late admission after release.
 - Portable settings updates publish each conversation's own effective values;
   root changes preserve worktree overrides, and worktree changes revoke Bypass
   against that conversation's current permission setting.

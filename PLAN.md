@@ -19172,6 +19172,15 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104PA2 / RVM104PA2 (2026-10-06).** Consume the engine's contributed
+`ensureHost` in the real portable controller, including refusal and selected
+host delegation. Keep the existing one-time session adoption and registry/ACP
+binding fences. Test injected admission through `RuntimeConversation.prepare`,
+login model warm-up and the absent-contribution refusal. Record a failing
+control and byte-exact restoration in `docs/certification/m104-pa.md`.
+Run scoped sequential checks directly on macmini at repository deadlines;
+no new dependency, guard widening, merge, push or live/paid call.
+
 **FIXM104PA review repair (2026-10-06).** Close RVM104PA's two P2 and
 two P3 findings in lane A's files. Publish settings and revoke Bypass using
 each held conversation's own live settings; republish only effective changes.
