@@ -289,3 +289,10 @@ Final source hashes match the final restoration records:
 The existing `.husky/_/pre-commit` is present. The implementation is committed
 with hooks enabled, explicit path staging and the required co-author footer;
 its actual hook and commit receipt is recorded below after completion.
+
+Implementation commit: `4e6858fcb5da1af792928362b84563520c99aa09`.
+The unchanged pre-commit hook ran lint-staged ESLint/Prettier on all five
+TypeScript files and this certificate. Gitleaks scanned 85,076 staged bytes
+(one measured scan) and reported no leaks. Both final source SHA-256 values
+above match after the hooks. The implementation worktree was clean. This
+receipt is committed separately; no source or test changed after validation.
