@@ -27566,6 +27566,24 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   CHANGELOG and help-reference additions are supplied in F's contract for S
   and the integration lead (featureCatalog is absent on this base).
 
+- **Lane S implementation scope (2026-10-06):** integrate P2 and F as
+  ordered by the rig brief. Capture A's complete component/scene inventory
+  in six themes at 320/690 px, with representative control CSS states (CDP pseudo-state forcing avoids
+  closing menus; existing P1/P2 suites cover real keyboard/mouse actions).
+  Keep all full-resolution PNGs outside git (512 MiB archive budget); track
+  only source revision, SHA-256, dimensions, component/state coverage and
+  environment in `test/harness/goldens/`. `check:visual` uses pinned pixelmatch
+  7.1.0 (ISC), vendored unmodified for the development gate so the shared
+  `node_modules` installation is never changed. The comparison threshold is
+  zero changed pixels, with per-pixel threshold zero and AA filtering off.
+  Missing local archives are regenerated from the recorded Git revision in
+  ignored `temp/`, in the candidate's browser/environment; missing revisions
+  or captures fail. Updates require a named review; normal checks never
+  rewrite the manifest. Follow local CSS imports in the host-API inventory,
+  regenerate its record, refresh curated README media, document tokens/fonts
+  and gates, and record equivalent editor bindings with C/N/D awaiting their
+  milestones. No live/paid calls or new shipping bundle code.
+
 - **Lane 0's contracts,** frozen before the other lanes start:
   - the token names and groups, with each role's VS Code variable and its
     Muse palette values;
