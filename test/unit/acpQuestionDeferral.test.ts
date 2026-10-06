@@ -249,6 +249,26 @@ describe('M112 ACP form deferral', () => {
     expect(f.failed).not.toHaveBeenCalled()
   })
 
+  it('an interruption waits for registry opening before consuming a late form answer', async () => {
+    const f = fixture(10)
+    const { asking } = await waitingForm(f)
+    const gate = Promise.withResolvers<undefined>()
+    const original = f.registry.turnEnded.getMockImplementation()!
+    f.registry.turnEnded.mockImplementationOnce(async (isCancelled) => {
+      await gate.promise
+      await original(isCancelled)
+    })
+    const ending = f.controller.turnEnded(false)
+    f.client.answer(1, { action: 'accept', content: { colour: 'Blue' } })
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(f.delivery).not.toHaveBeenCalled()
+    gate.resolve(undefined)
+    await ending
+    await asking
+    expect(f.delivery).toHaveBeenCalledTimes(1)
+    expect(f.session.answerQuestions).not.toHaveBeenCalled()
+  })
+
   it('an uncertain registry answer produces no retry advice', async () => {
     const f = fixture(0, false)
     await f.ask()
@@ -269,6 +289,9 @@ describe('M112 ACP form deferral', () => {
     expect(f.delivery).not.toHaveBeenCalled()
     expect(f.session.answerQuestions).not.toHaveBeenCalled()
     expect(f.failed.mock.calls).toEqual([[]])
+    expect(f.session.cancelQuestions).toHaveBeenCalledExactlyOnceWith('q-1')
+    expect(f.registry.replyWaiting).toHaveBeenCalledExactlyOnceWith('q-1', { kind: 'cancelled' })
+    expect(f.registry.list()).toEqual([])
   })
 
   it('registration failure declines explicitly and starts no form or clock', async () => {
@@ -693,6 +716,69 @@ describe('M112 through the pinned ACP SDK client', () => {
         expect.stringContaining('question state was not saved'),
       )
       expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('PRIVATE-QUESTION-CANARY')
+    })
+  })
+
+  it('Stop cancels the backend before a pending question write settles', async () => {
+    const h = agentHarness()
+    await h.run(async (client) => {
+      const { response } = await startedPrompt(h, client)
+      const gate = Promise.withResolvers<undefined>()
+      h.registries[0]?.turnEnded.mockReturnValueOnce(gate.promise)
+      await client.notify('session/cancel', { sessionId: h.session.sessionId })
+      await until(() => h.registries[0]?.turnEnded.mock.calls.length === 1)
+      await new Promise((resolve) => setImmediate(resolve))
+      try {
+        expect(h.session.cancel).toHaveBeenCalledTimes(1)
+      } finally {
+        gate.resolve(undefined)
+        h.finish()
+        await response
+      }
+    })
+  })
+
+  it('a refused steer after session release cannot enqueue on its disposed registry', async () => {
+    const h = agentHarness()
+    await h.run(async (client) => {
+      const { response } = await requestedQuestion(h, client)
+      await until(() => h.registries[0]?.list()[0]?.state === 'open')
+      const gate = Promise.withResolvers<TurnSubmission>()
+      h.session.steer.mockReturnValueOnce(gate.promise)
+      const answer = h.prompt(client, '/answer 1 Blue')
+      await until(() => h.session.steer.mock.calls.length === 1)
+      await client.request('session/close', { sessionId: h.session.sessionId })
+      expect(h.registries[0]?.dispose).toHaveBeenCalledTimes(1)
+      gate.reject(new SteerRefusedError('session released'))
+      await answer
+      expect(await response).toEqual({ stopReason: 'cancelled' })
+      expect(h.registries[0]?.queue).not.toHaveBeenCalled()
+    })
+  })
+
+  it('an idle answer announces queued until the next prompt sends it', async () => {
+    const h = agentHarness()
+    await h.run(async (client) => {
+      const { response } = await requestedQuestion(h, client)
+      await until(() => h.registries[0]?.list()[0]?.state === 'open')
+      h.finish()
+      await response
+      await h.prompt(client, '/answer 1 Blue')
+      const notices = h.updates.filter((update) => update.sessionUpdate === 'agent_message_chunk')
+      expect(notices).toContainEqual({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: UI_TEXT.acpQuestionAnswerQueued },
+      })
+      expect(JSON.stringify(notices)).not.toContain(UI_TEXT.announceLateAnswerSent)
+      expect(h.session.steer).not.toHaveBeenCalled()
+      expect(h.session.sendTurn).toHaveBeenCalledTimes(1)
+      expect(h.registries[0]?.queued).toHaveLength(1)
+      const next = h.prompt(client, 'continue')
+      await until(() => h.session.sendTurn.mock.calls.length === 2)
+      h.finish('turn-2')
+      await next
+      expect(JSON.stringify(h.updates)).toContain(UI_TEXT.announceLateAnswerSent)
+      expect(h.registries[0]?.queued).toHaveLength(0)
     })
   })
 

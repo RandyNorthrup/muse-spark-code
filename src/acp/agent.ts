@@ -235,6 +235,7 @@ function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
 class AcpSession {
   private readonly questionRegistry: AcpQuestionRegistry | undefined
   private readonly questions: AcpQuestionDeferral | undefined
+  private readonly queuedQuestionAnswers = new Set<string>()
   private readonly translator: UpdateTranslator
   private unsubscribe: (() => void) | undefined
   private readonly approvals = new Map<string, ApprovalRequest>()
@@ -285,6 +286,7 @@ class AcpSession {
             clock: questionClock,
             seconds: deps.options.questionsDeferAfterSeconds ?? QUESTION_DEFER_DEFAULT_SECONDS,
             session,
+            isQueued: (id) => this.queuedQuestionAnswers.has(id),
             notice: (text) => {
               this.questionNotice(text)
             },
@@ -683,9 +685,14 @@ class AcpSession {
         if (!isSteerRefusedError(error)) return 'uncertain'
       }
     }
+    if (!this.holdsQuestionSession()) return 'notTaken'
     const outcome = await this.questionRegistry.queue(message)
-    if (outcome === 'taken') this.questionNotice(UI_TEXT.acpQuestionAnswerQueued)
+    if (outcome === 'taken') this.queuedQuestionAnswers.add(message.userInputId)
     return outcome
+  }
+
+  private holdsQuestionSession(): boolean {
+    return !this.isDisposed
   }
 
   /**
@@ -962,6 +969,10 @@ class AcpSession {
       this.noteTurnId(submission.turnId)
       try {
         await this.questionRegistry?.acknowledgeQueued('taken')
+        if (queued.length > 0) {
+          this.queuedQuestionAnswers.clear()
+          this.questionNotice(UI_TEXT.announceLateAnswerSent)
+        }
       } catch {
         throw RequestError.internalError(undefined, UI_TEXT.questionAnswerUncertain)
       }
@@ -1003,11 +1014,9 @@ class AcpSession {
     }
     if (this.pending === undefined) this.activeTurnId = undefined
     else this.pending.isCancelled = true
-    try {
-      await this.questions?.turnEnded(true)
-    } catch {
+    void this.questions?.turnEnded(true).catch(() => {
       this.deps.log.warn(`ACP session ${this.sessionId}: question state was not saved`)
-    }
+    })
     // Stopped once its start is answered, as in release(): a stop sent
     // while the turn is still starting finds no turn, and the turn would
     // then run on, editing and billing, while the editor is told it ended.

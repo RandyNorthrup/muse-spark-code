@@ -19,6 +19,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- ACP Stop cancels without waiting for question storage. Late form answers
+  wait for registry opening, failed deferrals explicitly cancel the waiting
+  tool, and released sessions cannot queue refused steers. Idle answers are
+  announced as queued until the next prompt actually sends them.
+
 - Correct the frozen question contract: scheduled/unattended prompts defer
   immediately, including when interactive deferral is disabled.
 

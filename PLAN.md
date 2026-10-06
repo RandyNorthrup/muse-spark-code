@@ -18371,6 +18371,18 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM112A (2026-10-06, RVM112A).** Repair all six ACP findings in lane A:
+Stop dispatches cancellation without waiting on question storage; late forms
+wait for the registry's open transition; a failed deferral explicitly cancels
+the waiting backend question; refused steers recheck session ownership before
+queuing; idle answers acknowledge durable queuing until delivery; question
+handling loads on first question/command. The last repair includes its own
+build, split, package and graph-entry registration, keeping every existing
+cap and guard. Each finding gets a failing regression and byte-restored red
+drill in `docs/certification/m112-a.md`. The rig/shared rules delegate full
+quality and Q/U integration to the lead; this lane runs its focused suites
+and required static/build checks without merging, pushing or paid calls.
+
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
 test files, deliberate failures, typecheck, scoped lint/format, deadcode,

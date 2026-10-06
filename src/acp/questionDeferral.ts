@@ -93,6 +93,7 @@ interface AcpQuestionDeferralDeps {
   readonly seconds: number
   readonly session: AgentSession
   readonly notice: (text: string) => void
+  readonly isQueued?: (id: string) => boolean
   /** Fixed diagnostic only; never the form, response or question text. */
   readonly failed: () => void
 }
@@ -137,7 +138,9 @@ export class AcpQuestionDeferral {
     }
     switch (outcome) {
       case 'taken': {
-        return UI_TEXT.announceLateAnswerSent
+        return this.deps.isQueued?.(id) === true
+          ? UI_TEXT.acpQuestionAnswerQueued
+          : UI_TEXT.announceLateAnswerSent
       }
       case 'uncertain': {
         return UI_TEXT.questionAnswerUncertain
@@ -179,9 +182,44 @@ export class AcpQuestionDeferral {
         this.deps.notice(fill(UI_TEXT.acpQuestionDeferred, { number: this.number(form.cardId) }))
       return isOpened
     } catch {
-      form.phase = 'closed'
-      form.controller.abort()
+      await this.failDeferral(form)
+      return false
+    }
+  }
+
+  private async failDeferral(form: Form): Promise<void> {
+    if (this.closed(form)) return
+    form.phase = 'closed'
+    form.cancelTimer?.()
+    form.controller.abort()
+    this.deps.failed()
+    try {
+      await this.deps.registry.replyWaiting(form.cardId, { kind: 'cancelled' })
+    } catch {
       this.deps.failed()
+      try {
+        await this.deps.session.cancelQuestions(form.event.userInputId)
+      } catch {
+        this.deps.failed()
+      }
+    }
+  }
+
+  private async openAfterTurn(
+    form: Form,
+    opening: Promise<void>,
+    previous: Promise<boolean> | undefined,
+  ): Promise<boolean> {
+    try {
+      await previous
+      await opening
+      if (this.closed(form)) return false
+      const record = this.deps.registry.list().find((entry) => entry.userInputId === form.cardId)
+      const isOpen = record?.state === 'open'
+      form.phase = isOpen ? 'open' : 'closed'
+      return isOpen
+    } catch {
+      await this.failDeferral(form)
       return false
     }
   }
@@ -322,12 +360,19 @@ export class AcpQuestionDeferral {
   }
 
   public async turnEnded(isCancelled: boolean): Promise<void> {
+    const opening = this.deps.registry.turnEnded(isCancelled)
     for (const form of this.forms.values()) {
       form.cancelTimer?.()
-      if (form.phase !== 'open') form.phase = isCancelled ? 'closed' : 'open'
+      if (form.phase !== 'open' && form.phase !== 'closed') {
+        if (isCancelled) form.phase = 'closed'
+        else {
+          form.phase = 'deferring'
+          form.deferral = this.openAfterTurn(form, opening, form.deferral)
+        }
+      }
       form.controller.abort()
     }
-    await this.deps.registry.turnEnded(isCancelled)
+    await opening
   }
 
   public dispose(): void {
