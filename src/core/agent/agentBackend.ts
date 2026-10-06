@@ -15,6 +15,8 @@ import type {
 } from '../../shared/agentEvents'
 import type { GoalCommandVerb, SubagentAction } from '../../shared/constants'
 import type { SubscriptionUsage } from '../../shared/usage'
+import type { QuestionDeferralPort } from '../../shared/questions'
+export type { QuestionDeferralPort } from '../../shared/questions'
 import type {
   ScheduleCadence,
   ScheduledPrompt,
@@ -25,6 +27,7 @@ import type { SessionExport } from '../export/sessionTransfer'
 import type { ExtensionHookDispatch, ExtensionHookEvent } from '../backends/modelapi/extensionHooks'
 
 export type BackendKind = 'museCode' | 'modelApi'
+
 /** Shared empty result; importing it never loads a backend bundle. */
 export const NO_EXTENSION_HOOK_DISPATCH: ExtensionHookDispatch = {
   refusedReason: undefined,
@@ -491,6 +494,12 @@ export interface AgentSession {
   answerQuestions(userInputId: string, answers: readonly QuestionAnswer[]): Promise<void>
   /** Decline the prompt: the tool call resolves with a cancelled result the model sees (M16). */
   cancelQuestions(userInputId: string): Promise<void>
+  /**
+   * M112: continue without guessing, preserving the question for a late answer.
+   * Optional during lane 0's handoff: Q binds both backends before enabling
+   * the registry, which requires QuestionDeferralPort as an injected dependency.
+   */
+  readonly deferQuestions?: QuestionDeferralPort['deferQuestions']
   /**
    * Settle an MCP elicitation form (M91 lane M): accept with validated
    * values, or decline or cancel. Absent where the backend never asks

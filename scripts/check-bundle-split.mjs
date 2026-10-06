@@ -698,6 +698,19 @@ function shipped(output) {
 }
 const TEXT_BLOCKS = [
   {
+    block: 'QUESTION_MODEL_TEXT',
+    sentinels: ['deferredClarification', 'lateAnswer'],
+    // M112 Q binds these readers. The controller moved to its own lazy
+    // bundle after D92 was written; do not drag its text into activation
+    // simply to satisfy a stale reader list.
+    readers: [
+      BUNDLES.activation.output,
+      'dist/conversation.js',
+      BUNDLES.modelApi.output,
+      BUNDLES.acp.output,
+    ],
+  },
+  {
     block: 'CONVERSATION_MODEL_TEXT',
     sentinels: ['planBriefRequest', 'replyContextLead'],
     readers: ['dist/conversation.js', BUNDLES.modelApi.output],

@@ -3194,6 +3194,35 @@ export const CLARIFICATION_FORMAT = 'text'
 export const CLARIFICATION_MAX_CHARS = 500
 export const QUESTION_OUTCOME_CLARIFIED = 'clarified'
 
+// Questions that never block (M112, PLAN.md D92). These limits apply in
+// the process holding the session, on every interactive editor surface.
+export const QUESTION_OUTCOME_DEFERRED = 'deferred'
+export const QUESTION_DEFER_DEFAULT_SECONDS = 60
+export const QUESTION_DEFER_MIN_SECONDS = 10
+export const QUESTION_DEFER_MAX_SECONDS = 3600
+export const QUESTION_DEFER_SETTING = 'questions.deferAfterSeconds'
+export const QUESTION_REMINDERS_MAX = 2
+export const OPEN_QUESTIONS_MAX = 20
+// Internal question handles are bounded without truncating identity. At
+// this limit both id slots in deferredClarification still fit MSP's 500.
+export const QUESTION_ID_MAX_CHARS = 100
+export const LATE_ANSWER_QUESTION_MAX_CHARS = 2000
+export const ATTENTION_DOCK_MAX_VIEWPORT_FRACTION = 0.5
+
+// Fixed English for the model, separate from MODEL_TEXT. Final readers:
+// dist/extension.js, dist/modelApi.js and dist/acp.js (D92.10); the
+// controller's lazy dist/conversation.js also needs lateAnswer/dismissed.
+// Lane Q binds these readers; lane 0 introduces only their contracts.
+export const QUESTION_MODEL_TEXT = {
+  deferred:
+    '<harness_note>The user has not answered question {id} yet. Continue with work that does not depend on the answer. Do not guess the answer and do not ask again. The answer will arrive later as a user message that begins "Answer to your earlier question {id}".</harness_note>',
+  deferredClarification:
+    '<harness_note>The user has not answered question {id} yet. Continue with work that does not depend on the answer. Do not guess the answer and do not ask again. The answer will arrive later as a user message that begins "Answer to your earlier question {id}".</harness_note>',
+  lateAnswer: 'Answer to your earlier question {id}\nQuestion:\n{question}\n{answer}',
+  dismissed:
+    '<harness_note>The user dismissed question {id} without answering. Continue with work that does not depend on the answer. Do not guess the answer and do not ask again.</harness_note>',
+} as const
+
 // --- Subagents, background tasks and usage insights (M14, PLAN.md D17) ---
 
 // Muse Code hides its subagent tools unless this setting in its own

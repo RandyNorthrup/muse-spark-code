@@ -55,6 +55,12 @@ import { paidStateSchema } from './paid'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'
 import { scheduleCadenceSchema } from './schedule'
+import {
+  answerOpenQuestionSchema,
+  dismissOpenQuestionSchema,
+  jumpToOpenQuestionSchema,
+  openQuestionsMessageSchema,
+} from './questions'
 import { bestOfNRunSchema } from './bestOfN'
 import { boardRowSchema } from './sessionBoard'
 import { sessionRowSchema } from './sessions'
@@ -501,6 +507,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   }),
   // Question card: Cancel declines the prompt; the model sees a cancelled result (M16).
   z.object({ type: z.literal('cancelQuestion'), userInputId: z.string() }),
+  // M112: explicit session identity rejects answers from stale surfaces.
+  answerOpenQuestionSchema,
+  dismissOpenQuestionSchema,
+  jumpToOpenQuestionSchema,
   // Elicitation form (M91 lane M): accept with the form's values (validated
   // against the schema before they reach the server), or decline or cancel.
   z.object({
@@ -765,6 +775,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
 
 const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
+  // Posted on attach and each registry change; terminal updates settle both views.
+  openQuestionsMessageSchema,
+  // Palette/key navigation uses the same contract as the chip's Next/Previous.
+  jumpToOpenQuestionSchema,
   // Reply to `ready`: everything the shell needs to render its first frame.
   z.object({
     type: z.literal('init'),
