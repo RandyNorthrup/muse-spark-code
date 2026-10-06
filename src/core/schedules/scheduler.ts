@@ -138,7 +138,10 @@ export function createScheduler(deps: SchedulerDeps) {
       return
     const current = { ...intent, schedule: job }
     if (!(await deps.runs.admit(current))) return
-    await deps.runs.advance(current)
+    if (!(await deps.runs.advance(current))) {
+      await settle(current, unspent(current, deps.host.now(), 'skipped'))
+      return
+    }
     if (isMissed && job.catchUp === 'skip') {
       await settle(current, unspent(current, deps.host.now(), 'missed'))
       return
@@ -349,10 +352,13 @@ export function createScheduler(deps: SchedulerDeps) {
         await deps.queue.serialize(targetKey(intent.schedule), async () => {
           const records = await deps.store.fires(workspaceKey)
           const existing = records.find((fire) => fire.runId === intent.runId)
-          await deps.runs.advance(intent)
+          const isAdmitted = await deps.runs.advance(intent)
           await settle(
             intent,
-            existing ?? (await deps.failureSettlement(intent, new Error('scheduleOwnerExited'))),
+            existing ??
+              (isAdmitted
+                ? await deps.failureSettlement(intent, new Error('scheduleOwnerExited'))
+                : unspent(intent, deps.host.now(), 'skipped')),
           )
         })
       }

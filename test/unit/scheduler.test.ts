@@ -292,6 +292,36 @@ describe('M115 host-neutral scheduler', () => {
     host.settle(settled(host, 0))
     await run
   })
+  it('atomically admits only one of two parallel manual runs at an after-N boundary', async () => {
+    const job = fakeSchedule({
+      parallel: true,
+      target: { kind: 'newConversation', backend: 'modelApi' },
+      delivery: 'newConversation',
+      end: { afterRuns: 1 },
+    })
+    const { scheduler, host, store, deps } = await fixture('parallel-limit', [job])
+    const second = createScheduler(deps)
+    const admit = store.admit.bind(store)
+    let count = 0
+    const { promise: bothClaimed, resolve: release } = Promise.withResolvers<undefined>()
+    vi.spyOn(store, 'admit').mockImplementation(async (intent) => {
+      const isResult = await admit(intent)
+      count += 1
+      if (count === 2) release(undefined)
+      await bothClaimed
+      return isResult
+    })
+    const request = { method: 'schedules/runNow', workspaceKey: job.workspaceKey, id: job.id }
+    await Promise.all([scheduler.request(request, 'race-1'), second.request(request, 'race-2')])
+    expect(host.deliveries).toHaveLength(1)
+    const jobs = await store.list(job.workspaceKey)
+    expect(jobs[0]?.fireCount).toBe(1)
+    const fires = await store.fires(job.workspaceKey)
+    expect(fires.map((fire) => fire.outcome).toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'ran',
+      'skipped',
+    ])
+  })
   it('uses fresh grant and mode after waiting in the target queue', async () => {
     const { scheduler, store, host, queue } = await fixture('fresh', [
       fakeSchedule({
@@ -546,16 +576,39 @@ describe('M115 host-neutral scheduler', () => {
     expect(host.deliveries[0]?.occurrenceMs).toBeGreaterThan(clock.now())
   })
   it('records a skipped, unspent run when ownership or pause changes just after the durable claim', async () => {
-    for (const change of ['ownership', 'pause'] as const) {
+    for (const change of [
+      'ownership',
+      'pause',
+      'remove',
+      'expiry',
+      'trigger',
+      'zone',
+      'target',
+      'delivery',
+    ] as const) {
       const { deps, host, scheduler, store } = await fixture(`claimed-${change}`)
       const original = store.advance.bind(store)
       vi.spyOn(deps.runs, 'advance').mockImplementation(async (intent) => {
-        await original(intent)
+        const isResult = await original(intent)
         if (change === 'ownership') host.workspaces.clear()
+        else if (change === 'remove') await store.remove('workspace-1', intent.schedule.id)
         else {
           const [job] = await store.list('workspace-1')
-          await store.update({ ...job!, paused: true })
+          await store.update({
+            ...job!,
+            ...(change === 'pause' && { paused: true }),
+            ...(change === 'expiry' && { end: { atMs: host.now() } }),
+            ...(change === 'trigger' && {
+              trigger: { kind: 'once', atMs: host.now() + SCHEDULE_MIN_INTERVAL_MS },
+            }),
+            ...(change === 'zone' && { zone: 'Europe/London' }),
+            ...(change === 'target' && {
+              target: { kind: 'conversation', backend: 'modelApi', sessionId: 'changed' },
+            }),
+            ...(change === 'delivery' && { delivery: 'steer' }),
+          })
         }
+        return isResult
       })
       await scheduler.poll('workspace-1')
       expect(host.deliveries).toEqual([])
@@ -592,6 +645,28 @@ describe('M115 host-neutral scheduler', () => {
       cost: { usd: 0.2, certainty: 'unknown', retainedLiabilityUsd: 0.8 },
     })
     expect(await store.admit(intent)).toBe(false)
+  })
+  it('recovers an unspent declined admission without dispatch or invented liability', async () => {
+    const job = fakeSchedule({ end: { afterRuns: 1 }, fireCount: 1 })
+    const { store, deps, scheduler, host } = await fixture('recover-declined', [job])
+    const intent = {
+      schedule: job,
+      runId: 'schedule-1:declined',
+      occurrenceMs: job.nextFireAtMs!,
+      advancesTime: false,
+    }
+    await store.admit(intent)
+    vi.spyOn(store, 'abandoned').mockResolvedValue([intent])
+    await scheduler.recover(job.workspaceKey)
+    expect(host.deliveries).toEqual([])
+    expect(deps.failureSettlement).not.toHaveBeenCalled()
+    const fires = await store.fires(job.workspaceKey)
+    expect(fires[0]).toMatchObject({
+      outcome: 'skipped',
+      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+    })
+    const jobs = await store.list(job.workspaceKey)
+    expect(jobs[0]?.fireCount).toBe(1)
   })
   it('hands a manual event composed with time to E/T before any delivery', async () => {
     const job = fakeSchedule({

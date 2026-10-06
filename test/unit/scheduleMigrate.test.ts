@@ -37,6 +37,20 @@ async function fixture(name: string) {
 }
 
 describe('M115 verified M52 migration', () => {
+  it('refuses inconsistent source identifiers and unsafe receipt times without removing bytes', async () => {
+    const wrong = await fixture('wrong-id')
+    const file = path.join(wrong.directory, `${wrong.job.id}.json`)
+    const content = JSON.stringify({ ...wrong.job, id: 'different-id' })
+    await writeFile(file, content)
+    await expect(wrong.source.freeze()).rejects.toThrow('IdentityMismatch')
+    expect(await readFile(file, 'utf8')).toBe(content)
+    const unsafe = await fixture('unsafe-receipt')
+    await writeFile(path.join(unsafe.directory, `${unsafe.job.id}.NaN.claim`), '{}')
+    await expect(unsafe.source.freeze()).rejects.toThrow('ReceiptInvalid')
+    expect(await readFile(path.join(unsafe.directory, `${unsafe.job.id}.json`), 'utf8')).toBe(
+      JSON.stringify(unsafe.job),
+    )
+  })
   it('copies and reopens a real M52 job with all fields preserved before removing it', async () => {
     const { job, directory, store, source, old } = await fixture('copy')
     expect(await migrateSchedules(source, store, 'workspace-1', 'America/Los_Angeles')).toBe(1)

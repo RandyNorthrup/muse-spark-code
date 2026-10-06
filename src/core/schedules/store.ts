@@ -47,6 +47,7 @@ const indexSchema = z.strictObject({
   schedules: z.array(scheduleV2Schema),
   retired: z.array(identifier),
   admitted: z.optional(z.array(scheduleFireRecordSchema.shape.runId)),
+  declined: z.optional(z.array(scheduleFireRecordSchema.shape.runId)),
   settled: z.optional(z.array(scheduleFireRecordSchema.shape.runId)),
   timeCursors: z.optional(z.record(identifier, z.int().check(z.gte(0)))),
 })
@@ -62,7 +63,8 @@ export type ScheduleRunIntent = z.infer<typeof intentSchema>
 export interface ScheduleRunJournalPort {
   /** Atomically claim with recovery facts before any delivery or spending. */
   admit(intent: ScheduleRunIntent): Promise<boolean>
-  advance(intent: ScheduleRunIntent): Promise<void>
+  /** Atomically enforces after-N; a declined receipt can never revive. */
+  advance(intent: ScheduleRunIntent): Promise<boolean>
   abandoned(workspaceKey: string): Promise<readonly ScheduleRunIntent[]>
 }
 const claimSchema = z.strictObject({
@@ -249,7 +251,22 @@ export function createScheduleStore(fs: ScheduleFsPort): ScheduleStoreV2 & Sched
       const journal = index(intent.schedule.workspaceKey)
       for (;;) {
         const current = await journal.read()
-        if (current.value.admitted?.includes(intent.runId)) return
+        if (current.value.admitted?.includes(intent.runId)) return true
+        if (current.value.declined?.includes(intent.runId)) return false
+        const job = current.value.schedules.find((entry) => entry.id === intent.schedule.id)
+        if (
+          job === undefined ||
+          (job.end?.afterRuns !== undefined && job.fireCount >= job.end.afterRuns)
+        ) {
+          if (
+            await journal.replace(current.revision, {
+              ...current.value,
+              declined: [...(current.value.declined ?? []), intent.runId],
+            })
+          )
+            return false
+          continue
+        }
         const cursorKey = scheduleStorageHash(
           JSON.stringify({
             id: intent.schedule.id,
@@ -288,7 +305,7 @@ export function createScheduleStore(fs: ScheduleFsPort): ScheduleStoreV2 & Sched
             }),
           })
         )
-          return
+          return true
       }
     },
     async abandoned(workspaceKey) {

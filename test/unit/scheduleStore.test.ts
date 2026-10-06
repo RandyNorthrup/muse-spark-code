@@ -5,8 +5,12 @@ import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createScheduleStore, scheduleStorageHash } from '../../src/core/schedules/store'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import {
+  createScheduleStore,
+  scheduleStorageHash,
+  isScheduleProcessAlive,
+} from '../../src/core/schedules/store'
 import {
   createNodeScheduleFs,
   createNodeScheduleQueue,
@@ -32,6 +36,7 @@ beforeAll(async () => {
           let result;
           if (mode === 'claim') result = await store.claim(value);
           if (mode === 'admit') result = await store.admit(JSON.parse(value));
+          if (mode === 'advance') result = await store.advance(JSON.parse(value));
           if (mode === 'update') result = await store.update(JSON.parse(value));
           if (mode === 'queue') {
             await createNodeScheduleQueue(directory).serialize(value, async () => {
@@ -269,6 +274,47 @@ describe('M115 durable shared store', () => {
     await expect(fs.names('workspace-1')).rejects.toThrow('LinkRefused')
     await writeFile(path.join(outside, 'data'), 'private')
     await expect(fs.read('workspace-1/data')).rejects.toThrow('LinkRefused')
+    await symlink(path.join(outside, 'data'), path.join(directory, 'private-link'), 'file')
+    await expect(fs.read('private-link')).rejects.toThrow('LinkRefused')
+  })
+  it('rejects unsafe revisions, vanished indices and inconsistent claim identities', async () => {
+    const directory = path.join(root, 'journal-boundaries')
+    const fs = createNodeScheduleFs(directory)
+    const store = createScheduleStore(fs)
+    const job = fakeSchedule()
+    await store.create(job)
+    const read = vi.spyOn(fs, 'read').mockResolvedValue(undefined)
+    await expect(store.list(job.workspaceKey)).rejects.toThrow('IndexMissing')
+    read.mockRestore()
+    await writeFile(path.join(directory, 'workspace-1/index/9007199254740992.json'), '{}')
+    await expect(store.list(job.workspaceKey)).rejects.toThrow('IndexRevisionInvalid')
+    const claimDirectory = path.join(root, 'claim-boundaries')
+    const claims = createNodeScheduleFs(claimDirectory)
+    const claimStore = createScheduleStore(claims)
+    const intent = { schedule: job, runId: 'schedule-1:1', occurrenceMs: 1, advancesTime: false }
+    await claimStore.admit(intent)
+    const file = path.join(claimDirectory, 'claims', `${scheduleStorageHash(intent.runId)}.json`)
+    for (const claim of [
+      {
+        runId: 'different-run',
+        ownerPid: process.pid,
+        intent: { ...intent, runId: 'different-run' },
+      },
+      { runId: intent.runId, ownerPid: process.pid, intent: { ...intent, runId: 'different-run' } },
+    ]) {
+      await writeFile(file, JSON.stringify(claim))
+      await expect(claimStore.abandoned(job.workspaceKey)).rejects.toThrow('ClaimIdentityMismatch')
+    }
+  })
+  it('never treats an inaccessible process as a dead owner', () => {
+    const kill = vi.spyOn(process, 'kill').mockImplementation(() => {
+      throw Object.assign(new Error('private OS detail'), { code: 'EPERM' })
+    })
+    try {
+      expect(isScheduleProcessAlive(1)).toBe(true)
+    } finally {
+      kill.mockRestore()
+    }
   })
   it('keeps cost, refusal and liability facts intact, refusing conflicting settlement', async () => {
     const directory = path.join(root, 'settlement')
@@ -372,6 +418,28 @@ describe('M115 durable shared store', () => {
       consecutiveFailures: 0,
       paused: false,
     })
+  })
+  it('enforces after-N in two real processes and permanently refuses declined or removed runs', async () => {
+    const directory = path.join(root, 'admission-limit')
+    const store = createScheduleStore(createNodeScheduleFs(directory))
+    const job = fakeSchedule({ end: { afterRuns: 1 } })
+    await store.create(job)
+    const first = { schedule: job, runId: 'schedule-1:first', occurrenceMs: 1, advancesTime: false }
+    const second = { ...first, runId: 'schedule-1:second' }
+    for (const intent of [first, second]) await store.admit(intent)
+    const results = await Promise.all(
+      [first, second].map((intent) => worker(directory, 'advance', JSON.stringify(intent))),
+    )
+    expect(results.toSorted((a, b) => a.localeCompare(b))).toEqual(['false', 'true'])
+    const declined = results[0] === 'false' ? first : second
+    const [current] = await store.list(job.workspaceKey)
+    expect(current?.fireCount).toBe(1)
+    await store.update({ ...current!, end: { afterRuns: 2 } })
+    expect(await store.advance(declined)).toBe(false)
+    const removed = { ...first, runId: 'schedule-1:removed' }
+    await store.admit(removed)
+    await store.remove(job.workspaceKey, job.id)
+    expect(await store.advance(removed)).toBe(false)
   })
   it('never regresses a newer time cursor during crash recovery or confuses it with a manual wall time', async () => {
     const directory = path.join(root, 'cursor')
