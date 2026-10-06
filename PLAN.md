@@ -28422,6 +28422,18 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
 
 ### M117 — The capacity estimator (D97)
 
+**Lane-R review repair (FIXM117R, 2026-10-06).** Fix all three RVM117R
+P2 findings within the recommendation lane: exact nano-USD cost arithmetic
+through the explicitly requested `src/shared/usd.ts`, zero incremental rental
+cost for every existing machine, and speed expansion through additional
+slots on existing machines within unchanged governor/user/account limits.
+Preserve missing-price refusal for new rentals, all existing resource and
+four-hour marginal guards, and the public result shape. Each finding gets a
+regression and a deliberate failure with byte-exact SHA-256 restoration in
+`docs/certification/m117-r-recommendations.md`. No dependency or product
+surface is added; W retains shipping, product documentation and reference
+bindings.
+
 **Lane-0 review repair (FIXM117L0, 2026-10-06).** RVM117L0's four P2 and
 two P3 findings are all in scope before freezing the contracts. Goals consume
 the documented grammar, including the colon for named kinds. Account windows
@@ -28703,6 +28715,13 @@ anywhere joined it).
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**FIXM117R scoped rig certification (2026-10-06).** The lane/shared brief
+prohibits aggregate `npm run quality`; the lead owns that gate. Run owning
+recommendation, price and exact-money tests with the default timeout, red
+drills, all five typechecks, scoped lint/format, deadcode, duplication,
+localization, reference, host API and production build directly on Mac mini.
+Keep hooks on; no merge, rebase, push or weakened gate is authorized.
 
 **FIXM117L0 scoped rig certification (2026-10-06).** The lane/shared brief
 prohibits aggregate `npm run quality` and assigns it to the lead. This repair
@@ -30072,6 +30091,14 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM117R review outcome.** All three RVM117R P2 findings are fixed with
+  exact-money and existing-fleet regressions and eleven deliberate failures
+  followed by byte-exact restoration; no finding is deferred. R's existing
+  S/C, real fleet/catalog, U disclosure
+  and W shipping/product-doc bindings remain explicit in
+  `docs/certification/m117-r-recommendations.md`. This lane makes no live,
+  paid or public-network call and introduces no reachable product surface.
 
 - **FIXM117L0 contract review.** All six RVM117L0 findings are fixed
   before the lane-0 freeze, with regression tests and byte-exact red drills;

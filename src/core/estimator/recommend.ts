@@ -18,6 +18,14 @@ import {
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
+import {
+  addUsdNanos,
+  compareUsdNanos,
+  displayUsdNanos,
+  scaleUsdNanos,
+  usdNanos,
+  type UsdNanos,
+} from '../../shared/usd'
 import { compareEstimateIds } from './goal'
 import { type EstimateSimulation } from './simulate'
 
@@ -36,6 +44,7 @@ export interface EstimateRecommendation {
   evaluations: {
     fleet: FleetSnapshot
     forecast: ReturnType<EstimateRecommendationPort['forecast']>
+    /** Upward nano-USD display projection; selection uses exact fractions. */
     rentalCostP90Usd?: number
   }[]
   selections: { kind: Setup['kind']; evaluation: number }[]
@@ -168,6 +177,7 @@ export function recommendEstimate(
     key(subset(pool, new Set(current.slots.map((slot) => slot.id)))) === key(current)
   if (variants + (hasBaseline ? 0 : 1) > ESTIMATE_MAX_ITEMS) refuse('recommendation-search-limit')
   const evaluations: EstimateRecommendation['evaluations'] = []
+  const exactCosts = new Map<number, UsdNanos>()
   const indexed = new Map<string, number>()
   const evaluate = (fleet: FleetSnapshot): number => {
     const identity = key(fleet)
@@ -189,12 +199,20 @@ export function recommendEstimate(
         Math.abs(Date.parse(p90) - asOf - p90Hours * HOUR_MS) >= 1
       )
         refuse('forecast-quantiles')
-      const rented = fleet.machines.filter((machine) => machine.source === 'rented')
+      const rented = fleet.machines.filter(
+        (machine) =>
+          machine.source === 'rented' &&
+          current.machines.every((existing) => existing.id !== machine.id),
+      )
       const rates = rented.map(
         (machine) => prices.find((row) => row.machineId === machine.id)?.price.hourlyUsd,
       )
       if (rates.every((rate) => rate !== undefined)) {
-        rentalCostP90Usd = rates.reduce((sum, rate) => sum + rate, 0) * p90Hours
+        let hourly = usdNanos(0)
+        for (const rate of rates) hourly = addUsdNanos(hourly, usdNanos(rate))
+        const exactCost = scaleUsdNanos(hourly, p90Hours)
+        exactCosts.set(evaluations.length, exactCost)
+        rentalCostP90Usd = displayUsdNanos(exactCost)
         if (!Number.isFinite(rentalCostP90Usd)) refuse('cost-overflow')
       }
     } else if (forecast.reason.length === 0) refuse('missing-infeasibility-reason')
@@ -233,15 +251,17 @@ export function recommendEstimate(
   const p50 = minimum('p50')
   const p90 = minimum('p90')
   const cost = feasible
-    .filter(
-      (entry) =>
+    .flatMap((entry) => {
+      const exactCost = exactCosts.get(entry.index)
+      return exactCost !== undefined &&
         deadline !== undefined &&
-        Date.parse(entry.simulation.p90) <= Date.parse(deadline) &&
-        entry.rentalCostP90Usd !== undefined,
-    )
+        Date.parse(entry.simulation.p90) <= Date.parse(deadline)
+        ? [{ ...entry, exactCost }]
+        : []
+    })
     .toSorted(
       (a, b) =>
-        (a.rentalCostP90Usd ?? Infinity) - (b.rentalCostP90Usd ?? Infinity) ||
+        compareUsdNanos(a.exactCost, b.exactCost) ||
         compareCounts(a.fleet, b.fleet) ||
         a.simulation.p90Hours - b.simulation.p90Hours ||
         a.index - b.index,
@@ -259,7 +279,7 @@ export function recommendEstimate(
     ? [existing]
     : extensions.filter((entry) => first && compareCounts(entry.fleet, first.fleet) === 0)
   const reachable = new Set(roots.map((entry) => entry.index))
-  // Explore every qualifying one-machine expansion. A greedy first purchase
+  // Explore qualifying slot additions and one-machine expansions. A greedy first purchase
   // can be a dead end even when a different path reaches a faster setup.
   for (const entry of ordered) {
     if (reachable.has(entry.index)) continue
@@ -267,7 +287,9 @@ export function recommendEstimate(
       ordered.some(
         (before) =>
           reachable.has(before.index) &&
-          entry.fleet.machines.length === before.fleet.machines.length + 1 &&
+          (entry.fleet.machines.length === before.fleet.machines.length ||
+            entry.fleet.machines.length === before.fleet.machines.length + 1) &&
+          entry.fleet.slots.length > before.fleet.slots.length &&
           before.fleet.slots.every((slot) =>
             entry.fleet.slots.some((other) => other.id === slot.id),
           ) &&

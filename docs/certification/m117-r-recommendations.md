@@ -25,8 +25,9 @@ files. No dependency, model call, credential read or public network request.
   incremental server rental through the P90 finish, excluding existing fleet,
   account/CI charges, taxes and fees. Only public dated catalog prices can
   support a rental cost. Speed starts with the fully used existing fleet (or
-  a minimum feasible extension if affinity requires it), then adds a machine
-  only when its P90 gain reaches the existing four-hour marginal floor.
+  a minimum feasible extension if affinity requires it), then adds approved
+  slots on existing machines or one machine only when the P90 gain reaches
+  the existing four-hour marginal floor.
 - Keep individual addition marginal values and group machine/slot/account
   counts by class. A class without a feasible predecessor has an explicitly
   unknown marginal, with zero only as a disclosed nonnegative lower bound.
@@ -70,13 +71,15 @@ remain visible in the current card and do not contaminate minimum counts.
 
 Minimum uses machine count, then slot count, then distinct account count;
 finish time and stable identity resolve ties. Cost compares total incremental
-P90 rental charges, rather than hourly rates alone. A rental with no dated
+P90 rental charges, rather than hourly rates alone. A new rental with no dated
 public price makes that candidate's cost unknown, never zero. Existing fleet
 has zero **incremental rental** cost by assumption. This excludes account and
 CI charges, taxes, fees, provider billing increments and continuing idle time;
 it is advice, never a quote or an authorization to provision. Speed explores
-all qualifying one-machine expansion paths, including paths a greedy first
-choice would miss. It retains every existing slot, and stops when no reachable
+all qualifying slot additions and one-machine expansion paths, including paths
+a greedy first choice would miss. Slot additions keep the existing machines'
+declared governor capacities and user caps; every fleet projection is still
+validated. It retains every existing slot, and stops when no reachable
 expansion saves four P90 hours. If the current fleet is infeasible, roots are
 the smallest feasible extensions that retain those slots. All optima are
 conditional on the supplied candidate pool and forecast evidence.
@@ -296,3 +299,134 @@ TypeScript files and this certificate. Gitleaks scanned 85,076 staged bytes
 (one measured scan) and reported no leaks. Both final source SHA-256 values
 above match after the hooks. The implementation worktree was clean. This
 receipt is committed separately; no source or test changed after validation.
+
+## FIXM117R — review repairs (2026-10-06)
+
+The preceding receipts describe the initial implementation. This section
+records the review repair and supersedes its cost and speed behavior claims.
+
+Read the complete rig brief, shared lane rules and RVM117R report before
+editing. The report has three P2 findings and no P1/P3 findings. All three
+are repaired; none is accepted as a residual. The rig brief takes precedence
+over the shared rules' generic merge step: no merge, rebase or push occurs.
+PLAN §6 records the scope, §7 the lead-owned aggregate gate and §9 the
+review outcome. The new shared exact-money helper is explicitly required by
+the repair brief and was absent on this base. No other lane's implementation
+or frozen contract changes.
+
+1. **Exact money.** `src/shared/usd.ts` parses the canonical decimal spelling
+   of validated JSON numbers, including scientific notation, into BigInt
+   nano-USD fractions. All hourly-rate sums, P90 duration products and cost
+   comparisons use integer arithmetic. Fractions retain sub-nano charges;
+   rounding a candidate before comparison could itself change the optimum.
+   Only the existing numeric JSON/display projection ceilings to the next
+   nano-USD. Selection uses a separate per-call exact-cost map, never that
+   projection. The existing nonfinite display/overflow refusal stays in place.
+   The regression gives distinct public offers and accounts rates of $0.90
+   for one hour and $0.30 for three hours: their exact $0.90 tie selects the
+   faster offer. A second regression selects the cheaper offer when both
+   charges display as one nano-USD. Arithmetic tests cover exact sums,
+   fractional durations, scientific notation and invalid numeric boundaries.
+2. **Existing rentals.** The validated current fleet's machine identities
+   determine incremental cost. Existing machines incur zero incremental
+   rental cost regardless of source, rate availability or a supplied rate.
+   Newly added rentals still require dated public evidence; no missing new
+   price becomes zero. Regressions cover an existing rental without a rate,
+   with a positive rate, and an expansion whose sole new rental costs $0.48.
+3. **Existing-machine slots.** Speed reachability permits strictly additional
+   slots with the same active machine count, as well as the existing
+   one-machine expansion. Every predecessor slot remains present, every
+   candidate remains schema-validated against unchanged governor capacities
+   and user caps, and the four-hour P90 improvement floor applies to both
+   paths. Real S forecasts show one existing machine completing the parallel
+   fixture in 48 hours with one slot and 24 hours with two. A second fixture
+   rejects a two-hour gain; over-cap and over-governor pools are refused
+   before forecast dispatch.
+
+The initial baseline run reproduced the existing-rental and slot defects.
+Its new cost fixture used the wrong affinity class and failed as unschedulable;
+that failure is not counted as a red drill. The corrected fixture uses the
+declared builder class. The same baseline run exposed an existing speed test
+at 5.197 seconds. Its expensive setup now runs in a separate `beforeAll`,
+with the existing fixture memoization; no timeout, test filter or skip was
+introduced. Parametrized regression names are short enough for Vitest to
+emit them without truncating the substituted title.
+
+W still owns product CHANGELOG/reference registration, lazy shipping, editor
+bindings, real catalog/fleet adapters and integrated timing/aggregate quality.
+These are the existing named integration handoffs above, not deferred review
+findings. No command, setting, runtime surface, new translated text, model
+capability, dependency, install, suppression, unsafe cast or credential access
+was introduced. This repair makes no live, paid or public-network call.
+
+### Repair verification and guard-fire receipts
+
+Final verification ran directly on Mac mini, with heavy checks serial.
+
+All eleven mutations ran a complete owning suite with `--maxWorkers=3`,
+repository default timeouts, no skips or test-name filters. Each exited 1
+at its intended assertion. Saved original bytes were restored in `finally`
+and SHA-256 compared before the next drill. JSON assertion reports reject
+a syntax/import failure or a mutation that fails only an unrelated test.
+R39 additionally proves the recommendation consumer cannot replace the
+exact hourly-rate sum with a floating-point sum.
+
+| Drill                     | Deliberate break                                          | Observed named regression                                            | Exit |
+| ------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------- | ---: |
+| `R34-exact-cost`          | Floating-point duration product                           | exact decimal cost tie by finish time                                |    1 |
+| `R35-unrounded-selection` | Compare rounded display costs                             | sub-nano costs before display rounding                               |    1 |
+| `R36-existing-rental`     | Charge every rented machine                               | gives an existing rented machine zero incremental cost               |    1 |
+| `R37-existing-slots`      | Require an additional physical machine                    | expands existing-machine slots                                       |    1 |
+| `R38-slot-marginal-floor` | Remove the P90 improvement floor                          | existing slots keep four-hour floor                                  |    1 |
+| `U01-exact-sum`           | Replace integer addition with number addition             | sums all hourly rates before exact duration multiplication           |    1 |
+| `U02-exact-product`       | Replace integer multiplication with number multiplication | keeps decimal rental ties exact across different rates and durations |    1 |
+| `U03-display-ceiling`     | Floor the display projection                              | compares sub-nano charges before ceiling at the display boundary     |    1 |
+| `U04-decimal-exponent`    | Ignore the canonical decimal exponent                     | parses scientific notation and retains all canonical decimal digits  |    1 |
+| `U05-number-boundary`     | Remove finite/nonnegative validation                      | rejects negative and nonfinite rates or durations before arithmetic  |    1 |
+| `R39-exact-hourly-sum`    | Sum hourly rates as floating-point numbers                | sums decimal hourly rentals exactly across machines                  |    1 |
+
+Before/after restoration hashes (identical after every applicable drill):
+
+- `src/core/estimator/recommend.ts`: `0e666281a1eb71b9f37749748b6ff0bdee65566aaf98a868019fa104f7471872`.
+- `src/shared/usd.ts`: `8fd44ae100060b37dbc9431f0aec8766cc6e5a8535ca77ce33fa7a2d455cbe3a`.
+
+The first repair duplication check fired on six fixture-setup lines (50
+tokens). One local `rentalOnlyFixture` now supplies both cost scenarios,
+without changing their inputs or assertions. Final duplication reports zero
+clones across 1,206 files, with no threshold/ignore change. R34, R35 and R39
+were replayed after that fixture consolidation: each again exited 1 at its
+named cost regression, restored the identical source hash, and was followed
+by the complete restored-code test run.
+
+| Check                                                                                                                        | Final result                                                                                                                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/estimatorRecommend.test.ts test/unit/estimatorPrices.test.ts test/unit/usd.test.ts --maxWorkers=3` | Exit 0; **59/59** (28 recommendations, 26 prices, 5 exact-money tests), repository default timeouts, no skips or filters. Final observed command duration: 14.66 seconds; not an integrated estimator timing benchmark. |
+| `npm run typecheck`                                                                                                          | Exit 0; all five projects. `npm run typecheck:unit` also exits 0 after the final test-fixture consolidation.                                                                                                            |
+| Scoped ESLint and Prettier                                                                                                   | Exit 0, zero warnings; all six changed paths checked.                                                                                                                                                                   |
+| `npm run deadcode`                                                                                                           | Exit 0; existing vendor/axe-core configuration hints only.                                                                                                                                                              |
+| `npx jscpd`                                                                                                                  | Exit 0; zero clones across 1,206 files.                                                                                                                                                                                 |
+| `node scripts/check-l10n.mjs`                                                                                                | Exit 0; 14 tables, 166 manifest strings, 615 source files; zero problems.                                                                                                                                               |
+| `npm run check:reference`                                                                                                    | Exit 0; 53 features, 44 commands, 59 settings, 26 slash commands, 116 CLI entries; current.                                                                                                                             |
+| `npm run check:host-api`                                                                                                     | Exit 0; 332 APIs, 31 VS Code import files, 25 Node built-ins, 61 theme variables; zero problems.                                                                                                                        |
+| `npm run build`                                                                                                              | Exit 0; all size/split, host-global and notices checks; 83 bundled packages.                                                                                                                                            |
+| `git diff --check`                                                                                                           | Exit 0.                                                                                                                                                                                                                 |
+
+Production sizes, rounded to 0.1 KiB: extension **439.5/600**, Model API
+**446.9/475**, checkpoint store **76.9/225**, webview startup **797.1/900**,
+deferred webview JavaScript **50.0/50**, ACP **821.4/850**. All existing caps
+pass. R still has no shipped entry on this base; these measurements do not
+certify the future W-owned lazy estimator bundle or integrated two-second
+acceptance. Aggregate `npm run quality` remains explicitly prohibited in this
+lane and assigned to the lead under PLAN §7.
+
+Only six paths change in this repair: `src/core/estimator/recommend.ts`, the
+explicitly requested `src/shared/usd.ts`, `test/unit/estimatorRecommend.test.ts`,
+`test/unit/usd.test.ts`, `PLAN.md` and this certificate. The price module's
+unchanged SHA-256 remains
+`e8dfa59dc1a9326796ce4e824927a2b392fb0ddba1d8544b1a6c84b0e511263b`.
+No finding is deferred. The existing shipping/docs/source bindings remain
+the named handoffs; no new owner decision is needed.
+
+The worktree's unchanged `.husky/_/pre-commit` exists and `core.hooksPath`
+resolves to `.husky/_`. Explicit staging and the required co-author footer
+are used; the actual commit/hook receipt is recorded after the commit.

@@ -25,12 +25,25 @@ import {
   catalogPrice,
 } from './helpers/estimatorRecommendFixtures'
 
-const fixture: { golden?: EstimateRecommendation } = {}
+const fixture: { golden?: EstimateRecommendation; belowFloor?: EstimateRecommendation } = {}
 function golden(): EstimateRecommendation {
   return fixture.golden!
 }
+function rentalOnlyFixture() {
+  const fixture = recommendationFixture(2)
+  for (const fleet of [fixture.inputs.fleet, fixture.pool])
+    fleet.machines[0]!.classId = 'existing-builder'
+  return fixture
+}
 beforeAll(() => {
   fixture.golden = fixtureRecommendation()
+})
+beforeAll(() => {
+  const { inputs, pool } = recommendationFixture()
+  inputs.lanes = Array.from({ length: 6 }, (_, index) =>
+    scheduleLane(`L${String(index)}`, { estimatedHours: 4 }),
+  )
+  fixture.belowFloor = recommendEstimate(inputs, pool, forecastPort)
 })
 
 describe('M117 setup recommendations', () => {
@@ -158,12 +171,7 @@ describe('M117 setup recommendations', () => {
     )
   })
   it('stops speed expansion below the marginal floor even when another server exists', () => {
-    const { inputs, pool } = recommendationFixture()
-    inputs.lanes = Array.from({ length: 6 }, (_, index) =>
-      scheduleLane(`L${String(index)}`, { estimatedHours: 4 }),
-    )
-    const result = recommendEstimate(inputs, pool, forecastPort)
-    expect(fleetForKind(result, 'optimumSpeed').machines).toHaveLength(3)
+    expect(fleetForKind(fixture.belowFloor!, 'optimumSpeed').machines).toHaveLength(3)
   })
   it('rejects positive speed gains below four hours, including coupled expansions', () => {
     const { inputs, pool } = recommendationFixture()
@@ -258,6 +266,123 @@ describe('M117 setup recommendations', () => {
       priced.setups.find((setup) => setup.kind === 'optimumCost')!.machines[0]!.price!.catalogDate,
     ).toBe('2026-10-06')
   })
+  it.each([
+    {
+      name: 'exact decimal cost tie by finish time',
+      rates: [0.9, 0.3],
+      hours: [1, 3],
+      selected: 'rental-0',
+      displayed: [0.9, 0.9],
+    },
+    {
+      name: 'sub-nano costs before display rounding',
+      rates: [2e-9, 5e-10],
+      hours: [0.1, 0.2],
+      selected: 'rental-1',
+      displayed: [1e-9, 1e-9],
+    },
+  ])('$name', ({ rates, hours, selected, displayed }) => {
+    const { inputs, pool, prices } = rentalOnlyFixture()
+    inputs.lanes = [
+      scheduleLane('A', {
+        affinity: {
+          os: [],
+          architectures: [],
+          machineClassIds: ['linux-x64-builder'],
+          gpuRequired: false,
+        },
+      }),
+    ]
+    prices[0]!.price = { ...catalogPrice(rates[0]), providerId: 'fast' }
+    prices[1]!.price = { ...catalogPrice(rates[1]), providerId: 'slow' }
+    for (const [index, row] of prices.entries()) {
+      const account = {
+        ...pool.accounts[0]!,
+        id: row.price.providerId,
+        providerId: row.price.providerId,
+      }
+      pool.accounts.push(account)
+      pool.slots.find((slot) => slot.machineId === `rental-${String(index)}`)!.accountId =
+        account.id
+    }
+    const result = recommendEstimate(
+      inputs,
+      pool,
+      {
+        forecast: (input) => {
+          if (input.fleet.machines.every((machine) => machine.source !== 'rented'))
+            return { status: 'infeasible', reason: 'fixture-no-compatible-builder' }
+          return {
+            status: 'feasible',
+            simulation: simulateEstimate(input, {
+              model: () => ({
+                kind: 'fixed',
+                hours: amount(
+                  input.fleet.machines.some((machine) => machine.id === 'rental-0')
+                    ? hours[0]!
+                    : hours[1]!,
+                ),
+              }),
+            }),
+          }
+        },
+      },
+      prices,
+    )
+    expect(fleetForKind(result, 'optimumCost').machines.map((machine) => machine.id)).toEqual([
+      selected,
+    ])
+    const singles = result.evaluations.filter(
+      (entry) => entry.fleet.machines.length === 1 && entry.forecast.status === 'feasible',
+    )
+    expect(singles.map((entry) => entry.rentalCostP90Usd)).toEqual(displayed)
+  })
+  it.each([undefined, catalogPrice(0.9)])(
+    'gives an existing rented machine zero incremental cost with price %j',
+    (price) => {
+      const { inputs, pool } = recommendationFixture(0)
+      inputs.fleet.machines[0]!.source = 'rented'
+      pool.machines[0]!.source = 'rented'
+      inputs.lanes = [scheduleLane('A')]
+      const prices = price ? [{ machineId: inputs.fleet.machines[0]!.id, price }] : []
+      const result = recommendEstimate(inputs, pool, forecastPort, prices)
+      expect(result.unavailable).toEqual([])
+      expect(fleetForKind(result, 'optimumCost').machines[0]!.id).toBe('linux')
+      expect(
+        result.evaluations
+          .filter((entry) => entry.forecast.status === 'feasible')
+          .map((entry) => entry.rentalCostP90Usd),
+      ).toEqual([0])
+    },
+  )
+  it('sums decimal hourly rentals exactly across machines', () => {
+    const { inputs, pool, prices } = rentalOnlyFixture()
+    inputs.lanes = [
+      scheduleLane('A', { estimatedHours: 3 }),
+      scheduleLane('B', { estimatedHours: 3 }),
+    ]
+    for (const lane of inputs.lanes) lane.affinity.machineClassIds = ['linux-x64-builder']
+    inputs.request.deadline = '2026-10-06T15:00:00.000Z'
+    prices[0]!.price = catalogPrice(0.1)
+    prices[1]!.price = catalogPrice(0.2)
+    const result = recommendEstimate(inputs, pool, forecastPort, prices)
+    const selection = result.selections.find((entry) => entry.kind === 'optimumCost')!
+    expect(fleetForKind(result, 'optimumCost').machines.map((machine) => machine.id)).toEqual([
+      'rental-0',
+      'rental-1',
+    ])
+    expect(result.evaluations[selection.evaluation]!.rentalCostP90Usd).toBe(0.9)
+  })
+  it('charges only new rentals when expanding an existing rented fleet', () => {
+    const { inputs, pool, prices } = recommendationFixture(1)
+    inputs.fleet.machines[0]!.source = 'rented'
+    pool.machines[0]!.source = 'rented'
+    const result = recommendEstimate(inputs, pool, forecastPort, prices)
+    const selected = result.selections.find((entry) => entry.kind === 'optimumCost')!
+    expect(fleetForKind(result, 'optimumCost').machines).toHaveLength(2)
+    expect(result.evaluations[selected.evaluation]!.rentalCostP90Usd).toBe(0.48)
+    expect(result.evaluations[0]!.rentalCostP90Usd).toBe(0)
+  })
   it('omits deadline objectives without a deadline or when the deadline is impossible', () => {
     const { inputs, pool } = recommendationFixture(0)
     delete inputs.request.deadline
@@ -314,6 +439,54 @@ describe('M117 setup recommendations', () => {
         (slot) => slot.id === inputs.fleet.slots[0]!.id,
       ),
     ).toBe(true)
+  })
+  it.each([
+    {
+      name: 'expands existing-machine slots',
+      lanes: 12,
+      hours: 4,
+      slots: 2,
+      currentP90: '2026-10-08T12:00:00.000Z',
+      speedP90: '2026-10-07T12:00:00.000Z',
+    },
+    {
+      name: 'existing slots keep four-hour floor',
+      lanes: 2,
+      hours: 2,
+      slots: 1,
+      currentP90: '2026-10-06T16:00:00.000Z',
+      speedP90: '2026-10-06T16:00:00.000Z',
+    },
+  ])('$name', ({ lanes, hours, slots, currentP90, speedP90 }) => {
+    const { inputs } = recommendationFixture(0)
+    inputs.lanes = Array.from({ length: lanes }, (_, index) =>
+      scheduleLane(`L${String(index)}`, { estimatedHours: hours }),
+    )
+    const machine = inputs.fleet.machines[0]!
+    machine.governorSlots = 2
+    machine.caps.slots = 2
+    machine.capacityByKind[0]!.slots = 2
+    const pool = structuredClone(inputs.fleet)
+    pool.slots.push({ ...pool.slots[0]!, id: 'existing-extra-slot' })
+    const result = recommendEstimate(inputs, pool, forecastPort)
+    const speed = fleetForKind(result, 'optimumSpeed')
+    expect(speed.machines).toHaveLength(1)
+    expect(speed.slots).toHaveLength(slots)
+    expect(speed.slots).toEqual(
+      (slots === 2 ? pool.slots : inputs.fleet.slots).toSorted((a, b) => a.id.localeCompare(b.id)),
+    )
+    expect(result.setups.find((setup) => setup.kind === 'current')!.p90).toBe(currentP90)
+    expect(result.setups.find((setup) => setup.kind === 'optimumSpeed')!.p90).toBe(speedP90)
+    for (const limit of ['governorSlots', 'caps'] as const) {
+      const capped = structuredClone(pool)
+      if (limit === 'governorSlots') {
+        capped.machines[0]!.governorSlots = 1
+        capped.machines[0]!.capacityByKind[0]!.slots = 1
+      } else capped.machines[0]!.caps.slots = 1
+      const forecast = vi.fn(forecastPort.forecast)
+      expect(() => recommendEstimate(inputs, capped, { forecast })).toThrow()
+      expect(forecast).not.toHaveBeenCalled()
+    }
   })
   it('allows an empty setup for completed work and omits truly infeasible forecasts', () => {
     const { inputs, pool } = recommendationFixture(0)
