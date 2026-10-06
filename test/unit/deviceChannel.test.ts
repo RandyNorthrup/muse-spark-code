@@ -32,6 +32,34 @@ function fixture(isActive = () => true, isSource = false) {
 }
 
 describe('authenticated device channel bounds', () => {
+  it('RVM100E-P2-2 counts priority controls against the unchanged frame capacity', () => {
+    const { socket, handler } = fixture()
+    handler.receive = vi.fn(
+      () =>
+        new Promise<void>(() => {
+          /* Hold every control to exercise the shared in-flight bound. */
+        }),
+    )
+    const cancel = encodeDeviceFrame({
+      ...deviceTestFrame,
+      body: {
+        kind: 'cancel',
+        identity: {
+          pairId: deviceTestFrame.pairId,
+          receiverIncarnationId: deviceTestFrame.receiverIncarnationId,
+          boardId: 'a'.repeat(32),
+          taskId: 'b'.repeat(32),
+          attemptId: 'c'.repeat(32),
+        },
+      },
+    })
+    for (let index = 0; index < DEVICE_LIMITS.queuedFrames; index += 1) socket.emit('data', cancel)
+    expect(handler.receive).toHaveBeenCalledTimes(DEVICE_LIMITS.queuedFrames)
+    expect(socket.destroyed).toBe(false)
+    socket.emit('data', cancel)
+    expect(socket.destroyed).toBe(true)
+    expect(handler.receive).toHaveBeenCalledTimes(DEVICE_LIMITS.queuedFrames)
+  })
   it('RVM100T-P2-3 rechecks incomplete-frame expiry after decoding before admission', () => {
     vi.useFakeTimers()
     const { socket, handler } = fixture()

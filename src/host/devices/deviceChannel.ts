@@ -33,6 +33,7 @@ export function openDeviceChannel(
   const decoder = new DeviceFrameDecoder()
   const queue: DeviceFrame[] = []
   let isRunning = false
+  let controls = 0
   let frameTimer: ReturnType<typeof setTimeout> | undefined
   let frameStartedAt: { monotonic: number; wall: number; observedWall: number } | undefined
   let failure: (typeof DEVICE_FAILURES)[number] = 'blocked-or-unreachable'
@@ -90,6 +91,18 @@ export function openDeviceChannel(
       isRunning = false
     }
   }
+  async function control(frame: DeviceFrame): Promise<void> {
+    controls += 1
+    try {
+      if (socket.destroyed || !isActive() || !isMatching(frame)) throw new Error('revoked')
+      // Cancellation must not wait for dispatch approval or launch confirmation.
+      await port.receive(frame, channel)
+    } catch {
+      socket.destroy()
+    } finally {
+      controls -= 1
+    }
+  }
   socket.setTimeout(DEVICE_LIMITS.idleConnectionMs, () => socket.destroy())
   socket.on('error', () => socket.destroy())
   socket.on('data', (chunk: Buffer) => {
@@ -98,7 +111,7 @@ export function openDeviceChannel(
       checkFrameDeadline()
       const frames = decoder.push(
         chunk,
-        DEVICE_LIMITS.queuedFrames - queue.length - Number(isRunning),
+        DEVICE_LIMITS.queuedFrames - queue.length - Number(isRunning) - controls,
       )
       checkFrameDeadline()
       const isInitialOffer = currentIncarnation === undefined && frames.length > 0
@@ -109,7 +122,6 @@ export function openDeviceChannel(
         currentIncarnation = first.receiverIncarnationId
       }
       if (frames.some((frame) => !isMatching(frame))) throw new Error('invalid-frame')
-      queue.push(...frames)
       if (isInitialOffer) {
         if (!isActive()) throw new Error('revoked')
         port.connected(channel)
@@ -130,7 +142,13 @@ export function openDeviceChannel(
           socket.destroy()
         }, DEVICE_LIMITS.frameDeadlineMs)
       }
-      void drain()
+      for (const frame of frames) {
+        if (frame.body.kind === 'cancel') void control(frame)
+        else {
+          queue.push(frame)
+          void drain()
+        }
+      }
     } catch (error) {
       failure =
         error instanceof Error && error.message === 'incompatible'

@@ -13,6 +13,9 @@ happened, not what was planned; superseded entries are kept.
   its journal, including after a failed flush, corruption or file loss. Full
   attempt identity stays bound to the live lease; unavailable cancellation
   evidence is reported and occupancy remains held until durable retirement.
+- Authenticated device cancellation uses a priority path within the existing
+  frame cap. A pending approval or start confirmation cannot delay Stop, and
+  late approval cannot launch a cancelled dispatch.
 - M100 queues receiver grants with pairing actions and preserves a later Pause
   across pending secret reads and writes; stale grants cannot resume the pair.
 - M100's device store keeps expected pairing/grant policy refusals distinct

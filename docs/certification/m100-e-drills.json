@@ -970,6 +970,180 @@
         "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal corruption and keeps occupancy",
         "receiver restart and ownership reconciliation RVM100E-P2-1 records cancellation uncertainty without retiring a live attempt"
       ]
+    },
+    {
+      "guard": "RVM100E-P2-2-priority",
+      "file": "src/host/devices/deviceChannel.ts",
+      "beforeSha256": "cf0e6022316aa001198d676f463f7694b91afaf200db5dcceb136357251ae824",
+      "restoredSha256": "cf0e6022316aa001198d676f463f7694b91afaf200db5dcceb136357251ae824",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 delivers Stop while dispatch waits for approval on the same channel",
+        "receiver admission and local authority RVM100E-P2-2 delivers Stop while dispatch waits for start-confirmation on the same channel",
+        "receiver admission and local authority RVM100E-P2-2 cancels a coalesced dispatch before approval or reservation",
+        "receiver admission and local authority RVM100E-P2-2 cancels an existing lease while another dispatch waits for approval"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-control-bound",
+      "file": "src/host/devices/deviceChannel.ts",
+      "beforeSha256": "cf0e6022316aa001198d676f463f7694b91afaf200db5dcceb136357251ae824",
+      "restoredSha256": "cf0e6022316aa001198d676f463f7694b91afaf200db5dcceb136357251ae824",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceChannel.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "authenticated device channel bounds RVM100E-P2-2 counts priority controls against the unchanged frame capacity"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-abort-listener",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 delivers Stop while dispatch waits for approval on the same channel",
+        "receiver admission and local authority RVM100E-P2-2 delivers Stop while dispatch waits for start-confirmation on the same channel"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-pending",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 delivers Stop while dispatch waits for approval on the same channel",
+        "receiver admission and local authority RVM100E-P2-2 cancels a coalesced dispatch before approval or reservation",
+        "receiver admission and local authority RVM100E-P2-2 cancels a late reservation and persists it without starting"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-already-aborted",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 cancels a coalesced dispatch before approval or reservation",
+        "receiver admission and local authority RVM100E-P2-2 cancels a late reservation and persists it without starting",
+        "receiver admission and local authority RVM100E-P2-2 keeps cancelled live ordinary and paid boundaries closed"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-late-reservation",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 cancels a late reservation and persists it without starting"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-live-boundary",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 keeps cancelled live ordinary and paid boundaries closed",
+        "receiver admission and local authority RVM100E-P2-2 prevents a charge after Stop during the final paid binding check"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-final-paid-check",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 prevents a charge after Stop during the final paid binding check"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-channel-report",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 reports unavailable cancellation evidence over the authenticated channel"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-final-journal-first",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal flush-failure and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal file-loss and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal corruption and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 reports unavailable cancellation evidence over the authenticated channel"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-final-identity",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed pairId control even with an unreadable journal",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed boardId control even with an unreadable journal",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed taskId control even with an unreadable journal"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-final-evidence",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal flush-failure and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal file-loss and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal corruption and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 records cancellation uncertainty without retiring a live attempt",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 reports unavailable cancellation evidence over the authenticated channel"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-cancel-failure",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 reports an unproved local cancellation without releasing occupancy"
+      ]
     }
   ]
 }

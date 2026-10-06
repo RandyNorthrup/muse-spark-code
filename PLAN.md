@@ -19669,6 +19669,19 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M100-E-JOINED-QUALIFICATION (inherited integration handoff).** Both
+  RVM100E P2 findings are repaired, with no review finding deferred. E's
+  receiver and journal remain unshipped; scoped software/TLS-channel tests
+  do not qualify a concrete physical-action descriptor/nonce, receiver-local
+  physical approval UI or unattended device operation under D83. Safe for
+  this isolated lane because it registers no production execution adapter,
+  listener or command. Follow-up: I/M96 bind and independently qualify those
+  physical-action authorities, Windows/native storage, the real lazy Devices
+  readers and generated host API inventory, then run unchanged full quality,
+  packaging and installed four-device checks before shipment. The inherited
+  host-API/split checks stay failing until that integration; no waiver.
+  Receipts: `docs/certification/m100-e.md`.
+
 - **M100-T-JOINED-GATES (inherited integration handoff).** T's transport is
   unshipped and ordinary chat does not load it. Its inherited generated host
   API import counts and missing `DEVICE_MODEL_TEXT` split-reader registration

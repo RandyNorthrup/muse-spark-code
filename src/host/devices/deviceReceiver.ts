@@ -97,8 +97,16 @@ export class DeviceReceiver implements DeviceExecutionPort {
   private failure: Failure | undefined
   private readonly live = new Map<
     string,
-    { readonly identity: DeviceAttemptIdentity; readonly lease: DeviceLocalAttempt }
+    {
+      readonly identity: DeviceAttemptIdentity
+      readonly lease: DeviceLocalAttempt
+      readonly control: AbortController
+    }
   >()
+  private readonly pending = new Set<{
+    readonly identity: DeviceAttemptIdentity
+    readonly control: AbortController
+  }>()
   private readonly pendingReconciliation = new Set<string>()
   private constructor(
     private readonly incarnationId: string,
@@ -143,21 +151,45 @@ export class DeviceReceiver implements DeviceExecutionPort {
     await this.policy.assertAllowed(request)
     this.assertResumed()
   }
-  private boundary(request: DeviceDispatch): DeviceExecutionBoundary {
+  private async waitForControl<T>(signal: AbortSignal, work: () => Promise<T>): Promise<T> {
+    if (signal.aborted) throw new DevicePairingError('grant')
+    return await new Promise<T>((resolve, reject) => {
+      const stop = () => {
+        reject(new DevicePairingError('grant'))
+      }
+      signal.addEventListener('abort', stop, { once: true })
+      void (async () => {
+        try {
+          resolve(await work())
+        } catch (error) {
+          reject(error instanceof Error ? error : new DevicePairingError('uncertain'))
+        } finally {
+          signal.removeEventListener('abort', stop)
+        }
+      })()
+    })
+  }
+  private boundary(request: DeviceDispatch, signal: AbortSignal): DeviceExecutionBoundary {
+    const check = () => this.waitForControl(signal, () => this.checkPolicy(request))
     return {
       beforeAction: async () => {
-        await this.checkPolicy(request)
-        if (!(await this.policy.approve(request))) throw new DevicePairingError('approval-required')
-        await this.checkPolicy(request)
+        await check()
+        if (!(await this.waitForControl(signal, () => this.policy.approve(request))))
+          throw new DevicePairingError('approval-required')
+        await check()
       },
       beforePaidUse: async (use) => {
-        await this.checkPolicy(request)
+        await check()
         await this.policy.assertPaidBinding(request, use)
-        if (!this.policy.paidGate.isOn(use.feature) || !(await this.policy.paidConsent.allows(use)))
+        if (
+          !this.policy.paidGate.isOn(use.feature) ||
+          !(await this.waitForControl(signal, () => this.policy.paidConsent.allows(use)))
+        )
           throw new DevicePairingError('paid-consent-required')
         // A popup can yield while trust, price, model or credential ownership changes.
-        await this.checkPolicy(request)
+        await check()
         await this.policy.assertPaidBinding(request, use)
+        if (signal.aborted) throw new DevicePairingError('grant')
         if (!this.policy.paidGate.isOn(use.feature))
           throw new DevicePairingError('paid-consent-required')
       },
@@ -196,99 +228,113 @@ export class DeviceReceiver implements DeviceExecutionPort {
     }
   }
   public async dispatch(input: DeviceDispatch): Promise<DeviceFrame> {
-    return await this.ordered(async () => {
-      const request = deviceDispatchSchema.parse(input)
-      let hasReserved = false
-      try {
-        if (deviceDispatchDigest(request) !== request.payloadDigest)
-          throw new DeviceJournalError('payload-changed')
-        const prior = await this.journal.lookup(request.identity)
-        if (prior !== undefined) {
-          const payload = deviceRecordPayload(prior)
-          if (payload !== request.payloadDigest) throw new DeviceJournalError('payload-changed')
-          return this.response(prior)
-        }
-        if (request.identity.receiverIncarnationId !== this.incarnationId || this.isPaused)
-          return this.frame(request.identity.pairId, {
-            kind: 'failure',
-            reason: 'reconcile-required',
-          })
-        const boundary = this.boundary(request)
-        await boundary.beforeAction()
-        const lease = await this.execution.admit(request)
-        hasReserved = true
-        this.live.set(request.identity.attemptId, {
-          identity: Object.freeze(request.identity),
-          lease,
-        })
-        // Capacity belongs to M96. Neither durable write can be bypassed by a retry.
-        await this.journal.admit(request, lease.usage, Date.now())
-        // Attach the local retirement observer before the only start operation.
-        void (async () => {
-          let result: Awaited<DeviceLocalAttempt['retirement']>
-          try {
-            result = await lease.retirement
-          } catch {
-            await this.markUncertain(request.identity)
-            return
+    const request = deviceDispatchSchema.parse(input)
+    const pending = { identity: Object.freeze(request.identity), control: new AbortController() }
+    this.pending.add(pending)
+    try {
+      return await this.ordered(async () => {
+        let hasReserved = false
+        try {
+          if (deviceDispatchDigest(request) !== request.payloadDigest)
+            throw new DeviceJournalError('payload-changed')
+          const prior = await this.waitForControl(pending.control.signal, () =>
+            this.journal.lookup(request.identity),
+          )
+          if (prior !== undefined) {
+            const payload = deviceRecordPayload(prior)
+            if (payload !== request.payloadDigest) throw new DeviceJournalError('payload-changed')
+            return this.response(prior)
           }
-          await this.ordered(async () => {
-            await this.journal.advance(
-              request.identity,
-              (previous) => ({
-                ...previous,
-                revision: previous.revision + 1,
-                state: 'retired',
-                occupied: {
-                  workers: 0,
-                  processes: 0,
-                  heavyChecks: 0,
-                  tokens: 0,
-                  spendUsd: 0,
-                  artifactBytes: 0,
-                },
-                usage: result.usage,
-                ...(result.artifact !== undefined && { artifact: result.artifact }),
-              }),
-              Date.now(),
-            )
-            await lease.release()
-            this.live.delete(request.identity.attemptId)
-            if (this.failure === 'uncertain' && this.live.size === 0) this.failure = undefined
+          if (request.identity.receiverIncarnationId !== this.incarnationId || this.isPaused)
+            return this.frame(request.identity.pairId, {
+              kind: 'failure',
+              reason: 'reconcile-required',
+            })
+          const boundary = this.boundary(request, pending.control.signal)
+          await boundary.beforeAction()
+          const lease = await this.execution.admit(request)
+          hasReserved = true
+          this.live.set(request.identity.attemptId, {
+            identity: pending.identity,
+            lease,
+            control: pending.control,
           })
-        })().catch(() => {
-          this.isPaused = true
-          this.failure = 'storage'
-        })
-        await boundary.beforeAction()
-        await this.journal.advance(
-          request.identity,
-          (previous) => ({ ...previous, revision: previous.revision + 1, state: 'launch-intent' }),
-          Date.now(),
-        )
-        await boundary.beforeAction()
-        await lease.start(boundary)
-        const outcome = await this.journal.advance(
-          request.identity,
-          (previous) => ({ ...previous, revision: previous.revision + 1, state: 'running' }),
-          Date.now(),
-        )
-        return this.frame(request.identity.pairId, { kind: 'outcome', outcome })
-      } catch (error) {
-        const reportedReason =
-          error instanceof DeviceJournalError || error instanceof DevicePairingError
-            ? error.reason
-            : 'uncertain'
-        // A late refusal cannot claim that no admission/reservation happened.
-        const reason = hasReserved && reportedReason !== 'storage' ? 'uncertain' : reportedReason
-        if (reason === 'storage' || reason === 'uncertain') {
-          this.isPaused = true
-          this.failure = reason
-          if (hasReserved) this.pendingReconciliation.add(request.identity.attemptId)
+          // Attach the local retirement observer before the only start operation.
+          void (async () => {
+            let result: Awaited<DeviceLocalAttempt['retirement']>
+            try {
+              result = await lease.retirement
+            } catch {
+              await this.markUncertain(request.identity)
+              return
+            }
+            await this.ordered(async () => {
+              await this.journal.advance(
+                request.identity,
+                (previous) => ({
+                  ...previous,
+                  revision: previous.revision + 1,
+                  state: 'retired',
+                  occupied: {
+                    workers: 0,
+                    processes: 0,
+                    heavyChecks: 0,
+                    tokens: 0,
+                    spendUsd: 0,
+                    artifactBytes: 0,
+                  },
+                  usage: result.usage,
+                  ...(result.artifact !== undefined && { artifact: result.artifact }),
+                }),
+                Date.now(),
+              )
+              await lease.release()
+              this.live.delete(request.identity.attemptId)
+              if (this.failure === 'uncertain' && this.live.size === 0) this.failure = undefined
+            })
+          })().catch(() => {
+            this.isPaused = true
+            this.failure = 'storage'
+          })
+          if (pending.control.signal.aborted) await lease.cancel()
+          // Capacity belongs to M96. Neither durable write can be bypassed by a retry.
+          await this.journal.admit(request, lease.usage, Date.now())
+          await boundary.beforeAction()
+          await this.journal.advance(
+            request.identity,
+            (previous) => ({
+              ...previous,
+              revision: previous.revision + 1,
+              state: 'launch-intent',
+            }),
+            Date.now(),
+          )
+          await boundary.beforeAction()
+          await this.waitForControl(pending.control.signal, () => lease.start(boundary))
+          const outcome = await this.journal.advance(
+            request.identity,
+            (previous) => ({ ...previous, revision: previous.revision + 1, state: 'running' }),
+            Date.now(),
+          )
+          return this.frame(request.identity.pairId, { kind: 'outcome', outcome })
+        } catch (error) {
+          const reportedReason =
+            error instanceof DeviceJournalError || error instanceof DevicePairingError
+              ? error.reason
+              : 'uncertain'
+          // A late refusal cannot claim that no admission/reservation happened.
+          const reason = hasReserved && reportedReason !== 'storage' ? 'uncertain' : reportedReason
+          if (reason === 'storage' || reason === 'uncertain') {
+            this.isPaused = true
+            this.failure = reason
+            if (hasReserved) this.pendingReconciliation.add(request.identity.attemptId)
+          }
+          return this.frame(request.identity.pairId, { kind: 'failure', reason })
         }
-        return this.frame(request.identity.pairId, { kind: 'failure', reason })
-      }
-    })
+      })
+    } finally {
+      this.pending.delete(pending)
+    }
   }
   public async reconcile(
     identities: readonly DeviceAttemptIdentity[],
@@ -316,22 +362,38 @@ export class DeviceReceiver implements DeviceExecutionPort {
       throw new DeviceJournalError('uncertain')
     this.frame(identity.pairId, { kind: 'cancel', identity })
     const live = this.live.get(identity.attemptId)
+    const pending = [...this.pending].filter(
+      (attempt) => attempt.identity.attemptId === identity.attemptId,
+    )
+    const original = live?.identity ?? pending[0]?.identity
+    if (
+      original !== undefined &&
+      (original.pairId !== identity.pairId ||
+        original.receiverIncarnationId !== identity.receiverIncarnationId ||
+        original.boardId !== identity.boardId ||
+        original.taskId !== identity.taskId ||
+        original.attemptId !== identity.attemptId)
+    )
+      throw new DeviceJournalError('payload-changed')
+    for (const attempt of pending) {
+      if (
+        attempt.identity.pairId === identity.pairId &&
+        attempt.identity.boardId === identity.boardId &&
+        attempt.identity.taskId === identity.taskId &&
+        attempt.identity.receiverIncarnationId === identity.receiverIncarnationId
+      )
+        attempt.control.abort()
+    }
     if (live === undefined) {
+      if (pending.length > 0) return
       const row = await this.journal.lookup(identity)
       if (row?.kind !== 'receiver-record') throw new DeviceJournalError('uncertain')
       return
     }
-    if (
-      live.identity.pairId !== identity.pairId ||
-      live.identity.receiverIncarnationId !== identity.receiverIncarnationId ||
-      live.identity.boardId !== identity.boardId ||
-      live.identity.taskId !== identity.taskId ||
-      live.identity.attemptId !== identity.attemptId
-    )
-      throw new DeviceJournalError('payload-changed')
+    live.control.abort()
     // Stop reaches the local owner even when persistence is broken or stalled.
-    await live.lease.cancel()
     try {
+      await live.lease.cancel()
       await this.journal.advance(
         live.identity,
         (previous) => ({ ...previous, revision: previous.revision + 1, state: 'uncertain' }),
@@ -376,7 +438,15 @@ export class DeviceReceiver implements DeviceExecutionPort {
         return
       }
       case 'cancel': {
-        await this.cancel(frame.body.identity)
+        try {
+          await this.cancel(frame.body.identity)
+        } catch (error) {
+          const reason =
+            error instanceof DeviceJournalError || error instanceof DevicePairingError
+              ? error.reason
+              : 'uncertain'
+          reply(this.frame(frame.pairId, { kind: 'failure', reason }))
+        }
         return
       }
       default: {

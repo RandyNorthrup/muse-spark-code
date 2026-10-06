@@ -114,6 +114,35 @@ describe('receiver restart and ownership reconciliation', () => {
     })
     expect(lease.release).not.toHaveBeenCalled()
   })
+  it('RVM100E-P2-1 reports an unproved local cancellation without releasing occupancy', async () => {
+    const { receiver, request, lease } = fixture()
+    await receiver.dispatch(request)
+    lease.cancel.mockRejectedValueOnce(new Error('synthetic unproved cancellation'))
+    await expect(receiver.cancel(request.identity)).rejects.toThrow(
+      'synthetic unproved cancellation',
+    )
+    expect(receiver.blockedReason).toBe('uncertain')
+    expect(receiver.paused).toBe(true)
+    expect(lease.release).not.toHaveBeenCalled()
+  })
+  it('RVM100E-P2-1 reports unavailable cancellation evidence over the authenticated channel', async () => {
+    const { receiver, request, directory, lease } = fixture()
+    await receiver.dispatch(request)
+    await rm(path.join(directory, 'attempts.json'))
+    const channel = transport(request.identity.receiverIncarnationId)
+    await receiver.receive(
+      envelope(request.identity.receiverIncarnationId, {
+        kind: 'cancel',
+        identity: request.identity,
+      }),
+      channel,
+    )
+    expect(lease.cancel).toHaveBeenCalledOnce()
+    expect(channel.send).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { kind: 'failure', reason: 'storage' } }),
+    )
+    expect(lease.release).not.toHaveBeenCalled()
+  })
   it('recovers launch-before-confirmation with original identity, occupancy and uncertain spending', async () => {
     const { request, journal, execution, fixture: counts } = fixture()
     await journal.admit(request, executionUsage, Date.now())

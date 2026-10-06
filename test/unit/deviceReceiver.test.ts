@@ -1,9 +1,12 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { Socket } from 'node:net'
+import { TLSSocket } from 'node:tls'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { encodeDeviceFrame } from '../../src/core/devices/deviceFraming'
 import { DevicePairingError } from '../../src/core/devices/pairing'
 import { deviceDispatchSchema, type DeviceFrame } from '../../src/shared/devices'
-import type { DeviceChannel } from '../../src/host/devices/deviceChannel'
+import { openDeviceChannel, type DeviceChannel } from '../../src/host/devices/deviceChannel'
 import {
   useExecutionFixture,
   responseBody,
@@ -12,6 +15,34 @@ import {
 } from './helpers/deviceExecutionFixtures'
 
 const fixture = useExecutionFixture('lane')
+const sockets = new Set<TLSSocket>()
+afterEach(() => {
+  for (const socket of sockets) socket.destroy()
+  sockets.clear()
+})
+function liveChannel() {
+  const { receiver, request } = fixture()
+  const socket = new TLSSocket(new Socket())
+  sockets.add(socket)
+  const port = {
+    connected: vi.fn(),
+    receive: vi.fn(async (frame: DeviceFrame, transport: DeviceChannel) => {
+      await receiver.receive(frame, transport)
+    }),
+    disconnected: () => {
+      receiver.disconnect()
+    },
+  }
+  const transport = openDeviceChannel(
+    socket,
+    request.identity.pairId,
+    request.identity.receiverIncarnationId,
+    () => true,
+    port,
+  )
+  const send = vi.spyOn(transport, 'send').mockImplementation(() => undefined)
+  return { socket, port, send }
+}
 function channel(pairId: string, incarnation: string) {
   return {
     pairId,
@@ -41,6 +72,149 @@ const use = {
 } as const
 
 describe('receiver admission and local authority', () => {
+  it.each(['approval', 'start-confirmation'])(
+    'RVM100E-P2-2 delivers Stop while dispatch waits for %s on the same channel',
+    async (wait) => {
+      const { request, policy, lease, receiver, fixture: counts } = fixture()
+      const approval = deferred<boolean>()
+      const confirmation = deferred<undefined>()
+      if (wait === 'approval') policy.approve.mockReturnValueOnce(approval.promise)
+      else
+        lease.start.mockImplementationOnce(() => {
+          counts.launches += 1
+          return confirmation.promise
+        })
+      const { socket, port, send } = liveChannel()
+      socket.emit('data', encodeDeviceFrame(incoming({ kind: 'dispatch', dispatch: request })))
+      await vi.waitFor(() => {
+        if (wait === 'approval') expect(policy.approve).toHaveBeenCalledOnce()
+        else expect(counts.launches).toBe(1)
+      })
+      try {
+        socket.emit(
+          'data',
+          encodeDeviceFrame(incoming({ kind: 'cancel', identity: request.identity })),
+        )
+        await vi.waitFor(() => {
+          expect(port.receive).toHaveBeenCalledTimes(2)
+          expect(send).toHaveBeenCalledWith(
+            expect.objectContaining({
+              body: { kind: 'failure', reason: wait === 'approval' ? 'grant' : 'uncertain' },
+            }),
+          )
+          if (wait === 'start-confirmation') expect(lease.cancel).toHaveBeenCalledOnce()
+        })
+        expect(counts.launches).toBe(wait === 'approval' ? 0 : 1)
+        expect(lease.release).not.toHaveBeenCalled()
+      } finally {
+        approval.resolve(true)
+        confirmation.resolve(undefined)
+        await Promise.resolve()
+      }
+      if (wait !== 'approval') return
+      await receiver.reconcile([request.identity])
+      expect(lease.start).not.toHaveBeenCalled()
+    },
+  )
+  it('RVM100E-P2-2 cancels a coalesced dispatch before approval or reservation', async () => {
+    const { request, policy, lease, execution } = fixture()
+    const { socket, port, send } = liveChannel()
+    socket.emit(
+      'data',
+      Buffer.concat([
+        encodeDeviceFrame(incoming({ kind: 'dispatch', dispatch: request })),
+        encodeDeviceFrame(incoming({ kind: 'cancel', identity: request.identity })),
+      ]),
+    )
+    await vi.waitFor(() => {
+      expect(send).toHaveBeenCalledWith(
+        expect.objectContaining({ body: { kind: 'failure', reason: 'grant' } }),
+      )
+    })
+    expect(port.receive).toHaveBeenCalledTimes(2)
+    expect(policy.approve).not.toHaveBeenCalled()
+    expect(execution.admit).not.toHaveBeenCalled()
+    expect(lease.start).not.toHaveBeenCalled()
+  })
+  it('RVM100E-P2-2 cancels an existing lease while another dispatch waits for approval', async () => {
+    const { receiver, request, policy, lease } = fixture()
+    await receiver.dispatch(request)
+    const approval = deferred<boolean>()
+    policy.approve.mockReturnValueOnce(approval.promise)
+    const second = signedDispatch({
+      ...request,
+      identity: { ...request.identity, attemptId: '0'.repeat(32) },
+    })
+    const { socket, port } = liveChannel()
+    socket.emit('data', encodeDeviceFrame(incoming({ kind: 'dispatch', dispatch: second })))
+    await vi.waitFor(() => {
+      expect(policy.approve).toHaveBeenLastCalledWith(second)
+    })
+    try {
+      socket.emit(
+        'data',
+        encodeDeviceFrame(incoming({ kind: 'cancel', identity: request.identity })),
+      )
+      await vi.waitFor(() => {
+        expect(lease.cancel).toHaveBeenCalledOnce()
+      })
+      expect(port.receive).toHaveBeenCalledTimes(2)
+      expect(lease.release).not.toHaveBeenCalled()
+    } finally {
+      approval.resolve(false)
+      await receiver.reconcile([request.identity])
+    }
+  })
+  it('RVM100E-P2-2 cancels a late reservation and persists it without starting', async () => {
+    const { receiver, request, execution, lease, journal, fixture: counts } = fixture()
+    const reserve = deferred<typeof lease>()
+    execution.admit.mockImplementationOnce(() => {
+      counts.occupied += 1
+      return reserve.promise
+    })
+    const dispatch = receiver.dispatch(request)
+    await vi.waitFor(() => {
+      expect(execution.admit).toHaveBeenCalledOnce()
+    })
+    await receiver.cancel(request.identity)
+    reserve.resolve(lease)
+    expect(await responseBody(dispatch)).toEqual({ kind: 'failure', reason: 'uncertain' })
+    expect(lease.cancel).toHaveBeenCalledOnce()
+    expect(lease.start).not.toHaveBeenCalled()
+    expect(lease.release).not.toHaveBeenCalled()
+    expect(await journal.lookup(request.identity)).toMatchObject({
+      outcome: { state: 'admitted', occupied: request.caps },
+    })
+  })
+  it('RVM100E-P2-2 keeps cancelled live ordinary and paid boundaries closed', async () => {
+    const { receiver, request, fixture: local } = fixture()
+    await receiver.dispatch(request)
+    await receiver.cancel(request.identity)
+    if (local.boundary === undefined) throw new Error('missing boundary')
+    await expect(local.boundary.beforeAction()).rejects.toThrow('grant')
+    await expect(local.boundary.beforePaidUse(use)).rejects.toThrow('grant')
+  })
+  it('RVM100E-P2-2 prevents a charge after Stop during the final paid binding check', async () => {
+    const { receiver, request, policy, fixture: local } = fixture()
+    await receiver.dispatch(request)
+    if (local.boundary === undefined) throw new Error('missing boundary')
+    const binding = deferred<undefined>()
+    policy.assertPaidBinding.mockResolvedValueOnce().mockReturnValueOnce(binding.promise)
+    const charge = vi.fn()
+    const boundary = local.boundary
+    const action = (async () => {
+      await boundary.beforePaidUse(use)
+      charge()
+    })()
+    const refused = expect(action).rejects.toThrow('grant')
+    await vi.waitFor(() => {
+      expect(policy.assertPaidBinding).toHaveBeenCalledTimes(2)
+    })
+    await receiver.cancel(request.identity)
+    binding.resolve(undefined)
+    await refused
+    expect(charge).not.toHaveBeenCalled()
+  })
   it('journals admission and launch intent before a single start despite concurrent lost replies', async () => {
     const { receiver, journal, request, lease, fixture: counts, directory } = fixture()
     lease.start.mockImplementation(async (boundary) => {
