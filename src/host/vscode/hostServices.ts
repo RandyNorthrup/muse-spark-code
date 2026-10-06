@@ -103,6 +103,17 @@ async function versionedDocument(
   }
   return document
 }
+function checkEditSnapshot(
+  document: vscode.TextDocument,
+  expectedVersion: number,
+  signal?: AbortSignal,
+): void {
+  checkCancelled(signal)
+  checkWorkspaceTrusted()
+  if (document.version !== expectedVersion)
+    fail(MHP_ERROR_CODES.versionConflict, 'MHP_VERSION_CONFLICT')
+  if (document.isDirty) fail(MHP_ERROR_CODES.dirtyBuffer, 'MHP_DIRTY_BUFFER')
+}
 function settingName(key: string): string {
   const name = key.slice(SETTINGS_SECTION.length + 1)
   if (settingSchema(name) === undefined) fail(MHP_ERROR_CODES.invalidParams, 'MHP_UNKNOWN_SETTING')
@@ -181,6 +192,7 @@ export function createVscodeHostServices(
     },
     'documents/applyEdits': async ({ uri, expectedVersion, edits }, signal) => {
       const document = await versionedDocument(uri, expectedVersion, signal)
+      checkEditSnapshot(document, expectedVersion, signal)
       const sorted = edits
         .map((edit) => ({ range: toRange(edit.range), text: edit.newText }))
         .toSorted((a, b) => a.range.start.compareTo(b.range.start))
@@ -188,21 +200,21 @@ export function createVscodeHostServices(
         if (!document.validateRange(edit.range).isEqual(edit.range))
           fail(MHP_ERROR_CODES.invalidParams, 'MHP_INVALID_RANGE')
         const previous = sorted[index - 1]
-        if (previous?.range.end.isAfter(edit.range.start))
+        if (
+          previous?.range.end.isAfter(edit.range.start) === true ||
+          previous?.range.start.isEqual(edit.range.start) === true
+        )
           fail(MHP_ERROR_CODES.invalidParams, 'MHP_OVERLAPPING_EDITS')
       }
       const editor = await vscode.window.showTextDocument(document, {
         preserveFocus: true,
         preview: true,
       })
-      checkCancelled(signal)
       // The editor can change while it is being shown: check again before edit.
-      if (document.version !== expectedVersion)
-        fail(MHP_ERROR_CODES.versionConflict, 'MHP_VERSION_CONFLICT')
-      if (!vscode.workspace.isTrusted)
-        fail(MHP_ERROR_CODES.untrustedWorkspace, 'MHP_UNTRUSTED_WORKSPACE')
+      checkEditSnapshot(document, expectedVersion, signal)
       const isApplied = await editor.edit(
         (builder) => {
+          checkEditSnapshot(document, expectedVersion, signal)
           for (const edit of sorted) builder.replace(edit.range, edit.text)
         },
         { undoStopBefore: true, undoStopAfter: true },
@@ -215,7 +227,11 @@ export function createVscodeHostServices(
       if (!(await document.save())) fail(MHP_ERROR_CODES.internalError, 'MHP_SAVE_FAILED')
       return documentInfo(document)
     },
-    'documents/saveAll': async () => ({ saved: await vscode.workspace.saveAll(false) }),
+    'documents/saveAll': async (_params, signal) => {
+      checkCancelled(signal)
+      checkWorkspaceTrusted()
+      return { saved: await vscode.workspace.saveAll(false) }
+    },
     'editor/active': () => {
       const editor = vscode.window.activeTextEditor
       if (editor === undefined) return Promise.resolve(null)
@@ -246,10 +262,15 @@ export function createVscodeHostServices(
       const at = new vscode.Position(position.line, position.character)
       if (!document.validatePosition(at).isEqual(at))
         fail(MHP_ERROR_CODES.invalidParams, 'MHP_INVALID_POSITION')
+      checkEditSnapshot(document, expectedVersion, signal)
       if (
-        !(await editor.edit((builder) => {
-          builder.insert(at, text)
-        }))
+        !(await editor.edit(
+          (builder) => {
+            checkEditSnapshot(document, expectedVersion, signal)
+            builder.insert(at, text)
+          },
+          { undoStopBefore: true, undoStopAfter: true },
+        ))
       )
         fail(MHP_ERROR_CODES.versionConflict, 'MHP_EDIT_NOT_APPLIED')
       return documentInfo(document)
@@ -262,10 +283,15 @@ export function createVscodeHostServices(
       const selected = toRange(range)
       if (!document.validateRange(selected).isEqual(selected))
         fail(MHP_ERROR_CODES.invalidParams, 'MHP_INVALID_RANGE')
+      checkEditSnapshot(document, expectedVersion, signal)
       if (
-        !(await editor.edit((builder) => {
-          builder.replace(selected, text)
-        }))
+        !(await editor.edit(
+          (builder) => {
+            checkEditSnapshot(document, expectedVersion, signal)
+            builder.replace(selected, text)
+          },
+          { undoStopBefore: true, undoStopAfter: true },
+        ))
       )
         fail(MHP_ERROR_CODES.versionConflict, 'MHP_EDIT_NOT_APPLIED')
       editor.revealRange(editor.selection)
