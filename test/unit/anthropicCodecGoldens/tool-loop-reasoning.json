@@ -85,6 +85,7 @@
     "stream": true,
     "thinking": {
       "type": "adaptive",
+      "display": "summarized",
       "block_binding": {
         "prefix_mismatch_behavior": "drop_block"
       }

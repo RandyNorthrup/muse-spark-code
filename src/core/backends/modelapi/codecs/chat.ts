@@ -21,7 +21,12 @@
 // decoder's opaque reasoning payloads in the session's replay entries.
 
 import * as z from 'zod/mini'
-import { UI_TEXT } from '../../../../shared/constants'
+import {
+  CODEC_EMPTY_TOOL_OUTPUT,
+  CODEC_IMAGE_WITHOUT_VISION,
+  UI_TEXT,
+} from '../../../../shared/constants'
+import { cleanWireText, isBlankWireText, nativeCallId, type CallIdFormat } from './shared'
 import type {
   CreateResponseBody,
   FunctionOutputPart,
@@ -280,10 +285,12 @@ const chatReasoningEnvelopeSchema = z.object({
 // --- encode: canonical body to a native request ---
 
 function textOfParts(parts: readonly InputContentPart[]): string {
+  // M101 lane P1 (BYO items 1, 13): blank text is dropped and lone
+  // surrogates are removed (Pi `transform-messages.ts`).
   return parts
-    .map((part) => {
+    .flatMap((part) => {
       if (part.type === 'input_text' || part.type === 'output_text') {
-        return part.text
+        return isBlankWireText(part.text) ? [] : [cleanWireText(part.text)]
       }
       throw new Error(UI_TEXT.execUnknownModel)
     })
@@ -292,33 +299,51 @@ function textOfParts(parts: readonly InputContentPart[]): string {
 
 function contentOfParts(
   parts: readonly InputContentPart[],
-  canUseImages: boolean,
+  vision: boolean | undefined,
 ): ChatUserMessage['content'] {
   if (parts.every((part) => part.type !== 'input_image')) {
     return textOfParts(parts)
   }
-  if (!canUseImages) {
+  if (vision === undefined) {
     throw new Error(UI_TEXT.execUnknownModel)
   }
-  return parts.map((part) => {
+  // M101 lane P1 (BYO item 1): media rides as the image-omitted placeholder
+  // where the model takes no images, so the turn keeps its shape.
+  const blocks: (ChatTextPart | ChatImagePart)[] = []
+  for (const part of parts) {
     if (part.type === 'input_image') {
-      return { type: 'image_url', image_url: { url: part.image_url, detail: part.detail } }
+      blocks.push(
+        vision
+          ? { type: 'image_url', image_url: { url: part.image_url, detail: part.detail } }
+          : { type: 'text', text: CODEC_IMAGE_WITHOUT_VISION },
+      )
+    } else if (part.type === 'input_text' || part.type === 'output_text') {
+      if (!isBlankWireText(part.text)) {
+        blocks.push({ type: 'text', text: cleanWireText(part.text) })
+      }
+    } else {
+      throw new Error(UI_TEXT.execUnknownModel)
     }
-    if (part.type === 'input_text' || part.type === 'output_text') {
-      return { type: 'text', text: part.text }
-    }
-    throw new Error(UI_TEXT.execUnknownModel)
-  })
+  }
+  return blocks
 }
 
 /** Chat tool messages carry text; image results follow in a user message. */
 function toolOutputText(output: string | readonly FunctionOutputPart[]): string {
-  return typeof output === 'string'
-    ? output
-    : output
-        .filter((part) => part.type === 'input_text')
-        .map((part) => part.text)
-        .join('')
+  const text =
+    typeof output === 'string'
+      ? output
+      : output
+          .filter((part) => part.type === 'input_text')
+          .map((part) => part.text)
+          .join('')
+  // M101 lane P1 (BYO item 1): an empty result rides as an explicit marker.
+  return isBlankWireText(text) ? CODEC_EMPTY_TOOL_OUTPUT : cleanWireText(text)
+}
+
+/** M101 lane P1 (BYO 3): Mistral's 9-alphanumeric ids, every other preset's chat rule. */
+function callIdFormat(quirks: ChatPresetQuirks): CallIdFormat {
+  return quirks.presetId === 'mistral' ? 'mistral' : 'chat'
 }
 
 interface PendingCalls {
@@ -339,7 +364,8 @@ export function encodeChatRequest(
   quirks: ChatPresetQuirks,
   options?: ChatEncodeOptions,
 ): ChatNativeRequest {
-  const messages: ChatMessage[] = [{ role: 'system', content: body.instructions }]
+  const messages: ChatMessage[] = [{ role: 'system', content: cleanWireText(body.instructions) }]
+  const idFormat = callIdFormat(quirks)
   // Keep all parallel tool results adjacent before adding their user images.
   const pendingImages: ChatUserMessage[] = []
   const callNames = new Map<string, string>()
@@ -387,7 +413,7 @@ export function encodeChatRequest(
           flushAssistant()
           messages.push({
             role: 'user',
-            content: contentOfParts(item.content, options?.capabilities?.vision === true),
+            content: contentOfParts(item.content, options?.capabilities?.vision),
           })
         }
 
@@ -403,10 +429,12 @@ export function encodeChatRequest(
           pendingText = ''
           pendingReasoning = undefined
         }
+        // M101 lane P1 (BYO 3): the id the target format accepts, mapped
+        // deterministically; the tool result below maps the same way.
         pending.calls.push({
-          id: item.call_id,
+          id: nativeCallId(item.call_id, idFormat),
           type: 'function',
-          function: { name: item.name, arguments: item.arguments },
+          function: { name: item.name, arguments: cleanWireText(item.arguments) },
         })
 
         break
@@ -415,7 +443,7 @@ export function encodeChatRequest(
         flushAssistant()
         const toolMessage: ChatToolMessage = {
           role: 'tool',
-          tool_call_id: item.call_id,
+          tool_call_id: nativeCallId(item.call_id, idFormat),
           content: toolOutputText(item.output),
         }
         if (quirks.toolResultName) {
@@ -435,7 +463,7 @@ export function encodeChatRequest(
         if (images.length > 0) {
           pendingImages.push({
             role: 'user',
-            content: contentOfParts(images, options?.capabilities?.vision === true),
+            content: contentOfParts(images, options?.capabilities?.vision),
           })
         }
 
@@ -548,13 +576,15 @@ function assistantMessage(
   if (reasoning.text === undefined || reasoning.text === '') {
     return { role: 'assistant', content: text, ...toolCalls }
   }
+  // M101 lane P1 (BYO 13): lone surrogates are removed from replayed text.
+  const reasoningText = cleanWireText(reasoning.text)
   return {
     role: 'assistant',
     content: text,
     ...toolCalls,
     ...(quirks.replayField === 'content'
-      ? { reasoning_content: reasoning.text }
-      : { reasoning: reasoning.text }),
+      ? { reasoning_content: reasoningText }
+      : { reasoning: reasoningText }),
   }
 }
 

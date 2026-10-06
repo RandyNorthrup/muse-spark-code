@@ -27,7 +27,7 @@
       "content": null,
       "tool_calls": [
         {
-          "id": "time-1",
+          "id": "time00001",
           "type": "function",
           "function": {
             "name": "get_time",
@@ -38,7 +38,7 @@
     },
     {
       "role": "tool",
-      "tool_call_id": "time-1",
+      "tool_call_id": "time00001",
       "content": [
         {
           "type": "text",

@@ -20026,6 +20026,33 @@ receipts remain the lead's checks under the rig brief.
   Gemini usage with omitted zeros; a tolerant Anthropic decoder; Anthropic
   `thinking.display: "summarized"`; Gemini 3 images in tool results and full
   schemas; lone surrogates removed. Files: `codecs/*`.
+  Status 2026-10-05: implemented on `m101/p1` with a unit test per item,
+  golden re-baselines (Anthropic `display`, Gemini full-schema fixtures,
+  Mistral compliant ids), and `docs/certification/m101-p1.md` holding the
+  provider x item table, byte diffs, and residuals (session-store signature
+  stripping for lane A, replay origins for lane I, id-heuristic generation
+  for lane N). Original lane gates and red drills ran after its shell
+  recovered; three local commits ended at `05ab4f30`. Original production
+  build receipts remained environment-blocked; RVM101P1 later reproduced
+  bundle sizes but found nine defects (one P1, seven P2, one P3).
+  **FIXM101P1 repair scope (2026-10-05):** correct Gemini 3's
+  `parametersJsonSchema` field, retain signed empty text on replay, gate
+  and nest tool-result media, preserve `$ref` sibling constraints, assign
+  response-salted fallback ids after late response ids, reject invalid
+  usage explicitly, select Mistral ids by preset, preserve own `__proto__`
+  JSON keys (shared and Anthropic), and reconcile the documentation.
+  Each finding gets a regression and deliberate red drill in
+  `docs/certification/m101-p1.md`; only Gemini request goldens move, with
+  cited provider contracts. Meta request fixtures stay byte-identical.
+  Rig rules require local hooked commits and focused direct tests; no
+  push, integration merge, new dependency, live/paid call or gate change.
+  All nine review findings are now repaired with regressions and twelve red
+  drills; no assigned P1/P2/P3 residual remains. Existing integration
+  follow-ups remain named in §9. Final rig verification is recorded in the
+  certification: 330 tests, all five typechecks, changed-file lint/format,
+  deadcode, duplication, cycles, localization, host API, production size/split/
+  globals/notices and secret scans pass on Kubuntu. The combined full-quality/
+  platform receipt remains lead-owned; no gate or Meta fixture was changed.
 - **Lane P2 — provider pricing, limits and retry** (BYO 5, 6, 10, 12, 14, 15,
   16; item 24's per-model strict schemas and the llama.cpp grammar check).
   Retry classification moves into `FormatQuirks`; price cards read long
@@ -20120,6 +20147,34 @@ residual in §9. The inherited packing default/runtime gap and M75 live pair
 are named there too. Original fabricated evidence is withdrawn; the shared
 schema pin, actual bundle deltas, 18-file/1,230-test results and drills are
 in `docs/certification/m101-t.md`. No paid/live calls or dependencies added.
+
+Status 2026-10-05: implemented on `m101/p1` with a unit test per item,
+golden re-baselines (Anthropic `display`, Gemini full-schema fixtures,
+Mistral compliant ids), and `docs/certification/m101-p1.md` holding the
+provider x item table, byte diffs, and residuals (session-store signature
+stripping for lane A, replay origins for lane I, id-heuristic generation
+for lane N). Original lane gates and red drills ran after its shell
+recovered; three local commits ended at `05ab4f30`. Original production
+build receipts remained environment-blocked; RVM101P1 later reproduced
+bundle sizes but found nine defects (one P1, seven P2, one P3).
+**FIXM101P1 repair scope (2026-10-05):** correct Gemini 3's
+`parametersJsonSchema` field, retain signed empty text on replay, gate
+and nest tool-result media, preserve `$ref` sibling constraints, assign
+response-salted fallback ids after late response ids, reject invalid
+usage explicitly, select Mistral ids by preset, preserve own `__proto__`
+JSON keys (shared and Anthropic), and reconcile the documentation.
+Each finding gets a regression and deliberate red drill in
+`docs/certification/m101-p1.md`; only Gemini request goldens move, with
+cited provider contracts. Meta request fixtures stay byte-identical.
+Rig rules require local hooked commits and focused direct tests; no
+push, integration merge, new dependency, live/paid call or gate change.
+All nine review findings are now repaired with regressions and twelve red
+drills; no assigned P1/P2/P3 residual remains. Existing integration
+follow-ups remain named in §9. Final rig verification is recorded in the
+certification: 330 tests, all five typechecks, changed-file lint/format,
+deadcode, duplication, cycles, localization, host API, production size/split/
+globals/notices and secret scans pass on Kubuntu. The combined full-quality/
+platform receipt remains lead-owned; no gate or Meta fixture was changed.
 
 ### M95 K repair residuals (2026-10-05)
 
@@ -21035,6 +21090,17 @@ no failed package rows are claimed green. Receipts: `docs/certification/m101-a.m
 and main merges here; the lead must run full `npm run quality` before
 integration. Direct lane checks, build caps and red drills are recorded in
 `docs/certification/m101-t.md`; no gate is weakened.
+
+**FIXM101P1 lane verification (2026-10-05).** The rig brief expressly
+forbids the full `npm run quality` wrapper and full unit suite because the
+rig is shared; the lead runs the combined four-machine quality gate.
+This lane runs focused complete test files (at most three per invocation),
+all project typechecks, changed-file lint/format, deadcode, duplication,
+localization, host API and production build directly on Kubuntu. The final
+receipts and twelve red drills are in `docs/certification/m101-p1.md`: 330
+focused tests and all listed lane checks pass, including the unchanged
+production bundle-split gate. This defers only the full-tree/full-platform
+quality receipt; no gate is weakened.
 
 ### M98 — Muse Judge: a calibrated judge for any agent (D77, phase 1 integration)
 
@@ -22056,6 +22122,29 @@ before a repaired one loads (2026-09-30).
   guard is raised. Retaining larger raw streams needs a separate private
   0600 spool and runtime cleanup/lifecycle design; test that design in all
   hosts before claiming unbounded shell recall.
+
+- **FIXM101P1 / RVM101P1 (2026-10-05):** repair all nine findings, with no
+  assigned P1/P2/P3 residual. The isolated shared-core codec tests do not
+  certify installed-editor dispatch or live services; the lead still owns
+  combined quality and the platform matrix. No credential access or paid
+  call is added. Existing named integration follow-ups remain:
+  **M101-SIGNATURE-PERSISTENCE** (lane A must retain text thought signatures
+  through session-store parsing; release blocker for signed resume/fork),
+  **M101-REPLAY-ORIGIN** (lane I must supply actual replay origins; release
+  blocker for foreign-model Responses replay), and **M101-GENERATION-RECORD**
+  (lane N supplies model generation instead of relying on the id heuristic;
+  the explicit override remains available). These are safe only within this
+  codec-only certification, not proof of integrated behavior. Gemini tool
+  result media now follows the lead-approved documented nested shape,
+  with the generation/vision gates; no new live receipt is claimed.
+- **M95-G tool-result image replay (FIXM95G / RVM95A 11), superseded
+  by M101 P1 / FIXM101P1.** The original M95 encoder refused tool-result
+  images explicitly while its captures did not establish a representation.
+  The lead approved Gemini 3's documented multimodal result contract for
+  M101: images now nest in `functionResponse.parts`, with the vision gate
+  applied first and the pre-3 refusal retained for vision-capable models.
+  No new native-image live receipt is claimed; the existing capture
+  provenance and fake-only contract tests are in `m101-p1.md`.
 
 ## 10. Definition of done and release records
 

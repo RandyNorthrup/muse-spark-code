@@ -394,6 +394,71 @@ describe('encodeOllamaRequest', () => {
   })
 })
 
+describe('M101 lane P1 history hardening (BYO items 1, 13)', () => {
+  it('marks empty results and stands in for images without vision', () => {
+    const body: CreateResponseBody = {
+      ...firstTurn(),
+      input: [
+        {
+          type: 'function_call',
+          call_id: 'c1',
+          name: 'read_file',
+          arguments: '{"path":"notes.md"}',
+        },
+        { type: 'function_call_output', call_id: 'c1', output: '' },
+      ],
+    }
+    const marked = recordSchema.parse(JSON.parse(encodeOllamaRequest(body, encodeOptions).body))
+    const markedMessages = z.array(z.object({ content: z.string() })).parse(marked['messages'])
+    expect(markedMessages.at(-1)?.content).toBe('(no tool output)')
+    const withImage: CreateResponseBody = {
+      ...firstTurn(),
+      input: [
+        {
+          type: 'message',
+          role: 'user',
+          content: [
+            { type: 'input_text', text: 'look' },
+            { type: 'input_image', image_url: 'data:image/png;base64,AA==', detail: 'auto' },
+          ],
+        },
+      ],
+    }
+    const visioned = recordSchema.parse(
+      JSON.parse(
+        encodeOllamaRequest(withImage, { ...encodeOptions, capabilities: { vision: false } }).body,
+      ),
+    )
+    const visionedMessages = z
+      .array(z.object({ content: z.string(), images: z.optional(z.unknown()) }))
+      .parse(visioned['messages'])
+    expect(visionedMessages[1]?.content).toContain('[image omitted: this model takes no images]')
+    expect(visionedMessages[1]).not.toHaveProperty('images')
+    const sent = recordSchema.parse(JSON.parse(encodeOllamaRequest(withImage, encodeOptions).body))
+    const sentMessages = z
+      .array(z.object({ images: z.optional(z.array(z.string())) }))
+      .parse(sent['messages'])
+    expect(sentMessages[1]?.images).toHaveLength(1)
+  })
+
+  it('removes lone surrogates from instructions and tool results', () => {
+    const text = encodeOllamaRequest(
+      {
+        ...firstTurn(),
+        instructions: 'Be brie\u{D800}f.',
+        input: [
+          { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'a\u{DC00}b' }] },
+        ],
+      },
+      encodeOptions,
+    ).body
+    expect(text).toContain('Be brie�f.')
+    expect(text).toContain('a�b')
+    expect(text).not.toContain(String.raw`\ud800`)
+    expect(text).not.toContain(String.raw`\udc00`)
+  })
+})
+
 async function expectMalformedCall(line: string): Promise<void> {
   const raw = line + '\n' + terminal().replace(model, 'qwen3:1.7b')
   await expect(response(stream(raw), { ...decodeOptions, model: 'qwen3:1.7b' })).rejects.toThrow(

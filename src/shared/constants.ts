@@ -2899,6 +2899,16 @@ export const MEMORY_TRUNCATED_MARKER = '[MEMORY.md truncated]'
 export const MUSE_MEMORY_DOCS_URL = 'https://dev.meta.ai/docs/muse-code/configuration#local-memory'
 export const TOOL_OUTPUT_MAX_CHARS = 64_000
 export const TOOL_OUTPUT_CLIP_MARKER = '\n[output clipped]'
+// M101 lane P1 (PLAN.md D81, BYO codec item 1): wire markers the BYO codecs
+// send when a history item cannot ride as it came. Fixed strings, never
+// templated, so the cached prefix stays byte-stable. Model-read, English by
+// wire necessity (like the clip marker above): never UI text.
+// An empty tool result rides as this instead of an empty string, which
+// providers reject (Pi transform-messages, #9797).
+export const CODEC_EMPTY_TOOL_OUTPUT = '(no tool output)'
+// An image for a model without image input rides as this text instead of
+// the bytes, so the turn keeps its shape (Pi transform-messages).
+export const CODEC_IMAGE_WITHOUT_VISION = '[image omitted: this model takes no images]'
 // Observation packing (M73, PLAN.md D49): SoL-Pi's ObservationPack design.
 // A tool result over the threshold rides whole for its first requests, then
 // as a placeholder naming its id, size and first and last lines; the swap

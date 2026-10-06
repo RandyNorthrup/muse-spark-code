@@ -265,6 +265,99 @@ describe('responsesCodec encodeRequest', () => {
   })
 })
 
+function callBody(callId: string, id: string | undefined): CreateResponseBody {
+  return {
+    ...firstTurnBody('gpt-5.6-luna'),
+    input: [
+      {
+        type: 'function_call',
+        ...(id !== undefined && { id }),
+        call_id: callId,
+        name: 'get_time',
+        arguments: '{"timezone":"UTC"}',
+      },
+      { type: 'function_call_output', call_id: callId, output: 'noon' },
+    ],
+  }
+}
+
+describe('M101 lane P1 history hardening (BYO items 1, 2, 13)', () => {
+  const codec = createResponsesCodec({ sendPromptCacheRetention: false, sendPromptCacheKey: false })
+
+  it('replays same-model fc_ ids and drops foreign or synthetic ones (BYO item 2)', () => {
+    const same = codec.encodeRequest(callBody('call_same', 'fc_same'))['input']
+    expect(JSON.stringify(same)).toContain('"id":"fc_same"')
+    const synthetic = codec.encodeRequest(callBody('call_syn', 'chat-call-x-0'))['input']
+    expect(JSON.stringify(synthetic)).not.toContain('"id"')
+    expect(JSON.stringify(synthetic)).toContain('"call_id":"call_syn"')
+    const switched = codec.encodeRequest(callBody('call_old', 'fc_old'), {
+      model: 'gpt-5.6-luna',
+      replayOrigins: { call_old: 'gpt-5.5-nano' },
+    })['input']
+    expect(JSON.stringify(switched)).not.toContain('"id":"fc_old"')
+    expect(JSON.stringify(switched)).toContain('"call_id":"call_old"')
+    const declared = codec.encodeRequest(callBody('call_new', 'fc_new'), {
+      model: 'gpt-5.6-luna',
+      replayOrigins: { call_new: 'gpt-5.6-luna' },
+    })['input']
+    expect(JSON.stringify(declared)).toContain('"id":"fc_new"')
+  })
+
+  it('drops blank text, marks empty results and cleans surrogates (BYO items 1, 13)', () => {
+    const body: CreateResponseBody = {
+      ...firstTurnBody('gpt-5.6-luna'),
+      instructions: 'be brie\u{D800}f',
+      input: [
+        {
+          type: 'message',
+          role: 'user',
+          content: [
+            { type: 'input_text', text: ' '.repeat(3) },
+            { type: 'input_text', text: 'hi' },
+          ],
+        },
+        { type: 'function_call', call_id: 'call_1', name: 'get_time', arguments: '{}' },
+        { type: 'function_call_output', call_id: 'call_1', output: '' },
+      ],
+    }
+    const text = JSON.stringify(codec.encodeRequest(body)['input'])
+    expect(text).not.toContain('"text":"   "')
+    expect(text).toContain('"text":"hi"')
+    expect(text).toContain('(no tool output)')
+    expect(JSON.stringify(codec.encodeRequest(body)['instructions'])).toBe('"be brie�f"')
+    expect(text).not.toContain(String.raw`\ud800`)
+  })
+
+  it('stands in for images without vision and refuses a fully dropped input', () => {
+    const visioned = createResponsesCodec({
+      sendPromptCacheRetention: false,
+      sendPromptCacheKey: false,
+      vision: false,
+    })
+    const body: CreateResponseBody = {
+      ...firstTurnBody('gpt-5.6-luna'),
+      input: [
+        {
+          type: 'message',
+          role: 'user',
+          content: [
+            { type: 'input_image', image_url: 'data:image/png;base64,iVBOR', detail: 'auto' },
+          ],
+        },
+      ],
+    }
+    expect(JSON.stringify(visioned.encodeRequest(body)['input'])).toContain(
+      '[image omitted: this model takes no images]',
+    )
+    expect(() =>
+      codec.encodeRequest({
+        ...firstTurnBody('gpt-5.6-luna'),
+        input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: '  ' }] }],
+      }),
+    ).toThrow(/keeps no replayable input/)
+  })
+})
+
 describe('responsesCodec decodeStream', () => {
   it('decodes captured fragmented OpenAI tool arguments without duplication', async () => {
     const events = await collect(stream(...openaiTool.map((event) => frame(event))))
