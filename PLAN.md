@@ -21111,6 +21111,18 @@ prerequisite. General provider credential CLI/headless and OpenRouter
 connect/usage are still explicit open acceptance work. No live/support closure
 is inferred from the offline transport tests.
 
+The preflight audit also reports newly reviewed high advisory
+GHSA-68fv-2mgg-jv7q in development-only `source-map-js` 1.2.1. Upstream fixes
+it in 1.2.2; pin that exact transitive override and regenerate the lockfile
+with `--package-lock-only --ignore-scripts`, then require the unchanged audit
+gate to pass. No exception is added. The rig's immutable shared install
+remains 1.2.1; clean installs from this lock use 1.2.2. No shipped bundle or
+notice imports this development dependency. Peer-dependency metadata is empty.
+The first lock-only resolution correctly refuses the patch under the seven-day
+release-age filter. For this audited security fix, exempt only `source-map-js`
+on that single lock-only command with `--min-release-age-exclude=source-map-js`;
+the repository's age policy and all other dependency filters stay unchanged.
+
 **M95R3 integration gate status (2026-10-05).** The rig authorizes local
 merge/repair commits with unchanged hooks and one final full quality run.
 These preserve reviewable integration work and do not propose a release.
@@ -21644,6 +21656,11 @@ remain available.
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
 ## 8. Escape hatches register
+
+| M95R4 operation                                           | Escape hatch                                            | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                | Added      |
+| --------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Lock-only security patch resolution                       | One command's `--min-release-age-exclude=source-map-js` | Resolve upstream 1.2.2 for high GHSA-68fv-2mgg-jv7q; exact override/integrity pinned, no lifecycle script or shared-install write, no persistent release-age change.                                                                                                                                                                                                                                                                  | 2026-10-05 |
+| `src/core/backends/modelapi/pluginHost.ts` POSIX launcher | `nosemgrep` for `detect-child-process` on `nodeSpawn`   | `resolvePluginRuntime` supplies the absolute user Node/Bun/prlimit executable, host-owned arguments are passed as an array without a shell, the plugin request travels over stdin, and `withoutCredentials` removes credentials before launch. The existing process-tree, timeout, lifecycle and runtime-refusal tests exercise this deliberate subprocess boundary. The full preflight SAST scan first reports exactly this finding. | 2026-10-05 |
 
 | M95 K repair file                                                              | Construct                                                    | Reason                                                                                                                                                                                                                                             | Added      |
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |

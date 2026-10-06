@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Pin the patched development source-map parser, `source-map-js` 1.2.2,
+  after the dependency audit reports GHSA-68fv-2mgg-jv7q.
+- Record the plugin runtime launcher's deliberate, bounded subprocess
+  boundary for static analysis, retaining its runtime and credential checks.
 - Restore Copilot's production tool loop by binding admission to the same
   host grant identity used when the request was confirmed.
 - Connect the captured Mistral plan-key preset and configured providers to
