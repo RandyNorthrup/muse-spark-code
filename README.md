@@ -3961,10 +3961,15 @@ hard shared ledger; the stock carrier refuses before a popup when either is abse
 MHP 1.3 adds saved-plan/manager/role/diff/walkthrough messages, fresh diagnostics,
 file/save and HTML publication acknowledgements, and protected native GitHub
 leases. OAuth tokens and pasted keys stay with native credential services.
-Native carriers must adopt and qualify the new contract before shipment.
+Native carriers must adopt and qualify the new contract before shipment. The
+[continuation integration record](docs/certification/m104-pa-integration.md)
+lists the current scoped receipts, bounded stops and exact owner handoffs.
 
-The replacement MHP 1.3.0 panel contract for native and companion adapters is
-[documented here](docs/ide-compatibility/host-api-panel-1.1.md). The editor initiates
+The replacement MHP 1.3.0 contract is frozen in the generated
+[service schema](src/shared/hostApi/mhp-v1.schema.json) and
+[panel schema](src/shared/hostApi/mhp-v1.1.schema.json). The legacy-named
+[native guide](docs/ide-compatibility/host-api-panel-1.1.md) awaits F's 1.3 adoption
+update. The editor initiates
 `initialize` with its metadata, locale, theme and capabilities; the runtime
 answers with its capabilities. Only 1.3 is supported. `node scripts/mhp-schema.mjs
 --adopt-version=mhp/1.3.0` performed the reviewed version adoption; repeating

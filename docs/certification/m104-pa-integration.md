@@ -1,6 +1,7 @@
 # M104PA continuation 3 — B/C central integration
 
 Rig: macmini, `/Users/randy/lanes/M104PA`, 2026-10-06. Base `74b99c4a0`.
+Implementation: `3cf813d0aca90f7e2c7727ff4148e3d354271790`.
 Authorized merges: B `737196296` in `39205d54`; C `739cf1771` in `97d15be1`.
 No B/C implementation or reserved UI tests were edited. No live/paid calls,
 credential reads, downloads, dependency installations, support promotions or
@@ -175,7 +176,7 @@ wire was added. Voice needs captured PCM/socket and native drain; Tab/Judge
 need eligible context, verified captured capability/price records, shared hard
 ledger and exact original settlement. Optional absence never implies support.
 
-F prepares Playwright 1.63.0 WebKit build 2359 and installed Chrome on browser
+F updates the legacy-named native guide `docs/ide-compatibility/host-api-panel-1.1.md` for 1.3 adoption and prepares Playwright 1.63.0 WebKit build 2359 and installed Chrome on browser
 qualification rigs. Missing executable was
 `~/Library/Caches/ms-playwright/webkit-2359/pw_run.sh`; no download was attempted
 under this lane's no-network rule. The help catalog/generator named by shared

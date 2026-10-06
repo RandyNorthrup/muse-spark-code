@@ -249,3 +249,27 @@ global cache or runtime/product dependency. The test executable override
     An already initiated browser clipboard write cannot be undone by this
     adapter; cancellation promises immediate refusal of the request's result,
     no late successful acknowledgement and no additional write after disposal.
+
+## A integration dispositions — continuation 3
+
+Implementation commit: `3cf813d0aca90f7e2c7727ff4148e3d354271790`. **All 17 central requests are done.** Native installation, packaging, aggregate help-reference work and the missing WebKit matrix prerequisite remain explicit owner handoffs; these receipts do not promote support. Full evidence: [A integration record](m104-pa-integration.md).
+
+| Numbered request | A disposition                                                                                                                                       | Commit      |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1                | DONE — UI test namespace and separate Node/browser/harness compiler discovery.                                                                      | `3cf813d0a` |
+| 2                | DONE — Checked configured presentation factory, real Tasks views and authoritative close callbacks.                                                 | `3cf813d0a` |
+| 3                | DONE — Current session-ID callback and owner AbortSignal fence every auxiliary view.                                                                | `3cf813d0a` |
+| 4                | DONE — Own Node/page budgets and split readers; exact distribution inventory handed to F.                                                           | `3cf813d0a` |
+| 5                | DONE — Shipped What’s New, owned facts-only reports/journal/save and crash recovery after actual ready.                                             | `3cf813d0a` |
+| 6                | DONE — Awaited authenticated same-build HTML publication with per-render nonce and immutable binding.                                               | `3cf813d0a` |
+| 7                | DONE — Correlated clipboard/external-open fallback schema/capability routes retain actual acceptance/error semantics.                               | `3cf813d0a` |
+| 8                | DONE — Indexed exact-text saved plans with correlated read/open/implement, real fresh-session controller and confined store.                        | `3cf813d0a` |
+| 9                | DONE — Exact native hunks, acknowledged decision service, indexed managers including rules/agents; real providers required.                         | `3cf813d0a` |
+| 10               | DONE — Walkthrough uses actual advertised model steps and validated actions; native open/focus lifecycle retained.                                  | `3cf813d0a` |
+| 11               | DONE — Bounded roles/traffic transport, current-record resolution, unknown status/peer preservation and scrubbing.                                  | `3cf813d0a` |
+| 12               | DONE — Four headings and provider-price/budget consent text in English plus fourteen real translations.                                             | `3cf813d0a` |
+| 13               | DONE — Guarded Node entry and all five actual portable lazy closures declared with separate caps; F owns packaging.                                 | `3cf813d0a` |
+| 14               | DONE (native/F handoff) — Qualification scenarios, tool prerequisites and truthful aggregate docs explicitly recorded; no W promotion.              | `3cf813d0a` |
+| 15               | DONE — Owned browser reload/fixed render-error routing and caller-language installation; no empty success on failures.                              | `3cf813d0a` |
+| 16               | DONE — Plain knip, all compiler projects, measured own caps and unaltered portable/startup/deferred budgets pass; packaging handed to F.            | `3cf813d0a` |
+| 17               | DONE — Minimal PLAN/CHANGELOG remediation record and passing Tasks/What’s New ownership receipts; clipboard’s already-started write limit retained. | `3cf813d0a` |
