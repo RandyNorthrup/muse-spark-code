@@ -13,6 +13,8 @@ happened, not what was planned; superseded entries are kept.
   SwiftUI/WKWebView app and XcodeKit extension, authenticated ephemeral
   selection callbacks, explicit buffer-edit approval with stale-buffer and
   selection checks, credential-free runtime launch, and out-of-band Stop.
+  Selected folders/project bundles must exist before launch; invalid startup
+  workspace arguments show the localized error.
   Shared runtime panel/Tab endpoints and installation qualification remain
   required; the packaged local build does not claim full feature parity.
 

@@ -17,6 +17,10 @@ final class RuntimeLauncher {
   }
   static func workspace(_ selected: URL) throws -> URL {
     guard selected.isFileURL else { throw NativeFailure.invalid }
+    var selectedDirectory: ObjCBool = false
+    guard FileManager.default.fileExists(atPath: selected.path, isDirectory: &selectedDirectory),
+      selectedDirectory.boolValue
+    else { throw NativeFailure.invalid }
     let root =
       ["xcodeproj", "xcworkspace"].contains(selected.pathExtension)
       ? selected.deletingLastPathComponent() : selected

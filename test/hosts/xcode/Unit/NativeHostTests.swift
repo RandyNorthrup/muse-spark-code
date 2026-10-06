@@ -237,6 +237,10 @@ final class NativeHostTests: XCTestCase {
     XCTAssertEqual(clean, ["PATH": "/usr/bin", "MUSE_NORMAL": "allowed"])
   }
   func testProjectAndWorkspaceResolveToTheirFolder() throws {
+    for bundle in ["Sample.xcodeproj", "Sample.xcworkspace"] {
+      try FileManager.default.createDirectory(
+        at: directory.appendingPathComponent(bundle), withIntermediateDirectories: false)
+    }
     XCTAssertEqual(
       try RuntimeLauncher.workspace(directory.appendingPathComponent("Sample.xcodeproj")),
       directory.standardizedFileURL)
@@ -244,6 +248,10 @@ final class NativeHostTests: XCTestCase {
       try RuntimeLauncher.workspace(directory.appendingPathComponent("Sample.xcworkspace")),
       directory.standardizedFileURL)
     XCTAssertThrowsError(try RuntimeLauncher.workspace(URL(string: "https://example.invalid")!))
+    XCTAssertThrowsError(
+      try RuntimeLauncher.workspace(directory.appendingPathComponent("Missing.xcodeproj")))
+    XCTAssertThrowsError(
+      try RuntimeLauncher.workspace(directory.appendingPathComponent("Missing.xcworkspace")))
   }
   func testRuntimeLaunchUsesWorkspaceAndScrubbedEnvironment() throws {
     let receipt = directory.appendingPathComponent("receipt")
@@ -299,7 +307,8 @@ final class NativeHostTests: XCTestCase {
     let pid = try XCTUnwrap(Int32(String(contentsOf: receipt, encoding: .utf8)))
     let group = getpgid(pid)
     guard group > 0, group != getpgrp() else { throw NativeFailure.launch }
-    defer { kill(-group, SIGKILL) }  // Test-only cleanup also runs when the Stop guard is deliberately broken.
+    // Test-only cleanup also runs when the Stop guard is deliberately broken.
+    defer { kill(-group, SIGKILL) }
     launcher.stop()
     launcher.stop()
     XCTAssertFalse(launcher.isRunning)

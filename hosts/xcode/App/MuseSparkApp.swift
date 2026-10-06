@@ -65,8 +65,13 @@ struct MuseSparkApp: App {
           model.runtime = URL(fileURLWithPath: arguments[index + 1])
         }
         if let index = arguments.firstIndex(of: "--workspace"), index + 1 < arguments.count {
-          model.workspace = try? RuntimeLauncher.workspace(
-            URL(fileURLWithPath: arguments[index + 1]))
+          do {
+            model.workspace = try RuntimeLauncher.workspace(
+              URL(fileURLWithPath: arguments[index + 1]))
+          } catch {
+            model.workspace = nil
+            model.error = UI_TEXT.xcodeWorkspaceRequired
+          }
         }
         if model.workspace != nil { model.start() }
       }

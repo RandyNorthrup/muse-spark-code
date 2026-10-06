@@ -94,7 +94,7 @@ Run the complete native suite:
 bash hosts/xcode/Scripts/test.sh
 ```
 
-This runs all core XCTest cases and an app-hosted UI test against the actual
+This runs all core XCTest cases and app-hosted UI tests against the actual
 companion server with a fake runtime. The UI test checks authenticated rendering
 and the real Stop menu action. The `NativeCore` Xcode scheme runs the complete
 core suite independently for regression drills. A separate ad-hoc XCUITest runner
