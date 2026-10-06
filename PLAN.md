@@ -5455,6 +5455,13 @@ every line of ours it cites, is `docs/research/pi-solpi-2026-10-05.md`.
 
 ## 3. Open questions (need the owner)
 
+- **Q-M95R3 transport size (2026-10-05):** the required general transport,
+  per-attempt credential/network checks, capability-record registry and
+  host/ACP composition exceed the shared lane brief's approximate 300-line
+  limit for one fix. May this required implementation exceed that limit?
+  Clarification is pending; independent merge, test and documentation work
+  continues. No partial production transport is installed.
+
 - **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
   commit supplies ProviderClient/transport/authSource for this checkout?
   Those modules are absent at `60bf96aa`; the local `rt-fixm95t` rig snapshot
@@ -17315,54 +17322,56 @@ Evidence and readiness review: `docs/certification/m95-n.md`.
 | Best-of-N, paid features, M91 hook handlers, M94 Tab picker, scheduled prompts, M96 worker factories reading the record instead of Muse tariffs (F10 rest, F2 rest)                                                                                                                                                                                                       | **CAPPAR lane** after M95 + M96 + 0.14.0 integrate (0.15.0 batch) |
 | Judge logprob/top-1/structured-output adapters (F11), structured output modes                                                                                                                                                                                                                                                                                             | **M98 phase 2 lane E (2e)**                                       |
 | Hosted search per provider, native n>1, FIM routes                                                                                                                                                                                                                                                                                                                        | planned M95 follow-up; recorded, not in 0.15.0 unless captured    |
-| **Lane I host integration (2026-10-05, Mac mini; host seam implemented,                                                                                                                                                                                                                                                                                                   |
-| production composition pending).** Resolve                                                                                                                                                                                                                                                                                                                                |
-| every host and Auto reviewer request through the configured model registry;                                                                                                                                                                                                                                                                                               |
-| persist reasoning producer identity, bind held confirmations and retries,                                                                                                                                                                                                                                                                                                 |
-| read capabilities through `modelPolicy.ts`, and use the price-card public                                                                                                                                                                                                                                                                                                 |
-| functions for admission and settlement. Preserve bare Meta request bytes,                                                                                                                                                                                                                                                                                                 |
-| packing, `then_run` and consent behavior. Compaction body/tools and context                                                                                                                                                                                                                                                                                               |
-| pressure belong to M101 C1/O; price-card arithmetic belongs to P2; CAPREC                                                                                                                                                                                                                                                                                                 |
-| replaces this lane's policy adapter after integration. The starting checkout                                                                                                                                                                                                                                                                                              |
-| lacks lane T's ProviderClient/transport. This lane supplies the registry                                                                                                                                                                                                                                                                                                  |
-| factory and a lazy injected client-construction seam, without copying a rig                                                                                                                                                                                                                                                                                               |
-| snapshot. W must supply the production configured-model/auth factory and                                                                                                                                                                                                                                                                                                  |
-| profile identity; N replaces the evidence adapter, P2 settles its propagated                                                                                                                                                                                                                                                                                              |
-| one-hour-write subset, and CAPPAR consumes resolved paid receipts/effort                                                                                                                                                                                                                                                                                                  |
-| metadata. Until P2 lands, a priced receipt with a one-hour-write subset and                                                                                                                                                                                                                                                                                               |
-| a one-hour rate retains uncertain liability unless the provider reports the                                                                                                                                                                                                                                                                                               |
-| authoritative total; remove that temporary refusal and update its named test                                                                                                                                                                                                                                                                                              |
-| when P2's public settlement honours the subset. A legacy reviewer observer cannot discard the durable settlement:                                                                                                                                                                                                                                                         |
-| its counted paid use remains explicitly unknown on observer failure.                                                                                                                                                                                                                                                                                                      |
-| No dependency merge or live/paid call is implied.                                                                                                                                                                                                                                                                                                                         |
-| Focused gates and byte-exact red drills are recorded in `m95-i.md`; the lead                                                                                                                                                                                                                                                                                              |
-| owns full quality and release certification.                                                                                                                                                                                                                                                                                                                              |
-| **DEFLAKE5 scope (2026-10-05, kubuntu).** Audit the five failures in                                                                                                                                                                                                                                                                                                      |
-| M95INT's recorded full unit sweep against `ad13e83a`, including the fixture                                                                                                                                                                                                                                                                                               |
-| repairs already committed at `e9c3d21d`. Run the complete V8 coverage suite                                                                                                                                                                                                                                                                                               |
-| twice at the recorded three-worker setting, then probe ten workers and                                                                                                                                                                                                                                                                                                    |
-| additional CPU load if the failures do not recur. Fix only demonstrated                                                                                                                                                                                                                                                                                                   |
-| causes, preserving every test, timeout, isolation setting and coverage gate.                                                                                                                                                                                                                                                                                              |
-| Require three consecutive green complete runs at three workers and a green                                                                                                                                                                                                                                                                                                |
-| loaded run if load reproduces a failure. Prove meaningful fixes with red                                                                                                                                                                                                                                                                                                  |
-| drills and byte-exact restoration; record errors, causes and run receipts in                                                                                                                                                                                                                                                                                              |
-| `docs/certification/deflake5.md`. The 90-minute rig brief authorizes these                                                                                                                                                                                                                                                                                                |
-| full unit runs and only typecheck, lint, formatting, deadcode and duplication                                                                                                                                                                                                                                                                                             |
-| gates, overriding the common lane's full-unit prohibition and the ordinary                                                                                                                                                                                                                                                                                                |
-| whole-quality prerequisite. No merge, push, rebase, live/paid call or retry.                                                                                                                                                                                                                                                                                              |
-| The second three-worker run reproduces two split-guard failures: the built                                                                                                                                                                                                                                                                                                |
-| exec suite rebuilds shared `dist/` while deferred-bundle drills read and                                                                                                                                                                                                                                                                                                  |
-| rewrite it, exposing deleted browser chunks and truncated JSON. Build and                                                                                                                                                                                                                                                                                                 |
-| package exec in its existing private tree, with copied source inputs and a                                                                                                                                                                                                                                                                                                |
-| dependency link used only for reads. Snapshot the deferred suite's sole production                                                                                                                                                                                                                                                                                        |
-| build into its own temporary tree before its drills, so every mutation and                                                                                                                                                                                                                                                                                                |
-| guard check uses owned artifacts. Keep production scripts and guards intact.                                                                                                                                                                                                                                                                                              |
-| The ten-worker/four-CPU-process probe then exposes 15 five-second drill                                                                                                                                                                                                                                                                                                   |
-| timeouts: each case spawns the same complete source-parsing guard twice.                                                                                                                                                                                                                                                                                                  |
-| Share one real green check of the owned immutable fixture in setup. Every                                                                                                                                                                                                                                                                                                 |
-| negative case still invokes the real guard, requires its precise failure,                                                                                                                                                                                                                                                                                                 |
-| restores the original metafile and proves SHA-256 equality before asserting                                                                                                                                                                                                                                                                                               |
-| that shared green result. No assertions, guards or deadlines are removed.                                                                                                                                                                                                                                                                                                 |
+
+**Lane I host integration (2026-10-05, Mac mini; host seam implemented,
+production composition pending).** Resolve
+every host and Auto reviewer request through the configured model registry;
+persist reasoning producer identity, bind held confirmations and retries,
+read capabilities through `modelPolicy.ts`, and use the price-card public
+functions for admission and settlement. Preserve bare Meta request bytes,
+packing, `then_run` and consent behavior. Compaction body/tools and context
+pressure belong to M101 C1/O; price-card arithmetic belongs to P2; CAPREC
+replaces this lane's policy adapter after integration. The starting checkout
+lacks lane T's ProviderClient/transport. This lane supplies the registry
+factory and a lazy injected client-construction seam, without copying a rig
+snapshot. W must supply the production configured-model/auth factory and
+profile identity; N replaces the evidence adapter, P2 settles its propagated
+one-hour-write subset, and CAPPAR consumes resolved paid receipts/effort
+metadata. Until P2 lands, a priced receipt with a one-hour-write subset and
+a one-hour rate retains uncertain liability unless the provider reports the
+authoritative total; remove that temporary refusal and update its named test
+when P2's public settlement honours the subset. A legacy reviewer observer cannot discard the durable settlement:
+its counted paid use remains explicitly unknown on observer failure.
+No dependency merge or live/paid call is implied.
+Focused gates and byte-exact red drills are recorded in `m95-i.md`; the lead
+owns full quality and release certification.
+
+**DEFLAKE5 scope (2026-10-05, kubuntu).** Audit the five failures in
+M95INT's recorded full unit sweep against `ad13e83a`, including the fixture
+repairs already committed at `e9c3d21d`. Run the complete V8 coverage suite
+twice at the recorded three-worker setting, then probe ten workers and
+additional CPU load if the failures do not recur. Fix only demonstrated
+causes, preserving every test, timeout, isolation setting and coverage gate.
+Require three consecutive green complete runs at three workers and a green
+loaded run if load reproduces a failure. Prove meaningful fixes with red
+drills and byte-exact restoration; record errors, causes and run receipts in
+`docs/certification/deflake5.md`. The 90-minute rig brief authorizes these
+full unit runs and only typecheck, lint, formatting, deadcode and duplication
+gates, overriding the common lane's full-unit prohibition and the ordinary
+whole-quality prerequisite. No merge, push, rebase, live/paid call or retry.
+The second three-worker run reproduces two split-guard failures: the built
+exec suite rebuilds shared `dist/` while deferred-bundle drills read and
+rewrite it, exposing deleted browser chunks and truncated JSON. Build and
+package exec in its existing private tree, with copied source inputs and a
+dependency link used only for reads. Snapshot the deferred suite's sole production
+build into its own temporary tree before its drills, so every mutation and
+guard check uses owned artifacts. Keep production scripts and guards intact.
+The ten-worker/four-CPU-process probe then exposes 15 five-second drill
+timeouts: each case spawns the same complete source-parsing guard twice.
+Share one real green check of the owned immutable fixture in setup. Every
+negative case still invokes the real guard, requires its precise failure,
+restores the original metafile and proves SHA-256 equality before asserting
+that shared green result. No assertions, guards or deadlines are removed.
 
 **M95INT round-two scope (2026-10-05, kubuntu).** The rig brief authorizes
 ordered `--no-ff` merges of `m95/kfix`, `m95/mufix`, `m95/hfix`, `m95/ofix`
@@ -18040,6 +18049,14 @@ release acceptance are still pending.**
         `docs/ci.md` and this record updated.
 
 ### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
+
+**M95R3 contributor guard repair (2026-10-05).** The release/M95 join
+left a remembered-consent return ahead of the confidential-workspace check
+and duplicated that return. Restore the release ordering: a confidential
+contributor is refused with the warning even after earlier consent. Retain
+M95's fresh qualified-provider privacy lookup. Use the existing whole-file
+regression, then disable this guard once, observe red, restore SHA-256 exact
+and rerun green.
 
 **M95R3 scope (2026-10-05, Windows rig).** Merge release 0.14.0, CAPREC,
 lane I, DEFLAKE5 and M95b in the brief's order. Close acceptance 9 with
@@ -19974,6 +19991,16 @@ joined with M57, M58 and PR #49's sign-in
         commit-writing path exists
 
 ## 7. Gates
+
+**M95R3 integration gate status (2026-10-05).** The rig authorizes local
+merge/repair commits with unchanged hooks and one final full quality run.
+These preserve reviewable integration work and do not propose a release.
+Copilot's joined factory/host regression remains stopped under the shared
+two-fix rule; acceptance 9 awaits the size-rule clarification in §3. All
+fixed bundle caps stay unchanged; browser startup/deferred overages belong
+to the separately planned batch diet if the joined build still reports them.
+Exact final gate receipts belong in docs/certification/m95-r3.md. No
+assertion, coverage threshold, ignore, deadline or rule is relaxed.
 
 **DEFLAKE5 unit/coverage acceptance (2026-10-05, kubuntu).** On committed
 code `8d31e73a`, three consecutive complete three-worker V8 runs return 0:

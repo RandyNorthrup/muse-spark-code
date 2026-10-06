@@ -513,7 +513,12 @@ workspaces hide and refuse Copilot. The AI-content note and report link remain
 visible with its plan mark. Other editors use ChatGPT through the shared ACP
 runtime's existing add/status/remove actions and authentication menu (configure
 `--backend model-api`); Copilot
-requires the VS Code host API.
+requires VS Code's Language Model API. JetBrains, Visual Studio, Eclipse,
+Zed, Xcode, Neovim, Emacs and Sublime use their own Copilot plugin for
+Copilot, and this product's shared ChatGPT/API-key routes where implemented.
+The ACP agent has no Copilot token route and reads none of Copilot's credential
+storage. A compatible extension host must actually expose `vscode.lm`;
+a VS Code-like interface alone does not provide it.
 
 Plan requests never consume the harness's USD cap or open its paid-use popup.
 Account & usage counts each dispatched request, with reported ChatGPT tokens

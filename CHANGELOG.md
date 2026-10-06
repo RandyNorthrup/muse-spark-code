@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Integrate the M95 capability, host, deflake and subscription lanes onto
+  release 0.14.0, retaining lazy bundle boundaries and translated strings.
+  Keep bundle drills in memory and include the release build inputs and
+  provider bundle in private ACP packaging fixtures.
+- Restore the confidential contributor-model warning before remembered
+  consent can return, retaining the fresh configured-provider privacy check.
+- Document Copilot's VS Code Language Model API boundary and the ChatGPT/API
+  routes available to other editors; record remaining integration failures.
+
 ### Added
 
 - M95b connects ChatGPT and Copilot subscription actions to the Models panel,

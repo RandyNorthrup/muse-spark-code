@@ -7172,10 +7172,7 @@ export class ConversationController {
       this.notice('warning', UI_TEXT.trainingBlocked)
       return false
     }
-    if (!isContributorModel(modelId) || this.confirmedContributor === modelId) {
-      return true
-    }
-    if (this.deps.isConfidentialWorkspace()) {
+    if (this.deps.isConfidentialWorkspace() && isContributorModel(modelId)) {
       this.notice('warning', UI_TEXT.contributorBlocked)
       return false
     }

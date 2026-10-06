@@ -12,6 +12,21 @@
 **Reviewed baseline:** manifest version 0.8.0, main commit [`bdaede45417ac8dbcaf5f52aa9b3ff307396ab03`](https://github.com/RandyNorthrup/muse-spark-code/commit/bdaede45417ac8dbcaf5f52aa9b3ff307396ab03)  
 **Status:** Proposed roadmap based on repository inspection and current primary documentation. No additional IDE has been installation-tested or certified during this review.
 
+## Subscription platform boundary (M95b, 2026-10-05)
+
+Copilot models are exposed to this extension through VS Code's Language
+Model API (`vscode.lm`) and its permission flow. An editor without that API
+cannot offer this product's Copilot route. JetBrains, Visual Studio, Eclipse,
+Zed, Xcode, Neovim, Emacs and Sublime keep their own Copilot plugin and can
+use this agent's shared ChatGPT/API-key routes where implemented. The ACP
+runtime uses the same shared engine for those routes. No Copilot token is
+read, extracted or reverse-engineered. Compatible VS Code extension hosts
+need an actual Language Model API implementation, not just the webview API.
+
+Offline integration is recorded in [M95R3 certification](certification/m95-r3.md).
+Installed-editor and live plan receipts remain pending; the rig's stopped
+Copilot dispatch regression must be repaired before claiming support.
+
 ## 1. Recommended direction
 
 Develop Muse Spark Code as one product with a shared agent engine, a reusable React interface, and a small set of integration families:
