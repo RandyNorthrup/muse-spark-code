@@ -61,7 +61,8 @@ budget change was used.
 
 - New owning files: `render.md.test.ts`, `render.html.test.ts`,
   `render.text.test.ts`, `render.json.test.ts`, `determinism.test.ts`,
-  `reportRedaction.test.ts`: **107 passed** in two three-file runs.
+  `reportRedaction.test.ts`: **108 passed**. The initial two three-file
+  runs passed 107; the final whitespace regression below adds one.
 - All five projects in `npm run typecheck` passed before final verification.
   The final compiler/lint/export-regression results are recorded below.
 - Plain knip passed. jscpd analyzed 1,207 files and found zero clones at
@@ -82,7 +83,7 @@ budget change was used.
   shipped M113 engine.
 - An isolated minified Node-20.18 renderer/finalizer/snapshot-scrub probe,
   using the existing shared-English and shared-wire plugins but keeping
-  report-schema validation inline, measures **82,295 bytes (80.4 KiB)**.
+  report-schema validation inline, measures **82,305 bytes (80.4 KiB)**.
   This is a renderer-component measurement, not a final collector/source
   engine budget. W must measure the joined engine. The existing shared
   mini-parser entry does not export `globalRegistry`, `ZodMiniArray` or
@@ -92,7 +93,7 @@ budget change was used.
 
 ## Red drills and exact restoration
 
-All 22 deliberate breaks failed the expected named regression with exit 1.
+All 23 deliberate breaks failed the expected named regression with exit 1.
 Each ran the complete owning test file. Every mutation restored its saved
 file bytes in `finally` and compared SHA-256. The first script attempt
 stopped before the second mutation because its match crossed a formatted
@@ -123,6 +124,7 @@ left mutated. [Complete receipts, including hashes](m113-r-drills.json).
 | schema-drift           | runs the schema generator check against the committed production boundary                              |
 | valid-theme-color      | escapes source markup and rejects CSS, closing-tag and URL injection in every theme field              |
 | nested-hash-scrub      | does not exempt a source cell named contentHash                                                        |
+| terminal-empty-details | omits trailing whitespace from empty source details                                                    |
 
 The clock drill injects `Date.now()` into the owned canonical pipeline.
 K owns the collector clock rule, and W owns the final shipped-bundle split
@@ -163,7 +165,7 @@ redaction residual, not a claim that arbitrary source prose is secret-free.
   with zero warnings/errors; the normal commit hook runs it again.
 - The three-file M84/contract regression run passed **61 tests**:
   `sessionTransfer.test.ts`, `reportSchema.test.ts`, `reportContracts.test.ts`.
-  Together with the 107 new tests this is **168 passing tests**, default
+  Together with the 108 new tests this is **169 passing tests**, default
   repository timeouts throughout.
 - Both `npm run schema:report` and its `-- --check` succeeded. The write
   produced the same committed schema bytes. `git diff --check` passed.
@@ -182,3 +184,19 @@ gitleaks on 312,823 staged bytes. All exited 0; the scan found no leaks.
 The worktree was clean after that commit. This receipt is a separate
 documentation commit with hooks enabled; history is not rewritten.
 The branch remains local and unmerged for lead integration.
+
+## Final committed-diff correction
+
+The final base-to-HEAD diff check found trailing spaces after an empty
+`Reason` field in each text golden. Earlier `git diff --check` did not
+cover those then-untracked goldens. The text renderer now trims trailing
+cell whitespace. All 15 text goldens changed only `Reason: ` to `Reason:`;
+the 45 other goldens are byte-identical. A new regression rejects trailing
+line whitespace. Removing that trim failed the named regression with
+exit 1, then restored the source byte-exact (receipt 23).
+The final affected run passed **49 tests** across `render.text.test.ts`,
+`determinism.test.ts` and `reportRedaction.test.ts`, with default timeouts.
+All five typecheck projects and changed-file ESLint passed again after
+this correction. The production build passed again with the same shipped
+sizes and unchanged budgets. The full base-to-working-tree diff check now
+exits 0.

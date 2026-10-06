@@ -22,6 +22,13 @@ describe('report terminal text', () => {
       await readFile(path.join(GOLDEN_ROOT, `${kind}.text.golden`), 'utf8'),
     )
   })
+  it('omits trailing whitespace from empty source details', () => {
+    for (const kind of REPORT_KINDS) {
+      const output = RENDERERS.text(renderFixture(kind), 'en', REPORT_THEME)
+      expect(output).toContain('Reason:\n')
+      expect(output).not.toMatch(/[^\S\n]+\n/)
+    }
+  })
   it('wraps long unbroken text, CJK and emoji at 80 cells and removes terminal controls', () => {
     const document = renderFixture()
     document.header.scope = `${'漢'.repeat(90)}\r\n${'😀'.repeat(90)}\n${'x'.repeat(180)}\u{1B}]8;;evil\u{7}\t\u{202E}`

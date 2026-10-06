@@ -218,5 +218,15 @@
     "namedFailureObserved": true,
     "restored": true,
     "sha256": "863d69e542cf63be26230df90eca6e7c7b3986135b4c615b58de79cd49c608c8"
+  },
+  {
+    "id": "terminal-empty-details",
+    "file": "text.ts",
+    "test": "render.text.test.ts",
+    "namedTest": "omits trailing whitespace from empty source details",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "9b734580b86a0a13b2da5629541671c716f55568da953cc25439e6b56b23cacd"
   }
 ]

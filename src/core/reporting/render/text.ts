@@ -38,7 +38,7 @@ function wrap(text: string): string {
 
 function rows(headers: readonly string[], data: readonly (readonly string[])[]): string {
   return data
-    .map((row) => row.map((cell, index) => `${headers[index] ?? ''}: ${cell}`).join('\n'))
+    .map((row) => row.map((cell, index) => `${headers[index] ?? ''}: ${cell}`.trimEnd()).join('\n'))
     .join('\n\n')
 }
 
