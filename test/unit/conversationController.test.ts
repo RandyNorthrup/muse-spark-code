@@ -339,6 +339,7 @@ function setup(
     hasApprovalUi?: boolean
     initialPermissionMode?: ConversationDeps['initialPermissionMode']
     isBypassAllowed?: boolean
+    isHardwareWorkspace?: boolean
     /** A remote window and the answer to its Bypass confirmation (D24). */
     isRemoteWindow?: boolean
     confirmsRemoteBypass?: boolean
@@ -707,6 +708,7 @@ function setup(
         uri.startsWith('file:///ws/') ? uri.slice('file:///ws/'.length) : undefined,
     },
     isBypassAllowed: () => isBypassAllowed,
+    isHardwareWorkspace: () => options.isHardwareWorkspace === true,
     isRemoteWindow: options.isRemoteWindow ?? false,
     confirmRemoteBypass: () => {
       remoteBypassPrompts += 1
@@ -1425,48 +1427,24 @@ describe('ConversationController.sendMessage', () => {
 })
 
 describe('ConversationController: composer controls', () => {
-  // M103-G supersedes the old permission to enter Bypass and its popup races.
-  // The actual backend and composer are both observed; no setting can admit it.
-  it.each(['manual', 'acceptEdits', 'plan', 'auto'] as const)(
-    'M103-G refuses Bypass from %s even with the legacy setting on',
-    async (mode) => {
-      const t = setup({ initialPermissionMode: mode, isBypassAllowed: true, hasApprovalUi: true })
-      await t.send('guard-start', 'hello')
-      const before = t.server.requestsFor('session/setApprovalMode').length
-      await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
-      expect(t.server.requestsFor('session/setApprovalMode')).toHaveLength(before)
-      expect(
-        t.surface.posted.findLast((message) => message.type === 'composerState'),
-      ).toMatchObject({ permissionMode: mode })
-      expect(t.surface.posted).toContainEqual({
-        type: 'notice',
-        level: 'info',
-        text: UI_TEXT.hardwareBypassNotice,
-      })
-      t.setBypassAllowed(false)
-      t.setBypassAllowed(true)
-      await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
-      expect(t.server.requestsFor('session/setApprovalMode')).toHaveLength(before)
-      t.controller.dispose()
-    },
-  )
-  it('M103-G never opens the remote Bypass popup for a refused mode', async () => {
+  it('F10: only hardware workspaces cap Bypass start and mode changes', async () => {
     const t = setup({
-      initialPermissionMode: 'manual',
-      isRemoteWindow: true,
+      initialPermissionMode: 'bypassPermissions',
       isBypassAllowed: true,
       hasApprovalUi: true,
+      isHardwareWorkspace: true,
     })
-    await t.send('guard-remote', 'hello')
+    await t.send('hardware-start', 'hello')
+    expect(t.server.requestsFor('session/start')[0]?.params).toMatchObject({
+      approvalMode: 'onRequest',
+    })
     await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
-    expect(t.remoteBypassPrompts()).toBe(0)
     expect(t.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
     expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
-      permissionMode: 'manual',
+      permissionMode: 'auto',
     })
     t.controller.dispose()
   })
-
   it('stores a model choice before a session and applies it live afterwards', async () => {
     const t = setup()
     await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.2' })
@@ -1580,19 +1558,60 @@ describe('ConversationController: composer controls', () => {
     expect(t.surface.posted.filter((m) => m.type === 'skillList')).toHaveLength(1)
   })
 
+  it('maps permission modes onto approval modes and gates bypass on the setting', async () => {
+    const t = setup({ initialPermissionMode: 'plan' })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')[0]?.params).toMatchObject({
+      approvalMode: 'denyUnmatched',
+    })
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'manual' })
+    expect(t.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+    expect(t.surface.posted.at(-1)).toEqual({ ...composerState, permissionMode: 'manual' })
+    t.setBypassAllowed(false)
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+    expect(t.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+    expect(t.surface.posted.at(-2)).toEqual({
+      type: 'notice',
+      level: 'warning',
+      text: expect.stringContaining('Allow dangerously skip permissions') as string,
+    })
+    expect(t.surface.posted.at(-1)).toEqual({ ...composerState, permissionMode: 'manual' })
+    t.setBypassAllowed(true)
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+    expect(t.server.requestsFor('session/setApprovalMode')[0]?.params).toMatchObject({
+      mode: 'allowAll',
+    })
+    expect(t.surface.posted.at(-1)).toEqual({
+      ...composerState,
+      permissionMode: 'bypassPermissions',
+    })
+    t.server.handle('session/setApprovalMode', () => {
+      throw new Error('locked')
+    })
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'plan' })
+    expect(t.surface.posted.at(-2)).toEqual({
+      type: 'notice',
+      level: 'error',
+      text: expect.stringContaining('Could not change the permission mode') as string,
+    })
+    expect(t.surface.posted.at(-2)).toMatchObject({
+      text: expect.stringContaining('locked') as string,
+    })
+    expect(t.surface.posted.at(-1)).toEqual({
+      ...composerState,
+      permissionMode: 'bypassPermissions',
+    })
+  })
+
   it('starts in Manual when the initial mode is Bypass but the setting is off', async () => {
     const t = setup({ initialPermissionMode: 'bypassPermissions', isBypassAllowed: false })
     t.controller.surfaceReady()
     expect(t.surface.posted).toContainEqual({ ...composerState, permissionMode: 'manual' })
     expect(String(t.log.warn.mock.calls[0]?.[0])).toContain('allowDangerouslySkipPermissions')
-    const allowed = setup({
-      initialPermissionMode: 'bypassPermissions',
-      isBypassAllowed: true,
-      hasApprovalUi: true,
-    })
+    const allowed = setup({ initialPermissionMode: 'bypassPermissions', isBypassAllowed: true })
     await allowed.send('l1', 'hi')
     expect(allowed.server.requestsFor('session/start')[0]?.params).toMatchObject({
-      approvalMode: 'onRequest',
+      approvalMode: 'allowAll',
     })
   })
 
@@ -6951,6 +6970,177 @@ describe('ConversationController: permission hardening (D24)', () => {
     expect(String(t.log.warn.mock.calls.at(-1)?.[0])).not.toContain('stale requirement')
   })
 
+  it('drops a conversation out of Bypass when the setting is turned off', async () => {
+    const t = setup({ hasApprovalUi: true, initialPermissionMode: 'bypassPermissions' })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')[0]?.params).toMatchObject({
+      approvalMode: 'allowAll',
+    })
+    t.setBypassAllowed(false)
+    await t.controller.revokeBypass()
+    expect(t.server.requestsFor('session/setApprovalMode').at(-1)?.params).toMatchObject({
+      mode: 'promptUnmatched',
+    })
+    expect(t.surface.posted.at(-2)).toMatchObject({
+      type: 'notice',
+      level: 'warning',
+      text: expect.stringContaining('back in Manual') as string,
+    })
+    expect(t.surface.posted.at(-1)).toEqual({ ...composerState, permissionMode: 'manual' })
+    // Nothing to do outside Bypass.
+    const before = t.surface.posted.length
+    await t.controller.revokeBypass()
+    expect(t.surface.posted).toHaveLength(before)
+  })
+
+  it('ends the session when the host will not leave Bypass', async () => {
+    const t = setup({ hasApprovalUi: true, initialPermissionMode: 'bypassPermissions' })
+    await t.send('l1', 'hi')
+    t.server.handle('session/setApprovalMode', () => {
+      throw new Error('locked')
+    })
+    await t.controller.revokeBypass()
+    await t.send('l2', 'again')
+    // A new session, started in Manual.
+    expect(t.server.requestsFor('session/start')).toHaveLength(2)
+    expect(t.server.requestsFor('session/start')[1]?.params).toMatchObject({
+      approvalMode: 'promptUnmatched',
+    })
+  })
+
+  it('never starts a remote window in Bypass, and asks once before entering it', async () => {
+    const t = setup({
+      hasApprovalUi: true,
+      initialPermissionMode: 'bypassPermissions',
+      isRemoteWindow: true,
+    })
+    t.controller.surfaceReady()
+    expect(t.surface.posted).toContainEqual({ ...composerState, permissionMode: 'manual' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: expect.stringContaining('remote window') as string,
+    })
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'manual' })
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+    expect(t.remoteBypassPrompts()).toBe(1)
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toEqual({
+      ...composerState,
+      permissionMode: 'bypassPermissions',
+    })
+    const declined = setup({ isRemoteWindow: true, confirmsRemoteBypass: false })
+    await declined.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+    expect(declined.surface.posted.at(-1)).toEqual({ ...composerState, permissionMode: 'manual' })
+  })
+
+  it.each(['allowed', 'revoked', 'off/on', 'replaced', 'disposed'] as const)(
+    'binds a held remote Bypass popup to its owner and revocation epoch: %s',
+    async (change) => {
+      const t = setup({ isRemoteWindow: true, hasApprovalUi: true })
+      t.controller.surfaceReady()
+      const popup = Promise.withResolvers<boolean>()
+      const confirm = vi.spyOn(t.deps, 'confirmRemoteBypass').mockReturnValueOnce(popup.promise)
+      const choosing = t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+      await vi.waitFor(() => {
+        expect(confirm).toHaveBeenCalledOnce()
+      })
+      switch (change) {
+        case 'revoked':
+        case 'off/on': {
+          t.setBypassAllowed(false)
+          await t.controller.revokeBypass()
+          if (change === 'off/on') {
+            t.setBypassAllowed(true)
+          }
+          break
+        }
+        case 'replaced': {
+          await t.controller.handle({ type: 'clearConversation' })
+          break
+        }
+        case 'disposed': {
+          t.controller.dispose()
+          break
+        }
+        case 'allowed': {
+          break
+        }
+      }
+      popup.resolve(true)
+      await choosing
+      const mode = t.surface.posted.findLast((message) => message.type === 'composerState')
+      expect(mode).toMatchObject({
+        permissionMode: change === 'allowed' ? 'bypassPermissions' : 'manual',
+      })
+      expect(approvalModes(t)).toEqual([])
+      if (change !== 'off/on') {
+        return
+      }
+      await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+      expect(confirm).toHaveBeenCalledTimes(2)
+      expect(t.surface.posted.at(-1)).toMatchObject({ permissionMode: 'bypassPermissions' })
+    },
+  )
+
+  it('ignores a refused Bypass fallback after its conversation was replaced', async () => {
+    const t = setup({ hasApprovalUi: true, initialPermissionMode: 'bypassPermissions' })
+    await t.send('l1', 'hi')
+    t.server.silence('session/setApprovalMode')
+    t.setBypassAllowed(false)
+    const revoking = t.controller.revokeBypass()
+    await vi.waitFor(() => {
+      expect(approvalModes(t)).toEqual(['promptUnmatched'])
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    t.server.handle('session/start', (params) => ({
+      session: { sessionId: 'replacement', modelId: params['modelId'], status: 'idle' },
+      viewCursor: '',
+    }))
+    await t.send('l2', 'new owner')
+    t.surface.posted.length = 0
+    answerModeRequest(t, 0, false)
+    await revoking
+    expect(t.surface.posted).not.toContainEqual(expect.objectContaining({ type: 'notice' }))
+    await t.send('l3', 'still this owner')
+    expect(t.server.requestsFor('session/start')).toHaveLength(2)
+  })
+
+  it('orders a held ordinary Bypass write, revocation and the newest user mode on the backend', async () => {
+    const t = setup({ hasApprovalUi: true })
+    await t.send('l1', 'hi')
+    t.finishTurn()
+    await settle()
+    t.server.silence('session/setApprovalMode')
+    const choosing = t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+    await vi.waitFor(() => {
+      expect(approvalModes(t)).toEqual(['allowAll'])
+    })
+    t.setBypassAllowed(false)
+    const revoking = t.controller.revokeBypass()
+    await settle()
+    expect(approvalModes(t)).toEqual(['allowAll'])
+    let backendMode = answerModeRequest(t, 0)
+    expect(backendMode).toBe('allowAll')
+    await vi.waitFor(() => {
+      expect(approvalModes(t)).toEqual(['allowAll', 'promptUnmatched'])
+    })
+    const newest = t.controller.handle({ type: 'setPermissionMode', mode: 'auto' })
+    await settle()
+    expect(approvalModes(t)).toHaveLength(2)
+    backendMode = answerModeRequest(t, 1)
+    await vi.waitFor(() => {
+      expect(approvalModes(t)).toEqual(['allowAll', 'promptUnmatched', 'onRequest'])
+    })
+    expect(backendMode).toBe('promptUnmatched')
+    backendMode = answerModeRequest(t, 2)
+    await Promise.all([choosing, revoking, newest])
+    expect(backendMode).toBe('onRequest')
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      permissionMode: 'auto',
+    })
+  })
+
   it('asks before resuming on a contributor-tier model and falls back when declined', async () => {
     const t = setup({ confirmsContributor: false })
     t.server.handle('model/list', () => ({
@@ -9782,20 +9972,6 @@ const turnStartText = (t: ReturnType<typeof setup>, index = 0) => {
 // M70 (PLAN.md D49): `/review` on both backends, the review pane's reads and
 // reverts, and a comment on a line reaching the agent.
 describe('ConversationController: review (M70)', () => {
-  it('M103-G restores safe Auto after reviewing from a legacy Bypass setup', async () => {
-    const t = reviewSetup({ initialPermissionMode: 'bypassPermissions', isBypassAllowed: true })
-    await startReview(t)
-    t.setBypassAllowed(false)
-    t.finishTurn()
-    await vi.waitFor(() => {
-      expect(approvalModes(t)).toEqual(['denyUnmatched', 'onRequest'])
-    })
-    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
-      permissionMode: 'auto',
-    })
-    expect(approvalModes(t)).not.toContain('allowAll')
-    t.controller.dispose()
-  })
   const GIT_MATERIAL: ReviewCollection = {
     kind: 'material',
     isCurrent: () => true,
@@ -10182,6 +10358,27 @@ describe('ConversationController: review (M70)', () => {
   )
 
   /** Hold both restore writes, while recording the fake backend's applied mode. */
+  async function heldBypassRestore() {
+    const t = reviewSetup({ initialPermissionMode: 'bypassPermissions', isBypassAllowed: true })
+    const backend = { mode: 'allowAll' }
+    t.server.handle('session/setApprovalMode', (params) => {
+      backend.mode = String(params['mode'])
+      return {}
+    })
+    await startReview(t)
+    t.server.silence('session/setApprovalMode')
+    t.finishTurn()
+    await vi.waitFor(() => {
+      expect(approvalModes(t)).toEqual(['denyUnmatched', 'allowAll'])
+    })
+    const answer = (index: number, isAccepted = true) => {
+      const mode = answerModeRequest(t, index, isAccepted)
+      if (isAccepted) {
+        backend.mode = mode
+      }
+    }
+    return { ...t, backend, answer }
+  }
 
   it('runs a Muse Code review in Plan mode, the git material marked untrusted, and puts the mode back after that turn', async () => {
     const t = reviewSetup()
@@ -10312,6 +10509,90 @@ describe('ConversationController: review (M70)', () => {
     })
     expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
       permissionMode: 'auto',
+    })
+  })
+
+  it('puts a revoked Bypass back as Manual, never as Bypass', async () => {
+    const t = reviewSetup({ initialPermissionMode: 'bypassPermissions', isBypassAllowed: true })
+    await startReview(t)
+    t.setBypassAllowed(false)
+    await endReviewInManual(t)
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: UI_TEXT.bypassRevoked,
+    })
+  })
+
+  it.each([false, true])(
+    'corrects actual Bypass restoration after revocation, off/on=%s',
+    async (isReenabled) => {
+      const t = await heldBypassRestore()
+      t.setBypassAllowed(false)
+      await t.controller.revokeBypass()
+      if (isReenabled) {
+        t.setBypassAllowed(true)
+      }
+      const sending = t.send('after', 'new turn waits for actual safe mode')
+      await settle()
+      expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+      t.answer(1)
+      await vi.waitFor(() => {
+        expect(approvalModes(t)).toEqual(['denyUnmatched', 'allowAll', 'promptUnmatched'])
+      })
+      expect(t.backend.mode).toBe('allowAll')
+      expect(
+        t.surface.posted.findLast((message) => message.type === 'composerState'),
+      ).toMatchObject({ permissionMode: 'plan' })
+      await settle()
+      expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+      t.answer(2)
+      await sending
+      expect(t.backend.mode).toBe('promptUnmatched')
+      expect(
+        t.surface.posted.findLast((message) => message.type === 'composerState'),
+      ).toMatchObject({ permissionMode: 'manual' })
+      expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+    },
+  )
+
+  it('retires its unsafe session when the corrective review fallback is refused', async () => {
+    const t = await heldBypassRestore()
+    t.setBypassAllowed(false)
+    await t.controller.revokeBypass()
+    t.answer(1)
+    await vi.waitFor(() => {
+      expect(approvalModes(t).at(-1)).toBe('promptUnmatched')
+    })
+    t.answer(2, false)
+    await vi.waitFor(() => {
+      expect(
+        t.surface.posted.findLast((message) => message.type === 'composerState'),
+      ).toMatchObject({ permissionMode: 'manual' })
+    })
+    await t.send('fresh', 'start safely')
+    expect(t.server.requestsFor('session/start')).toHaveLength(2)
+    expect(t.server.requestsFor('session/start')[1]?.params).toMatchObject({
+      approvalMode: 'promptUnmatched',
+    })
+  })
+
+  it('retires preceding Bypass when revoked during a refused initial Plan admission', async () => {
+    const t = reviewSetup({ initialPermissionMode: 'bypassPermissions', isBypassAllowed: true })
+    t.server.silence('session/setApprovalMode')
+    const reviewing = startReview(t)
+    await vi.waitFor(() => {
+      expect(approvalModes(t)).toEqual(['denyUnmatched'])
+    })
+    t.setBypassAllowed(false)
+    await t.controller.revokeBypass()
+    answerModeRequest(t, 0, false)
+    await reviewing
+    expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+    await t.send('fresh', 'safe session after failed review')
+    expect(t.server.requestsFor('session/start')).toHaveLength(2)
+    expect(t.server.requestsFor('session/start')[1]?.params).toMatchObject({
+      approvalMode: 'promptUnmatched',
     })
   })
 
@@ -11401,7 +11682,7 @@ describe('ConversationController: plans as files (M79)', () => {
     const bypass = await museCodePlan({ initialPermissionMode: 'bypassPermissions' })
     await bypass.controller.handle(IMPLEMENT)
     expect(bypass.server.requestsFor('session/start')[1]?.params).toMatchObject({
-      approvalMode: 'onRequest',
+      approvalMode: 'allowAll',
     })
     // Bypass confirmed earlier in this remote window still does not carry over.
     const remote = await museCodePlan(
@@ -14395,7 +14676,7 @@ describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D
     expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
   })
 
-  it.each(['manual', 'acceptEdits', 'plan'] as const)(
+  it.each(['manual', 'acceptEdits', 'plan', 'bypassPermissions'] as const)(
     'never asks the reviewer in %s',
     async (mode) => {
       const t = reviewed(mode)

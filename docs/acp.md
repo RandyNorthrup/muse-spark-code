@@ -258,6 +258,27 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   HTTP, and optional, so one that fails to start does not stop the
   session. SSE servers are not taken; the Model API backend runs none.
 
+### Makers safety (Unreleased)
+
+The portable guard is shared with the extension and Model API backend.
+Detected connect, program and actuate calls offer allow-once/reject-once only;
+Plan, unattended runs and irreversible operations refuse them. Unresolved
+shell syntax plus a device signal or host-designated hardware workspace asks
+once, including encoded/interpreter commands and HTTP config files. All
+HTTP transfers and device destinations are checked; reading a file from a
+board retains ordinary policy. Failed decisions cannot renew or replay an
+expired or consumed approval. Exact parsed command, original text and
+host-observed target are bound to its digest.
+
+Bypass remains opt-in for ordinary work and is capped for host-designated
+hardware workspaces. A shell stop requires a registered canonical stop
+contract; a physical MCP tool's name alone never grants a stop exemption.
+The guard does not sandbox scripts, and Muse Code commands that emit no
+approval remain an explicit qualification gap. Device registration, the
+hardware switch, actual identity re-read, Stop controls and physical/editor
+qualification belong to the remaining M103 lanes. These notes do not claim
+those tools or controls are available in the released ACP package.
+
 ## Paid features
 
 Web search ($2.50 per 1,000 searches) and image generation ($0.01 per

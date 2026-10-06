@@ -445,7 +445,11 @@ describe('M103-G physical-action settle', () => {
   it.each(APPROVAL_MODES)('never gates a fixed stop, even unattended in %s', (mode) => {
     const engine = new PermissionEngine(mode)
     expect(
-      engine.judge({ ...bash("echo 'M112' > /dev/ttyUSB0"), isUnattended: true }).verdict,
+      engine.judge({
+        ...bash("echo 'M112' > /dev/ttyUSB0"),
+        isUnattended: true,
+        hardware: { targets: [{ address: '/dev/ttyUSB0', stop: 'M112' }] },
+      }).verdict,
     ).toBe('allow')
     expect(
       engine.judge({ toolName: 'machine_stop', toolClass: 'device', isUnattended: true }).verdict,

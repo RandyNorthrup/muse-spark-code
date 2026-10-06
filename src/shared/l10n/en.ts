@@ -2576,7 +2576,7 @@ export const EN = {
   hardwareUnattended: 'Physical device actions are refused in unattended runs.',
   hardwareExpired: 'The device approval expired. Nothing was sent.',
   hardwareBypassNotice:
-    'The hardware guard disables Bypass permissions. Use Auto or Manual and approve each device action once.',
+    'Bypass permissions are unavailable in hardware workspaces. Use Auto or Manual and approve each device action once.',
   exportThenRunLabel: 'Then ran:',
   // {command}: the then_run command; {outcome}: why it did not run.
   exportThenRunSkipped: 'then_run `{command}`: {outcome}',

@@ -2124,5 +2124,5 @@
   "hardwareRefused": "Cette opération sur l’appareil est refusée. Vérifiez la commande et exécutez-la vous-même dans votre propre terminal.",
   "hardwareUnattended": "Les actions sur des appareils physiques sont refusées lors des exécutions sans surveillance.",
   "hardwareExpired": "L’autorisation de l’appareil a expiré. Rien n’a été envoyé.",
-  "hardwareBypassNotice": "La protection matérielle désactive le contournement des autorisations. Utilisez le mode automatique ou manuel et autorisez chaque action une seule fois."
+  "hardwareBypassNotice": "Le contournement des autorisations est indisponible dans les espaces de travail matériels. Utilisez le mode automatique ou manuel et autorisez chaque action une seule fois."
 }

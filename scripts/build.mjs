@@ -51,6 +51,11 @@ import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs
 import path from 'node:path'
 import * as esbuild from 'esbuild'
 import {
+  hardwareGuardSplit,
+  browserHardwareText,
+  hardwareConstantTables,
+} from './lib/hardwareGuardSplit.mjs'
+import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
   writeWhatsNewContent,
 } from './lib/whatsNewContent.mjs'
@@ -83,6 +88,8 @@ const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
+const HARDWARE_GUARD_ENTRY = 'src/core/maker/guardEntry.ts'
+const HARDWARE_GUARD_OUTFILE = 'dist/hardwareGuard.js'
 // The browser check's own bundle (M81): the pipe, the run, the browser's processes.
 const BROWSER_CHECK_ENTRY = 'src/host/browser/browserCheckEntry.ts'
 const BROWSER_CHECK_OUTFILE = 'dist/browserCheck.js'
@@ -179,7 +186,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, hardwareGuardSplit],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -191,7 +198,7 @@ const hostOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, hardwareGuardSplit],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
@@ -324,6 +331,16 @@ const checkpointStoreOptions = {
   target: HOST_NODE_TARGET,
 }
 
+const hardwareGuardOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, hardwareConstantTables],
+  entryPoints: [HARDWARE_GUARD_ENTRY],
+  outfile: HARDWARE_GUARD_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const browserCheckOptions = {
   ...common,
@@ -349,7 +366,7 @@ const browserRuntimeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, hardwareGuardSplit],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
   platform: 'node',
@@ -389,6 +406,7 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
+  plugins: [browserHardwareText],
   entryPoints: [WEBVIEW_ENTRY],
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
@@ -448,6 +466,7 @@ if (isWatch) {
     esbuild.context(reviewerOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
+    esbuild.context(hardwareGuardOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(codeIntelOptions),
@@ -475,6 +494,7 @@ if (isWatch) {
     reviewer: esbuild.build(reviewerOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
+    hardwareGuard: esbuild.build(hardwareGuardOptions),
     agentImport: esbuild.build(agentImportOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
     codeIntel: esbuild.build(codeIntelOptions),

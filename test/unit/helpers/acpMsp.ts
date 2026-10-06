@@ -2,6 +2,7 @@
 // the SDK's in-memory transport, so retention and late wire answers are real.
 
 import { MuseCodeHost } from '../../../src/core/backends/musecode/MuseCodeHost'
+import type { HardwareContext } from '../../../src/core/maker/guard/httpCommands'
 import { FakeLogOutputChannel } from './fakes'
 import { fakeMspHost, type FakeMspServer } from './fakeMsp'
 
@@ -46,12 +47,17 @@ export function answerMsp(
   )
 }
 
-export function acpMspHost() {
+export function acpMspHost(hardwareContext: () => HardwareContext = () => ({})) {
   const handle = fakeMspHost()
-  const host = new MuseCodeHost(handle.host, new FakeLogOutputChannel(), {
-    normalMs: COMMAND_TIMEOUT_MS,
-    longMs: COMMAND_TIMEOUT_MS,
-  })
+  const host = new MuseCodeHost(
+    handle.host,
+    new FakeLogOutputChannel(),
+    {
+      normalMs: COMMAND_TIMEOUT_MS,
+      longMs: COMMAND_TIMEOUT_MS,
+    },
+    hardwareContext,
+  )
   const { server } = handle
   server.handle('model/list', () => ({
     models: [

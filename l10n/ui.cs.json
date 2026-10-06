@@ -2200,5 +2200,5 @@
   "hardwareRefused": "Tato operace zařízení je odmítnuta. Zkontrolujte příkaz a spusťte jej sami ve vlastním terminálu.",
   "hardwareUnattended": "Akce fyzických zařízení jsou při běhu bez obsluhy odmítnuty.",
   "hardwareExpired": "Schválení akce zařízení vypršelo. Nic nebylo odesláno.",
-  "hardwareBypassNotice": "Ochrana hardwaru zakazuje obcházení oprávnění. Použijte automatický nebo ruční režim a každou akci zařízení schvalte jednorázově."
+  "hardwareBypassNotice": "V pracovních prostorech s hardwarem nelze obcházet oprávnění. Použijte automatický nebo ruční režim a každou akci zařízení schvalte jednotlivě."
 }

@@ -1,6 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { hardwareAction, isHardwareStop } from '../../src/core/maker/guard/hardwareCommands'
+import {
+  hardwareAction as classifyHardware,
+  isHardwareStop as canonicalStop,
+} from '../../src/core/maker/guard/hardwareCommands'
 import { isDeviceAction, isPhysicalTool } from '../../src/core/maker/guard/actionClass'
+
+const stops = {
+  targets: [
+    { address: '/dev/ttyUSB0', stop: 'M112' },
+    { address: '/dev/ttyUSB0', stop: '!' },
+    { address: '/dev/ttyUSB0', stop: String.raw`\x18` },
+    { address: '/dev/ttyUSB0', stop: String.fromCodePoint(Number('0x18')) },
+    { address: 'https://printer.local', stop: '/printer/emergency_stop' },
+  ],
+}
+function hardwareAction(command: string, dialect: 'bash' | 'powershell' = 'bash') {
+  return classifyHardware(command, dialect, stops)
+}
+function isHardwareStop(command: string) {
+  return canonicalStop(command, 'bash', stops)
+}
 
 describe('hardware command table (M103-G)', () => {
   it.each([
@@ -50,7 +69,9 @@ describe('hardware command table (M103-G)', () => {
     'curl -X DELETE https://board.local/fs/code.py',
     'curl -X MOVE https://board.local/fs/code.py',
   ])('classifies program: %s', (command) => {
-    expect(hardwareAction(command)).toBe('program')
+    expect(hardwareAction(command)).toBe(
+      command === 'mpremote exec reset()' || command.startsWith('python ') ? 'actuate' : 'program',
+    )
   })
 
   it.each([
@@ -77,7 +98,7 @@ describe('hardware command table (M103-G)', () => {
     'esptool flash_id',
     'picotool info',
   ])('classifies connect: %s', (command) => {
-    expect(hardwareAction(command)).toBe('connect')
+    expect(hardwareAction(command)).toBe(command.startsWith('python ') ? 'actuate' : 'connect')
   })
 
   it.each([
@@ -190,8 +211,8 @@ describe('hardware command table (M103-G)', () => {
   it('scans every chain member, wrappers and both shell dialects', () => {
     expect(hardwareAction('git status && pio run -t upload')).toBe('program')
     expect(hardwareAction('esptool chip-id; espefuse burn-key KEY0 key.bin')).toBe('refused')
-    expect(hardwareAction('bash -c "esptool write_flash 0 app.bin"')).toBe('program')
-    expect(hardwareAction('python -m esptool write-flash 0 app.bin', 'powershell')).toBe('program')
+    expect(hardwareAction('bash -c "esptool write_flash 0 app.bin"')).toBe('actuate')
+    expect(hardwareAction('python -m esptool write-flash 0 app.bin', 'powershell')).toBe('actuate')
     expect(hardwareAction("echo 'M112 G28' > /dev/ttyUSB0")).toBe('actuate')
     expect(hardwareAction('esptool future-device-command')).toBe('actuate')
     expect(
@@ -208,6 +229,7 @@ describe('hardware command table (M103-G)', () => {
 
   it('recognises physical namespaces without trusting tool descriptions or flags', () => {
     expect(isPhysicalTool('mcp__moonraker__send_gcode')).toBe(true)
+    expect(isPhysicalTool('mcp__esp_idf__flash')).toBe(true)
     expect(isPhysicalTool('mcp__octoprint__read_status')).toBe(true)
     expect(isPhysicalTool('mcp__files__read')).toBe(false)
     expect(isPhysicalTool('mcp__mcp-3d-printer-server__print')).toBe(true)

@@ -2048,5 +2048,5 @@
   "hardwareRefused": "Ez az eszközművelet tiltott. Ellenőrizze a parancsot, és futtassa saját maga a saját termináljában.",
   "hardwareUnattended": "Felügyelet nélküli futtatáskor a fizikai eszközműveletek tiltottak.",
   "hardwareExpired": "Az eszközművelet jóváhagyása lejárt. Semmi nem lett elküldve.",
-  "hardwareBypassNotice": "A hardvervédelem letiltja az engedélyek megkerülését. Használja az automatikus vagy kézi módot, és minden eszközműveletet egyszeri alkalomra hagyjon jóvá."
+  "hardwareBypassNotice": "Hardveres munkaterületeken az engedélyek nem kerülhetők meg. Használja az automatikus vagy kézi módot, és minden eszközműveletet egyszer engedélyezzen."
 }

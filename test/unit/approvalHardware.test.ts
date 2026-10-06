@@ -46,6 +46,15 @@ async function observeHardware(h: ReturnType<typeof acpMspHost>, command: string
   return { session, events }
 }
 
+async function pendingHardwareCard(events: readonly AgentEvent[]): Promise<Card> {
+  await vi.waitFor(() => {
+    expect(events.some((event) => event.type === 'approvalRequested')).toBe(true)
+  })
+  const request = events.find((event): event is Card => event.type === 'approvalRequested')
+  if (request === undefined) throw new Error('missing hardware approval')
+  return request
+}
+
 describe('Muse Code hardware approvals', () => {
   it('scrubs standing choices from captured approval and update shapes', () => {
     const request = card()
@@ -92,6 +101,9 @@ describe('Muse Code hardware approvals', () => {
       ),
     ).toBe(false)
     expect(isReviewableApproval(card('npm test'), 'auto', 'parent-turn')).toBe(true)
+    expect(isReviewableApproval(card('npm test'), 'auto', 'parent-turn', true)).toBe(false)
+    const unknown = scrubHardwareApproval(card('node -e "run()"'), { isHardwareWorkspace: true })
+    expect(isReviewableApproval({ ...unknown }, 'auto', 'parent-turn')).toBe(false)
   })
 
   it('checks each stage and known physical MCP tools, regardless of confirm arguments', () => {
@@ -124,13 +136,56 @@ describe('Muse Code hardware approvals', () => {
 
   it('leaves ordinary commands and stops byte-identical', () => {
     const ordinary = card('npm test')
-    const stop = card("echo 'M112' > /dev/ttyUSB0")
+    const stop = card('machine_stop')
     expect(scrubHardwareApproval(ordinary)).toBe(ordinary)
     expect(scrubHardwareApproval(stop)).toBe(stop)
   })
 })
 
 describe('Muse Code guard over the real MSP transport', () => {
+  it('F5: a failed MSP decision retains expiry and consumed approval across retries', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    const h = acpMspHost()
+    const pending = {
+      ...raceRequested('old-1'),
+      subject: { kind: 'shell', command: 'pio run -t upload' },
+    }
+    h.server.handle('approval/decide', () => {
+      throw Object.assign(new Error('refused'), { kind: 'internal' })
+    })
+    h.server.handle('approval/listPending', () => ({ approvals: [pending], userInputs: [] }))
+    try {
+      const { session, events } = await observeHardware(h, 'pio run -t upload')
+      const request = await pendingHardwareCard(events)
+      const decision = {
+        approvalId: request.approvalId,
+        requirementId: request.requirementId,
+        choiceId: 'allow_once',
+      }
+      await expect(session.decideApproval(decision)).rejects.toMatchObject({
+        name: 'DecisionNotAppliedError',
+      })
+      await expect(session.decideApproval(decision)).rejects.toThrow(UI_TEXT.hardwareExpired)
+      vi.setSystemTime(Date.now() + MACHINE_APPROVAL_TTL_MS + 1)
+      await expect(session.decideApproval(decision)).rejects.toThrow(UI_TEXT.hardwareExpired)
+      expect(
+        h.server
+          .requestsFor('approval/decide')
+          .filter((call) => call.params?.['choiceId'] === 'allow_once'),
+      ).toHaveLength(1)
+    } finally {
+      await h.host.close()
+      vi.useRealTimers()
+    }
+  })
+
+  it('F3: wrapped escaped fuse write is refused before any MSP approval surface', () => {
+    expect(
+      scrubHardwareApproval(
+        card(String.raw`sh -c 'avrdude -U lfuse\:w:0xff:m'`),
+      ).availableChoices.map((choice) => choice.choiceId),
+    ).toEqual(['abort'])
+  })
   it('expires an unanswered hardware request as a rejection', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     const h = acpMspHost()
@@ -152,7 +207,7 @@ describe('Muse Code guard over the real MSP transport', () => {
     }
   })
   it('rejects Bypass start/change locally and scrubs live cards before every listener', async () => {
-    const h = acpMspHost()
+    const h = acpMspHost(() => ({ isHardwareWorkspace: true }))
     try {
       await expect(
         h.host.startSession({
@@ -167,11 +222,7 @@ describe('Muse Code guard over the real MSP transport', () => {
         UI_TEXT.hardwareBypassNotice,
       )
       expect(h.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
-      await vi.waitFor(() => {
-        expect(events.some((event) => event.type === 'approvalRequested')).toBe(true)
-      })
-      const request = events.find((event): event is Card => event.type === 'approvalRequested')
-      if (request === undefined) throw new Error('missing live approval')
+      const request = await pendingHardwareCard(events)
       expect(request.availableChoices.map((choice) => choice.choiceId)).toEqual([
         'allow_once',
         'abort',

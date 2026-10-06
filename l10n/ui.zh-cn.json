@@ -1972,5 +1972,5 @@
   "hardwareRefused": "此设备操作已被拒绝。请检查命令，并在您自己的终端中亲自运行。",
   "hardwareUnattended": "无人值守运行中禁止执行物理设备操作。",
   "hardwareExpired": "设备操作批准已过期。未发送任何内容。",
-  "hardwareBypassNotice": "硬件保护会禁用权限绕过。请使用自动或手动模式，并逐次批准每项设备操作。"
+  "hardwareBypassNotice": "硬件工作区不支持绕过权限。请使用自动或手动模式，并逐次批准每项设备操作。"
 }

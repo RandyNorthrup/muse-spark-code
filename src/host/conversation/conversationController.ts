@@ -314,6 +314,7 @@ export interface ConversationDeps {
   readonly files: FileAccess
   /** The `allowDangerouslySkipPermissions` setting: whether Bypass is offered. */
   readonly isBypassAllowed: () => boolean
+  readonly isHardwareWorkspace?: () => boolean
   /**
    * A remote window (`vscode.env.remoteName`): a dev container's settings can
    * switch Bypass on there, so it needs one explicit yes (PLAN.md D24).
@@ -1211,7 +1212,7 @@ export class ConversationController {
       this.startupNotice = UI_TEXT.bypassRemoteStartedManual
     }
     this.attachments = new AttachmentStore(deps.newAttachmentId)
-    if (this.permissionMode === BYPASS_MODE) {
+    if (this.permissionMode === BYPASS_MODE && deps.isHardwareWorkspace?.()) {
       this.permissionMode = 'auto'
       this.startupNotice = UI_TEXT.hardwareBypassNotice
     }
@@ -1739,7 +1740,12 @@ export class ConversationController {
       this.session !== undefined &&
       sessionSurfaces.get(this.session)?.size === 1 &&
       port.isOn() &&
-      isReviewableApproval(event, this.permissionMode, this.activeTurnId)
+      isReviewableApproval(
+        event,
+        this.permissionMode,
+        this.activeTurnId,
+        this.deps.isHardwareWorkspace?.(),
+      )
     )
   }
 
@@ -4546,7 +4552,7 @@ export class ConversationController {
    */
   private briefMode(): PermissionMode {
     const mode = this.deps.initialPermissionMode
-    const safeMode = mode === BYPASS_MODE ? 'auto' : mode
+    const safeMode = mode === BYPASS_MODE && this.deps.isHardwareWorkspace?.() ? 'auto' : mode
     const isBypassRefused =
       mode === BYPASS_MODE && (!this.deps.isBypassAllowed() || this.deps.isRemoteWindow)
     return mode === PLAN_MODE || isBypassRefused ? FALLBACK_MODE : safeMode
@@ -6191,7 +6197,7 @@ export class ConversationController {
 
   /** The mode a review hands back: Bypass only while its setting still allows it (D24). */
   private restorableMode(mode: PermissionMode, bypassEpoch: number): PermissionMode {
-    const safeMode = mode === BYPASS_MODE ? 'auto' : mode
+    const safeMode = mode === BYPASS_MODE && this.deps.isHardwareWorkspace?.() ? 'auto' : mode
     return mode === BYPASS_MODE &&
       (!this.deps.isBypassAllowed() || bypassEpoch !== this.bypassRevocationEpoch)
       ? FALLBACK_MODE
@@ -6869,7 +6875,10 @@ export class ConversationController {
   }
 
   private async setPermissionMode(mode: PermissionMode): Promise<void> {
-    if (!availablePermissionModes(this.deps.isBypassAllowed()).includes(mode)) {
+    if (
+      this.deps.isHardwareWorkspace?.() &&
+      !availablePermissionModes(this.deps.isBypassAllowed(), true).includes(mode)
+    ) {
       this.notice('info', UI_TEXT.hardwareBypassNotice)
       this.postComposerState()
       return

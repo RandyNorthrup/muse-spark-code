@@ -127,6 +127,7 @@ export interface AcpAgentDeps {
   readonly signIn: SignInMethod
   /** The folder a `session/list` without one lists (the agent's own). */
   readonly defaultCwd: string
+  readonly isHardwareWorkspace?: (cwd: string) => boolean
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
   readonly paid: AcpPaidUse
   readonly log: CoreLogger
@@ -213,7 +214,8 @@ class AcpSession {
     private modelId: string,
   ) {
     this.sessionId = session.sessionId
-    if (this.mode === 'bypassPermissions') this.mode = 'auto'
+    if (this.mode === 'bypassPermissions' && deps.isHardwareWorkspace?.(cwd) === true)
+      this.mode = 'auto'
     this.translator = new UpdateTranslator(cwd, false)
     this.unsubscribe = session.onEvent((event) => {
       this.onEvent(event)
@@ -581,7 +583,10 @@ class AcpSession {
   public modes(): SessionModeState {
     return {
       currentModeId: this.mode,
-      availableModes: availablePermissionModes(this.deps.options.canBypass).map((mode) => ({
+      availableModes: availablePermissionModes(
+        this.deps.options.canBypass,
+        this.deps.isHardwareWorkspace?.(this.cwd) === true,
+      ).map((mode) => ({
         id: mode,
         name: UI_TEXT.permissionModes[mode],
         description: permissionModeDetail(mode, this.deps.backend.kind),
@@ -647,9 +652,10 @@ class AcpSession {
   }
 
   public async setMode(modeId: string): Promise<void> {
-    const mode = availablePermissionModes(this.deps.options.canBypass).find(
-      (candidate) => candidate === modeId,
-    )
+    const mode = availablePermissionModes(
+      this.deps.options.canBypass,
+      this.deps.isHardwareWorkspace?.(this.cwd) === true,
+    ).find((candidate) => candidate === modeId)
     if (mode === undefined) {
       throw RequestError.invalidParams(undefined, modeId)
     }
@@ -1079,7 +1085,11 @@ class AgentState {
     const session = await host.startSession({
       workspaceRoot: cwd,
       modelId,
-      approvalMode: approvalModeFor(this.deps.options.initialMode, true),
+      approvalMode: approvalModeFor(
+        this.deps.options.initialMode,
+        true,
+        this.deps.isHardwareWorkspace?.(cwd) === true,
+      ),
       ...(mcpServers !== undefined && { mcpServers }),
     })
     // The mode and model went with the start; the effort is set here.

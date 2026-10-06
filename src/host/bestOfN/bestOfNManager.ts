@@ -311,7 +311,7 @@ class AttemptDriver implements BestOfNAttemptDriver {
       const session = await host.startSession({
         workspaceRoot: this.attempt.worktreePath,
         modelId: this.attempt.modelId,
-        approvalMode: 'promptUnmatched',
+        approvalMode: this.attempt.approvalMode,
       })
       this.session = session
       this.startedSessionId = session.sessionId

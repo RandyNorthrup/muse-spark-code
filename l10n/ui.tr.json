@@ -2048,5 +2048,5 @@
   "hardwareRefused": "Bu aygıt işlemi reddedildi. Komutu inceleyip kendi terminalinizde kendiniz çalıştırın.",
   "hardwareUnattended": "Gözetimsiz çalıştırmalarda fiziksel aygıt işlemleri reddedilir.",
   "hardwareExpired": "Aygıt onayının süresi doldu. Hiçbir şey gönderilmedi.",
-  "hardwareBypassNotice": "Donanım koruması izinleri atlamayı devre dışı bırakır. Otomatik veya elle modunu kullanın ve her aygıt işlemini bir kez onaylayın."
+  "hardwareBypassNotice": "Donanım çalışma alanlarında izinler atlanamaz. Otomatik veya Elle modunu kullanın ve her cihaz işlemini bir kez onaylayın."
 }

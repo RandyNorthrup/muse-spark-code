@@ -241,6 +241,7 @@ quality`) and as a CI job.
 | `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
 | `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
 | `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
+| `dist/hardwareGuard.js`    | ≤ 25 KiB (REDM103G: first-use shared command parser and approval guard; original caps and startup no-growth remain hard gates)                                                                                    |
 | `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)       |
 | `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
 | `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
@@ -4886,6 +4887,45 @@ Physical machines can injure people and start fires. A model is wrong
 sometimes, and a prompt in a datasheet, a README or a fetched page can steer
 it. These decisions keep every physical effect behind a person who sees
 exactly what will be sent.
+
+#### Guard redesign (REDM103G, 2026-10-05)
+
+The RVM103G review invalidated textual safety allow-lists. Lane G now
+parses shell words, command boundaries, pipelines and redirection direction
+for bash/sh, PowerShell and cmd before classification. Unsupported syntax,
+expansions, interpreter strings, decoding and same-turn script execution
+remain unknown. Unknown plus a device tool/path, registered machine or
+host-owned hardware workspace means actuation: one exact-text host approval,
+or refusal in Plan/unattended execution. Literal interpreter bodies are
+additionally parsed to refuse known irreversible operations; that does not
+make the wrapper safe.
+
+Every HTTP transfer is judged independently, including method/body/upload
+flags, multiple URLs and curl --next. Config files and unresolved RPC bodies
+fail closed for machine targets. A stop exemption requires a single fully
+parsed canonical request to a host-registered stop target; a stop-looking
+request otherwise asks. The product's out-of-band Stop path remains ungated.
+Device writes include serial, board mounts and GPIO/sysfs; reads retain their
+existing connect/ordinary policy. Approval identity, exact parsed-command
+digest, expiry and consumption survive failed decisions and retries.
+Verification/then_run inherit unattended origin. Non-device Bypass and
+Best-of-N edits retain their existing policy. The parser/approval engine loads
+lazily; README, ACP guidance and the host API record move with this change.
+
+Evidence required: named regressions for all twelve review findings, all
+three shell families, fake-only real-shell probes, a zero-false-positive
+developer corpus and red/restored-green drills with SHA-256 restoration.
+No device/network probe or live/paid model call is authorized in this lane.
+REDM103G's exact base comparison leaves M103.17 open: activation is 15
+bytes smaller than `bfc27a28`, but browser startup is 6 bytes larger
+(898361 versus 898355). Removing redundant defaults and then changing the
+mode-list fast path did not satisfy strict no-growth. Under common.md's
+two-fix stop rule, this path is handed back to the lead; no size cap or
+acceptance threshold is weakened and no startup certification is claimed.
+Registry, hardware-switch and actual target re-read integration remain the
+owning maker lanes; the guard accepts only host-owned context, never model
+arguments or repository declarations. Full quality/live/editor/physical
+certification remains the lead's gate, not a focused-test claim.
 
 1. **Help with the work; the user's hand moves the machine.** The extension
    helps write, build, flash, simulate and read devices and machines. It is
@@ -16074,6 +16114,11 @@ remain available.
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
 ## 8. Escape hatches register
+
+| REDM103G location                                                      | Escape hatch                                                                        | Reason                                                                                                                                                                                                                                                                                                                                                                                                             | Date       |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `scripts/lib/hardwareGuardSplit.mjs`                                   | Same-build generated synchronous function/constructor proxies                       | The guard entry, proxy and package come from one build. Signatures are trusted only for this fixed local module; missing/malformed exports throw before classification or approval can allow dispatch. The split gate verifies the implementation is present only in its lazy bundle; built-bundle probes verify first-use loading and language transfer. No external shape or model input supplies a module path. | 2026-10-05 |
+| `scripts/lib/hardwareGuardSplit.mjs`, `src/core/maker/guardSecrets.ts` | Same-build secret-reader injection and pure constant-table construction annotations | The lazy guard calls the caller's original detector/redactor, with no second pattern list; missing readers throw. Only immutable Set declarations in the constants file are annotated for the guard build, so used tables remain and unused allocations can be omitted. Production probes check real secret detection/redaction and the hard 25 KiB cap.                                                           | 2026-10-05 |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 

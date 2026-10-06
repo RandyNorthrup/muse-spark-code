@@ -37,10 +37,13 @@ export class HardwareApproval {
     target: TargetIdentity,
     action: ActionClass,
     now: number,
+    parsedCommand?: string,
   ) {
     this.request = Object.freeze({
       id,
-      digest: createHash('sha256').update(payload).digest('hex'),
+      digest: createHash('sha256')
+        .update(parsedCommand === undefined ? payload : JSON.stringify({ payload, parsedCommand }))
+        .digest('hex'),
       target: Object.freeze({ ...target }),
       expiresAt: now + MACHINE_APPROVAL_TTL_MS,
       action,

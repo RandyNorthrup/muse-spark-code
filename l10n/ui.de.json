@@ -2048,5 +2048,5 @@
   "hardwareRefused": "Dieser Gerätebefehl wird verweigert. Prüfen Sie den Befehl und führen Sie ihn selbst in Ihrem eigenen Terminal aus.",
   "hardwareUnattended": "Aktionen an physischen Geräten werden bei unbeaufsichtigten Ausführungen verweigert.",
   "hardwareExpired": "Die Gerätegenehmigung ist abgelaufen. Es wurde nichts gesendet.",
-  "hardwareBypassNotice": "Der Hardwareschutz deaktiviert das Umgehen von Berechtigungen. Verwenden Sie Auto oder Manuell und genehmigen Sie jede Geräteaktion einmal."
+  "hardwareBypassNotice": "In Hardware-Arbeitsbereichen können Berechtigungen nicht umgangen werden. Verwenden Sie Auto oder Manuell und genehmigen Sie jede Geräteaktion einzeln."
 }

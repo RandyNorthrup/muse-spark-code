@@ -8,7 +8,7 @@ export function isDeviceAction(action: ActionClass | undefined): boolean {
 
 /** Known physical MCP namespaces; aliases still need the host's physical-server marking. */
 const PHYSICAL_SERVER =
-  /(?:^|__)(?:[^_]*[-_])?(?:moonraker|octoprint|prusalink|klipper|grbl|fluidnc|cncjs|ugs|serial|platformio|arduino|esp-idf|ros|robotmcp|robot|armguard|3d-printer|printer|kiln|bambu)(?:[-_]|__|$)/i
+  /(?:^|__)(?:[^_]*[-_])?(?:moonraker|octoprint|prusalink|klipper|grbl|fluidnc|cncjs|ugs|serial|platformio|arduino|esp[-_]idf|ros|robotmcp|robot|armguard|3d-printer|printer|kiln|bambu)(?:[-_]|__|$)/i
 
 export function isPhysicalTool(toolName: string): boolean {
   return toolName.startsWith('mcp__') && PHYSICAL_SERVER.test(toolName)

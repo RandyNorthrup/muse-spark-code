@@ -414,7 +414,7 @@ JupyterLab (Jupyter AI) with the agent.
 | **Edit automatically** | Approves plain file edits, asks before commands that no allow rule, session allowance or hook settles                                                                                                   | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                                                                                      |
 | **Plan**               | Refuses edits and commands                                                                                                                                                                              | The CLI refuses protected writes and the commands its own allow rules do not cover, but its file tools still edit without asking ([Plan on Muse Code](#plan-on-muse-code)) |
 | **Auto**               | Runs edits (protected writes ask), asks before commands; the paid, off-by-default [Auto reviewer](#auto-rules-and-permission-profiles-model-api) may allow plain commands and MCP calls no rule settles | The CLI runs simple commands; [eligible approvals](#the-auto-reviewer-on-muse-code) are reviewed, with card fallbacks                                                      |
-| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses and a hook that demands a card                                                                                               | The same, except paid uses and [web fetch](#web-fetch), which the extension asks about before every call                                                                   |
+| **Bypass**             | Only with `allowDangerouslySkipPermissions`; ordinary tools run; paid uses and hook requests still ask; emitted device approvals remain one-time                                                        | Ordinary tools run; paid uses, [web fetch](#web-fetch) and detected device actions still require their own consent                                                         |
 
 A paid use asks in the paid-use popup in every mode, Bypass included, unless
 you allowed it always in this workspace; on the Model API backend, Plan
@@ -425,6 +425,26 @@ pass a safety check". It did not: `muse serve` has no approval judge (the
 CLI's LLM judge runs only in its interactive and `exec` commands), so Auto
 skipped only the commands the CLI classifies as simple, and every script
 asked (PLAN.md D69). The menu now says what each mode does on each backend.
+
+### Makers safety (Unreleased)
+
+> Detected device connections, flashing and actuation require a fresh
+> approval for that exact action, with no standing allowance or Auto reviewer.
+> Plan and unattended runs refuse them; known irreversible operations are
+> refused in every mode. The shared guard parses bash/sh, PowerShell and cmd,
+> checks every HTTP transfer, and treats unresolved device commands as
+> actuation. A stop-looking shell command is exempt only for a host-registered
+> target and its exact fixed out-of-band stop; ordinary MCP stop names do not
+> establish that contract. The product's Stop path remains ungated.
+>
+> Bypass remains opt-in for ordinary work. Host-designated hardware
+> workspaces cap it. This guard is not an OS device sandbox: a program or
+> script you allow can reach a device. Muse Code can execute commands without
+> emitting an approval, so its Auto-skip capture and hardware-workspace mode
+> cap still require qualification. Machine registration, hardware controls,
+> actual target re-read and physical/editor certification remain M103 work;
+> this guard alone does not certify safe hardware operation. Keep the
+> machine's physical E-stop available; a software stop is not an emergency stop.
 
 ### The Auto reviewer on Muse Code
 

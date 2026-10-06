@@ -1972,5 +1972,5 @@
   "hardwareRefused": "此裝置操作已遭拒絕。請檢查命令，並在您自己的終端機中親自執行。",
   "hardwareUnattended": "無人值守執行時禁止操作實體裝置。",
   "hardwareExpired": "裝置操作核准已過期。未傳送任何內容。",
-  "hardwareBypassNotice": "硬體保護會停用略過權限。請使用自動或手動模式，並逐次核准每項裝置操作。"
+  "hardwareBypassNotice": "硬體工作區不支援略過權限。請使用自動或手動模式，並逐次核准每項裝置操作。"
 }

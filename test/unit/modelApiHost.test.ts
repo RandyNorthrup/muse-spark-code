@@ -268,6 +268,7 @@ function setup(
     personalAgentsRoot?: string
     isTrusted?: boolean | (() => boolean)
     isUnattended?: ModelApiHostDeps['isUnattended']
+    hardwareContext?: ModelApiHostDeps['hardwareContext']
     isConfidentialWorkspace?: boolean | (() => boolean)
     confirmContributorModel?: (modelId: string) => Promise<boolean>
     store?: SessionStore
@@ -396,6 +397,7 @@ function setup(
     bundledSkills: options.bundledSkills,
     personalAgentsRoot: options.personalAgentsRoot,
     ...(options.isUnattended !== undefined && { isUnattended: options.isUnattended }),
+    ...(options.hardwareContext !== undefined && { hardwareContext: options.hardwareContext }),
     isWorkspaceTrusted: () =>
       typeof options.isTrusted === 'function' ? options.isTrusted() : (options.isTrusted ?? true),
     isConfidentialWorkspace: confidentialOf(options.isConfidentialWorkspace),
@@ -492,6 +494,107 @@ async function startSession(
 }
 
 describe('M103-G hardware dispatch boundary', () => {
+  it.each([false, true])(
+    'R5: allow-once binds a registered target and rejects identity change=%s',
+    async (changes) => {
+      let usbSerial = 'machine-one'
+      const t = setup({
+        hardwareContext: () => ({ targets: [{ address: 'https://printer.local', usbSerial }] }),
+      })
+      const { session, events, turnDone } = await startSession(t, 'allowAll')
+      t.api.script(
+        {
+          calls: [
+            {
+              name: 'bash',
+              arguments: JSON.stringify({
+                command: 'curl --json "{}" https://printer.local/api/job',
+              }),
+            },
+          ],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'device request' }])
+      const request = await approvalRequest(events, 0)
+      if (changes) usbSerial = 'machine-two'
+      await session.decideApproval({
+        approvalId: request.approvalId,
+        requirementId: request.requirementId,
+        choiceId: 'allow_once',
+      })
+      await turnDone()
+      expect(t.shellCalls).toHaveLength(changes ? 0 : 1)
+    },
+  )
+  it.each(['then_run', 'verification'] as const)(
+    'F6: %s inherits unattended origin before any shell dispatch',
+    async (route) => {
+      const t = setup({
+        isUnattended: () => true,
+        verify: {
+          isDiagnosticsOn: () => false,
+          checkCommands: () =>
+            route === 'verification' ? [{ name: 'upload', command: 'pio run -t upload' }] : [],
+          isFormatOnEdit: () => false,
+          diagnosticsAfterEdit: () => Promise.resolve([]),
+          formatAfterEdit: () => Promise.resolve(undefined),
+        },
+      })
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      session.onEvent((event) => {
+        if (event.type === 'approvalRequested')
+          void session.decideApproval({
+            approvalId: event.approvalId,
+            requirementId: event.requirementId,
+            choiceId: 'allow_once',
+          })
+      })
+      t.api.script(
+        {
+          calls: [
+            {
+              name: 'write_file',
+              arguments: JSON.stringify({
+                path: 'ordinary.ts',
+                content: 'export const value = 1',
+                ...(route === 'then_run' && { then_run: 'pio run -t upload' }),
+              }),
+            },
+          ],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'edit then check' }])
+      await turnDone()
+      expect(t.files.get(`${ROOT}/ordinary.ts`)).toBe('export const value = 1')
+      expect(t.shellCalls).toHaveLength(0)
+      expect(events.filter((event) => event.type === 'approvalRequested')).toEqual([])
+    },
+  )
+
+  it('F1: a stop substitution is refused by the real Plan host before dispatch', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t, 'denyUnmatched')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'bash',
+            arguments: JSON.stringify({
+              command:
+                'curl -X POST http://$(gpioset${IFS}gpiochip0${IFS}17=1)/printer/emergency_stop',
+            }),
+          },
+        ],
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'stop' }])
+    await turnDone()
+    expect(t.shellCalls).toHaveLength(0)
+    expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+  })
   const call = {
     name: 'bash',
     arguments: JSON.stringify({

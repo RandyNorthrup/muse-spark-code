@@ -122,6 +122,7 @@ function harness(
           personalSkillsRoot: undefined,
           personalAgentsRoot: undefined,
           isWorkspaceTrusted: () => true,
+          isUnattended: () => true,
           isConfidentialWorkspace: () => false,
           confirmContributorModel: () => Promise.resolve(false),
           store: undefined,
@@ -153,6 +154,31 @@ function harness(
 }
 
 describe('best-of-N on the fake Model API', () => {
+  it('F7: real candidate hosts preserve Auto edits and refuse hardware without a card', async () => {
+    const t = harness(2)
+    for (const world of t.worlds)
+      world.api.script(
+        writeCall('ordinary.txt', 'candidate edit'),
+        { calls: [{ name: 'bash', arguments: JSON.stringify({ command: 'pio run -t upload' }) }] },
+        { text: 'done' },
+      )
+    await t.manager.start(
+      { prompt: 'edit and upload', attempts: 2, requestCeilingPerAttempt: 5 },
+      'modelApi',
+    )
+    await awaitCompletedRun(t.updates)
+    for (const world of t.worlds) {
+      expect(world.io.files.get(`${world.root}/ordinary.txt`)).toBe('candidate edit')
+      expect(world.io.shellCalls).toEqual([])
+      expect(JSON.stringify(world.api.responseBodies())).toContain(
+        'Physical device operation refused',
+      )
+    }
+    expect(t.updates.at(-1)?.runAttempts.every((attempt) => attempt.status === 'completed')).toBe(
+      true,
+    )
+    t.manager.dispose()
+  })
   it('counts HTTP retries before they run and blocks the next paid request', async () => {
     const t = harness(2)
     const [retrying, quiet] = t.worlds

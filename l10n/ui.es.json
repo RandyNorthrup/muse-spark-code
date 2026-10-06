@@ -2124,5 +2124,5 @@
   "hardwareRefused": "Se rechaza esta operación del dispositivo. Revise el comando y ejecútelo usted mismo en su propio terminal.",
   "hardwareUnattended": "Se rechazan las acciones sobre dispositivos físicos en ejecuciones sin supervisión.",
   "hardwareExpired": "La autorización del dispositivo ha caducado. No se envió nada.",
-  "hardwareBypassNotice": "La protección de hardware desactiva la omisión de permisos. Use el modo automático o manual y autorice cada acción del dispositivo una sola vez."
+  "hardwareBypassNotice": "En los espacios de trabajo con hardware no se pueden omitir los permisos. Usa Automático o Manual y autoriza cada acción del dispositivo una sola vez."
 }

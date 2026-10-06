@@ -67,6 +67,7 @@ import { UI_TEXT } from '../../../shared/constants'
 import type { ApprovalMode } from '../../../shared/permissionModes'
 import { countSecretMatches } from '../../redact'
 import { hardwareAction, isHardwareStop } from '../../maker/guard/hardwareCommands'
+import type { HardwareContext } from '../../maker/guard/httpCommands'
 import { isDeviceAction, isPhysicalTool } from '../../maker/guard/actionClass'
 import { type CommandRule, isEvaluator, judgeCommand } from './commandRules'
 import type { PermissionPolicy } from './permissionPolicy'
@@ -223,6 +224,7 @@ export interface PermissionQuery {
   readonly isPhysical?: boolean
   /** Child/worker/candidate/remote/headless callers cannot operate devices. */
   readonly isUnattended?: boolean
+  readonly hardware?: HardwareContext | undefined
 }
 
 /** What settled a shell command's verdict beyond the mode (M78, M92e). */
@@ -294,7 +296,10 @@ export class PermissionEngine {
     query: PermissionQuery & { readonly command: string },
     policy: PermissionPolicy,
   ): PermissionJudgement {
-    if (isHardwareStop(query.command) && countSecretMatches(query.command, []) === 0)
+    if (
+      isHardwareStop(query.command, query.dialect, query.hardware) &&
+      countSecretMatches(query.command, []) === 0
+    )
       return settled('allow', 'hardwareDetected')
     const { decision, rule } = judgeCommand(
       policy.commandRules,
@@ -304,7 +309,7 @@ export class PermissionEngine {
     if (decision === 'forbid') {
       return settled('deny', 'forbidRule', rule)
     }
-    const action = hardwareAction(query.command, query.dialect, commandShape)
+    const action = hardwareAction(query.command, query.dialect, query.hardware)
     if (isDeviceAction(action)) {
       return settled(
         action === 'refused' || query.isUnattended === true || this.mode === 'denyUnmatched'
@@ -353,7 +358,7 @@ export class PermissionEngine {
         hasSessionChoice: true,
       }
     }
-    return unsettledAsk(this.mode === REVIEWED_MODE)
+    return unsettledAsk(this.mode === REVIEWED_MODE && query.hardware?.isHardwareWorkspace !== true)
   }
 
   public setMode(mode: ApprovalMode): void {

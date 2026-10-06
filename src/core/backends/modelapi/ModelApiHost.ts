@@ -1,6 +1,8 @@
 import { redactDiagnosticEvent } from '../../redact'
 import { HardwareApproval } from '../../maker/ports'
-import { hardwareAction } from '../../maker/guard/hardwareCommands'
+import { hardwareAction, hardwareTarget } from '../../maker/guard/hardwareCommands'
+import { parseShell } from '../../maker/guard/shellParse'
+import type { HardwareContext } from '../../maker/guard/httpCommands'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
 // replay, `store: false`) with the in-process tool harness, the permission
@@ -426,6 +428,7 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly isWorkspaceTrusted: () => boolean
   /** Host-owned unattended context (headless, workers, candidates and remote lanes). */
   readonly isUnattended?: () => boolean
+  readonly hardwareContext?: () => HardwareContext
   /** `museSpark.confidentialWorkspace`: contributor-tier agent models are blocked. */
   readonly isConfidentialWorkspace: () => boolean
   /** One explicit yes before a contributor-tier agent model is used (M76). */
@@ -3919,9 +3922,10 @@ export class ModelApiSession implements AgentSession {
         ? new HardwareApproval(
             approvalId,
             call.arguments,
-            { address: query.command ?? query.toolName },
-            hardwareAction(query.command ?? '', query.dialect) ?? 'actuate',
+            hardwareTarget(query.command ?? query.toolName, query.dialect, query.hardware),
+            hardwareAction(query.command ?? '', query.dialect, query.hardware) ?? 'actuate',
             this.deps.now(),
+            JSON.stringify(parseShell(query.command ?? '', query.dialect ?? 'bash')),
           )
         : undefined
     const request: Extract<AgentEvent, { type: 'approvalRequested' }> = {
@@ -3995,7 +3999,11 @@ export class ModelApiSession implements AgentSession {
             digest: hardware.request.digest,
             decision: decision.choiceId === APPROVAL_CHOICE_IDS.allowOnce ? 'sendOnce' : 'reject',
           },
-          { address: query.command ?? query.toolName },
+          hardwareTarget(
+            query.command ?? query.toolName,
+            query.dialect,
+            this.deps.hardwareContext?.(),
+          ),
           this.deps.now(),
         )) &&
       (decision.choiceId === APPROVAL_CHOICE_IDS.allowOnce ||
@@ -5946,6 +5954,12 @@ export class ModelApiSession implements AgentSession {
       toolClass: 'shell',
       command: request.ruleCommand,
       dialect: this.deps.platform === 'win32' ? 'powershell' : 'bash',
+      hardware: this.deps.hardwareContext?.(),
+      isUnattended:
+        this.isSubagent ||
+        this.deps.isUnattended?.() === true ||
+        this.active?.confirmedRequest !== undefined ||
+        this.active?.isGoalWake === true,
     }
     let judgement = this.permissions.judge(query, policy)
     // Standing policy judges the actual expanded line; check-session grants keep their separate base key.
@@ -5973,7 +5987,7 @@ export class ModelApiSession implements AgentSession {
       itemId,
       call,
       signal,
-      query,
+      judgement.settledBy === 'hardwareDetected' ? { ...query, command: request.line } : query,
       { card: { kind: 'shell', command: request.line } },
       request.isForced || this.changesWhatRunsNow(request.ruleCommand),
       { ...judgement, verdict, isReviewable: false },
@@ -7288,6 +7302,7 @@ export class ModelApiSession implements AgentSession {
         this.active?.confirmedRequest !== undefined ||
         this.active?.isGoalWake === true,
       command: toolClass === 'shell' ? pick(argumentsOf(call), 'command') : undefined,
+      hardware: this.deps.hardwareContext?.(),
       // The shell tool runs the platform's shell, whatever the call is named.
       dialect: this.deps.platform === 'win32' ? 'powershell' : 'bash',
       isProtected:
@@ -9522,6 +9537,8 @@ export class ModelApiSession implements AgentSession {
   }
 
   public setApprovalMode(mode: string): Promise<void> {
+    if (mode === 'allowAll' && this.deps.hardwareContext?.().isHardwareWorkspace === true)
+      return Promise.reject(new Error(UI_TEXT.hardwareBypassNotice))
     if (mode !== 'denyUnmatched' && this.isSideChat) {
       return Promise.reject(new Error(UI_TEXT.sideChatPlanOnly))
     }
@@ -10734,6 +10751,11 @@ export class ModelApiHost implements AgentHost {
   }
 
   public async startSession(options: StartSessionOptions): Promise<AgentSession> {
+    if (
+      options.approvalMode === 'allowAll' &&
+      this.deps.hardwareContext?.().isHardwareWorkspace === true
+    )
+      throw new Error(UI_TEXT.hardwareBypassNotice)
     if (!(APPROVAL_MODES as readonly string[]).includes(options.approvalMode)) {
       throw new Error(`unknown approval mode ${options.approvalMode}`)
     }

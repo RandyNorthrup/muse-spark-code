@@ -9,6 +9,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **M103 hardware guard redesign (unreleased, not hardware-certified).**
+  Parse literal shell words and device write destinations for bash/sh,
+  PowerShell and cmd; fail closed on unresolved device commands. Judge every
+  HTTP transfer and body/upload flag, constrain shell-stop exemptions to
+  registered canonical stops, and refuse escaped literal irreversible
+  operations. Preserve approval expiry/consumption after failed MSP decisions
+  and unattended origin for verification/then_run. Restore ordinary opted-in
+  Bypass and Best-of-N edits; cap Bypass only in host-designated hardware
+  workspaces. Load the guard/approval parser on first use. README and ACP
+  guidance explicitly retain the CLI/script and physical-certification gaps.
+
 - **The README's "What's new" section matches the release again.** 0.12.1 and
   0.13.0 shipped with the README still headed "What's new in 0.12.0". It now
   describes 0.13.0, the Marketplace README carries the same section, and a

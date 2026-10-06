@@ -24,6 +24,7 @@
     "src/host/planMarkdownEntry.ts",
     // The checkpoint store's own bundle (M72), required by path at construction.
     "src/host/checkpoints/checkpointStoreEntry.ts",
+    "src/core/maker/guardEntry.ts",
     // The browser check's own bundle (M81), required by path on the first check.
     "src/host/browser/browserCheckEntry.ts",
     // Its runtime acquisition (M81 A1), required by path when a runtime is prepared.
