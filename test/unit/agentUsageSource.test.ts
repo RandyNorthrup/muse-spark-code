@@ -208,14 +208,26 @@ describe('captured, opt-in external agent usage', () => {
       await agentUsageSource(['claudeCode', 'codex'], [first, second], clean).read(context()),
     ).toEqual(result)
   })
-  it('discovers only captured usage session files for enabled sources in the standalone runtime', async () => {
+  it('discovers main and nested subagent sessions only within each enabled agent layout', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'm113-agents-'))
     try {
-      await mkdir(path.join(root, '.claude/projects/fixture'), { recursive: true })
+      await mkdir(path.join(root, '.claude/projects/fixture/subagents/deeper'), { recursive: true })
       await mkdir(path.join(root, '.codex/sessions/2026/10/06'), { recursive: true })
+      await mkdir(path.join(root, '.claude/projects/fixture/directory.jsonl'))
       await writeFile(
         path.join(root, '.claude/projects/fixture/session.jsonl'),
         JSON.stringify(claude()),
+      )
+      const child = claude()
+      child.message.id = 'fixture-child'
+      child.message.usage.input_tokens = 100
+      await writeFile(
+        path.join(root, '.claude/projects/fixture/subagents/agent-fixture.jsonl'),
+        JSON.stringify(child),
+      )
+      await writeFile(
+        path.join(root, '.claude/projects/fixture/subagents/deeper/agent-too-deep.jsonl'),
+        JSON.stringify(child),
       )
       await writeFile(
         path.join(root, '.codex/sessions/2026/10/06/rollout-fixture.jsonl'),
@@ -232,7 +244,17 @@ describe('captured, opt-in external agent usage', () => {
       }
       const result = await createRuntimeReportSources(input).sources.agentUsage.read(context())
       expect(result.record.status).toBe('ok')
-      expect(result.data?.map((row) => row.agent)).toEqual(['claudeCode', 'codex'])
+      expect(result.data?.map((row) => row.agent)).toEqual(['claudeCode', 'claudeCode', 'codex'])
+      expect(result.data?.map((row) => row.file)).toEqual([
+        '~/.claude/projects/fixture/session.jsonl',
+        '~/.claude/projects/fixture/subagents/agent-fixture.jsonl',
+        '~/.codex/sessions/2026/10/06/rollout-fixture.jsonl',
+      ])
+      expect(
+        result.data
+          ?.filter((row) => row.agent === 'claudeCode')
+          .map((row) => row.usage.inputTokens),
+      ).toEqual([28_790, 28_888])
       expect(JSON.stringify(result)).not.toContain('Synthetic fixture marker')
       const disabled = await createRuntimeReportSources({
         ...input,
@@ -249,5 +271,18 @@ describe('captured, opt-in external agent usage', () => {
     const result = await agentUsageSource(['codex'], [source, source], clean).read(context())
     expect(result.record.status).toBe('unavailable')
     expect(result.data).toBeNull()
+  })
+  it('produces byte-identical file order with Windows and POSIX path separators', async () => {
+    const source = file('claudeCode', JSON.stringify(claude()))
+    const first = { ...source, file: String.raw`projects\fixture\a.jsonl` }
+    const second = { ...source, file: 'projects/fixture/z.jsonl' }
+    const result = await agentUsageSource(['claudeCode'], [second, first], clean).read(context())
+    expect(result.record.status).toBe('ok')
+    const normalized = { ...first, file: first.file.replaceAll('\\', '/') }
+    expect(
+      JSON.stringify(
+        await agentUsageSource(['claudeCode'], [normalized, second], clean).read(context()),
+      ),
+    ).toBe(JSON.stringify(result))
   })
 })

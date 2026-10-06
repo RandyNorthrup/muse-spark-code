@@ -80,7 +80,95 @@ const deps = (): LocalReportSourceDeps => ({
   enabledAgents: [],
   agentFiles: [],
 })
+function permutations<T>(rows: readonly T[]): T[][] {
+  return rows.length === 0
+    ? [[]]
+    : rows.flatMap((row, index) =>
+        permutations(rows.filter((_row, other) => other !== index)).map((rest) => [row, ...rest]),
+      )
+}
 describe('session, registry and shared report adapters', () => {
+  it('produces byte-identical session facts for every permutation of tied checks and usage keys', async () => {
+    const original = await sessionReader().read(context())
+    if (original === null) throw new Error('Missing test fixture')
+    const check = {
+      at: '2026-10-06T11:59:59Z',
+      check: 'quality',
+      commit: 'fixture-a',
+      outcome: 'passed',
+      durationMs: 1,
+    } satisfies (typeof original.checkRuns)[number]
+    const checks = [
+      check,
+      { ...check, commit: 'fixture-b' },
+      { ...check, outcome: 'failed' } satisfies (typeof original.checkRuns)[number],
+      { ...check, durationMs: 2 },
+    ]
+    const breakdown = checks.map(
+      (row) =>
+        ({
+          key: 'fixture-model',
+          inputTokens: row.durationMs,
+          outputTokens: row.outcome === 'failed' ? 2 : 1,
+          costUsd: null,
+          certainty: 'unknown',
+        }) satisfies (typeof original.usage.breakdown)[number],
+    )
+    const limits = checks.map((row) => ({
+      key: 'fixture-limit',
+      used: row.durationMs,
+      limit: row.outcome === 'failed' ? 2 : 1,
+      resetsAt: null,
+    }))
+    let expected: string | undefined
+    const orders = permutations(checks.map((_row, index) => index))
+    for (const order of orders) {
+      const result = await sessionSource(
+        {
+          read: () =>
+            Promise.resolve({
+              ...original,
+              checkRuns: order.flatMap((index) => checks[index] ?? []),
+              usage: {
+                ...original.usage,
+                breakdown: order.flatMap((index) => breakdown[index] ?? []),
+                limits: order.flatMap((index) => limits[index] ?? []),
+              },
+            }),
+        },
+        [],
+        scrub,
+      ).read(context())
+      expect(result.record.status).toBe('ok')
+      expect(result.data?.checkRuns.map((row) => row.commit)).toEqual([
+        'fixture-a',
+        'fixture-a',
+        'fixture-a',
+        'fixture-b',
+      ])
+      const bytes = JSON.stringify(result)
+      expected ??= bytes
+      expect(bytes).toBe(expected)
+    }
+  })
+  it('produces byte-identical questions for every permutation when scrubbed ids collide', async () => {
+    const questions: ReportQuestion[] = [
+      { id: 'private-a', text: 'First', milestoneIds: ['M13', 'M12'], state: 'answered' },
+      { id: 'private-b', text: 'Second', milestoneIds: [], state: 'open' },
+      { id: 'private-c', text: 'Third', milestoneIds: [], state: 'dismissed' },
+    ]
+    let expected: string | undefined
+    for (const rows of permutations(questions)) {
+      const result = await questionsSource(
+        { read: () => Promise.resolve({ questions: rows, observedAt: REPORT_FIXTURE_AS_OF }) },
+        (text) => text.replaceAll(/private-[abc]/gu, '[redacted]'),
+      ).read(context())
+      expect(result.record.status).toBe('ok')
+      const bytes = JSON.stringify(result)
+      expected ??= bytes
+      expect(bytes).toBe(expected)
+    }
+  })
   it('uses M84 export and retains real turns and all approval outcomes', async () => {
     const result = await sessionSource(sessionReader(), [String.raw`C:\Users\Private`], scrub).read(
       context(),

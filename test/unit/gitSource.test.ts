@@ -113,6 +113,56 @@ describe('local Git report source', () => {
     expect(JSON.stringify(first)).not.toContain(canary)
     expect(first).toEqual(await port.read(context()))
   })
+  it('produces byte-identical Git facts when shuffled records have tied scrubbed identities and paths', async () => {
+    const ids = ['a', 'b', 'c']
+    let expected: string | undefined
+    for (const order of [ids, ids.toReversed(), [...ids.slice(1), ids[0] ?? '']]) {
+      const fake: ReportGitIo = {
+        run: (args) => {
+          let stdout = ''
+          if (args.includes('--verify')) stdout = 'a'.repeat(40)
+          else if (args.includes('log'))
+            stdout = order
+              .map(
+                (id) => `\0${id.repeat(40)}\0${REPORT_FIXTURE_AS_OF}\0Subject ${id}\0\n${id}.ts\0`,
+              )
+              .join('')
+          else if (args.includes('worktree'))
+            stdout = order
+              .map(
+                (id) =>
+                  `worktree /fixture/private-${id}\0HEAD ${id.repeat(40)}\0branch refs/heads/${id}\0\0`,
+              )
+              .join('')
+          else if (args.includes('refs/tags/'))
+            stdout = order
+              .map(
+                (id) =>
+                  `private-${id}\0${id.repeat(40)}\0\0${new Date(Date.parse(REPORT_FIXTURE_AS_OF) + (id.codePointAt(0) ?? 0)).toISOString()}\n`,
+              )
+              .join('')
+          else if (args.some((arg) => arg.startsWith('--merged=')))
+            stdout = 'refs/heads/main\nrefs/heads/private-a\n'
+          else if (args.includes('for-each-ref'))
+            stdout =
+              `refs/heads/main\0${'a'.repeat(40)}\n` +
+              order.map((id) => `refs/heads/private-${id}\0${id.repeat(40)}\n`).join('')
+          return Promise.resolve({ stdout, code: args.includes('symbolic-ref') ? 1 : 0 })
+        },
+      }
+      const result = await gitSource(fake, (text) =>
+        text.replaceAll(/private-[abc]|^[abc]{40}$/gu, '[redacted]'),
+      ).read(context())
+      expect(result.record.status).toBe('ok')
+      expect(result.data?.commits).toHaveLength(ids.length)
+      expect(result.data?.tags).toHaveLength(ids.length)
+      expect(result.data?.branches).toHaveLength(ids.length + 1)
+      expect(result.data?.worktrees).toHaveLength(ids.length)
+      const bytes = JSON.stringify(result)
+      expected ??= bytes
+      expect(bytes).toBe(expected)
+    }
+  })
   it('shows working-tree paths relative to the workspace before scrubbing', async () => {
     const result = await gitSource(io, redactSecrets, [repo.root]).read(context())
     expect(result.data?.worktrees.map((row) => row.path)).toEqual(['.', '../sibling'])

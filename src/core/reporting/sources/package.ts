@@ -1,4 +1,5 @@
 import * as z from 'zod/mini'
+import matchTasks from 'npm-run-all2/lib/match-tasks.js'
 import { REPORT_MAX_ROWS, REPORT_MAX_TEXT_CHARS } from '../../../shared/constants'
 import {
   codeUnitCompare,
@@ -30,10 +31,9 @@ export function packageSource(io: LocalFileIo, scrub: SourceScrub) {
         const tokens = (match[1] ?? '').trim().split(/\s+/u)
         for (const token of tokens) {
           if (token.startsWith('-')) continue
-          if (token.includes('*')) {
-            const prefix = token.slice(0, token.indexOf('*'))
-            for (const key of Object.keys(scripts)) if (key.startsWith(prefix)) visit(key)
-          } else visit(token)
+          // Reuse the installed runner's pure matcher: no task or child is executed.
+          const matched = matchTasks(Object.keys(scripts), [token])
+          for (const key of matched) visit(key)
         }
       }
     }

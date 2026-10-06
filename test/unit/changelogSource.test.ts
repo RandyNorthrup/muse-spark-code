@@ -151,6 +151,55 @@ describe('local report files', () => {
     ])
     expect(JSON.stringify(result)).not.toContain('private-note')
   })
+  it('matches complete task globs with suffixes, task separators and literal slashes', async () => {
+    const scripts = {
+      quality:
+        'run-s lint:*:ci verify:? test:[ab]:ci bundle:**:ci check/*:ci single:* brace:{a,b}:ci missing:*:ci',
+      'lint:a:ci': 'npm run nested',
+      'lint:a:dev': 'excluded',
+      'lint:a:deep:ci': 'excluded',
+      'lint::ci': 'included',
+      'verify:a': 'included',
+      'verify:ab': 'excluded',
+      'test:a:ci': 'included',
+      'test:b:ci': 'included',
+      'test:c:ci': 'excluded',
+      'bundle:a:ci': 'included',
+      'bundle:a:deep:ci': 'included',
+      'bundle:a:deep:dev': 'excluded',
+      'check/a:ci': 'included',
+      'check/b/deep:ci': 'included',
+      'check:a:ci': 'excluded',
+      'single:a': 'included',
+      'single:a:': 'excluded',
+      'single::ci': 'excluded',
+      'brace:a:ci': 'included',
+      'brace:b:ci': 'included',
+      'brace:c:ci': 'excluded',
+      nested: 'node nested.mjs',
+    }
+    const result = await packageSource(files(JSON.stringify({ scripts })), (text) => text).read(
+      context(),
+    )
+    expect(result.record.status).toBe('ok')
+    expect(result.data?.qualityScripts.map((row) => row.name)).toEqual([
+      'brace:a:ci',
+      'brace:b:ci',
+      'bundle:a:ci',
+      'bundle:a:deep:ci',
+      'check/a:ci',
+      'check/b/deep:ci',
+      'lint::ci',
+      'lint:a:ci',
+      'nested',
+      'quality',
+      'single:a',
+      'test:a:ci',
+      'test:b:ci',
+      'verify:a',
+    ])
+    expect(result.data?.qualityScripts.some((row) => row.command === 'excluded')).toBe(false)
+  })
   it('refuses private names, traversal and Windows separators before reading', async () => {
     const io = reportFileIo(root, process.platform)
     for (const file of [

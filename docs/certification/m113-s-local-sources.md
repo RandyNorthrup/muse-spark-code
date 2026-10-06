@@ -208,3 +208,91 @@ All associated tests are in `gitSource.test.ts`, `changelogSource.test.ts`, `ses
 | `src/core/reporting/sources/session.ts`       | `d21ccfc17e4abf95070681efdd026054f9729048e98d5c65d054ef47a8bd34fa` |
 | `src/core/reporting/sources/questions.ts`     | `ad4307954d9a717250f678682c0022d7957a40f039265d4f5800d84082670a33` |
 | `src/core/reporting/sources/agentUsage.ts`    | `eb0739c308535cc4f0b525e6c572a2bd4eeaadc189afbd14001436a5ac6591e7` |
+
+## RVM113S repairs — 2026-10-06
+
+Authority: the replacement `C:/lanes/_ctx/M113S.rig.md`, shared
+`codex/common.md` and the entire `codex/RVM113S.report.md`. All three P2s
+are fixed, with **no review residuals**. Work stayed in S's sources/tests,
+PLAN and this record. No new dependency, installation, translation,
+command, setting, activation wiring, credential read, model attempt,
+network call, merge, rebase or push. The rig note supersedes the common
+file's old merge and remote-test steps. The shared brief forbids full
+`quality` in an individual lane; the lead retains that integration gate.
+
+| Finding                                                        | Fix                                                                                                                                                                                                                                                                                                              | Regression                                                                                                                                                                                                                                                                                                                    |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RVM113S-1: tied session checks depend on input order           | Order by timestamp, check, commit and serialized normalized bytes. Usage breakdown/limit keys, scrubbed question ids and Git commit/tag/branch/worktree keys also have byte tie-breakers. Agent paths normalize Windows separators before ordering.                                                              | `sessionReportSource.test.ts`: all 24 permutations of tied checks and repeated usage keys, all six permutations of scrub-colliding questions. `gitSource.test.ts`: shuffled scrub-colliding identities/paths, with distinct tag dates and branch states. `agentUsageSource.test.ts`: byte-identical Windows/POSIX file order. |
+| RVM113S-2: Claude project subagents are omitted                | Descend into `projects/<project>/subagents`, the already admitted path family. Directory entries cannot become file selections. The finite layout bounds depth; the existing global `REPORT_MAX_ROWS` count, cancellation and confined descriptor reads remain. Codex still traverses its year/month/day layout. | `agentUsageSource.test.ts`: discovers main and nested subagent sessions only within each enabled agent layout. Asserts the child's usage, the Codex source, ignored deeper directories, directory-shaped `.jsonl` entries and disabled-source behavior.                                                                       |
+| RVM113S-3: task wildcard suffixes and separators are discarded | Reuse `npm-run-all2@9.0.3`'s existing typed, pure `match-tasks` function. This imports its matcher only; no script runner or child process executes. No dependency/version/manifest change.                                                                                                                      | `changelogSource.test.ts`: matches complete task globs with suffixes, task separators and literal slashes; includes `*`, `**`, `?`, classes, braces, empty segments, trailing separators, non-matches and transitive declarations.                                                                                            |
+
+The local sort audit found that certification entries have unique native
+directory names (and are ordered before scrubbing); changelog versions are
+validated unique; package script names are unique record keys; agent files
+have duplicate normalized-path rejection; Codex events already break
+timestamp ties on their complete parsed payload bytes. Scalar string lists
+already compare their entire value. Those guards were retained. Check
+records have no separate id/path in the frozen contract, so commit and
+complete normalized bytes provide the final ordering identity. No guessed
+wire field was added.
+
+An offline comparison with the installed runner showed that Node's
+`path.matchesGlob` normalizes empty/trailing path segments differently.
+The final implementation uses the actual runner's matcher instead. The
+Git tag drill initially stayed green because all scrubbed fixture rows
+were byte-identical; the test was strengthened with distinct dates and
+merged states, then each Git guard produced the named failure. Production
+sort guards were not weakened to make the drills fail.
+
+Final Win11 tests after restoring all mutations, with no raised timeout,
+filter or skip and at most three files per run:
+
+- `npx.cmd vitest run test/unit/gitSource.test.ts test/unit/changelogSource.test.ts test/unit/sessionReportSource.test.ts --maxWorkers=3`: **36 passed**, 9.03 seconds.
+- `npx.cmd vitest run test/unit/agentUsageSource.test.ts test/unit/reportStrings.test.ts --maxWorkers=3`: **28 passed**, 3.96 seconds.
+- Total: **64 passed** (47 owned source tests plus 17 existing string tests).
+
+Review checks so far: all five `npm.cmd run typecheck` projects, scoped
+ESLint with zero warnings, Prettier over all twelve changed files,
+`git diff --check` and `npm.cmd run check:reference` passed. Localization
+still exits 1 for exactly the same seven unused lane-0 manifest keys;
+fourteen UI tables have no translation problems. Host API freshness still
+exits 1 for the same five Node import-count changes (13→14, 46→47, 33→34,
+47→48, 84→85). These are the existing named W handoffs above. No baseline,
+ignore, threshold or generated file was changed to hide either failure.
+The Git file also receives a final default-timeout rerun after its lint-only
+`codePointAt` fixture cleanup; it does not change the 64 unique-test count.
+
+### Review guard-fire receipts
+
+Each guard was disabled independently. Its entire named test file ran
+directly on Win11 with `npx.cmd vitest run <file> --maxWorkers=3`, using
+the repository default timeout. Each produced **exit 1 at the named
+regression**. Restoration in `finally` used the original byte buffer;
+all **13 SHA-256 comparisons matched**. The restored tests above passed.
+Scratch runner, synthetic-only failure logs and machine-readable receipts
+are under ignored `temp/m113-review-drills*` and `temp/m113-drill-*.log`.
+
+| Disabled guard            | Named regression (substring)                | Result                |
+| ------------------------- | ------------------------------------------- | --------------------- |
+| check-commit-order        | produces byte-identical session facts       | exit 1; exact restore |
+| check-byte-tie            | produces byte-identical session facts       | exit 1; exact restore |
+| usage-breakdown-tie       | produces byte-identical session facts       | exit 1; exact restore |
+| usage-limit-tie           | produces byte-identical session facts       | exit 1; exact restore |
+| question-scrubbed-id-tie  | produces byte-identical questions           | exit 1; exact restore |
+| git-commit-tie            | produces byte-identical Git facts           | exit 1; exact restore |
+| git-tag-tie               | produces byte-identical Git facts           | exit 1; exact restore |
+| git-branch-tie            | produces byte-identical Git facts           | exit 1; exact restore |
+| git-worktree-tie          | produces byte-identical Git facts           | exit 1; exact restore |
+| agent-path-separators     | produces byte-identical file order          | exit 1; exact restore |
+| claude-subagent-discovery | discovers main and nested subagent sessions | exit 1; exact restore |
+| discovery-regular-files   | discovers main and nested subagent sessions | exit 1; exact restore |
+| package-complete-globs    | matches complete task globs                 | exit 1; exact restore |
+
+| Restored production file                   | SHA-256                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------ |
+| `src/core/reporting/sources/session.ts`    | `aac880ffd8eba3aa6631999a51884144a8641a76ea4f979445426235cc4b73be` |
+| `src/core/reporting/sources/questions.ts`  | `7e593e574951805363bc3a1fec97a05149bc43946028ec719ce96c889440cf27` |
+| `src/core/reporting/sources/git.ts`        | `08f9b32251a3d6d2e770b89fd484ad925111c78085f3662229ab3c81b3ea6801` |
+| `src/core/reporting/sources/agentUsage.ts` | `e739e7d1f417316733c97e2456bab14353d095531ab5d5c3894648446e3aaa80` |
+| `src/runtime/reporting/sources.ts`         | `6985955ae420b0805a7583d5fcf0f5886b03a03e814e18c856bc35f287d7883a` |
+| `src/core/reporting/sources/package.ts`    | `a56658048f219945f37d4ce3addcd3c745bf4b76457dc1b3dfd732c3ad4b2b9d` |

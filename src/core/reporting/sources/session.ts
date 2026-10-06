@@ -97,7 +97,11 @@ export function sessionSource(
         backend: read.source.backend,
         usage: scrubUsage(read.usage, scrub),
         checkRuns: checkRuns.toSorted(
-          (a, b) => codeUnitCompare(a.at, b.at) || codeUnitCompare(a.check, b.check),
+          (a, b) =>
+            codeUnitCompare(a.at, b.at) ||
+            codeUnitCompare(a.check, b.check) ||
+            codeUnitCompare(a.commit, b.commit) ||
+            codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
         ),
       },
       observedAt: read.observedAt,
@@ -111,7 +115,13 @@ export function scrubUsage(
   const parsed = usageSchema.parse(scrubSourceValue(usage, scrub))
   return {
     ...parsed,
-    breakdown: parsed.breakdown.toSorted((a, b) => codeUnitCompare(a.key, b.key)),
-    limits: parsed.limits.toSorted((a, b) => codeUnitCompare(a.key, b.key)),
+    breakdown: parsed.breakdown.toSorted(
+      (a, b) =>
+        codeUnitCompare(a.key, b.key) || codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
+    ),
+    limits: parsed.limits.toSorted(
+      (a, b) =>
+        codeUnitCompare(a.key, b.key) || codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
+    ),
   }
 }

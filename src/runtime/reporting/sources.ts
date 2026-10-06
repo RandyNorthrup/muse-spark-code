@@ -153,11 +153,12 @@ async function discoverAgentFiles(
         if (visited >= REPORT_MAX_ROWS) throw new LocalSourceError('limit')
         visited += 1
         const file = `${directory}/${entry.name}`
-        if (isAgentUsagePath(agent, file)) files.push({ agent, file, io })
+        if (!entry.directory && isAgentUsagePath(agent, file)) files.push({ agent, file, io })
         else if (
           entry.directory &&
           (agent === 'claudeCode'
-            ? directory === 'projects'
+            ? directory === 'projects' ||
+              (/^projects\/[^/]+$/u.test(directory) && entry.name === 'subagents')
             : /^sessions(?:\/\d{4}(?:\/\d{2})?)?$/u.test(directory))
         )
           await walk(file)

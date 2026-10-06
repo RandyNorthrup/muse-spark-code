@@ -11219,7 +11219,10 @@ Gates` appears twice (lines 24216 and 24793) with M98's entry inside the
      through the snapshot (an ESLint `no-restricted-syntax` and
      `no-restricted-imports` block on `src/core/reporting/collect/**`).
    - **Stable order.** Every list declares its sort key, compared by code
-     unit, never `localeCompare`.
+     unit, never `localeCompare`. M113-S's RVM113S fixes (2026-10-06) make
+     local-source comparators total: stable record identity or path first,
+     then serialized normalized bytes for ties, including scrub collisions.
+     Exhaustive shuffled-input properties must produce identical source bytes.
    - **Honest sources.** Each section names its sources and their freshness.
      A missing source is an explicit row, "unavailable: {reason}", never
      omitted and never faked.
@@ -27556,6 +27559,15 @@ milestone. It lands in three deliveries:
   (M108), security (M109), fleet's devices and nodes (M100, M110a), the TUI
   (M110a0's lane T), Muse Desktop (M111b).
 
+M113-S review repair scope, 2026-10-06 (RVM113S): total local-source ordering
+with permutation regression coverage; confined, count/depth-bounded discovery
+of Claude project's main and nested subagent session files, preserving Codex's
+dated layout; complete task-glob matching with suffix and separator constraints.
+No dependency, guard expansion, live call or activation change. Each finding
+gets a named byte-exact red drill in `docs/certification/m113-s-local-sources.md`.
+Shared core/runtime fixes serve every editor; W retains integration wiring and
+the documentation/reference/manifest/host-API/full-quality handoffs.
+
 Lanes P, S, R and V start once lane 0's contracts freeze, which can be as
 soon as M112's lane 0 has published the registry's types (for the session
 kind). The usage kind waits for M102, the native-host rows for M104b–d.
@@ -30079,6 +30091,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M113-S-review-RVM113S (2026-10-06).** All three P2 findings are fixed;
+  no review residuals. Local-source sorts use stable identities/normalized
+  paths and normalized byte tie-breakers, including scrub collisions.
+  Runtime discovery includes the already admitted Claude project subagent
+  directory without expanding the accepted file families or read boundary.
+  Quality declarations use the pinned npm-run-all2 pure task matcher,
+  preserving suffixes, task separators and literal slashes. The 64-test
+  default-timeout verification and 13 byte-exact red drills are recorded in
+  `docs/certification/m113-s-local-sources.md`. Existing manifest, host-API,
+  documentation/reference, bundle assembly and full-quality integration
+  handoffs remain with W; scoped lane checks do not certify those handoffs.
 
 - **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
   finding is fixed with no review residuals. Capacity is derived from the
