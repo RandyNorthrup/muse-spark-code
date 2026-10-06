@@ -115,6 +115,7 @@ describe('frozen runtime presentation factory', () => {
     await contribution.dispose?.()
     await Promise.all(f.owned.map((dispose) => dispose()))
     expect(stop).toHaveBeenCalledOnce()
+    expect(f.requests.filter((request) => request.method === 'surfaces/close')).toHaveLength(0)
   })
   it('installs the caller locale before running owner configuration', async () => {
     const f = await fixture()

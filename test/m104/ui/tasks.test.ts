@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { PortableTasks } from '../../../src/host/views/portableTasks'
 import { parseMhpResult } from '../../../src/shared/hostApi/protocol'
-import type { HostServices } from '../../../src/shared/hostApi/methods'
+import { MHP_METHODS, type HostServices } from '../../../src/shared/hostApi/methods'
 import type { MhpPanelBinding } from '../../../src/shared/hostApi/panel'
 import type { TasksHostMessage } from '../../../src/shared/tasksProtocol'
 
@@ -9,13 +9,13 @@ function fixture() {
   let currentSession = 'session'
   let serial = 0
   const requests: { method: string; params: unknown }[] = []
-  const responses = new Map<string, () => Promise<unknown>>()
+  const responses = new Map<string, (params: unknown) => Promise<unknown>>()
   const host: HostServices = {
     request: async (method, params) => {
       requests.push({ method, params })
       const custom = responses.get(method)
       let result: unknown = null
-      if (custom !== undefined) result = await custom()
+      if (custom !== undefined) result = await custom(params)
       else if (method === 'surfaces/open') result = { surfaceId: `tasks-${String(++serial)}` }
       return parseMhpResult(method, { jsonrpc: '2.0', id: 1, result }).result
     },
@@ -105,6 +105,48 @@ describe('portable Tasks ownership', () => {
     await f.tasks.show(f.initial)
     f.bind('tasks-2')
     await f.tasks.dispose()
+  })
+
+  it('retires a real user close before reopening against a host with only live IDs', async () => {
+    const f = fixture()
+    const live = new Set(['tasks-1'])
+    const close = vi.fn((params: unknown) => {
+      const { surfaceId } = MHP_METHODS['surfaces/close'].params.parse(params)
+      return live.delete(String(surfaceId))
+        ? Promise.resolve(null)
+        : Promise.reject(new Error('ALREADY_CLOSED'))
+    })
+    f.responses.set('surfaces/close', close)
+    await f.tasks.show(f.initial)
+    const old = f.bind().view
+    live.delete('tasks-1')
+    f.tasks.closed('tasks-1')
+    f.tasks.closed('tasks-1')
+    await f.tasks.show(f.initial)
+    live.add('tasks-2')
+    f.bind('tasks-2')
+    await expect(old.handle({ type: 'tasksReady' })).rejects.toThrow('MHP_PANEL_UNKNOWN_SURFACE')
+    await expect(f.tasks.dispose()).resolves.toBeUndefined()
+    expect(close).toHaveBeenCalledExactlyOnceWith({ surfaceId: 'tasks-2' })
+    expect(live.size).toBe(0)
+  })
+
+  it('retires an older failed acquisition on its authoritative close notification', async () => {
+    const f = fixture()
+    await f.tasks.show(f.initial)
+    f.responses.set('surfaces/close', () => Promise.reject(new Error('HELD_CLOSE_FAILED')))
+    await f.bind().view.handle({ type: 'moveTasksToWindow' })
+    f.bind('tasks-2')
+    f.tasks.closed('tasks-1')
+    const close = vi.fn((params: unknown) => {
+      const { surfaceId } = MHP_METHODS['surfaces/close'].params.parse(params)
+      return String(surfaceId) === 'tasks-2'
+        ? Promise.resolve(null)
+        : Promise.reject(new Error('ALREADY_CLOSED'))
+    })
+    f.responses.set('surfaces/close', close)
+    await expect(f.tasks.dispose()).resolves.toBeUndefined()
+    expect(close).toHaveBeenCalledExactlyOnceWith({ surfaceId: 'tasks-2' })
   })
 
   it('coalesces concurrent opens and closes a late acquisition during release', async () => {

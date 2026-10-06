@@ -3,6 +3,7 @@ import {
   PortableWhatsNew,
   type PortableWhatsNewDeps,
 } from '../../../src/host/whatsNew/portableWhatsNew'
+import { MHP_METHODS } from '../../../src/shared/hostApi/methods'
 import { COMMAND_IDS } from '../../../src/shared/constants'
 import { whatsNewFixtureContent } from './whatsNewContent'
 import type { MhpPanelBinding } from '../../../src/shared/hostApi/panel'
@@ -231,6 +232,31 @@ describe('portable release-note ownership', () => {
     middle.resolve({ surfaceId: 'middle' })
     await Promise.all([second, closing])
     expect(f.requests.filter((request) => request.method === 'surfaces/close')).toHaveLength(3)
+  })
+
+  it('retires a real user close before reopening against a host with only live IDs', async () => {
+    const f = fixture()
+    const live = new Set(['surface-1'])
+    const close = vi.fn((params: unknown) => {
+      const { surfaceId } = MHP_METHODS['surfaces/close'].params.parse(params)
+      return live.delete(String(surfaceId))
+        ? Promise.resolve(null)
+        : Promise.reject(new Error('ALREADY_CLOSED'))
+    })
+    f.responses.set('surfaces/close', close)
+    await f.pages.show()
+    const old = f.pages.view(f.binding())!
+    live.delete('surface-1')
+    f.pages.closed('surface-1')
+    await f.pages.show()
+    live.add('surface-2')
+    expect(f.pages.view(f.binding('surface-2'))).toBeDefined()
+    await expect(old.handle({ type: 'tryIt', index: 0 })).rejects.toThrow(
+      'MHP_PANEL_UNKNOWN_SURFACE',
+    )
+    await expect(f.pages.dispose()).resolves.toBeUndefined()
+    expect(close).toHaveBeenCalledExactlyOnceWith({ surfaceId: 'surface-2' })
+    expect(live.size).toBe(0)
   })
 
   it('closes a suspended acquisition during release', async () => {
