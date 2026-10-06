@@ -1053,6 +1053,7 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     id: item.itemId,
     tool: item.tool ?? item.kind,
     args: item.args ?? '',
+    argumentPreview: item.argumentPreview,
     status: item.status,
     output: item.visibleOutput ?? '',
     failureReason: item.failureReason,
@@ -1208,6 +1209,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         ...entry,
         tool: item.tool ?? entry.tool,
         args: item.args ?? entry.args,
+        argumentPreview: item.argumentPreview,
         status: item.status,
         output: item.visibleOutput ?? entry.output,
         failureReason: item.failureReason ?? entry.failureReason,
@@ -1827,6 +1829,7 @@ function applyAgentEvent(
         : state
     }
     case 'itemStarted':
+    case 'toolArgumentPreview':
     case 'itemUpdated':
     case 'itemCompleted': {
       const next = applyItem(state, event.item, at)

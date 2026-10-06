@@ -1,4 +1,4 @@
-import { redactDiagnosticEvent } from '../../redact'
+import { redactDiagnosticEvent, redactSecrets } from '../../redact'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
 // replay, `store: false`) with the in-process tool harness, the permission
@@ -7,6 +7,7 @@ import { redactDiagnosticEvent } from '../../redact'
 // Sessions live for the host's lifetime (this VS Code window).
 
 import { Buffer } from 'node:buffer'
+import { ArgumentPreview, type ArgumentPreviewCapabilities } from './argumentPreview'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, rm } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
@@ -511,6 +512,9 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly sessionBudgetUsd: () => number
   /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
   readonly showReplyUsage: () => boolean
+  /** M106 L1: selected M95 record projection; absent/unknown leaves today's stream unchanged. */
+  readonly argumentPreviewCapabilities?:
+    ((modelId: string) => ArgumentPreviewCapabilities | undefined) | undefined
   /**
    * Observation packing (M73, PLAN.md D49): `museSpark.modelApiObservationPacking`,
    * or the M75 eval's `packing` arm. Read when a session is created or
@@ -1016,10 +1020,8 @@ interface ChildAdmission {
 }
 
 /** Where a streamed output item stands while its deltas arrive. */
-interface OpenItem {
+interface OpenItemFields {
   readonly ourId: string
-  /** A search (M33) is shown as a tool row, marked paid. */
-  readonly kind: 'agentMessage' | 'reasoning' | 'webSearch'
   text: string
   readonly summary: string[]
   /** In the transcript as completed: a later sight of the item only updates it. */
@@ -1029,6 +1031,16 @@ interface OpenItem {
   /** When the item completed (M87, PLAN.md D66): a reply's recorded time, kept with it. */
   recordedAt?: string
 }
+
+type OpenItem = OpenItemFields &
+  (
+    | { readonly kind: 'agentMessage' | 'reasoning' | 'webSearch' }
+    | {
+        readonly kind: 'argumentPreview'
+        readonly call: FunctionCallItem
+        readonly preview: ArgumentPreview
+      }
+  )
 
 /** What a search row shows: the query (or page) as its arguments, the results as its output. */
 function searchPresentation(item: WebSearchCallItem): {
@@ -1897,6 +1909,8 @@ export class ModelApiSession implements AgentSession {
   private readonly listeners = new Set<SessionEventListener>()
   private readonly replay: ReplayItem[] = []
   private readonly transcript: TranscriptItem[] = []
+  /** Display rows only; consumed by runCall, never included in the request body. */
+  private readonly argumentPreviewRows = new Map<string, ItemSnapshot>()
   private readonly turnIds: string[] = []
   /** The real last turn summarized by an accepted compaction, not inferred from replay gaps. */
   private compactedThroughTurnId: string | undefined
@@ -3822,11 +3836,12 @@ export class ModelApiSession implements AgentSession {
   private openItem(
     open: Map<string, OpenItem>,
     wireId: string,
-    kind: OpenItem['kind'],
+    kind: Exclude<OpenItem['kind'], 'argumentPreview'>,
     turnId: string,
-  ): OpenItem {
+  ): Exclude<OpenItem, { kind: 'argumentPreview' }> {
     const existing = open.get(wireId)
     if (existing !== undefined) {
+      if (existing.kind === 'argumentPreview') throw new Error(UI_TEXT.modelApiServiceFailure)
       return existing
     }
     const entry: OpenItem = {
@@ -3842,7 +3857,10 @@ export class ModelApiSession implements AgentSession {
     return entry
   }
 
-  private startedSnapshot(entry: OpenItem, turnId: string): ItemSnapshot {
+  private startedSnapshot(
+    entry: Exclude<OpenItem, { kind: 'argumentPreview' }>,
+    turnId: string,
+  ): ItemSnapshot {
     const common = { itemId: entry.ourId, status: IN_PROGRESS, turnId }
     switch (entry.kind) {
       case 'agentMessage': {
@@ -3861,6 +3879,45 @@ export class ModelApiSession implements AgentSession {
         }
       }
     }
+  }
+
+  private showArgumentPreview(
+    entry: Extract<OpenItem, { kind: 'argumentPreview' }>,
+    turnId: string,
+  ) {
+    const item = {
+      itemId: entry.ourId,
+      turnId,
+      kind: 'toolCall' as const,
+      tool: redactSecrets(entry.call.name),
+      status: IN_PROGRESS,
+      args: '' as const,
+      argumentPreview: entry.preview.snapshot(),
+    }
+    const previous = this.argumentPreviewRows.get(entry.call.call_id)?.argumentPreview
+    if (
+      previous?.text === item.argumentPreview.text &&
+      previous.truncated === item.argumentPreview.truncated
+    )
+      return
+    if (previous === undefined) {
+      this.recordTranscript(turnId, item)
+    } else {
+      this.rerecordTranscript(item)
+    }
+    this.argumentPreviewRows.set(entry.call.call_id, item)
+    this.emit({ type: 'toolArgumentPreview', item })
+  }
+
+  /** A failed/abandoned preview has no executable arguments or successful result. */
+  private interruptArgumentPreview(callId: string): void {
+    const preview = this.argumentPreviewRows.get(callId)
+    if (preview === undefined) return
+    this.argumentPreviewRows.delete(callId)
+    const { argumentPreview: _preview, ...row } = preview
+    const item = { ...row, status: TOOL_STATUS_INTERRUPTED }
+    this.rerecordTranscript(item)
+    this.emit({ type: 'itemCompleted', item })
   }
 
   /** A search's row completed (M33): its query and results, marked paid, and counted. */
@@ -3893,7 +3950,10 @@ export class ModelApiSession implements AgentSession {
     this.recordBudgetCost(costUsd, undefined)
   }
 
-  private completedSnapshot(entry: OpenItem, turnId: string): ItemSnapshot {
+  private completedSnapshot(
+    entry: Exclude<OpenItem, { kind: 'argumentPreview' }>,
+    turnId: string,
+  ): ItemSnapshot {
     return entry.kind === 'agentMessage'
       ? {
           itemId: entry.ourId,
@@ -3913,7 +3973,10 @@ export class ModelApiSession implements AgentSession {
         }
   }
 
-  private completeItem(entry: OpenItem, turnId: string): void {
+  private completeItem(
+    entry: Exclude<OpenItem, { kind: 'argumentPreview' }>,
+    turnId: string,
+  ): void {
     // A reply's time is the moment it completed, as Muse Code records one (M87).
     if (entry.kind === 'agentMessage') {
       entry.recordedAt ??= this.recordedNow()
@@ -3928,7 +3991,11 @@ export class ModelApiSession implements AgentSession {
    * The sources of a completed reply as the whole response has them (M33):
    * Meta's cookbook says citations are complete only once the stream ends.
    */
-  private settleCitations(entry: OpenItem, citations: readonly Citation[], turnId: string): void {
+  private settleCitations(
+    entry: Exclude<OpenItem, { kind: 'argumentPreview' }>,
+    citations: readonly Citation[],
+    turnId: string,
+  ): void {
     if (isSameCitations(entry.citations, citations)) {
       return
     }
@@ -3954,6 +4021,37 @@ export class ModelApiSession implements AgentSession {
           this.openItem(open, wireId, kind, turnId)
         } else if (isWebSearchCallItem(item)) {
           this.openItem(open, wireId, 'webSearch', turnId)
+        } else if (
+          isFunctionCallItem(item) &&
+          this.deps.argumentPreviewCapabilities?.(this.sendingModelId ?? this.modelId)?.tools
+            .streamingArguments.state === 'yes'
+        ) {
+          const entry: OpenItem = {
+            ourId: this.deps.newId(),
+            kind: 'argumentPreview',
+            call: item,
+            preview: new ArgumentPreview(),
+            text: '',
+            summary: [],
+            isCompleted: false,
+            citations: [],
+          }
+          entry.preview.append(item.arguments)
+          open.set(wireId, entry)
+          this.showArgumentPreview(entry, turnId)
+        }
+        return undefined
+      }
+      case 'response.function_call_arguments.delta':
+      case 'response.function_call_arguments.done': {
+        const entry = open.get(event.item_id)
+        if (entry?.kind === 'argumentPreview') {
+          if (event.type === 'response.function_call_arguments.delta') {
+            entry.preview.append(event.delta)
+          } else {
+            entry.preview.finish(event.arguments)
+          }
+          this.showArgumentPreview(entry, turnId)
         }
         return undefined
       }
@@ -4030,7 +4128,10 @@ export class ModelApiSession implements AgentSession {
       if (entry.isCompleted) {
         continue
       }
-      if (entry.kind === 'webSearch') {
+      if (entry.kind === 'argumentPreview') {
+        this.interruptArgumentPreview(entry.call.call_id)
+        entry.isCompleted = true
+      } else if (entry.kind === 'webSearch') {
         entry.isCompleted = true
         const item: ItemSnapshot = {
           ...this.startedSnapshot(entry, turnId),
@@ -4070,6 +4171,12 @@ export class ModelApiSession implements AgentSession {
         entry.summary.splice(0, entry.summary.length, ...summary)
       }
       this.completeItem(entry, turnId)
+    } else if (isFunctionCallItem(item)) {
+      const entry = open.get(wireId)
+      if (entry?.kind === 'argumentPreview') {
+        entry.preview.finish(item.arguments)
+        this.showArgumentPreview(entry, turnId)
+      }
     }
   }
 
@@ -4093,7 +4200,13 @@ export class ModelApiSession implements AgentSession {
       } catch (error: unknown) {
         // What a failed attempt showed stays in the history, the last one's
         // too (the review of PR #28); a Stop is the turn's own business.
-        if (!signal.aborted) {
+        if (signal.aborted) {
+          for (const entry of open.values()) {
+            if (entry.kind !== 'argumentPreview') continue
+            this.interruptArgumentPreview(entry.call.call_id)
+            entry.isCompleted = true
+          }
+        } else {
           this.settleCutShort(open, turnId)
         }
         if (
@@ -4327,7 +4440,7 @@ export class ModelApiSession implements AgentSession {
           },
         })
         const entry = open.get(wireId)
-        if (entry?.isCompleted === true) {
+        if (entry?.isCompleted === true && entry.kind !== 'argumentPreview') {
           this.settleCitations(entry, citationsOf(item), turnId)
         }
       } else if (isWebSearchCallItem(item)) {
@@ -9236,7 +9349,8 @@ export class ModelApiSession implements AgentSession {
     goalCommandRevision: number,
     correctionsUsed = 0,
   ): Promise<HookToolResult> {
-    const itemId = this.deps.newId()
+    const preview = this.argumentPreviewRows.get(call.call_id)
+    const itemId = preview?.itemId ?? this.deps.newId()
     const startedAt = this.deps.now()
     // A BeforeToolSelection hook took this tool away for the turn: the call is
     // refused at admission, before any PreToolUse hook sees it, while the
@@ -9292,7 +9406,12 @@ export class ModelApiSession implements AgentSession {
       args: effectiveCall.arguments,
       ...(paid !== undefined && { paid }),
     }
-    this.recordTranscript(turnId, started)
+    this.argumentPreviewRows.delete(call.call_id)
+    if (preview === undefined) {
+      this.recordTranscript(turnId, started)
+    } else {
+      this.rerecordTranscript(started)
+    }
     this.emit({ type: 'itemStarted', item: started })
     const slot: AdmissionSlot = {}
     let result: CallResult
@@ -10437,6 +10556,9 @@ export class ModelApiSession implements AgentSession {
       )
     }
     this.deps.judge?.discardTurn(this.sessionId, turn.turnId)
+    for (const callId of this.argumentPreviewRows.keys()) {
+      this.interruptArgumentPreview(callId)
+    }
     this.active = undefined
     this.status = IDLE
     this.turnCount += 1

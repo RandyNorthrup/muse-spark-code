@@ -20,6 +20,7 @@ import {
   requirementRefSchema,
   thenRunResultSchema,
   tokenUsageSchema,
+  toolArgumentPreviewSchema,
   verifySummarySchema,
   workflowRunFields,
 } from '../../shared/agentEvents'
@@ -206,6 +207,7 @@ const toolEntrySchema = z.object({
   id: z.string(),
   tool: z.string(),
   args: z.string(),
+  argumentPreview: z.optional(toolArgumentPreviewSchema),
   status: z.string(),
   /** Transcript-visible output (`output` deltas / `visibleOutput`). */
   output: z.string(),
