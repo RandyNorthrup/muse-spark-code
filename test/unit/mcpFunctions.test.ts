@@ -1,4 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
+import { createRequire } from 'node:module'
+import { runInNewContext } from 'node:vm'
+import { build } from 'esbuild'
+import * as z from 'zod/mini'
+import type { createResponsesCodec } from '../../src/core/backends/modelapi/codecs/responses'
 import {
   functionParameters,
   mcpCallOutcome,
@@ -12,9 +17,48 @@ import {
 } from '../../src/shared/constants'
 import { TINY_PNG_BASE64 } from './helpers/fakeModelApi'
 import {
+  type CreateResponseBody,
+  type FunctionToolDefinition,
   restoreOptionalToolArguments,
   withStrictTools,
 } from '../../src/core/backends/modelapi/schemas'
+
+// Independent CommonJS builds reproduce modelApi.js -> providers.js metadata handoff.
+const separatelyBuilt = { converter: '', provider: '' }
+beforeAll(async () => {
+  for (const [name, contents] of [
+    [
+      'converter',
+      "export { mcpFunctionDefinition } from './src/core/backends/modelapi/mcp/functions'",
+    ],
+    [
+      'provider',
+      "export { withStrictTools, restoreOptionalToolArguments } from './src/core/backends/modelapi/schemas'; export { createResponsesCodec } from './src/core/backends/modelapi/codecs/responses'",
+    ],
+  ] as const) {
+    const result = await build({
+      stdin: { contents, resolveDir: process.cwd() },
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      target: 'node20.18',
+      write: false,
+      logLevel: 'silent',
+    })
+    separatelyBuilt[name] = result.outputFiles[0]?.text ?? ''
+  }
+})
+
+function bundledExports(source: string): Record<string, unknown> {
+  const module = { exports: {} }
+  runInNewContext(source, {
+    module,
+    exports: module.exports,
+    require: createRequire(import.meta.url),
+    Buffer,
+  })
+  return z.record(z.string(), z.unknown()).parse(module.exports)
+}
 
 // Meta's function name rule (tool-calling): `[A-Za-z0-9_.-]`, at most one dot.
 const META_NAME = /^[A-Za-z0-9_-]+$/
@@ -165,6 +209,179 @@ describe('functionParameters (M50)', () => {
 })
 
 describe('mcpFunctionDefinition (M50)', () => {
+  it('preserves fallback and original schemas across independently built bundles (RVM106T F1)', () => {
+    const converter = z
+      .custom<typeof mcpFunctionDefinition>((value) => typeof value === 'function')
+      .parse(bundledExports(separatelyBuilt.converter)['mcpFunctionDefinition'])
+    const provider = bundledExports(separatelyBuilt.provider)
+    const rewrite = z
+      .custom<typeof withStrictTools>((value) => typeof value === 'function')
+      .parse(provider['withStrictTools'])
+    const restore = z
+      .custom<typeof restoreOptionalToolArguments>((value) => typeof value === 'function')
+      .parse(provider['restoreOptionalToolArguments'])
+    const fallback = converter('mcp__s__pattern', {
+      name: 'pattern',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: { path: { type: 'string', pattern: '^src/' } },
+      },
+    })
+    const codecFactory = z
+      .custom<typeof createResponsesCodec>((value) => typeof value === 'function')
+      .parse(provider['createResponsesCodec'])
+    const codec = codecFactory({
+      sendPromptCacheKey: false,
+      sendPromptCacheRetention: false,
+      supportsStrictTools: true,
+    })
+    const body: CreateResponseBody = {
+      model: 'm',
+      input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Read' }] }],
+      instructions: 'Read',
+      tools: [{ ...fallback.definition }],
+      tool_choice: 'auto',
+      reasoning: { effort: 'medium', summary: 'auto' },
+      stream: true,
+      store: false,
+      include: ['reasoning.encrypted_content'],
+      max_output_tokens: 8192,
+      prompt_cache_key: 'strict-test',
+      prompt_cache_retention: 'in_memory',
+    }
+    expect(codec.encodeRequest(body)).toMatchObject({
+      tools: [{ strict: false, parameters: fallback.definition.parameters }],
+    })
+    expect(rewrite([{ ...fallback.definition }], true)[0]).toMatchObject({ strict: false })
+    expect(restore('{"path":null}', fallback.definition)).toBe('{"path":null}')
+    const original: FunctionToolDefinition = {
+      type: 'function',
+      name: 'read',
+      description: 'Read',
+      strict: false,
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: { path: { type: 'string' } },
+      },
+    }
+    const rewritten = withStrictTools([original], true)[0]
+    expect(rewritten).toBeDefined()
+    if (rewritten === undefined) throw new Error('Missing strict declaration')
+    const twice = rewrite([rewritten], true)[0]
+    if (twice === undefined) throw new Error('Missing encoded declaration')
+    expect(restore('{"path":null}', twice)).toBe('{}')
+    expect(JSON.stringify(rewrite([rewritten], true))).not.toContain('originalToolParameters')
+  })
+
+  it.each([
+    ['omitted root closure', { type: 'object' }],
+    ['explicitly open root', { type: 'object', additionalProperties: true }],
+    ['schema-valued root openness', { type: 'object', additionalProperties: { type: 'string' } }],
+    [
+      'omitted nested closure',
+      {
+        type: 'object',
+        additionalProperties: false,
+        required: ['map'],
+        properties: { map: { type: 'object' } },
+      },
+    ],
+    [
+      'open nullable object',
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: { map: { type: ['object', 'null'] } },
+      },
+    ],
+    [
+      'open array item',
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: { maps: { type: 'array', items: { type: 'object' } } },
+      },
+    ],
+    [
+      'pattern constraint',
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: { path: { type: 'string', pattern: '^src/' } },
+      },
+    ],
+    [
+      'union combinator',
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: { value: { anyOf: [{ type: 'string' }, { type: 'integer' }] } },
+      },
+    ],
+    [
+      'nullable optional enum excluding null',
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: { choice: { type: ['string', 'null'], enum: ['a'] } },
+      },
+    ],
+    [
+      'boolean subschema',
+      { type: 'object', additionalProperties: false, properties: { value: true } },
+    ],
+    [
+      'tuple items',
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: { values: { type: 'array', items: [{ type: 'string' }] } },
+      },
+    ],
+  ])(
+    'keeps %s non-strict with an honest lossless-conversion note (RVM106T F3)',
+    (_form, inputSchema) => {
+      const { definition, notes } = mcpFunctionDefinition('mcp__s__schema', {
+        name: 'schema',
+        inputSchema,
+      })
+      expect(withStrictTools([definition], true)[0]).toBe(definition)
+      expect(definition.strict).toBe(false)
+      expect(notes.filter((note) => note.includes('strict: false'))).toEqual([
+        'strict: false; the schema cannot be converted losslessly',
+      ])
+      expect(restoreOptionalToolArguments('{"arbitrary":1,"map":{"extra":2}}', definition)).toBe(
+        '{"arbitrary":1,"map":{"extra":2}}',
+      )
+    },
+  )
+
+  it('promotes closed nested and array schemas without mistaking enum data for schemas (RVM106T F3)', () => {
+    const inputSchema = {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        choice: { type: ['string', 'null'], enum: ['a', null] },
+        maps: {
+          type: 'array',
+          items: {
+            type: ['object', 'null'],
+            additionalProperties: false,
+            properties: { type: { type: 'string', enum: ['object'] } },
+          },
+        },
+      },
+    }
+    const { definition, notes } = mcpFunctionDefinition('mcp__s__closed', {
+      name: 'closed',
+      inputSchema,
+    })
+    expect(notes).toEqual([])
+    expect(withStrictTools([definition], true)[0]?.strict).toBe(true)
+  })
+
   it('keeps unconvertible MCP tools non-strict without blocking convertible tools (M106)', () => {
     const good = mcpFunctionDefinition('mcp__s__good', {
       name: 'good',
@@ -240,7 +457,8 @@ describe('mcpFunctionDefinition (M50)', () => {
       description: 'd'.repeat(3000),
       inputSchema: { type: 'object' },
     })
-    expect(plain.definition).toEqual({
+    const wire = JSON.stringify(plain.definition)
+    expect(JSON.parse(wire)).toEqual({
       type: 'function',
       name: 'mcp__s__t',
       description: `${'d'.repeat(2048)}…`,

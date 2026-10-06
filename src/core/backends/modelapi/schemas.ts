@@ -361,8 +361,8 @@ export type InputItem =
   | WebSearchCallInputItem
 
 /** MCP conversion evidence stays off the wire and survives copying a declaration. */
-export const NON_STRICT_TOOL = Symbol('nonStrictTool')
-const ORIGINAL_TOOL_PARAMETERS = Symbol('originalToolParameters')
+export const NON_STRICT_TOOL = Symbol.for('muse-spark-code.nonStrictTool')
+const ORIGINAL_TOOL_PARAMETERS = Symbol.for('muse-spark-code.originalToolParameters')
 
 export interface FunctionToolDefinition {
   readonly type: 'function'

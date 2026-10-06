@@ -89,7 +89,14 @@ function silentStartupBatch(): { pool: McpServerPool; starts: string[] } {
 describe('McpServerPool (M50)', { timeout: SPAWN_TIMEOUT_MS }, () => {
   it('logs one named strict fallback per offered MCP tool without repeating it per request (M106)', async () => {
     const tools = [
-      { name: 'good', inputSchema: { type: 'object', properties: { path: { type: 'string' } } } },
+      {
+        name: 'good',
+        inputSchema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { path: { type: 'string' } },
+        },
+      },
       {
         name: 'bad',
         inputSchema: {

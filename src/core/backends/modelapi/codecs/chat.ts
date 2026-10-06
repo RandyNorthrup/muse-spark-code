@@ -180,7 +180,7 @@ export interface ChatFunctionTool {
     readonly description: string
     /** The JSON schema, rewritten the same way every time (no key sorting). */
     readonly parameters: Record<string, unknown>
-    readonly strict?: true | undefined
+    readonly strict?: boolean | undefined
   }
 }
 
@@ -520,7 +520,7 @@ export function encodeChatRequest(
         name: tool.name,
         description: tool.description,
         parameters: tool.parameters,
-        ...(shouldUseStrictTools && { strict: true as const }),
+        ...(shouldUseStrictTools && { strict: tool.strict }),
       },
     })
   }

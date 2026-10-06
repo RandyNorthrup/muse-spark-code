@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import * as z from 'zod/mini'
 import { customQuirksFor } from '../../src/core/providers/presets'
+import { mcpFunctionDefinition } from '../../src/core/backends/modelapi/mcp/functions'
 import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText, UI_TEXT } from '../../src/shared/l10n/text'
@@ -641,6 +642,26 @@ describe('chat codec retained-history scenario goldens', () => {
 })
 
 describe('chat codec request goldens', () => {
+  it('preserves each MCP fallback in a mixed strict-capable Chat request (RVM106T F2)', () => {
+    const closed = mcpFunctionDefinition('mcp__s__closed', {
+      name: 'closed',
+      inputSchema: { type: 'object', additionalProperties: false },
+    })
+    const open = mcpFunctionDefinition('mcp__s__open', {
+      name: 'open',
+      inputSchema: { type: 'object', additionalProperties: true },
+    })
+    const body = tinyBody({ tools: [closed.definition, open.definition] })
+    const on = encodeChatRequest(body, 'm', { ...GROQ, supportsStrictTools: true })
+    expect(on.body.tools?.[0]?.function.strict).toBe(true)
+    expect(on.body.tools?.[1]?.function).toMatchObject({
+      strict: false,
+      parameters: open.definition.parameters,
+    })
+    const off = encodeChatRequest(body, 'm', { ...GROQ, supportsStrictTools: false })
+    expect(off.body.tools?.every((tool) => !Object.hasOwn(tool.function, 'strict'))).toBe(true)
+  })
+
   it('rewrites custom strict tools only when supportsStrictTools is on (F4)', () => {
     const body = tinyBody({ tools: toolDefinitions('linux') })
     const compat = customQuirksFor('chat', { supportsStrictTools: true })

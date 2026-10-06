@@ -1,0 +1,47 @@
+[
+  {
+    "drill": "cross-bundle-fallback",
+    "source": "src/core/backends/modelapi/schemas.ts",
+    "test": "test/unit/mcpFunctions.test.ts",
+    "namedFailure": "preserves fallback and original schemas across independently built bundles",
+    "exitCode": 1,
+    "beforeSha256": "3e8be4a8255a3da0ad6ad252bd88585b1254a0e367c26d005e3da1f48a7891a9",
+    "afterSha256": "3e8be4a8255a3da0ad6ad252bd88585b1254a0e367c26d005e3da1f48a7891a9"
+  },
+  {
+    "drill": "cross-bundle-original",
+    "source": "src/core/backends/modelapi/schemas.ts",
+    "test": "test/unit/mcpFunctions.test.ts",
+    "namedFailure": "preserves fallback and original schemas across independently built bundles",
+    "exitCode": 1,
+    "beforeSha256": "3e8be4a8255a3da0ad6ad252bd88585b1254a0e367c26d005e3da1f48a7891a9",
+    "afterSha256": "3e8be4a8255a3da0ad6ad252bd88585b1254a0e367c26d005e3da1f48a7891a9"
+  },
+  {
+    "drill": "chat-fallback-flag",
+    "source": "src/core/backends/modelapi/codecs/chat.ts",
+    "test": "test/unit/modelapiChatCodec.test.ts",
+    "namedFailure": "preserves each MCP fallback in a mixed strict-capable Chat request",
+    "exitCode": 1,
+    "beforeSha256": "c8d8bc831600a53ba606133404215dbcffe51d1a856a2d8096f797e50a7c23d3",
+    "afterSha256": "c8d8bc831600a53ba606133404215dbcffe51d1a856a2d8096f797e50a7c23d3"
+  },
+  {
+    "drill": "mcp-open-object-proof",
+    "source": "src/core/backends/modelapi/mcp/functions.ts",
+    "test": "test/unit/mcpFunctions.test.ts",
+    "namedFailure": "keeps omitted root closure non-strict with an honest lossless-conversion note",
+    "exitCode": 1,
+    "beforeSha256": "bf26adba40358d5780c3c66d45376ae6570402f889b646d6a0dd8e54c825848f",
+    "afterSha256": "bf26adba40358d5780c3c66d45376ae6570402f889b646d6a0dd8e54c825848f"
+  },
+  {
+    "drill": "mcp-nullable-enum-proof",
+    "source": "src/core/backends/modelapi/mcp/functions.ts",
+    "test": "test/unit/mcpFunctions.test.ts",
+    "namedFailure": "keeps nullable optional enum excluding null non-strict with an honest lossless-conversion note",
+    "exitCode": 1,
+    "beforeSha256": "bf26adba40358d5780c3c66d45376ae6570402f889b646d6a0dd8e54c825848f",
+    "afterSha256": "bf26adba40358d5780c3c66d45376ae6570402f889b646d6a0dd8e54c825848f"
+  }
+]

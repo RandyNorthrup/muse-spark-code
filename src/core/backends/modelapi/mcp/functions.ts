@@ -320,6 +320,43 @@ function clipDescription(text: string): string {
     : text
 }
 
+// The harness rewrite closes omitted object constraints intentionally. An MCP
+// server owns its schema: closing an open object would remove valid arguments.
+// Follow only schema positions; enum values and descriptions are data.
+function isLosslessMcpSchema(schema: JsonObject, isOptional = false): boolean {
+  const type = schema['type']
+  if (
+    (type === 'object' || (Array.isArray(type) && type.includes('object'))) &&
+    schema['additionalProperties'] !== false
+  ) {
+    return false
+  }
+  // An added null sentinel must restore to omission. A nullable type whose
+  // enum excludes null would retain that sentinel and violate the MCP enum.
+  const values = schema['enum']
+  if (
+    isOptional &&
+    Array.isArray(type) &&
+    type.includes('null') &&
+    Array.isArray(values) &&
+    !values.includes(null)
+  ) {
+    return false
+  }
+  const properties = schema['properties']
+  const required = schema['required']
+  return (
+    (!isObject(properties) ||
+      Object.entries(properties).every(
+        ([key, child]) =>
+          isObject(child) &&
+          isLosslessMcpSchema(child, !Array.isArray(required) || !required.includes(key)),
+      )) &&
+    (schema['items'] === undefined ||
+      (isObject(schema['items']) && isLosslessMcpSchema(schema['items'])))
+  )
+}
+
 /** The function the model is offered for a server's tool, with what its schema lost. */
 export function mcpFunctionDefinition(
   name: string,
@@ -344,7 +381,7 @@ export function mcpFunctionDefinition(
   if (!isReplaced && notes.length === 0 && isObject(tool.inputSchema)) {
     try {
       withStrictTools([{ ...definition, parameters: tool.inputSchema }], true)
-      return { definition, notes }
+      if (isLosslessMcpSchema(tool.inputSchema)) return { definition, notes }
     } catch (error: unknown) {
       if (!(error instanceof Error) || error.message !== 'strict_tool_schema_unsupported') {
         throw error

@@ -21743,6 +21743,16 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**FIXM106T review corrections (2026-10-06, macmini).** Address RVM106T's
+three P2 findings with regressions and byte-restored red drills: share private
+strict-tool metadata across independently built bundles, preserve each Chat
+tool's fallback flag, and certify MCP strict conversion only for equivalent
+closed schemas (including nested objects and array items). Recover the unchanged
+Model API cap by loading the portable session-import sanitizer from the existing
+hook-runtime bundle on first import, installing the caller's language and
+preserving account/closing rechecks. No new bundle, dependency, merge or paid/live
+call; all existing settings, strict-off bytes and gate thresholds remain.
+
 **Lane T mechanism delivered (2026-10-05, Kubuntu).** The four owned source
 regions consume FIXM101P2's rewrite, retain non-strict MCP fallback and its
 argument bytes, and expose injected effective-session options. Seven paired
@@ -23522,6 +23532,17 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM106T / RVM106T F1–F3 (2026-10-06, macmini):** all three P2
+  findings are fixed in shared core, with independent-bundle, mixed-Chat and
+  per-schema MCP regressions and byte-restored red drills. No reviewed P1/P2/P3
+  remains. Existing **M106T-SESSION-BINDING**, **M106T-CAPTURE-BINDING**,
+  **M106T-HELP-REFERENCE** and **M106T-LIVE-M75** remain W/lead integration
+  qualifications, safe only while no installed-setting/live-default claim is
+  made. **M106T-STRICT-STREAM-CAPTURE:** U9 lacks raw Meta argument-delta/done
+  payloads; existing OpenAI/xAI non-strict streams qualify only the shared
+  decoder. Lead must capture and count a complete strict Meta stream before
+  claiming that wire receipt. No new live/paid call is authorized here.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
