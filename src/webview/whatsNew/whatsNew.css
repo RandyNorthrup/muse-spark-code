@@ -4,10 +4,10 @@
    borders below fall back to. The CSP blocks inline styles, so every rule
    lives here. One column, readable from 320 px up. */
 
+@import url('../tokens.css');
+
 :root {
-  --ms-gap: 8px;
-  --ms-radius: 4px;
-  --ms-measure: 760px;
+  --ms-radius: var(--ms-radius-sm);
 }
 
 body {

@@ -19,10 +19,13 @@ function declarationsOf(css, selector, { isOwn = false } = {}) {
   )?.body
 }
 
-const css = readFileSync(
-  new URL('../../src/webview/styles.css', import.meta.url),
-  'utf8',
-).replaceAll(/\/\*[\s\S]*?\*\//g, '')
+// D94 moves the layout definitions into the stylesheet's generated import;
+// the same geometry assertions still apply to the actual combined stylesheet.
+const css = ['tokens.css', 'styles.css']
+  .map((name) => readFileSync(new URL(`../../src/webview/${name}`, import.meta.url), 'utf8'))
+  .join('\n')
+  .replaceAll(/\/\*[\s\S]*?\*\//g, '')
+
 const harness = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
 
 describe('the chat column (the owner’s requests of 2026-10-04)', () => {
