@@ -1,3 +1,4 @@
+import { Usd } from '../shared/usd'
 // The ACP agent's backend (PLAN.md D62): the panel's backend managers,
 // given in this process what VS Code gives them in the extension, one per
 // workspace folder. Muse Code signs in on its own and the subscription
@@ -294,12 +295,13 @@ function modelApiManager(
     // The panel's default (M56); the agent has no setting for the longer retention.
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
     // M82's cap and reply line are VS Code settings; ACP exposes neither.
-    sessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
+    sessionBudgetUsd: () => Usd.from(SETTING_DEFAULTS.modelApiSessionBudgetUsd).toAmount(),
     // D78 changes only VS Code's display default; ACP remains unchanged.
     showReplyUsage: () => false,
     // Each use asked in the editor's session (M58, PLAN.md D48). Child tasks
     // are paid (M48, D45) and the agent's paid features are its two flags
     // (D62), so `subagents` is never on here and every task is denied.
+    paidAuthority: paid.authorityFor(storedWorkspaceRoot),
     allowsPaidUse: (request, requiresAsking, sessionId) =>
       paid.allows(storedWorkspaceRoot, sessionId, request, requiresAsking),
     isPaidUseRemembered: (feature) => paid.isRemembered(storedWorkspaceRoot, feature),

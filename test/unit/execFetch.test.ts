@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -45,7 +46,7 @@ afterAll(async () => {
 
 function harness(capUsd = 1, fetcher?: typeof fetch) {
   const api = fakeModelApi()
-  const ledger = createRunLedger({ capUsd, maxRequests: 30 })
+  const ledger = createRunLedger({ capUsd: Usd.from(capUsd).toAmount(), maxRequests: 30 })
   const events: ExecEventBody[] = []
   const outcomes: LastResponse[] = []
   const starts: number[] = []
@@ -107,7 +108,7 @@ async function checkOversize(h: ReturnType<typeof harness>): Promise<void> {
     await h.transport.whenSettled()
     expect(h.outcomes).toHaveLength(1)
     expect(h.outcomes[0]?.transportError).toBe('tooLarge')
-    expect(h.ledger.totals().uncertainUsd).toBe(0.108135)
+    expect(h.ledger.totals().uncertainUsd).toBe(Usd.from(0.108135).toAmount())
   } finally {
     h.close()
   }
@@ -310,8 +311,8 @@ describe('M80 streaming transport boundary', () => {
       await reply.text()
       expect(h.ledger.totals()).toMatchObject({
         requests: 2,
-        uncertainUsd: 0.108135,
-        settledUsd: 0.000002,
+        uncertainUsd: Usd.from(0.108135).toAmount(),
+        settledUsd: Usd.from(0.000002).toAmount(),
       })
     } finally {
       h.close()
@@ -348,7 +349,7 @@ describe('M80 streaming transport boundary', () => {
         settlement: 'full-reservation',
         transportError: 'aborted',
       })
-      expect(h.ledger.totals().uncertainUsd).toBe(0.108135)
+      expect(h.ledger.totals().uncertainUsd).toBe(Usd.from(0.108135).toAmount())
     } finally {
       h.close()
     }
@@ -413,7 +414,7 @@ describe('M80 streaming transport boundary', () => {
       expect(h.ledger.totals().paid).toMatchObject({
         imageAttempts: 1,
         imagesUncertain: 1,
-        uncertainUsd: 0.01,
+        uncertainUsd: Usd.from(0.01).toAmount(),
       })
     } finally {
       h.close()
@@ -483,7 +484,7 @@ describe('M80 real manager/client idle seam', () => {
     expect(r.events.some((e) => e.type === 'turnCompleted' && e.terminal === 'completed')).toBe(
       true,
     )
-    expect(r.totals.uncertainUsd).toBe(0)
+    expect(r.totals.uncertainUsd).toBe(Usd.from(0).toAmount())
     expect(r.outcomes).toHaveLength(1)
   })
   it('L11 truly idle stream after terminal aborts and retains full R once', async () => {
@@ -495,7 +496,7 @@ describe('M80 real manager/client idle seam', () => {
       usage: 'valid',
       settlement: 'full-reservation',
     })
-    expect(r.totals.uncertainUsd).toBe(0.108135)
+    expect(r.totals.uncertainUsd).toBe(Usd.from(0.108135).toAmount())
   })
   it('L12 real session midstream cancellation settles once and keeps observed terminal', async () => {
     const r = await engine({ text: 'partial', holdEof: new Promise(() => undefined) }, 1000, true)
@@ -505,6 +506,6 @@ describe('M80 real manager/client idle seam', () => {
       transportError: 'aborted',
       settlement: 'full-reservation',
     })
-    expect(r.totals.uncertainUsd).toBe(0.108135)
+    expect(r.totals.uncertainUsd).toBe(Usd.from(0.108135).toAmount())
   })
 })

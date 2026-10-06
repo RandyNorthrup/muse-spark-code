@@ -1,3 +1,4 @@
+import { type UsdAmount } from '../../shared/usd'
 // The same-model judge on the Model API backend (M98 lane S, PLAN.md D77):
 // the host adapter that judges one held action without touching the main
 // request or session. It reads ModelApiHost's own built (keyed) body through
@@ -52,8 +53,8 @@ export interface ModelApiJudgeJob {
   readonly entryKey: JudgeEntryHandle
   readonly stateText: string
   readonly questions: readonly JudgeQuestion[]
-  readonly reservedCostUsd?: number | undefined
-  readonly settledCostUsd?: number | undefined
+  readonly reservedCostUsd?: UsdAmount | undefined
+  readonly settledCostUsd?: UsdAmount | undefined
 }
 
 const JUDGE_TAIL_ROLE = 'user'

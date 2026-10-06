@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // M80 lane C: the run step's launcher owner (SPEC §6.2, §6.5; D-M7, N2).
 // G18 signals before/during exec and while a later child hangs, repeated
 // signals and execCode kept apart from wrapper failures; G19 key intake and
@@ -70,7 +71,7 @@ const isPosix = process.platform !== 'win32'
 const encoder = new TextEncoder()
 
 function envelope(seq: number, body: Record<string, unknown>): string {
-  return JSON.stringify({ v: 1, seq, time: '2026-10-02T00:00:00.000Z', ...body })
+  return JSON.stringify({ v: 2, seq, time: '2026-10-02T00:00:00.000Z', ...body })
 }
 
 function resultLine(seq: number, result: unknown = completedResult()): string {
@@ -205,7 +206,7 @@ describe('G21 result extraction', () => {
       ['malformed line', `{not json\n${resultLine(2)}\n`],
       ['unknown type', `${envelope(1, { type: 'chunk' })}\n${resultLine(2)}\n`],
       ['bad time', `${resultLine(1).replace('2026-10-02T00:00:00.000Z', 'yesterday')}\n`],
-      ['extra envelope field', `${resultLine(1).replace('"v":1', '"v":1,"x":1')}\n`],
+      ['extra envelope field', `${resultLine(1).replace('"v":2', '"v":2,"x":1')}\n`],
       ['empty', ''],
     ] as const) {
       expect(parseEventsText(text), name).toBeUndefined()
@@ -249,15 +250,21 @@ describe('G21 result extraction', () => {
       completedResult({ filesChanged: ['/abs/path'] }),
       completedResult({ filesChanged: ['a', 'a'] }),
       completedResult({ extra: true }),
-      completedResult({ v: 2 }),
-      completedResult({ ledger: { ...ledger, capUsd: 0.5 } }),
+      completedResult({ v: 1 }),
+      completedResult({ ledger: { ...ledger, capUsd: Usd.from(0.5).toAmount() } }),
       completedResult({
         ledger: { ...ledger, lastResponse: { ...ledger.lastResponse!, usage: 'missing' } },
       }),
       completedResult({
         usage: {
           ...base.usage,
-          costUsd: { settled: 0.1, uncertain: 0, reserved: 0, total: 0.2, isUpperBound: false },
+          costUsd: {
+            settled: Usd.from(0.1).toAmount(),
+            uncertain: Usd.from(0).toAmount(),
+            reserved: Usd.from(0).toAmount(),
+            total: Usd.from(0.2).toAmount(),
+            isUpperBound: false,
+          },
         },
       }),
       completedResult({ usage: { ...base.usage, cachedTokens: 11 } }),
@@ -278,11 +285,11 @@ describe('G21 result extraction', () => {
     const base = resultRecord()
     const last = base.ledger!.lastResponse!
     const totals = {
-      capUsd: 1,
-      settledUsd: 0.000002,
-      uncertainUsd: 0,
-      reservedUsd: 0,
-      remainingUsd: 0.999998,
+      capUsd: Usd.from(1).toAmount(),
+      settledUsd: Usd.from(0.000002).toAmount(),
+      uncertainUsd: Usd.from(0).toAmount(),
+      reservedUsd: Usd.from(0).toAmount(),
+      remainingUsd: Usd.from(0.999998).toAmount(),
       requests: 1,
       tokens: { inputTokens: 10, outputTokens: 5, cachedTokens: 0, reasoningTokens: 0 },
       paid: base.usage.paid,
@@ -290,7 +297,7 @@ describe('G21 result extraction', () => {
       refusal: null,
       lastResponse: last,
     }
-    const limits = { budgetUsd: 1, maxRequests: 30, timeoutSeconds: 1800 }
+    const limits = { budgetUsd: Usd.from(1).toAmount(), maxRequests: 30, timeoutSeconds: 1800 }
     const valid: Record<string, unknown>[] = [
       {
         type: 'start',
@@ -316,9 +323,9 @@ describe('G21 result extraction', () => {
         endpoint: 'responses',
         phase: 'settled',
         maxOutputTokens: 32_768,
-        reservedUsd: 0.108135,
+        reservedUsd: Usd.from(0.108135).toAmount(),
         outcome: 'priced',
-        chargedUsd: 0.000002,
+        chargedUsd: Usd.from(0.000002).toAmount(),
         terminal: 'completed',
         totals,
       },
@@ -327,7 +334,7 @@ describe('G21 result extraction', () => {
         n: 2,
         endpoint: 'images.generations',
         phase: 'admitted',
-        reservedUsd: 0.01,
+        reservedUsd: Usd.from(0.01).toAmount(),
         totals,
       },
       {
@@ -336,7 +343,7 @@ describe('G21 result extraction', () => {
         n: 1,
         phase: 'returned',
         units: 1,
-        usd: 0.01,
+        usd: Usd.from(0.01).toAmount(),
       },
       {
         type: 'paid_use',
@@ -344,7 +351,7 @@ describe('G21 result extraction', () => {
         n: null,
         phase: 'refused',
         units: 1,
-        usd: 0,
+        usd: Usd.from(0).toAmount(),
         reason: 'x',
       },
       { type: 'limit', limit: 'budget' },
@@ -364,24 +371,45 @@ describe('G21 result extraction', () => {
       { type: 'message', itemId: 'm', kind: 'thought', text: 'hi', complete: true },
       { type: 'permission_denied', toolCallId: 't', title: 'W', kind: 'edit', paths: ['/abs'] },
       { type: 'question_declined', count: 1.5 },
-      { type: 'attempt', n: 0, endpoint: 'responses', phase: 'admitted', reservedUsd: 0.1, totals },
-      { type: 'attempt', n: 1, endpoint: 'count', phase: 'admitted', reservedUsd: 0.1, totals },
+      {
+        type: 'attempt',
+        n: 0,
+        endpoint: 'responses',
+        phase: 'admitted',
+        reservedUsd: Usd.from(0.1).toAmount(),
+        totals,
+      },
+      {
+        type: 'attempt',
+        n: 1,
+        endpoint: 'count',
+        phase: 'admitted',
+        reservedUsd: Usd.from(0.1).toAmount(),
+        totals,
+      },
       {
         type: 'attempt',
         n: 1,
         endpoint: 'responses',
         phase: 'admitted',
-        reservedUsd: 0.1,
-        totals: { ...totals, remainingUsd: 0.5 },
+        reservedUsd: Usd.from(0.1).toAmount(),
+        totals: { ...totals, remainingUsd: Usd.from(0.5).toAmount() },
       },
-      { type: 'paid_use', feature: 'webSearch', n: 1, phase: 'returned', units: 1, usd: 0.01 },
+      {
+        type: 'paid_use',
+        feature: 'webSearch',
+        n: 1,
+        phase: 'returned',
+        units: 1,
+        usd: Usd.from(0.01).toAmount(),
+      },
       { type: 'limit', limit: 'tokens' },
       { type: 'signal', signal: 'SIGKILL' },
       { type: 'start', agent: { name: 'a', version: 'b' } },
       { type: 'chunk' },
     ]
     const event = (body: Record<string, unknown>) => ({
-      v: 1,
+      v: 2,
       seq: 1,
       time: '2026-10-02T00:00:00.000Z',
       ...body,

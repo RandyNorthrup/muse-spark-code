@@ -189,13 +189,8 @@ export interface BillableUsage {
 /**
  * Dollars for one conversation's tokens at Meta's published per-token
  * prices (the tier is the model's: contributor models carry the suffix).
- * Legacy non-search adapter; search accounting uses the exact variant.
  */
-export function estimateCostUsd(usage: BillableUsage, modelId: string): number {
-  return Usd.from(estimateExactCostUsd(usage, modelId)).toNumber()
-}
-
-export function estimateExactCostUsd(usage: BillableUsage, modelId: string): UsdAmount {
+export function estimateCostUsd(usage: BillableUsage, modelId: string): UsdAmount {
   const prices = modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
     ? MODEL_API_PRICES_PER_MILLION.contributor
     : MODEL_API_PRICES_PER_MILLION.standard

@@ -1,3 +1,4 @@
+import { type UsdAmount } from '../../../shared/usd'
 // The M91 hook handler types (PLAN.md D70, lane H): `http`, `mcp_tool`,
 // `prompt` and `agent`. `command` stays in hooks.ts, exactly as today.
 //
@@ -107,7 +108,7 @@ export interface HookModelTurn {
 
 /** Shared daily-budget owner supplied by the defaults lane; absent in this tree. */
 export interface HookModelDailyBudget {
-  readonly capUsd: () => number
+  readonly capUsd: () => UsdAmount
   readonly reserve: (
     modelId: string,
     inputTokens: number,
@@ -115,7 +116,7 @@ export interface HookModelDailyBudget {
     signal: AbortSignal,
   ) => Promise<{
     readonly check: () => void
-    readonly settle: (costUsd: number, isUnknown: boolean) => Promise<void>
+    readonly settle: (costUsd: UsdAmount, isUnknown: boolean) => Promise<void>
   }>
 }
 

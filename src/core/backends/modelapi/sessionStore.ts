@@ -1,5 +1,5 @@
 import { legacyUsdSchema } from '../../../shared/usd'
-import type { LegacyUsd } from '../../../shared/usd'
+import type { UsdAmount } from '../../../shared/usd'
 // What a Model API session is when the window is gone (PLAN.md D14): the
 // replayed conversation, the transcript, the patches behind Open diff and
 // Revert, and the row the history list shows. The host keeps one file per
@@ -122,7 +122,7 @@ export interface StoredSession {
   readonly outputs: Readonly<Record<string, string>>
   readonly usage: StoredUsage
   /** Dollars the session's own requests spent (M82); absent when none. */
-  readonly budgetSpentUsd?: LegacyUsd
+  readonly budgetSpentUsd?: UsdAmount
   /** Controlled first fork snapshot: copied history predates this conversation's zero spend. */
   readonly budgetIsFreshFork?: true
   /**
@@ -280,6 +280,7 @@ const storedSessionFields = {
       turnId: z.string(),
       item: z.object({
         ...itemSnapshotFields,
+        // Only the disk boundary accepts historical numeric transcript fees.
         usage: z.optional(storedUsageSchema),
         costUsd: z.optional(legacyUsdSchema),
       }),

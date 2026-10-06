@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 // One M75 task's turn (PLAN.md D49) on the extension's own Model API
 // harness: a `ModelApiHost` over the task's workspace, the task's prompt
 // sent as the user's message, and the turn waited for. The harness is the
@@ -155,7 +156,7 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
     // M82's cap and reply line as a fresh panel has them: no cap, no line.
     // The evaluation's own wire counts its spend and refuses past its budget.
-    sessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
+    sessionBudgetUsd: () => Usd.from(SETTING_DEFAULTS.modelApiSessionBudgetUsd).toAmount(),
     showReplyUsage: () => SETTING_DEFAULTS.modelApiReplyUsage,
     // M91 lane S: M75 records the shell-directory setting as off (PLAN.md
     // M91 step 4), matching the recorded baseline, which predates it: every

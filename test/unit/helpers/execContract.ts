@@ -1,3 +1,4 @@
+import { Usd } from '../../../src/shared/usd'
 import { vi } from 'vitest'
 import type { ExecResult } from '../../../src/runtime/exec/execProtocol'
 import type { FdWriter } from '../../../src/runtime/exec/fdWriter'
@@ -17,7 +18,7 @@ export function outputWriter(): FdWriter & { chunks: string[] } {
 
 export function resultRecord(): ExecResult {
   return {
-    v: 1,
+    v: 2,
     status: 'completed',
     exitCode: 0,
     signal: null,
@@ -41,10 +42,10 @@ export function resultRecord(): ExecResult {
       cachedTokens: 0,
       reasoningTokens: 0,
       costUsd: {
-        settled: 0.000002,
-        uncertain: 0,
-        reserved: 0,
-        total: 0.000002,
+        settled: Usd.from(0.000002).toAmount(),
+        uncertain: Usd.from(0).toAmount(),
+        reserved: Usd.from(0).toAmount(),
+        total: Usd.from(0.000002).toAmount(),
         isUpperBound: false,
       },
       paid: {
@@ -52,12 +53,12 @@ export function resultRecord(): ExecResult {
         imagesReturned: 0,
         imagesRefunded: 0,
         imagesUncertain: 0,
-        settledUsd: 0,
-        uncertainUsd: 0,
+        settledUsd: Usd.from(0).toAmount(),
+        uncertainUsd: Usd.from(0).toAmount(),
       },
     },
     ledger: {
-      capUsd: 1,
+      capUsd: Usd.from(1).toAmount(),
       breach: false,
       refusal: null,
       lastResponse: {
@@ -71,7 +72,7 @@ export function resultRecord(): ExecResult {
         settlement: 'priced',
       },
     },
-    limits: { budgetUsd: 1, maxRequests: 30, timeoutSeconds: 1800 },
+    limits: { budgetUsd: Usd.from(1).toAmount(), maxRequests: 30, timeoutSeconds: 1800 },
     durationMs: 1,
     error: null,
   }

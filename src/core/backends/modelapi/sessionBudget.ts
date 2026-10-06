@@ -30,8 +30,8 @@ import {
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { modelApiPaidTier } from '../../../shared/paid'
-import { Usd, multiplyUsd, type LegacyUsd, type UsdAmount } from '../../../shared/usd'
-import { formatUsd, estimateExactCostUsd as estimateCostUsd } from '../../usage/insights'
+import { Usd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../../../shared/usd'
+import { formatUsd, estimateCostUsd } from '../../usage/insights'
 import type { CreateResponseBody, Usage } from './schemas'
 
 const PART_DIGEST = 'sha256'
@@ -70,10 +70,10 @@ export interface SessionBudgetClaim {
   readonly claimId: string
   readonly reservedUsd: UsdAmount
   /** Synchronous final admission after key retrieval; refuses an incomplete or over-cap ledger. */
-  check(capUsd: LegacyUsd): SessionBudgetTotal
+  check(capUsd: UsdAmount): SessionBudgetTotal
   /** Only this claim's owner settles it. Entries remain visible, including a zero refund. */
   settle(
-    actualCostUsd: LegacyUsd,
+    actualCostUsd: UsdAmount,
     hasUnknownCost?: boolean,
     /** False atomically retains an updated liability on this row without closing it. */
     isFinal?: boolean,
@@ -86,7 +86,7 @@ export interface SessionBudgetJournal {
   reserve(
     sessionId: string,
     accountId: string,
-    costUsd: LegacyUsd,
+    costUsd: UsdAmount,
     liability?: {
       readonly isUnbounded?: boolean
       readonly hasUnknownCost?: boolean
@@ -95,7 +95,7 @@ export interface SessionBudgetJournal {
   record(
     sessionId: string,
     accountId: string,
-    costUsd: LegacyUsd,
+    costUsd: UsdAmount,
     hasUnknownCost?: boolean,
   ): Promise<SessionBudgetTotal>
 }
@@ -106,7 +106,7 @@ export interface OwnedSessionBudgetScope {
   readonly accountId: string
   readonly journal: SessionBudgetJournal
   /** Machine setting stays live through async work and final admission. */
-  readonly capUsd: () => number
+  readonly capUsd: () => UsdAmount
   /** Caller supplies the digest of the actual key about to send, never the key itself. */
   readonly isStillAllowed: (keyDigest: string | undefined) => boolean
 }
@@ -166,12 +166,12 @@ export function estimateInput(
  * be kept) or when not even one output token fits on top of the input.
  */
 export function reserveRequest(request: {
-  readonly capUsd: LegacyUsd
-  readonly spentUsd: LegacyUsd
+  readonly capUsd: UsdAmount
+  readonly spentUsd: UsdAmount
   readonly estimatedInputTokens: number
   readonly modelId: string
   readonly maxToolCalls?: number
-  readonly searchPriceUsd?: LegacyUsd | undefined
+  readonly searchPriceUsd?: UsdAmount | undefined
 }): BudgetReservation {
   const searchCostUsd = searchAllowanceUsd(request.maxToolCalls, request.searchPriceUsd)
   const tier = modelApiPaidTier(request.modelId)
@@ -217,12 +217,12 @@ export function reserveRequest(request: {
 /** The hosted fee held alongside tokens, from a verified bound and tariff. */
 export function searchAllowanceUsd(
   bound: number | undefined,
-  priceUsd: LegacyUsd | undefined,
+  priceUsd: UsdAmount | undefined,
 ): UsdAmount {
   if (
     bound !== undefined &&
     (priceUsd === undefined ||
-      (typeof priceUsd === 'number' && !Number.isFinite(priceUsd)) ||
+      !usdAmountSchema.safeParse(priceUsd).success ||
       Usd.from(priceUsd).compare(Usd.from(0)) < 0 ||
       !Number.isSafeInteger(bound) ||
       bound < WEB_SEARCH_MIN_PER_REQUEST ||
@@ -230,7 +230,7 @@ export function searchAllowanceUsd(
   ) {
     throw new SessionBudgetExceededError(UI_TEXT.sessionBudgetSearchUnavailable)
   }
-  return multiplyUsd(priceUsd ?? 0, bound ?? 0)
+  return multiplyUsd(priceUsd ?? Usd.from(0).toAmount(), bound ?? 0)
 }
 
 /** A hidden paid request's known charge, or its retained uncertain reservation. */
@@ -240,7 +240,7 @@ export function helperRequestSettlement(
   isCountedUsage: (usage: Usage) => boolean,
   wasSent: boolean,
   wasRefused: boolean,
-  reservedUsd: LegacyUsd,
+  reservedUsd: UsdAmount,
 ) {
   const hasUsage = usage !== null && usage !== undefined && isCountedUsage(usage)
   let costUsd = Usd.from(wasSent && !wasRefused ? reservedUsd : 0).toAmount()

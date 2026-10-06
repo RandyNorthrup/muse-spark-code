@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { execFile } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { promisify } from 'node:util'
@@ -136,10 +137,10 @@ describe('M80 schemas (A15/A16/F1)', () => {
   it('A16/F1 compares mixed total costs in integer micro-USD, not binary equality', () => {
     const result = resultRecord()
     result.usage.costUsd = {
-      settled: 0.1,
-      uncertain: 0.2,
-      reserved: 0,
-      total: 0.3,
+      settled: Usd.from(0.1).toAmount(),
+      uncertain: Usd.from(0.2).toAmount(),
+      reserved: Usd.from(0).toAmount(),
+      total: Usd.from(0.3).toAmount(),
       isUpperBound: true,
     }
     expect(0.1 + 0.2).not.toBe(0.3)
@@ -189,7 +190,13 @@ describe('M80 schemas (A15/A16/F1)', () => {
         ...result,
         usage: {
           ...result.usage,
-          costUsd: { settled: 0, uncertain: 1, reserved: 0, total: 1, isUpperBound: false },
+          costUsd: {
+            settled: Usd.from(0).toAmount(),
+            uncertain: Usd.from(1).toAmount(),
+            reserved: Usd.from(0).toAmount(),
+            total: Usd.from(1).toAmount(),
+            isUpperBound: false,
+          },
         },
       },
     ]
@@ -253,8 +260,8 @@ describe('M80 schemas (A15/A16/F1)', () => {
       ).toBe(false)
     }
     for (const change of [
-      { budgetUsd: 21 },
-      { budgetUsd: 0 },
+      { budgetUsd: Usd.from(21).toAmount() },
+      { budgetUsd: Usd.from(0).toAmount() },
       { maxRequests: 0 },
       { maxRequests: 501 },
       { timeoutSeconds: 9 },
@@ -282,12 +289,18 @@ describe('M80 schemas (A15/A16/F1)', () => {
       { ...result, ledger: null },
       { ...result, usage: { ...result.usage, costUsd: null } },
       { ...result, usage: { ...result.usage, requests: null } },
-      { ...result, limits: { ...result.limits, budgetUsd: 2 } },
+      { ...result, limits: { ...result.limits, budgetUsd: Usd.from(2).toAmount() } },
       {
         ...result,
         usage: {
           ...result.usage,
-          costUsd: { settled: 2, uncertain: 0, reserved: 0, total: 2, isUpperBound: false },
+          costUsd: {
+            settled: Usd.from(2).toAmount(),
+            uncertain: Usd.from(0).toAmount(),
+            reserved: Usd.from(0).toAmount(),
+            total: Usd.from(2).toAmount(),
+            isUpperBound: false,
+          },
         },
       },
     ]
@@ -295,11 +308,11 @@ describe('M80 schemas (A15/A16/F1)', () => {
   })
   it('enforces event required fields, envelope enums and integer ledger identity', () => {
     const totals = {
-      capUsd: 1,
-      settledUsd: 0,
-      uncertainUsd: 0,
-      reservedUsd: 0.108135,
-      remainingUsd: 0.891865,
+      capUsd: Usd.from(1).toAmount(),
+      settledUsd: Usd.from(0).toAmount(),
+      uncertainUsd: Usd.from(0).toAmount(),
+      reservedUsd: Usd.from(0.108135).toAmount(),
+      remainingUsd: Usd.from(0.891865).toAmount(),
       requests: 1,
       tokens: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
       paid: resultRecord().usage.paid,
@@ -308,23 +321,23 @@ describe('M80 schemas (A15/A16/F1)', () => {
       lastResponse: null,
     }
     const event = {
-      v: 1,
+      v: 2,
       seq: 1,
       time: '2026-10-02T00:00:00.000Z',
       type: 'attempt',
       n: 1,
       endpoint: 'responses',
       phase: 'admitted',
-      reservedUsd: 0.108135,
+      reservedUsd: Usd.from(0.108135).toAmount(),
       totals,
     }
     expect(execEventSchema.safeParse(event).success).toBe(true)
     for (const change of [
       { seq: 0 },
       { time: 'yesterday' },
-      { v: 2 },
+      { v: 1 },
       { endpoint: 'count' },
-      { totals: { ...totals, remainingUsd: 1 } },
+      { totals: { ...totals, remainingUsd: Usd.from(1).toAmount() } },
     ])
       expect(execEventSchema.safeParse({ ...event, ...change }).success).toBe(false)
   })
@@ -335,7 +348,7 @@ describe('M80 schemas (A15/A16/F1)', () => {
     ).resolves.toMatchObject({ stdout: 'Exec schemas match.\n' })
     for (const name of ['result', 'event']) {
       const raw: unknown = JSON.parse(
-        await readFile(`docs/schemas/exec-${name}-v1.schema.json`, 'utf8'),
+        await readFile(`docs/schemas/exec-${name}-v2.schema.json`, 'utf8'),
       )
       expect(raw).toMatchObject({ $schema: 'https://json-schema.org/draft/2020-12/schema' })
     }
@@ -349,7 +362,7 @@ describe('M80 schemas (A15/A16/F1)', () => {
   })
   it('RVM80A P2-2 the shipped event schema itself refuses what execEventSchema refuses in update', async () => {
     const root = JSON.parse(
-      await readFile('docs/schemas/exec-event-v1.schema.json', 'utf8'),
+      await readFile('docs/schemas/exec-event-v2.schema.json', 'utf8'),
     ) as JsonSchema
     const variants = root['anyOf'] as JsonSchema[]
     const update = variants.find(
@@ -374,7 +387,7 @@ describe('M80 schemas (A15/A16/F1)', () => {
     ]
     const outcomes = samples.map((sample) => {
       const event = {
-        v: 1,
+        v: 2,
         seq: 1,
         time: '2026-10-02T00:00:00.000Z',
         type: 'update',
@@ -390,10 +403,10 @@ describe('M80 schemas (A15/A16/F1)', () => {
   it('RVM80A P3-1 refuses, never throws on, an amount past toFixed’s fixed-point range', () => {
     const result = resultRecord()
     result.usage.costUsd = {
-      settled: 1e21,
-      uncertain: 0,
-      reserved: 0,
-      total: 1e21,
+      settled: Usd.from(1e21).toAmount(),
+      uncertain: Usd.from(0).toAmount(),
+      reserved: Usd.from(0).toAmount(),
+      total: Usd.from(1e21).toAmount(),
       isUpperBound: false,
     }
     expect(() => execResultSchema.safeParse(result)).not.toThrow()
@@ -401,7 +414,7 @@ describe('M80 schemas (A15/A16/F1)', () => {
     // A standalone amount has no sum identity behind it: its own micro-USD
     // check alone must refuse a value past the safe-integer range.
     const paid = {
-      v: 1,
+      v: 2,
       seq: 1,
       time: '2026-10-02T00:00:00.000Z',
       type: 'paid_use',
@@ -409,11 +422,13 @@ describe('M80 schemas (A15/A16/F1)', () => {
       n: 1,
       phase: 'returned',
       units: 1,
-      usd: 1e21,
+      usd: Usd.from(1e21).toAmount(),
     }
     expect(() => execEventSchema.safeParse(paid)).not.toThrow()
     expect(execEventSchema.safeParse(paid).success).toBe(false)
-    expect(execEventSchema.safeParse({ ...paid, usd: 0.01 }).success).toBe(true)
+    expect(execEventSchema.safeParse({ ...paid, usd: Usd.from(0.01).toAmount() }).success).toBe(
+      true,
+    )
   })
   it('exercises the lane-owned constant contract, including F1 units', async () => {
     // Named imports, not the module's entries: an enumeration would count every
@@ -433,7 +448,7 @@ describe('M80 schemas (A15/A16/F1)', () => {
     expect(owned).toEqual({
       EXEC_COMMAND: 'exec',
       EXEC_SCAN_COMMAND: 'scan-secrets',
-      EXEC_PROTOCOL_VERSION: 1,
+      EXEC_PROTOCOL_VERSION: 2,
       EXEC_USD_UNITS: 1_000_000,
       EXEC_USD_DECIMALS: 6,
       EXEC_MIN_OUTPUT_TOKENS: 16,

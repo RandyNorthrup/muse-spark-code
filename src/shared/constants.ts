@@ -1,3 +1,4 @@
+import { usdAmountSchema } from './usd'
 // Every tunable and user-visible literal lives here. The no-magic-numbers lint
 // rule is disabled for this file only; everywhere else a bare literal is an
 // error. Keep entries grouped and named for what they mean, not what they are.
@@ -776,9 +777,9 @@ export const PAID_FEATURE_SETTINGS = {
 // 2026-09-24), on top of the tokens a turn uses: a web search, an image, and
 // an hour of Muse Voice Transcribe audio.
 export const PAID_PRICES_USD = {
-  webSearchPerThousand: 2.5,
-  imageGeneration: 0.01,
-  voicePerHour: 0.18,
+  webSearchPerThousand: usdAmountSchema.parse('2.5'),
+  imageGeneration: usdAmountSchema.parse('0.01'),
+  voicePerHour: usdAmountSchema.parse('0.18'),
 } as const
 export const PAID_PRICES_VERIFIED_ON = '2026-09-24'
 export const SEARCHES_PER_PRICE_UNIT = 1000
@@ -1564,8 +1565,16 @@ export const CONTRIBUTOR_MODEL_SUFFIX = '-contributor'
 // exact MODEL_API_PRICED_MODELS whitelist below. A suffix display fallback
 // for a future model is not a verified tariff or capped spending.
 export const MODEL_API_PRICES_PER_MILLION = {
-  standard: { input: 1.25, cachedInput: 0.15, output: 4.25 },
-  contributor: { input: 0.1, cachedInput: 0.002, output: 0.2 },
+  standard: {
+    input: usdAmountSchema.parse('1.25'),
+    cachedInput: usdAmountSchema.parse('0.15'),
+    output: usdAmountSchema.parse('4.25'),
+  },
+  contributor: {
+    input: usdAmountSchema.parse('0.1'),
+    cachedInput: usdAmountSchema.parse('0.002'),
+    output: usdAmountSchema.parse('0.2'),
+  },
 } as const
 export const MODEL_API_PRICES_VERIFIED_ON = '2026-09-26'
 export const MODEL_API_PRICE_DECIMALS = 3
@@ -3021,7 +3030,7 @@ export const ACP_DEFAULT_BACKEND: AcpBackendKind = 'museCode'
 export const HTTP_STATUS_MAX = 599
 export const EXEC_COMMAND = 'exec'
 export const EXEC_SCAN_COMMAND = 'scan-secrets'
-export const EXEC_PROTOCOL_VERSION = 1
+export const EXEC_PROTOCOL_VERSION = 2
 export const EXEC_MODES = ['plan', 'acceptEdits'] as const
 export const EXEC_DEFAULT_MODE = 'plan'
 export const EXEC_OUTPUTS = ['text', 'json', 'jsonl'] as const

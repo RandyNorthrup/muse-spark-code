@@ -1,5 +1,5 @@
 import type { SearchSettlement } from '../../shared/paid'
-import { Usd, sumUsd, type UsdAmount, type LegacyUsd } from '../../shared/usd'
+import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
 // The paid Model API features (M33–M35, PLAN.md D30), "opt in and loud":
 // which are on, and what this window has used of them.
 //
@@ -29,7 +29,7 @@ import {
   type SubagentUsage,
 } from '../../shared/paid'
 import type { CoreLogger } from '../logging'
-import { estimateExactCostUsd as estimateCostUsd } from '../usage/insights'
+import { estimateCostUsd } from '../usage/insights'
 
 /** A verified per-call search tariff; other providers must inject their own price. */
 export function webSearchPriceUsd(modelId: string): UsdAmount | undefined {
@@ -264,7 +264,7 @@ export class PaidUsage {
   public add(
     feature: PaidFeature,
     units: number,
-    searchPriceUsd?: LegacyUsd | SearchSettlement,
+    searchPriceUsd?: UsdAmount | SearchSettlement,
   ): void {
     if (typeof searchPriceUsd === 'object') searchPriceUsd = searchPriceUsd.quote.tariffUsd
     if (units <= 0) {
@@ -360,7 +360,7 @@ export class PaidUsage {
       ...this.tally,
       judgeUnknownRequests: unknown - 1,
       judgeTokens: (this.tally.judgeTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      judgeCostUsd: sumUsd(this.tally.judgeCostUsd ?? 0, cost),
+      judgeCostUsd: sumUsd(this.tally.judgeCostUsd ?? Usd.from(0).toAmount(), cost),
     }
     for (const listener of this.listeners) listener()
   }
@@ -375,7 +375,7 @@ export class PaidUsage {
       ...tally,
       autoReviewUnknownRequests: unknown - 1,
       autoReviewTokens: (tally.autoReviewTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      autoReviewCostUsd: sumUsd(tally.autoReviewCostUsd ?? 0, cost),
+      autoReviewCostUsd: sumUsd(tally.autoReviewCostUsd ?? Usd.from(0).toAmount(), cost),
     }
     for (const listener of this.listeners) {
       listener()
@@ -398,7 +398,10 @@ export class PaidUsage {
       ...tally,
       subagentUnknownRequests: (tally.subagentUnknownRequests ?? 0) - 1,
       subagentTokens: (tally.subagentTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      subagentCostUsd: sumUsd(tally.subagentCostUsd ?? 0, estimateCostUsd(usage, modelId)),
+      subagentCostUsd: sumUsd(
+        tally.subagentCostUsd ?? Usd.from(0).toAmount(),
+        estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) {
       listener()
@@ -436,7 +439,10 @@ export class PaidUsage {
       ...this.tally,
       hookModelUnknownRequests: unknown - 1,
       hookModelTokens: (this.tally.hookModelTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      hookModelCostUsd: sumUsd(this.tally.hookModelCostUsd ?? 0, estimateCostUsd(usage, modelId)),
+      hookModelCostUsd: sumUsd(
+        this.tally.hookModelCostUsd ?? Usd.from(0).toAmount(),
+        estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) listener()
   }
@@ -473,7 +479,10 @@ export class PaidUsage {
       tabUnknownRequests: unknown - 1,
       tabTokens: (this.tally.tabTokens ?? 0) + usage.inputTokens + usage.outputTokens,
       tabCachedTokens: (this.tally.tabCachedTokens ?? 0) + usage.cachedTokens,
-      tabCostUsd: sumUsd(this.tally.tabCostUsd ?? 0, estimateCostUsd(usage, modelId)),
+      tabCostUsd: sumUsd(
+        this.tally.tabCostUsd ?? Usd.from(0).toAmount(),
+        estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) listener()
   }
@@ -495,7 +504,10 @@ export class PaidUsage {
       ...this.tally,
       bestOfNUnknownRequests: unknown - 1,
       bestOfNTokens: (this.tally.bestOfNTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      bestOfNCostUsd: sumUsd(this.tally.bestOfNCostUsd ?? 0, estimateCostUsd(usage, modelId)),
+      bestOfNCostUsd: sumUsd(
+        this.tally.bestOfNCostUsd ?? Usd.from(0).toAmount(),
+        estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) listener()
   }

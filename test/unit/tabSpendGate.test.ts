@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Tab's spend gate over lane L's ledger (M94, PLAN.md D73): the provider's
 // reservation carries its own worst case to the settlement, a refused
 // admission sends nothing, and the status bar's total follows the ledger.
@@ -15,7 +16,7 @@ const WORST = estimateCostUsd({ inputTokens: 4000, outputTokens: 608, cachedToke
 const DATE = '2026-10-04'
 
 function fakeLedger(admission: TabAdmission, total?: TabDayTotal) {
-  const day: TabDayTotal = total ?? { ok: true, totalUsd: 0 }
+  const day: TabDayTotal = total ?? { ok: true, totalUsd: Usd.from(0).toAmount() }
   const ledger = {
     admit: vi.fn((): Promise<TabAdmission> => Promise.resolve(admission)),
     settle: vi.fn((): Promise<void> => Promise.resolve()),
@@ -32,7 +33,7 @@ function gate(ledger: TabLedger, onTotalChanged = vi.fn()) {
   clock.now = new Date(2026, 9, 4, 12).getTime()
   return createTabSpendGate({
     ledger,
-    budgetUsd: () => 1,
+    budgetUsd: () => Usd.from(1).toAmount(),
     now: () => clock.now,
     onTotalChanged,
     log: new FakeLogOutputChannel(),
@@ -48,7 +49,7 @@ describe('createTabSpendGate', () => {
     })
     const spend = gate(typed)
     const reservation = await spend.reserve(FACTS)
-    expect(ledger.admit).toHaveBeenCalledWith(WORST, 1)
+    expect(ledger.admit).toHaveBeenCalledWith(WORST, Usd.from(1).toAmount())
     expect(reservation).toEqual({ model: MODEL, worstCaseUsd: WORST, date: DATE })
     expect(spend.todayTotalUsd()).toBe(WORST)
     expect(spend.todayRequests()).toBe(1)
@@ -74,11 +75,11 @@ describe('createTabSpendGate', () => {
       admitted: false,
       reason: 'budgetReached',
       detail: 'w.json',
-      totalUsd: 0.99,
+      totalUsd: Usd.from(0.99).toAmount(),
     })
     const spend = gate(typed, onTotalChanged)
     await expect(spend.reserve(FACTS)).resolves.toBeUndefined()
-    expect(spend.todayTotalUsd()).toBe(0.99)
+    expect(spend.todayTotalUsd()).toBe(Usd.from(0.99).toAmount())
     expect(spend.todayRequests()).toBe(0)
     expect(onTotalChanged).toHaveBeenCalled()
   })
@@ -90,12 +91,16 @@ describe('createTabSpendGate', () => {
 
   it('reads today’s cross-window total at start for the status bar', async () => {
     const { typed } = fakeLedger(
-      { admitted: true, totalUsd: 0, reservation: { date: DATE, worstCaseUsd: 0 } },
-      { ok: true, totalUsd: 0.42 },
+      {
+        admitted: true,
+        totalUsd: Usd.from(0).toAmount(),
+        reservation: { date: DATE, worstCaseUsd: Usd.from(0).toAmount() },
+      },
+      { ok: true, totalUsd: Usd.from(0.42).toAmount() },
     )
     const spend = gate(typed)
     await vi.waitFor(() => {
-      expect(spend.todayTotalUsd()).toBe(0.42)
+      expect(spend.todayTotalUsd()).toBe(Usd.from(0.42).toAmount())
     })
   })
 })

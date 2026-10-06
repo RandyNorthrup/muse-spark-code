@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { sumUsd } from '../../src/shared/usd'
 import type { PaidUseDecision } from '../../src/shared/paid'
 import { mkdtemp, readdir } from 'node:fs/promises'
@@ -27,6 +28,9 @@ import { memoryToolIo } from './helpers/fakeToolIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { watchSessionTurns } from './helpers/sessionTurns'
 import { removeFolder } from './helpers/temporaryFolders'
+
+const settlementPricingFailure: NonNullable<ModelApiClientDeps['searchTokenCostUsd']> = (usage) =>
+  usage.inputTokens === 100 ? undefined : Usd.from('0.0001').toAmount()
 
 const PRICE = 0.0025
 const BODY: CreateResponseBody = {
@@ -103,11 +107,19 @@ function claims() {
   return { amounts, settled, exactAmounts, exactSettled, check, reserve }
 }
 
+async function cappedOneSearchHost() {
+  return await host({
+    capUsd: Usd.from('0.1').toAmount(),
+    capabilities: () => CAPABILITIES,
+    maxCalls: () => 1,
+  })
+}
+
 async function host(
   options: {
     readonly daily?: ModelApiClientDeps['reservePaidRequest']
     readonly capabilities?: ModelApiHostDeps['modelCapabilities']
-    readonly capUsd?: number
+    readonly capUsd?: UsdAmount
     readonly maxCalls?: () => number
     readonly consent?: ModelApiHostDeps['allowsPaidUse']
     readonly isOn?: () => boolean
@@ -138,7 +150,7 @@ async function host(
     }),
     store,
     isPaidFeatureOn: (feature) => feature === 'webSearch' && (options.isOn?.() ?? true),
-    sessionBudgetUsd: () => options.capUsd ?? 0,
+    sessionBudgetUsd: () => Usd.from(options.capUsd ?? 0).toAmount(),
     allowsPaidUse: consent,
     notePaidUse: paidUses,
     ...(options.capabilities !== undefined && { modelCapabilities: options.capabilities }),
@@ -172,7 +184,7 @@ async function dailyJournal() {
     createPaidDailyBudget({
       directory,
       now: () => new Date(2026, 9, 6, 12).getTime(),
-      capUsd: () => 0.5,
+      capUsd: () => Usd.from(0.5).toAmount(),
       isModelApi: () => true,
       sleep: () => Promise.resolve(),
     })
@@ -185,7 +197,10 @@ describe('M106 hosted-search bounds', () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
     const t = await host({
       capabilities: () => CAPABILITIES,
-      pricing: { webSearchPriceUsd: (model) => (model === 'custom-model' ? '0.01' : '0.0025') },
+      pricing: {
+        webSearchPriceUsd: (model) =>
+          model === 'custom-model' ? Usd.from('0.01').toAmount() : Usd.from('0.0025').toAmount(),
+      },
       consent: (request) => {
         if (isFirst) {
           isFirst = false
@@ -209,24 +224,24 @@ describe('M106 hosted-search bounds', () => {
     await pending
     expect(t.consent).toHaveBeenCalledTimes(2)
     expect(t.consent.mock.calls[1]?.[0]).toMatchObject({
-      quote: { model: 'custom-model', tariffUsd: '0.01' },
+      quote: { model: 'custom-model', tariffUsd: Usd.from('0.01').toAmount() },
     })
     expect(t.api.responseBodies()[0]).toMatchObject({
       model: 'custom-model',
       tools: expect.arrayContaining([{ type: 'web_search' }]),
     })
-    expect(paidCostUsd('webSearch', usage.current)).toBe('0.01')
+    expect(paidCostUsd('webSearch', usage.current)).toBe(Usd.from('0.01').toAmount())
   })
 
   it.each(['0.0025', '0.02', undefined])(
     'settles returned searches at the dispatch quote after pricing refresh to %s',
     async (nextPrice) => {
-      let price: string | undefined = '0.01'
+      let price: UsdAmount | undefined = Usd.from('0.01').toAmount()
       const c = claims()
       const usage = new PaidUsage(new FakeLogOutputChannel())
       const t = await host({
         daily: c.reserve,
-        capUsd: 0.1,
+        capUsd: Usd.from(0.1).toAmount(),
         capabilities: () => CAPABILITIES,
         maxCalls: () => 1,
         pricing: { webSearchPriceUsd: () => price },
@@ -237,18 +252,18 @@ describe('M106 hosted-search bounds', () => {
       t.api.script({
         searches: [{ isDoneOmitted: true }],
         onRequest: () => {
-          price = nextPrice
+          price = nextPrice === undefined ? undefined : Usd.from(nextPrice).toAmount()
         },
         usage: { input: 100, output: 20 },
       })
       await t.turn()
       const exactTotal = sumUsd(
-        '0.01',
+        Usd.from('0.01').toAmount(),
         estimateCostUsd({ inputTokens: 100, outputTokens: 20, cachedTokens: 0 }, 'muse-spark-1.3'),
       )
       expect(c.exactSettled).toEqual([exactTotal])
       expect(t.store.saved.get(t.session.sessionId)?.budgetSpentUsd).toBe(exactTotal)
-      expect(paidCostUsd('webSearch', usage.current)).toBe('0.01')
+      expect(paidCostUsd('webSearch', usage.current)).toBe(Usd.from('0.01').toAmount())
       expect(t.events).toContainEqual(expect.objectContaining({ type: 'turnCompleted' }))
     },
   )
@@ -257,7 +272,7 @@ describe('M106 hosted-search bounds', () => {
     const c = claims()
     const t = await host({
       daily: c.reserve,
-      capUsd: 0.1,
+      capUsd: Usd.from(0.1).toAmount(),
       capabilities: () => CAPABILITIES,
       maxCalls: () => 2,
       notePaidUse: () => {
@@ -270,8 +285,12 @@ describe('M106 hosted-search bounds', () => {
     await t.turn()
     const claim = reserved.mock.calls[0]?.[2]
     if (claim === undefined) throw new Error('Missing claim')
-    expect(t.store.saved.get(t.session.sessionId)?.budgetSpentUsd).toBe(sumUsd(claim, '-0.0025'))
-    expect(c.exactSettled).toEqual([sumUsd(c.exactAmounts[0] ?? 0, '-0.0025')])
+    expect(t.store.saved.get(t.session.sessionId)?.budgetSpentUsd).toBe(
+      sumUsd(claim, Usd.from('-0.0025').toAmount()),
+    )
+    expect(c.exactSettled).toEqual([
+      sumUsd(Usd.from(c.exactAmounts[0] ?? 0).toAmount(), Usd.from('-0.0025').toAmount()),
+    ])
   })
 
   it('asks again and refunds the stale quote when pricing changes during key retrieval', async () => {
@@ -282,10 +301,10 @@ describe('M106 hosted-search bounds', () => {
     const c = claims()
     const t = await host({
       daily: c.reserve,
-      capUsd: 0.1,
+      capUsd: Usd.from(0.1).toAmount(),
       capabilities: () => CAPABILITIES,
       pricing: {
-        webSearchPriceUsd: () => price,
+        webSearchPriceUsd: () => Usd.from(price).toAmount(),
         apiKey: async () => {
           if (hasAsked && !hasChanged) {
             hasChanged = true
@@ -302,12 +321,14 @@ describe('M106 hosted-search bounds', () => {
     t.api.script({ searches: [{}] })
     await t.turn()
     expect(t.consent).toHaveBeenCalledTimes(2)
-    expect(t.consent.mock.calls[1]?.[0]).toMatchObject({ quote: { tariffUsd: '0.01' } })
+    expect(t.consent.mock.calls[1]?.[0]).toMatchObject({
+      quote: { tariffUsd: Usd.from('0.01').toAmount() },
+    })
     expect(c.exactSettled[0]).toBe('0')
     expect(t.api.responseBodies()).toHaveLength(1)
     expect(t.paidUses.mock.calls[0]?.[2]).toMatchObject({
-      quote: { tariffUsd: '0.01' },
-      costUsd: '0.01',
+      quote: { tariffUsd: Usd.from('0.01').toAmount() },
+      costUsd: Usd.from('0.01').toAmount(),
     })
   })
 
@@ -323,7 +344,10 @@ describe('M106 hosted-search bounds', () => {
       modelId: 'custom-model',
       capabilities: () => CAPABILITIES,
       maxCalls: () => 1,
-      pricing: { webSearchPriceUsd: () => 0.01, searchTokenCostUsd: () => 0 },
+      pricing: {
+        webSearchPriceUsd: () => Usd.from(0.01).toAmount(),
+        searchTokenCostUsd: () => Usd.from(0).toAmount(),
+      },
       notePaidUse: (feature, units, price) => {
         usage.add(feature, units, price)
       },
@@ -334,13 +358,13 @@ describe('M106 hosted-search bounds', () => {
     if (request === undefined) throw new Error('Missing consent request')
     expect(request).toMatchObject({
       feature: 'webSearch',
-      priceUsd: '0.01',
-      quote: { model: 'custom-model', tariffUsd: '0.01' },
+      priceUsd: Usd.from('0.01').toAmount(),
+      quote: { model: 'custom-model', tariffUsd: Usd.from('0.01').toAmount() },
     })
     expect(paidUseQuestion(request).detail).toContain('$10.00 per 1,000 searches')
     const tally = paidTallySchema.parse(usage.current)
-    expect(tally.webSearchCharges).toEqual([{ units: 1, priceUsd: '0.01' }])
-    expect(paidCostUsd('webSearch', tally)).toBe('0.01')
+    expect(tally.webSearchCharges).toEqual([{ units: 1, priceUsd: Usd.from('0.01').toAmount() }])
+    expect(paidCostUsd('webSearch', tally)).toBe(Usd.from('0.01').toAmount())
   })
 
   it('reserves tokens plus the bound, then settles the captured U8 search call exactly', async () => {
@@ -363,12 +387,14 @@ describe('M106 hosted-search bounds', () => {
     await Array.fromAsync(instance.streamResponse(BODY, new AbortController().signal))
     const estimate = estimateInput(requestParts(BODY), undefined).inputTokens
     expect(c.amounts).toEqual([
-      estimateCostUsd({ inputTokens: estimate, outputTokens: 100, cachedTokens: 0 }, BODY.model) +
-        PRICE,
+      Number(
+        estimateCostUsd({ inputTokens: estimate, outputTokens: 100, cachedTokens: 0 }, BODY.model),
+      ) + PRICE,
     ])
     expect(c.settled).toEqual([
-      estimateCostUsd({ inputTokens: 2119, outputTokens: 689, cachedTokens: 0 }, BODY.model) +
-        PRICE,
+      Number(
+        estimateCostUsd({ inputTokens: 2119, outputTokens: 689, cachedTokens: 0 }, BODY.model),
+      ) + PRICE,
     ])
   })
 
@@ -386,7 +412,9 @@ describe('M106 hosted-search bounds', () => {
       })
       await Array.fromAsync(t.instance.streamResponse(BODY, new AbortController().signal))
       expect(c.settled).toEqual([
-        estimateCostUsd({ inputTokens: 100, outputTokens: 20, cachedTokens: 0 }, BODY.model) +
+        Number(
+          estimateCostUsd({ inputTokens: 100, outputTokens: 20, cachedTokens: 0 }, BODY.model),
+        ) +
           3 * PRICE,
       ])
       expect(t.log.warn).toHaveBeenCalledWith(
@@ -462,7 +490,7 @@ describe('M106 hosted-search bounds', () => {
   })
 
   it('admits capped search when the bound fits and settles the session in full', async () => {
-    const t = await host({ capUsd: 0.1, capabilities: () => CAPABILITIES, maxCalls: () => 1 })
+    const t = await cappedOneSearchHost()
     t.api.script({ searches: [{}, { status: 'failed' }], usage: { input: 10, output: 5 } })
     if (t.store.budget === undefined) throw new Error('Missing session journal')
     const reserved = vi.spyOn(t.store.budget, 'reserve')
@@ -480,7 +508,7 @@ describe('M106 hosted-search bounds', () => {
   it.each(['completed', 'failed'] as const)(
     'charges terminal-only calls in a %s response to the session and tally',
     async (status) => {
-      const t = await host({ capUsd: 0.1, capabilities: () => CAPABILITIES, maxCalls: () => 1 })
+      const t = await cappedOneSearchHost()
       t.api.script({
         searches: [{ isDoneOmitted: true }, { isDoneOmitted: true }],
         usage: { input: 10, output: 5 },
@@ -497,7 +525,7 @@ describe('M106 hosted-search bounds', () => {
   )
 
   it('keeps unknown token liability without counting observed search fees twice', async () => {
-    const t = await host({ capUsd: 0.1, capabilities: () => CAPABILITIES, maxCalls: () => 1 })
+    const t = await cappedOneSearchHost()
     if (t.store.budget === undefined) throw new Error('Missing session journal')
     const reserved = vi.spyOn(t.store.budget, 'reserve')
     t.api.script({ searches: [{}, {}, {}], omitUsage: true })
@@ -513,7 +541,11 @@ describe('M106 hosted-search bounds', () => {
     'releases unused session search allowance only with a terminal count (interrupted=%s)',
     async (interrupted) => {
       const c = claims()
-      const t = await host({ daily: c.reserve, capUsd: 0.1, capabilities: () => CAPABILITIES })
+      const t = await host({
+        daily: c.reserve,
+        capUsd: Usd.from(0.1).toAmount(),
+        capabilities: () => CAPABILITIES,
+      })
       if (t.store.budget === undefined) throw new Error('Missing session journal')
       const reserved = vi.spyOn(t.store.budget, 'reserve')
       t.api.script({ omitUsage: true, omitTerminal: interrupted })
@@ -542,12 +574,13 @@ describe('M106 hosted-search bounds', () => {
       createSessionBudgetJournal({
         directory,
         sleep: () => Promise.resolve(),
-        initialBudget: () => Promise.resolve({ spentUsd: 0, hasUnknownHistoricalFees: false }),
+        initialBudget: () =>
+          Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
       })
     const journal = create()
     const reserve = vi.spyOn(journal, 'reserve')
     const t = await host({
-      capUsd: 0.1,
+      capUsd: Usd.from(0.1).toAmount(),
       capabilities: () => CAPABILITIES,
       maxCalls: () => 1,
       journal,
@@ -584,7 +617,7 @@ describe('M106 hosted-search bounds', () => {
   })
 
   it('sends nothing when a capped session cannot fit the search allowance', async () => {
-    const t = await host({ capUsd: 0.001, capabilities: () => CAPABILITIES })
+    const t = await host({ capUsd: Usd.from(0.001).toAmount(), capabilities: () => CAPABILITIES })
     await t.turn()
     expect(t.api.requests).toEqual([])
   })
@@ -593,7 +626,7 @@ describe('M106 hosted-search bounds', () => {
     'does not offer search with a %s bound record',
     async (state) => {
       const t = await host({
-        capUsd: 1,
+        capUsd: Usd.from(1).toAmount(),
         capabilities: () => ({
           hosted: {
             webSearch: { state: 'yes', value: { tool: 'web_search' } },
@@ -609,7 +642,7 @@ describe('M106 hosted-search bounds', () => {
     'does not offer search with a %s search record',
     async (state) => {
       const t = await host({
-        capUsd: 1,
+        capUsd: Usd.from(1).toAmount(),
         capabilities: () => ({
           hosted: {
             webSearch: { state },
@@ -624,7 +657,11 @@ describe('M106 hosted-search bounds', () => {
   it.each([0, 21, 1.5])(
     'does not offer search with an invalid configured bound of %s',
     async (bound) => {
-      const t = await host({ capUsd: 1, capabilities: () => CAPABILITIES, maxCalls: () => bound })
+      const t = await host({
+        capUsd: Usd.from(1).toAmount(),
+        capabilities: () => CAPABILITIES,
+        maxCalls: () => bound,
+      })
       await expectSearchUnavailable(t)
     },
   )
@@ -670,8 +707,8 @@ describe('M106 hosted-search bounds', () => {
   it('uses the real shared daily journal and refuses another window at its cap', async () => {
     const create = await dailyJournal()
     const first = create()
-    const seed = await first.judgeLedger.reserve(0.49)
-    await seed.settle(0.49)
+    const seed = await first.judgeLedger.reserve(Usd.from(0.49).toAmount())
+    await seed.settle(Usd.from(0.49).toAmount())
     const t = client((_body, _feature, _input, _signal, amount) => {
       if (amount === undefined) throw new Error('Missing allowance')
       return first.reserveExact(amount)
@@ -680,7 +717,7 @@ describe('M106 hosted-search bounds', () => {
     await Array.fromAsync(t.instance.streamResponse(BODY, new AbortController().signal))
     const day = await create().latestDay()
     expect(Number(day.spentUsd)).toBeCloseTo(0.49 + PRICE + 0.000014, 12)
-    await expect(create().judgeLedger.reserve(0.01)).rejects.toThrow()
+    await expect(create().judgeLedger.reserve(Usd.from(0.01).toAmount())).rejects.toThrow()
   })
 
   it('dispatches the affordable 200th search at exactly USD 0.50 with zero-priced provider tokens', async () => {
@@ -688,14 +725,17 @@ describe('M106 hosted-search bounds', () => {
     const daily = create()
     // The journal suite settles all 200 fees individually. Seed the first 199 here
     // to test actual dispatch at the cap without repeating its quadratic disk scans.
-    const priorSearches = await daily.judgeLedger.reserve(0.4975)
-    await priorSearches.settle(0.4975)
+    const priorSearches = await daily.judgeLedger.reserve(Usd.from(0.4975).toAmount())
+    await priorSearches.settle(Usd.from(0.4975).toAmount())
     const t = client(
       (_body, _feature, _input, _signal, amount) => {
         if (amount === undefined) throw new Error('Missing allowance')
         return daily.reserveExact(amount)
       },
-      { searchTokenCostUsd: () => 0, webSearchPriceUsd: () => PRICE },
+      {
+        searchTokenCostUsd: () => Usd.from(0).toAmount(),
+        webSearchPriceUsd: () => Usd.from(PRICE).toAmount(),
+      },
     )
     t.api.script({ searches: [{}] })
     await Array.fromAsync(
@@ -706,20 +746,21 @@ describe('M106 hosted-search bounds', () => {
     )
     expect(t.api.responseBodies()).toHaveLength(1)
     const finalDay = await create().latestDay()
-    expect(finalDay.spentUsd).toBe('0.5')
-    await expect(create().judgeLedger.reserve(PRICE)).rejects.toThrow()
+    expect(finalDay.spentUsd).toBe(Usd.from('0.5').toAmount())
+    await expect(create().judgeLedger.reserve(Usd.from(PRICE).toAmount())).rejects.toThrow()
   })
 
   it('has no unverified tariff for another provider', () => {
     expect(webSearchPriceUsd('custom-model')).toBeUndefined()
-    expect(webSearchPriceUsd(BODY.model)).toBe('0.0025')
+    expect(webSearchPriceUsd(BODY.model)).toBe(Usd.from('0.0025').toAmount())
   })
 
   it('uses another provider through injected verified prices without a Meta model-id gate', async () => {
     const c = claims()
     const t = client(c.reserve, {
-      webSearchPriceUsd: () => 0.01,
-      searchTokenCostUsd: (usage) => (usage.inputTokens + usage.outputTokens) / 1_000_000,
+      webSearchPriceUsd: () => Usd.from(0.01).toAmount(),
+      searchTokenCostUsd: (usage) =>
+        Usd.from((usage.inputTokens + usage.outputTokens) / 1_000_000).toAmount(),
     })
     t.api.script({ searches: [{}], usage: { input: 100, output: 20 } })
     await Array.fromAsync(
@@ -737,7 +778,8 @@ describe('M106 hosted-search bounds', () => {
     async (cost) => {
       const c = claims()
       const t = client(c.reserve, {
-        searchTokenCostUsd: () => cost,
+        searchTokenCostUsd: () =>
+          cost === undefined || !Number.isFinite(cost) ? undefined : Usd.from(cost).toAmount(),
       })
       await expect(
         Array.fromAsync(t.instance.streamResponse(BODY, new AbortController().signal)),
@@ -750,7 +792,8 @@ describe('M106 hosted-search bounds', () => {
   it('retains all observed fees if verified token pricing fails during settlement', async () => {
     const c = claims()
     const t = client(c.reserve, {
-      searchTokenCostUsd: (usage) => (usage.inputTokens === 100 ? undefined : 0.02),
+      searchTokenCostUsd: (usage) =>
+        usage.inputTokens === 100 ? undefined : Usd.from(0.02).toAmount(),
     })
     t.api.script({ searches: [{}, {}, {}], usage: { input: 100, output: 20 } })
     await expect(
@@ -764,7 +807,7 @@ describe('M106 hosted-search bounds', () => {
   it('shows the retained sub-cent liability of USD 0.0026 when settlement pricing fails', async () => {
     const c = claims()
     const t = client(c.reserve, {
-      searchTokenCostUsd: (usage) => (usage.inputTokens === 100 ? undefined : 0.0001),
+      searchTokenCostUsd: settlementPricingFailure,
     })
     t.api.script({ searches: [{}], usage: { input: 100, output: 20 } })
     await expect(
@@ -782,7 +825,7 @@ describe('M106 hosted-search bounds', () => {
   it('releases unused terminal search allowance even when token pricing fails at settlement', async () => {
     const c = claims()
     const t = client(c.reserve, {
-      searchTokenCostUsd: (usage) => (usage.inputTokens === 100 ? undefined : 0.0001),
+      searchTokenCostUsd: settlementPricingFailure,
     })
     t.api.script({ usage: { input: 100, output: 20 } })
     await expect(

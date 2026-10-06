@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
@@ -120,15 +121,15 @@ describe('summarizeInsights', () => {
 describe('cost estimate', () => {
   it('prices fresh and cached input and output by the model’s tier', () => {
     const usage = { inputTokens: 1_000_000, outputTokens: 100_000, cachedTokens: 200_000 }
-    expect(estimateCostUsd(usage, 'muse-spark-1.3')).toBeCloseTo(
+    expect(Number(estimateCostUsd(usage, 'muse-spark-1.3'))).toBeCloseTo(
       0.8 * 1.25 + 0.2 * 0.15 + 0.1 * 4.25,
     )
-    expect(estimateCostUsd(usage, 'muse-spark-1.3-contributor')).toBeCloseTo(
+    expect(Number(estimateCostUsd(usage, 'muse-spark-1.3-contributor'))).toBeCloseTo(
       0.8 * 0.1 + 0.2 * 0.002 + 0.1 * 0.2,
     )
     // Cached tokens never exceed the input they sit inside.
     expect(
-      estimateCostUsd({ inputTokens: 10, outputTokens: 0, cachedTokens: 50 }, 'x'),
+      Number(estimateCostUsd({ inputTokens: 10, outputTokens: 0, cachedTokens: 50 }, 'x')),
     ).toBeCloseTo((10 * 0.15) / 1_000_000)
   })
 
@@ -147,7 +148,7 @@ describe('cost estimate', () => {
         { inputTokens: 1, cachedTokens: 1, outputTokens: 0 },
         'muse-spark-1.3-contributor',
       ),
-    ).toBe(0.000000002)
+    ).toBe(Usd.from(0.000000002).toAmount())
   })
 
   it.each([

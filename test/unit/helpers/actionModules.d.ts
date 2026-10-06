@@ -117,17 +117,17 @@ interface ActionResultLike {
   usage: {
     requests: number | null
     costUsd: {
-      settled: number
-      uncertain: number
-      reserved: number
-      total: number
+      settled: string
+      uncertain: string
+      reserved: string
+      total: string
       isUpperBound: boolean
     } | null
     paid: {
       imageAttempts: number
       imagesReturned: number
       imagesUncertain: number
-      uncertainUsd: number
+      uncertainUsd: string
     }
   }
 }
@@ -423,7 +423,7 @@ declare module '*/action/lib/inputs.mjs' {
 
 declare module '*/action/lib/result.mjs' {
   export function exitCodeFor(status: string, signal: string | null): number
-  export function microUsd(value: unknown): number | undefined
+  export function microUsd(value: unknown): bigint | undefined
   export function isExecResult(value: unknown): boolean
   export function isExecEvent(value: unknown): boolean
   export const PROHIBITED_UPDATE: RegExp

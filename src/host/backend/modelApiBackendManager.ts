@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Owns the Model API host for this extension host (M7): one in-process
 // `ModelApiHost` over the real `fetch`, the stored key and the workspace's
 // files, with the MCP servers of Muse Code's settings (M50), which it starts
@@ -56,6 +57,7 @@ import {
 } from './modelApiBundle'
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
+  readonly paidAuthority?: ModelApiClientDeps['paidAuthority']
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly judge?: ModelApiHostDeps['judge']
   readonly log: Logger
@@ -93,7 +95,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** `museSpark.modelApiPromptCacheRetention`, read per request (M56, PLAN.md D43). */
   readonly promptCacheRetention: () => PromptCacheRetention
   /** `museSpark.modelApiSessionBudgetUsd`, read per request; 0 is no cap (M82). */
-  readonly sessionBudgetUsd: () => number
+  readonly sessionBudgetUsd: () => UsdAmount
   /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
   readonly showReplyUsage: () => boolean
   readonly hookSettingsPath?: string
@@ -258,6 +260,7 @@ export class ModelApiBackendManager {
       uiText: UI_TEXT,
       uiLocale: uiLocale(),
       client: {
+        ...(this.deps.paidAuthority !== undefined && { paidAuthority: this.deps.paidAuthority }),
         ...(this.deps.reservePaidRequest !== undefined && {
           reservePaidRequest: this.deps.reservePaidRequest,
         }),
@@ -392,7 +395,10 @@ export class ModelApiBackendManager {
   ): Promise<ModelApiHost> {
     // A finite cap requires the parent's owned journal; a temporary host
     // cannot create another allowance or save its transcript under the parent ID.
-    if (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) {
+    if (
+      budgetScope === undefined &&
+      Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0
+    ) {
       throw new Error(UI_TEXT.bestOfNBudgetUnavailable)
     }
     const generation = this.generation
@@ -422,7 +428,8 @@ export class ModelApiBackendManager {
           (keyDigest: string | undefined) => {
             if (
               generation !== this.generation ||
-              (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) ||
+              (budgetScope === undefined &&
+                Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
               budgetScope?.isStillAllowed(keyDigest) === false
             ) {
               throw new Error(UI_TEXT.bestOfNBudgetUnavailable)
@@ -465,7 +472,7 @@ export class ModelApiBackendManager {
     const scope =
       sessionId === undefined ? undefined : await this.host?.getOwnedBudgetScope(sessionId)
     if (generation !== this.generation) throw new BestOfNError('contextChanged')
-    if (scope === undefined && this.deps.sessionBudgetUsd() !== 0)
+    if (scope === undefined && Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0)
       throw new BestOfNError('budgetUnavailable')
     return scope
   }

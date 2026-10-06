@@ -1,3 +1,5 @@
+import { defaultSettings } from './helpers/defaultSettings'
+import { Usd } from '../../src/shared/usd'
 // Tab's bundle surface and the activation shim (M94, PLAN.md D73): the
 // types-only interface and loader, the deferred secret read, and the shim
 // that loads the lazy bundle only while the setting is on. The bundle
@@ -36,7 +38,7 @@ import {
   snoozeTabCommand as entrySnoozeCommand,
   tabLanguagesCommand as entryLanguagesCommand,
 } from '../../src/host/tab/tabEntry'
-import { SETTING_DEFAULTS, UI_TEXT } from '../../src/shared/constants'
+import { UI_TEXT } from '../../src/shared/constants'
 import { BASE_LOCALE } from '../../src/shared/l10n/text'
 import { FakeCancellationToken, FakeLogOutputChannel, FakeTextDocument } from './helpers/fakes'
 import { FakeStatusBarItem } from './mocks/vscode'
@@ -293,7 +295,7 @@ function harnessServices(overrides: Partial<TabServices['spend']> = {}): TabServ
     spend: {
       reserve: () => Promise.resolve(undefined),
       settle: () => undefined,
-      todayTotalUsd: () => 0,
+      todayTotalUsd: () => Usd.from(0).toAmount(),
       todayRequests: () => 0,
       ...overrides,
     },
@@ -369,7 +371,10 @@ function activationHarness(
     log,
     loadBundle,
     isTabSettingOn: () => harness.settingOn,
-    tabSettings: () => ({ ...SETTING_DEFAULTS, tabTrigger: 'automatic' }),
+    tabSettings: () => ({
+      ...defaultSettings(),
+      tabTrigger: 'automatic',
+    }),
     isPaidOn: () => true,
     isKeyStored: () => {
       harness.keyReads.count += 1
@@ -564,7 +569,10 @@ describe('createTabActivation', () => {
 
   it('reads the budget state off the bundle’s spend gate', async () => {
     const harness = activationHarness({
-      bundleServices: harnessServices({ todayTotalUsd: () => 5, todayRequests: () => 21 }),
+      bundleServices: harnessServices({
+        todayTotalUsd: () => Usd.from(5).toAmount(),
+        todayRequests: () => 21,
+      }),
     })
     harness.settingOn = true
     harness.activation.refresh()
@@ -585,7 +593,7 @@ describe('createTabActivation', () => {
     expect(servicesDeps?.ledgerDirectory).toBe('/storage/tab-spend')
     expect(servicesDeps?.windowId).toBe('window-1')
     // The budget is read live from the settings, at each request.
-    expect(servicesDeps?.budgetUsd()).toBe(1)
+    expect(servicesDeps?.budgetUsd()).toBe(Usd.from(1).toAmount())
   })
 })
 
@@ -646,14 +654,14 @@ describe('the shipped Tab bundle', () => {
       },
       ledgerDirectory: path.join(built.folder, 'tab-spend'),
       windowId: 'window-1',
-      budgetUsd: () => 1,
+      budgetUsd: () => Usd.from(1).toAmount(),
       onSent: () => undefined,
       onUsage: () => undefined,
       onTotalChanged: () => undefined,
       log: new FakeLogOutputChannel(),
     })
     expect(typeof services.engine.complete).toBe('function')
-    expect(services.spend.todayTotalUsd()).toBe(0)
+    expect(services.spend.todayTotalUsd()).toBe(Usd.from(0).toAmount())
     expect(services.spend.todayRequests()).toBe(0)
   })
 
@@ -663,7 +671,10 @@ describe('the shipped Tab bundle', () => {
     })
     const services = harnessServices()
     const provider = entryProvider({
-      settings: () => ({ ...SETTING_DEFAULTS, tabTrigger: 'automatic' }),
+      settings: () => ({
+        ...defaultSettings(),
+        tabTrigger: 'automatic',
+      }),
       isPaidOn: () => true,
       isKeyStored: () => true,
       isTrusted: () => true,

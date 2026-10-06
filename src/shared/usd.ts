@@ -13,8 +13,11 @@ export const usdAmountSchema = z
   .string()
   .check(z.regex(/^-?(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/))
   .brand<'Usd'>()
+export const nonnegativeUsdSchema = z
+  .string()
+  .check(z.regex(/^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/))
+  .brand<'Usd'>()
 export type UsdAmount = z.infer<typeof usdAmountSchema>
-export type LegacyUsd = number | string
 
 const DECIMAL = /^(-?\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i
 function radix(): bigint {
@@ -34,6 +37,10 @@ export class Usd {
       : new Usd(coefficient, places)
   }
 
+  public static fromUnits(units: bigint, places: number): Usd {
+    return new Usd(units, places)
+  }
+
   private constructor(
     private readonly coefficient: bigint,
     private readonly places: number,
@@ -41,6 +48,15 @@ export class Usd {
 
   private aligned(places: number): bigint {
     return this.coefficient * radix() ** BigInt(places - this.places)
+  }
+
+  /** Refuse precision loss at fixed-unit boundaries. */
+  public units(places: number): bigint {
+    if (places >= this.places) return this.aligned(places)
+    const divisor = radix() ** BigInt(this.places - places)
+    if (this.coefficient % divisor !== USD_DECIMAL_ZERO)
+      throw new Error('USD amount is not representable')
+    return this.coefficient / divisor
   }
 
   public add(amount: Usd): Usd {
@@ -123,38 +139,35 @@ export class Usd {
   public toAmount(): UsdAmount {
     return usdAmountSchema.parse(this.toString())
   }
-
-  public toNumber(): number {
-    const amount = Number(this.toString())
-    if (!Number.isFinite(amount)) throw new Error('USD total is not finite')
-    return amount
-  }
 }
+
+/** New user input is decimal text; canonicalize exactly once, without Number. */
+export const usdInputSchema = z.pipe(
+  z.string().check(z.regex(/^\d+(?:\.\d+)?$/)),
+  z.transform((amount) => Usd.from(amount).toAmount()),
+)
 
 /** Historical numeric records parse once; new serialized amounts stay canonical and exact. */
 export const legacyUsdSchema = z.pipe(
-  z.union([
-    z.number().check(z.nonnegative()),
-    usdAmountSchema.check(z.refine((amount) => !amount.startsWith('-'))),
-  ]),
+  z.union([z.number().check(z.nonnegative()), nonnegativeUsdSchema]),
   z.transform((amount) => Usd.from(amount).toAmount()),
 )
 
 /** Legacy values normalize once; every arithmetic result remains an exact branded string. */
-export function sumUsd(...amounts: readonly LegacyUsd[]): UsdAmount {
+export function sumUsd(...amounts: readonly UsdAmount[]): UsdAmount {
   let sum = Usd.from(0)
   for (const amount of amounts) sum = sum.add(Usd.from(amount))
   return sum.toAmount()
 }
 
-export function multiplyUsd(amount: LegacyUsd, count: number): UsdAmount {
+export function multiplyUsd(amount: UsdAmount, count: number): UsdAmount {
   return Usd.from(amount).times(count).toAmount()
 }
 
-export function negateUsd(amount: LegacyUsd): UsdAmount {
+export function negateUsd(amount: UsdAmount): UsdAmount {
   return Usd.from(0).subtract(Usd.from(amount)).toAmount()
 }
 
-export function isPositiveUsd(amount: LegacyUsd): boolean {
+export function isPositiveUsd(amount: UsdAmount): boolean {
   return Usd.from(amount).compare(Usd.from(0)) > 0
 }

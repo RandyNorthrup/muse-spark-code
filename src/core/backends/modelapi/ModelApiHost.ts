@@ -1,4 +1,12 @@
 import {
+  Usd,
+  type UsdAmount,
+  sumUsd,
+  multiplyUsd,
+  negateUsd,
+  isPositiveUsd,
+} from '../../../shared/usd'
+import {
   freezePaidQuote,
   isSamePaidQuote,
   type PaidQuote,
@@ -296,16 +304,8 @@ import {
   SessionBudgetExceededError,
 } from './sessionBudget'
 import { uiLocale } from '../../../shared/l10n/text'
-import { estimateExactCostUsd as estimateCostUsd, formatUsd } from '../../usage/insights'
-import {
-  Usd,
-  sumUsd,
-  multiplyUsd,
-  negateUsd,
-  isPositiveUsd,
-  type LegacyUsd,
-  type UsdAmount,
-} from '../../../shared/usd'
+import { estimateCostUsd, formatUsd } from '../../usage/insights'
+
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
 import {
   afterAgentThoughtFields,
@@ -461,7 +461,7 @@ export interface ModelApiPaidHooks {
   readonly notePaidUse: (
     feature: PaidFeature,
     units: number,
-    searchPriceUsd?: LegacyUsd | SearchSettlement,
+    searchPriceUsd?: UsdAmount | SearchSettlement,
   ) => void
   /**
    * The popup before a paid use (M58, PLAN.md D48): true when it is allowed
@@ -529,12 +529,12 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly notePaidUse: (
     feature: PaidFeature,
     units: number,
-    searchPriceUsd?: LegacyUsd | SearchSettlement,
+    searchPriceUsd?: UsdAmount | SearchSettlement,
   ) => void
   /** `museSpark.modelApiPromptCacheRetention`, read per request (M56, PLAN.md D43). */
   readonly promptCacheRetention: () => PromptCacheRetention
   /** `museSpark.modelApiSessionBudgetUsd`, read per request; 0 is no cap (M82). */
-  readonly sessionBudgetUsd: () => number
+  readonly sessionBudgetUsd: () => UsdAmount
   /** M95's selected record, narrowed structurally until its subsystem is integrated. */
   readonly modelCapabilities?: (modelId: string) =>
     | {
@@ -2864,13 +2864,13 @@ export class ModelApiSession implements AgentSession {
     this.openReservation = undefined
     if (this.isSubagent) return body
     const capUsd = this.currentBudgetCap()
-    if (capUsd <= 0 && this.budgetJournal() === undefined) {
+    if (Usd.from(capUsd).compare(Usd.from(0)) <= 0 && this.budgetJournal() === undefined) {
       return body
     }
     const estimate = estimateInput(requestParts(body), this.budgetBase)
     const maxOutputTokens = body.max_output_tokens
     const reservation =
-      capUsd > 0
+      Usd.from(capUsd).compare(Usd.from(0)) > 0
         ? reserveRequest({
             capUsd,
             spentUsd: this.budgetSpentUsd,
@@ -2893,14 +2893,17 @@ export class ModelApiSession implements AgentSession {
                 },
                 body.model,
               ),
-              multiplyUsd(this.approvedSearchQuote?.tariffUsd ?? 0, body.max_tool_calls ?? 0),
+              multiplyUsd(
+                this.approvedSearchQuote?.tariffUsd ?? Usd.from(0).toAmount(),
+                body.max_tool_calls ?? 0,
+              ),
             ),
           }
     this.openReservation = {
       ...reservation,
       searchSpentUsd: Usd.from(0).toAmount(),
       searchReservedUsd: multiplyUsd(
-        this.approvedSearchQuote?.tariffUsd ?? 0,
+        this.approvedSearchQuote?.tariffUsd ?? Usd.from(0).toAmount(),
         body.max_tool_calls ?? 0,
       ),
       hasTerminalSearchCount: false,
@@ -2909,7 +2912,7 @@ export class ModelApiSession implements AgentSession {
       goalRevision: this.goalCommandRevision,
       isWorkspaceTrusted: this.deps.isWorkspaceTrusted(),
       paidFeatures: PAID_FEATURES.filter((feature) => this.deps.isPaidFeatureOn(feature)),
-      hasCap: capUsd > 0,
+      hasCap: Usd.from(capUsd).compare(Usd.from(0)) > 0,
       hasUnknownCost: modelApiPaidTier(body.model) === undefined,
       hasAmbiguousAttempt: false,
       accountId: undefined,
@@ -2920,7 +2923,9 @@ export class ModelApiSession implements AgentSession {
       isSent: false,
       isRefused: false,
     }
-    return capUsd > 0 ? { ...body, max_output_tokens: reservation.maxOutputTokens } : body
+    return Usd.from(capUsd).compare(Usd.from(0)) > 0
+      ? { ...body, max_output_tokens: reservation.maxOutputTokens }
+      : body
   }
 
   /**
@@ -2973,8 +2978,10 @@ export class ModelApiSession implements AgentSession {
     return this.parentSession?.budgetOwner() ?? this
   }
 
-  private currentBudgetCap(): number {
-    return this.isSubagent ? 0 : (this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd())
+  private currentBudgetCap(): UsdAmount {
+    return this.isSubagent
+      ? Usd.from(0).toAmount()
+      : (this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd())
   }
 
   private budgetJournal(): SessionStore['budget'] {
@@ -2997,7 +3004,7 @@ export class ModelApiSession implements AgentSession {
     owner.budgetAccountId = accountId
     const journal = this.budgetJournal()
     if (journal === undefined) {
-      if (this.currentBudgetCap() > 0) {
+      if (Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0) {
         throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
       }
       return
@@ -3007,7 +3014,10 @@ export class ModelApiSession implements AgentSession {
     }
     const total = await journal.read(scope?.sessionId ?? owner.sessionId, accountId)
     owner.budgetIsFreshFork = false
-    if (this.currentBudgetCap() > 0 && total.hasUnknownHistoricalFees) {
+    if (
+      Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0 &&
+      total.hasUnknownHistoricalFees
+    ) {
       throw new Error(UI_TEXT.sessionBudgetLegacyFeesUnknown)
     }
     this.budgetSpentUsd = total.spentUsd
@@ -3016,7 +3026,7 @@ export class ModelApiSession implements AgentSession {
 
   /** Each charge owns its journal entry; another host's snapshot cannot erase it. */
   private recordBudgetCost(
-    costUsd: LegacyUsd,
+    costUsd: UsdAmount,
     claim: SessionBudgetClaim | undefined,
     hasUnknownCost = false,
     isFinal = true,
@@ -3082,7 +3092,7 @@ export class ModelApiSession implements AgentSession {
               ? sumUsd(reservation.searchSpentUsd, negateUsd(reservation.searchReservedUsd))
               : Usd.from(0).toAmount(),
           )
-        : 0
+        : Usd.from(0).toAmount()
     if (isPositiveUsd(costUsd)) {
       this.budgetSpentUsd = sumUsd(
         this.budgetSpentUsd,
@@ -3091,7 +3101,7 @@ export class ModelApiSession implements AgentSession {
       )
       this.warnUnknownCharge(costUsd)
       this.deps.log.warn(
-        `Session budget: a response ended without its usage; its remaining reservation of ${String(costUsd)} USD counts as spent`,
+        `Session budget: a response ended without its usage; its remaining reservation of ${costUsd} USD counts as spent`,
       )
     }
     this.recordBudgetCost(costUsd, reservation.claim, isPositiveUsd(costUsd) && !reservation.hasCap)
@@ -3103,7 +3113,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** A conservative liability is visible without presenting it as verified billing. */
-  private warnUnknownCharge(costUsd: LegacyUsd): void {
+  private warnUnknownCharge(costUsd: UsdAmount): void {
     this.emit({
       type: 'backendNotice',
       level: 'warning',
@@ -3446,7 +3456,7 @@ export class ModelApiSession implements AgentSession {
       this.webSearchBound() !== undefined ||
       (this.deps.modelCapabilities === undefined &&
         !this.deps.client.hasPaidDailyBudget &&
-        this.currentBudgetCap() <= 0)
+        Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) <= 0)
     )
   }
 
@@ -3628,14 +3638,17 @@ export class ModelApiSession implements AgentSession {
           throw new AbortedError()
         }
         const capUsd = directBudget.scope?.capUsd() ?? this.currentBudgetCap()
-        if (directBudget.claim === undefined && capUsd > 0) {
+        if (directBudget.claim === undefined && Usd.from(capUsd).compare(Usd.from(0)) > 0) {
           throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
         }
-        if (directBudget.isSent && capUsd > 0) {
+        if (directBudget.isSent && Usd.from(capUsd).compare(Usd.from(0)) > 0) {
           throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
         }
         directBudget.claim?.check(capUsd)
-      } else if (reservation === undefined && this.currentBudgetCap() > 0) {
+      } else if (
+        reservation === undefined &&
+        Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0
+      ) {
         this.active?.abort.abort()
         this.compacting?.abort()
         throw new AbortedError()
@@ -3662,7 +3675,7 @@ export class ModelApiSession implements AgentSession {
         if (reservation.claim === undefined) {
           throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
         }
-        if (reservation.isSent && this.currentBudgetCap() > 0) {
+        if (reservation.isSent && Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0) {
           throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
         }
         reservation.claim.check(this.currentBudgetCap())
@@ -3927,7 +3940,7 @@ export class ModelApiSession implements AgentSession {
       this.turnCostUsd = sumUsd(this.turnCostUsd, costUsd)
     }
     this.recordBudgetCost(
-      sumUsd(costUsd, reservation?.searchSpentUsd ?? 0),
+      sumUsd(costUsd, reservation?.searchSpentUsd ?? Usd.from(0).toAmount()),
       claim,
       !hasKnownPrice || reservation?.hasAmbiguousAttempt === true,
     )
@@ -3942,7 +3955,7 @@ export class ModelApiSession implements AgentSession {
         cachedTokens: (shown?.cachedTokens ?? 0) + billable.cachedTokens,
         reasoningTokens:
           (shown?.reasoningTokens ?? 0) + (usage.output_tokens_details?.reasoning_tokens ?? 0),
-        costUsd: sumUsd(shown?.costUsd ?? 0, costUsd),
+        costUsd: sumUsd(shown?.costUsd ?? Usd.from(0).toAmount(), costUsd),
       }
       // Saved now, even while a call waits for its output (M82).
       this.touch()
@@ -4829,6 +4842,13 @@ export class ModelApiSession implements AgentSession {
    * before. A decline, an unreadable answer, a failure and the breaker all
    * come back as an ask with the reason; only the user's Stop throws.
    */
+  private isPaidBudgetAllowed(
+    scope: OwnedSessionBudgetScope | undefined,
+    keyDigest: string | undefined,
+  ): boolean {
+    return scope?.isStillAllowed(keyDigest) ?? !isPositiveUsd(this.deps.sessionBudgetUsd())
+  }
+
   private paidModelObservers(turnId: string) {
     return {
       keyed: (request: Omit<CreateResponseBody, 'prompt_cache_key' | 'prompt_cache_retention'>) =>
@@ -4890,7 +4910,8 @@ export class ModelApiSession implements AgentSession {
     }
     if (
       !isCurrent() ||
-      (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) ||
+      (budgetScope === undefined &&
+        Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
       budgetScope?.isStillAllowed(keyDigest) === false
     ) {
       return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
@@ -4955,11 +4976,7 @@ export class ModelApiSession implements AgentSession {
         {
           modelId,
           keyDigest,
-          isStillAllowed: () =>
-            isCurrent() &&
-            (budgetScope === undefined
-              ? this.deps.sessionBudgetUsd() === 0
-              : budgetScope.isStillAllowed(keyDigest)),
+          isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
           onRequestStarted: () => {
             this.deps.notePaidUse('autoReviewer', 1)
           },
@@ -5744,10 +5761,10 @@ export class ModelApiSession implements AgentSession {
       }
     }
     await this.refreshBudgetSpend()
-    const price = PAID_PRICES_USD.imageGeneration
+    const price = Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()
     const capUsd = this.currentBudgetCap()
     if (
-      capUsd > 0 &&
+      Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
       Usd.from(price).compare(Usd.from(capUsd).subtract(Usd.from(this.budgetSpentUsd))) > 0
     ) {
       throw new SessionBudgetExceededError(
@@ -5774,7 +5791,7 @@ export class ModelApiSession implements AgentSession {
     let hasReturned = false
     let egressRefusal: ToolOutcome | undefined
     try {
-      if (scope === undefined && capUsd > 0) {
+      if (scope === undefined && Usd.from(capUsd).compare(Usd.from(0)) > 0) {
         await this.onPersisted('budget')
       }
       const outcome = await runImageCall(plan, {
@@ -5799,7 +5816,7 @@ export class ModelApiSession implements AgentSession {
             ) {
               throw new AbortedError()
             }
-            if (claim === undefined && this.currentBudgetCap() > 0) {
+            if (claim === undefined && Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0) {
               throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
             }
             claim?.check(this.currentBudgetCap())
@@ -5832,11 +5849,13 @@ export class ModelApiSession implements AgentSession {
       throw error
     } finally {
       const charged =
-        imageState.isBilled || (!hasReturned && !isRefused && imageState.isSent) ? price : 0
+        imageState.isBilled || (!hasReturned && !isRefused && imageState.isSent)
+          ? price
+          : Usd.from(0).toAmount()
       this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, charged)
       if (imageState.isBilled) {
         this.turnCostUsd = sumUsd(this.turnCostUsd, charged)
-      } else if (charged > 0) {
+      } else if (Usd.from(charged).compare(Usd.from(0)) > 0) {
         this.warnUnknownCharge(charged)
       }
       this.recordBudgetCost(charged, claim)
@@ -6273,7 +6292,8 @@ export class ModelApiSession implements AgentSession {
     )
     if (
       !isCurrent() ||
-      (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) ||
+      (budgetScope === undefined &&
+        Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
       budgetScope?.isStillAllowed(keyDigest) === false
     ) {
       throw new Error('the hook model call could not start')
@@ -6309,11 +6329,7 @@ export class ModelApiSession implements AgentSession {
       {
         modelId,
         keyDigest,
-        isStillAllowed: () =>
-          isCurrent() &&
-          (budgetScope === undefined
-            ? this.deps.sessionBudgetUsd() === 0
-            : budgetScope.isStillAllowed(keyDigest)),
+        isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
         onRequestStarted: () => {
           // Hook runs are counted by the consenting dispatcher.
         },
@@ -10680,7 +10696,7 @@ export class ModelApiSession implements AgentSession {
     const budgetCapUsd = this.currentBudgetCap()
     const turnCostUsd = this.turnCostUsd
     if (
-      budgetCapUsd > 0 &&
+      Usd.from(budgetCapUsd).compare(Usd.from(0)) > 0 &&
       isPositiveUsd(turnCostUsd) &&
       !this.budgetOwner().hasUnknownBudgetCost
     ) {
@@ -10891,7 +10907,11 @@ export class ModelApiSession implements AgentSession {
       if (countRevision === this.modelRevision) {
         this.noteContext(counted)
       }
-      if (!this.isSubagent && this.currentBudgetCap() > 0 && countRevision === this.modelRevision) {
+      if (
+        !this.isSubagent &&
+        Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0 &&
+        countRevision === this.modelRevision
+      ) {
         this.budgetBase = {
           inputTokens: counted,
           parts: estimateInput(requestParts(countable), undefined).parts,
@@ -12045,11 +12065,13 @@ export class ModelApiSession implements AgentSession {
   public snapshot(): StoredSession {
     const budgetSpentUsd = sumUsd(
       this.budgetSpentUsd,
-      this.openReservation?.isReserved === true ? this.openReservation.costUsd : 0,
+      this.openReservation?.isReserved === true
+        ? this.openReservation.costUsd
+        : Usd.from(0).toAmount(),
     )
     const freshFork: Pick<StoredSession, 'budgetIsFreshFork' | 'budgetSpentUsd'> = this
       .budgetIsFreshFork
-      ? { budgetIsFreshFork: true, budgetSpentUsd: 0 }
+      ? { budgetIsFreshFork: true, budgetSpentUsd: Usd.from(0).toAmount() }
       : {}
     const packedTokensAvoided = this.packing?.savings() ?? this.restoredPackedTokens
     return {

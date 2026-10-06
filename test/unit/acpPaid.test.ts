@@ -1,3 +1,6 @@
+import type { PaidUseAnswer } from '../../src/core/paid/paidConsent'
+import { quotedSearch } from './helpers/paidQuote'
+import { Usd } from '../../src/shared/usd'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import type * as Fs from 'node:fs'
 import { link, rename } from 'node:fs/promises'
@@ -70,8 +73,8 @@ describe('M80 structural headless paid policy', () => {
 
 const FOLDER = path.resolve('work', 'app')
 const OTHER = path.resolve('work', 'other')
-const WEB_SEARCH_QUOTE = { feature: 'webSearch', tariffUsd: '0.0025' }
-const WEB_SEARCH = { feature: 'webSearch', priceUsd: 0.0025 } as const
+const WEB_SEARCH_QUOTE = { feature: 'webSearch', tariffUsd: Usd.from('0.0025').toAmount() }
+const WEB_SEARCH = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() } as const
 const folders: string[] = []
 
 vi.mock('node:fs', async (importActual) => {
@@ -195,13 +198,20 @@ describe('AcpPaidUse', () => {
     const ask = vi.fn(() => Promise.resolve('once' as const))
     second.attach(ask)
     expect(await second.allows(FOLDER, 'new-session', WEB_SEARCH, false)).toMatchObject({
-      tariffUsd: '0.0025',
+      tariffUsd: Usd.from('0.0025').toAmount(),
     })
     expect(ask).not.toHaveBeenCalled()
-    await second.allows(FOLDER, 'new-session', { feature: 'webSearch', priceUsd: '0.01' }, false)
+    await second.allows(
+      FOLDER,
+      'new-session',
+      { feature: 'webSearch', priceUsd: Usd.from('0.01').toAmount() },
+      false,
+    )
     expect(ask).toHaveBeenCalledWith(
       'new-session',
-      expect.objectContaining({ quote: expect.objectContaining({ tariffUsd: '0.01' }) }),
+      expect.objectContaining({
+        quote: expect.objectContaining({ tariffUsd: Usd.from('0.01').toAmount() }),
+      }),
       true,
     )
   })
@@ -569,4 +579,75 @@ describe('the grants file (runtime/paidGrants.ts)', () => {
     expect(store.read(OTHER)).toEqual(new Set())
     expect(store.read(FOLDER)).toEqual(new Set(['webSearch']))
   })
+})
+
+describe('R3 ACP generation-owned quote records', () => {
+  it('P2-1: saving model B after model A revocation never restores model A', async () => {
+    const store = fileStore(grantsFile())
+    const paid = new AcpPaidUse({
+      flagged: ['webSearch'],
+      canRemember: () => true,
+      grants: store,
+      log: logger(),
+    })
+    const pending = Promise.withResolvers<PaidUseAnswer>()
+    const opened = Promise.withResolvers<undefined>()
+    paid.attach((_session, request) => {
+      if (request.feature === 'webSearch' && request.quote?.model === 'model-b') {
+        opened.resolve(undefined)
+        return pending.promise
+      }
+      return Promise.resolve('always')
+    })
+    await paid.allows(FOLDER, 'a', quotedSearch('0.01'), false)
+    const savingB = paid.allows(FOLDER, 'b', quotedSearch('0.01', 'model-b'), false)
+    await opened.promise
+    await store.forget(['webSearch'])
+    pending.resolve('always')
+    expect(await savingB).toBeUndefined()
+    const question = vi.fn(() => Promise.resolve<PaidUseAnswer>('deny'))
+    paid.attach(question)
+    expect(await paid.allows(FOLDER, 'a', quotedSearch('0.01'), false)).toBeUndefined()
+    expect(question).toHaveBeenCalledOnce()
+  })
+
+  it.each([true, false])(
+    'P2-2: a delayed expensive quote save cannot overwrite a cheaper grant (revocation %s)',
+    async (revokes) => {
+      const file = grantsFile()
+      const store = fileStore(file)
+      const first = new AcpPaidUse({
+        flagged: ['webSearch'],
+        canRemember: () => true,
+        grants: store,
+        log: logger(),
+      })
+      first.attach(() => Promise.resolve('always'))
+      const barrier = holdFirstRename((_from, to) =>
+        String(to).replaceAll('\\', '/').endsWith('.quote'),
+      )
+      const old = first.allows(FOLDER, 'old', quotedSearch('0.01'), false)
+      await barrier.held.promise
+      const nextStore = fileStore(file)
+      if (revokes) await nextStore.forget(['webSearch'])
+      const next = new AcpPaidUse({
+        flagged: ['webSearch'],
+        canRemember: () => true,
+        grants: nextStore,
+        log: logger(),
+      })
+      next.attach(() => Promise.resolve('always'))
+      await next.allows(FOLDER, 'new', quotedSearch('0.0025'), false)
+      barrier.released.resolve(undefined)
+      expect(await old).toBeUndefined()
+      const question = vi.fn(() => Promise.resolve<PaidUseAnswer>('deny'))
+      next.attach(question)
+      expect(await next.allows(FOLDER, 'new', quotedSearch('0.0025'), false)).toMatchObject({
+        tariffUsd: Usd.from('0.0025').toAmount(),
+      })
+      expect(question).not.toHaveBeenCalled()
+      expect(await next.allows(FOLDER, 'new', quotedSearch('0.01'), false)).toBeUndefined()
+      expect(question).toHaveBeenCalledOnce()
+    },
+  )
 })

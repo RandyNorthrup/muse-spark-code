@@ -1,4 +1,4 @@
-import { Usd } from '../../../shared/usd'
+import { Usd, isPositiveUsd } from '../../../shared/usd'
 // A prompt/agent hook's own model call (M91, PLAN.md D70, lane H): loaded
 // only after the paid-use popup allows it. One attempt, no retry, hooks off,
 // billed to the Model API key on the hookModels tally line, apart from the
@@ -228,7 +228,7 @@ async function requestHookStep(
   })
   let claim: SessionBudgetClaim | undefined
   let directBudget: DirectResponseBudget | undefined
-  let reservedUsd = 0
+  let reservedUsd = Usd.from(0).toAmount()
   let wasRefused = false
   let usage: Usage | null | undefined
   let dailyClaim:
@@ -240,7 +240,7 @@ async function requestHookStep(
       const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
       const capUsd = budgetScope.capUsd()
       const estimated = estimateInput(requestParts(body), undefined).inputTokens
-      if (capUsd > 0) {
+      if (isPositiveUsd(capUsd)) {
         const reservation = reserveRequest({
           capUsd,
           spentUsd: total.spentUsd,
@@ -260,7 +260,7 @@ async function requestHookStep(
         budgetScope.sessionId,
         budgetScope.accountId,
         reservedUsd,
-        { isUnbounded: capUsd === 0 },
+        { isUnbounded: !isPositiveUsd(capUsd) },
       )
     }
     const estimatedInputTokens = estimateInput(requestParts(body), undefined).inputTokens
@@ -268,7 +268,8 @@ async function requestHookStep(
       { inputTokens: estimatedInputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
       modelId,
     )
-    reservedUsd = Math.max(reservedUsd, reservationUsd)
+    reservedUsd =
+      Usd.from(reservedUsd).compare(Usd.from(reservationUsd)) > 0 ? reservedUsd : reservationUsd
     dailyClaim = await context.deps.hookModelDailyBudget?.reserve(
       modelId,
       estimatedInputTokens,
@@ -339,7 +340,7 @@ async function requestHookStep(
     try {
       await claim?.settle(settlement.costUsd, settlement.isUnknown)
     } finally {
-      await dailyClaim?.settle(Usd.from(settlement.costUsd).toNumber(), settlement.isUnknown)
+      await dailyClaim?.settle(settlement.costUsd, settlement.isUnknown)
     }
   }
   return calls

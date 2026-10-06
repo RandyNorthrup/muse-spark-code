@@ -613,7 +613,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
         isKeyStored: true,
         alwaysAllowed: [],
         // Another window spent too: the ledger's day is not this window's cost.
-        tab: { budgetUsd: 1, todayUsd: 0.62 },
+        tab: { budgetUsd: Usd.from(1).toAmount(), todayUsd: Usd.from(0.62).toAmount() },
       },
     })
     const dialog = screen.getByRole('dialog')
@@ -647,7 +647,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
         isKeyStored: true,
         alwaysAllowed: [],
         // The ledger has not been read in this window yet.
-        tab: { budgetUsd: 5 },
+        tab: { budgetUsd: Usd.from(5).toAmount() },
       },
     })
     const dialog = screen.getByRole('dialog')

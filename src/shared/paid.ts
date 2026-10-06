@@ -1,3 +1,11 @@
+import {
+  Usd,
+  type UsdAmount,
+  multiplyUsd,
+  sumUsd,
+  isPositiveUsd,
+  nonnegativeUsdSchema,
+} from './usd'
 // The paid Model API features (M33–M35, PLAN.md D30) as the host, the wire
 // protocol and the webview share them: which are on, what this window has
 // used, and what that is estimated to cost at Meta's published prices.
@@ -24,16 +32,6 @@ import {
 } from './constants'
 import { fill, formatNumber, formatUsd } from './l10n/text'
 import type { BackendKind } from './protocol'
-import {
-  Usd,
-  multiplyUsd,
-  sumUsd,
-  isPositiveUsd,
-  usdAmountSchema,
-  legacyUsdSchema,
-  type UsdAmount,
-  type LegacyUsd,
-} from './usd'
 
 /** Consent and dispatch share this immutable, exact, feature-specific authorization. */
 export const paidQuoteSchema = z.object({
@@ -42,7 +40,7 @@ export const paidQuoteSchema = z.object({
   provider: z.string().check(z.minLength(1)),
   model: z.string().check(z.minLength(1)),
   modelRevision: z.int().check(z.nonnegative()),
-  tariffUsd: usdAmountSchema.check(z.refine((amount) => !amount.startsWith('-'))),
+  tariffUsd: nonnegativeUsdSchema,
   unit: z.literal('search'),
   capturedAt: z.number(),
 })
@@ -89,7 +87,7 @@ export const paidTallySchema = z.object({
     z.array(
       z.object({
         units: z.int().check(z.nonnegative()),
-        priceUsd: legacyUsdSchema,
+        priceUsd: nonnegativeUsdSchema,
       }),
     ),
   ),
@@ -100,35 +98,35 @@ export const paidTallySchema = z.object({
   subagentRequests: z.optional(z.int().check(z.nonnegative())),
   subagentUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   subagentTokens: z.optional(z.int().check(z.nonnegative())),
-  subagentCostUsd: z.optional(legacyUsdSchema),
+  subagentCostUsd: z.optional(nonnegativeUsdSchema),
   // Optional for panels saved before M78; absent means no review made.
   autoReviews: z.optional(z.int().check(z.nonnegative())),
   autoReviewUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   autoReviewTokens: z.optional(z.int().check(z.nonnegative())),
-  autoReviewCostUsd: z.optional(legacyUsdSchema),
+  autoReviewCostUsd: z.optional(nonnegativeUsdSchema),
   // Best-of-N runs started this window (M77); absent means none.
   bestOfNAttempts: z.optional(z.int().check(z.nonnegative())),
   bestOfNRequests: z.optional(z.int().check(z.nonnegative())),
   bestOfNUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   bestOfNTokens: z.optional(z.int().check(z.nonnegative())),
-  bestOfNCostUsd: z.optional(legacyUsdSchema),
+  bestOfNCostUsd: z.optional(nonnegativeUsdSchema),
   // Tab suggestion requests sent this window (M94, PLAN.md D73); absent
   // means none. Lane L counts them, lane U shows them in Account & usage.
   tabRequests: z.optional(z.int().check(z.nonnegative())),
   tabUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   tabTokens: z.optional(z.int().check(z.nonnegative())),
   tabCachedTokens: z.optional(z.int().check(z.nonnegative())),
-  tabCostUsd: z.optional(legacyUsdSchema),
+  tabCostUsd: z.optional(nonnegativeUsdSchema),
   // M91 prompt/agent hook runs started this window (D70); absent means none.
   hookModelRuns: z.optional(z.int().check(z.nonnegative())),
   hookModelUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   hookModelTokens: z.optional(z.int().check(z.nonnegative())),
-  hookModelCostUsd: z.optional(legacyUsdSchema),
+  hookModelCostUsd: z.optional(nonnegativeUsdSchema),
   // Same-model judge calls this window (M98, PLAN.md D77); absent means none.
   judgeCalls: z.optional(z.int().check(z.nonnegative())),
   judgeUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   judgeTokens: z.optional(z.int().check(z.nonnegative())),
-  judgeCostUsd: z.optional(legacyUsdSchema),
+  judgeCostUsd: z.optional(nonnegativeUsdSchema),
 })
 export type PaidTally = z.infer<typeof paidTallySchema>
 
@@ -195,8 +193,8 @@ export const paidStateSchema = z.object({
    */
   tab: z.optional(
     z.object({
-      budgetUsd: z.number().check(z.nonnegative()),
-      todayUsd: z.optional(z.number().check(z.nonnegative())),
+      budgetUsd: nonnegativeUsdSchema,
+      todayUsd: z.optional(nonnegativeUsdSchema),
     }),
   ),
 })
@@ -209,10 +207,10 @@ export type PaidState = z.infer<typeof paidStateSchema>
  * to search at all.
  */
 export type PaidUseRequest =
-  | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: number }
+  | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: UsdAmount }
   | {
       readonly feature: 'webSearch'
-      readonly priceUsd: LegacyUsd
+      readonly priceUsd: UsdAmount
       readonly quote?: PaidQuote
       readonly isCurrent?: () => boolean
     }
@@ -247,7 +245,7 @@ export type PaidUseRequest =
       // (its per-token rates are quoted) and today's budget cap the popup.
       readonly feature: 'tab'
       readonly modelId: string
-      readonly budgetUsd: number
+      readonly budgetUsd: UsdAmount
     }
   | {
       /** M91 prompt/agent hook handlers (D70): one paid model call per hook run. */
@@ -257,7 +255,7 @@ export type PaidUseRequest =
       /** The handler kind, as written in the file. */
       readonly kind: 'prompt' | 'agent'
       readonly modelId: string
-      readonly dailyBudgetUsd?: number | undefined
+      readonly dailyBudgetUsd?: UsdAmount | undefined
     }
 
 /**
@@ -292,7 +290,7 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): UsdAmount {
       return cost.toAmount()
     }
     case 'imageGeneration': {
-      return multiplyUsd(PAID_PRICES_USD.imageGeneration, tally.images)
+      return multiplyUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount(), tally.images)
     }
     case 'voice': {
       return Usd.from(PAID_PRICES_USD.voicePerHour)
@@ -457,14 +455,14 @@ export function hookModelPrice(modelId: string): string {
 }
 
 /** The feature's price, as its setting, confirmation, badge and dialog state it. */
-export function paidFeaturePrice(feature: PaidFeature, searchPriceUsd?: LegacyUsd): string {
+export function paidFeaturePrice(feature: PaidFeature, searchPriceUsd?: UsdAmount): string {
   switch (feature) {
     case 'webSearch': {
       const price =
         searchPriceUsd ??
         Usd.from(PAID_PRICES_USD.webSearchPerThousand).divide(SEARCHES_PER_PRICE_UNIT).toAmount()
       if (
-        (typeof price === 'number' && !Number.isFinite(price)) ||
+        !nonnegativeUsdSchema.safeParse(price).success ||
         Usd.from(price).compare(Usd.from(0)) < 0
       )
         throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)

@@ -1,3 +1,4 @@
+import { Usd, legacyUsdSchema, usdAmountSchema, type UsdAmount } from '../../shared/usd'
 // Tab's daily spend ledger (M94, PLAN.md D73): one file per window per
 // local day under the extension's global storage, written atomically, with
 // the cross-window daily total read from all of today's files.
@@ -49,31 +50,32 @@ const ENOENT = 'ENOENT'
 const ledgerFileSchema = z.object({
   date: z.string(),
   window: z.string(),
-  reservedUsd: z.number().check(z.nonnegative()),
-  reportedUsd: z.number().check(z.nonnegative()),
+  reservedUsd: legacyUsdSchema,
+  reportedUsd: legacyUsdSchema,
 })
 
 interface LedgerFile {
-  readonly reservedUsd: number
-  readonly reportedUsd: number
+  readonly reservedUsd: UsdAmount
+  readonly reportedUsd: UsdAmount
 }
 
 /** Today's total spend across every window, or the refusal to trust it. */
 export type TabDayTotal =
-  { readonly ok: true; readonly totalUsd: number } | { readonly ok: false; readonly detail: string }
+  | { readonly ok: true; readonly totalUsd: UsdAmount }
+  | { readonly ok: false; readonly detail: string }
 
 /** An admitted request's reservation: the local day it was written to and its worst case. */
 export interface TabLedgerReservation {
   /** The admission's local day, as `YYYY-MM-DD`; settlement writes to this day's file. */
   readonly date: string
-  readonly worstCaseUsd: number
+  readonly worstCaseUsd: UsdAmount
 }
 
 /** Whether the next request may be sent, and what that day's total then is. */
 export type TabAdmission =
   | {
       readonly admitted: true
-      readonly totalUsd: number
+      readonly totalUsd: UsdAmount
       /** What `settle` takes once the request reports its usage. */
       readonly reservation: TabLedgerReservation
     }
@@ -81,7 +83,7 @@ export type TabAdmission =
       readonly admitted: false
       readonly reason: 'budgetReached' | 'ledgerUnreadable'
       readonly detail: string
-      readonly totalUsd?: number
+      readonly totalUsd?: UsdAmount
     }
 
 /** This window's part of a local day, as `YYYY-MM-DD`. */
@@ -92,8 +94,13 @@ export function tabLocalDate(nowMs: number): string {
   return `${String(date.getFullYear())}-${month}-${day}`
 }
 
-function isUsableAmount(value: number): boolean {
-  return Number.isFinite(value) && value >= 0
+function isUsableAmount(value: UsdAmount): boolean {
+  return usdAmountSchema.safeParse(value).success && !value.startsWith('-')
+}
+
+function nonnegativeDifference(left: UsdAmount, right: UsdAmount): UsdAmount {
+  const difference = Usd.from(left).subtract(Usd.from(right))
+  return difference.compare(Usd.from(0)) < 0 ? Usd.from(0).toAmount() : difference.toAmount()
 }
 
 /** What a name failure is: anything but a folder that is not there yet. */
@@ -122,13 +129,13 @@ export interface TabLedger {
    * total across all files stays within `budgetUsd`. A refusal rolls the
    * reservation back on the same day. Never throws.
    */
-  readonly admit: (worstCaseUsd: number, budgetUsd: number) => Promise<TabAdmission>
+  readonly admit: (worstCaseUsd: UsdAmount, budgetUsd: UsdAmount) => Promise<TabAdmission>
   /**
    * Replaces the reservation's worst case with the reported `actualUsd`
    * in the reservation's own day's file, also after midnight. A request
    * that never reports keeps its whole reservation. Never throws.
    */
-  readonly settle: (reservation: TabLedgerReservation, actualUsd: number) => Promise<void>
+  readonly settle: (reservation: TabLedgerReservation, actualUsd: UsdAmount) => Promise<void>
 }
 
 export function createTabLedger(deps: TabLedgerDeps): TabLedger {
@@ -148,7 +155,7 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
       raw = await readFile(ownFile(date), 'utf8')
     } catch (error: unknown) {
       if (isMissing(error)) {
-        return { reservedUsd: 0, reportedUsd: 0 }
+        return { reservedUsd: Usd.from(0).toAmount(), reportedUsd: Usd.from(0).toAmount() }
       }
       // This window's own unreadable file: fail closed, and say which.
       return undefined
@@ -197,16 +204,20 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
       }
     } catch (error: unknown) {
       // No folder yet means no window spent today; anything else refuses.
-      return isMissing(error) ? { ok: true, totalUsd: 0 } : { ok: false, detail: date }
+      return isMissing(error)
+        ? { ok: true, totalUsd: Usd.from(0).toAmount() }
+        : { ok: false, detail: date }
     }
     let names: string[]
     try {
       names = await readdir(dayDirectory(date))
     } catch (error: unknown) {
       // No folder yet means no window spent today; anything else refuses.
-      return isMissing(error) ? { ok: true, totalUsd: 0 } : { ok: false, detail: date }
+      return isMissing(error)
+        ? { ok: true, totalUsd: Usd.from(0).toAmount() }
+        : { ok: false, detail: date }
     }
-    let totalUsd = 0
+    let totalUsd = Usd.from(0).toAmount()
     const sorted = names.toSorted((left, right) => left.localeCompare(right))
     for (const name of sorted) {
       if (name.endsWith(ATOMIC_TEMPORARY_SUFFIX) || !name.endsWith(FILE_EXTENSION)) {
@@ -233,19 +244,22 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
       ) {
         return { ok: false, detail: name }
       }
-      totalUsd += file.data.reservedUsd + file.data.reportedUsd
+      totalUsd = Usd.from(totalUsd)
+        .add(Usd.from(file.data.reservedUsd))
+        .add(Usd.from(file.data.reportedUsd))
+        .toAmount()
     }
     return { ok: true, totalUsd }
   }
 
-  const rollback = async (date: string, worstCaseUsd: number): Promise<void> => {
+  const rollback = async (date: string, worstCaseUsd: UsdAmount): Promise<void> => {
     const current = await readOwn(date)
     if (current === undefined) {
       deps.log.warn(`Tab ledger ${fileName} could not roll back its reservation`)
       return
     }
     const didRollBack = await didWriteOwn(date, {
-      reservedUsd: Math.max(0, current.reservedUsd - worstCaseUsd),
+      reservedUsd: nonnegativeDifference(current.reservedUsd, worstCaseUsd),
       reportedUsd: current.reportedUsd,
     })
     if (!didRollBack) {
@@ -254,7 +268,7 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
     }
   }
 
-  const admit = async (worstCaseUsd: number, budgetUsd: number): Promise<TabAdmission> => {
+  const admit = async (worstCaseUsd: UsdAmount, budgetUsd: UsdAmount): Promise<TabAdmission> => {
     if (!isUsableAmount(worstCaseUsd) || !isUsableAmount(budgetUsd)) {
       deps.log.warn('Tab ledger refused a request with an unusable amount')
       return { admitted: false, reason: 'ledgerUnreadable', detail: 'amount' }
@@ -268,7 +282,7 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
       return { admitted: false, reason: 'ledgerUnreadable', detail: fileName }
     }
     const reserved = {
-      reservedUsd: current.reservedUsd + worstCaseUsd,
+      reservedUsd: Usd.from(current.reservedUsd).add(Usd.from(worstCaseUsd)).toAmount(),
       reportedUsd: current.reportedUsd,
     }
     if (!(await didWriteOwn(date, reserved))) {
@@ -281,22 +295,20 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
       deps.log.warn(`Tab ledger ${total.detail} is unreadable, treating the budget as reached`)
       return { admitted: false, reason: 'ledgerUnreadable', detail: total.detail }
     }
-    if (total.totalUsd > budgetUsd) {
+    if (Usd.from(total.totalUsd).compare(Usd.from(budgetUsd)) > 0) {
       await rollback(date, worstCaseUsd)
-      deps.log.info(
-        `Tab daily budget reached: ${String(total.totalUsd)} of ${String(budgetUsd)} spent`,
-      )
+      deps.log.info(`Tab daily budget reached: ${total.totalUsd} of ${budgetUsd} spent`)
       return {
         admitted: false,
         reason: 'budgetReached',
         detail: fileName,
-        totalUsd: total.totalUsd - worstCaseUsd,
+        totalUsd: Usd.from(total.totalUsd).subtract(Usd.from(worstCaseUsd)).toAmount(),
       }
     }
     return { admitted: true, totalUsd: total.totalUsd, reservation: { date, worstCaseUsd } }
   }
 
-  const settle = async (reservation: TabLedgerReservation, actualUsd: number): Promise<void> => {
+  const settle = async (reservation: TabLedgerReservation, actualUsd: UsdAmount): Promise<void> => {
     if (!isUsableAmount(reservation.worstCaseUsd) || !isUsableAmount(actualUsd)) {
       deps.log.warn('Tab ledger ignored settlement with an unusable amount')
       return
@@ -316,8 +328,8 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
       return
     }
     const didSettle = await didWriteOwn(date, {
-      reservedUsd: Math.max(0, current.reservedUsd - reservation.worstCaseUsd),
-      reportedUsd: current.reportedUsd + actualUsd,
+      reservedUsd: nonnegativeDifference(current.reservedUsd, reservation.worstCaseUsd),
+      reportedUsd: Usd.from(current.reportedUsd).add(Usd.from(actualUsd)).toAmount(),
     })
     if (!didSettle) {
       deps.log.warn(`Tab ledger ${fileName} could not settle, keeping its reservation`)

@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { isPositiveUsd, legacyUsdSchema } from '../../src/shared/usd'
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
@@ -416,7 +417,7 @@ function setup(
     /** `museSpark.modelApiPromptCacheRetention` (M56); in memory unless a test says so. */
     retention?: PromptCacheRetention
     /** `museSpark.modelApiSessionBudgetUsd` (M82); no cap unless a test says so. */
-    sessionBudgetUsd?: number | (() => number)
+    sessionBudgetUsd?: UsdAmount | (() => UsdAmount)
     /** `museSpark.modelApiReplyUsage` (M82); off unless a test says so. */
     showReplyUsage?: boolean
     mediaBudgetMaxEncodedChars?: number
@@ -453,10 +454,10 @@ function setup(
     onListDirectory?: (directory: string) => void
   } = {},
 ) {
-  const currentBudgetCap = (): number =>
+  const currentBudgetCap = (): UsdAmount =>
     typeof options.sessionBudgetUsd === 'function'
       ? options.sessionBudgetUsd()
-      : (options.sessionBudgetUsd ?? 0)
+      : (options.sessionBudgetUsd ?? Usd.from(0).toAmount())
   const paidUses: { readonly feature: PaidFeature; readonly units: number }[] = []
   // What the paid-use popup was asked (M58), in order, and whether it had to ask.
   const paidRequests: { readonly request: PaidUseRequest; readonly requiresAsking: boolean }[] = []
@@ -531,7 +532,8 @@ function setup(
       options.hasNoStore === true
         ? undefined
         : (options.store ??
-          (options.sessionBudgetUsd !== undefined && currentBudgetCap() > 0
+          (options.sessionBudgetUsd !== undefined &&
+          Usd.from(currentBudgetCap()).compare(Usd.from(0)) > 0
             ? memorySessionStore()
             : undefined)),
     scheduleStore: options.scheduleStore,
@@ -1720,7 +1722,11 @@ function heldBudgetStore(name: string, isFailure = false) {
   let hasHeld = false
   const store = budgetStoreIn(directory, async (from, to) => {
     const saved = parseStoredSession(JSON.parse(readFileSync(from, 'utf8')))
-    if (!hasHeld && saved.ok && isPositiveUsd(saved.session.budgetSpentUsd ?? 0)) {
+    if (
+      !hasHeld &&
+      saved.ok &&
+      isPositiveUsd(saved.session.budgetSpentUsd ?? Usd.from(0).toAmount())
+    ) {
       hasHeld = true
       if (isFailure) {
         throw new Error('reservation write refused')
@@ -1734,7 +1740,7 @@ function heldBudgetStore(name: string, isFailure = false) {
 }
 
 /** Independent stores and hosts reopening one real account-owned session file. */
-async function sharedBudgetHosts(name: string, capUsd: number, firstCapUsd = capUsd) {
+async function sharedBudgetHosts(name: string, capUsd: UsdAmount, firstCapUsd = capUsd) {
   const directory = path.join(scheduleRoot, name)
   const firstStore = budgetStoreIn(directory)
   const secondStore = budgetStoreIn(directory)
@@ -1797,7 +1803,7 @@ function holdBothBudgetClaims(stores: readonly SessionStore[]) {
       return {
         ...claim,
         settle: async (costUsd) => {
-          if (costUsd === 0) {
+          if (costUsd === '0') {
             refunds += 1
             if (refunds === stores.length) {
               refunded.resolve(undefined)
@@ -1816,7 +1822,7 @@ function holdBothBudgetClaims(stores: readonly SessionStore[]) {
 async function scopedBudgetAttempt(name: string, capUsd = 0.1) {
   const directory = path.join(scheduleRoot, name)
   const store = budgetStoreIn(directory)
-  const parentOptions = { store, sessionBudgetUsd: capUsd, isTrusted: true }
+  const parentOptions = { store, sessionBudgetUsd: Usd.from(capUsd).toAmount(), isTrusted: true }
   const parent = setup(parentOptions)
   const parentWatched = await startSession(parent)
   const scope = await parent.host.getOwnedBudgetScope(parentWatched.session.sessionId)
@@ -2540,7 +2546,7 @@ function sentParts(body: Readonly<Record<string, unknown>> | undefined) {
 }
 
 function standardCost(inputTokens: number, outputTokens: number, cachedTokens = 0): number {
-  return estimateCostUsd({ inputTokens, outputTokens, cachedTokens }, 'muse-spark-1.3')
+  return Number(estimateCostUsd({ inputTokens, outputTokens, cachedTokens }, 'muse-spark-1.3'))
 }
 
 function expectFullBudgetEstimate(t: ReturnType<typeof setup>): void {
@@ -2552,9 +2558,9 @@ function expectFullBudgetEstimate(t: ReturnType<typeof setup>): void {
 function expectSavedBudget(
   store: ReturnType<typeof memorySessionStore>,
   sessionId: string,
-  costUsd: number,
+  costUsd: number | UsdAmount,
 ): void {
-  expect(Number(store.saved.get(sessionId)?.budgetSpentUsd)).toBeCloseTo(costUsd, 12)
+  expect(Number(store.saved.get(sessionId)?.budgetSpentUsd)).toBeCloseTo(Number(costUsd), 12)
 }
 
 async function storedBudget(store: SessionStore, sessionId: string): Promise<number | undefined> {
@@ -2670,7 +2676,7 @@ describe('ModelApiSession: per-reply usage (M82)', () => {
 describe('ModelApiSession: session budget (M82)', () => {
   it('estimates the first request from its bytes and fits its output to what is left', async () => {
     setUiText(EN, BASE_LOCALE)
-    const t = setup({ sessionBudgetUsd: 0.1 })
+    const t = setup({ sessionBudgetUsd: Usd.from(0.1).toAmount() })
     const { session, turnDone } = await startSession(t)
     t.api.script({ text: 'ok', usage: { input: 1000, output: 10 } })
     await session.sendTurn([{ type: 'text', text: 'hi' }])
@@ -2678,8 +2684,8 @@ describe('ModelApiSession: session budget (M82)', () => {
     const [body] = t.api.responseBodies()
     const estimated = estimateInput(sentParts(body), undefined).inputTokens
     const expected = reserveRequest({
-      capUsd: 0.1,
-      spentUsd: 0,
+      capUsd: Usd.from(0.1).toAmount(),
+      spentUsd: Usd.from(0).toAmount(),
       estimatedInputTokens: estimated,
       modelId: 'muse-spark-1.3',
     })
@@ -2699,7 +2705,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   })
 
   it('estimates a later request from the reported tokens plus only what was added', async () => {
-    const t = setup({ sessionBudgetUsd: 10 })
+    const t = setup({ sessionBudgetUsd: Usd.from(10).toAmount() })
     const { session, turnDone } = await startSession(t)
     t.api.script({ calls: [TODO_CALL], usage: { input: 5, output: 1 } }, { text: 'Done.' })
     await session.sendTurn([{ type: 'text', text: 'plan it' }])
@@ -2726,7 +2732,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     ] as const) {
       const runHook = vi.fn(() => hookReply())
       const t = setup({
-        sessionBudgetUsd: capUsd,
+        sessionBudgetUsd: Usd.from(capUsd).toAmount(),
         hooks: hooksFor('PreLLMCall', 'observe'),
         runHook,
       })
@@ -2737,7 +2743,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('never sends a request the cap cannot fit, and the turn says why', async () => {
     setUiText(EN, BASE_LOCALE)
-    const t = setup({ sessionBudgetUsd: 0.000001 })
+    const t = setup({ sessionBudgetUsd: Usd.from(0.000001).toAmount() })
     const watched = await startSession(t)
     await budgetTurn(t, watched, 'hi', { text: 'never sent' })
     expect(t.api.responseBodies()).toEqual([])
@@ -2749,7 +2755,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('stops a turn at the request that no longer fits, after the ones that did', async () => {
     setUiText(EN, BASE_LOCALE)
-    const t = setup({ sessionBudgetUsd: 2.5 })
+    const t = setup({ sessionBudgetUsd: Usd.from(2.5).toAmount() })
     const watched = await startSession(t)
     // The first request reports a million input tokens ($1.25): the next
     // one carries them again, and $1.25 is all that is left.
@@ -2778,7 +2784,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('refuses a model with no known price rather than guess what fits', async () => {
     setUiText(EN, BASE_LOCALE)
-    const t = setup({ sessionBudgetUsd: 100 })
+    const t = setup({ sessionBudgetUsd: Usd.from(100).toAmount() })
     const watched = await startSession(t)
     await watched.session.setModel('muse-spark-9')
     await budgetTurn(t, watched, 'hi', { text: 'never sent' })
@@ -2790,7 +2796,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('keeps an uncapped future model visible but refuses a later cap when that tariff was never verified', async () => {
     const store = memorySessionStore()
-    const options = { store, sessionBudgetUsd: 0, showReplyUsage: true }
+    const options = { store, sessionBudgetUsd: Usd.from(0).toAmount(), showReplyUsage: true }
     const t = setup(options)
     const watched = await startSession(t)
     await watched.session.setModel('muse-spark-future-contributor')
@@ -2804,11 +2810,9 @@ describe('ModelApiSession: session budget (M82)', () => {
       type: 'itemUpdated',
       item: {
         usage: { inputTokens: 10, outputTokens: 5 },
-        costUsd: String(
-          estimateCostUsd(
-            { inputTokens: 10, outputTokens: 5, cachedTokens: 0 },
-            'muse-spark-1.3-contributor',
-          ),
+        costUsd: estimateCostUsd(
+          { inputTokens: 10, outputTokens: 5, cachedTokens: 0 },
+          'muse-spark-1.3-contributor',
         ),
       },
     })
@@ -2819,7 +2823,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     const spending = await scope.journal.read(scope.sessionId, scope.accountId)
     expect(spending.hasUnknownHistoricalFees).toBe(true)
     await watched.session.setModel('muse-spark-1.3')
-    options.sessionBudgetUsd = 0.1
+    options.sessionBudgetUsd = Usd.from(0.1).toAmount()
     await budgetTurn(t, watched, 'known model with old unverified spending', { text: 'not sent' })
     await t.host.close()
     expect(t.api.responseBodies()).toHaveLength(1)
@@ -2833,7 +2837,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('counts a response that began and never reported at its whole reservation', async () => {
     const store = memorySessionStore()
-    const t = setup({ store, sessionBudgetUsd: 1 })
+    const t = setup({ store, sessionBudgetUsd: Usd.from(1).toAmount() })
     const { session, turnDone } = await startSession(t)
     t.api.script({ text: 'partial', streamError: { code: 'boom', message: 'lost' } })
     await session.sendTurn([{ type: 'text', text: 'hi' }])
@@ -2848,7 +2852,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('counts a request stopped after it was sent at its whole reservation', async () => {
     const store = memorySessionStore()
-    const t = setup({ store, sessionBudgetUsd: 1 })
+    const t = setup({ store, sessionBudgetUsd: Usd.from(1).toAmount() })
     const watched = await holdBudgetReply(t, { text: 'late' })
     await watched.session.cancel()
     await watched.turnDone()
@@ -2858,13 +2862,13 @@ describe('ModelApiSession: session budget (M82)', () => {
     expectSavedBudget(
       store,
       watched.session.sessionId,
-      standardCost(reserved?.input ?? 0, reserved?.output ?? 0),
+      Usd.from(standardCost(reserved?.input ?? 0, reserved?.output ?? 0)).toAmount(),
     )
   })
 
   it('counts nothing for a request Meta refused before its response began', async () => {
     const store = memorySessionStore()
-    const t = setup({ store, sessionBudgetUsd: 1 })
+    const t = setup({ store, sessionBudgetUsd: Usd.from(1).toAmount() })
     const { session, turnDone } = await startSession(t)
     t.api.script({ httpError: { status: 400, body: { error: { message: 'bad' } } } })
     await session.sendTurn([{ type: 'text', text: 'hi' }])
@@ -2877,7 +2881,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('says when a response used every output token the budget left it', async () => {
     setUiText(EN, BASE_LOCALE)
-    const t = setup({ sessionBudgetUsd: 0.1 })
+    const t = setup({ sessionBudgetUsd: Usd.from(0.1).toAmount() })
     const { session, events, turnDone } = await startSession(t)
     t.api.script({ text: 'cut', usage: { input: 10, output: 1_000_000 } })
     await session.sendTurn([{ type: 'text', text: 'hi' }])
@@ -2892,7 +2896,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   })
 
   it('stays quiet about output that stayed under the allowance', async () => {
-    const t = setup({ sessionBudgetUsd: 0.1 })
+    const t = setup({ sessionBudgetUsd: Usd.from(0.1).toAmount() })
     const { session, events, turnDone } = await startSession(t)
     t.api.script({ text: 'short', usage: { input: 10, output: 3 } })
     await session.sendTurn([{ type: 'text', text: 'hi' }])
@@ -2903,7 +2907,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   })
 
   it('reserves a compaction, and never sends one the cap cannot fit', async () => {
-    const t = setup({ sessionBudgetUsd: 2.5 })
+    const t = setup({ sessionBudgetUsd: Usd.from(2.5).toAmount() })
     const { session, turnDone } = await startSession(t)
     // $1.25 spent on a million reported tokens, which the summary call carries again.
     t.api.script({ text: 'Start', usage: { input: 1_000_000, output: 0 } })
@@ -2916,7 +2920,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   })
 
   it('estimates after a compaction from Meta’s count of the new context', async () => {
-    const t = setup({ sessionBudgetUsd: 10 })
+    const t = setup({ sessionBudgetUsd: Usd.from(10).toAmount() })
     const watched = await preparedBudgetCompaction(t)
     await watched.session.compact()
     await budgetTurn(t, watched, 'next request', { text: 'Next' })
@@ -2929,7 +2933,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   })
 
   it('estimates the whole request again after the model changes', async () => {
-    const t = setup({ sessionBudgetUsd: 10 })
+    const t = setup({ sessionBudgetUsd: Usd.from(10).toAmount() })
     const watched = await startSession(t)
     await budgetTurn(t, watched, 'go', { text: 'Start' })
     await watched.session.setModel('muse-spark-1.2')
@@ -2939,7 +2943,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('shows the turn’s cost against the cap afterwards', async () => {
     setUiText(EN, BASE_LOCALE)
-    const t = setup({ sessionBudgetUsd: 10 })
+    const t = setup({ sessionBudgetUsd: Usd.from(10).toAmount() })
     const { session, events, turnDone } = await startSession(t)
     t.api.script({ text: 'ok', usage: { input: 1000, output: 200, cached: 100 } })
     await session.sendTurn([{ type: 'text', text: 'hi' }])
@@ -2958,7 +2962,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('keeps the spend across windows, so a resumed session still cannot overspend', async () => {
     const store = memorySessionStore()
-    const first = setup({ store, sessionBudgetUsd: 10 })
+    const first = setup({ store, sessionBudgetUsd: Usd.from(10).toAmount() })
     const { session, turnDone } = await startSession(first)
     first.api.script({ text: 'ok', usage: { input: 1_000_000, output: 1_000_000 } })
     await session.sendTurn([{ type: 'text', text: 'hi' }])
@@ -2967,7 +2971,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     // Standard tier: $1.25 + $4.25.
     expect(Number(store.saved.get(session.sessionId)?.budgetSpentUsd)).toBeCloseTo(5.5, 10)
 
-    const second = setup({ store, sessionBudgetUsd: 5.5 })
+    const second = setup({ store, sessionBudgetUsd: Usd.from(5.5).toAmount() })
     await second.host.load()
     const resumed = await second.host.resumeSession(session.sessionId, 'muse-spark-1.3')
     const watched = watchSessionTurns(resumed.session)
@@ -2984,7 +2988,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     const store = memorySessionStore()
     if (store.budget === undefined) throw new Error('Expected budget journal')
     const reservations = vi.spyOn(store.budget, 'reserve')
-    const t = setupSubagents({ store, sessionBudgetUsd: 10 })
+    const t = setupSubagents({ store, sessionBudgetUsd: Usd.from(10).toAmount() })
     const { session } = await startApprovedSubagentSession(t)
     await completePaidChild(t, session, 'spawn_budget')
     await t.host.close()
@@ -3001,7 +3005,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('prices a child’s held request at its sent model even if the child model changes', async () => {
     const store = memorySessionStore()
-    const t = setupSubagents({ store, sessionBudgetUsd: 10 })
+    const t = setupSubagents({ store, sessionBudgetUsd: Usd.from(10).toAmount() })
     const watched = await startApprovedSubagentSession(t)
     const held = Promise.withResolvers<undefined>()
     const childStarted = Promise.withResolvers<ModelApiSession>()
@@ -3052,7 +3056,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('saves what a request spent while its call waits for an approval', async () => {
     const store = memorySessionStore()
-    const t = setup({ store, sessionBudgetUsd: 10 })
+    const t = setup({ store, sessionBudgetUsd: Usd.from(10).toAmount() })
     const { session, events } = await startSession(t)
     t.api.script(
       {
@@ -3070,7 +3074,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     expect(saved?.usage.inputTokens).toBe(1_000_000)
     expect(saved?.replay.some((entry) => entry.item.type === 'function_call')).toBe(false)
     // A reload now cannot send what the real balance does not cover.
-    const reloaded = setup({ store, sessionBudgetUsd: 1.25 })
+    const reloaded = setup({ store, sessionBudgetUsd: Usd.from(1.25).toAmount() })
     await reloaded.host.load()
     const resumed = await reloaded.host.resumeSession(session.sessionId, 'muse-spark-1.3')
     const watched = watchSessionTurns(resumed.session)
@@ -3101,7 +3105,7 @@ describe('ModelApiSession: session budget (M82)', () => {
         return result
       },
     }
-    const t = setup({ store, io, sessionBudgetUsd: 10 })
+    const t = setup({ store, io, sessionBudgetUsd: Usd.from(10).toAmount() })
     const { session } = await startSession(t, 'allowAll')
     t.api.script({
       calls: [{ name: 'bash', arguments: '{"command":"sleep 60","description":"wait"}' }],
@@ -3120,7 +3124,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('prices a request at the model it was sent to, and keeps no base across a switch', async () => {
     const store = memorySessionStore()
-    const t = setup({ store, sessionBudgetUsd: 10 })
+    const t = setup({ store, sessionBudgetUsd: Usd.from(10).toAmount() })
     const watched = await holdBudgetReply(t, { text: 'ok', usage: { input: 1_000_000, output: 0 } })
     await watched.session.setModel('muse-spark-1.3-contributor')
     watched.release()
@@ -3130,9 +3134,11 @@ describe('ModelApiSession: session budget (M82)', () => {
     await t.host.close()
     expect(Number(store.saved.get(watched.session.sessionId)?.budgetSpentUsd)).toBeCloseTo(
       1.25 +
-        estimateCostUsd(
-          { inputTokens: 10, outputTokens: 5, cachedTokens: 0 },
-          'muse-spark-1.3-contributor',
+        Number(
+          estimateCostUsd(
+            { inputTokens: 10, outputTokens: 5, cachedTokens: 0 },
+            'muse-spark-1.3-contributor',
+          ),
         ),
       10,
     )
@@ -3143,7 +3149,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   it('saves an in-flight reservation to disk before the first response frame, so a crash reload cannot overspend', async () => {
     const directory = path.join(scheduleRoot, 'budget-in-flight')
     const store = budgetStoreIn(directory)
-    const first = setup({ store, sessionBudgetUsd: 0.1 })
+    const first = setup({ store, sessionBudgetUsd: Usd.from(0.1).toAmount() })
     const watched = await startSession(first)
     const held = Promise.withResolvers<undefined>()
     first.api.script({ text: 'waiting', hold: held.promise })
@@ -3160,7 +3166,7 @@ describe('ModelApiSession: session budget (M82)', () => {
       const [reserved] = reservations(first)
       const liability = standardCost(reserved?.input ?? 0, reserved?.output ?? 0)
       expect(Number(saved.ok && saved.session.budgetSpentUsd)).toBeCloseTo(liability, 12)
-      const reloaded = setup({ store, sessionBudgetUsd: liability })
+      const reloaded = setup({ store, sessionBudgetUsd: Usd.from(liability).toAmount() })
       try {
         await reloaded.host.load()
         const resumed = await reloaded.host.resumeSession(
@@ -3182,7 +3188,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('waits for a durable reservation before starting fetch, then replaces it with actual usage', async () => {
     const disk = heldBudgetStore('durable-before-fetch')
-    const t = setup({ store: disk.store, sessionBudgetUsd: 0.1 })
+    const t = setup({ store: disk.store, sessionBudgetUsd: Usd.from(0.1).toAmount() })
     const watched = await startSession(t)
     try {
       await waitForBudgetWrite(t, watched.session, disk)
@@ -3210,7 +3216,7 @@ describe('ModelApiSession: session budget (M82)', () => {
       let key = 'LLM|1|secret'
       const options: NonNullable<Parameters<typeof setup>[0]> = {
         store: disk.store,
-        sessionBudgetUsd: 0.1,
+        sessionBudgetUsd: Usd.from(0.1).toAmount(),
         isTrusted: true,
         paid: ['webSearch'],
         apiKey: () => Promise.resolve(key),
@@ -3256,7 +3262,7 @@ describe('ModelApiSession: session budget (M82)', () => {
             break
           }
           default: {
-            options.sessionBudgetUsd = 0.01
+            options.sessionBudgetUsd = Usd.from(0.01).toAmount()
           }
         }
         disk.release.resolve(undefined)
@@ -3273,7 +3279,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('sends no capped request when the reservation write fails', async () => {
     const disk = heldBudgetStore('durable-write-failed', true)
-    const t = setup({ store: disk.store, sessionBudgetUsd: 0.1 })
+    const t = setup({ store: disk.store, sessionBudgetUsd: Usd.from(0.1).toAmount() })
     const watched = await startSession(t)
     await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
     await watched.turnDone()
@@ -3287,7 +3293,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   })
 
   it('sends no capped request when no session store is available', async () => {
-    const t = setup({ sessionBudgetUsd: 0.1, hasNoStore: true })
+    const t = setup({ sessionBudgetUsd: Usd.from(0.1).toAmount(), hasNoStore: true })
     const watched = await startSession(t)
     await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
     await watched.turnDone()
@@ -3304,7 +3310,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     const started = vi.fn()
     const t = setup({
       store,
-      sessionBudgetUsd: 0.1,
+      sessionBudgetUsd: Usd.from(0.1).toAmount(),
       admitResponseAttempt: Object.assign(
         () => {
           void watched.session.cancel()
@@ -3318,7 +3324,9 @@ describe('ModelApiSession: session budget (M82)', () => {
     await t.host.close()
     expect(t.api.responseBodies()).toEqual([])
     expect(started).not.toHaveBeenCalled()
-    expect(store.saved.get(watched.session.sessionId)?.budgetSpentUsd ?? 0).toBe(0)
+    expect(
+      store.saved.get(watched.session.sessionId)?.budgetSpentUsd ?? Usd.from(0).toAmount(),
+    ).toBe(Usd.from(0).toAmount())
     expect(
       watched.events.some(
         (event) => event.type === 'backendNotice' && event.text.includes('possible charge'),
@@ -3331,7 +3339,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     let hasAskedForKey = false
     const options: NonNullable<Parameters<typeof setup>[0]> = {
       store: memorySessionStore(),
-      sessionBudgetUsd: 0,
+      sessionBudgetUsd: Usd.from(0).toAmount(),
       // Account discovery finishes before the deliberately held final credential read.
       getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
       apiKey: () => {
@@ -3345,7 +3353,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     await vi.waitFor(() => {
       expect(hasAskedForKey).toBe(true)
     })
-    options.sessionBudgetUsd = 0.1
+    options.sessionBudgetUsd = Usd.from(0.1).toAmount()
     held.resolve('LLM|1|secret')
     await watched.turnDone()
     expect(t.api.responseBodies()).toEqual([])
@@ -3353,7 +3361,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   })
 
   it('admits no two-host overspend when both real claims publish before final admission', async () => {
-    const pair = await sharedBudgetHosts('two-host-publication-barrier', 0.1)
+    const pair = await sharedBudgetHosts('two-host-publication-barrier', Usd.from(0.1).toAmount())
     const barrier = holdBothBudgetClaims([pair.firstStore, pair.secondStore])
     const firstDone = pair.firstWatched.turnDone()
     const secondDone = pair.secondWatched.turnDone()
@@ -3455,7 +3463,7 @@ describe('ModelApiSession: session budget (M82)', () => {
             break
           }
           default: {
-            bound.parentOptions.sessionBudgetUsd = 0.01
+            bound.parentOptions.sessionBudgetUsd = Usd.from(0.01).toAmount()
           }
         }
         held.resolve(undefined)
@@ -3466,7 +3474,7 @@ describe('ModelApiSession: session budget (M82)', () => {
           bound.scope.sessionId,
           bound.scope.accountId,
         )
-        expect(refunded.spentUsd).toBe('0')
+        expect(refunded.spentUsd).toBe(Usd.from('0').toAmount())
       } finally {
         held.resolve(undefined)
         spy.mockRestore()
@@ -3494,7 +3502,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     const store = budgetStoreIn(path.join(scheduleRoot, 'host-closing-direct-scope'))
     const t = setup({
       store,
-      sessionBudgetUsd: 1,
+      sessionBudgetUsd: Usd.from(1).toAmount(),
       // Bind the account before holding credentials at the actual request boundary.
       getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
       hooks: hooksFor('SessionEnd', 'held-end'),
@@ -3535,7 +3543,11 @@ describe('ModelApiSession: session budget (M82)', () => {
   it.each([0.1, 0])(
     'blocks a later capped host until an earlier held request settles, first cap %s',
     async (firstCap) => {
-      const pair = await sharedBudgetHosts(`two-host-held-${String(firstCap)}`, 0.1, firstCap)
+      const pair = await sharedBudgetHosts(
+        `two-host-held-${String(firstCap)}`,
+        Usd.from(0.1).toAmount(),
+        Usd.from(firstCap).toAmount(),
+      )
       const held = Promise.withResolvers<undefined>()
       const requested = Promise.withResolvers<undefined>()
       pair.first.api.script({
@@ -3580,7 +3592,11 @@ describe('ModelApiSession: session budget (M82)', () => {
   it.each([502, 429])(
     'keeps earlier ambiguous uncapped retries unknown despite a successful tail, with 429 as established refusal: %s',
     async (status) => {
-      const pair = await sharedBudgetHosts(`two-host-uncapped-retry-${String(status)}`, 0.1, 0)
+      const pair = await sharedBudgetHosts(
+        `two-host-uncapped-retry-${String(status)}`,
+        Usd.from(0.1).toAmount(),
+        Usd.from(0).toAmount(),
+      )
       try {
         await budgetTurn(
           pair.first,
@@ -3612,7 +3628,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   )
 
   it('never lowers the authoritative disk spend when a second host saves its stale snapshot', async () => {
-    const pair = await sharedBudgetHosts('two-host-stale-save', 10)
+    const pair = await sharedBudgetHosts('two-host-stale-save', Usd.from(10).toAmount())
     try {
       const stale = await pair.secondStore.load(pair.firstWatched.session.sessionId)
       if (stale === undefined) {
@@ -3623,7 +3639,7 @@ describe('ModelApiSession: session budget (M82)', () => {
         usage: { input: 1_000_000, output: 0 },
       })
       await pair.first.host.flush()
-      await pair.secondStore.save({ ...stale, budgetSpentUsd: 0 })
+      await pair.secondStore.save({ ...stale, budgetSpentUsd: Usd.from(0).toAmount() })
       const saved = parseStoredSession(
         JSON.parse(readFileSync(path.join(pair.directory, `${stale.sessionId}.json`), 'utf8')),
       )
@@ -3641,7 +3657,11 @@ describe('ModelApiSession: session budget (M82)', () => {
     async (sideChat) => {
       const directory = path.join(scheduleRoot, `fresh-fork-${String(sideChat)}`)
       const store = budgetStoreIn(directory)
-      const t = setupSubagents({ store, sessionBudgetUsd: 10, paid: ['imageGeneration'] })
+      const t = setupSubagents({
+        store,
+        sessionBudgetUsd: Usd.from(10).toAmount(),
+        paid: ['imageGeneration'],
+      })
       const watched = await startApprovedSubagentSession(t)
       await completePaidChild(t, watched.session, 'fork_closed_child')
       await vi.waitFor(() => {
@@ -3663,7 +3683,7 @@ describe('ModelApiSession: session budget (M82)', () => {
       )
       await t.host.flush()
       const initial = await store.load(fork.session.sessionId)
-      expect(initial?.budgetSpentUsd).toBe('0')
+      expect(initial?.budgetSpentUsd).toBe(Usd.from('0').toAmount())
       expect(initial?.transcript.some(({ item }) => item.paid === 'imageGeneration')).toBe(true)
       expect(initial?.children?.length).toBeGreaterThan(0)
       expect(initial?.children?.every((child) => child.state === 'closed')).toBe(true)
@@ -3692,7 +3712,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     'keeps unknown sent liability and refuses a same-claim automatic response retry: %j',
     async (failure) => {
       const store = memorySessionStore()
-      const t = setup({ store, sessionBudgetUsd: 0.1 })
+      const t = setup({ store, sessionBudgetUsd: Usd.from(0.1).toAmount() })
       const watched = await startSession(t)
       await budgetTurn(t, watched, 'hi', failure, { text: 'unsafe retry' })
       await t.host.close()
@@ -3700,7 +3720,7 @@ describe('ModelApiSession: session budget (M82)', () => {
       expect(lastReason(watched.events)).toBe(UI_TEXT.sessionBudgetRetryUnavailable)
       const [reserved] = reservations(t)
       const liability = standardCost(reserved?.input ?? 0, reserved?.output ?? 0)
-      expectSavedBudget(store, watched.session.sessionId, liability)
+      expectSavedBudget(store, watched.session.sessionId, Usd.from(liability).toAmount())
       expect(watched.events).toContainEqual({
         type: 'backendNotice',
         level: 'warning',
@@ -3716,7 +3736,7 @@ describe('ModelApiSession: session budget (M82)', () => {
 
   it('keeps a capped 429 retry under one claim because the first request was explicitly refused', async () => {
     const store = memorySessionStore()
-    const t = setup({ store, sessionBudgetUsd: 0.1 })
+    const t = setup({ store, sessionBudgetUsd: Usd.from(0.1).toAmount() })
     const watched = await startSession(t)
     await budgetTurn(t, watched, 'hi', { httpError: { status: 429 } }, { text: 'allowed' })
     await t.host.close()
@@ -3730,7 +3750,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   it('omits capped hosted search with a visible reason and keeps cap-off paid search unchanged', async () => {
     for (const capUsd of [0.1, 0]) {
       const store = memorySessionStore()
-      const t = setup({ store, sessionBudgetUsd: capUsd, paid: ['webSearch'] })
+      const t = setup({ store, sessionBudgetUsd: Usd.from(capUsd).toAmount(), paid: ['webSearch'] })
       const watched = await startSession(t)
       await budgetTurn(t, watched, 'find it', { text: 'done' })
       await t.host.close()
@@ -3754,7 +3774,11 @@ describe('ModelApiSession: session budget (M82)', () => {
     'charges the known image fee in shared spending, including an unsavable billed image: %s',
     async (isInvalidImage) => {
       const store = memorySessionStore()
-      const t = setup({ store, sessionBudgetUsd: 0.1, paid: ['imageGeneration'] })
+      const t = setup({
+        store,
+        sessionBudgetUsd: Usd.from(0.1).toAmount(),
+        paid: ['imageGeneration'],
+      })
       const watched = await startSession(t, 'allowAll')
       if (isInvalidImage) {
         t.api.images.push({ b64: Buffer.from('GIF89a…').toString('base64') })
@@ -3772,13 +3796,13 @@ describe('ModelApiSession: session budget (M82)', () => {
       expectSavedBudget(
         store,
         watched.session.sessionId,
-        standardCost(10, 5) * 2 + PAID_PRICES_USD.imageGeneration,
+        Usd.from(standardCost(10, 5) * 2 + Number(PAID_PRICES_USD.imageGeneration)).toAmount(),
       )
     },
   )
 
   it('buys no image whose known flat fee cannot fit the remaining cap', async () => {
-    const t = setup({ sessionBudgetUsd: 0.02, paid: ['imageGeneration'] })
+    const t = setup({ sessionBudgetUsd: Usd.from(0.02).toAmount(), paid: ['imageGeneration'] })
     const watched = await startSession(t, 'allowAll')
     await budgetTurn(
       t,
@@ -3805,7 +3829,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   })
 
   it('keeps no old request base when the model changes away and back before usage arrives', async () => {
-    const t = setup({ sessionBudgetUsd: 10 })
+    const t = setup({ sessionBudgetUsd: Usd.from(10).toAmount() })
     const watched = await holdBudgetReply(t, { text: 'ok', usage: { input: 1_000_000, output: 0 } })
     await watched.session.setModel('muse-spark-1.3-contributor')
     await watched.session.setModel('muse-spark-1.3')
@@ -3816,7 +3840,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   })
 
   it('keeps no compaction count base when the model changes while counting', async () => {
-    const t = setup({ sessionBudgetUsd: 10 })
+    const t = setup({ sessionBudgetUsd: Usd.from(10).toAmount() })
     const watched = await startSession(t)
     await budgetTurn(t, watched, 'go', { text: 'Start' })
     const { counted, countStarted } = holdCompactionCount(t)
@@ -3847,7 +3871,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     'keeps invalid $name usage out of totals and charges the conservative reservation',
     async ({ usage }) => {
       const store = memorySessionStore()
-      const t = setup({ store, sessionBudgetUsd: 1, showReplyUsage: true })
+      const t = setup({ store, sessionBudgetUsd: Usd.from(1).toAmount(), showReplyUsage: true })
       const watched = await startSession(t)
       await budgetTurn(t, watched, 'hi', { text: 'odd', usage })
       await t.host.close()
@@ -3870,14 +3894,14 @@ describe('ModelApiSession: session budget (M82)', () => {
       expectSavedBudget(
         store,
         watched.session.sessionId,
-        standardCost(reserved?.input ?? 0, reserved?.output ?? 0),
+        Usd.from(standardCost(reserved?.input ?? 0, reserved?.output ?? 0)).toAmount(),
       )
       expect(countLogged(t.log, 'Model API usage with invalid token counts was ignored')).toBe(1)
     },
   )
 
   it('keeps no base from a negative count of the compacted context', async () => {
-    const t = setup({ sessionBudgetUsd: 10 })
+    const t = setup({ sessionBudgetUsd: Usd.from(10).toAmount() })
     const watched = await preparedBudgetCompaction(t)
     t.api.inputTokens = -5
     await watched.session.compact()
@@ -8241,7 +8265,10 @@ describe('ModelApiSession subagents (M48)', () => {
     // The parent's web search popup, then the spawn's; the child asked nothing.
     expect(t.paidRequests).toEqual([
       {
-        request: expect.objectContaining({ feature: 'webSearch', priceUsd: '0.0025' }),
+        request: expect.objectContaining({
+          feature: 'webSearch',
+          priceUsd: Usd.from('0.0025').toAmount(),
+        }),
         requiresAsking: false,
       },
       {
@@ -11407,7 +11434,10 @@ async function firstRequest(paid: readonly PaidFeature[]) {
 
 function searchPopupRequest() {
   return {
-    request: expect.objectContaining({ feature: 'webSearch', priceUsd: '0.0025' }),
+    request: expect.objectContaining({
+      feature: 'webSearch',
+      priceUsd: Usd.from('0.0025').toAmount(),
+    }),
     requiresAsking: false,
   }
 }
@@ -15853,24 +15883,24 @@ describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 revi
     if (journal === undefined) throw new Error('Expected a budget journal')
     const reserve = journal.reserve.bind(journal)
     const held = heldWait()
-    const settled: number[] = []
+    const settled: UsdAmount[] = []
     journal.reserve = async (...args: Parameters<typeof reserve>) => {
       const claim = await reserve(...args)
-      if (args[2] !== PAID_PRICES_USD.imageGeneration) return claim
+      if (args[2] !== Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()) return claim
       // The image's own claim: the awaits between approval and the send.
       await held.hold()
       return {
         ...claim,
-        settle: (actualUsd: number, isUnknown?: boolean) => {
+        settle: (actualUsd: UsdAmount, isUnknown?: boolean) => {
           settled.push(actualUsd)
-          return claim.settle(actualUsd, isUnknown)
+          return claim.settle(Usd.from(actualUsd).toAmount(), isUnknown)
         },
       }
     }
     const source = Buffer.concat([SOURCE_PNG, Buffer.from(SYNTHETIC_PRIVATE)])
     const t = setup({
       paid: ['imageGeneration'],
-      sessionBudgetUsd: 1,
+      sessionBudgetUsd: Usd.from(1).toAmount(),
       store,
       permissionSettings: () => settings,
     })
@@ -15893,7 +15923,7 @@ describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 revi
       `Error: edit_image ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
     )
     // Nothing was sent, so the claim settles at nothing and nothing is billed.
-    expect(settled).toEqual([0])
+    expect(settled).toEqual([Usd.from(0).toAmount()])
     expect(t.paidUses).toEqual([])
     expect(t.io.binaries.has(`${ROOT}/out.png`)).toBe(false)
   })
@@ -16082,7 +16112,7 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
 
   it('admits a finite-cap reviewer after a settled ordinary request through its own real journal claim', async () => {
     const store = budgetStoreIn(path.join(scheduleRoot, 'review-budget-positive'))
-    const t = setup({ ...REVIEWER_ON, store, sessionBudgetUsd: () => 1 })
+    const t = setup({ ...REVIEWER_ON, store, sessionBudgetUsd: () => Usd.from(1).toAmount() })
     const { session, events, turnDone } = await startSession(t, 'onRequest')
     scriptAllowReview(t)
     const finished = turnDone()
@@ -16124,7 +16154,7 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
           `review-invalid-${String(usage.input)}-${String(usage.cached ?? 0)}`,
         ),
       )
-      const t = setup({ ...REVIEWER_ON, store, sessionBudgetUsd: () => 1 })
+      const t = setup({ ...REVIEWER_ON, store, sessionBudgetUsd: () => Usd.from(1).toAmount() })
       const { session, events, turnDone } = await startSession(t, 'onRequest')
       t.api.script(
         { calls: [shellCall('npm test')] },
@@ -16197,7 +16227,7 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
     const { t, session, turnDone, request } = await untilFirstCard(
       {
         ...REVIEWER_ON,
-        sessionBudgetUsd: () => capUsd,
+        sessionBudgetUsd: () => Usd.from(capUsd).toAmount(),
         allowsPaidUse: (request) => {
           if (request.feature === 'autoReviewer') capUsd = 1
           return Promise.resolve(true)

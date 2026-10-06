@@ -116,11 +116,14 @@ Stderr holds redacted diagnostics and status/requests/settled/uncertain/image
 summary. No cwd or raw tool text appears in the result. Changed/denied paths are
 relative with forward slashes; input names are basenames.
 
-The complete machine contracts are [result v1](schemas/exec-result-v1.schema.json)
-and [event v1](schemas/exec-event-v1.schema.json), shipped in npm `schemas/`.
+The complete machine contracts are [result v2](schemas/exec-result-v2.schema.json)
+and [event v2](schemas/exec-event-v2.schema.json), shipped in npm `schemas/`.
 Required fields and numeric/status invariants are validated by the runtime;
 `x-runtime-invariants` records arithmetic/sequencing that JSON Schema alone
 cannot express. `npm run schema:exec -- --check` checks deterministic bytes.
+In v2 every USD field is a canonical decimal string, exactly representable in
+micro-USD. Numeric v1 output is historical and the current Action refuses it.
+Budgets still require explicit flags and obey the same hard bounds.
 The runtime zod schemas (`src/runtime/exec/execProtocol.ts`) are normative.
 The shipped event schema also enforces the update egress rule itself:
 `$defs.execSafeUpdateValue` refuses chunk/tool `sessionUpdate` values and
@@ -146,7 +149,7 @@ event variant against a structural mirror of the event schema, parity-tested.
 | usage.costUsd                                               | {settled,uncertain,reserved,total,isUpperBound}, or null on Muse Code. total includes retained full reservations. isUpperBound iff uncertainty, a pending reservation or any latched stop.                                                |
 | usage.paid                                                  | {imageAttempts,imagesReturned,imagesRefunded,imagesUncertain,settledUsd,uncertainUsd}. Zero on Muse Code.                                                                                                                                 |
 | ledger                                                      | {capUsd,breach,refusal,lastResponse}, or null on Muse Code. lastResponse carries n, terminal, incompleteReason, endedWithoutTerminal, httpStatus, transportError, usage (valid/missing/invalid) and settlement (priced/full-reservation). |
-| limits                                                      | {budgetUsd:number\|null,maxRequests:number\|null,timeoutSeconds:number}.                                                                                                                                                                  |
+| limits                                                      | {budgetUsd:string\|null,maxRequests:number\|null,timeoutSeconds:number}.                                                                                                                                                                  |
 | durationMs                                                  | Nonnegative finite elapsed time from process start.                                                                                                                                                                                       |
 | error                                                       | null for completed; otherwise {kind,message}, whole-redacted.                                                                                                                                                                             |
 

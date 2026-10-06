@@ -1,3 +1,4 @@
+import { PaidAuthority } from '../../paid/paidAuthority'
 // A thin, schema-validated client for the four Model API endpoints the
 // backend uses (PLAN.md D2): `GET /models`, `POST /responses/input_tokens`,
 // the streamed `POST /responses` and `POST /images/generations` (M34).
@@ -47,24 +48,20 @@ import {
   streamEventSchema,
 } from './schemas'
 import { parseSse } from './sse'
-import { estimateExactCostUsd, formatUsd, type BillableUsage } from '../../usage/insights'
+import { estimateCostUsd, formatUsd, type BillableUsage } from '../../usage/insights'
 import { webSearchPriceUsd } from '../../paid/paidFeatures'
-import {
-  modelApiPaidTier,
-  searchSettlement,
-  type PaidQuote,
-  type SearchSettlement,
-} from '../../../shared/paid'
-import { Usd, sumUsd, multiplyUsd, type LegacyUsd, type UsdAmount } from '../../../shared/usd'
+import { modelApiPaidTier, type PaidQuote, type SearchSettlement } from '../../../shared/paid'
+import { Usd, sumUsd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../../../shared/usd'
 
 /** The client needs admission and settlement, not the ledger's internal totals. */
 interface PaidRequestClaim {
-  readonly reservedUsd: LegacyUsd
-  check(capUsd: number): void
-  settle(actualCostUsd: LegacyUsd): Promise<unknown>
+  readonly reservedUsd: UsdAmount
+  check(capUsd: UsdAmount): void
+  settle(actualCostUsd: UsdAmount): Promise<unknown>
 }
 
 export interface ModelApiClientDeps {
+  readonly paidAuthority?: PaidAuthority
   /** Interactive VS Code extras only; ACP/headless clients omit this port. */
   readonly reservePaidRequest?: (
     body: CreateResponseBody | CreateImageBody,
@@ -72,13 +69,13 @@ export interface ModelApiClientDeps {
     estimatedInputTokens?: number,
     signal?: AbortSignal,
     /** M106: tokens plus the verified hosted-call allowance, computed in this bundle. */
-    reservationUsd?: LegacyUsd,
+    reservationUsd?: UsdAmount,
   ) => Promise<PaidRequestClaim | undefined>
   /** M95 integration: a provider's verified hosted-search tariff, never a fallback estimate. */
   readonly providerId?: ((modelId: string) => string) | undefined
-  readonly webSearchPriceUsd?: (modelId: string) => LegacyUsd | undefined
+  readonly webSearchPriceUsd?: (modelId: string) => UsdAmount | undefined
   /** M95's verified token pricing; an unpriced provider cannot spend under a search cap. */
-  readonly searchTokenCostUsd?: (usage: BillableUsage, modelId: string) => LegacyUsd | undefined
+  readonly searchTokenCostUsd?: (usage: BillableUsage, modelId: string) => UsdAmount | undefined
   readonly fetch: typeof fetch
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */
@@ -270,6 +267,7 @@ function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; d
 }
 
 export class ModelApiClient {
+  private searchClaimSequence = 0
   /** Stream event types already logged as ignored (M39). */
   private readonly ignoredEventTypes = new Set<string>()
 
@@ -384,7 +382,14 @@ export class ModelApiClient {
       // becomes another billable attempt.
       if (init.paid !== undefined) {
         if (init.paid.isSent) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
-        init.paid.claim.check(0)
+        init.paid.claim.check(Usd.from(0).toAmount())
+      }
+      if (
+        admitAttempt?.searchQuote !== undefined &&
+        this.deps.paidAuthority !== undefined &&
+        !this.deps.paidAuthority.canSpend(admitAttempt.searchQuote)
+      ) {
+        throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
       }
       admitAttempt?.(credentials.keyDigest)
       if (isAborted(signal)) {
@@ -497,17 +502,17 @@ export class ModelApiClient {
   private searchTokenCostUsd(
     usage: BillableUsage,
     modelId: string,
-    unknownChargeUsd?: LegacyUsd,
+    unknownChargeUsd?: UsdAmount,
   ): UsdAmount {
     const knownCost =
-      modelApiPaidTier(modelId) === undefined ? undefined : estimateExactCostUsd(usage, modelId)
+      modelApiPaidTier(modelId) === undefined ? undefined : estimateCostUsd(usage, modelId)
     const cost =
       this.deps.searchTokenCostUsd === undefined
         ? knownCost
         : this.deps.searchTokenCostUsd(usage, modelId)
     if (
       cost === undefined ||
-      (typeof cost === 'number' && !Number.isFinite(cost)) ||
+      !usdAmountSchema.safeParse(cost).success ||
       Usd.from(cost).compare(Usd.from(0)) < 0
     ) {
       throw new Error(
@@ -529,13 +534,16 @@ export class ModelApiClient {
   }
 
   public searchPriceUsd(modelId: string): UsdAmount | undefined {
-    const price =
-      this.deps.webSearchPriceUsd === undefined
-        ? webSearchPriceUsd(modelId)
-        : this.deps.webSearchPriceUsd(modelId)
-    if (price === undefined) return undefined
     try {
-      return Usd.from(price).compare(Usd.from(0)) < 0 ? undefined : Usd.from(price).toAmount()
+      const price =
+        this.deps.webSearchPriceUsd === undefined
+          ? webSearchPriceUsd(modelId)
+          : this.deps.webSearchPriceUsd(modelId)
+      return price !== undefined &&
+        usdAmountSchema.safeParse(price).success &&
+        !price.startsWith('-')
+        ? price
+        : undefined
     } catch {
       return undefined
     }
@@ -646,7 +654,7 @@ export class ModelApiClient {
     const searchQuote = admitAttempt?.searchQuote
     const searchPrice =
       searchQuote?.tariffUsd ?? (hasSearch ? this.searchPriceUsd(body.model) : undefined)
-    let reservationUsd: LegacyUsd | undefined
+    let reservationUsd: UsdAmount | undefined
     if (hasSearch && this.hasPaidDailyBudget) {
       if (body.max_tool_calls === undefined) throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
       const inputTokens =
@@ -671,24 +679,41 @@ export class ModelApiClient {
             reservationUsd,
           )
     const paid = claim === undefined ? undefined : { claim, isSent: false }
+    const authority = this.deps.paidAuthority ?? new PaidAuthority()
+    const claimId =
+      searchQuote === undefined
+        ? undefined
+        : `${searchQuote.id}:${String(this.searchClaimSequence++)}`
     const searchItems = new Set<string>()
     let returnedSearches = 0
     let searchCharge: SearchSettlement | undefined
     const returnedFees = () =>
-      searchCharge?.costUsd ?? multiplyUsd(searchPrice ?? 0, returnedSearches)
-    const returnedLiability = (reservedUsd: LegacyUsd, shouldKeepAllowance: boolean) =>
+      searchCharge?.costUsd ?? multiplyUsd(searchPrice ?? Usd.from(0).toAmount(), returnedSearches)
+    const returnedLiability = (reservedUsd: UsdAmount, shouldKeepAllowance: boolean) =>
       sumUsd(
         reservedUsd,
         shouldKeepAllowance && returnedSearches <= (body.max_tool_calls ?? 0)
-          ? 0
+          ? Usd.from(0).toAmount()
           : Usd.from(returnedFees())
-              .subtract(Usd.from(multiplyUsd(searchPrice ?? 0, body.max_tool_calls ?? 0)))
+              .subtract(
+                Usd.from(
+                  multiplyUsd(searchPrice ?? Usd.from(0).toAmount(), body.max_tool_calls ?? 0),
+                ),
+              )
               .toAmount(),
       )
     const noteReturned = (isTerminal: boolean) => {
-      if (searchQuote === undefined) return
-      searchCharge = searchSettlement(searchQuote, returnedSearches, isTerminal)
-      admitAttempt?.onSearchesReturned?.(searchCharge)
+      if (searchQuote === undefined || claimId === undefined) return
+      const effects = authority.dispatch({
+        type: 'settle',
+        claimId,
+        returnedCalls: returnedSearches,
+        isTerminal,
+      })
+      for (const effect of effects) {
+        if (effect.type === 'settled') searchCharge = effect.settlement
+      }
+      if (searchCharge !== undefined) admitAttempt?.onSearchesReturned?.(searchCharge)
     }
     let hasTerminal = false
     let hasTerminalSearchCount = false
@@ -700,6 +725,20 @@ export class ModelApiClient {
       }
     }
     try {
+      if (searchQuote !== undefined && claimId !== undefined) {
+        if (this.deps.paidAuthority === undefined) {
+          const grant = { quote: searchQuote, generation: 'caller' }
+          authority.dispatch({ type: 'quote', ...grant, ask: true })
+          authority.dispatch({ type: 'answer', grant, answer: 'once' })
+        } else if (!authority.canSpend(searchQuote))
+          throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+        authority.dispatch({
+          type: 'reserve',
+          claimId,
+          quote: searchQuote,
+          reservedUsd: claim?.reservedUsd ?? searchAllowanceUsd(body.max_tool_calls, searchPrice),
+        })
+      }
       const response = await within(
         this.request(
           '/responses',
@@ -800,7 +839,7 @@ export class ModelApiClient {
                           body.model,
                           returnedLiability(claim.reservedUsd, false),
                         )
-                      : estimateExactCostUsd(billable, body.model),
+                      : estimateCostUsd(billable, body.model),
                     returnedFees(),
                   ),
                 )

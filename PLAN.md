@@ -19407,6 +19407,36 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**H round-3 redesign (REDM106H, 2026-10-06).** Replace snapshot-based
+search authority with one synchronous `step(state, event)` owner. Prompts and
+persistence are tagged effects; provider/model grant writes carry their original
+revocation generation and quote id. Ask again invalidates pending answers and
+saves before awaiting storage; independent keys never replace a shared array.
+The same reducer owns quote admission, reservation and quote-only settlement,
+with one exact settlement receipt projected to daily/session/tally consumers.
+Memento and ACP persistence store independent generation-owned quote records.
+Remove replaced quote caches, whole-array saves and numeric money adapters:
+current budget, pricing, reservation, settlement, journal and consent ports use
+branded canonical USD strings; historical numbers migrate only on parse.
+All reviewer probes remain named regressions. Exhaustive completion-order
+coverage and generation/key/number-parse red drills use default timeouts, with
+byte-exact restoration in `docs/certification/m106-h.md`. No paid/live calls,
+merge or full quality run in this rig lane; lead runs the full gate matrix.
+The exact-money port invariant also covers the private M80 headless contract and
+Action consumer: canonical strings replace numeric USD without changing opt-in,
+image flags or hard-budget admission. Its versioned schema advances to v2; v1
+artifacts remain historical. Existing W/M95 product handoffs remain.
+
+**H round-3 rig result (2026-10-06).** The serialized quoted authority and
+exact current-money contracts are implemented. 3,058 tests in 69 owned/touched
+whole files pass at default timeouts; owner coverage is 100% statements,
+functions and lines, 94.02% branches. All three generation/key/number-parse
+drills fire and restore byte-exact. Five-project typecheck, scoped lint/format,
+knip, cycles, zero-clone duplication, 14-table localization, host API, schemas
+and production build pass. Model API is 464.8/475 KiB; ACP is 832.0/850 KiB.
+Receipts and the named probe map are in `docs/certification/m106-h.md`.
+The lead retains integrated quality, multi-OS/editor checks and M80 live receipts.
+
 **H round-2 fixes (FIXM106H2, 2026-10-06).** All four P2s and the P3
 in RVM106H2 are in scope, with no accepted residual. Hosted-search consent
 returns an immutable quote binding feature, provider, model, model revision,
@@ -20085,6 +20115,14 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**REDM106H bounded rig certification (2026-10-06).** The explicit rig brief
+prohibits aggregate quality, full-suite runs and branch integration here. Run
+touched/owned whole files with default timeouts, scoped lint/format, all five
+typechecks, deadcode, duplication, localization, host API, cycles and production
+build. The lead retains integrated quality and the multi-OS matrix. No gate is
+weakened. The v2 headless money contract remains private/unsupported pending
+M80’s hosted/live receipts; this lane uses fake transports only.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -21136,9 +21174,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
-| ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| Location                                         | Escape hatch                                                     | Reason                                                                                                                                                                                                                                             |
+| ------------------------------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/host/settings.ts`, `readSetting` (REDM106H) | Existing `as ExtensionSettings[K]` on fallback and parsed result | Every matching keyed schema validates the configured value and its default, including numeric-to-canonical money migration. TypeScript cannot correlate the generic indexed key with the schema output. Defaults and invalid money are tested.     |
+| `src/shared/l10n/text.ts` (ACTDIET)              | `as UiText` on the descriptor clone                              | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 

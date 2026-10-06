@@ -34,7 +34,7 @@ for (const file of [
     'validation.js',
     'wire.js',
   ].map((name) => path.join(SOURCE, 'dist', name)),
-  ...['exec-result-v1.schema.json', 'exec-event-v1.schema.json'].map((name) =>
+  ...['exec-result-v2.schema.json', 'exec-event-v2.schema.json'].map((name) =>
     path.join(SOURCE, 'schemas', name),
   ),
 ]) {

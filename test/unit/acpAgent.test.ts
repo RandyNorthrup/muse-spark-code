@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { fill } from '../../src/shared/l10n/text'
 import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
@@ -1625,7 +1626,7 @@ function choose(optionId: string): PermissionAnswer {
   return () => ({ outcome: { outcome: 'selected', optionId } })
 }
 
-const WEB_SEARCH = { feature: 'webSearch', priceUsd: 0.0025 } as const
+const WEB_SEARCH = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() } as const
 const IMAGE = {
   feature: 'imageGeneration',
   kind: 'generate',

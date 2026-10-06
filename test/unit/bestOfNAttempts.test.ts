@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Best-of-N against the fake Model API (M77, PLAN.md D49): N attempts run
 // real Model API conversations in their own worktree-rooted hosts, the
 // ceiling binds model requests, and the take merges only the taken branch.
@@ -127,7 +128,7 @@ function harness(
           store: undefined,
           scheduleStore: undefined,
           ...(scope !== undefined && { budgetScope: scope }),
-          sessionBudgetUsd: () => scope?.capUsd() ?? 0,
+          sessionBudgetUsd: () => scope?.capUsd() ?? Usd.from(0).toAmount(),
           showReplyUsage: () => false,
           getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
           admitResponseAttempt: admitRequest,

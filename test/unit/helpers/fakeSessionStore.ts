@@ -1,4 +1,4 @@
-import { Usd, sumUsd, isPositiveUsd, type LegacyUsd } from '../../../src/shared/usd'
+import { Usd, sumUsd, isPositiveUsd, type UsdAmount } from '../../../src/shared/usd'
 // An in-memory SessionStore for the Model API host tests: what was saved,
 // by id, and a switch that makes the next save fail.
 
@@ -11,12 +11,12 @@ import type { SessionBudgetTotal } from '../../../src/core/backends/modelapi/ses
 import { UI_TEXT } from '../../../src/shared/constants'
 
 interface MemoryBudget {
-  readonly seed: LegacyUsd
+  readonly seed: UsdAmount
   hasUnknownHistoricalFees: boolean
   readonly entries: Map<
     string,
     {
-      readonly costUsd: LegacyUsd
+      readonly costUsd: UsdAmount
       readonly isUnbounded: boolean
       readonly hasUnknownCost: boolean
       readonly isSettled: boolean
@@ -78,7 +78,7 @@ export function memorySessionStore(): MemorySessionStore {
       throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
     }
     const budget: MemoryBudget = {
-      seed: session.budgetSpentUsd ?? 0,
+      seed: session.budgetSpentUsd ?? Usd.from(0).toAmount(),
       hasUnknownHistoricalFees: !isFreshFork && hasUnknownLegacySpending(session),
       entries: new Map(),
     }

@@ -1,3 +1,4 @@
+import { Usd, sumUsd } from '../../shared/usd'
 // The M75 paired runner (PLAN.md D49): every task runs once per arm, task by
 // task so both arms of a pair run under the same conditions. The arms take
 // turns going first: a task's first run warms Meta's prompt cache with the
@@ -227,7 +228,7 @@ function summarize(split: EvalSplit, results: readonly EvalTaskResult[]): EvalSp
     inputTokens: sum(sliced, (result) => result.inputTokens),
     cachedTokens: sum(sliced, (result) => result.cachedTokens),
     outputTokens: sum(sliced, (result) => result.outputTokens),
-    costUsd: sum(sliced, (result) => result.costUsd),
+    costUsd: sumUsd(...sliced.map((result) => result.costUsd)),
   }
 }
 
@@ -248,7 +249,7 @@ export async function runPairedEval(
   arms: readonly [EvalArm, ...EvalArm[]],
   deps: EvalRunDeps,
 ): Promise<EvalReport> {
-  const budget: EvalBudget = { spentUsd: 0 }
+  const budget: EvalBudget = { spentUsd: Usd.from(0).toAmount() }
   const runs = arms.map((arm) => ({ arm, results: [] as EvalTaskResult[] }))
   for (const [index, task] of tasks.entries()) {
     for (const [position, run] of runOrder(runs, index).entries()) {

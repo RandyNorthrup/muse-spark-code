@@ -1,3 +1,5 @@
+import { PaidAuthority } from './core/paid/paidAuthority'
+import { Usd } from './shared/usd'
 import { isJudgeEngineOn } from './core/judge/engine'
 import { judgeWindowPort } from './host/judge/judgeBundle'
 import { storeErrorCode } from './host/backend/storeErrors'
@@ -898,7 +900,9 @@ async function activateWindow(
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
       .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
+  const paidAuthority = new PaidAuthority()
   const dailyPaid = createPaidDailyBudget({
+    authority: paidAuthority,
     directory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
     now: Date.now,
     capUsd: () => currentSettings().paidDailyBudgetUsd,
@@ -909,6 +913,7 @@ async function activateWindow(
       }),
   })
   const paid = createPaidFeatures({
+    authority: paidAuthority,
     globalState: context.globalState,
     workspaceState: context.workspaceState,
     isSettingOn: (feature) =>
@@ -2294,6 +2299,7 @@ async function activateWindow(
     // The session budget cap and the per-reply usage line (M82), read per
     // request and per reply so a changed setting applies at once.
     sessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
+    paidAuthority: paid.consent.authority,
     reservePaidRequest: async (body, feature, estimatedInputTokens, signal, reservationUsd) => {
       if (reservationUsd === undefined) {
         return await dailyPaid.reserve(body, feature, estimatedInputTokens, signal)
@@ -2310,7 +2316,7 @@ async function activateWindow(
           },
         }
       } catch (error: unknown) {
-        await claim.settle(0)
+        await claim.settle(Usd.from(0).toAmount())
         throw error
       }
     },

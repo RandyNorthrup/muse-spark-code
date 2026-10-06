@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { parseExec, serveOptionsFor } from '../../src/runtime/exec/execArgs'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
@@ -65,8 +66,9 @@ describe('M80 args (A1–A10, F1)', () => {
     ['0001.000001', 1_000_001],
   ])('F1 parses %s directly into exact micro-USD', (value, units) => {
     const parsed = parseExec({ backend: 'modelApi', 'max-budget-usd': value }, ['hi'])
-    expect(parsed.ok && parsed.options.budgetMicroUsd).toBe(units)
-    expect(parsed.ok && parsed.options.budgetUsd).toBe(units / 1e6)
+    if (!parsed.ok || parsed.options.budgetUsd === undefined) throw new Error('budget was refused')
+    expect(Usd.from(parsed.options.budgetUsd).units(6)).toBe(BigInt(units))
+    expect(parsed.options.budgetUsd).toBe(Usd.from(value).toAmount())
   })
   it.each([
     { 'trust-workspace': true },
@@ -121,7 +123,7 @@ describe('M80 args (A1–A10, F1)', () => {
       paidFeatures: ['imageGeneration'],
       timeoutMs: 10_000,
       maxRequests: 1,
-      budgetMicroUsd: 2_000_000,
+      budgetUsd: Usd.from('2').toAmount(),
     })
     expect(parseExec({}, ['-'])).toMatchObject({ ok: true, options: { prompt: { kind: 'stdin' } } })
   })

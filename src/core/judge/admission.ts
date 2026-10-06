@@ -1,3 +1,4 @@
+import { Usd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
 // The judge's admission (M98, PLAN.md D77): every paid judge call is
 // reserved worst-case before dispatch, settled at its known cost, refunded
 // when known not sent, and kept as liability when its outcome is uncertain.
@@ -22,9 +23,9 @@ import { modelApiPaidTier } from '../../shared/paid'
 
 /** Per-million-token prices a reservation is computed from. */
 export interface JudgeTokenPrices {
-  readonly input: number
-  readonly cachedInput: number
-  readonly output: number
+  readonly input: UsdAmount
+  readonly cachedInput: UsdAmount
+  readonly output: UsdAmount
 }
 
 /**
@@ -34,7 +35,13 @@ export interface JudgeTokenPrices {
  */
 export function judgePriceOf(modelId: string): JudgeTokenPrices | undefined {
   const tier = modelApiPaidTier(modelId)
-  return tier === undefined ? undefined : { ...MODEL_API_PRICES_PER_MILLION[tier] }
+  if (tier === undefined) return undefined
+  const prices = MODEL_API_PRICES_PER_MILLION[tier]
+  return {
+    input: Usd.from(prices.input).toAmount(),
+    cachedInput: Usd.from(prices.cachedInput).toAmount(),
+    output: Usd.from(prices.output).toAmount(),
+  }
 }
 
 /** A model with no verified tariff: admission refuses it before any popup. */
@@ -68,7 +75,7 @@ function verifiedPrices(
     throw new JudgeUnpricedError(modelId)
   }
   for (const rate of [price.input, price.cachedInput, price.output]) {
-    if (!Number.isFinite(rate) || rate < 0) {
+    if (!usdAmountSchema.safeParse(rate).success || Usd.from(rate).compare(Usd.from(0)) < 0) {
       throw new JudgeLedgerError('priced model has an unusable tariff')
     }
   }
@@ -86,20 +93,18 @@ export function worstCaseJudgeCostUsd(args: {
   readonly estimatedInputTokens: number
   readonly maxOutputTokens: number
   readonly priceOf?: (modelId: string) => JudgeTokenPrices | undefined
-}): number {
+}): UsdAmount {
   assertUsableCount(args.estimatedInputTokens, 'estimated input tokens')
   assertUsableCount(args.maxOutputTokens, 'max output tokens')
   if (args.maxOutputTokens < 1) {
     throw new TypeError('Judge admission max output tokens must be at least 1')
   }
   const price = verifiedPrices(args.modelId, args.priceOf ?? judgePriceOf)
-  const costUsd =
-    (args.estimatedInputTokens * price.input + args.maxOutputTokens * price.output) /
-    TOKENS_PER_MILLION
-  if (!Number.isFinite(costUsd)) {
-    throw new JudgeLedgerError('reservation cost is not finite')
-  }
-  return costUsd
+  return Usd.from(price.input)
+    .times(args.estimatedInputTokens)
+    .add(Usd.from(price.output).times(args.maxOutputTokens))
+    .divide(TOKENS_PER_MILLION)
+    .toAmount()
 }
 
 /** Which conversation the call judges on. Phase 1 is these two backends. */
@@ -140,10 +145,10 @@ export type JudgeAdmissionBinding = JudgeBindingIdentity &
  */
 export interface JudgeLedgerClaim {
   readonly claimId: string
-  readonly reservedUsd: number
+  readonly reservedUsd: UsdAmount
   /** D78's synchronous guard: current cap/day/stop/cancellation and claim validity. */
   check(): void
-  settle(actualCostUsd: number): Promise<void>
+  settle(actualCostUsd: UsdAmount): Promise<void>
 }
 
 /**
@@ -154,8 +159,8 @@ export interface JudgeLedgerClaim {
  * admission then refuses and settlement keeps the liability.
  */
 export interface JudgeDailyLedger {
-  remainingUsd(): Promise<number>
-  reserve(costUsd: number): Promise<JudgeLedgerClaim>
+  remainingUsd(): Promise<UsdAmount>
+  reserve(costUsd: UsdAmount): Promise<JudgeLedgerClaim>
 }
 
 /**
@@ -203,7 +208,7 @@ export interface JudgeKnownUsage {
  */
 export interface JudgeAdmissionClaim {
   readonly claimId: string
-  readonly reservedUsd: number
+  readonly reservedUsd: UsdAmount
   readonly modelId: string
   /** The binding snapshot re-binding compares against after waits. */
   readonly binding: JudgeAdmissionBinding
@@ -214,8 +219,8 @@ export interface JudgeAdmissionClaim {
   /** Synchronous final guard; call again if the sender waits after verification. */
   check(): void
   /** The reservation while open, the settled cost once closed. */
-  outstandingUsd(): number
-  settleKnown(usage: JudgeKnownUsage): Promise<number>
+  outstandingUsd(): UsdAmount
+  settleKnown(usage: JudgeKnownUsage): Promise<UsdAmount>
   refundNonSend(): Promise<void>
 }
 
@@ -273,14 +278,14 @@ function wrapLedgerError(error: unknown): JudgeLedgerError {
 
 interface ClaimState {
   status: ReturnType<JudgeAdmissionClaim['status']>
-  settledUsd: number | undefined
-  settlingCost: number | undefined
+  settledUsd: UsdAmount | undefined
+  settlingCost: UsdAmount | undefined
   settling: Promise<void> | undefined
 }
 
 function createClaim(args: {
   readonly claimId: string
-  readonly reservedUsd: number
+  readonly reservedUsd: UsdAmount
   readonly modelId: string
   readonly binding: JudgeAdmissionBinding
   readonly priceOf: (modelId: string) => JudgeTokenPrices | undefined
@@ -292,8 +297,11 @@ function createClaim(args: {
     settlingCost: undefined,
     settling: undefined,
   }
-  const closeAt = async (actualCostUsd: number): Promise<void> => {
-    if (!Number.isFinite(actualCostUsd) || actualCostUsd < 0) {
+  const closeAt = async (actualCostUsd: UsdAmount): Promise<void> => {
+    if (
+      !usdAmountSchema.safeParse(actualCostUsd).success ||
+      Usd.from(actualCostUsd).compare(Usd.from(0)) < 0
+    ) {
       throw new JudgeLedgerError('settlement cost is not a finite nonnegative amount')
     }
     if (state.status === 'settled' || state.status === 'refunded') {
@@ -314,7 +322,7 @@ function createClaim(args: {
         await args.ledger.settle(actualCostUsd)
       }
       state.settledUsd = actualCostUsd
-      state.status = actualCostUsd === 0 ? 'refunded' : 'settled'
+      state.status = actualCostUsd === '0' ? 'refunded' : 'settled'
     })()
     const pending = state.settling
     try {
@@ -339,7 +347,7 @@ function createClaim(args: {
       args.ledger?.check()
     },
     outstandingUsd: () => state.settledUsd ?? args.reservedUsd,
-    settleKnown: async (usage: JudgeKnownUsage): Promise<number> => {
+    settleKnown: async (usage: JudgeKnownUsage): Promise<UsdAmount> => {
       assertUsableCount(usage.inputTokens, 'settled input tokens')
       assertUsableCount(usage.outputTokens, 'settled output tokens')
       assertUsableCount(usage.cachedTokens, 'settled cached tokens')
@@ -349,16 +357,17 @@ function createClaim(args: {
       // Use the same verified source as reservation, including its cache
       // rate. A missing tariff throws JudgeUnpricedError and keeps liability.
       const price = verifiedPrices(args.modelId, args.priceOf)
-      const actualCostUsd =
-        ((usage.inputTokens - usage.cachedTokens) * price.input +
-          usage.cachedTokens * price.cachedInput +
-          usage.outputTokens * price.output) /
-        TOKENS_PER_MILLION
+      const actualCostUsd = Usd.from(price.input)
+        .times(usage.inputTokens - usage.cachedTokens)
+        .add(Usd.from(price.cachedInput).times(usage.cachedTokens))
+        .add(Usd.from(price.output).times(usage.outputTokens))
+        .divide(TOKENS_PER_MILLION)
+        .toAmount()
       await closeAt(actualCostUsd)
       return actualCostUsd
     },
     refundNonSend: async (): Promise<void> => {
-      await closeAt(0)
+      await closeAt(Usd.from(0).toAmount())
     },
   }
 }
@@ -399,7 +408,7 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
     return { admitted: false, refusal: initialRefusal }
   }
   const priceOf = request.priceOf ?? judgePriceOf
-  let reservedUsd: number
+  let reservedUsd: UsdAmount
   try {
     reservedUsd = worstCaseJudgeCostUsd({
       modelId: before.modelId,
@@ -427,7 +436,7 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
     }
   }
   const { ledger } = request.billing
-  let remainingUsd: number
+  let remainingUsd: UsdAmount
   try {
     remainingUsd = await ledger.remainingUsd()
   } catch {
@@ -435,11 +444,14 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
   }
   const afterRemaining = bindingRefusal()
   if (afterRemaining !== undefined) return { admitted: false, refusal: afterRemaining }
-  if (!Number.isFinite(remainingUsd) || remainingUsd < 0) {
+  if (
+    !usdAmountSchema.safeParse(remainingUsd).success ||
+    Usd.from(remainingUsd).compare(Usd.from(0)) < 0
+  ) {
     // A ledger that reports nonsense is unreadable: fail closed.
     return { admitted: false, refusal: 'ledger-unavailable' }
   }
-  if (reservedUsd > remainingUsd) {
+  if (Usd.from(reservedUsd).compare(Usd.from(remainingUsd)) > 0) {
     return { admitted: false, refusal: 'over-budget' }
   }
   let reserved: JudgeLedgerClaim
@@ -464,7 +476,7 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
   if (refusal !== undefined) {
     // We own a known nonsent reservation even if its final guard refused it.
     try {
-      await reserved.settle(0)
+      await reserved.settle(Usd.from(0).toAmount())
     } catch {
       return { admitted: false, refusal: 'ledger-unavailable' }
     }

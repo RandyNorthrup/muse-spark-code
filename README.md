@@ -198,7 +198,8 @@ so enabling unused packing keeps the ordinary request and cache key unchanged.
 Hosted-search approvals bind the provider, model and quoted price. A model
 change while the question is open asks again. A higher price also asks again;
 an equal or lower price can use the workspace's approval for that same model
-and provider. A dispatched request settles at its original quote. Accounting
+and provider. **Ask again** invalidates pending answers and saves; saving one
+model cannot restore another model’s approval. A dispatched request settles at its original quote. Accounting
 keeps exact decimal amounts, and paid displays round upward so a positive
 charge is never shown as free. Hosted-search product wiring remains subject
 to the verified billing-bound availability described above.
@@ -3844,8 +3845,8 @@ unsigned and pinned by digest; a registry install checks npm 11.19.0's verified
 bundles and the signer identity.
 
 `npm run schema:exec` regenerates the
-[result](docs/schemas/exec-result-v1.schema.json) and
-[event](docs/schemas/exec-event-v1.schema.json) schemas, and `-- --check`
+[result](docs/schemas/exec-result-v2.schema.json) and
+[event](docs/schemas/exec-event-v2.schema.json) schemas, and `-- --check`
 compares the committed bytes; both ship in the package's `schemas/`.
 After the production build, `node scripts/package-acp.mjs` packs the ACP
 tarball and `node scripts/package-acp-test.mjs` packs the private fake-only

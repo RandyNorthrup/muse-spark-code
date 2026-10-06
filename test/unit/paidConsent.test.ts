@@ -1,3 +1,4 @@
+import { quotedSearch } from './helpers/paidQuote'
 import { freezePaidQuote } from '../../src/shared/paid'
 import { Usd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
@@ -37,26 +38,26 @@ function consentWith(
   return { consent, ask, on, writes, grants: () => grants }
 }
 
-const SEARCH: PaidUseRequest = { feature: 'webSearch', priceUsd: 0.0025 }
+const SEARCH: PaidUseRequest = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }
 
 describe('paidUseQuestion: verified hosted-search tariffs', () => {
   it('discloses a positive sub-cent per-thousand search price', () => {
-    expect(paidUseQuestion({ feature: 'webSearch', priceUsd: 0.0000002 }).detail).toContain(
-      '$0.00020 per 1,000 searches',
-    )
+    expect(
+      paidUseQuestion({ feature: 'webSearch', priceUsd: Usd.from(0.0000002).toAmount() }).detail,
+    ).toContain('$0.00020 per 1,000 searches')
   })
 
   it.each([-1, NaN, Infinity])('refuses an invalid search tariff of %s', (priceUsd) => {
-    expect(() => paidUseQuestion({ feature: 'webSearch', priceUsd })).toThrow(
-      UI_TEXT.sessionBudgetSearchUnavailable,
-    )
+    expect(() =>
+      paidUseQuestion({ feature: 'webSearch', priceUsd: Usd.from(priceUsd).toAmount() }),
+    ).toThrow(/finite decimal|Web search is unavailable/)
   })
 })
 
 const searchRequest = (tariff: string, provider = 'meta', model = 'muse-spark-1.3') =>
   ({
     feature: 'webSearch',
-    priceUsd: tariff,
+    priceUsd: Usd.from(tariff).toAmount(),
     quote: freezePaidQuote({
       id: tariff + provider + model,
       feature: 'webSearch',
@@ -70,9 +71,28 @@ const searchRequest = (tariff: string, provider = 'meta', model = 'muse-spark-1.
   }) as const
 
 describe('PaidUseConsent (M58)', () => {
+  it('R3 P2-1: Ask again invalidates model B pending Always without restoring model A', async () => {
+    const pending = Promise.withResolvers<PaidUseAnswer>()
+    const t = consentWith({
+      answer: (request) =>
+        request.feature === 'webSearch' && request.quote?.model === 'model-b'
+          ? pending.promise
+          : Promise.resolve('always'),
+    })
+    await t.consent.allows(quotedSearch('0.01'))
+    const oldB = t.consent.allows(quotedSearch('0.01', 'model-b'))
+    await t.consent.forget()
+    pending.resolve('always')
+    expect(await oldB).toBeUndefined()
+    await t.consent.allows(quotedSearch('0.01'))
+    expect(t.ask).toHaveBeenCalledTimes(3)
+  })
+
   it('binds Always to provider/model and its exact approved tariff ceiling', async () => {
     const t = consentWith({ answer: () => Promise.resolve('always') })
-    expect(await t.consent.allows(searchRequest('0.0025'))).toMatchObject({ tariffUsd: '0.0025' })
+    expect(await t.consent.allows(searchRequest('0.0025'))).toMatchObject({
+      tariffUsd: Usd.from('0.0025').toAmount(),
+    })
     await t.consent.allows(searchRequest('0.0025'))
     await t.consent.allows(searchRequest('0.001'))
     expect(t.ask).toHaveBeenCalledOnce()
@@ -107,7 +127,7 @@ describe('PaidUseConsent (M58)', () => {
     })
     await expect(consent.allows(SEARCH)).resolves.toMatchObject({
       feature: 'webSearch',
-      tariffUsd: '0.0025',
+      tariffUsd: Usd.from('0.0025').toAmount(),
     })
     expect(log.warn).toHaveBeenCalledWith(
       'Paid use of webSearch: "always" could not be kept, so it is allowed once: storage is full',
@@ -125,11 +145,11 @@ describe('PaidUseConsent (M58)', () => {
     const t = consentWith()
     await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
       feature: 'webSearch',
-      tariffUsd: '0.0025',
+      tariffUsd: Usd.from('0.0025').toAmount(),
     })
     await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
       feature: 'webSearch',
-      tariffUsd: '0.0025',
+      tariffUsd: Usd.from('0.0025').toAmount(),
     })
     expect(t.ask).toHaveBeenCalledTimes(2)
     expect(t.ask).toHaveBeenCalledWith(expect.objectContaining(SEARCH), true)
@@ -148,13 +168,13 @@ describe('PaidUseConsent (M58)', () => {
     t.consent.onDidChange(listener)
     await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
       feature: 'webSearch',
-      tariffUsd: '0.0025',
+      tariffUsd: Usd.from('0.0025').toAmount(),
     })
     expect(t.writes).toEqual([['webSearch']])
     expect(listener).toHaveBeenCalledTimes(1)
     await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
       feature: 'webSearch',
-      tariffUsd: '0.0025',
+      tariffUsd: Usd.from('0.0025').toAmount(),
     })
     expect(t.ask).toHaveBeenCalledTimes(1)
     expect(t.consent.remembered()).toEqual(['webSearch'])
@@ -189,7 +209,7 @@ describe('PaidUseConsent (M58)', () => {
     expect(t.consent.isRemembered('webSearch')).toBe(false)
     await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
       feature: 'webSearch',
-      tariffUsd: '0.0025',
+      tariffUsd: Usd.from('0.0025').toAmount(),
     })
     expect(t.ask).toHaveBeenCalledWith(expect.objectContaining(SEARCH), false)
     expect(t.writes).toEqual([])
@@ -208,7 +228,11 @@ describe('PaidUseConsent (M58)', () => {
   })
 })
 
-const TAB_REQUEST: PaidUseRequest = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 }
+const TAB_REQUEST: PaidUseRequest = {
+  feature: 'tab',
+  modelId: 'muse-spark-1.3',
+  budgetUsd: Usd.from(1).toAmount(),
+}
 
 /** A consent over in-memory settings and grants, with a scripted popup. */
 function tabConsentWith(
@@ -264,7 +288,7 @@ describe('paidUseQuestion: Tab (M94 lane L, PLAN.md D73)', () => {
     const contributor = paidUseQuestion({
       feature: 'tab',
       modelId: 'muse-spark-1.3-contributor',
-      budgetUsd: 1,
+      budgetUsd: Usd.from(1).toAmount(),
     })
     expect(contributor.detail).toContain('muse-spark-1.3-contributor')
     expect(contributor.detail).toContain('$0.100/1M input')
@@ -274,7 +298,11 @@ describe('paidUseQuestion: Tab (M94 lane L, PLAN.md D73)', () => {
 
   it('has no rate to quote for an unpriced model', () => {
     expect(() =>
-      paidUseQuestion({ feature: 'tab', modelId: 'muse-spark-future', budgetUsd: 1 }),
+      paidUseQuestion({
+        feature: 'tab',
+        modelId: 'muse-spark-future',
+        budgetUsd: Usd.from(1).toAmount(),
+      }),
     ).toThrow(UI_TEXT.subagentTariffUnknown)
   })
 })

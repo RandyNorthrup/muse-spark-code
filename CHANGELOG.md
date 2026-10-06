@@ -17,6 +17,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Hosted-search grants are owned by one synchronous state machine and saved as immutable provider/model/quote records. Ask again invalidates pending answers and writers, including delayed writes over a newer tariff ceiling.
+- Paid budgets, pricing, claims and settlements use exact decimal money across interactive and ACP ports. Daily raises preserve the entered digits. The private headless result/event contract advances to v2 with canonical USD strings and matching Action validation; flags and hard budgets are unchanged.
+
 - Paid prices and retained-charge warnings round upward and keep small positive charges visible, including sub-cent hosted-search tariffs.
 
 - Hosted-search consent binds an immutable provider/model/tariff quote; higher prices ask again, and returned searches settle at the dispatch price even when pricing changes or disappears.

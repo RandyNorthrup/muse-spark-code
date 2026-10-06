@@ -195,14 +195,14 @@ describe('PaidFeatureGate (M33, PLAN.md D30)', () => {
 describe('PaidUsage and the prices (M33)', () => {
   it('keeps each verified search tariff when the window changes provider', () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
-    usage.add('webSearch', 1, 0.01)
-    usage.add('webSearch', 2, 0.0025)
-    usage.add('webSearch', 1, 0.01)
+    usage.add('webSearch', 1, Usd.from(0.01).toAmount())
+    usage.add('webSearch', 2, Usd.from(0.0025).toAmount())
+    usage.add('webSearch', 1, Usd.from(0.01).toAmount())
     expect(usage.current.webSearchCharges).toEqual([
       { units: 2, priceUsd: '0.01' },
       { units: 2, priceUsd: '0.0025' },
     ])
-    expect(paidCostUsd('webSearch', usage.current)).toBe('0.025')
+    expect(paidCostUsd('webSearch', usage.current)).toBe(Usd.from('0.025').toAmount())
     expect(() => {
       usage.add('webSearch', 1)
     }).toThrow('verified tariff')
@@ -226,10 +226,10 @@ describe('PaidUsage and the prices (M33)', () => {
       subagentUnknownRequests: 1,
       subagentTokens: 1_100_000,
     })
-    expect(paidCostUsd('subagents', usage.current)).toBe('1.455')
-    expect(paidTotalUsd(usage.current)).toBe('0')
+    expect(paidCostUsd('subagents', usage.current)).toBe(Usd.from('1.455').toAmount())
+    expect(paidTotalUsd(usage.current)).toBe(Usd.from('0').toAmount())
     usage.add('imageGeneration', 1)
-    expect(paidTotalUsd(usage.current)).toBe('0.01')
+    expect(paidTotalUsd(usage.current)).toBe(Usd.from('0.01').toAmount())
     expect(listedPaidFeatures([], usage.current)).toContain('subagents')
   })
 
@@ -245,8 +245,8 @@ describe('PaidUsage and the prices (M33)', () => {
     usage.add('bestOfN', 3)
     expect(usage.current).toMatchObject({ bestOfNAttempts: 3 })
     // No reported usage means no invented cost; request counts retain unknowns.
-    expect(paidCostUsd('bestOfN', usage.current)).toBe('0')
-    expect(paidTotalUsd(usage.current)).toBe('0')
+    expect(paidCostUsd('bestOfN', usage.current)).toBe(Usd.from('0').toAmount())
+    expect(paidTotalUsd(usage.current)).toBe(Usd.from('0').toAmount())
     expect(listedPaidFeatures([], usage.current)).toEqual(['bestOfN'])
     expect(paidFeatureName('bestOfN')).toBe(UI_TEXT.paidBestOfNName)
   })
@@ -267,8 +267,8 @@ describe('PaidUsage and the prices (M33)', () => {
       bestOfNUnknownRequests: 1,
       bestOfNTokens: 1_100_000,
     })
-    expect(paidCostUsd('bestOfN', usage.current)).toBe('1.455')
-    expect(paidTotalUsd(usage.current)).toBe('1.455')
+    expect(paidCostUsd('bestOfN', usage.current)).toBe(Usd.from('1.455').toAmount())
+    expect(paidTotalUsd(usage.current)).toBe(Usd.from('1.455').toAmount())
     expect(() => {
       usage.addBestOfNUsage('muse-spark-1.3', { inputTokens: 1, cachedTokens: 2, outputTokens: 0 })
     }).toThrow('valid nonnegative token counts')
@@ -323,7 +323,7 @@ describe('PaidUsage and the prices (M33)', () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
     const listener = vi.fn()
     const stop = usage.onDidChange(listener)
-    usage.add('webSearch', 3, 0.0025)
+    usage.add('webSearch', 3, Usd.from(0.0025).toAmount())
     usage.add('imageGeneration', 1)
     usage.add('voice', 90)
     usage.add('scheduledPrompts', 1)
@@ -337,18 +337,20 @@ describe('PaidUsage and the prices (M33)', () => {
     })
     expect(listener).toHaveBeenCalledTimes(4)
     stop()
-    usage.add('webSearch', 1, 0.0025)
+    usage.add('webSearch', 1, Usd.from(0.0025).toAmount())
     expect(listener).toHaveBeenCalledTimes(4)
   })
 
   it('estimates each feature at the published prices', () => {
     const tally = { webSearches: 1000, images: 7, voiceSeconds: 7200, scheduledRuns: 0 }
-    expect(paidCostUsd('webSearch', tally)).toBe('2.5')
-    expect(paidCostUsd('imageGeneration', tally)).toBe('0.07')
-    expect(paidCostUsd('voice', tally)).toBe('0.36')
-    expect(paidCostUsd('scheduledPrompts', { ...tally, scheduledRuns: 1 })).toBe('0')
-    expect(paidTotalUsd(tally)).toBe('2.93')
-    expect(paidTotalUsd(EMPTY_PAID_TALLY)).toBe('0')
+    expect(paidCostUsd('webSearch', tally)).toBe(Usd.from('2.5').toAmount())
+    expect(paidCostUsd('imageGeneration', tally)).toBe(Usd.from('0.07').toAmount())
+    expect(paidCostUsd('voice', tally)).toBe(Usd.from('0.36').toAmount())
+    expect(paidCostUsd('scheduledPrompts', { ...tally, scheduledRuns: 1 })).toBe(
+      Usd.from('0').toAmount(),
+    )
+    expect(paidTotalUsd(tally)).toBe(Usd.from('2.93').toAmount())
+    expect(paidTotalUsd(EMPTY_PAID_TALLY)).toBe(Usd.from('0').toAmount())
   })
 
   it('names each feature and its price', () => {
@@ -403,8 +405,8 @@ describe('PaidUsage: the Auto reviewer (M78)', () => {
       autoReviews: 1,
       autoReviewTokens: 1_100_000,
     })
-    expect(paidCostUsd('autoReviewer', usage.current)).toBe('1.675')
-    expect(paidTotalUsd(usage.current)).toBe('1.675')
+    expect(paidCostUsd('autoReviewer', usage.current)).toBe(Usd.from('1.675').toAmount())
+    expect(paidTotalUsd(usage.current)).toBe(Usd.from('1.675').toAmount())
     expect(listedPaidFeatures([], usage.current)).toEqual(['autoReviewer'])
   })
 
@@ -433,8 +435,8 @@ describe('PaidUsage: Tab counting (M94 lane L, PLAN.md D73)', () => {
     usage.addTabRequest()
     expect(usage.current).toMatchObject({ tabRequests: 4, tabUnknownRequests: 2 })
     // No reported usage means no invented cost; unknowns stay unknown.
-    expect(paidCostUsd('tab', usage.current)).toBe('0')
-    expect(paidTotalUsd(usage.current)).toBe('0')
+    expect(paidCostUsd('tab', usage.current)).toBe(Usd.from('0').toAmount())
+    expect(paidTotalUsd(usage.current)).toBe(Usd.from('0').toAmount())
     usage.addTabUsage('muse-spark-1.3', {
       inputTokens: 1_000_000,
       cachedTokens: 200_000,
@@ -446,8 +448,8 @@ describe('PaidUsage: Tab counting (M94 lane L, PLAN.md D73)', () => {
       tabTokens: 1_100_000,
       tabCachedTokens: 200_000,
     })
-    expect(paidCostUsd('tab', usage.current)).toBe('1.455')
-    expect(paidTotalUsd(usage.current)).toBe('1.455')
+    expect(paidCostUsd('tab', usage.current)).toBe(Usd.from('1.455').toAmount())
+    expect(paidTotalUsd(usage.current)).toBe(Usd.from('1.455').toAmount())
     expect(listedPaidFeatures([], usage.current)).toEqual(['tab'])
   })
 
@@ -499,11 +501,13 @@ describe('PaidUsage: Tab completions (M94 lane 0, PLAN.md D73)', () => {
     const price = paidFeaturePrice('tab')
     expect(price).toContain('$1.250/1M input')
     expect(price).toContain('$0.100/1M input')
-    expect(paidCostUsd('tab', EMPTY_PAID_TALLY)).toBe('0')
+    expect(paidCostUsd('tab', EMPTY_PAID_TALLY)).toBe(Usd.from('0').toAmount())
     expect(paidCostUsd('tab', { ...EMPTY_PAID_TALLY, tabCostUsd: Usd.from(1.5).toAmount() })).toBe(
-      '1.5',
+      Usd.from('1.5').toAmount(),
     )
-    expect(paidTotalUsd({ ...EMPTY_PAID_TALLY, tabCostUsd: Usd.from(1.5).toAmount() })).toBe('1.5')
+    expect(paidTotalUsd({ ...EMPTY_PAID_TALLY, tabCostUsd: Usd.from(1.5).toAmount() })).toBe(
+      Usd.from('1.5').toAmount(),
+    )
     expect(listedPaidFeatures([], { ...EMPTY_PAID_TALLY, tabRequests: 2 })).toEqual(['tab'])
   })
 

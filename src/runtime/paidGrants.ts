@@ -1,4 +1,5 @@
-import { paidQuoteSchema, type PaidQuote } from '../shared/paid'
+import { paidQuoteSchema } from '../shared/paid'
+import { paidAuthorityKey, latestPaidGrant } from '../core/paid/paidAuthority'
 // "Allow always" for the ACP agent (M58, D48, D62). Each feature has a
 // revocation generation, and each workspace a grant for that generation.
 // Independent grants never rewrite a shared map; a writer begun before a
@@ -7,7 +8,7 @@ import { paidQuoteSchema, type PaidQuote } from '../shared/paid'
 // The earlier whole-file map is ignored: its grants ask again.
 
 import { randomUUID } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { link, rm } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -115,26 +116,50 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
     await write(grantFile(workspaceRoot, feature, generation.id), generation.id)
   }
 
-  const quoteFile = (workspaceRoot: string, generation: string) =>
-    `${grantFile(workspaceRoot, 'webSearch', generation)}.quotes`
+  const quoteSchema = z.object({
+    generation: z.string(),
+    quote: paidQuoteSchema,
+    order: z.optional(z.number().check(z.int(), z.gte(0))),
+  })
+  const quotePrefix = (workspaceRoot: string, generation: string, key: string) =>
+    `${grantFile(workspaceRoot, 'webSearch', generation)}.${workspaceKey(key)}.`
   return {
-    readQuotes: (workspaceRoot) => {
-      const generation = read(generationFile('webSearch'), generationSchema)
-      if (generation === undefined) return []
-      const quotes = read(quoteFile(workspaceRoot, generation.id), z.array(paidQuoteSchema)) ?? []
-      return read(generationFile('webSearch'), generationSchema)?.id === generation.id ? quotes : []
+    prepareQuoteGeneration: async () => {
+      const generation = await generationFor('webSearch')
+      return generation.id
     },
-    writeQuotes: async (workspaceRoot, quotes: readonly PaidQuote[]) => {
-      const generation = read(generationFile('webSearch'), generationSchema, true)
+    quoteGeneration: () => read(generationFile('webSearch'), generationSchema)?.id ?? 'missing',
+    readQuote: (workspaceRoot, quote) => {
+      const generation = read(generationFile('webSearch'), generationSchema)
       if (generation === undefined) return
-      if (
-        read(grantFile(workspaceRoot, 'webSearch', generation.id), grantSchema, true) !==
-        generation.id
+      const prefix = quotePrefix(workspaceRoot, generation.id, paidAuthorityKey(quote))
+      let names: string[]
+      try {
+        names = readdirSync(featureFolder('webSearch'))
+      } catch {
+        return
+      }
+      const grant = latestPaidGrant(
+        names
+          .filter((name) => name.startsWith(path.basename(prefix)) && name.endsWith('.quote'))
+          .flatMap((name) => {
+            const record = read(path.join(featureFolder('webSearch'), name), quoteSchema)
+            return record === undefined ? [] : [record]
+          }),
       )
-        throw new Error('Paid search grant was revoked before its quote was saved')
-      await writeFileAtomically(quoteFile(workspaceRoot, generation.id), JSON.stringify(quotes), {
-        sleep: deps.sleep,
-      })
+      return read(generationFile('webSearch'), generationSchema)?.id === generation.id
+        ? grant
+        : undefined
+    },
+    writeQuote: async (workspaceRoot, grant) => {
+      // The generation was captured before asking, never sampled here. Each
+      // key has its own record; revoked writers cannot touch a fresh record.
+      if (read(generationFile('webSearch'), generationSchema)?.id !== grant.generation) return
+      await writeFileAtomically(
+        `${quotePrefix(workspaceRoot, grant.generation, paidAuthorityKey(grant.quote))}${workspaceKey(JSON.stringify([grant.order ?? 0, grant.quote.id]))}.quote`,
+        JSON.stringify(grant),
+        { sleep: deps.sleep },
+      )
     },
     read: (workspaceRoot) =>
       new Set(

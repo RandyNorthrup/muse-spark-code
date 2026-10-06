@@ -1,5 +1,6 @@
+import { Usd } from '../../shared/usd'
 import type { PaidUseDecision, SearchSettlement } from '../../shared/paid'
-import type { LegacyUsd } from '../../shared/usd'
+import type { UsdAmount } from '../../shared/usd'
 import { startApprovalJudge } from '../../core/judge/use'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
@@ -440,7 +441,7 @@ export interface ConversationDeps {
    * the free engine is.
    */
   readonly museVoice: () => DictationSetup | undefined
-  readonly modelApiSessionBudgetUsd: () => number
+  readonly modelApiSessionBudgetUsd: () => UsdAmount
   /** Digest only; available before a conversation or workspace exists. */
   readonly voiceAccountId: () => Promise<string | undefined>
   readonly ownedVoiceBudgetScope: (
@@ -526,7 +527,7 @@ export interface ConversationDeps {
   readonly notePaidUse: (
     feature: PaidFeature,
     units: number,
-    searchPriceUsd?: LegacyUsd | SearchSettlement,
+    searchPriceUsd?: UsdAmount | SearchSettlement,
   ) => void
   /** A Model API host rooted in a best-of-N worktree (M77). */
   readonly buildAttemptHost: (
@@ -8096,7 +8097,7 @@ export class ConversationController {
     if (
       museVoice !== undefined &&
       this.voiceIsModelApi() &&
-      this.deps.modelApiSessionBudgetUsd() > 0
+      Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0
     ) {
       return {
         engine: 'museVoice',
@@ -8120,7 +8121,7 @@ export class ConversationController {
     if (!this.voiceIsModelApi()) {
       return undefined
     }
-    if (this.deps.modelApiSessionBudgetUsd() > 0) {
+    if (Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0) {
       throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
     }
     const workspaceRoot = this.deps.workspaceRoot
@@ -8269,7 +8270,7 @@ export class ConversationController {
           throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
         }
         if (!isSending) return
-        if (isModelApi && this.deps.modelApiSessionBudgetUsd() > 0) {
+        if (isModelApi && Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0) {
           throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
         }
         const current = this.dictationChoice()

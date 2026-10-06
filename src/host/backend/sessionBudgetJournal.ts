@@ -18,7 +18,7 @@ import type { StoredSession } from '../../core/backends/modelapi/sessionStore'
 import { formatUsd } from '../../core/usage/insights'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { Usd, type LegacyUsd, type UsdAmount } from '../../shared/usd'
+import { Usd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
 import { writeFileAtomically } from '../fsAtomic'
 import { storeErrorCode } from './storeErrors'
 
@@ -113,7 +113,7 @@ export type SessionBudgetJournalDeps = {
   | {
       /** D78: an independent new daily scope has no earlier session history. */
       readonly initialBudget: () => Promise<
-        Omit<SessionBudgetTotal, 'spentUsd'> & { readonly spentUsd: LegacyUsd }
+        Omit<SessionBudgetTotal, 'spentUsd'> & { readonly spentUsd: UsdAmount }
       >
     }
 )
@@ -136,11 +136,8 @@ function unavailable(cause?: unknown): Error {
   return new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause })
 }
 
-function assertCost(costUsd: LegacyUsd): void {
-  if (
-    (typeof costUsd === 'number' && !Number.isFinite(costUsd)) ||
-    Usd.from(costUsd).compare(Usd.from(0)) < 0
-  ) {
+function assertCost(costUsd: UsdAmount): void {
+  if (!usdAmountSchema.safeParse(costUsd).success || Usd.from(costUsd).compare(Usd.from(0)) < 0) {
     throw unavailable()
   }
 }
@@ -348,7 +345,7 @@ export function createSessionBudgetJournal(
   const writeClaim = async (
     scope: Scope,
     seed: Seed,
-    costUsd: LegacyUsd,
+    costUsd: UsdAmount,
     isNonsentReservation: boolean,
     flags: ClaimFlags = {},
   ): Promise<Claim> => {
@@ -408,7 +405,7 @@ export function createSessionBudgetJournal(
 
   const claimFor = (scope: Scope, seed: Seed, created: Claim): SessionBudgetClaim => {
     let settling: Promise<SessionBudgetTotal> | undefined
-    let settlingCost: LegacyUsd | undefined
+    let settlingCost: UsdAmount | undefined
     let isSettlingCostUnknown: boolean | undefined
     let isSettlingFinal: boolean | undefined
     const owned = (): Claim => {
@@ -424,7 +421,7 @@ export function createSessionBudgetJournal(
       return claim
     }
     const settleEntry = async (
-      actualCostUsd: LegacyUsd,
+      actualCostUsd: UsdAmount,
       hasUnknownCost: boolean,
       isFinal: boolean,
     ): Promise<SessionBudgetTotal> => {
