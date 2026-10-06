@@ -1,0 +1,48 @@
+# Muse Spark Code (Unofficial), MIT.
+msgid ""
+msgstr "Language: pt_BR\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n"
+
+msgid "Open Muse Spark"
+msgstr "Abrir Muse Spark"
+
+msgid "Stop machine"
+msgstr "Parar máquina"
+
+msgid "Stop"
+msgstr "Parar"
+
+msgid "Cannot start Muse Spark"
+msgstr "Não foi possível iniciar o Muse Spark"
+
+msgid "Cannot reach Muse Spark"
+msgstr "Não foi possível conectar ao Muse Spark"
+
+msgid "Cannot open Muse Spark"
+msgstr "Não foi possível abrir o Muse Spark"
+
+msgid "Stop machine failed"
+msgstr "Não foi possível parar a máquina"
+
+msgid "The runtime could not start. Check its installation and try again."
+msgstr "Não foi possível iniciar o ambiente de execução. Verifique a instalação e tente novamente."
+
+msgid "The local provider connection failed. Close Muse Spark and try again."
+msgstr "A conexão com o provedor local falhou. Feche o Muse Spark e tente novamente."
+
+msgid "The system browser could not open the companion page."
+msgstr "O navegador do sistema não conseguiu abrir a página complementar."
+
+msgid "The stop command failed. Use the machine's physical emergency stop if needed."
+msgstr "O comando de parada falhou. Se necessário, use a parada de emergência física da máquina."
+
+msgid "Hand the port to Muse Spark"
+msgstr "Entregar a porta ao Muse Spark"
+
+msgid "Give the port back to Thonny"
+msgstr "Devolver a porta ao Thonny"
+
+msgid "Cannot transfer the port"
+msgstr "Não foi possível transferir a porta"
+
+msgid "Port ownership was not confirmed. Select an explicit serial port, open Muse Spark, and try again. Thonny stays disconnected after an uncertain transfer."
+msgstr "O controle da porta não foi confirmado. Selecione uma porta serial específica, abra o Muse Spark e tente novamente. O Thonny permanece desconectado após uma transferência incerta."

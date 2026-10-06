@@ -6667,9 +6667,10 @@ exactly what will be sent.
       - `storage` (workspace and machine);
       - `secrets`;
       - `isTrusted`;
-      - an optional `serialProvider`, for a host that already owns the
-        device connection (Thonny's backend, D83.17), so the engine goes
-        through it and never opens the port a second time.
+      - a host may provide bounded text already displayed for context.
+        Thonny supplies no device I/O provider: explicit user clicks stop
+        its backend, hand the port to lane P's leased serial session, and
+        release that session before reconnecting Thonny (REDM103T).
 
       There are three implementations:
       - VS Code (`src/host/maker/`): native modal, status bar, SecretStorage,
@@ -6749,7 +6750,7 @@ device panel, log and STL viewer render.
 | **Arduino IDE 2.3.x** (Theia 1.57, API 1.96, Node 20.14, Chromium 124)                                   | a second VSIX build, side-loaded into `~/.arduinoIDE/plugins/`                                                               | the IDE's plugin host | native modal                                                     | as VS Code                                                        | shared React panel                    | this machine; board, FQBN and port from the IDE's board API; the IDE's Serial Monitor holds the port (lease reports busy) | M103f                                              |
 | PlatformIO IDE (VS Code family)                                                                          | the extension beside it                                                                                                      | extension host        | native modal                                                     | as VS Code                                                        | as VS Code                            | this machine; `pio` found under `~/.platformio/penv`                                                                      | now (M103)                                         |
 | PlatformIO in CLion                                                                                      | ACP (bundled PlatformIO)                                                                                                     | agent process         | ACP permission prompt                                            | client cancel; companion page; CLI                                | companion page (JCEF plugin with M64) | this machine                                                                                                              | now (M103)                                         |
-| **Thonny 5**                                                                                             | `thonnycontrib.muse_spark` plugin (Tk menu and status) + runtime + companion page                                            | runtime               | companion dialog (the plugin raises it)                          | plugin's Stop menu item and toolbar button; companion page; CLI   | companion page                        | through Thonny's own connection (the plugin is the host's serial provider), never a second open                           | M103f                                              |
+| **Thonny 5**                                                                                             | `thonnycontrib.muse_spark` plugin (Tk menu and status) + runtime + companion page                                            | runtime               | companion dialog (the plugin raises it)                          | plugin's Stop menu item and toolbar button; companion page; CLI   | companion page                        | explicit user hand-over to runtime lane P; release acknowledged before user give-back                                     | M103f                                              |
 | **Espressif-IDE 4.x, STM32CubeIDE 2.x, MCUXpresso IDE**                                                  | our Eclipse plugin (M65), SWT Browser forced to Edge on Windows; until then the beta Eclipse ACP Connector for Espressif-IDE | runtime               | plugin dialog or shared dialog                                   | toolbar action, panel chip; CLI                                   | shared React in the SWT Browser       | this machine                                                                                                              | with M65 (connector route now, Espressif-IDE only) |
 | ST, NXP and Espressif VS Code extensions                                                                 | the extension beside them                                                                                                    | extension host        | native modal                                                     | as VS Code                                                        | as VS Code                            | this machine                                                                                                              | now (M103)                                         |
 | Mu (archived), code.circuitpython.org (web app)                                                          | the companion page beside it                                                                                                 | runtime               | companion dialog                                                 | companion page; CLI                                               | companion page                        | this machine; the web editor holds the port while connected                                                               | now (M103), lease only                             |
@@ -6859,6 +6860,16 @@ have equivalent functionality even if we need to develop it ourselves".
   Default: retain production behavior, reduce only the test fixture and prove
   exact bounds/cursor identity; leave the original hosted trigger unconfirmed
   until its receipt is available. Evidence: `docs/certification/deflake3.md`.
+
+**Q-M103T (R/P protocol freeze, amended REDM103T):** freeze the v2
+context/port-control proposal in integrations/thonny/README.md with R/P.
+The plugin no longer accepts write approvals or sends device commands.
+`acquire` succeeds only after lane P's lease and serial session are held;
+`release` acknowledges only after serial close and lease release, including
+recovery after an uncertain acquire. A closed provider must cancel its port
+operation and release its runtime-owned session. Keep installed-runtime
+compatibility unclaimed until fake editor-to-runtime receipts land
+(M103T-WIRE-FREEZE, section 9).
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
@@ -18935,6 +18946,63 @@ and listSerialPorts; W's host wiring/package and physical qualification remain
 separate. Each finding gets a whole-file regression and byte-exact red drill in
 `docs/certification/m103-p.md`. No dependency, setting or command is added.
 
+**Lane T third-review correction (FIXM103T2, 2026-10-05).** Address all
+three RVM103T3 findings within the existing lane-T files. Provider readiness
+starts only after validated welcome, so a Hand click during connection cannot
+disconnect Thonny or send port control before hello. Keep acquisition pending
+until the runtime confirms its held lease and open serial session. Drain
+runtime stdout as bytes, decode UTF-8 independently of the Windows locale,
+report invalid diagnostics with fixed words and continue draining; report
+unrecoverable reader failures and stop the owned child. Correct the active
+wire-freeze residual to the no-write-path context/acquire/release proposal.
+Each finding gets a regression and a byte-exact red drill in m103-t.md.
+No new dependency, widened guard, live call or merge is authorized.
+
+**Lane T redesign (REDM103T, 2026-10-05, lead decision).** Remove every
+Thonny device command and write path after the second queue-bypass review.
+While Thonny owns the port the plugin serves only bounded text already shown
+in its shell. Two explicit user clicks hand the port to the runtime and give
+it back: disconnect through the public Thonny runner API before requesting
+lane P serial ownership; release the runtime lease before reconnecting Thonny.
+The runtime alone opens/writes/reads the device, with its cross-process lease,
+exact-byte approval, bounded reads and independent Stop. Never transfer or
+reconnect automatically, including after failure or shutdown. Retain the
+loopback/handshake/gettext/process-tree guards; own and join Stop launches too.
+Reject/log provider failures without unchecked peer text, bound every encoded
+response, and move PyPI upload to Trusted Publishing with OIDC confined to a
+separate upload job. Named regressions and byte-exact red drills cover both
+review rounds. R/P wire agreement and installed-runtime receipts remain
+explicit integration prerequisites; this base contains no lane P/R sources.
+The upload job pins Twine 6.2.0 for its PyPI Trusted Publishing support;
+no runtime dependency is added, and upload requires PyPI's owner-configured
+trusted-publisher record. The upload was not run from this no-network lane.
+The base also lacks the help catalogue/generator/check script: document the
+new controls here and in both READMEs, with reference integration left to the
+lead. No merge, push, live call, board or full quality run is authorized.
+
+**Lane T review correction (FIXM103T, 2026-10-05; historical, superseded by REDM103T).** Address all twelve
+RVM103T findings within `integrations/thonny/` and its existing certification
+record. Bind queued writes to the exact SHA-256 bytes, an opaque identity
+for Thonny's current runner/backend connection and an absolute approval
+expiry, and recheck under the dispatch lock immediately before sending.
+Advertise that identity in the provider's `info` reply; require `target`
+and `expires_at` on write approval echoes. This remains a lane-T protocol
+proposal awaiting R/P freeze, not certified installed-runtime compatibility.
+Cancel settled/expired queued work, confine the provider to literal
+`127.0.0.1`, validate handshakes, retain idle connections, accept empty
+files and report browser refusal. Serialize startup, cancel shutdown races,
+own the runtime process tree with a Windows job/POSIX process group, drain
+stdout, and require all announcement kinds. Ship a standard-library gettext
+catalogue for all fourteen repository languages. Each finding gets a
+regression and a byte-exact red drill in `docs/certification/m103-t.md`.
+The existing no-device-stack gate also bans `ctypes`; preserve it. A small
+C# launcher, compiled by Windows' bundled .NET Framework compiler into a
+private temporary directory, assigns itself to a kill-on-close job before
+creating the suspended runtime, which inherits the job. The launcher owns
+the job handle; Python uses no native device API or new dependency.
+No dependency, paid call, real board, merge, push or gate relaxation; the
+rig brief delegates the full quality run to the lead.
+
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
 (a) Plain HTTP on the LAN only for a machine the user registered by command,
@@ -19115,7 +19183,7 @@ import, and it goes on M60's portable list. The only VS Code code is lane V.
 | R Runtime, ACP, companion      | New `src/runtime/maker/`: `runtimeMakerHost.ts` (data folder, the OS credential store via `keyStore.ts`, workspace grants keyed like the ACP agent's paid grants); the CLI subcommands `hardware enable\|disable\|status`, `machines add\|list\|remove` and `stop-machine [--all]` (keys only from stdin, rule 8); a loopback MCP tool server for Muse Code (`muse serve` gets the maker tools as the extension's `ide` server gives them); the companion server (loopback, token, Host/Origin checks, CSP, serving the shared panel's maker pages). In `src/acp/maker.ts`: permission prompts with allow-once and reject-once only, the `/stop-machine`, `/hardware` and `/machines` commands, and `--hardware`. Tests over stdio against the fake CLI, and companion-server tests (token, Origin, LAN bind refused). |
 | W Wiring (last)                | The esbuild entries `dist/maker.js` (portable; added to the ACP package beside `dist/modelApi.js`), the preview page, and the webview's maker chunks. Their budgets in `scripts/check-bundle-size.mjs` and the split guard. The tool-definitions region in `tools.ts` (`hasDevices`, `hasCad`, `hasGcode`). The command region in `src/extension.ts` (loaders only). `package.json` (commands, settings, keybinding). The M60 portable list and the host API record. README (with the editor matrix), SECURITY, PRIVACY, CHANGELOG, PLAN, `docs/research/makers-2026-10-05.md`, `docs/certification/m103.md`, `docs/ide-compatibility/hosts.md` rows. The arm64 CI job in `.github/workflows/`. The full gate.                                                                                                         |
 | A Arduino IDE build (f)        | A second VSIX build: `engines.vscode ^1.96.0`, host `node20.14`, webview `chrome124` (`scripts/build.mjs` variant, `scripts/package-arduino.mjs`). A typecheck job against `@types/vscode` 1.96. Reading the IDE's board API (`vscode-arduino-api`) when present. The Arduino IDE row in `hosts.yml`: install into `~/.arduinoIDE/plugins/` and run the integration tests. Install docs.                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| T Thonny plugin (f)            | New `integrations/thonny/` (Python package `thonnycontrib.muse_spark`, Apache-2.0 or MIT like the repository): menu items (Open Muse Spark, Stop machine), starting and stopping the runtime, opening the companion page, and the serial-provider bridge (Thonny's `get_runner()` behind the runtime's owner-only socket). Python tests against a fake runner; a PyPI release job (owner's token, Q-M103h).                                                                                                                                                                                                                                                                                                                                                                                                            |
+| T Thonny plugin (f)            | New `integrations/thonny/` (Python package `thonnycontrib.muse_spark`, Apache-2.0 or MIT like the repository): menu items (Open Muse Spark, Stop machine), starting and stopping the runtime, opening the companion page, bounded displayed console context and explicit hand-over/give-back (public Thonny backend lifecycle; runtime lane P owns device bytes). Fake backend/port/lease regressions; PyPI Trusted Publishing (OIDC upload job only, no stored token).                                                                                                                                                                                                                                                                                                                                                |
 | E Evidence (after W)           | The rig runs, the ACP clients (Zed, Neovim, Emacs, JupyterLab, CLion) through the device flows against fakes, Arduino IDE 2 and Thonny on a rig, and the one live capture (below). No source files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 **Lane X emulator qualification (owner, 2026-10-05).** Add local, bounded,
@@ -19289,8 +19357,10 @@ logged.
       - The Arduino IDE build loads in Arduino IDE 2.3.10 (Linux, CI or
         Kubuntu) and runs the integration tests.
       - The Thonny plugin starts the runtime, opens the companion page, and
-        routes a device read through a fake Thonny runner without opening
-        the port.
+        reads bounded displayed console context without a device command;
+        user hand-over disconnects Thonny before a fake runtime lease/open,
+        and give-back releases/closes before Thonny reconnects. No automatic
+        transfer or reconnection.
       - The Eclipse rows wait for M65; the beta ACP Connector route for
         Espressif-IDE is recorded if it installs.
       - CLion 2026.1 runs the ACP flows against fakes.
@@ -19597,6 +19667,16 @@ both failing assertions. No timeout, skip or diagnostics expectation is
 relaxed. Qualification stays incomplete. The editor-specific clean temporary
 document close uses the deprecated but present TextEditor.hide only when the
 host omits tab identities; §8 records this bounded exception.
+
+**FIXM103T (2026-10-05, rig lane).** The rig/common briefs explicitly prohibit
+full `npm run quality` and the full JS test suite, assigning integration
+quality to the lead. Run owned Python regressions, static repository checks
+and the build directly on Windows, with all thresholds unchanged. The base
+has no `src/shared/featureCatalog.ts`, `scripts/gen-reference.mjs` or
+`check:reference` command. REDM103T adds two explicit transfer menu controls
+and updates both READMEs; the absent catalogue cannot be regenerated here. Reference generation remains the lead's
+integration check once that catalogue exists. Receipts and every red drill
+are in `docs/certification/m103-t.md`; no local gate is disabled.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
@@ -20914,6 +20994,29 @@ before a repaired one loads (2026-09-30).
   allowed asset location is supplied, run the complete packaged Arduino suite
   with the private offline profile, require 34/34 and zero pending, retain its
   receipt, and close this qualification residual.
+
+- **M103T-WIRE-FREEZE (existing interoperability limit, 2026-10-05):**
+  REDM103T supersedes the write bridge after RVM103T2. The v2 context and
+  explicit port-control interface is fake-tested, but the announcement/provider
+  protocol is still T's proposal awaiting R/P freeze. Thonny accepts no device
+  payloads or write approvals and exports no runner/proxy identity. Port control
+  starts only after validated welcome. `acquire` succeeds only after lane P's
+  lease is held and its serial session is open; `release` acknowledges only
+  after serial close and lease release, including uncertain-acquire recovery.
+  Provider closure must cancel outstanding acquisitions and release its owned
+  session before a replacement provider connects. Safe for now within the
+  fake-tested authenticated loopback proposal: malformed control replies and
+  foreign endpoints fail closed, uncertain transfers stay disconnected, and
+  changed Thonny targets refuse give-back. Follow-up: R/P freeze and fake
+  editor-to-runtime receipts proving these ownership/closure guarantees before
+  claiming installed-runtime compatibility.
+- **M103T-POSIX-RIG-RECEIPTS (verification limit, 2026-10-05):** Windows job
+  ownership and actual fake descendants are tested on win11; POSIX session
+  creation/group signals are exercised with injected OS calls here. Actual
+  macOS/Linux execution and Python 3.10 remain the hosted matrix's checks,
+  rather than an asserted safety certification from Windows. Follow-up: the
+  Thonny hosted workflow and lead's POSIX rig receipts before all-platform
+  support claims. No P1/P2/P3 review finding is silently deferred.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

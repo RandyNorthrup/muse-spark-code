@@ -1,0 +1,48 @@
+# Muse Spark Code (Unofficial), MIT.
+msgid ""
+msgstr "Language: zh_CN\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n"
+
+msgid "Open Muse Spark"
+msgstr "打开 Muse Spark"
+
+msgid "Stop machine"
+msgstr "停止机器"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Cannot start Muse Spark"
+msgstr "无法启动 Muse Spark"
+
+msgid "Cannot reach Muse Spark"
+msgstr "无法连接 Muse Spark"
+
+msgid "Cannot open Muse Spark"
+msgstr "无法打开 Muse Spark"
+
+msgid "Stop machine failed"
+msgstr "停止机器失败"
+
+msgid "The runtime could not start. Check its installation and try again."
+msgstr "无法启动运行时。请检查安装并重试。"
+
+msgid "The local provider connection failed. Close Muse Spark and try again."
+msgstr "本地提供商连接失败。请关闭 Muse Spark 并重试。"
+
+msgid "The system browser could not open the companion page."
+msgstr "系统浏览器无法打开配套页面。"
+
+msgid "The stop command failed. Use the machine's physical emergency stop if needed."
+msgstr "停止命令失败。如有需要，请使用机器的实体紧急停止装置。"
+
+msgid "Hand the port to Muse Spark"
+msgstr "将端口交给 Muse Spark"
+
+msgid "Give the port back to Thonny"
+msgstr "将端口交还给 Thonny"
+
+msgid "Cannot transfer the port"
+msgstr "无法移交端口"
+
+msgid "Port ownership was not confirmed. Select an explicit serial port, open Muse Spark, and try again. Thonny stays disconnected after an uncertain transfer."
+msgstr "未确认端口所有权。请选择明确的串口，打开 Muse Spark，然后重试。移交结果不确定时，Thonny 会保持断开连接。"

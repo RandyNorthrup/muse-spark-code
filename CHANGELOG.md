@@ -416,6 +416,49 @@ happened, not what was planned; superseded entries are kept.
   S3 qualification uploads and verifies a real app, boots it, and stops a
   live flash.
   Physical boards and the integrated maker guard/editor flows remain required.
+
+- **Thonny companion plugin (M103 lane T).** New `integrations/thonny/`
+  Python package `thonnycontrib.muse_spark`: Tools menu items Open Muse
+  Spark and Stop machine (also a toolbar button), runtime start/stop,
+  companion-page opening, and the serial-provider bridge through Thonny's
+  own connection. pytest suite against fakes, CI test workflow, and a
+  PyPI release job that publishes only with the owner's token (nothing
+  published by this lane).
+
+### Fixed
+
+- **Thonny handshake readiness and stdout failures (RVM103T3).** Hand-over
+  waits for a validated provider welcome and held-lease acknowledgement.
+  Runtime output is decoded as UTF-8 without relying on the Windows locale;
+  invalid diagnostics are reported while draining continues, and unreadable
+  output stops the owned child. The active wire-freeze residual now describes
+  context and explicit acquire/release, with no Thonny write-approval path.
+
+- **Thonny port hand-over redesign (REDM103T / RVM103T2).** Removed every
+  device command and write path through Thonny. The bridge serves bounded
+  displayed shell context only. Explicit Hand the port to Muse Spark / Give
+  the port back to Thonny clicks disconnect before runtime acquisition and
+  require release before reconnection; the runtime owns device I/O. Stop
+  workers and their process trees are owned through shutdown, the Windows
+  launcher preserves child failure exit codes, provider logs discard peer
+  values, and encoded responses have a hard size cap. The incompatible v2
+  interface awaits R/P integration. PyPI upload uses Trusted Publishing in
+  a separate OIDC job, without a stored publishing token. Both new controls
+  and transfer failures ship in all fourteen translated languages.
+
+- **Thonny provider admission and connection (RVM103T).** Settled or timed-out
+  queued writes are cancelled; each write rechecks its approved bytes, target
+  connection and expiry. Provider endpoints are confined to `127.0.0.1`,
+  handshakes validate field types, and idle connections survive the handshake
+  timeout. Empty files can be created or truncated, and browser-launch refusal
+  is reported. Approval fields remain a proposal awaiting the runtime freeze.
+- **Thonny startup, shutdown and localization (RVM103T).** Open clicks are
+  serialized and shutdown cancels startup and handshakes. Runtime children
+  belong to a Windows job or POSIX process group, and stdout is drained
+  throughout their lifetime. Announcement order no longer affects startup.
+  Menus, toolbar captions and failure notices ship in all fourteen translated
+  languages through gettext catalogues.
+
 - **The README's "What's new" section matches the release again.** 0.12.1 and
   0.13.0 shipped with the README still headed "What's new in 0.12.0". The train now
   describes 0.14.0, the Marketplace README carries the same section, and a
