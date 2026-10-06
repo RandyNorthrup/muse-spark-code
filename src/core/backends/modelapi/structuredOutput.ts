@@ -1,6 +1,8 @@
 // M106 O1: format selection reads only the selected model's evidence. The
 // provider codec owns forced-tool encoding; no provider wire is guessed here.
-import { z } from 'zod'
+import * as z from 'zod/mini'
+// Named core conversion keeps the shared mini runtime within its own size cap.
+import { toJSONSchema } from 'zod/v4/core'
 import type { CreateResponseBody } from './schemas'
 import { STRUCTURED_OUTPUT_REPAIRS_MAX, UI_TEXT } from '../../../shared/constants'
 import { compactionSummarySchema } from '../../../shared/sideCallSchemas'
@@ -41,13 +43,13 @@ export function sideCallMode(formats: SideCallFormats | undefined): SideCallMode
 export function sideCallContract<T>(
   formats: SideCallFormats | undefined,
   name: string,
-  schema: z.ZodType<T>,
+  schema: z.ZodMiniType<T>,
 ): SideCallAttempt {
   const mode = sideCallMode(formats)
   return {
     mode,
     name,
-    schema: mode === 'text' ? {} : z.toJSONSchema(schema, { io: 'input' }),
+    schema: mode === 'text' ? {} : toJSONSchema(schema, { io: 'input' }),
     repair: false,
   }
 }
@@ -102,7 +104,7 @@ function decoded(text: string): unknown {
 export async function structuredSideCall<T>(options: {
   readonly formats: SideCallFormats | undefined
   readonly name: string
-  readonly schema: z.ZodType<T>
+  readonly schema: z.ZodMiniType<T>
   readonly request: (attempt: SideCallAttempt) => Promise<string>
   readonly signal: AbortSignal
   readonly fallback: (text: string) => T
@@ -118,7 +120,7 @@ export async function structuredSideCall<T>(options: {
   }
   if (mode !== 'text') {
     try {
-      const schema = z.toJSONSchema(options.schema, { io: 'input' })
+      const schema = toJSONSchema(options.schema, { io: 'input' })
       for (let repair = 0; repair <= STRUCTURED_OUTPUT_REPAIRS_MAX; repair += 1) {
         options.signal.throwIfAborted()
         try {
@@ -164,7 +166,7 @@ export async function structuredCompaction(options: {
   return await structuredSideCall({
     ...options,
     name: 'compaction_summary',
-    schema: compactionSummarySchema.transform(renderCompactionSummary),
+    schema: z.pipe(compactionSummarySchema, z.transform(renderCompactionSummary)),
     fallback: (text) => text,
   })
 }

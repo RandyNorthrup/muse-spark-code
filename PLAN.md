@@ -19425,6 +19425,21 @@ structured answer schema or fixed Markdown renderer: the new six-field
 answer contract and deterministic rendering specification are M106's,
 while C1's metadata and replay wrapper remain unchanged.
 
+**O1 bundle recovery (2026-10-05, lead authorized).** O1 may change lane 0's
+shared answer schemas and W's validation wiring to remove the full Zod
+namespace from the four side-call bundles, retaining every existing cap and
+answer contract. The initial build measured Model API 914,122 bytes,
+reviewer 479,525, conversation Git 529,667 and judge 503,985. A local probe
+put the existing shared mini runtime plus JSON Schema conversion at 63,124
+bytes, above its unchanged 50 KiB cap; the named core converter alone was
+22,795 bytes. Use the existing shared mini validators and a named core
+converter in the side-call helper. The final build passes every existing
+cap; O1's 756 tests and 37 schema/bundle/loop-contract tests pass. A restored
+full namespace import fails all four size caps, followed by byte-exact source
+restoration and a passing complete build. Measurements and receipts are in
+`docs/certification/m106-o1.md`. No wire shape, dependency or feature scope
+changes; the lead retains the integration handoffs and complete quality gate.
+
 - **Goal.** Every guarantee Meta's wire offers the loop is used wherever the
   selected model has it: valid tool arguments, machine-readable side
   answers, bounded hosted tools, live previews, concurrent reads, the full

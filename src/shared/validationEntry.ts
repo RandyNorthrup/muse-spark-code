@@ -16,6 +16,7 @@ export {
   int,
   iso,
   lazy,
+  length,
   literal,
   looseObject,
   lte,

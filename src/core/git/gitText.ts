@@ -9,6 +9,7 @@
 //
 // The host reads changes; an injected port continues the user's held draft turn.
 
+import * as z from 'zod/mini'
 import {
   COMMIT_SUBJECT_MAX_CHARS,
   GIT_PROMPT_COMMITS_MAX,
@@ -93,17 +94,23 @@ export async function structuredGitDraft(
     return await structuredSideCall<string | undefined>({
       ...common,
       name: 'commit_draft',
-      schema: commitDraftSchema.transform((answer) => redactSecrets(answer.message)),
+      schema: z.pipe(
+        commitDraftSchema,
+        z.transform((answer) => redactSecrets(answer.message)),
+      ),
       fallback: commitMessageFrom,
     })
   }
   return await structuredSideCall<PullRequestText | undefined>({
     ...common,
     name: 'pull_request_draft',
-    schema: pullRequestDraftSchema.transform((answer) => ({
-      title: redactSecrets(answer.title),
-      body: redactSecrets(answer.body),
-    })),
+    schema: z.pipe(
+      pullRequestDraftSchema,
+      z.transform((answer) => ({
+        title: redactSecrets(answer.title),
+        body: redactSecrets(answer.body),
+      })),
+    ),
     fallback: pullRequestTextFrom,
   })
 }

@@ -6,6 +6,7 @@
 // requests per answer attempt. Invalid structured answers get one repair,
 // then the existing text path. Every request is admitted and settled.
 // Session-owned fences and journal observers are passed through unchanged.
+import * as z from 'zod/mini'
 import type { ModelApiHostDeps, DirectResponseBudget } from './ModelApiHost'
 import type { reviewPaidCall } from './reviewerEntry'
 import type { ConfirmedModelRequest, ResponseAttemptGuard } from './client'
@@ -175,13 +176,19 @@ async function callHookModel(
   const text = await structuredSideCall({
     formats: context.deps.sideCallFormats?.(confirmed.modelId),
     name: 'hook_decision',
-    schema: hookDecisionSchema.transform((answer) =>
-      JSON.stringify({
-        ...(answer.decision === 'block' && { decision: 'block', reason: answer.reason }),
-        ...(answer.additionalContext !== null && {
-          hookSpecificOutput: { hookEventName: event, additionalContext: answer.additionalContext },
+    schema: z.pipe(
+      hookDecisionSchema,
+      z.transform((answer) =>
+        JSON.stringify({
+          ...(answer.decision === 'block' && { decision: 'block', reason: answer.reason }),
+          ...(answer.additionalContext !== null && {
+            hookSpecificOutput: {
+              hookEventName: event,
+              additionalContext: answer.additionalContext,
+            },
+          }),
         }),
-      }),
+      ),
     ),
     signal,
     fallback: (text) => text,

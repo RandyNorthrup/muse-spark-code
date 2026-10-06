@@ -8,6 +8,7 @@
 // unused; a ready caution settles at the advisory threshold. No model switch:
 // the side body keeps the conversation's model. No `vscode` import.
 
+import * as z from 'zod/mini'
 import type { CreateResponseBody, InputItem } from '../../core/backends/modelapi/schemas'
 import type { JudgeEntryHandle } from '../../core/judge/entries'
 import { type JudgeQuestion } from '../../core/judge/judge'
@@ -153,7 +154,10 @@ export class ModelApiSameJudge {
       replyText = await structuredSideCall({
         formats: this.deps.sideCallFormats?.(this.deps.modelId),
         name: 'judge_answer',
-        schema: schema.transform((answer) => JSON.stringify(answer)),
+        schema: z.pipe(
+          schema,
+          z.transform((answer) => JSON.stringify(answer)),
+        ),
         signal,
         fallback: (text) => text,
         request: async (attempt) => {

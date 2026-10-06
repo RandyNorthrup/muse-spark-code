@@ -17,6 +17,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Structured side-call answer validation now uses the shared Zod mini runtime
+  and a named JSON Schema converter, keeping the Model API, reviewer, Git
+  and judge bundles within their existing size caps.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.
