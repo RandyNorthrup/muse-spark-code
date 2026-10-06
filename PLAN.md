@@ -19627,6 +19627,9 @@ Every finding gets a before-fix regression and a deliberate red/restored
 drill in `docs/certification/m107-s.md`. No new dependency, settings or
 surface. The rig brief forbids merges, pushes and aggregate quality here;
 the lead retains W's integration/platform gates and shared delivery docs.
+All four RVM107S findings are fixed with before-fix regressions and 13
+red/restored source drills; none is deferred. The inherited platform/delivery
+qualifications are named in §9 and the certification record.
 
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. Lanes S, T, G, A, C1, U and H depend only on main and lane 0's

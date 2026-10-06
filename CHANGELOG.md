@@ -12,6 +12,8 @@ happened, not what was planned; superseded entries are kept.
 - The staged resource-governor sampler honours cgroup v1 memory capacity
   and enforced ancestor limits, and rejects noncanonical cgroup paths
   before walking the mount hierarchy.
+- Its optional probes preserve missing/null Windows counters as unknown
+  and combine Linux DRM and Nvidia readings so the busiest GPU is counted.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

@@ -37,7 +37,7 @@ describe('optional resource probes', () => {
     r.files.set('/sys/class/drm/card1/device/gpu_busy_percent', '80\n')
     expect(await r.probes.gpu()).toBe(80)
     expect(r.port.read).toHaveBeenCalledTimes(2)
-    expect(r.port.executable).not.toHaveBeenCalled()
+    expect(r.port.executable).toHaveBeenCalledWith('nvidia-smi')
     expect(r.port.run).not.toHaveBeenCalled()
   })
 
@@ -67,6 +67,28 @@ describe('optional resource probes', () => {
     }
     vi.mocked(r.port.run).mockResolvedValue(null)
     expect(await r.probes.gpu()).toBeNull()
+  })
+
+  it('merges independently probed Nvidia and DRM GPUs and keeps failed installed probes unknown', async () => {
+    const r = rig()
+    r.files.set('/sys/class/drm/card0/device/gpu_busy_percent', '5')
+    vi.mocked(r.port.executable).mockResolvedValue('/usr/bin/nvidia-smi')
+    vi.mocked(r.port.run).mockResolvedValue('95\n')
+    expect(await r.probes.gpu()).toBe(95)
+    expect(r.port.run).toHaveBeenCalledWith('/usr/bin/nvidia-smi', [
+      '--query-gpu=utilization.gpu',
+      '--format=csv,noheader,nounits',
+    ])
+    r.files.set('/sys/class/drm/card0/device/gpu_busy_percent', '98')
+    expect(await r.probes.gpu()).toBe(98)
+    for (const failed of [null, '', 'N/A', '95\n101']) {
+      vi.mocked(r.port.run).mockResolvedValue(failed)
+      expect(await r.probes.gpu()).toBeNull()
+    }
+    vi.mocked(r.port.executable).mockResolvedValue('./nvidia-smi')
+    expect(await r.probes.gpu()).toBeNull()
+    vi.mocked(r.port.executable).mockResolvedValue(null)
+    expect(await r.probes.gpu()).toBe(98)
   })
 
   it('refuses relative executables for nvidia and Windows counters', async () => {
@@ -137,6 +159,23 @@ describe('optional resource probes', () => {
     vi.mocked(r.port.executable).mockResolvedValue(null)
     expect(await r.probes.gpu()).toBeNull()
     expect(await r.probes.disk()).toBeNull()
+  })
+
+  it('preserves missing and null Windows CIM properties in the projection before validating counters', async () => {
+    const r = rig('win32')
+    vi.mocked(r.port.executable).mockImplementation((name) =>
+      Promise.resolve(name === 'powershell' ? String.raw`C:\Windows\powershell.exe` : null),
+    )
+    vi.mocked(r.port.run).mockResolvedValue('[null,null,0]')
+    expect(await r.probes.gpu()).toBeNull()
+    expect(await r.probes.disk()).toBeNull()
+    const calls = vi.mocked(r.port.run).mock.calls
+    // Preserve the native values: PowerShell's [double] cast converts null to 0.
+    expect(calls[0]![1][4]).toContain('ForEach-Object { $_.UtilizationPercentage }')
+    expect(calls[1]![1][4]).toContain('ForEach-Object { $_.PercentIdleTime }')
+    vi.mocked(r.port.run).mockResolvedValue('[0]')
+    expect(await r.probes.gpu()).toBe(0)
+    expect(await r.probes.disk()).toBe(100)
   })
 
   it('reports Darwin GPU/disk unavailable without root, throughput substitution or child probes', async () => {

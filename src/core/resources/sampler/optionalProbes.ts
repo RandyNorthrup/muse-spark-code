@@ -17,9 +17,9 @@ export interface ResourceProbePort {
 // CIM class/property names avoid localized performance-counter paths. No profile,
 // executable from the workspace, process identity, elevation or policy bypass.
 const WINDOWS_GPU_SCRIPT =
-  "$ErrorActionPreference='Stop'; $v=@(Get-CimInstance -ClassName Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine | ForEach-Object { [double]$_.UtilizationPercentage }); ConvertTo-Json -InputObject $v -Compress"
+  "$ErrorActionPreference='Stop'; $v=@(Get-CimInstance -ClassName Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine | ForEach-Object { $_.UtilizationPercentage }); ConvertTo-Json -InputObject $v -Compress"
 const WINDOWS_DISK_SCRIPT =
-  "$ErrorActionPreference='Stop'; $v=@(Get-CimInstance -ClassName Win32_PerfFormattedData_PerfDisk_PhysicalDisk | Where-Object { $_.Name -ne '_Total' } | ForEach-Object { [double]$_.PercentIdleTime }); ConvertTo-Json -InputObject $v -Compress"
+  "$ErrorActionPreference='Stop'; $v=@(Get-CimInstance -ClassName Win32_PerfFormattedData_PerfDisk_PhysicalDisk | Where-Object { $_.Name -ne '_Total' } | ForEach-Object { $_.PercentIdleTime }); ConvertTo-Json -InputObject $v -Compress"
 const percentages = z.array(z.number().check(z.gte(0), z.lte(100))).check(z.minLength(1))
 
 function numericPercent(text: string | null | undefined): number | null {
@@ -65,9 +65,9 @@ export function createOptionalResourceProbes(port: ResourceProbePort): ResourceO
   async function gpu(): Promise<number | null> {
     // The unprivileged Darwin tools provide no qualified utilization reading.
     if (port.platform === 'darwin') return null
+    const values: number[] = []
     if (port.platform === 'linux') {
       const cards = await port.list('/sys/class/drm')
-      const values: number[] = []
       const candidates = cards ?? []
       for (const card of candidates) {
         if (!/^card\d+$/.test(card)) continue
@@ -77,22 +77,25 @@ export function createOptionalResourceProbes(port: ResourceProbePort): ResourceO
         if (value === null) return null
         values.push(value)
       }
-      if (values.length > 0) return Math.max(...values)
     }
     const executable = await port.executable('nvidia-smi')
-    if (executable === null)
-      return port.platform === 'win32' ? await windows(WINDOWS_GPU_SCRIPT, false) : null
+    if (executable === null) {
+      if (port.platform === 'win32') return await windows(WINDOWS_GPU_SCRIPT, false)
+      return values.length > 0 ? Math.max(...values) : null
+    }
     if (!paths.isAbsolute(executable)) return null
     const text = await port.run(executable, [
       '--query-gpu=utilization.gpu',
       '--format=csv,noheader,nounits',
     ])
     if (text === null || text.trim() === '') return null
-    const values = text
+    const nvidiaValues = text
       .trim()
       .split(/\r?\n/)
       .map((line) => numericPercent(line))
-    return values.every((value) => value !== null) ? Math.max(...values) : null
+    return nvidiaValues.every((value) => value !== null)
+      ? Math.max(...values, ...nvidiaValues)
+      : null
   }
 
   async function readDisk(): Promise<number | null> {
