@@ -28,6 +28,11 @@ opens. Settings/storage calls are bidirectional with the runtime as the
 portable record authority; settings notifications are bidirectional. Capabilities
 promise complete groups, never partial implementations. Runtime and native
 fixtures must use the exact current snapshot and request/result schemas.
+The portable runtime advertises lifecycle/settings/storage. Its credential-free
+record store answers settings/storage even if an editor also advertises those
+groups; editor settings UIs write through the runtime and receive live change
+notifications. Trust revocation immediately fences submissions. Profile changes
+retire old bindings before opening replacement surfaces.
 
 ## Envelope and admission
 

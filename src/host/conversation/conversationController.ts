@@ -6,6 +6,7 @@ import { startApprovalJudge } from '../../core/judge/use'
 
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
+import { isPdf } from '../../core/pdf'
 import { AttachmentStore } from '../../core/attachments'
 import { isProtectedPath } from '../../core/protectedPaths'
 import {
@@ -360,6 +361,8 @@ export interface SessionMemory {
 }
 
 export interface ConversationDeps {
+  /** Internal selected-model catalog supplied by portable provider adapters (D84). */
+  readonly modelAllowsFeature?: (modelId: string, feature: string) => Promise<boolean>
   /** Portable carriers retire the previous immutable binding before any new-session output. */
   readonly onSessionAttached?: (session: AgentSession) => Promise<void>
   /** ACP owns permission/questions; this controller still owns session state and submissions. */
@@ -3480,10 +3483,14 @@ export class ConversationController {
     this.postSessionInfo(this.modelId)
     this.noteActivity()
     this.git.sessionChanged(session.sessionId)
-    await this.applyEffort(session, {
-      effort: this.effort,
-      isThinkingEnabled: this.isThinkingEnabled,
-    })
+    if (
+      this.deps.modelAllowsFeature === undefined ||
+      (await this.deps.modelAllowsFeature(this.modelId, 'reasoningEffort'))
+    )
+      await this.applyEffort(session, {
+        effort: this.effort,
+        isThinkingEnabled: this.isThinkingEnabled,
+      })
     if (this.session !== session || this.attachmentGeneration !== generation || this.isDisposed) {
       return
     }
@@ -5236,7 +5243,12 @@ export class ConversationController {
       if (!this.canDistilHandoff(pending)) {
         return false
       }
-      if (host.info.kind !== 'modelApi') {
+      const canHandoff =
+        this.deps.modelAllowsFeature === undefined
+          ? host.info.kind === 'modelApi'
+          : await this.deps.modelAllowsFeature(this.modelId, 'handoff')
+      if (!this.canDistilHandoff(pending)) return false
+      if (!canHandoff) {
         this.notice('info', UI_TEXT.handoffUnavailable)
         return false
       }
@@ -7182,6 +7194,13 @@ export class ConversationController {
   }
 
   private async updateEffort(effort: EffortLevel, isThinkingEnabled: boolean): Promise<void> {
+    if (this.deps.modelAllowsFeature !== undefined) {
+      const modelId = this.modelId
+      const generation = this.sendInvalidationEpoch
+      const isAllowed = await this.deps.modelAllowsFeature(modelId, 'reasoningEffort')
+      if (modelId !== this.modelId || generation !== this.sendInvalidationEpoch) return
+      if (!isAllowed) throw new Error('MHP_MODEL_FEATURE_UNAVAILABLE')
+    }
     const previous = { effort: this.effort, isThinkingEnabled: this.isThinkingEnabled }
     this.effort = effort
     this.isThinkingEnabled = isThinkingEnabled
@@ -7390,6 +7409,11 @@ export class ConversationController {
     if (!this.isCurrentSessionAction(session, generation)) {
       return
     }
+    if (this.deps.modelAllowsFeature !== undefined) {
+      const isAllowed = await this.deps.modelAllowsFeature(this.modelId, 'compaction')
+      if (!this.isCurrentSessionAction(session, generation)) return
+      if (!isAllowed) throw new Error('MHP_MODEL_FEATURE_UNAVAILABLE')
+    }
     try {
       const outcome = await session.compact()
       if (!this.isCurrentSessionAction(session, generation)) {
@@ -7489,7 +7513,25 @@ export class ConversationController {
     ) {
       return
     }
-    const result = this.attachments.add(name, bytes, host.info.kind === 'modelApi', canAcceptText)
+    let canAcceptDocuments = host.info.kind === 'modelApi'
+    if (this.deps.modelAllowsFeature !== undefined) {
+      let feature: string | undefined = 'vision'
+      if (isPdf(bytes)) feature = 'pdf'
+      else if (canAcceptText && TEXT_ATTACHMENT_EXTENSIONS.has(path.extname(name).toLowerCase()))
+        feature = undefined
+      if (feature !== undefined && !(await this.deps.modelAllowsFeature(this.modelId, feature))) {
+        this.post({
+          type: 'attachmentRejected',
+          name,
+          reason: UI_TEXT.attachmentUnreadable,
+          requestId,
+        })
+        return
+      }
+      canAcceptDocuments = await this.deps.modelAllowsFeature(this.modelId, 'pdf')
+      if (!this.isCurrentAttachmentGeneration(generation)) return
+    }
+    const result = this.attachments.add(name, bytes, canAcceptDocuments, canAcceptText)
     if (result.ok) {
       this.post({
         type: 'attachmentAdded',
@@ -8878,6 +8920,9 @@ export class ConversationController {
   public replayHistory(history: SessionHistoryOutcome): void {
     if (this.isDisposed || this.session === undefined) return
     this.postHistory(this.session.sessionId, history, this.activeTurnId)
+  }
+  public get selectedModelId(): string {
+    return this.modelId
   }
 
   /** Clear opens a new opaque session before a replacement portable surface is published. */

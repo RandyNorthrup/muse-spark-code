@@ -119,6 +119,10 @@ export class CompanionEvents {
     }
   }
 
+  public retire(id: string): void {
+    this.streams.get(id)?.stop()
+  }
+
   public close(): void {
     for (const stream of this.streams.values()) stream.stop()
   }

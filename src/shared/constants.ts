@@ -5314,7 +5314,24 @@ export const MHP_PANEL = {
 export const RUNTIME_PANEL_PORTS_BUNDLE_FILE = 'runtimePanelPorts.js'
 export const RUNTIME_PANEL_BUNDLE_FILE = 'runtimePanel.js'
 export const PORTABLE_MODULE_HEX_RADIX = 16
+const RUNTIME_PANEL_RECONFIGURE_SETTINGS: readonly string[] = [
+  'museSpark.backend',
+  'museSpark.museBinaryPath',
+  'museSpark.shellSandbox',
+  'museSpark.environmentVariables',
+  'museSpark.shell.passEnvironmentVariables',
+  'museSpark.sandboxNetwork',
+  'museSpark.confidentialWorkspace',
+  'museSpark.modelApiHooks',
+  'museSpark.modelApiCommandRules',
+  'museSpark.modelApiPermissionProfiles',
+  'museSpark.modelApiPermissionProfile',
+  'museSpark.modelApiRepositoryRules',
+  'museSpark.modelApiRepoMap',
+  'museSpark.modelApiObservationPacking',
+]
 export const RUNTIME_PANEL = {
+  reconfigureSettings: RUNTIME_PANEL_RECONFIGURE_SETTINGS,
   requestTimeoutMs: 30_000,
   closeTimeoutMs: 5000,
   idleTimeoutMs: 600_000,

@@ -1,18 +1,24 @@
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, writeFile, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import type * as ConversationBundle from '../../src/host/conversation/conversationBundle'
 import type { SessionHistoryOutcome } from '../../src/core/agent/agentBackend'
+import { pdfFixture } from './helpers/pdfFixture'
+import { commandApproval } from './helpers/acpWaits'
+import { parseMhpResult } from '../../src/shared/hostApi/protocol'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import { ControllerRegistry } from '../../src/runtime/panel/controllerRegistry'
 import { RuntimeConversation } from '../../src/runtime/panel/runtimeController'
-import { runtimeConversationDeps, runtimeSettings } from '../../src/runtime/panel/runtimeFeatures'
+import {
+  type RuntimeConversationPorts,
+  runtimeConversationDeps,
+  runtimeSettings,
+} from '../../src/runtime/panel/runtimeFeatures'
 import { RuntimeSettingsStore } from '../../src/runtime/settingsStore'
-import { createRuntimeBackend } from '../../src/runtime/backends'
+import { fakePanelRuntime } from './helpers/runtimePanel'
 import type { ServeOptions } from '../../src/runtime/cliArgs'
 import { FakeAgentHost } from './helpers/fakeAgent'
-import { memorySecrets } from './helpers/fakes'
 import { buildHostBundles } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -48,7 +54,7 @@ vi.mock('../../src/host/conversation/conversationBundle', async (original) => {
 
 const rig = { root: '' }
 beforeAll(async () => {
-  rig.root = await mkdtemp(path.join(tmpdir(), 'm104-lifetime-'))
+  rig.root = await realpath(await mkdtemp(path.join(tmpdir(), 'm104-lifetime-')))
   await buildHostBundles(rig.root, {
     conversation: path.resolve('src/host/conversation/conversationEntry.ts'),
   })
@@ -73,18 +79,11 @@ async function setup(kind: 'museCode' | 'modelApi' = 'museCode') {
     isVerbose: false,
   }
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-  const runtime = createRuntimeBackend({
+  const runtime = fakePanelRuntime({
     options,
-    version: 'fake',
     distDir: rig.root,
-    platform: process.platform,
-    env: {},
     homeDir: rig.root,
-    secrets: memorySecrets(),
     runGit,
-    museCodeCredentials: [],
-    fetch: () => Promise.reject(new Error('fake refuses network')),
-    sleep: () => Promise.resolve(),
     log,
   })
   const host = new FakeAgentHost()
@@ -116,6 +115,7 @@ async function setup(kind: 'museCode' | 'modelApi' = 'museCode') {
     settings,
     workspaceRoot: rig.root,
     ownsPaidConsent: false,
+    ownsSettings: true,
     controllers: () => [],
     runGit,
     selection: () => null,
@@ -284,6 +284,12 @@ for (const kind of ['museCode', 'modelApi'] as const) {
           turnId: 'running',
           attachments: [{ type: 'image', mediaType: 'image/png', width: 1, height: 1 }],
         },
+        {
+          itemId: 'compaction',
+          kind: 'compaction',
+          status: 'completed',
+          fallbackText: 'Restored compacted context',
+        },
       ],
       todos: [],
       sideChat: true,
@@ -315,6 +321,523 @@ for (const kind of ['museCode', 'modelApi'] as const) {
         goal: rich.goal,
         items: rich.items,
       })
+    } finally {
+      await t.conversation.release()
+      await t.runtime.close()
+    }
+  })
+}
+
+it('consumes typed engine/presentation actions and awaits their cleanup before the final drain', async () => {
+  const t = await setup()
+  const engine = vi.fn(() => Promise.resolve())
+  const presentation = vi.fn(() => Promise.resolve())
+  const disposal = Promise.withResolvers<boolean>()
+  const entered = Promise.withResolvers<boolean>()
+  const settled = vi.spyOn(t.store, 'settled')
+  try {
+    await t.conversation.prepare(
+      {
+        ...t.ports,
+        factories: {
+          engines: (context) => {
+            context.own(async () => {
+              entered.resolve(true)
+              await disposal.promise
+            })
+            return Promise.resolve({ features: {}, actions: { manageSkills: engine } })
+          },
+          presentation: () =>
+            Promise.resolve({ features: {}, actions: { showMemory: presentation } }),
+        },
+      },
+      t.loaded,
+      t.bundle,
+      runtimeConversationDeps,
+    )
+    await t.conversation.handle({ type: 'hostAction', action: 'manageSkills' })
+    await t.conversation.handle({ type: 'hostAction', action: 'showMemory' })
+    expect(engine).toHaveBeenCalledOnce()
+    expect(presentation).toHaveBeenCalledOnce()
+    const releasing = t.conversation.release()
+    await entered.promise
+    await new Promise((resolve) => {
+      setImmediate(resolve)
+    })
+    expect(settled).not.toHaveBeenCalled()
+    disposal.resolve(true)
+    await releasing
+    expect(settled).toHaveBeenCalledOnce()
+  } finally {
+    disposal.resolve(true)
+    await t.conversation.release()
+    await t.runtime.close()
+  }
+})
+
+it('auxiliary views share the conversation release barrier and reject stale bindings', async () => {
+  const t = await setup()
+  const entered = Promise.withResolvers<boolean>()
+  const proceed = Promise.withResolvers<boolean>()
+  const settled = vi.spyOn(t.store, 'settled')
+  const binding = { sessionId: t.session.sessionId, surface: 'aux', surfaceKind: 'usage' as const }
+  try {
+    await t.conversation.prepare(
+      {
+        ...t.ports,
+        factories: {
+          presentation: () =>
+            Promise.resolve({
+              features: {},
+              view: () => ({
+                handle: async () => {
+                  entered.resolve(true)
+                  await proceed.promise
+                },
+                subscribe: () => vi.fn(),
+              }),
+            }),
+        },
+      },
+      t.loaded,
+      t.bundle,
+      runtimeConversationDeps,
+    )
+    expect(t.conversation.view({ ...binding, sessionId: 'other' })).toBeUndefined()
+    const view = t.conversation.view(binding)
+    if (view === undefined) throw new Error('Missing fake auxiliary view')
+    const handling = view.handle({ type: 'ready' })
+    await entered.promise
+    const releasing = t.conversation.release()
+    await new Promise((resolve) => {
+      setImmediate(resolve)
+    })
+    expect(settled).not.toHaveBeenCalled()
+    await expect(view.handle({ type: 'ready' })).rejects.toThrow('MHP_PANEL_UNKNOWN_SURFACE')
+    proceed.resolve(true)
+    await handling
+    await releasing
+    expect(settled).toHaveBeenCalledOnce()
+  } finally {
+    proceed.resolve(true)
+    await t.conversation.release()
+    await t.runtime.close()
+  }
+})
+
+for (const kind of ['museCode', 'modelApi'] as const)
+  it(`${kind}: a portable side-chat surface retains Plan-only admission`, async () => {
+    const t = await setup(kind)
+    const messages: HostToWebviewMessage[] = []
+    try {
+      await t.conversation.prepare(
+        { ...t.ports, isSideChat: true },
+        {
+          ...t.loaded,
+          record: { ...t.loaded.record, ...(kind === 'modelApi' && { sideChat: true }) },
+        },
+        t.bundle,
+        runtimeConversationDeps,
+      )
+      vi.spyOn(t.host, 'readSession').mockResolvedValue(t.loaded.history)
+      t.conversation.subscribe((message) => {
+        messages.push(message)
+      })
+      await t.conversation.handle({ type: 'setPermissionMode', mode: 'manual' })
+      await t.conversation.handle({ type: 'ready' })
+      expect(messages.findLast((message) => message.type === 'composerState')).toMatchObject({
+        permissionMode: 'plan',
+      })
+    } finally {
+      await t.conversation.release()
+      await t.runtime.close()
+    }
+  })
+
+it('drains every factory cleanup and the store before reporting a synchronous cleanup failure', async () => {
+  const t = await setup()
+  const other = vi.fn(() => Promise.resolve())
+  const settled = vi.spyOn(t.store, 'settled')
+  try {
+    await t.conversation.prepare(
+      {
+        ...t.ports,
+        factories: {
+          engines: (context) => {
+            context.own(() => {
+              throw new Error('Fake cleanup failure')
+            })
+            context.own(other)
+            return Promise.resolve({ features: {} })
+          },
+        },
+      },
+      t.loaded,
+      t.bundle,
+      runtimeConversationDeps,
+    )
+    await expect(t.conversation.release()).rejects.toThrow('MHP_COMPOSITION_RELEASE_FAILED')
+    expect(other).toHaveBeenCalledOnce()
+    expect(settled).toHaveBeenCalledOnce()
+  } finally {
+    await t.runtime.close()
+  }
+})
+
+it('refuses conflicting action ownership and missing capability records without success placeholders', async () => {
+  const t = await setup()
+  const action = vi.fn(() => Promise.resolve())
+  const dispose = vi.fn(() => Promise.resolve())
+  try {
+    await expect(
+      t.conversation.prepare(
+        {
+          ...t.ports,
+          factories: {
+            engines: (context) => {
+              context.own(dispose)
+              return Promise.resolve({ features: {}, actions: { manageSkills: action } })
+            },
+            presentation: async (context) => {
+              await expect(context.requireModelCapabilities()).rejects.toThrow(
+                'MHP_MODEL_CAPABILITIES_UNAVAILABLE',
+              )
+              return { features: {}, actions: { manageSkills: action } }
+            },
+          },
+        },
+        t.loaded,
+        t.bundle,
+        runtimeConversationDeps,
+      ),
+    ).rejects.toThrow('MHP_COMPOSITION_ACTION_CONFLICT')
+    await t.conversation.release()
+    expect(dispose).toHaveBeenCalledOnce()
+  } finally {
+    await t.conversation.release()
+    await t.runtime.close()
+  }
+})
+
+for (const kind of ['museCode', 'modelApi'] as const)
+  it(`${kind}: selected-model capabilities gate compaction without a provider-name shortcut`, async () => {
+    const t = await setup(kind)
+    let isAllowed = false
+    let isCurrentModel = false
+    const selectedModel = () =>
+      Promise.resolve({
+        providerId: 'unrelated-vendor',
+        modelId: isCurrentModel ? t.conversation.modelId : 'old-model',
+        capabilities: new Set(isAllowed ? ['compaction', 'reasoningEffort'] : []),
+      })
+    try {
+      await t.conversation.prepare(
+        { ...t.ports, selectedModel },
+        t.loaded,
+        t.bundle,
+        runtimeConversationDeps,
+      )
+      await t.conversation.handle({ type: 'compact' })
+      await t.conversation.handle({ type: 'setThinking', enabled: false })
+      expect(t.session.compact).not.toHaveBeenCalled()
+      expect(t.session.setReasoningEffort).not.toHaveBeenCalled()
+      isAllowed = true
+      await t.conversation.handle({ type: 'compact' })
+      expect(t.session.compact).not.toHaveBeenCalled()
+      isCurrentModel = true
+      await t.conversation.handle({ type: 'compact' })
+      expect(t.session.compact).toHaveBeenCalledOnce()
+      await t.conversation.handle({ type: 'setThinking', enabled: false })
+      expect(t.session.setReasoningEffort).toHaveBeenCalledOnce()
+    } finally {
+      await t.conversation.release()
+      await t.runtime.close()
+    }
+  })
+
+function pickerHost(picked: () => string[]): RuntimeConversationPorts['host'] {
+  return {
+    request: (method) =>
+      Promise.resolve(parseMhpResult(method, { jsonrpc: '2.0', id: 1, result: picked() }).result),
+    notify: vi.fn(),
+  }
+}
+
+it('picks only indexed workspace files through the shared host picker and retains the resulting text part', async () => {
+  const t = await setup('modelApi')
+  const messages: HostToWebviewMessage[] = []
+  await writeFile(path.join(rig.root, 'attach.txt'), 'Fake attached contents')
+  try {
+    await t.conversation.prepare(
+      {
+        ...t.ports,
+        options: { ...t.ports.options, trustWorkspace: true },
+        settings: {
+          ...t.ports.settings,
+          current: () => ({ ...t.ports.settings.current(), autosave: false }),
+        },
+        host: pickerHost(() => ['attach.txt']),
+      },
+      t.loaded,
+      t.bundle,
+      runtimeConversationDeps,
+    )
+    t.conversation.subscribe((message) => {
+      messages.push(message)
+    })
+    await t.conversation.handle({ type: 'pickFile' })
+    const added = messages.find((message) => message.type === 'attachmentAdded')
+    expect(added).toMatchObject({ attachment: { name: 'attach.txt', mediaType: 'text/plain' } })
+    if (added?.type !== 'attachmentAdded') throw new Error('Missing fake attachment')
+    await t.conversation.handle({
+      type: 'sendMessage',
+      localId: 'rich',
+      text: 'Use this file',
+      attachmentIds: [added.attachment.id],
+    })
+    expect(
+      t.host.sessions[0]?.sendTurn.mock.calls
+        .at(-1)?.[0]
+        .some((part) => part.type === 'textFile' && part.text.includes('Fake attached contents')),
+    ).toBe(true)
+  } finally {
+    await t.conversation.release()
+    await t.runtime.close()
+  }
+})
+
+for (const kind of ['museCode', 'modelApi'] as const)
+  it(`${kind}: a pending handoff survives portable reload until the user confirms a fresh-session transfer`, async () => {
+    const t = await setup(kind)
+    const messages: HostToWebviewMessage[] = []
+    let isAllowed = false
+    let history: SessionHistoryOutcome = {
+      mode: 'inline',
+      name: undefined,
+      items: [{ itemId: 'user', kind: 'userMessage', status: 'completed', text: 'Earlier work' }],
+      todos: [],
+    }
+    try {
+      await t.conversation.prepare(
+        {
+          ...t.ports,
+          selectedModel: () =>
+            Promise.resolve({
+              providerId: 'fake-vendor',
+              modelId: t.conversation.modelId,
+              capabilities: new Set(isAllowed ? ['handoff'] : []),
+            }),
+          sessionChanged: () => Promise.resolve(),
+        },
+        t.loaded,
+        t.bundle,
+        runtimeConversationDeps,
+      )
+      vi.spyOn(t.host, 'readSession').mockImplementation(() => Promise.resolve(history))
+      t.conversation.subscribe((message) => {
+        messages.push(message)
+      })
+      await t.conversation.handle({ type: 'requestHandoff', requestId: 'denied-handoff' })
+      expect(messages).toContainEqual({
+        type: 'handoffCommandResult',
+        requestId: 'denied-handoff',
+        accepted: false,
+      })
+      expect(t.session.sendTurn).not.toHaveBeenCalled()
+      isAllowed = true
+      await t.conversation.handle({ type: 'requestHandoff', requestId: 'handoff' })
+      history = {
+        ...history,
+        items: [
+          ...history.items,
+          {
+            itemId: 'brief',
+            kind: 'agentMessage',
+            status: 'completed',
+            turnId: 'turn-1',
+            text: '## Goal\nContinue earlier work',
+          },
+        ],
+      }
+      const session = t.host.sessions[0]
+      if (session === undefined) throw new Error('Missing fake session')
+      session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+      await vi.waitFor(() => {
+        expect(messages.some((message) => message.type === 'handoffReady')).toBe(true)
+      })
+      messages.length = 0
+      await t.conversation.handle({ type: 'ready', attachmentEpoch: 1 })
+      expect(messages.find((message) => message.type === 'handoffReady')).toMatchObject({
+        requestId: 'handoff',
+        brief: '## Goal\nContinue earlier work',
+      })
+      await t.conversation.handle({
+        type: 'confirmHandoff',
+        requestId: 'handoff',
+        brief: 'Confirmed brief',
+      })
+      expect(t.conversation.sessionId).not.toBe(t.session.sessionId)
+    } finally {
+      await t.conversation.release()
+      await t.runtime.close()
+    }
+  })
+
+it('keeps an untrusted text selection as a path mention and rejects picker IDs outside the index', async () => {
+  const t = await setup()
+  await writeFile(path.join(rig.root, 'attach.txt'), 'Untrusted ordinary text\n'.repeat(1000))
+  let selected = 'attach.txt'
+  const messages: HostToWebviewMessage[] = []
+  try {
+    await t.conversation.prepare(
+      {
+        ...t.ports,
+        host: pickerHost(() => [selected]),
+      },
+      t.loaded,
+      t.bundle,
+      runtimeConversationDeps,
+    )
+    t.conversation.subscribe((message) => {
+      messages.push(message)
+    })
+    await t.conversation.handle({ type: 'pickFile' })
+    expect(messages).toContainEqual({ type: 'insertText', text: '@attach.txt ' })
+    expect(messages.some((message) => message.type === 'attachmentAdded')).toBe(false)
+    messages.length = 0
+    selected = '../outside.txt'
+    await t.conversation.handle({ type: 'pickFile' })
+    expect(
+      messages.some(
+        (message) =>
+          message.type === 'notice' && message.text.includes('MHP_UNSUPPORTED_CAPABILITY'),
+      ),
+    ).toBe(true)
+  } finally {
+    await t.conversation.release()
+    await t.runtime.close()
+  }
+})
+
+for (const kind of ['museCode', 'modelApi'] as const) {
+  it(`${kind}: vision and PDF admission use the selected capability record`, async () => {
+    const t = await setup(kind)
+    const messages: HostToWebviewMessage[] = []
+    let canUseMedia = false
+    const image = Uint8Array.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0,
+      1, 0, 0, 0, 1,
+    ])
+    try {
+      await t.conversation.prepare(
+        {
+          ...t.ports,
+          selectedModel: () =>
+            Promise.resolve({
+              providerId: 'another-vendor',
+              modelId: t.conversation.modelId,
+              capabilities: new Set(canUseMedia ? ['vision', 'pdf'] : []),
+            }),
+        },
+        t.loaded,
+        t.bundle,
+        runtimeConversationDeps,
+      )
+      t.conversation.subscribe((message) => {
+        messages.push(message)
+      })
+      await t.conversation.handle({
+        type: 'attachImageData',
+        requestId: 'denied-image',
+        name: 'image.png',
+        mediaType: 'image/png',
+        base64: Buffer.from(image).toString('base64'),
+      })
+      await t.conversation.handle({
+        type: 'attachImageData',
+        requestId: 'denied-pdf',
+        name: 'document.pdf',
+        mediaType: 'application/pdf',
+        base64: Buffer.from(pdfFixture(1)).toString('base64'),
+      })
+      expect(messages.some((message) => message.type === 'attachmentAdded')).toBe(false)
+      expect(
+        messages
+          .filter((message) => message.type === 'attachmentRejected')
+          .map((message) => message.requestId),
+      ).toEqual(['denied-image', 'denied-pdf'])
+      canUseMedia = true
+      await t.conversation.handle({
+        type: 'attachImageData',
+        name: 'image.png',
+        mediaType: 'image/png',
+        base64: Buffer.from(image).toString('base64'),
+      })
+      await t.conversation.handle({
+        type: 'attachImageData',
+        name: 'document.pdf',
+        mediaType: 'application/pdf',
+        base64: Buffer.from(pdfFixture(1)).toString('base64'),
+      })
+      expect(messages.filter((message) => message.type === 'attachmentAdded')).toHaveLength(2)
+    } finally {
+      await t.conversation.release()
+      await t.runtime.close()
+    }
+  })
+
+  it(`${kind}: shared approvals and questions retain exact IDs and choices through the portable controller`, async () => {
+    const t = await setup(kind)
+    const messages: HostToWebviewMessage[] = []
+    try {
+      await t.conversation.prepare(t.ports, t.loaded, t.bundle, runtimeConversationDeps)
+      t.conversation.subscribe((message) => {
+        messages.push(message)
+      })
+      const session = t.host.sessions[0]
+      if (session === undefined) throw new Error('Missing fake session')
+      session.emit(
+        commandApproval([
+          { choiceId: 'allow-once', label: 'Allow once', decision: 'approved', scope: 'once' },
+        ]),
+      )
+      expect(
+        messages.some(
+          (message) => message.type === 'agentEvent' && message.event.type === 'approvalRequested',
+        ),
+      ).toBe(true)
+      await t.conversation.handle({
+        type: 'decideApproval',
+        approvalId: 'approval-1',
+        choiceId: 'allow-once',
+        requirementId: { approvalId: 'approval-1', sourceIndex: 0 },
+      })
+      expect(session.decideApproval).toHaveBeenCalledWith({
+        approvalId: 'approval-1',
+        choiceId: 'allow-once',
+        requirementId: { approvalId: 'approval-1', sourceIndex: 0 },
+      })
+      session.emit({
+        type: 'questionRequested',
+        userInputId: 'question',
+        itemId: 'question-item',
+        questions: [
+          {
+            id: 'q',
+            header: 'Fake question',
+            question: 'Which option?',
+            options: [],
+            selection: { mode: 'single' },
+          },
+        ],
+      })
+      expect(
+        messages.some(
+          (message) => message.type === 'agentEvent' && message.event.type === 'questionRequested',
+        ),
+      ).toBe(true)
+      await t.conversation.handle({ type: 'cancelQuestion', userInputId: 'question' })
+      expect(session.cancelQuestions).toHaveBeenCalledWith('question')
     } finally {
       await t.conversation.release()
       await t.runtime.close()

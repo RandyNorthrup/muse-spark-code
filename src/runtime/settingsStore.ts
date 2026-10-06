@@ -214,6 +214,17 @@ export class RuntimeSettingsStore {
     if (failures.length > 0) throw new AggregateError(failures, 'MHP_STATE_WRITE_FAILED')
   }
 
+  /** CLI choices remain effective until an explicit workspace/user setting replaces them. */
+  public async hasSetting(key: string): Promise<boolean> {
+    settingKeySchema.parse(key)
+    if (settingSchema(key.slice(SETTINGS_SECTION.length + 1)) === undefined)
+      throw new Error('MHP_STATE_UNKNOWN_SETTING')
+    return (
+      (await this.read('settings', 'workspace', key)) !== undefined ||
+      (await this.read('settings', 'user', key)) !== undefined
+    )
+  }
+
   public async getSetting(key: string): Promise<JsonValue> {
     settingKeySchema.parse(key)
     const name = key.slice(SETTINGS_SECTION.length + 1)

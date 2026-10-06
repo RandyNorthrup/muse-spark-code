@@ -10,6 +10,7 @@ import {
   webviewToHostMessageSchema,
   type HostToWebviewMessage,
 } from '../../shared/protocol'
+import type { MhpPanelBinding } from '../../shared/hostApi/panel'
 import type { PanelView } from './surfaces'
 import type { RuntimeConversationPorts } from './runtimeFeatures'
 import type { runtimeConversationDeps } from './runtimeFeatures'
@@ -29,6 +30,8 @@ export class RuntimeConversation implements SessionController, PanelView {
   private settings: RuntimeConversationPorts['settings'] | undefined
   private store: RuntimeConversationPorts['store'] | undefined
   private canRebind = false
+  private readonly cleanups: (() => Promise<void>)[] = []
+  private readonly views = new Set<(binding: MhpPanelBinding) => PanelView | undefined>()
 
   public constructor(
     private session: AgentSession,
@@ -50,9 +53,11 @@ export class RuntimeConversation implements SessionController, PanelView {
   ): Promise<void> {
     this.settings = ports.settings
     this.store = ports.store
+    if (ports.ownsSettings === true) this.cleanups.push(() => ports.settings.dispose())
     this.canRebind = ports.sessionChanged !== undefined
     const surface: ChatSurface = {
       id: this.sessionId,
+      ...((loaded.record.sideChat === true || ports.isSideChat === true) && { isSideChat: true }),
       post: (message) => {
         if (this.isDisposed) return
         const parsed = hostToWebviewMessageSchema.parse(message)
@@ -78,7 +83,19 @@ export class RuntimeConversation implements SessionController, PanelView {
         this.listeners.clear()
       },
     }
-    const deps = await compose({ ...ports, surface })
+    const deps = await compose({
+      ...ports,
+      surface,
+      own: (dispose) => {
+        this.cleanups.push(dispose)
+      },
+      publishView: (lookup) => {
+        this.views.add(lookup)
+        return () => {
+          this.views.delete(lookup)
+        }
+      },
+    })
     this.ensureLive()
     // ACP keeps its editor-owned identity; panel sessions move through the registry
     // and retire all old immutable surface bindings before publishing new output.
@@ -120,6 +137,12 @@ export class RuntimeConversation implements SessionController, PanelView {
       {
         ...deps,
         ensureHost: () => Promise.resolve(ownedHost),
+        ...(ports.selectedModel !== undefined && {
+          modelAllowsFeature: async (modelId: string, feature: string) => {
+            const record = await ports.selectedModel?.()
+            return record?.modelId === modelId && record.capabilities.has(feature)
+          },
+        }),
         ...(ports.sessionChanged !== undefined && {
           onSessionAttached: async (session: AgentSession) => {
             this.ensureLive()
@@ -201,6 +224,7 @@ export class RuntimeConversation implements SessionController, PanelView {
   }
 
   private async releaseController(): Promise<void> {
+    let hasCleanupFailure: boolean
     try {
       // Cancel on the actual session, including a start not yet acknowledged.
       if (this.isHostStopped) {
@@ -221,9 +245,17 @@ export class RuntimeConversation implements SessionController, PanelView {
         this.conversation?.dispose()
         this.conversation = undefined
         this.session.dispose()
+        const cleanup = await Promise.allSettled(
+          this.cleanups.splice(0).map(async (dispose) => {
+            await dispose()
+          }),
+        )
+        this.views.clear()
         await this.store?.settled()
+        hasCleanupFailure = cleanup.some((result) => result.status === 'rejected')
       }
     }
+    if (hasCleanupFailure) throw new Error('MHP_COMPOSITION_RELEASE_FAILED')
   }
   public prepare(
     ports: Omit<RuntimeConversationPorts, 'surface'>,
@@ -241,8 +273,47 @@ export class RuntimeConversation implements SessionController, PanelView {
   public get controller(): ConversationController | undefined {
     return this.conversation
   }
+  public view(binding: MhpPanelBinding): PanelView | undefined {
+    if (this.isDisposed || binding.sessionId !== this.sessionId) return
+    for (const lookup of this.views) {
+      const found = lookup(binding)
+      if (found !== undefined)
+        return {
+          handle: async (message) => {
+            this.ensureLive()
+            const work = Promise.resolve(found.handle(message))
+            this.inFlight.add(work)
+            try {
+              await work
+            } finally {
+              this.inFlight.delete(work)
+            }
+          },
+          subscribe: (listener) => {
+            this.ensureLive()
+            return found.subscribe(listener)
+          },
+        }
+    }
+    return
+  }
   public get sessionId(): string {
     return this.session.sessionId
+  }
+  public get modelId(): string {
+    return this.conversation?.selectedModelId ?? this.session.modelId
+  }
+  public publishSettings(
+    settings: ReturnType<RuntimeConversationPorts['settings']['current']>,
+  ): void {
+    if (this.isDisposed) return
+    const message = hostToWebviewMessageSchema.parse({
+      type: 'init',
+      settings,
+      emptyStateHint: UI_TEXT.emptyStateHint,
+      composerPlaceholder: UI_TEXT.composerPlaceholder,
+    })
+    for (const listener of this.listeners) listener(message)
   }
   public get isReleased(): boolean {
     return this.isDisposed

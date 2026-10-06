@@ -427,6 +427,12 @@ correlated service requests. These commands stream the shared conversation;
 the browser renderer/bridge and full editor parity are pending. See
 [the tested features and integration handoff](docs/certification/m104-b2.md).
 
+Portable session changes retire previous surface IDs and open fresh bindings.
+Settings and storage are owned by the runtime; initialization selects the
+editor's language. CLI trust never overrides an editor's restricted workspace.
+Runtime parity receipts and the owning feature-factory contracts are in
+[the lane A record](docs/certification/m104-pa.md).
+
 **The ACP agent** needs Node.js 22 or later. Install it from the release:
 
 ```bash

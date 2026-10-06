@@ -142,16 +142,11 @@ describe('runtime panel native process', () => {
     agent.child.stdin.end()
     expect(await agent.exited).toBe(0)
   })
-  it('refuses CLI trust when the native host reports an untrusted workspace', async () => {
+  it('initializes in restricted mode when CLI trust exceeds the native host grant', async () => {
     const agent = fixture().launch('stdio', 'modelApi', {}, ['--trust-workspace'])
-    agent.sendInitialize()
-    await agent.wait(
-      (value) =>
-        z
-          .object({ error: z.object({ message: z.literal('MHP_INITIALIZE_FAILED') }) })
-          .safeParse(value).success,
-    )
-    expect(agent.frames.some((value) => openSchema.safeParse(value).success)).toBe(false)
+    await agent.initialize()
+    const frame = openSchema.parse(await agent.wait((value) => openSchema.safeParse(value).success))
+    agent.send({ jsonrpc: '2.0', id: frame.id, result: { surfaceId: 'restricted-view' } })
     agent.child.stdin.end()
     expect(await agent.exited).toBe(0)
   })

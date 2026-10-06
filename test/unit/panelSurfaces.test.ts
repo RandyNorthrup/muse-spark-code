@@ -141,12 +141,7 @@ describe('runtime MHP surface admission', () => {
     expect(f.log.warn).toHaveBeenCalledExactlyOnceWith('MHP_PANEL_DROPPED 2')
     expect(f.listeners.size).toBe(0)
     expect(f.delivery.totals.messages).toBe(0)
-    expect(() => {
-      f.surfaces.message(f.message(1))
-    }).toThrow('MHP_PANEL_UNKNOWN_SURFACE')
-    expect(() => {
-      f.surfaces.lifecycle(f.lifecycle('opened'))
-    }).toThrow('MHP_PANEL_INVALID_LIFECYCLE')
+    expectRetired(f)
     f.surfaces.lifecycle(f.lifecycle('opened', {}, 'fresh'))
     f.surfaces.close()
     expect(() => {
@@ -180,6 +175,15 @@ describe('runtime MHP surface admission', () => {
   })
 })
 
+function expectRetired(f: ReturnType<typeof fixture>): void {
+  expect(() => {
+    f.surfaces.message(f.message(1))
+  }).toThrow('MHP_PANEL_UNKNOWN_SURFACE')
+  expect(() => {
+    f.surfaces.lifecycle(f.lifecycle('opened'))
+  }).toThrow('MHP_PANEL_INVALID_LIFECYCLE')
+}
+
 it('retires every old session binding and drops queued output before a replacement can subscribe', () => {
   const f = fixture()
   f.surfaces.lifecycle(f.lifecycle('opened'))
@@ -189,12 +193,7 @@ it('retires every old session binding and drops queued output before a replaceme
   ])
   expect(f.delivery.totals.messages).toBe(0)
   expect(f.listeners.size).toBe(0)
-  expect(() => {
-    f.surfaces.message(f.message(1))
-  }).toThrow('MHP_PANEL_UNKNOWN_SURFACE')
-  expect(() => {
-    f.surfaces.lifecycle(f.lifecycle('opened'))
-  }).toThrow('MHP_PANEL_INVALID_LIFECYCLE')
+  expectRetired(f)
 })
 
 it('accepts one correctly bound native close acknowledgement after runtime retirement', () => {

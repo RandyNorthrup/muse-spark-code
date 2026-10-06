@@ -33,6 +33,15 @@ function fixture(maxBytes = 100) {
 }
 
 describe('companion SSE bounds', () => {
+  it('retires one bearer stream immediately and ignores emissions after its binding changes', () => {
+    const value = fixture()
+    value.events.retire('synthetic-cookie')
+    expect(value.stop).toHaveBeenCalledOnce()
+    expect(value.response.end).toHaveBeenCalledOnce()
+    value.emit({ text: 'late' })
+    expect(value.write).toHaveBeenCalledTimes(1)
+    expect(value.events.has('synthetic-cookie')).toBe(false)
+  })
   it('refuses a duplicate stream without replacing the original subscription', () => {
     const value = fixture()
     expect(() => {

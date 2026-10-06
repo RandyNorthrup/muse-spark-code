@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Portable panels publish live runtime-owned settings, replace backend profiles, report failed profile construction, follow editor trust grants and revocations, and retain separate worktree stores. Selected-model records gate compaction, handoff, vision, PDFs and reasoning when supplied by a provider adapter.
+- Browser session retirement revokes old launch codes and bearers, stops their event streams and closes cancelled HTTP calls.
+- Portable attachment picking uses the shared host picker and confined reads; restored handoff dialogs and text-file parts survive reload. Typed engine/presentation factories own their actions, auxiliary views and awaited cleanup.
+
 - Portable panels retire old surface bindings on new, fork and switch, and retain active turns, imported restrictions and rich history on reload. Browser launches keep an immutable session context.
 
 - MHP 1.2 replaces the unshipped 1.1 contract. Editors initiate initialization with host metadata, locale, theme and capabilities; incompatible versions are refused by name.
@@ -55,8 +59,8 @@ happened, not what was planned; superseded entries are kept.
 
 - JetBrains development plugin: render the shared panel through JCEF's public
   HTML loader with packaged inline assets; add native inline Tab completion
-  over MHP, preserve numeric completion IDs, and negotiate an opt-in MHP 1.2
-  host-metadata proposal. Replace experimental/default-method API calls and
+  over MHP, preserve numeric completion IDs, and adopt the editor-initiated MHP 1.2
+  initialization contract in its owning parity lane. Replace experimental/default-method API calls and
   bound compatibility to IDEA 2025.3–2026.2. Fake-runtime qualification and
   remaining runtime integration are recorded in `docs/certification/m104-e3.md`.
 

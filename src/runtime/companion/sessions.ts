@@ -67,6 +67,16 @@ export class CompanionSessions {
     return id === undefined ? undefined : this.sessions.get(id)
   }
 
+  public retireContext(context: string): readonly string[] {
+    for (const [code, entry] of this.codes) if (entry.context === context) this.codes.delete(code)
+    const retired: string[] = []
+    for (const [id, session] of this.sessions) {
+      if (session.context !== context) continue
+      this.sessions.delete(id)
+      retired.push(id)
+    }
+    return retired
+  }
   public clear(): void {
     this.codes.clear()
     this.sessions.clear()

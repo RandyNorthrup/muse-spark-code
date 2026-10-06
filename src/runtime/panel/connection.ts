@@ -55,9 +55,10 @@ function failure(
 export class PanelConnection implements HostServices {
   private readonly pending = new Map<RequestId, PendingRequest>()
   private readonly retired = new Map<RequestId, MhpRequestMethod>()
+  private readonly work = new Set<Promise<unknown>>()
   private readonly incoming = new Map<RequestId, AbortController>()
   private offered: readonly MhpCapability[] = []
-  private version: typeof MHP.version | typeof MHP_PANEL.version = MHP.version
+  private version: typeof MHP.version = MHP.version
   private isInitialized = false
   private isInitializing = false
   private isClosed = false
@@ -78,6 +79,23 @@ export class PanelConnection implements HostServices {
         this.close(true)
       },
     )
+  }
+
+  private track<T>(adapter: Promise<T>): Promise<T> {
+    const work = (async () => {
+      return await adapter
+    })()
+    this.work.add(work)
+    void (async () => {
+      try {
+        await work
+      } catch {
+        /* The admitted caller reports the failure. */
+      } finally {
+        this.work.delete(work)
+      }
+    })()
+    return work
   }
 
   private emit(frame: unknown): void {
@@ -102,11 +120,19 @@ export class PanelConnection implements HostServices {
     const definition = MHP_METHODS[method]
     definition.params.parse(params)
     signal?.throwIfAborted()
-    if (!this.offered.includes(definition.capability)) {
-      const value = await this.ports.request(
-        method,
-        params,
-        signal ?? AbortSignal.timeout(RUNTIME_PANEL.requestTimeoutMs),
+    if (
+      (definition.direction === 'bidirectional' &&
+        this.ports.capabilities.includes(definition.capability)) ||
+      !this.offered.includes(definition.capability)
+    ) {
+      if (this.work.size >= MHP_PANEL.maximumQueuedMessages)
+        throw new MhpServiceError(failure(null, MHP_ERROR_CODES.internalError, 'MHP_BACKPRESSURE'))
+      const value = await this.track(
+        this.ports.request(
+          method,
+          params,
+          signal ?? AbortSignal.timeout(RUNTIME_PANEL.requestTimeoutMs),
+        ),
       )
       return parseMhpResult(method, { jsonrpc: MHP.jsonRpcVersion, id: 1, result: value }).result
     }
@@ -120,9 +146,6 @@ export class PanelConnection implements HostServices {
       new TextEncoder().encode(JSON.stringify(params)).byteLength,
     )
     const id = `runtime-${String(this.nextId++)}`
-    const result = new Promise<unknown>((resolve, reject) => {
-      this.pending.set(id, { method, resolve, reject })
-    })
     const abort = () => {
       const waiting = this.pending.get(id)
       if (waiting === undefined) return
@@ -139,6 +162,9 @@ export class PanelConnection implements HostServices {
         this.close()
       }
     }
+    const result = new Promise<unknown>((resolve, reject) => {
+      this.pending.set(id, { method, resolve, reject })
+    })
     const deadline = AbortSignal.timeout(RUNTIME_PANEL.requestTimeoutMs)
     const combined = signal === undefined ? deadline : AbortSignal.any([deadline, signal])
     combined.addEventListener('abort', abort, { once: true })
@@ -279,8 +305,7 @@ export class PanelConnection implements HostServices {
       const release = this.delivery.reserve(new TextEncoder().encode(line).byteLength)
       const controller = new AbortController()
       if (callId !== null) this.incoming.set(callId, controller)
-      void this.ports
-        .initialize(params, controller.signal)
+      void this.track(this.ports.initialize(params, controller.signal))
         .then(() => {
           if (this.isClosed) return
           this.emit(
@@ -343,6 +368,10 @@ export class PanelConnection implements HostServices {
       this.emit(failure(callId, MHP_ERROR_CODES.invalidRequest, 'MHP_DUPLICATE_ID'))
       return
     }
+    if (this.work.size >= MHP_PANEL.maximumQueuedMessages) {
+      this.emit(failure(callId, MHP_ERROR_CODES.internalError, 'MHP_BACKPRESSURE'))
+      return
+    }
     // The frozen own key and validated kind establish this union (PLAN §8).
     const method = Object.keys(MHP_METHODS).find(
       (candidate): candidate is MhpRequestMethod =>
@@ -364,7 +393,7 @@ export class PanelConnection implements HostServices {
           method === 'shutdown'
             ? null
             : await unlessAborted(
-                this.ports.request(method, frame.params, controller.signal),
+                this.track(this.ports.request(method, frame.params, controller.signal)),
                 controller.signal,
               )
         controller.signal.throwIfAborted()
@@ -399,6 +428,11 @@ export class PanelConnection implements HostServices {
         release()
       }
     })()
+  }
+
+  /** Closing aborts admission; drain the actual adapter work, not its cancellation race. */
+  public async settled(): Promise<void> {
+    while (this.work.size > 0) await Promise.allSettled(this.work)
   }
 
   public close(isFatal = false): void {

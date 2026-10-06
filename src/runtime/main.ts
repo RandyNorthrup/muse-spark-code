@@ -538,6 +538,13 @@ async function main(): Promise<number> {
           options: command.options,
           transport: command.transport,
           runtime,
+          configureRuntime: (options) => Promise.resolve(runtimeFor(options, log)),
+          loadLanguage: (language) =>
+            loadUiTable({
+              language,
+              readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+              log,
+            }),
           dataRoot: agentDataFolder({
             platform: process.platform,
             env: process.env,

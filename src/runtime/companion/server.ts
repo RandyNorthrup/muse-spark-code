@@ -115,7 +115,7 @@ export async function startCompanionServer<Input, Output>(
   )
   const events = new CompanionEvents(limits.maxEventBytes)
   const serviceEvents = new CompanionEvents(limits.maxEventBytes)
-  const calls = new Set<AbortController>()
+  const calls = new Map<AbortController, string | undefined>()
   let origin = ''
   let idle: ReturnType<typeof setTimeout> | undefined
   let closing: Promise<void> | undefined
@@ -228,10 +228,17 @@ export async function startCompanionServer<Input, Output>(
       return
     }
     const controller = new AbortController()
+    controller.signal.addEventListener(
+      'abort',
+      () => {
+        response.destroy()
+      },
+      { once: true },
+    )
     const abort = () => {
       controller.abort()
     }
-    calls.add(controller)
+    calls.set(controller, session?.context)
     response.once('close', abort)
     const deadline = setTimeout(() => {
       controller.abort()
@@ -335,7 +342,7 @@ export async function startCompanionServer<Input, Output>(
     closing = (async () => {
       await Promise.resolve()
       clearTimeout(idle)
-      for (const controller of calls) controller.abort()
+      for (const controller of calls.keys()) controller.abort()
       events.close()
       serviceEvents.close()
       sessions.clear()
@@ -379,6 +386,13 @@ export async function startCompanionServer<Input, Output>(
       launchUrl: (context?: string) => {
         if (closing !== undefined) throw new Error('EPANEL_CLOSED')
         return `${origin}/#k=${sessions.issue(context)}`
+      },
+      retireContext: (context: string) => {
+        for (const id of sessions.retireContext(context)) {
+          events.retire(id)
+          serviceEvents.retire(id)
+        }
+        for (const [call, owner] of calls) if (owner === context) call.abort()
       },
       close,
       closed,

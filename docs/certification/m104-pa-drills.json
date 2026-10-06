@@ -266,5 +266,279 @@
       "\u00d7 binds each one-use launch to its immutable session context even when exchanged out of order 5ms"
     ],
     "restoredSha256": "6b9d92a7f912643ede1dabcc7a65d9cf520afb9cbb5d6140a5d053a7f6b41db8"
+  },
+  {
+    "name": "runtime-settings-authority",
+    "file": "src/runtime/panel/connection.ts",
+    "beforeSha256": "a46522651f732bb48ff66cc516108e940278c3db69ff319c64422bf1a1ebf322",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 keeps bidirectional settings authoritative in the runtime even when the host offers them 106ms"
+    ],
+    "restoredSha256": "a46522651f732bb48ff66cc516108e940278c3db69ff319c64422bf1a1ebf322"
+  },
+  {
+    "name": "cancelled-adapter-drain",
+    "file": "src/runtime/panel/connection.ts",
+    "beforeSha256": "a46522651f732bb48ff66cc516108e940278c3db69ff319c64422bf1a1ebf322",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 drains actual cancelled adapter work before reporting settlement 5ms"
+    ],
+    "restoredSha256": "a46522651f732bb48ff66cc516108e940278c3db69ff319c64422bf1a1ebf322"
+  },
+  {
+    "name": "cancelled-adapter-bound",
+    "file": "src/runtime/panel/connection.ts",
+    "beforeSha256": "a46522651f732bb48ff66cc516108e940278c3db69ff319c64422bf1a1ebf322",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 bounds cancelled adapter work until its actual completion, even with shared promises 43ms"
+    ],
+    "restoredSha256": "a46522651f732bb48ff66cc516108e940278c3db69ff319c64422bf1a1ebf322"
+  },
+  {
+    "name": "native-trust-live-options",
+    "file": "src/runtime/panel/runPanel.ts",
+    "beforeSha256": "d454eb1bbe072913a5e0506d65447d9614b4912734c9c8bd2c7bdaa427265be0",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: runtime settings stay authoritative, publish to views and replace backend profiles 151ms",
+      "\u00d7 museCode: host trust grant and revocation recreate sessions, and worktrees get their own store 10124ms",
+      "\u00d7 modelApi: runtime settings stay authoritative, publish to views and replace backend profiles 64ms",
+      "\u00d7 modelApi: host trust grant and revocation recreate sessions, and worktrees get their own store 10149ms"
+    ],
+    "restoredSha256": "d454eb1bbe072913a5e0506d65447d9614b4912734c9c8bd2c7bdaa427265be0"
+  },
+  {
+    "name": "selected-model-compaction",
+    "file": "src/host/conversation/conversationController.ts",
+    "beforeSha256": "69e59b845eb90cd4c0a6d3abf01306da3ed91b2779e9c027679abc8bc741f9ec",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: selected-model capabilities gate compaction without a provider-name shortcut 48ms",
+      "\u00d7 modelApi: selected-model capabilities gate compaction without a provider-name shortcut 39ms"
+    ],
+    "restoredSha256": "69e59b845eb90cd4c0a6d3abf01306da3ed91b2779e9c027679abc8bc741f9ec"
+  },
+  {
+    "name": "confined-text-path",
+    "file": "src/runtime/panel/runtimeFeatures.ts",
+    "beforeSha256": "1e1ebddcd5769c767b2ac6e5c84e7c24f63657cb94fa1087ae675c8228602606",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 picks only indexed workspace files through the shared host picker and retains the resulting text part 40ms"
+    ],
+    "restoredSha256": "1e1ebddcd5769c767b2ac6e5c84e7c24f63657cb94fa1087ae675c8228602606"
+  },
+  {
+    "name": "factory-action-composition",
+    "file": "src/runtime/panel/runtimeFeatures.ts",
+    "beforeSha256": "1e1ebddcd5769c767b2ac6e5c84e7c24f63657cb94fa1087ae675c8228602606",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 consumes typed engine/presentation actions and awaits their cleanup before the final drain 43ms",
+      "\u00d7 refuses conflicting action ownership and missing capability records without success placeholders 44ms"
+    ],
+    "restoredSha256": "1e1ebddcd5769c767b2ac6e5c84e7c24f63657cb94fa1087ae675c8228602606"
+  },
+  {
+    "name": "cli-sandbox-precedence",
+    "file": "src/runtime/panel/runPanel.ts",
+    "beforeSha256": "a5a689aa4670928ccbac9cf5c416657a370c1f928e624e299c0ad3a76c304d08",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: runtime settings stay authoritative, publish to views and replace backend profiles 147ms",
+      "\u00d7 modelApi: runtime settings stay authoritative, publish to views and replace backend profiles 54ms"
+    ],
+    "restoredSha256": "a5a689aa4670928ccbac9cf5c416657a370c1f928e624e299c0ad3a76c304d08"
+  },
+  {
+    "name": "selected-model-identity",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: selected-model capabilities gate compaction without a provider-name shortcut 39ms",
+      "\u00d7 modelApi: selected-model capabilities gate compaction without a provider-name shortcut 36ms"
+    ],
+    "restoredSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16"
+  },
+  {
+    "name": "selected-model-reasoning",
+    "file": "src/host/conversation/conversationController.ts",
+    "beforeSha256": "24082d19ce2474cdc28206ba3d795c9b6686d8bdfcb89509bb4d8537fc13562f",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: selected-model capabilities gate compaction without a provider-name shortcut 39ms",
+      "\u00d7 modelApi: selected-model capabilities gate compaction without a provider-name shortcut 35ms"
+    ],
+    "restoredSha256": "24082d19ce2474cdc28206ba3d795c9b6686d8bdfcb89509bb4d8537fc13562f"
+  },
+  {
+    "name": "selected-model-handoff",
+    "file": "src/host/conversation/conversationController.ts",
+    "beforeSha256": "24082d19ce2474cdc28206ba3d795c9b6686d8bdfcb89509bb4d8537fc13562f",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: a pending handoff survives portable reload until the user confirms a fresh-session transfer 63ms",
+      "\u00d7 modelApi: a pending handoff survives portable reload until the user confirms a fresh-session transfer 59ms"
+    ],
+    "restoredSha256": "24082d19ce2474cdc28206ba3d795c9b6686d8bdfcb89509bb4d8537fc13562f"
+  },
+  {
+    "name": "selected-model-media",
+    "file": "src/host/conversation/conversationController.ts",
+    "beforeSha256": "24082d19ce2474cdc28206ba3d795c9b6686d8bdfcb89509bb4d8537fc13562f",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: vision and PDF admission use the selected capability record 37ms",
+      "\u00d7 modelApi: vision and PDF admission use the selected capability record 35ms"
+    ],
+    "restoredSha256": "24082d19ce2474cdc28206ba3d795c9b6686d8bdfcb89509bb4d8537fc13562f"
+  },
+  {
+    "name": "side-chat-surface-marker",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: a portable side-chat surface retains Plan-only admission 42ms"
+    ],
+    "restoredSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16"
+  },
+  {
+    "name": "auxiliary-binding",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 auxiliary views share the conversation release barrier and reject stale bindings 46ms"
+    ],
+    "restoredSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16"
+  },
+  {
+    "name": "auxiliary-work-drain",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 auxiliary views share the conversation release barrier and reject stale bindings 46ms"
+    ],
+    "restoredSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16"
+  },
+  {
+    "name": "factory-cleanup-drain",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 consumes typed engine/presentation actions and awaits their cleanup before the final drain 42ms"
+    ],
+    "restoredSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16"
+  },
+  {
+    "name": "factory-cleanup-error",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 drains every factory cleanup and the store before reporting a synchronous cleanup failure 38ms"
+    ],
+    "restoredSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16"
+  },
+  {
+    "name": "companion-context-revoke",
+    "file": "src/runtime/companion/sessions.ts",
+    "beforeSha256": "1381cb119fee4fc071b3fd569d2d41d3f4bd41b5a01676b64ed0c07fe6adeb99",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 retires only the superseded context, revokes its bearer and unexchanged launch, and admits its fresh replacement 11ms"
+    ],
+    "restoredSha256": "1381cb119fee4fc071b3fd569d2d41d3f4bd41b5a01676b64ed0c07fe6adeb99"
+  },
+  {
+    "name": "companion-context-abort",
+    "file": "src/runtime/companion/server.ts",
+    "beforeSha256": "ee8151bf7075839c5267b6e97b1d6b4c0e0e92d9e5089d79e8f3a4fc5c28a951",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 aborts admitted calls for a retired context and closes their HTTP responses 27ms"
+    ],
+    "restoredSha256": "ee8151bf7075839c5267b6e97b1d6b4c0e0e92d9e5089d79e8f3a4fc5c28a951"
+  },
+  {
+    "name": "companion-abort-response",
+    "file": "src/runtime/companion/server.ts",
+    "beforeSha256": "ee8151bf7075839c5267b6e97b1d6b4c0e0e92d9e5089d79e8f3a4fc5c28a951",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 aborts admitted calls for a retired context and closes their HTTP responses 1031ms"
+    ],
+    "restoredSha256": "ee8151bf7075839c5267b6e97b1d6b4c0e0e92d9e5089d79e8f3a4fc5c28a951"
+  },
+  {
+    "name": "companion-stream-retirement",
+    "file": "src/runtime/companion/events.ts",
+    "beforeSha256": "228ca72238c25eecb45aae879718de3c7c24ddbc182a2dd702fc07fd3dfada78",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 retires one bearer stream immediately and ignores emissions after its binding changes 8ms"
+    ],
+    "restoredSha256": "228ca72238c25eecb45aae879718de3c7c24ddbc182a2dd702fc07fd3dfada78"
+  },
+  {
+    "name": "worktree-profile-refusal",
+    "file": "src/runtime/panel/runPanel.ts",
+    "beforeSha256": "a5a689aa4670928ccbac9cf5c416657a370c1f928e624e299c0ad3a76c304d08",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: host trust grant and revocation recreate sessions, and worktrees get their own store 226ms",
+      "\u00d7 modelApi: host trust grant and revocation recreate sessions, and worktrees get their own store 199ms"
+    ],
+    "restoredSha256": "a5a689aa4670928ccbac9cf5c416657a370c1f928e624e299c0ad3a76c304d08"
+  },
+  {
+    "name": "untrusted-header-only-read",
+    "file": "src/runtime/panel/runtimeFeatures.ts",
+    "beforeSha256": "4cdd322ffb73b208063467e0a1b3343af34ee357ebc1b2f0a89c801d24e7555a",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 keeps an untrusted text selection as a path mention and rejects picker IDs outside the index 46ms"
+    ],
+    "restoredSha256": "4cdd322ffb73b208063467e0a1b3343af34ee357ebc1b2f0a89c801d24e7555a"
+  },
+  {
+    "name": "indexed-file-picker",
+    "file": "src/runtime/panel/runtimeFeatures.ts",
+    "beforeSha256": "4cdd322ffb73b208063467e0a1b3343af34ee357ebc1b2f0a89c801d24e7555a",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 picks only indexed workspace files through the shared host picker and retains the resulting text part 44ms",
+      "\u00d7 keeps an untrusted text selection as a path mention and rejects picker IDs outside the index 39ms"
+    ],
+    "restoredSha256": "4cdd322ffb73b208063467e0a1b3343af34ee357ebc1b2f0a89c801d24e7555a"
+  },
+  {
+    "name": "profile-error-acknowledgement",
+    "file": "src/runtime/panel/runPanel.ts",
+    "beforeSha256": "9af6fd6fdf74bb12c75373eee325e2ec04e687a32cc256ece556ee67ee8a7b8d",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: profile failures return a named error and a later valid change recovers a fresh root conversation 169ms",
+      "\u00d7 modelApi: profile failures return a named error and a later valid change recovers a fresh root conversation 106ms"
+    ],
+    "restoredSha256": "9af6fd6fdf74bb12c75373eee325e2ec04e687a32cc256ece556ee67ee8a7b8d"
+  },
+  {
+    "name": "profile-empty-registry-recovery",
+    "file": "src/runtime/panel/runPanel.ts",
+    "beforeSha256": "9af6fd6fdf74bb12c75373eee325e2ec04e687a32cc256ece556ee67ee8a7b8d",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: profile failures return a named error and a later valid change recovers a fresh root conversation 276ms",
+      "\u00d7 modelApi: profile failures return a named error and a later valid change recovers a fresh root conversation 159ms"
+    ],
+    "restoredSha256": "9af6fd6fdf74bb12c75373eee325e2ec04e687a32cc256ece556ee67ee8a7b8d"
   }
 ]

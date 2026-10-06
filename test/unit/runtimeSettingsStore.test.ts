@@ -63,6 +63,16 @@ async function setup() {
 }
 
 describe('runtime settings and storage', () => {
+  it('distinguishes defaults from explicit user/workspace settings for CLI precedence', async () => {
+    const { store } = await setup()
+    expect(await store.getSetting('museSpark.shellSandbox')).toBe('auto')
+    expect(await store.hasSetting('museSpark.shellSandbox')).toBe(false)
+    await store.updateSetting('museSpark.shellSandbox', 'auto', 'user')
+    expect(await store.hasSetting('museSpark.shellSandbox')).toBe(true)
+    await store.updateSetting('museSpark.autosave', false, 'workspace')
+    expect(await store.hasSetting('museSpark.autosave')).toBe(true)
+    await expect(store.hasSetting('museSpark.unknown')).rejects.toThrow('MHP_STATE_UNKNOWN_SETTING')
+  })
   it('drains every admitted write before reporting a failed publication', async () => {
     const { store } = await setup()
     const release = Promise.withResolvers<boolean>()

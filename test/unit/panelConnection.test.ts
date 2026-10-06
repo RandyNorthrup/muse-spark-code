@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { MhpParams } from '../../src/shared/hostApi/methods'
-import { PanelConnection } from '../../src/runtime/panel/connection'
+import { PanelConnection, type PanelConnectionPorts } from '../../src/runtime/panel/connection'
 import { MHP_ERROR_CODES, MHP_PANEL, RUNTIME_PANEL } from '../../src/shared/constants'
 
-async function rig(protocolRange?: MhpParams<'initialize'>['protocolRange']) {
+async function rig(
+  protocolRange?: MhpParams<'initialize'>['protocolRange'],
+  overrides: Partial<PanelConnectionPorts> = {},
+) {
   const frames: unknown[] = []
   const closed = vi.fn()
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
@@ -15,6 +18,7 @@ async function rig(protocolRange?: MhpParams<'initialize'>['protocolRange']) {
       request: () => Promise.reject(new Error('unavailable')),
       notify: vi.fn(),
       closed,
+      ...overrides,
     },
     log,
   )
@@ -34,7 +38,7 @@ async function rig(protocolRange?: MhpParams<'initialize'>['protocolRange']) {
           minimum: MHP_PANEL.version,
           maximumExclusive: MHP_PANEL.maximumVersionExclusive,
         },
-        capabilities: ['lifecycle', 'ui'],
+        capabilities: ['lifecycle', 'ui', 'settings'],
         locale: 'en',
         theme: { kind: 'dark', tokens: {} },
         folders: [],
@@ -177,3 +181,82 @@ it.each([
     t.peer.close()
   },
 )
+
+it('drains actual cancelled adapter work before reporting settlement', async () => {
+  const pending = Promise.withResolvers<unknown>()
+  const entered = Promise.withResolvers<boolean>()
+  const t = await rig(undefined, {
+    capabilities: ['lifecycle', 'settings'],
+    request: () => {
+      entered.resolve(true)
+      return pending.promise
+    },
+  })
+  receive(t.peer, {
+    jsonrpc: '2.0',
+    id: 2,
+    method: 'settings/get',
+    params: { key: 'museSpark.autosave' },
+  })
+  await entered.promise
+  t.peer.close()
+  const finished = vi.fn()
+  const settling = (async () => {
+    await t.peer.settled()
+    finished()
+  })()
+  await new Promise<void>((resolve) => {
+    setImmediate(resolve)
+  })
+  expect(finished).not.toHaveBeenCalled()
+  pending.resolve({ value: false })
+  await settling
+  expect(finished).toHaveBeenCalledOnce()
+})
+
+it('keeps bidirectional settings authoritative in the runtime even when the host offers them', async () => {
+  const request = vi.fn(() => Promise.resolve({ value: false }))
+  const t = await rig(undefined, { capabilities: ['lifecycle', 'settings'], request })
+  expect(
+    await t.peer.request('settings/get', { key: 'museSpark.autosave' }, AbortSignal.timeout(100)),
+  ).toEqual({
+    value: false,
+  })
+  expect(request).toHaveBeenCalledOnce()
+  expect(t.frames.some((value) => JSON.stringify(value).includes('runtime-1'))).toBe(false)
+  t.peer.close()
+})
+
+it('bounds cancelled adapter work until its actual completion, even with shared promises', async () => {
+  const pending = Promise.withResolvers<unknown>()
+  const request = vi.fn(() => pending.promise)
+  const t = await rig(undefined, { capabilities: ['lifecycle', 'settings'], request })
+  for (let id = 2; id < MHP_PANEL.maximumQueuedMessages + 2; id += 1) {
+    receive(t.peer, {
+      jsonrpc: '2.0',
+      id,
+      method: 'settings/get',
+      params: { key: 'museSpark.autosave' },
+    })
+    receive(t.peer, { jsonrpc: '2.0', method: '$/cancelRequest', params: { id } })
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+  }
+  expect(request).toHaveBeenCalledTimes(MHP_PANEL.maximumQueuedMessages)
+  receive(t.peer, {
+    jsonrpc: '2.0',
+    id: 'overflow',
+    method: 'settings/get',
+    params: { key: 'museSpark.autosave' },
+  })
+  expect(request).toHaveBeenCalledTimes(MHP_PANEL.maximumQueuedMessages)
+  expect(t.frames).toContainEqual({
+    jsonrpc: '2.0',
+    id: 'overflow',
+    error: { code: MHP_ERROR_CODES.internalError, message: 'MHP_BACKPRESSURE' },
+  })
+  pending.resolve({ value: false })
+  await t.peer.settled()
+  t.peer.close()
+})

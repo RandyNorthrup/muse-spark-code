@@ -87,6 +87,7 @@ export function acpConversationFactory(
           },
           workspaceRoot: cwd,
           ownsPaidConsent: false,
+          ownsSettings: true,
           // ACP already requires this explicit flag before adopting a contributor model.
           confirmContributor: () => Promise.resolve(deps.options.allowsContributorModels),
           controllers: function* (): Iterable<ConversationController> {
@@ -105,6 +106,7 @@ export function acpConversationFactory(
       )
     } catch (error: unknown) {
       await conversation.release()
+      await settings.dispose()
       throw error
     } finally {
       if (loaded !== undefined && loaded.session !== session) loaded.session.dispose()

@@ -13,6 +13,7 @@ import {
   MHP_ERROR_CODES,
   MHP_PANEL,
   RUNTIME_PANEL,
+  SETTINGS_SECTION,
   RUNTIME_PANEL_PORTS_BUNDLE_FILE,
   UI_TEXT,
 } from '../../shared/constants'
@@ -31,9 +32,16 @@ import { ControllerRegistry } from './controllerRegistry'
 import { PanelSurfaces } from './surfaces'
 import { PanelDelivery } from './delivery'
 import { RuntimeConversation } from './runtimeController'
-import type { runtimeSettings } from './runtimeFeatures'
+import type { LoadedSession } from '../../core/agent/agentBackend'
+import type { ExtensionSettings } from '../../host/settings'
+import type { UiTable } from '../../host/l10n'
+import type {
+  RuntimeFeatureFactories,
+  RuntimeSelectedModel,
+  runtimeSettings,
+} from './runtimeFeatures'
 import { panelPortsLoader } from './panelLoader'
-import { uiLocale } from '../../shared/l10n/text'
+import { setUiText, uiLocale } from '../../shared/l10n/text'
 import * as z from 'zod/mini'
 import { portablePage } from './portablePage'
 import { PanelUiRequests } from './uiRequests'
@@ -46,6 +54,17 @@ import { parseMhpResult } from '../../shared/hostApi/protocol'
 
 export interface RunPanelDeps {
   readonly options: ServeOptions
+  readonly factories?: RuntimeFeatureFactories
+  readonly modelCapabilities?: (
+    runtime: RuntimeBackend,
+    modelId: string,
+  ) => Promise<RuntimeSelectedModel>
+  readonly configureRuntime?: (
+    options: ServeOptions,
+    settings: ExtensionSettings,
+    root: string,
+  ) => Promise<RuntimeBackend>
+  readonly loadLanguage?: (locale: string) => Promise<UiTable>
   readonly transport: 'stdio' | 'companion'
   readonly runtime: RuntimeBackend
   readonly dataRoot: string
@@ -67,7 +86,16 @@ function unsupported(): never {
 
 /** Native carriers use stdout; companion browser traffic is bound to an authenticated window. */
 export async function runPanel(deps: RunPanelDeps): Promise<number> {
-  const { runtime, log, input, output } = deps
+  const { log, input, output } = deps
+  let runtime = deps.runtime
+  let isTrusted = deps.options.trustWorkspace
+  let options = deps.options
+  let transactions: Promise<void> = Promise.resolve()
+  let applyingSettings: Promise<void> = Promise.resolve()
+  let opening: Promise<void> = Promise.resolve()
+  const ownedSettings = new Set<Awaited<ReturnType<typeof runtimeSettings>>>()
+  const roots = new WeakMap<RuntimeConversation, string>()
+  const sides = new WeakSet<RuntimeConversation>()
   const registry = new ControllerRegistry<RuntimeConversation>(log)
   const browsers = new Map<
     string,
@@ -100,15 +128,16 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
     )
   })
   const lookup = (binding: MhpPanelBinding) =>
-    binding.surfaceKind === 'chat' ? registry.held(binding.sessionId) : undefined
+    binding.surfaceKind === 'chat'
+      ? registry.held(binding.sessionId)
+      : registry.held(binding.sessionId)?.view(binding)
   const peer = new PanelConnection(
     {
-      capabilities: ['lifecycle'],
+      capabilities: ['lifecycle', 'settings', 'storage'],
       initialize: async (params, signal) => {
         theme = params.theme
         signal.throwIfAborted()
-        if (deps.options.trustWorkspace && !params.trusted)
-          throw new Error('MHP_WORKSPACE_UNTRUSTED')
+        isTrusted = params.trusted
         const folder = params.folders[0]
         root = await realpath(folder === undefined ? deps.defaultCwd : fileURLToPath(folder.uri))
         if (root !== (await realpath(deps.defaultCwd)))
@@ -122,141 +151,63 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
           log,
         })().createRuntimePanelPorts(UI_TEXT, uiLocale())
         settings = await features.runtimeSettings(store, log)
+        ownedSettings.add(settings)
         signal.throwIfAborted()
-        const readiness = await runtime.backend.readiness(false)
-        if (readiness.state !== 'ready') throw new Error(readiness.message)
-        const host = await runtime.backend.hostFor(root)
+        if (deps.loadLanguage !== undefined) {
+          const language = await deps.loadLanguage(params.locale)
+          setUiText(language.table, language.locale)
+        }
         signal.throwIfAborted()
-        registry.watch(host)
-        const models = await host.listModels()
-        const model = models.find((candidate) => candidate.isDefault) ?? models[0]
-        if (model === undefined) throw new Error(UI_TEXT.acpNoModels)
-        const started = await host.startSession({
-          workspaceRoot: root,
-          modelId: model.modelId,
-          approvalMode: approvalModeFor(
-            settings.current().initialPermissionMode === 'bypassPermissions' &&
-              !deps.options.canBypass
-              ? 'manual'
-              : settings.current().initialPermissionMode,
-            true,
-          ),
+        await configure()
+        signal.throwIfAborted()
+        conversation = await startConversation(root)
+        settings.onChanged((keys) => {
+          applyingSettings = transact(() => settingsChanged(keys))
+          void applyingSettings.catch(() => {
+            if (!ending.signal.aborted) {
+              log.warn('MHP_SETTINGS_APPLY_FAILED')
+            }
+          })
         })
-        let loaded
-        try {
-          loaded = await host.resumeSession(started.sessionId, model.modelId)
-        } finally {
-          if (loaded?.session !== started) started.dispose()
-        }
-        if (signal.aborted) {
-          loaded.session.dispose()
-          signal.throwIfAborted()
-        }
-        const claim = registry.claimSession(loaded.session.sessionId)
-        conversation = await registry.adopt(
-          host,
-          loaded.session,
-          claim,
-          () =>
-            new RuntimeConversation(loaded.session, host, log, () => {
-              exitCode = 1
-              peer.close()
-            }),
-          (controller) =>
-            controller.prepare(
-              {
-                host: {
-                  async request(method, params, signal) {
-                    const ui = fallbackUiMethodSchema.safeParse(method)
-                    if (deps.transport === 'companion' && ui.success)
-                      return parseMhpResult(method, {
-                        jsonrpc: MHP.jsonRpcVersion,
-                        id: 1,
-                        result: await browserUi(ui.data, params, signal ?? ending.signal),
-                      }).result
-                    return await peer.request(method, params, signal)
-                  },
-                  notify: (method, params) => {
-                    peer.notify(method, params)
-                  },
-                },
-                runtime,
-                options: deps.options,
-                store: requireStore(),
-                settings: requireSettings(),
-                workspaceRoot: root,
-                controllers: () => allControllers(),
-                runGit: deps.runGit,
-                selection: () => selection,
-                documents: () => {
-                  const snapshot: MhpParams<'documents/didChange'>['document'][] = []
-                  documents.forEach((document) => {
-                    snapshot.push(document)
-                  })
-                  return snapshot
-                },
-                sessionChanged: async (previousId, sessionId) => {
-                  registry.rebind(previousId, sessionId, controller)
-                  const retired = peer.surfaces.retireSession(previousId)
-                  for (const owner of browsers.values()) owner.surfaces.retireSession(previousId)
-                  if (deps.transport === 'stdio')
-                    for (const binding of retired)
-                      await peer.request('surfaces/close', { surfaceId: binding.surface })
-                  await openSurface(sessionId)
-                },
-                log,
-              },
-              loaded,
-              deps.conversationBundle,
-              features.runtimeConversationDeps,
-            ),
-        )
       },
       initialized: () => {
-        void openInitialSurface().catch(() => {
-          log.error('MHP_PANEL_OPEN_FAILED')
-          exitCode = 1
-          peer.close()
-        })
+        opening = (async () => {
+          try {
+            await openInitialSurface()
+          } catch {
+            log.error('MHP_PANEL_OPEN_FAILED')
+            exitCode = 1
+            peer.close()
+          }
+        })()
       },
       request: async (method, value, signal) => {
         signal.throwIfAborted()
+        const capability = MHP_METHODS[method].capability
+        if (capability === 'settings' || capability === 'storage') {
+          const result = await requestState(method, value, requireStore(), requireSettings())
+          if (method === 'settings/update') {
+            try {
+              await applyingSettings
+            } catch {
+              throw new MhpServiceError({
+                jsonrpc: MHP.jsonRpcVersion,
+                id: null,
+                error: {
+                  code: MHP_ERROR_CODES.internalError,
+                  message: 'MHP_RUNTIME_CONFIGURATION_FAILED',
+                },
+              })
+            }
+          }
+          return result
+        }
         switch (method) {
           case 'workspace/folders': {
             return [{ uri: pathToFileURL(root).href, name: path.basename(root) }]
           }
           case 'workspace/trust': {
-            return { trusted: deps.options.trustWorkspace }
-          }
-          case 'settings/get': {
-            const params = MHP_METHODS[method].params.parse(value)
-            return { value: await requireStore().getSetting(params.key) }
-          }
-          case 'settings/update': {
-            const params = MHP_METHODS[method].params.parse(value)
-            await requireStore().updateSetting(params.key, params.value, params.scope)
-            await requireSettings().refresh()
-            return null
-          }
-          case 'storage/global.get':
-          case 'storage/workspace.get': {
-            const params = MHP_METHODS[method].params.parse(value)
-            return {
-              value: await requireStore().getStorage(
-                params.key,
-                method === 'storage/global.get' ? 'user' : 'workspace',
-              ),
-            }
-          }
-          case 'storage/global.set':
-          case 'storage/workspace.set': {
-            const params = MHP_METHODS[method].params.parse(value)
-            await requireStore().setStorage(
-              params.key,
-              params.value,
-              method === 'storage/global.set' ? 'user' : 'workspace',
-            )
-            return null
+            return { trusted: isTrusted }
           }
           case 'ui/notify': {
             return await browserUi(method, value, signal)
@@ -269,6 +220,37 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
       },
       notify: (method, value) => {
         switch (method) {
+          case 'workspace/didChangeTrust':
+          case 'workspace/didGrantTrust': {
+            const isNextTrusted = MHP_METHODS[method].params.parse(value).trusted
+            if (isNextTrusted === isTrusted) break
+            isTrusted = isNextTrusted
+            const stopping = [...registry.controllers()].map(async (held) => {
+              await held.controller?.backendStopping(true)
+            })
+            void transact(async () => {
+              await Promise.all(stopping)
+              await replaceProfile()
+            }).catch(() => {
+              if (ending.signal.aborted) {
+                return
+              }
+
+              log.error('MHP_TRUST_APPLY_FAILED')
+              peer.close(true)
+            })
+            break
+          }
+          case 'settings/didChange': {
+            MHP_METHODS[method].params.parse(value)
+            void transact(async () => {
+              await requireSettings().refresh()
+              await settingsChanged([])
+            }).catch(() => {
+              if (!ending.signal.aborted) log.warn('MHP_SETTINGS_APPLY_FAILED')
+            })
+            break
+          }
           case 'editor/didChangeSelection': {
             const next = MHP_METHODS[method].params.parse(value).selection
             const bytes = Buffer.byteLength(JSON.stringify(next))
@@ -307,6 +289,304 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
     },
     log,
   )
+
+  async function requestState(
+    method: string,
+    value: unknown,
+    currentStore: RuntimeSettingsStore,
+    currentSettings: Awaited<ReturnType<typeof runtimeSettings>>,
+  ): Promise<unknown> {
+    switch (method) {
+      case 'settings/get': {
+        const params = MHP_METHODS[method].params.parse(value)
+        return { value: await currentStore.getSetting(params.key) }
+      }
+      case 'settings/update': {
+        const params = MHP_METHODS[method].params.parse(value)
+        await currentStore.updateSetting(params.key, params.value, params.scope)
+        await currentSettings.settled()
+        return null
+      }
+      case 'storage/global.get':
+      case 'storage/workspace.get': {
+        const params = MHP_METHODS[method].params.parse(value)
+        return {
+          value: await currentStore.getStorage(
+            params.key,
+            method === 'storage/global.get' ? 'user' : 'workspace',
+          ),
+        }
+      }
+      case 'storage/global.set':
+      case 'storage/workspace.set': {
+        const params = MHP_METHODS[method].params.parse(value)
+        await currentStore.setStorage(
+          params.key,
+          params.value,
+          method === 'storage/global.set' ? 'user' : 'workspace',
+        )
+        return null
+      }
+      default: {
+        return unsupported()
+      }
+    }
+  }
+
+  function transact(work: () => Promise<void>): Promise<void> {
+    const previous = transactions
+    const next = (async () => {
+      await previous
+      ending.signal.throwIfAborted()
+      await work()
+    })()
+    transactions = (async () => {
+      try {
+        await next
+      } catch {
+        /* The caller reports its failure. */
+      }
+    })()
+    return next
+  }
+  async function configure(): Promise<void> {
+    const current = requireSettings().current()
+    options = {
+      ...deps.options,
+      backend: current.backend === 'auto' ? deps.options.backend : current.backend,
+      museBinary: current.museBinaryPath || deps.options.museBinary,
+      shellSandbox: (await requireStore().hasSetting(`${SETTINGS_SECTION}.shellSandbox`))
+        ? current.shellSandbox
+        : deps.options.shellSandbox,
+      get trustWorkspace() {
+        return isTrusted
+      },
+    }
+    if (deps.configureRuntime === undefined) {
+      if (options.backend !== runtime.backend.kind || isTrusted !== deps.options.trustWorkspace)
+        throw new Error('MHP_RUNTIME_CONFIGURATION_UNAVAILABLE')
+      return
+    }
+    await runtime.close()
+    ending.signal.throwIfAborted()
+    runtime = await deps.configureRuntime(options, current, root)
+    ending.signal.throwIfAborted()
+    await runtime.forgetUnflaggedGrants()
+  }
+  async function settingsChanged(keys: readonly string[]): Promise<void> {
+    const current = requireSettings().current()
+    for (const held of registry.controllers()) {
+      held.publishSettings(current)
+      if (!current.allowDangerouslySkipPermissions) await held.controller?.revokeBypass()
+    }
+    if (keys.length > 0) peer.notify('settings/didChange', { keys: [...keys] })
+    if (keys.length === 0 || keys.some((key) => RUNTIME_PANEL.reconfigureSettings.includes(key)))
+      await replaceProfile()
+  }
+  async function retire(sessionId: string): Promise<void> {
+    const retired = peer.surfaces.retireSession(sessionId)
+    for (const [id, owner] of browsers) {
+      if (owner.surfaces.retireSession(sessionId).length === 0) continue
+      owner.surfaces.close()
+      owner.ui.close()
+      owner.delivery.close()
+      browsers.delete(id)
+    }
+    companion?.retireContext(sessionId)
+    if (deps.transport === 'stdio')
+      for (const binding of retired)
+        await peer.request('surfaces/close', { surfaceId: binding.surface }, ending.signal)
+  }
+  async function replaceProfile(): Promise<void> {
+    const previous = [...registry.controllers()].map((held) => ({
+      held,
+      root: roots.get(held) ?? root,
+      kind: held.host.info.kind,
+      sessionId: held.sessionId,
+      isSideChat: sides.has(held),
+    }))
+    for (const item of previous) {
+      await retire(item.sessionId)
+      await registry.closeSession(item.sessionId)
+    }
+    await configure()
+    if (previous.length === 0) {
+      conversation = await startConversation(root)
+      await openSurface(conversation.sessionId)
+      return
+    }
+    for (const item of previous) {
+      const next = await startConversation(
+        item.root,
+        item.kind === runtime.backend.kind ? item.sessionId : undefined,
+        item.isSideChat,
+      )
+      if (conversation === item.held) conversation = next
+      await openSurface(next.sessionId)
+    }
+  }
+  async function startConversation(
+    workspaceRoot: string,
+    sessionId?: string,
+    isSideChat = false,
+  ): Promise<RuntimeConversation> {
+    ending.signal.throwIfAborted()
+    const features = panelPortsLoader({
+      bundlePath: path.join(path.dirname(deps.conversationBundle), RUNTIME_PANEL_PORTS_BUNDLE_FILE),
+      log,
+    })().createRuntimePanelPorts(UI_TEXT, uiLocale())
+    const contextStore =
+      workspaceRoot === root
+        ? requireStore()
+        : new RuntimeSettingsStore(deps.dataRoot, workspaceRoot)
+    const contextSettings =
+      workspaceRoot === root ? requireSettings() : await features.runtimeSettings(contextStore, log)
+    ownedSettings.add(contextSettings)
+    const owningRuntime = runtime
+    const readiness = await owningRuntime.backend.readiness(false)
+    if (readiness.state !== 'ready') throw new Error(readiness.message)
+    const host = await owningRuntime.backend.hostFor(workspaceRoot)
+    ending.signal.throwIfAborted()
+    registry.watch(host)
+    const models = await host.listModels(sessionId)
+    ending.signal.throwIfAborted()
+    const model =
+      models.find((candidate) => candidate.isActive) ??
+      models.find((candidate) => candidate.isDefault) ??
+      models[0]
+    if (model === undefined) throw new Error(UI_TEXT.acpNoModels)
+    let loaded: LoadedSession
+    if (sessionId === undefined) {
+      const started = await host.startSession({
+        workspaceRoot,
+        modelId: model.modelId,
+        approvalMode: approvalModeFor(
+          contextSettings.current().initialPermissionMode === 'bypassPermissions' &&
+            !options.canBypass
+            ? 'manual'
+            : contextSettings.current().initialPermissionMode,
+          true,
+        ),
+      })
+      try {
+        loaded = await host.resumeSession(started.sessionId, model.modelId)
+      } finally {
+        started.dispose()
+      }
+    } else {
+      loaded = await host.resumeSession(sessionId, model.modelId)
+    }
+    if (ending.signal.aborted) {
+      loaded.session.dispose()
+      ending.signal.throwIfAborted()
+    }
+    const claim = registry.claimSession(loaded.session.sessionId)
+    const adopted = await registry.adopt(
+      host,
+      loaded.session,
+      claim,
+      () =>
+        new RuntimeConversation(loaded.session, host, log, () => {
+          exitCode = 1
+          peer.close()
+        }),
+      (controller) =>
+        controller.prepare(
+          {
+            host: {
+              async request(method, params, signal) {
+                signal?.throwIfAborted()
+                const capability = MHP_METHODS[method].capability
+                if (capability === 'settings' || capability === 'storage') {
+                  if (method === 'settings/update' && workspaceRoot !== root) {
+                    const update = MHP_METHODS['settings/update'].params.parse(params)
+                    if (
+                      update.scope === 'workspace' &&
+                      RUNTIME_PANEL.reconfigureSettings.includes(update.key)
+                    )
+                      throw new Error('MHP_WORKSPACE_PROFILE_UNAVAILABLE')
+                  }
+                  const result = await requestState(method, params, contextStore, contextSettings)
+                  return parseMhpResult(method, { jsonrpc: MHP.jsonRpcVersion, id: 1, result })
+                    .result
+                }
+                const ui = fallbackUiMethodSchema.safeParse(method)
+                if (deps.transport === 'companion' && ui.success)
+                  return parseMhpResult(method, {
+                    jsonrpc: MHP.jsonRpcVersion,
+                    id: 1,
+                    result: await browserUi(ui.data, params, signal ?? ending.signal),
+                  }).result
+                return await peer.request(method, params, signal)
+              },
+              notify: (method, params) => {
+                peer.notify(method, params)
+              },
+            },
+            runtime: owningRuntime,
+            options,
+            store: contextStore,
+            settings: contextSettings,
+            workspaceRoot,
+            isSideChat,
+            controllers: () => allControllers(),
+            runGit: deps.runGit,
+            selection: () => selection,
+            documents: () => {
+              const snapshot: MhpParams<'documents/didChange'>['document'][] = []
+              documents.forEach((document) => {
+                snapshot.push(document)
+              })
+              return snapshot
+            },
+            sessionChanged: async (previousId, sessionId) => {
+              registry.rebind(previousId, sessionId, controller)
+              await retire(previousId)
+              await openSurface(sessionId)
+            },
+            ...(deps.factories !== undefined && { factories: deps.factories }),
+            ...(deps.modelCapabilities !== undefined && {
+              selectedModel: async () => {
+                const modelId = controller.modelId
+                const record = await deps.modelCapabilities?.(owningRuntime, modelId)
+                if (record?.modelId !== controller.modelId)
+                  throw new Error('MHP_MODEL_SELECTION_CHANGED')
+                return record
+              },
+            }),
+            openWorkspace: async (nextRoot) => {
+              const target = await realpath(nextRoot)
+              if (!isTrusted) throw new Error('MHP_WORKSPACE_UNTRUSTED')
+              const next = await startConversation(target)
+              await openSurface(next.sessionId)
+            },
+            openSideChat: (sessionId) => {
+              void transact(async () => {
+                const next = await startConversation(workspaceRoot, sessionId, true)
+                await openSurface(next.sessionId)
+              }).catch(() => {
+                if (!ending.signal.aborted) {
+                  log.warn('MHP_SIDE_CHAT_OPEN_FAILED')
+                }
+              })
+            },
+            log,
+          },
+          loaded,
+          deps.conversationBundle,
+          features.runtimeConversationDeps,
+        ),
+    )
+    roots.set(adopted, workspaceRoot)
+    if (isSideChat) sides.add(adopted)
+    if (workspaceRoot !== root)
+      contextSettings.onChanged((keys) => {
+        for (const held of registry.controllers())
+          if (roots.get(held) === workspaceRoot) held.publishSettings(contextSettings.current())
+        peer.notify('settings/didChange', { keys: [...keys] })
+      })
+    return adopted
+  }
 
   function requireStore(): RuntimeSettingsStore {
     return store ?? unsupported()
@@ -442,6 +722,7 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
         sessionTtlMs: RUNTIME_PANEL.sessionTtlMs,
         maxSessions: RUNTIME_PANEL.maximumWindows,
       },
+      signal: ending.signal,
       assets: page.assets,
       renderPage: (nonce, context) => {
         if (context === undefined || registry.held(context) === undefined)
@@ -542,10 +823,15 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
       owner.ui.close()
       owner.delivery.close()
     }
+    const drained = await Promise.allSettled([
+      registry.close(),
+      peer.settled(),
+      transactions,
+      opening,
+    ])
+    for (const current of ownedSettings) await current.dispose()
     await companion?.close()
-    try {
-      await registry.close()
-    } catch {
+    if (drained.some((result) => result.status === 'rejected')) {
       log.warn('MHP_REGISTRY_CLOSE_FAILED')
       exitCode = 1
     }

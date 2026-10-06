@@ -1,8 +1,70 @@
 import { Buffer } from 'node:buffer'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { call, headers, login, trackedPanels } from './helpers/companion'
 const panel = trackedPanels()
 describe('companion HTTP server', () => {
+  it('aborts admitted calls for a retired context and closes their HTTP responses', async () => {
+    const value = await panel()
+    const code = new URLSearchParams(new URL(value.launchUrl('old')).hash.slice(1)).get('k')
+    const reply = await call(value, '/session', 'POST', JSON.stringify({ code }))
+    const token = reply.headers.authorization?.slice('Bearer '.length)
+    const entered = Promise.withResolvers<AbortSignal>()
+    value.handler.post.mockImplementationOnce(
+      (_message, _id, signal) =>
+        new Promise((resolve) => {
+          entered.resolve(signal)
+          signal.addEventListener(
+            'abort',
+            () => {
+              resolve()
+            },
+            { once: true },
+          )
+        }),
+    )
+    let status = 'pending'
+    const pending = (async () => {
+      try {
+        await call(value, '/panel/message', 'POST', '{"kind":"ping"}', headers(value, token))
+        status = 'completed'
+      } catch {
+        status = 'closed'
+      }
+    })()
+    const signal = await entered.promise
+    try {
+      value.retireContext('old')
+      expect(signal.aborted).toBe(true)
+      await vi.waitFor(() => {
+        expect(status).toBe('closed')
+      })
+    } finally {
+      await value.close()
+      await pending
+    }
+  })
+  it('retires only the superseded context, revokes its bearer and unexchanged launch, and admits its fresh replacement', async () => {
+    const value = await panel({ maxSessions: 3 })
+    const oldLaunch = value.launchUrl('old')
+    const code = new URLSearchParams(new URL(oldLaunch).hash.slice(1)).get('k')
+    const reply = await call(value, '/session', 'POST', JSON.stringify({ code }))
+    const token = reply.headers.authorization?.slice('Bearer '.length)
+    const unused = new URLSearchParams(new URL(value.launchUrl('old')).hash.slice(1)).get('k')
+    const retained = await login(value)
+    value.retireContext('old')
+    expect(
+      await call(value, '/assets/client.js', 'GET', undefined, headers(value, token)),
+    ).toHaveProperty('status', 401)
+    expect(await call(value, '/session', 'POST', JSON.stringify({ code: unused }))).toHaveProperty(
+      'status',
+      403,
+    )
+    expect(await call(value, '/', 'GET', undefined, headers(value, retained))).toHaveProperty(
+      'status',
+      200,
+    )
+    expect(value.launchUrl('fresh')).toContain('/#k=')
+  })
   it('serves only the launch bootstrap anonymously, then the injected UI and exact packaged asset', async () => {
     const value = await panel()
     const anonymous = await call(value, '/')

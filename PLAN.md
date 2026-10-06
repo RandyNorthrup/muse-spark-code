@@ -6962,12 +6962,14 @@ have equivalent functionality even if we need to develop it ourselves".
   to D's browser bridge, whose frozen HTTP routes carry only panel traffic?
   Until those integrations and the runtime feature adapters in
   `docs/certification/m104-b2.md` qualify, M104 and M110a0 stay incomplete.
-  Default: keep ACP behavior, refuse unavailable ports and binding changes,
+  Default: keep ACP behavior and refuse unavailable ports; M104PA now
+  transfers panel sessions through fresh immutable bindings,
   expose neither secrets nor an unqualified equivalent-editor claim.
 - **M104INT boundaries (2026-10-06):** ACP rich parts now enter the
   composed controller, and companion UI RPC has its own authenticated MHP
   channel. The frozen native initialize direction/metadata mismatch still
-  prevents assembled bootstrap; 1.2 proposals remain gated. Auxiliary
+  prevented assembled bootstrap at that integration; M104PA replaces it
+  with the lead-approved editor-initiated 1.2 contract. Auxiliary
   Tasks/What's New views, feature ports and native editor qualification remain
   prerequisites in `docs/certification/m104-int.md` for M110a0. No registry
   status is promoted or approved exception inferred.
@@ -6983,55 +6985,17 @@ have equivalent functionality even if we need to develop it ourselves".
   from this rig's base. The lead must supply the current integration
   contracts/plan and resolve these acceptance prerequisites.
 
-**MHP 1.2 proposal — native HTML and bootstrap (FIXM104G, E02).** The
-frozen 1.0/1.1 exports and their locks remain byte-unchanged. The following
-additions require lane 0/B/D integration before native HTML can be advertised:
-
-- Add capability `surfaceHtml` and host-to-runtime request
-  `surfaces/renderHtml`. Params are exactly `{ surfaceId, sessionId,
-surfaceKind: "whatsNew", locale, nonce, styleUri, scriptUri, theme }`; IDs are the
-  existing opaque binding IDs, locale is the installed table's identifier,
-  nonce is the host-generated CSP nonce, styleUri is the host-extracted
-  bundled stylesheet's absolute file URI, scriptUri is its bundled page script's
-  absolute file URI, and theme uses the existing theme
-  schema. Result is exactly `{ html }`, a nonempty complete HTML document
-  bounded by the existing 16 MiB frame cap. The runtime uses its existing
-  localized release renderer and retains the rendered allow-listed link and
-  Try-it maps per binding; existing outward What's New index actions continue
-  through the sequenced carrier. Maps are staged by the supplied nonce:
-  only the most recently admitted render may activate its maps on the binding's
-  ordered `ready`; stale/cancelled replies never replace them. Action admission
-  snapshots the active map before asynchronous execution, and reload/close
-  retire it through the ordered lifecycle. The host injects its private embedded bridge
-  before the page's scripts, writes only the bound local page, and preserves
-  the asset-only nonce CSP, exact-document navigation, blocked popups and
-  ordered lifecycle. A reload obtains a new render and click-map generation
-  before `ready`; cancellation never installs a late render.
-  The HTML contains exactly one canonical external script tag,
-  `<script nonce="{nonce}" src="{escapedScriptUri}"></script>`, with
-  HTML-escaped URI attributes; no inline, remote, duplicate or differently
-  nonced script is permitted. Eclipse removes that tag and loads the same
-  extracted module after SWT installs its private browser function. It
-  replaces the renderer's CSP with its existing asset-only native CSP before
-  any content executes. Results with additional properties, partial documents
-  or UTF-8 bytes above the frame cap fail explicitly.
-- For 1.2 initialization, add required result field `hostContext` with
-  exactly `{ host, locale, theme, folders, trusted }`, using the existing
-  field schemas. These are authoritative native values; the runtime's
-  initial request cannot discover an editor's language, colors or product
-  identity. The old 1.1 result remains exactly version/capabilities. Runtime
-  settings, providers and paid decisions stay runtime-owned.
-- Eclipse's injected native HTML port is available only when its adapter
-  reports `surfaceHtml` at `mhp/1.2.0`; absent/older adapters explicitly
-  refuse What's New. No capability is added to the frozen 1.1 advertisement.
-  Lane 0 supplies the approved schemas; B/D implement the port's renderer
-  and shared bridge. This is a contract proposal, not a shipped wire claim.
+**Dropped HTML/bootstrap proposal (M104PA lead ruling, 2026-10-06).**
+The runtime-initiated initialize/hostContext and surfaceHtml/renderHtml proposal
+is withdrawn. MHP 1.2 has editor-initiated initialize, current shared payloads
+and reviewed snapshots; native carriers adopt those inputs in D/E/F. No
+opposite-direction metadata or HTML-render RPC is introduced.
 
 ## 3. Open questions (need the owner)
 
-- **M104 E02 / bootstrap:** approve the exact MHP 1.2 additions under D84
-  and wire the injected Eclipse HTML port through B/D. Frozen 1.1 remains
-  in force until lane 0 exports the approved schemas.
+- **M104 E02 / bootstrap (resolved by the lead):** MHP 1.2 replaces 1.1;
+  the editor initiates initialize. The earlier HTML/bootstrap additions are
+  dropped. D/E/F adopt the reviewed snapshots and qualify their native carriers.
 
 - **M104X integration dependencies:** this lane's base (`da79fd51`) lacks
   `panel --companion`, MHP runtime/UI composition and the shared Tab endpoint.
@@ -19230,7 +19194,12 @@ Regenerate snapshots and locks as an explicit reviewed version change with
 adoption to the owning D/E/F lanes. Runtime-initiated metadata/HTML proposals
 are dropped. Lane F owns the README carrier status correction (finding 5).
 This lane runs the brief's scoped gates, never aggregate quality, and makes
-no live/paid calls or support promotion.
+no live/paid calls or support promotion. Worktrees own separate records and
+controllers on the active profile; workspace-only profile changes explicitly
+refuse until B supplies profile construction. B/C lazy typed factories own
+feature ports/actions and awaited cleanup, including auxiliary-view work.
+Selected catalog records gate compaction/handoff/effort/media admission.
+Companion session retirement revokes old browser contexts and their streams.
 
 **M104INT integration (2026-10-06, authorized rig brief).** Merge lanes D,
 E redesign, G repair, F, I, Xcode and H repair in that order with merge

@@ -8,6 +8,7 @@ import type { ServeOptions } from '../cliArgs'
 import { walkFiles } from '../fileWalk'
 import { type RuntimeSettingsStore } from '../settingsStore'
 import type { AgentHost } from '../../core/agent/agentBackend'
+import { hasPdfHeader } from '../../shared/pdfHeader'
 import { MentionIndex } from '../../core/mentionIndex'
 import { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import { PendingPrompts } from '../../core/sessionBoard'
@@ -27,6 +28,10 @@ import type {
   ConversationGitPort,
   LastSession,
 } from '../../host/conversation/conversationController'
+import { HOST_ACTIONS, type HostAction } from '../../shared/protocol'
+import type { UiText } from '../../shared/l10n/en'
+import type { MhpPanelBinding } from '../../shared/hostApi/panel'
+import type { PanelView } from './surfaces'
 import type { ChatSurface } from '../../host/views/chatSurface'
 import type { AuthPort, AuthSnapshot } from '../../host/auth/authService'
 import type { Logger } from '../../host/logger'
@@ -38,6 +43,7 @@ import {
   MENTION_INDEX_LIMIT,
   MENTION_INDEX_TTL_MS,
   MAX_IMAGE_BYTES,
+  PDF_HEADER_WINDOW_BYTES,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
   UI_TEXT,
@@ -55,11 +61,12 @@ async function readBytes(
   root: string,
   maximum: number,
   expected?: string,
+  isPrefixOnly = false,
 ): Promise<Uint8Array> {
   const confined = await confineWorkspacePath(root, path.relative(root, file), process.platform, {
     realPath: realpath,
   })
-  if (!confined.ok || (expected !== undefined && confined.canonical !== expected))
+  if (!confined.ok || (expected !== undefined && confined.checkedAbsolute !== expected))
     return unavailable('files')
   const handle = await open(confined.checkedAbsolute, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW)
   try {
@@ -67,14 +74,20 @@ async function readBytes(
     const after = await realpath(confined.checkedAbsolute)
     const target = await statIdentity(after)
     if (after !== confined.checkedAbsolute || !sameFile(target, info)) return unavailable('files')
-    if (!info.isFile() || info.size > BigInt(maximum)) return unavailable('files')
+    if (!info.isFile() || (!isPrefixOnly && info.size > BigInt(maximum)))
+      return unavailable('files')
     const bytes = new Uint8Array(maximum + 1)
     let offset = 0
     for (;;) {
-      const next = await handle.read(bytes, offset, bytes.length - offset, null)
+      const next = await handle.read(
+        bytes,
+        offset,
+        (isPrefixOnly ? maximum : bytes.length) - offset,
+        null,
+      )
       offset += next.bytesRead
       if (offset > maximum) return unavailable('files')
-      if (next.bytesRead === 0) break
+      if (next.bytesRead === 0 || (isPrefixOnly && offset === maximum)) break
     }
     return bytes.subarray(0, offset)
   } finally {
@@ -84,13 +97,61 @@ async function readBytes(
 
 /** Runtime settings are hydrated before composition and refreshed after each admitted update. */
 export async function runtimeSettings(store: RuntimeSettingsStore, log: Logger) {
-  const values = new Map<string, unknown>()
+  let values = new Map<string, unknown>()
+  let refreshing: Promise<void> = Promise.resolve()
+  let isDisposed = false
+  let notifying: Promise<void> = Promise.resolve()
+  const listeners = new Set<(keys: readonly string[]) => void>()
   async function refresh(): Promise<void> {
-    for (const key of Object.keys(SETTING_DEFAULTS))
-      values.set(key, await store.getSetting(`${SETTINGS_SECTION}.${key}`))
+    const previous = refreshing
+    const next = (async () => {
+      await previous
+      const snapshot = new Map<string, unknown>()
+      for (const key of Object.keys(SETTING_DEFAULTS))
+        snapshot.set(key, await store.getSetting(`${SETTINGS_SECTION}.${key}`))
+      values = snapshot
+    })()
+    refreshing = (async () => {
+      try {
+        await next
+      } catch {
+        log.warn('MHP_SETTINGS_REFRESH_FAILED')
+      }
+    })()
+    await next
   }
   await refresh()
-  return { refresh, current: () => readSettings({ get: (key) => values.get(key) }, log) }
+  const stop = store.onSettingsChanged((keys) => {
+    notifying = (async () => {
+      try {
+        await refresh()
+        if (!isDisposed) for (const listener of listeners) listener(keys)
+      } catch {
+        log.warn('MHP_SETTINGS_REFRESH_FAILED')
+      }
+    })()
+  })
+  return {
+    refresh,
+    current: () => readSettings({ get: (key) => values.get(key) }, log),
+    onChanged: (listener: (keys: readonly string[]) => void) => {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    settled: async () => {
+      await refreshing
+      await notifying
+    },
+    dispose: async () => {
+      isDisposed = true
+      stop()
+      listeners.clear()
+      await refreshing
+      await notifying
+    },
+  }
 }
 
 /** Explicitly unavailable Git actions; no empty successful commit/push/PR result. */
@@ -124,10 +185,81 @@ function unavailableGit(
 
 const idsSchema = z.array(z.string())
 const lastSessionSchema = z.strictObject({ sessionId: z.string(), at: z.number() })
+/** Internal catalog contract; this is not a guessed provider wire shape. */
+export interface RuntimeSelectedModel {
+  readonly providerId: string
+  readonly modelId: string
+  readonly capabilities: ReadonlySet<string>
+}
+export type RuntimeEnginePorts = Pick<
+  ConversationFeaturePorts,
+  | 'runManualHook'
+  | 'rewriteMessage'
+  | 'ideMcpEndpoint'
+  | 'museCodeReviewer'
+  | 'judge'
+  | 'plans'
+  | 'isWorktreeHeld'
+  | 'bundledSkillsOffer'
+  | 'createGit'
+  | 'checkpoints'
+  | 'runBestOfNGit'
+>
+export type RuntimePresentationPorts = Pick<
+  ConversationFeaturePorts,
+  | 'tasksTab'
+  | 'editReview'
+  | 'review'
+  | 'openDocument'
+  | 'dictation'
+  | 'exports'
+  | 'transferFiles'
+  | 'reports'
+  | 'usageInsights'
+>
+export interface RuntimeFeatureContribution<Features> {
+  readonly features: Partial<Features>
+  readonly actions?: Partial<Record<HostAction, () => Promise<void>>>
+  readonly dispose?: () => Promise<void>
+}
+export interface RuntimePresentationContribution extends RuntimeFeatureContribution<RuntimePresentationPorts> {
+  readonly view?: (binding: MhpPanelBinding) => PanelView | undefined
+}
+export interface RuntimeFeatureContext {
+  readonly ports: RuntimeConversationPorts
+  /** Called at use, never cached across a model selection or session replacement. */
+  requireModelCapabilities(): Promise<RuntimeSelectedModel>
+  openWorkspace(root: string): Promise<void>
+  /** Register acquired resources immediately, including a factory that later fails. */
+  own(dispose: () => Promise<void>): void
+}
+export interface RuntimeFeatureFactories {
+  readonly engines?: (
+    context: RuntimeFeatureContext,
+    table: UiText,
+    locale: string,
+  ) => Promise<RuntimeFeatureContribution<RuntimeEnginePorts>>
+  readonly presentation?: (
+    context: RuntimeFeatureContext,
+    table: UiText,
+    locale: string,
+  ) => Promise<RuntimePresentationContribution>
+}
+
 export interface RuntimeConversationPorts {
+  readonly factories?: RuntimeFeatureFactories
+  readonly selectedModel?: () => Promise<RuntimeSelectedModel>
+  readonly openWorkspace?: (root: string) => Promise<void>
+  readonly own?: (dispose: () => Promise<void>) => void
+  readonly publishView?: (
+    lookup: NonNullable<RuntimePresentationContribution['view']>,
+  ) => () => void
+
   /** Absent for ACP, whose editor owns its immutable session identity. */
   readonly sessionChanged?: (previousId: string, sessionId: string) => Promise<void>
+  readonly isSideChat?: boolean
   readonly openSideChat?: ConversationFeaturePorts['openSideChat']
+  readonly ownsSettings?: boolean
   readonly ownsPaidConsent?: boolean
   readonly confirmContributor?: ConversationFeaturePorts['confirmContributor']
   readonly host: HostServices
@@ -147,6 +279,7 @@ export interface RuntimeConversationPorts {
 /** Uses the same composition and controller as VS Code, with runtime admission policy. */
 export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
   const { host, runtime, workspaceRoot, options, store, settings, surface, log } = ports
+  const actions = new Map<HostAction, () => Promise<void>>()
   let snapshot: AuthSnapshot = {
     status: 'checking',
     backend: runtime.backend.kind,
@@ -284,11 +417,36 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
     workspaceRoot,
     mentions,
     files: {
-      showOpenDialog: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
-      readFile: async (file, maximum, expected) => ({
-        bytes: await readBytes(file, workspaceRoot, maximum, expected),
-        isPdf: path.extname(file).toLowerCase() === '.pdf',
-      }),
+      showOpenDialog: async () => {
+        const indexed = await mentions.search('', MENTION_INDEX_LIMIT)
+        const items = indexed.filter((item) => !item.isFolder)
+        const picked = await host.request('ui/pick', {
+          title: UI_TEXT.attachFile,
+          items: items.map((item) => ({ id: item.path, title: item.path })),
+          multiple: true,
+        })
+        if (picked === null) return []
+        return picked.map((id) => {
+          const item = items.find((candidate) => candidate.path === id)
+          if (item === undefined) return unavailable('files')
+          return {
+            name: path.basename(item.path),
+            fsPath: path.resolve(workspaceRoot, item.path),
+            relativePath: item.path,
+          }
+        })
+      },
+      readFile: async (file, maximum, expected) => {
+        if (maximum === 0)
+          return {
+            bytes: undefined,
+            isPdf: hasPdfHeader(
+              await readBytes(file, workspaceRoot, PDF_HEADER_WINDOW_BYTES, expected, true),
+            ),
+          }
+        const bytes = await readBytes(file, workspaceRoot, maximum, expected)
+        return { bytes, isPdf: hasPdfHeader(bytes) }
+      },
       canonicalRelativePath: async (file) => {
         const confined = await confineWorkspacePath(
           workspaceRoot,
@@ -332,7 +490,8 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
           message: UI_TEXT.contributorDetail,
           choices: [{ id: 1, title: UI_TEXT.contributorConfirm }],
         })) === 1),
-    runHostAction: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
+    runHostAction: (action) =>
+      actions.get(action)?.() ?? Promise.reject(new Error('MHP_UNSUPPORTED_CAPABILITY')),
     insertCode: (text) => didApplyCode(text, true),
     applyCode: (text) => didApplyCode(text, false),
     onSandboxUnavailable: () => {
@@ -423,7 +582,8 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
           logRejection(log, 'last session')(error)
           return
         }
-        last = next
+        const committed = await store.getStorage('lastSession', 'workspace')
+        last = committed === null ? undefined : lastSessionSchema.parse(committed)
       },
     },
     accountFacts: async () => {
@@ -477,6 +637,46 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
     },
     now: Date.now,
     log,
+  }
+  const context: RuntimeFeatureContext = {
+    ports,
+    requireModelCapabilities: () =>
+      ports.selectedModel?.() ?? Promise.reject(new Error('MHP_MODEL_CAPABILITIES_UNAVAILABLE')),
+    openWorkspace: (root) =>
+      ports.openWorkspace?.(root) ?? Promise.reject(new Error('MHP_UNSUPPORTED_CAPABILITY')),
+    own: (dispose) => {
+      if (ports.own === undefined) return unavailable('compositionLifetime')
+      ports.own(dispose)
+    },
+  }
+  function applyContribution(
+    contribution: RuntimeFeatureContribution<Partial<ConversationFeaturePorts>>,
+  ): void {
+    if (contribution.dispose !== undefined) context.own(contribution.dispose)
+    const actionKeys = Object.keys(contribution.actions ?? {})
+    for (const action of actionKeys) {
+      // The existing action union is the only admitted factory key (PLAN §8 uses no cast).
+      const matched = HOST_ACTIONS.find((candidate) => candidate === action)
+      const handler = matched === undefined ? undefined : contribution.actions?.[matched]
+      if (matched === undefined || handler === undefined || actions.has(matched))
+        throw new Error('MHP_COMPOSITION_ACTION_CONFLICT')
+      actions.set(matched, handler)
+    }
+    Object.assign(features, contribution.features)
+  }
+  if (ports.factories?.engines !== undefined)
+    applyContribution(await ports.factories.engines(context, UI_TEXT, uiLocale()))
+  if (ports.factories?.presentation !== undefined) {
+    const presentation = await ports.factories.presentation(context, UI_TEXT, uiLocale())
+    applyContribution(presentation)
+    if (presentation.view !== undefined) {
+      if (ports.publishView === undefined) return unavailable('presentationLifetime')
+      const stop = ports.publishView(presentation.view)
+      context.own(() => {
+        stop()
+        return Promise.resolve()
+      })
+    }
   }
   const composition: ConversationCompositionPorts = {
     features,
