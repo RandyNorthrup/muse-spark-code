@@ -1,5 +1,7 @@
 import { TEAM_MODEL_TEXT, TEAM_SCHED_HISTORY_MAX } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import type { ToolOutcome } from '../backends/modelapi/tools'
+import type { TeamToolName } from './teamTools'
 import { type TeamRosterLive, type TeamStableRole, type TeamStableEntry } from './teamSeams'
 import {
   teamBoardSchema,
@@ -113,6 +115,20 @@ export function formatStateChangeNote(
   return changes.length === 0 && edits.length === 0
     ? undefined
     : JSON.stringify({ type: 'team_events', states: changes, edits })
+}
+
+/** Drain state/edit notes only after a roster, delegate or collect answer. */
+export function appendTeamEvents(
+  name: TeamToolName,
+  outcome: ToolOutcome,
+  takeChanges: () =>
+    { readonly states: readonly TeamStateChange[]; readonly edits: readonly string[] } | undefined,
+): ToolOutcome {
+  if (!['roster', 'delegate', 'collect'].includes(name)) return outcome
+  const changes = takeChanges()
+  if (changes === undefined) return outcome
+  const events = formatStateChangeNote(changes.states, changes.edits)
+  return events === undefined ? outcome : { ...outcome, output: `${outcome.output}\n${events}` }
 }
 
 // Scheduler data is appended to tool answers and the state-change tail only.

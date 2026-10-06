@@ -10674,13 +10674,9 @@ export class ModelApiSession implements AgentSession {
   }
 
   private teamEventsOutcome(name: TeamToolName, outcome: ToolOutcome): ToolOutcome {
-    if (this.isSubagent || this.isReviewing() || this.teamModeForRequest() !== 'team')
-      return outcome
-    if (!['roster', 'delegate', 'collect'].includes(name)) return outcome
-    const changes = this.deps.takeTeamChanges?.(this.sessionId)
-    if (changes === undefined) return outcome
-    const events = this.team.formatStateChangeNote(changes.states, changes.edits)
-    return events === undefined ? outcome : { ...outcome, output: `${outcome.output}\n${events}` }
+    return this.isSubagent || this.isReviewing() || this.teamModeForRequest() !== 'team'
+      ? outcome
+      : this.team.appendTeamEvents(name, outcome, () => this.deps.takeTeamChanges?.(this.sessionId))
   }
 
   private async loop(turn: ActiveTurn): Promise<void> {

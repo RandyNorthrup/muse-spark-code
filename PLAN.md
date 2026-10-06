@@ -246,6 +246,26 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**TRAIN15D lead decision (2026-10-06, kubuntu).** Audit every M96 browser
+surface against the existing shared chat/Models/What's New ESM build and
+measure it, then audit loose M96 data/static assets against the existing
+Brotli runtime loader and measure again. TeamUi/tree/cards already use the
+chat's deferred graph; Traffic and runner forms currently have only test/harness
+readers, so do not invent a shipped entry. Preserve every individual cap.
+Move the M96 tool-answer state/edit tail from ModelApiSession into the existing
+lazy team roster runtime: it is used after a team tool completes, outside the
+first-request path. Identify its owner in the production metafile and prove
+unchanged answer/drain behavior. If the resulting universal VSIX is still over
+2,252,800 bytes, the lead authorizes ONLY its compressed cap to become measured
+bytes +5%, rounded up to the next 25 KiB, with the rationale: "0.15.0 ships M95
+providers, M96 teams, M101 compaction and M102 usage; caps for every individual
+bundle are unchanged". Then merge `m96/ifix-win4` (`c2e4220f`) and `m97/sr`
+(`24c211b2`) in that order with `--no-ff`, preserving all input intent, translated
+keys and released changelog bytes. Regenerate inventories, run scoped checks,
+measure after each step and commit each finished piece with unchanged hooks.
+Full quality, remaining M95/M102 inputs, platform/live/hosted certification stay
+with the lead. No extra merges, push, rebase, paid/live calls or credential reads.
+
 **TRAIN15C M96 size recovery (2026-10-05).** The combined first build is
 7,946 bytes over Model API and 418 over original deferred JS. Share the existing
 Model API wire validators and pure team conversation/admission boundaries in
@@ -343,7 +363,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
 | Webview team UI import closure        | ≤ 25 KiB (M96: exclusive deferred TeamUi closure, 16,132 bytes in the composed graph; existing incoming cap)                                                                                                                                                                                                                                                                                           |
-| `.vsix`                               | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
+| `.vsix`                               | ≤ 2475 KiB compressed (TRAIN15D lead decision, 2026-10-06: universal 2,396,321 bytes +5%, rounded up to 25 KiB = 2,534,400 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job)                                                                                                   |
 | `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
 | `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
 | `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
@@ -780,31 +800,31 @@ other budget changes.
   import of classic zod; removing them means aliasing or patching a
   dependency's module graph, for a download a user makes once.
 
-| Artifact                       | Budget (minified, uncompressed)                                                                                                                                                                                   |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`            | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                       |
-| `dist/modelApi.js`             | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                         |
-| `dist/providers.js`            | ≤ 125 KiB (M95INT: 93.0 KiB measured; provider core and captured codecs, on first BYO use)                                                                                                                        |
-| `dist/modelsPanel.js`          | ≤ 75 KiB (M95INT: 50.1 KiB measured; panel host and quick pick, on first action)                                                                                                                                  |
-| `dist/webview/models.js`       | ≤ 475 KiB (M95INT: 404.7 KiB measured; separate Models panel browser entry)                                                                                                                                       |
-| `dist/review.js`               | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                   |
-| `dist/searchWorker.js`         | ≤ 50 KiB                                                                                                                                                                                                          |
-| `dist/pageWorker.js`           | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
-| `dist/webview/main.js`         | ≤ 900 KiB including React, the markdown renderer, highlight.js and every static startup chunk                                                                                                                     |
-| `.vsix`                        | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job) |
-| `dist/acp.js`                  | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
-| `dist/planMarkdown.js`         | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
-| `dist/checkpointStore.js`      | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
-| `dist/uiText.js`               | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)       |
-| `dist/validation.js`           | ≤ 50 KiB (M95INT2: shared used Node mini-parser API, initially 39.5 KiB + 15%, rounded up to 25 KiB)                                                                                                              |
-| Deferred Account & usage chunk | ≤ 25 KiB (M95INT2: 12.6 KiB + 15%, rounded up to 25 KiB; startup still counts its shared static chunks)                                                                                                           |
-| `dist/sessionBoard.js`         | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
-| `dist/reviewer.js`             | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
-| `dist/agentImport.js`          | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
-| `dist/bundledSkills.js`        | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                        |
-| `dist/codeIntel.js`            | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
-| `dist/voice.js`                | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
-| `dist/museCodeReviewer.js`     | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                             |
+| Artifact                       | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                      |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/extension.js`            | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                          |
+| `dist/modelApi.js`             | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                                                                                                            |
+| `dist/providers.js`            | ≤ 125 KiB (M95INT: 93.0 KiB measured; provider core and captured codecs, on first BYO use)                                                                                                                                                                                                           |
+| `dist/modelsPanel.js`          | ≤ 75 KiB (M95INT: 50.1 KiB measured; panel host and quick pick, on first action)                                                                                                                                                                                                                     |
+| `dist/webview/models.js`       | ≤ 475 KiB (M95INT: 404.7 KiB measured; separate Models panel browser entry)                                                                                                                                                                                                                          |
+| `dist/review.js`               | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                      |
+| `dist/searchWorker.js`         | ≤ 50 KiB                                                                                                                                                                                                                                                                                             |
+| `dist/pageWorker.js`           | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                           |
+| `dist/webview/main.js`         | ≤ 900 KiB including React, the markdown renderer, highlight.js and every static startup chunk                                                                                                                                                                                                        |
+| `.vsix`                        | ≤ 2475 KiB compressed (TRAIN15D lead decision, 2026-10-06: universal 2,396,321 bytes +5%, rounded up to 25 KiB = 2,534,400 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job) |
+| `dist/acp.js`                  | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                    |
+| `dist/planMarkdown.js`         | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                      |
+| `dist/checkpointStore.js`      | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                 |
+| `dist/uiText.js`               | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)                                                                                          |
+| `dist/validation.js`           | ≤ 50 KiB (M95INT2: shared used Node mini-parser API, initially 39.5 KiB + 15%, rounded up to 25 KiB)                                                                                                                                                                                                 |
+| Deferred Account & usage chunk | ≤ 25 KiB (M95INT2: 12.6 KiB + 15%, rounded up to 25 KiB; startup still counts its shared static chunks)                                                                                                                                                                                              |
+| `dist/sessionBoard.js`         | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                      |
+| `dist/reviewer.js`             | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                    |
+| `dist/agentImport.js`          | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                                                                                                               |
+| `dist/bundledSkills.js`        | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                           |
+| `dist/codeIntel.js`            | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                |
+| `dist/voice.js`                | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                  |
+| `dist/museCodeReviewer.js`     | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                                                                |
 
 ### D7 — Permission modes map onto MSP approval modes; prompting modes wait for M4
 
@@ -11024,6 +11044,17 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### TRAIN15D — Complete the authorized size recovery and held merges (2026-10-06)
+
+Scope and the sole conditional cap decision are recorded in D6 above.
+Receipts: `docs/certification/train-0.15.0.md` and the TRAIN15D JSON record.
+
+- [ ] Measure M96's shared browser graph and existing packed-data inventory.
+- [ ] Move the post-tool event tail into the lazy team runtime; certify behavior.
+- [ ] Measure universal VSIX, apply only the explicitly authorized cap if needed.
+- [ ] Merge and measure `m96/ifix-win4`, then `m97/sr`; resolve by meaning.
+- [ ] Complete scoped compiler/lint/l10n/host/schema/owning-suite checks and drills.
 
 ### TRAIN15B — Resume the 0.15.0 batch within the existing caps (2026-10-05)
 

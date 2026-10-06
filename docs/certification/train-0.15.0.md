@@ -513,3 +513,84 @@ skips**. The JSON receipt preserves the initial failures, owning-file replay
 sources, controls, sizes and top-20 archive deltas. No extra merge, cap change,
 paid/live model call, credential read, install, hook change, push, rebase or
 full quality run occurs.
+
+## TRAIN15D — Lead-authorized recovery and final two held inputs
+
+Continue clean `a882809b2` directly on Kubuntu. The renewed brief authorizes
+ordered size decisions and `--no-ff` merges of `m96/ifix-win4` (`c2e4220f`),
+then `m97/sr` (`24c211b2`); full quality and M95/M102 stay with the lead.
+Its sole conditional cap exception is the universal VSIX, measured +5% and
+rounded up to 25 KiB. All individual bundle caps remain unchanged.
+
+Steps 1/2 audit the actual input, rather than creating missing production
+bindings. TeamUi/tree/cards already load as one optional chat ESM closure,
+sharing React, React DOM, bridge, mini-parser and localization with Models.
+There is no separate shipped M96 browser entry. Traffic and runner forms
+have only harness/test readers; their missing runtime/panel bindings remain
+an inherited integration prerequisite, as the existing changelog says.
+The regression checks one emitted owner per team renderer/library, deferred
+team placement and the absence of the Traffic harness from shipped graphs.
+Deliberately omit TeamTree's output metadata: the new assertion fails, then
+restore the projection source byte-exact by SHA-256.
+
+M96 adds no loose shipped JSON or large static asset: generated team schemas
+and configuration data are already inside the runtime archive's lazy modules;
+all translated tables share the existing Brotli pack. Source schemas, captures,
+certification screenshots and the browser harness are excluded by the existing
+allowlist. The small `native/runner/runner-helper.sh` and `.ps1` stay loose:
+SshRunner reads their exact bytes by path to copy them to the remote host before
+that host's Node runtime/loader exists. Manifest translations must be readable
+by the editor before extension activation. Neither is a packable Node data member.
+The existing provider catalogue remains an exact archived data module.
+
+Both no-change audit stages measure extension **454,262**, Model API **486,463**,
+chat startup **821,206**, ACP **840,264**, universal VSIX **2,397,730** bytes.
+The actual package checks 42 native import/require modules, exact staged l10n
+and static badges, then fails only the old VSIX cap. The original Model API
+cap is still 63 bytes over at these checkpoints. Public badge fetches use the
+existing named network-only skip, required by common.md's network fence.
+
+Step 3 moves the M96 post-tool event tail from ModelApiSession to
+`appendTeamEvents` in the existing roster runtime. Its production owner is
+`dist/team.js` / `dist/meta/team.json`, input `src/core/team/roster.ts`;
+`dist/modelApi.js` carries none of that module. Only eligible roster/delegate/
+collect answers drain the source. Ineligible answers, absent/empty changes,
+outcome metadata, structured hostile text and first-request bytes retain their
+owning tests. Model API falls **486,463 → 486,312**, recovering the frozen
+**486,400** cap with **88 bytes** headroom. No identifier golfing, new bundle,
+wire shape, setting, translation or editor-specific implementation is introduced.
+The owning 3-file backend/roster/golden batch passes **107 tests**; the new
+append/drain test fails before implementation. All production raw-size,
+split/readership, host-global and notices gates pass.
+
+Further measurements, controls, scoped checks and merge receipts follow below.
+Exact stage/asset/command/hash records: `train-0.15.0-train15d.json`.
+
+Step 4 is needed: the step-3 universal measurement is **2,396,321** bytes,
+so `ceil(2,396,321 × 1.05 / 25,600) × 25,600` is **2,534,400 bytes / 2475 KiB**.
+Only `scripts/check-vsix-size.mjs` changes its cap; both PLAN budget tables
+record the mandated feature-set rationale. The exact bound passes; one byte
+over fails. Disabling that guard fails the complete integrity suite and restores
+byte-exact. The event-tail admission mutation also fails the direct drain case
+and both real backend structured/hostile-note cases, restoring byte-exact.
+All three controls retain commands and SHA-256 receipts in the JSON record.
+
+Five-project typecheck, changed-file ESLint/Prettier, localization (14 tables,
+zero problems), host API and exec schema checks pass. The reference generator
+is absent. Seven distinct complete owning files pass **159 tests**, zero skips;
+restored browser/backend/integrity replay passes **54 tests**. ESLint's inherited
+prefer-ternary rule requires the existing session eligibility check to use a
+ternary; that corrected form preserves the 486,312-byte backend. The final
+`npm run package` passes all raw-size, split/readership, host-global, notices,
+exact staged localization, static badge and **42 native module** checks.
+With the short Unreleased cap record included, universal VSIX is **2,396,407**,
+**137,993 bytes headroom**. Released changelog sections remain byte-identical
+to `6a0207c1`, one Unreleased section, two Highlights. No install, new loader,
+new individual cap, credential read, paid/live attempt or full quality run.
+
+| TRAIN15D step          | extension.js | modelApi.js | Chat startup |     ACP | Universal VSIX |  VSIX cap |
+| ---------------------- | -----------: | ----------: | -----------: | ------: | -------------: | --------: |
+| 1 — shared graph audit |      454,262 |     486,463 |      821,206 | 840,264 |      2,397,730 | 2,252,800 |
+| 2 — packed data audit  |      454,262 |     486,463 |      821,206 | 840,264 |      2,397,730 | 2,252,800 |
+| 3 — lazy event tail    |      454,262 |     486,312 |      821,206 | 840,264 |      2,396,321 | 2,252,800 |
+| 4 — lead's VSIX cap    |      454,262 |     486,312 |      821,206 | 840,264 |      2,396,407 | 2,534,400 |

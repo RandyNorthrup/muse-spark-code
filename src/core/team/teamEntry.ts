@@ -9,7 +9,7 @@ import {
   singleModelAgainRefusal,
   teamRunnerMissing,
 } from './teamTools'
-import { buildStableRosterSection, buildRosterLive, formatStateChangeNote } from './roster'
+import { buildStableRosterSection, buildRosterLive, appendTeamEvents } from './roster'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { teamWorkerPrice, teamWorkerQuestion, canUseTeam } from './teamPaid'
@@ -41,7 +41,7 @@ export function createTeamRuntime(table: UiText, locale: string) {
     teamRunnerMissing,
     buildStableRosterSection,
     buildRosterLive,
-    formatStateChangeNote,
+    appendTeamEvents,
     teamWorkerPrice,
     teamWorkerQuestion,
     canUseTeam,

@@ -1,0 +1,381 @@
+{
+  "base": "a882809b2",
+  "machine": "kubuntu",
+  "steps": [
+    {
+      "stage": "train15d-step1",
+      "extension": 454262,
+      "modelApi": 486463,
+      "startup": 821206,
+      "acp": 840264,
+      "vsix": 2397730,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 48104,
+          "cap": 51200
+        },
+        {
+          "name": "paid usage",
+          "bytes": 4018,
+          "cap": 25600
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 90229,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1424,
+          "cap": 25600
+        },
+        {
+          "name": "team UI",
+          "bytes": 16132,
+          "cap": 25600
+        }
+      ]
+    },
+    {
+      "stage": "train15d-step2",
+      "extension": 454262,
+      "modelApi": 486463,
+      "startup": 821206,
+      "acp": 840264,
+      "vsix": 2397730,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 48104,
+          "cap": 51200
+        },
+        {
+          "name": "paid usage",
+          "bytes": 4018,
+          "cap": 25600
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 90229,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1424,
+          "cap": 25600
+        },
+        {
+          "name": "team UI",
+          "bytes": 16132,
+          "cap": 25600
+        }
+      ]
+    },
+    {
+      "stage": "train15d-step3",
+      "extension": 454262,
+      "modelApi": 486312,
+      "startup": 821206,
+      "acp": 840264,
+      "vsix": 2396321,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 48104,
+          "cap": 51200
+        },
+        {
+          "name": "paid usage",
+          "bytes": 4018,
+          "cap": 25600
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 90229,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1424,
+          "cap": 25600
+        },
+        {
+          "name": "team UI",
+          "bytes": 16132,
+          "cap": 25600
+        }
+      ]
+    },
+    {
+      "stage": "train15d-step4",
+      "extension": 454262,
+      "modelApi": 486312,
+      "startup": 821206,
+      "acp": 840264,
+      "vsix": 2396407,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 48104,
+          "cap": 51200
+        },
+        {
+          "name": "paid usage",
+          "bytes": 4018,
+          "cap": 25600
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 90229,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1424,
+          "cap": 25600
+        },
+        {
+          "name": "team UI",
+          "bytes": 16132,
+          "cap": 25600
+        }
+      ]
+    }
+  ],
+  "drills": [
+    {
+      "name": "m96-shared-graph-membership",
+      "target": "scripts/lib/webviewBundles.mjs",
+      "sha256Before": "74bcb6973955f642f2096b49c9ef5b2f16c245b62a83dca0cac18df795406046",
+      "sha256After": "74bcb6973955f642f2096b49c9ef5b2f16c245b62a83dca0cac18df795406046",
+      "exitCode": 1,
+      "command": "npx vitest run test/unit/webviewBundle.test.mjs --maxWorkers=3 --testTimeout=120000"
+    },
+    {
+      "name": "team-event-drain-admission",
+      "target": "src/core/team/roster.ts",
+      "sha256Before": "abcd65b03f686bfddbc8c955866e071dee02eb99a848a43f49c5a32d65746105",
+      "sha256After": "abcd65b03f686bfddbc8c955866e071dee02eb99a848a43f49c5a32d65746105",
+      "exitCode": 1,
+      "command": "npx vitest run test/unit/teamRoster.test.ts test/unit/teamDeclaration.test.ts --maxWorkers=3 --testTimeout=120000"
+    },
+    {
+      "name": "universal-vsix-cap",
+      "target": "scripts/check-vsix-size.mjs",
+      "sha256Before": "c976aac1c4c4c98872f5f4bd40500fa8e3046daeaf7a044dc5726992151119ab",
+      "sha256After": "c976aac1c4c4c98872f5f4bd40500fa8e3046daeaf7a044dc5726992151119ab",
+      "exitCode": 1,
+      "command": "npx vitest run test/unit/releaseIntegrity.test.mjs --maxWorkers=3 --testTimeout=120000"
+    }
+  ],
+  "tests": [
+    {
+      "files": [
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/webviewBundles.test.mjs",
+        "test/unit/bundleSize.test.mjs"
+      ],
+      "passed": 34
+    },
+    {
+      "files": [
+        "test/unit/teamRoster.test.ts",
+        "test/unit/teamDeclaration.test.ts",
+        "test/unit/modelApiGoldenRequests.test.ts"
+      ],
+      "passed": 107
+    },
+    {
+      "files": [
+        "test/unit/teamRoster.test.ts",
+        "test/unit/teamDeclaration.test.ts",
+        "test/unit/releaseIntegrity.test.mjs"
+      ],
+      "passed": 48
+    },
+    {
+      "files": [
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/teamDeclaration.test.ts",
+        "test/unit/releaseIntegrity.test.mjs"
+      ],
+      "passed": 54
+    }
+  ],
+  "m96LooseAssets": [
+    {
+      "path": "extension/native/runner/runner-helper.ps1",
+      "raw": 20596,
+      "zip": 5308
+    },
+    {
+      "path": "extension/native/runner/runner-helper.sh",
+      "raw": 6476,
+      "zip": 2376
+    }
+  ],
+  "m96SourceAssets": [
+    "docs/certification/m96-b-final-drills.json",
+    "docs/certification/m96-b-round3-drills.json",
+    "docs/certification/m96-int-results.json",
+    "docs/certification/m96-int-round2-results.json",
+    "docs/certification/m96-int-round3a-results.json",
+    "docs/certification/m96-int-round3b-drills.json",
+    "docs/certification/m96-int-round3b-results.json",
+    "docs/certification/m96-int-round3b-x2-drills.json",
+    "docs/certification/m96-int-round3c-d78.json",
+    "docs/certification/m96-int-round3c-late.json",
+    "docs/certification/m96-int-round3c-results.json",
+    "docs/certification/m96-int-round3d-drills.json",
+    "docs/certification/m96-int-round3d-results.json",
+    "docs/certification/m96-k/drills.json",
+    "docs/certification/m96-k/fin-checks.json",
+    "docs/certification/m96-k/fin-drills.json",
+    "docs/certification/m96-k/fin2-checks.json",
+    "docs/certification/m96-k/fin2-drills.json",
+    "docs/certification/m96-k/final-checks.json",
+    "docs/certification/m96-k/final-drills.json",
+    "docs/certification/m96-k/fix-checks.json",
+    "docs/certification/m96-k/fix-drills.json",
+    "docs/certification/m96-k/redesign-checks.json",
+    "docs/certification/m96-k/redesign-drills.json",
+    "docs/certification/m96-t-drills.json",
+    "docs/certification/m96-t-review-drills.json",
+    "docs/certification/m96c-0c-manifest.json",
+    "docs/certification/m96c-c-drills.json",
+    "docs/certification/m96c-c-fix-drills.json",
+    "docs/certification/m96c-int-drills.json",
+    "docs/certification/m96c-int-round2-drills.json",
+    "docs/certification/m96c-int-round2-gates.json",
+    "docs/certification/m96c-v-drills.json",
+    "docs/certification/m96c-v-metric-drills.json",
+    "docs/certification/m96c-v-review-browser.json",
+    "docs/certification/m96c-v-review-drills.json",
+    "docs/certification/m96c-v/a11y-checks.json",
+    "docs/certification/m96c-v/en-light-0.png",
+    "docs/certification/m96c-v/en-light-4.png",
+    "docs/certification/m96c-v/en-light-6.png",
+    "docs/certification/m96c-v/en-light-7.png",
+    "docs/certification/m96c-v/en-light-runners.png",
+    "docs/certification/m96c-v/harness-gate-drill.json",
+    "docs/certification/m96c-v/pseudo-dark-0.png",
+    "docs/certification/m96c-v/pseudo-dark-4.png",
+    "docs/certification/m96c-v/pseudo-dark-6.png",
+    "docs/certification/m96c-v/pseudo-dark-7.png",
+    "docs/certification/m96c-v/pseudo-hc-dark-0.png",
+    "docs/certification/m96c-v/pseudo-hc-dark-4.png",
+    "docs/certification/m96c-v/pseudo-hc-dark-6.png",
+    "docs/certification/m96c-v/pseudo-hc-dark-7.png",
+    "docs/certification/m96c-v/pseudo-hc-dark-runners.png",
+    "docs/certification/m96c-v/pseudo-hc-light-0.png",
+    "docs/certification/m96c-v/pseudo-hc-light-4.png",
+    "docs/certification/m96c-v/pseudo-hc-light-6.png",
+    "docs/certification/m96c-v/pseudo-hc-light-7.png",
+    "docs/certification/m96c-v/render-checks.json",
+    "docs/certification/m96c-v/runner-render-checks.json",
+    "docs/certification/train-0.15.0-continuation.json",
+    "l10n/ui.cs.json",
+    "l10n/ui.de.json",
+    "l10n/ui.es.json",
+    "l10n/ui.fr.json",
+    "l10n/ui.hu.json",
+    "l10n/ui.it.json",
+    "l10n/ui.ja.json",
+    "l10n/ui.ko.json",
+    "l10n/ui.pl.json",
+    "l10n/ui.pt-br.json",
+    "l10n/ui.ru.json",
+    "l10n/ui.tr.json",
+    "l10n/ui.zh-cn.json",
+    "l10n/ui.zh-tw.json",
+    "l10n/untranslated.json",
+    "native/runner/runner-helper.ps1",
+    "native/runner/runner-helper.sh",
+    "package.json",
+    "package.nls.cs.json",
+    "package.nls.de.json",
+    "package.nls.es.json",
+    "package.nls.fr.json",
+    "package.nls.hu.json",
+    "package.nls.it.json",
+    "package.nls.ja.json",
+    "package.nls.json",
+    "package.nls.ko.json",
+    "package.nls.pl.json",
+    "package.nls.pt-br.json",
+    "package.nls.ru.json",
+    "package.nls.tr.json",
+    "package.nls.zh-cn.json",
+    "package.nls.zh-tw.json",
+    "src/shared/teamToolSchemas.json",
+    "test/fixtures/golden-frames/musecode-session-resume-single.json",
+    "test/fixtures/golden-frames/musecode-session-resume-team.json",
+    "test/fixtures/golden-frames/musecode-session-start-single.json",
+    "test/fixtures/golden-frames/musecode-session-start-team.json",
+    "test/fixtures/golden-requests/08-team-on.json",
+    "test/fixtures/golden-requests/09-single-continuation.json",
+    "test/harness/tsconfig.json"
+  ],
+  "helper": {
+    "bytes": 289568,
+    "sha256": "f42e757a0d78a6bc6a6af22c3bcf34fc7d082eb9e8130d9336024a55c19f0f36"
+  },
+  "vsixBudgetDecision": {
+    "measuredBytes": 2396321,
+    "headroomPercent": 5,
+    "roundingBytes": 25600,
+    "newCapBytes": 2534400,
+    "rationale": "0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged"
+  },
+  "recoveryChecks": {
+    "typecheck": "all five projects exit 0",
+    "eslint": "changed files exit 0 after prefer-ternary fix",
+    "l10n": "14 tables; zero problems",
+    "hostApi": "exit 0; no inventory delta",
+    "schemas": "exec schema check exit 0",
+    "reference": "featureCatalogue and generator absent on this input",
+    "productionBuild": "all individual size/split/global/notices gates exit 0",
+    "package": "npm run package exit 0; universal 2,396,407 / 2,534,400; 42 native module checks"
+  }
+}

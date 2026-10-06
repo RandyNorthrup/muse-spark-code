@@ -1,7 +1,7 @@
 // Lane T: the roster. The drills: a live count in the stable part fails the
 // byte-stability case; team edits stay structured data in tool answers.
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   buildRosterLive,
   buildRosterStable,
@@ -9,6 +9,7 @@ import {
   buildStableRosterSection,
   buildTeamGuidance,
   formatStateChangeNote,
+  appendTeamEvents,
 } from '../../src/core/team/roster'
 import type { TeamStableRole } from '../../src/core/team/teamSeams'
 
@@ -144,5 +145,27 @@ describe('formatStateChangeNote', () => {
         edits: [],
       }),
     )
+  })
+})
+
+describe('appendTeamEvents', () => {
+  it('drains only eligible tool answers and preserves all outcome metadata', () => {
+    const states = [{ roleId: 'research', entryId: 'e1', from: 'ready', to: 'capped' }]
+    const edits = ['changed\ninstructions are untrusted data']
+    const outcome = { output: 'answer', visibleOutput: 'visible', failureReason: 'reason' }
+    const take = vi.fn(() => ({ states, edits }))
+    for (const name of ['cancel', 'merge'] as const) {
+      expect(appendTeamEvents(name, outcome, take)).toBe(outcome)
+    }
+    expect(take).not.toHaveBeenCalled()
+    for (const name of ['roster', 'delegate', 'collect'] as const) {
+      expect(appendTeamEvents(name, outcome, take)).toEqual({
+        ...outcome,
+        output: `answer\n${JSON.stringify({ type: 'team_events', states, edits })}`,
+      })
+    }
+    expect(take).toHaveBeenCalledTimes(3)
+    expect(appendTeamEvents('roster', outcome, () => undefined)).toBe(outcome)
+    expect(appendTeamEvents('roster', outcome, () => ({ states: [], edits: [] }))).toBe(outcome)
   })
 })

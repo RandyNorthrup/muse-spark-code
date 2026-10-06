@@ -1,15 +1,16 @@
-// Compressed universal package budget: 1,631,349 bytes + 15%, rounded up to 25 KiB.
-// Measured with the real universal macOS helper, 2026-10-02; PLAN.md D6.
+// Lead-approved 0.15.0 universal package budget: 2,396,321 bytes +5%, rounded
+// up to 25 KiB (2026-10-06, TRAIN15D; PLAN.md D6). 0.15.0 ships M95 providers,
+// M96 teams, M101 compaction and M102 usage; individual bundle caps are unchanged.
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const MAX_VSIX_BYTES = 2200 * 1024
+const MAX_VSIX_BYTES = 2475 * 1024
 
 export function checkVsixSize(file) {
   const size = statSync(file).size
   if (size > MAX_VSIX_BYTES) {
-    throw new Error(`VSIX is ${size} bytes; budget is ${MAX_VSIX_BYTES} bytes (2200 KiB)`)
+    throw new Error(`VSIX is ${size} bytes; budget is ${MAX_VSIX_BYTES} bytes (2475 KiB)`)
   }
   return size
 }

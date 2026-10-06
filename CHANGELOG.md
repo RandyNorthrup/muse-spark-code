@@ -148,6 +148,14 @@ with Your Own Model` wizard (in-memory draft; Save writes
 
 ### Changed
 
+- The lead sets the universal 0.15.0 VSIX cap to 2475 KiB from the measured
+  package plus 5%, rounded up to 25 KiB, for providers, teams, compaction and
+  usage. Every individual bundle cap remains unchanged.
+
+- M96's structured state/edit tail now loads from the existing team runtime
+  after a team tool answers, preserving the first-request path and every
+  individual bundle cap.
+
 - Share captured Model API validators and pure team admission in an independently budgeted Node bundle; load paid usage rows only when the report includes paid features. Existing size caps and usage behavior stay fixed.
 
 - Account & usage loads provider tallies in their own chunk when a nonempty

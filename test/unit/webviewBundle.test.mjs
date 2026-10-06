@@ -171,6 +171,34 @@ describe('the production webview chunks (FIX78W)', () => {
     )
   })
 
+  it('keeps the shipped M96 renderers inside the shared chat graph', () => {
+    const graphs = ['webview', 'modelsWebview', 'whatsNewPage'].map((page) =>
+      JSON.parse(readFileSync(`dist/meta/${page}.json`, 'utf8')),
+    )
+    const outputs = Object.assign({}, ...graphs.map((graph) => graph.outputs))
+    for (const source of ['TeamUi', 'TeamTree', 'TeamCards']) {
+      const owners = Object.entries(outputs).filter(([, output]) =>
+        Object.hasOwn(output.inputs, `src/webview/components/${source}.tsx`),
+      )
+      expect(owners, source).toHaveLength(1)
+      expect(Object.hasOwn(built.outputs, owners[0][0]), source).toBe(true)
+      expect(initialOutputs().has(owners[0][0]), source).toBe(false)
+    }
+    for (const source of [
+      'node_modules/react/cjs/react.production.js',
+      'node_modules/react-dom/cjs/react-dom-client.production.js',
+      'node_modules/zod/v4/core/schemas.js',
+      'src/webview/hostBridge.ts',
+    ]) {
+      expect(
+        Object.values(outputs).filter((output) => Object.hasOwn(output.inputs, source)),
+        source,
+      ).toHaveLength(1)
+    }
+    // Traffic and runner forms have only harness/test readers on this input.
+    expect(Object.keys(outputs)).not.toContain('dist/traffic-harness/main.js')
+  })
+
   it('builds the catalogue data module with every exact JSON value', () => {
     const file = path.resolve('dist/providerCatalog.js')
     expect(createRequire(file)(file)).toEqual(
