@@ -10,6 +10,7 @@ import type {
   ResourceActionResult,
   ResourceActuatorPort,
   ResourceControl,
+  ResourceMemberStatePort,
   ResourceTreeCompletionPort,
 } from './controls'
 
@@ -32,6 +33,7 @@ export class ResourceActuators {
   constructor(
     private readonly registry: ResourceTreeReader,
     private readonly port: ResourceActuatorPort,
+    private readonly memberState?: ResourceMemberStatePort,
   ) {}
 
   private async serial<T>(id: string, action: () => Promise<T>): Promise<T> {
@@ -142,7 +144,24 @@ export class ResourceActuators {
         results.push({ control: null, status: 'unknown' })
       }
     }
-    for (const saved of tree.saved.values()) {
+    for (const [key, saved] of tree.saved) {
+      if (saved.control.identity !== null && this.memberState !== undefined) {
+        try {
+          const state = await this.memberState.state(ticket, saved.control.identity)
+          if (state === 'exited') {
+            await saved.control.close()
+            tree.saved.delete(key)
+            continue
+          }
+          if (state !== 'alive') {
+            results.push({ control: saved.control.name, status: 'unknown' })
+            continue
+          }
+        } catch {
+          results.push({ control: saved.control.name, status: 'unknown' })
+          continue
+        }
+      }
       results.push(await this.change(tree, saved, isEligible ? level : 'normal'))
     }
     return results

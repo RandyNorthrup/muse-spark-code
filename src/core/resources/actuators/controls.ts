@@ -33,6 +33,15 @@ export interface ResourceActuatorPort {
   controls(ticket: ResourceTicket): Promise<readonly ResourceControl[]>
 }
 
+/** Lane T2's registered, birth-bound state. Exited includes zombie/defunct members;
+ * a failed scan or lost membership alone must return unknown, never exited. */
+export interface ResourceMemberStatePort {
+  state(
+    ticket: ResourceTicket,
+    identity: ResourceProcessIdentity,
+  ): Promise<'alive' | 'exited' | 'unknown'>
+}
+
 /** C1/C2's independent retirement proof, including the complete owned tree, not root exit alone. */
 export interface ResourceTreeCompletionPort {
   hasCompleted(ticket: ResourceTicket): Promise<boolean>

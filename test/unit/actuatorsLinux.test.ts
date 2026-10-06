@@ -8,6 +8,7 @@ import process from 'node:process'
 import { build } from 'esbuild'
 import { describe, expect, it, vi } from 'vitest'
 import { ResourceActuators } from '../../src/core/resources/actuators'
+import { RESOURCE_ESCALATE_MS, RESOURCE_TREE_SAMPLE_MS } from '../../src/shared/constants'
 import {
   LinuxResourceActuator,
   type LinuxCgroupFiles,
@@ -172,6 +173,69 @@ describe('Linux delegated and lifetime resource controls', () => {
     ])
     await f.actuators.retire(ticket)
   })
+  it('retries transient controller opens with capped backoff while preserving live handles', async () => {
+    const f = fixture()
+    const open = f.files.open
+    let attempts = 0
+    f.files.open = vi.fn((file: string) =>
+      file.endsWith('/cpu.weight') && ++attempts <= 4
+        ? Promise.reject(new Error('transient open failure'))
+        : open(file),
+    )
+    let now = 0
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => now)
+    try {
+      expect(await f.actuators.setLevel(ticket, 'throttle')).toContainEqual({
+        control: 'cpuWeight',
+        status: 'unknown',
+      })
+      expect(attempts).toBe(1)
+      for (const delay of [
+        RESOURCE_TREE_SAMPLE_MS,
+        RESOURCE_TREE_SAMPLE_MS * 2,
+        RESOURCE_ESCALATE_MS,
+        RESOURCE_ESCALATE_MS,
+      ]) {
+        const previous = attempts
+        await f.actuators.setLevel(ticket, 'throttle')
+        now += delay - 1
+        expect(await f.actuators.setLevel(ticket, 'throttle')).toContainEqual({
+          control: 'cpuWeight',
+          status: 'unknown',
+        })
+        expect(attempts).toBe(previous)
+        now += 1
+        const results = await f.actuators.setLevel(ticket, 'throttle')
+        expect(attempts).toBe(previous + 1)
+        expect(results).toContainEqual({
+          control: 'cpuWeight',
+          status: attempts <= 4 ? 'unknown' : 'applied',
+        })
+      }
+      expect(f.values.get('cpu.weight')).toBe('1')
+      expect(
+        vi.mocked(f.files.open).mock.calls.filter(([file]) => file.endsWith('/io.weight')),
+      ).toHaveLength(1)
+      expect(
+        vi.mocked(f.files.open).mock.calls.filter(([file]) => file.endsWith('/memory.high')),
+      ).toHaveLength(1)
+      expect(await f.actuators.retire(ticket)).toHaveProperty('retired', true)
+      expect(f.values.get('cpu.weight')).toBe('100')
+      expect(f.close).toHaveBeenCalledTimes(3)
+    } finally {
+      clock.mockRestore()
+    }
+  })
+  it('never reopens a released controller or writes through its closed handle', async () => {
+    const f = fixture()
+    const [control] = await f.port.controls(ticket)
+    expect(await control!.read(ticket.root)).toBe('100')
+    await control!.close()
+    expect(await control!.read(ticket.root)).toBeNull()
+    expect(await control!.write('1', ticket.root)).toBeNull()
+    expect(f.files.open).toHaveBeenCalledTimes(1)
+    expect(f.writes).not.toHaveBeenCalled()
+  })
   it('refuses an aliased controller without opening its target', async () => {
     const f = fixture()
     vi.mocked(f.files.canonical).mockImplementation((file) =>
@@ -207,6 +271,7 @@ describe('Linux delegated and lifetime resource controls', () => {
   it('requires birth membership immediately before every pinned-file write', async () => {
     const f = fixture()
     const controls = await f.port.controls(ticket)
+    for (const control of controls) await control.read(ticket.root)
     f.tree.remove(ticket.root.pid)
     for (const control of controls) {
       expect(
@@ -229,6 +294,7 @@ describe('Linux delegated and lifetime resource controls', () => {
   it('refuses a short pinned-file write at the OS boundary', async () => {
     const f = fixture()
     const controls = await f.port.controls(ticket)
+    await controls[0]!.read(ticket.root)
     f.writes.mockResolvedValueOnce(false)
     expect(await controls[0]!.write('1', ticket.root)).toBeNull()
     for (const control of controls) await control.close()

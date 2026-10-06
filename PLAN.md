@@ -21253,6 +21253,31 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M107-A-T2-member-state-binding (FIXM107A integration handoff).**
+  The controller now drops per-member controls only after the injected
+  `ResourceMemberStatePort.state(ticket, identity)` reports `exited`
+  (including zombies). T2's state API is absent on this base; W/T2 must bind
+  its registered birth-identity state as the controller's third argument.
+  Until that binding lands, missing members retain their controls and can
+  block live-tree retirement; independent complete-tree proof can still
+  release them. Safe for this unmerged, unwired lane: absence/failure never
+  becomes exit proof, no unproven PID is mutated, and no completion fallback
+  claims success. Follow-up: adapt T2's exact exit-state API, rerun the new
+  exited/zombie/unknown/close-failure suites and certify live member churn in
+  the combined G/C lifecycle on all rigs. The three review findings have
+  controller/adapter fixes and regressions; this remaining binding is named,
+  not claimed as a production receipt.
+
+- **M107-A-native-and-integrated-gates (existing handoff, FIXM107A).**
+  Real Windows/macOS policy mutation/readback/restoration, M96 K's native
+  identity-bound ports, the W-owned generated host-API record, lazy governor
+  wiring/budgets and full quality/coverage remain with the integration lead.
+  Safe for now: no shipped entry reaches these unmerged actuators, existing
+  identity/ownership/cgroup confinement gates are unchanged, and failing
+  controls report unknown. Follow-up: bind and certify the integrated
+  governor in every editor and on Win11/Mac/Kubuntu, then run the unchanged
+  full gate. Detailed scoped receipts are in `docs/certification/m107-a.md`.
+
 - **M107-T-native-and-integration (existing W/native handoff, FIXM107T).**
   The three RVM107T P2 findings are fixed; native Windows job execution,
   macOS's production `inspect` binding, the combined lazy governor bundle,

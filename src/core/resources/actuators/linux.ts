@@ -3,7 +3,11 @@ import { constants } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import * as z from 'zod/mini'
-import { RESOURCE_ID_MAX_LENGTH } from '../../../shared/constants'
+import {
+  RESOURCE_ESCALATE_MS,
+  RESOURCE_ID_MAX_LENGTH,
+  RESOURCE_TREE_SAMPLE_MS,
+} from '../../../shared/constants'
 import type {
   ResourceProcessIdentity,
   ResourceTicket,
@@ -136,22 +140,30 @@ export class LinuxResourceActuator implements ResourceActuatorPort {
     try {
       for (const [name, file] of names) {
         const location = `${scope}/${file}`
-        let handle: Awaited<ReturnType<LinuxCgroupFiles['open']>> | undefined
-        try {
-          if ((await files.canonical(location)) !== location)
-            throw new Error('Aliased resource control')
-          handle = await files.open(location)
-        } catch {
-          // Keep an explicit unavailable row, rather than silently claiming all controls applied.
-        }
-        const held = handle
+        let held: Awaited<ReturnType<LinuxCgroupFiles['open']>> | undefined
+        let retryAtMs = 0
+        let retryDelayMs = RESOURCE_TREE_SAMPLE_MS
+        let isClosed = false
         controls.push({
           key: `${scope}/${file}`,
           name,
           identity: null,
           reversible: true,
           minimumLevel: 'throttle',
-          read: async () => (held === undefined ? null : normalize(name, await held.read())),
+          read: async () => {
+            if (isClosed) return null
+            if (held === undefined && performance.now() >= retryAtMs) {
+              try {
+                if ((await files.canonical(location)) !== location)
+                  throw new Error('Aliased resource control')
+                held = await files.open(location)
+              } catch {
+                retryAtMs = performance.now() + retryDelayMs
+                retryDelayMs = Math.min(retryDelayMs * 2, RESOURCE_ESCALATE_MS)
+              }
+            }
+            return held === undefined ? null : normalize(name, await held.read())
+          },
           lower: (_level, original) => {
             if (name === 'cpuWeight') return '1'
             if (name === 'ioWeight')
@@ -177,6 +189,8 @@ export class LinuxResourceActuator implements ResourceActuatorPort {
           },
           close: async () => {
             await held?.close()
+            held = undefined
+            isClosed = true
           },
         })
       }

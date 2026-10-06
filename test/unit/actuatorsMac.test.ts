@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ResourceActuators } from '../../src/core/resources/actuators'
+import type { ResourceMemberStatePort } from '../../src/core/resources/actuators/controls'
 import { MacResourceActuator, type MacPolicyPort } from '../../src/core/resources/actuators/mac'
 import type { ResourceTicket } from '../../src/shared/resources'
 import { FakeResourceTree } from './helpers/resources/fakes'
@@ -16,7 +17,7 @@ function fixture(isReversible = true, isBackground = false) {
   const tree = new FakeResourceTree()
   tree.register(ticket)
   tree.put(ticket.id, ticket.root, { cpuSeconds: 1, residentBytes: 100 })
-  const inspect = vi.fn(() =>
+  const inspect = vi.fn<MacPolicyPort['inspect']>(() =>
     Promise.resolve({ ...ticket.root, pgid: 910, externalBackground: isBackground }),
   )
   const run = vi.fn<MacPolicyPort['run']>((_ticket, _identity, _file, args) => {
@@ -47,6 +48,99 @@ describe('macOS external background policy', () => {
       '-p',
       '910',
     ])
+  })
+  it.each(['exited', 'zombie'] as const)(
+    'drops a verified %s member without blocking recovery or retirement of the living root',
+    async (exit) => {
+      const f = fixture()
+      const child = { pid: 911, startTime: '1234567891' }
+      f.tree.put(ticket.id, child, { cpuSeconds: 1, residentBytes: 100 })
+      const background = new Map<number, boolean>()
+      f.inspect.mockImplementation((identity) =>
+        Promise.resolve({
+          ...identity,
+          pgid: 910,
+          externalBackground: background.get(identity.pid) ?? false,
+        }),
+      )
+      f.run.mockImplementation((_ticket, identity, _file, args) => {
+        background.set(identity.pid, args[0] === '-b')
+        return Promise.resolve()
+      })
+      let hasExited = false
+      const state = vi.fn<ResourceMemberStatePort['state']>((_ticket, identity) =>
+        Promise.resolve(hasExited && identity.pid === child.pid ? 'exited' : 'alive'),
+      )
+      const actuators = new ResourceActuators(f.tree, f.port, { state })
+      expect(await actuators.setLevel(ticket, 'throttle')).toEqual([
+        { control: 'taskpolicy', status: 'applied' },
+        { control: 'taskpolicy', status: 'applied' },
+      ])
+      hasExited = true
+      if (exit === 'exited') f.tree.remove(child.pid)
+      expect(await actuators.setLevel(ticket, 'normal')).toEqual([
+        { control: 'taskpolicy', status: 'restored' },
+      ])
+      expect(await actuators.setLevel(ticket, 'normal')).toEqual([
+        { control: 'taskpolicy', status: 'unchanged' },
+      ])
+      expect(await actuators.retire(ticket)).toHaveProperty('retired', true)
+      expect(background.get(ticket.root.pid)).toBe(false)
+      expect(f.run.mock.calls.filter(([, identity]) => identity.pid === child.pid)).toHaveLength(1)
+      expect(state).toHaveBeenCalledWith(ticket, child)
+    },
+  )
+  it.each(['unknown', 'throw'] as const)(
+    'retains departed-member controls when exit proof is %s',
+    async (failure) => {
+      const f = fixture()
+      let hasDeparted = false
+      const state = vi.fn<ResourceMemberStatePort['state']>(() => {
+        if (hasDeparted && failure === 'throw') throw new Error('exit unavailable')
+        return Promise.resolve(hasDeparted ? 'unknown' : 'alive')
+      })
+      const actuators = new ResourceActuators(f.tree, f.port, { state })
+      await actuators.setLevel(ticket, 'throttle')
+      hasDeparted = true
+      f.tree.remove(ticket.root.pid)
+      expect(await actuators.retire(ticket)).toHaveProperty('retired', false)
+      expect(actuators).toHaveProperty('trees.size', 1)
+      expect(f.run).toHaveBeenCalledTimes(1)
+    },
+  )
+  it('does not change a still-visible member while its state reading is unknown', async () => {
+    const f = fixture()
+    const state = vi.fn<ResourceMemberStatePort['state']>(() => Promise.resolve('unknown'))
+    const actuators = new ResourceActuators(f.tree, f.port, { state })
+    expect(await actuators.setLevel(ticket, 'throttle')).toEqual([
+      { control: 'taskpolicy', status: 'unknown' },
+    ])
+    expect(f.run).not.toHaveBeenCalled()
+    state.mockResolvedValue('alive')
+    expect(await actuators.setLevel(ticket, 'throttle')).toEqual([
+      { control: 'taskpolicy', status: 'applied' },
+    ])
+  })
+  it('retries releasing an exited member when its control close fails', async () => {
+    const f = fixture()
+    const close = vi.fn(() => Promise.resolve())
+    const opened = await f.port.controls(ticket)
+    const controls = opened.map((control) => ({ ...control, close }))
+    vi.spyOn(f.port, 'controls').mockResolvedValue(controls)
+    const state = vi.fn<ResourceMemberStatePort['state']>(() => Promise.resolve('alive'))
+    const actuators = new ResourceActuators(f.tree, f.port, { state })
+    await actuators.setLevel(ticket, 'throttle')
+    f.tree.remove(ticket.root.pid)
+    state.mockResolvedValue('exited')
+    close.mockRejectedValueOnce(new Error('close failed'))
+    expect(await actuators.retire(ticket)).toEqual({
+      retired: false,
+      results: [{ control: 'taskpolicy', status: 'unknown' }],
+    })
+    expect(actuators).toHaveProperty('trees.size', 1)
+    expect(await actuators.retire(ticket)).toHaveProperty('retired', true)
+    expect(close).toHaveBeenCalledTimes(2)
+    expect(f.run).toHaveBeenCalledTimes(1)
   })
   it('preserves an existing external background policy without undoing it', async () => {
     const f = fixture(true, true)
@@ -99,8 +193,8 @@ describe('macOS external background policy', () => {
   it('refuses policy changes after registry membership is lost at the final boundary', async () => {
     const f = fixture()
     const read = f.inspect.getMockImplementation()!
-    f.inspect.mockImplementation(async () => {
-      const value = await read()
+    f.inspect.mockImplementation(async (identity) => {
+      const value = await read(identity)
       if (f.inspect.mock.calls.length === 2) f.tree.remove(ticket.root.pid)
       return value
     })

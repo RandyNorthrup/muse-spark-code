@@ -41,6 +41,17 @@ function fixture(input = ticket) {
   return { tree, control, port, actuators, read, write, value: () => value }
 }
 
+function failWrite(
+  write: ReturnType<typeof fixture>['write'],
+  failure: 'null' | 'mismatch' | 'throw',
+) {
+  write.mockImplementationOnce(() =>
+    failure === 'throw'
+      ? Promise.reject(new Error('failed'))
+      : Promise.resolve(failure === 'null' ? null : 'different'),
+  )
+}
+
 describe('resource actuator authority and recovery', () => {
   it('refuses unregistered tickets before opening any controls', async () => {
     const f = fixture()
@@ -103,11 +114,7 @@ describe('resource actuator authority and recovery', () => {
     async (failure) => {
       const f = fixture()
       Object.assign(f.control, { minimumLevel: 'pause', reversible: false, name: 'nice' })
-      f.write.mockImplementationOnce(() =>
-        failure === 'throw'
-          ? Promise.reject(new Error('failed'))
-          : Promise.resolve(failure === 'null' ? null : 'different'),
-      )
+      failWrite(f.write, failure)
       expect(await f.actuators.setLevel(ticket, 'pause')).toEqual([
         { control: 'nice', status: 'unknown' },
       ])
@@ -173,6 +180,7 @@ describe('resource actuator authority and recovery', () => {
     expect(await f.actuators.setLevel(ticket, 'pause')).toEqual([
       { control: 'nice', status: 'lifetimeLowered' },
     ])
+    expect(f.value()).toBe('1')
     expect(await f.actuators.retire(ticket)).toHaveProperty('retired', true)
     expect(f.write).toHaveBeenCalledTimes(2)
   })
@@ -180,11 +188,7 @@ describe('resource actuator authority and recovery', () => {
     'reports failed %s readback as unknown and retains the original for recovery',
     async (failure) => {
       const f = fixture()
-      f.write.mockImplementationOnce(() =>
-        failure === 'throw'
-          ? Promise.reject(new Error('failed'))
-          : Promise.resolve(failure === 'null' ? null : 'different'),
-      )
+      failWrite(f.write, failure)
       expect(await f.actuators.setLevel(ticket, 'throttle')).toEqual([
         { control: 'cpuWeight', status: 'unknown' },
       ])
