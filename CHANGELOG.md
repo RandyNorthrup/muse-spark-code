@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Integrate M118's saved prompt library and message/history/composer/editor
+  Save menus, portable personal prompts in every workspace, reviewed raw
+  HTTPS imports and insert-only loading. Wire local chat previews and
+  confirmed copy/file/browser destinations through deferred bundles.
+- Bind ACP/CLI local prompt and sharing commands to the shared stores and
+  renderer, with `/help` and a generated command reference. ACP final-action
+  UI/composer insertion, native/companion menus and the TUI remain named
+  dependencies of M104/M110a0; installed-editor parity is not claimed.
+
 - Correct M118 chat sharing's path scrub to redact colon-prefixed absolute
   paths while preserving division, slash commands, closing tags, URLs and
   regex literals; unknown paths stop at whitespace.
@@ -20,8 +29,7 @@ happened, not what was planned; superseded entries are kept.
 - Stage M118's shared prompt/share contracts, lossless portable prompt files,
   insert-only loading, conversation-only allow-lists, privacy and confirmation
   boundaries, versioned share JSON Schema, all-kind test fixtures, and English
-  plus fourteen translations. Command/menu contributions are an integration
-  handoff; the prompt library and sharing UI are not registered by this lane.
+  plus fourteen translations. Command/menu contributions and lazy production bindings are now integrated.
 
 ## [0.14.1] - 2026-10-05
 

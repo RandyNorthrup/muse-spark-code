@@ -110,6 +110,7 @@ const PromptLibrary = lazy(async () => {
 export interface ComposerProps {
   /** M118-P-REACT-BRIDGE: bound by W/native hosts; IO stays in the host. */
   readonly promptLibrary?: Omit<PromptLibraryProps, 'onClose'>
+  readonly onUseSavedPrompt?: () => void
   readonly onSavePrompt?: (text: string) => void
   readonly onSharePrompt?: (text: string) => void
   readonly draft: string
@@ -1060,11 +1061,15 @@ export function Composer(props: ComposerProps) {
           {UI_TEXT.sharePrompt}
         </button>
       )}
-      {props.promptLibrary === undefined ? null : (
+      {props.promptLibrary === undefined && props.onUseSavedPrompt === undefined ? null : (
         <button
           type="button"
           onClick={() => {
-            setPromptLibraryOpen(true)
+            if (props.onUseSavedPrompt === undefined) {
+              setPromptLibraryOpen(true)
+            } else {
+              props.onUseSavedPrompt()
+            }
           }}
         >
           {UI_TEXT.promptUseSaved}

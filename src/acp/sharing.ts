@@ -1,12 +1,9 @@
 // Slash commands use the existing ACP prompt/available-commands paths. The host
 // supplies its preview/composer UI bridge; no private ACP method is invented.
 import { UI_TEXT } from '../shared/constants'
+import { sharingHelp } from '../shared/featureCatalog'
 import { parseSharingSlash, localArgumentError } from '../runtime/sharing/args'
-import {
-  type SharingCommands,
-  type SharingUi,
-  type SharingResult,
-} from '../runtime/sharing/commands'
+import type { SharingCommands, SharingUi, SharingResult } from '../runtime/sharing/commands'
 
 export interface AcpSharingContext {
   readonly cwd: string
@@ -55,24 +52,33 @@ function resultText(result: SharingResult): string {
   }
 }
 
+export function acpSharingCommands(): ReturnType<AcpSharingPort['commands']> {
+  return [
+    { name: 'help', description: UI_TEXT.promptLibrary, input: null },
+    {
+      name: 'share',
+      description: UI_TEXT.shareChat,
+      input: { hint: 'chat [--mode full|conversation] [--format md|html|json]' },
+    },
+    {
+      name: 'prompt',
+      description: UI_TEXT.promptLibrary,
+      input: { hint: 'save|list|use|share' },
+    },
+  ]
+}
+
 export function createAcpSharing(
   commands: SharingCommands,
   uiFor: (context: AcpSharingContext) => SharingUi,
 ): AcpSharingPort {
   return {
-    commands: () => [
-      {
-        name: 'share',
-        description: UI_TEXT.shareChat,
-        input: { hint: 'chat [--mode full|conversation] [--format md|html|json]' },
-      },
-      {
-        name: 'prompt',
-        description: UI_TEXT.promptLibrary,
-        input: { hint: 'save|list|use|share' },
-      },
-    ],
+    commands: acpSharingCommands,
     execute: async (text, context) => {
+      if (text.trim() === '/help') {
+        context.signal.throwIfAborted()
+        return sharingHelp()
+      }
       const parsed = parseSharingSlash(text, context.sessionId)
       if (parsed === undefined) throw localArgumentError(text)
       if (

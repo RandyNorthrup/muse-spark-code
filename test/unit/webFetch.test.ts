@@ -97,6 +97,7 @@ function world(options: {
   conversion?: HtmlConversion
   /** The converter runs until its signal stops it, as the worker does. */
   isConversionEndless?: boolean
+  rawTextLimit?: number
 }) {
   const lookups: string[] = []
   const requests: PinnedTarget[] = []
@@ -166,6 +167,7 @@ function world(options: {
         : Promise.resolve(options.conversion ?? { ok: true, page: convertHtmlJob(job) }),
     newMarker: () => MARKER,
     ...(options.timeoutMs !== undefined && { timeoutMs: options.timeoutMs }),
+    ...(options.rawTextLimit !== undefined && { rawTextLimit: options.rawTextLimit }),
   }
   return {
     deps,
@@ -205,6 +207,32 @@ function latin(prefix: string): Buffer {
 }
 
 describe('fetchWebPage (M69)', () => {
+  it('imports exact raw prompt text without page markers or HTML conversion', async () => {
+    const body = '---\r\ntitle: Example\r\n---\r\n  Keep spaces  \r\n'
+    const w = world({
+      answers: { 'docs.example.com': [[PUBLIC]] },
+      replies: { [DOCS]: { body, headers: { 'content-type': 'text/plain; charset=utf-8' } } },
+      rawTextLimit: 1024,
+    })
+    expect(await w.fetch(DOCS)).toMatchObject({ kind: 'page', text: body })
+  })
+  it('refuses HTML and enforces the smaller raw cap on decoded compressed bytes', async () => {
+    for (const reply of [
+      { body: '<p>not a prompt</p>', headers: { 'content-type': 'text/html' } },
+      {
+        body: gzipSync('x'.repeat(100)),
+        headers: { 'content-type': 'text/plain', 'content-encoding': 'gzip' },
+      },
+    ]) {
+      const w = world({
+        answers: { 'docs.example.com': [[PUBLIC]] },
+        replies: { [DOCS]: reply },
+        rawTextLimit: 10,
+      })
+      const result = await w.fetch(DOCS)
+      expect(result.kind).toBe('failed')
+    }
+  })
   it('reads an HTML page pinned to the checked address, as marked Markdown', async () => {
     const body = '<title>Guide</title><h1>Start</h1><p>Read <a href="/x">this</a>.</p>'
     const w = world({

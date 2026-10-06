@@ -88,6 +88,7 @@ export interface SharingDeps {
     preview: SharePreview,
     out: string | undefined,
     allowedRoot: string,
+    signal: AbortSignal,
   ) => Promise<void>
 }
 
@@ -241,7 +242,7 @@ export class SharingCommands {
     }
     if (!isSharingActive(context)) return { kind: 'cancelled', preview: trusted }
     admitShareRelease(confirmation.data, policy)
-    await this.deps.release(trusted, resolvedOut, allowedRoot)
+    await this.deps.release(trusted, resolvedOut, allowedRoot, context.signal)
     return { kind: 'shared', preview: trusted }
   }
 

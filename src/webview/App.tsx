@@ -56,6 +56,7 @@ import type {
   SignInMethod,
   WebviewToHostMessage,
 } from '../shared/protocol'
+import { parseHostToWebviewMessage } from '../shared/protocol'
 import type { GitFormEdit } from './state/gitState'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { ApprovalDock } from './components/ApprovalDock'
@@ -136,6 +137,15 @@ const SessionBoardDialog = lazy(async () => {
   return { default: SessionBoardDialog }
 })
 
+const PromptLibraryBridge = lazy(async () => {
+  const { PromptLibraryBridge } = await import('./prompts/PromptLibraryBridge')
+  return { default: PromptLibraryBridge }
+})
+const ChatShareBridge = lazy(async () => {
+  const { ChatShareBridge } = await import('./sharing/ChatShareBridge')
+  return { default: ChatShareBridge }
+})
+
 const ShareView = lazy(async () => {
   const { ShareView } = await import('./components/ShareView')
   return { default: ShareView }
@@ -211,7 +221,18 @@ const GitPanel = lazy(async () => {
 
 /** What floats above the composer: a palette view, a menu, the History dialog or a modal. */
 type Overlay =
-  PaletteView | 'modes' | 'attach' | 'history' | 'board' | 'bestOfN' | 'usage' | 'agents' | 'review'
+  | PaletteView
+  | 'modes'
+  | 'attach'
+  | 'history'
+  | 'board'
+  | 'bestOfN'
+  | 'usage'
+  | 'agents'
+  | 'review'
+  | 'prompts'
+  | 'chatShare'
+  | 'sharingHelp'
 
 // The palette rows that leave it open (a value changes in place); run from
 // the prompt's "/" palette they keep the `/` too, so it stays (M38).
@@ -353,6 +374,35 @@ export function App({
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const { dispatch } = store
   const [chosenOverlay, setOverlay] = useState<Overlay | undefined>(undefined)
+  const sharingAction = useCallback(
+    (action: string, payload: unknown = {}) => {
+      postMessage({ type: 'sharingAction', id: newLocalId(), action, payload })
+    },
+    [postMessage, newLocalId],
+  )
+  const savePrompt = useCallback(
+    (text: string) => {
+      sharingAction('saveText', { text })
+    },
+    [sharingAction],
+  )
+  const sharePrompt = useCallback(
+    (text: string) => {
+      sharingAction('shareText', { text })
+    },
+    [sharingAction],
+  )
+  useEffect(() => {
+    const receive = (event: MessageEvent<unknown>) => {
+      const parsed = parseHostToWebviewMessage(event.data)
+      if (parsed.ok && parsed.message.type === 'openSharing')
+        setOverlay(parsed.message.surface === 'chat' ? 'chatShare' : 'prompts')
+    }
+    window.addEventListener('message', receive)
+    return () => {
+      window.removeEventListener('message', receive)
+    }
+  }, [])
   // The review pane's changes go with their conversation (a clear, another
   // session), and the pane goes with them (M70).
   const overlay =
@@ -1572,6 +1622,19 @@ export function App({
           closeOverlay()
           break
         }
+        case 'sharingHelp': {
+          setOverlay('sharingHelp')
+          break
+        }
+        case 'shareChat': {
+          setOverlay('chatShare')
+          break
+        }
+        case 'promptCommand': {
+          if (action.command === 'library') setOverlay('prompts')
+          else sharingAction(action.command === 'use' ? 'use' : 'shareSaved')
+          break
+        }
         case 'openHistory': {
           openOverlay('history')
           break
@@ -1734,12 +1797,14 @@ export function App({
       onNewConversation,
       onReview,
       openReviewPane,
+      sharingAction,
     ],
   )
 
   const paletteGroups = useMemo(
     () =>
       buildPalette({
+        arePromptCommandsBound: true,
         currentModel: state.model,
         models: state.models,
         effort: state.effort,
@@ -1972,6 +2037,8 @@ export function App({
           onOpenLink={onOpenExternal}
           onCopy={onCopy}
           // Imported history (M84) is someone else's file: Copy only, as in a share file.
+          onSavePrompt={state.isImported ? undefined : savePrompt}
+          onSharePrompt={state.isImported ? undefined : sharePrompt}
           onInsert={state.isImported ? undefined : onInsert}
           onReadOutput={onReadOutput}
           onOpenOutput={onOpenOutput}
@@ -2153,6 +2220,9 @@ export function App({
   const history =
     overlay === 'history' ? (
       <HistoryDialog
+        onSavePrompt={(sessionId) => {
+          sharingAction('saveHistory', { sessionId })
+        }}
         sessions={state.sessions}
         archivedIds={state.archivedIds}
         currentSessionId={state.sessionId}
@@ -2220,6 +2290,9 @@ export function App({
   // map, review pane, a share file or the install confirmation is open waits for it to close, then
   // opens, so its Start is never reachable under a dialog that hides it.
   const isOtherModalOpen =
+    overlay === 'sharingHelp' ||
+    overlay === 'prompts' ||
+    overlay === 'chatShare' ||
     overlay === 'usage' ||
     overlay === 'agents' ||
     overlay === 'bestOfN' ||
@@ -2287,6 +2360,13 @@ export function App({
           isFocusView={state.settings.focusView}
           isSideChat={state.isSideChat}
           onNewConversation={onNewConversation}
+          onShare={
+            state.sessionId === undefined
+              ? undefined
+              : () => {
+                  setOverlay('chatShare')
+                }
+          }
           onOpenHistory={onOpenHistory}
           onOpenBoard={onOpenBoard}
           onRename={state.sessionId === undefined || !state.canEditSessions ? undefined : onRename}
@@ -2310,6 +2390,18 @@ export function App({
       <DeferredSurface onClose={onHandoffCancel}>{handoffDialog}</DeferredSurface>
       <DeferredSurface onClose={onSecretPromptDismiss}>{secretPromptDialog}</DeferredSurface>
       {reportDialog}
+      <DeferredSurface onClose={closeOverlay}>
+        {overlay === 'prompts' || overlay === 'sharingHelp' ? (
+          <PromptLibraryBridge
+            showHelp={overlay === 'sharingHelp'}
+            post={postMessage}
+            onClose={closeOverlay}
+          />
+        ) : null}
+        {overlay === 'chatShare' ? (
+          <ChatShareBridge key={state.sessionId} post={postMessage} onClose={closeOverlay} />
+        ) : null}
+      </DeferredSurface>
       {state.share === undefined ? null : (
         <DeferredSurface onClose={onCloseShare}>
           <ShareView
@@ -2398,6 +2490,11 @@ export function App({
         {floating}
         <JudgeStatusLine status={state.judge} />
         <Composer
+          onSavePrompt={savePrompt}
+          onSharePrompt={sharePrompt}
+          onUseSavedPrompt={() => {
+            sharingAction('use')
+          }}
           draft={state.draft}
           placeholder={state.composerPlaceholder}
           settings={state.settings}

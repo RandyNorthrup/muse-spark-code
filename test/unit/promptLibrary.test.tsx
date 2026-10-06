@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, within, waitFor } from '@testi
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PromptLibrary, type PromptLibraryPort } from '../../src/webview/prompts/PromptLibrary'
 import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { savedPromptFixture as fixture } from './helpers/sharingFixtures'
 
 function rig() {
@@ -195,7 +196,13 @@ describe('shared prompt library', () => {
     expect(port.run).not.toHaveBeenCalled()
     expect(port.acceptImport).not.toHaveBeenCalled()
     expect(port.confirmShare).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.promptImportConfirm }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: fill(UI_TEXT.promptImportConfirmScope, {
+          scope: fixture.scope === 'user' ? UI_TEXT.promptScopeUser : UI_TEXT.promptScopeWorkspace,
+        }),
+      }),
+    )
     expect(port.acceptImport).toHaveBeenCalledWith('preview')
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.shareConfirm }))
     expect(port.confirmShare).toHaveBeenCalledWith('share')

@@ -20,6 +20,7 @@
     "src/shared/wireEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
+    "src/host/prompts/promptEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",
     "src/host/sessionBoardEntry.ts",
@@ -64,6 +65,7 @@
     "src/host/web/pageWorker.ts",
     "src/webview/main.tsx",
     "src/runtime/main.ts",
+    "src/runtime/sharing/sharingEntry.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     "test/e2e/**/*.test.ts",
     "test/e2e/fake-muse/serve.mjs",

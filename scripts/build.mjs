@@ -81,6 +81,10 @@ const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
 const CONVERSATION_OUTFILE = 'dist/conversation.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
+const SHARING_RUNTIME_ENTRY = 'src/runtime/sharing/sharingEntry.ts'
+const SHARING_RUNTIME_OUTFILE = 'dist/sharingRuntime.js'
+const PROMPTS_ENTRY = 'src/host/prompts/promptEntry.ts'
+const PROMPTS_OUTFILE = 'dist/prompts.js'
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
 const TAB_OUTFILE = 'dist/tab.js'
 const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
@@ -193,6 +197,20 @@ const conversationOptions = {
   entryPoints: [CONVERSATION_ENTRY],
   outfile: CONVERSATION_OUTFILE,
 }
+
+/** @type {import('esbuild').BuildOptions} */
+const sharingRuntimeOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [SHARING_RUNTIME_ENTRY],
+  outfile: SHARING_RUNTIME_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: AGENT_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const promptsOptions = { ...hostOptions, entryPoints: [PROMPTS_ENTRY], outfile: PROMPTS_OUTFILE }
 
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
@@ -558,6 +576,8 @@ if (isWatch) {
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
+    esbuild.context(promptsOptions),
+    esbuild.context(sharingRuntimeOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
@@ -597,6 +617,8 @@ if (isWatch) {
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
     tab: esbuild.build(tabOptions),
+    prompts: esbuild.build(promptsOptions),
+    sharingRuntime: esbuild.build(sharingRuntimeOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
@@ -654,6 +676,8 @@ if (isWatch) {
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
   reportSize(TAB_OUTFILE)
+  reportSize(PROMPTS_OUTFILE)
+  reportSize(SHARING_RUNTIME_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)

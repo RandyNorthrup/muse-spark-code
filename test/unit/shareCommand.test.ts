@@ -257,6 +257,7 @@ describe('M118 local share admission', () => {
         preview,
         destination === 'save' ? path.join(SHARING_CWD, 'chat.md') : undefined,
         SHARING_CWD,
+        h.context.signal,
       )
     },
   )
@@ -273,6 +274,7 @@ describe('M118 local share admission', () => {
     expect(h.release.mock.calls[0]?.slice(1)).toEqual([
       path.join(allowedRoot, 'chat.md'),
       allowedRoot,
+      h.context.signal,
     ])
     h.release.mockClear()
     expect(

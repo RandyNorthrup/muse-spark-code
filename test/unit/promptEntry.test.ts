@@ -102,9 +102,9 @@ describe('prompt lazy entry', () => {
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), trace: vi.fn() }
     const load = promptBundleLoader(file, log)
     expect(() => load()).toThrow(EN.promptFileInvalid)
-    await writeFile(file, 'module.exports = { runPromptCommand() {} }')
+    await writeFile(file, 'module.exports = { createPromptHost() {} }')
     const bundle = load()
-    expect(typeof bundle.runPromptCommand).toBe('function')
+    expect(typeof bundle.createPromptHost).toBe('function')
     expect(load()).toBe(bundle)
   })
 })

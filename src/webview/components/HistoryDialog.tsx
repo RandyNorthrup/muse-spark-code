@@ -17,6 +17,7 @@ import {
   type SessionRow,
 } from '../../shared/sessions'
 import { scrollRowIntoView } from '../listNavigation'
+import { useRowMenu, type GooeyItem } from './GooeyMenu'
 import { CloseIcon, HistoryIcon } from './icons'
 import { ListBody } from './ListBody'
 import {
@@ -34,6 +35,7 @@ export interface HistoryDialogProps {
   readonly currentSessionId: string | undefined
   readonly archiveAfterDays: number
   readonly now: () => number
+  readonly onSavePrompt?: (sessionId: string) => void
   readonly onResume: (sessionId: string) => void
   readonly onSetArchived: (sessionId: string, isArchived: boolean) => void
   readonly onClose: () => void
@@ -50,13 +52,14 @@ export type HistoryEntry =
 
 export function layoutHistory(groups: readonly SessionGroup[]): readonly HistoryEntry[] {
   const entries: HistoryEntry[] = []
+  let index = 0
   for (const group of groups) {
     entries.push({ kind: 'title', key: `title:${group.id}`, title: group.title })
     for (const row of group.rows) {
       entries.push({
         kind: 'row',
         key: row.sessionId,
-        index: entries.filter((entry) => entry.kind === 'row').length,
+        index: index++,
         row,
       })
     }
@@ -87,7 +90,9 @@ function RowView({
   onHover,
   onResume,
   onSetArchived,
+  onSavePrompt,
 }: {
+  readonly onSavePrompt: ((sessionId: string) => void) | undefined
   readonly row: SessionRow
   readonly isActive: boolean
   readonly isCurrent: boolean
@@ -97,9 +102,25 @@ function RowView({
   readonly onResume: () => void
   readonly onSetArchived: (isArchived: boolean) => void
 }) {
+  const items: GooeyItem[] =
+    onSavePrompt === undefined
+      ? []
+      : [
+          {
+            id: 'save',
+            label: UI_TEXT.promptSave,
+            icon: <HistoryIcon />,
+            onSelect: () => {
+              menu.close()
+              onSavePrompt(row.sessionId)
+            },
+          },
+        ]
+  const menu = useRowMenu(items, row.title)
   const archiveLabel = isRowArchived ? UI_TEXT.historyUnarchive : UI_TEXT.historyArchive
   return (
     <PaletteSessionRow
+      rowProps={menu.rowProps}
       rowId={`${ROW_ID_PREFIX}${row.sessionId}`}
       title={row.title}
       isActive={isActive}
@@ -110,6 +131,7 @@ function RowView({
       keyDescription={archiveLabel}
       action={
         <>
+          {menu.menu}
           {/* For the mouse only: a button inside an option is still reachable by
               assistive technology (WCAG 4.1.2, M37); the keyboard uses Delete. */}
           <span
@@ -217,6 +239,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
           ) : (
             <RowView
               key={entry.key}
+              onSavePrompt={props.onSavePrompt}
               row={entry.row}
               isActive={entry.index === activeIndex}
               isCurrent={entry.row.sessionId === currentSessionId}

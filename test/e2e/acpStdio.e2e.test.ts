@@ -25,6 +25,7 @@ import { createRuntimeBackend } from '../../src/runtime/backends'
 import { webReadable } from '../../src/runtime/webStreams'
 import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
+import { sharingHelp } from '../../src/shared/featureCatalog'
 import { DEVICE_LOGIN_FILE, LOGOUT_SHELL } from '../unit/helpers/credentialShapes'
 import { memorySecrets } from '../unit/helpers/fakes'
 import { fakeModelApi } from '../unit/helpers/fakeModelApi'
@@ -207,7 +208,9 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     const help = spawnSync(process.execPath, [AGENT, '--help'], { encoding: 'utf8', env })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(fill(UI_TEXT.acpUsage, { command: 'muse-spark-code-acp' }))
+    expect(help.stdout.trim()).toBe(
+      `${fill(UI_TEXT.acpUsage, { command: 'muse-spark-code-acp' })}\n\n${sharingHelp()}`,
+    )
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
@@ -226,8 +229,37 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(table.acpUsage.replaceAll('{command}', 'muse-spark-code-acp'))
+    expect(
+      help.stdout.trim().startsWith(table.acpUsage.replaceAll('{command}', 'muse-spark-code-acp')),
+    ).toBe(true)
+    expect(help.stdout).toContain('/prompt save')
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
+  })
+
+  it('binds saved prompts and sharing help over real ACP stdio without a model send (M118)', async () => {
+    mkdirSync(path.join(workspace, 'empty'), { recursive: true })
+    const agent = startAgent(signedIn, [], { XDG_DATA_HOME: dataHome, LOCALAPPDATA: dataHome })
+    await agent.run(async (client) => {
+      const sessionId = await newSession(client)
+      const ask = (id: string, prompt: string) =>
+        client.request('session/prompt', {
+          sessionId: id,
+          prompt: [{ type: 'text', text: prompt }],
+        })
+      await ask(sessionId, '/prompt save --title Shared --scope user --   Exact\r\nbody  ')
+      const id = /\(([^()]*)\)$/.exec(text(agent.updates))?.[1]
+      expect(id).toBeDefined()
+      const { sessionId: fresh } = await client.request('session/new', {
+        cwd: path.join(workspace, 'empty'),
+        mcpServers: [],
+      })
+      await ask(fresh, '/prompt list')
+      await ask(fresh, `/prompt use ${id ?? ''}`)
+      await ask(fresh, '/help')
+      expect(text(agent.updates)).toContain('  Exact\r\nbody  ')
+      expect(text(agent.updates)).toContain('/share chat')
+      expect(text(agent.updates)).not.toContain('echo:')
+    })
   })
 
   it('streams a reply, runs an allowed tool call and skips a denied one, on Muse Code', async () => {

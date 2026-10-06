@@ -34,7 +34,7 @@ describe('M118 integration artifacts', () => {
       manifest.contributes.configuration.properties['museSpark.syncPromptsAndBookmarks']
     expect(setting?.scope).toBe('machine')
     expect(setting?.default).toBe(false)
-    for (const file of ['src/extension.ts', 'src/host/prompts/promptEntry.ts']) {
+    for (const file of ['src/host/prompts/promptEntry.ts']) {
       const source = await readFile(file, 'utf8')
       expect(source).toMatch(/inspect<boolean>\(PROMPT_SYNC_SETTING\)\s*\?\.globalValue/)
       expect(source).not.toContain('get<boolean>(PROMPT_SYNC_SETTING)')
@@ -44,18 +44,7 @@ describe('M118 integration artifacts', () => {
     const { stdout } = await run(process.execPath, ['scripts/exec-schema.mjs', '--check'])
     expect(stdout).toContain('Exec schemas match.')
   })
-  it('registers P commands and menus while retaining C’s pending share-chat contract', async () => {
-    const raw: unknown = JSON.parse(
-      await readFile('docs/certification/m118-manifest-patch.json', 'utf8'),
-    )
-    const patch = contributionSchema.parse(raw).contributes
-    expect(patch.commands.map((c) => c.command)).toEqual(Object.values(PROMPT_COMMAND_IDS))
-    for (const entry of promptMenuEntries) {
-      const menu = entry.menu === 'editor/context' ? entry.menu : 'webview/context'
-      expect(
-        patch.menus[menu]?.some((m) => m.command === entry.command && m.when.includes(entry.when)),
-      ).toBe(true)
-    }
+  it('registers all sharing commands and portable context menus', async () => {
     const manifest = contributionSchema.parse(
       JSON.parse(await readFile('package.json', 'utf8')),
     ).contributes
@@ -63,7 +52,7 @@ describe('M118 integration artifacts', () => {
       manifest.commands
         .filter((c) => Object.values<string>(PROMPT_COMMAND_IDS).includes(c.command))
         .map((c) => c.command),
-    ).toEqual(Object.values(PROMPT_COMMAND_IDS).filter((id) => id !== PROMPT_COMMAND_IDS.shareChat))
+    ).toEqual(expect.arrayContaining(Object.values(PROMPT_COMMAND_IDS)))
     for (const entry of promptMenuEntries) {
       const menu = entry.menu === 'editor/context' ? entry.menu : 'webview/context'
       expect(

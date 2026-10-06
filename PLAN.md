@@ -28458,8 +28458,10 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
 
 ### M118 — Prompt and chat sharing (D98)
 
-**Status 2026-10-06: planned, as soon as possible.** At the front of the
-queue, beside M112. Small: about 34 lane-hours. No model call is needed.
+**Status 2026-10-06: phase 1 integrated on M118INT; bounded certification in progress.**
+The shared React/VS Code and CLI/ACP bindings are implemented. Native/companion
+MHP mounting waits for M104; the TUI waits for M110a0 lane T. Installed-editor
+parity and the hosted full gate remain unclaimed. About 34 lane-hours. No model call is needed.
 Phase 1 targets the next patch release after 0.14.3, phase 2 the one after;
 phase 3 waits for M110, M96, M113 and M115.
 
@@ -28572,6 +28574,14 @@ anywhere joined it).
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**M118INT bounded integration certification (2026-10-06).** The rig brief
+explicitly prohibits aggregate `npm run quality` and requires at most three
+Vitest files with three workers per run. This override permits local integration
+commits after scoped checks; hosted CI remains the required full release gate.
+W binds the P/C/X production consumers and records actual checks, cap measurements,
+byte-exact gate-fire drills and editor waits in `docs/certification/m118.md`.
+No threshold, ignore, rule level or existing budget is weakened.
 
 **FIXM118C bounded repair certification (2026-10-06).** All four RVM118C P2s
 are fixed with 140 passing tests in 12 owning files and eight deliberately red,
@@ -29700,6 +29710,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
+| M118INT location                                   | Escape hatch                   | Reason                                                                                                                                                                                                                             |
+| -------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/runtime/sharing/sharingEntry.ts` localProgram | `nosemgrep` child-process rule | Fixed platform clipboard/browser binaries and fixed switches; only scrubbed preview text on stdin or a canonically confined local file argument, no shell, credential variables removed and an abort signal terminates the helper. |
+
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
@@ -29830,34 +29844,27 @@ before a repaired one loads (2026-09-30).
   `docs/certification/m118-c.md`; the unknown-secret-shape preview limitation
   and explicitly selected scrubbed attachment policy are unchanged.
 
-- **FIXM118P-P3-BUDGET (W).** RVM118P measures deferred JS at 56,193/51,200 B
-  and activation at 450,126 B versus base 448,930 B (+1,196/1,024 B).
-  W must classify the existing 5,303 B PromptLibrary/promptSearch chunk in
-  the 25 KiB action-dialog group and its split guard (sketch: legacy
-  50,890/51,200 B, dialogs 14,663/25,600 B), then move credential/policy/chat
-  adapters into dist/prompts.js using raw host ports. The sketch saves 140 B
-  and still needs 32 B; sync-key registration is another lazy candidate.
-  Safe for now: the failing gates prohibit release; no cap changes or
-  shipped-size acceptance are claimed. Follow-up: W remeasures real wiring
-  after integrating the repairs and closes both targets.
-- **FIXM118P-ROW-SAVE (W, owner requirement).** Message/history right-click
-  Save prompt still needs App.tsx callback binding and GooeyMenu.tsx
-  contextmenu handling. Safe for now: installed-editor acceptance remains
-  explicitly unclaimed. Follow-up: W wires and certifies both real menus.
+- **FIXM118P-P3-BUDGET / FIXM118P-ROW-SAVE (closed by M118INT).**
+  The library/search closure is classified in the existing 25 KiB action-dialog
+  group; history's new Save action stays within the original 50 KiB group.
+  Credential, policy, chat and sync adapters are in `dist/prompts.js` behind raw
+  activation ports. App binds exact own-message text and history's native picker;
+  row actions are retained. Final measurements and tests are in
+  `docs/certification/m118.md`; installed native-editor parity still waits on M104.
 
 - **FIXM118X / RVM118X (2026-10-06).** All four reviewed P2 adapter
   findings are fixed; no P1/P2/P3 finding is deferred. Regression failures,
   byte-exact red drills and bounded Kubuntu checks are recorded in
   `docs/certification/m118-x.md`.
-  **M118-X-production-bindings (inherited integration follow-up):** P/C stores
-  and renderers, runtime/main, TUI, native/companion editor mounting,
-  README/changelog/ACP guide and the absent feature catalog remain W's work.
-  Safe for this lane because its unbound installed commands refuse explicitly;
-  these tests do not claim installed-editor parity or authorize release.
-  Follow-up: W must bind the updated signal and output-root ports described in
-  `docs/certification/m118-x-handoff.md`, propagate nonzero refusal messages,
-  update the help/docs in that same integration, and run integrated quality,
-  unchanged bundle budgets and installed-host tests before claiming support.
+  **M118-X-production-bindings (closed by M118INT for this base).** Runtime/main
+  lazily binds the shared P/C stores and renderers; validated React envelopes,
+  native VS Code commands, real local destinations, feature catalog/reference
+  and public docs are implemented. ACP emits the exact preview and cancels
+  because this base has no final-click or composer port; it never submits a
+  prepared prompt. Native/companion MHP and TUI mounting remain named waits for
+  M104/M110a0, with exact local DTOs and existing envelope names in the integrated
+  certification. CLI policy reads strict JSON `.vscode/settings.json`; unreadable
+  or JSONC policy refuses sharing. Unknown secret shapes still depend on review.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

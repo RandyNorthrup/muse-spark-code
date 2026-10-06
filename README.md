@@ -3889,14 +3889,71 @@ See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
 results and what is still open.
 
+## Sharing
+
+### Saved prompts
+
+Right-click your own message, a history entry, the composer, or an editor's
+selected text and choose **Save prompt**. History lets you choose the exact
+user message first. **Prompt library** offers search, tags, edit, delete,
+duplicate, import, share, and insertion. Scope labels distinguish **My prompts**
+from workspace prompts; **Copy to my prompts** makes a personal copy.
+
+Personal prompts live in the agent data folder, shared across workspaces and
+editors on this machine. Workspace prompts live in `.muse/prompts/` and may
+be committed to git. A saved personal prompt can be loaded in a fresh empty
+workspace. **Use saved prompt…**, **Insert** and **Run with variables** review
+variables and imported content, then fill the composer; they never send a
+message. Save no secrets. Settings Sync mirrors personal prompts only when
+`museSpark.syncPromptsAndBookmarks` is explicitly enabled globally.
+
+Copy exports scrubbed text or Markdown. File export uses `.muse-prompt.md`
+with versioned JSON front matter. Import from a file or a pasted public HTTPS
+raw-file link (including a raw gist link) is capped at 128 KiB, shows the
+whole prompt, declared variables and destination scope, and marks the result
+untrusted. A gist web page is HTML, so use its raw-file URL. Publishing secret
+gists is phase 2; node links, team libraries and email are phase 3.
+
+### Sharing a chat
+
+Use **Share** in the header or **Muse Spark: Share chat…**. Choose the whole
+chat or inclusive message endpoints, then **Conversation only** or **Full
+transcript**. Conversation only keeps user and assistant text; full includes
+portable activity, commands, outcomes, shown decisions and reasoning. Code
+blocks and attachment names start on; diffs and attachment contents start
+off. Metadata-only history cannot recover attachment bytes or unseen patches;
+unavailable selected content refuses instead of silently including it.
+
+Choose Markdown, static self-contained HTML or versioned share JSON, then
+copy, save or open locally in a browser. Review the exact scrubbed bytes and
+highlighted redactions before **Confirm sharing**. Preview creates no file,
+clipboard write or browser window. Files stay within the workspace or the
+host's private sharing folder. This share JSON is distinct from a resumable
+session export.
+
+Sharing always removes recognized credential shapes, currently registered
+secret values, account identifiers and private path prefixes. Workspace paths
+become relative, home/user identities become markers, and other absolute paths
+are redacted. Full mode keeps the same scrub. Unknown secret formats can
+survive: inspect the preview. A confidential workspace refuses every share;
+unavailable confidentiality policy also refuses.
+
+The [ACP guide](docs/acp.md#local-prompts-and-sharing) covers the installed
+CLI and ACP commands. VS Code-family editors use the shared React surfaces.
+ACP saves/lists prompts and returns prepared text or exact share previews;
+its final share button and composer insertion, native menus in JetBrains,
+Visual Studio, Eclipse, Zed, Xcode, Neovim/Emacs/Sublime, and the companion
+page wait for M104's bridge. The TUI waits for M110a0 lane T. The
+[certification](docs/certification/m118.md) names each pending binding; shared
+logic and fake adapter tests do not establish installed-editor parity.
+
 ## Development
 
-M118's prompt library and chat sharing contracts are staged for implementation;
-their commands are not registered yet. The P/C/X integration notes are in
-`docs/certification/m118-handoff-*.md`, with the pending command/menu patch in
-`m118-manifest-patch.json`. `npm run schema:exec -- --check` checks both the
-existing exec schemas and `docs/schemas/share-v1.schema.json` against their
-production zod boundaries; `npm run schema:exec` regenerates them.
+`npm run schema:exec -- --check` checks the exec and sharing JSON schemas
+against their production zod boundaries. `npm run schema:exec` regenerates
+them. `npm run check:reference` checks the sharing command reference;
+`node scripts/gen-reference.mjs` regenerates it from the same catalog `/help`
+reads.
 
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's

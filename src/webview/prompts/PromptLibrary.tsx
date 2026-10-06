@@ -1,5 +1,6 @@
 import './PromptLibrary.css'
 import { useEffect, useRef, useState } from 'react'
+import { fill } from '../../shared/l10n/text'
 import { PROMPT_LIMITS, UI_TEXT } from '../../shared/constants'
 import type { SavedPrompt } from '../../shared/prompts'
 import type { PromptDraft, PromptImportPreview } from '../../core/prompts/promptTypes'
@@ -121,7 +122,12 @@ export function PromptLibrary(props: PromptLibraryProps) {
                 props.port.acceptImport(preview.id)
               }}
             >
-              {UI_TEXT.promptImportConfirm}
+              {fill(UI_TEXT.promptImportConfirmScope, {
+                scope:
+                  preview.prompt.scope === 'user'
+                    ? UI_TEXT.promptScopeUser
+                    : UI_TEXT.promptScopeWorkspace,
+              })}
             </button>
           </section>
         )}

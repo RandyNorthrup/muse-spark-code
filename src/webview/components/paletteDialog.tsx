@@ -4,6 +4,7 @@
 // the mouse.
 
 import {
+  type HTMLAttributes,
   type FocusEvent,
   type KeyboardEvent,
   type ReactNode,
@@ -155,7 +156,9 @@ export function PaletteSessionRow({
   keyDescription,
   onHover,
   onResume,
+  rowProps,
 }: {
+  readonly rowProps?: Pick<HTMLAttributes<HTMLLIElement>, 'onContextMenu' | 'onKeyDown'>
   readonly rowId: string
   readonly title: string
   readonly isActive: boolean
@@ -170,6 +173,7 @@ export function PaletteSessionRow({
 }): ReactNode {
   return (
     <li
+      {...rowProps}
       id={rowId}
       role="option"
       aria-selected={isActive}
@@ -183,7 +187,10 @@ export function PaletteSessionRow({
         // Keep the search box focused; the click still resumes.
         event.preventDefault()
       }}
-      onClick={onResume}
+      onClick={(event) => {
+        if (!(event.target instanceof Element && event.target.closest('button, [role="menu"]')))
+          onResume()
+      }}
     >
       <span className="palette-item-text">
         <span className="palette-item-label">

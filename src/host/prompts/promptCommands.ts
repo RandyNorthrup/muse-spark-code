@@ -7,7 +7,8 @@ import type {
   PromptSharer,
 } from '../../core/prompts/promptImport'
 import { PROMPT_LIMITS, UI_TEXT } from '../../shared/constants'
-import type { SavedPrompt } from '../../shared/prompts'
+import { savedPromptSchema, type SavedPrompt } from '../../shared/prompts'
+import { promptDraftSchema } from '../../core/prompts/promptTypes'
 import * as z from 'zod/mini'
 import { fill } from '../../shared/l10n/text'
 
@@ -82,12 +83,16 @@ export class PromptCommands {
     return selected === undefined ? undefined : prompts[Number(selected)]
   }
 
-  private async sharePrompt(prompt: SavedPrompt): Promise<void> {
-    const format = await this.deps.ui.pick(UI_TEXT.sharePrompt, [
+  private shareFormat() {
+    return this.deps.ui.pick(UI_TEXT.sharePrompt, [
       { id: 'text', label: UI_TEXT.shareCopy },
       { id: 'md', label: `${UI_TEXT.shareCopy} (Markdown)` },
       { id: 'file', label: UI_TEXT.shareFile },
     ])
+  }
+
+  private async sharePrompt(prompt: SavedPrompt): Promise<void> {
+    const format = await this.shareFormat()
     if (format === undefined) return
     try {
       await this.deps.beforeShare()
@@ -136,6 +141,105 @@ export class PromptCommands {
       }
     } finally {
       this.deps.importer.cancel()
+    }
+  }
+
+  private async storedPrompt(input: unknown): Promise<SavedPrompt> {
+    const claimed = savedPromptSchema.parse(input)
+    const { prompts } = await this.deps.library.list(this.deps.hasWorkspace())
+    const prompt = prompts.find((row) => row.id === claimed.id && row.scope === claimed.scope)
+    if (prompt === undefined) throw new Error(UI_TEXT.promptFileInvalid)
+    return prompt
+  }
+
+  /** Shared React actions. Identities, trust and preview bytes remain host-owned. */
+  public async panel(action: string, input: unknown): Promise<unknown> {
+    switch (action) {
+      case 'list': {
+        const result = await this.deps.library.list(this.deps.hasWorkspace())
+        const damage = result.scopes
+          .filter((scope) => scope.damaged)
+          .map((scope) =>
+            fill(UI_TEXT.promptScopeDamaged, {
+              scope:
+                scope.scope === 'user' ? UI_TEXT.promptScopeUser : UI_TEXT.promptScopeWorkspace,
+            }),
+          )
+          .join('\n')
+        return {
+          prompts: result.prompts,
+          hasWorkspace: this.deps.hasWorkspace(),
+          canImportLinks: this.deps.canImportLinks,
+          ...(damage !== '' && { error: damage }),
+        }
+      }
+      case 'saveDraft': {
+        const value = z
+          .strictObject({ draft: promptDraftSchema, previous: z.optional(savedPromptSchema) })
+          .parse(input)
+        const previous =
+          value.previous === undefined ? undefined : await this.storedPrompt(value.previous)
+        return await this.deps.library.save(value.draft, previous)
+      }
+      case 'remove': {
+        await this.deps.library.remove(await this.storedPrompt(input))
+        return undefined
+      }
+      case 'duplicate': {
+        const value = z
+          .strictObject({ prompt: savedPromptSchema, scope: z.enum(['user', 'workspace']) })
+          .parse(input)
+        return await this.deps.library.duplicate(await this.storedPrompt(value.prompt), value.scope)
+      }
+      case 'insert': {
+        await usePrompt(await this.storedPrompt(input), this.deps.variables)
+        return undefined
+      }
+      case 'importPreview': {
+        const { kind } = z.strictObject({ kind: z.enum(['file', 'link']) }).parse(input)
+        const scope = await this.deps.ui.chooseScope()
+        if (scope === undefined) return undefined
+        const location = kind === 'file' ? 'picker' : await this.deps.ui.input(UI_TEXT.promptLink)
+        return location === undefined
+          ? undefined
+          : await this.deps.importer.preview({ kind, location }, scope)
+      }
+      case 'acceptImport': {
+        const { previewId } = z.strictObject({ previewId: z.string() }).parse(input)
+        return await this.deps.library.import(this.deps.importer.accept(previewId))
+      }
+      case 'sharePromptPreview': {
+        const prompt = await this.storedPrompt(input)
+        const format = await this.shareFormat()
+        if (format === undefined) return undefined
+        await this.deps.beforeShare()
+        const preview = this.deps.sharer.preview(
+          prompt,
+          format,
+          format === 'file' ? 'file' : 'copy',
+        )
+        return { id: preview.id, text: preview.text }
+      }
+      case 'confirmPromptShare': {
+        const { previewId } = z.strictObject({ previewId: z.string() }).parse(input)
+        try {
+          await this.deps.beforeShare()
+          await this.deps.sharer.confirm(previewId)
+        } finally {
+          this.deps.sharer.cancel()
+          this.deps.afterShare()
+        }
+        return undefined
+      }
+      case 'invalidate': {
+        this.deps.importer.cancel()
+        this.deps.sharer.cancel()
+        this.deps.afterShare()
+        return undefined
+      }
+      default: {
+        throw new Error(UI_TEXT.promptFileInvalid)
+      }
     }
   }
 

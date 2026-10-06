@@ -843,7 +843,10 @@ class AcpSession {
       await this.announceCommands()
       // Reserved local commands never become a skill or a model turn, even when
       // their runtime bridge has not been bound yet or their syntax is invalid.
-      const local = parseSkillInvocation(parsed.displayText, new Set(['share', 'prompt']))
+      const local = parseSkillInvocation(
+        parsed.displayText,
+        new Set(['share', 'prompt', ...(this.deps.sharing === undefined ? [] : ['help'])]),
+      )
       if (local !== undefined) {
         if (blocks.length !== 1 || blocks[0]?.type !== 'text') {
           throw RequestError.invalidParams(undefined, UI_TEXT.promptFileInvalid)

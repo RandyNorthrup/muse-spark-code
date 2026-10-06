@@ -363,6 +363,13 @@ export const reportDraftItemSchema = z.object({
 export type ReportDraftItem = z.infer<typeof reportDraftItemSchema>
 
 const webviewToHostMessageSchema = z.discriminatedUnion('type', [
+  // M118: the lazy implementation validates the action-specific payload.
+  z.strictObject({
+    type: z.literal('sharingAction'),
+    id: z.string(),
+    action: z.string(),
+    payload: z.unknown(),
+  }),
   // Sent once when the React app has mounted and is listening for messages.
   z.object({ type: z.literal('ready'), attachmentEpoch: z.optional(z.number()) }),
   // The composer gained or lost keyboard focus; drives the
@@ -765,6 +772,13 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
 
 const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    type: z.literal('sharingResult'),
+    id: z.string(),
+    value: z.unknown(),
+    error: z.optional(z.string()),
+  }),
+  z.strictObject({ type: z.literal('openSharing'), surface: z.enum(['prompts', 'chat']) }),
   // Reply to `ready`: everything the shell needs to render its first frame.
   z.object({
     type: z.literal('init'),

@@ -5162,6 +5162,30 @@ describe('ConversationController: session history (M6)', () => {
     )
   })
 
+  it('reads sharing from fresh stored history and retires reads after session replacement (M118)', async () => {
+    const t = withHistory()
+    await expect(t.controller.readShareSource(undefined, '2026-10-06T12:00:00Z')).rejects.toThrow(
+      UI_TEXT.exportNothing,
+    )
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(t.controller.shareSessionId()).toBe('old')
+    const source = await t.controller.readShareSource(undefined, '2026-10-06T12:00:00Z')
+    expect(source.sessionId).toBe('old')
+    expect(source.items.map((item) => item.text)).toEqual(['Old prompt', 'Reply'])
+    t.server.silence('session/read')
+    const count = t.server.requestsFor('session/read').length
+    const reading = t.controller.readShareSource(undefined, '2026-10-06T12:00:00Z')
+    await vi.waitFor(() => {
+      expect(t.server.requestsFor('session/read')).toHaveLength(count + 1)
+    })
+    const request = t.server.requestsFor('session/read').at(-1)
+    await t.controller.handle({ type: 'clearConversation' })
+    t.server.incoming.push(
+      `${JSON.stringify({ jsonrpc: '2.0', id: request?.id, result: envelope(storedSession) })}\n`,
+    )
+    await expect(reading).rejects.toThrow(UI_TEXT.sharePreviewExpired)
+  })
+
   it('exports the conversation as Markdown or Muse Code’s session log (M30)', async () => {
     const t = withHistory()
     await t.controller.handle({ type: 'exportConversation', format: 'markdown' })

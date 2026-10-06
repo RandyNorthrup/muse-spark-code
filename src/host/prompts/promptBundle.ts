@@ -4,14 +4,14 @@ import { UI_TEXT } from '../../shared/constants'
 import type * as Entry from './promptEntry'
 
 interface PromptBundle {
-  readonly runPromptCommand: typeof Entry.runPromptCommand
+  readonly createPromptHost: typeof Entry.createPromptHost
 }
 function isPromptBundle(value: unknown): value is PromptBundle {
   return (
     typeof value === 'object' &&
     value !== null &&
-    'runPromptCommand' in value &&
-    typeof value.runPromptCommand === 'function'
+    'createPromptHost' in value &&
+    typeof value.createPromptHost === 'function'
   )
 }
 
@@ -21,7 +21,7 @@ export function promptBundleLoader(bundlePath: string, log: Logger): () => Promp
     bundlePath,
     log,
     isBundle: isPromptBundle,
-    label: 'prompt library bundle',
+    label: 'prompts',
     unavailable: () => UI_TEXT.promptFileInvalid,
   })
 }

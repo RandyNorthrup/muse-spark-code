@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import { UI_TEXT } from '../../src/shared/constants'
 import { describe, expect, it, vi } from 'vitest'
 import type { SessionRow } from '../../src/shared/sessions'
 import {
@@ -208,4 +209,15 @@ describe('HistoryDialog', () => {
     fireEvent.keyDown(list, { key: 'Escape' })
     expect(props.onClose).toHaveBeenCalledOnce()
   })
+})
+
+it('offers Save prompt on history right-click without resuming or losing archive', () => {
+  const save = vi.fn()
+  const { props } = renderDialog({ onSavePrompt: save })
+  fireEvent.contextMenu(screen.getByText('Fix the parser'))
+  fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.promptSave }))
+  expect(save).toHaveBeenCalledExactlyOnceWith('now')
+  expect(props.onResume).not.toHaveBeenCalled()
+  fireEvent.click(archiveMark('Fix the parser', 'Archive (Delete)'))
+  expect(props.onSetArchived).toHaveBeenCalledExactlyOnceWith('now', true)
 })

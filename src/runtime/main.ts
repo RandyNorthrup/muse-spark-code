@@ -4,6 +4,7 @@
 // the log reads goes to stderr, except the sign-in commands' own output.
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
+import { sharingHelp } from '../shared/featureCatalog'
 import { spawn } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -32,7 +33,11 @@ import type { SecretStore } from '../host/auth/credentialStore'
 import { fill } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
 import { createRuntimeBackend } from './backends'
-import { parseCommandLine, type ServeOptions } from './cliArgs'
+import { parseSharingArgs, type SharingCommand } from './sharing/args'
+import { runtimeSharingLoader } from './sharing/sharingBundle'
+import { acpSharingCommands } from '../acp/sharing'
+import type { RuntimeSharingPorts } from './sharing/sharingEntry'
+import { parseCommandLine, type RuntimeCommand, type ServeOptions } from './cliArgs'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
@@ -335,6 +340,13 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     },
     signIn: signInMethod(options),
     defaultCwd: process.cwd(),
+    sharing: {
+      commands: acpSharingCommands,
+      execute: (text, context) =>
+        runtimeSharingLoader(path.join(distDir, 'sharingRuntime.js'), log)()
+          .runtimeAcpSharing(sharingPorts(log, runtime), UI_TEXT, uiLocale())
+          .execute(text, context),
+    },
     paid: runtime.paid,
     log,
     reportError: (fact) => {
@@ -353,7 +365,31 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   return 0
 }
 
-function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
+function sharingPorts(log: Logger, current?: ReturnType<typeof runtimeFor>): RuntimeSharingPorts {
+  return {
+    folders: { platform: process.platform, env: process.env, homeDir: homedir() },
+    read: async (cwd, sessionId, exportedAt) => {
+      const parsed = parseCommandLine(['serve'])
+      if (parsed.command !== 'serve') throw new Error(UI_TEXT.exportHistoryUnavailable)
+      const runtime = current ?? runtimeFor(parsed.options, log)
+      try {
+        const host = await runtime.backend.hostFor(cwd)
+        const history = await host.readSession(sessionId)
+        if (history.mode === 'none') throw new Error(UI_TEXT.exportHistoryUnavailable)
+        return {
+          sessionId,
+          title: history.name ?? UI_TEXT.exportDefaultTitle,
+          exportedAt,
+          items: history.items,
+        }
+      } finally {
+        if (current === undefined) await runtime.close()
+      }
+    },
+  }
+}
+
+function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
   if (command.command !== 'serve') {
     return 'warn'
   }
@@ -361,7 +397,15 @@ function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
 }
 
 async function main(): Promise<number> {
-  const command = parseCommandLine(process.argv.slice(2))
+  if (process.argv[2] === 'share' || process.argv[2] === 'prompts')
+    await loadUiTable({
+      language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
+      readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+      log: stderrLogger((line) => {
+        writeLine(process.stderr, line)
+      }, 'warn'),
+    })
+  const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
     const stderr = createFdWriter(process.stderr.fd, () => {
       /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */
@@ -487,6 +531,13 @@ async function main(): Promise<number> {
     log,
   })
   switch (command.command) {
+    case 'share':
+    case 'prompts': {
+      return await runtimeSharingLoader(
+        path.join(distDir, 'sharingRuntime.js'),
+        log,
+      )().runRuntimeSharing(command, sharingPorts(log), UI_TEXT, uiLocale())
+    }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
     }
@@ -592,6 +643,7 @@ async function main(): Promise<number> {
     }
     case 'help': {
       writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      writeLine(process.stdout, sharingHelp())
       return 0
     }
     case 'invalid': {
