@@ -43,6 +43,7 @@
   "makerAuditUnrecorded": "Akce byla dokončena, ale protokol zařízení se nepodařilo uložit.",
   "makerSentOutcomeUnknown": "Stroj mohl akci provést. Před dalším odesláním přečtěte jeho stav.",
   "makerPreviewTitle": "Náhled tvorby",
+  "makerPreviewWithdrawn": "Náhled se změnil — schválení bylo odvoláno; požádejte znovu",
   "makerMaximumTemperature": "Maximální teplota: {temperature}",
   "makerMaximumFeed": "Maximální rychlost posuvu: {feed}",
   "makerHardwareEnabled": "Hardware povolen",

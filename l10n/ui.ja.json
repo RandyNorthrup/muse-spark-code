@@ -43,6 +43,7 @@
   "makerAuditUnrecorded": "操作は完了しましたが、デバイスログを保存できませんでした。",
   "makerSentOutcomeUnknown": "機械が動作した可能性があります。再送信する前に状態を取得してください。",
   "makerPreviewTitle": "ものづくりプレビュー",
+  "makerPreviewWithdrawn": "プレビューが変更されました — 承認を取り消しました。もう一度リクエストしてください",
   "makerMaximumTemperature": "最高温度: {temperature}",
   "makerMaximumFeed": "最大送り速度: {feed}",
   "makerHardwareEnabled": "ハードウェアが有効",

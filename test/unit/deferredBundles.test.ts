@@ -1,7 +1,6 @@
 // Build the real shipped Node entries once with the production plugins.
 // Each drill changes its own metafile copy, never shared dist/ files.
 import { createHash } from 'node:crypto'
-import { execFileSync } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -15,6 +14,7 @@ import { L10N_COMPRESSION_QUALITY } from '../../src/shared/constants'
 import {
   UI_TEXT_REGIONS,
   compressedEnglish,
+  compactBrowserEnglish,
   regionalUiText,
 } from '../../scripts/lib/uiTextRegions.mjs'
 import {
@@ -50,26 +50,13 @@ const parserSchema = z.object({
   string: z.custom<typeof validation.string>((value) => typeof value === 'function'),
 })
 const parsers: z.infer<typeof parserSchema>[] = []
+const browserBuild: { meta?: z.infer<typeof metafileSchema> } = {}
 
-function fullBaseSources(): Map<string, string> {
-  const base = 'c0e6c1467'
-  const tracked = new Set(
-    execFileSync('git', ['ls-tree', '-r', '--name-only', base, '--', 'src'], { encoding: 'utf8' })
-      .trim()
-      .split('\n'),
-  )
-  const changed = execFileSync('git', ['diff', '--name-only', base, '--', 'src'], {
-    encoding: 'utf8',
-  })
-    .trim()
-    .split('\n')
-    .filter((file) => tracked.has(file))
-  return new Map(
-    changed.map((file) => [
-      path.resolve(file),
-      execFileSync('git', ['show', `${base}:${file}`], { encoding: 'utf8' }),
-    ]),
-  )
+function normalized(file: string): string {
+  return file.replaceAll('\\', '/')
+}
+function outputName(file: string): string {
+  return path.basename(normalized(file), '.js')
 }
 
 beforeAll(async () => {
@@ -137,6 +124,19 @@ beforeAll(async () => {
       outdir: 'dist',
       entryPoints: { validation: 'src/shared/validationEntry.ts' },
     }),
+    build({
+      ...common,
+      entryPoints: ['src/webview/main.tsx'],
+      outdir: 'dist/webview',
+      platform: 'browser',
+      format: 'esm',
+      splitting: true,
+      chunkNames: 'chunks/[hash]',
+      target: 'chrome128',
+      jsx: 'automatic',
+      charset: 'utf8',
+      plugins: [compactBrowserEnglish],
+    }),
     ...[{ name: undefined, output: 'dist/uiText.js' }, ...UI_TEXT_REGIONS].map((region) =>
       build({
         ...common,
@@ -150,10 +150,13 @@ beforeAll(async () => {
     ),
   ])
   for (const { metafile, outputFiles } of builds) {
-    for (const output of outputFiles)
-      bundleTexts.set(path.basename(output.path, '.js'), output.text)
+    if (Object.keys(metafile.outputs).some((file) => outputName(file) === 'main')) {
+      browserBuild.meta = metafileSchema.parse(metafile)
+      continue
+    }
+    for (const output of outputFiles) bundleTexts.set(outputName(output.path), output.text)
     for (const [output, details] of Object.entries(metafile.outputs)) {
-      const name = path.basename(output, '.js')
+      const name = outputName(output)
       const meta = metafileSchema.parse({
         inputs: Object.fromEntries(
           Object.keys(details.inputs).map((file) => [file, metafile.inputs[file]]),
@@ -229,54 +232,102 @@ function bundleInputs({ output, metafile }: { output: string; metafile: string }
 }
 
 function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
-  const built = meta.outputs[output]
+  const built = Object.entries(meta.outputs).find(
+    ([file]) => outputName(file) === outputName(output),
+  )?.[1]
   if (built === undefined) throw new Error(`Missing bundle output: ${output}`)
   return new Map(
-    Object.entries(built.inputs).map(([file, { bytesInOutput }]) => [file, bytesInOutput]),
+    Object.entries(built.inputs).map(([file, { bytesInOutput }]) => [
+      normalized(file),
+      bytesInOutput,
+    ]),
   )
 }
 
 function inputs(name: string): string[] {
   return Object.keys(
     fixture(`dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`).meta.inputs,
-  ).map((file) => file.split(path.sep).join('/'))
+  ).map((file) => normalized(file))
+}
+
+function windowsPaths(meta: z.infer<typeof metafileSchema>): z.infer<typeof metafileSchema> {
+  return metafileSchema.parse({
+    ...meta,
+    outputs: Object.fromEntries(
+      Object.entries(meta.outputs).map(([file, details]) => [
+        `${String.raw`C:\repo`}\\${file.replaceAll('/', '\\')}`,
+        {
+          ...details,
+          inputs: Object.fromEntries(
+            Object.entries(details.inputs).map(([input, value]) => [
+              input.replaceAll('/', '\\'),
+              value,
+            ]),
+          ),
+          imports: details.imports.map((dependency) => ({
+            ...dependency,
+            path: dependency.path.replaceAll('/', '\\'),
+          })),
+        },
+      ]),
+    ),
+  })
+}
+
+function startupOutputs(meta: z.infer<typeof metafileSchema>): Set<string> {
+  const startup = new Set<string>()
+  const visit = (requested: string) => {
+    const entry = Object.entries(meta.outputs).find(
+      ([file]) => outputName(file) === outputName(requested),
+    )
+    if (entry === undefined) throw new Error(`Missing startup output: ${requested}`)
+    const [file, details] = entry
+    if (startup.has(file)) return
+    startup.add(file)
+    for (const dependency of details.imports)
+      if (!dependency.external && dependency.kind !== 'dynamic-import') visit(dependency.path)
+  }
+  visit('dist/webview/main.js')
+  return startup
 }
 
 describe('deferred cohort bundles', () => {
-  it('keeps activation byte-exact in size against the full maker base', async () => {
-    const sources = fullBaseSources()
-    const baseline = await build({
-      write: false,
-      bundle: true,
-      minify: true,
-      metafile: true,
-      platform: 'node',
-      format: 'cjs',
-      target: 'node20.18',
-      logLevel: 'silent',
-      define: { 'process.env.NODE_ENV': '"production"' },
-      external: ['vscode'],
-      entryPoints: ['src/extension.ts'],
-      outfile: 'dist/extension.js',
-      plugins: [
-        {
-          name: 'full-maker-base',
-          setup(builder) {
-            builder.onLoad({ filter: /\.ts$/ }, (args) => {
-              const contents = sources.get(args.path)
-              return contents === undefined ? undefined : { contents, loader: 'ts' }
-            })
-          },
-        },
-        sharedUiText,
-        sharedValidation,
-        deferredCohort,
-        sharedWire,
-      ],
-    })
-    const base = baseline.outputFiles.find((file) => file.path.endsWith('/extension.js'))
-    if (base === undefined) throw new Error('missing activation baseline')
-    expect(Buffer.byteLength(bundleText('extension'))).toBe(base.contents.length)
+  it('keeps maker preview modules deferred outside all activation and browser startup inputs', () => {
+    const meta = browserBuild.meta
+    if (meta === undefined) throw new Error('Missing production browser metafile')
+    const startup = startupOutputs(meta)
+    for (const file of [
+      'src/host/maker/makerPreviewEntry.ts',
+      'src/host/maker/makerPreviewPanel.ts',
+      'src/host/maker/makerApprovalReceipt.ts',
+    ]) {
+      expect(inputs('makerPreviewHost')).toContain(file)
+      for (const name of ['extension', 'makerHost']) expect(inputs(name)).not.toContain(file)
+      for (const output of startup) expect(outputInputs(meta, output).has(file)).toBe(false)
+    }
+  })
+
+  it('matches production output and input paths with Windows separators', () => {
+    const meta = fixture('dist/meta/makerPreviewHost.json').meta
+    const windows = windowsPaths(meta)
+    expect(outputInputs(windows, 'dist/makerPreviewHost.js')).toEqual(
+      outputInputs(meta, 'dist/makerPreviewHost.js'),
+    )
+    expect(outputName(String.raw`C:\repo\dist\extension.js`)).toBe('extension')
+    const browser = browserBuild.meta
+    if (browser === undefined) throw new Error('Missing production browser metafile')
+    const windowsBrowser = windowsPaths(browser)
+    expect(
+      [...startupOutputs(windowsBrowser)]
+        .map((file) => outputName(file))
+        .toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(
+      [...startupOutputs(browser)]
+        .map((file) => outputName(file))
+        .toSorted((left, right) => left.localeCompare(right)),
+    )
+    for (const output of startupOutputs(windowsBrowser))
+      expect(outputInputs(windowsBrowser, output)).toEqual(outputInputs(browser, output))
   })
 
   it('decodes the complete production English fallback without changing any value', () => {

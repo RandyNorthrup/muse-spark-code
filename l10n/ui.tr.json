@@ -43,6 +43,7 @@
   "makerAuditUnrecorded": "İşlem tamamlandı ancak aygıt günlüğü kaydedilemedi.",
   "makerSentOutcomeUnknown": "Makine işlem yapmış olabilir. Yeniden göndermeden önce durumunu okuyun.",
   "makerPreviewTitle": "Donanım önizlemesi",
+  "makerPreviewWithdrawn": "Önizleme değişti — onay geri çekildi; yeniden isteyin",
   "makerMaximumTemperature": "En yüksek sıcaklık: {temperature}",
   "makerMaximumFeed": "En yüksek ilerleme: {feed}",
   "makerHardwareEnabled": "Donanım etkin",

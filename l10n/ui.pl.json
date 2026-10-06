@@ -43,6 +43,7 @@
   "makerAuditUnrecorded": "Działanie zakończyło się, ale nie udało się zapisać dziennika urządzenia.",
   "makerSentOutcomeUnknown": "Maszyna mogła wykonać działanie. Odczytaj jej stan przed ponownym wysłaniem.",
   "makerPreviewTitle": "Podgląd projektu sprzętowego",
+  "makerPreviewWithdrawn": "Podgląd się zmienił — zatwierdzenie wycofane; poproś ponownie",
   "makerMaximumTemperature": "Maksymalna temperatura: {temperature}",
   "makerMaximumFeed": "Maksymalny posuw: {feed}",
   "makerHardwareEnabled": "Sprzęt włączony",

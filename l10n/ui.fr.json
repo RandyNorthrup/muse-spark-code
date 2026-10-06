@@ -43,6 +43,7 @@
   "makerAuditUnrecorded": "L’action est terminée, mais le journal du périphérique n’a pas pu être enregistré.",
   "makerSentOutcomeUnknown": "La machine a peut-être agi. Consultez son état avant de renvoyer une commande.",
   "makerPreviewTitle": "Aperçu de fabrication",
+  "makerPreviewWithdrawn": "L’aperçu a changé — approbation retirée ; demandez à nouveau",
   "makerMaximumTemperature": "Température maximale : {temperature}",
   "makerMaximumFeed": "Avance maximale : {feed}",
   "makerHardwareEnabled": "Matériel activé",

@@ -20,6 +20,7 @@ import {
 import { buildWebviewHtml, createNonce } from '../html'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
+import { MakerApprovalReceipt } from './makerApprovalReceipt'
 
 export interface MakerPreviewPanelDeps {
   readonly extensionUri: vscode.Uri
@@ -40,17 +41,13 @@ const renderedMessage = z.strictObject({
   id: z.uuid(),
   digest: z.string().check(z.regex(/^[a-f0-9]{64}$/)),
 })
-export interface MakerApprovalPreview extends vscode.Disposable {
-  readonly id: string
-  readonly digest: string
-  /** Close, replacement/reload or failed delivery revokes the displayed payload. */
-  readonly signal: AbortSignal
-}
+export type MakerApprovalPreview = MakerApprovalReceipt
 
 /** U's separate preview page. The page cannot submit an approval or an action. */
 export class MakerPreviewPanel implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined
   private readonly approvals = new Map<string, vscode.WebviewPanel>()
+  private readonly approvalIds = new Set<string>()
   private preview: MakerPreview | undefined
   private isReady = false
   private isDisposed = false
@@ -131,7 +128,7 @@ export class MakerPreviewPanel implements vscode.Disposable {
     signal: AbortSignal,
   ): Promise<MakerApprovalPreview | undefined> {
     const request = makerApprovalRequestSchema.parse(raw)
-    if (this.isDisposed || signal.aborted || this.approvals.has(request.id)) return undefined
+    if (this.isDisposed || signal.aborted || this.approvalIds.has(request.id)) return undefined
     const payload = request.kind === 'serial' ? request.payload.value : request.payload
     const digest = createHash('sha256')
       .update(
@@ -147,36 +144,36 @@ export class MakerPreviewPanel implements vscode.Disposable {
       request,
     })
     const panel = this.createPanel(UI_TEXT.makerPayloadLabel)
+    this.approvalIds.add(request.id)
     this.approvals.set(request.id, panel)
-    const closed = new AbortController()
+    const receipt = new MakerApprovalReceipt(request.id, digest, () => {
+      panel.dispose()
+    })
     let isReady = false
     let isDelivered = false
-    let isRendered = false
     return await new Promise<MakerApprovalPreview | undefined>((resolve) => {
       const dispose = () => {
-        panel.dispose()
+        receipt.dispose()
       }
       const complete = () => {
-        if (isDelivered && isRendered && !closed.signal.aborted)
-          resolve({ id: request.id, digest, signal: closed.signal, dispose })
+        if (isDelivered && receipt.canSend(request.id, digest)) resolve(receipt)
       }
       const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
-        if (closed.signal.aborted) return
+        if (receipt.signal.aborted) return
         const acknowledgement = renderedMessage.safeParse(raw)
         if (acknowledgement.success) {
-          if (
-            isReady &&
-            acknowledgement.data.id === request.id &&
-            acknowledgement.data.digest === digest
-          ) {
-            isRendered = true
-            complete()
-          }
+          if (isReady) receipt.rendered(acknowledgement.data.id, acknowledgement.data.digest)
+          else receipt.revoke()
+          complete()
           return
         }
         const incoming = makerSurfaceMessageSchema.safeParse(raw)
-        if (!incoming.success) return
+        if (!incoming.success) {
+          receipt.revoke()
+          return
+        }
         if (incoming.data.type === 'makerStop') {
+          receipt.revoke()
           void this.deps.stop(incoming.data.machineId).catch(() => {
             this.deps.log.error('Maker preview Stop failed')
           })
@@ -200,13 +197,25 @@ export class MakerPreviewPanel implements vscode.Disposable {
         }
       })
       panel.onDidDispose(() => {
-        if (closed.signal.aborted) return
         subscription.dispose()
         signal.removeEventListener('abort', dispose)
         this.approvals.delete(request.id)
-        closed.abort()
+        receipt.revoke()
         resolve(undefined)
       })
+      receipt.signal.addEventListener(
+        'abort',
+        () => {
+          panel.dispose()
+          resolve(undefined)
+          void Promise.resolve(
+            vscode.window.showWarningMessage(UI_TEXT.makerPreviewWithdrawn),
+          ).catch(() => {
+            this.deps.log.error('Maker notice failed')
+          })
+        },
+        { once: true },
+      )
       signal.addEventListener('abort', dispose, { once: true })
       if (signal.aborted) dispose()
     })

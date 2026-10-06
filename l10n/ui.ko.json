@@ -43,6 +43,7 @@
   "makerAuditUnrecorded": "작업은 완료되었지만 장치 로그를 저장하지 못했습니다.",
   "makerSentOutcomeUnknown": "기계가 작동했을 수 있습니다. 다시 보내기 전에 상태를 확인하세요.",
   "makerPreviewTitle": "하드웨어 제작 미리 보기",
+  "makerPreviewWithdrawn": "미리보기가 변경되어 승인이 철회되었습니다. 다시 요청하세요",
   "makerMaximumTemperature": "최대 온도: {temperature}",
   "makerMaximumFeed": "최대 이송 속도: {feed}",
   "makerHardwareEnabled": "하드웨어 활성화됨",

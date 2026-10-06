@@ -64,6 +64,7 @@ export const EN = {
   makerAuditUnrecorded: 'The action completed, but its device log could not be saved.',
   makerSentOutcomeUnknown: 'The machine may have acted. Read its status before sending again.',
   makerPreviewTitle: 'Maker preview',
+  makerPreviewWithdrawn: 'Preview changed — approval withdrawn; ask again',
   makerMaximumTemperature: 'Maximum temperature: {temperature}',
   makerMaximumFeed: 'Maximum feed: {feed}',
   makerHardwareEnabled: 'Hardware enabled',

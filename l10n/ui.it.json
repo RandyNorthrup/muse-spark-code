@@ -43,6 +43,7 @@
   "makerAuditUnrecorded": "L’azione è stata completata, ma non è stato possibile salvare il registro del dispositivo.",
   "makerSentOutcomeUnknown": "La macchina potrebbe aver eseguito l’azione. Leggi il suo stato prima di inviare di nuovo.",
   "makerPreviewTitle": "Anteprima hardware",
+  "makerPreviewWithdrawn": "Anteprima modificata — approvazione ritirata; richiedila di nuovo",
   "makerMaximumTemperature": "Temperatura massima: {temperature}",
   "makerMaximumFeed": "Avanzamento massimo: {feed}",
   "makerHardwareEnabled": "Hardware abilitato",

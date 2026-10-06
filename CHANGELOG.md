@@ -37,6 +37,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Maker preview approval receipts now latch a decision or withdrawal. Changed
+  or invalid rendered-byte acknowledgements revoke approval and ignore late
+  Send once answers. Asking again requires a new approval ID. The deferred
+  preview regression uses production bundle inputs without historical Git
+  objects and covers Windows output paths.
+
+
 - Maker approvals verify the digest of displayed bytes and wait for delivered,
   rendered payloads before offering Send once. Each pending approval has its
   own immutable preview; closing or reloading it cancels approval. Passive

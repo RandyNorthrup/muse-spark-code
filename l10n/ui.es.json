@@ -43,6 +43,7 @@
   "makerAuditUnrecorded": "La acción terminó, pero no se pudo guardar el registro del dispositivo.",
   "makerSentOutcomeUnknown": "La máquina puede haber actuado. Lee su estado antes de volver a enviar.",
   "makerPreviewTitle": "Vista previa de fabricación",
+  "makerPreviewWithdrawn": "La vista previa ha cambiado — aprobación retirada; vuelve a solicitarla",
   "makerMaximumTemperature": "Temperatura máxima: {temperature}",
   "makerMaximumFeed": "Avance máximo: {feed}",
   "makerHardwareEnabled": "Hardware habilitado",

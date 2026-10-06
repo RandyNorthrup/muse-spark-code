@@ -43,6 +43,7 @@
   "makerAuditUnrecorded": "操作已完成，但无法保存设备日志。",
   "makerSentOutcomeUnknown": "机器可能已执行操作。再次发送前，请读取其状态。",
   "makerPreviewTitle": "创客预览",
+  "makerPreviewWithdrawn": "预览已更改 — 批准已撤回；请重新请求",
   "makerMaximumTemperature": "最高温度：{temperature}",
   "makerMaximumFeed": "最大进给速度：{feed}",
   "makerHardwareEnabled": "硬件已启用",

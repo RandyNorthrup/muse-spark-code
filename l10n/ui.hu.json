@@ -43,6 +43,7 @@
   "makerAuditUnrecorded": "A művelet befejeződött, de az eszköznaplót nem sikerült menteni.",
   "makerSentOutcomeUnknown": "Lehet, hogy a gép végrehajtotta a műveletet. Újabb küldés előtt kérje le az állapotát.",
   "makerPreviewTitle": "Hardveres előnézet",
+  "makerPreviewWithdrawn": "Az előnézet megváltozott — a jóváhagyás visszavonva; kérje újra",
   "makerMaximumTemperature": "Legnagyobb hőmérséklet: {temperature}",
   "makerMaximumFeed": "Legnagyobb előtolás: {feed}",
   "makerHardwareEnabled": "Hardver engedélyezve",

@@ -5,6 +5,7 @@ import path from 'node:path'
 import type * as vscode from 'vscode'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MakerApproval } from '../../src/core/maker/ports'
+import { MakerApprovalReceipt } from '../../src/host/maker/makerApprovalReceipt'
 import { MakerPreviewPanel } from '../../src/host/maker/makerPreviewPanel'
 import { createVscodeMakerHost, type VscodeMakerDeps } from '../../src/host/maker/vscodeMakerHost'
 import { MAKER_COMMANDS, MAKER_MODAL_MAX_CHARS, UI_TEXT } from '../../src/shared/constants'
@@ -38,6 +39,15 @@ function request(): ApprovalRequest {
     expiresAt: Date.now() + 10_000,
     action: 'program',
     payload,
+  }
+}
+function longRequest(): Extract<ApprovalRequest, { kind: 'command' }> {
+  const payload = 'G1 X1\n'.repeat(34)
+  return {
+    ...request(),
+    kind: 'command',
+    payload,
+    digest: createHash('sha256').update(payload).digest('hex'),
   }
 }
 async function harness() {
@@ -80,14 +90,11 @@ async function harness() {
     openPreview: vi.fn<VscodeMakerDeps['openPreview']>().mockResolvedValue(undefined),
     openApprovalPreview: vi
       .fn<VscodeMakerDeps['openApprovalPreview']>()
-      .mockImplementation((input) =>
-        Promise.resolve({
-          id: input.id,
-          digest: input.digest,
-          signal: new AbortController().signal,
-          dispose: vi.fn(),
-        }),
-      ),
+      .mockImplementation((input) => {
+        const receipt = new MakerApprovalReceipt(input.id, input.digest, vi.fn())
+        receipt.rendered(input.id, input.digest)
+        return Promise.resolve(receipt)
+      }),
   }
   const host = await createVscodeMakerHost(deps)
   hosts.push(host)
@@ -135,15 +142,9 @@ async function expectSettled(pending: Promise<unknown>): Promise<void> {
 
 describe('VS Code maker port', () => {
   it('waits for exact rendered payload delivery before offering native Send once', async () => {
-    const { host } = await previewHarness()
+    const { host, deps } = await previewHarness()
     vi.mocked(modal).mockImplementation((_message, _options, ...items) => Promise.resolve(items[0]))
-    const payload = 'G1 X1\n'.repeat(34)
-    const input = {
-      ...request(),
-      kind: 'command',
-      payload,
-      digest: createHash('sha256').update(payload).digest('hex'),
-    } as const
+    const input = longRequest()
     const approval = new MakerApproval(input, () => true)
     const pending = host.confirm(approval.request)
     for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
@@ -163,19 +164,56 @@ describe('VS Code maker port', () => {
       v: 1,
       type: 'makerPreviewRendered',
       id: input.id,
-      digest: 'b'.repeat(64),
+      digest: input.digest,
     })
-    await Promise.resolve()
-    expect(modal).not.toHaveBeenCalled()
+    const answer = await pending
+    expect(answer).toMatchObject({ digest: input.digest, decision: 'allow_once' })
+    expect(approval.answer(answer)).toBeDefined()
+    const receipt: unknown = await vi.mocked(deps.openApprovalPreview).mock.results[0]?.value
+    if (!(receipt instanceof MakerApprovalReceipt)) throw new Error('missing decided receipt')
+    expect(receipt.state).toBe('decided')
+    expect(receipt.decide(input.id, input.digest)).toBe(false)
+  })
+  it('withdraws A after rendering B and denies late Send once and engine consumption', async () => {
+    const { host } = await previewHarness()
+    const choice = Promise.withResolvers<vscode.MessageItem | undefined>()
+    vi.mocked(modal).mockReturnValue(choice.promise)
+    const input = longRequest()
+    const approval = new MakerApproval(input, () => true)
+    const pending = host.confirm(approval.request)
+    const view = window.createWebviewPanel.mock.results.at(-1)?.value
+    if (!(view instanceof FakeWebviewPanel)) throw new Error('missing approval preview')
+    view.webview.messages.fire({ v: 1, type: 'makerReady' })
+    for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
     view.webview.messages.fire({
       v: 1,
       type: 'makerPreviewRendered',
       id: input.id,
       digest: input.digest,
     })
+    for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
+    expect(modal).toHaveBeenCalledOnce()
+    view.webview.messages.fire({
+      v: 1,
+      type: 'makerPreviewRendered',
+      id: input.id,
+      digest: createHash('sha256').update('G1 X200\n'.repeat(34)).digest('hex'),
+    })
+    choice.resolve(vi.mocked(modal).mock.calls[0]?.[2])
     const answer = await pending
-    expect(answer).toMatchObject({ digest: input.digest, decision: 'allow_once' })
-    expect(approval.answer(answer)).toBeDefined()
+    const binding = approval.answer(answer)
+    expect(
+      approval.consume(
+        binding ?? {
+          requestId: input.id,
+          digest: input.digest,
+          target: input.target,
+          expiresAt: input.expiresAt,
+        },
+        input.target,
+      ),
+    ).toBe(false)
+    expect(answer).toBeUndefined()
   })
   it.each(['close', 'reload'])(
     'keeps each pending approval preview immutable and cancels on %s before a late Send once',
@@ -247,13 +285,7 @@ describe('VS Code maker port', () => {
   it('expires an undelivered approval preview and ignores late Ready and acknowledgement', async () => {
     const { host } = await previewHarness()
     vi.useFakeTimers()
-    const payload = 'G1 X1\n'.repeat(34)
-    const input = {
-      ...request(),
-      kind: 'command',
-      payload,
-      digest: createHash('sha256').update(payload).digest('hex'),
-    } as const
+    const input = longRequest()
     const pending = host.confirm(input)
     const view = window.createWebviewPanel.mock.results.at(-1)?.value
     if (!(view instanceof FakeWebviewPanel)) throw new Error('missing approval preview')
@@ -268,7 +300,7 @@ describe('VS Code maker port', () => {
     })
     await Promise.resolve()
     expect(view.webview.postMessage).not.toHaveBeenCalled()
-    expect(modal).not.toHaveBeenCalled()
+    expect(modal).toHaveBeenCalledWith(UI_TEXT.makerPreviewWithdrawn)
   })
   it('refuses a trunk digest that differs from the displayed bytes', async () => {
     const { host } = await harness()
@@ -282,44 +314,22 @@ describe('VS Code maker port', () => {
     'refuses a preview receipt with %s at native decision time',
     async (fault) => {
       const { host, deps } = await harness()
-      const payload = 'G1 X1\n'.repeat(34)
-      const input = {
-        ...request(),
-        kind: 'command',
-        payload,
-        digest: createHash('sha256').update(payload).digest('hex'),
-      } as const
-      const closed = new AbortController()
-      const receipt = {
-        id: input.id,
-        digest: input.digest,
-        signal: closed.signal,
-        dispose: vi.fn(),
-      }
-      switch (fault) {
-        case 'id': {
-          receipt.id = randomUUID()
-          break
-        }
-        case 'digest': {
-          receipt.digest = 'b'.repeat(64)
-          break
-        }
-        case 'closed': {
-          closed.abort()
-          break
-        }
-        default: {
-          break
-        }
-      }
+      const input = longRequest()
+      const receipt = new MakerApprovalReceipt(
+        fault === 'id' ? randomUUID() : input.id,
+        fault === 'digest' ? 'b'.repeat(64) : input.digest,
+        vi.fn(),
+      )
+      receipt.rendered(receipt.id, receipt.digest)
+      if (fault === 'closed') receipt.revoke()
+      const disposed = vi.spyOn(receipt, 'dispose')
       vi.mocked(deps.openApprovalPreview).mockResolvedValue(receipt)
       vi.mocked(modal).mockImplementation((_message, _options, ...items) => {
-        if (fault === 'changedDigest') receipt.digest = 'b'.repeat(64)
+        if (fault === 'changedDigest') receipt.rendered(input.id, 'b'.repeat(64))
         return Promise.resolve(items[0])
       })
       expect(await host.confirm(input)).toBeUndefined()
-      expect(receipt.dispose).toHaveBeenCalled()
+      expect(disposed).toHaveBeenCalled()
       if (fault !== 'changedDigest') expect(modal).not.toHaveBeenCalled()
     },
   )

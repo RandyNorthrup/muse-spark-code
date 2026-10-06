@@ -3978,8 +3978,10 @@ approval tokens or a hardware-enable reason. Serial opening and every send
 use the engine's single-use target binding and native Send once / Reject
 modal. Each long payload has its own read-only preview, keyed by approval UUID.
 Send once is offered only after delivery and a rendered-byte acknowledgement
-matching the request's digest. Closing or reloading that preview cancels its
-approval; another request cannot replace it. A lost acknowledgement remains
+matching the request's digest. A changed or invalid acknowledgement, close,
+reload, Stop, cancellation or expiry withdraws that approval permanently.
+A late native Send once is ignored; asking again needs a new approval UUID.
+Another request cannot replace its preview. A lost acknowledgement remains
 `sentOutcomeUnknown`; passive notices never delay the tool result or a failed
 Stop. Read status before considering another send.
 
@@ -3987,8 +3989,11 @@ W binds `openApprovalPreview(request, signal)` to the preview adapter's
 `openApproval`. U's owned page validates the host-only `makerApprovalPreview`
 message (`v: 1`, `request`), renders the complete exact payload, then sends
 `makerPreviewRendered` (`v: 1`, approval `id`, SHA-256 `digest` computed from
-the rendered bytes, decoding serial hex). Ready or successful `postMessage`
-alone cannot enable Send once. This handshake is separate from the portable
+the displayed bytes, decoding serial hex) after every change to those bytes,
+not only on first paint. The receipt binds once; a same-digest repeat has no
+effect and a different digest revokes it. Ready or successful `postMessage`
+alone cannot enable Send once. The host checks and consumes the rendered
+receipt synchronously when accepting the native decision. This handshake is separate from the portable
 maker protocol; missing renderer support expires refused. The shared preview
 page assets remain U/W's integration handoff.
 

@@ -43,6 +43,7 @@
   "makerAuditUnrecorded": "Die Aktion wurde abgeschlossen, aber das Geräteprotokoll konnte nicht gespeichert werden.",
   "makerSentOutcomeUnknown": "Die Maschine hat möglicherweise gehandelt. Lesen Sie vor erneutem Senden ihren Status.",
   "makerPreviewTitle": "Hardwarevorschau",
+  "makerPreviewWithdrawn": "Vorschau geändert — Genehmigung zurückgezogen; erneut anfragen",
   "makerMaximumTemperature": "Maximale Temperatur: {temperature}",
   "makerMaximumFeed": "Maximaler Vorschub: {feed}",
   "makerHardwareEnabled": "Hardware aktiviert",

@@ -18773,9 +18773,8 @@ browser startup **813,602 → 813,739 bytes (+137)**, activation
 **444,439 → 444,439 bytes (+0)**. The reviewed unused multiplication added
 another 14 bytes; the literal initializer removes it. The remaining browser
 growth is entirely three required English fallback keys; no maker UI/engine
-source enters startup. Named residual M103V-STARTUP-FALLBACK in §9 requires
-the lead's exact-byte waiver. Strict
-zero-byte startup growth (M103 acceptance 17) remains an explicit W handoff;
+source enters startup. M103V-STARTUP-FALLBACK in §9 is waived by lead 2026-10-06, +137 B, cap unchanged.
+Aggregate and native/editor qualification remain explicit W/E handoffs;
 the inline complete English browser fallback is retained as D6 requires.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
@@ -18933,6 +18932,33 @@ ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
+
+**REDM103V redesign (2026-10-06, Kubuntu; lead design).** Replace V's
+approval receipt booleans with one small state machine per approval UUID:
+awaiting-render → rendered(digest) → decided or revoked, with both terminal
+states latched. Bind a valid acknowledgement once; same-digest repeats are
+idempotent. Changed or invalid acknowledgements, preview close/reload,
+Stop, expiry, caller cancellation and owner disposal revoke pending approval.
+Accept Send once only by synchronously checking the rendered request digest
+and live signal and changing state to decided. Show the localized withdrawal
+notice and ignore any late modal answer. Prove the exact 34-line G1 X1 →
+G1 X200 scenario denies and cannot consume an engine binding; exercise the
+whole transition table and red-drill changed-digest and terminal-latch guards.
+Replace the historical-commit unit regression with production-metafile
+structural checks for deferred preview inputs outside activation/browser
+startup, retaining numeric caps. Normalize output paths and test Windows
+separators. Add the missing type declaration for the existing production
+browser English plugin so the regression uses the real browser options.
+Regenerate the host API inventory for the preview withdrawal notice site.
+Record the lead's existing fallback waiver in §9. No new
+dependency, portable protocol change or widened guard; U/W/R/E handoffs stay.
+
+**Lane U rendered-preview handoff (REDM103V).** U's renderer must post
+`makerPreviewRendered` with the digest of the displayed bytes every time those
+bytes change, after each committed render, not only on first paint. Serial hex
+hashes decoded bytes. A withdrawn receipt cannot rebind; asking again needs a
+new approval UUID. U is absent from V's branch and remains an integration
+qualification obligation.
 
 **FIXM103V review repair (2026-10-06, Kubuntu).** Address all four
 RVM103V findings inside V's adapter files: verify the digest of the actual
@@ -20878,12 +20904,15 @@ before a repaired one loads (2026-09-30).
   The unintended 14-byte unused maker constant has been removed. The remaining
   bytes are the three translated UI labels' complete English fallback, required
   by D6; no maker implementation enters startup and all caps stay unchanged.
-  Safe for now: this is bounded static text below the existing 900 KiB startup
-  cap, with no newly activated device code. Follow-up: the lead must accept
-  exactly 137 bytes or W must remove them before claiming M103 acceptance 17.
-  This lane does not grant that waiver. Both P1s and the P2 are fixed; no safety
+  Lead disposition: **waived by lead 2026-10-06, +137 B, cap unchanged**
+  (M103 acceptance 17). This records the lead's decision for the measured
+  fallback; no waiver implementation or cap change. Both P1s and the P2 are fixed; no safety
   finding is deferred. U/W's existing unexposed page handoff must implement the
   host-owned rendered-byte handshake; until then long approvals expire refused.
+  REDM103V's required translated withdrawal label adds 50 B to the browser's
+  complete inline English fallback (current 813,789 B, +187 B from recorded
+  full base). The historical waiver covers exactly +137 B; no further waiver
+  is claimed. Numeric caps and structural startup isolation stay unchanged.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

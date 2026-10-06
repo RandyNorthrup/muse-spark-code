@@ -43,6 +43,7 @@
   "makerAuditUnrecorded": "Действие завершено, но журнал устройства сохранить не удалось.",
   "makerSentOutcomeUnknown": "Машина могла выполнить действие. Перед повторной отправкой прочитайте её состояние.",
   "makerPreviewTitle": "Предпросмотр проекта оборудования",
+  "makerPreviewWithdrawn": "Предпросмотр изменился — одобрение отозвано; запросите снова",
   "makerMaximumTemperature": "Максимальная температура: {temperature}",
   "makerMaximumFeed": "Максимальная подача: {feed}",
   "makerHardwareEnabled": "Оборудование включено",

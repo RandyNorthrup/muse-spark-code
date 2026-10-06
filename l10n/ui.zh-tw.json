@@ -43,6 +43,7 @@
   "makerAuditUnrecorded": "操作已完成，但無法儲存裝置記錄。",
   "makerSentOutcomeUnknown": "機器可能已執行操作。再次傳送前，請讀取其狀態。",
   "makerPreviewTitle": "自造者預覽",
+  "makerPreviewWithdrawn": "預覽已變更 — 核准已撤回；請重新請求",
   "makerMaximumTemperature": "最高溫度：{temperature}",
   "makerMaximumFeed": "最大進給速度：{feed}",
   "makerHardwareEnabled": "硬體已啟用",

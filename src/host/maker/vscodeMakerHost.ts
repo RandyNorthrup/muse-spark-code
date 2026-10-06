@@ -148,9 +148,7 @@ export class VscodeMakerHost implements MakerHost, vscode.Disposable {
       this.admitted() &&
       Date.now() < request.expiresAt &&
       !cancellation.signal.aborted &&
-      !preview?.signal.aborted &&
-      shownDigest === request.digest &&
-      (preview === undefined || preview.digest === shownDigest)
+      (preview === undefined || preview.canSend(request.id, request.digest))
     try {
       const display = async (): Promise<ApprovalAnswer | undefined> => {
         const isLong =
@@ -198,7 +196,8 @@ export class VscodeMakerHost implements MakerHost, vscode.Disposable {
           send,
           reject,
         )
-        if (!isCurrent()) return undefined
+        if (!isCurrent() || (preview !== undefined && !preview.decide(request.id, request.digest)))
+          return undefined
         return {
           id: request.id,
           digest: preview?.digest ?? shownDigest,
