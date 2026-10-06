@@ -23,6 +23,12 @@ function world() {
   return { ticket, reader, registry }
 }
 
+function pendingMembership(reader: FakeResourceTree) {
+  const proof = Promise.withResolvers<boolean>()
+  vi.spyOn(reader, 'contains').mockReturnValueOnce(proof.promise)
+  return proof
+}
+
 describe('resource launch authority (M107 T)', () => {
   it('registers every kind and both classes with its actual root, scope and session', async () => {
     for (const kind of resourceKindSchema.options) {
@@ -50,10 +56,23 @@ describe('resource launch authority (M107 T)', () => {
     const forged = { ...ticket, scope: { type: 'group', pgid: 999 } } as const
     expect(await registry.contains(forged, ticket.root)).toBe(false)
     expect(await registry.usage(forged)).toBeNull()
+    reader.put(
+      ticket.id,
+      { pid: process.pid, startTime: '1000' },
+      { cpuSeconds: 0, residentBytes: 0 },
+    )
     expect(await registry.contains(ticket, { pid: process.pid, startTime: '1000' })).toBe(false)
-    await expect(
-      registry.register({ ...tree('self'), root: { pid: process.pid, startTime: '1000' } }),
-    ).rejects.toThrow('harness')
+    const selfTicket: ResourceTicket = {
+      ...tree('self'),
+      root: { pid: process.pid, startTime: '1000' },
+      scope: { type: 'group', pgid: process.pid },
+    }
+    const selfReader = new FakeResourceTree()
+    selfReader.register(selfTicket)
+    selfReader.put(selfTicket.id, selfTicket.root, { cpuSeconds: 0, residentBytes: 0 })
+    await expect(new ResourceTreeRegistry(selfReader).register(selfTicket)).rejects.toThrow(
+      'harness',
+    )
     registry.unregister(forged)
     expect(registry.tickets()).toEqual([ticket])
   })
@@ -99,8 +118,7 @@ describe('resource launch authority (M107 T)', () => {
 
   it('reserves duplicate ids, roots and scopes and rolls back a failed launch proof', async () => {
     const { registry, ticket, reader } = world()
-    const proof = Promise.withResolvers<boolean>()
-    vi.spyOn(reader, 'contains').mockReturnValueOnce(proof.promise)
+    const proof = pendingMembership(reader)
     const pending = registry.register(ticket)
     expect(registry.tickets()).toEqual([])
     await expect(registry.register(ticket)).rejects.toThrow('already registered')
@@ -124,5 +142,15 @@ describe('resource launch authority (M107 T)', () => {
     expect(await registry.members(ticket)).toEqual([])
     vi.spyOn(reader, 'contains').mockRejectedValueOnce(new Error('denied'))
     expect(await registry.contains(ticket, ticket.root)).toBe(false)
+  })
+
+  it('cancels a pending launch without restoring authority when the OS proof finishes', async () => {
+    const { registry, ticket, reader } = world()
+    const proof = pendingMembership(reader)
+    const pending = registry.register(ticket)
+    registry.unregister(ticket)
+    proof.resolve(true)
+    await expect(pending).rejects.toThrow('cancelled')
+    expect(registry.tickets()).toEqual([])
   })
 })
