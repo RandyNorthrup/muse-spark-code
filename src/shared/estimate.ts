@@ -128,12 +128,21 @@ const accountSchema = z.strictObject({
   providerId: id,
   requestsPerMinute: hours,
   tokensPerMinute: z.optional(hours),
-  usage: z.optional(
-    z.strictObject({
-      unit: z.enum(['requests', 'tokens', 'usd']),
-      remaining: hours,
-      resetsAt: instant,
-    }),
+  // Multiple hard windows may apply at once (for example daily and weekly).
+  usageLimits: z.optional(
+    z
+      .array(
+        z.strictObject({
+          id,
+          unit: z.enum(['requests', 'tokens', 'usd']),
+          remaining: hours,
+          resetsAt: instant,
+        }),
+      )
+      .check(
+        z.maxLength(ESTIMATE_MAX_ITEMS),
+        z.refine((limits) => areUnique(limits.map((limit) => limit.id))),
+      ),
   ),
 })
 
@@ -200,6 +209,7 @@ export const estimateLaneSchema = z.strictObject({
     slots: positiveCount,
     accountRequestsPerHour: hours,
     accountTokensPerHour: hours,
+    accountUsdPerHour: hours,
     ciJobs: count,
     ciMinutes: hours,
     ciId: z.optional(id),

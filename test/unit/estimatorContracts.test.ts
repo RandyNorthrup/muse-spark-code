@@ -13,6 +13,10 @@ import {
   providerSizeSchema,
   provisionedServerSchema,
   type EstimateSourcesPort,
+  type MachineClass,
+  type EstimateRequest,
+  type EstimateInputs,
+  type CatalogPrice,
 } from '../../src/shared/estimate'
 import {
   ESTIMATE_CALIBRATION_MIN_SAMPLES,
@@ -83,7 +87,7 @@ describe('M117 frozen estimator contracts', () => {
       ESTIMATE_LOCAL_BUDGET_MS,
       ESTIMATE_LOCAL_BUDGET_LANES,
     ]).toEqual([2000, 20, 0.5, 4, 30, 2000, 40])
-    const parsed = machineClassesSchema.parse(classes)
+    const parsed: MachineClass[] = machineClassesSchema.parse(classes)
     expect(parsed.map((entry) => entry.os)).toEqual(
       expect.arrayContaining(['linux', 'windows', 'macos']),
     )
@@ -124,8 +128,22 @@ describe('M117 frozen estimator contracts', () => {
     expect(fleetSnapshotSchema.safeParse(fleet).success).toBe(false)
   })
 
+  it('preserves simultaneous account usage windows and rejects duplicate windows', () => {
+    const fleet = fakeFleet()
+    const limits = fleet.accounts[0]!.usageLimits!
+    expect(limits.map((limit) => limit.id)).toEqual(['daily', 'weekly'])
+    expect(fleet.slots.filter((slot) => slot.accountId === 'account-1')).toHaveLength(4)
+    limits.push(limits[0]!)
+    expect(fleetSnapshotSchema.safeParse(fleet).success).toBe(false)
+    const lane = fakeEstimate().inputs.lanes[0]!
+    lane.resources.accountUsdPerHour = -1
+    expect(
+      estimateInputsSchema.safeParse({ ...fakeEstimate().inputs, lanes: [lane] }).success,
+    ).toBe(false)
+  })
+
   it('requires explicit UTC inputs and preserves unknown source absence', () => {
-    const request = fakeEstimate().inputs.request
+    const request: EstimateRequest = fakeEstimate().inputs.request
     expect(
       estimateRequestSchema.safeParse({ ...request, asOf: '2026-10-06T12:00:00' }).success,
     ).toBe(false)
@@ -133,7 +151,7 @@ describe('M117 frozen estimator contracts', () => {
   })
 
   it('requires one snapshot time and closed lane dependencies', () => {
-    const inputs = fakeEstimate().inputs
+    const inputs: EstimateInputs = fakeEstimate().inputs
     inputs.fleet.asOf = '2026-10-06T11:00:00.000Z'
     expect(estimateInputsSchema.safeParse(inputs).success).toBe(false)
     inputs.fleet.asOf = ESTIMATOR_AS_OF
@@ -190,7 +208,7 @@ describe('M117 frozen estimator contracts', () => {
 
   it('only accepts dated public HTTPS catalog prices', () => {
     const result = fakeEstimate()
-    const price = {
+    const price: CatalogPrice = {
       providerId: 'fake-provider',
       sizeId: 'small',
       hourlyUsd: 0.02,

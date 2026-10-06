@@ -22,7 +22,8 @@
           "accountRequestsPerHour": 1,
           "accountTokensPerHour": 10,
           "ciJobs": 0,
-          "ciMinutes": 0
+          "ciMinutes": 0,
+          "accountUsdPerHour": 0
         },
         "reviewRounds": 0
       },
@@ -46,7 +47,8 @@
           "accountRequestsPerHour": 1,
           "accountTokensPerHour": 10,
           "ciJobs": 0,
-          "ciMinutes": 0
+          "ciMinutes": 0,
+          "accountUsdPerHour": 0
         },
         "reviewRounds": 0
       },
@@ -70,7 +72,8 @@
           "accountRequestsPerHour": 1,
           "accountTokensPerHour": 10,
           "ciJobs": 0,
-          "ciMinutes": 0
+          "ciMinutes": 0,
+          "accountUsdPerHour": 0
         },
         "reviewRounds": 0
       }
@@ -78,7 +81,26 @@
     "golden": {
       "criticalPath": ["A", "B", "C"],
       "criticalPathHours": 4,
-      "finishHoursWithTwoSlots": 4
+      "finishHoursWithTwoSlots": 4,
+      "schedule": [
+        {
+          "laneId": "A",
+          "start": "2026-10-06T12:00:00.000Z",
+          "end": "2026-10-06T13:00:00.000Z"
+        },
+        {
+          "laneId": "B",
+          "start": "2026-10-06T13:00:00.000Z",
+          "end": "2026-10-06T15:00:00.000Z"
+        },
+        {
+          "laneId": "C",
+          "start": "2026-10-06T15:00:00.000Z",
+          "end": "2026-10-06T16:00:00.000Z"
+        }
+      ],
+      "p50": "2026-10-06T16:00:00.000Z",
+      "p90": "2026-10-06T16:00:00.000Z"
     },
     "distribution": "fixedDuration; no review or redesign rounds; not a calibrated Monte Carlo claim"
   },
@@ -105,7 +127,8 @@
           "accountRequestsPerHour": 1,
           "accountTokensPerHour": 10,
           "ciJobs": 0,
-          "ciMinutes": 0
+          "ciMinutes": 0,
+          "accountUsdPerHour": 0
         },
         "reviewRounds": 0
       },
@@ -129,7 +152,8 @@
           "accountRequestsPerHour": 1,
           "accountTokensPerHour": 10,
           "ciJobs": 0,
-          "ciMinutes": 0
+          "ciMinutes": 0,
+          "accountUsdPerHour": 0
         },
         "reviewRounds": 0
       },
@@ -153,7 +177,8 @@
           "accountRequestsPerHour": 1,
           "accountTokensPerHour": 10,
           "ciJobs": 0,
-          "ciMinutes": 0
+          "ciMinutes": 0,
+          "accountUsdPerHour": 0
         },
         "reviewRounds": 0
       }
@@ -161,7 +186,26 @@
     "golden": {
       "criticalPath": ["A", "B"],
       "criticalPathHours": 3,
-      "finishHoursWithTwoSlots": 3
+      "finishHoursWithTwoSlots": 3,
+      "schedule": [
+        {
+          "laneId": "A",
+          "start": "2026-10-06T12:00:00.000Z",
+          "end": "2026-10-06T13:00:00.000Z"
+        },
+        {
+          "laneId": "B",
+          "start": "2026-10-06T13:00:00.000Z",
+          "end": "2026-10-06T15:00:00.000Z"
+        },
+        {
+          "laneId": "C",
+          "start": "2026-10-06T13:00:00.000Z",
+          "end": "2026-10-06T14:00:00.000Z"
+        }
+      ],
+      "p50": "2026-10-06T15:00:00.000Z",
+      "p90": "2026-10-06T15:00:00.000Z"
     },
     "distribution": "fixedDuration; no review or redesign rounds; not a calibrated Monte Carlo claim"
   },
@@ -188,7 +232,8 @@
           "accountRequestsPerHour": 1,
           "accountTokensPerHour": 10,
           "ciJobs": 0,
-          "ciMinutes": 0
+          "ciMinutes": 0,
+          "accountUsdPerHour": 0
         },
         "reviewRounds": 0
       },
@@ -212,7 +257,8 @@
           "accountRequestsPerHour": 1,
           "accountTokensPerHour": 10,
           "ciJobs": 0,
-          "ciMinutes": 0
+          "ciMinutes": 0,
+          "accountUsdPerHour": 0
         },
         "reviewRounds": 0
       },
@@ -236,7 +282,8 @@
           "accountRequestsPerHour": 1,
           "accountTokensPerHour": 10,
           "ciJobs": 0,
-          "ciMinutes": 0
+          "ciMinutes": 0,
+          "accountUsdPerHour": 0
         },
         "reviewRounds": 0
       },
@@ -260,7 +307,8 @@
           "accountRequestsPerHour": 1,
           "accountTokensPerHour": 10,
           "ciJobs": 0,
-          "ciMinutes": 0
+          "ciMinutes": 0,
+          "accountUsdPerHour": 0
         },
         "reviewRounds": 0
       }
@@ -268,7 +316,31 @@
     "golden": {
       "criticalPath": ["A", "B", "D"],
       "criticalPathHours": 4,
-      "finishHoursWithTwoSlots": 4
+      "finishHoursWithTwoSlots": 4,
+      "schedule": [
+        {
+          "laneId": "A",
+          "start": "2026-10-06T12:00:00.000Z",
+          "end": "2026-10-06T13:00:00.000Z"
+        },
+        {
+          "laneId": "B",
+          "start": "2026-10-06T13:00:00.000Z",
+          "end": "2026-10-06T15:00:00.000Z"
+        },
+        {
+          "laneId": "C",
+          "start": "2026-10-06T13:00:00.000Z",
+          "end": "2026-10-06T14:00:00.000Z"
+        },
+        {
+          "laneId": "D",
+          "start": "2026-10-06T15:00:00.000Z",
+          "end": "2026-10-06T16:00:00.000Z"
+        }
+      ],
+      "p50": "2026-10-06T16:00:00.000Z",
+      "p90": "2026-10-06T16:00:00.000Z"
     },
     "distribution": "fixedDuration; no review or redesign rounds; not a calibrated Monte Carlo claim"
   },
@@ -295,7 +367,8 @@
           "accountRequestsPerHour": 1,
           "accountTokensPerHour": 10,
           "ciJobs": 0,
-          "ciMinutes": 0
+          "ciMinutes": 0,
+          "accountUsdPerHour": 0
         },
         "reviewRounds": 0
       },
@@ -319,7 +392,8 @@
           "accountRequestsPerHour": 1,
           "accountTokensPerHour": 10,
           "ciJobs": 0,
-          "ciMinutes": 0
+          "ciMinutes": 0,
+          "accountUsdPerHour": 0
         },
         "reviewRounds": 0
       }
@@ -327,7 +401,21 @@
     "golden": {
       "criticalPath": ["A"],
       "criticalPathHours": 1,
-      "finishHoursWithTwoSlots": 2
+      "finishHoursWithTwoSlots": 2,
+      "schedule": [
+        {
+          "laneId": "A",
+          "start": "2026-10-06T12:00:00.000Z",
+          "end": "2026-10-06T13:00:00.000Z"
+        },
+        {
+          "laneId": "B",
+          "start": "2026-10-06T13:00:00.000Z",
+          "end": "2026-10-06T14:00:00.000Z"
+        }
+      ],
+      "p50": "2026-10-06T14:00:00.000Z",
+      "p90": "2026-10-06T14:00:00.000Z"
     },
     "distribution": "fixedDuration; no review or redesign rounds; not a calibrated Monte Carlo claim"
   }

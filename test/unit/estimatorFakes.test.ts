@@ -128,6 +128,21 @@ describe('M117 reusable fakes and evidence', () => {
         0,
       )
       expect(pathHours).toBe(dag.golden.criticalPathHours)
+      const finish = new Date(
+        Date.parse('2026-10-06T12:00:00.000Z') + dag.golden.finishHoursWithTwoSlots * 3_600_000,
+      ).toISOString()
+      expect(dag.golden.p50).toBe(finish)
+      expect(dag.golden.p90).toBe(finish)
+      for (const entry of dag.golden.schedule) {
+        const lane = lanes.find((candidate) => candidate.id === entry.laneId)!
+        expect(Date.parse(entry.end) - Date.parse(entry.start)).toBe(
+          lane.estimatedHours * 3_600_000,
+        )
+        for (const dependency of lane.dependencies) {
+          const prior = dag.golden.schedule.find((candidate) => candidate.laneId === dependency)!
+          expect(Date.parse(entry.start)).toBeGreaterThanOrEqual(Date.parse(prior.end))
+        }
+      }
     }
     expect(dags.find((dag) => dag.name === 'affinity-bound')!.golden.finishHoursWithTwoSlots).toBe(
       2,
@@ -144,6 +159,7 @@ describe('M117 reusable fakes and evidence', () => {
     ).toBe(true)
     expect(repository.lanes.filter((lane) => lane.duration !== null)).toHaveLength(11)
     for (const lane of repository.lanes) {
+      expect(lane.estimatedHours).toBeNull()
       expect(
         lane.dependencies.every((id) => repository.lanes.some((other) => other.laneId === id)),
       ).toBe(true)

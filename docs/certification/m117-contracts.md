@@ -22,7 +22,8 @@ was installed. Production has schemas and injected ports, with all fakes in
   and installation/pairing/wipe ports. There is no socket or HTTP server.
 - `test/unit/helpers/estimator/fixtures.ts`: valid section and history builders.
 - `test/fixtures/estimator/dags.json`: chain, fan-out, diamond and affinity
-  cases, with hand-checkable fixed-duration critical paths and finish hours.
+  cases, with hand-checkable fixed-duration critical paths, schedules, finish
+  hours and P50/P90 dates.
   Lane S adds seeded Monte Carlo schedule/date goldens; these inputs do not
   pretend that a calibrated simulation has already run.
 
@@ -37,7 +38,12 @@ The estimate is an `estimate` section payload, schema version 1, rather than
 an invented `report-v1` envelope. Identical `asOf` values are required across
 request, fleet and section. Quantities are finite and nonnegative; capacities
 and identities are validated. CI minutes may be absent when not reported.
-Account identifiers are opaque aliases. The history schema admits only lane
+Account identifiers are opaque aliases. Their optional `usageLimits` preserve
+all simultaneous hard windows (daily and weekly, for example), each with an
+opaque id, unit, remaining amount and reset time. Absence means not reported;
+S must never quietly treat an unreported quota as a reported unlimited one.
+Lane resources carry requests, tokens and USD per hour for matching limit
+units, plus CI jobs/minutes. All slots sharing an account share its limits. The history schema admits only lane
 identities, classes, UTC instants, hours, counts and provenance, with explicit
 `agentTime` versus `gitElapsed` duration basis. A critical-path bottleneck
 cannot promise gains from more agents. Calibration labels must match D97's
@@ -99,3 +105,64 @@ default timeout, no skips, no `--testTimeout`. Detailed guard-fire receipts
 are in `m117-0-contracts,-strings,-fakes-(lead).md`. Final lane checks and
 translation results are appended after the strings piece. Full quality and
 cross-rig integration remain the lead's gate, as the brief requires.
+
+## Strings and registration handoff
+
+76 estimator keys are translated in English and all 14 `l10n/ui.*.json`
+tables, with no new English exceptions. These cover both fleet questions,
+setup choices, input/calibration/honesty labels, the Gantt/accessibility text,
+critical-path and bottleneck copy, catalog/date caveats, provisioning budget
+and per-server consent, idle Keep/wipe, failures, CLI/slash help and settings.
+Consumers read `UI_TEXT.estimate…` inside functions; `fill` supplies all
+sentence values. Numeric labels are separate from their values, which U must
+format with the existing Intl helpers. No paid default or existing user flow
+changes in lane 0.
+
+`test/fixtures/estimator/manifest-strings.json` supplies **five exact manifest
+key → UI key mappings**, with English plus 14 real translations. W copies
+these values into `package.nls*.json` in the same commit as registering their
+`package.json` references. Those files cannot admit unused keys under the
+existing localization gate, and the manifest registrations belong to W, so
+lane 0 leaves the live manifest tables unchanged. The handoff test checks
+that every prepared value exactly matches its canonical UI translation.
+
+U/W register `/estimate`, ACP `/estimate`, CLI `estimate`, the TUI view and
+M113's report kind. W registers `museSpark.openEstimator`,
+`museSpark.estimator.optimize` (cost/speed, default cost), and
+`museSpark.estimator.priceLookup` (follows the Reports network policy), all
+with `featureCatalog` coverage and generated reference. The provisioning
+budget is required **per run**, with no default, rather than being registered
+as a standing spending grant. Existing paid consent is not bypassed.
+
+## Final lane verification (Mac mini)
+
+- Owned suites: `estimatorContracts.test.ts`, `estimatorFakes.test.ts`,
+  `estimatorLocalization.test.ts`: 69 tests, default timeout, no skips.
+  The existing `l10n.test.ts` also passes all 26 tests.
+- 36 red drills, including damaged translations seen to fail the existing
+  localization gate; all restores verified by SHA-256.
+- Typechecks: all five projects; scoped ESLint with zero warnings; scoped
+  Prettier; `git diff --check`.
+- `npm run deadcode`: pass (existing configuration hints only).
+- `npx jscpd`: zero clones over 1,187 files.
+- `node scripts/check-l10n.mjs`: 14 tables, 166 live manifest strings,
+  607 source files, zero problems.
+- `npm run check:reference`: current (53 features, 44 commands, 59 settings,
+  26 slash commands, 116 CLI entries; no unfinished feature registered).
+- `npm run check:host-api`: zero problems (332 APIs, 31 VS Code import files,
+  25 Node built-ins, 61 theme variables).
+- `npm run build`: passes unchanged caps, split rules, host-global check and
+  third-party notices. Extension activation 439.5/600 KiB; Model API
+  446.9/475 KiB; ACP 821.4/850 KiB; shared English 54.7/125 KiB; webview
+  startup 796.6/900 KiB; deferred webview code 50.0/50 KiB. The estimator
+  contracts have no runtime entry yet; W adds the lazy estimator/panel chunks
+  and measures their own budgets. No cap, rule, ignore or threshold changed.
+- Hooks are enabled from this worktree's `.husky/_/pre-commit`; lint-staged
+  and gitleaks pass. No push, merge or rebase. Scratch files are removed.
+
+The actual M103/M104 estimates remain missing from the supplied evidence;
+this is a named calibration input gap, not fabricated measurements. The
+absent M113/M104 registries, manifest/Help wiring and remaining G/C/S/R/P/U/W
+implementation/acceptance work remain with their named owners above. The
+brief delegates aggregate `quality`, cross-rig/editor and live integration
+certification to the lead; this lane does not claim those are complete.

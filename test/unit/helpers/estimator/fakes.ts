@@ -72,7 +72,10 @@ export function fakeFleet(): FleetSnapshot {
         providerId: 'test-provider',
         requestsPerMinute: 10,
         tokensPerMinute: 10_000,
-        usage: { unit: 'requests', remaining: 1000, resetsAt: '2026-10-07T00:00:00.000Z' },
+        usageLimits: [
+          { id: 'daily', unit: 'requests', remaining: 1000, resetsAt: '2026-10-07T00:00:00.000Z' },
+          { id: 'weekly', unit: 'requests', remaining: 5000, resetsAt: '2026-10-12T00:00:00.000Z' },
+        ],
       },
     ],
     slots: [
