@@ -94,7 +94,13 @@ export interface VaultBlockContext {
 }
 
 function contextBytes(context: VaultBlockContext): Buffer {
-  return encodeVaultJson({ v: VAULT_FORMAT_VERSION, ...context })
+  return encodeVaultJson({
+    v: VAULT_FORMAT_VERSION,
+    vaultId: context.vaultId,
+    id: context.id,
+    kind: context.kind,
+    generation: context.generation,
+  })
 }
 
 /** Low-level primitives also allow published known-answer vectors. Store callers use sealVaultBlock. */
@@ -256,7 +262,7 @@ export function decodeVaultMaterial(bytes: Buffer): VaultItem['material'] {
       fields.push(ownedBytes(bytes.subarray(offset, offset + length)))
       offset += length
     }
-    const result: Record<string, unknown> = {}
+    const entries: [string, unknown][] = []
     const used = new Set<number>()
     for (const [name, value] of Object.entries(descriptor)) {
       if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
@@ -267,10 +273,10 @@ export function decodeVaultMaterial(bytes: Buffer): VaultItem['material'] {
         const field = fields[reference.data.bytes]
         if (!field) throw new VaultError('invalid')
         used.add(reference.data.bytes)
-        result[name] = field
-      } else result[name] = value
+        entries.push([name, field])
+      } else entries.push([name, value])
     }
-    const material = vaultMaterialSchema.safeParse(result)
+    const material = vaultMaterialSchema.safeParse(Object.fromEntries(entries))
     if (!material.success || used.size !== fields.length) throw new VaultError('invalid')
     return material.data
   } catch {

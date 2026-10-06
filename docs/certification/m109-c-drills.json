@@ -205,5 +205,406 @@
       "test/unit/vault/keyslots.test.ts > vault software slots > creates and unlocks the scrypt fallback without weakening its recorded parameters"
     ],
     "restoredSha256": "5b01d56aa5d7dd8222b4cb5d28b2b302fed09900d45cf5ed264e922e330e7a59"
+  },
+  {
+    "guard": "Canonical context serialization",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > binds every context field and rejects tampering before material is returned"
+    ],
+    "restoredSha256": "dc12cb4a2014826e5b768fb44165fc87080449d117b7297a08df8036c7f3794d"
+  },
+  {
+    "guard": "Strict material field names",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > roundtrips every private material kind with owned bytes and no prototype-shaped field"
+    ],
+    "restoredSha256": "dc12cb4a2014826e5b768fb44165fc87080449d117b7297a08df8036c7f3794d"
+  },
+  {
+    "guard": "Authenticated slot MAC",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > checks key, identity, authenticated slots, exact inventory and unique names before use"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Vault key erasure on lock",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > zeroes the held key at lock and erases material when writer cleanup rejects a read"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Locked store admission",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > creates, reads, updates, removes, reopens and refuses access after lock",
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > requires at least one valid slot and allows adding/removing slots only while unlocked",
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > advances the independent anchor before publication and fails closed after interrupted writes",
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > owns writes before awaiting and refuses an in-flight read when lock happens"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Failed-read material erasure",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > zeroes the held key at lock and erases material when writer cleanup rejects a read"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Exact encrypted inventory",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > checks key, identity, authenticated slots, exact inventory and unique names before use"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Indexed block generation",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > binds public block generations before listing, even with an authenticated index"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Item material kind binding",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > refuses authenticated material whose kind differs from the encrypted index"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Item count ceiling",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > enforces the configured item ceiling and refuses basic_text slot records"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Unique item names at write and open",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > checks key, identity, authenticated slots, exact inventory and unique names before use"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "At least one unlocking slot",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > requires at least one valid slot and allows adding/removing slots only while unlocked"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Unique slot identifiers on publication",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > requires at least one valid slot and allows adding/removing slots only while unlocked"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Slot vault identity on publication",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > requires at least one valid slot and allows adding/removing slots only while unlocked"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Matching authenticated file generations",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/backup.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/backup.test.ts > encrypted vault backup > refuses unmatched authenticated generations and backs up only fully authenticated items"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Independent monotonic high-water mark",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > refuses rollback of the vault alone, both files, and audit head; never returns material"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Audit anchor head",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > refuses rollback of the vault alone, both files, and audit head; never returns material"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Monotonic audit generation",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > refuses rollback of the vault alone, both files, and audit head; never returns material"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Prepared record before anchor advancement",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > refuses a pending generation jump or audit-anchor mismatch and recovers initial preparation without an anchor",
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > authenticates every pending item before recovery publishes or consumes the record",
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > advances the independent anchor before publication and fails closed after interrupted writes",
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > recovers a prepared commit before anchor advancement and a partial creation; refuses corrupt or stale pending records",
+      "test/unit/vault/vaultStore.test.ts > native files and platform ports > writes owner-only files with synced atomic replacement and no plaintext in any file"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Pending generation adjacency and rollback refusal",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > refuses a pending generation jump or audit-anchor mismatch and recovers initial preparation without an anchor"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Pending audit state at the committed generation",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > refuses a pending generation jump or audit-anchor mismatch and recovers initial preparation without an anchor"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Authenticate pending items before recovery publication",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > authenticates every pending item before recovery publishes or consumes the record"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Authenticate every restored item before publication",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/backup.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/backup.test.ts > encrypted vault backup > authenticates every item and destination identity before restore changes any file or anchor"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Backup rollback refusal with independent anchor",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/backup.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/backup.test.ts > encrypted vault backup > refuses an older backup on the original device, restores current backups, and detects payload/slot mutations"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Authenticate every item before backup export",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/backup.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/backup.test.ts > encrypted vault backup > refuses unmatched authenticated generations and backs up only fully authenticated items"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Publication size before anchor advancement",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > encrypted vault store > rejects oversized publication before advancing the independent anchor"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "POSIX owner-only permissions",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > native files and platform ports > refuses oversized and symbolic-link files and unsafe POSIX permissions"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "POSIX owner identity",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > native files and platform ports > refuses a foreign POSIX owner reported by the filesystem before running a writer"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Symbolic-link and held-file identity admission",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > native files and platform ports > refuses oversized and symbolic-link files and unsafe POSIX permissions"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Bounded file reads",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > native files and platform ports > refuses oversized and symbolic-link files and unsafe POSIX permissions"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Mandatory Windows DACL port",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > native files and platform ports > refuses oversized and symbolic-link files and unsafe POSIX permissions"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Windows DACL verification",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > native files and platform ports > exercises Windows DACL and replacement ports on the rig and refuses a failed security probe"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Exclusive single-writer creation",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > native files and platform ports > allows exactly one writer and releases its lock on success and thrown operations"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Portable backup slot",
+    "source": "src/core/vault/backup.ts",
+    "suite": "test/unit/vault/backup.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/backup.test.ts > encrypted vault backup > refuses nonportable slots, foreign vaults, invalid envelopes and size abuse"
+    ],
+    "restoredSha256": "3600bb032c7b444e50d422b75d6996749189b45229411e0ae51e6bd4fbfecb97"
+  },
+  {
+    "guard": "Backup size admission",
+    "source": "src/core/vault/backup.ts",
+    "suite": "test/unit/vault/backup.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/backup.test.ts > encrypted vault backup > refuses nonportable slots, foreign vaults, invalid envelopes and size abuse"
+    ],
+    "restoredSha256": "3600bb032c7b444e50d422b75d6996749189b45229411e0ae51e6bd4fbfecb97"
+  },
+  {
+    "guard": "Backup caller key ownership",
+    "source": "src/core/vault/backup.ts",
+    "suite": "test/unit/vault/backup.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/backup.test.ts > encrypted vault backup > authenticates chunk order, count and total length for backups larger than one frame",
+      "test/unit/vault/backup.test.ts > encrypted vault backup > restores on a new device through a recovery slot, retaining only ciphertext and increasing generation",
+      "test/unit/vault/backup.test.ts > encrypted vault backup > refuses an older backup on the original device, restores current backups, and detects payload/slot mutations"
+    ],
+    "restoredSha256": "3600bb032c7b444e50d422b75d6996749189b45229411e0ae51e6bd4fbfecb97"
+  },
+  {
+    "guard": "Backup encryption key identity",
+    "source": "src/core/vault/backup.ts",
+    "suite": "test/unit/vault/backup.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/backup.test.ts > encrypted vault backup > refuses an older backup on the original device, restores current backups, and detects payload/slot mutations"
+    ],
+    "restoredSha256": "3600bb032c7b444e50d422b75d6996749189b45229411e0ae51e6bd4fbfecb97"
+  },
+  {
+    "guard": "Atomic rename publication",
+    "source": "src/core/vault/store.ts",
+    "suite": "test/unit/vault/vaultStore.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/vaultStore.test.ts > native files and platform ports > keeps the complete old file visible until its fully written replacement is renamed",
+      "test/unit/vault/vaultStore.test.ts > native files and platform ports > writes owner-only files with synced atomic replacement and no plaintext in any file",
+      "test/unit/vault/vaultStore.test.ts > native files and platform ports > exercises Windows DACL and replacement ports on the rig and refuses a failed security probe"
+    ],
+    "restoredSha256": "d5a744bb51b3602035375c51b95cb9c9d9ffb9e90aee9d1796db3b1cfe004d59"
+  },
+  {
+    "guard": "Fresh 96-bit encryption nonce",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > generates fresh 96-bit nonces on repeated encryption and separates generations"
+    ],
+    "restoredSha256": "dc12cb4a2014826e5b768fb44165fc87080449d117b7297a08df8036c7f3794d"
   }
 ]

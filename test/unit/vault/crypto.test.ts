@@ -15,8 +15,42 @@ import {
   vaultHmacSha256,
 } from '../../../src/core/vault/crypto'
 import { item } from '../helpers/vault/fixtures'
+import { type VaultItem } from '../../../src/shared/vault'
 
 describe('vault crypto', () => {
+  it('roundtrips every private material kind with owned bytes and no prototype-shaped field', () => {
+    const materials: VaultItem['material'][] = [
+      { kind: 'apiKey', value: randomVaultBytes(), auth: 'bearer', origin: 'https://example.com' },
+      {
+        kind: 'oauth',
+        accessToken: randomVaultBytes(),
+        refreshToken: randomVaultBytes(),
+        issuer: 'https://example.com/issuer',
+        resource: 'https://example.com/api',
+        expiresAt: 1,
+      },
+      { kind: 'sshKey', storage: 'software', privateKey: randomVaultBytes(), algorithm: 'ed25519' },
+      {
+        kind: 'sshKey',
+        storage: 'hardware',
+        keyReference: 'test-reference',
+        algorithm: 'ecdsa-p256',
+      },
+      { kind: 'password', username: null, password: randomVaultBytes() },
+      { kind: 'totp', seed: randomVaultBytes(), algorithm: 'sha256', digits: 6, periodSeconds: 30 },
+      { kind: 'session', cookies: randomVaultBytes(), origin: 'https://example.com', expiresAt: 1 },
+      { kind: 'devicePair', value: randomVaultBytes() },
+      { kind: 'internal', value: randomVaultBytes() },
+    ]
+    for (const material of materials)
+      expect(decodeVaultMaterial(encodeVaultMaterial(material))).toEqual(material)
+    const header = Buffer.from('{"kind":"secret","value":{"bytes":0},"__proto__":null}')
+    const encoded = Buffer.alloc(4 + header.length + 4 + 1)
+    encoded.writeUInt32BE(header.length)
+    encoded.set(header, 4)
+    encoded.writeUInt32BE(1, 4 + header.length)
+    expect(() => decodeVaultMaterial(encoded)).toThrow()
+  })
   it('matches NIST GCM AES-256 zero-key / 128-bit plaintext vector in both directions', () => {
     const key = Buffer.alloc(32)
     const nonce = Buffer.alloc(12)
@@ -61,6 +95,18 @@ describe('vault crypto', () => {
     const plaintext = randomVaultBytes()
     const block = sealVaultBlock(key, context, plaintext)
     expect(openVaultBlock(key, context, block)).toEqual(plaintext)
+    expect(
+      openVaultBlock(
+        key,
+        {
+          kind: context.kind,
+          generation: context.generation,
+          id: context.id,
+          vaultId: context.vaultId,
+        },
+        block,
+      ),
+    ).toEqual(plaintext)
     expect(() => openVaultBlock(key, context, { ...block, generation: 2 })).toThrow()
     for (const changed of [
       { vaultId: 'c'.repeat(32) },
