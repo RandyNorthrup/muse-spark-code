@@ -135,6 +135,9 @@ const BUDGETS = [
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.
   { path: 'dist/pageWorker.js', budgetKiB: 300 },
   { path: 'dist/webview/main.js', budgetKiB: 900 },
+  // M104D: independent native/companion panel, every eager and lazy JS output
+  // included: 974,922 bytes + 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/webview/portable/main.js', budgetKiB: 1100 },
   // What's New's page script (M99): it only passes clicks back to the host.
   // 0.7 KiB when made, plus 15%, rounded up to 25 KiB.
   { path: 'dist/webview/whatsNew.js', budgetKiB: 25 },
@@ -153,10 +156,20 @@ for (const { path, budgetKiB } of BUDGETS) {
     console.log(`MISS ${path}: not built (budget ${budgetKiB} KiB)`)
     continue
   }
-  const files =
+  let files =
     path === 'dist/webview/main.js'
       ? webviewStartupOutputs(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')))
       : [path]
+  if (path === 'dist/webview/portable/main.js')
+    files = Object.keys(JSON.parse(readFileSync('dist/meta/portable.json', 'utf8')).outputs).filter(
+      (file) => file.endsWith('.js'),
+    )
+  const missing = files.filter((file) => !existsSync(file))
+  if (missing.length > 0) {
+    hasFailure = true
+    console.log(`MISS ${path}: missing chunks ${missing.join(', ')}`)
+    continue
+  }
   const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   const status = sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'
   if (sizeKiB > budgetKiB) {

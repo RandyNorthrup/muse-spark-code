@@ -2425,5 +2425,18 @@
   "judgeStatusDeclined": "Kikapcsolva: a fizetős használat elutasítva",
   "judgeStatusSlow": "Alapértelmezetten kikapcsolva: túl kevés eredmény kész az ellenőr döntésekor",
   "judgeStatusSubscription": "Előfizetés",
-  "judgeStatusPaid": "Fizetős"
+  "judgeStatusPaid": "Fizetős",
+  "agentImportDetail": "MCP-kiszolgálók, hookok, ügynökök, parancsok és szabályok másolása a Claude Code, a Codex vagy a Cursor közül",
+  "agentImportSourceAll": "Mindhárom",
+  "fallbackContinue": "Folytatás",
+  "fallbackNoMatches": "Nincs egyező elem",
+  "fallbackNotifications": "Értesítések",
+  "fallbackStatus": "Állapot",
+  "fallbackSettings": "Beállítások",
+  "fallbackTerminal": "Terminálkimenet",
+  "fallbackBefore": "Előtte",
+  "fallbackAfter": "Utána",
+  "fallbackEmpty": "Nincsenek bejegyzések",
+  "fallbackWorktrees": "Munkafák",
+  "fallbackActionFailed": "A művelet nem sikerült. Próbálja újra."
 }

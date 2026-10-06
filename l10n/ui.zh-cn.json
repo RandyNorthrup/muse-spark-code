@@ -2331,5 +2331,18 @@
   "judgeStatusDeclined": "关闭：已拒绝付费使用",
   "judgeStatusSlow": "默认关闭：审核员作出决定时就绪的结果太少",
   "judgeStatusSubscription": "订阅",
-  "judgeStatusPaid": "付费"
+  "judgeStatusPaid": "付费",
+  "agentImportDetail": "从 Claude Code、Codex 或 Cursor 复制 MCP 服务器、钩子、智能体、命令和规则",
+  "agentImportSourceAll": "全部三个",
+  "fallbackContinue": "继续",
+  "fallbackNoMatches": "没有匹配项",
+  "fallbackNotifications": "通知",
+  "fallbackStatus": "状态",
+  "fallbackSettings": "设置",
+  "fallbackTerminal": "终端输出",
+  "fallbackBefore": "之前",
+  "fallbackAfter": "之后",
+  "fallbackEmpty": "没有条目",
+  "fallbackWorktrees": "工作树",
+  "fallbackActionFailed": "操作失败。请重试。"
 }

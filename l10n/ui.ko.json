@@ -2331,5 +2331,18 @@
   "judgeStatusDeclined": "꺼짐: 유료 사용 거부됨",
   "judgeStatusSlow": "기본으로 꺼짐: 검토자 판정 시 준비된 결과가 너무 적음",
   "judgeStatusSubscription": "구독",
-  "judgeStatusPaid": "유료"
+  "judgeStatusPaid": "유료",
+  "agentImportDetail": "Claude Code, Codex 또는 Cursor에서 MCP 서버, 후크, 에이전트, 명령 및 규칙 복사",
+  "agentImportSourceAll": "세 가지 모두",
+  "fallbackContinue": "계속",
+  "fallbackNoMatches": "일치하는 항목 없음",
+  "fallbackNotifications": "알림",
+  "fallbackStatus": "상태",
+  "fallbackSettings": "설정",
+  "fallbackTerminal": "터미널 출력",
+  "fallbackBefore": "변경 전",
+  "fallbackAfter": "변경 후",
+  "fallbackEmpty": "항목 없음",
+  "fallbackWorktrees": "작업 트리",
+  "fallbackActionFailed": "작업에 실패했습니다. 다시 시도하세요."
 }

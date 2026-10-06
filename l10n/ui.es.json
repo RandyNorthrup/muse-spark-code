@@ -2519,5 +2519,18 @@
   "judgeStatusDeclined": "Desactivado: uso de pago rechazado",
   "judgeStatusSlow": "Desactivado por defecto: pocos resultados listos al decidir el revisor",
   "judgeStatusSubscription": "Suscripción",
-  "judgeStatusPaid": "De pago"
+  "judgeStatusPaid": "De pago",
+  "agentImportDetail": "Copiar servidores MCP, hooks, agentes, comandos y reglas desde Claude Code, Codex o Cursor",
+  "agentImportSourceAll": "Los tres",
+  "fallbackContinue": "Continuar",
+  "fallbackNoMatches": "No hay elementos coincidentes",
+  "fallbackNotifications": "Notificaciones",
+  "fallbackStatus": "Estado",
+  "fallbackSettings": "Configuración",
+  "fallbackTerminal": "Salida del terminal",
+  "fallbackBefore": "Antes",
+  "fallbackAfter": "Después",
+  "fallbackEmpty": "No hay entradas",
+  "fallbackWorktrees": "Árboles de trabajo",
+  "fallbackActionFailed": "La acción falló. Inténtalo de nuevo."
 }

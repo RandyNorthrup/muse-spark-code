@@ -34,6 +34,12 @@ happened, not what was planned; superseded entries are kept.
 - Internal runtime settings/storage records share the existing setting schemas,
   preserve workspace precedence and serialize atomic writes with bounded reads
   and credential refusal. Panel command integration remains pending.
+- M104's shared browser UI foundation: VS Code, native `window.museHost`
+  and companion fetch/SSE bridges for chat, Tasks and What's New; portable
+  `--ms-*` theme tokens; a lazy React host-service adapter and settings,
+  walkthrough, diff, terminal and five manager page components. This lane
+  is not qualified for integration: the fallback carrier route and companion
+  authenticated module loading remain open.
 
 - MHP 1.1.0 panel carrier contract: validated shared payloads, ordered
   session-bound surface envelopes and lifecycle, the `window.museHost`
@@ -46,6 +52,11 @@ happened, not what was planned; superseded entries are kept.
 - Source-layout ACP process tests use a fake credential-store binding and
   refuse to start children if its marker is absent, avoiding native credential
   reads during fake-only regression runs.
+- **Separate portable UI build (M104 lane D).** Native/companion bridges and
+  React host-service fallbacks now have an independent webview entry and a
+  measured 1,100 KiB aggregate JavaScript budget. VS Code's chat ships none
+  of them, stays below its pre-lane startup size, and passes the unchanged
+  deferred-chunk cap.
 
 - **Companion transport authentication (M104 lane C, awaiting integration).**
   Per-window memory bearers replace host-wide cookies, preventing credential

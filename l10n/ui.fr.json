@@ -2519,5 +2519,18 @@
   "judgeStatusDeclined": "Désactivé : utilisation payante refusée",
   "judgeStatusSlow": "Désactivé par défaut : trop peu de résultats prêts au verdict du réviseur",
   "judgeStatusSubscription": "Abonnement",
-  "judgeStatusPaid": "Payant"
+  "judgeStatusPaid": "Payant",
+  "agentImportDetail": "Copier les serveurs MCP, hooks, agents, commandes et règles depuis Claude Code, Codex ou Cursor",
+  "agentImportSourceAll": "Les trois",
+  "fallbackContinue": "Continuer",
+  "fallbackNoMatches": "Aucun élément correspondant",
+  "fallbackNotifications": "Notifications reçues",
+  "fallbackStatus": "État",
+  "fallbackSettings": "Paramètres",
+  "fallbackTerminal": "Sortie du terminal",
+  "fallbackBefore": "Avant",
+  "fallbackAfter": "Après",
+  "fallbackEmpty": "Aucune entrée",
+  "fallbackWorktrees": "Arbres de travail",
+  "fallbackActionFailed": "L’action a échoué. Réessayez."
 }

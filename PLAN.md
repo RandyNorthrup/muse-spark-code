@@ -297,6 +297,16 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/webview/whatsNew.js`            | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
 | `dist/tab.js`                         | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                                                                                                                                                                                                         |
 
+**M104D continuation (2026-10-05):** `dist/webview/portable/main.js`,
+`whatsNew.js`, `bridge.js`, `fallbacks.js` and every JavaScript chunk in that independent
+graph share one new **1100 KiB** cap. Measured 974,922 bytes; the existing
+D6 rule gives `25 × ceil(1.15 × (974922 / 1024) / 25) = 1100 KiB`.
+VS Code's existing startup and deferred budgets are unchanged. Its eager
+chat is 898,666 bytes, below the 898,682-byte pre-lane baseline, and its
+deferred graph is 40,898 bytes, below 51,200. The portable artifacts are
+outside the VSIX's explicit allowlist; native/companion packaging belongs
+to their carriers.
+
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
 the existing rule). Browser/integration parsers stay inline. All Node
@@ -6881,6 +6891,17 @@ have equivalent functionality even if we need to develop it ourselves".
   `docs/certification/m104-b2.md` qualify, M104 and M110a0 stay incomplete.
   Default: keep ACP behavior, refuse unavailable ports and binding changes,
   expose neither secrets nor an unqualified equivalent-editor claim.
+- **M104D integration prerequisites (2026-10-05).** The frozen native
+  `MuseEmbeddedHost` API carries only shared chat/Tasks/What's New payloads;
+  the carrier must provide the route for MHP `ui/*` requests/results to the
+  lazy browser adapter. Lane C's memory-only bearer closure authenticates
+  fetch, but script/module chunk requests cannot attach it; the companion
+  needs an authenticated lazy-module loader compatible with its nonce CSP.
+  Lane D's separate portable build resolves the previous bundle rejection
+  without raising the VS Code caps. The shared-rule feature
+  catalog, reference generator/check and `plan/m105-m107` ref are absent
+  from this rig's base. The lead must supply the current integration
+  contracts/plan and resolve these acceptance prerequisites.
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
@@ -18346,7 +18367,7 @@ are no longer blocked by it.
      by shape and `DictationSetup` in the core, so the conversation
      controller, both backend managers and the other modules the M60 gate
      lists are portable. **Built.**
-  3. Theme tokens: the stylesheet reads `--muse-*` tokens mapped once from
+  3. Theme tokens: the stylesheet reads `--ms-*` tokens mapped once from
      VS Code's variables (M60's record lists the 57), so another host maps
      its own; the harness screenshots identical before and after. After
      M56.
@@ -19129,6 +19150,30 @@ two windows have independent streams, two runtimes cannot overwrite credentials,
 and rejected launches show localized accessible reopen guidance. Evidence and
 byte-exact red drills belong in `docs/certification/m104-c.md`.
 
+Lane D continuation decision (2026-10-05): VS Code builds only its native
+bridge and chat/Tasks/What's New entries. Its eager chat JavaScript must not
+grow from the 898,682-byte pre-lane baseline, and its existing deferred group
+must stay under 51,200 bytes. Build the portable panel separately under
+`dist/webview/portable/`, with native/companion bridges and all React
+fallbacks. Budget the entire new JavaScript artifact, including eager and lazy
+chunks, from its measured size plus 15%, rounded up to 25 KiB; no existing cap
+changes. Preserve the three-bridge behavior suites, 2,520 fallback scans,
+chat accessibility gate and zero-pixel comparison. Lane B (`m104/b2`) owns
+native fallback RPC routing and authenticated companion module delivery;
+lane D supplies the exact entries and contract in its certification handoff.
+
+Lane D implementation (2026-10-05, not qualified for integration): the CSS prefix is `--ms-*`, per the
+lead's ruling and the existing stylelint gate; the lane table's `--muse-*`
+wording is corrected below. MHP's frozen theme vocabulary is translated at
+the UI boundary. Chat, Tasks and What's New select VS Code, native
+`window.museHost`, or companion fetch/SSE bridges. Host fallbacks and manager
+pages are exported through a lazy browser module, with the same React components and localized
+labels in every host. Native fallback RPC routing and authenticated companion module loading
+remain integration prerequisites in §3; these components do not qualify a new editor.
+Transport and keyboard/component tests, deliberate
+failures, four-theme accessibility, narrow panels and measured startup bytes
+are recorded in `docs/certification/m104-d.md`. No live model calls.
+
 **M104 is split** because it is large: a foundation and seven parallel
 parts. All of them build against the MHP v1 contract frozen at the end of
 lane A's first step.
@@ -19165,19 +19210,19 @@ lane A's first step.
   Lane 0 lands the contract skeleton (one day). Then lanes A–J run in
   parallel, and the lead integrates.
 
-| Lane     | Items                                                                                                                                                                                                                                                                            | Files it owns                                                                                                                                                     | Its regions in shared files                                                      | Starts                      |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------- |
-| 0 (lead) | MHP v1 skeleton: method table, zod schemas, capability names, error codes, version range; feature registry skeleton (F1–F56)                                                                                                                                                     | `src/shared/hostApi/**`, `src/shared/hostApi/features.ts`                                                                                                         | `src/shared/constants.ts` (MHP block)                                            | day 0                       |
-| A        | VS Code adapter: `HostServices` implemented with `vscode`; `extension.ts` composes from it; the 24 `vscode` files moved to `src/host/vscode/**`; behaviour unchanged                                                                                                             | `src/host/vscode/**`, `src/host/compose/**`, `src/extension.ts`                                                                                                   | `scripts/check-host-api.mjs` (new allowed roots)                                 | after 0                     |
-| B        | Runtime panel: `panel --stdio` and `--companion`; controller registry; ACP sessions on the controller (re-basing `src/acp/agent.ts` on the registry); settings and storage stores                                                                                                | `src/runtime/panel/**`, `src/runtime/settingsStore.ts`, `src/acp/**`                                                                                              | `src/runtime/main.ts`, `src/runtime/cliArgs.ts` (the `panel` and `lsp` commands) | after 0                     |
-| C        | Companion server: launch code, memory bearer, Host/Origin/Fetch-Metadata guard, SSE, CSP, static assets, idle exit; shared token-file module                                                                                                                                     | `src/runtime/companion/**`, `src/runtime/tokenFile.ts` (moved from `judge/`, coordinated with the M98 owner)                                                      | —                                                                                | after 0                     |
-| D        | UI: the three bridges; `main.tsx`, Tasks and What's New on the bridge; `--muse-*` tokens (M61.3); React fallbacks (Confirm, Picker, Input, Toasts, StatusStrip, SettingsPage, Walkthrough, DiffPage, TerminalOutput); manager pages for skills, MCP, hooks, memory and worktrees | `src/webview/bridges/**`, `src/webview/fallbacks/**`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts`, `src/webview/tokens.css`, `src/host/ui/pageHtml.ts` | `src/webview/styles.css` (variables only), `l10n/*` (new keys, all 15 tables)    | after 0                     |
-| E        | JetBrains plugin (M104b)                                                                                                                                                                                                                                                         | `hosts/jetbrains/**`                                                                                                                                              | —                                                                                | after the contract freeze   |
-| F        | Visual Studio extension (M104c)                                                                                                                                                                                                                                                  | `hosts/visualstudio/**`                                                                                                                                           | —                                                                                | after the contract freeze   |
-| G        | Eclipse plugin (M104d)                                                                                                                                                                                                                                                           | `hosts/eclipse/**`                                                                                                                                                | —                                                                                | after the contract freeze   |
-| H        | Shims and editor routes (M104e): Zed extension, Xcode app and XcodeKit, Qt Creator Lua, `muse.nvim`, `muse-spark.el`, Sublime package; the LSP broker and the `lsp` server; the Zed completions endpoint                                                                         | `hosts/{zed,xcode,qtcreator,neovim,emacs,sublime}/**`, `src/runtime/lsp/**`, `src/runtime/tabServe.ts`                                                            | —                                                                                | after lane C's first commit |
-| I        | Distribution and CI (M104f): `hosts-native.yml` (path-filtered on PRs, weekly full), release jobs per channel, packaging scripts, the Node runtime pin manifest, the conformance runner                                                                                          | `.github/workflows/hosts-native.yml`, `scripts/package-hosts/**`, `src/runtime/nodeRuntime.json`, `test/hostApi/**`                                               | `.github/workflows/release.yml` (new jobs after `npm`), `package.json` scripts   | after 0                     |
-| J        | Docs (M104h): README "Every editor", `docs/ide-compatibility/{hosts,matrix,host-api-v1}.md`, `docs/acp.md`, CONTRIBUTING, AGENTS.md rule 14, CHANGELOG, PLAN, certification                                                                                                      | `docs/ide-compatibility/**`, `docs/certification/m104*.md`                                                                                                        | README, AGENTS.md, CHANGELOG, PLAN (M104 and D84 only)                           | throughout                  |
+| Lane     | Items                                                                                                                                                                                                                                                                          | Files it owns                                                                                                                                                     | Its regions in shared files                                                      | Starts                      |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------- |
+| 0 (lead) | MHP v1 skeleton: method table, zod schemas, capability names, error codes, version range; feature registry skeleton (F1–F56)                                                                                                                                                   | `src/shared/hostApi/**`, `src/shared/hostApi/features.ts`                                                                                                         | `src/shared/constants.ts` (MHP block)                                            | day 0                       |
+| A        | VS Code adapter: `HostServices` implemented with `vscode`; `extension.ts` composes from it; the 24 `vscode` files moved to `src/host/vscode/**`; behaviour unchanged                                                                                                           | `src/host/vscode/**`, `src/host/compose/**`, `src/extension.ts`                                                                                                   | `scripts/check-host-api.mjs` (new allowed roots)                                 | after 0                     |
+| B        | Runtime panel: `panel --stdio` and `--companion`; controller registry; ACP sessions on the controller (re-basing `src/acp/agent.ts` on the registry); settings and storage stores                                                                                              | `src/runtime/panel/**`, `src/runtime/settingsStore.ts`, `src/acp/**`                                                                                              | `src/runtime/main.ts`, `src/runtime/cliArgs.ts` (the `panel` and `lsp` commands) | after 0                     |
+| C        | Companion server: launch code, memory bearer, Host/Origin/Fetch-Metadata guard, SSE, CSP, static assets, idle exit; shared token-file module                                                                                                                                   | `src/runtime/companion/**`, `src/runtime/tokenFile.ts` (moved from `judge/`, coordinated with the M98 owner)                                                      | —                                                                                | after 0                     |
+| D        | UI: the three bridges; `main.tsx`, Tasks and What's New on the bridge; `--ms-*` tokens (M61.3); React fallbacks (Confirm, Picker, Input, Toasts, StatusStrip, SettingsPage, Walkthrough, DiffPage, TerminalOutput); manager pages for skills, MCP, hooks, memory and worktrees | `src/webview/bridges/**`, `src/webview/fallbacks/**`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts`, `src/webview/tokens.css`, `src/host/ui/pageHtml.ts` | `src/webview/styles.css` (variables only), `l10n/*` (new keys, all 15 tables)    | after 0                     |
+| E        | JetBrains plugin (M104b)                                                                                                                                                                                                                                                       | `hosts/jetbrains/**`                                                                                                                                              | —                                                                                | after the contract freeze   |
+| F        | Visual Studio extension (M104c)                                                                                                                                                                                                                                                | `hosts/visualstudio/**`                                                                                                                                           | —                                                                                | after the contract freeze   |
+| G        | Eclipse plugin (M104d)                                                                                                                                                                                                                                                         | `hosts/eclipse/**`                                                                                                                                                | —                                                                                | after the contract freeze   |
+| H        | Shims and editor routes (M104e): Zed extension, Xcode app and XcodeKit, Qt Creator Lua, `muse.nvim`, `muse-spark.el`, Sublime package; the LSP broker and the `lsp` server; the Zed completions endpoint                                                                       | `hosts/{zed,xcode,qtcreator,neovim,emacs,sublime}/**`, `src/runtime/lsp/**`, `src/runtime/tabServe.ts`                                                            | —                                                                                | after lane C's first commit |
+| I        | Distribution and CI (M104f): `hosts-native.yml` (path-filtered on PRs, weekly full), release jobs per channel, packaging scripts, the Node runtime pin manifest, the conformance runner                                                                                        | `.github/workflows/hosts-native.yml`, `scripts/package-hosts/**`, `src/runtime/nodeRuntime.json`, `test/hostApi/**`                                               | `.github/workflows/release.yml` (new jobs after `npm`), `package.json` scripts   | after 0                     |
+| J        | Docs (M104h): README "Every editor", `docs/ide-compatibility/{hosts,matrix,host-api-v1}.md`, `docs/acp.md`, CONTRIBUTING, AGENTS.md rule 14, CHANGELOG, PLAN, certification                                                                                                    | `docs/ide-compatibility/**`, `docs/certification/m104*.md`                                                                                                        | README, AGENTS.md, CHANGELOG, PLAN (M104 and D84 only)                           | throughout                  |
 
 - **Acceptance (all with fakes, no model calls).** Fakes: the fake Muse Code
   CLI and the fake Model API server.
@@ -19506,6 +19551,20 @@ files pass, with byte-exact guard drills in `docs/certification/m104-b.md`.
 Panel process tests cannot certify commands that are not implemented; they,
 full controller composition, editor parity and M110a0 remain required.
 No threshold, cap, assertion, timeout or rule is weakened.
+**M104D (2026-10-05, Windows 11 rig).** The rig brief reserves aggregate
+`npm run quality` and full-suite coverage for the lead. This lane runs
+the five typechecks, changed-file lint/format/style checks, dead code,
+duplication, localization, host API, owning suites, all 564 chat accessibility
+pages and 2,520 fallback scans. The continuation's production build passes:
+898,666 eager chat bytes (16 below the 898,682-byte baseline), 40,898 deferred
+VS Code bytes against the unchanged 50 KiB cap, and 974,922 total portable
+JavaScript bytes against its new measured-plus-15%-rounded 1100 KiB cap.
+No existing cap, gate, threshold, skip or timeout is relaxed. The private
+lane commits are review material, not a merge proposal or a support claim.
+Native fallback routing, companion authenticated module loading, the absent
+M110a0 plan ref and feature-reference tooling also remain open in §3.
+Exact receipts, byte-exact deliberate failures and touched regions are in
+`docs/certification/m104-d.md`.
 
 **FIXM104C (2026-10-05).** The lane brief/common resource rule reserves full
 `npm run quality` and aggregate coverage/editor certification for the lead.

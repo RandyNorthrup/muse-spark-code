@@ -685,8 +685,12 @@ const webviewConstants = SHIPPED.filter(
   (bundle) =>
     bundle.output.startsWith('dist/webview/') && inputsOf(bundle).has('src/shared/constants.ts'),
 )
-if (webviewConstants.length !== 1) {
-  problems.push('the webview must carry shared constants in exactly one JavaScript output')
+for (const isPortable of [false, true]) {
+  const constants = webviewConstants.filter(
+    ({ output }) => output.startsWith('dist/webview/portable/') === isPortable,
+  )
+  if (constants.length !== 1)
+    problems.push('each webview graph must carry shared constants in exactly one JavaScript output')
 }
 /** The shipped bundle that `output` names; a missing one is a problem. */
 function shipped(output) {
@@ -879,54 +883,105 @@ for (const key of modelTextKeys) {
 // emitted JS chunk must be reachable and packaged; stale output is refused.
 const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
 const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
-for (const file of eagerWebview) {
-  const sources = Object.keys(webviewMeta.outputs[file].inputs)
-  for (const source of sources) {
-    if (source.startsWith('node_modules/highlight.js/'))
-      problems.push(`highlight.js must stay deferred: ${source}`)
-  }
-}
-const reachableWebview = new Set()
-const visitWebview = (file) => {
-  if (reachableWebview.has(file)) return
-  reachableWebview.add(file)
-  const output = webviewMeta.outputs[file]
-  if (!output) {
-    problems.push(`Missing webview chunk ${file}`)
-    return
-  }
-  for (const imported of output.imports) if (!imported.external) visitWebview(imported.path)
-}
-visitWebview('dist/webview/main.js')
-const deferredWebviewSources = [
-  ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
-  ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
-  'src/webview/highlightRuntime.ts',
+const BRIDGE_ENTRIES = new Set([
+  'src/webview/whatsNew/portable.ts',
+  'src/webview/whatsNew/whatsNewPage.ts',
+  'src/webview/bridges/native.ts',
+  'src/webview/bridges/companion.ts',
+  'src/webview/bridges/select.ts',
+  'src/webview/fallbacks/index.ts',
+  'src/webview/TasksApp.tsx',
+  'src/shared/tasksProtocol.ts',
+  'src/shared/whatsNewMessages.ts',
+  'src/shared/hostApi/panel.ts',
+])
+const FALLBACK_COMPONENTS = [
+  'Confirm',
+  'Picker',
+  'Input',
+  'Dialog',
+  'Toasts',
+  'StatusStrip',
+  'SettingsPage',
+  'Walkthrough',
+  'DiffPage',
+  'TerminalOutput',
+  'ManagerPage',
+  'services',
 ]
-for (const source of deferredWebviewSources) {
-  const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
-    Object.hasOwn(output.inputs, source),
-  )
-  if (outputs.length !== 1 || eagerWebview.has(outputs[0]?.[0])) {
-    problems.push(`${source} must occur in exactly one deferred webview chunk`)
-  }
+const portableMeta = JSON.parse(readFileSync('dist/meta/portable.json', 'utf8'))
+for (const source of Object.keys(webviewMeta.inputs)) {
+  if (source.startsWith('src/webview/bridges/') || source.startsWith('src/webview/fallbacks/'))
+    problems.push(`VS Code's webview carries portable-only source ${source}`)
 }
-for (const [file, output] of Object.entries(webviewMeta.outputs)) {
-  if (!file.endsWith('.js')) continue
-  if (!reachableWebview.has(file) || !existsSync(file))
-    problems.push(`Unreachable or missing webview chunk ${file}`)
-  if (
-    output.entryPoint &&
-    output.entryPoint !== 'src/webview/main.tsx' &&
-    !deferredWebviewSources.includes(output.entryPoint)
-  ) {
-    problems.push(`Unlisted deferred webview surface ${output.entryPoint}`)
+for (const [meta, entry, chunks, portable] of [
+  [webviewMeta, 'src/webview/main.tsx', 'dist/webview/chunks', false],
+  [portableMeta, 'src/webview/portable.tsx', 'dist/webview/portable/chunks', true],
+]) {
+  const eager = portable
+    ? new Set(webviewStartupOutputs(meta, 'dist/webview/portable/main.js'))
+    : eagerWebview
+  for (const file of eager) {
+    const eagerSources = Object.keys(meta.outputs[file].inputs)
+    for (const source of eagerSources) {
+      if (source.startsWith('node_modules/highlight.js/'))
+        problems.push(`highlight.js must stay deferred: ${source}`)
+    }
   }
-}
-const chunks = 'dist/webview/chunks'
-const builtChunks = readdirSync(chunks).filter((name) => name.endsWith('.js'))
-for (const file of builtChunks) {
-  if (!reachableWebview.has(`${chunks}/${file}`)) problems.push(`Stale webview chunk ${file}`)
+  const reachable = new Set()
+  const visit = (file) => {
+    if (reachable.has(file)) return
+    reachable.add(file)
+    const output = meta.outputs[file]
+    if (!output) {
+      problems.push(`Missing webview chunk ${file}`)
+      return
+    }
+    for (const imported of output.imports) if (!imported.external) visit(imported.path)
+  }
+  visit(portable ? 'dist/webview/portable/main.js' : 'dist/webview/main.js')
+  if (portable) visit('dist/webview/portable/whatsNew.js')
+  for (const source of [
+    ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
+    ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
+    'src/webview/highlightRuntime.ts',
+    ...(portable
+      ? [
+          ...FALLBACK_COMPONENTS.map((component) => `src/webview/fallbacks/${component}.tsx`),
+          'src/webview/bridges/native.ts',
+          'src/webview/bridges/companion.ts',
+        ]
+      : []),
+  ]) {
+    const outputs = Object.entries(meta.outputs).filter(([, output]) =>
+      Object.hasOwn(output.inputs, source),
+    )
+    if (outputs.length !== 1 || eager.has(outputs[0]?.[0])) {
+      problems.push(`${source} must occur in exactly one deferred webview chunk`)
+    }
+  }
+  for (const [file, output] of Object.entries(meta.outputs)) {
+    if (!file.endsWith('.js')) continue
+    if (!reachable.has(file) || !existsSync(file))
+      problems.push(`Unreachable or missing webview chunk ${file}`)
+    if (
+      output.entryPoint &&
+      output.entryPoint !== entry &&
+      !(portable && BRIDGE_ENTRIES.has(output.entryPoint)) &&
+      output.entryPoint !== 'src/webview/TasksApp.tsx' &&
+      ADDITIONAL_WEBVIEW_BUDGETS.every(({ entries }) => !entries.includes(output.entryPoint)) &&
+      output.entryPoint !== 'src/webview/highlightRuntime.ts' &&
+      DEFERRED_WEBVIEW_SURFACES.every(
+        (name) => output.entryPoint !== `src/webview/components/${name}.tsx`,
+      )
+    ) {
+      problems.push(`Unlisted deferred webview surface ${output.entryPoint}`)
+    }
+  }
+  const builtChunks = readdirSync(chunks).filter((name) => name.endsWith('.js'))
+  for (const file of builtChunks) {
+    if (!reachable.has(`${chunks}/${file}`)) problems.push(`Stale webview chunk ${file}`)
+  }
 }
 
 // TRAIN13B: Node consumers share exactly the mini-parser API they read.
@@ -935,7 +990,10 @@ const validationExports = new Set(
   Object.keys(createRequire(import.meta.url)(path.resolve('dist/validation.js'))),
 )
 const nodeMetafiles = readdirSync('dist/meta')
-  .filter((name) => !['validation.json', 'webview.json', 'whatsNewPage.json'].includes(name))
+  .filter(
+    (name) =>
+      !['validation.json', 'webview.json', 'portable.json', 'whatsNewPage.json'].includes(name),
+  )
   .map((name) => `dist/meta/${name}`)
 nodeMetafiles.push('dist/meta-acp/acp.json')
 const validationReaders = new Set()

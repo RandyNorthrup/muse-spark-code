@@ -2613,5 +2613,18 @@
   "judgeStatusDeclined": "Vypnuto: placené použití odmítnuto",
   "judgeStatusSlow": "Ve výchozím nastavení vypnuto: příliš málo výsledků připravených při rozhodnutí kontrolora",
   "judgeStatusSubscription": "Předplatné",
-  "judgeStatusPaid": "Placené"
+  "judgeStatusPaid": "Placené",
+  "agentImportDetail": "Zkopírovat MCP servery, hooky, agenty, příkazy a pravidla z Claude Code, Codexu nebo Cursoru",
+  "agentImportSourceAll": "Všechny tři",
+  "fallbackContinue": "Pokračovat",
+  "fallbackNoMatches": "Žádné odpovídající položky",
+  "fallbackNotifications": "Oznámení",
+  "fallbackStatus": "Stav",
+  "fallbackSettings": "Nastavení",
+  "fallbackTerminal": "Výstup terminálu",
+  "fallbackBefore": "Před",
+  "fallbackAfter": "Po",
+  "fallbackEmpty": "Žádné položky",
+  "fallbackWorktrees": "Pracovní stromy",
+  "fallbackActionFailed": "Akce selhala. Zkuste to znovu."
 }

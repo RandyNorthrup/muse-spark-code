@@ -2425,5 +2425,18 @@
   "judgeStatusDeclined": "Aus: kostenpflichtige Nutzung abgelehnt",
   "judgeStatusSlow": "Standardmäßig aus: zu wenige Ergebnisse beim Urteil des Prüfers bereit",
   "judgeStatusSubscription": "Abonnement",
-  "judgeStatusPaid": "Kostenpflichtig"
+  "judgeStatusPaid": "Kostenpflichtig",
+  "agentImportDetail": "MCP-Server, Hooks, Agents, Befehle und Regeln aus Claude Code, Codex oder Cursor übernehmen",
+  "agentImportSourceAll": "Alle drei",
+  "fallbackContinue": "Weiter",
+  "fallbackNoMatches": "Keine passenden Einträge",
+  "fallbackNotifications": "Benachrichtigungen",
+  "fallbackStatus": "Zustand",
+  "fallbackSettings": "Einstellungen",
+  "fallbackTerminal": "Terminalausgabe",
+  "fallbackBefore": "Vorher",
+  "fallbackAfter": "Nachher",
+  "fallbackEmpty": "Keine Einträge",
+  "fallbackWorktrees": "Arbeitsbäume",
+  "fallbackActionFailed": "Die Aktion ist fehlgeschlagen. Versuchen Sie es erneut."
 }
