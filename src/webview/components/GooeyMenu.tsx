@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // The chat's radial menu: a fan of blue pills, each its icon and its label,
 // all one size, that scale in from where the menu opened, one after another.
 // The burst began as a fresh take on Lucas Bebber's Gooey Menu (MIT,
@@ -179,34 +180,31 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
     const enabled = visibleItems.filter((item) => item.disabled !== true)
     const index = enabled.findIndex((item) => item.id === active)
     let next: GooeyItem | undefined
-    switch (event.key) {
-      case 'ArrowDown':
-      case 'ArrowRight': {
+    switch (webviewKey('radial.menu', event)) {
+      case 'next': {
         next = enabled[(index + 1) % enabled.length]
         break
       }
-      case 'ArrowUp':
-      case 'ArrowLeft': {
+      case 'previous': {
         next = enabled[(index - 1 + enabled.length) % enabled.length]
         break
       }
-      case 'Home': {
+      case 'first': {
         next = enabled[0]
         break
       }
-      case 'End': {
+      case 'last': {
         next = enabled.at(-1)
         break
       }
-      case 'Enter':
-      case ' ': {
+      case 'accept': {
         const item = enabled[index]
         if (item !== undefined) {
           select(item)
         }
         break
       }
-      case 'Escape': {
+      case 'close': {
         if (group === undefined) {
           close()
         } else {
@@ -335,10 +333,7 @@ export function useRowMenu(
     open({ x: event.clientX, y: event.clientY })
   }
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (!(
-      items.length > 0 &&
-      (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey))
-    )) {
+    if (!(items.length > 0 && webviewKey('row.menu', event) === 'open')) {
       return
     }
 

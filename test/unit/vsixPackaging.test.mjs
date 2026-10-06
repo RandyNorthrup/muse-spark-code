@@ -27,6 +27,7 @@ const excluded = [
   'dist/webview/chunks/dialog.js.map',
   'media/readme/banner.png',
   'docs/marketplace-readme.md',
+  'docs/reference.md',
   'l10n/untranslated.json',
 ]
 

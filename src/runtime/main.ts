@@ -33,6 +33,10 @@ import { fill } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
 import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
+import { formatAcpUsage } from './cliOptions'
+import { referenceLoader } from '../host/referenceLoader'
+import { REFERENCE_BUNDLE_FILE } from '../shared/constants'
+import { UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
@@ -591,7 +595,17 @@ async function main(): Promise<number> {
       return 0
     }
     case 'help': {
-      writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      if (command.all === true) {
+        const reference = referenceLoader({
+          bundlePath: path.join(distDir, REFERENCE_BUNDLE_FILE),
+          log,
+        })().createReference(referenceTable, uiLocale())
+        const file = uiLocale() === 'en' ? 'package.nls.json' : `package.nls.${uiLocale()}.json`
+        const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
+        writeLine(process.stdout, reference.all(nls))
+      } else {
+        writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+      }
       return 0
     }
     case 'invalid': {

@@ -268,7 +268,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Webview highlighting import closure   | ≤ 125 KiB (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                         |
 | Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
-| `.vsix`                               | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
+| `.vsix`                               | ≤ 2400 KiB compressed (REL0142 round 3, 2026-10-06: 2,325,575-byte universal package after removing duplicate reference Markdown, +5%, rounded up to 25 KiB; owner-authorized 0.14.2 Help reference rule; `check-vsix-size.mjs` in the package job)                                                                                                                                                    |
 | `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
 | `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
 | `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
@@ -13123,6 +13123,88 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### REL0142 — Prepare the 0.14.2 Help reference release (2026-10-06)
+
+Scope: merge `sync/main` at `1c5f016ae` into the Help reference branch with
+both features and gates intact; keep released 0.14.1 entries in their section.
+Then bump the three-part version to 0.14.2, promote only new Help entries,
+and update both landing pages with one current What's New section. Preserve
+main's future plans and all Help audit records. The scoped Kubuntu checks are
+the release/version, packaging, badge, Help/reference and fake stdio suites;
+localization, reference, five-project typecheck, changed-file lint/format,
+production build and unchanged bundle budgets. No tag, push or publication.
+The brief prohibits aggregate quality; the lead retains integrated quality.
+The release packaging suite exposed a differently ordered Hungarian Help
+translation suffix. Normalize its key order to the other tables without
+changing any key or translated value, preserving the existing archive gate.
+The headless stdio package fixture must also include Help's lazy reference
+bundle, which the production packager now requires; retain every guard.
+The integrated reference bundle exceeded its unchanged 100 KiB budget by
+631 bytes. Assign the shortest existing pool references to the most frequent
+values, preserving all expanded JSON, schemas and translations; prove the
+lossless round trip and retain the existing size cap.
+
+- [x] Resolve and certify the main integration, then commit with hooks on.
+- [x] Prepare the release metadata and user-facing notes; repeat release checks.
+
+Round 2 merges `feat/help-reference-fix` at `a010a1994` with `git merge
+--no-ff`, preserving release metadata, Hungarian ordering, the stdio fixture
+and frequency-sorted reference pooling. Regenerate all reference outputs from
+the combined generator and promote the final audit fix into 0.14.2 while
+Unreleased stays empty. Repeat the certified release checks and retain the
+100 KiB reference cap; hooks on, local merge commit only, no push/tag/publish.
+
+Evidence: `docs/certification/rel0142.md`.
+
+Round 3 repairs the hosted failures on PR head `919401ec3` after the
+authorized fast-forward from `release/0.14.2-pr`. Export the activation paid
+callback from a small module and test it by import, replacing source slicing
+and evaluation. Expect both localized usage and Help reference lines in the
+fake ACP stdio checks. Compare real VSIX members against a locally rebuilt
+0.14.1, remove redundant reference material, and retain bundle caps. If the
+universal VSIX still exceeds 2200 KiB after removing waste, the owner's
+explicit release rule sets its cap to measured bytes plus 5%, rounded up to
+25 KiB. Certify package, owning stdio/reference/release suites, typecheck,
+lint, formatting and localization directly on Kubuntu; local hook-on commits
+only, no push, tag, publication, paid/live calls or aggregate quality.
+
+Round 4 repairs the second hosted CI failure on `900a06738`: build the
+generator test's unchanged model once per file, reuse unchanged keyboard
+analysis for mutation checks, and normalize all reference evidence paths to
+forward slashes before lookup or matching. Keep mutation checks sensitive to
+changed source and registry inputs; prove Windows-style paths and deliberate
+registry bypass failures. Audit the other reference/help suites for repeated
+setup. Run every requested release/reference/fake stdio suite with repository
+default timeouts, recording the slowest tests before and after; repeat real
+packaging and scoped static/build gates. No timeout, threshold, hook or bundle
+cap changes. Aggregate quality and hosted cross-platform runs remain with the
+lead under the explicit rig/shared rule; local hook-on commits only.
+
+Round 5 repairs the last two hosted failures on `48a2e8575`. Update only
+the dev-only `shell-quote` lock entry within `npm-run-all2`'s existing
+`^1.8.4` range to a fixed version for GHSA-pqg4-j6r4-53mv; add no direct
+dependency, override or audit exception. Verify clean installation in an
+isolated directory because this rig's existing dependencies are hard-linked
+to a shared install. Preserve the deliberate complete-reference contract for
+`exec --help`, `report --help` and `scan-secrets --help`: commit `94a1e7d3b`
+and `docs/certification/help-reference.md` record parity with `help --all`.
+Update the stale report parser expectation, then run the requested Help,
+reference and fake stdio suites with default timeouts, audit, typecheck,
+lint, formatting, reference freshness and production build. No new command
+or feature, gate change, paid/live call, merge, push, tag or publication.
+
+Round 6 repairs the universal release-artifact check on PR #127: compose
+compact ACP help from both installed table entries, including its reference
+hint, with one formatter shared by the CLI, fake stdio tests and bundle check.
+Check English and every installed translation. Audit scripts and workflows
+for other stale usage comparisons, and reproduce the secret-free universal
+artifact job locally: production build, universal VSIX and contents/size
+checks, ACP pack/install and contents checks, shared-text loading, fake
+headless process guards, SBOMs and source/hash receipt. Keep repository test
+timeouts, hooks and all budgets unchanged; no merge, push, tag, publication,
+live/paid calls or aggregate quality. Record baseline failure and deliberate
+guard failures in `docs/certification/rel0142.md`.
 
 ### Delivery order (2026-10-06)
 
@@ -28623,6 +28705,156 @@ future-version fixture proves no manual badge bump is needed. The Kubuntu
 package lacks the compiled macOS helper; hosted universal packaging remains
 unchanged. Receipts: `docs/certification/badgefix.md`.
 
+### FIXHELPREF4 — Final focused help audit repairs (2026-10-06)
+
+Scope: fix RVHELPREF4's P1 and both P2 findings. Best-of-N's finite session
+budget requires an owned parent scope shared by candidates; derive that help
+prerequisite from the production manager's admission in a truth regression.
+Correct English and all fourteen translations, then regenerate every output.
+Reject the closed state-predicate vocabulary in every plain description by
+walking the complete built reference, including keyboard rows and nested facts.
+Move existing state claims into typed conditions rather than rewording them.
+Prove the review's exact sentences fail at buildReference/referenceMarkdown,
+accept neutral prose, and retain the original 100-KiB reference cap.
+
+The complete walk exposed existing conditional enum meanings and paid-default
+facts as well as ordinary descriptions. Preserve them with typed localized
+references and the same selector on every surface. The first production build
+correctly rejected the resulting reference at 103,230 bytes / 102,400. Extend
+the existing lossless string packing with shared technical prefixes, certify
+whole-model equality and a rejecting restoration drill, and retain every cap.
+
+- [x] Budget truth regression, all translations and generated outputs.
+- [x] Vocabulary/output-walk regressions and byte-exact red drills.
+- [x] Scoped Kubuntu validation and hook-on commits; no merge or push.
+
+Evidence: `docs/certification/help-reference.md`. The rig brief reserves full
+quality and release integration for the lead. No new dependency, paid/live
+call, guard weakening or cap change is authorized; time box: ninety minutes.
+
+### FIXHELPREF3 — Third truth audit repairs (2026-10-06)
+
+Scope: resolve all six RVHELPREF3 findings at their source. Describe both Auto
+reviewers and ordinary model questions separately from MCP elicitation; prove
+the prose against runtime paths. Use one JSON formatter for displayed/searchable
+facts, schemas and CLI contracts. Escape argument slots throughout Markdown.
+Represent forward and backward modal focus in the shared handler table. Replace
+the historical-sentence blacklist with a structural conditional-description
+rule and typed conditions rendered on every reference surface. Audit every
+human-written catalogue description against its code path and record corrections.
+
+- [x] Six regressions and twelve deliberate red drills, with SHA-256 restoration.
+- [x] Whole-catalogue truth pass, translated tables and generated reference.
+- [x] Scoped Kubuntu checks and hook-on local commits; no merge or push.
+
+Evidence: `docs/certification/help-reference.md`. The rig brief prohibits
+aggregate quality; integrated quality remains the lead's gate. No new dependency,
+live/paid request, relaxed guard or budget change is authorized.
+
+### REDHELPREF — Runtime-owned reference facts (2026-10-05)
+
+Scope authorized by FIXHELPREF.rig.md: replace heuristic reference facts with
+typed runtime registries for CLI options, webview keys, slash grammar and paid
+identity. Settings retain the complete contributed schema; command conditions
+retain the contributed menus. Human descriptions live in the catalogue and all
+14 translations, never in generated fact strings or failure-message lookups.
+Conditional state is expressed as conditions, with a rejecting catalogue lint.
+The independent gate inventories all keyboard handlers and parser routes,
+regenerates every committed output in both directions, and tests actual actions,
+defaults, paid registry identity and route option acceptance. Preserve all
+existing audits' regressions, add the second audit's 16 regressions and repair
+deferred build fixtures. Search includes every displayed field and retains
+visible relationship targets. No native/phone implementation is added; ACP and
+CLI consume the same lazy reference through their existing bridges.
+
+- [x] Runtime-owned typed sources and translated catalogue descriptions.
+- [x] Complete action coverage, independent truth tests and 19 red drills.
+- [x] Search/navigation, fixtures and scoped static/build validation.
+
+The rig brief forbids aggregate quality, merge, rebase and push. Hook-on local
+commits follow scoped green checks. Receipts: docs/certification/help-reference.md.
+
+### FIXHELPREF — Reference truth audit repairs (2026-10-05)
+
+Scope: resolve RVHELPREF findings 1–23 in the existing help lane. Derive paid
+membership from the paid registry, complete setting schemas from the manifest,
+CLI options from the parser, slash syntax from its parsers, and command
+conditions from menus. Record explicit host/backend combinations and effective
+availability; distinguish extension workflows from ACP's local help/skills.
+Inventory existing palette, bridge and keyboard actions independently of the
+catalogue, then check their reference coverage. Correct release placement,
+installed-language output, first-help skill refresh, unavailable values and
+loading failures with retry. Each repair has a failing regression/drill and
+byte-exact restoration in `docs/certification/help-reference.md`.
+
+- [x] Repair all 23 findings, with exact implemented surfaces and complete contracts.
+- [x] Certify 571 scoped tests and 59 deliberate failures with byte-exact restoration.
+- [x] Pass existing static/build gates, production help parity/localization and
+      wide/narrow English/French accessibility; preserve every budget.
+
+The rig brief overrides common.md's old merge step: no merge, push or rebase.
+Scoped checks run on Kubuntu; aggregate quality remains the lead's gate. No
+dependency, live/paid call, credential access or gate/cap weakening.
+
+### HELPREF — Generated Help & Reference (2026-10-05, release 0.14.1)
+
+Owner requests `/help` opening an always-current, searchable reference of every
+feature, slash command, palette command, setting and keyboard shortcut. Build
+on the shared palette, manifest translations, host bridge and modal UI.
+
+Startup comparison against `2d4d72bd` measured 914,658 bytes before help and
+917,333 bytes with help's entry points and English controls. Keep the existing
+inline fallback and lossless dictionary; use reserved two-byte UTF-8 dictionary
+characters (U+0100–U+05FF) instead of three-byte private-use characters. The
+canonical English table has no collision and uses 953 of 1,280 slots. The
+existing collision guard and exact full-table round-trip remain mandatory;
+verify smaller startup and unchanged limits before certifying this lane.
+
+- [x] Generate the lazy reference model and `docs/reference.md` from the
+      manifest, palette, typed feature catalogue and ACP/CLI command table.
+      Validate coverage, descriptions, links and freshness in `check:reference`;
+      add that check to local quality and CI without changing any cap.
+- [x] Add shared React reference page, translated controls, current/default
+      values, settings links and an explicit safe command allowlist. Host bridge
+      messages are schema-validated. VS Code filters settings by `@id:`; native
+      bridges use their settings page anchors with the same requested key.
+- [x] Wire panel `/help`, Open Help & Reference palette command, ACP's compact
+      `/help`, CLI `help --all` and headless help. The generated GitHub reference
+      is the companion link for ACP editors; the React page is portable through
+      the shared bridge. No backend or model invocation is required for help.
+- [x] Prove generator/page tests and red drills; check accessibility in all
+      four themes, capture wide/narrow light/dark, measure unchanged startup caps,
+      update README, CONTRIBUTING, AGENTS and CHANGELOG, commit with hooks.
+
+HELPREF lane runs on macmini. The explicit rig rules prohibit full `quality`,
+push, merge and rebase; the lead retains integrated quality/release approval.
+Scoped tests and all available static/build checks run directly here. No paid
+or live model calls, dependency changes, credential access or cap changes.
+Certification: `docs/certification/help-reference.md`.
+
+## 7. Gates
+
+**FIXHELPREF4 bounded certification (2026-10-06).** The explicit rig brief
+prohibits aggregate quality and reserves release integration for the lead.
+Run all owning reference/budget tests, exact-restoration red drills and the
+existing scoped static/build checks directly on Kubuntu before the local
+hook-on commit. The original predicates, schemas and bundle caps remain gates;
+no threshold, ignore, rule level, timeout or dependency is relaxed.
+
+**FIXHELPREF bounded truth certification (2026-10-05).** Kubuntu runs the
+owning reference/ACP regressions, source and guard failure drills with exact
+SHA-256 restoration, five-project typecheck and the existing static/build
+gates. The lane brief forbids aggregate quality, merge, push and rebase;
+full integrated quality and the second truth audit remain with the lead.
+No threshold or size cap changes. Evidence: `docs/certification/help-reference.md`.
+
+**HELPREF bounded rig certification.** The explicit rig/shared rules prohibit
+aggregate `npm run quality`, merge, rebase and push in this lane. Hook-on local
+commits use scoped owning tests, deliberate red drills and available static/build
+checks. The lead retains the integrated quality/coverage/release gate. No gate
+or budget is weakened; the exact evidence is recorded in
+`docs/certification/help-reference.md`.
+
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
 scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
@@ -29817,12 +30049,41 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
-- **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
-  `src/shared/featureCatalog.ts` or reference generator. The existing setting
-  and its full security contract are in README, D89.5, the manifest and all
-  translations, so the repair introduces no undocumented command or option.
-  Follow-up: add the setting to HELPREF's catalogue when that lane joins the
-  release. RVENVFENCE's two P1 findings are fixed; no review finding is deferred.
+- **ENVFENCE-HELPREF (resolved in REL0142 integration, 2026-10-06).** Main's
+  credential pass-through setting joins the Help permissions feature with its
+  existing translated manifest description and an explicit typed condition for
+  interactive Model API shell commands. The reference gate rejected the merged
+  source before this relationship and condition were added. Regenerated help
+  retains the complete security contract; RVENVFENCE's two P1 findings remain
+  fixed. Receipts: `docs/certification/rel0142.md`.
+- **FIXHELPREF4 audit outcome.** RVHELPREF4's P1 and both P2 findings are fixed,
+  with no deferred finding. The closed predicate vocabulary is checked over
+  the complete emitted reference rather than a list of row kinds. Existing
+  state claims, enum meanings and paid-default facts retain typed conditions;
+  Best-of-N's prerequisite is tested against production admission with a fake
+  API. This supersedes FIXHELPREF3's incomplete C06 guard claim. Arbitrary prose
+  truth still needs an owning source audit. The original bundle cap and the
+  lead's integrated quality/release boundary remain unchanged. Evidence and
+  exact-restoration drills: `docs/certification/help-reference.md`.
+
+- **FIXHELPREF3 audit outcome.** C01–C06 and the two additional C07 prose
+  corrections have no deferred finding. The structural guard certifies typed
+  conditional descriptions and rejects generic state wording in plain catalogue
+  descriptions; it does not establish arbitrary prose truth by itself. Source
+  witnesses, regressions and twelve byte-exact red drills are recorded in
+  `docs/certification/help-reference.md`. No cap or gate was weakened. The
+  pre-existing native/companion boundary below and the lead’s integrated
+  quality gate remain outside this scoped rig certification.
+
+- **HELPREF-native-companion-integration (pre-existing boundary).** Native
+  shared-webview hosts and the phone companion are planned in the IDE
+  compatibility work and have no implementation in this base. ACP offers
+  local help/installed skills and the generated Markdown; the shared page
+  states exact implemented host/backend pairs and does not claim these
+  integrations exist. Safe for now: no fabricated adapter or availability
+  claim ships. Follow-up: integrate and certify actual native/phone adapters
+  under the IDE compatibility milestones. RVHELPREF 1–23 retain no false-claim
+  residual; this boundary is recorded explicitly for finding 16.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

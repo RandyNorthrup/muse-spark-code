@@ -3,6 +3,7 @@
 // arguments in, what to do out, with the reason when they make no sense.
 
 import { parseArgs } from 'node:util'
+import { CLI_OPTION_REGISTRY } from './cliOptions'
 import {
   ACP_AGENT_NAME,
   ACP_BACKENDS,
@@ -53,7 +54,8 @@ export type RuntimeCommand =
   | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
-  | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'help' | 'version' }
+  | { readonly command: 'help'; readonly all?: boolean }
+  | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'version' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
 
 /** `auth set|status|clear`: the key's three commands (D61). */
@@ -88,6 +90,11 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  if (argv[0] === 'help') {
+    return argv.length === 1 || (argv.length === 2 && argv[1] === '--all')
+      ? { command: 'help', all: argv[1] === '--all' }
+      : invalid(argv.join(' '))
+  }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))
   let parsed: ReturnType<typeof parseCommandLineStrictly>
@@ -154,37 +161,10 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
       allowPositionals: true,
       strict: true,
       options: isScan
-        ? {
-            'key-stdin': { type: 'boolean' },
-            help: { type: 'boolean', short: 'h' },
-          }
-        : {
-            backend: { type: 'string' },
-            cwd: { type: 'string' },
-            'prompt-file': { type: 'string' },
-            'untrusted-file': { type: 'string', multiple: true },
-            'permission-mode': { type: 'string' },
-            model: { type: 'string' },
-            effort: { type: 'string' },
-            output: { type: 'string' },
-            'max-budget-usd': { type: 'string' },
-            'max-requests': { type: 'string' },
-            timeout: { type: 'string' },
-            'muse-binary': { type: 'string' },
-            'shell-sandbox': { type: 'string' },
-            'allow-contributor-models': { type: 'boolean' },
-            'image-generation': { type: 'boolean' },
-            'fail-on-denial': { type: 'boolean' },
-            ephemeral: { type: 'boolean' },
-            'key-stdin': { type: 'boolean' },
-            verbose: { type: 'boolean' },
-            'trust-workspace': { type: 'boolean' },
-            'allow-dangerously-skip-permissions': { type: 'boolean' },
-            'web-search': { type: 'boolean' },
-            help: { type: 'boolean', short: 'h' },
-          },
+        ? CLI_OPTION_REGISTRY['scan-secrets'].options
+        : CLI_OPTION_REGISTRY.exec.options,
     })
-    if (values.help === true) return { command: 'help' }
+    if (values.help === true) return { command: 'help', all: true }
     if (isScan)
       return positionals.length === 1 && positionals[0] !== undefined
         ? {
@@ -214,15 +194,9 @@ function parseReport(argv: readonly string[]): RuntimeCommand {
       args: [...argv],
       allowPositionals: true,
       strict: true,
-      options: {
-        out: { type: 'string' },
-        description: { type: 'string' },
-        'no-facts': { type: 'boolean' },
-        'no-events': { type: 'boolean' },
-        help: { type: 'boolean', short: 'h' },
-      },
+      options: CLI_OPTION_REGISTRY.report.options,
     })
-    if (values.help === true) return { command: 'help' }
+    if (values.help === true) return { command: 'help', all: true }
     if (positionals.length > 0 || values.out === '') {
       return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
     }
@@ -249,19 +223,6 @@ function parseCommandLineStrictly(argv: readonly string[]) {
     args: [...argv],
     allowPositionals: true,
     strict: true,
-    options: {
-      backend: { type: 'string' },
-      'trust-workspace': { type: 'boolean' },
-      maintenance: { type: 'boolean' },
-      'muse-binary': { type: 'string' },
-      'shell-sandbox': { type: 'string' },
-      'allow-dangerously-skip-permissions': { type: 'boolean' },
-      'allow-contributor-models': { type: 'boolean' },
-      [ACP_PAID_FLAGS.webSearch]: { type: 'boolean' },
-      [ACP_PAID_FLAGS.imageGeneration]: { type: 'boolean' },
-      verbose: { type: 'boolean' },
-      help: { type: 'boolean', short: 'h' },
-      version: { type: 'boolean', short: 'v' },
-    },
+    options: CLI_OPTION_REGISTRY.serve.options,
   })
 }

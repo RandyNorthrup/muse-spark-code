@@ -31,7 +31,7 @@ key to the CLI.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0141) ·
+**Contents:** [What's new](#whats-new-in-0142) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·
 [Permission modes](#permission-modes) ·
@@ -46,7 +46,19 @@ key to the CLI.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
-## What's new in 0.14.1
+## What's new in 0.14.2
+
+- **Help & Reference.** Type `/help` or run **Muse Spark: Open Help & Reference**
+  for every command, setting, slash command, keyboard shortcut, CLI/ACP option
+  and paid feature.
+- **Search and copy.** Find features by name or shortcut, copy details, and open
+  related settings.
+- **Accurate details.** Help is generated from the extension's own tables.
+  Defaults, availability and paid costs are now described for each backend.
+- **Editors and terminal.** Use `/help` in the chat panel and ACP editors, or
+  `muse-spark-code-acp help --all` in the terminal.
+
+### Earlier in 0.14.1
 
 - **Safer shell commands.** Commands the agent runs no longer see your
   credential variables (API keys, tokens, passwords). Name any you want passed
@@ -3202,6 +3214,47 @@ What stays in English:
 | Model API: a silent reply stream | Ended after 5 minutes with nothing from the server; send again to retry                                                                                                                                                                                         |
 | Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                                                                                          |
 | Opened tool outputs              | 16 MiB each; the latest 20, and 33,554,432 characters together                                                                                                                                                                                                  |
+
+## Help and reference
+
+Type `/help` in the panel, or run **Muse Spark: Open Help & Reference**, for a
+searchable reference of features, slash commands, commands, settings, keyboard
+actions and ACP/CLI flags. It shows exact host/backend pairs, paid admission
+rules, current/default values, nested setting schemas, command prerequisites
+and CLI limits. Environment-variable values stay hidden. Load failures show a
+retry action. Auto help names both backend reviewers and their admission rules;
+ordinary model questions and MCP server form replies have separate privacy
+entries. Search matches the displayed JSON text, Markdown retains argument
+placeholders, and modal focus lists both Tab and Shift+Tab. The page follows
+the editor’s theme and display language.
+
+ACP editors can send `/help` for the current installed-skill list and the
+[generated reference](docs/reference.md). ACP locally handles `/help` and
+installed skills; the linked panel slash commands and settings are extension
+workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
+reference in the installed language without a model call. `exec --help`,
+`report --help` and `scan-secrets --help` also print it; `--help` prints concise
+ACP usage. Terminal help states that VS Code current values are unavailable.
+
+Maintainers run `npm run reference:generate` after changes. The reference reads
+the complete contributed setting schema and palette conditions. The CLI parser,
+webview keyboard handlers, slash registry, paid tally and paid-use popup share
+typed tables with the generator. Enum defaults retain their value and meaning.
+`npm run check:reference` checks source coverage, reviewed host capabilities and
+admission wiring, option contracts, catalogue descriptions and generated-file
+freshness. Conditional descriptions use typed `conditions` with technical
+selectors; generic state wording in plain descriptions fails the gate. The
+generator renders these conditions on the page, in Markdown and in terminal
+help, including enum meanings and paid-default facts. The guard walks the
+complete emitted model and rejects the closed state-predicate vocabulary on
+every description surface, including shortcuts. A Best-of-N truth regression
+exercises the production manager: a finite session cap requires an owned
+parent budget scope shared by candidates. Independent tests exercise parser
+acceptance and keyboard actions.
+Search includes displayed descriptions and keeps related command links reachable.
+Installed skills are dynamic and are refreshed
+when ACP answers help. Native shared-webview and phone companion integrations
+remain planned; this reference does not claim those hosts implement the page.
 
 ## Commands and keybindings
 

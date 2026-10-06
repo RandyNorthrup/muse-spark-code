@@ -425,6 +425,37 @@
           outbox.push(message)
           document.title = `harness: ${message.type}`
           switch (message.type) {
+            case 'readReference': {
+              Promise.all([
+                fetch('../../src/shared/reference/reference.generated.json').then((response) =>
+                  response.json(),
+                ),
+                fetch(
+                  harnessL10n.lang === undefined || harnessL10n.lang === 'pseudo'
+                    ? '../../package.nls.json'
+                    : `../../package.nls.${harnessL10n.lang}.json`,
+                ).then((response) => response.json()),
+              ])
+                .then(([model, nls]) =>
+                  send({
+                    type: 'referenceValues',
+                    model: JSON.stringify(model),
+                    nls,
+                    values: Object.fromEntries(
+                      model.settings.map((setting) => [
+                        setting.id,
+                        setting.id === 'museSpark.environmentVariables'
+                          ? 'Hidden'
+                          : JSON.stringify(setting.default),
+                      ]),
+                    ),
+                  }),
+                )
+                .catch((error) => {
+                  throw error
+                })
+              break
+            }
             case 'tasksReady': {
               send({
                 type: 'tasksState',
@@ -1543,6 +1574,12 @@
           steps['usage-install']()
         },
         // The Commands button: the palette with its own filter box.
+        help: () => {
+          send({ type: 'openHelp' })
+        },
+        'help-narrow': () => {
+          send({ type: 'openHelp' })
+        },
         palette: () => {
           click('Commands')
         },
@@ -4646,6 +4683,8 @@
       // when this much time has passed.
       const FRAME_FALLBACK_MS = 50
       const SCENARIO_READY = {
+        help: () => document.querySelector('#reference-search') !== null,
+        'help-narrow': () => document.querySelector('#reference-search') !== null,
         // The "/" list for "/co", rendered with its options (M87's tips too).
         'slash-commands': () => document.querySelector('.slash-menu [role="option"]') !== null,
         'slash-tips': () => document.querySelector('.slash-menu [role="option"]') !== null,
