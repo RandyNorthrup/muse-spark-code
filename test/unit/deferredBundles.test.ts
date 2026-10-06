@@ -154,7 +154,6 @@ beforeAll(async () => {
     }
   }
   parsers.push(parserSchema.parse(loadSupportBundle('validation')))
-  expect(checkDeferredBundles(bundleInputs)).toEqual([])
 })
 
 afterAll(() => {
@@ -230,6 +229,12 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('loads the portable session sanitizer only from the lazy hook runtime (FIXM106T budget)', () => {
+    expect(inputs('modelApi')).not.toContain('src/core/export/sessionTransfer.ts')
+    expect(inputs('hookRuntime')).toContain('src/core/export/sessionTransfer.ts')
+    expect(bundleText('modelApi')).toContain('./hookRuntime.js')
+  })
+
   it('decodes the complete production English fallback without changing any value', () => {
     expect(bundleText('uiText')).toContain('brotliDecompressSync')
     expect(loadSupportBundle('uiText')).toHaveProperty('EN', EN)
@@ -426,34 +431,9 @@ describe('deferred cohort bundles', () => {
     }
   })
 
-  it('rejects a missing deferred input and restores its metafile byte-exact', () => {
-    const file = 'dist/meta/reviewer.json'
-    const meta = structuredClone(fixture(file).meta)
-    const original = JSON.stringify(meta)
-    const hash = createHash('sha256').update(original).digest('hex')
-    const output = meta.outputs['dist/reviewer.js']
-    if (output === undefined) throw new Error('Missing reviewer output')
-    const source = 'src/core/backends/modelapi/reviewerEntry.ts'
-    const input = output.inputs[source]
-    if (input === undefined) throw new Error('Missing reviewer input')
-    const originalInputs = structuredClone(output.inputs)
-    const check = () => {
-      const changed = outputInputs(meta, 'dist/reviewer.js')
-      return checkDeferredBundles((bundle) =>
-        bundle.metafile === file ? changed : bundleInputs(bundle),
-      )
-    }
-    expect(check()).toEqual([])
-    try {
-      Reflect.deleteProperty(output.inputs, source)
-      expect(check()).toEqual([`dist/reviewer.js no longer carries ${source}`])
-    } finally {
-      output.inputs = originalInputs
-    }
-    expectUnchangedMeta(meta, hash, check)
-  })
-
   it.each([
+    ['reviewer', 'src/core/backends/modelapi/reviewerEntry.ts', 'missing'],
+    ['hookRuntime', 'src/core/export/sessionTransfer.ts', 'missing'],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],
@@ -466,6 +446,7 @@ describe('deferred cohort bundles', () => {
     ['modelApi', 'src/core/backends/modelapi/hookFormats/engine.ts', 'on its first action'],
     // M91: the hook and MCP-form runtime, required on first use.
     ['modelApi', 'src/core/backends/modelapi/hookRuntimeEntry.ts', 'on its first action'],
+    ['modelApi', 'src/core/export/sessionTransfer.ts', 'on import'],
     // Split out of activation on 2026-10-03 (PLAN.md D6).
     ['extension', 'src/core/codeIntel/codeIntelQuery.ts', 'on the first code intelligence call'],
     ['extension', 'src/core/voice/museVoice.ts', 'on the first recording'],
@@ -501,16 +482,17 @@ describe('deferred cohort bundles', () => {
       }
       expect(check()).toEqual([])
       const originalInputs = structuredClone(output.inputs)
-      if (name === 'providers') expect(output.inputs).toHaveProperty(source)
+      const isMissing = use === 'missing'
+      if (isMissing) expect(output.inputs).toHaveProperty(source)
       else expect(output.inputs).not.toHaveProperty(source)
       try {
-        if (name === 'providers') Reflect.deleteProperty(output.inputs, source)
+        if (isMissing) Reflect.deleteProperty(output.inputs, source)
         else output.inputs[source] = { bytesInOutput: 1 }
-        expect(check()).toContain(
-          name === 'providers'
-            ? `dist/providers.js no longer carries ${source}`
-            : `dist/${name}.js carries ${source}, which loads only ${use}`,
-        )
+        const problem = isMissing
+          ? `dist/${name}.js no longer carries ${source}`
+          : `dist/${name}.js carries ${source}, which loads only ${use}`
+        if (name === 'reviewer' || name === 'hookRuntime') expect(check()).toEqual([problem])
+        else expect(check()).toContain(problem)
       } finally {
         output.inputs = originalInputs
       }

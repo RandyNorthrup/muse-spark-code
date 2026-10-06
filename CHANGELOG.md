@@ -41,6 +41,9 @@ happened, not what was planned; superseded entries are kept.
   remain non-strict in Chat requests. Open objects and unrepresentable
   argument schemas keep their fallback and conversion note instead of
   losing valid arguments during strict conversion.
+  Session-import sanitization now loads on first import from the existing
+  hook runtime, preserving localized refusals and keeping the Model API
+  bundle within its unchanged size budget.
 
 - Pin the fixed development-only source-map-js 1.2.2 patch for
   GHSA-68fv-2mgg-jv7q; preserve the existing dependency audit policy.

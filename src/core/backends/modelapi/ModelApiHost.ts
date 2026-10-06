@@ -39,6 +39,7 @@ import {
   type CheckSkip,
   CLARIFICATION_MAX_CHARS,
   CODE_INTEL_MODEL_TEXT,
+  CONVERSATION_MODEL_TEXT,
   CODE_INTEL_TOOLS,
   COMPACTION_SUMMARY_MAX_TOKENS,
   COMPACTION_SUMMARY_WINDOW_FRACTION,
@@ -379,7 +380,7 @@ import {
   verdictFor,
 } from './permissions'
 import { describePolicyProblem, type PermissionPolicy, PolicyCache } from './permissionPolicy'
-import { sanitizeImportedSession, type SessionExport } from '../../export/sessionTransfer'
+import type { SessionExport } from '../../export/sessionTransfer'
 import {
   headerOf,
   recordOf,
@@ -13678,16 +13679,23 @@ export class ModelApiHost implements AgentHost {
     options: { readonly approvalMode: ApprovalMode; readonly modelId: string },
   ): Promise<LoadedSession> {
     await this.requireAccountId()
-    const stored = sanitizeImportedSession(doc, {
-      sessionId: this.deps.newId(),
-      workspaceRoot: this.deps.workspaceRoot,
-      approvalMode: options.approvalMode,
-      modelId: options.modelId,
-      now: new Date(this.deps.now()).toISOString(),
-    })
+    const entry = await import('./hookRuntimeEntry.js')
+    const sanitizer: unknown = entry.sanitizeSessionImport
+    if (typeof sanitizer !== 'function') throw new Error('Invalid session import export')
+    const stored = entry.sanitizeSessionImport(
+      doc,
+      {
+        sessionId: this.deps.newId(),
+        workspaceRoot: this.deps.workspaceRoot,
+        approvalMode: options.approvalMode,
+        modelId: options.modelId,
+        now: new Date(this.deps.now()).toISOString(),
+      },
+      { table: UI_TEXT, locale: uiLocale(), modelText: CONVERSATION_MODEL_TEXT },
+    )
     const hooks = await this.sessionHooks()
     const extensionHooks = await this.sessionExtensionHooks()
-    // Loading the hooks may outlast a sign-out or the host closing: both are
+    // Loading the importer or hooks may outlast sign-out or the host closing: both are
     // checked again before the session exists and its SessionStart hook runs
     // (RV84c C1), as every other opening checks them.
     await this.requireAccountId()

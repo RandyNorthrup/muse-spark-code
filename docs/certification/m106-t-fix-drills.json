@@ -32,8 +32,35 @@
     "test": "test/unit/mcpFunctions.test.ts",
     "namedFailure": "keeps omitted root closure non-strict with an honest lossless-conversion note",
     "exitCode": 1,
-    "beforeSha256": "bf26adba40358d5780c3c66d45376ae6570402f889b646d6a0dd8e54c825848f",
-    "afterSha256": "bf26adba40358d5780c3c66d45376ae6570402f889b646d6a0dd8e54c825848f"
+    "beforeSha256": "98ca3a60f34cacda535eac8fd4f283cb440b4026f577f6cdb65664004e9e4fee",
+    "afterSha256": "98ca3a60f34cacda535eac8fd4f283cb440b4026f577f6cdb65664004e9e4fee"
+  },
+  {
+    "drill": "mcp-null-only-enum-proof",
+    "source": "src/core/backends/modelapi/mcp/functions.ts",
+    "test": "test/unit/mcpFunctions.test.ts",
+    "namedFailure": "keeps null-only optional enum excluding null non-strict with an honest lossless-conversion note",
+    "exitCode": 1,
+    "beforeSha256": "98ca3a60f34cacda535eac8fd4f283cb440b4026f577f6cdb65664004e9e4fee",
+    "afterSha256": "98ca3a60f34cacda535eac8fd4f283cb440b4026f577f6cdb65664004e9e4fee"
+  },
+  {
+    "drill": "mcp-fallback-marker",
+    "source": "src/core/backends/modelapi/mcp/functions.ts",
+    "test": "test/unit/mcpFunctions.test.ts",
+    "namedFailure": "keeps tuple items non-strict with an honest lossless-conversion note",
+    "exitCode": 1,
+    "beforeSha256": "98ca3a60f34cacda535eac8fd4f283cb440b4026f577f6cdb65664004e9e4fee",
+    "afterSha256": "98ca3a60f34cacda535eac8fd4f283cb440b4026f577f6cdb65664004e9e4fee"
+  },
+  {
+    "drill": "mcp-lossless-positive",
+    "source": "src/core/backends/modelapi/mcp/functions.ts",
+    "test": "test/unit/mcpFunctions.test.ts",
+    "namedFailure": "promotes closed nested and array schemas without mistaking enum data for schemas",
+    "exitCode": 1,
+    "beforeSha256": "98ca3a60f34cacda535eac8fd4f283cb440b4026f577f6cdb65664004e9e4fee",
+    "afterSha256": "98ca3a60f34cacda535eac8fd4f283cb440b4026f577f6cdb65664004e9e4fee"
   },
   {
     "drill": "mcp-nullable-enum-proof",
@@ -41,7 +68,62 @@
     "test": "test/unit/mcpFunctions.test.ts",
     "namedFailure": "keeps nullable optional enum excluding null non-strict with an honest lossless-conversion note",
     "exitCode": 1,
-    "beforeSha256": "bf26adba40358d5780c3c66d45376ae6570402f889b646d6a0dd8e54c825848f",
-    "afterSha256": "bf26adba40358d5780c3c66d45376ae6570402f889b646d6a0dd8e54c825848f"
+    "beforeSha256": "98ca3a60f34cacda535eac8fd4f283cb440b4026f577f6cdb65664004e9e4fee",
+    "afterSha256": "98ca3a60f34cacda535eac8fd4f283cb440b4026f577f6cdb65664004e9e4fee"
+  },
+  {
+    "drill": "import-size-cap",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "command": "npm run build",
+    "namedFailure": "OVER dist/modelApi.js (unchanged 475 KiB cap)",
+    "exitCode": 1,
+    "mutatedModelApiBytes": 487584,
+    "beforeSha256": "3cd7f98e42f567a52bab145e2d1dd4d62f571684a087b4b6a21f4e3e141b2466",
+    "afterSha256": "3cd7f98e42f567a52bab145e2d1dd4d62f571684a087b4b6a21f4e3e141b2466"
+  },
+  {
+    "drill": "eager-import-sanitizer",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/deferredBundles.test.ts",
+    "namedFailure": "loads the portable session sanitizer only from the lazy hook runtime",
+    "exitCode": 1,
+    "beforeSha256": "3cd7f98e42f567a52bab145e2d1dd4d62f571684a087b4b6a21f4e3e141b2466",
+    "afterSha256": "3cd7f98e42f567a52bab145e2d1dd4d62f571684a087b4b6a21f4e3e141b2466"
+  },
+  {
+    "drill": "import-language-handoff",
+    "source": "src/core/backends/modelapi/hookRuntimeEntry.ts",
+    "test": "test/unit/modelApiBundle.test.ts",
+    "namedFailure": "loads the import sanitizer on first import with the current language",
+    "exitCode": 1,
+    "beforeSha256": "1d4d329642ad011dd7738aaf08150667be4e2b30792c5ac3815173a2ef63077a",
+    "afterSha256": "1d4d329642ad011dd7738aaf08150667be4e2b30792c5ac3815173a2ef63077a"
+  },
+  {
+    "drill": "import-export-validation",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiBundle.test.ts",
+    "namedFailure": "propagates missing or malformed import runtime failures without creating a session",
+    "exitCode": 1,
+    "beforeSha256": "3cd7f98e42f567a52bab145e2d1dd4d62f571684a087b4b6a21f4e3e141b2466",
+    "afterSha256": "3cd7f98e42f567a52bab145e2d1dd4d62f571684a087b4b6a21f4e3e141b2466"
+  },
+  {
+    "drill": "import-parent-split-gate",
+    "source": "scripts/lib/deferredBundles.mjs",
+    "test": "test/unit/deferredBundles.test.ts",
+    "namedFailure": "fires the modelApi split guard for src/core/export/sessionTransfer.ts",
+    "exitCode": 1,
+    "beforeSha256": "7ab847a80c86200661ffd77b5d9326567ca47f6218c4dfcc61398126891d1d18",
+    "afterSha256": "7ab847a80c86200661ffd77b5d9326567ca47f6218c4dfcc61398126891d1d18"
+  },
+  {
+    "drill": "import-runtime-split-gate",
+    "source": "scripts/lib/deferredBundles.mjs",
+    "test": "test/unit/deferredBundles.test.ts",
+    "namedFailure": "fires the hookRuntime split guard for src/core/export/sessionTransfer.ts",
+    "exitCode": 1,
+    "beforeSha256": "7ab847a80c86200661ffd77b5d9326567ca47f6218c4dfcc61398126891d1d18",
+    "afterSha256": "7ab847a80c86200661ffd77b5d9326567ca47f6218c4dfcc61398126891d1d18"
   }
 ]

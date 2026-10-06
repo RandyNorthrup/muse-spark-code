@@ -243,6 +243,14 @@ export function checkDeferredBundles(inputsOf) {
       if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
     }
   }
+  // Session export remains available to the conversation and ACP front ends;
+  // the backend loads its import sanitizer only from the existing lazy runtime.
+  const transfer = 'src/core/export/sessionTransfer.ts'
+  if (inputsOf(BUNDLES.modelApi).has(transfer))
+    problems.push(`${BUNDLES.modelApi.output} carries ${transfer}, which loads only on import`)
+  const hookRuntime = DEFERRED.find((bundle) => bundle.output === 'dist/hookRuntime.js')
+  if (!inputsOf(hookRuntime).has(transfer))
+    problems.push(`${hookRuntime.output} no longer carries ${transfer}`)
   // The plugin host loads only on the first plugin hook: the adapters' bundle
   // requires it rather than carry it (M91b).
   {

@@ -22416,6 +22416,18 @@ The base also lacks the feature catalog/reference generator and the
 `check:reference` script; **M106T-HELP-REFERENCE** records the integration
 entry instead of claiming a nonexistent gate passed.
 
+**FIXM106T budget recovery (2026-10-06, macmini).** The authorized correction
+loads `sessionTransfer.ts`'s import sanitizer from the existing lazy
+`dist/hookRuntime.js`, installs the caller's language at use, and passes its
+English model-text block without duplicating that block into the lazy bundle.
+`npm run build` exits 0: Model API is 484,569 bytes against the unchanged
+486,400-byte cap (1,831 bytes free); hook runtime is 48,808 against 51,200.
+An eager-import red drill fails the same size gate at 487,584 bytes; split,
+language and invalid-export regressions also fail under deliberate mutations,
+with source restored byte-exact. The historical budget blocker above is resolved
+on this lane. Aggregate quality/coverage and installed/live qualification remain
+with the lead under the bounded-lane brief; no cap, hook or gate is weakened.
+
 **M101INT aggregate receipt (2026-10-06).** The brief authorizes exactly one
 `VITEST_MAX_WORKERS=3 npm run quality`. It exits 1 at unit tests: 541 passing
 files, 9 failing, 7 pre-existing opt-in skipped; 12,014 passing tests, 32 failing,

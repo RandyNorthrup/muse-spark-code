@@ -336,8 +336,7 @@ function isLosslessMcpSchema(schema: JsonObject, isOptional = false): boolean {
   const values = schema['enum']
   if (
     isOptional &&
-    Array.isArray(type) &&
-    type.includes('null') &&
+    (type === 'null' || (Array.isArray(type) && type.includes('null'))) &&
     Array.isArray(values) &&
     !values.includes(null)
   ) {

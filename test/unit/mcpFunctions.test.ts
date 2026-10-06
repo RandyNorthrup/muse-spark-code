@@ -329,6 +329,14 @@ describe('mcpFunctionDefinition (M50)', () => {
       },
     ],
     [
+      'null-only optional enum excluding null',
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: { choice: { type: 'null', enum: ['a'] } },
+      },
+    ],
+    [
       'boolean subschema',
       { type: 'object', additionalProperties: false, properties: { value: true } },
     ],
