@@ -1,37 +1,31 @@
 // Independent process supervision: Stop never enters the model/request queue.
 import { type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { readdir, rm, type FileHandle } from 'node:fs/promises'
+import { readdir, rename, rm, type FileHandle } from 'node:fs/promises'
 import { createConnection, createServer } from 'node:net'
 import path from 'node:path'
 import { constants as osConstants } from 'node:os'
 import type { Readable, Writable } from 'node:stream'
-import * as z from 'zod/mini'
 import type { ResourceTicket } from '../../shared/resources'
 import { RUNTIME_STOP, LSP_LIMITS } from '../../shared/constants'
 import { workspaceKey } from '../dataFolder'
 import { withoutCredentials } from '../credentialVariables'
 import { isProcessAlive } from '../../host/checkpoints/windowPresence'
 import { privateDirectory, openPrivateRecord, writePrivateRecord } from './registry'
-import { trustedPrivateRoot } from '../privateDirectory'
+import type { StopBinding, StopReceipt, StopOwner } from './stopReceipt'
 
-const ownerSchema = z.strictObject({
-  pid: z.optional(z.int().check(z.gte(1))),
-  pipe: z.string().check(z.maxLength(RUNTIME_STOP.pathChars)),
-  token: z
-    .string()
-    .check(
-      z.regex(/^[a-f0-9]+$/u),
-      z.minLength(RUNTIME_STOP.tokenBytes * 2),
-      z.maxLength(RUNTIME_STOP.tokenBytes * 2),
-    ),
-})
-
-const treeReceiptSchema = z.strictObject({
-  isComplete: z.boolean(),
-  guardian: z.int().check(z.gte(1)),
-  pids: z.array(z.int().check(z.gte(1))),
-})
+async function readTreeReceipt(file: string) {
+  const { treeReceiptSchema } = await import('./stopReceipt')
+  const handle = await openPrivateRecord(file)
+  try {
+    const bytes = Buffer.alloc(RUNTIME_STOP.recordBytes + 1)
+    const { bytesRead } = await handle.read(bytes)
+    if (bytesRead > RUNTIME_STOP.recordBytes) throw new Error('ESTOP_RECORD')
+    return treeReceiptSchema.parse(JSON.parse(bytes.toString('utf8', 0, bytesRead)))
+  } finally {
+    await handle.close()
+  }
+}
 
 export class UnverifiedStopError extends Error {
   constructor(readonly pids: readonly number[]) {
@@ -59,7 +53,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
   const { processAuthority } = await import('./processAuthority')
   const authority = await processAuthority(deps.packageRoot, deps.registry)
   const directory = path.join(
-    trustedPrivateRoot(),
+    path.dirname(deps.registry),
     `ms-${randomBytes(LSP_LIMITS.socketNameBytes).toString('hex')}`,
   )
   const created = await privateDirectory(directory, true)
@@ -69,7 +63,11 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
     process.platform === 'win32'
       ? String.raw`\\.\pipe\muse-stop-${randomUUID()}`
       : path.join(directory, 'control')
-  const record = path.join(deps.registry, `${workspaceKey(deps.cwd)}-${randomUUID()}.json`)
+  const ownerId = randomUUID()
+  const generation = randomBytes(RUNTIME_STOP.generationBytes).toString('hex')
+  const record = path.join(deps.registry, `${workspaceKey(deps.cwd)}-${ownerId}.json`)
+  const ownership = (binding: StopBinding | null) =>
+    JSON.stringify({ pid: process.pid, pipe, token, generation, ownerId, binding })
   let child: ChildProcessWithoutNullStreams | undefined
   let watchdog: ChildProcessWithoutNullStreams | undefined
   let watchdogDone: Promise<number> | undefined
@@ -148,7 +146,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
       control.once('error', reject)
       control.listen(pipe, resolve)
     })
-    await writePrivateRecord(record, JSON.stringify({ pid: process.pid, pipe, token }))
+    await writePrivateRecord(record, ownership(null))
     process.on('SIGTERM', requestStop)
     process.on('SIGINT', requestStop)
     if (process.platform !== 'win32') {
@@ -210,7 +208,18 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
     })
     child.on('exit', stop)
     if (watchdog !== undefined) {
+      if (watchdogTicket === undefined) throw new Error('ESTOP_WATCHDOG')
       const guard = watchdog
+      const binding: StopBinding = {
+        generation,
+        ownerId,
+        ticketId: childTicket.id,
+        root: childTicket.root,
+        guardian: watchdogTicket.root,
+      }
+      const nextOwner = `${record}.${randomUUID()}`
+      await writePrivateRecord(nextOwner, ownership(binding))
+      await rename(nextOwner, record)
       await new Promise<void>((resolve, reject) => {
         const timer = setTimeout(() => {
           reject(new Error('ESTOP_WATCHDOG'))
@@ -224,7 +233,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
           clearTimeout(timer)
           reject(new Error('ESTOP_WATCHDOG'))
         })
-        guard.stdin.write(`${JSON.stringify({ ticket: childTicket })}\n`)
+        guard.stdin.write(`${JSON.stringify({ ticket: childTicket, binding })}\n`)
       })
     }
     launched.admit()
@@ -280,6 +289,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
         })
       })
       if (lifecycle.didStopTree || !lifecycle.wasAdmitted) {
+        await rm(`${record}.tree.observed`, { force: true })
         await rm(`${record}.tree`, { force: true })
         await rm(record, { force: true })
         await rm(directory, { recursive: true, force: true })
@@ -289,7 +299,12 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
 }
 
 /** Private authenticated control sockets reach every owner in this workspace. */
-export async function stopWorkspace(registry: string, cwd: string): Promise<void> {
+export async function stopWorkspace(
+  registry: string,
+  cwd: string,
+  packageRoot = path.resolve(__dirname, '..'),
+): Promise<void> {
+  const { ownerSchema, isReceiptMatching, isSameProcess } = await import('./stopReceipt')
   let files: string[]
   try {
     await privateDirectory(registry)
@@ -311,35 +326,63 @@ export async function stopWorkspace(registry: string, cwd: string): Promise<void
           if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return
           throw error
         }
-        let owner: z.infer<typeof ownerSchema>
+        let owner: StopOwner
         try {
           const bytes = Buffer.alloc(RUNTIME_STOP.recordBytes + 1)
           const { bytesRead } = await handle.read(bytes)
           if (bytesRead > RUNTIME_STOP.recordBytes) throw new Error('ESTOP_RECORD')
-          owner = ownerSchema.parse(JSON.parse(bytes.toString('utf8', 0, bytesRead)))
+          const parsed = ownerSchema.safeParse(JSON.parse(bytes.toString('utf8', 0, bytesRead)))
+          if (!parsed.success) throw new UnverifiedStopError([])
+          owner = parsed.data
         } finally {
           await handle.close()
         }
-        if (owner.pid !== undefined && !isProcessAlive(owner.pid)) {
+        if (!isProcessAlive(owner.pid)) {
           const receiptFile = `${path.join(registry, file)}.tree`
-          let receipt: z.infer<typeof treeReceiptSchema> | undefined
+          let receipt: StopReceipt | undefined
           try {
-            const receiptHandle = await openPrivateRecord(receiptFile)
-            try {
-              const bytes = Buffer.alloc(RUNTIME_STOP.recordBytes + 1)
-              const { bytesRead } = await receiptHandle.read(bytes)
-              if (bytesRead <= RUNTIME_STOP.recordBytes)
-                receipt = treeReceiptSchema.parse(JSON.parse(bytes.toString('utf8', 0, bytesRead)))
-            } finally {
-              await receiptHandle.close()
-            }
+            receipt = await readTreeReceipt(receiptFile)
           } catch {
             // Missing, invalid or unsafe receipt never certifies descendant exit.
           }
-          if (receipt?.isComplete !== true || receipt.pids.length === 0)
-            throw new UnverifiedStopError(receipt?.pids ?? [owner.pid])
+          const binding = owner.binding
+          if (
+            receipt?.isComplete !== true ||
+            binding?.generation !== owner.generation ||
+            owner.ownerId !== binding.ownerId ||
+            file !== `${prefix}${owner.ownerId}.json` ||
+            !isReceiptMatching(receipt, binding)
+          ) {
+            let observed = receipt
+            if (
+              binding === null ||
+              (observed !== undefined && !isReceiptMatching(observed, binding))
+            )
+              observed = undefined
+            if (observed === undefined) {
+              try {
+                const pending = await readTreeReceipt(`${receiptFile}.observed`)
+                if (binding !== null && isReceiptMatching(pending, binding)) observed = pending
+              } catch {
+                /* Missing/unsafe observations provide no authority. */
+              }
+            }
+            throw new UnverifiedStopError(
+              observed?.members.map((member) => member.pid) ?? [owner.pid],
+            )
+          }
+          const { processAuthority } = await import('./processAuthority')
+          const authority = await processAuthority(packageRoot, registry)
+          const liveGuardian = await authority.identity(binding.guardian.pid)
+          // A completed guardian may have exited; a live/reused PID must match its birth.
+          if (
+            (liveGuardian === null && isProcessAlive(binding.guardian.pid)) ||
+            (liveGuardian !== null && !isSameProcess(liveGuardian, binding.guardian))
+          )
+            throw new UnverifiedStopError(receipt.members.map((member) => member.pid))
           await rm(path.join(registry, file), { force: true })
           await rm(receiptFile, { force: true })
+          await rm(`${receiptFile}.observed`, { force: true })
           return
         }
         await new Promise<void>((resolve, reject) => {

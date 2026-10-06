@@ -8,6 +8,7 @@ import {
   writeFile,
   readFile,
   rename,
+  realpath,
   symlink,
 } from 'node:fs/promises'
 import * as fs from 'node:fs/promises'
@@ -22,6 +23,7 @@ import {
   privateDirectory,
   writePrivateRecord,
 } from '../../src/runtime/lsp/registry'
+import { processAuthority } from '../../src/runtime/lsp/processAuthority'
 import { removeFolder } from './helpers/temporaryFolders'
 
 vi.mock('../../src/host/processTree', async (importOriginal) => ({
@@ -29,7 +31,7 @@ vi.mock('../../src/host/processTree', async (importOriginal) => ({
 }))
 vi.mock('node:fs/promises', async (importOriginal) => ({ ...(await importOriginal<typeof fs>()) }))
 
-const folder = await mkdtemp(path.join(tmpdir(), 'muse-registry-'))
+const folder = await realpath(await mkdtemp(path.join(tmpdir(), 'muse-registry-')))
 afterAll(() => removeFolder(folder))
 
 // Inject the interleaving after the real no-follow open has acquired its fd.
@@ -100,14 +102,6 @@ describe('M104L private registry authority', () => {
     async () => {
       const parent = path.join(folder, 'ancestor')
       await mkdir(parent, { mode: 0o700 })
-      await expect(
-        privateDirectory(
-          path.join(parent, 'outside'),
-          true,
-          undefined,
-          path.join(folder, 'different-root'),
-        ),
-      ).rejects.toThrow('ELSP_PRIVATE')
       const opening = changedMetadata(parent, (metadata) => {
         metadata.uid += 1n
       })
@@ -167,6 +161,39 @@ describe('M104L private registry authority', () => {
       }
     },
   )
+  it.runIf(process.platform !== 'win32').each([0o700, 0o777])(
+    'refuses substitution and restoration during exclusive creation with target mode %s before writing contents',
+    async (mode) => {
+      const directory = path.join(folder, `restore-original-${String(mode)}`)
+      const target = path.join(folder, `restore-target-${String(mode)}`)
+      await mkdir(directory, { mode: 0o700 })
+      await mkdir(target, { mode })
+      await chmod(target, mode)
+      const file = path.join(directory, 'owner.json')
+      const nativeOpen = fs.open
+      const opening = vi.spyOn(fs, 'open').mockImplementation(async (name, flags, mode) => {
+        if (name !== file) return await nativeOpen(name, flags, mode)
+        await rename(directory, `${directory}-held`)
+        await symlink(target, directory)
+        try {
+          return await nativeOpen(name, flags, mode)
+        } finally {
+          await fs.unlink(directory)
+          await rename(`${directory}-held`, directory)
+        }
+      })
+      try {
+        await expect(writePrivateRecord(file, 'private-control-sentinel')).rejects.toThrow(
+          'ELSP_PRIVATE',
+        )
+        expect(await readFile(path.join(target, 'owner.json'), 'utf8')).toBe('')
+        await expect(readFile(file)).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        opening.mockRestore()
+      }
+    },
+  )
+
   it.runIf(process.platform !== 'win32').each(['foreignOwner', 'broadMode', 'extraLink'])(
     'rejects empty record fstat %s before its first write',
     async (fault) => {
@@ -203,6 +230,30 @@ describe('M104L private registry authority', () => {
       await symlink(file, alias)
       await expect(writePrivateRecord(alias, 'replacement')).rejects.toThrow()
       expect(await readFile(file, 'utf8')).toBe('original')
+    },
+  )
+
+  it.runIf(process.platform !== 'win32')(
+    'refuses a pre-existing completed receipt without replacing its generation',
+    async () => {
+      const directory = path.join(folder, 'exclusive-receipt')
+      await mkdir(directory, { mode: 0o700 })
+      const authority = await processAuthority(folder, directory)
+      const root = { pid: process.pid, startTime: '1' }
+      const binding = {
+        generation: 'a'.repeat(32),
+        ownerId: '00000000-0000-4000-8000-000000000001',
+        ticketId: '00000000-0000-4000-8000-000000000002',
+        guardian: root,
+        root,
+      }
+      const file = path.join(directory, 'owner.tree')
+      await authority.writeReceipt(file, binding, [root], true)
+      const before = await readFile(file, 'utf8')
+      await expect(
+        authority.writeReceipt(file, { ...binding, generation: 'b'.repeat(32) }, [root], true),
+      ).rejects.toMatchObject({ code: 'EEXIST' })
+      expect(await readFile(file, 'utf8')).toBe(before)
     },
   )
 
@@ -324,7 +375,7 @@ describe('M104L private registry authority', () => {
     expect(helper).toContain('GetFileInformationByHandle(handle, out info)')
     expect(helper).toContain('(info.Attributes & REPARSE) != 0')
     expect(helper).toContain('GetSecurityInfo(handle, 1, OWNER_DACL')
-    expect(helper).toContain('!current.Equals(security.Owner)')
+    expect(helper).toContain('current.Equals(security.Owner)')
     expect(helper).toContain('DiscretionaryAclProtected) == 0')
     expect(helper).toContain(
       '!current.Equals(ace.SecurityIdentifier) && !system.Equals(ace.SecurityIdentifier)',

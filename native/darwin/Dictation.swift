@@ -82,34 +82,108 @@ func runProcIdentityIfRequested() {
     exit(0)
 }
 
-// M104L: inspect an inherited no-follow fd; never reopen its path.
+// M104L: OpenSSH StrictModes/safe_path over the real ancestry, not a chosen root.
+// https://github.com/openssh/openssh-portable/blob/master/misc.c
+struct PrivatePathComponent: Codable {
+    let owner: String
+    let mode: UInt32
+    let sticky: Bool
+    let directory: Bool
+    let symlink: Bool
+    let acl: Bool
+}
+func privatePathAllows(_ rows: [PrivatePathComponent]) -> Bool {
+    guard !rows.isEmpty else { return false }
+    var needsUserChild = false
+    for (index, row) in rows.enumerated() {
+        guard row.directory, !row.symlink, ["root", "user"].contains(row.owner),
+              !needsUserChild || row.owner == "user" else { return false }
+        let writable = row.mode & 0o022 != 0
+        needsUserChild = writable && row.owner == "root" && row.sticky
+        guard !writable || needsUserChild else { return false }
+        if index == rows.count - 1 {
+            guard row.owner == "user", row.mode & 0o777 == 0o700, !row.acl else { return false }
+        }
+    }
+    return true
+}
+func verifyPrivatePath(_ input: String) -> Bool {
+    guard let resolved = realpath(input, nil) else { return false }
+    defer { free(resolved) }
+    let canonical = String(cString: resolved)
+    var logical = input
+    while true {
+        var info = stat()
+        guard lstat(logical, &info) == 0 else { return false }
+        if info.st_mode & S_IFMT == S_IFLNK && info.st_uid != 0 { return false }
+        let parent = (logical as NSString).deletingLastPathComponent
+        if parent == logical || parent.isEmpty { break }
+        logical = parent
+    }
+    var rows: [PrivatePathComponent] = []
+    var next = canonical
+    while true {
+        var info = stat()
+        guard lstat(next, &info) == 0 else { return false }
+        var hasAcl = false
+        if next == canonical {
+            errno = 0
+            if let acl = acl_get_file(next, ACL_TYPE_EXTENDED) {
+                acl_free(UnsafeMutableRawPointer(acl)); hasAcl = true
+            } else if errno != ENOENT { return false }
+        }
+        rows.insert(PrivatePathComponent(
+            owner: info.st_uid == getuid() ? "user" : info.st_uid == 0 ? "root" : "foreign",
+            mode: UInt32(info.st_mode), sticky: info.st_mode & 0o1000 != 0,
+            directory: info.st_mode & S_IFMT == S_IFDIR,
+            symlink: info.st_mode & S_IFMT == S_IFLNK, acl: hasAcl), at: 0)
+        let parent = (next as NSString).deletingLastPathComponent
+        if parent == next { break }
+        next = parent
+    }
+    return privatePathAllows(rows)
+}
 func runPrivateDirectoryIfRequested() {
-    guard let command = CommandLine.arguments.dropFirst().first,
-          ["private-directory", "private-record", "private-ancestor"].contains(command) else { return }
+    guard let command = CommandLine.arguments.dropFirst().first else { return }
+    if command == "private-temp" {
+        let length = confstr(_CS_DARWIN_USER_TEMP_DIR, nil, 0)
+        guard length > 0 else { exit(2) }
+        var buffer = [CChar](repeating: 0, count: length)
+        guard confstr(_CS_DARWIN_USER_TEMP_DIR, &buffer, length) == length,
+              let data = try? JSONSerialization.data(withJSONObject: ["directory": String(cString: buffer)]) else { exit(2) }
+        FileHandle.standardOutput.write(data); exit(0)
+    }
+    if command == "private-path-vectors" {
+        struct Vector: Decodable { let components: [PrivatePathComponent] }
+        guard let vectors = try? JSONDecoder().decode([Vector].self, from: FileHandle.standardInput.readDataToEndOfFile()),
+              let data = try? JSONSerialization.data(withJSONObject: vectors.map { privatePathAllows($0.components) }) else { exit(2) }
+        FileHandle.standardOutput.write(data); exit(0)
+    }
+    if command == "private-path" {
+        guard CommandLine.arguments.count == 3, verifyPrivatePath(CommandLine.arguments[2]) else { exit(2) }
+        exit(0)
+    }
+    guard ["private-directory", "private-record"].contains(command) else { return }
     guard CommandLine.arguments.count == 3, let fd = Int32(CommandLine.arguments[2]), fd >= 3 else { exit(2) }
     var info = stat()
     guard fstat(fd, &info) == 0 else { exit(2) }
-    if command == "private-ancestor" {
-        guard (info.st_mode & S_IFMT) == S_IFDIR,
-              info.st_uid == getuid() || info.st_uid == 0,
-              (info.st_mode & 0o022) == 0 || (info.st_mode & 0o1000) != 0 else { exit(2) }
-    } else {
-        let isDirectory = command == "private-directory"
-        guard (info.st_mode & S_IFMT) == (isDirectory ? S_IFDIR : S_IFREG),
-              info.st_uid == getuid(), (info.st_mode & 0o777) == (isDirectory ? 0o700 : 0o600),
-              isDirectory || info.st_nlink == 1 else { exit(2) }
-    }
+    let isDirectory = command == "private-directory"
+    guard (info.st_mode & S_IFMT) == (isDirectory ? S_IFDIR : S_IFREG),
+          info.st_uid == getuid(), (info.st_mode & 0o777) == (isDirectory ? 0o700 : 0o600),
+          isDirectory || info.st_nlink == 1 else { exit(2) }
+    var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+    guard fcntl(fd, F_GETPATH, &buffer) == 0 else { exit(2) }
+    let heldPath = String(cString: buffer)
+    let directoryPath = isDirectory ? heldPath : (heldPath as NSString).deletingLastPathComponent
+    guard verifyPrivatePath(directoryPath) else { exit(2) }
     errno = 0
     if let acl = acl_get_fd(fd) {
-        acl_free(UnsafeMutableRawPointer(acl))
-        exit(2)
+        acl_free(UnsafeMutableRawPointer(acl)); exit(2)
     }
-    // Darwin reports ENOENT when no extended ACL exists on this inode.
     guard errno == ENOENT else { exit(2) }
     let receipt: [String: String] = ["device": String(info.st_dev), "inode": String(info.st_ino)]
     guard let data = try? JSONSerialization.data(withJSONObject: receipt) else { exit(2) }
-    FileHandle.standardOutput.write(data)
-    exit(0)
+    FileHandle.standardOutput.write(data); exit(0)
 }
 runPrivateDirectoryIfRequested()
 

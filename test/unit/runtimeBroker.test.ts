@@ -1,5 +1,5 @@
 import './helpers/lspPrivateDirectoryMock'
-import { mkdtemp, readFile, mkdir, writeFile, rm, chmod, symlink } from 'node:fs/promises'
+import { mkdtemp, readFile, mkdir, writeFile, rm, chmod, symlink, realpath } from 'node:fs/promises'
 import * as fs from 'node:fs/promises'
 import { createConnection, createServer } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -83,12 +83,18 @@ describe('M104L workspace broker', () => {
         break
       }
     }
-    const metadata = vi.spyOn(fs, 'lstat')
-    if (fault === 'foreignOwner') {
-      const info = await fs.stat(actual, { bigint: true })
-      info.uid += 1n
-      metadata.mockResolvedValueOnce(info)
-    }
+    const canonical = await realpath(actual)
+    const nativeOpen = fs.open
+    const opening = vi.spyOn(fs, 'open').mockImplementation(async (file, flags, mode) => {
+      const handle = await nativeOpen(file, flags, mode)
+      if (fault === 'foreignOwner' && (file === actual || file === canonical)) {
+        // The shared verifier reads held metadata, not the former first lstat.
+        const info = await handle.stat({ bigint: true })
+        info.uid += 1n
+        vi.spyOn(handle, 'stat').mockResolvedValue(info)
+      }
+      return handle
+    })
     const launch = vi.fn()
     try {
       const connecting = (async () => {
@@ -105,7 +111,7 @@ describe('M104L workspace broker', () => {
       expect(connections).not.toHaveBeenCalled()
       expect(launch).not.toHaveBeenCalled()
     } finally {
-      metadata.mockRestore()
+      opening.mockRestore()
       await new Promise<void>((resolve) => {
         server.close(() => {
           resolve()

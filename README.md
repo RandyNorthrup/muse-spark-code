@@ -497,28 +497,37 @@ or reparented descendants retain their exact identities. A descendant that
 double-forks wholly between observations can still escape this sampling
 policy. Windows uses a named native job and awaits Windows qualification.
 
-The broker and Stop use the per-user runtime/cache root: `XDG_RUNTIME_DIR`
-or the user cache directory on Linux, `~/Library/Caches` on macOS, and
-`LocalAppData` on Windows. Every ancestor through that root must be owned
-by the user/root and must refuse other users' writes unless POSIX sticky
-protection applies. They create private directories with final permissions
-and refuse unsafe existing namespaces. POSIX checks the owner/mode via a
-no-follow directory fd, including a held-fd ACL check on macOS. Windows
-creates a protected owner/SYSTEM DACL and verifies it through an open handle;
-it never hardens a directory after creation. Records retain their private
-permissions and exact file-identity checks. Each record is created exclusively
-without following links; its empty held file's owner, mode and native ACL,
-and its held directory's pathname identity, are verified before any token
-is written. Windows performs the equivalent CREATE_NEW/no-reparse sequence
-with protected file security and retained native handles.
+The broker and Stop select a verified private root in platform order: Linux
+`XDG_RUNTIME_DIR`, then configured `XDG_STATE_HOME` / `XDG_CACHE_HOME`, then
+`~/.local/state/muse-spark`; macOS's per-user temporary directory from the
+signed helper, then `~/Library/Application Support/Muse Spark`; Windows
+`%LOCALAPPDATA%\Muse Spark`. Diagnostics record each refused candidate and
+its failing ancestor, and the selected real path. If none qualifies, startup
+refuses. Verification walks the whole real path to the filesystem/volume root.
+POSIX ancestors must be root/user-owned and not group/other writable; a
+root-owned sticky ancestor is allowed only with an immediately user-owned
+child. The private leaf must be user-owned 0700 and ACL-free on macOS. Windows
+refuses reparse points and other SIDs' mutating grants throughout the ancestry,
+with protected owner/SYSTEM security at the private leaf.
+
+Private directories receive final permissions at creation; unsafe existing
+namespaces are refused. Records are exclusively created without following
+links, and their empty held file's owner, mode, link count and native ACL are
+verified. Before contents, the resolved record pathname must still name that
+held inode, and the parent must still name the verified directory. Windows
+uses CREATE_NEW, protected file security and retained native handles for the
+same checks. Same-user processes can already edit these files and signal the
+user's processes; they are outside this cross-user trust boundary.
 
 POSIX actions recheck the exact birth immediately before synchronous signal,
 without an intervening await. A residual remains between that recheck and
 kill if the PID is reused during that interval; no pidfd binding is installed.
 Windows acts through one retained process handle. Stop requires per-member
 exit receipts rather than counting an admitted signal as completion. After
-owner death it requires the guardian's completed receipt for every observed
-descendant. An absent, pending or invalid receipt makes `stop` exit 1 with
+owner death it requires the guardian's exclusively created completed receipt
+for every observed descendant, bound to the current random generation, owner
+UUID, resource ticket, guardian/root PIDs and births, and member identities.
+A copied or older receipt cannot retire current ownership. An absent, pending or invalid receipt makes `stop` exit 1 with
 “Cannot verify Stop — processes may still be running” and observed PIDs;
 ownership stays on disk. A later completed guardian receipt allows retirement.
 Intentional Stop returns 0, including the Windows job helper's 143/137

@@ -7,7 +7,8 @@ import { LinuxResourceTreeReader } from '../../core/resources/trees/linux'
 import { MacResourceTreeReader } from '../../core/resources/trees/mac'
 import { WindowsResourceTreeReader } from '../../core/resources/trees/windows'
 import { ResourceTreeRegistry } from '../../core/resources/trees/registry'
-import type { ResourceTicket } from '../../shared/resources'
+import type { ResourceTicket, ResourceProcessIdentity } from '../../shared/resources'
+import type { StopBinding } from './stopReceipt'
 import { RUNTIME_STOP } from '../../shared/constants'
 import { jobSourceReader } from '../../host/backend/jobSource'
 import { shellJobAssembly } from '../../host/backend/shellJob'
@@ -149,13 +150,16 @@ export async function processAuthority(packageRoot: string, storageDir: string) 
   async function stop(
     ticket: ResourceTicket,
     shouldGracefullyStop = false,
-  ): Promise<readonly number[]> {
-    const observed = new Set<number>([ticket.root.pid])
+  ): Promise<readonly ResourceProcessIdentity[]> {
+    const observed = new Map<string, ResourceProcessIdentity>([
+      [`${String(ticket.root.pid)}:${ticket.root.startTime}`, ticket.root],
+    ])
     const deadline = Date.now() + RUNTIME_STOP.exitMs
     let result = await registry.kill(ticket, shouldGracefullyStop ? 'SIGTERM' : 'SIGKILL')
     if (shouldGracefullyStop) await pause(RUNTIME_STOP.graceMs)
     for (;;) {
-      for (const member of result.members) observed.add(member.identity.pid)
+      for (const member of result.members)
+        observed.set(`${String(member.identity.pid)}:${member.identity.startTime}`, member.identity)
       if (result.members.some((member) => member.result === 'refused'))
         throw new Error('ESTOP_TREE')
       // Preserve the registry's detailed snapshot. A later reused group cannot erase
@@ -168,7 +172,7 @@ export async function processAuthority(packageRoot: string, storageDir: string) 
         )
       ) {
         registry.unregister(ticket)
-        return [...observed]
+        return Array.from(observed, ([, member]) => member)
       }
       if (Date.now() >= deadline) throw new Error('ESTOP_TREE')
       await pause(RUNTIME_STOP.pollMs)
@@ -193,12 +197,32 @@ export async function processAuthority(packageRoot: string, storageDir: string) 
       if (members.some((member) => member.result === 'done')) result = await registry.kill(ticket)
     }
   }
-  async function writeReceipt(file: string, pids: readonly number[], isComplete: boolean) {
-    const text = JSON.stringify({ pids, isComplete, guardian: process.pid })
+  async function writeReceipt(
+    file: string,
+    binding: StopBinding,
+    members: readonly ResourceProcessIdentity[],
+    isComplete: boolean,
+  ) {
+    const text = JSON.stringify({ ...binding, members, isComplete })
     if (Buffer.byteLength(text) > RUNTIME_STOP.recordBytes) throw new Error('ESTOP_RECORD')
-    const next = `${file}.${randomUUID()}`
-    await writePrivateRecord(next, text)
-    await rename(next, file)
+    // Completion is immutable and exclusive. Observations have their own sibling;
+    // an older completed receipt can never be silently replaced or adopted.
+    if (isComplete) await writePrivateRecord(file, text)
+    else {
+      const next = `${file}.${randomUUID()}`
+      await writePrivateRecord(next, text)
+      await rename(next, `${file}.observed`)
+    }
   }
-  return { registry, register, launch, stop, writeReceipt }
+  return { registry, identity, register, launch, stop, writeReceipt }
 }
+
+// The existing deferred authority cohort also owns private-state verification.
+export { verifyTrustedPath } from '../trustedPath'
+export {
+  treeReceiptSchema,
+  ownerSchema,
+  guardianMessageSchema,
+  isSameProcess,
+  isReceiptMatching,
+} from './stopReceipt'

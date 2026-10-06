@@ -5301,6 +5301,7 @@ export const MHP_PANEL = {
 
 /** M104H2: independent runtime owners and their private Stop control channel. */
 export const RUNTIME_STOP = {
+  generationBytes: 16,
   stoppedExit: 0,
   signalExitBase: 128,
   launchFd: 3,

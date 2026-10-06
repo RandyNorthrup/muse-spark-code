@@ -67,6 +67,8 @@
     "src/runtime/lsp/lspEntry.ts",
     "src/shared/featureCatalog.ts",
     "src/runtime/lsp/watchdogEntry.ts",
+    // Shipped deferred entry: path/receipt imports map to these native-runtime exports.
+    "src/runtime/lsp/processAuthority.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     "test/e2e/**/*.test.ts",
     "test/e2e/fake-muse/serve.mjs",

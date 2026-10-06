@@ -1,14 +1,10 @@
 // Broker and Stop records are authority only inside a verified owner-only namespace.
 import { constants, type BigIntStats } from 'node:fs'
-import { open } from 'node:fs/promises'
+import { open, realpath } from 'node:fs/promises'
 import { Buffer } from 'node:buffer'
 import process from 'node:process'
 import path from 'node:path'
-import {
-  privateDirectory,
-  verifyPrivateHandle,
-  writeWindowsPrivateRecord,
-} from '../privateDirectory'
+import { verifyPrivateHandle, writeWindowsPrivateRecord } from '../privateDirectory'
 import * as z from 'zod/mini'
 import { runProgram, windowsPowerShell } from '../../host/processTree'
 import { LSP_LIMITS } from '../../shared/constants'
@@ -106,21 +102,34 @@ export async function writePrivateRecord(file: string, text: string): Promise<vo
     return
   }
   const directory = path.dirname(file)
-  await privateDirectory(directory)
+  const { verifyTrustedPath } = await import('../trustedPath')
+  const verified = await verifyTrustedPath(directory)
   const parent = await open(
     directory,
     constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
   )
   try {
     const parentInfo = await verifyPrivateHandle(parent, true)
+    if (verified === undefined || !sameFile(verified.info, parentInfo))
+      throw new Error('ELSP_PRIVATE')
     const handle = await open(
       file,
       constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
       LSP_LIMITS.fileMode,
     )
     try {
-      await verifyPrivateHandle(handle, false)
-      if (!sameFile(await lstatIdentity(directory), parentInfo)) throw new Error('ELSP_PRIVATE')
+      const recordInfo = await verifyPrivateHandle(handle, false)
+      // The namespace can be substituted and restored while open acquires the fd.
+      // Bind the held file itself, as well as its parent, before the first byte.
+      try {
+        if (
+          !sameFile(await lstatIdentity(await realpath(file)), recordInfo) ||
+          !sameFile(await lstatIdentity(await realpath(directory)), parentInfo)
+        )
+          throw new Error('ELSP_PRIVATE')
+      } catch (error: unknown) {
+        throw new Error('ELSP_PRIVATE', { cause: error })
+      }
       await handle.writeFile(text)
     } finally {
       await handle.close()

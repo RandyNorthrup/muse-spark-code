@@ -4,7 +4,7 @@ export const FEATURE_CATALOG = [
   {
     command: 'lsp',
     behavior:
-      'Stdio LSP frontend. One broker per canonical workspace, with private directories created with final owner-only permissions and verified through a no-follow fd or Windows handle; private records created exclusively with held-file permissions/ACL and directory identity verified before contents are written; every ancestor through the per-user runtime/cache root must be trusted; UTF-16 full document sync; cancellable requests and standard initialization/method error codes; ordinary invoked completion items plus inline completion when negotiated.',
+      'Stdio LSP frontend. One broker per canonical workspace, with private directories created with final owner-only permissions and verified through a no-follow fd or Windows handle; private records created exclusively with held-file permissions/ACL, resolved record identity and directory identity verified before contents are written; one StrictModes verifier checks the full real ancestry to the filesystem root, including root-owned sticky parents only with user-owned children; platform root selection records refusals and its chosen path, refusing startup if none qualifies; UTF-16 full document sync; cancellable requests and standard initialization/method error codes; ordinary invoked completion items plus inline completion when negotiated.',
   },
   {
     command: 'lsp --workspace <directory>',
@@ -28,7 +28,7 @@ export const FEATURE_CATALOG = [
   {
     command: 'stop',
     behavior:
-      'Stop supervised owners in the current canonical workspace without entering the request queue. Owner death requires a completed guardian receipt for every observed descendant; without one, exit 1 reports inability to verify and observed PIDs, retaining ownership for a later verified Stop.',
+      'Stop supervised owners in the current canonical workspace without entering the request queue. Owner death requires an exclusively created completed guardian receipt bound to the current random generation, owner UUID, resource ticket, guardian/root birth identities and observed members; copied, stale and incomplete receipts refuse; without one, exit 1 reports inability to verify and observed PIDs, retaining ownership for a later verified Stop.',
   },
   {
     command: 'muse.stop / muse.usage / muse.help',

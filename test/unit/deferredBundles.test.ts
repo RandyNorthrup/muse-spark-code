@@ -308,8 +308,15 @@ describe('deferred cohort bundles', () => {
       )
       for (const file of ['registry', 'linux', 'mac', 'windows', 'actions', 'posix'])
         expect(inputs(name)).not.toContain(`src/core/resources/trees/${file}.ts`)
+      for (const file of ['src/runtime/trustedPath.ts', 'src/runtime/lsp/stopReceipt.ts'])
+        expect(inputs(name)).not.toContain(file)
     }
-    expect(inputs('runtimeProcessAuthority')).toContain('src/runtime/lsp/processAuthority.ts')
+    for (const file of [
+      'src/runtime/lsp/processAuthority.ts',
+      'src/runtime/trustedPath.ts',
+      'src/runtime/lsp/stopReceipt.ts',
+    ])
+      expect(inputs('runtimeProcessAuthority')).toContain(file)
   })
 
   it('keeps board and best-of-N execution out of activation', () => {

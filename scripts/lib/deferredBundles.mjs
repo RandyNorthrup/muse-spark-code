@@ -46,6 +46,8 @@ export const DEFERRED = [
     ],
     files: [
       'src/runtime/lsp/processAuthority.ts',
+      'src/runtime/trustedPath.ts',
+      'src/runtime/lsp/stopReceipt.ts',
       ...['registry', 'actions', 'linux', 'mac', 'posix', 'posixTable', 'windows', 'run'].map(
         (name) => `src/core/resources/trees/${name}.ts`,
       ),
@@ -340,6 +342,8 @@ export const sharedValidation = {
 const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/runtime/lsp/lspEntry.ts'), 'dist/lsp.js'],
   [path.resolve('src/runtime/lsp/processAuthority.ts'), 'dist/runtimeProcessAuthority.js'],
+  [path.resolve('src/runtime/trustedPath.ts'), 'dist/runtimeProcessAuthority.js'],
+  [path.resolve('src/runtime/lsp/stopReceipt.ts'), 'dist/runtimeProcessAuthority.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
@@ -356,7 +360,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:lspEntry|processAuthority|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
+          /\/(?:lspEntry|processAuthority|trustedPath|stopReceipt|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (args.kind !== 'dynamic-import') return

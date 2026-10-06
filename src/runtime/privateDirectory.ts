@@ -1,7 +1,7 @@
 // Shared with companion token storage: refuse unsafe namespaces, never repair them.
 import { spawn } from 'node:child_process'
 import { constants } from 'node:fs'
-import { mkdir, open, type FileHandle } from 'node:fs/promises'
+import { mkdir, realpath, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import { homedir } from 'node:os'
 import process from 'node:process'
@@ -9,45 +9,109 @@ import * as z from 'zod/mini'
 import { JOB_SOURCE_FILES } from '../host/backend/jobSource'
 import { powerShellQuoted } from '../core/shellQuote'
 import { runProgram, windowsPowerShell } from '../host/processTree'
-import { handleIdentity, lstatIdentity, sameFile } from '../core/fs/fileIdentity'
-import { LSP_LIMITS, RUNTIME_STOP, WORKSPACE_IDENTITY_ZERO } from '../shared/constants'
+import { handleIdentity, sameFile } from '../core/fs/fileIdentity'
+import { LSP_LIMITS, RUNTIME_STOP } from '../shared/constants'
 import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 
 const MODE_MASK = constants.S_IRWXU | constants.S_IRWXG | constants.S_IRWXO
 
-const receiptSchema = z.strictObject({
-  isNew: z.boolean(),
-  volume: z.string().check(z.regex(/^\d+$/u)),
-  index: z.string().check(z.regex(/^\d+$/u)),
-})
+const receiptSchema = z.union([
+  z.strictObject({
+    isNew: z.boolean(),
+    volume: z.string().check(z.regex(/^\d+$/u)),
+    index: z.string().check(z.regex(/^\d+$/u)),
+  }),
+  z.strictObject({ refusal: z.string() }),
+])
 
-/** Private IPC never uses a shared temporary parent. */
-export function trustedPrivateRoot(): string {
-  if (process.platform === 'win32')
-    return process.env['LOCALAPPDATA'] ?? path.join(homedir(), 'AppData', 'Local')
-  return process.platform === 'darwin'
-    ? path.join(homedir(), 'Library', 'Caches')
-    : (process.env['XDG_RUNTIME_DIR'] ??
-        process.env['XDG_CACHE_HOME'] ??
-        path.join(homedir(), '.cache'))
+/** Choose only a verified full-path platform root; refusals remain in diagnostics. */
+export async function trustedPrivateRoot(
+  packageRoot = path.resolve(__dirname, '..'),
+  diagnostic: (message: string) => void = () => {
+    /* Callers may inspect the thrown refusals. */
+  },
+): Promise<string> {
+  const home = homedir()
+  const candidates: { directory: string; mayCreate: boolean }[] = []
+  if (process.platform === 'win32') {
+    const local = process.env['LOCALAPPDATA'] ?? path.join(home, 'AppData', 'Local')
+    candidates.push({ directory: path.join(local, 'Muse Spark'), mayCreate: true })
+  } else if (process.platform === 'darwin') {
+    try {
+      const output = await runProgram(
+        path.join(packageRoot, 'native', 'darwin', 'muse-dictate'),
+        ['private-temp'],
+        withoutKeyringRoutes(withoutCredentials(process.env)),
+      )
+      candidates.push({
+        directory: z.strictObject({ directory: z.string() }).parse(JSON.parse(output)).directory,
+        mayCreate: false,
+      })
+    } catch (error: unknown) {
+      diagnostic(`ELSP_PRIVATE: Darwin user temp: ${String(error)}`)
+    }
+    candidates.push({
+      directory: path.join(home, 'Library', 'Application Support', 'Muse Spark'),
+      mayCreate: true,
+    })
+  } else {
+    for (const name of ['XDG_RUNTIME_DIR', 'XDG_STATE_HOME', 'XDG_CACHE_HOME']) {
+      const directory = process.env[name]
+      if (directory !== undefined) candidates.push({ directory, mayCreate: false })
+    }
+    candidates.push({
+      directory: path.join(home, '.local', 'state', 'muse-spark'),
+      mayCreate: true,
+    })
+  }
+  const refusals: string[] = []
+  for (const candidate of candidates) {
+    try {
+      if (!path.isAbsolute(candidate.directory)) throw new Error('ELSP_PRIVATE: relative root')
+      if (candidate.mayCreate) await createTrustedRoot(candidate.directory, packageRoot)
+      await privateDirectory(candidate.directory, false, packageRoot)
+      const chosen = await realpath(candidate.directory)
+      diagnostic(`ELSP_PRIVATE_ROOT: ${chosen}`)
+      return chosen
+    } catch (error: unknown) {
+      const reason =
+        error instanceof Error && error.cause instanceof Error ? error.cause.message : String(error)
+      const refusal = `${candidate.directory}: ${reason}`
+      refusals.push(refusal)
+      diagnostic(refusal)
+    }
+  }
+  throw new Error(`ELSP_PRIVATE: no verified runtime root; ${refusals.join('; ')}`)
 }
 
-async function windowsReceipt(
-  directory: string,
-  shouldCreate: boolean,
-  packageRoot: string,
-  trustedRoot: string,
-) {
+async function createTrustedRoot(root: string, packageRoot: string) {
+  const { verifyTrustedPath } = await import('./trustedPath')
+  const missing: string[] = []
+  let existing = root
+  for (;;) {
+    try {
+      await realpath(existing)
+      break
+    } catch (error: unknown) {
+      if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
+      missing.unshift(existing)
+      existing = path.dirname(existing)
+    }
+  }
+  if (process.platform !== 'win32') await verifyTrustedPath(existing, false)
+  for (const directory of missing) await privateDirectory(directory, true, packageRoot)
+}
+
+async function windowsReceipt(directory: string, shouldCreate: boolean, packageRoot: string) {
   const env = withoutKeyringRoutes(withoutCredentials(process.env))
-  const input = Buffer.from(JSON.stringify({ directory, trustedRoot })).toString('base64')
+  const input = Buffer.from(JSON.stringify({ directory })).toString('base64')
   const sources = [JOB_SOURCE_FILES.shellJob, JOB_SOURCE_FILES.shared]
     .map((file) => powerShellQuoted(path.join(packageRoot, file)))
     .join(', ')
   const script = `$ErrorActionPreference = 'Stop'
 $inputData = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${input}')) | ConvertFrom-Json
 Add-Type -Path ${sources}
-[MuseSparkPrivateDirectory]::VerifyParents($inputData.directory, $inputData.trustedRoot)
-[MuseSparkPrivateDirectory]::Verify($inputData.directory, ${shouldCreate ? '$true' : '$false'})`
+try { [MuseSparkPrivateDirectory]::Verify($inputData.directory, ${shouldCreate ? '$true' : '$false'}) } catch { @{ refusal = $_.Exception.Message } | ConvertTo-Json -Compress }`
   const executable = windowsPowerShell(env['SystemRoot'] ?? String.raw`C:\Windows`, env)
   try {
     const output = await runProgram(
@@ -62,41 +126,12 @@ Add-Type -Path ${sources}
       executable.env,
     )
     const receipt = receiptSchema.parse(JSON.parse(output))
+    if ('refusal' in receipt)
+      throw new Error('ELSP_PRIVATE', { cause: new Error(`${directory}: ${receipt.refusal}`) })
     return receipt
   } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'ELSP_PRIVATE') throw error
     throw new Error('ELSP_PRIVATE', { cause: error })
-  }
-}
-
-async function verifyParents(directory: string, trustedRoot: string, packageRoot: string) {
-  const root = path.resolve(trustedRoot)
-  let parent = path.dirname(path.resolve(directory))
-  const relative = path.relative(root, parent)
-  if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('ELSP_PRIVATE')
-  for (;;) {
-    const handle = await open(
-      parent,
-      constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
-    )
-    try {
-      const info = await handleIdentity(handle)
-      const uid = process.getuid?.()
-      if (
-        uid === undefined ||
-        !info.isDirectory() ||
-        (info.uid !== BigInt(uid) && info.uid !== WORKSPACE_IDENTITY_ZERO) ||
-        ((info.mode & BigInt(constants.S_IWGRP | constants.S_IWOTH)) !== WORKSPACE_IDENTITY_ZERO &&
-          (info.mode & BigInt(LSP_LIMITS.stickyMode)) === WORKSPACE_IDENTITY_ZERO)
-      )
-        throw new Error('ELSP_PRIVATE')
-      if (process.platform === 'darwin')
-        await darwinReceipt(handle, info, 'private-ancestor', packageRoot)
-      if (!sameFile(await lstatIdentity(parent), info)) throw new Error('ELSP_PRIVATE')
-    } finally {
-      await handle.close()
-    }
-    if (parent === root) return
-    parent = path.dirname(parent)
   }
 }
 
@@ -163,15 +198,19 @@ export async function privateDirectory(
   directory: string,
   shouldCreate = false,
   packageRoot = path.resolve(__dirname, '..'),
-  trustedRoot = trustedPrivateRoot(),
 ): Promise<{ isNew: boolean }> {
+  const { verifyTrustedPath } = await import('./trustedPath')
   if (process.platform === 'win32') {
-    const receipt = await windowsReceipt(directory, shouldCreate, packageRoot, trustedRoot)
-    return { isNew: receipt.isNew }
+    let isNew = false
+    await verifyTrustedPath(directory, true, undefined, async () => {
+      const receipt = await windowsReceipt(directory, shouldCreate, packageRoot)
+      isNew = receipt.isNew
+    })
+    return { isNew }
   }
-  await verifyParents(directory, trustedRoot, packageRoot)
   let isNew = false
   if (shouldCreate) {
+    await verifyTrustedPath(path.dirname(directory), false)
     try {
       await mkdir(directory, { mode: LSP_LIMITS.directoryMode })
       isNew = true
@@ -179,28 +218,10 @@ export async function privateDirectory(
       if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
     }
   }
-  let handle: FileHandle
-  try {
-    handle = await open(
-      directory,
-      constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
-    )
-  } catch (error: unknown) {
-    if (
-      error instanceof Error &&
-      'code' in error &&
-      (error.code === 'ELOOP' || error.code === 'ENOTDIR')
-    )
-      throw new Error('ELSP_PRIVATE', { cause: error })
-    throw error
-  }
-  try {
-    const info = await verifyPrivateHandle(handle, true, packageRoot)
-    if (!sameFile(await lstatIdentity(directory), info)) throw new Error('ELSP_PRIVATE')
-    return { isNew }
-  } finally {
-    await handle.close()
-  }
+  await verifyTrustedPath(directory, true, async (handle) => {
+    await verifyPrivateHandle(handle, true, packageRoot)
+  })
+  return { isNew }
 }
 
 /** Windows CREATE_NEW/no-reparse is the native exclusive/no-follow file open. */
@@ -208,36 +229,38 @@ export async function writeWindowsPrivateRecord(
   file: string,
   text: string,
   packageRoot = path.resolve(__dirname, '..'),
-  trustedRoot = trustedPrivateRoot(),
 ) {
-  const env = withoutKeyringRoutes(withoutCredentials(process.env))
-  const sources = [JOB_SOURCE_FILES.shellJob, JOB_SOURCE_FILES.shared]
-    .map((name) => powerShellQuoted(path.join(packageRoot, name)))
-    .join(', ')
-  const script = `$ErrorActionPreference = 'Stop'
+  const { verifyTrustedPath } = await import('./trustedPath')
+  await verifyTrustedPath(path.dirname(file), true, undefined, async () => {
+    const env = withoutKeyringRoutes(withoutCredentials(process.env))
+    const sources = [JOB_SOURCE_FILES.shellJob, JOB_SOURCE_FILES.shared]
+      .map((name) => powerShellQuoted(path.join(packageRoot, name)))
+      .join(', ')
+    const script = `$ErrorActionPreference = 'Stop'
 Add-Type -Path ${sources}
 $data = [Console]::In.ReadToEnd() | ConvertFrom-Json
-[MuseSparkPrivateDirectory]::WriteRecord($data.file, $data.text, $data.root)`
-  const executable = windowsPowerShell(env['SystemRoot'] ?? String.raw`C:\Windows`, env)
-  await new Promise<void>((resolve, reject) => {
-    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- trusted installed ACL helper writes only after held-handle proof; record payload on private stdin, sanitized environment (PLAN §8).
-    const child = spawn(
-      executable.file,
-      [
-        '-NoLogo',
-        '-NoProfile',
-        '-NonInteractive',
-        '-EncodedCommand',
-        Buffer.from(script, 'utf16le').toString('base64'),
-      ],
-      { env: executable.env, stdio: ['pipe', 'ignore', 'ignore'] },
-    )
-    child.once('error', reject)
-    child.stdin.on('error', reject)
-    child.once('close', (code) => {
-      if (code === 0) resolve()
-      else reject(new Error('ELSP_PRIVATE'))
+[MuseSparkPrivateDirectory]::WriteRecord($data.file, $data.text)`
+    const executable = windowsPowerShell(env['SystemRoot'] ?? String.raw`C:\Windows`, env)
+    await new Promise<void>((resolve, reject) => {
+      // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- trusted installed ACL helper writes only after held-handle proof; record payload on private stdin, sanitized environment (PLAN §8).
+      const child = spawn(
+        executable.file,
+        [
+          '-NoLogo',
+          '-NoProfile',
+          '-NonInteractive',
+          '-EncodedCommand',
+          Buffer.from(script, 'utf16le').toString('base64'),
+        ],
+        { env: executable.env, stdio: ['pipe', 'ignore', 'ignore'] },
+      )
+      child.once('error', reject)
+      child.stdin.on('error', reject)
+      child.once('close', (code) => {
+        if (code === 0) resolve()
+        else reject(new Error('ELSP_PRIVATE'))
+      })
+      child.stdin.end(JSON.stringify({ file, text }))
     })
-    child.stdin.end(JSON.stringify({ file, text, root: trustedRoot }))
   })
 }

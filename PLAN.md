@@ -19787,6 +19787,25 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**REDM104L3 trust redesign (2026-10-06).** Replace the selected-root boundary
+with one shared StrictModes/safe_path verifier over the entire real path.
+Root/current-user ancestors must be non-writable by group/other, except a
+root-owned sticky ancestor immediately followed by a current-user component.
+The private leaf is current-user 0700 and ACL-free on Darwin. Select verified
+platform roots in the brief's order, recording every refusal and the chosen
+path; refuse startup if none qualifies. The Darwin and Windows helpers walk
+the same full ancestry and run shared verdict vectors. After exclusive record
+creation, compare its resolved pathname identity with the held fd and the
+parent with the verified directory before contents. Delete the superseded
+per-root/below-root ancestor checks. Bind guardian observations/completion to
+a random 128-bit generation, owner UUID, resource ticket, guardian and root
+births, and observed member identities. Completion is exclusively created;
+an old receipt cannot be overwritten or reused. Regress every RVM104L4 probe,
+perform the four specified byte-exact drills, and retain prior regressions.
+The existing deferred runtimeProcessAuthority cohort carries the verifier and
+receipt schemas; ACP/LSP/guardian load it on first use under unchanged caps.
+Scoped rig gates only; no merge, live/paid call or native Windows/Linux claim.
+
 **FIXM104L3 (2026-10-06).** Repair RVM104L3 findings 1, 3 and 4 within
 L's files, without new dependencies or weaker guards. Private namespaces
 must be below the per-user runtime/cache root; verify every ancestor through
@@ -21401,6 +21420,23 @@ Each joins when its dependency merges, and none blocks the others.
 
 ## 7. Gates
 
+**REDM104L3 scoped certification (2026-10-06).** The rig brief prohibits
+aggregate quality, merges and native Linux/Windows claims. The 29 complete
+owning/adjacent files pass 443 tests with ten platform skips, using repository
+per-test deadlines and no final CLI timeout override. Two genuinely long
+native operations have named deadlines and inline reasons; certification
+records the earlier exploratory failures, cache and zombie waiter repair.
+All five compilers, changed-file lint/format, plain Knip, zero-clone duplication,
+cycles, localization, reference and production/native builds pass. The existing
+W-owned host-API snapshot is still explicitly failed/deferred: child_process
+16→17, crypto 54→55, fs 36→39, fs/promises 53→57, os 10→11, path 91→99,
+process 3→5. Its 332 VS Code APIs, 31 VS Code-importing files and 61 theme
+variables are unchanged. W/lead must regenerate/review the snapshot and rerun
+the gate during integration; this lane leaves its generated file unchanged.
+No gate rule, threshold, ignore or existing bundle cap is weakened. The four
+required byte-exact guard failures, native copied-receipt proof, chosen root
+and exact reruns owed are in `docs/certification/m104-l.md`.
+
 **FIXM104L3 scoped gates (2026-10-06).** The rig brief forbids aggregate
 quality and merges; the lead retains full integrated coverage/native editor
 gates. Scoped tests, red drills and unchanged static/build guards apply.
@@ -22386,6 +22422,14 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **REDM104L3 private-state boundary (2026-10-06).** Same-user processes
+  are not a security boundary: they can already signal the user's processes
+  and edit the user's files. Full-path verification and post-create identity
+  checks refuse unsafe cross-user namespaces and the demonstrated restoration
+  interleaving; they do not promise protection from arbitrary same-user edits.
+  M107 T2's POSIX identity-recheck-to-signal interval without a pidfd remains
+  the separately documented residual below.
 
 - **RVM104L3-F2 — owned by M107T3 (2026-10-06).** Linux PID/start-tick
   identity can alias an unrelated incarnation within one exposed clock tick.

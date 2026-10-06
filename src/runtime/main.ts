@@ -376,10 +376,15 @@ async function main(): Promise<number> {
     })
   if (command.command === 'supervise' || command.command === 'stop') {
     await installLanguage()
-    const registry = path.join(trustedPrivateRoot(), `muse-runtime-${workspaceKey(homedir())}`)
+    const registry = path.join(
+      await trustedPrivateRoot(packageRoot, (message) => {
+        log.warn(message)
+      }),
+      `muse-runtime-${workspaceKey(homedir())}`,
+    )
     try {
       if (command.command === 'stop') {
-        await stopWorkspace(registry, process.cwd())
+        await stopWorkspace(registry, process.cwd(), packageRoot)
         return 0
       }
       const code = await superviseRuntime({
@@ -536,7 +541,12 @@ async function main(): Promise<number> {
         stdout: process.stdout,
         executable: process.execPath,
         entry: __filename,
-        registry: path.join(trustedPrivateRoot(), `muse-runtime-${workspaceKey(homedir())}`),
+        registry: path.join(
+          await trustedPrivateRoot(packageRoot, (message) => {
+            log.warn(message)
+          }),
+          `muse-runtime-${workspaceKey(homedir())}`,
+        ),
         dataFolder: agentDataFolder(dataInput),
         grantsFile: paidGrantsFile(dataInput),
         secrets,

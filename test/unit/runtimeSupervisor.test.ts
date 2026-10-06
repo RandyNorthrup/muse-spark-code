@@ -96,10 +96,12 @@ describe('M104H2 runtime supervision', () => {
       return await actualOpen(file, flags, mode)
     })
     try {
-      await expect(stopWorkspace(registry, directory)).resolves.toBeUndefined()
+      await expect(stopWorkspace(registry, directory, directory)).resolves.toBeUndefined()
       expect(opening).toHaveBeenCalledWith(record, expect.any(Number))
       failure = Object.assign(new Error('fixture forbidden'), { code: 'EACCES' })
-      await expect(stopWorkspace(registry, directory)).rejects.toThrow('fixture forbidden')
+      await expect(stopWorkspace(registry, directory, directory)).rejects.toThrow(
+        'fixture forbidden',
+      )
     } finally {
       opening.mockRestore()
       await removeFolder(registry)
@@ -120,11 +122,18 @@ describe('M104H2 runtime supervision', () => {
     const record = path.join(registry, `${workspaceKey(directory)}-gone.json`)
     await writeFile(
       record,
-      JSON.stringify({ pid: gone.pid, pipe: 'unused', token: 'a'.repeat(64) }),
+      JSON.stringify({
+        pid: gone.pid,
+        pipe: 'unused',
+        token: 'a'.repeat(64),
+        generation: 'b'.repeat(32),
+        ownerId: '00000000-0000-4000-8000-000000000001',
+        binding: null,
+      }),
       { mode: 0o600 },
     )
     try {
-      await stopWorkspace(registry, directory)
+      await stopWorkspace(registry, directory, directory)
       throw new Error('Stop falsely succeeded')
     } catch (error: unknown) {
       expect(error).toBeInstanceOf(UnverifiedStopError)
@@ -631,9 +640,9 @@ describe('M104H2 runtime supervision', () => {
     const record = path.join(registry, `${workspaceKey(directory)}-bad.json`)
     try {
       await writeFile(record, JSON.stringify({ pipe: 'bad', token: 'short' }), { mode: 0o600 })
-      await expect(stopWorkspace(registry, directory)).rejects.toThrow()
+      await expect(stopWorkspace(registry, directory, directory)).rejects.toThrow()
       await writeFile(record, 'x'.repeat(4096))
-      await expect(stopWorkspace(registry, directory)).rejects.toThrow('ESTOP_RECORD')
+      await expect(stopWorkspace(registry, directory, directory)).rejects.toThrow('ESTOP_RECORD')
     } finally {
       await removeFolder(record)
     }

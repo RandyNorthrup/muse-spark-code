@@ -1,8 +1,8 @@
 // EOF guardian and Node launch gate; process identity/enrollment/actions belong only to M107.
 import { readSync, closeSync } from 'node:fs'
 import path from 'node:path'
-import * as z from 'zod/mini'
-import { resourceTicketSchema, type ResourceTicket } from '../../shared/resources'
+import type { ResourceTicket, ResourceProcessIdentity } from '../../shared/resources'
+import type { StopBinding } from './stopReceipt'
 import { LSP_LIMITS, RUNTIME_STOP } from '../../shared/constants'
 
 async function watch(): Promise<void> {
@@ -10,8 +10,13 @@ async function watch(): Promise<void> {
   const storageDir = process.argv[4] ?? path.join(packageRoot, 'temp')
   const { processAuthority } = await import('./processAuthority')
   const authority = await processAuthority(packageRoot, storageDir)
+  const { guardianMessageSchema, isSameProcess } = await import('./stopReceipt')
   const receiptFile = process.argv[5]
-  const observed = new Set<number>()
+  const observed = new Map<string, ResourceProcessIdentity>()
+  let binding: StopBinding | undefined
+  const observe = (member: ResourceProcessIdentity) => {
+    observed.set(`${String(member.pid)}:${member.startTime}`, member)
+  }
   let ticket: ResourceTicket | undefined
   let input = ''
   let pending = Promise.resolve()
@@ -26,9 +31,14 @@ async function watch(): Promise<void> {
         await pending
         // Empty/unknown accounting is not an exit receipt; Stop asks the action API.
         const members = await authority.registry.members(registered)
-        for (const member of members) observed.add(member.pid)
-        if (receiptFile !== undefined)
-          await authority.writeReceipt(receiptFile, [...observed], false)
+        for (const member of members) observe(member)
+        if (receiptFile !== undefined && binding !== undefined)
+          await authority.writeReceipt(
+            receiptFile,
+            binding,
+            Array.from(observed, ([, member]) => member),
+            false,
+          )
       } catch {
         isFailed = true
         void stop()
@@ -45,9 +55,14 @@ async function watch(): Promise<void> {
       try {
         if (ticket !== undefined) {
           const stopped = await authority.stop(ticket)
-          for (const pid of stopped) observed.add(pid)
-          if (!isFailed && receiptFile !== undefined)
-            await authority.writeReceipt(receiptFile, [...observed], true)
+          for (const member of stopped) observe(member)
+          if (!isFailed && receiptFile !== undefined && binding !== undefined)
+            await authority.writeReceipt(
+              receiptFile,
+              binding,
+              Array.from(observed, ([, member]) => member),
+              true,
+            )
         }
       } catch {
         isFailed = true
@@ -72,11 +87,25 @@ async function watch(): Promise<void> {
       try {
         await previous
         if (ticket !== undefined) throw new Error('EWATCH_ROOT')
-        const parsed = z.strictObject({ ticket: resourceTicketSchema }).parse(JSON.parse(message))
+        const parsed = guardianMessageSchema.parse(JSON.parse(message))
+        const ownIdentity = await authority.identity(process.pid)
+        if (
+          ownIdentity === null ||
+          !isSameProcess(ownIdentity, parsed.binding.guardian) ||
+          !isSameProcess(parsed.ticket.root, parsed.binding.root) ||
+          parsed.ticket.id !== parsed.binding.ticketId
+        )
+          throw new Error('EWATCH_BINDING')
+        binding = parsed.binding
         ticket = await authority.registry.register(parsed.ticket)
-        observed.add(ticket.root.pid)
+        observe(ticket.root)
         if (receiptFile !== undefined)
-          await authority.writeReceipt(receiptFile, [...observed], false)
+          await authority.writeReceipt(
+            receiptFile,
+            binding,
+            Array.from(observed, ([, member]) => member),
+            false,
+          )
         process.stdout.write('OWNED\n')
       } catch {
         isFailed = true

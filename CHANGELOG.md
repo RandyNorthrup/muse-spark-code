@@ -37,6 +37,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Private runtime state now verifies every real ancestor through the filesystem
+  root with the shared StrictModes rule, selects only verified platform roots,
+  and binds the resolved record pathname to its held file before contents.
+  Unsafe ancestry, user symlinks above a root and substitution/restoration refuse.
+- Guardian completion receipts are exclusive and bound to the current generation,
+  owner UUID, resource ticket, guardian/root births and observed identities.
+  Copied or stale receipts retain ownership and make independent Stop fail.
+
 - Private LSP records now verify their empty open file and held directory before
   writing control tokens. All namespaces require a trusted per-user runtime/cache
   parent chain; unsafe parents and replacement races refuse before publication.

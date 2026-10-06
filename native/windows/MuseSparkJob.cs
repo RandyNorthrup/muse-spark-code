@@ -270,16 +270,22 @@ public static class MuseSparkPrivateDirectory {
   [DllImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, CharSet = CharSet.Unicode)]
   static extern IntPtr CreateRecordW(string path, uint access, uint share, ref SECURITY_ATTRIBUTES attributes, uint disposition, uint flags, IntPtr template);
 
-  public static void VerifyParents(string path, string root) {
-    root = System.IO.Path.GetFullPath(root).TrimEnd(System.IO.Path.DirectorySeparatorChar);
+  // StrictModes equivalent: every ancestor through the volume root, no reparse.
+  public static void VerifyParents(string path) {
     string parent = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path));
-    if (!parent.Equals(root, StringComparison.OrdinalIgnoreCase) && !parent.StartsWith(root + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("untrusted root");
-    for (;;) {
-      IntPtr handle = Open(parent);
-      try { Inspect(handle, true, true); } finally { CloseHandle(handle); }
-      if (parent.Equals(root, StringComparison.OrdinalIgnoreCase)) return;
+    while (parent != null) {
+      try {
+        IntPtr handle = Open(parent);
+        try { Inspect(handle, true, true); } finally { CloseHandle(handle); }
+      } catch (Exception error) { throw new InvalidOperationException(parent + ": " + error.Message, error); }
       parent = System.IO.Path.GetDirectoryName(parent);
     }
+  }
+
+  // Shared vectors exercise the exact owner/type/write predicate used by Inspect.
+  public static bool AllowsComponent(string owner, bool directory, bool reparse, bool unsafeAcl, bool writableForeign, bool leaf) {
+    return directory && !reparse && !unsafeAcl && !writableForeign &&
+      (leaf ? owner == "user" : owner == "user" || owner == "root");
   }
 
   static IntPtr Open(string path) {
@@ -303,33 +309,36 @@ public static class MuseSparkPrivateDirectory {
       Marshal.Copy(descriptor, binary, 0, binary.Length);
       var security = new System.Security.AccessControl.RawSecurityDescriptor(binary, 0);
       if (security.DiscretionaryAcl == null) throw new InvalidOperationException("missing ACL");
+      bool unsafeAcl = false, writableForeign = false;
       if (ancestor) {
-        if (!current.Equals(security.Owner) && !system.Equals(security.Owner) && !administrators.Equals(security.Owner)) throw new InvalidOperationException("foreign parent owner");
         var write = System.Security.AccessControl.FileSystemRights.Write | System.Security.AccessControl.FileSystemRights.Delete | System.Security.AccessControl.FileSystemRights.DeleteSubdirectoriesAndFiles | System.Security.AccessControl.FileSystemRights.ChangePermissions | System.Security.AccessControl.FileSystemRights.TakeOwnership;
         foreach (System.Security.AccessControl.GenericAce entry in security.DiscretionaryAcl) {
           var ace = entry as System.Security.AccessControl.CommonAce;
-          if (ace == null || ace.IsCallback) throw new InvalidOperationException("unknown parent grant");
-          if (ace.AceQualifier == System.Security.AccessControl.AceQualifier.AccessAllowed && (ace.AceFlags & System.Security.AccessControl.AceFlags.InheritOnly) == 0 &&
-              !current.Equals(ace.SecurityIdentifier) && !system.Equals(ace.SecurityIdentifier) && !administrators.Equals(ace.SecurityIdentifier) && (ace.AccessMask & ((int)write | 0x50000000)) != 0) throw new InvalidOperationException("writable parent");
+          if (ace == null || ace.IsCallback) { unsafeAcl = true; continue; }
+          writableForeign |= ace.AceQualifier == System.Security.AccessControl.AceQualifier.AccessAllowed && (ace.AceFlags & System.Security.AccessControl.AceFlags.InheritOnly) == 0 &&
+              !current.Equals(ace.SecurityIdentifier) && !system.Equals(ace.SecurityIdentifier) && !administrators.Equals(ace.SecurityIdentifier) && (ace.AccessMask & ((int)write | 0x50000000)) != 0;
         }
       } else {
-        if (!current.Equals(security.Owner) || (security.ControlFlags & System.Security.AccessControl.ControlFlags.DiscretionaryAclProtected) == 0) throw new InvalidOperationException("unsafe owner or ACL");
+        unsafeAcl = (security.ControlFlags & System.Security.AccessControl.ControlFlags.DiscretionaryAclProtected) == 0;
         bool hasOwner = false;
         foreach (System.Security.AccessControl.GenericAce entry in security.DiscretionaryAcl) {
           var ace = entry as System.Security.AccessControl.CommonAce;
           if (ace == null || ace.IsCallback || ace.AceQualifier != System.Security.AccessControl.AceQualifier.AccessAllowed ||
               (ace.AceFlags & (System.Security.AccessControl.AceFlags.Inherited | System.Security.AccessControl.AceFlags.InheritOnly)) != 0 ||
-              ace.AccessMask != FULL_CONTROL || (!current.Equals(ace.SecurityIdentifier) && !system.Equals(ace.SecurityIdentifier))) throw new InvalidOperationException("unsafe grant");
+              ace.AccessMask != FULL_CONTROL || (!current.Equals(ace.SecurityIdentifier) && !system.Equals(ace.SecurityIdentifier))) { unsafeAcl = true; continue; }
           hasOwner |= current.Equals(ace.SecurityIdentifier);
         }
-        if (!hasOwner) throw new InvalidOperationException("missing owner grant");
+        unsafeAcl |= !hasOwner;
       }
+      string ownerKind = current.Equals(security.Owner) ? "user" : system.Equals(security.Owner) || administrators.Equals(security.Owner) ? "root" : "foreign";
+      if (writableForeign) throw new InvalidOperationException("writable parent");
+      if (!AllowsComponent(ownerKind, true, (info.Attributes & REPARSE) != 0, unsafeAcl, writableForeign, !ancestor)) throw new InvalidOperationException("unsafe path");
       return info;
     } finally { LocalFree(descriptor); }
   }
 
-  public static void WriteRecord(string path, string text, string root) {
-    VerifyParents(path, root);
+  public static void WriteRecord(string path, string text) {
+    VerifyParents(path);
     IntPtr parent = Open(System.IO.Path.GetDirectoryName(path));
     try {
       FILE_INFO parentInfo = Inspect(parent, true, false);
@@ -347,7 +356,12 @@ public static class MuseSparkPrivateDirectory {
         attributes.Descriptor = pinned.AddrOfPinnedObject();
         handle = CreateRecordW(path, READ_CONTROL | GENERIC_WRITE, SHARE_READ_WRITE, ref attributes, CREATE_NEW, OPEN_REPARSE_BACKUP, IntPtr.Zero);
         if (handle == new IntPtr(-1)) throw new Win32Exception();
-        Inspect(handle, false, false);
+        FILE_INFO recordInfo = Inspect(handle, false, false);
+        IntPtr currentRecord = Open(path);
+        try {
+          FILE_INFO actualRecord = Inspect(currentRecord, false, false);
+          if (actualRecord.Volume != recordInfo.Volume || actualRecord.IndexHigh != recordInfo.IndexHigh || actualRecord.IndexLow != recordInfo.IndexLow) throw new InvalidOperationException("record replaced");
+        } finally { CloseHandle(currentRecord); }
         IntPtr currentParent = Open(System.IO.Path.GetDirectoryName(path));
         try {
           FILE_INFO actual = Inspect(currentParent, true, false);
@@ -364,6 +378,7 @@ public static class MuseSparkPrivateDirectory {
   }
 
   public static string Verify(string path, bool create) {
+    VerifyParents(path);
     var current = System.Security.Principal.WindowsIdentity.GetCurrent().User;
     var system = new System.Security.Principal.SecurityIdentifier("S-1-5-18");
     bool isNew = false;

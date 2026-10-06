@@ -1,0 +1,392 @@
+[
+  {
+    "name": "normal home",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "user",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "user",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": true,
+    "windows": true
+  },
+  {
+    "name": "sticky root with user child",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "root",
+        "mode": 511,
+        "sticky": true,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": true
+      },
+      {
+        "owner": "user",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": true,
+    "windows": false
+  },
+  {
+    "name": "writable nonsticky above XDG",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "root",
+        "mode": 511,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": true
+      },
+      {
+        "owner": "user",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": false,
+    "windows": false
+  },
+  {
+    "name": "sticky root with root child",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "root",
+        "mode": 511,
+        "sticky": true,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": true
+      },
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "user",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": false,
+    "windows": false
+  },
+  {
+    "name": "user owned sticky parent",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "user",
+        "mode": 511,
+        "sticky": true,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": true
+      },
+      {
+        "owner": "user",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": false,
+    "windows": false
+  },
+  {
+    "name": "foreign ancestor",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "foreign",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "user",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": false,
+    "windows": false
+  },
+  {
+    "name": "symlink above root",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": true,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "user",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": false,
+    "windows": false
+  },
+  {
+    "name": "nondirectory ancestor",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": false,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "user",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": false,
+    "windows": false
+  },
+  {
+    "name": "broad private leaf",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "user",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": false,
+    "windows": true
+  },
+  {
+    "name": "ACL private leaf",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "user",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": true,
+        "writableForeign": false
+      }
+    ],
+    "posix": false,
+    "windows": false
+  },
+  {
+    "name": "foreign write ACE ancestor",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": true
+      },
+      {
+        "owner": "user",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": true,
+    "windows": false
+  },
+  {
+    "name": "root owned private leaf",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "root",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": false,
+    "windows": false
+  }
+]
