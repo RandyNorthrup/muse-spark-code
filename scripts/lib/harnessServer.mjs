@@ -24,6 +24,8 @@ export const SCENARIOS = [
   'usage-install',
   'usage-install-narrow',
   'palette',
+  'help',
+  'help-narrow',
   'context-meter',
   'context-meter-warning',
   'context-meter-full',
@@ -213,6 +215,8 @@ export function serveRepo(repoRoot) {
  * scrollbars headless Chrome otherwise hides, as its check measures one.
  */
 export const SIZED_SCENARIOS = {
+  help: { width: 1000, ready: '#reference-search' },
+  'help-narrow': { width: 320, ready: '#reference-search' },
   'judge-narrow': { width: 320, ready: '.judge-status' },
   judge: { width: 690, ready: '.judge-status' },
   'judge-slow': { width: 690, ready: '.judge-status' },

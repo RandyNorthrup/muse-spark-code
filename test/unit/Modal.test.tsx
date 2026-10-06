@@ -2,8 +2,25 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Modal } from '../../src/webview/components/Modal'
+import { referenceKeyboardActions } from '../../src/shared/keybindings'
 
 describe('Modal', () => {
+  it('C05 documents both focus directions from the table used by the modal handler', () => {
+    const row = referenceKeyboardActions().find((entry) => entry.command === 'modal.focus')
+    expect(row?.key.split(' / ')).toEqual(['Tab', 'Shift+Tab', 'Escape'])
+    render(
+      <Modal title="Focus truth" titleId="truth" onClose={vi.fn()}>
+        <button type="button">last control</button>
+      </Modal>,
+    )
+    const dialog = screen.getByRole('dialog')
+    const last = screen.getByText('last control')
+    const close = screen.getByLabelText('Close')
+    fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+    fireEvent.keyDown(dialog, { key: 'Tab' })
+    expect(document.activeElement).toBe(close)
+  })
   it('is a labelled dialog that focuses its close button and closes on Escape, the button and the backdrop', () => {
     const onClose = vi.fn()
     const { container } = render(

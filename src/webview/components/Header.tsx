@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // The panel header: the conversation title (click to rename once a session
 // exists, M6), the Focus view badge, the History clock and New conversation.
 
@@ -67,10 +68,10 @@ function TitleEditor({
     }
   }
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
+    if (webviewKey('header.rename', event) === 'accept') {
       event.preventDefault()
       commit()
-    } else if (event.key === 'Escape') {
+    } else if (webviewKey('header.rename', event) === 'close') {
       event.preventDefault()
       setDraft(undefined)
     }

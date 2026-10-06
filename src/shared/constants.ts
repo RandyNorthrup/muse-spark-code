@@ -91,6 +91,7 @@ export const COMMAND_IDS = {
   removeBundledSkills: 'museSpark.removeBundledSkills',
   // M99 (PLAN.md D79): the release notes of this version and the ones before it.
   showWhatsNew: 'museSpark.showWhatsNew',
+  openHelp: 'museSpark.openHelp',
   tabTurnOn: 'museSpark.tabTurnOn',
   tabTurnOff: 'museSpark.tabTurnOff',
   tabSnooze: 'museSpark.tabSnooze',
@@ -796,6 +797,8 @@ export const PAID_PRICES_USD = {
   voicePerHour: 0.18,
 } as const
 export const PAID_PRICES_VERIFIED_ON = '2026-09-24'
+// Lossless reference token indices use a compact, browser-safe alphabet.
+export const REFERENCE_POOL_RADIX = 36
 export const SEARCHES_PER_PRICE_UNIT = 1000
 export const SECONDS_PER_HOUR = 3600
 
@@ -4001,6 +4004,7 @@ export type SkillImportSource = (typeof SKILL_IMPORT_SOURCES)[number]
 // `/name` (M38): Claude Code's names for the same commands. They are
 // commands, not prose, so they read the same in every language.
 export const SLASH_COMMAND_NAMES = {
+  help: 'help',
   model: 'model',
   resume: 'resume',
   permissions: 'permissions',
@@ -4017,6 +4021,9 @@ export const SLASH_COMMAND_NAMES = {
   securityReview: 'security-review',
   changes: 'changes',
 } as const
+export const REFERENCE_DOCS_URL =
+  'https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/reference.md'
+export const REFERENCE_BUNDLE_FILE = 'reference.js'
 /** Muse Code's bundled skills that continue another agent's session (M30). */
 export const RESUME_SKILL_SELECTORS: Readonly<Record<SkillImportSource, string>> = {
   claude: 'resume-claude',
@@ -4367,6 +4374,8 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/searchWorker.js',
   'dist/pageWorker.js',
   'dist/webview/main.js',
+  'dist/webview/referencePage.js',
+  'dist/reference.js',
   'dist/report.js',
   'dist/recorder.js',
   'dist/browserCheck.js',
@@ -5231,8 +5240,10 @@ export const EVAL_COST_DECIMALS = 4
 export { UI_TEXT } from './l10n/text'
 // Inclusive integer range used to check whether a locale's `one` needs a count.
 export const L10N_COMPACT_FRAGMENT_WORDS = 6
-export const L10N_COMPACT_TOKEN_FIRST = 0xe0_00
-export const L10N_COMPACT_TOKEN_LAST = 0xf8_ff
+// Build-only English dictionary: two UTF-8 bytes per token. The codec rejects
+// a canonical key/value in this reserved range before encoding it.
+export const L10N_COMPACT_TOKEN_FIRST = 0x01_00
+export const L10N_COMPACT_TOKEN_LAST = 0x05_ff
 export const L10N_TABLE_ARCHIVE_FILE = 'ui.tables.json.br'
 export const L10N_COMPRESSION_QUALITY = 11
 export const L10N_TABLE_MAX_BYTES = 1024 * 1024
