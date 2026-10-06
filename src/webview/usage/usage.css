@@ -222,10 +222,6 @@ body {
   margin-block: 12px;
 }
 
-.usage-chart svg circle {
-  vector-effect: non-scaling-stroke;
-}
-
 .usage-chart-active {
   fill: none;
   stroke: var(--ms-foreground);
@@ -244,45 +240,76 @@ body {
 }
 
 .usage-series-blue {
-  fill: var(--ms-blue);
-  stroke: var(--ms-blue);
+  --ms-series-color: var(--ms-blue);
+
+  stroke-dasharray: none;
   background: var(--ms-blue);
 }
 
 .usage-series-purple {
-  fill: var(--ms-purple);
-  stroke: var(--ms-purple);
+  --ms-series-color: var(--ms-purple);
+
+  stroke-dasharray: none;
   background: var(--ms-purple);
 }
 
 .usage-series-orange {
-  fill: var(--ms-orange);
-  stroke: var(--ms-orange);
+  --ms-series-color: var(--ms-orange);
+
+  stroke-dasharray: 2 3;
   background: var(--ms-orange);
 }
 
 .usage-series-green {
-  fill: var(--ms-green);
-  stroke: var(--ms-green);
+  --ms-series-color: var(--ms-green);
+
+  stroke-dasharray: 8 3 2 3;
   background: var(--ms-green);
 }
 
 .usage-series-yellow {
-  fill: var(--ms-yellow);
-  stroke: var(--ms-yellow);
+  --ms-series-color: var(--ms-yellow);
+
+  stroke-dasharray: 1 3;
   background: var(--ms-yellow);
 }
 
 .usage-series-red {
-  fill: var(--ms-red);
-  stroke: var(--ms-red);
+  --ms-series-color: var(--ms-red);
+
+  stroke-dasharray: 8 3 1 3 1 3;
   background: var(--ms-red);
 }
 
 .usage-series-other {
-  fill: var(--ms-other);
-  stroke: var(--ms-other);
+  --ms-series-color: var(--ms-other);
+
+  stroke-dasharray: 4 2 1 2;
   background: var(--ms-other);
+}
+
+/* The foreground boundary carries the mark when a host's palette has low
+   contrast. Patterns and line dashes identify series independently of color. */
+.usage-chart svg :is(rect, circle, line, polyline)[class*='usage-series-'] {
+  stroke: var(--ms-foreground);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.usage-chart svg :is(rect, circle)[class*='usage-series-'] {
+  stroke-dasharray: none;
+}
+
+.usage-pattern-base {
+  fill: var(--ms-series-color);
+  stroke: none;
+}
+
+.usage-pattern-cue {
+  fill: none;
+  stroke: var(--ms-foreground);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
 }
 
 .usage-line {
@@ -311,6 +338,52 @@ body {
   height: 12px;
   flex-shrink: 0;
   border: 1px solid var(--ms-foreground);
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0 3px,
+    var(--ms-foreground) 3px 4px
+  );
+}
+
+.usage-swatch.usage-series-purple {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 3px,
+    var(--ms-foreground) 3px 4px
+  );
+}
+
+.usage-swatch.usage-series-orange {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0 3px,
+    var(--ms-foreground) 3px 4px
+  );
+}
+
+.usage-swatch.usage-series-green {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0 3px,
+    var(--ms-foreground) 3px 4px
+  );
+}
+
+.usage-swatch.usage-series-yellow {
+  background-image:
+    repeating-linear-gradient(45deg, transparent 0 3px, var(--ms-foreground) 3px 4px),
+    repeating-linear-gradient(-45deg, transparent 0 3px, var(--ms-foreground) 3px 4px);
+}
+
+.usage-swatch.usage-series-red {
+  background-image: radial-gradient(var(--ms-foreground) 1px, transparent 1px);
+  background-size: 4px 4px;
+}
+
+.usage-swatch.usage-series-other {
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 3px, var(--ms-foreground) 3px 4px),
+    repeating-linear-gradient(90deg, transparent 0 3px, var(--ms-foreground) 3px 4px);
 }
 
 .usage-page summary {

@@ -67,7 +67,14 @@ export function UsageApp({
           break
         }
       }
-      host.post(message)
+      try {
+        host.post(message)
+      } catch {
+        if ('requestId' in message) pending.current.delete(message.requestId)
+        if (message.type === 'usage/query') wanted.current = undefined
+        setBusy(false)
+        setError(USAGE_TEXT.readFailed)
+      }
     },
     [host],
   )
@@ -131,7 +138,6 @@ export function UsageApp({
   return (
     <main className="usage-page" aria-busy={busy}>
       <Header
-        key={JSON.stringify([query.range, query.from, query.to])}
         query={query}
         busy={busy}
         post={post}

@@ -22,6 +22,18 @@ export function Header({
   const [to, setTo] = useState(query.to ?? '')
   const [invalid, setInvalid] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [rangeQuery, setRangeQuery] = useState(query)
+  if (
+    rangeQuery.range !== query.range ||
+    rangeQuery.from !== query.from ||
+    rangeQuery.to !== query.to
+  ) {
+    setRangeQuery(query)
+    setCustom(query.range === 'custom')
+    setFrom(query.from ?? '')
+    setTo(query.to ?? '')
+    setInvalid(false)
+  }
   function rangeLabel(range: UsageQuery['range']) {
     if (range === 'today') return USAGE_TEXT.today
     return range === 'custom'

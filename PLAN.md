@@ -15768,6 +15768,14 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M102 — Usage & cost in every editor (D82)
 
+- **RVM102U correction lane (2026-10-05).** Repair all four P2 findings in
+  the shared page: preserve custom-date input identity while synchronizing
+  host ranges, contain action transport failures with localized recovery,
+  give every chart series a non-color cue and a contrasting theme-token
+  boundary, and position provider observations by elapsed time. Add failing
+  regressions and byte-exact red-drill receipts in
+  `docs/certification/m102-u.md`; no dependency or gate change. These shared
+  React changes reach every D82 page bridge and companion editor route.
 - **Goal.** One local history of every model call, whichever editor or backend
   made it, and one page that shows cost, tokens in and out, time, rate and plan
   limits, and budgets. The page has charts, a table behind every chart, export

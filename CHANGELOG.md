@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Usage & cost preserves keyboard focus through custom-date edits and
+  recovers from native host send failures with localized feedback and retry.
+
 - Package only allowlisted build artifacts with a short landing guide and recent
   release notes. Compact staged translation and manifest JSON preserves every
   value, and the strict localization gate validates the exact packaged data.
