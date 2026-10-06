@@ -1,0 +1,209 @@
+[
+  {
+    "guard": "AES-256-GCM primitive",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > matches NIST GCM AES-256 zero-key / 128-bit plaintext vector in both directions",
+      "test/unit/vault/crypto.test.ts > vault crypto > rejects altered GCM additional data independently of key derivation",
+      "test/unit/vault/crypto.test.ts > vault crypto > binds every context field and rejects tampering before material is returned",
+      "test/unit/vault/crypto.test.ts > vault crypto > generates fresh 96-bit nonces on repeated encryption and separates generations"
+    ],
+    "restoredSha256": "58c0d5174f624dc4399e5bbda5808333cf46df0880e725ce7b08b191c32524aa"
+  },
+  {
+    "guard": "HKDF-SHA256 separation primitive",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > matches RFC 5869 SHA-256 test case 1"
+    ],
+    "restoredSha256": "58c0d5174f624dc4399e5bbda5808333cf46df0880e725ce7b08b191c32524aa"
+  },
+  {
+    "guard": "HMAC-SHA256 authentication primitive",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > matches RFC 4231 HMAC-SHA256 test case 1"
+    ],
+    "restoredSha256": "58c0d5174f624dc4399e5bbda5808333cf46df0880e725ce7b08b191c32524aa"
+  },
+  {
+    "guard": "GCM additional data",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > rejects altered GCM additional data independently of key derivation",
+      "test/unit/vault/crypto.test.ts > vault crypto > binds every context field and rejects tampering before material is returned"
+    ],
+    "restoredSha256": "58c0d5174f624dc4399e5bbda5808333cf46df0880e725ce7b08b191c32524aa"
+  },
+  {
+    "guard": "GCM tag verification",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > matches NIST GCM AES-256 zero-key / 128-bit plaintext vector in both directions",
+      "test/unit/vault/crypto.test.ts > vault crypto > rejects altered GCM additional data independently of key derivation",
+      "test/unit/vault/crypto.test.ts > vault crypto > binds every context field and rejects tampering before material is returned"
+    ],
+    "restoredSha256": "58c0d5174f624dc4399e5bbda5808333cf46df0880e725ce7b08b191c32524aa"
+  },
+  {
+    "guard": "Context id and kind binding",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > binds every context field and rejects tampering before material is returned"
+    ],
+    "restoredSha256": "58c0d5174f624dc4399e5bbda5808333cf46df0880e725ce7b08b191c32524aa"
+  },
+  {
+    "guard": "Stored block generation binding",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > binds every context field and rejects tampering before material is returned"
+    ],
+    "restoredSha256": "58c0d5174f624dc4399e5bbda5808333cf46df0880e725ce7b08b191c32524aa"
+  },
+  {
+    "guard": "Canonical base64",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > checks exact primitive lengths, canonical base64 and constant-time equality semantics"
+    ],
+    "restoredSha256": "58c0d5174f624dc4399e5bbda5808333cf46df0880e725ce7b08b191c32524aa"
+  },
+  {
+    "guard": "Exact decoded byte length",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > checks exact primitive lengths, canonical base64 and constant-time equality semantics"
+    ],
+    "restoredSha256": "58c0d5174f624dc4399e5bbda5808333cf46df0880e725ce7b08b191c32524aa"
+  },
+  {
+    "guard": "Constant-time equality semantics",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > checks exact primitive lengths, canonical base64 and constant-time equality semantics"
+    ],
+    "restoredSha256": "58c0d5174f624dc4399e5bbda5808333cf46df0880e725ce7b08b191c32524aa"
+  },
+  {
+    "guard": "Unpooled owned buffers",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > matches RFC 5869 SHA-256 test case 1",
+      "test/unit/vault/crypto.test.ts > vault crypto > encodes raw private material, returns independent unpooled buffers, and erases every byte field"
+    ],
+    "restoredSha256": "58c0d5174f624dc4399e5bbda5808333cf46df0880e725ce7b08b191c32524aa"
+  },
+  {
+    "guard": "Material byte erasure",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > encodes raw private material, returns independent unpooled buffers, and erases every byte field"
+    ],
+    "restoredSha256": "58c0d5174f624dc4399e5bbda5808333cf46df0880e725ce7b08b191c32524aa"
+  },
+  {
+    "guard": "Unique and exhaustive material references",
+    "source": "src/core/vault/crypto.ts",
+    "suite": "test/unit/vault/crypto.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/crypto.test.ts > vault crypto > refuses malformed descriptors, duplicate byte references and trailing data"
+    ],
+    "restoredSha256": "58c0d5174f624dc4399e5bbda5808333cf46df0880e725ce7b08b191c32524aa"
+  },
+  {
+    "guard": "Pinned scrypt work factor",
+    "source": "src/core/vault/kdf.ts",
+    "suite": "test/unit/vault/kdf.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/kdf.test.ts > vault memory-hard KDF > refuses a weak KDF, malformed salt, empty passphrase and unavailable Argon2 without fallback"
+    ],
+    "restoredSha256": "322253894c3a49ba12415a8686e0a7e3731b80c42f70c8cf5fab6439b4e948ad"
+  },
+  {
+    "guard": "No Argon2 downgrade",
+    "source": "src/core/vault/kdf.ts",
+    "suite": "test/unit/vault/kdf.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/kdf.test.ts > vault memory-hard KDF > refuses a weak KDF, malformed salt, empty passphrase and unavailable Argon2 without fallback"
+    ],
+    "restoredSha256": "322253894c3a49ba12415a8686e0a7e3731b80c42f70c8cf5fab6439b4e948ad"
+  },
+  {
+    "guard": "Argon2 input erasure",
+    "source": "src/core/vault/kdf.ts",
+    "suite": "test/unit/vault/kdf.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/kdf.test.ts > vault memory-hard KDF > erases owned Argon2 input even on rejection and rejects invalid implementation output"
+    ],
+    "restoredSha256": "322253894c3a49ba12415a8686e0a7e3731b80c42f70c8cf5fab6439b4e948ad"
+  },
+  {
+    "guard": "Argon2 output length",
+    "source": "src/core/vault/kdf.ts",
+    "suite": "test/unit/vault/kdf.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/kdf.test.ts > vault memory-hard KDF > erases owned Argon2 input even on rejection and rejects invalid implementation output"
+    ],
+    "restoredSha256": "322253894c3a49ba12415a8686e0a7e3731b80c42f70c8cf5fab6439b4e948ad"
+  },
+  {
+    "guard": "Transferred passphrase erasure",
+    "source": "src/core/vault/keyslots.ts",
+    "suite": "test/unit/vault/keyslots.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/keyslots.test.ts > vault software slots > wraps and unwraps a passphrase slot, erases transferred input and obtains fresh presence on every use"
+    ],
+    "restoredSha256": "5b01d56aa5d7dd8222b4cb5d28b2b302fed09900d45cf5ed264e922e330e7a59"
+  },
+  {
+    "guard": "Fresh recovery entropy",
+    "source": "src/core/vault/keyslots.ts",
+    "suite": "test/unit/vault/keyslots.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/keyslots.test.ts > vault software slots > any independent recovery code unwraps only its own vault key"
+    ],
+    "restoredSha256": "5b01d56aa5d7dd8222b4cb5d28b2b302fed09900d45cf5ed264e922e330e7a59"
+  },
+  {
+    "guard": "Wrapped vault key length",
+    "source": "src/core/vault/keyslots.ts",
+    "suite": "test/unit/vault/keyslots.test.ts",
+    "exit": 1,
+    "failedTests": [
+      "test/unit/vault/keyslots.test.ts > vault software slots > creates and unlocks the scrypt fallback without weakening its recorded parameters"
+    ],
+    "restoredSha256": "5b01d56aa5d7dd8222b4cb5d28b2b302fed09900d45cf5ed264e922e330e7a59"
+  }
+]
