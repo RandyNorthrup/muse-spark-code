@@ -18921,6 +18921,19 @@ restored red drill in `docs/certification/m103-d.md`. No dependency or gate
 change; full quality and generated host-record integration remain lane W's
 responsibility under the rig brief.
 
+**FIXM103P2 / RVM103P4 correction scope (2026-10-05).** Fix all three
+confirmed P2 findings before integration: stale deletion addresses an immutable
+record filename containing the holder ID and a fresh claim generation, so a
+submitted removal cannot address a later holder after native lock loss; failed
+claims settle their pending record write and close/remove their own generation
+before rejecting; Windows enumeration projects the device registry's PortName,
+with only a final parenthesized COM suffix as the text-only fallback. The
+resource mutex and process-plus-endpoint stale checks remain mandatory. These
+portable P-core changes cover every editor/runtime through LeaseDependencies
+and listSerialPorts; W's host wiring/package and physical qualification remain
+separate. Each finding gets a whole-file regression and byte-exact red drill in
+`docs/certification/m103-p.md`. No dependency, setting or command is added.
+
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
 (a) Plain HTTP on the LAN only for a machine the user registered by command,
@@ -18969,6 +18982,15 @@ every user.
   README (a Makers section with the safety box), SECURITY, PRIVACY,
   CHANGELOG, this plan, `docs/research/makers-2026-10-05.md`,
   `docs/certification/m103*.md`.
+
+**Lane P review corrections (RVM103P3, 2026-10-05).** Fix CRLF Stop
+framing, native-lock loss during stale reclamation, unowned POSIX exclusivity
+cleanup, empty CIM enumeration, cancellable opening with settled Stop,
+Windows COM namespace aliases, and adapter line-state admission. Strengthen
+platform discovery and active-capture fixtures. Each finding gets a whole-file
+regression run and a byte-exact red drill in `docs/certification/m103-p.md`.
+Run focused gates directly on Win11; W retains the full quality, host-record
+and shipping qualification. No live devices, model calls or new dependencies.
 
 **Lanes and file ownership.** One integration branch
 (`feature/m103-makers`). Sub-milestone **f** is the maker editors (lanes A
@@ -19390,6 +19412,13 @@ duplication, localization, host API and production build directly on Kubuntu;
 record results and every red drill in `docs/certification/m103-s.md`. Full
 quality, aggregate coverage and the platform/editor matrix remain mandatory
 lead checks after integration. No gate is weakened.
+
+**FIXM103P / FIXM103P2 rig deferral (2026-10-05):** the rig/shared brief prohibits the
+full `quality` command in a lane. Focused P suites and the listed local gates
+run instead. The pre-existing stale host API file-count record is W-owned;
+W must regenerate and review it with the maker entry/package, then run full
+quality and the platform matrix before integration. No rule, threshold or
+record comparison is weakened. Evidence: `docs/certification/m103-p.md`.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
@@ -20603,6 +20632,26 @@ before a repaired one loads (2026-09-30).
   before claiming the platform detector supported. Full quality, host API
   record regeneration and M103's pre-existing startup-growth item remain
   with lane W, as recorded in `docs/certification/m103-d.md`.
+
+- **M103P-QUALIFICATION (2026-10-05):** lane P's RVM103P3/RVM103P4 corrections
+  are checked on Win11, including a separate process stopping the compiled
+  current-user C# pipe. No physical board, reset or flash is claimed. The
+  same platform-metadata test runs CIM, ioreg or sysfs on its actual OS;
+  POSIX socat cases still need the lead's Linux/macOS reruns of this tree.
+  Approved line settings use PlatformIO, native Windows or pyserial;
+  Arduino monitor, raw and shell adapters refuse before opening because
+  they cannot guarantee the approved DTR/RTS values. Follow-up: qualify any
+  additional line-control adapter before admitting it. The unchanged stale
+  host API record and final maker/helper packaging remain W-owned integration
+  gates; the lane does not claim them or full quality passed.
+  RVM103P4 uses version-2 records in per-resource directories, with immutable
+  holder-ID/generation filenames. Old pre-integration fixed-file records
+  fail closed; none of this maker storage has shipped. Follow-up: W selects
+  a fresh versioned per-user namespace before shipping or qualifies an
+  offline migration only after all old holders are absent. Nonempty registry
+  PortName board captures and the new lease interleavings on real POSIX rigs
+  remain part of the same platform qualification. All three RVM103P4 review
+  findings are fixed; no P2/P3 review finding is intentionally deferred.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through
