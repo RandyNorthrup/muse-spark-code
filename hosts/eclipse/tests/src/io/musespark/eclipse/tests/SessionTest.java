@@ -194,6 +194,34 @@ public class SessionTest {
         pump(() -> { try { return Files.readString(receipts).contains("\"seq\": " + session.contract.queueMessages + ", \"code\": \"MHP_PANEL_NOT_READY\""); } catch (IOException ex) { throw new java.io.UncheckedIOException(ex); } });
         assertFalse(session.isClosed()); assertEquals(0, session.dropBrowser(binding.id)); binding.close(0); session.remove(view);
     }
+    @Test public void nativeHtmlRenderRejectsStaleRepliesAndRoutesWhatsNewClicks() throws Exception {
+        session.close(); List<JsonObject> requests = new ArrayList<>(); List<CompletableFuture<JsonObject>> replies = new ArrayList<>();
+        Assets.HtmlPort port = new Assets.HtmlPort() {
+            @Override public boolean supports(String protocol, String capability) { return protocol.equals("mhp/1.2.0") && capability.equals("surfaceHtml"); }
+            @Override public CompletableFuture<JsonObject> render(JsonObject params) { requests.add(params); CompletableFuture<JsonObject> reply = new CompletableFuture<>(); replies.add(reply); return reply; }
+        };
+        ProcessBuilder builder = new ProcessBuilder("python3", fixture.toString(), "--receipts", receipts.toString()); Map<String, String> clean = Assets.environment(builder.environment()); builder.environment().clear(); builder.environment().putAll(clean); runtime = builder.start();
+        session = new WindowSession(PlatformUI.getWorkbench().getActiveWorkbenchWindow(), runtime, port); CountDownLatch initialized = new CountDownLatch(1); session.afterInitialize(initialized::countDown); pump(() -> initialized.getCount() == 0);
+        JsonObject context = session.hostContext(); assertEquals(Set.of("host", "locale", "theme", "folders", "trusted"), context.keySet()); assertEquals(Assets.locale(Platform.getNL()), context.get("locale").getAsString()); assertFalse(context.get("host").getAsJsonObject().get("version").getAsString().isBlank()); assertFalse(WindowSession.CAPABILITIES.contains("surfaces"));
+        String surface = session.uiRequest("surfaces/open", Json.object("kind", "whatsNew", "placement", "tab", "sessionId", "html-test")).getAsJsonObject().get("surfaceId").getAsString();
+        MuseView view = null; for (IViewReference reference : session.window.getActivePage().getViewReferences()) if (reference.getView(false) instanceof MuseView candidate && candidate.binding().id.equals(surface)) view = candidate;
+        assertNotNull(view); MuseView opened = view; pump(() -> requests.size() == 1);
+        java.lang.reflect.Field browserField = MuseView.class.getDeclaredField("browser"); browserField.setAccessible(true); org.eclipse.swt.browser.Browser browser = (org.eclipse.swt.browser.Browser) browserField.get(opened);
+        java.lang.reflect.Method reload = MuseView.class.getDeclaredMethod("loadPage"); reload.setAccessible(true); reload.invoke(opened); pump(() -> requests.size() == 2); while (Display.getDefault().readAndDispatch()) { } assertFalse("cancelled old render closed the live browser", browser.isDisposed());
+        replies.get(0).complete(Json.object("html", renderedFixture(requests.get(0), "stale")));
+        replies.get(1).complete(Json.object("html", renderedFixture(requests.get(1), "fresh"))); pump(opened.binding()::isReady);
+        assertEquals("fresh", browser.evaluate("return document.getElementById('rendered').textContent;"));
+        assertEquals(1, ((Number) browser.evaluate("return document.querySelectorAll('script[src]').length;")).intValue());
+        browser.execute("document.querySelector('[data-link]').click();");
+        pump(() -> { try { return Files.readString(receipts).contains("\"type\": \"openLink\", \"index\": 7"); } catch (IOException ex) { throw new java.io.UncheckedIOException(ex); } });
+        browser.execute("location.reload();"); pump(() -> requests.size() == 3); assertFalse(opened.binding().isReady()); replies.get(2).complete(Json.object("html", renderedFixture(requests.get(2), "reloaded"))); pump(opened.binding()::isReady); assertEquals("reloaded", browser.evaluate("return document.getElementById('rendered').textContent;"));
+        reload.invoke(opened); pump(() -> requests.size() == 4); java.lang.reflect.Field pageField = MuseView.class.getDeclaredField("page"); pageField.setAccessible(true); Path page = (Path) pageField.get(opened);
+        session.window.getActivePage().hideView(opened); replies.get(3).complete(Json.object("html", renderedFixture(requests.get(3), "late"))); while (Display.getDefault().readAndDispatch()) { } assertFalse("late render recreated a disposed page", Files.exists(page));
+    }
+    private static String renderedFixture(JsonObject params, String text) {
+        String script = params.get("scriptUri").getAsString().replace("&", "&amp;").replace("'", "&#39;");
+        return "<!DOCTYPE html><html><head></head><body><p id=\"rendered\">" + text + "</p><a href=\"https://example.com\" data-link=\"7\">link</a><script nonce=\"" + params.get("nonce").getAsString() + "\" src=\"" + script + "\"></script></body></html>";
+    }
     private static void pump(java.util.function.BooleanSupplier complete) {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(100);
         boolean settled = complete.getAsBoolean();

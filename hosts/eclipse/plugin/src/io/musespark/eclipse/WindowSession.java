@@ -20,6 +20,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     public final Documents documents;
     public final MhpPeer peer;
     public final IWorkbenchWindow window;
+    public final Assets.HtmlPort htmlPort;
     private final Process process;
     private final Map<String, MuseView> surfaces = new ConcurrentHashMap<>();
     private record Delivery(MuseView view, JsonElement payload, JsonElement sequence, int bytes) { }
@@ -43,8 +44,9 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
         return builder.start();
     }
     public WindowSession(IWorkbenchWindow window) throws Exception { this(window, launch()); }
-    public WindowSession(IWorkbenchWindow window, Process runtime) throws Exception {
-        this.window = window;
+    public WindowSession(IWorkbenchWindow window, Process runtime) throws Exception { this(window, runtime, null); }
+    public WindowSession(IWorkbenchWindow window, Process runtime, Assets.HtmlPort htmlPort) throws Exception {
+        this.window = window; this.htmlPort = htmlPort;
         process = runtime;
         documents = new Documents(window, params -> notify("documents/didChange", params), contract.selectionCap);
         peer = new MhpPeer(contract, process.getInputStream(), process.getOutputStream(), this, MusePlugin.get()::log);
@@ -205,7 +207,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             }
             case "diagnostics/get" -> diagnostics(params.has("uri") ? params.get("uri").getAsString() : null);
             case "surfaces/open" -> {
-                if (params.get("kind").getAsString().equals("whatsNew")) throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE");
+                if (params.get("kind").getAsString().equals("whatsNew") && !Assets.hasHtmlPort(htmlPort)) throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE");
                 String session = params.has("sessionId") ? params.get("sessionId").getAsString() : UUID.randomUUID().toString();
                 String secondary = UUID.randomUUID().toString();
                 MuseView.configure(secondary, session, params.get("kind").getAsString(), this);
@@ -252,6 +254,13 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             result.add(Json.object("uri", location, "range", Json.object("start", start, "end", end), "severity", severity == IMarker.SEVERITY_ERROR ? "error" : severity == IMarker.SEVERITY_WARNING ? "warning" : "information", "message", marker.getAttribute(IMarker.MESSAGE, ""), "source", marker.getType()));
         }
         return result;
+    }
+    public JsonObject hostContext() throws IOException {
+        org.osgi.framework.Bundle platform = Platform.getBundle("org.eclipse.platform");
+        String version = platform == null ? Platform.getBundle("org.eclipse.ui").getVersion().toString() : platform.getVersion().toString();
+        boolean dark = PlatformUI.getWorkbench().getThemeManager().getCurrentTheme().getId().toLowerCase(Locale.ROOT).contains("dark");
+        String kind = Display.getDefault().getHighContrast() ? dark ? "highContrastDark" : "highContrastLight" : dark ? "dark" : "light";
+        return Json.object("host", Json.object("id", "eclipse", "version", version), "locale", Assets.locale(Platform.getNL()), "theme", Json.object("kind", kind, "tokens", tokens()), "folders", folders(), "trusted", trusted);
     }
     public static JsonObject tokens() {
         RGB background = Display.getDefault().getSystemColor(SWT.COLOR_LIST_BACKGROUND).getRGB(); RGB foreground = Display.getDefault().getSystemColor(SWT.COLOR_LIST_FOREGROUND).getRGB();

@@ -22,8 +22,9 @@ project (creating `.project` if absent), and optionally opens a workbench window
 The launch interface targets an installed `muse-spark-code-acp panel --stdio`.
 The frozen export declares runtime-to-host initialization: the plugin waits
 for that request and returns the selected version and supported capabilities.
-Lane B must supply the bootstrap metadata; the native identity, installed
-language and theme handoff still needs an agreed route. An absolute
+The native host collects product version, installed language, theme, folders
+and trust for the exact MHP 1.2 `hostContext` proposal in PLAN D84. Frozen
+1.1 has no field for that handoff. An absolute
 `MUSE_SPARK_RUNTIME` executable path overrides PATH discovery. There is no
 automatic installation or download. Credential variables are removed before
 launch. Release lane I supplies the installed runtime and platform Node
@@ -57,8 +58,13 @@ versions are pinned in the POMs.
 `verify` includes Checkstyle, the asset-freshness regression test and all native
 JUnit tests through Tycho's UI harness. Tests use a private authored fake runtime; they never invoke a model
 or charge an account. The update site and its ZIP are under
-`repository/target/`. Native `surfaces` is unadvertised: MHP has no transfer for What's New's runtime-rendered HTML and click mapping. Auxiliary pages use the declared
-companion-tabs fallback after B/C integration.
+`repository/target/`. Native `surfaces` is unadvertised in frozen 1.1. The
+capability-checked MHP 1.2 `surfaceHtml` port implements the Eclipse side of
+the proposed What's New renderer: bounded complete HTML, one approved local
+script, the native nonce CSP, per-binding click indices, fresh rendering on
+reload and rejection of stale/disposed replies. B/D and lane 0 must approve
+and connect that port before it is offered on the wire. Auxiliary pages use
+the declared companion-tabs fallback after B/C integration.
 
 The source is not a supported full product until the
 shared lanes are integrated and every feature in the certification is qualified.
@@ -69,5 +75,8 @@ bounded late cancellation replies. Completions use standard language IDs and
 full-document offsets in folded/restricted views. Recursive includes/excludes
 cover project-root files; admitted panel deliveries retain their reservation
 across reload and resume on ready. Asset bootstraps support apostrophes in
-state/workspace paths. See the FIXM104G tests and red drills in
+state/workspace paths. The native singleton API adapter also boots the shipped
+chat and Tasks bundles and forwards their message events; both are exercised
+in real WebKit. Saved text containing bootstrap substitution names is retained
+literally. See the FIXM104G tests and red drills in
 `../../docs/certification/m104-g.md`.

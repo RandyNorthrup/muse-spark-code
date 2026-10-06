@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.*;
 import org.eclipse.core.runtime.*;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.browser.*;
@@ -29,6 +30,8 @@ public final class MuseView extends ViewPart {
     private JsonElement restoredState;
     private String kind = "chat";
     private boolean loaded;
+    private long renderGeneration;
+    private CompletableFuture<String> pendingRender;
     public PanelSurface binding() { return binding; }
     @Override public void init(IViewSite site, IMemento memento) throws PartInitException {
         super.init(site, memento);
@@ -58,7 +61,14 @@ public final class MuseView extends ViewPart {
             browser.addLocationListener(new LocationAdapter() {
                 @Override public void changing(LocationEvent event) {
                     event.doit = page != null && Assets.navigationAllowed(page, event.location);
-                    if (event.doit && loaded && event.top) { try { binding.reload(); } catch (RuntimeException ex) { event.doit = false; } }
+                    // GTK does not set LocationEvent.top while changing; the exact document guard and frame-src policy identify this navigation.
+                    if (event.doit && loaded) { try {
+                        binding.reload();
+                        if (kind.equals("whatsNew")) {
+                            event.doit = false; loaded = false;
+                            browser.getDisplay().asyncExec(() -> { try { if (!browser.isDisposed()) loadPage(); } catch (IOException ex) { MusePlugin.get().log("MHP_PAGE_FAILURE"); showFailure(parent); } });
+                        }
+                    } catch (RuntimeException ex) { event.doit = false; } }
                 }
             });
             function = new BrowserFunction(browser, "museNative", true, new String[0]) {
@@ -100,6 +110,20 @@ public final class MuseView extends ViewPart {
         Path assets = Assets.extract(MusePlugin.get().getBundle(), MusePlugin.get().getStateLocation().toFile().toPath().resolve("assets").resolve(MusePlugin.get().getBundle().getVersion().toString()));
         Path directory = MusePlugin.get().getStateLocation().toFile().toPath().resolve("pages"); Files.createDirectories(directory);
         page = directory.resolve(binding.id + ".html");
+        if (kind.equals("whatsNew")) {
+            long generation = ++renderGeneration; if (pendingRender != null) pendingRender.cancel(false);
+            JsonObject context = session.hostContext(); org.eclipse.swt.widgets.Display display = browser.getDisplay();
+            pendingRender = Assets.renderedHtml(session.contract, session.htmlPort, assets, context.get("locale").getAsString(), binding.state(), context.getAsJsonObject("theme"), binding.id, binding.session).orTimeout(100, TimeUnit.SECONDS);
+            pendingRender.whenComplete((html, error) -> { if (!display.isDisposed()) display.asyncExec(() -> {
+                if (browser.isDisposed() || generation != renderGeneration) return;
+                try {
+                    if (error != null) throw new IOException("MHP_RENDER_FAILURE");
+                    Files.writeString(page, html, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                    if (!browser.setUrl(page.toUri().toASCIIString())) throw new IOException("MHP_PAGE_FAILURE");
+                } catch (IOException ex) { MusePlugin.get().log("MHP_PAGE_FAILURE"); showFailure(browser.getParent()); }
+            }); });
+            return;
+        }
         Files.writeString(page, Assets.html(assets, Platform.getNL(), kind, binding.state(), WindowSession.tokens()), StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
         if (!browser.setUrl(page.toUri().toASCIIString())) throw new IOException("MHP_PAGE_FAILURE");
     }
@@ -114,6 +138,7 @@ public final class MuseView extends ViewPart {
     }
     @Override public void setFocus() { if (browser != null && !browser.isDisposed()) browser.setFocus(); }
     @Override public void dispose() {
+        renderGeneration++; if (pendingRender != null) pendingRender.cancel(false);
         if (binding != null) {
             try { binding.close(session.dropBrowser(binding.id)); } catch (RuntimeException ex) { MusePlugin.get().log("MHP_SURFACE_FAILURE"); }
             session.remove(this);

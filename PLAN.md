@@ -5260,11 +5260,23 @@ surfaceKind: "whatsNew", locale, nonce, styleUri, scriptUri, theme }`; IDs are t
   bounded by the existing 16 MiB frame cap. The runtime uses its existing
   localized release renderer and retains the rendered allow-listed link and
   Try-it maps per binding; existing outward What's New index actions continue
-  through the sequenced carrier. The host injects its private embedded bridge
+  through the sequenced carrier. Maps are staged by the supplied nonce:
+  only the most recently admitted render may activate its maps on the binding's
+  ordered `ready`; stale/cancelled replies never replace them. Action admission
+  snapshots the active map before asynchronous execution, and reload/close
+  retire it through the ordered lifecycle. The host injects its private embedded bridge
   before the page's scripts, writes only the bound local page, and preserves
   the asset-only nonce CSP, exact-document navigation, blocked popups and
   ordered lifecycle. A reload obtains a new render and click-map generation
   before `ready`; cancellation never installs a late render.
+  The HTML contains exactly one canonical external script tag,
+  `<script nonce="{nonce}" src="{escapedScriptUri}"></script>`, with
+  HTML-escaped URI attributes; no inline, remote, duplicate or differently
+  nonced script is permitted. Eclipse removes that tag and loads the same
+  extracted module after SWT installs its private browser function. It
+  replaces the renderer's CSP with its existing asset-only native CSP before
+  any content executes. Results with additional properties, partial documents
+  or UTF-8 bytes above the frame cap fail explicitly.
 - For 1.2 initialization, add required result field `hostContext` with
   exactly `{ host, locale, theme, folders, trusted }`, using the existing
   field schemas. These are authoritative native values; the runtime's
@@ -16230,6 +16242,19 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M104-E02-BOOTSTRAP (frozen-contract integration, FIXM104G):** D84 names
+  the exact proposed MHP 1.2 `surfaceHtml`/`hostContext` additions. Eclipse
+  implements the native renderer lifecycle and authoritative metadata behind
+  an injected, version-and-capability-checked port, with native fake-only
+  receipts for rendering, click indices, reload, cancellation and disposal.
+  The frozen 1.1 peer cannot negotiate that port; `surfaces` remains absent
+  from its advertisement, and an absent/older port refuses What's New.
+  This is safe pending approval because unsupported native HTML is never
+  offered. Follow-up: lane 0 exports the approved schemas and B/D wire the
+  renderer/bootstrap and integrated feature conformance. This is a contract
+  gate, not an exception to the all-editor parity requirement or a supported
+  product claim.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through
