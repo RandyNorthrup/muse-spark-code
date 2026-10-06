@@ -2049,6 +2049,8 @@
           steps.todo()
           whenFound('.todo-title', (button) => button.click())
         },
+        'schedules-v2-background': () => {},
+        'schedules-v2-background-narrow': () => {},
         'schedules-v2-list': () => {},
         'schedules-v2-list-narrow': () => {},
         'schedules-v2-editor': () => {},
@@ -4723,6 +4725,19 @@
         'schedule-settlements': () => document.querySelectorAll('.schedule-v2-fire').length === 3,
         'schedule-settlements-narrow': () =>
           scheduleNarrowFits() && document.querySelectorAll('.schedule-v2-fire').length === 3,
+        'schedules-v2-background': () =>
+          document.querySelector('.schedule-v2-consent button') !== null,
+        'schedules-v2-background-narrow': () => {
+          const buttons = [...document.querySelectorAll('.schedule-v2-consent button')]
+          const boxes = buttons.map((button) => button.getBoundingClientRect())
+          return (
+            scheduleNarrowFits() &&
+            boxes.length === 3 &&
+            boxes.every(
+              (box) => Math.abs(box.width - boxes[0].width) < 1 && Math.abs(box.y - boxes[0].y) < 1,
+            )
+          )
+        },
         'schedules-v2-list': () =>
           document.querySelector('.schedule-v2-card details[open] ul li') !== null,
         'schedules-v2-list-narrow': () =>

@@ -2451,9 +2451,9 @@
       "historyUnavailable": "沒有可預覽的歷程。",
       "eventUntrusted": "事件內容是不受信任的資料，不能變更授權、工具或目標。",
       "backgroundQuestion": "編輯器關閉時仍執行排程嗎？",
-      "backgroundYes": "是，新增背景項目",
+      "backgroundYes": "是",
       "backgroundNotNow": "暫時不要",
-      "backgroundNever": "不再詢問",
+      "backgroundNever": "永不",
       "backgroundRemove": "移除背景項目",
       "backgroundRemoved": "背景項目已移除。",
       "agentConsent": "允許{agent}在自身權限和預算範圍內建立此排程嗎？",
@@ -2513,7 +2513,9 @@
         "create": "選擇何時、向何處以及使用哪些權限傳送此提示詞。",
         "timeline": "檢視同一目標即將發生的執行及衝突。"
       },
-      "anchorDate": "基準日期（排程的時區）"
+      "anchorDate": "基準日期（排程的時區）",
+      "stateUnknown": "狀態未知 — 重試",
+      "retry": "重試"
     }
   }
 }

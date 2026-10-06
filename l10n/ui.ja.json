@@ -2451,9 +2451,9 @@
       "historyUnavailable": "プレビューできる履歴がありません。",
       "eventUntrusted": "イベントの内容は信頼されていないデータで、許可、ツール、対象を変更できません。",
       "backgroundQuestion": "エディターが閉じている間もスケジュールを実行しますか？",
-      "backgroundYes": "はい、バックグラウンド登録を追加",
+      "backgroundYes": "はい",
       "backgroundNotNow": "今はしない",
-      "backgroundNever": "今後確認しない",
+      "backgroundNever": "しない",
       "backgroundRemove": "バックグラウンド登録を削除",
       "backgroundRemoved": "バックグラウンド登録を削除しました。",
       "agentConsent": "{agent}が自身の権限と予算の範囲内でこのスケジュールを作成することを許可しますか？",
@@ -2513,7 +2513,9 @@
         "create": "このプロンプトをいつ、どこに、どの権限で送信するか選択します。",
         "timeline": "同じ対象で予定されている実行と競合を確認します。"
       },
-      "anchorDate": "基準日（スケジュールのタイムゾーン）"
+      "anchorDate": "基準日（スケジュールのタイムゾーン）",
+      "stateUnknown": "状態不明 — 再試行",
+      "retry": "再試行"
     }
   }
 }

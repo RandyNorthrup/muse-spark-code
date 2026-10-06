@@ -2545,9 +2545,9 @@
       "historyUnavailable": "Önizlenecek geçmiş yok.",
       "eventUntrusted": "Olay içeriği güvenilmeyen veridir; izinleri, araçları veya hedefleri değiştiremez.",
       "backgroundQuestion": "Düzenleyiciler kapalıyken zamanlamalar çalışsın mı?",
-      "backgroundYes": "Evet, arka plan kaydı ekle",
+      "backgroundYes": "Evet",
       "backgroundNotNow": "Şimdi değil",
-      "backgroundNever": "Bir daha sorma",
+      "backgroundNever": "Asla",
       "backgroundRemove": "Arka plan kaydını kaldır",
       "backgroundRemoved": "Arka plan kaydı kaldırıldı.",
       "agentConsent": "{agent} kendi izinleri ve bütçesi içinde bu zamanlamayı oluştursun mu?",
@@ -2609,7 +2609,9 @@
         "create": "Bu istemin ne zaman, nereye ve hangi izinlerle gönderileceğini seçin.",
         "timeline": "Aynı hedefteki yaklaşan çalıştırmaları ve çakışmaları görün."
       },
-      "anchorDate": "Başlangıç tarihi (zamanlamanın saat diliminde)"
+      "anchorDate": "Başlangıç tarihi (zamanlamanın saat diliminde)",
+      "stateUnknown": "Durum bilinmiyor — Yeniden dene",
+      "retry": "Yeniden dene"
     }
   }
 }

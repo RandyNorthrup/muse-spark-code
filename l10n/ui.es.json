@@ -2639,9 +2639,9 @@
       "historyUnavailable": "No hay historial para la vista previa.",
       "eventUntrusted": "El contenido del evento son datos no fiables y no puede cambiar permisos, herramientas ni destinos.",
       "backgroundQuestion": "¿Ejecutar programaciones cuando los editores estén cerrados?",
-      "backgroundYes": "Sí, añadir la entrada en segundo plano",
+      "backgroundYes": "Sí",
       "backgroundNotNow": "Ahora no",
-      "backgroundNever": "No volver a preguntar",
+      "backgroundNever": "Nunca",
       "backgroundRemove": "Eliminar la entrada en segundo plano",
       "backgroundRemoved": "Entrada en segundo plano eliminada.",
       "agentConsent": "¿Permitir que {agent} cree esta programación dentro de sus propios permisos y presupuesto?",
@@ -2705,7 +2705,9 @@
         "create": "Elige cuándo, dónde y con qué permisos enviar esta instrucción.",
         "timeline": "Consulta las próximas ejecuciones y las coincidencias en el mismo destino."
       },
-      "anchorDate": "Fecha de referencia (en la zona horaria de la programación)"
+      "anchorDate": "Fecha de referencia (en la zona horaria de la programación)",
+      "stateUnknown": "Estado desconocido — Reintentar",
+      "retry": "Reintentar"
     }
   }
 }

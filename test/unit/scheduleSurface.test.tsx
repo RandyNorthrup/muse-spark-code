@@ -81,9 +81,9 @@ describe('M115 schedule surface', () => {
       )
       fireEvent.click(screen.getByRole('button', { name: 'Background entry' }))
       const labels = {
-        yes: 'Yes, add the background entry',
+        yes: 'Yes',
         notNow: 'Not now',
-        never: 'Never ask again',
+        never: 'Never',
       }
       fireEvent.click(await screen.findByRole('button', { name: labels[choice] }))
       await waitFor(() => {

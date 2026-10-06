@@ -1,12 +1,16 @@
 import { UI_TEXT } from '../../shared/constants'
-import type { ScheduleResponse, ScheduleView } from './ports'
+import type { ScheduleResponse, ScheduleView, ScheduleTargetChoice } from './ports'
 import { scheduleCreatorText, scheduleDateTime, scheduleTargetText } from './presentation'
 
 export function ScheduleTimeline({
   entries,
   schedules,
+  targets,
+  currentConversationId,
 }: {
   readonly entries: Extract<ScheduleResponse, { kind: 'timeline' }>['entries']
+  readonly targets: readonly ScheduleTargetChoice[]
+  readonly currentConversationId: string | undefined
   readonly schedules: readonly ScheduleView[]
 }) {
   return (
@@ -21,7 +25,7 @@ export function ScheduleTimeline({
               <p>
                 {scheduleDateTime(entry.atMs, schedule?.zone ?? 'UTC')} · {schedule?.zone ?? 'UTC'}
               </p>
-              <p>{scheduleTargetText(entry.target)}</p>
+              <p>{scheduleTargetText(entry.target, targets, currentConversationId)}</p>
               <p>{scheduleCreatorText(entry.creator)}</p>
               {entry.collisionIds.length === 0 ? null : (
                 <p className="schedule-v2-collision">

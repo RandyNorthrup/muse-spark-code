@@ -128,6 +128,18 @@ body {
   cursor: pointer;
 }
 
+.schedule-v2-consent {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ms-gap);
+  margin-block: var(--ms-gap);
+}
+
+.schedule-v2-consent button {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .schedule-v2-surface summary {
   min-height: var(--ms-button-height);
   cursor: pointer;

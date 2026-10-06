@@ -3,11 +3,14 @@ import { MILLISECONDS_PER_DAY, UI_TEXT } from '../../shared/constants'
 import { fill, uiLocale } from '../../shared/l10n/text'
 import {
   scheduleFireRecordSchema,
+  scheduleTargetSchema,
   type ScheduleFireRecord,
   type ScheduleCreator,
   type ScheduleTarget,
   type ScheduleGrantRule,
 } from '../../shared/scheduleV2'
+
+import type { ScheduleTargetChoice } from './ports'
 
 const settlementSchema = z.strictObject({
   type: z.literal('scheduleFire'),
@@ -34,8 +37,20 @@ export function scheduleCreatorText(creator: ScheduleCreator): string {
       })
 }
 
-export function scheduleTargetText(target: ScheduleTarget): string {
-  const label = UI_TEXT.scheduleV2.targets[target.kind]
+export function scheduleTargetText(
+  target: ScheduleTarget,
+  choices: readonly ScheduleTargetChoice[] = [],
+  currentConversationId?: string,
+): string {
+  const identity = JSON.stringify(scheduleTargetSchema.parse(target))
+  const supplied = choices.find(
+    (choice) => JSON.stringify(scheduleTargetSchema.parse(choice.target)) === identity,
+  )
+  let label = supplied?.label ?? UI_TEXT.scheduleV2.targets[target.kind]
+  if (target.kind === 'conversation') {
+    label = supplied?.label ?? UI_TEXT.scheduleV2.targets.namedConversation
+    if (target.sessionId === currentConversationId) label = UI_TEXT.scheduleV2.targets.conversation
+  }
   switch (target.kind) {
     case 'conversation': {
       return `${label} (${target.sessionId})`

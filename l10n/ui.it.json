@@ -2639,9 +2639,9 @@
       "historyUnavailable": "Nessuna cronologia da mostrare in anteprima.",
       "eventUntrusted": "Il contenuto dell’evento è un dato non attendibile e non può modificare autorizzazioni, strumenti o destinazioni.",
       "backgroundQuestion": "Eseguire le pianificazioni quando gli editor sono chiusi?",
-      "backgroundYes": "Sì, aggiungi la voce in background",
+      "backgroundYes": "Sì",
       "backgroundNotNow": "Non ora",
-      "backgroundNever": "Non chiedere più",
+      "backgroundNever": "Mai",
       "backgroundRemove": "Rimuovi la voce in background",
       "backgroundRemoved": "Voce in background rimossa.",
       "agentConsent": "Consentire a {agent} di creare questa pianificazione entro i propri permessi e budget?",
@@ -2705,7 +2705,9 @@
         "create": "Scegli quando, dove e con quali autorizzazioni inviare questa istruzione.",
         "timeline": "Visualizza le prossime esecuzioni e le sovrapposizioni sulla stessa destinazione."
       },
-      "anchorDate": "Data di riferimento (nel fuso orario della pianificazione)"
+      "anchorDate": "Data di riferimento (nel fuso orario della pianificazione)",
+      "stateUnknown": "Stato sconosciuto — Riprova",
+      "retry": "Riprova"
     }
   }
 }

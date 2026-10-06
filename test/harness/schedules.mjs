@@ -1,5 +1,7 @@
 // M115 fake-only scenes, running the shipped lazy component and its injected ports.
 export const SCHEDULE_SCENES = [
+  'schedules-v2-background',
+  'schedules-v2-background-narrow',
   'schedules-v2-list',
   'schedules-v2-list-narrow',
   'schedules-v2-editor',
@@ -71,7 +73,7 @@ async function playScheduleHarness() {
     request: async (input) => {
       switch (input.method) {
         case 'schedules/list': {
-          return { kind: 'list', schedules }
+          return { kind: 'list', schedules: scenario.includes('background') ? [] : schedules }
         }
         case 'schedules/eventSources': {
           return {
@@ -174,6 +176,16 @@ async function playScheduleHarness() {
   })
   if (initialView !== 'list') return
   const openAudit = () => {
+    if (scenario.includes('background')) {
+      const details = globalThis.document.querySelector('.schedule-v2-surface > details')
+      if (details === null) {
+        globalThis.setTimeout(openAudit, 100)
+        return
+      }
+      details.open = true
+      details.querySelector('button').click()
+      return
+    }
     const card = globalThis.document.querySelector('.schedule-v2-card')
     if (card === null) {
       globalThis.setTimeout(openAudit, 100)

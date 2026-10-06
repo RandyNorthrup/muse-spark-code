@@ -2545,9 +2545,9 @@
       "historyUnavailable": "Kein Verlauf für die Vorschau.",
       "eventUntrusted": "Ereignisinhalte sind nicht vertrauenswürdige Daten und können Freigaben, Werkzeuge oder Ziele nicht ändern.",
       "backgroundQuestion": "Zeitpläne ausführen, wenn Editoren geschlossen sind?",
-      "backgroundYes": "Ja, Hintergrundeintrag hinzufügen",
+      "backgroundYes": "Ja",
       "backgroundNotNow": "Jetzt nicht",
-      "backgroundNever": "Nicht mehr fragen",
+      "backgroundNever": "Nie",
       "backgroundRemove": "Hintergrundeintrag entfernen",
       "backgroundRemoved": "Hintergrundeintrag entfernt.",
       "agentConsent": "Darf {agent} diesen Zeitplan innerhalb seiner eigenen Berechtigungen und seines Budgets erstellen?",
@@ -2609,7 +2609,9 @@
         "create": "Wähle, wann, wohin und mit welchen Berechtigungen dieser Prompt gesendet wird.",
         "timeline": "Sieh bevorstehende Ausführungen und Überschneidungen am selben Ziel."
       },
-      "anchorDate": "Bezugsdatum (in der Zeitzone des Zeitplans)"
+      "anchorDate": "Bezugsdatum (in der Zeitzone des Zeitplans)",
+      "stateUnknown": "Status unbekannt — Erneut versuchen",
+      "retry": "Erneut versuchen"
     }
   }
 }

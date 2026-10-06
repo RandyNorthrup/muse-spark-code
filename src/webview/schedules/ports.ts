@@ -24,6 +24,8 @@ export interface ScheduleSurfacePort {
   // Unknown at the boundary: every consumer parses the frozen contract.
   request(request: ScheduleRequest): Promise<unknown>
   preview(draft: ScheduleDraft): Promise<unknown>
+  /** Required in production: W bridges all cross-process store revisions. */
+  subscribeChanges?(listener: (message: unknown) => void): () => void
 }
 
 export interface ScheduleTargetChoice {
@@ -52,6 +54,7 @@ export interface ScheduleSurfaceProps {
     readonly price: string
     readonly sharedDailyBudgetUsd: number
   }
+  readonly currentConversationId?: string
   readonly nowMs: number
   readonly initialView?: 'list' | 'timeline' | 'editor'
   readonly onClose?: () => void

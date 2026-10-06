@@ -1,10 +1,19 @@
 import { UI_TEXT } from '../../shared/constants'
-import { fill, formatDateTime, formatUsd } from '../../shared/l10n/text'
+import { formatDateTime, formatUsd } from '../../shared/l10n/text'
 import { ScheduleBody } from '../components/ToolBodies'
+import type { ScheduleTargetChoice } from './ports'
 import type { ToolEntry } from '../state/uiState'
 import { parseScheduleSettlement, scheduleTargetText } from './presentation'
 
-export function ScheduleRunBody({ entry }: { readonly entry: ToolEntry }) {
+export function ScheduleRunBody({
+  entry,
+  targets = [],
+  currentConversationId,
+}: {
+  readonly entry: ToolEntry
+  readonly targets?: readonly ScheduleTargetChoice[]
+  readonly currentConversationId?: string
+}) {
   const parsed = parseScheduleSettlement(entry.output)
   if (!parsed.ok) return <ScheduleBody entry={entry} />
   const { fire } = parsed
@@ -16,7 +25,8 @@ export function ScheduleRunBody({ entry }: { readonly entry: ToolEntry }) {
           : UI_TEXT.scheduleV2.outcomes[fire.outcome]}
       </strong>
       <p>
-        {formatDateTime(fire.occurrenceMs)} · {scheduleTargetText(fire.target)} ·{' '}
+        {formatDateTime(fire.occurrenceMs)} ·{' '}
+        {scheduleTargetText(fire.target, targets, currentConversationId)} ·{' '}
         {UI_TEXT.scheduleV2.delivery[fire.delivery]}
       </p>
       <code>{fire.scheduleId}</code> · <code>{fire.runId}</code>
@@ -24,10 +34,7 @@ export function ScheduleRunBody({ entry }: { readonly entry: ToolEntry }) {
       <ul>
         {fire.refusedActions.map((action, index) => (
           <li key={index} dir="auto">
-            {['physical', 'protectedPath', 'requiresAsking'].includes(action.actionClass)
-              ? `${UI_TEXT.scheduleV2.outcomes.refused}: ${action.tool}`
-              : fill(UI_TEXT.scheduleV2.messages.unattendedRefusal, { action: action.tool })}{' '}
-            · {action.reason}
+            {UI_TEXT.scheduleV2.outcomes.refused}: {action.tool} · {action.reason}
           </li>
         ))}
       </ul>

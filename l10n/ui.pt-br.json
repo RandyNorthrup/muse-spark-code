@@ -2639,9 +2639,9 @@
       "historyUnavailable": "Sem histórico para visualizar.",
       "eventUntrusted": "O conteúdo do evento é dado não confiável e não pode alterar permissões, ferramentas ou destinos.",
       "backgroundQuestion": "Executar agendamentos com os editores fechados?",
-      "backgroundYes": "Sim, adicionar a entrada em segundo plano",
+      "backgroundYes": "Sim",
       "backgroundNotNow": "Agora não",
-      "backgroundNever": "Nunca perguntar novamente",
+      "backgroundNever": "Nunca",
       "backgroundRemove": "Remover a entrada em segundo plano",
       "backgroundRemoved": "Entrada em segundo plano removida.",
       "agentConsent": "Permitir que {agent} crie este agendamento dentro de suas próprias permissões e orçamento?",
@@ -2705,7 +2705,9 @@
         "create": "Escolha quando, para onde e com quais permissões enviar este prompt.",
         "timeline": "Veja as próximas execuções e os conflitos no mesmo destino."
       },
-      "anchorDate": "Data de referência (no fuso horário do agendamento)"
+      "anchorDate": "Data de referência (no fuso horário do agendamento)",
+      "stateUnknown": "Estado desconhecido — Tentar novamente",
+      "retry": "Tentar novamente"
     }
   }
 }

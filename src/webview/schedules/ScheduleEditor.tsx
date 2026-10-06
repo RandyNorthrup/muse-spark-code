@@ -9,6 +9,7 @@ import {
 import { fill, formatUsd, plural } from '../../shared/l10n/text'
 import {
   scheduleDraftSchema,
+  scheduleTargetSchema,
   scheduleResponseSchema,
   type ScheduleDraft,
   type ScheduleRequest,
@@ -61,15 +62,20 @@ export function ScheduleEditor({
     schedule === undefined ? context.defaultDraft : draftOf(schedule),
   )
   const [validConditions, setValidConditions] = useState(true)
+  const [conditionText, setConditionText] = useState('')
   const [error, setError] = useState<string>()
   const [preview, setPreview] = useState<{
     draft: ScheduleDraft
-    text?: string
-    times?: readonly number[]
+    conditions: string
+    text: string | undefined
+    times?: readonly number[] | undefined
   }>()
   const targetId =
-    context.targets.find((item) => JSON.stringify(item.target) === JSON.stringify(draft.target))
-      ?.id ?? ''
+    context.targets.find(
+      (item) =>
+        JSON.stringify(scheduleTargetSchema.parse(item.target)) ===
+        JSON.stringify(scheduleTargetSchema.parse(draft.target)),
+    )?.id ?? ''
   let event: Extract<ScheduleDraft['trigger'], { kind: 'event' }> | undefined
   if (draft.trigger.kind === 'afterEvent') event = draft.trigger.event
   else if (draft.trigger.kind === 'event') event = draft.trigger
@@ -93,6 +99,7 @@ export function ScheduleEditor({
     const valid = validate()
     if (valid === undefined) return
     try {
+      let historyText: string | undefined
       if (event !== undefined) {
         const range = {
           fromMs: Math.max(0, context.nowMs - SCHEDULE_LIFETIME_MS),
@@ -113,25 +120,26 @@ export function ScheduleEditor({
           response.range.toMs !== range.toMs
         )
           throw new Error(UI_TEXT.scheduleV2.editor.loadFailed)
+        historyText = response.preview.available
+          ? plural(UI_TEXT.scheduleV2.historyPreview, response.preview.matchedCount, {
+              days: (range.toMs - range.fromMs) / MILLISECONDS_PER_DAY,
+            })
+          : `${UI_TEXT.scheduleV2.messages.historyUnavailable} ${response.preview.reason}`
+      }
+      if (draft.trigger.kind === 'event')
+        setPreview({ draft, conditions: conditionText, text: historyText })
+      else {
+        const response = schedulePreviewSchema.parse(await context.port.preview(valid))
         setPreview({
           draft,
-          text: response.preview.available
-            ? plural(UI_TEXT.scheduleV2.historyPreview, response.preview.matchedCount, {
-                days: (range.toMs - range.fromMs) / MILLISECONDS_PER_DAY,
-              })
-            : `${UI_TEXT.scheduleV2.messages.historyUnavailable} ${response.preview.reason}`,
+          conditions: conditionText,
+          ...(response.available
+            ? { text: historyText, times: response.times }
+            : { text: response.reason }),
         })
       }
-      if (draft.trigger.kind !== 'event') {
-        const response = schedulePreviewSchema.parse(await context.port.preview(valid))
-        setPreview((previous) => ({
-          draft,
-          ...(previous?.draft === draft && previous),
-          ...(response.available ? { times: response.times } : { text: response.reason }),
-        }))
-      }
     } catch {
-      setPreview({ draft, text: UI_TEXT.scheduleV2.editor.loadFailed })
+      setPreview({ draft, conditions: conditionText, text: UI_TEXT.scheduleV2.editor.loadFailed })
     }
   }
   let actionEditor: ReactNode
@@ -248,7 +256,11 @@ export function ScheduleEditor({
           onChange={(trigger) => {
             setDraft({ ...draft, trigger })
           }}
-          onValid={setValidConditions}
+          onValid={(isValid, text = '') => {
+            setValidConditions(isValid)
+            setConditionText(text)
+            setPreview(undefined)
+          }}
         />
         <label>
           {UI_TEXT.scheduleV2.labels.timeZone}
@@ -457,7 +469,7 @@ export function ScheduleEditor({
             {UI_TEXT.goalEditCancel}
           </button>
         </div>
-        {preview?.draft === draft ? (
+        {validConditions && preview?.draft === draft && preview.conditions === conditionText ? (
           <div role="status">
             {preview.text}
             <ol>

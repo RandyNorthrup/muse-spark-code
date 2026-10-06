@@ -293,4 +293,81 @@ describe('M115 schedule editor', () => {
     await screen.findByText('Schedules could not be loaded. Try again.')
     expect(screen.queryByRole('listitem')).toBeNull()
   })
+  it('clears fire times when the engine returns an unavailable preview', async () => {
+    const preview = vi
+      .fn()
+      .mockResolvedValueOnce({ available: true, times: [1] })
+      .mockResolvedValueOnce({ available: false, reason: 'No future fires' })
+    showSchedulePreview(preview)
+    const button = await screen.findByRole('button', { name: 'Next five fires' })
+    fireEvent.click(button)
+    await screen.findByRole('listitem')
+    fireEvent.click(button)
+    await screen.findByText('No future fires')
+    expect(screen.queryByRole('listitem')).toBeNull()
+  })
+
+  it('hides history when condition text becomes invalid', async () => {
+    showScheduleSurface({}, (input) =>
+      input.method === 'schedules/historyPreview'
+        ? {
+            kind: 'historyPreview',
+            trigger: input.trigger,
+            range: input.range,
+            preview: { available: true, matchedCount: 3, events: [] },
+          }
+        : undefined,
+    )
+    const form = await trigger('event')
+    fireEvent.click(within(form).getByRole('button', { name: 'Next five fires' }))
+    await screen.findByText('Would have fired 3 times in 7 days')
+    fireEvent.change(within(form).getByLabelText('Conditions (field=value, one per line)'), {
+      target: { value: 'grant=shell' },
+    })
+    expect(screen.queryByText('Would have fired 3 times in 7 days')).toBeNull()
+  })
+
+  it('resets invalid conditions when switching to another event source', async () => {
+    const { request } = showScheduleSurface({}, (input) =>
+      input.method === 'schedules/eventSources'
+        ? {
+            kind: 'eventSources',
+            sources: [
+              { id: 'git', kinds: ['branchUpdated'], capability: { available: true } },
+              { id: 'manual', kinds: ['manual'], capability: { available: true } },
+            ],
+          }
+        : undefined,
+    )
+    const form = await trigger('event')
+    fireEvent.change(within(form).getByLabelText('Conditions (field=value, one per line)'), {
+      target: { value: 'grant=shell' },
+    })
+    fireEvent.change(within(form).getByLabelText('Event source'), { target: { value: 'manual' } })
+    expect(within(form).getByLabelText('Conditions (field=value, one per line)')).toHaveValue('')
+    await saveSchedule(form, request)
+  })
+
+  it('rejects a condition without an equals separator with a visible message', async () => {
+    const { request } = showScheduleSurface()
+    const form = await trigger('event')
+    fireEvent.change(within(form).getByLabelText('Conditions (field=value, one per line)'), {
+      target: { value: 'branchX' },
+    })
+    await refuseScheduleSave(form, request)
+    expect(within(form).getByRole('alert')).toBeTruthy()
+  })
+  it('clears an old engine refusal when a later preview is available', async () => {
+    const preview = vi
+      .fn()
+      .mockResolvedValueOnce({ available: false, reason: 'No future fires' })
+      .mockResolvedValueOnce({ available: true, times: [1] })
+    showSchedulePreview(preview)
+    const button = await screen.findByRole('button', { name: 'Next five fires' })
+    fireEvent.click(button)
+    await screen.findByText('No future fires')
+    fireEvent.click(button)
+    await screen.findByRole('listitem')
+    expect(screen.queryByText('No future fires')).toBeNull()
+  })
 })

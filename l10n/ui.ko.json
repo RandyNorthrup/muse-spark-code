@@ -2451,9 +2451,9 @@
       "historyUnavailable": "미리 볼 기록이 없습니다.",
       "eventUntrusted": "이벤트 내용은 신뢰할 수 없는 데이터이며 허용 범위, 도구 또는 대상을 변경할 수 없습니다.",
       "backgroundQuestion": "편집기가 닫혀 있을 때도 일정을 실행할까요?",
-      "backgroundYes": "예, 백그라운드 항목 추가",
+      "backgroundYes": "예",
       "backgroundNotNow": "나중에",
-      "backgroundNever": "다시 묻지 않기",
+      "backgroundNever": "안 함",
       "backgroundRemove": "백그라운드 항목 제거",
       "backgroundRemoved": "백그라운드 항목이 제거되었습니다.",
       "agentConsent": "{agent}이(가) 자신의 권한과 예산 내에서 이 일정을 만들도록 허용할까요?",
@@ -2513,7 +2513,9 @@
         "create": "이 프롬프트를 언제, 어디에, 어떤 권한으로 보낼지 선택합니다.",
         "timeline": "같은 대상의 예정된 실행과 충돌을 확인합니다."
       },
-      "anchorDate": "기준 날짜 (일정의 시간대)"
+      "anchorDate": "기준 날짜 (일정의 시간대)",
+      "stateUnknown": "상태 알 수 없음 — 재시도",
+      "retry": "재시도"
     }
   }
 }

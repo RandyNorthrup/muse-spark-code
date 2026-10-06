@@ -2733,9 +2733,9 @@
       "historyUnavailable": "Není historie pro náhled.",
       "eventUntrusted": "Obsah události jsou nedůvěryhodná data a nemůže měnit povolení, nástroje ani cíle.",
       "backgroundQuestion": "Spouštět plány při zavřených editorech?",
-      "backgroundYes": "Ano, přidat záznam na pozadí",
+      "backgroundYes": "Ano",
       "backgroundNotNow": "Teď ne",
-      "backgroundNever": "Znovu se neptat",
+      "backgroundNever": "Nikdy",
       "backgroundRemove": "Odstranit záznam na pozadí",
       "backgroundRemoved": "Záznam na pozadí odstraněn.",
       "agentConsent": "Povolit {agent} vytvořit tento plán v rámci vlastních oprávnění a rozpočtu?",
@@ -2801,7 +2801,9 @@
         "create": "Vyberte, kdy, kam a s jakými oprávněními se má tento pokyn odeslat.",
         "timeline": "Zobrazte nadcházející spuštění a souběhy u stejného cíle."
       },
-      "anchorDate": "Výchozí datum (v časovém pásmu plánu)"
+      "anchorDate": "Výchozí datum (v časovém pásmu plánu)",
+      "stateUnknown": "Stav neznámý — Zkusit znovu",
+      "retry": "Zkusit znovu"
     }
   }
 }

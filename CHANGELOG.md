@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Repair the unshipped M115 schedule surface: authority actions queue per
+  schedule and remain available during reads; uncertain writes show unknown
+  state with Retry and Revoke. Source failures preserve loaded schedules,
+  store-change notifications refresh mounted cards, and mutations refresh
+  open audits. Refused previews clear old results, invalid conditions cannot
+  save, target titles stay accurate, refusal rows preserve their actual reason,
+  and background consent choices use equal columns at narrow widths.
+  Final host wiring and shipping registration remain with M115 integration.
+
 - Correct M115's internal schedule contracts before implementation: stale
   whole-record updates cannot restore revoked grants, crash-receipt migration
   accepts fractional filesystem times, repeated fake approval requests remain

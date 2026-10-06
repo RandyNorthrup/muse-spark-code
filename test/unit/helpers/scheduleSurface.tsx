@@ -111,8 +111,8 @@ export function showScheduleSurface(
     nowMs: schedule.createdAtMs,
     ...overrides,
   }
-  render(<ScheduleSurface {...context} />)
-  return { request, preview, schedule, context }
+  const { unmount } = render(<ScheduleSurface {...context} />)
+  return { request, preview, schedule, context, unmount }
 }
 
 export async function editSchedule() {

@@ -2639,9 +2639,9 @@
       "historyUnavailable": "Aucun historique à prévisualiser.",
       "eventUntrusted": "Le contenu des événements est une donnée non fiable et ne peut modifier les autorisations, les outils ou les cibles.",
       "backgroundQuestion": "Exécuter les planifications quand les éditeurs sont fermés ?",
-      "backgroundYes": "Oui, ajouter l’entrée en arrière-plan",
+      "backgroundYes": "Oui",
       "backgroundNotNow": "Pas maintenant",
-      "backgroundNever": "Ne plus demander",
+      "backgroundNever": "Jamais",
       "backgroundRemove": "Supprimer l’entrée en arrière-plan",
       "backgroundRemoved": "Entrée en arrière-plan supprimée.",
       "agentConsent": "Autoriser {agent} à créer cette planification dans ses propres permissions et son budget ?",
@@ -2705,7 +2705,9 @@
         "create": "Choisissez quand, où et avec quelles autorisations envoyer cette consigne.",
         "timeline": "Consultez les prochains déclenchements et les conflits sur une même cible."
       },
-      "anchorDate": "Date de référence (dans le fuseau horaire de la planification)"
+      "anchorDate": "Date de référence (dans le fuseau horaire de la planification)",
+      "stateUnknown": "État inconnu — Réessayer",
+      "retry": "Réessayer"
     }
   }
 }

@@ -25,12 +25,17 @@ export function scheduleChannel(
       timer: ReturnType<typeof setTimeout>
     }
   >()
+  const changes = new Set<(message: unknown) => void>()
   const prefix = crypto.randomUUID()
   let sequence = 0
   let isDisposed = false
   const receive = (event: MessageEvent<unknown>) => {
     const parsed = parseScheduleHostMessage(event.data)
     if (!parsed.ok) return
+    if (parsed.message.type === 'scheduleChanged') {
+      for (const listener of changes) listener(parsed.message)
+      return
+    }
     const waiting = pending.get(parsed.message.requestId)
     if (waiting === undefined) return
     clearTimeout(waiting.timer)
@@ -39,6 +44,12 @@ export function scheduleChannel(
   }
   messages.addEventListener('message', receive)
   return {
+    subscribeChanges: (listener: (message: unknown) => void) => {
+      if (!isDisposed) changes.add(listener)
+      return () => {
+        changes.delete(listener)
+      }
+    },
     request: (request: ScheduleRequest): Promise<ScheduleResponse> =>
       new Promise((resolve, reject) => {
         if (isDisposed) {
@@ -77,6 +88,7 @@ export function scheduleChannel(
         waiting.reject(new Error(UI_TEXT.scheduleV2.editor.loadFailed))
       }
       pending.clear()
+      changes.clear()
     },
   }
 }

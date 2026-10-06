@@ -2451,9 +2451,9 @@
       "historyUnavailable": "没有可预览的历史。",
       "eventUntrusted": "事件内容是不可信数据，不能更改授权、工具或目标。",
       "backgroundQuestion": "编辑器关闭时仍运行日程吗？",
-      "backgroundYes": "是，添加后台条目",
+      "backgroundYes": "是",
       "backgroundNotNow": "暂时不要",
-      "backgroundNever": "不再询问",
+      "backgroundNever": "从不",
       "backgroundRemove": "删除后台条目",
       "backgroundRemoved": "后台条目已删除。",
       "agentConsent": "允许{agent}在自身权限和预算范围内创建此日程吗？",
@@ -2513,7 +2513,9 @@
         "create": "选择何时、向何处以及使用哪些权限发送此提示词。",
         "timeline": "查看同一目标即将发生的执行及冲突。"
       },
-      "anchorDate": "基准日期（计划的时区）"
+      "anchorDate": "基准日期（计划的时区）",
+      "stateUnknown": "状态未知 — 重试",
+      "retry": "重试"
     }
   }
 }

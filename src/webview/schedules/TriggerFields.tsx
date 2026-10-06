@@ -278,7 +278,7 @@ function EventFields({
   readonly trigger: EventTrigger
   readonly sources: EventSources
   readonly onChange: (value: EventTrigger) => void
-  readonly onValid: (isValid: boolean) => void
+  readonly onValid: (isValid: boolean, conditions?: string) => void
 }) {
   const [conditions, setConditions] = useState(() =>
     trigger.conditions.map((item) => `${item.field}=${String(item.equals)}`).join('\n'),
@@ -292,8 +292,12 @@ function EventFields({
           value={trigger.source}
           onChange={(event) => {
             const next = sources.find((item) => item.id === event.target.value)
-            if (next?.capability.available === true)
-              onChange({ ...trigger, source: next.id, event: next.kinds[0] ?? 'manual' })
+            if (next?.capability.available !== true) return
+            onValid(
+              true,
+              trigger.conditions.map((item) => `${item.field}=${String(item.equals)}`).join('\n'),
+            )
+            onChange({ ...trigger, source: next.id, event: next.kinds[0] ?? 'manual' })
           }}
         >
           <option value="" disabled>
@@ -343,10 +347,13 @@ function EventFields({
                   ? []
                   : text.split('\n').map((line) => {
                       const separator = line.indexOf('=')
-                      return { field: line.slice(0, separator), equals: line.slice(separator + 1) }
+                      return {
+                        field: separator < 1 ? '' : line.slice(0, separator),
+                        equals: line.slice(separator + 1),
+                      }
                     }),
             })
-            onValid(parsed.success)
+            onValid(parsed.success, text)
             if (parsed.success) onChange(parsed.data)
           }}
         />
@@ -369,7 +376,7 @@ export function TriggerFields({
   readonly zone: string
   readonly sources: EventSources
   readonly onChange: (value: Trigger) => void
-  readonly onValid: (isValid: boolean) => void
+  readonly onValid: (isValid: boolean, conditions?: string) => void
 }) {
   const changeTime = (kind: string, isComposed = false) => {
     const checkedZone = scheduleZoneSchema.safeParse(zone)

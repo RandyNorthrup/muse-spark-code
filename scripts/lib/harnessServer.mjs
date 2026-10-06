@@ -222,6 +222,7 @@ export function serveRepo(repoRoot) {
  * scrollbars headless Chrome otherwise hides, as its check measures one.
  */
 export const SIZED_SCENARIOS = {
+  'schedules-v2-background-narrow': { width: 320, ready: '.schedule-v2-consent' },
   'schedules-v2-list-narrow': { width: 320, ready: '[data-schedule-ready]' },
   'schedules-v2-editor-narrow': { width: 320, ready: '.schedule-v2-editor' },
   'schedules-v2-timeline-narrow': { width: 320, ready: '.schedule-v2-timeline li' },

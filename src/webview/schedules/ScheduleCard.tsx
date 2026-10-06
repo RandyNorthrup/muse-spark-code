@@ -1,7 +1,8 @@
+import { useRef } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { formatNumber, formatUsd, plural } from '../../shared/l10n/text'
 import type { ScheduleRequest } from '../../shared/scheduleV2'
-import type { GrantAudit, ScheduleView } from './ports'
+import type { GrantAudit, ScheduleView, ScheduleTargetChoice } from './ports'
 import { TriggerSummary } from './TriggerSummary'
 import {
   scheduleCreatorText,
@@ -14,17 +15,28 @@ export function ScheduleCard({
   schedule,
   audit,
   busy,
+  unknown,
+  targets,
+  currentConversationId,
+  onRetry,
+  onAuditOpen,
   onEdit,
   onAction,
 }: {
   readonly schedule: ScheduleView
   readonly audit: GrantAudit | undefined
   readonly busy: boolean
+  readonly unknown: boolean
+  readonly targets: readonly ScheduleTargetChoice[]
+  readonly currentConversationId: string | undefined
+  readonly onRetry: () => void
+  readonly onAuditOpen: (isOpen: boolean) => void
   readonly onEdit: () => void
   readonly onAction: (
     method: Exclude<Extract<ScheduleRequest, { id: string }>['method'], 'schedules/update'>,
   ) => void
 }) {
+  const auditOpen = useRef(false)
   return (
     <article className="schedule-v2-card" aria-label={schedule.name}>
       <h2>{schedule.name}</h2>
@@ -37,7 +49,7 @@ export function ScheduleCard({
           <TriggerSummary trigger={schedule.trigger} zone={schedule.zone} />
         </dd>
         <dt>{UI_TEXT.scheduleV2.labels.target}</dt>
-        <dd>{scheduleTargetText(schedule.target)}</dd>
+        <dd>{scheduleTargetText(schedule.target, targets, currentConversationId)}</dd>
         <dt>{UI_TEXT.scheduleV2.labels.delivery}</dt>
         <dd>{UI_TEXT.scheduleV2.delivery[schedule.delivery]}</dd>
         <dt>{UI_TEXT.scheduleV2.labels.mode}</dt>
@@ -78,7 +90,7 @@ export function ScheduleCard({
       {schedule.delivery === 'interrupt' ? (
         <p>{UI_TEXT.scheduleV2.messages.interruptWarning}</p>
       ) : null}
-      {schedule.paused ? (
+      {!unknown && schedule.paused ? (
         <p role="status">
           {UI_TEXT.scheduleV2.labels.paused}:{' '}
           {schedule.pauseReason === 'migrationConsentRequired'
@@ -86,25 +98,37 @@ export function ScheduleCard({
             : schedule.pauseReason}
         </p>
       ) : null}
-      <details>
-        <summary>{UI_TEXT.scheduleV2.labels.grant}</summary>
-        <ul>
-          {schedule.grant.rules.map((rule) => (
-            <li key={rule.id}>
-              <code>{rule.id}</code>: {scheduleGrantRuleText(rule)}
-            </li>
+      {unknown ? (
+        <p role="status">
+          {UI_TEXT.scheduleV2.editor.stateUnknown}{' '}
+          <button type="button" onClick={onRetry}>
+            {UI_TEXT.scheduleV2.editor.retry}
+          </button>
+        </p>
+      ) : (
+        <details>
+          <summary>{UI_TEXT.scheduleV2.labels.grant}</summary>
+          <ul>
+            {schedule.grant.rules.map((rule) => (
+              <li key={rule.id}>
+                <code>{rule.id}</code>: {scheduleGrantRuleText(rule)}
+              </li>
+            ))}
+          </ul>
+          {schedule.grant.destinationIds.map((id) => (
+            <p key={id}>
+              <code>{id}</code>
+            </p>
           ))}
-        </ul>
-        {schedule.grant.destinationIds.map((id) => (
-          <p key={id}>
-            <code>{id}</code>
-          </p>
-        ))}
-        <p>{formatUsd(schedule.grant.paidCapUsd, 2)}</p>
-      </details>
+          <p>{formatUsd(schedule.grant.paidCapUsd, 2)}</p>
+        </details>
+      )}
       <details
         onToggle={(event) => {
-          if (audit === undefined && event.currentTarget.open) onAction('schedules/grantAudit')
+          const isOpen = event.currentTarget.open
+          onAuditOpen(isOpen)
+          if (isOpen && audit === undefined && !auditOpen.current) onAction('schedules/grantAudit')
+          auditOpen.current = isOpen
         }}
       >
         <summary>{UI_TEXT.scheduleV2.editor.audit}</summary>
@@ -123,21 +147,21 @@ export function ScheduleCard({
         )}
       </details>
       <div className="schedule-v2-actions">
-        <button type="button" disabled={busy} onClick={onEdit}>
+        <button type="button" disabled={busy || unknown} onClick={onEdit}>
           {UI_TEXT.scheduleV2.editor.edit}
         </button>
         <button
           type="button"
-          disabled={busy}
           onClick={() => {
-            onAction(schedule.paused ? 'schedules/resume' : 'schedules/pause')
+            onAction(!unknown && schedule.paused ? 'schedules/resume' : 'schedules/pause')
           }}
         >
-          {schedule.paused ? UI_TEXT.scheduleV2.labels.resume : UI_TEXT.scheduleV2.labels.pause}
+          {!unknown && schedule.paused
+            ? UI_TEXT.scheduleV2.labels.resume
+            : UI_TEXT.scheduleV2.labels.pause}
         </button>
         <button
           type="button"
-          disabled={busy}
           onClick={() => {
             onAction('schedules/revokeGrant')
           }}
@@ -146,7 +170,7 @@ export function ScheduleCard({
         </button>
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || unknown}
           onClick={() => {
             onAction('schedules/runNow')
           }}
@@ -155,7 +179,7 @@ export function ScheduleCard({
         </button>
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || unknown}
           onClick={() => {
             onAction('schedules/remove')
           }}

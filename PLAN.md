@@ -6844,6 +6844,23 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM115V — Repair schedule surface review (2026-10-06)
+
+Repair RVM115V P2-1 through P2-10 and P3 in lane V's owned surface,
+channel, presentation, translations and harness. Authority mutations queue
+per schedule; reads never disable Pause/Resume/Revoke. Failed or lost write
+acknowledgements expose unknown authority with Retry and safe Revoke. List
+and sources load independently. Define a validated store-revision change
+notification and reread on it; W/S bind every durable cross-process write.
+Refresh open audits after mutations. Clear refused/stale previews, reset
+source validity, reject missing condition separators, use supplied target
+titles, preserve refusal reasons without inventing approval failures, and
+keep background consent buttons equal and unstacked at 320 px with open
+axe coverage. Each finding gets an unmodified-component regression and a
+byte-exact restored red drill in `docs/certification/m115-v.md`.
+No dependency, gate weakening, branch merge or live/paid call. The brief
+reserves aggregate quality and final host/help/shipping bindings for W/lead.
+
 ### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
 
 Repair all six RVM115L0 P2 findings before M115's wave lanes bind the
@@ -18386,6 +18403,17 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM115V bounded repair certification (2026-10-06).** The explicit
+rig/shared brief prohibits aggregate quality, full tests and branch merges.
+Run the nine owning unit files in three-file/three-worker batches, scoped
+lint/format, all five typecheck projects, localization, host API, deadcode,
+duplication, production build and the owned accessibility scenes directly
+on the Mac mini. Keep all gates and budgets unchanged. The review repair
+has 23 new regressions and 21 byte-exact restored red drills; W/lead retains
+aggregate quality and final host, editor and paid/live certification.
+Receipts and the named HELPREF-M115V binding residual are in
+`docs/certification/m115-v.md` and §9.
+
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
 test files, deliberate failures, typecheck, scoped lint/format, deadcode,
@@ -19592,6 +19620,22 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM115V bindings (unshipped).** RVM115V's ten P2s and P3 are repaired
+  in V's owned React/channel regions; no review finding is intentionally
+  deferred. W/S must publish validated `scheduleChanged` messages with the
+  durable workspace store revision after every write from any editor,
+  scheduler or runtime, including external-process writes, and bind the
+  channel's `subscribeChanges` into the surface. W also supplies target
+  titles/current conversation identity to transcript settlement details.
+  Until a title is supplied, the renderer says Named conversation plus its
+  id; it never falsely says This conversation. **HELPREF-M115V:** this base
+  lacks the feature catalogue/reference generator. Safe for now: these
+  repaired standalone components do not enable any unregistered command or
+  shipped v2 schedule. Follow-up: W merges HELPREF and registers the page,
+  its commands and corrected help with the existing integration bindings.
+  Aggregate quality/platform/live proof stays with W/lead; no paid or live
+  call is authorized here. Receipts: `docs/certification/m115-v.md`.
 
 - **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
   none is deferred. These are unshipped internal schedule contracts, not

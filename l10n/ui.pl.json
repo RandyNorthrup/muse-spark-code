@@ -2733,9 +2733,9 @@
       "historyUnavailable": "Brak historii do podglądu.",
       "eventUntrusted": "Treść zdarzenia jest niezaufaną daną i nie może zmieniać zezwoleń, narzędzi ani celów.",
       "backgroundQuestion": "Uruchamiać harmonogramy przy zamkniętych edytorach?",
-      "backgroundYes": "Tak, dodaj wpis w tle",
+      "backgroundYes": "Tak",
       "backgroundNotNow": "Nie teraz",
-      "backgroundNever": "Nie pytaj ponownie",
+      "backgroundNever": "Nigdy",
       "backgroundRemove": "Usuń wpis w tle",
       "backgroundRemoved": "Usunięto wpis w tle.",
       "agentConsent": "Czy pozwolić {agent} utworzyć harmonogram w ramach własnych uprawnień i budżetu?",
@@ -2801,7 +2801,9 @@
         "create": "Wybierz, kiedy, dokąd i z jakimi uprawnieniami wysłać ten monit.",
         "timeline": "Zobacz nadchodzące uruchomienia i kolizje dotyczące tego samego celu."
       },
-      "anchorDate": "Data odniesienia (w strefie czasowej harmonogramu)"
+      "anchorDate": "Data odniesienia (w strefie czasowej harmonogramu)",
+      "stateUnknown": "Stan nieznany — Ponów",
+      "retry": "Ponów"
     }
   }
 }

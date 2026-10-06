@@ -2545,9 +2545,9 @@
       "historyUnavailable": "Nincs előzmény az előnézethez.",
       "eventUntrusted": "Az esemény tartalma nem megbízható adat, és nem módosíthat engedélyeket, eszközöket vagy célokat.",
       "backgroundQuestion": "Fussanak az ütemezések bezárt szerkesztők mellett is?",
-      "backgroundYes": "Igen, háttérbejegyzés hozzáadása",
+      "backgroundYes": "Igen",
       "backgroundNotNow": "Most nem",
-      "backgroundNever": "Ne kérdezze újra",
+      "backgroundNever": "Soha",
       "backgroundRemove": "Háttérbejegyzés eltávolítása",
       "backgroundRemoved": "Háttérbejegyzés eltávolítva.",
       "agentConsent": "Engedélyezi, hogy {agent} saját jogosultságai és kerete szerint létrehozza ezt az ütemezést?",
@@ -2609,7 +2609,9 @@
         "create": "Válassza ki, mikor, hová és milyen engedélyekkel küldje el ezt az utasítást.",
         "timeline": "Tekintse meg a következő futásokat és az azonos célon történő ütközéseket."
       },
-      "anchorDate": "Kezdőnap (az ütemezés időzónájában)"
+      "anchorDate": "Kezdőnap (az ütemezés időzónájában)",
+      "stateUnknown": "Ismeretlen állapot — Újra",
+      "retry": "Újra"
     }
   }
 }

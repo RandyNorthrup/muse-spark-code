@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { installEmbeddedTable } from '../installTable'
 import { SCHEDULE_TIMELINE_HOURS, UI_TEXT } from '../../shared/constants'
@@ -8,6 +8,7 @@ import {
   scheduleResponseSchema,
   type ScheduleRequest,
 } from '../../shared/scheduleV2'
+import { scheduleChangedMessageSchema } from '../../shared/scheduleProtocol'
 import { ScheduleCard } from './ScheduleCard'
 import { ScheduleEditor } from './ScheduleEditor'
 import { ScheduleTimeline } from './ScheduleTimeline'
@@ -38,7 +39,7 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
   const { port, workspaceKey, initialView } = context
   const [schedules, setSchedules] = useState<ScheduleView[]>([])
   const [sources, setSources] = useState<EventSources>([])
-  const [audit, setAudit] = useState<Readonly<Record<string, GrantAudit>>>({})
+  const [audit, setAudit] = useState<Readonly<Record<string, GrantAudit | undefined>>>({})
   const [entries, setEntries] = useState<
     Extract<ScheduleResponse, { kind: 'timeline' }>['entries']
   >([])
@@ -47,106 +48,202 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
   const [hours, setHours] = useState<(typeof SCHEDULE_TIMELINE_HOURS)[number]>(
     SCHEDULE_TIMELINE_HOURS[0],
   )
-  const [busy, setBusy] = useState(false)
+  const [pending, setPending] = useState<Readonly<Record<string, number>>>({})
+  const [unknown, setUnknown] = useState<Readonly<Record<string, boolean>>>({})
+  const unknownIds = useRef(new Set<string>())
+  const queues = useRef(new Map<string, Promise<void>>())
+  const openAudits = useRef(new Set<string>())
+  const auditReads = useRef(new Map<string, number>())
+  const listRead = useRef(0)
+  const [hasList, setHasList] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState<string>()
   const [background, setBackground] =
     useState<Extract<ScheduleResponse, { kind: 'backgroundStatus' }>['status']>()
+  const schedulesRef = useRef(schedules)
+  useEffect(() => {
+    schedulesRef.current = schedules
+  }, [schedules])
+  const markAuthorityUnknown = (id: string, isUnknown: boolean) => {
+    if (isUnknown) unknownIds.current.add(id)
+    else unknownIds.current.delete(id)
+    setUnknown((previous) => ({ ...previous, [id]: isUnknown }))
+  }
+  const reload = useCallback(async () => {
+    const sequence = ++listRead.current
+    const list = await readSchedules(port, workspaceKey)
+    if (sequence !== listRead.current) return
+    setSchedules(list)
+    unknownIds.current.clear()
+    setUnknown({})
+    setHasList(true)
+    setLoaded(true)
+  }, [port, workspaceKey])
   useEffect(() => {
     let isCancelled = false
-    const load = async () => {
-      try {
-        const list = await readSchedules(port, workspaceKey)
-        const events = await request(port, {
-          method: 'schedules/eventSources',
-          workspaceKey: workspaceKey,
-        })
+    const fail = () => {
+      if (isCancelled) return
+      setError(UI_TEXT.scheduleV2.editor.loadFailed)
+      setLoaded(true)
+    }
+    const refresh = () => {
+      void reload().catch(fail)
+    }
+    refresh()
+    void request(port, { method: 'schedules/eventSources', workspaceKey })
+      .then((events) => {
         if (events.kind !== 'eventSources') throw new Error(UI_TEXT.scheduleV2.editor.loadFailed)
-        if (initialView === 'timeline') {
-          const timeline = await request(port, {
-            method: 'schedules/timeline',
-            workspaceKey,
-            hours: SCHEDULE_TIMELINE_HOURS[0],
-          })
+        if (!isCancelled) setSources(events.sources)
+      })
+      .catch(fail)
+    if (initialView === 'timeline') {
+      void request(port, {
+        method: 'schedules/timeline',
+        workspaceKey,
+        hours: SCHEDULE_TIMELINE_HOURS[0],
+      })
+        .then((timeline) => {
           if (timeline.kind !== 'timeline') throw new Error(UI_TEXT.scheduleV2.editor.loadFailed)
           if (!isCancelled) setEntries(timeline.entries)
-        }
-        if (!isCancelled) {
-          setSchedules(list)
-          setSources(events.sources)
-          setLoaded(true)
-        }
-      } catch {
-        if (!isCancelled) {
-          setError(UI_TEXT.scheduleV2.editor.loadFailed)
-          setLoaded(true)
-        }
-      }
+        })
+        .catch(fail)
     }
-    void load()
+    const unsubscribe = port.subscribeChanges?.((message) => {
+      const change = scheduleChangedMessageSchema.safeParse(message)
+      if (!change.success || change.data.workspaceKey !== workspaceKey) return
+      // Until a fresh list arrives, authority changed outside this surface.
+      for (const item of schedulesRef.current) unknownIds.current.add(item.id)
+      setUnknown(Object.fromEntries(schedulesRef.current.map((item) => [item.id, true])))
+      refresh()
+    })
+    const invalidate = () => {
+      ++listRead.current
+    }
     return () => {
       isCancelled = true
+      invalidate()
+      unsubscribe?.()
     }
-  }, [port, workspaceKey, initialView])
+  }, [port, workspaceKey, initialView, reload])
 
-  const reload = async () => {
-    setSchedules(await readSchedules(port, workspaceKey))
-  }
-  const act = async (input: ScheduleRequest) => {
-    if (busy) return
-    setBusy(true)
-    setError(undefined)
-    try {
-      const response = await request(port, input)
-      if (response.kind === 'refused') {
-        setError(response.reason)
-        if (input.method === 'schedules/update') {
-          // A stale revision must never be attached to old grant/consent data.
-          setEditing(undefined)
-          setView('list')
-          setAudit({})
+  const act = (input: ScheduleRequest) => {
+    const isAudit = input.method === 'schedules/grantAudit'
+    const id = !isAudit && 'id' in input ? input.id : undefined
+    const readKey = input.method.startsWith('schedules/background') ? 'background' : input.method
+    const key = id === undefined ? readKey : `schedule:${id}`
+    const perform = async () => {
+      setPending((previous) => ({ ...previous, [key]: (previous[key] ?? 0) + 1 }))
+      setError(undefined)
+      const auditSequence = isAudit ? (auditReads.current.get(input.id) ?? 0) + 1 : 0
+      if (isAudit) auditReads.current.set(input.id, auditSequence)
+      try {
+        const response = await request(port, input)
+        if (response.kind === 'refused') {
+          setError(response.reason)
+          if (input.method === 'schedules/update') {
+            // A stale revision must never be attached to old grant/consent data.
+            setEditing(undefined)
+            setView('list')
+            await reload()
+          }
+        } else if (
+          response.kind === 'grantAudit' &&
+          input.method === 'schedules/grantAudit' &&
+          response.scheduleId === input.id &&
+          response.entries.every((entry) => entry.scheduleId === input.id)
+        ) {
+          if (auditReads.current.get(input.id) === auditSequence)
+            setAudit((previous) => ({ ...previous, [response.scheduleId]: response.entries }))
+        } else if (response.kind === 'timeline' && input.method === 'schedules/timeline') {
+          setEntries(response.entries)
+          setView('timeline')
+        } else if (
+          response.kind === 'backgroundStatus' &&
+          input.method === 'schedules/backgroundStatus'
+        ) {
+          setBackground(response.status)
+        } else if (
+          !isAudit &&
+          response.kind === 'accepted' &&
+          input.method !== 'schedules/timeline' &&
+          input.method !== 'schedules/backgroundStatus'
+        ) {
+          if (id !== undefined) {
+            const hasAuthorityAcknowledgement = [
+              'schedules/pause',
+              'schedules/resume',
+              'schedules/revokeGrant',
+            ].includes(input.method)
+            markAuthorityUnknown(id, !hasAuthorityAcknowledgement || unknownIds.current.has(id))
+            if (hasAuthorityAcknowledgement)
+              setSchedules((previous) =>
+                previous.map((item) => {
+                  if (item.id !== id) return item
+                  if (input.method === 'schedules/revokeGrant')
+                    return {
+                      ...item,
+                      grant: { rules: [], destinationIds: [], paidCapUsd: 0 },
+                      paidCapUsd: 0,
+                    }
+                  return {
+                    ...item,
+                    paused: input.method === 'schedules/pause',
+                    pauseReason: undefined,
+                  }
+                }),
+              )
+            setAudit((previous) => ({ ...previous, [id]: undefined }))
+            if (openAudits.current.has(id))
+              void act({ method: 'schedules/grantAudit', workspaceKey, id })
+          }
+          switch (input.method) {
+            case 'schedules/backgroundRemove': {
+              setBackground({ registered: false })
+              break
+            }
+            case 'schedules/background': {
+              const status = await request(port, { method: 'schedules/backgroundStatus' })
+              if (status.kind !== 'backgroundStatus')
+                throw new Error(UI_TEXT.scheduleV2.editor.loadFailed)
+              setBackground(status.status)
+
+              break
+            }
+            case 'schedules/create':
+            case 'schedules/update': {
+              setEditing(undefined)
+              setView('list')
+
+              break
+            }
+            // No default
+          }
           await reload()
-        }
-      } else if (
-        response.kind === 'grantAudit' &&
-        input.method === 'schedules/grantAudit' &&
-        response.scheduleId === input.id &&
-        response.entries.every((entry) => entry.scheduleId === input.id)
-      ) {
-        setAudit((previous) => ({ ...previous, [response.scheduleId]: response.entries }))
-      } else if (response.kind === 'timeline' && input.method === 'schedules/timeline') {
-        setEntries(response.entries)
-        setView('timeline')
-      } else if (
-        response.kind === 'backgroundStatus' &&
-        input.method === 'schedules/backgroundStatus'
-      ) {
-        setBackground(response.status)
-      } else if (
-        response.kind === 'accepted' &&
-        input.method !== 'schedules/grantAudit' &&
-        input.method !== 'schedules/timeline' &&
-        input.method !== 'schedules/backgroundStatus'
-      ) {
-        setAudit({})
-        if (input.method === 'schedules/backgroundRemove') setBackground({ registered: false })
-        else if (input.method === 'schedules/background') {
-          const status = await request(port, { method: 'schedules/backgroundStatus' })
-          if (status.kind !== 'backgroundStatus')
-            throw new Error(UI_TEXT.scheduleV2.editor.loadFailed)
-          setBackground(status.status)
-        }
-        setEditing(undefined)
-        setView('list')
-        await reload()
-      } else {
-        throw new Error(UI_TEXT.scheduleV2.editor.loadFailed)
+        } else throw new Error(UI_TEXT.scheduleV2.editor.loadFailed)
+      } catch {
+        if (id !== undefined) markAuthorityUnknown(id, true)
+        setError(UI_TEXT.scheduleV2.editor.loadFailed)
+      } finally {
+        setPending((previous) => ({ ...previous, [key]: Math.max(0, (previous[key] ?? 1) - 1) }))
       }
-    } catch {
-      setError(UI_TEXT.scheduleV2.editor.loadFailed)
-    } finally {
-      setBusy(false)
     }
+    if (id === undefined) return perform()
+    // Authority clicks remain available; intent is serialized for this id only.
+    const previous = queues.current.get(id) ?? Promise.resolve()
+    const next = (async () => {
+      await previous
+      await perform()
+    })()
+    queues.current.set(id, next)
+    void next.finally(() => {
+      if (queues.current.get(id) === next) queues.current.delete(id)
+    })
+    return next
+  }
+  const retry = () => {
+    void reload().catch(() => {
+      setError(UI_TEXT.scheduleV2.editor.loadFailed)
+    })
   }
   const backgroundLabels = {
     yes: UI_TEXT.scheduleV2.messages.backgroundYes,
@@ -160,7 +257,9 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
         context={context}
         schedule={editing}
         sources={sources}
-        busy={busy}
+        busy={
+          (pending[editing === undefined ? 'schedules/create' : `schedule:${editing.id}`] ?? 0) > 0
+        }
         onSave={(input) => {
           void act(input)
         }}
@@ -175,7 +274,7 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
           {UI_TEXT.scheduleV2.labels.timeline}
           <select
             value={hours}
-            disabled={busy}
+            disabled={(pending['schedules/timeline'] ?? 0) > 0}
             onChange={(event) => {
               const next = SCHEDULE_TIMELINE_HOURS.find(
                 (value) => String(value) === event.target.value,
@@ -199,12 +298,17 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
             ))}
           </select>
         </label>
-        <ScheduleTimeline entries={entries} schedules={schedules} />
+        <ScheduleTimeline
+          entries={entries}
+          schedules={schedules}
+          targets={context.targets}
+          currentConversationId={context.currentConversationId}
+        />
       </>
     ),
     list: (
       <div className="schedule-v2-list">
-        {schedules.length === 0 ? (
+        {hasList && schedules.length === 0 ? (
           <p role="status">{UI_TEXT.scheduleV2.editor.empty}</p>
         ) : (
           schedules.map((schedule) => (
@@ -212,7 +316,15 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
               key={schedule.id}
               schedule={schedule}
               audit={audit[schedule.id]}
-              busy={busy}
+              busy={(pending[`schedule:${schedule.id}`] ?? 0) > 0}
+              unknown={unknown[schedule.id] === true}
+              targets={context.targets}
+              currentConversationId={context.currentConversationId}
+              onRetry={retry}
+              onAuditOpen={(isOpen) => {
+                if (isOpen) openAudits.current.add(schedule.id)
+                else openAudits.current.delete(schedule.id)
+              }}
               onEdit={() => {
                 setEditing(schedule)
                 setView('editor')
@@ -238,13 +350,14 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
           type="button"
           onClick={() => {
             setView('list')
+            retry()
           }}
         >
           {UI_TEXT.scheduleV2.labels.title}
         </button>
         <button
           type="button"
-          disabled={!loaded || busy}
+          disabled={!loaded}
           onClick={() => {
             setEditing(undefined)
             setView('editor')
@@ -254,7 +367,7 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
         </button>
         <button
           type="button"
-          disabled={!loaded || busy}
+          disabled={!loaded || (pending['schedules/timeline'] ?? 0) > 0}
           onClick={() => {
             void act({ method: 'schedules/timeline', workspaceKey: workspaceKey, hours })
           }}
@@ -268,12 +381,17 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
         )}
       </nav>
       {error === undefined ? null : <p role="alert">{error}</p>}
+      {loaded && !hasList ? (
+        <button type="button" onClick={retry}>
+          {UI_TEXT.scheduleV2.editor.retry}
+        </button>
+      ) : null}
       {loaded ? content[view] : <p role="status">{UI_TEXT.loadingOutput}</p>}
       <details>
         <summary>{UI_TEXT.scheduleV2.labels.background}</summary>
         <button
           type="button"
-          disabled={busy}
+          disabled={(pending['background'] ?? 0) > 0}
           onClick={() => {
             void act({ method: 'schedules/backgroundStatus' })
           }}
@@ -283,7 +401,7 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
         {background?.registered === true ? (
           <button
             type="button"
-            disabled={busy}
+            disabled={(pending['background'] ?? 0) > 0}
             onClick={() => {
               void act({ method: 'schedules/backgroundRemove' })
             }}
@@ -294,12 +412,12 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
         {background?.registered === false ? (
           <>
             <p>{UI_TEXT.scheduleV2.messages.backgroundQuestion}</p>
-            <div className="schedule-v2-actions">
+            <div className="schedule-v2-consent">
               {(['yes', 'notNow', 'never'] as const).map((choice) => (
                 <button
                   key={choice}
                   type="button"
-                  disabled={busy}
+                  disabled={(pending['background'] ?? 0) > 0}
                   onClick={() => {
                     void act({
                       method: 'schedules/background',

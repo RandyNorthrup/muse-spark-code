@@ -91,4 +91,27 @@ describe('schedule versioned channel', () => {
     expect(vi.getTimerCount()).toBe(0)
     instance.dispose()
   })
+  it('publishes only validated schedule changes independently of pending responses', async () => {
+    const instance = channel()
+    const listener = vi.fn()
+    const unsubscribe = instance.subscribeChanges(listener)
+    const pending = instance.request({ method: 'schedules/list', workspaceKey: 'workspace' })
+    const change = {
+      type: 'scheduleChanged',
+      version: SCHEDULE_PROTOCOL_VERSION,
+      workspaceKey: 'workspace',
+      revision: 1,
+    }
+    window.dispatchEvent(new MessageEvent('message', { data: { ...change, revision: -1 } }))
+    window.dispatchEvent(new MessageEvent('message', { data: { ...change, version: 2 } }))
+    expect(listener).not.toHaveBeenCalled()
+    window.dispatchEvent(new MessageEvent('message', { data: change }))
+    expect(listener).toHaveBeenCalledWith(change)
+    send(instance.post.mock.calls[0]?.[0].requestId ?? '', 1, { kind: 'list', schedules: [] })
+    await expect(pending).resolves.toEqual({ kind: 'list', schedules: [] })
+    unsubscribe()
+    window.dispatchEvent(new MessageEvent('message', { data: change }))
+    expect(listener).toHaveBeenCalledOnce()
+    instance.dispose()
+  })
 })
